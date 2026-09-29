@@ -17,11 +17,17 @@ import {
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { decodeModelLogKey, type TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import { createAcceptanceApplication, type AcceptanceApplication } from './bootstrap.ts'
+import {
+  openDemoDiagnosticAssembly,
+  type DemoDiagnosticAssembly,
+  type DemoDiagnosticConfig,
+} from './diagnostic-assembly.ts'
 import { createDemoCallHost } from './model-call-host.ts'
 import type { AuthenticatedActor } from './types.ts'
 import { createDemoConfig, MODEL } from './deployment.ts'
 import type { RetirementPolicy } from '@omne-harness-lite/pi-ai-transport'
 import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
+import type { TenantId } from '@omne-harness-lite/identity-values'
 
 interface LocalState {
   readonly version: 1
@@ -122,6 +128,8 @@ export interface DemoConversation {
   readonly identity: { readonly account: string; readonly organization: string }
   readonly application: AcceptanceApplication
   readonly actor: AuthenticatedActor
+  /** Trusted local engineering read handles; no tenant-facing query endpoint is implied. */
+  readonly diagnostics: Pick<DemoDiagnosticAssembly, 'local' | 'tenant' | 'transports' | 'health'>
   readonly models: () => ReturnType<AcceptanceApplication['displayList']>
   readonly currentModel: () => ReturnType<AcceptanceApplication['effectiveModel']>
   readonly selectModel: (routeName: string) => ReturnType<AcceptanceApplication['selectModel']>
@@ -132,7 +140,7 @@ export interface DemoConversation {
   readonly stopActive: () => void
   readonly history: () => Promise<readonly { role: string; text: string }[]>
   readonly totals: () => Promise<DemoTotals>
-  readonly close: AcceptanceApplication['close']
+  readonly close: () => ReturnType<DemoDiagnosticAssembly['closeAfterBusiness']>
 }
 
 export type DemoSendResult =
@@ -180,6 +188,50 @@ export interface DemoObserverBounds {
   readonly bytes: number
 }
 
+/** Explicit example limits; each run opens distinct local and verified-tenant owners. */
+export function createDemoDiagnosticConfig(
+  directory: string,
+  tenant: TenantId,
+  retirement: RetirementPolicy,
+): DemoDiagnosticConfig {
+  const instance = randomUUID()
+  return {
+    local: { rootDir: join(directory, 'diagnostics', 'local'), collectorId: `local-${instance}` },
+    tenant: {
+      rootDir: join(directory, 'diagnostics', 'tenant'),
+      collectorId: `tenant-${instance}`,
+      tenant,
+    },
+    collector: {
+      maxRecordBytes: 65_536,
+      maxFieldBytes: 4_096,
+      queueMaxRecords: 256,
+      queueMaxBytes: 1_048_576,
+      segmentMaxBytes: 1_048_576,
+      retainedMaxBytes: 16_777_216,
+      retainedMaxSegments: 16,
+      retentionMs: 604_800_000,
+      queryMaxRecords: 128,
+      queryMaxBytes: 1_048_576,
+      queryScanMaxBytes: 1_048_576,
+      queryConcurrency: 2,
+      queryMaxDurationMs: 5_000,
+      exportMaxRecords: 128,
+      exportMaxBytes: 1_048_576,
+      closeWaitMs: 5_000,
+      stderrMaxReports: 2,
+      wallClock: () => new Date(),
+      monotonicClock: () => Number(process.hrtime.bigint() / 1_000_000n),
+      schedule(milliseconds, callback) {
+        const timer = setTimeout(callback, milliseconds)
+        return { cancel: () => clearTimeout(timer) }
+      },
+    },
+    transportRetainedInstancesMax: 4,
+    transportRetirement: retirement,
+  }
+}
+
 const defaultObserverBounds: DemoObserverBounds = Object.freeze({ events: 256, bytes: 262_144 })
 
 /** Production is the default; controlled TLS is available only through the existing trusted test hook. */
@@ -219,6 +271,7 @@ export async function openDemo(
   const directory = resolve(dataDirectory),
     initialized = await initialize(directory)
   let app: AcceptanceApplication | undefined
+  let diagnosticAssembly: DemoDiagnosticAssembly | undefined
   function now(): string {
     const value = app?.currentTime()
     if (value === undefined || value === 'unavailable') throw new Error('lease clock unavailable')
@@ -248,6 +301,17 @@ export async function openDemo(
       throw new Error('local demo account registration rejected; setup remains incomplete')
     const actor = await app.authenticate(initialized.state.identifier, initialized.state.password)
     if (!('account' in actor)) throw new Error('demo authentication rejected')
+    await mkdir(join(directory, 'diagnostics'), { mode: 0o700, recursive: true })
+    diagnosticAssembly = await openDemoDiagnosticAssembly(
+      createDemoDiagnosticConfig(directory, actor.tenant, retirement),
+    )
+    const activated = await app.activateModelRequest(
+      actor,
+      diagnosticAssembly.tenant,
+      diagnosticAssembly.transports,
+    )
+    if (!('activated' in activated)) throw new Error('demo model stage unavailable')
+    const openedDiagnostics = diagnosticAssembly
     const session = initialized.state.session
     if (!initialized.fresh) {
       const existing = await app.readSessionLog(actor, session)
@@ -309,6 +373,7 @@ export async function openDemo(
       identity: { account: actor.account, organization: actor.tenant.organization },
       application: app,
       actor,
+      diagnostics: openedDiagnostics,
       models: () => app.displayList(actor, session),
       currentModel: () => app.effectiveModel(actor, session),
       selectModel: routeName => app.selectModel(actor, session, routeName),
@@ -456,10 +521,12 @@ export async function openDemo(
         }
         return { responses: responses.length, usage, cost: { knownSum, unknownCount } }
       },
-      close: () => app.close(),
+      close: () => openedDiagnostics.closeAfterBusiness(() => app.close()),
     }
   } catch (error) {
-    const closed = await app.close()
+    const closed = diagnosticAssembly
+      ? await diagnosticAssembly.closeAfterBusiness(() => app.close())
+      : await app.close()
     if (!closed.complete) throw new DemoStartupFailure(false)
     throw error
   }

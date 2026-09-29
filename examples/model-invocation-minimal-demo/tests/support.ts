@@ -12,6 +12,9 @@ import {
 } from '@omne-harness-lite/identity-values'
 import type { CredentialRef } from '@omne-harness-lite/asset-model'
 import type { Duration } from '@omne-harness-lite/offer-expiry'
+import type { DemoDiagnosticAssembly } from '../src/diagnostic-assembly.ts'
+import { openDemoDiagnosticAssembly } from '../src/diagnostic-assembly.ts'
+import { createDemoDiagnosticConfig } from '../src/demo.ts'
 import { parseOfferTtl } from '@omne-harness-lite/offer-expiry'
 import {
   createAcceptanceApplication,
@@ -147,4 +150,33 @@ export async function actor(
   const identity = await app.authenticate(identifier, PASSWORD)
   if (!('account' in identity)) throw new Error('actual authentication failed')
   return identity
+}
+
+/** Real journal owner and P-2 activation for test callers using a verified actor. */
+export async function activateModelFixture(
+  app: ReturnType<typeof createAcceptanceApplication>,
+  authenticated: AuthenticatedActor,
+  config: AcceptanceConfig,
+): Promise<DemoDiagnosticAssembly> {
+  if (config.modelRequest === undefined) throw new Error('model request deployment required')
+  const directory = dirname(config.databaseFile)
+  await mkdir(join(directory, 'diagnostics'), { mode: 0o700 })
+  const diagnostics = await openDemoDiagnosticAssembly(
+    createDemoDiagnosticConfig(
+      directory,
+      authenticated.tenant,
+      config.modelRequest.transport.retirement,
+    ),
+  )
+  const activated = await app.activateModelRequest(
+    authenticated,
+    diagnostics.tenant,
+    diagnostics.transports,
+  )
+  if (!('activated' in activated)) {
+    const cleanup = await diagnostics.closeAfterBusiness(() => app.close())
+    if (!cleanup.complete) throw new Error('model fixture startup cleanup incomplete')
+    throw new Error('model fixture activation rejected')
+  }
+  return diagnostics
 }

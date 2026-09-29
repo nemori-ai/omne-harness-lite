@@ -88,7 +88,11 @@ import {
   piAiTransportPlugin,
 } from '@omne-harness-lite/pi-ai-transport/plugin'
 import { prepareModelRequestDeployment } from './model-request-deployment.ts'
-import type { DemoTransportRetention, TransportReservation } from './diagnostic-assembly.ts'
+import type {
+  DemoDiagnosticScope,
+  DemoTransportRetention,
+  TransportReservation,
+} from './diagnostic-assembly.ts'
 import { randomUUID, timingSafeEqual } from 'node:crypto'
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
@@ -292,6 +296,12 @@ function operationError(error: unknown, step: string): Error {
 
 export interface AcceptanceApplication {
   readonly ready: Promise<{ readonly confirmation: UpgradeConfirmation }>
+  /** The verified tenant's diagnostic owner must already be open before P-2 starts. */
+  activateModelRequest(
+    actor: AuthenticatedActor,
+    diagnostics: DemoDiagnosticScope,
+    transportRetention: DemoTransportRetention,
+  ): Promise<ScenarioResult<{ readonly activated: true }>>
   /** Read the already-owned lease Clock; no second wall-clock authority. */
   currentTime(): string | 'unavailable'
   register(
@@ -413,8 +423,6 @@ export function createAcceptanceApplication(
     readonly developmentTransport?: Pick<TransportOptions, 'baseUrl' | 'tls'>
     /** Trusted host evidence. Only a supervisor that saw the old worker exit may set covered. */
     readonly coldRecovery?: { readonly covered: boolean }
-    /** Demo-owned limit across current, constructing, old live and terminal transport generations. */
-    readonly transportRetention?: DemoTransportRetention
   },
 ): AcceptanceApplication {
   const stage = options.stage ?? 'authentication'
@@ -491,8 +499,11 @@ export function createAcceptanceApplication(
   const observerAccess = createDemoObserverAccess()
   const observerGrants = new Set<{ readonly revoke: () => Promise<RuntimeCloseResult> }>()
   let gateOpen = false,
+    identityGateOpen = false,
     closing = false,
     diagnosticFailures = 0
+  let activationTask: Promise<ScenarioResult<{ readonly activated: true }>> | undefined
+  let activationTenant: TenantId | undefined
   let activeClock: Clock | undefined
   let cleanupPromise: Promise<CloseResult> | undefined,
     closingPromise: Promise<CloseResult> | undefined
@@ -605,6 +616,12 @@ export function createAcceptanceApplication(
         (transportService !== undefined &&
           currentInputs !== undefined &&
           inputSource !== undefined))
+    )
+  }
+  function admitIdentity(): boolean {
+    return (
+      !closing &&
+      (stage === 'modelRequest' ? identityGateOpen && allActive(SESSION_LOG_FIBERS) : admit())
     )
   }
   function track<T>(work: () => Promise<T>): Promise<T> {
@@ -992,122 +1009,6 @@ export function createAcceptanceApplication(
         })
         await load('sessionLog', sessionLogContribution(sessionLogOwner), {})
       }
-      if (stage === 'modelRequest') {
-        if (
-          requestDeployment === undefined ||
-          sessionTenancy === undefined ||
-          storage === undefined
-        )
-          throw new Error('acceptance request deployment absent')
-        const actualMemberships: unknown = context.get(MEMBERSHIPS_SERVICE)
-        if (!sourceMembershipFace(actualMemberships))
-          throw new Error('acceptance source memberships absent')
-        const ports = {
-          monotonicNow: requestDeployment.evaluationInputs.monotonicNow,
-          diagnostics: () =>
-            record({ event: 'evaluationInputs', phase: 'provider', outcome: 'observed' }),
-          onDiagnosticFailure: () => {
-            diagnosticFailures += 1
-          },
-        }
-        inputSource = {
-          ...ports,
-          storage,
-          memberships: actualMemberships,
-          sessionTenancy,
-          storeKey: requestDeployment.evaluationInputs.storeKey,
-          deployedOfficial: requestDeployment.evaluationInputs.deployedOfficial,
-        }
-        await load('evaluationInputs', createEvaluationInputStorePlugin(ports), {
-          storeKey: inputSource.storeKey,
-          deployedOfficial: [...inputSource.deployedOfficial],
-        })
-        const value: unknown = context.get(CURRENT_EVALUATION_INPUTS_SERVICE)
-        if (!currentInputFace(value)) throw new Error('acceptance input service absent')
-        currentInputs = value
-        phase = 'transport'
-        category = 'failed'
-        assertNotClosing()
-        const transportConfiguration = requestDeployment.transport
-        if (transportConfiguration.inputMeters.length !== transportConfiguration.definitions.length)
-          throw new Error('one exact input meter per model contribution required')
-        const onDiagnostic = (event: { readonly level: string }) =>
-          record({ event: 'transport', phase: 'provider', outcome: event.level })
-        const reserved = options.transportRetention?.reserveReplacement()
-        if (reserved && 'unavailable' in reserved) throw new Error('transport_retention_full')
-        const reservation: TransportReservation | undefined = reserved?.reservation
-        let committed = false
-        try {
-          if (options.developmentTransport === undefined) {
-            await load('modelTransport', piAiTransportPlugin, {
-              policy: transportConfiguration.policy,
-              retirement: transportConfiguration.retirement,
-              onDiagnostic,
-            })
-          } else {
-            const developmentTransport = options.developmentTransport
-            await load(
-              'modelTransport',
-              {
-                name: 'acceptance-controlled-model-transport',
-                apply(ctx: Context) {
-                  const service = createModelTransportService({
-                    ...developmentTransport,
-                    policy: transportConfiguration.policy,
-                    onDiagnostic,
-                  })
-                  ctx.effect(() => async () => {
-                    const result = await service.close(transportConfiguration.retirement)
-                    if ('cleanup_failed' in result || 'rejected' in result)
-                      throw new Error('model transport cleanup failed')
-                    await service.closed
-                  })
-                  ctx.provide(MODEL_TRANSPORT_SERVICE, service)
-                },
-              },
-              undefined,
-            )
-          }
-          const provided: unknown = context.get(MODEL_TRANSPORT_SERVICE)
-          if (!modelTransportFace(provided)) throw new Error('model transport service absent')
-          transportService = provided
-          reservation?.commit(provided)
-          committed = true
-        } catch (error) {
-          if (reservation && !committed) {
-            let partial: unknown
-            try {
-              partial = context.get(MODEL_TRANSPORT_SERVICE)
-            } catch {
-              // A fiber may still own a failed construction even if no service can be read.
-            }
-            if (modelTransportFace(partial)) reservation.adoptFailedConstruction(partial)
-            else reservation.abortUnknown()
-          }
-          throw error
-        }
-        for (const definition of transportConfiguration.definitions) {
-          const meters = transportConfiguration.inputMeters.filter(
-            meter =>
-              meter.modelId === definition.modelId &&
-              meter.definitionRevision === definition.revision &&
-              meter.implementation.name === definition.implementation.name &&
-              meter.implementation.revision === definition.implementation.revision &&
-              Object.hasOwn(definition.routes, meter.provider),
-          )
-          if (meters.length !== 1 || meters[0] === undefined)
-            throw new Error('one exact input meter per model contribution required')
-          const fiber = context.plugin(
-            createModelPlugin(definition, meters[0], transportConfiguration.retirement),
-            {},
-          )
-          modelContributions.push(fiber)
-          await hooks?.modelContributionCreated?.(definition, fiber)
-          await fiber
-          if (fiber.state !== FIBER_STATE.ACTIVE) throw new Error('model contribution not active')
-        }
-        record({ event: 'transport', phase: 'contributions', outcome: 'ready' })
-      }
       const loginValue: unknown = context.get(LOGINS_SERVICE),
         membershipValue: unknown = context.get(MEMBERSHIPS_SERVICE),
         catalogValue: unknown = context.get(MODEL_CATALOG_SERVICE),
@@ -1126,150 +1027,17 @@ export function createAcceptanceApplication(
       catalog = catalogValue
       lookup = lookupValue
       registration = registrationValue
-      if (stage === 'modelRequest') {
-        if (requestDeployment === undefined || transportService === undefined)
-          throw new Error('model runtime construction prerequisites absent')
-        const deployment = requestDeployment
-        const transport = transportService
-        function newId<B extends string>(label: string, brand: B) {
-          const parsed = parseOpaqueIdentifier(`${label}-${randomUUID()}`, brand)
-          if (!isOk(parsed)) throw new Error('model identity source invalid')
-          return parsed.ok
-        }
-        const construction: RuntimeConstruction<PlannedRequest, RawResponse> = {
-          sessions: {
-            async bind(session) {
-              const originalActor = runtimeActors.get(session)
-              if (originalActor === undefined) return { failure: 'unavailable' }
-              const access = await sessionAccess(originalActor, session)
-              if (!('borrow' in access)) return { failure: 'unavailable' }
-              if (catalog === undefined || lookup === undefined || currentInputs === undefined)
-                return { failure: 'unavailable' }
-              const selectionInput = ensureSelection(access.borrow)
-              if (selectionInput === undefined) return { failure: 'unavailable' }
-              const existing = runtimeBindings.get(session)
-              if (existing !== undefined) {
-                if (existing.log !== access.borrow.binding || existing.selection !== selectionInput)
-                  return { failure: 'unavailable' }
-                return { binding: existing }
-              }
-              const binding: SessionRuntimeBinding = {
-                log: access.borrow.binding,
-                selection: selectionInput,
-                catalog,
-                credentials: lookup,
-                currentEvaluationInputs: currentInputs,
-                observers: observerAccess.access,
-                tools: requestDeployment?.assetRegistry ?? {
-                  async lookup() {
-                    return { failure: 'unavailable' }
-                  },
-                },
-              }
-              runtimeBindings.set(session, binding)
-              return { binding }
-            },
-          },
-          calls,
-          transport: {
-            acquire(binding, routeName) {
-              if (closing) return { unavailable: true }
-              const acquired = transport.acquire(binding, routeName)
-              if ('lease' in acquired) return acquired
-              return acquired.rejected === 'invalidInput'
-                ? { invalidInput: { reason: 'malformed' } }
-                : { unavailable: true }
-            },
-          },
-          settlementContention: deployment.settlement.contention,
-          settlementScheduler: deployment.settlement.scheduler,
-          policy: {
-            ...deployment.invocation,
-            diagnostic: event =>
-              'tenant' in event ? recordSettlement(event) : recordInvocationDiagnostic(event),
-          },
-          tokenMargin: deployment.tokenMargin,
-          identities: {
-            call: () => newId('call', 'ModelCallId'),
-            response: () => newId('response', 'ResponseId'),
-            message: () => newId('reply', 'MessageId'),
-          },
-          history: {
-            call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
-            failure: readDemoNoRunFailure,
-            run: () => ({ unavailable: true }),
-          },
-          reservationWaitPolicy: deployment.reservationWaitPolicy,
-          recovery: {
-            async enter(input) {
-              const ready = recoveryReady.get(input.session)
-              if (
-                ready === undefined ||
-                ready.scopeIssued ||
-                !recoveryAdmission.has(input.session) ||
-                ready.binding.log.currentGeneration() !== ready.binding.log.generation ||
-                ready.owner.owner.admission() !== 'open' ||
-                'unknown' in ready.owner.owner.opened() ||
-                ready.owner.owner.unresolvedWrites().length !== 0
-              )
-                return { unavailable: true }
-              ready.scopeIssued = true
-              record({ event: 'operation', phase: 'recovery', outcome: 'entered' })
-              let closed = false
-              return {
-                scope: {
-                  binding: ready.binding,
-                  owner: ready.owner.owner,
-                  originalInvocation(key, target) {
-                    if (key.session !== input.session || key.callId !== target.call)
-                      return { unavailable: true }
-                    const original = ready.originals.get(key.callId)
-                    if (original !== undefined) {
-                      if (
-                        original.target.response !== target.response ||
-                        !modelLogJsonEqual(original.target.dispatch, target.dispatch)
-                      )
-                        return { unavailable: true }
-                      return { original: original.handle }
-                    }
-                    const cold = ready.coldTargets.get(key.callId)
-                    if (
-                      !ready.coldAbsent ||
-                      cold === undefined ||
-                      cold.response !== target.response ||
-                      !modelLogJsonEqual(cold.dispatch, target.dispatch) ||
-                      trackedCalls.get(key.session)?.has(key.callId)
-                    )
-                      return { unavailable: true }
-                    return { absent: true }
-                  },
-                  async close() {
-                    if (closed) return
-                    await ready.owner.drain()
-                    if (
-                      ready.owner.retained() ||
-                      ready.owner.owner.unresolvedWrites().length !== 0 ||
-                      ready.binding.log.currentGeneration() !== ready.binding.log.generation
-                    )
-                      throw new Error('recovery owner retained')
-                    closed = true
-                    recoveryReady.delete(input.session)
-                    recoveryAdmission.delete(input.session)
-                    record({ event: 'operation', phase: 'recovery', outcome: 'closed' })
-                  },
-                },
-              }
-            },
-          },
-          diagnostic: recordSettlement,
-        }
-        modelRuntime = createModelRuntime(construction)
-      }
       phase = 'admission'
       assertNotClosing()
-      if (!allActive(requiredFibers)) throw new Error('acceptance required stage changed')
-      gateOpen = true
-      record({ event: 'gate', phase: 'scenario', outcome: 'open' })
+      if (!allActive(stage === 'modelRequest' ? SESSION_LOG_FIBERS : requiredFibers))
+        throw new Error('acceptance required stage changed')
+      if (stage === 'modelRequest') identityGateOpen = true
+      else gateOpen = true
+      record({
+        event: 'gate',
+        phase: 'scenario',
+        outcome: stage === 'modelRequest' ? 'identityOpen' : 'open',
+      })
       return { confirmation }
     } catch (error) {
       if (error instanceof StorageStartupFailure) category = 'storage'
@@ -1312,11 +1080,323 @@ export function createAcceptanceApplication(
       tenant: Object.freeze({ ...current.ok }),
     })
   }
+  function activateModelRequest(
+    actor: AuthenticatedActor,
+    diagnostics: DemoDiagnosticScope,
+    transportRetention: DemoTransportRetention,
+  ): Promise<ScenarioResult<{ readonly activated: true }>> {
+    if (stage !== 'modelRequest' || closing) return Promise.resolve({ failure: 'stageClosed' })
+    if (activationTask !== undefined) {
+      const claimed = parseTenantId(actor?.tenant)
+      return isOk(claimed) &&
+        activationTenant !== undefined &&
+        tenantIdEquals(claimed.ok, activationTenant)
+        ? activationTask
+        : Promise.resolve({ failure: 'identityMismatch' })
+    }
+    const task = (async (): Promise<ScenarioResult<{ readonly activated: true }>> => {
+      await ready
+      if (!admitIdentity()) return { failure: 'stageClosed' }
+      const checked = await checkActor(actor)
+      if (!('account' in checked)) return checked
+      if (
+        diagnostics?.scope.kind !== 'tenant' ||
+        !tenantIdEquals(diagnostics.scope.tenant, checked.tenant)
+      )
+        return { failure: 'identityMismatch' }
+      if (
+        typeof diagnostics.collector?.emitter !== 'function' ||
+        typeof transportRetention?.reserveReplacement !== 'function'
+      )
+        return { failure: 'stageClosed' }
+      activationTenant = checked.tenant
+      try {
+        if (stage === 'modelRequest') {
+          if (
+            requestDeployment === undefined ||
+            sessionTenancy === undefined ||
+            storage === undefined
+          )
+            throw new Error('acceptance request deployment absent')
+          const actualMemberships: unknown = context.get(MEMBERSHIPS_SERVICE)
+          if (!sourceMembershipFace(actualMemberships))
+            throw new Error('acceptance source memberships absent')
+          const ports = {
+            monotonicNow: requestDeployment.evaluationInputs.monotonicNow,
+            diagnostics: () =>
+              record({ event: 'evaluationInputs', phase: 'provider', outcome: 'observed' }),
+            onDiagnosticFailure: () => {
+              diagnosticFailures += 1
+            },
+          }
+          inputSource = {
+            ...ports,
+            storage,
+            memberships: actualMemberships,
+            sessionTenancy,
+            storeKey: requestDeployment.evaluationInputs.storeKey,
+            deployedOfficial: requestDeployment.evaluationInputs.deployedOfficial,
+          }
+          await load('evaluationInputs', createEvaluationInputStorePlugin(ports), {
+            storeKey: inputSource.storeKey,
+            deployedOfficial: [...inputSource.deployedOfficial],
+          })
+          const value: unknown = context.get(CURRENT_EVALUATION_INPUTS_SERVICE)
+          if (!currentInputFace(value)) throw new Error('acceptance input service absent')
+          currentInputs = value
+          phase = 'transport'
+          category = 'failed'
+          assertNotClosing()
+          const transportConfiguration = requestDeployment.transport
+          if (
+            transportConfiguration.inputMeters.length !== transportConfiguration.definitions.length
+          )
+            throw new Error('one exact input meter per model contribution required')
+          const onDiagnostic = (event: { readonly level: string }) =>
+            record({ event: 'transport', phase: 'provider', outcome: event.level })
+          const reserved = transportRetention.reserveReplacement()
+          if ('unavailable' in reserved) throw new Error('transport_retention_full')
+          const reservation: TransportReservation = reserved.reservation
+          let committed = false
+          try {
+            if (options.developmentTransport === undefined) {
+              await load('modelTransport', piAiTransportPlugin, {
+                policy: transportConfiguration.policy,
+                retirement: transportConfiguration.retirement,
+                onDiagnostic,
+              })
+            } else {
+              const developmentTransport = options.developmentTransport
+              await load(
+                'modelTransport',
+                {
+                  name: 'acceptance-controlled-model-transport',
+                  apply(ctx: Context) {
+                    const service = createModelTransportService({
+                      ...developmentTransport,
+                      policy: transportConfiguration.policy,
+                      onDiagnostic,
+                    })
+                    ctx.effect(() => async () => {
+                      const result = await service.close(transportConfiguration.retirement)
+                      if ('cleanup_failed' in result || 'rejected' in result)
+                        throw new Error('model transport cleanup failed')
+                      await service.closed
+                    })
+                    ctx.provide(MODEL_TRANSPORT_SERVICE, service)
+                  },
+                },
+                undefined,
+              )
+            }
+            const provided: unknown = context.get(MODEL_TRANSPORT_SERVICE)
+            if (!modelTransportFace(provided)) throw new Error('model transport service absent')
+            transportService = provided
+            reservation.commit(provided)
+            committed = true
+          } catch (error) {
+            if (!committed) {
+              let partial: unknown
+              try {
+                partial = context.get(MODEL_TRANSPORT_SERVICE)
+              } catch {
+                // A fiber may still own a failed construction even if no service can be read.
+              }
+              if (modelTransportFace(partial)) reservation.adoptFailedConstruction(partial)
+              else reservation.abortUnknown()
+            }
+            throw error
+          }
+          for (const definition of transportConfiguration.definitions) {
+            const meters = transportConfiguration.inputMeters.filter(
+              meter =>
+                meter.modelId === definition.modelId &&
+                meter.definitionRevision === definition.revision &&
+                meter.implementation.name === definition.implementation.name &&
+                meter.implementation.revision === definition.implementation.revision &&
+                Object.hasOwn(definition.routes, meter.provider),
+            )
+            if (meters.length !== 1 || meters[0] === undefined)
+              throw new Error('one exact input meter per model contribution required')
+            const fiber = context.plugin(
+              createModelPlugin(definition, meters[0], transportConfiguration.retirement),
+              {},
+            )
+            modelContributions.push(fiber)
+            await hooks?.modelContributionCreated?.(definition, fiber)
+            await fiber
+            if (fiber.state !== FIBER_STATE.ACTIVE) throw new Error('model contribution not active')
+          }
+          record({ event: 'transport', phase: 'contributions', outcome: 'ready' })
+        }
+        if (stage === 'modelRequest') {
+          if (requestDeployment === undefined || transportService === undefined)
+            throw new Error('model runtime construction prerequisites absent')
+          const deployment = requestDeployment
+          const transport = transportService
+          function newId<B extends string>(label: string, brand: B) {
+            const parsed = parseOpaqueIdentifier(`${label}-${randomUUID()}`, brand)
+            if (!isOk(parsed)) throw new Error('model identity source invalid')
+            return parsed.ok
+          }
+          const construction: RuntimeConstruction<PlannedRequest, RawResponse> = {
+            sessions: {
+              async bind(session) {
+                const originalActor = runtimeActors.get(session)
+                if (originalActor === undefined) return { failure: 'unavailable' }
+                const access = await sessionAccess(originalActor, session)
+                if (!('borrow' in access)) return { failure: 'unavailable' }
+                if (catalog === undefined || lookup === undefined || currentInputs === undefined)
+                  return { failure: 'unavailable' }
+                const selectionInput = ensureSelection(access.borrow)
+                if (selectionInput === undefined) return { failure: 'unavailable' }
+                const existing = runtimeBindings.get(session)
+                if (existing !== undefined) {
+                  if (
+                    existing.log !== access.borrow.binding ||
+                    existing.selection !== selectionInput
+                  )
+                    return { failure: 'unavailable' }
+                  return { binding: existing }
+                }
+                const binding: SessionRuntimeBinding = {
+                  log: access.borrow.binding,
+                  selection: selectionInput,
+                  catalog,
+                  credentials: lookup,
+                  currentEvaluationInputs: currentInputs,
+                  observers: observerAccess.access,
+                  tools: requestDeployment?.assetRegistry ?? {
+                    async lookup() {
+                      return { failure: 'unavailable' }
+                    },
+                  },
+                }
+                runtimeBindings.set(session, binding)
+                return { binding }
+              },
+            },
+            calls,
+            transport: {
+              acquire(binding, routeName) {
+                if (closing) return { unavailable: true }
+                const acquired = transport.acquire(binding, routeName)
+                if ('lease' in acquired) return acquired
+                return acquired.rejected === 'invalidInput'
+                  ? { invalidInput: { reason: 'malformed' } }
+                  : { unavailable: true }
+              },
+            },
+            settlementContention: deployment.settlement.contention,
+            settlementScheduler: deployment.settlement.scheduler,
+            policy: {
+              ...deployment.invocation,
+              diagnostic: event =>
+                'tenant' in event ? recordSettlement(event) : recordInvocationDiagnostic(event),
+            },
+            tokenMargin: deployment.tokenMargin,
+            identities: {
+              call: () => newId('call', 'ModelCallId'),
+              response: () => newId('response', 'ResponseId'),
+              message: () => newId('reply', 'MessageId'),
+            },
+            history: {
+              call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
+              failure: readDemoNoRunFailure,
+              run: () => ({ unavailable: true }),
+            },
+            reservationWaitPolicy: deployment.reservationWaitPolicy,
+            recovery: {
+              async enter(input) {
+                const ready = recoveryReady.get(input.session)
+                if (
+                  ready === undefined ||
+                  ready.scopeIssued ||
+                  !recoveryAdmission.has(input.session) ||
+                  ready.binding.log.currentGeneration() !== ready.binding.log.generation ||
+                  ready.owner.owner.admission() !== 'open' ||
+                  'unknown' in ready.owner.owner.opened() ||
+                  ready.owner.owner.unresolvedWrites().length !== 0
+                )
+                  return { unavailable: true }
+                ready.scopeIssued = true
+                record({ event: 'operation', phase: 'recovery', outcome: 'entered' })
+                let closed = false
+                return {
+                  scope: {
+                    binding: ready.binding,
+                    owner: ready.owner.owner,
+                    originalInvocation(key, target) {
+                      if (key.session !== input.session || key.callId !== target.call)
+                        return { unavailable: true }
+                      const original = ready.originals.get(key.callId)
+                      if (original !== undefined) {
+                        if (
+                          original.target.response !== target.response ||
+                          !modelLogJsonEqual(original.target.dispatch, target.dispatch)
+                        )
+                          return { unavailable: true }
+                        return { original: original.handle }
+                      }
+                      const cold = ready.coldTargets.get(key.callId)
+                      if (
+                        !ready.coldAbsent ||
+                        cold === undefined ||
+                        cold.response !== target.response ||
+                        !modelLogJsonEqual(cold.dispatch, target.dispatch) ||
+                        trackedCalls.get(key.session)?.has(key.callId)
+                      )
+                        return { unavailable: true }
+                      return { absent: true }
+                    },
+                    async close() {
+                      if (closed) return
+                      await ready.owner.drain()
+                      if (
+                        ready.owner.retained() ||
+                        ready.owner.owner.unresolvedWrites().length !== 0 ||
+                        ready.binding.log.currentGeneration() !== ready.binding.log.generation
+                      )
+                        throw new Error('recovery owner retained')
+                      closed = true
+                      recoveryReady.delete(input.session)
+                      recoveryAdmission.delete(input.session)
+                      record({ event: 'operation', phase: 'recovery', outcome: 'closed' })
+                    },
+                  },
+                }
+              },
+            },
+            diagnosticCollector: diagnostics.collector,
+            diagnostic: recordSettlement,
+          }
+          modelRuntime = createModelRuntime(construction)
+        }
+        phase = 'admission'
+        assertNotClosing()
+        if (!allActive(requiredFibers)) throw new Error('acceptance model stage changed')
+        gateOpen = true
+        record({ event: 'gate', phase: 'scenario', outcome: 'open' })
+        return { activated: true }
+      } catch (error) {
+        record({ event: 'stage', phase, outcome: category })
+        const cleanup = await closeResources()
+        throw new AcceptanceStartupFailure(phase, category, cleanup)
+      }
+    })()
+    activationTask = task
+    task.then(
+      () => undefined,
+      () => undefined,
+    )
+    return task
+  }
+
   function authenticate(
     identifier: unknown,
     password: unknown,
   ): Promise<ScenarioResult<AuthenticatedActor>> {
-    if (!admit()) return Promise.resolve({ failure: 'stageClosed' })
+    if (!admitIdentity()) return Promise.resolve({ failure: 'stageClosed' })
     return track(async () => {
       try {
         if (logins === undefined || memberships === undefined)
@@ -2142,6 +2222,7 @@ export function createAcceptanceApplication(
   }
   return {
     ready,
+    activateModelRequest,
     currentTime() {
       // Admitted model work may still need its terminal timestamp after the
       // application closes admission but before the clock fiber is disposed.
@@ -2150,7 +2231,7 @@ export function createAcceptanceApplication(
       return now === 'unavailable' ? now : new Date(now).toISOString()
     },
     register(identifier, password) {
-      if (!admit()) return Promise.resolve({ failure: 'stageClosed' })
+      if (!admitIdentity()) return Promise.resolve({ failure: 'stageClosed' })
       return track(async () => {
         try {
           if (registration === undefined) throw new AcceptanceOperationDefect('register')
@@ -2200,6 +2281,10 @@ export function createAcceptanceApplication(
       gateOpen = false
       const attempt = (async () => {
         await ready.then(
+          () => undefined,
+          () => undefined,
+        )
+        await activationTask?.then(
           () => undefined,
           () => undefined,
         )
