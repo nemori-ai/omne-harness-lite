@@ -2,7 +2,7 @@
 
 2026-09-29，主线依据用户交付与验收委托，按已采用 runtime v15 revision2 的 D6-V1～V11 逐子义务核对，接受本轮 D6 工程可观测性范围。作者补验由主线审读实际断言并在 HUB 复验新增关键组合；没有新增规范、绑定或外部监控平台。本结论不等于十三操作、逐模型认证、U4或完整纵线已交付。
 
-[逐项矩阵](inputs/matrix-current.md)列出V1～V11每个生产构件、输入、oracle与适用范围；[跨层补验](inputs/t13-cross-layer.md)给出阶段与真实构件对应。[inputs.json](inputs.json)保存精确设计/源码/结果SHA，源码可从相应提交还原。[outputs](outputs/)保留实际原始结果，含多代pending测试输入的前两次失败。作者的自测未冒称独立验收；本报告是root结合作者报告、源码与HUB证据形成的有限技术接受。
+[逐项矩阵](inputs/matrix-current.md)列出V1～V11每个生产构件、输入、oracle与适用范围；[跨层补验](inputs/t13-cross-layer.md)给出阶段与真实构件对应。[inputs.json](inputs.json)保存精确设计/源码/结果SHA，源码可从相应提交还原。`outputs/`保留实际原始结果，含多代pending测试输入的前两次失败。作者的自测未冒称独立验收；本报告是root结合作者报告、源码与HUB证据形成的有限技术接受。
 
 ## 关键接受证据
 

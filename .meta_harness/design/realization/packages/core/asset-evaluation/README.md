@@ -9,7 +9,9 @@
 
 ## v4 根设置增量候选（2026-09-27）
 
-- kind：`provider`；节点与源码路径均为 `packages/core/asset-evaluation`。v3 包真实存在；本次只起草 v4 映射，不修改源码。
+- kind：`provider`
+
+节点与源码路径均为 `packages/core/asset-evaluation`。v3 包真实存在；本次只起草 v4 映射，不修改源码。
 - 契约与范围：`capability.asset-evaluation/v4` S-1～S-47（candidate），增量为 S-6/S-7 C15、C16/S-21/S-22/S-45～S-47；精确依赖见 [v4 实现增量](v4-design.md)。范围依据 PF-002 rev 20、PF-004 rev 12、PF-013 rev 13 及[读取链候选](../../../../record/proposals/model-request-adaptation/read-projection.md)。
 - **语义接受：本次 v4 无。** AE4、agent-definition/v1、model-profile/v3 仍 candidate；既有 v3 的接受与冻结保持下列原范围。
 - **可实施：候选路径已写明，尚未接受、尚未实施 v4。** 保留纯函数、默认入口显式演进及未切换消费者的 v3 闭包；候选 `judgeEffectiveAssembly(value): boolean` 按 S-47 供持久读面共用；候选 `selectEvaluationRootSource(input)` 复用第一步选根来源，避免真实输入生产者复制算法或伪造 root 输入。二者不证明来源、当前权限或完整求值正确。本能力无自有 Schema、Cordis 服务或存储。AD1 公开构件/精确采用、真实正文生产者、结果判定、根选择与精确版本比较的实施证据分别为 AE4-1、AE4-6、AE4-7、AE4-8，不能由本包暗读 IO 或猜默认补齐。

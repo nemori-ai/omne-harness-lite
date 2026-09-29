@@ -4,7 +4,7 @@
 
 ## 输入与原始结果
 
-[inputs.json](inputs.json)保存精确源码修订、命令、环境和逐文件SHA；[inputs](inputs/)保存三份实际测试输入和独立接受依据，完整源码从相应Git提交重现。[outputs](outputs/)保存未改写的独立及HUB输出。独立原始失败/临时数据库、TLS材料及负控制品仍由主线私有退役归档保全；本包不发布凭据或数据库。
+[inputs.json](inputs.json)保存精确源码修订、命令、环境和逐文件SHA；`inputs/`保存三份实际测试输入和独立接受依据，完整源码从相应Git提交重现。`outputs/`保存未改写的独立及HUB输出。独立原始失败/临时数据库、TLS材料及负控制品仍由主线私有退役归档保全；本包不发布凭据或数据库。
 
 HUB结果：生产transport贡献7测、真实应用scope2测、实际等待/冷恢复2测均通过。独立两项行为变异（旧lease错取新phi、忽略basis身份）由正常对照通过而各自AssertionError检出；原dist未改。包类型及构建范围沿[独立首批报告](inputs/independent-README.md)，本包不把spoke构建伪称HUB全量构建。
 

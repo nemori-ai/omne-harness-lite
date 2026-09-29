@@ -9,7 +9,7 @@
 - 原账本五笔全部settled，实际合计 **$0.33802**，无新增unknown。原11笔unknown hold保留；本包不复制全账本，也不将未知费用填零。
 - 业务和诊断完整关闭，宿主在业务关闭后实际released。临时原始凭据文件在进程确认退出后删除；认证数据目录与凭据副本仍在私有tmp，未发布。
 
-[inputs.json](inputs.json)记录精确源码、环境与所有输入/原始输出SHA；[scenario](inputs/scenario.json)保存完整ASCII输入、固定路由、配置与源SHA；[outputs](outputs/)保存五笔安全原始收据、实际关闭、原账本五条、物理批逐行hash核对及dry/review原输出。[scripts](scripts/)保留本次实际执行脚本。恢复脚本时应置于原源码修订的 `tmp/priority-certification/`；密钥从授权私有来源重新提供，不能从本包恢复。
+[inputs.json](inputs.json)记录精确源码、环境与所有输入/原始输出SHA；[scenario](inputs/scenario.json)保存完整ASCII输入、固定路由、配置与源SHA；`outputs/`保存五笔安全原始收据、实际关闭、原账本五条、物理批逐行hash核对及dry/review原输出。`scripts/`保留本次实际执行脚本。恢复脚本时应置于原源码修订的 `tmp/priority-certification/`；密钥从授权私有来源重新提供，不能从本包恢复。
 
 ## 执行与边界
 

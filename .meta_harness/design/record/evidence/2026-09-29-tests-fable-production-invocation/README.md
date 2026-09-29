@@ -2,7 +2,7 @@
 
 2026-09-29，在 HUB 的正式 `invokeModel` 与示例真实认证／Cordis／SL3 装配上，经固定 OpenRouter → Anthropic 路由实际执行。首个完整场景的源码状态为 `b19d6bd3`，definition 2／`pi-ai:anthropic/mp4-5`，显式 1h last_message 缓存配置、low effort、可见文本、显式 tokenMargin。本记录是有限生产验证，不是整模型 D7 或全部 37 型号的接受。
 
-[inputs.json](inputs.json)记录版本、SHA、环境、物理批次检查和费用；[inputs](inputs/)保存实际执行脚本及实时端点价目原件。[outputs](outputs/)保留三次运行的原始安全收据、场景、清单、关闭事实、本机演练结果及原失败日志。执行脚本恢复到仓库 `tmp/priority-certification/` 后按实际相对公开制品入口运行；正式账本始终是唯一已授权账本，不能以归档收据建立替代账本。
+[inputs.json](inputs.json)记录版本、SHA、环境、物理批次检查和费用；`inputs/`保存实际执行脚本及实时端点价目原件。`outputs/`保留三次运行的原始安全收据、场景、清单、关闭事实、本机演练结果及原失败日志。执行脚本恢复到仓库 `tmp/priority-certification/` 后按实际相对公开制品入口运行；正式账本始终是唯一已授权账本，不能以归档收据建立替代账本。
 
 ## 实际结果
 

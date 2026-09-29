@@ -3,7 +3,9 @@
 > 历史路径提示：本页所称 `apps/model-request-acceptance`／`model-request-acceptance` 是 D-076 采用时的技术验收装配坐标；当前已退出 `apps/` 映射。现行归属与剩余责任以[实现映射入口](../../../README.md)为准。
 
 
-- kind：`provider`；纯数据模块，候选节点 rev 1（2026-09-27）。
+- kind：`provider`
+
+纯数据模块，候选节点 rev 1（2026-09-27）。
 - 源码位置：`packages/core/agent-definition`，**尚未建包**。
 - 契约：[`data.agent-definition/v1`](../../../../spec/data/agent-definition/v1/contract.md)，catalog 状态 `candidate`，S-1～S-10。
 - 边界依据：[已提交求值的读取链候选](../../../../record/proposals/model-request-adaptation/read-projection.md)；PF-004 rev 12、PF-002 rev 20、PF-013 rev 13 的具体来源由契约入口维护。

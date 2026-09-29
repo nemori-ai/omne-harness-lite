@@ -5,8 +5,10 @@
 > 历史路径提示：本页所称 `apps/model-request-acceptance`／`model-request-acceptance` 是 D-076 采用时的技术验收装配坐标；当前已退出 `apps/` 映射。现行归属与剩余责任以[实现映射入口](../../../README.md)为准。
 
 
-- kind：`provider`，2026-09-27 首稿，**candidate**。
-- 节点及源码路径：`packages/assets/evaluation-input-store`，**尚未建包**。
+- kind：`provider`
+
+2026-09-27 首稿，**candidate**。
+- 源码位置：`packages/assets/evaluation-input-store`。初稿时记录为“尚未建包”；后续实际组件及历史读面实现状态见本页 2026-09-27 事件，不由本字段提升验收范围。
 - 兑现边界：`capability.model-request-runtime/v3#S-66` 的当前输入读取端口，以及 AE4 的真实来源前提。一个本地 SQL 输入存储、公开函数闭包和一种 Cordis 包装；不反推历史求值、不代替 runtime 调 evaluate、不实现产品资产治理或中心同步。
 - 本轮装配：`apps/model-request-acceptance`，负责显式初始发布、实际会话建立、源更新及初选模型；只交付模型纵线技术验收消费。
 

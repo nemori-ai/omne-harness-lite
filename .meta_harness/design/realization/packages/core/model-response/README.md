@@ -41,7 +41,9 @@
 
 ## v4 候选增量（2026-09-27）
 
-- kind：`provider`；节点与源码路径均为 `packages/core/model-response`。
+- kind：`provider`
+
+节点与源码路径均为 `packages/core/model-response`。
 - 设计入口：[v4-design.md](v4-design.md)。本版从现有 v3 纯模块演进；下方既有接受和验证记录保留原版本范围，原 [design.md](design.md) 不改写。
 - 输入：`data.model-response/v4`，同批 `data.model-profile/v3`、`data.messages/v4`；精确依赖和输入哈希见新设计。
 

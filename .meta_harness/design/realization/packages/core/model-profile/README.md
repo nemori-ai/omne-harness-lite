@@ -28,7 +28,9 @@
 
 ## v3 增量候选（2026-09-27）
 
-- kind：`provider`，节点和源码路径均为 `packages/core/model-profile`；现有包已实现 v2，本次不是新建包。
+- kind：`provider`
+
+节点和源码路径均为 `packages/core/model-profile`；现有包已实现 v2，本次不是新建包。
 - 对象与设计修订：[`v3-design.md`](v3-design.md) 候选，消费 `(omne-harness-lite-design-2026-09-15, data.model-profile, 3)`；[catalog](../../../../registry/catalog.json) 当前登记 `candidate`。既有已接受 [design.md](design.md) 保持 v2 范围。
 - 共同分工：纯类型、固定 Schema、表示判断与引用匹配；目录拥有历史配置判重，runtime/transport 拥有注册可用性、调用快照冻结与在途资源。
 
