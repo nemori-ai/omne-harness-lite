@@ -13,7 +13,7 @@ import {
   type AssetRegistry,
   type AssetRegistryService,
 } from '@omne-harness-lite/asset-registry'
-import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { readOpaqueJson, toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
   CURRENT_EVALUATION_INPUTS_SERVICE,
   type CurrentEvaluationInputs,
@@ -58,6 +58,21 @@ const WIRE_IMAGE = { type: 'image_url', image_url: { url: `data:image/png;base64
 function imageBlock(id: string) {
   return { id, kind: 'image', mediaType: 'image/png', data: { inline: IMAGE }, visibility: VISIBLE }
 }
+// Controlled opaque payload checks byte-for-byte preservation, not signature validity
+// or the applicability of the current rough estimate to hidden full thinking.
+const SIGNED_REASONING = [
+  {
+    type: 'reasoning.text',
+    text: 'Summarized thinking: inspect the image.',
+    signature: 'controlled-signature+/==',
+    id: 'signed-thinking-1',
+    format: 'anthropic-claude-v1',
+    index: 0,
+  },
+]
+const CASES = anthropicDefinitions.flatMap(definition =>
+  ['plain', 'signed'].map(mode => ({ definition, modelId: definition.modelId, mode })),
+)
 const TOOL = { category: 'tool', name: 'example:read' } as const
 const TOOL_NAME = modelName(TOOL.name)
 const DEFINITION = {
@@ -84,9 +99,9 @@ function user(id: string) {
 }
 
 describe('Anthropic controlled TLS service delivery (not upstream certification)', () => {
-  it.each(anthropicDefinitions)(
-    '$modelId measures and persists full image/thinking/tool/reminder history',
-    async definition => {
+  it.each(CASES)(
+    '$modelId $mode preserves full image/thinking/tool/reminder history',
+    async ({ definition, mode }) => {
       const MODEL = definition.modelId
       const base = await callDeployment('anthropic-delivery')
       const profile = createOfficialProfileContent(definition, {
@@ -210,6 +225,7 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
         MODEL,
         usage,
         'Anthropic',
+        mode === 'signed' ? SIGNED_REASONING : undefined,
       )
       tls.setMode('reasoning')
       const app = createAcceptanceApplication(config, {
@@ -312,7 +328,10 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
         if (!('result' in thought) || !('replyPending' in thought.result))
           throw new Error(`thinking call failed: ${JSON.stringify(thought)}`)
         expect(thought.result.replyPending.reply.blocks).toContainEqual(
-          expect.objectContaining({ kind: 'thinking', text: 'private reasoning' }),
+          expect.objectContaining({
+            kind: 'thinking',
+            text: mode === 'signed' ? '' : 'private reasoning',
+          }),
         )
         expect(
           await app.persistModelReply(who, prepared.session, thought.result.replyPending),
@@ -321,7 +340,11 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
         const first = await app.startServiceCall(who, prepared.session, {
           user: user('first-tool-user'),
           tools: [TOOL_NAME],
-          parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+          // Preserved thinking binds its original prompt; keep signed turns' effort stable.
+          parameters: {
+            reasoningEffort: mode === 'signed' ? 'high' : 'low',
+            maxOutputTokens: 1024,
+          },
           host: host.host,
         })
         if (!('result' in first) || !('replyPending' in first.result))
@@ -402,6 +425,15 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
           messages.push(checked.ok)
         }
         expect(messages).toHaveLength(5)
+        if (mode === 'signed') {
+          const thinking = messages[1]?.blocks.find(block => block.kind === 'thinking')
+          if (thinking?.kind !== 'thinking' || thinking.opaque === undefined)
+            throw new Error('durable signed thinking missing')
+          expect(readOpaqueJson(thinking.opaque)).toEqual({
+            routeName: MODEL,
+            reasoning_details: SIGNED_REASONING,
+          })
+        }
         const reminder = judgeMessage({
           type: 'system_reminder',
           id: 'delivery-reminder',
@@ -466,7 +498,13 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
               role: 'user',
               content: [{ type: 'text', text: 'Request thinking-user' }, WIRE_IMAGE],
             },
-            { role: 'assistant', content: 'first second', reasoning: 'private reasoning' },
+            {
+              role: 'assistant',
+              content: 'first second',
+              ...(mode === 'signed'
+                ? { reasoning_details: SIGNED_REASONING }
+                : { reasoning: 'private reasoning' }),
+            },
             { role: 'user', content: [{ type: 'text', text: 'Request first-tool-user' }] },
             { role: 'assistant', tool_calls: [{ id: call.callId }] },
             { role: 'tool', tool_call_id: call.callId, content: 'value=42' },
@@ -484,6 +522,15 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
             },
           ],
         })
+        if (mode === 'signed') {
+          for (const request of tls.requests.slice(1)) {
+            expect(request.body).toMatchObject({
+              messages: expect.arrayContaining([
+                { role: 'assistant', content: 'first second', reasoning_details: SIGNED_REASONING },
+              ]),
+            })
+          }
+        }
         const read = await app.readSessionLog(who, prepared.session)
         if (!('entries' in read)) throw new Error('settled history missing')
         const responses = read.entries.filter(entry =>
