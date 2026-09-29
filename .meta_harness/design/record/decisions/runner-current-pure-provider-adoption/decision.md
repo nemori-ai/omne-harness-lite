@@ -53,3 +53,14 @@
 实施以runtime/runner两个唯一源码owner并行，公开重载与登记签名沿受审节点；共享host装配单独集成。P5不产生runtime→runner包依赖，不新增core包；runner纯replay不带假attempt、不求值、不写入；source必须由原owned前缀产生，撤除后失效且原unknown任务保留。每个包交付独立公开构件、Cordis生命周期、双语README和真实制品消费例。
 
 完整生产Run终结协议、卡片等待、Session/Inbound/AgentLoop和工具执行不纳入本次纵线。缺实际源仍按既有契约拒绝，但不得硬编码拒绝合法注入来源后宣称模型侧完成。仅此追加取代D106先前对应“服务/P5/G3尚未技术采用”的范围；不改写旧采用历史，不表示生产外部源或D1～D7/37模型已交付。
+
+
+## 2026-09-29 追加：失败来源实际 Run 绑定技术采用
+
+主线依同一用户持续实施、主调度与技术验收委托，在[两次独立窄评](../../proposals/model-request-adaptation/review.md)及原规范核对后，技术采用[runtime v18 revision1](../../../realization/packages/model/model-request-runtime/v18-failure-execution-design.md)（SHA256 `2d5aeded046158adfe213cb279ee1f7cd9462d2651986c6326e4d28022a4e06e`）和[runner v8 revision1](../../../realization/packages/agent-loop/loop-extension-runner/v8-failure-execution-design.md)（`8553482fefad6c311adbc61cfc4b0b964e602055b1eedd457a5017e3cfe6524e`）。它们补齐v17已经要求的原Run归属交接；RT10/Runner5/LC6/MR9及冻结资源不改，新bindings为0。候选正文原标签保留受审字节，本追加确定当前可实施状态。
+
+立即释放runtime唯一`verify(subject,{run,attempt})`来源接口、runner `verifyFailure(subject,binding,execution)`第三参及实际host/demo所有消费者共同破坏性迁移；旧签名不兼容保留。source必须从同次完整owned prefix原dispatched壳取Run，各次原attempt保留；noRun不能挪用为after_model_call、跨Run拒绝，不能只核主体形状。实际execution在首await前固定，prepare与public runPass、输入及fence同值贯穿；新增external取得前先校来源，错误归属不交贡献者onError。当前attempt只在来源口校合法形状，不与原发出attempt强制相等，实际尝试权限/取代/提交仍由原宿主及fence裁决。
+
+同时明确采用v18所述已有withRun校准责任的技术接线：首次openCall传原request run/attempt，后续传固定Run与本次dispatch input.attempt；真实selected ancestry由原来源owner提供，已落原批保持current:null，不重判G28/late或回写历史。示例可在构造期受信注入已有source端口及借同一日志owner的窄写端验MS6原事实，必须经真实auth/STT/AR报告并配对释放；不新增公开beginRun或第二writer，不把受控终结认法提供为生产默认。
+
+实施分别由runtime、runner、示例宿主唯一owner承接，独立验收补noRun挪用/另一Run/同Run跨attempt/首await后变异/释放/错误来源零新增效果，以及真实P5历史和下一dispatch守卫组合。原unknown责任仍归实际任务owner；scope关闭不冒充物理停止。包README/README_ZH及新签名的仓外字面制品验收随实现补齐。F18-V1～V7、R8-V1～V6尚未完成；先前非法正向证据维持撤回状态，技术采用不等于修复或完整交付。

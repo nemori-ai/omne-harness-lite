@@ -1,5 +1,22 @@
 # loop-extension-runner 验证与证据
 
+## v8 失败经过执行上下文
+
+对象为 [v8 revision1 candidate](v8-failure-execution-design.md)，技术增补未采用，新增 bindings 0。下表为尚未执行的义务，既有 v7/function 测试不代证。
+
+| 门／条款 | 必须可失败的验收与负控 |
+|---|---|
+| R8-V1；Runner5 S-5/S-21/S-53 | 真实原Run模型调用失败→同prefix source→实际该Run after_model_call→P5→guard→结论；public runPass与Cordis服务均传第三参，捕获值与实际input/fence一致。取消传第三参的真实变异须被正例拒绝 |
+| R8-V2；S-21/S-53、RT10 S-76 | noRun原失败被包装为Run R、Run A原失败包装为B、改call/主体、跨tenant/logGeneration分别拒绝；不可用source保持unavailable、活source错归属为invalidInput。新external acquire/贡献invoke/append/send计数均0；不可用不得写成作者errored或假observed |
+| R8-V3；S-5/S-28/S-54 | 原attempt1发出，在同Run attempt2合法接续同经过：同锚已有最终结论不重求，不因attempt≠原发出拒绝；新结论以实际attempt2 fence。两次同值retry保留两位置；故意按attempt等原发出过滤的变异须失败 |
+| R8-V4；S-21/S-34 | caller/host在首await后改变原execution对象不得改变已捕获经过，verify/input/record同值；source释放/代际撤销/正常新追加分别测，正常追加不凭tail改变拒绝。准备后、runPass前撤权须复核并拒绝，无新结论 |
+| R8-V5；S-21/S-26，实际装配来源 | 受信fixture经实际auth/current STT借同一owner写MS6 attempt_started，取真实AR报告，注入具名RunHistoryReader；失败主体确属原Run。先prepare失败再外部句柄取得探针应为0；私开第二writer、伪报告、noRun冒Run各负控不得通过。受控终结假设明确，不签收生产Run |
+| R8-V6；S-34、SL3 | source/dispatch/fixture scope正常、半途失败、取消、未开始runner均释放；重复release幂等，原unknown任务不被释放。真实shared owner停机与延迟append交错，实际stop/reopen/reconcile后drain，禁止先等unknown drain造成死锁；fixture不得关闭借用日志 |
+
+覆盖缺口：R8-G1，两节点唯一技术签名尚待主线共同采用；R8-G2，public/service/示例与真实日志owner组合尚待实现验证；R8-G3，生产Run终结/等待来源仍外置，不阻有明确来源的条件算法。无新增存储或formal任务，不把同Run字段相等当作来源授权证明。
+
+本次静态检查（2026-09-29）：新候选和新增入口/验证段的 12 个相对链接及锚点错误0，`git diff --check`退出0。完整design gate归主线集成；未执行产品、formal或付费验收，R8-V1～V6仍未运行。
+
 ## v5 当前投影验证义务
 
 对象：[v5-current-design.md](v5-current-design.md) revision 3。Runner5 语义已接受，本 provider 增补仍 candidate、源码尚无。新增 bindings 0；下列测试名是义务编号，不是现存测试，不能提前写入 bindings。已有 v3 Runner 模型、v5 FailureHistory 有限模型和邻节点测试不提升本节点的实现证据层。

@@ -1,3 +1,9 @@
+## v8 失败经过执行上下文候选（2026-09-29）
+
+2026-09-29：[D106同日后继](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)已技术采用runner v8精确受审修订；原候选字节保留，实际来源接口、全部消费者迁移及正反验收尚未完成。此次修复noRun失败挪用为Run的已确认缺陷，不升级为完整Run交付。
+
+[v8-failure-execution-design.md](v8-failure-execution-design.md)补实际 RunnerPass.execution 到失败来源 verify 的显式交接，拒绝 noRun／另一 Run 失败被挪作当前经过，保留合法跨 attempt 重演。**语义接受：沿既有 Runner5/LC6/RT10；本技术增补尚未采用。可实施：候选与 runtime 同批上下文待共同评审采用。绑定：新增0。实际验证：本增量尚无。** 已有源码或旧服务验收不证明此反例已修；受信示例借同一物理日志 owner，不新增完整 Run 产品。验收与缺口见 [R8](verification.md#v8-失败经过执行上下文)。
+
 ## v7 模型路径服务接线候选（2026-09-29）
 
 **2026-09-29 模型路径窄增量已技术采用**：[D106后继](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)采用本节点新候选的精确受审字节及有限消费接续。语义沿现行接受规范；可实施范围见该决定；新增绑定0；实际源码和相应验收尚待，不把起草时candidate标签或旧checkpoint当现行采用结论。

@@ -248,3 +248,14 @@ G3返回完整authoritativeSubject并捕获同prefix/身份/代际/释放；G5�
 保留前提：Run 终结和真实 waiting owner 由外部提供；受限 EIS reader 的 runner 消费授权及 MF4/AR4 有限接续须主线显式采用。外部源缺席不授权伪造成功，也不阻合法条件消费的实现与验证。两次核对未运行产品、Cordis、JSONL故障、形式、制品或付费模型；427公共函数证据不能代替服务验收。
 
 反方论据：直接在失败值附句柄减少包装但令普通调用暗持资源；全依赖inject提前暴露缺席但扩大不可用范围；复用runPass做replay少一个入口但不能兑现零副作用。若实施另读尾补scope、拒绝合法reuse、replay写入、scope撤除追改已完成事实、fiber撤除丢unknown，应重新判为交付阻断。主线复核后作[D106后继技术采用](../../decisions/runner-current-pure-provider-adoption/decision.md)，不将审查结论提升为实现通过。
+
+
+## 2026-09-29 失败来源实际 Run 绑定联合窄评
+
+对象为runtime v18 revision1（SHA256 `2d5aeded046158adfe213cb279ee1f7cd9462d2651986c6326e4d28022a4e06e`）及runner v8 revision1（`8553482fefad6c311adbc61cfc4b0b964e602055b1eedd457a5017e3cfe6524e`），两个spoke基线7595c196及各自README/verification共六文件。独立architecture-reviewer与spec-reviewer均核精确SHA及既有规范依据，在各自范围未发现阻断或新增非阻断问题；两者未参与起草，也未自行采用。
+
+真实触发反例为noRun失败主体被示例包装为另一Run的after_model_call；原组合测试不再视为合法withRun正向证据。架构核对确认来源必须取原dispatched壳Run，runner首个异步边界前自有捕获实际execution，准备与公开runPass都核验，错误来源在新增external取得/贡献/追加/发送前拒绝。session/tenant/物理代际仍按原owner核对；同Run跨attempt不强制等原发出attempt，当前尝试有效性仍由宿主和真实fence负责，字段相等不冒充权限。scope失效及unknown原任务责任不变。
+
+表达核对确认唯一必填verify上下文与runner第三参、全部消费者破坏性迁移、错误优先级/释放责任和规范引用一致；calibration target首次用request身份，后续用本次dispatch input.attempt，旧原批仍current:null，不重新要求G28或回写旧事实。受信fixture只借原auth/STT/日志owner窄写端，不新建writer、公开Run操作或治理系统。
+
+反方是只改demo少改动、只传Run更窄、强制attempt相等易拒错；受审选择分别关闭公共函数旁路、验证实际execution保真、保留合法跨尝试性质。若实现保留可选旧verify、prepare和执行使用不同上下文、错误来源先取得external资源、以verify代替真实尝试授权，则重新构成阻断。两评审未执行产品/形式/制品或付费验收；F18-V1～V7和R8-V1～V6仍须真实证据。生产Run终结及等待源仍外置，不升级本程边界。

@@ -1,3 +1,12 @@
+## 2026-09-29 失败来源实际执行绑定候选
+
+2026-09-29：[D106同日后继](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)已技术采用runtime v18精确受审修订；原候选字节保留，实际来源接口、全部消费者迁移及正反验收尚未完成。此次修复noRun失败挪用为Run的已确认缺陷，不升级为完整Run交付。
+
+- **语义接受**：RT10／Runner5／LC6 及 D106 的 v17 责任已接受；[v18 窄补充](v18-failure-execution-design.md) 未技术采用，不改冻结 v17。
+- **可实施**：候选补 source 对原 Run/attempt 来源的捕获、实际消费 execution 交接、noRun/跨 Run 拒绝与 withRun 校准 target；同 Run 跨 attempt 不新增相等门。
+- **绑定证据**：新增 0；[F18-V1～V7](verification.md#f18-失败来源的实际执行绑定候选) 为待执行义务，已跑组件测试不证明该边界已闭合。
+- **实际验证**：本增量无实现验收。真实上下文/generation/attempt fence 归原宿主/runner，生产 G28 与卡片外源保持外置；F18-G1～G3 不因起草闭合。
+
 ## 2026-09-29 模型侧 Run／失败经过／默认重试接线候选
 
 **2026-09-29 模型路径窄增量已技术采用**：[D106后继](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)采用本节点新候选的精确受审字节及有限消费接续。语义沿现行接受规范；可实施范围见该决定；新增绑定0；实际源码和相应验收尚待，不把起草时candidate标签或旧checkpoint当现行采用结论。

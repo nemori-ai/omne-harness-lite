@@ -301,3 +301,20 @@ U16-V6/V7须分别覆盖原selected reply与同call较早dispatch的无reply响�
 ## 2026-09-29 D6工程可观测性限定验收
 
 [实际D6-V1～V11逐项接受](../../../../record/evidence/2026-09-29-tests-model-engineering-diagnostics/README.md)：真实Cordis/SQLite/JSONL/TLS与具名受控失败输入，包含多代诊断pending和实际资源关闭。主线复验后的有限技术接受，不关闭十三操作、37模型或完整纵线；foreign UID证据受实际宿主前提约束，后继改动复验受影响义务。
+
+
+## F18 失败来源的实际执行绑定候选
+
+对应 [v18 revision 1](v18-failure-execution-design.md)，**candidate、未技术采用、新增 bindings 0**。以下均为待运行；受控真实 JSONL withRun 来源与生产 Run 终结治理证据分别报告，不伪造后者。
+
+| ID／条款 | 正反输入与必观察结果 | owner／限制 |
+|---|---|---|
+| F18-V1：RT10 S-34/S-76；Runner5 S-53 | 真日志原dispatched/opened/failed响应与同次full prefix构成source，原Run/每条attempt从原壳得到；subject裸payload不能注入归属。混Run锚/半缺attempt/错response关联/非owned前缀不能建立合法source；原主体和重复retryConclusions仍逐值保真 | runtime source；受控Run终结解释前提明确，不用caller supplied run认证来源 |
+| F18-V2：Runner5 S-21/S-26 | 真noRun模型失败取得正常readAttempts/消费结果后，尝试包装成Run A执行；verify与完整runner入口均invalidInput。真Run A失败投Run B，即使call/subject/attempt数字均同也拒绝；真Run A→同Run A正向通过 | runtime＋runner＋example；prepare拒绝后external acquire/invoke/新结论/model send均0，原source read不计为违规IO；仅在adapter判形状的负控失败 |
+| F18-V3：Runner5 S-5/S-28 | 原失败attempt1，合法同Run经过在attempt2重演/继续；来源核验通过，runner沿原键/重演/fence机制，已落结论不再求值。缺attempt、0、非法精确数拒；更改当前attempt不能重写原response顶层attemptId或归账壳 | runtime形状/Run层与runner尝试授权分开验；故意强制当前attempt等原attempt的负控必须击穿正向 |
+| F18-V4：Runner5 S-21/S-53；公共类型 | 实际public runPass将自有pass.execution作为verifyFailure第三参；service/prepare/真正invoke使用同次实际值，不能从subject重建。两包声明与全部adapter/examples/tests同步编译，旧verify(subject)不再可调用；伪造另一execution替代实际输入的adapter负控失败 | runner owner＋runtime消费；不新增runner反向包依赖，不以类型断言掩盖旧调用 |
+| F18-V5：v17生命周期；RT10 S-36/S-70 | wrong session/tenant/log generation、source release/撤权/host停止后核验；失效仍unavailable，活scope非法Run/subject为invalidInput。双finally release幂等；普通追加不影响原source；未知append/task/lease照旧留存，scope失败不触发重试或清账 | 原host/runtime；真实任务停止证据保持，GC/AbortSignal不当stopped |
+| F18-V6：RT10 S-77/S-80；v16 | 首次withRun规划target含request.run/attempt；跨尝试dispatch输入attempt2而旧openCall仍attempt1时，calibration reader收到与新dispatched壳相同的attempt2。noRun两字段缺席；同call旧attempt合法校准、真实selected reply祖先保留、非祖先拒绝。旧完整批current:null认回零写/不重算late或U3事实 | runtime＋history consumer；真请求target记录与append字节对照，故意用旧request.attempt或把current改当前target的负控失败 |
+| F18-V7：公开文档及完整组合 | runtime/runner/示例README与README_ZH的来源消费literal真实编译执行；noRun demo明确不能假Run启动failure经过；真实受控withRun完整P5路径与原13方法/noRun/U3回归分项报。source业务结果与技术资源不串进持久Schema，记录无新校准/关联sidecar | 各实现owner；本次设计检查不能替代这些运行，也不声称生产G28关闭 |
+
+覆盖缺口：F18-G1主线采用；F18-G2实际execution/binding/fence接线与原source原壳核对；F18-G3外置生产终结/等待源。仅模型侧边界属于本补充，未知责任、原批保存、同Run跨尝试经过与既有错误优先级都不得因修复而弱化。
