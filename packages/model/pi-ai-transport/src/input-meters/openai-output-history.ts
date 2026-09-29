@@ -21,22 +21,11 @@ import {
 import { object } from '../json.ts'
 import { fullJsonMarginal } from './marginal.ts'
 import { estimateOpenAi56Group } from './openai-replay.ts'
+import { inspectCurrentMeterBasis } from '../meter-transform.ts'
 
 type BodyCounter = (input: Pick<FullMeterInput, 'body' | 'serialized'>) => TokenMeasurement
 function basisMatches(basis: CountingBasis, meter: InputMeter): boolean {
-  return (
-    basis.model === meter.modelId &&
-    basis.provider === meter.provider &&
-    basis.binding.definition.modelId === meter.modelId &&
-    basis.binding.definition.revision === meter.definitionRevision &&
-    canonicalProjection(basis.binding.implementation) ===
-      canonicalProjection(meter.implementation) &&
-    basis.meterRevision === meter.algorithmRevision &&
-    basis.tokenizerRevision === meter.tokenizerRevision &&
-    basis.replayRevision === meter.replayRevision &&
-    basis.transformRevision === meter.transformRevision &&
-    basis.projectionRevision === INPUT_PROJECTION_REVISION
-  )
+  return inspectCurrentMeterBasis(basis, meter).kind === 'known'
 }
 function encrypted(group: PlanOutputHistoryGroup): boolean {
   return group.outputBlocks.some(block => {

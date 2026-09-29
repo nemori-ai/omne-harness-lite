@@ -12,6 +12,7 @@ import { ownCalibration } from '../calibration.ts'
 import { object } from '../json.ts'
 import { canonicalProjection, INPUT_PROJECTION_REVISION } from '../projection.ts'
 import type { InputMeter, MeterContribution } from '../input-meter.ts'
+import { inspectTransformRevision } from '../meter-transform.ts'
 
 export const openAi56ReplayModels: ReadonlySet<string> = new Set([
   'openai/gpt-5.6-sol',
@@ -145,7 +146,7 @@ export function estimateOpenAi56Group(input: unknown, meter: InputMeter): MeterC
           basis.tokenizerRevision !== OPENAI_56_TOKENIZER_REVISION ||
           basis.meterRevision !== original.algorithm ||
           basis.replayRevision !== original.replay ||
-          basis.transformRevision !== 'openrouter-wire/2' ||
+          inspectTransformRevision(basis.transformRevision, 'openrouter-wire/2').kind !== 'known' ||
           basis.projectionRevision !== INPUT_PROJECTION_REVISION)) ||
       (origin &&
         (origin.provider !== 'openai' ||

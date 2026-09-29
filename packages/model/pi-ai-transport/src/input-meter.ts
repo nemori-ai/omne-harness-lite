@@ -17,6 +17,7 @@ import type { CountingBasis } from '@omne-harness-lite/model-response'
 import type { ModelDefinition } from './definitions.ts'
 import type { InputProjection } from './projection.ts'
 import { meterHistoryValid, meterReplayValid } from './history-projection.ts'
+import { inspectCurrentMeterBasis } from './meter-transform.ts'
 
 export interface HistorySelectionSpan {
   readonly groupIndex: number
@@ -47,6 +48,8 @@ export interface MarginalMeterInput {
  * must supply the same relationships; readonly types do not authenticate a source.
  */
 export interface ReplayMeterInput extends MarginalMeterInput {
+  /** Current actual request basis; never defaulted to the original observation. */
+  readonly countingBasis: CountingBasis
   readonly observation: Extract<PlanCalibration, { kind: 'observation' }>
   readonly outputHistory: readonly PlanOutputHistoryGroup[]
   /** Absolute final-projection indices, in the same order as units; never includes P. */
@@ -281,6 +284,8 @@ export function meterContributionValid(value: unknown): value is MeterContributi
 export function measureFull(meter: InputMeter, input: FullMeterInput): TokenMeasurement {
   try {
     if (
+      inspectCurrentMeterBasis(input.projection.requestInput.countingBasis, meter).kind !==
+        'known' ||
       writeJsonLossless(input.body) !== input.serialized ||
       !meterHistoryValid(input.outputHistory, input.historySpans, input.projection.units.length)
     )
@@ -292,12 +297,18 @@ export function measureFull(meter: InputMeter, input: FullMeterInput): TokenMeas
 }
 export function measureReplay(meter: InputMeter, input: ReplayMeterInput): MeterContribution {
   try {
+    const basis = inspectCurrentMeterBasis(input.countingBasis, meter)
+    if (basis.kind !== 'known')
+      return { kind: basis.kind === 'invalid' ? 'invalidInput' : 'unavailable' }
     return meterReplayValid(input) ? meter.measureReplay(input) : { kind: 'invalidInput' }
   } catch {
     return { kind: 'invalidInput' }
   }
 }
 export function measureNew(meter: InputMeter, input: NewMeterInput): MeterContribution {
+  const basis = inspectCurrentMeterBasis(input.countingBasis, meter)
+  if (basis.kind !== 'known')
+    return { kind: basis.kind === 'invalid' ? 'invalidInput' : 'unavailable' }
   if (
     !Array.isArray(input.unitIndices) ||
     !Array.isArray(input.units) ||

@@ -6,6 +6,12 @@ export {
 } from './transport.ts'
 export { planRequest, PI_AI_CARRIABLE_MODALITIES, type PlannedRequest } from './plan.ts'
 export {
+  composeTransformRevision,
+  inspectTransformRevision,
+  type ImagePreparationRevision,
+  type TransformInspection,
+} from './meter-transform.ts'
+export {
   defineInputMeter,
   measureFull,
   measureReplay,

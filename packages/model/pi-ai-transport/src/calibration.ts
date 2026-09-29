@@ -308,6 +308,7 @@ export function measureCalibrated(
                 ? meter.measureReplay(
                     Object.freeze({
                       ...arg(replay, boundary?.replay),
+                      countingBasis: basis,
                       observation: calibration,
                       outputHistory: Object.freeze(
                         replayHistory === undefined ? [] : [replayHistory],
