@@ -16,3 +16,9 @@
 主线依同一持续实施与技术验收委托，技术采用 [v15 工程观测映射 revision2](../../../realization/packages/model/model-request-runtime/v15-diagnostics-demo-design.md)，精确 SHA256 `c026f6e9b4963dd216d0b4819a07ba823bea73c0370823c49f4f0184a95edbcf`。沿现已接受 RT9 S63、v3 的 JSONL/query/export/有限metrics责任；[原提案评审](../../proposals/model-request-adaptation/review.md#2026-09-28-冷宿主与工程观测窄映射评审)记录独立AR1/AR2及revision2定点复核。采用显式执行关联与来源白名单、装配持有诊断寿命、单授权scope的有限查询导出、实际资源未停时继续持有并显示不完整、全装配多代transport读面容量。
 
 只承接 examples/model-invocation-minimal-demo 工程观测，不恢复已退役正式验收app、不增跨租户授权、trace后台或十三操作。当前契约不变；新增bindings0，D6-V1～V11、Node/POSIX资源与权限仍待实际验证，采用不代表实现和认证完成。候选正文保留受审字节，以本技术采用判可施工。
+
+## 2026-09-29 注册表诊断源计数增补
+
+主线依用户持续实施与技术验收委托，技术采用 [transport注册表诊断增补 revision2](../../../realization/packages/model/pi-ai-transport/v11-registry-diagnostics-design.md)，精确 SHA256 `e3f89afa2826a52a8f5800c67a1c7bb0e755df8f22e05f0aa7b635becdbc7ac6`。独立审查及定点复核见 [评审记录](../../proposals/model-request-adaptation/review.md#2026-09-29-注册表诊断源读面窄评)。
+
+采用record-only可选借用以及inspect的两个独立注册诊断失败/拒收累计字段；保留network diagnostics与collector health各自来源，不相加，不增异步队列或业务权限。首次thenable违例后的永久停投沿已采用v15有界出口规则。只补RT9 S63既有工程观测的实现绑定，无规格升版、无新服务/存储/指标，无新bindings。源码及实际Cordis/退役/故障验收仍待完成；本决定不宣布D6整体交付。

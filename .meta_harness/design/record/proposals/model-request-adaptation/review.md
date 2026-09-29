@@ -225,3 +225,9 @@ G3返回完整authoritativeSubject并捕获同prefix/身份/代际/释放；G5�
 工程观测 v15 revision1 SHA `596e21ad1a7e75f0e2d5382cf644c5cb87882ef1c4742bfc2d0d625a01d73f9f` 的 AR1 指出查询截止不等真实 I/O/close 停止；AR2要求多代 transport 健康句柄的装配总量有界。revision2 SHA `c026f6e9b4963dd216d0b4819a07ba823bea73c0370823c49f4f0184a95edbcf` 明确超时仅结束调用者等待、真实任务占原并发额度及健康暴露直到收口；换代创建前检查配置总量，活动旧实例不被终态快照淘汰冒充释放。独立 reviewer 定点复核 AR1/AR2 均闭合、无本范围阻断，未运行实现/Node/POSIX或扩大规格表达审查。
 
 反方分别是同进程少 IPC、OS 来源覆盖主管重启、插件自写日志方便独立安装、自动追踪减少接线、成熟后端省分页。当前选择代价明确归示例长期主管、显式关联和有限本机存储，不能因此宣布冷恢复或完整D6已完成。两项新增bindings均0；技术采用及范围分别见 D105/D076 追加。
+
+## 2026-09-29 注册表诊断源读面窄评
+
+独立 architecture-reviewer 审阅 transport v11-registry-diagnostics-design revision1，SHA `1c646bff766872cf75595e0402d07ec156b96f2803f9177b573c98666f101f60`：本范围无阻断、无新增政策待裁；一个非阻断要求防止非法回调反复返回同一pending Promise后累积reaction。revision2 SHA `e3f89afa2826a52a8f5800c67a1c7bb0e755df8f22e05f0aa7b635becdbc7ac6` 明确首次thenable后固定端口永久停投、仅观察一只原生Promise拒绝、后续不伪造dropped且不更换旧实例端口。同一reviewer窄核该精确字节，唯一意见闭合、未见新增问题。
+
+已核：record-only借用、缺席不伪失败、合法拒收与非法返回分计、collector只亲见事实、源/network/collector不相加、新旧实例独立、溢出unknown、真实停止前保留旧读面。未运行代码、故障或生命周期测试，不证明完整D6；补验pending/rejected Promise、溢出及关闭后读面。技术采用见D076追加。

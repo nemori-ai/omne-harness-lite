@@ -243,3 +243,7 @@ T-1/T-3/T-9/T-10a/T-12/T-14/T-17/T-18 等取得局部控制证据，T-17 只有�
 [实际运行与主线有限签收](../../../../record/evidence/2026-09-27-tests-model-request-runtime-boundaries/README.md)：HUB transport262／runtime6、build/typecheck与源码规则；独立两份新制品各23场景，84次本机TLS；七类恢复缺陷负控均实际失败并命中诊断。公开direct/Cordis关闭准入保留旧流/回调到真实停止，direct诊断异常不改业务，失败/serving逐键值脱敏保留普通事实，extra原键及全未知Usage来源通过公开judge。六条新增绑定仅覆盖各自有限判据，不将输入保全或测试总数当完整契约符合性。
 
 implementation6／definition1；当前旧窄定义/两个pilot尚待D082迁移。未验证真实OpenRouter、TTL到期、37完整能力/config、耐久租户服务、完整A/B换代或全T/SC/G。付费0，旧失败和r5原样保留，不重标历史认证；本轮形式执行0。
+
+## 注册表诊断源读面增量
+
+采用范围见 [v11](v11-registry-diagnostics-design.md)与节点README；运行证据尚无。必需场景为实际registry+collector/Cordis贡献生命周期、未停旧lease、force请求与真实停止区分、cleanup失败、无端口/合法拒收/throw/非法值、重复pending Promise停投及拒绝吸收、溢出unknown和最终inspect快照；源/network/collector同值不能相加当多个失败。不以这些场景替代完整D6或逐模型认证。
