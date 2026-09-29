@@ -1,5 +1,7 @@
 # 模型调用引用、执行与消费者生命周期
 
+最终来源清单、规范/Schema/五节点/形式证据摘要、原始提交顺序及HUB导航合并提示见[交接manifest](handoff-manifest.json)；PF-013的[v5派生快照](../../../product/PF-013-model-profiles-and-invocation/projection/v5/projection.md)只映射已审范围，不改变接受状态。
+
 当前设计增量已完成[无GC最小映射定点复评](node-review-r2.md)：架构与规格表达均无阻断，基本ref路径不需要新内容平台或transport版本。精确受审提交97f04eed；最终采用/实施仍由主线裁定，真实验证未完成。
 
 提供者阶段的当前候选方向见[r5范围收窄](technical-choices-r5.md)及[五节点评审](node-review-r1.md)：无GC私有内容行、受信准入协议、当前H19原值路径。后继规范条件与节点已修，定点复评中；此前r4及下文是其各自阶段状态。
