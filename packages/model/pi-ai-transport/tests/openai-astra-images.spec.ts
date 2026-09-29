@@ -171,7 +171,30 @@ describe('Astra named patch rule, shared calculations and final visible projecti
           expected -
           getEncoding('o200k_base').encode(writeJsonLossless({ ...envelope, messages: [] })).length,
       }
-      expect(meter.measureReplay(marginal)).toEqual(contribution)
+      expect(
+        meter.measureReplay({
+          ...marginal,
+          observation: {
+            kind: 'observation',
+            inputCalibration: {
+              requestInput: { kind: 'unavailable', reason: 'not_retained' },
+              observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+              outputGroup: { kind: 'unavailable', reason: 'not_retained' },
+            },
+            usage: {
+              input_tokens: 'unknown',
+              output_tokens: 'unknown',
+              cache_read_tokens: 'unknown',
+              cache_write_tokens: 'unknown',
+              source: 'none',
+            },
+            outputBlocks: [],
+            replaySelection: [],
+          },
+          unitIndices: messages.map((_, index) => index + 7),
+          selectionSpans: [],
+        }),
+      ).toEqual(contribution)
       expect(meter.measureNew(marginal)).toEqual(contribution)
       expect(meter.measureNew({ ...marginal, units: [] })).toEqual({ kind: 'exact', tokens: 0 })
     },
