@@ -1064,3 +1064,5 @@ export async function confirmContent(
 // The host composes modelCallContentMigrations('sqlite') before opening Storage.
 // A confirmed row is content only; publish the adopted SessionLog marker separately.
 ```
+
+The internal `publishModelCallContent` step now writes accepted creation or ready content first, reads the authoritative JSONL prefix, and appends its marker with `tailEquals`. A real SQLite/JSONL scenario confirms the created marker once, recognizes an exact retry, and refuses replacement bytes. Public `openCall` and reply-bearing `dispatch` now invoke this publisher before returning a reference or terminal state; their complete service behavior still awaits the shared facts projection and integrated verification. `createIndependentCallConsumer` provides a separately owned wait/release resource: aborting one wait leaves the consumer alive, while release waits for its actual receiving tasks to stop. `createRuntimeAcquire` is wired to trusted access and presence providers, but cold lookup still requires the shared facts projection; the directed tests do not certify the public `acquireCall` path.

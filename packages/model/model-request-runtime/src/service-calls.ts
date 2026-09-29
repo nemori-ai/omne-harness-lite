@@ -9,7 +9,7 @@ import {
   isNonNegativeJsonInteger,
 } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { judgeMessage } from '@omne-harness-lite/messages'
+import { judgeMessage, type ModelCallCreatedPayload } from '@omne-harness-lite/messages'
 import {
   judgeModelProfileDocument,
   validate as profileShape,
@@ -33,6 +33,7 @@ import {
 } from './service-control.ts'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
+import { publishModelCallContent } from './reference-publish.ts'
 import { authorizedCalibration } from './service-calibration.ts'
 import type { CallHistoryResult } from './call-history.ts'
 import type {
@@ -689,7 +690,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           }
           if (closing) return { runtimeStopped: true }
           reservation.updateRequest(request)
-          return { callId, state: 'resumable' }
+          return { ref: key, callId, state: 'resumable' }
         }
         if (local !== undefined) return { unavailable: true }
         if (existing !== undefined) return { unavailable: true }
@@ -759,7 +760,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             transferred = true
             if (!runtime.calls.insert(reservation, container)) return { unavailable: true }
             published = true
-            return { callId, state: 'resumable' }
+            return { ref: key, callId, state: 'resumable' }
           } finally {
             if (!transferred) lease.release()
           }
@@ -996,6 +997,58 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             settlementScheduler: runtime.settlementScheduler,
             diagnostic: event => runtime.policy.diagnostic(event),
           })
+          const selectedBy =
+            request.targetChangedBy === undefined
+              ? request.basis.selectedBy
+              : { extension: capabilityCanonicalString(request.targetChangedBy) }
+          const created: ModelCallCreatedPayload = {
+            kind: 'created',
+            ref: key,
+            creationKey: request.creationKey,
+            origin: {
+              tenant: session.log.tenant,
+              session: session.log.session,
+              ...(request.run === undefined ? {} : { run: request.run, attempt: request.attempt }),
+            },
+            input: {
+              target: request.target,
+              ...(request.parameters === undefined ? {} : { parameters: request.parameters }),
+              messages: request.messages,
+              tools: request.tools,
+              basis: request.basis,
+              sourceVersions: session.sourceVersions,
+              ...(request.targetChangedBy === undefined
+                ? {}
+                : { targetChangedBy: request.targetChangedBy }),
+            },
+            status: 'accepted',
+            adopted: {
+              profile: winner.ref,
+              profileSnapshot: snapshot,
+              adaptation: snapshot.adaptation,
+              parameters: merged.parameters,
+              selectedBy,
+              messages: request.messages,
+              tools: resolved.tools,
+              contextSources: {},
+            },
+          }
+          const publication = await publishModelCallContent({
+            binding: session.log,
+            owner,
+            concurrent: runtime.settlementContention.limits.concurrent,
+            reads: retainedReads,
+            contentStore: runtime.callFacts.content,
+            content: { kind: 'created', value: created },
+            locator: callId,
+            version: 'v1',
+            at: runtime.policy.now(),
+            trackTask: task => appends.track(task),
+            retainUnknown(registration, task) {
+              unknownWrites.keep(key, session.log, owner, registration, task)
+            },
+          })
+          if (!('published' in publication)) return { unavailable: true }
           const container = createCallContainer({
             key,
             session,
@@ -1011,10 +1064,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
               profile: winner.ref,
               snapshot,
               parameters: merged.parameters,
-              selectedBy:
-                request.targetChangedBy === undefined
-                  ? request.basis.selectedBy
-                  : { extension: capabilityCanonicalString(request.targetChangedBy) },
+              selectedBy,
               lease,
             },
             owner,
@@ -1026,7 +1076,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
           transferred = true
           if (!runtime.calls.insert(reservation, container)) return { unavailable: true }
           published = true
-          return { callId, state: 'open' }
+          return { ref: key, callId, state: 'open' }
         } finally {
           if (!transferred) lease.release()
         }

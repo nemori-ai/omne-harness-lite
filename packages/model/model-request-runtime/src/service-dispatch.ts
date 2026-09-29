@@ -1,3 +1,5 @@
+import { offerReferenceConsumers } from './reference-consumer.ts'
+import { publishModelCallContent } from './reference-publish.ts'
 import {
   createPlanReuseScopes,
   type PlanReuseScopes,
@@ -549,7 +551,6 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           facts: { kind: 'decision', cause: 'credential_unavailable', credentialPresent: false },
         })
         const first = 'absent' in history || history.known.dispatches.length === 0
-        const ending = first ? 'undispatched' : 'released'
         const appended = await appendControlRecord({
           trackTask: task => appends.track(task),
           binding: session.log,
@@ -558,12 +559,19 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           ...(local.request.run === undefined
             ? {}
             : { run: local.request.run, attempt: input.attempt }),
-          record: {
-            kind: 'model_call_ended',
-            call: key.callId,
-            ending,
-            cause: 'credential_unavailable',
-          },
+          record: first
+            ? {
+                kind: 'model_call_ended',
+                call: key.callId,
+                ending: 'undispatched',
+                cause: 'credential_unavailable',
+              }
+            : {
+                kind: 'model_call_ended',
+                call: key.callId,
+                ending: 'released',
+                cause: 'credential_unavailable',
+              },
           retainUnknown(registration, task) {
             unknownWrites.keep(key, session.log, owner, registration, task)
           },
@@ -855,9 +863,12 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
                   })
                 },
               }),
-          ...(deliveryQueue === undefined
-            ? {}
-            : { onAccepted: (event, snapshot) => void deliveryQueue.offer(event, snapshot) }),
+          onAccepted: (event, snapshot) => {
+            deliveryQueue?.offer(event, snapshot)
+            const original = runtime.calls.find(key)
+            if (original?.view().invocation === created)
+              offerReferenceConsumers(original, event, snapshot)
+          },
         })
         untransferredScope = undefined
         invocations.add(created)
@@ -879,6 +890,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       const attached = handle
       reservation.publish({
         phase: 'dispatching',
+        target: prepared.prepared.planInput.target,
         ...(input.attempt === undefined ? {} : { attempt: input.attempt }),
         abort: attached.abort,
         interrupt: attached.interrupt,
@@ -910,8 +922,32 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
       if (view?.invocation !== handle || view.operation.phase !== 'dispatching')
         return { unavailable: true }
       if ('replyPending' in outcome) {
-        finish.reservation.publish({ phase: 'reply_pending', pending: outcome.replyPending })
-        return { replyPending: outcome.replyPending }
+        const pending = outcome.replyPending
+        const published = await publishModelCallContent({
+          binding: session.log,
+          owner: view.owner,
+          concurrent: runtime.settlementContention.limits.concurrent,
+          reads: retainedReads,
+          contentStore: runtime.callFacts.content,
+          content: { kind: 'reply_ready', value: pending },
+          locator: pending.id,
+          version: 'v1',
+          at: runtime.policy.now(),
+          trackTask: task => appends.track(task),
+          retainUnknown(registration, task) {
+            unknownWrites.keep(key, session.log, view.owner, registration, task)
+          },
+        })
+        if (!('published' in published)) {
+          finish.reservation.publish({ phase: 'reply_pending', pending })
+          return { unavailable: true }
+        }
+        const closed = await handle.close()
+        if ('released' in closed) invocations.delete(handle)
+        if ('unavailable' in closed) return { unavailable: true }
+        const state = pending.outcome === 'interrupted' ? 'interrupted' : 'complete'
+        finish.reservation.publish({ phase: state, pending })
+        return { replyPending: pending, state, disposition: 'disposition_pending' }
       }
       if ('settled' in outcome) {
         const judged = judgeModelResponse(outcome.settled.settled.response.value)

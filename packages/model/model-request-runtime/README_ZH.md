@@ -1053,3 +1053,5 @@ export async function confirmContent(
 // host 在打开 Storage 前合成 modelCallContentMigrations('sqlite')。
 // 已确认行只是内容；采用的 SessionLog marker 需单独发布。
 ```
+
+内部 `publishModelCallContent` 已先写入 accepted 创建或 ready 内容、读取权威 JSONL 前缀，再以 `tailEquals` 追加 marker。真实 SQLite/JSONL 场景验证 created marker 单次提交、同原件认回及不同字节拒绝。公开 `openCall` 和有回复 `dispatch` 已在返回 ref 或终态前调用该发布件，完整服务行为仍待共同 facts 投影及集成验证。`createIndependentCallConsumer` 独立拥有 wait/release 资源：单次 wait 取消不结束 consumer，release 等待接收任务真实停止。`createRuntimeAcquire` 已接入受信资格与存在性提供者；冷读取仍待共同 facts 投影接线，定向测试不证明公开 `acquireCall` 路径。

@@ -617,8 +617,10 @@ export interface CallContainerStore<P extends PlannedSemantics, R> {
 }
 export type CallOperationState =
   | { readonly phase: 'ready' }
+  | { readonly phase: 'complete' | 'interrupted'; readonly pending: PendingModelResponse }
   | {
       readonly phase: 'dispatching'
+      readonly target: ModelArrivalTarget
       readonly attempt?: AttemptId
       readonly abort: () => void
       readonly interrupt: (initiator: 'user' | 'run_cancelled') => void
@@ -626,6 +628,8 @@ export type CallOperationState =
   | { readonly phase: 'reply_pending'; readonly pending: PendingModelResponse }
   | { readonly phase: 'settling' }
 export interface CallContainerView<P extends PlannedSemantics, R> {
+  /** Real instance generation for host presence and independent receiver attachment. */
+  readonly executionGeneration: object
   readonly key: CallKey
   readonly session: SessionRuntimeBinding
   readonly binding: PreparedCallBinding<P, R>

@@ -11,6 +11,10 @@ import {
 import { composeMigrations, narrow, type Storage } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { publishModelCallContent } from '../src/reference-publish.ts'
+import { OwnedReadTracker } from '../src/service-control.ts'
+import type { SettlementOwner, SettlementTask } from '../src/settlement-types.ts'
+import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
 import {
   createModelCallContentStore,
   modelCallContentMigrations,
@@ -113,7 +117,99 @@ async function host(
 }
 const policy = { maxConcurrentWrites: 2, maxContentBytes: 1000000 }
 
+function publicationOwner(): { owner: SettlementOwner; active: () => number } {
+  let active = 0
+  const owner: SettlementOwner = {
+    name: 'created-publication-test',
+    admission: () => 'open',
+    opened: () => ({ confirmed: true }),
+    unresolvedWrites: (): readonly SettlementTask<AppendResult>[] => [],
+    acquire: () => {
+      active++
+      let running = 0
+      return {
+        registration: {
+          start(_kind, operation) {
+            running++
+            const completion = Promise.resolve().then(() => operation(new AbortController().signal))
+            const stopped = completion.then(
+              () => {
+                running--
+              },
+              () => {
+                running--
+              },
+            )
+            return { completion, stopped, requestStop() {} }
+          },
+          release() {
+            if (running !== 0) throw new Error('released active task')
+            active--
+          },
+        },
+      }
+    },
+  }
+  return { owner, active: () => active }
+}
+
 describe('R20-ST2 private immutable content against real SQLite and SL3', () => {
+  it('publishes a confirmed created marker after content and recognizes the same original', async () => {
+    await host(async h => {
+      const store = createModelCallContentStore({ storage: h.storage, policy })
+      const { owner, active } = publicationOwner()
+      const reads = new OwnedReadTracker()
+      const invoke = () =>
+        publishModelCallContent({
+          binding: h.binding,
+          owner,
+          concurrent: 2,
+          reads,
+          contentStore: store,
+          content: h.content,
+          locator: 'created',
+          version: 'v1',
+          at: '2026-09-20T08:00:00Z',
+          retainUnknown() {
+            throw new Error('known real JSONL receipt')
+          },
+        })
+      expect(await invoke()).toEqual({ published: true })
+      expect(await invoke()).toEqual({ published: true })
+      const log = await h.binding.log.readSince(h.binding.session, 0)
+      if ('failure' in log) throw new Error('real log unavailable')
+      expect(log.entries).toHaveLength(1)
+      expect(log.entries[0]?.payload).toMatchObject({ value: { kind: 'model_call_created' } })
+      expect(active()).toBe(0)
+      const changed = {
+        kind: 'created' as const,
+        value: {
+          ...h.content.value,
+          input: { ...h.content.value.input, sourceVersions: { changed: 'different' } },
+        },
+      }
+      expect(
+        await publishModelCallContent({
+          binding: h.binding,
+          owner,
+          concurrent: 2,
+          reads,
+          contentStore: store,
+          content: changed,
+          locator: 'created',
+          version: 'v1',
+          at: '2026-09-20T08:00:00Z',
+          retainUnknown() {
+            throw new Error('replacement must not append')
+          },
+        }),
+      ).toEqual({ unavailable: true })
+      const after = await h.binding.log.readSince(h.binding.session, 0)
+      expect('entries' in after ? after.entries : []).toHaveLength(1)
+      await store.close()
+      expect(await reads.close()).toEqual({ released: true })
+    })
+  })
   it('confirms exact created/complete pending bytes, rejects replacement, survives close/reopen', async () => {
     await host(async h => {
       const store = createModelCallContentStore({ storage: h.storage, policy })

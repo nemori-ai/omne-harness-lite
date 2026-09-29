@@ -1,3 +1,4 @@
+import { notifyReferenceConsumers } from './reference-consumer.ts'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
@@ -81,6 +82,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
   input: CreateCallContainerInput<P, R>,
 ): CallContainer<P, R> {
   const { key, session, binding, owner, coordinator } = input
+  const executionGeneration = Object.freeze({})
   let request = input.request
   if (
     key.session !== request.session ||
@@ -152,6 +154,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
           publishStopped: () => {
             if (released || releaseAttempted) throw new TypeError('call already released')
             operation = Object.freeze({ phase: 'ready' })
+            notifyReferenceConsumers(container)
           },
         }),
       ),
@@ -225,6 +228,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     key: ownedKey,
     view(): CallContainerView<P, R> {
       return Object.freeze({
+        executionGeneration,
         key: ownedKey,
         session,
         binding,
@@ -244,6 +248,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       if (admissionClosed && operation.phase !== 'dispatching' && operation.phase !== 'settling')
         throw new TypeError('call container admission closed')
       operation = Object.freeze({ ...next })
+      notifyReferenceConsumers(container)
     },
     retainStopped,
     close(): Promise<RuntimeCloseResult> {

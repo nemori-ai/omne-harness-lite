@@ -68,3 +68,6 @@ export type * from './reference-types.ts'
 
 export { createModelCallContentStore, modelCallContentMigrations } from './reference-content.ts'
 export type { ModelCallContentPolicy } from './reference-content.ts'
+
+export { createRuntimeAcquire } from './service-acquire.ts'
+export { createIndependentCallConsumer } from './reference-consumer.ts'

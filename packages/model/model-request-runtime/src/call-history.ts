@@ -1,10 +1,12 @@
 import { ExactDecimal, type ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { JsonNumber, JsonValue } from '@omne-harness-lite/content-blocks'
 import type {
+  ModelCallCreatedRecord,
   ModelCallDispatchedRecord,
   ModelCallEndedRecord,
   ModelCallInterruptIntentRecord,
   ModelCallOpenedRecord,
+  ModelCallReplyReadyRecord,
   SessionRef,
 } from '@omne-harness-lite/messages'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
@@ -53,6 +55,8 @@ export type CallHistoryResult =
 type RecordEntry = {
   readonly entry: LogEntry
   readonly record:
+    | ModelCallCreatedRecord
+    | ModelCallReplyReadyRecord
     | ModelCallDispatchedRecord
     | ModelCallOpenedRecord
     | ModelCallInterruptIntentRecord
@@ -97,6 +101,7 @@ export function interpretCallHistory(input: {
   }
   if (records.length === 0 && responses.length === 0) return { absent: true }
   const originalRun =
+    records.find(item => item.record.kind === 'model_call_created')?.entry.run ??
     records.find(item => item.record.kind === 'model_call_dispatched')?.entry.run ??
     records[0]?.entry.run
   if (
@@ -108,6 +113,14 @@ export function interpretCallHistory(input: {
   const dispatched = records.filter(
     (item): item is RecordEntry & { readonly record: ModelCallDispatchedRecord } =>
       item.record.kind === 'model_call_dispatched',
+  )
+  const created = records.filter(
+    (item): item is RecordEntry & { readonly record: ModelCallCreatedRecord } =>
+      item.record.kind === 'model_call_created',
+  )
+  const ready = records.filter(
+    (item): item is RecordEntry & { readonly record: ModelCallReplyReadyRecord } =>
+      item.record.kind === 'model_call_reply_ready',
   )
   const opened = records.filter(
     (item): item is RecordEntry & { readonly record: ModelCallOpenedRecord } =>
@@ -121,7 +134,31 @@ export function interpretCallHistory(input: {
     (item): item is RecordEntry & { readonly record: ModelCallEndedRecord } =>
       item.record.kind === 'model_call_ended',
   )
-  if (intents.length > 1 || endings.length > 1 || opened.length > dispatched.length)
+  if (
+    created.length > 1 ||
+    intents.length > 1 ||
+    endings.length > 1 ||
+    opened.length > dispatched.length
+  )
+    return unavailable('history')
+  if (
+    ready.some(
+      item =>
+        !dispatched.some(
+          candidate =>
+            candidate.record.response === item.record.response &&
+            ExactDecimal.from(candidate.record.dispatch).compare(
+              ExactDecimal.from(item.record.dispatch),
+            ) === 0,
+        ),
+    )
+  )
+    return unavailable('history')
+  // Until the shared facts projection reads the immutable ready content, this interpreter
+  // cannot infer a complete/interrupt terminal state from a marker alone.
+  if (
+    ready.some(item => !responses.some(response => response.response.id === item.record.response))
+  )
     return unavailable('history')
   const dispatches: CallHistoryDispatch[] = []
   for (const [index, item] of dispatched.entries()) {
@@ -201,7 +238,7 @@ export function interpretCallHistory(input: {
   const ending = endings[0]?.record ?? null
   if (
     (ending?.ending === 'undispatched' && last !== undefined) ||
-    (ending === null && intent === null && last === undefined) ||
+    (ending === null && intent === null && last === undefined && created.length === 0) ||
     (last !== undefined &&
       ending !== null &&
       last.response === null &&

@@ -1,4 +1,5 @@
 import { createPlanReuseScopes } from './plan-reuse-scopes.ts'
+import { createRuntimeAcquire } from './service-acquire.ts'
 import { createRuntimeReads } from './service-reads.ts'
 import { createServiceCalls } from './service-calls.ts'
 import { createServiceDispatch } from './service-dispatch.ts'
@@ -18,7 +19,7 @@ const ownedStores = new WeakSet<object>()
 const unavailable = Object.freeze({ unavailable: true } as const)
 const runtimeStopped = Object.freeze({ runtimeStopped: true } as const)
 
-/** One process owner for all thirteen operations and their shared call store. */
+/** One process owner for all reference lifecycle operations and their shared call store. */
 export function createModelRuntime<P extends PlannedSemantics, R>(
   construction: RuntimeConstruction<P, R>,
 ): {
@@ -29,6 +30,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   // These constructors only create local closures; host resource acquisition precedes this factory.
   const scopes = createPlanReuseScopes(construction)
   const reads = createRuntimeReads(construction)
+  const acquire = createRuntimeAcquire(construction)
   const calls = createServiceCalls(construction, scopes)
   const dispatch = createServiceDispatch(construction, scopes)
   const control = createServiceControl(construction)
@@ -70,9 +72,13 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   let released = false
   let closing: Promise<RuntimeCloseResult> | undefined
 
-  function guarded<I, O>(operation: (input: I) => Promise<O>, halted: O): (input: I) => Promise<O> {
+  function guarded<I, O>(
+    operation: (input: I) => Promise<O>,
+    halted: O,
+    allowClosed = false,
+  ): (input: I) => Promise<O> {
     return async input => {
-      if (admissionClosed) return halted
+      if (admissionClosed && !allowClosed) return halted
       let complete = () => {}
       const done = new Promise<void>(resolve => {
         complete = resolve
@@ -120,6 +126,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   }
 
   const service: ModelRuntimeService = Object.freeze({
+    acquireCall: guarded(acquire.acquireCall, unavailable, true),
     legalTargets: guarded(reads.methods.legalTargets, unavailable),
     displayList: guarded(reads.methods.displayList, unavailable),
     effectiveModel: guarded(reads.methods.effectiveModel, unavailable),
@@ -137,6 +144,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
 
   const owners = [
     ['reads', reads.close],
+    ['acquire', acquire.close],
     ['calls', calls.close],
     ['dispatch', dispatch.close],
     ['control', control.close],
