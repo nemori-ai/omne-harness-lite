@@ -178,3 +178,5 @@ pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run t
 `tests/zai-prime-effort-service.spec.ts` 在已声明的 5m／last_message 缓存配置下，验证 Prime low／high／max 的三轮持久本机 TLS 文本交互与超限余量零 HTTP 拒绝。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/zai-prime-effort-service.spec.ts --maxWorkers=1`。这不认证真实 effort 精度或缓存保留；历史思考仍在当前官方计量器支持域之外。
 
 `tests/openai-sol-luna-images-service.spec.ts` 覆盖 `mp4-15` 的 Sol/Luna 及对应 Pro：三轮持久调用保留旧图片，基础型号复用合法响应校准，Pro 保持 `scope_unknown` 下全量计量。逐图 4 MiB 和配置 token 余量的超限均零 HTTP。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/openai-sol-luna-images-service.spec.ts --maxWorkers=1`。图片沿现有编程接口的用户消息进入，不增加 CLI 附件语法；合成响应仅验证组合，不认证私有预处理或实机型号完整交付。
+
+`tests/openai-output-history-service.spec.ts` 对三个 GPT-5.6 非 Pro 型号做三轮持久本机 TLS：中间回复保留已知 O、输入用量未知，下一轮分别复用更早输入锚或改变 envelope 后全量覆盖两个历史组。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/openai-output-history-service.spec.ts --maxWorkers=1`。上游原 usage/cost 与密文不改；O+0 是估算，不是上游计量等式。

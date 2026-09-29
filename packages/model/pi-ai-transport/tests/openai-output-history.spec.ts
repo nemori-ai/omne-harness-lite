@@ -1,0 +1,425 @@
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import { describe, expect, it } from 'vitest'
+import { getEncoding } from 'js-tiktoken'
+import { writeJsonLossless, toOpaqueJson } from '@omne-harness-lite/content-blocks'
+import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type { Message } from '@omne-harness-lite/messages'
+import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
+import { createOfficialProfileContent } from '../src/configuration.ts'
+import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'
+import { planRequest, type PlannedRequest } from '../src/plan.ts'
+import { projectOutput } from '../src/projection.ts'
+import { at, input, judgedMessage, message } from './support.ts'
+
+const ids = ['openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna']
+const encoder = getEncoding('o200k_base')
+function reply(model: string, id: string): Message {
+  return judgedMessage({
+    type: 'assistant',
+    id,
+    response: `${id}-response`,
+    ending: 'complete',
+    createdAt: at,
+    blocks: [
+      {
+        kind: 'thinking',
+        id: `${id}-reason`,
+        text: '',
+        opaque: toOpaqueJson({
+          routeName: model,
+          reasoning_details: [
+            {
+              type: 'reasoning.encrypted',
+              data: `CIPHER_${id}`,
+              format: 'openai-responses-v1',
+              index: 0,
+            },
+          ],
+        }),
+        visibility: { toHuman: false, toModel: true },
+      },
+      {
+        kind: 'text',
+        id: `${id}-text`,
+        text: `Visible ${id}`,
+        visibility: { toHuman: true, toModel: true },
+      },
+    ],
+  })
+}
+function group(
+  plan: PlannedRequest,
+  reply: Message,
+  index: number,
+  output: number,
+  observed?: number,
+): PlanOutputHistoryGroup {
+  const projected = projectOutput({
+    blocks: reply.blocks,
+    source: 'reply',
+    completeness: 'complete',
+  })
+  if (!('projected' in projected)) throw Error('fixture projection')
+  return {
+    inputCalibration: {
+      requestInput: plan.requestInput,
+      observedInput:
+        observed === undefined
+          ? { kind: 'unavailable', reason: 'missing_usage' }
+          : {
+              kind: 'from_usage',
+              provenance: {
+                adapterRevision: 'openrouter-usage-reader/2',
+                fieldPaths: ['usage.prompt_tokens'],
+              },
+            },
+      outputGroup: projected.projected,
+    },
+    usage: {
+      input_tokens: observed ?? 'unknown',
+      output_tokens: output,
+      cache_read_tokens: observed === undefined ? 'unknown' : 0,
+      cache_write_tokens: observed === undefined ? 'unknown' : 0,
+      reasoning_tokens: 7,
+      source: 'upstream',
+    },
+    outputBlocks: reply.blocks,
+    replaySelection: reply.blocks.map((_, i) => ({
+      sourceBlockIndex: i,
+      messageIndex: index,
+      blockIndex: i,
+    })),
+    origin: {
+      adaptation: plan.input.snapshot.adaptation,
+      provider: 'openai',
+      parameters: plan.parameters,
+      servingProvider: 'OpenAI',
+      upstreamModel: plan.input.routeName,
+    },
+  }
+}
+const observation = (g: PlanOutputHistoryGroup) => ({
+  kind: 'observation' as const,
+  inputCalibration: g.inputCalibration,
+  usage: g.usage,
+  outputBlocks: g.outputBlocks,
+  replaySelection: g.replaySelection,
+})
+describe.each(ids)('%s explicit complete output history', model => {
+  const definition = openaiDefinitions.find(d => d.modelId === model)!
+  const meter = createOpenAiInputMeter(definition)
+  const profile = createOfficialProfileContent(definition, {
+    providers: ['openai'],
+    allowFallback: false,
+    configuration: openaiConfiguration,
+  })
+  if ('rejected' in profile) throw Error(profile.rejected)
+  const resolvedProfile = profile.ok
+  function request(): PlanInput {
+    const base = input()
+    return {
+      ...base,
+      routeName: model,
+      provider: 'openai',
+      snapshot: {
+        ...base.snapshot,
+        ...definition.capabilities,
+        adaptation: resolvedProfile.adaptation,
+        providers: resolvedProfile.providers,
+        allowFallback: false,
+      },
+      messages: [message('user', 'start', 'u1')],
+      tools: [],
+      parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+      tokenMargin: { multiplier: 1.1, reserveTokens: 7 },
+    }
+  }
+  function planned(value: PlanInput): PlannedRequest {
+    const result = planRequest(value, [definition], meter)
+    if (!('planned' in result)) throw Error(JSON.stringify(result))
+    return result.planned
+  }
+  function history() {
+    const first = planned(request()),
+      a = reply(model, 'a'),
+      ga = group(first, a, 1, 18, 100)
+    const second = planned({
+      ...request(),
+      messages: [...request().messages, a, message('user', 'next', 'u2')],
+      outputHistory: [ga],
+    })
+    const b = reply(model, 'b'),
+      gb = group(second, b, 3, 23)
+    const value = {
+      ...request(),
+      messages: [
+        ...request().messages,
+        a,
+        message('user', 'next', 'u2'),
+        b,
+        message('user', 'last', 'u3'),
+      ],
+      outputHistory: [ga, gb],
+    }
+    return { value, ga, gb }
+  }
+  it('covers two O groups in full and only N O in marginal with independent numeric oracles', () => {
+    const { value, ga } = history()
+    const full = planned(value)
+    const body = {
+      ...full.body,
+      messages: (full.body.messages as unknown[]).filter((_, i) => i !== 1 && i !== 3),
+    }
+    const expected = encoder.encode(writeJsonLossless(body)).length + 18 + 23
+    expect(full.measurement).toMatchObject({
+      mode: 'full',
+      admissionTokens: Math.ceil(expected * 1.1) + 7,
+    })
+    expect(ExactDecimal.from(full.measurement.predictedInput).toString()).toBe(String(expected))
+    expect(writeJsonLossless(full.body)).toContain('CIPHER_a')
+    expect(writeJsonLossless(full.body)).toContain('CIPHER_b')
+    const marginal = planned({ ...value, calibration: observation(ga) })
+    const { messages: _, tools: __, ...envelope } = marginal.body
+    const remaining = (marginal.body.messages as unknown[]).filter((_, i) => i === 2 || i === 4)
+    const net =
+      encoder.encode(writeJsonLossless({ ...envelope, messages: remaining })).length -
+      encoder.encode(writeJsonLossless({ ...envelope, messages: [] })).length +
+      23
+    expect(marginal.measurement.mode).toBe('marginal')
+    if (marginal.measurement.mode !== 'marginal') throw Error('marginal required')
+    expect(ExactDecimal.from(marginal.measurement.replayContribution.tokens).toString()).toBe('18')
+    expect(ExactDecimal.from(marginal.measurement.newContribution.tokens).toString()).toBe(
+      String(net),
+    )
+    expect(ExactDecimal.from(marginal.measurement.predictedInput).toString()).toBe(
+      String(100 + 18 + net),
+    )
+  })
+  it('uses original origin with unavailable requestInput but never invents missing origin', () => {
+    const { value, gb } = history()
+    const noI: PlanOutputHistoryGroup = {
+      ...gb,
+      inputCalibration: {
+        ...gb.inputCalibration,
+        requestInput: { kind: 'unavailable', reason: 'not_retained' },
+      },
+    }
+    expect(
+      planned({ ...value, outputHistory: [value.outputHistory[0]!, noI] }).measurement.mode,
+    ).toBe('full')
+    const { origin: _, ...missing } = noI
+    expect(
+      planRequest(
+        { ...value, outputHistory: [value.outputHistory[0]!, missing as PlanOutputHistoryGroup] },
+        [definition],
+        meter,
+      ),
+    ).toMatchObject({ rejected: 'invalidInput', reason: 'malformed' })
+  })
+  it('maps only the finite prior binding and basis, without making the old factory callable', () => {
+    const { value, ga } = history()
+    const original = ga.inputCalibration.requestInput
+    if (original.kind !== 'known') throw Error('fixture source')
+    const binding = {
+      ...ga.origin.adaptation,
+      definition: { modelId: model, revision: '6' },
+      implementation: { name: 'pi-ai:openai', revision: 'mp4-12' },
+    }
+    const old: PlanOutputHistoryGroup = {
+      ...ga,
+      origin: { ...ga.origin, adaptation: binding },
+      inputCalibration: {
+        ...ga.inputCalibration,
+        requestInput: {
+          ...original,
+          countingBasis: {
+            ...original.countingBasis,
+            binding,
+            meterRevision: 'openai-gpt-5.6-o200k-base-complete-output-6/response-calibration-1',
+            replayRevision:
+              'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/1',
+          },
+        },
+      },
+    }
+    expect(
+      planned({ ...value, outputHistory: [old, value.outputHistory[1]!] }).measurement.mode,
+    ).toBe('full')
+    expect(() =>
+      createOpenAiInputMeter({
+        ...definition,
+        revision: '6',
+        implementation: binding.implementation,
+      }),
+    ).toThrow()
+    const bad = {
+      ...old,
+      inputCalibration: {
+        ...old.inputCalibration,
+        requestInput: {
+          ...original,
+          countingBasis: {
+            ...original.countingBasis,
+            binding,
+            meterRevision: 'invented',
+            replayRevision:
+              'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/1',
+          },
+        },
+      },
+    }
+    expect(
+      planRequest({ ...value, outputHistory: [bad, value.outputHistory[1]!] }, [definition], meter),
+    ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+  })
+  it('does not turn partial selections, missing O or absent facts into ciphertext estimates', () => {
+    const { value, ga } = history()
+    const partial = { ...ga, replaySelection: ga.replaySelection.slice(0, 1) }
+    expect(
+      planRequest(
+        { ...value, outputHistory: [partial, value.outputHistory[1]!] },
+        [definition],
+        meter,
+      ),
+    ).toMatchObject({ rejected: 'invalidInput' })
+    expect(planRequest({ ...value, outputHistory: [] }, [definition], meter)).toMatchObject({
+      rejected: 'invalidInput',
+      reason: 'input_size_unavailable',
+    })
+    expect(
+      planRequest(
+        {
+          ...value,
+          outputHistory: [
+            { ...ga, usage: { ...ga.usage, output_tokens: 'unknown' } },
+            value.outputHistory[1]!,
+          ],
+        },
+        [definition],
+        meter,
+      ),
+    ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+    expect(planRequest({ ...value, outputHistory: [ga, ga] }, [definition], meter)).toMatchObject({
+      rejected: 'invalidInput',
+      reason: 'malformed',
+    })
+    expect(
+      planRequest(
+        {
+          ...value,
+          outputHistory: [
+            { ...ga, origin: { ...ga.origin, upstreamModel: 'openai/gpt-6-sol' } },
+            value.outputHistory[1]!,
+          ],
+        },
+        [definition],
+        meter,
+      ),
+    ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+  })
+  it('never borrows O after a model switch, including Pro and GPT-6 targets', () => {
+    const { value } = history()
+    for (const target of [ids.find(id => id !== model)!, `${model}-pro`, 'openai/gpt-6-sol']) {
+      const selected = openaiDefinitions.find(d => d.modelId === target)!
+      const supplied = createOfficialProfileContent(selected, {
+        providers: ['openai'],
+        allowFallback: false,
+        configuration: openaiConfiguration,
+      })
+      if ('rejected' in supplied) throw Error(supplied.rejected)
+      const changed: PlanInput = {
+        ...value,
+        routeName: target,
+        snapshot: { ...value.snapshot, adaptation: supplied.ok.adaptation },
+      }
+      const result = planRequest(changed, [selected], createOpenAiInputMeter(selected))
+      if ('planned' in result) {
+        // Existing cross-model adaptation can omit inapplicable opaque details.
+        // Such a visible target must recount, never inherit the source model's O.
+        expect(result.planned.measurement.mode).toBe('full')
+        expect(result.planned.measurement).not.toHaveProperty('replayContribution')
+        expect(result.planned.measurement).not.toHaveProperty('newContribution')
+        expect(result.planned.serialized).not.toContain('CIPHER_')
+        const noGroups = planRequest(
+          { ...changed, outputHistory: [] },
+          [selected],
+          createOpenAiInputMeter(selected),
+        )
+        if (!('planned' in noGroups)) throw Error(JSON.stringify(noGroups))
+        expect(result.planned.measurement.predictedInput).toEqual(
+          noGroups.planned.measurement.predictedInput,
+        )
+      } else {
+        expect(result).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+      }
+      expect(writeJsonLossless(changed.messages)).toContain('CIPHER_a')
+    }
+  })
+  it('covers text, reasoning and tool calls by O once while counting the paired result normally', () => {
+    const firstInput = {
+      ...request(),
+      tools: [
+        {
+          name: 'lookup',
+          description: 'Lookup',
+          parameters: { type: 'object', properties: { key: { type: 'string' } } },
+        },
+      ],
+    }
+    const first = planned(firstInput)
+    const output = judgedMessage({
+      ...reply(model, 'with-tool'),
+      blocks: [
+        ...reply(model, 'with-tool').blocks,
+        {
+          id: 'call-block',
+          kind: 'tool_call',
+          callId: 'lookup_1',
+          tool: 'lookup',
+          arguments: { key: 'already-covered-by-O'.repeat(30) },
+          complete: true,
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+    })
+    const result = judgedMessage({
+      type: 'tool',
+      id: 'result-message',
+      callId: 'lookup_1',
+      createdAt: at,
+      blocks: [
+        {
+          id: 'result-block',
+          kind: 'tool_result',
+          callId: 'lookup_1',
+          outcome: 'completed',
+          visibility: { toHuman: true, toModel: true },
+          blocks: [
+            {
+              id: 'result-text',
+              kind: 'text',
+              text: 'a new result',
+              visibility: { toHuman: true, toModel: true },
+            },
+          ],
+        },
+      ],
+    })
+    const current = planned({
+      ...firstInput,
+      messages: [...firstInput.messages, output, result],
+      outputHistory: [group(first, output, 1, 40)],
+    })
+    const remaining = {
+      ...current.body,
+      messages: (current.body.messages as unknown[]).filter((_, index) => index !== 1),
+    }
+    expect(
+      ExactDecimal.from(current.measurement.predictedInput).compare(
+        ExactDecimal.from(encoder.encode(writeJsonLossless(remaining)).length + 40),
+      ),
+    ).toBe(0)
+    expect(writeJsonLossless(current.body)).toContain('already-covered-by-O')
+    expect(writeJsonLossless(current.body)).toContain('a new result')
+  })
+})

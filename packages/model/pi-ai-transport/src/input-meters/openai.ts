@@ -2,7 +2,10 @@ import {
   estimateOpenAi56Replay,
   openAi56ReplayModels,
   OPENAI_56_REPLAY_REVISION,
+  OPENAI_56_TOKENIZER_REVISION,
+  OPENAI_56_HISTORY_ALGORITHM,
 } from './openai-replay.ts'
+import { fullOpenAi56History, newOpenAi56History } from './openai-output-history.ts'
 import { openaiFinalVisibleBindings } from '../official-models/openai.ts'
 import {
   openAiProBindings,
@@ -275,10 +278,10 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
   const pro = Object.hasOwn(openAiProBindings, definition.modelId)
     ? openAiProBindings[definition.modelId]
     : undefined
-  const revision = finalBinding?.revision ?? pro?.revision ?? (encryptedReplay ? '6' : '4')
+  const revision = finalBinding?.revision ?? pro?.revision ?? (encryptedReplay ? '7' : '4')
   const implementationRevision =
     finalBinding?.implementationRevision ??
-    (pro ? PRO_IMPLEMENTATION_REVISION : encryptedReplay ? 'mp4-12' : 'mp4-5')
+    (pro ? PRO_IMPLEMENTATION_REVISION : encryptedReplay ? 'mp4-16' : 'mp4-5')
   if (
     (!gpt6VisibleHistory && !imageRule) ||
     definition.revision !== revision ||
@@ -319,14 +322,13 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
     ...(pro ? { transformRevision: PRO_TRANSFORM_REVISION } : {}),
     algorithmRevision:
       finalBinding?.algorithmRevision ??
-      (encryptedReplay
-        ? 'openai-gpt-5.6-o200k-base-complete-output-6'
-        : 'openai-gpt-5.6-pro-base-image-proxy-1'),
+      (encryptedReplay ? OPENAI_56_HISTORY_ALGORITHM : 'openai-gpt-5.6-pro-base-image-proxy-1'),
     evidence:
       finalBinding?.evidence ??
       (pro
         ? 'OpenAI reasoning guide mode and OpenRouter exact GPT-5.6 Sol/Terra/Luna Pro model pages identify Pro as the same base model in pro mode (2026-09-29); published GPT-5.6 base vision patches reused as an estimated proxy, not verified Pro preprocessing; o200k_base surrogate and private framing remain estimated, input usage scope remains unknown, opaque reasoning unavailable'
         : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated; reasoning replay limited to visible text/summary, encrypted or unknown details have no applicable token basis'),
+    ...(encryptedReplay ? { tokenizerRevision: OPENAI_56_TOKENIZER_REVISION } : {}),
     ...(finalBinding
       ? {
           tokenizerRevision: `js-tiktoken-1.0.21/o200k-base-${definition.modelId.slice('openai/'.length)}-surrogate/1`,
@@ -355,7 +357,13 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
     const replayMeter: InputMeter = defineInputMeter({
       ...marginal,
       replayRevision: OPENAI_56_REPLAY_REVISION,
-      evidence: `Full/new basis: ${marginal.evidence}. Replay successor: OpenAI reasoning guide GPT-5.6 default all_turns and OpenRouter omitted context uses model default (2026-09-29): complete same-source encrypted output group in one unchanged assistant message maps O + zero experimental framing correction, estimated only; no live effective-mode or framing equality certification; full/new opaque remain unavailable`,
+      evidence: `Full/new basis: ${marginal.evidence}. Replay successor: OpenAI reasoning guide GPT-5.6 default all_turns and OpenRouter omitted context uses model default (2026-09-29): complete same-source encrypted output group in one unchanged assistant message maps O + zero experimental framing correction, estimated only; no live effective-mode or framing equality certification; full/new reuse only the explicit finite old-to-current complete-group mapping, never tokenize ciphertext`,
+      measureFull(input) {
+        return fullOpenAi56History(input, replayMeter, countBody)
+      },
+      measureNew(input) {
+        return newOpenAi56History(input, replayMeter, countBody)
+      },
       measureReplay(input) {
         const visible = marginal.measureReplay(input)
         return visible.kind === 'unavailable' ? estimateOpenAi56Replay(input, replayMeter) : visible

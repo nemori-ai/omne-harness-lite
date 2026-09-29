@@ -8,6 +8,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
+import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { ownCalibration } from '../calibration.ts'
 import { object } from '../json.ts'
 import { canonicalProjection, INPUT_PROJECTION_REVISION } from '../projection.ts'
@@ -19,17 +20,42 @@ export const openAi56ReplayModels: ReadonlySet<string> = new Set([
   'openai/gpt-5.6-luna',
 ])
 export const OPENAI_56_REPLAY_REVISION =
-  'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/1'
+  'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2'
 
-/**
- * Provider-owned estimate, not an output/input-token equality. GPT-5.6's
- * documented default is all_turns; OR omission uses that model default.
- * The zero framing correction is a frozen experimental hypothesis. No claim
- * about the actual effective mode or private OR/OpenAI framing is inferred.
- * Only an intact group in one assistant message has this mapping basis.
- */
-export function estimateOpenAi56Replay(
-  input: ReplayMeterInput,
+export const OPENAI_56_TOKENIZER_REVISION =
+  'tokenizer-basis/openai-gpt-5.6-o200k-base-complete-output-6'
+export const OPENAI_56_HISTORY_ALGORITHM = 'openai-gpt-5.6-o200k-base-complete-output-history-7'
+
+// These are original facts interpretable by the successor, never factory aliases.
+const sourceBindings = [
+  {
+    definition: '6',
+    implementation: 'mp4-12',
+    algorithm: 'openai-gpt-5.6-o200k-base-complete-output-6/response-calibration-1',
+    replay: 'openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/1',
+  },
+  {
+    definition: '7',
+    implementation: 'mp4-16',
+    algorithm: `${OPENAI_56_HISTORY_ALGORITHM}/response-calibration-1`,
+    replay: OPENAI_56_REPLAY_REVISION,
+  },
+] as const
+const efforts = ['none', 'low', 'medium', 'high', 'max']
+
+interface CompleteGroupInput {
+  readonly observation: ReplayMeterInput['observation']
+  readonly envelope: ReplayMeterInput['envelope']
+  readonly units: ReplayMeterInput['units']
+  readonly unitIndices: ReplayMeterInput['unitIndices']
+  readonly selectionSpans: ReplayMeterInput['selectionSpans']
+  readonly precedingUnitCount?: number
+  readonly history?: PlanOutputHistoryGroup
+}
+
+/** Shared O+0 estimate; this makes no exact output/input-token equality claim. */
+export function estimateOpenAi56Group(
+  input: CompleteGroupInput,
   meter: InputMeter,
 ): MeterContribution {
   const unavailable = { kind: 'unavailable' } as const
@@ -49,18 +75,21 @@ export function estimateOpenAi56Replay(
     const envelope = value.envelope
     if (
       !openAi56ReplayModels.has(meter.modelId) ||
-      meter.definitionRevision !== '6' ||
+      meter.definitionRevision !== '7' ||
       meter.implementation.name !== 'pi-ai:openai' ||
-      meter.implementation.revision !== 'mp4-12' ||
+      meter.implementation.revision !== 'mp4-16' ||
       meter.provider !== 'openai' ||
       meter.replayRevision !== OPENAI_56_REPLAY_REVISION ||
-      request.kind !== 'known' ||
-      observed.kind === 'unavailable' ||
+      meter.algorithmRevision !== `${OPENAI_56_HISTORY_ALGORITHM}/response-calibration-1` ||
+      meter.tokenizerRevision !== OPENAI_56_TOKENIZER_REVISION ||
+      meter.transformRevision !== 'openrouter-wire/2' ||
+      (value.history === undefined &&
+        (request.kind !== 'known' || observed.kind === 'unavailable')) ||
       group.kind !== 'known' ||
       group.source !== 'reply' ||
       group.completeness !== 'complete' ||
       group.projectionRevision !== INPUT_PROJECTION_REVISION ||
-      request.projectionRevision !== INPUT_PROJECTION_REVISION ||
+      (request.kind === 'known' && request.projectionRevision !== INPUT_PROJECTION_REVISION) ||
       source.usage.source !== 'upstream' ||
       source.usage.output_tokens === 'unknown' ||
       !object(envelope) ||
@@ -81,43 +110,87 @@ export function estimateOpenAi56Replay(
       !Array.isArray(value.unitIndices) ||
       value.unitIndices.length !== 1 ||
       !Number.isSafeInteger(value.unitIndices[0]) ||
-      !Number.isSafeInteger(value.precedingUnitCount) ||
-      Number(value.unitIndices[0]) < Number(value.precedingUnitCount) ||
+      (value.precedingUnitCount !== undefined &&
+        (!Number.isSafeInteger(value.precedingUnitCount) ||
+          Number(value.unitIndices[0]) < Number(value.precedingUnitCount))) ||
       !Array.isArray(value.selectionSpans)
     )
       return unavailable
-    const basis = request.countingBasis
+    const history = value.history
+    const origin = object(history) && object(history.origin) ? history.origin : undefined
     if (
-      basis.model !== meter.modelId ||
-      basis.provider !== meter.provider ||
-      basis.binding.definition.modelId !== meter.modelId ||
-      basis.binding.definition.revision !== meter.definitionRevision ||
-      canonicalProjection(basis.binding.implementation) !==
-        canonicalProjection(meter.implementation) ||
-      basis.tokenizerRevision !== meter.tokenizerRevision ||
-      basis.meterRevision !== meter.algorithmRevision ||
-      basis.replayRevision !== meter.replayRevision ||
-      basis.transformRevision !== meter.transformRevision ||
-      basis.projectionRevision !== INPUT_PROJECTION_REVISION ||
-      observed.provenance.adapterRevision !== 'openrouter-usage-reader/2' ||
-      (observed.provenance.upstreamModel !== undefined &&
-        observed.provenance.upstreamModel !== meter.modelId) ||
-      (observed.provenance.servingProvider !== undefined &&
-        !['openai', 'OpenAI'].includes(observed.provenance.servingProvider)) ||
-      request.inputEnvelopeDigest !==
-        createHash('sha256')
-          .update(
-            canonicalProjection([INPUT_PROJECTION_REVISION, 'input-envelope', envelope]),
-            'utf8',
-          )
-          .digest('hex') ||
-      ExactDecimal.from(request.prefixBoundary).compare(
-        ExactDecimal.from(Number(value.precedingUnitCount)),
-      ) !== 0 ||
+      history !== undefined &&
+      (!object(history) ||
+        !origin ||
+        canonicalProjection({
+          kind: 'observation',
+          inputCalibration: history.inputCalibration,
+          usage: history.usage,
+          outputBlocks: history.outputBlocks,
+          replaySelection: history.replaySelection,
+        }) !== canonicalProjection(value.observation))
+    )
+      return unavailable
+    const basis = request.kind === 'known' ? request.countingBasis : undefined
+    const binding = origin?.adaptation ?? basis?.binding
+    if (!object(binding) || !object(binding.definition) || !object(binding.implementation))
+      return unavailable
+    const sourceDefinition = binding.definition,
+      sourceImplementation = binding.implementation
+    const original = sourceBindings.find(
+      row =>
+        row.definition === sourceDefinition.revision &&
+        row.implementation === sourceImplementation.revision,
+    )
+    if (
+      !original ||
+      binding.definition.modelId !== meter.modelId ||
+      binding.implementation.name !== meter.implementation.name ||
+      (basis &&
+        (basis.model !== meter.modelId ||
+          basis.provider !== 'openai' ||
+          canonicalProjection(basis.binding) !== canonicalProjection(binding) ||
+          basis.tokenizerRevision !== OPENAI_56_TOKENIZER_REVISION ||
+          basis.meterRevision !== original.algorithm ||
+          basis.replayRevision !== original.replay ||
+          basis.transformRevision !== 'openrouter-wire/2' ||
+          basis.projectionRevision !== INPUT_PROJECTION_REVISION)) ||
+      (origin &&
+        (origin.provider !== 'openai' ||
+          !object(origin.parameters) ||
+          (origin.parameters.reasoningEffort !== undefined &&
+            !efforts.includes(String(origin.parameters.reasoningEffort))) ||
+          (origin.upstreamModel !== undefined && origin.upstreamModel !== meter.modelId) ||
+          (origin.servingProvider !== undefined &&
+            !['openai', 'OpenAI'].includes(String(origin.servingProvider))))) ||
+      (observed.kind !== 'unavailable' &&
+        (observed.provenance.adapterRevision !== 'openrouter-usage-reader/2' ||
+          (observed.provenance.upstreamModel !== undefined &&
+            observed.provenance.upstreamModel !== meter.modelId) ||
+          (observed.provenance.servingProvider !== undefined &&
+            !['openai', 'OpenAI'].includes(observed.provenance.servingProvider)))) ||
       (source.usage.reasoning_tokens !== undefined &&
         ExactDecimal.from(source.usage.reasoning_tokens).compare(
           ExactDecimal.from(source.usage.output_tokens),
         ) > 0)
+    )
+      return unavailable
+    // A replay without the explicit original origin retains its prior envelope proof.
+    // Full/new groups always use the existing origin; no requestInput is synthesized.
+    if (
+      !origin &&
+      (request.kind !== 'known' ||
+        value.precedingUnitCount === undefined ||
+        request.inputEnvelopeDigest !==
+          createHash('sha256')
+            .update(
+              canonicalProjection([INPUT_PROJECTION_REVISION, 'input-envelope', envelope]),
+              'utf8',
+            )
+            .digest('hex') ||
+        ExactDecimal.from(request.prefixBoundary).compare(
+          ExactDecimal.from(Number(value.precedingUnitCount)),
+        ) !== 0)
     )
       return unavailable
     const selected = source.replaySelection
@@ -218,4 +291,24 @@ export function estimateOpenAi56Replay(
   } catch {
     return unavailable
   }
+}
+
+/** Latest-response replay consumes the same complete-group mapping as full/new. */
+export function estimateOpenAi56Replay(
+  input: ReplayMeterInput,
+  meter: InputMeter,
+): MeterContribution {
+  const history = input.outputHistory[0]
+  return estimateOpenAi56Group(
+    {
+      observation: input.observation,
+      envelope: input.envelope,
+      units: input.units,
+      unitIndices: input.unitIndices,
+      selectionSpans: input.selectionSpans,
+      precedingUnitCount: input.precedingUnitCount,
+      ...(history === undefined ? {} : { history }),
+    },
+    meter,
+  )
 }

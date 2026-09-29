@@ -190,7 +190,7 @@ export const openaiDefinitions = ownDefinitions(
         revision:
           openaiFinalVisibleBindings[modelId]?.revision ??
           openAiProBindings[modelId]?.revision ??
-          (gpt56MeteredIds.has(modelId) ? '6' : '1'),
+          (gpt56MeteredIds.has(modelId) ? '7' : '1'),
         implementation: {
           name: 'pi-ai:openai',
           revision:
@@ -198,7 +198,7 @@ export const openaiDefinitions = ownDefinitions(
             (openAiProBindings[modelId]
               ? PRO_IMPLEMENTATION_REVISION
               : gpt56MeteredIds.has(modelId)
-                ? 'mp4-12'
+                ? 'mp4-16'
                 : 'mp4-1'),
         },
         capabilities,
