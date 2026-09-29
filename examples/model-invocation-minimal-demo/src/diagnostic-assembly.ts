@@ -28,6 +28,8 @@ export interface DemoDiagnosticConfig {
   readonly local: JournalLocation
   readonly tenant: JournalLocation & { readonly tenant: TenantId }
   readonly collector: CollectorLimits
+  /** Trusted host filesystem provider for the diagnostic journal only; defaults to Node FS. */
+  readonly journalFileSystem?: DiagnosticJournalConfig['fs']
   readonly transportRetainedInstancesMax: number
   readonly transportRetirement: RetirementPolicy
 }
@@ -425,6 +427,7 @@ async function openScope(
   location: JournalLocation,
   scope: DiagnosticScope,
   limits: CollectorLimits,
+  fs: DiagnosticJournalConfig['fs'],
 ): Promise<DiagnosticCollector> {
   const store = await createDiagnosticJournal({
     rootDir: location.rootDir,
@@ -445,6 +448,7 @@ async function openScope(
     wallClock: limits.wallClock,
     monotonicClock: limits.monotonicClock,
     schedule: limits.schedule,
+    ...(fs === undefined ? {} : { fs }),
   })
   const config: DiagnosticCollectorConfig = {
     ...limits,
@@ -555,10 +559,20 @@ export async function openDemoDiagnosticAssembly(
     kind: 'tenant',
     tenant: config.tenant.tenant,
   })
-  const localCollector = await openScope(config.local, localScope, config.collector)
+  const localCollector = await openScope(
+    config.local,
+    localScope,
+    config.collector,
+    config.journalFileSystem,
+  )
   let tenantCollector: DiagnosticCollector
   try {
-    tenantCollector = await openScope(config.tenant, tenantScope, config.collector)
+    tenantCollector = await openScope(
+      config.tenant,
+      tenantScope,
+      config.collector,
+      config.journalFileSystem,
+    )
   } catch (error) {
     let cleaned: DiagnosticCloseResult | undefined
     try {
