@@ -32,3 +32,11 @@ G-18 原字节引用保留及原事实相等（内容存储/日志/回复写方�
 ## 报给主线
 
 本稿candidate，真实提供者/装配/权限/存储/取回链尚未验收。registry/catalog、covers、formal-tasks新增候选；lineage仅支持legacy baseline迁入，id-namespaces无新增族，二者保持。未对正式领域对象/词表/产品/提供者设计作修改。
+
+## R2 变化的影响与证据义务
+
+S-4/S-5/S-8/S-40/S-45/S-47：唯一响应事实两阶段；reply/inputCalibration永久保留原值；首次persisted消息可有来源受限的合法派生，原摘要真实性先行。
+
+[examples](examples.md) 新增的跨记录场景是组合验收义务，未执行，不由Schema或旧TLA代证。必须保留原已有派生、防伪造system来源、覆盖原消息全成员与嵌套派生id/可见性、unknown认回原批；原摘要/来源矛盾必须拒绝，不能full兜底。真实写权/转换来源/组装选择证明归各消费者；未知明确unavailable。当前来源范围见 [source-alignment](source-alignment.md)。本轮实际检查仅报告新证据，前轮日志不可覆盖。
+
+R2实际形状检查：四包共享验证入口共70/70、exit0（含MS7 Markdown终结记录）；3个Schema check_schema成功。只验证形状，跨记录派生/原摘要真实性/权限等上述组合义务仍未开始。原始日志与运行前输入SHA由主线接收 `tmp/model-registry-design/spec-draft-r2/schema-01.*`，本包不冒称生产通过。

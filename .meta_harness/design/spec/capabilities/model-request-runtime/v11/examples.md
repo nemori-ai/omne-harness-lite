@@ -446,3 +446,26 @@ H1/H2 是相同耐久前缀而实际发送不同的真实故障注入义务，�
 | 日志增长，正常按CallKey查询 | 当前源校验且相对日志长O(1)访问；重建/历史列表另计，不能每次全扫 |
 
 interrupt只返回意图命令的原结果，最终响应仍由dispatch/已授权acquire交付。pure invokeModel仍可无Session/Run单独使用。所有场景是规范义务，真实执行状态见verification。
+
+## R2 跨记录正反场景（待真实组合验收）
+
+| 场景 | 必须结果 | 证据边界 |
+|---|---|---|
+| ready.reply 原 image 块没有派生；真实系统转换件在首次 persisted 消息上新增合法文本 rendering + transcript | 接受同一 MessageId/ResponseId 的唯一消息；final.reply/inputCalibration 仍等于 ready 原值 | CB3 形状 + 来源/扩展关系/写权逐项验证 |
+| 原块已有 rendering；消息修改它后剥去两侧 renderings 再比较 | 拒绝；原成员不可覆盖 | JSON Schema 各自合法仍不够 |
+| 新 rendering.blocks 含新合法派生块，原块序列不变 | 允许；核块类型、id 全消息唯一、可见性合取 | 不能把派生块的新 id 当原块非法增添 |
+| 消息改原文本、顺序、visibility、response/id，或仅有 transcript，没有配对 rendering | 拒绝 | 结构坏沿 malformed；合法形状但扩展关系坏仍拒绝写入 |
+| 普通 consumer 自报 producedBy=system、没有真实转换来源或消息写权 | 不授权提交；来源不可核 unavailable | acquire 读权不授 anchored 写权 |
+| persisted 同批实际提交、回执 unknown，重取转换件已换代 | 认回原消息+原 final 原批；不重跑转换 | 真实丢回执/重启故障验收未开始 |
+| 原 outputHistory/response 来源或 blockDigests 可判矛盾，即使 caller 要求 full | invalidInput；零新发送 | full 不绕真实性 |
+| 原事实真实，合法派生已证且本次实际选取派生，原 O/φ 映射不适用 | 全量计量；保持历史 inputCalibration | 若实际选取/来源不能确认则 unavailable，不降级掩盖未知 |
+| 消费者消失，有 reply 的 ready 永远没人处分 | 保持调用终态+pending；账仍按 ResponseId 一次；不伪造 consumed | 无 reply 则直接 final |
+
+| 对账/创建场景 | 必须结果 |
+|---|---|
+| 新 attempt 已开始，旧 owner 的原调用仍 speaking，尚无 ready | reconcile 成功返回 speaking，零恢复/取消/HTTP；新消费者可单独 acquire |
+| ready/final 已确认，但原 owner 仍清理资源 | 先认回原结果；查询不须强停 owner |
+| 仅 created、无 dispatched/意图/终结 | open，查询零发送 |
+| 权威 ready/final 均无，确认失联且旧网络/门/所有 writer 静止、唯一恢复资格成立 | 才走追补表；查无本地对象不是此证明 |
+| 初次 open 合法输入但 withdrawn | 单批 rejected 输入引用+creationKey+undispatched，认回原 callId |
+| accepted created 已发布，首次 dispatch 凭据失效或模态规划拒绝 | 沿原 callId undispatched，不含 rejected creation；重复 key 认回 accepted 原绑定及 handed_up 现终态 |

@@ -1,6 +1,6 @@
 ---------------------------- MODULE OpenedOrder ----------------------------
 EXTENDS Naturals, Sequences
-CONSTANTS CheckCancel, CheckTail, RetryAfterContent
+CONSTANTS CheckCancel, CheckTail, RetryAfterContent, RequireCurrentAttempt
 VARIABLES log, currentAttempt, readTail, readPermit, openedReceipt,
           visible, lost, sends, writerStopped
 vars == <<log,currentAttempt,readTail,readPermit,openedReceipt,visible,lost,sends,writerStopped>>
@@ -18,7 +18,8 @@ ReadPrefix == /\ ~Has("opened-1") /\ ~writerStopped
               /\ readTail' = Len(log)
               /\ readPermit' = ~Has("final") /\ (~CheckCancel \/ ~Has("cancel"))
               /\ UNCHANGED <<log,currentAttempt,openedReceipt,visible,lost,sends,writerStopped>>
-CommitOpened == /\ readPermit /\ ~writerStopped /\ ~Has("opened-1")
+CommitOpened == /\ (~RequireCurrentAttempt \/ currentAttempt = 1)
+                /\ readPermit /\ ~writerStopped /\ ~Has("opened-1")
                 /\ (~CheckTail \/ readTail = Len(log))
                 /\ log' = Append(log,"opened-1") /\ openedReceipt' = "unknown"
                 /\ UNCHANGED <<currentAttempt,readTail,readPermit,visible,lost,sends,writerStopped>>
@@ -41,5 +42,9 @@ Spec == Init /\ [][Next]_vars
 CancelCannotPrecedeOpened == (Has("cancel") /\ Has("opened-1")) => Index("opened-1") < Index("cancel")
 ConfirmedBeforeVisible == visible => openedReceipt = "confirmed"
 NoSendAfterOpenedLoss == Has("opened-1") => sends = 1
+OldAttemptMayOpen ==
+    (currentAttempt = 2 /\ ~Has("cancel") /\ ~Has("final")
+     /\ ~Has("opened-1") /\ ~writerStopped /\ readPermit /\ readTail = Len(log))
+    => ENABLED CommitOpened
 OriginalDispatch == Has("opened-1") => Has("dispatch-1")
 =============================================================================

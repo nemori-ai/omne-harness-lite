@@ -14416,3 +14416,17 @@ E-8b，预期：`通过`。loop 另起的**新调用**（`mc_3a02`），它的�
 ## 本批新增规范实例
 
 完整机器实例见 [ready-examples.json](ready-examples.json)；schemaValid只判断形状，不能证明权限、摘要实际相等、来源、跨记录或持久化。引用内容缺失必须unavailable而非空结果；同ResponseId ready费用1.25、final费用1.25，总账仍1.25；无final时仍1.25；若ready费用unknown，则未知笔数1；补账0.8后为0.8且不改两份原值。
+
+## R2 跨记录正反场景（待真实组合验收）
+
+| 场景 | 必须结果 | 证据边界 |
+|---|---|---|
+| ready.reply 原 image 块没有派生；真实系统转换件在首次 persisted 消息上新增合法文本 rendering + transcript | 接受同一 MessageId/ResponseId 的唯一消息；final.reply/inputCalibration 仍等于 ready 原值 | CB3 形状 + 来源/扩展关系/写权逐项验证 |
+| 原块已有 rendering；消息修改它后剥去两侧 renderings 再比较 | 拒绝；原成员不可覆盖 | JSON Schema 各自合法仍不够 |
+| 新 rendering.blocks 含新合法派生块，原块序列不变 | 允许；核块类型、id 全消息唯一、可见性合取 | 不能把派生块的新 id 当原块非法增添 |
+| 消息改原文本、顺序、visibility、response/id，或仅有 transcript，没有配对 rendering | 拒绝 | 结构坏沿 malformed；合法形状但扩展关系坏仍拒绝写入 |
+| 普通 consumer 自报 producedBy=system、没有真实转换来源或消息写权 | 不授权提交；来源不可核 unavailable | acquire 读权不授 anchored 写权 |
+| persisted 同批实际提交、回执 unknown，重取转换件已换代 | 认回原消息+原 final 原批；不重跑转换 | 真实丢回执/重启故障验收未开始 |
+| 原 outputHistory/response 来源或 blockDigests 可判矛盾，即使 caller 要求 full | invalidInput；零新发送 | full 不绕真实性 |
+| 原事实真实，合法派生已证且本次实际选取派生，原 O/φ 映射不适用 | 全量计量；保持历史 inputCalibration | 若实际选取/来源不能确认则 unavailable，不降级掩盖未知 |
+| 消费者消失，有 reply 的 ready 永远没人处分 | 保持调用终态+pending；账仍按 ResponseId 一次；不伪造 consumed | 无 reply 则直接 final |

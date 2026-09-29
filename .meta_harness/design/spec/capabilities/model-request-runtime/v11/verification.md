@@ -13,7 +13,7 @@
 | 新值必填、封闭分支、pending/final禁误用、精确跨Schema refs | 本批data的reference-examples/ready-examples及原实例 | 实际结果见版本外verification；形状不证明来源/权限/摘要 |
 | 消费N→0不取消、ready终态与处分分离、成本不双加、旧投影不重开 | RT11 ReferenceLifecycle正配置及3负控 | 实际结果见版本外verification；不证明真实HTTP/取消/内存释放 |
 | 内容先于marker、未知writer保留、引用回收保护、final原批唯一 | RT11 Publication正配置及3负控 | 实际结果见版本外verification；不证明物理存储/字节相等 |
-| opened旧attempt仍可记录、取消同日志顺序、tail竞争、首内容后lost不重发 | RT11 OpenedOrder正配置及3负控 | 实际结果见版本外verification；真实准入/停止端口未开始 |
+| opened旧attempt仍可记录、取消同日志顺序、tail竞争、首内容后lost不重发 | RT11 OpenedOrder正配置及4负控（含R2 OldAttemptMayOpen许可） | 实际结果见版本外verification；真实准入/停止端口未开始 |
 | 当前读/等待/处分/取消及资源内撤权 | 跨租户、撤权、同ref多消费者真实边界场景 | 未开始，caller布尔不能关闭 |
 | 用户中断/网络/协议/超时/owner卸载，consumer先消失和新Run取回 | runtime持久原reply或fault delivered、已知账/未知及acquire原值对照 | 未开始；interrupt不返回第二结果；硬kill未持久增量不假承诺 |
 | 不可变JSON原字节/完整数字/重复键拒绝、摘要、下层引用存续 | 内容存储真实写入→reopen→字节对照，损坏/删除/并发回收注入 | 未开始；Schema只表达数，不保证解析器无损 |
@@ -32,3 +32,30 @@ G-38 当前资格/生产终态来源（Session/Run访问装配）；G-39 内容�
 ## 报给主线
 
 本稿candidate，真实提供者/装配/权限/存储/取回链尚未验收。registry/catalog、covers、formal-tasks新增候选；lineage仅支持legacy baseline迁入，id-namespaces无新增族，二者保持。未对正式领域对象/词表/产品/提供者设计作修改。
+
+## R2 变化的影响与证据义务
+
+S-5/S-33/S-68/S-72/S-75/S-77/S-79/S-81/S-85/S-86/S-92：一份响应事实两阶段；live只读识别；中断fence完整；首次消息合法派生/真实性先行；两类零发送创建关联。S-88的旧attempt许可新增ENABLED断言及定点负控。
+
+[examples](examples.md) 新增的跨记录场景是组合验收义务，未执行，不由Schema或旧TLA代证。必须保留原已有派生、防伪造system来源、覆盖原消息全成员与嵌套派生id/可见性、unknown认回原批；原摘要/来源矛盾必须拒绝，不能full兜底。真实写权/转换来源/组装选择证明归各消费者；未知明确unavailable。当前来源范围见 [source-alignment](source-alignment.md)。本轮实际检查仅报告新证据，前轮日志不可覆盖。
+
+## R2 独立发现的修订落点（待复评）
+
+| Finding | 修订坐标 | 实例/证据与未覆盖 |
+|---|---|---|
+| A-B1 | MS7 S-9；MR10 S-14/S-45/S-47；RT11 S-75/S-77/S-79/S-86 | 四包 examples/verification：原派生不覆盖、合法新派生块、真实来源/写权、unknown同批、摘要真实性先行；真实组合验收未开始 |
+| A-B2 | RT11 S-33/S-72/S-92 | live只读成功，不取消、不强停；仅追补取恢复资格；examples含新attempt与旧speaking |
+| A-B3 / S-B2 | MS7 S-50/S-54 与 ModelCallEndedRecord Schema；RT11 S-28/S-85 | 初次拒绝成对字段，已accepted后首次dispatch拒绝字段均缺；同key认回accepted原身份/当前终态；JSON正反例实际通过 |
+| S-B1 | MR10 S-4/S-8/S-14/S-46/S-47；RT11 S-5/S-86；CA3 S-40/S-41 | ready可永久pending、无reply直接final、同ResponseId一账，不强造consumed |
+| S-B3 | RT11 S-68 | Run中断意图明确fenced{run,attempt}；非Run明确unfenced，不再用同上 |
+| S-B4 | RT11 S-33⑤ | 九个状态闭合集合，包含open及live；ready/final处分信息与当前事实一致 |
+| S-B5 | OpenedOrder.OldAttemptMayOpen | R2正配置+错误attempt栅栏单变异负控；只证明许可存在，不宣称调度公平或实际最终进展 |
+| S-B6 | 四包入口 + source-alignment.md | 当前产品rev及逐topic范围/实际锚点索引；历史裁决保留原rev，未消费增量外置 |
+| S-N1 | MS7 examples.md 与 reference-examples.json | 旧零发送例明确已有accepted创建；初次拒绝成对字段例另列；Markdown实例纳入实际Schema检查 |
+| S-N2 | MR10 S-40；RT11 S-8/S-49及当前义务引用 | 活跃坐标MR10/MS7/CA3统一；历史演进/接受坐标保持 |
+
+## R2 实际运行范围
+
+2026-09-29，本轮Schema检查70/70（包括Markdown中的model_call_ended实例），exit 0。OpenedOrder正配置exit 0，255 generated / 166 distinct；4负控exit 12，分别命中OldAttemptMayOpen、CancelCannotPrecedeOpened（两配置）、NoSendAfterOpenedLoss。每次run前已保存输入SHA、Java版本/JAR SHA、命令、退出码及独立原日志；临时证据在 `tmp/model-registry-design/spec-draft-r2/`，由主线提升正式evidence。无失败日志覆盖。Schema只是形状，不能证明跨记录关系、真实来源、写权或实际汇总。
+
+ReferenceLifecycle/Publication共10个模型/配置输入与首轮交付SHA相同，保留原有限结果，本轮未重跑；逐项差异见该证据目录的prior-model-applicability.json。原OpenedOrder旧run不冒称适用于新字节。其他继承模型均未运行。852冻结资源校验无差异，首轮evidence归档hash无差异；这不是接受或生产验收。

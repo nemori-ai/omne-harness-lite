@@ -6,9 +6,9 @@
 |---|---|---|
 | ReferenceLifecycle / RT S84/S86/S89/S91，CA3 S40 | 一个CallKey、一个ResponseId、两个消费者、两个登记代际；ready按已确认发布抽象；release/settle/close交错 | NoConsumerCancellation↔ReleaseCancels；OneAccount/ReadyAccounted↔DoubleCount；TerminalAbsorbs↔TrustStaleProjection |
 | Publication / RT S85/S86，MS7 S52/S54，MR10 S46 | created/ready两种发布；内容、保留、在途写者、marker及receipt分开；final两个竞争者，同日志Commit原子 | MarkerHasContent↔RequireMarkerGate/ProtectPublished；PendingWriterPinned↔RequireStoppedForAbsence |
-| OpenedOrder / RT S88/S90 | 一个原dispatch、两个attempt、同日志序列；ReadPrefix与tail条件提交分开；停止与lost分开 | CancelCannotPrecedeOpened↔CheckCancel/CheckTail；NoSendAfterOpenedLoss↔RetryAfterContent |
+| OpenedOrder / RT S88/S90 | 一个原dispatch、两个attempt、同日志序列；ReadPrefix与tail条件提交分开；停止与lost分开 | CancelCannotPrecedeOpened↔CheckCancel/CheckTail；NoSendAfterOpenedLoss↔RetryAfterContent；OldAttemptMayOpen↔RequireCurrentAttempt（R2） |
 
-负控均放validity-check；预期TLC退出12，不登记为成功formal task。9个负控分别只翻转表中对应开关。正配置本次实际结果与日志位置归版本外verification。
+负控均放validity-check；预期TLC退出12，不登记为成功formal task。原9个负控各翻转对应开关；R2另增旧attempt错误fence负控，见下节。正配置本次实际结果与日志位置归版本外verification。
 
 **被建模方式吸收而不声称覆盖**：Publication.OriginalKeyPayload的key/payload恒1且无变更边，未列入正cfg，不证明创建幂等、真实字节不变或冲突判定；marker set及finalWinner的原子赋值不证明真实日志原子性。ReferenceLifecycle.OneExecution的Send只在sends=0，故只支持模型中acquire/release没有发送/取消作用，不是实际HTTP恰一次证据；generation exact清理与final唯一等正断言没有本批专用变异，必须由真实组合故障场景承接。OpenedOrder的OriginalDispatch按初始dispatch构造成立，不能证明真实执行授权。调用取消资格、否决副作用幂等、消息+final原子性、lost端口真实性、无损十进制与内容回收物理实现必须另验。
 
@@ -83,3 +83,11 @@ NeverUseAnchor 仅允许 PlanFull、禁用 PlanMarginal；KeepOldAnchor 仍增�
 ## 结算组合模型
 
 继承 Settlement.tla 及其配置的精确有限范围见[前驱形式说明](../../v9/formal/README.md#结算组合模型)。本版保留这些原工件，不扩大或冒称重跑其结果；新增 UsageCalibration 显式表达计量证据与 response/reply 原批、unknown 及恢复，不能反过来替代原结算协议验证。
+
+## R2 旧 attempt 的可执行许可
+
+OpenedOrder 新增 `OldAttemptMayOpen`：currentAttempt=2、原调用未停止、无取消/final/opened、完整前缀许可及tail一致时，`ENABLED CommitOpened` 必须成立。它表达 S-88 不被新 attempt fence 挡住的许可，不承诺调度最终发生；没有公平性、不证明真实网络进展。状态域仍为两个attempt、一条原dispatch和有限日志事件。
+
+正配置 `RequireCurrentAttempt=FALSE`；原三个负控也显式为FALSE。新增 `validity-check/OpenedOrder-old-attempt-blocked.cfg` 仅把该常量置TRUE，使 CommitOpened 错误要求 currentAttempt=1，必须由 OldAttemptMayOpen 报反例。该反例须可到达 NewAttempt→ReadPrefix 后；不能以parser错误/超时作为负控成功。原三个安全负控与新断言同跑，不靠固定 currentAttempt 吸收性质。
+
+ReferenceLifecycle/Publication 本轮字节不变，保留首轮同hash证据及其范围；不重跑、不冒称覆盖合法派生/来源验证、live reconcile全过程或创建冲突。旧UsageCalibration的 SameBatch/OriginalBatch 只保留原批不变子性质，**不覆盖新增合法派生扩展及本次实际选取的真实性关系**；这些由R2 examples/verification的真实组合义务承接。

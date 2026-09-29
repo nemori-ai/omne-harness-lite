@@ -1424,7 +1424,7 @@
     },
     "ModelCallEndedRecord": {
       "title": "调用终结（contract.md S-50）",
-      "description": "一次模型调用不经响应体进入终态时写下（无词条），按 ending 判别恰三支：undispatched——出门前检查不过、一次也没发出，终态上交，cause 必带、是四个出门前成因之一；released——此前至少发出过一次、这次调用不再发出，终态上交：cause 缺席是最近一次发出以故障收场后 loop 放手（成因在那份响应体上），cause 为 credential_unavailable 是续接或再发之前凭据取不到；interrupted——在两次发出之间被中断，终态被中断，initiator 同中断意图。经响应体进入终态的调用没有这条记录。不是消息。cause 里的 modality_mismatch 与表示层拒绝值 modality_mismatch 是两个互不相干的值域（S-50）。 S-54：undispatched必带creationKey及rejected创建输入引用，认回同一CallKey；其余分支禁止这两成员。",
+      "description": "一次模型调用不经响应体进入终态时写下（无词条），按 ending 判别恰三支：undispatched——出门前检查不过、一次也没发出，终态上交，cause 必带、是四个出门前成因之一；released——此前至少发出过一次、这次调用不再发出，终态上交：cause 缺席是最近一次发出以故障收场后 loop 放手（成因在那份响应体上），cause 为 credential_unavailable 是续接或再发之前凭据取不到；interrupted——在两次发出之间被中断，终态被中断，initiator 同中断意图。经响应体进入终态的调用没有这条记录。不是消息。cause 里的 modality_mismatch 与表示层拒绝值 modality_mismatch 是两个互不相干的值域（S-50）。 S-54：undispatched初次创建拒绝必须成对带creationKey/rejected payload；已accepted created后首次dispatch拒绝必须两者均缺席。Schema只判成对，具体来源关系由跨记录校验；其余ending禁止这两成员。",
       "$comment": "cause 的四个取值与 data.loop-extension v3 FailureCause 里出门前的那四个逐字相同；本定义不 $ref 它——那份契约以 $ref 取本契约的消息，反向引用会让两份契约互为依赖（S-50）。released 只收 credential_unavailable：档案快照与有效模型在打开调用时绑定、续接与再发不重核，只有每次现取的凭据会在发出过之后才取不到。",
       "type": "object",
       "properties": {
@@ -1542,10 +1542,14 @@
             }
           },
           "then": {
-            "required": [
-              "creationKey",
-              "payload"
-            ]
+            "dependentRequired": {
+              "creationKey": [
+                "payload"
+              ],
+              "payload": [
+                "creationKey"
+              ]
+            }
           },
           "else": {
             "not": {

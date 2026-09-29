@@ -8,9 +8,9 @@
   `family = data`、`topic = messages`、规范路径 `spec/data/messages/v7/contract.md`。
   **文件位置不代替这个三元组身份。**
 - **状态**：candidate，未接受、未冻结；前驱 data.messages/v6 接受状态以其原 registry 条目为准。
-- **需求 rev 对账**：本轮 PF-013 rev 13 → rev 14 的输入上限增量落在 S-49。另按各 topic changelog 核对 PF-004 12 → 13、PF-006 19 → 20、PF-014 7 → 8、PF-015 11 → 13：增量是工作区来源、显式 reload、会话工作区引用与感知责任；本契约未定义工作区引用的内部结构（S-17/S-25 的值保持不透明，G-6 不闭合），也不拥有装载或受理操作，故不改变消息值规则。PF-012 仍为 rev 15，其栅栏与迟到账责任归运行时。源2历史复核文字保留原 rev；本轮变化见[验证入口](../verification.md#v6-变化的影响)。
-- **设计依据**：见[下一节](#设计依据)。产品依据以 **PF-009 rev 8、PF-010 rev 6、PF-012 rev 21、PF-013 rev 14、PF-014 rev 8、PF-015 rev 13、PF-006 rev 20、PF-004 rev 13、PF-008 rev 7** 为准。
-  2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev：PF-009 rev 8 与 PF-010 rev 6 改了 `SystemMessage`（不落会话日志、每次组装现算、本版只含文本，[S-7](#s-7-systemmessage)、[S-6](#s-6-每种消息能装哪几类块)、[S-29](#s-29-合法名单的判定)、[S-32](#s-32-会话日志里的配对与唯一)）与工具帧的收尾（出错照常收尾，[S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾)）；PF-014 rev 6 的「被中断的回复不交出动作」进 [S-10](#s-10-assistantmessage-怎么收的尾)；其余不改本契约条款。逐 topic 的记录见[验证入口「变化的影响」](../verification.md#变化的影响)
+- **前驱版本的需求复核记录（历史）**：本轮 PF-013 rev 13 → rev 14 的输入上限增量落在 S-49。另按各 topic changelog 核对 PF-004 12 → 13、PF-006 19 → 20、PF-014 7 → 8、PF-015 11 → 13：增量是工作区来源、显式 reload、会话工作区引用与感知责任；本契约未定义工作区引用的内部结构（S-17/S-25 的值保持不透明，G-6 不闭合），也不拥有装载或受理操作，故不改变消息值规则。PF-012 仍为 rev 15，其栅栏与迟到账责任归运行时。源2历史复核文字保留原 rev；本轮变化见[验证入口](../verification.md#v6-变化的影响)。
+- **当前设计依据与需求 rev**：PF-004 rev 20、PF-006 rev 23、PF-008 rev 7、PF-009 rev 9、PF-010 rev 7、PF-012 rev 21、PF-013 rev 16、PF-014 rev 11、PF-015 rev 20；仅消费 [source-alignment.md](source-alignment.md) 逐项列出的范围，历史接受与裁决保持其原 rev。
+  **前驱历史复核**：2026-09-24 按各 topic 的 changelog 从起草时的 rev 逐版核到当前 rev：PF-009 rev 8 与 PF-010 rev 6 改了 `SystemMessage`（不落会话日志、每次组装现算、本版只含文本，[S-7](#s-7-systemmessage)、[S-6](#s-6-每种消息能装哪几类块)、[S-29](#s-29-合法名单的判定)、[S-32](#s-32-会话日志里的配对与唯一)）与工具帧的收尾（出错照常收尾，[S-13](#s-13-toolinternalmessage)、[S-14](#s-14-toolinternalmessage-怎么收的尾)）；PF-014 rev 6 的「被中断的回复不交出动作」进 [S-10](#s-10-assistantmessage-怎么收的尾)；其余不改本契约条款。逐 topic 的记录见[验证入口「变化的影响」](../verification.md#变化的影响)
 - **精确语义依赖**：
 
   | 坐标 | 消费 clauses | 取它的什么 | Schema 里怎么用 |
@@ -20,6 +20,8 @@
   | `omne-harness-lite-design-2026-09-15 · data.identity-values · v1` | [`S-11`](../../identity-values/v1/contract.md#s-11-scopelayeridentity)、[`S-31`](../../identity-values/v1/contract.md#s-31-不透明标识的交换表示) | 作用域层身份；不透明标识的交换表示 | `$ref` 它的 `$defs/ScopeLayerIdentity`（「已出门」的 `credentialScope` 的租户那一支，[S-49](#s-49-模型请求运行时写的五种记录不是消息)）；`MessageId` 与其余不透明标识按 S-31 散文定形、**不 `$ref`**（[S-3](#s-3-messageid)） |
   | `omne-harness-lite-design-2026-09-15 · data.call-accounts · v3` | [`S-37`](../../call-accounts/v3/contract.md#s-37-三个归属标识的家runidattemptidmodelcallid) | `ModelCallId`、`AttemptId` 的家 | `$ref` 它的 `$defs/ModelCallId`（中断提醒的 `about`、五种运行时记录的 `call`）、`$defs/AttemptId`（尝试开始的 `attempt`） |
   | `omne-harness-lite-design-2026-09-15 · data.model-profile · v5` | [`S-2`](../../model-profile/v5/contract.md#s-2-routename)、[`S-5`](../../model-profile/v5/contract.md#s-5-providername-与允许的供应商)、[`S-13`](../../model-profile/v5/contract.md#s-13-modelprofileref)、[`S-15`](../../model-profile/v5/contract.md#s-15-modelrequestparameters-是一份词表)、[`S-19`](../../model-profile/v5/contract.md#s-19-extra)、[`S-20`](../../model-profile/v5/contract.md#s-20-项与项名)、[`S-27`](../../model-profile/v5/contract.md#s-27-modelprofilesnapshot档案在某一刻的副本)、[`S-29`](../../model-profile/v5/contract.md#s-29-modeladaptationbinding)、[`S-30`](../../model-profile/v5/contract.md#s-30-配置值与写入者义务)、[`S-31`](../../model-profile/v5/contract.md#s-31-模型定义与档案对齐)、[`S-8`](../../model-profile/v5/contract.md#s-8-两个上限)、[`S-9`](../../model-profile/v5/contract.md#s-9-inputconstraints)、[`S-32`](../../model-profile/v5/contract.md#s-32-upstreaminputlimits)、[`S-33`](../../model-profile/v5/contract.md#s-33-供给上限与上游事实一致) | 路由名、供应商标识、档案的引用、请求参数词表、`extra` 出现时至少一项（「已出门」还原实际发出的那一组时 `extra` 去空即缺席，S-49）、项与项名（「已出门」上两份清单的项名）、档案快照 | `$ref` 它的 `$defs/RouteName`（模型切换落下的那条记录的 `routeName`：PF-013 rev 12 起设置与切换记路由名，落到哪一行由按层覆盖定）、`$defs/ProviderName`、`$defs/ModelProfileRef`、`$defs/ModelRequestParameters`、`$defs/ModelProfileSnapshot`、`$defs/ModelAdaptationBinding`（后五个都在「已出门」上，[S-49](#s-49-模型请求运行时写的五种记录不是消息)） |
+
+  S-9 另实质消费 CB3 S-19 的派生表示结构，加入同一CB3依赖；S-3/S-4/S-5/S-20/S-22仍按原坐标解释标识、可见性、真实来源与写后不变。
 
   **`data.model-response` 是 `ResponseId` 的家，但不登为本契约的依赖**：它以 `$ref` 取本契约的 `AssistantMessage` 作回复，
   本契约再引用回去两份契约就互为依赖；`ResponseId` 在这里按 `data.identity-values/v1#S-31` 的散文自定义同一形状（[S-37](#s-37-规范表示)）。
@@ -31,6 +33,9 @@
   本文引另一份契约的条款一律带坐标，**裸号只指本契约**
 
 本批增量的精确产品依据为 PF-013 rev16、PF-012 rev21、PF-015 rev20；其余继承条款保留原适用范围。规范共S-1～S-55，接受依据仍只指前驱版本，不提升本候选。新旧条款与消费者逐项见 [consumer-impact.md](consumer-impact.md)。
+
+
+本轮交叉修订方向见 [technical-choices-r4](../../../../record/proposals/model-runtime-reference-lifecycle/technical-choices-r4.md)，仍为 candidate；当前产品来源逐项核对见 [source-alignment.md](source-alignment.md)。历史接受/裁决 rev 不因本轮改写。
 
 ## 本版运行格式边界
 
@@ -342,8 +347,7 @@
 
 - **`response` 必填**：产出它的那份模型响应的 `ResponseId`。`ResponseId` 的家是 `data.model-response/v4#S-6`；
   本契约按 `data.identity-values/v1#S-31` 的散文写出同一形状、**不 `$ref`**——理由见 [S-37](#s-37-规范表示)。
-- **一次回复只有一份权威内容。**`data.model-response` 的响应体里若嵌着同一次回复，**那一份与这条消息是同一份内容**：逐块是同一个 JSON 值，
-  **任何一方不得单独改写**，也不得在两处各落一份让它们各自演化。落成一条记录条目还是两条，归条目壳（[G-2](#九已知缺口)）。
+- **一次回复至多首次发布一条权威会话消息。**响应体的 reply 保留原模型产出证据；persisted 消息的 MessageId、response、原块序列、消息其他成员及原块全部成员（含已有派生属性）与该证据相同。仅允许在原本无 renderings/transcript 的合格 audio/image/file 块上，按 CB3 S-19/S-20/S-22 在首次落盘前新增合法成对派生属性。新增 renderings.blocks 内合规派生块可以有新 id，遵守全消息唯一及父子可见性；这不许可增删或调序原块。不能剥掉已有派生再比较；落盘后不可补写。实际转换来源及写入资格由写方验证，自报 producedBy=system 不足以证明来源。没有新增派生时两值完全相等。原响应证据不是第二条消息，正式组装只取唯一 persisted 消息。
 - **一份 `ResponseId` 在一份会话日志里至多对应一条 `AssistantMessage`**（[S-32](#s-32-会话日志里的配对与唯一)）；
   出错断的那次发出**没有**这条消息（[S-10](#s-10-assistantmessage-怎么收的尾)）。
 - **分十次到达再拼起来与一次性拿到，得到的是同一条消息**（[PF-009 §6.8](../../../../product/PF-009-context-message-types/design.md#68-组装的结果与一次性拿到的必须相同)）：
@@ -1241,7 +1245,7 @@ ModelInvocationRecord在原五种上增加两种，仍不属于七种Message，�
 | model_call_created | call、creationKey、payload(kind=created且取回status=accepted)、createdAt；原来源在SL3条目壳，须与payload.origin/ref相等 | CallKey读取；创建tenant+Session+creationKey判重，另核CallKey唯一 |
 | model_call_reply_ready | call、dispatch、response、payload(kind=reply_ready)、readyAt；response为原dispatch铸下的ResponseId，取回Pending.id/call/dispatch与原壳相等 | CallKey读取；记录种类域+ResponseId判重，与final键不同但同一账身份 |
 
-ModelCallEndedRecord的undispatched分支新增必填creationKey与payload(kind=created且status=rejected)，cause须与payload.cause相等；同一原批建立creationKey→CallKey与handed_up结果，不能另外追加accepted created。released/interrupted分支禁止这两个成员。两个新marker和拒绝创建都先确认引用内容可取得再提交；记录时刻是各自事实的时刻，不借它冒充网络sentAt。
+ModelCallEndedRecord 的 undispatched 保持零发送本义，分两种互斥来源：初次 openCall 检查即拒绝时，creationKey 与 payload 必须成对存在，payload.kind=created 且取回 status=rejected，cause 与 payload.cause 相等；同一原批建立 creationKey→CallKey 与 handed_up，不得另有 accepted created。已经发布 accepted created、首次 dispatch 因当前凭据/规划门拒绝时，两个成员均缺席，沿原 callId 终结，保留原 accepted 创建身份与采用事实，不新造 rejected 输入。Schema 强制两成员同在同缺，是否属于对应来源、先前 accepted created 及零已出门由跨记录校验强制。released/interrupted 禁止两成员。两个新marker和拒绝创建都先确认引用内容可取得再提交；记录时刻是各自事实的时刻，不借它冒充网络sentAt。
 
 原Session/tenant/run/attempt由壳保留，不能换为查询者位置。来源、保留责任、原批与回执未知由RT11承担；MS不引入新的操作/权限。纯值校验输入显式定义，成功合法、失败沿S-39原十四值/既有优先级：新kind未知为malformed、缺字段/错payload kind为malformed；不新增模型调用成因。校验无副作用，缺身份拒绝、不读环境补齐。
 

@@ -13811,7 +13811,9 @@
         "spec/capabilities/model-request-runtime/v11/formal/validity-check/UsageCalibration_ReleaseLease.cfg",
         "spec/capabilities/model-request-runtime/v11/formal/validity-check/UsageCalibration_RewriteHistory.cfg",
         "spec/capabilities/model-request-runtime/v11/formal/validity-check/UsageCalibration_StalePlan.cfg",
-        "spec/capabilities/model-request-runtime/v11/verification.md"
+        "spec/capabilities/model-request-runtime/v11/verification.md",
+        "spec/capabilities/model-request-runtime/v11/source-alignment.md",
+        "spec/capabilities/model-request-runtime/v11/formal/validity-check/OpenedOrder-old-attempt-blocked.cfg"
       ],
       "dependencies": [
         {
@@ -13926,6 +13928,7 @@
             "S-15",
             "S-17",
             "S-20",
+            "S-23",
             "S-24",
             "S-27",
             "S-30",
@@ -13966,11 +13969,16 @@
           },
           "clauses": [
             "S-1",
+            "S-3",
+            "S-4",
+            "S-5",
             "S-6",
             "S-10",
             "S-13",
+            "S-19",
             "S-20",
             "S-21",
+            "S-22",
             "S-23"
           ],
           "rebase_relation": null
@@ -14120,6 +14128,7 @@
             "S-8",
             "S-9",
             "S-10",
+            "S-11",
             "S-13",
             "S-14",
             "S-17",
@@ -14131,8 +14140,7 @@
             "S-34",
             "S-35",
             "S-36",
-            "S-37",
-            "S-11"
+            "S-37"
           ],
           "rebase_relation": null
         },
@@ -14178,7 +14186,8 @@
         "spec/data/model-response/v10/examples.md",
         "spec/data/model-response/v10/model-response.schema.json",
         "spec/data/model-response/v10/ready-examples.json",
-        "spec/data/model-response/v10/verification.md"
+        "spec/data/model-response/v10/verification.md",
+        "spec/data/model-response/v10/source-alignment.md"
       ],
       "acceptance": null,
       "dependencies": [
@@ -14214,9 +14223,15 @@
           },
           "clauses": [
             "S-1",
+            "S-3",
+            "S-4",
+            "S-5",
             "S-12",
             "S-13",
-            "S-21"
+            "S-19",
+            "S-20",
+            "S-21",
+            "S-22"
           ],
           "rebase_relation": null
         },
@@ -14269,6 +14284,7 @@
             "S-2",
             "S-14",
             "S-17",
+            "S-23",
             "S-25",
             "S-43"
           ],
@@ -14319,7 +14335,8 @@
         "spec/data/messages/v7/input-limit-examples.json",
         "spec/data/messages/v7/messages.schema.json",
         "spec/data/messages/v7/reference-examples.json",
-        "spec/data/messages/v7/verification.md"
+        "spec/data/messages/v7/verification.md",
+        "spec/data/messages/v7/source-alignment.md"
       ],
       "acceptance": null,
       "dependencies": [
@@ -14342,6 +14359,7 @@
             "S-16",
             "S-17",
             "S-18",
+            "S-19",
             "S-20",
             "S-22",
             "S-24",
@@ -14368,9 +14386,9 @@
             "version": 1
           },
           "clauses": [
+            "S-5",
             "S-11",
-            "S-31",
-            "S-5"
+            "S-31"
           ],
           "rebase_relation": null
         },
@@ -14394,6 +14412,8 @@
           "clauses": [
             "S-2",
             "S-5",
+            "S-8",
+            "S-9",
             "S-13",
             "S-15",
             "S-19",
@@ -14402,8 +14422,6 @@
             "S-29",
             "S-30",
             "S-31",
-            "S-8",
-            "S-9",
             "S-32",
             "S-33"
           ],
@@ -14453,7 +14471,8 @@
         "spec/data/call-accounts/v3/contract.md",
         "spec/data/call-accounts/v3/examples.md",
         "spec/data/call-accounts/v3/ready-examples.json",
-        "spec/data/call-accounts/v3/verification.md"
+        "spec/data/call-accounts/v3/verification.md",
+        "spec/data/call-accounts/v3/source-alignment.md"
       ],
       "acceptance": null,
       "dependencies": [

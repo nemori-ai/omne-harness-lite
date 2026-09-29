@@ -329,3 +329,7 @@ U-1 的 `reasoning_tokens` 128 **不另加**：它已在 `output_tokens` 311 里
 ## 本批新增规范实例
 
 完整机器实例见 [ready-examples.json](ready-examples.json)；schemaValid只判断形状，不能证明权限、摘要实际相等、来源、跨记录或持久化。引用内容缺失必须unavailable而非空结果；同ResponseId ready费用1.25、final费用1.25，总账仍1.25；无final时仍1.25；若ready费用unknown，则未知笔数1；补账0.8后为0.8且不改两份原值。
+
+## R2 两阶段账身份
+
+有回复结果永久 ready/pending 时也计一次；后来 final 引同 ResponseId 只替换所选阶段，不再加一笔。persisted 消息新增合法派生不改原 response usage/cost，不产生模型调用账。没有 reply 的响应直接 final。组合读面验收仍未开始。

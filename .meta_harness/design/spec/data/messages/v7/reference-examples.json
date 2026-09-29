@@ -468,5 +468,64 @@
       }
     },
     "schemaValid": false
+  },
+  {
+    "name": "accepted-created-then-first-dispatch-rejected",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_ended",
+      "call": "call-rejected",
+      "ending": "undispatched",
+      "cause": "credential_unavailable"
+    },
+    "schemaValid": true
+  },
+  {
+    "name": "rejected-creation-cannot-lose-payload",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_ended",
+      "call": "call-rejected",
+      "ending": "undispatched",
+      "cause": "withdrawn",
+      "creationKey": "create-rejected"
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "released-cannot-carry-creation",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_ended",
+      "call": "call-rejected",
+      "ending": "released",
+      "cause": "credential_unavailable",
+      "creationKey": "create-rejected",
+      "payload": {
+        "kind": "created",
+        "locator": "content-1",
+        "version": "v1",
+        "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+      }
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "interrupted-cannot-carry-creation",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_ended",
+      "call": "call-rejected",
+      "ending": "interrupted",
+      "creationKey": "create-rejected",
+      "payload": {
+        "kind": "created",
+        "locator": "content-1",
+        "version": "v1",
+        "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+      },
+      "initiator": "user"
+    },
+    "schemaValid": false
   }
 ]

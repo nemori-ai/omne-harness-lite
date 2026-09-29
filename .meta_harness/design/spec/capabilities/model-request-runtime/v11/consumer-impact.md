@@ -21,3 +21,9 @@
 runtime v19及runner v8、core数据codec、Session日志codec、所有响应/消息写方、成本读面是实现影响检查对象；本稿不改变其采用状态或提供者设计。runtime需候选v20明确持久内容/索引/资格端口；runner只按采用范围传播，不能因ref读权限而得到anchored写入权；CA纯sum可复用，实际读面先选唯一来源。
 
 lineage.json仅支持legacy baseline迁入，本批同baseline正常升版不伪造rebase；本表保存精确版本差异。id-namespaces复用既有S-/G-/CS-族，无新增全局族。公开技术名归RT11 S84～S94和MS7 S51～S55，不另立UL概念。
+
+## R2 独立评审修订影响
+
+S-5/S-33/S-68/S-72/S-75/S-77/S-79/S-81/S-85/S-86/S-92：一份响应事实两阶段；live只读识别；中断fence完整；首次消息合法派生/真实性先行；两类零发送创建关联。S-88的旧attempt许可新增ENABLED断言及定点负控。
+
+由原消息+响应写方兑现合法扩展、权限、来源与unknown原批；上下文/计量消费者核原outputHistory及实际选入表示。本批只定关系，不建立通用映射DTO，不凭同形值授予写权。源版本与实际消费范围见 [source-alignment](source-alignment.md)，未扩未消费产品义务。

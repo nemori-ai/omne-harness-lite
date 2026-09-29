@@ -9,7 +9,7 @@
   **文件位置不代替这个三元组身份。**
 - **状态**：candidate，未接受、未冻结；前驱 capability.model-request-runtime/v10 接受状态以其原 registry 条目为准。
 - **设计依据**：RT5 的未变化承诺沿 D-090；输入限制增量依据 PF-013 rev16 用户裁定；原输入 cap 来源沿 [D-096](../../../../record/decisions/model-profile-input-limits-product-adoption/decision.md)。继承 S-74 最终固定计划门、S-75 未处分响应交接及 S-76 重试历史；本候选继承 S-74 的 token 计量保证，以 S-77～S-83 新增响应校准；原 SL3 结算、头事实、凭据、取消与精确适配保证完整保留。
-- **精确适用需求来源**：PF-013 rev16、PF-012 rev21、PF-009 rev8；PF-004 **rev13 §6.6**、PF-001 **rev23 §6.4**、PF-015 **rev13 §6.12 及「第一件：会话睡一觉醒来，还得是原来那个」**。后三份按本契约实际消费义务核对当前正文，核对范围见下表；未消费的工作区增量由其所属契约承接，不沿用旧 rev 作为本版依据，也不改写 RT5 冻结来源。
+- **当前设计依据与需求 rev**：PF-001 rev 25、PF-004 rev 20、PF-009 rev 9、PF-012 rev 21、PF-013 rev 16、PF-015 rev 20；仅消费 [source-alignment.md](source-alignment.md) 逐项列出的范围，历史接受与裁决保持其原 rev。
 - **精确语义依赖**（消费 clauses 见 [S-4](#s-4-依赖方向与被消费的面)，catalog 按它登记；接受状态以 [registry](../../../../registry/README.md) 为准）：
   - `omne-harness-lite-design-2026-09-15 · capability.model-profile-directory · v5`（accepted，D-100）
   - `omne-harness-lite-design-2026-09-15 · data.model-profile · v6`（accepted，D-101）
@@ -34,6 +34,9 @@
 
 本批增量的精确产品依据为 PF-013 rev16、PF-012 rev21、PF-015 rev20；其余继承条款保留原适用范围。规范共S-1～S-94，接受依据仍只指前驱版本，不提升本候选。新旧条款与消费者逐项见 [consumer-impact.md](consumer-impact.md)。
 
+
+本轮交叉修订方向见 [technical-choices-r4](../../../../record/proposals/model-runtime-reference-lifecycle/technical-choices-r4.md)，仍为 candidate；当前产品来源逐项核对见 [source-alignment.md](source-alignment.md)。历史接受/裁决 rev 不因本轮改写。
+
 ## 本版运行格式边界
 
 本版运行面只消费本版及其**精确依赖链**规定的当前格式。不为被替代的旧接口、旧格式或旧实现提供兼容入口、双轨执行、降级、回填、旧格式只读、认回或结算路径；历史规格与证据保留不构成这些运行承诺。不原地改写、清空或补造用户已有数据；遇到不兼容值沿本契约既有表示拒绝或操作失败边界明确失败，不静默转成当前值，也不新增失败枚举。
@@ -47,8 +50,8 @@
 
 | 当前精确来源 | 本版消费并核对仍成立的义务 | 本次未消费的后续变化 |
 |---|---|---|
-| PF-004 rev13 §6.6 | 模型每次请求确定；换模型不重新装配；生成内容保留实际模型。对应 S-7/S-9/S-10/S-26/S-27 的绑定、生效与留痕 | rev13 的工作区文件变化/已受理装配变更、显式 reload 与候选校验由装配 owner 承担；RT7 不产出工作区装配或改写其生命周期 |
-| PF-001 rev23 §6.4 | 显式租户身份、无所有权/成员依据拒绝跨租户、范围不可用/失权明确失败、成本按发起租户归属。对应 S-7/S-14/S-19/S-66 | rev20～23 的共享工作区、外部仓库无治理者、组织参与范围和实例来源规则不由 RT7 裁决；S-66 消费已有当前输入端口及授权结果，不从物理路径建立资格 |
+| PF-004 rev20 §6.6 | 模型每次请求确定；换模型不重新装配；生成内容保留实际模型。对应 S-7/S-9/S-10/S-26/S-27 的绑定、生效与留痕 | rev13 的工作区文件变化/已受理装配变更、显式 reload 与候选校验由装配 owner 承担；本版不产出工作区装配或改写其生命周期 |
+| PF-001 rev25 §6.4 | 显式租户身份、无所有权/成员依据拒绝跨租户、范围不可用/失权明确失败、成本按发起租户归属。对应 S-7/S-14/S-19/S-66 | rev20～23 的共享工作区、外部仓库无治理者、组织参与范围和实例来源规则不由本版裁决；S-66 消费已有当前输入端口及授权结果，不从物理路径建立资格 |
 | PF-015 rev20 §6.12、会话恢复段 | 创建时捕获租户身份、不随账号切换；日志只增不改、可恢复部分恢复、投影重算一致。对应 S-7/S-19/S-33；G-11 的恢复调用方义务仍开放 | rev13 的工作区附着/共享实例、多 worktree、异步感知及 AGENTS.md 上下文由会话/工作区/上下文 owner 承担；本版未定义这些源的产生规则 |
 
 | 依据 | 位置 | 本契约取它的什么 |
@@ -62,7 +65,7 @@
 | 已撤回的可以恢复在册；指着它的会话不用换就接得上 | [PF-013 §6.4](../../../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架) · [flows §1.4](../../../../product/PF-013-model-profiles-and-invocation/flows.md#14-走一遍选中的模型被下架了) 第 6′ 步 | S-9、S-12 |
 | 上交带八个成因与原样状态码 | [PF-013 §5.7](../../../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它) · [§6.11](../../../../product/PF-013-model-profiles-and-invocation/design.md#611-成因在这个边界上分类不丢进外层按异常形态分) · [§6.14](../../../../product/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着) | S-18 |
 | 换模型：一条事实、一个生效点、零个新分支 | [PF-013 §5.9](../../../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支) · [§6.5](../../../../product/PF-013-model-profiles-and-invocation/design.md#65-切换是用户的直接命令合法目标不得拒绝)～[§6.8](../../../../product/PF-013-model-profiles-and-invocation/design.md#68-不为切换新增分支) · [flows §3.3](../../../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型) | S-9、S-27 |
-| 选中模型（一个路由名）与有效模型（它这一次落到的那一行） | [PF-013 §4](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) · [PF-004 rev13 §6.6](../../../../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定) | S-9、S-10、S-26、S-27 |
+| 选中模型（一个路由名）与有效模型（它这一次落到的那一行） | [PF-013 §4](../../../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) · [PF-004 rev20 §6.6](../../../../product/PF-004-agent-definition-and-assembly/design.md#66-模型在每次请求时确定) | S-9、S-10、S-26、S-27 |
 | 合法目标集合与展示列表是两件事；算不出来不替用户改选；模态挡在这一刻 | [PF-013 §5.10](../../../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) · [§5.11](../../../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面) · [§6.9](../../../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选) · [§6.10](../../../../product/PF-013-model-profiles-and-invocation/design.md#610-模态兼容挡在算合法目标那一刻不挡在出门那一刻) | S-11、S-12、S-24、S-25 |
 | 重试站在已有的位置上；默认件；它改不动的三件事 | [PF-013 §5.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上) · [§6.12](../../../../product/PF-013-model-profiles-and-invocation/design.md#612-事实判断归本-topic策略归拓展件) · [§6.13](../../../../product/PF-013-model-profiles-and-invocation/design.md#613-试尽由拓展件判定档案的两项声明是它的输入) · [什么时候算试尽](../../../../product/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽) | S-30、S-35 |
 | 单独控制；停机看首 token；只有一个宿主 | [PF-013 §5.13](../../../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token) · [停机之后](../../../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token) · [它只有一个宿主](../../../../product/PF-013-model-profiles-and-invocation/design.md#它只有一个宿主所以只有一种结局) | S-15、S-31、S-33、S-36 |
@@ -78,7 +81,7 @@
 | 取消跟着宿主走；取消先落日志再发信号 | [PF-012 §6.13](../../../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走) · [§6.15](../../../../product/PF-012-agent-loop-and-run/design.md#615-取消先落日志再发信号) | S-31、S-36 |
 | 成本两层；挂件自己花的钱 | [PF-012 成本两层](../../../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错) · [挂件自己花的钱](../../../../product/PF-012-agent-loop-and-run/design.md#挂件自己花的钱算它插手的那个-run) | S-5、S-17 |
 | 流断在半路；用户看见了的日志里必须有 | [PF-009 §5.6](../../../../product/PF-009-context-message-types/design.md#56-流断在半路) · [§6.9](../../../../product/PF-009-context-message-types/design.md#69-用户看见了的会话日志里必须有) | S-15、S-29 |
-| 会话持有创建那一刻的租户身份；成本算到发起它的租户 | [PF-015 rev20 §6.12](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份) · [PF-001 rev23 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) | S-7、S-19 |
+| 会话持有创建那一刻的租户身份；成本算到发起它的租户 | [PF-015 rev20 §6.12](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份) · [PF-001 rev25 §6.4](../../../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离) | S-7、S-19 |
 | 所有模型请求经 OpenRouter；单机交付可拆 | [SYS-LLM](../../../../foundation/cross-system-constraints/requirements.md#sys-llm) · [SYS-DEPLOY](../../../../foundation/cross-system-constraints/requirements.md#sys-deploy) | S-38 |
 | 接受／拒绝要有可定位、可解释的日志依据 | [SYS-OBSERVABILITY](../../../../foundation/observability-and-logging/requirements.md#sys-observability全链路可观测与日志完备) C3 | S-51 第 4 条 |
 | 传输选 pi-ai 定向 fork | [D-019](../../../../record/decisions/model-provider-pi-ai-fork/decision.md) | S-38 |
@@ -249,6 +252,7 @@
 | `capability.session-tenancy` `#S-8` holdingTenant | S-66：从真实会话映射固定 tenant；缺会话/读不到均 unavailable，不采用调用方猜值 |
 
 | `data.model-profile` `#S-9`、`#S-32`、`#S-33` 输入 cap、上游事实与跨字段一致 | S-7/S-28/S-53/S-74：使用完整固定快照，实际发送须满足所有适用限制 |
+| `data.content-blocks/v3` `#S-3`/`#S-4`/`#S-5`/`#S-19`/`#S-20`/`#S-22`；`data.loop-extension/v6` `#S-23` | S-75：唯一消息首次合法派生的形状、标识/可见性及不可改写边界；真实来源由写方验证 |
 | `data.content-blocks` `#S-10`、`#S-23` 内联编码与引用说明界限 | S-74：严格解码字节；AttachmentRef.bytes 不作已核实输入 |
 | `data.model-response` `#S-39` PendingModelResponse、`#S-40` 输入限制快照与历史版本边界 | S-17/S-29/S-49/S-75：共享形状唯一拥有者，运行时不另发 Schema |
 | `data.loop-extension` `#S-30`、`#S-32` 生效结论、`#S-42` 失败结论关联、`#S-43` 完整重试结论 | S-29/S-34/S-35/S-60/S-76：可重放来源，不推断隐藏计数 |
@@ -259,7 +263,7 @@
 
 ### S-5 一次调用、一次发出
 
-**一次调用有 0 到多次发出；每一次发出只走一家，恰留一条响应体**（`data.model-response/v10#S-4`）。
+**一次调用有 0 到多次发出；每一次发出只走一家，保留同一 ResponseId 的唯一响应事实：无 reply 直接 final；有 reply 先 ready，可永久待处分，再有合法处分才发布唯一 final，不能伪造 consumed**（`data.model-response/v10#S-4`）。
 
 - **`callId`**（`ModelCallId`）**由本能力在打开一次新调用时产生**（`data.call-accounts/v3#S-37`），**会话内唯一**、不回收不复用，交换表示按 `data.identity-values/v1#S-31`。
   **一次调用的身份是（会话, `callId`）**：本能力同时承载多个会话，两个会话里可以有相同的 `callId`；所以每个指认一次调用的操作都**同时收 `session`**，先判这个 `callId` 是不是这个会话的，不是即 `callNotFound`（主线裁定，见 [D-060 §五 K19](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#五s25-第一轮修复波的主线裁定k1k502026-09-24-夜追加)）。
@@ -323,7 +327,7 @@
 
 **本能力经宿主给出的追加入口，往会话日志里写下列记录；每一种都在它要保护的那件事发生之前写下。**
 追加入口就是窄口接口契约 `capability.session-log` v3 的 `append`（[S-17](../../session-log/v3/contract.md#s-17-append追加一批条目)）：「写下」即它成功返回（[S-13](../../session-log/v3/contract.md#s-13-提交与持久)：返回即已持久）；**属于 Run 的新已出门、中断意图与新工作调用终结带栅栏 `fenced{run, attempt}`；旧执行已开口以 S-88 的 unfenced + tailEquals；结算类不带尝试栅栏**（[S-10](../../session-log/v3/contract.md#s-10-尝试栅栏) 第 3 条；2026-09-25接受的是旧版分类；本版opened例外为S-88候选，尚未接受）；响应体以 `ResponseId` 拼出判重键（[S-8](../../session-log/v3/contract.md#s-8-判重键)）；对账与读发出记录经 `readSince`（[S-19](../../session-log/v3/contract.md#s-19-readsince从某个位置往后读)）。
-响应体之外的五种记录，**形状归 `data.messages/v6` 的 [S-49](../../../data/messages/v7/contract.md#s-49-模型请求运行时写的五种记录不是消息)、[S-50](../../../data/messages/v7/contract.md#s-50-调用终结的三支)**（`ModelInvocationRecord`：不是消息，只供对账读；主线裁定，见 [D-060 §S16 S16-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)）；本条定义它们**各自必须能回答什么、何时写、谁写**。
+响应体之外的五种记录，**形状归 `data.messages/v7` 的 [S-49](../../../data/messages/v7/contract.md#s-49-模型请求运行时写的五种记录不是消息)、[S-50](../../../data/messages/v7/contract.md#s-50-调用终结的三支)**（`ModelInvocationRecord`：不是消息，只供对账读；主线裁定，见 [D-060 §S16 S16-d](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s16model-profile-directory--model-request-runtime报回的)）；本条定义它们**各自必须能回答什么、何时写、谁写**。
 **会话、Run、尝试、租户都在承载记录的条目壳上**，不在记录里（`data.messages/v7#S-49`、`data.call-accounts/v3#S-25`）；下表「落在哪次尝试」「谁」都从条目读。
 
 | 记录 | 必须能回答 | 何时写 | 谁写 |
@@ -745,7 +749,7 @@ S-58 交给调用者的 `rawHeaders` 已按上述原规则处理，S-54 与完�
 | ② | 宿主不在停止中；`session` 存在；续接时 `callId` 属于这个 `session` 且处于 `resumable` |
 | ③ | **有**：`target` 不能由本操作以外的路径改——`parameters` 里出现目标、`messages` 之外塞进换模型的指示，一律 `invalidInput`（`data.loop-extension/v6#S-15`：`target` 只经 `select_model`）；**没有 `targetChangedBy` 时 `target` 必须等于 `basis.routeName`**，否则 `invalidInput`——目标变了却说不出是谁改的。**`report` 与 `run` 同在同缺**：带 `run` 而缺 `report`、或不带 `run` 而带了 `report` ⇒ `invalidInput`；带了的必须是**这个会话、这个运行、这一次尝试**的那一份（三者都核，与 `capability.loop-extension-runner/v3#S-21` ① 核 `admission.report` 同一口径），不是即 `invalidInput`——本能力不替这一次尝试现算一份，也不认别的尝试的那一份 |
 | ④ | **新调用**：**用交来的 `target`，不重算选中模型**——拓展件看到、并据以改写参数的就是这个名字；`basis` 求出之后才落下的模型切换，从下一次 `effectiveModel` 起生效（[S-27](#s-27-selectmodel) ⑤）。把 `target` 经 [S-10](#s-10-有效模型四步每步来源可查) 第 2′ 步**此刻**解析为一行 → 读档案 → 合并参数 → **出门前检查**（下表）→ 绑定（[S-7](#s-7-一次调用绑定了什么)；`selectedBy` = 有 `targetChangedBy` 时 `{ extension: targetChangedBy }`，否则 `basis.selectedBy`）。**检查不过**：写一条调用终结记录 `undispatched{cause}`，这次调用即在终态 `handed_up`。**检查通过**：固定完整创建内容，按 S-85 先确认内容可取得，再以 creationKey 判重原子写 created marker；确认提交后才发布 CallKey。未发布不得 dispatch。**续接**：重新绑定宿主与追加入口，**绑定从最近一次发出的「已出门」记录读**（[S-7](#s-7-一次调用绑定了什么)），不重读档案、不重做目录准入检查；每次新发送仍须按 S-74 对新 messages/tools 的最终计划重新计量，历史快照缺必要上限时不能借当前目录补齐；交来的 `target`、`parameters`、`basis` 在续接时不用。工具条目按这一次交来的 `tools` 与 `report` 重取（`within` 同上）；取到「没有」⇒ `invalidInput{unknownTool}`，报告所依的快照取不回 ⇒ `unavailable`（`capability.asset-registry/v3#S-25` ⑧） |
-| ⑤ | `{ ref: CallKey, callId, state: open | resumable }`，或 `{ callId, state: handed_up, undispatched: cause }` |
+| ⑤ | 首次创建/续接为 `{ ref: CallKey, callId, state: open | resumable }`，首次创建拒绝为 `{ callId, state: handed_up, undispatched: cause }`；同键认回为原 `ref/callId` 及 S-6 当前状态（完整闭合集合），原输入/采用事实不变；当前 ready/final/调用终结按 S-85 原值认回 |
 | ⑥ | `invalidInput` · `unavailable`（当前资格）· `creationConflict` · `callNotFound` · `runtimeStopped` · `wrongPhase` · `unavailable` · `profileNotFound` |
 | ⑦ | 同创建租户+Session+creationKey、同原显式输入及关联认回同一 CallKey；不重读新档案或铸第二个 id。同键不同输入 creationConflict。unknown 保留原键、内容与任务，确认旧写者停止后以权威完整前缀认回；确知未提交才重送同批。续接保持原 CallKey 与绑定，不产生 created 的第二份事实 |
 | ⑧ | 目录、会话日志、允许集合、投影、保管方、会话资产注册表任一读不到 ⇒ `unavailable`，在尚未形成创建写任务前不写记录；形成后依 S-85 保留任务，不假定未提交（**不列层级求值**：④ 用交来的 `target`、不重算，层级求值已在 `basis` 那一次 `effectiveModel` 里做过；主线裁定 [D-060 §八 N-39](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）——「判不出来」不记成 `undispatched`。`target` 那个名字在链上没有任何一行 ⇒ `profileNotFound`（接口错误：调用方交来一个这条链上从未有过的名字） |
@@ -868,30 +872,32 @@ S-58 交给调用者的 `rawHeaders` 已按上述原规则处理，S-54 与完�
 
 **v3 增量约束**：对账只需读取已保存绑定，不要求旧适配实现仍可加载；实现缺失不阻止追补事实。追补的完整绑定来自「已出门」，缓存读取与写入按已持久事实填写，拿不到的仍为未知；不执行缓存探测、不重发、也不调用新版本重新规划。对账成功返回 `resumable` 不承诺精确实现可用，后续续接/发出会独立得到 `unavailable`。
 
-**恢复时序**：先确认 S-17 的实际停止、同会话权威完整前缀及 durable dispatched 责任。已存在的完整响应批按原值认回；必须追补时，有同次真实 `sentAt` 就保留，否则按 MR9 S-17 写 null。没有任何已接受耐久字段能从「已出门」推得实际交给传输时刻，不能以该锚点或恢复时刻代填。`firstTokenAt` 仍只按权威「已开口」有无及其时刻；`endedAt` 是本层确认失去连续性的时刻。null 不影响既有行优先级、resumable 判据或时序不变量，不提供单独重发资格。本操作零次 HTTP，不为核实实际发送或用量发请求；账与已知事实沿原条款，不从 null 推出费用为零。
+**识别与恢复时序**：先按当前读取资格取得同会话权威完整前缀；已有 final/ready 先认回原值，仍 live 者只识别原状态、可由合法消费者另行 acquire，不取消、不等待其停止、不自动恢复。仅必须追补的具体调用须先确认 S-17 的旧网络、门及全部追加/结算写者实际停止、唯一恢复资格及 durable dispatched 责任。必须追补时，有同次真实 `sentAt` 就保留，否则按 MR10 S-17 写 null。没有任何已接受耐久字段能从「已出门」推得实际交给传输时刻，不能以该锚点或恢复时刻代填。`firstTokenAt` 仍只按权威「已开口」有无及其时刻；`endedAt` 是本层确认失去连续性的时刻。null 不影响既有行优先级、resumable 判据或时序不变量，不提供单独重发资格。本操作零次 HTTP，不为核实实际发送或用量发请求；账与已知事实沿原条款，不从 null 推出费用为零。
 
-**锚点回执未知的恢复**：S-17 的隔离调用同样留给本操作的既有两种时机，不增加恢复入口。应用对账表之前须满足 S-17 的全部旧网络/门回调/追加及结算写者实际停止、有效栅栏或唯一重新承载、权威完整读回条件；栅栏只关闭旧 fenced 推进，不证明旧 unfenced 写者停止；沿 `capability.session-log/v3#S-19`、`#S-22`、`#S-23`，不能拿旧尾的空结果或 `attemptSuperseded` 本身断定先前没有提交。读回有「已开口」时按它的时刻填写 `firstTokenAt`，即使从未有内容可见，也不得写无首 token 的失败响应体；读回确无「已开口」才使用表中无首 token 的分支。已有中断意图仍优先；无中断意图时分别落「已开口、无响应体」或「已出门、无已开口、无响应体」两行。条件不齐或读回不可判时继续 `unavailable`、未结算、不交内容、不发送。只有对账实际成功得到 `resumable` 后，调用方才可按 S-29 另行续接；不是收到函数结果就获得再发许可。
+**锚点回执未知的恢复**：S-17 的隔离调用同样留给本操作的既有两种时机，不增加恢复入口。对账表的只读识别行不取得破坏性恢复资格；只有必须追补的行须满足 S-17 的全部旧网络/门回调/追加及结算写者实际停止、唯一恢复资格、有效栅栏或唯一重新承载、权威完整读回条件；栅栏只关闭旧 fenced 推进，不证明旧 unfenced 写者停止；沿 `capability.session-log/v3#S-19`、`#S-22`、`#S-23`，不能拿旧尾的空结果或 `attemptSuperseded` 本身断定先前没有提交。读回有「已开口」时按它的时刻填写 `firstTokenAt`，即使从未有内容可见，也不得写无首 token 的失败响应体；读回确无「已开口」才使用表中无首 token 的分支。已有中断意图仍优先；无中断意图时分别落「已开口、无响应体」或「已出门、无已开口、无响应体」两行。条件不齐或读回不可判时继续 `unavailable`、未结算、不交内容、不发送。只有对账实际成功得到 `resumable` 后，调用方才可按 S-29 另行续接；不是收到函数结果就获得再发许可。
 
 | # | 内容 |
 |---|---|
 | ① | `session`；`attempt?`：新的这一次尝试——由会话重新承载触发时缺席（见 ②） |
-| ② | **两个调用时机，都由调用方保证**：① 这个会话的**新尝试开始之后、loop 推进之前**（带 `attempt`）；② 会话在据点上**重新承载之后**（停机重启、迁到别的宿主）、**会话级的任何调用打开之前**（不带 `attempt`）——**不属于任何 Run 的调用**没有「新的一次尝试」来触发对账，由这一时机收口（**规格层推导**；谁在什么时候调它归会话生命周期那一侧，[G-11](#十二已知缺口)；[PF-015 rev20 会话睡一觉醒来](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#第一件会话睡一觉醒来还得是原来那个)）。两个时机对账的是同一张表、同一批调用，先到的那一次做完，后到的按 ⑦ 是空操作。同一会话同一时刻只有一副协程在推它（PF-012） |
+| ② | **两个调用时机，都由调用方保证**：① 这个会话的**新尝试开始之后、loop 推进之前**（带 `attempt`）；② 会话在据点上**重新承载之后**（停机重启、迁到别的宿主）、**会话级的任何调用打开之前**（不带 `attempt`）——**不属于任何 Run 的调用**没有「新的一次尝试」来触发对账，由这一时机收口（**规格层推导**；谁在什么时候调它归会话生命周期那一侧，[G-11](#十二已知缺口)；[PF-015 rev20 会话睡一觉醒来](../../../../product/PF-015-session-lifecycle-and-ownership/design.md#第一件会话睡一觉醒来还得是原来那个)）。两个时机读取同一张表的当前事实；已追补批只认回，live 调用可以在两次读取之间继续变化。同一会话同一时刻只有一副协程在推它（PF-012） |
 | ③ | **有**：对账**从不发出**——它只追补结算、给出状态；再发由 loop 调 `dispatch` |
-| ④ | 对每一次没收场的调用，按它**最后一次发出**在日志里的样子（下表）追补；**每一行各自一次提交**，按 `ResponseId` 幂等（[S-17](#s-17-结算一处按序幂等先到者赢)）。**追补的响应体的路由留痕取自那次发出的「已出门」记录**（有效模型引用、档案快照、`selectedBy`、`credentialScope`，[S-7](#s-7-一次调用绑定了什么)）——不重读档案、不自造；**参数三项同样从它读**（主线裁定，见 [D-060 §六 L4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；原 G-18 闭合）：`parameterAdjustments`、`droppedParameters` 原样取那条记录上的（缺席照缺席，缺席即断言没改、没丢，`data.model-response/v10#S-11` 第 3 条），`route.parameters` 取那条记录还原得出的同次固定最终发送计划的适配结果（真实 send 时必须与实际一致；锚点后零 send 或发送不可判的 interrupted 分支仍原样还原，不以参数存在宣称已发送）（[S-7](#s-7-一次调用绑定了什么)）——**不拿合并之后的那一组冒充实际发出的**；那次发出属于某个运行、以 S-69 同次完整前缀与提交点条件判明原发出尝试已被取代或原 Run 已终结的，带 `late: true`（`data.model-response/v10#S-35`：**只写在带 `runId` 的调用上**，不属于任何运行的调用的那一条不带） |
-| ⑤ | 每一次被对账的调用一条 `{ callId, state }`，`state ∈ { resumable, awaiting_decision, interrupted, complete, handed_up }` |
+| ④ | 对每一次没收场的调用，按它**最后一次发出**在日志里的样子（下表）追补；**只读识别行零提交；确需追补的每一行各自一次提交**，按 `ResponseId` 幂等（[S-17](#s-17-结算一处按序幂等先到者赢)）。**追补的响应体的路由留痕取自那次发出的「已出门」记录**（有效模型引用、档案快照、`selectedBy`、`credentialScope`，[S-7](#s-7-一次调用绑定了什么)）——不重读档案、不自造；**参数三项同样从它读**（主线裁定，见 [D-060 §六 L4](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#六修复波-1b-的主线裁定与接受的命名2026-09-25追加)；原 G-18 闭合）：`parameterAdjustments`、`droppedParameters` 原样取那条记录上的（缺席照缺席，缺席即断言没改、没丢，`data.model-response/v10#S-11` 第 3 条），`route.parameters` 取那条记录还原得出的同次固定最终发送计划的适配结果（真实 send 时必须与实际一致；锚点后零 send 或发送不可判的 interrupted 分支仍原样还原，不以参数存在宣称已发送）（[S-7](#s-7-一次调用绑定了什么)）——**不拿合并之后的那一组冒充实际发出的**；那次发出属于某个运行、以 S-69 同次完整前缀与提交点条件判明原发出尝试已被取代或原 Run 已终结的，带 `late: true`（`data.model-response/v10#S-35`：**只写在带 `runId` 的调用上**，不属于任何运行的调用的那一条不带） |
+| ⑤ | 每一次被对账的调用一条 `{ callId, state }`，`state ∈ { open, in_flight, speaking, reply_pending, resumable, awaiting_decision, interrupted, complete, handed_up }`；ready 认回同时给 `disposition_pending`，final 给原已定处分；live 状态取受信 owner 对同一调用的当前事实，reply_pending 不冒充已发布 ready |
 | ⑥ | `invalidInput` · `unavailable` |
-| ⑦ | **幂等**：再对一次，已追补的不再追补，返回同样的结果 |
-| ⑧ | 会话日志读不到、追补写不进 ⇒ `unavailable`，**不返回部分结果**——loop 不得在对账没完成时推进 |
+| ⑦ | **幂等**：已追补的不再追补，认回原批；每次返回当前可确认状态，live 在两次读取间推进不违反幂等 |
+| ⑧ | 必要来源不可核、确需追补而停止/唯一恢复条件不齐或追补写不进 ⇒ `unavailable`，**不返回部分结果**——loop 不得在对账没完成时推进。已确认 live 是合法只读成功，不使全会话失败，不为了对账取消旧调用 |
 | ⑨ | 不发 |
 
 **真实事实保留规则**：追补表各分支的 usage/cost 均沿 S-17：只有没有可用真实事实的部分才是 unknown；若原执行已经实际停止、但原 owner 仍持有经既有传输/归一化边界确认属于同次发出的实际值，必须保留。已知零照实记零，未知不补零；sentAt:null 不能把已知事实覆盖成 unknown。同次已保留 rawHeaders 继续沿 S-17 的原值规则。任意 caller 提供的声称不构成该来源，不能通过传入数字绕过既有来源与归属核实。不新增事实采信入口、补账政策或 HTTP 重查；现有完整批存在时仍只认回其原值。
 
-**对账表**（按行从上到下，第一行命中即是）：
+**对账表**（按行从上到下，第一行命中即是）：只读认回及 live 行不要求停止；以下产生新记录的追补行才要求上文真实停止/唯一恢复资格。callPresence 的 notFound/unknown 区别沿 S-90，查无本地 Map 不能跳过 live 行。
 
 | 日志里这次调用 | 追补 | 调用随之 |
 |---|---|---|
 | 已有完整 final 原批 | 认回原批，不重构 | 原状态，final 吸收 |
 | 已确认 ready，无 final | 取得并核原 MR10 payload，不写 interrupted | complete/interrupted + disposition_pending |
+| 已有 model_call_ended 原终结批 | 认回原终结；accepted created 或 rejected 输入关联原样保留 | 原 interrupted/handed_up |
+| 受信 callPresence 确认 live，尚无 ready/final/调用终结 | 只读原 owner 的当前状态，不取消、不追补、不重发；允许合法消费者另行 acquire | 原 open/in_flight/speaking/reply_pending/awaiting_decision/resumable |
 | 仅 created，无已出门及中断意图 | 认回原绑定，不发送 | open；后续新发送仍独立准入 |
 | 有**中断意图**，最后一次发出已出门、无响应体 | 响应体：`interrupted`，`initiator` 取意图上的那个；首 token 有无取「已开口」有无；账按本条真实事实保留规则；**没有回复**（在途内容不在日志里） | `interrupted`（终态） |
 | 有**中断意图**，没有在途发出（含一次都还没发出、只打开过的调用） | 调用终结 `interrupted`，`initiator` 取意图上的那个 | `interrupted`（终态） |
@@ -931,7 +937,7 @@ S-58 交给调用者的 `rawHeaders` 已按上述原规则处理，S-54 与完�
 | ① | `session`；`callId`；`disposition`：`{ vetoed: { by, reason? } }` 或 `{ consumed: { by } }`——`data.model-response/v10#S-14` 的 `replyDisposition` 里除 `persisted` 之外的两支，成员与取值照那一条 |
 | ② | 原完整 ready 已确认，调用为 complete/interrupted 且 disposition_pending；当前 action=settle 的资格核实原用途/等待关联，不以曾收到回复或读权代替。已有 final 时仍可按⑦认回 |
 | ③ | **有**：`disposition` 是 `persisted` 或缺席 ⇒ `invalidInput`——落盘成了消息的那一条只能由调用方与消息同一提交写（[S-17](#s-17-结算一处按序幂等先到者赢)），本能力写不出那条消息 |
-| ④ | **单次提交**：按 S-75 从交回的未处分值和显式 `disposition` 构造完整 MR9 响应体，再按 S-69 确定 late 后写下，按 `ResponseId` 幂等（[S-17](#s-17-结算一处按序幂等先到者赢)）；调用保持 ready 时已定的终态（`complete`，或带回复被中断的 `interrupted`）。**不改收场、不改 `reply`**：否决不改写收场（`data.model-response/v10#S-14`） |
+| ④ | **单次提交**：按 S-75 从交回的未处分值和显式 `disposition` 构造完整 MR10 响应体，再按 S-69 确定 late 后写下，按 `ResponseId` 幂等（[S-17](#s-17-结算一处按序幂等先到者赢)）；调用保持 ready 时已定的终态（`complete`，或带回复被中断的 `interrupted`）。**不改收场、不改 `reply`**：否决不改写收场（`data.model-response/v10#S-14`） |
 | ⑤ | `{ callId, state }` |
 | ⑥ | `invalidInput` · `callNotFound` · `alreadyEnded` · `wrongPhase` · `unavailable` |
 | ⑦ | **幂等**：那条响应体已以同一个处置写下 ⇒ 返回同一个 ⑤；已以别的处置写下（含调用方已写成 `persisted`）⇒ `alreadyEnded` |
@@ -1280,16 +1286,16 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 | `routeName`、`provider`、`adaptation` | 本次要求的路由、指定供应商与已使用的完整模型适配绑定；不是档案引用或租户归属 |
 | `parameters`、`parameterAdjustments?`、`droppedParameters?` | `data.model-response/v10#S-11`：实际发出的参数及规划确定的改值、丢项；不能拿要求值冒充发送值 |
 | `upstreamModel?`、`servingProvider?`、`upstreamRequestId?`、`stopReason?` | `data.model-response/v10#S-9`、`#S-12`、`#S-37` 的上游原样事实；上游没给就缺席，不能以请求值或本系统标识代填 |
-| `inputCalibration` | MR9 S-41～S-44 的必填事实投影：requestInput 来自本次固定 plan，observedInput 只取 S-59 显式交出的同次观察，outputGroup 来自实际保留输出及固定编码版本。无服务身份时不伪造日志/response id；没有观察须显式 unavailable，不省略判别成员 |
+| `inputCalibration` | MR10 S-41～S-44 的必填事实投影：requestInput 来自本次固定 plan，observedInput 只取 S-59 显式交出的同次观察，outputGroup 来自实际保留输出及固定编码版本。无服务身份时不伪造日志/response id；没有观察须显式 unavailable，不省略判别成员 |
 | `rawHeaders?` | 同次 S-58 交出的已取得且已留存、经 S-20 原凭据规则处理的自有不可变头值；唯一含义和合法值域来自 `data.model-response/v10#S-20/#S-21/#S-22` 的 `raw.headers`。保留 string／有序 string[] 形状、次序、重复及空值；缺席不等于空对象／空数组／空串 |
 
-**头事实的终局保留**：成功、HTTP 失败、带内失败、读体／解析中断、门失败及取得头后的取消，只要同次 S-58 已交出 `rawHeaders`，发出后的 `ModelInvocationResult` 就保留这个原值。S-59 不另给第二条头事实权威；不从不透明响应或失败载荷私取另一份值并猜优先级。未取得或未留存时沿 MR9 缺席，不补 `{}`、不另造故障或第五种收场。发送前拒绝与零次 send 的取消没有这份头事实。留存失败不改变既有收场，给出非法头值的提供者不符合该端口，不能通过拼接、取首、静默丢弃或默认值伪装合规。
+**头事实的终局保留**：成功、HTTP 失败、带内失败、读体／解析中断、门失败及取得头后的取消，只要同次 S-58 已交出 `rawHeaders`，发出后的 `ModelInvocationResult` 就保留这个原值。S-59 不另给第二条头事实权威；不从不透明响应或失败载荷私取另一份值并猜优先级。未取得或未留存时沿 MR10 缺席，不补 `{}`、不另造故障或第五种收场。发送前拒绝与零次 send 的取消没有这份头事实。留存失败不改变既有收场，给出非法头值的提供者不符合该端口，不能通过拼接、取首、静默丢弃或默认值伪装合规。
 
 头值不是内容，不进入 `snapshot`、`onAccepted`、到达事件、给模型的上下文、面向人的默认呈现或诊断 `detail`；不为它新增观察者、广播或队列。事实交接不意味着已有耐久响应，实际资源停止仍按 S-53/S-55/S-56。
 
 此投影不带 `profile`、`call`、`ResponseId`、会话、租户、`credentialScope`、`selectedBy` 或 `replyDisposition`，也不返回完整 `AssistantMessage`。函数输出没有已结算、已入账的含义。服务面沿 S-7、S-17、S-29 以自己拥有的事实构造响应体与回复消息；回复处置仍由调用方按 S-17/S-49 决定。`aborted` 等新的第五个业务收场值不得自行加入。
 
-**发送前取消的外层分支**：基本表示校验先做，表示非法先返回 `invalidInput`；校验后在 plan 开始前已取消，或 plan 完成后而 send 尚未开始时取消，`outcome` 返回 `{ cancelledBeforeSend: true }`，零次 send、没有 `timing.sentAt`、没有 ModelInvocationResult 或 ModelResponse，snapshot 不含内容。规划拒绝与取消按本句柄先成立的终局收敛，后到者不得改写；send 开始前必须再核取消。已经开始 send 后的取消走四值结果中的 `interrupted`，不回写成未发送。本分支不是第五个 ResponseOutcome；运行时若已确认耐久「已出门」，仍按 S-17/S-36 用自己的锚点结算 interrupted 责任，sentAt 必有且在此零 send 分支为 null，不能因函数未发送分支抹除记录。ModelInvocationResult 的 timing.sentAt 始终是实际时间点，不接收 MR9 只供锚点结算使用的 null；独立函数没有锚点，不产生这种恢复投影。
+**发送前取消的外层分支**：基本表示校验先做，表示非法先返回 `invalidInput`；校验后在 plan 开始前已取消，或 plan 完成后而 send 尚未开始时取消，`outcome` 返回 `{ cancelledBeforeSend: true }`，零次 send、没有 `timing.sentAt`、没有 ModelInvocationResult 或 ModelResponse，snapshot 不含内容。规划拒绝与取消按本句柄先成立的终局收敛，后到者不得改写；send 开始前必须再核取消。已经开始 send 后的取消走四值结果中的 `interrupted`，不回写成未发送。本分支不是第五个 ResponseOutcome；运行时若已确认耐久「已出门」，仍按 S-17/S-36 用自己的锚点结算 interrupted 责任，sentAt 必有且在此零 send 分支为 null，不能因函数未发送分支抹除记录。ModelInvocationResult 的 timing.sentAt 始终是实际时间点，不接收 MR10 只供锚点结算使用的 null；独立函数没有锚点，不产生这种恢复投影。
 
 ### S-55 snapshot 与首内容门
 
@@ -1345,7 +1351,7 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 | ② | 规划仍由原实现解释，资源可用；只能接收能够核实来自 S-57/S-74 的固定 planned 值，不能信任任意对象中的通过标志；服务面调用的「已出门」已耐久 |
 | ③ | 一次至多一个上游请求；禁止隐藏重试、fallback、重定向以及环境凭据回退；S-38 十一义务适用 |
 | ④ | 请求离开进程是不可回滚的外部效果。已有取消且还没发送时不发送。出网后失败保留可能已计费的事实 |
-| ⑤ | 原始上游响应，或带来源与所知阶段的失败／已执行取消事实；提供已知的本地排队、触达上游等事实，未知保持未知。同次逻辑结果的公共可选成员 `rawHeaders` 交出已取得且已留存的头事实，含成功、HTTP 失败和取得头后的取消分支；成功响应 `R` 保持不透明，调用者无需从 `R` 私读头值。该成员的值域、原形和凭据边界只引用 MR9 S-20/S-21/S-22；发送前拒绝、尚未取得或留存未成时缺席 |
+| ⑤ | 原始上游响应，或带来源与所知阶段的失败／已执行取消事实；提供已知的本地排队、触达上游等事实，未知保持未知。同次逻辑结果的公共可选成员 `rawHeaders` 交出已取得且已留存的头事实，含成功、HTTP 失败和取得头后的取消分支；成功响应 `R` 保持不透明，调用者无需从 `R` 私读头值。该成员的值域、原形和凭据边界只引用 MR10 S-20/S-21/S-22；发送前拒绝、尚未取得或留存未成时缺席 |
 | ⑥ | 表示错误 `invalidInput`；构件尚未执行即不可用 `unavailable`；已执行的传输失败以 S-18 的来源事实交回，不捏造 HTTP 状态码。取消请求也必须与实际停止区分 |
 | ⑦ | 不幂等；不得因回执不明重复发送。S-54 最多调用它一次 |
 | ⑧ | 凭据、规划、取消输入缺席即拒绝，不调用任何隐式缺省；上游事实缺席不推断为零或已触达 |
@@ -1361,13 +1367,13 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 | ② | 调用者持有该响应；每份响应只属于本次读过程 |
 | ③ | 不再发送，不做工具参数逆转写，不以成功 HTTP 码代替带内错误码；不自行结算或修改绑定 |
 | ④ | 按收到的序列解析并交出 `data.arrival-events/v2` 到达事实，由装配器接受；逐片原文保留，工具参数唯一解析点仍在流装配。结束、断流、取消均有明确收尾 |
-| ⑤ | 到达事件序列与最终已知事实：实际模型/供应商、generation 标识、usage/cost、上游收尾及错误来源；以及必填、显式的 MR9 S-42 observedInput（含同次 provenance 或 unavailable 判别）。首次解释上游响应的固定 read 构件负责归一化该观察：完整互斥分项给 from_usage；另知完整 prompt 输入总量而缓存细目缺失时给 upstream_total，不能因旧 usage 无法容纳而丢弃总量；无法确认口径/未取得时按 MR9 给 unavailable。给下游的内容可见性仍受 S-55 约束。S-58 已交出的 `rawHeaders` 不由本操作覆盖或抹除；读体失败、解析失败、取消或没有最终内容不是该事实不存在的证据。本操作不增加 header 到达事件或第二条头事实结果权威 |
+| ⑤ | 到达事件序列与最终已知事实：实际模型/供应商、generation 标识、usage/cost、上游收尾及错误来源；以及必填、显式的 MR10 S-42 observedInput（含同次 provenance 或 unavailable 判别）。首次解释上游响应的固定 read 构件负责归一化该观察：完整互斥分项给 from_usage；另知完整 prompt 输入总量而缓存细目缺失时给 upstream_total，不能因旧 usage 无法容纳而丢弃总量；无法确认口径/未取得时按 MR10 给 unavailable。给下游的内容可见性仍受 S-55 约束。S-58 已交出的 `rawHeaders` 不由本操作覆盖或抹除；读体失败、解析失败、取消或没有最终内容不是该事实不存在的证据。本操作不增加 header 到达事件或第二条头事实结果权威 |
 | ⑥ | 表示错误 `invalidInput`；已发出后的读取/协议错误以来源事实交回，由 S-18 分类；未知只记未知。不可把提前断流伪装成正常结束 |
 | ⑦ | 不允许对同一活响应开启两个竞争读取；新的读取不从头重发。最终收尾只交一次 |
 | ⑧ | 缺 usage、缓存计数或实际执行方按权威 data 规则保留未知/缺席，不拿请求中的供应商冒充实际供应商 |
 | ⑨ | 交本次目标的到达事实及 S-63 诊断；消费者拒收不另造一次模型发出 |
 
-**同次观察交接**：observedInput 与 usage/cost 在本 read 的同一显式最终事实结果中交接，没有另一个查询口或 raw/opaque 私读入口；语言绑定可决定封装，但必须可完整表达 MR9 的三支及 provenance。read 以同次固定计划和原上游事实核对统计范围与来源，并沿 MR9 S-42 处理分项/total 冲突；invoke 不重新解析不透明响应、不读取 raw 附件、不从诊断或第二条侧信道拼回 I。已经提取的合法观察在后续解析错误、取消或输出不完整时保留；未知项仍未知，不能以 read 未成功收尾抹掉既知 I。read 未被实际执行或未取得任何观察的发送结果由 invoke 显式给 MR9 unavailable，不能制造 from_usage/upstream_total。若构件违反必填交接契约，不得默补零或伪称上游没给；沿 S-54/S-59 的既有本地失败责任保留已知事实。
+**同次观察交接**：observedInput 与 usage/cost 在本 read 的同一显式最终事实结果中交接，没有另一个查询口或 raw/opaque 私读入口；语言绑定可决定封装，但必须可完整表达 MR10 的三支及 provenance。read 以同次固定计划和原上游事实核对统计范围与来源，并沿 MR10 S-42 处理分项/total 冲突；invoke 不重新解析不透明响应、不读取 raw 附件、不从诊断或第二条侧信道拼回 I。已经提取的合法观察在后续解析错误、取消或输出不完整时保留；未知项仍未知，不能以 read 未成功收尾抹掉既知 I。read 未被实际执行或未取得任何观察的发送结果由 invoke 显式给 MR10 unavailable，不能制造 from_usage/upstream_total。若构件违反必填交接契约，不得默补零或伪称上游没给；沿 S-54/S-59 的既有本地失败责任保留已知事实。
 
 ### S-60 纯判定与可单取用构件
 
@@ -1449,7 +1455,7 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 | 宿主停止不会漏掉刚登记调用 | S-61 登记/停止观察的共同寿命 | 明确宿主寿命与撤除通知协议 | 宿主结束后留下无人结算的发出 |
 | 当前 EvaluationInput 全部来自有效且一致的同租户源 | S-66 输入提供者负责捕获身份、实际读取和完整输入核对；runtime 负责读取时点及纯求值 | 身份、源版本与输入有效性证据在边界重新验证；不能以远端历史结果代替当前输入 | 无法判明即 unavailable、零 HTTP；不返回成功的混合输入 |
 | 会话/目标隔离与有界观察 | S-62 每端口校验归属、按政策限额 | 接收边界重验归属，传输背压与失败回报 | 串会话泄漏或慢消费者耗尽进程资源 |
-| 同次已保留头事实原形交到最终结果与完整响应 | S-58 交出经原凭据规则处理的自有不可变值，S-54/S-17 保留同次值 | 各发送／接收边界重新兑现同次归属、MR9 值域与写前脱敏；取消或读失败不擦掉已交事实 | 排查记录丢失、数组被改写或凭据跨边界；不能以 Schema 接收证明真实交接 |
+| 同次已保留头事实原形交到最终结果与完整响应 | S-58 交出经原凭据规则处理的自有不可变值，S-54/S-17 保留同次值 | 各发送／接收边界重新兑现同次归属、MR10 值域与写前脱敏；取消或读失败不擦掉已交事实 | 排查记录丢失、数组被改写或凭据跨边界；不能以 Schema 接收证明真实交接 |
 
 版本注册模型、生命周期实现及跨进程协议没有由本条自动实现。仅单机验收不证明右列成立。
 
@@ -1525,7 +1531,7 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 | 已开口（原执行事实） | S-88 的同日志完整前缀及当前原执行资格 | `unfenced`，保留原 attempt 壳 | `tailEquals{tail}`；tail 变重读，取消/终态先行即拒交内容 |
 | created | S-85 固定创建输入后发布 CallKey | 有 Run 时 fenced；否则 unfenced | `unconditional` + creationKey 及 CallKey 完整批判重 |
 | ready | S-86 完整原结果发布 | `unfenced`，保留原来源壳 | `tailEquals{tail}`；检查原dispatch/无冲突final，允许取消后的实际中断回复 |
-| 中断意图 | 本能力 S-31，先于中止信号 | 同上 | `unconditional` |
+| 中断意图 | 本能力 S-31，先于中止信号 | 属于 Run 时 `fenced{run,attempt}`；不属于 Run 时 `unfenced` | `unconditional` |
 | 调用终结（含未发出拒绝、released、两次发出之间中断及 S-33 对应行） | 本能力 S-28～S-33 原提交点 | 属于 Run 时仍用原操作所要求的 `fenced{run,attempt}`；不属于 Run 时 `unfenced` | `unconditional` |
 | 模型切换记录 | 本能力 S-27，生效点不变 | `unfenced`；会话切换不制造 Run/attempt | `unconditional` |
 | 属于 Run 的响应体及其账，包括外部 persisted 回复整批 | S-17/S-29/S-30/S-31/S-33/S-36/S-49 的各结算方 | `unfenced` | S-69 的 `tailEquals{tail}` |
@@ -1536,7 +1542,7 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 ### S-69 属于 Run 的结算以同次完整前缀为依据
 
 1. 每个实际响应提交者在 S-17 锚点前提成立后，合法取得同一会话的完整稠密前缀与其尾：同一次 `readSince(session,0)`，或消费者已有合法完整前缀再按 SL3 S-34 连续追补。事实和尾必须由这一份前缀共同给出。按键局部条目、内存清单、分别读取的运行事实布尔值与另一次尾，不构成这一输入。没有完整读取权或不能确认完整性即 `unavailable`，不猜两件事实为假。
-2. `late` 按 MR9 S-35、CA2 S-39 解释：锚是这次发出的原 `attemptId` 和原 Run；前缀中原尝试已被取代，或其 Run 已终结，则 `late: true`；两者确为假才缺席。不能用恢复时归账到的新尝试替代原发出尝试。生产 Run 终结认法仍由原 owner 补齐（G-28）；`model_call_ended` 只终结模型调用，不能当 Run 终结。
+2. `late` 按 MR10 S-35、CA3 S-39 解释：锚是这次发出的原 `attemptId` 和原 Run；前缀中原尝试已被取代，或其 Run 已终结，则 `late: true`；两者确为假才缺席。不能用恢复时归账到的新尝试替代原发出尝试。生产 Run 终结认法仍由原 owner 补齐（G-28）；`model_call_ended` 只终结模型调用，不能当 Run 终结。
 3. 以该前缀解释未提交的响应整批，使用同一尾的 `tailEquals`，并以 `unfenced` 提交。实际日志追加须在共同不可插入的判定/提交点完成全部键判重、尾比较、整批写入和持久确认（SL3 S-13/S-14/S-17/S-33）。比较域是全本日志，包括无关追加。回复成为消息时，消息和响应是同一完整批，不能先写消息再补响应。不得在该批中另加入改变本次 `late` 判据的新尝试或 Run 终结事实；本版未定义此种组合。
 4. 条件成功把构造所用前缀保持到实际提交点，因此 `late` 对该提交点准确；它不证明前缀读取合法或解释正确。响应先提交、边界后提交时保留原响应，不能追改为晚到；边界先提交时旧尾不能提交，按 S-70 重读与重构。所有结算者适用同一义务，包括普通失败/无回复中断、interrupt 后续、宿主停止/撤除、对账、vetoed/consumed 与外部 persisted 写方。
 
@@ -1569,13 +1575,13 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
 |---|---|
 | legalTargets、displayList、effectiveModel（S-24～S-26） | 无新增追加；原当前读取、失败与授权不变，不消费争用策略 |
 | selectModel（S-27） | 切换记录显式 unconditional；确定未提交只保证本次未产生切换。回执未知仍 unavailable、结果未确认，当前选中沿 S-9 权威记录；读得选中不等于认回本次命令。旧 writer 未停时缺席读不关闭未知；不增加 Run 身份、命令键、恰一次、自动重放或回滚 |
-| openCall（S-28） | 正常打开仍无耐久提交；检查拒绝须写调用终结时沿 S-68。新 SL3 不改变 basis 竞争窗口、快照或纯 invoke |
+| openCall（S-28） | 正常打开先按 S-85 发布 accepted created；初次创建拒绝按 S-54/S-85 同批发布 rejected 输入与终结，已创建后的首次 dispatch 拒绝仅沿原 CallKey 终结。新 SL3 不改变 basis 竞争窗口、快照或纯 invoke |
 | dispatch、dispatchAgain（S-29/S-30） | 新dispatch显式fenced/unconditional，旧opened按S-88 unfenced/tailEquals；先写后行不变。故障/无回复中断在响应完整批成功或合法认回前不得返回已结算结果或进入 awaiting_decision；争用耗尽等为 unavailable，保持依耐久锚点可知的原未完成阶段（in_flight/speaking），不得重新发送。有回复先确认ready再交回terminal+disposition_pending；最终实际写方按下两行结算 |
 | settleReply（S-49） | vetoed/consumed 响应沿 S-69/S-70 整批提交；同处置认回返回原结果，不同合法处置沿原 alreadyEnded。写入未确认或耗尽为 unavailable，本实例保留final原批处理责任、不改ready既定终态；不否认可能已提交的原批/终态。调用方可按原操作重调，但未知前提未闭合不得再次追加 |
 | 调用方 persisted 回复（S-3/S-17） | 同一个已指定 MessageId 与原 ResponseId 的消息+响应完整批；禁止先写消息。争用或 unknown 未收口时，该调用方保留回复结算责任，不能宣布已持久，也不把失败映射成模型 retry。它不是新增服务操作（第十四个仅acquireCall）；其外部返回形状归该消费者，必须表达未完成，不能伪造本契约成功 |
 | interrupt（S-31） | 意图仍先以 unconditional 耐久后发信号；意图成功后即返回原 phase，不等待响应结算，后台耗尽不追改已完成返回。之后的响应沿 S-69/S-70；未结算由原 runtime owner 保留并在 S-33 时机恢复。意图本身写不进仍 unavailable、不发信号；没有在途发出的调用终结仍按原顺序写 |
 | releaseCall（S-32） | 只从 awaiting_decision/resumable 写调用终结，显式 unconditional。未确认则 unavailable，保留本实例未确认责任，不断言耐久状态未变；可能已提交的终结按 S-32⑧/S-6 认回。不是在途响应结算通路，也不为争用释放未结算发出 |
-| reconcile（S-33） | 原两种时机、原行优先级、原发出绑定和时刻保留；每个响应追补整批用 S-69/S-70。任何必要恢复读或追补未完成即 unavailable、不返回部分结果、不推进 loop；前面已提交的批保留，下次认回。无响应的调用终结行沿 S-68，不能伪造可用 Run fence |
+| reconcile（S-33） | 两种时机先按 S-33 只读认回 final/ready/终结及 live 原状态；live 不须停止、不取消，不阻塞新 attempt 的只读对账。仅实际追补分支要求停止/唯一恢复资格，每个响应追补整批用 S-69/S-70。任何必要恢复读或追补未完成即 unavailable、不返回部分结果、不推进 loop；前面已提交的批保留，下次认回。无响应的调用终结行沿 S-68，不能伪造可用 Run fence |
 | readAttempts、canDispatchAgain（S-34/S-50） | 无追加。S-34 在已结算 failed/awaiting_decision 下按同一完整前缀返回完整 failureSubject；来源未知整体 unavailable，恢复后可重复只读重取，不计次、不重写响应。未知或尚未结算发出不变成失败主体或可重发许可；S-50原判定不变，已知输入/身份判定优先级不变 |
 | 宿主停止/撤除/替换（S-36） | 对普通可确定收场依旧中止→结算→释放；未知 opened 先强门。争用耗尽不虚构完成，也不要求无限等待。已实际停止且可释放的执行资源可以释放，耐久锚点及未完成责任留给既有宿主/重新承载者和 S-33，不能把释放连接等同于结算成功；所有仍可能写入的任务先实际收束或维持明确 owner，不能遗弃 |
 
@@ -1600,11 +1606,11 @@ S-38 的单机/跨进程保证补下表；单机也须主动兑现，不能把�
 
 本条共同约束 S-28/S-29/S-30/S-53/S-54/S-57/S-58；不新增服务操作。输入上限的唯一值定义取 `data.model-profile/v6#S-8/#S-9/#S-27/#S-32/#S-33`。档案适用性按完整 `inputModalities` 判，图片档案这次只发文字也不能缺单图 cap。`upstreamInputLimits` 的显式 unknown 不是缺失，也不阻止按本条声明的计量方式通过供给 cap 检查的请求；unknown 与 unbounded 不互换，一次成功不更新上游事实。模态已确认不因限额未知被删去，限额拒绝不报为模态不支持。
 
-1. **固定输入**：新调用同一次档案读取得完整 cap、upstreamInputLimits 与精确适配绑定，进入 S-7 的完整副本。续接从 MS6 S-49 的原锚点读取，同一次调用的每次规划都使用它。目录后来更新不改旧副本，参数/工具/消息改变必须重新检查。对全部已选定的实际发送表示计量；上下文组装选择原件或合规派生表示且不改已落盘消息，最终门不替组装缩图、丢图、截文本或改模态。没有已接受上下文组装契约，本条不虚引一个。
+1. **固定输入**：新调用同一次档案读取得完整 cap、upstreamInputLimits 与精确适配绑定，进入 S-7 的完整副本。续接从 MS7 S-49 的原锚点读取，同一次调用的每次规划都使用它。目录后来更新不改旧副本，参数/工具/消息改变必须重新检查。对全部已选定的实际发送表示计量；上下文组装选择原件或合规派生表示且不改已落盘消息，最终门不替组装缩图、丢图、截文本或改模态。没有已接受上下文组装契约，本条不虚引一个。
 2. **作用点**：不涉及限额缺项的基本表示与既有三种规划拒绝检查之后，先完整校验适用 cap 及其与上游事实的一致性，再在消息/system/工具定义/协议附加内容/缓存处理及实际发送模态都确定后计量。服务面的每次检查先于新「已出门」；公开函数先于 send；send 消费同一个固定计划。原 S-28 目录、凭据及状态判定次序不被本条提前取代；输入限额检查位于规划阶段，不追加新准入终结。
 3. **token**：能取得适用准确计数或可靠保守上界时使用它；否则可采用对所绑定模型/指定供应商有适用依据的模型 tokenizer 估算；输入覆盖最终固定请求中的消息、system、工具定义、协议附加内容、缓存处理与实际发送模态，不能仅估正文或遗漏发送贡献。估算实现、模型/tokenizer 版本、适用供应商及证据明确可追溯；不要求与上游私有精确计数完全一致，不以未公开的秘密模板为普遍前置。纯字符数、UTF8 长度或无模型依据的任意倍率不能替代 tokenizer 依据。准确计数与有依据的可靠保守上界仍可采用，来源类别不可混写。
    **显式余量政策**：`tokenMargin`（技术参数，无独立词条）恰含 `multiplier` 与 `reserveTokens`，两者都显式供给、无默认值；校验适用 cap/上游事实的完整性及同名数值关系之后、实际计量之前验证本政策，前者是 ≥1 的有限十进制数，后者是 ≥0 的整数。估算量 `estimatedTokens` 是非负整数，`admissionTokens = ceil(estimatedTokens × multiplier) + reserveTokens`；按精确十进制数值计算并向上取整，不准二进制近似向下越界。估算分支以 admissionTokens 对每个适用有限 token 限制判断，等于允许；政策缺席或非法为既有 invalidInput{reason: malformed}，不补 multiplier=1/reserveTokens=0。准确计数与可靠上界分支不追加估算余量，但本公开计量输入仍显式给出 tokenMargin，保证分支切换不会暗中取得默认。
-   **不越过事实边界**：估算通过仅表示本次估算准入门通过，不证明实际 token 必然低于 cap，不承诺上游必然接受。估算超门是估算拒绝事实；准确值超限才可标记实测实际超限。可靠上界超 cap 而实际未知仍为 input_size_unavailable，不能冒充精确值或偷偷改标估算以绕过原分支。实际 usage/cost 始终沿 MR9/CA2 上游来源事实，估算、余量和 admissionTokens 不得写进实际 usage 或用于补未知。共享输入输出窗口换算仍归 MP6 S-8。
+   **不越过事实边界**：估算通过仅表示本次估算准入门通过，不证明实际 token 必然低于 cap，不承诺上游必然接受。估算超门是估算拒绝事实；准确值超限才可标记实测实际超限。可靠上界超 cap 而实际未知仍为 input_size_unavailable，不能冒充精确值或偷偷改标估算以绕过原分支。实际 usage/cost 始终沿 MR10/CA3 上游来源事实，估算、余量和 admissionTokens 不得写进实际 usage 或用于补未知。共享输入输出窗口换算仍归 MP6 S-8。
 4. **图片与字节**：实际发送的每个图片项（含工具结果中的图片及选择的派生表示）按严格合法 base64 解码后字节计，与 `inputConstraints.maxImageBytes` 及已知同口径上游值分别比较；恰等于允许。未发送原件不参与该项。图数为最终发送图片项数量，重复发送同一图计两项。完整请求字节为最终序列化 UTF-8 请求体的字节数，含包装、文本、工具与内联数据；不是媒体大小和、头部或 HTTP 帧大小。适用有限 cap 和所有已知 limited 上游指标各自约束，逐图通过不推得总量或 token 通过。
 5. **材料与证据**：`AttachmentRef.bytes` 仅为说明；地址不是授权或已核实字节。plan 不联网，不推测引用真实内容。没有可合法取得且固定的发送材料，或计量依据不足以判定全部适用限制，明确拒绝；不凭 reference.bytes 或 MIME/像素猜大小。计量实现的模型/供应商/tokenizer 版本、有效前提与估算依据或准确性/上界证据由提供者承担（G-33），不是档案的伪造默认值。所有必需构件/定义在 plan 前显式取得，获取失败是 unavailable。
 6. **固定后不漂移**：planned 自有并固定所有影响限制的值与序列化结果，包括计量类别、估算量/准确量/可靠上界、tokenMargin 及应用后的准入量；调用者修改原 messages/tools/profile/definition 对象不得改变已检查的请求。直接调用 send 也只能消费可核实为 S-57 产物的固定计划；缺来源、被修改或无法验证的计划为 invalidInput{malformed}，不能用一个外部通过布尔值放行。发送阶段对固定请求的传输表示不得新增未计量输入；若必须变更，就回到新规划与检查，服务面不能在旧锚点下发另一份。
@@ -1629,13 +1635,15 @@ cap/必需 upstream 项的缺席由上述 missing 分支专门映射，不由通
 |---|---|---|---|
 | 最终实际输入与计量计划一致 | 规划/发送提供者共同持有固定值，服务写方只为该计划铸锚点 | 计划发送协议保持同一不可变内容和精确绑定，消费方验证来源与一致性 | 不得写新锚点/出网；不能证明时明确失败 |
 | 计量类别及依据适用于绑定模型/供应商 | 计量/传输提供者给出 tokenizer 依据与显式余量；bytes/图数精确 | 协议保留同一来源、类别、版本、tokenMargin 与固定输入，不把估算变成实际 usage | 缺适用依据为 size_unavailable，构件不可取得为 unavailable；无来源估值不能放行 |
-| 当前格式快照完整与在途责任 | 目录、runtime、MS6/MR9/LC6 写方与当前格式读写 owner | 各边采用本版精确链，保持当前调用与未知结果的完整事实 | 不裁剪或回填字段，不提供旧格式过渡；无法可靠解释明确失败，原在途 owner 责任不消失；G-32/G-34 阻断对应链 |
+| 当前格式快照完整与在途责任 | 目录、runtime、MS7/MR10/LC6 写方与当前格式读写 owner | 各边采用本版精确链，保持当前调用与未知结果的完整事实 | 不裁剪或回填字段，不提供旧格式过渡；无法可靠解释明确失败，原在途 owner 责任不消失；G-32/G-34 阻断对应链 |
 
 ### S-75 完整响应事实与显式回复处置
 
 带回复分支唯一使用 MR10 S-39/S-46 的 PendingModelResponse。全部身份、route、原始响应/多值头、usage/cost、inputCalibration、时序、reply 和已知可选事实按原样保存，禁止 disposition/late。S-86 的内容先持久、ready marker 后确认成立，final 仍只接受根 ModelResponse；不能把 pending 直接塞入最终响应保存入口。
 
-persisted 仍由当前合法调用方与原 MessageId 的回复消息同批提交；vetoed/consumed 仍由 S-49 提交。只增加真实 replyDisposition 和提交点 late；final 先提交、派生投影后更新。ready 与 final 的同一 ResponseId 只计一次费用（CA3 S-40/S-41）。未处分不阻碍调用终态或真实执行资源释放；结果未知保留原批与写者。门未知时依原 S-17 不放内容。
+唯一 persisted AssistantMessage 与原 response.reply 保持同一 MessageId/ResponseId、原块序列、消息其他成员及每个原块的全部成员（包括已经存在的派生属性）。仅在原本没有 renderings/transcript 的合格 audio/image/file 块上，允许真实系统转换件按 data.content-blocks/v3 S-3/S-4/S-5/S-19/S-20/S-22 与 data.loop-extension/v6 S-23 在首次消息发布前新增合法成对 renderings/transcript；新 renderings.blocks 内合法派生块不属于被禁止的原块增删，其类型、全消息标识唯一、标注及父子可见性须合规。不得覆盖已有派生属性，不能通过剥掉全部 renderings 后比较来掩盖修改。原响应证据不可改，ready/final.reply 不是第二条消息；正式上下文只组装唯一 persisted 消息。
+
+persisted 原子写方必须核实当前消息写入及处分资格、真实系统转换来源和上述完整扩展关系，不能由普通 consumer 的同形值或 producedBy 字面值授予消息写权。它与原 MessageId 的唯一消息同批提交；vetoed/consumed 仍由 S-49 提交。只增加真实 replyDisposition 和提交点 late；final 先提交、派生投影后更新。ready 与 final 的同一 ResponseId 只计一次费用（CA3 S-40/S-41）。未处分不阻碍调用终态或真实执行资源释放；结果未知保留原批与写者。门未知时依原 S-17 不放内容。
 
 | 保证 | 单机兑现者 | 跨进程兑现者 | 做不到会怎样 |
 |---|---|---|---|
@@ -1763,9 +1771,11 @@ MS6 S-49/MR9 S-40 只校验共享快照形状并明确将发送门交运行时�
 
 ### S-77 计量依据、身份与两类失效
 
-本增量采用 MR9 S-41～S-45 的唯一值定义，沿 CA2 v2 S-6/S-7 解释互斥输入分项，沿 MS6 S-27～S-29 判定当前前缀可读性；MS6 只定义可读，不保证本次一定选入。数据成员均为技术表示（无独立词条），P/θ/I/G/φ/δ 为本节数学变量，不建立新的业务对象或第十四个服务操作。
+本增量采用 MR10 S-41～S-45 的唯一值定义，沿 CA3 v3 S-6/S-7 解释互斥输入分项，沿 MS7 S-27～S-29 判定当前前缀可读性；MS7 只定义可读，不保证本次一定选入。数据成员均为技术表示（无独立词条），P/θ/I/G/φ/δ 为本节数学变量，不建立新的业务对象或第十四个服务操作。
 
 P 是某次请求的最终 input-bearing 有序投影与 envelope；θ 是其 CountingBasis；I 是该次全部输入的可信实际观察；G 是同次响应实际输出组及必要 usage 证据。可复用候选来自显式来源，不能从“最后到达”或同一个 seq 猜身份。服务输入必须在已授权的同一 holdingTenant/session/log 中，可证是本次选定分支和读取前缀的实际祖先，绑定原 response id/call id/dispatch/attempt 和应有 reply.response 关系。跨日志同 seq、其他租户、其他分支晚到与新 attempt 的相似 body 都不是同一事实。纯函数没有日志/租户权限；服务先以现行身份边界取回事实，再显式传入，不能由函数隐式查询。
+
+**真实性先于复用判定**：先核原 outputHistory、原 response.reply/delivered 与原 inputCalibration.outputGroup.blockDigests 的来源、身份及摘要真实一致；可判矛盾仍 invalidInput{malformed}，不得用 full 绕过。再独立验证 S-75 的合法 persisted 派生关系、受信转换来源及本次组装实际选中的原件/派生表示；这些关系不得由 caller 的 transformed 布尔代替。真实关系无法取得或确认时 unavailable，不把未知当合法扩展。仅在原事实已验证且实际选择已证合法之后，原 O/φ 贡献映射确实不适用才按 S-78 全量计量；原 inputCalibration 不回写。request-local 图片准备不证明持久消息转换来源。既有显式最终输入和来源事实须能表达这些关系；本契约不新增通用映射 DTO，不能表达者不得进入校准复用路径。
 
 在所有满足下述条件的候选中，必须选择本次实际因果祖先链上最新的已确认观察，不能任意长期停留在最早锚。新旧次序来自授权来源的因果关系及其明确读取前缀，不能按不透明 id 字符串、全局到达时间或其他分支的最后记录排序；不能判祖先关系或次序的来源不可用。复用需同时成立：原观察适用于实际 P；本次最终 input 的非新增部分仍等于 P（含 system/tools、角色、选择次序、媒体表示、边界及 envelope）；存在确切的当前 φ/δ 适用依据；θ 相同或有提供者可验证的语义兼容声明。只有摘要相同、只有 modelId 相同、只有消息数未变都不充分。
 
@@ -1793,17 +1803,17 @@ P 是某次请求的最终 input-bearing 有序投影与 envelope；θ 是其 Co
 
 | # | TransportAdapter.plan（S-57） | φ/δ（S-60 构件） | invokeModel（S-54） |
 |---|---|---|---|
-| ① 输入 | 最终输入、固定 basis/组件、显式 tokenMargin/cap、显式来源事实或无来源 | 原 MR9 事实、实际选入 G/N、精确投影/basis、边界与精度依据 | 原调用输入及前列全部显式组件/证据 |
+| ① 输入 | 最终输入、固定 basis/组件、显式 tokenMargin/cap、显式来源事实或无来源 | 原 MR10 事实、实际选入 G/N、精确投影/basis、边界与精度依据 | 原调用输入及前列全部显式组件/证据 |
 | ② 前提/授权 | 输入表示合法、来源合法取得；函数不判隐藏租户权限 | 所需事实可对应同次原观察，实际范围可解释 | 原 S-54 前提；不要求 tenant/session/log 存在 |
 | ③ 不变量 | P/θ 不变才复用，不 tokenize 全前缀；所有 bytes/图数仍检查完整请求 | 只覆盖锚外贡献、来源不升级、O/reasoning 不双加 | 唯一获准 plan 唯一发送；不得以估算补实际 usage |
 | ④ 状态/效果 | 纯规划无 IO，按 S-77/S-78 增量或全量，无全局可变锚 | 同显式输入同结果，无日志/环境/网络访问 | 原发送外部效果不可撤销；结果携同次计量事实投影 |
-| ⑤ 返回 | 原 planned 含固定请求及 measurement：mode=full/marginal、回退原因（若有）、各贡献/精度、predictedInput、准入量与依据，来源不泄原内容 | 有据带精度贡献或明确不可判；不得捏上游量 | 原结果加 MR9 inputCalibration 同形事实；无服务身份时不伪造 MR id/日志/租户 |
-| ⑥ 失败 | 显式坏形状 invalidInput{malformed}；构件缺席 unavailable；计量不可判／超限沿 S-74 | 坏输入 invalidInput；依据不足 unavailable；plan 可据此全量，仍不足 size_unavailable | 原 S-54；abort/transport失败保留已知事实与 partial，不假完整 |
+| ⑤ 返回 | 原 planned 含固定请求及 measurement：mode=full/marginal、回退原因（若有）、各贡献/精度、predictedInput、准入量与依据，来源不泄原内容 | 有据带精度贡献或明确不可判；不得捏上游量 | 原结果加 MR10 inputCalibration 同形事实；无服务身份时不伪造 MR id/日志/租户 |
+| ⑥ 失败 | 显式坏形状 invalidInput{malformed}；构件缺席 unavailable；计量不可判／超限沿 S-74 | 坏输入 invalidInput；来源/扩展/实际选择真实性不可核 unavailable，不能 full 掩盖；已证合法而贡献映射不足才可全量，仍不足 input_size_unavailable | 原 S-54；abort/transport失败保留已知事实与 partial，不假完整 |
 | ⑦ 并发/重试 | 值无共享状态，可重复零费用；复用只限输入与精确组件完全相同 | 固定版本不随热更改变；重复不产生外部效果 | 至多一次 send；不由校准触发重试 |
 | ⑧ 缺席默认 | 无来源只全量，不零锚；必要配置缺席失败，无隐式读取 | 无映射不填零/exact；可按明确模型依据 estimated，否则不可判 | 必要输入失败；缺 usage 写 unavailable，无旧格式降级 |
 | ⑨ 可观测/验证 | 无业务事件；结构化 mode、原因、basis、precision 与耗时，证明增量未全量 tokenize | 明确有效前提、边界修正与部分组反例 | 正常/异常同次事实对应、一次发送、独立导入零隐藏日志依赖 |
 
-这些技术 measurement 字段是规划的语义返回，并非新增线上传输 DTO；不为内部函数另造服务 Schema。只有 MR9 的 durable facts 是共享值权威。
+这些技术 measurement 字段是规划的语义返回，并非新增线上传输 DTO；不为内部函数另造服务 Schema。只有 MR10 的 durable facts 是共享值权威。
 
 ### S-80 服务操作及历史选择的九项增量
 
@@ -1829,7 +1839,7 @@ source selection 属服务原授权读取/组装职责；纯 plan 只消费显�
 |---|---|---|
 | ① | 原 pending facts、response/reply 身份及 inputCalibration | 原 durable prefix、意图、原完整 pending batch 与 receipt 状态 |
 | ② | 原结算 authority 与同次完整前缀关系 | 原授权及当前所有者责任；unknown 仍是未收口责任 |
-| ③ | MR9 完整事实与 reply 同原批，不把计量值改成当前推算 | 不重发模型、不用新 meter/binding 重造原 payload |
+| ③ | MR10 完整事实与 reply 同原批，不把计量值改成当前推算 | 不重发模型、不用新 meter/binding 重造原 payload |
 | ④ | 原 SL3 原子提交点；计量事实不另开写入 | 原批查证或按稳定 identity 重送；停止/取消的原实际结束边界不变 |
 | ⑤ | 原 receipt/状态；确定成功后才成为可供后继选取的耐久事实 | 原确认/unknown/失败；恢复值与原批相等 |
 | ⑥ | 原闭合失败值，unknown 不假定未发生/已耐久 | 原闭合失败值；无法解释当前耐久值 unavailable，保留 owner |
@@ -1879,7 +1889,7 @@ openCall 的 creationKey 由调用者显式给出，按创建租户+Session 分�
 
 首次成功返回 ref 的必要条件是：MS7 ModelCallCreatedPayload 已按 ModelCallPayloadRef 的版本和 SHA-256 确认可取得；随后同一 Session 日志的 model_call_created marker 已确认原子提交。此时才能宣称 open，随后 dispatch 仍独立经过当前工作准入、输入限额、凭据、已出门先行及 OpenRouter 出口。blob 写成功不是调用发布，也不许可网络发送。
 
-稳定读取键为 CallKey；创建判重键是带记录种类域的 creationKey，另须 CallKey 唯一；两者不得互换。技术记录承载壳仍带创建 tenant/session/run/attempt，内容中的重复来源必须相等。未通过出门检查的 undispatched 路径仍写原调用终结，但同 creationKey 的拒绝结果及 CallKey 必须同原批保留，避免重复拒绝生成另一身份；该批不发布可发送调用，也不伪造完整采用快照。
+稳定读取键为 CallKey；创建判重键是带记录种类域的 creationKey，另须 CallKey 唯一；两者不得互换。技术记录承载壳仍带创建 tenant/session/run/attempt，内容中的重复来源必须相等。仅初次 openCall 检查拒绝的 undispatched 批携 creationKey 及 rejected payload，保留拒绝结果和 CallKey，不发布 accepted created 或伪造采用快照。已发布 accepted created 后的首次 dispatch 拒绝仍是 undispatched，但沿原 callId 写终结，禁止携 rejected creation 关联；原 accepted payload、原 key 映射及采用事实不变。相同 creationKey/原显式输入重入返回原身份、原采用事实及当前终态，不重裁已接受创建为拒绝创建。
 
 内容存储和日志不是同一个事务。内容发布者在写 marker 前取得针对 locator/version/digest 的保留责任；从取得到 marker 确认或权威证明不会发布期间，回收不得删除。已发布 marker 存续时保留责任持续有效，包括内容内被实际引用的输入/原始响应；回收必须排除所有有效引用及尚可能发布的写者。引用与回收的互斥在**同一内容保留记录**上裁决，日志写方只能在保留仍有效时提交 marker。实现必须明确这个共享对象，不能用进程锁或先扫日志再删替代。未发布内容可回收仅限发布写者已停止且权威认回无 marker、不会再提交；无证明则保留。
 
@@ -1893,7 +1903,7 @@ ready 写方读原同日志完整前缀并用 tailEquals，核 dispatch、原执
 
 ready 确认是 complete/interrupted 终态及 disposition_pending 的发布点。final 写方只增真实 disposition 和实际提交点 late，其余事实与 ready 精确相等。persisted 的消息和完整 final 仍按 S-69 同日志同批，判重依 ResponseId 与原批。多个合法处分者只有一个 final 批胜出，其余认回相同处分或 alreadyEnded；不重复消息/模型请求。final 提交先于投影更新，投影失败不回滚 final；任何旧 pending 投影都必须服从已经确认的 final。
 
-结算唯一性不保证调用方在提交前自行进行的外部动作恰好一次；当前处分资格、原用途/等待关联及外部动作幂等由消费者负责，读权不能代替。unknown final 保留原完整批、键、内容和写者，先停止/认回再决定重送，不能重新运行消费副作用或重铸 ResponseId。
+结算唯一性不保证调用方在提交前自行进行的外部动作恰好一次；当前处分资格、原用途/等待关联及外部动作幂等由消费者负责，读权不能代替。unknown final 保留原完整批、键、原消息、原 final 和写者，先停止/认回再决定重送，不能重跑转换替换批内容、重新运行消费副作用或重铸 ResponseId。persisted 消息只允许 S-75 的首次发布派生扩展；ready/final.reply 及其原 inputCalibration 仍精确相等。
 
 真实传输、门及所有写任务停止且 ready 已确认后可以释放执行 lease；处分可无限等待合法消费者，由耐久事实保留，不要求活容器永久占资源。owner.close 对 ready/final 不取消、不更改终态；对形成完整结果但发布 unknown 者保留任务/认回责任；仅对真实在途者按意图先持久、实际排空及原无回复 final 规则收口。取消信号或卸载开始都不等于已停止。首内容前 failed 仍 awaiting_decision，其他原无回复收场仍直接 final，不造 pending。
 
@@ -1976,7 +1986,7 @@ stopped 不等于 lost 或 failed。先认回同源 created/ready/final/unknown 
 | dispatchAgain S-30 | 原当前主体/重试守卫+原关联；旧结果不授权新Run重试 | 新发送仍 fenced，ready/final 按本版；原失败 | 原重复规则；不可判不重发；无事件 |
 | interrupt S-31 | 当前 cancel 资格；不得借 read 取消；终态吸收 | 意图先提交；真实在途按原中断，已有 ready 返回 alreadyEnded | 重复认回原意图；未知不假停止；无事件 |
 | releaseCall S-32 | 当前原工作放弃资格；只 awaiting_decision/resumable | 原终结提交；与消费者release绝不混用；原失败 | 原重复/缺席；terminal+pending 不丢结果；无事件 |
-| reconcile S-33 | 原恢复身份+真实停止/唯一承载，非 acquire 的副作用 | 先 final→ready→created 认回，再原失联表；无HTTP；原失败 | 原键/原批；unknown 留责；无事件 |
+| reconcile S-33 | 当前读取资格先识别；仅追补要求恢复身份+真实停止/唯一承载，非 acquire 的副作用 | 先 final→ready→终结→live→created 认回，再满足前提的失联追补表；无HTTP；原失败 | 原键/原批；unknown 留责；无事件 |
 | readAttempts S-34 | 当前 read 资格；原完整前缀 | 纯历史读，含ready/final原事实；失败主体仍只原规则 | 不取得资源/不续工作；缺源不可部分成功；无事件 |
 | settleReply S-49 | 当前 settle 资格及原用途/关联；terminal+pending合法 | final同批/判重，原终态不变；原失败 | 相同处分认回、不同alreadyEnded；unknown不重做副作用；无事件 |
 | canDispatchAgain S-50 | 当前原工作判定资格+原守卫；读旧结果不授权 | 原纯判定、原优先级/失败，不发出 | 原时点有效性；缺源不allowed；无事件 |
