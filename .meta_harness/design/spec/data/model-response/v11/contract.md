@@ -807,7 +807,7 @@ G-8 的「没有成员可记」由本条关闭；上游是否如实报告、指�
 
 只保留对应原请求**模型上下文全部输入 token**的上游观察，不是账单 token、输入+输出 total 或 response-cache 的免推理零值。
 
-- `from_usage`：CA4 v3 S-6/S-7 三个互斥输入分项 `input_tokens/cache_read_tokens/cache_write_tokens` 均为非负整数且 source=upstream；唯一 I 为三项之和，不再保存第二个 total。
+- `from_usage`：CA4 S-6/S-7 三个互斥输入分项 `input_tokens/cache_read_tokens/cache_write_tokens` 均为非负整数且 source=upstream；唯一 I 为三项之和，不再保存第二个 total。
 - `upstream_total`：至少一个输入分项 unknown，另有与原输入全部对应的上游 total；`tokens` 为非负整数。不得把已含缓存的 prompt total 再加 cache read/write。已有已知分项之和不得大于 tokens；违者是 inconsistent_usage，不是 0。三个分项齐全时必须归一化为 from_usage；若同次上游 total 与分项和冲突，两者不得择方便者建锚，使用 unavailable/inconsistent_usage，既有 usage 事实仍原样保留。
 - `unavailable`：reason 闭合为 missing_usage/response_cache/inconsistent_usage/scope_unknown/not_sent/send_unknown。缺 usage、只给总账单、无法确认统计范围、只知 response-cache 零计费，均不能创建 I=0；输入 prefix cache 的正常命中仍按完整输入统计，不是 response-cache。只有已确认是本次全部输入的真实 0 才可作为 known 的零值。
 

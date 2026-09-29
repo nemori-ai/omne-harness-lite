@@ -963,7 +963,7 @@ S-25原tenant/session/run/attempt/initiator归属由原承载壳给，ready与fi
 | ⑧ | 缺源明确失败；实际合法unknown记未知笔数，两者不可互换 |
 | ⑨ | 无业务事件；诊断所选来源阶段和ResponseId，脱敏且不交模型上下文 |
 
-MR11/MS7只是这些原事实的拥有者说明，按既有防互引规则不反登CA→MR/MS依赖；本契约不复制其payload。结构schema除版本身份外沿CA2，新增性质须由跨记录模型/真实读面验证。
+MR11/MS8只是这些原事实的拥有者说明，按既有防互引规则不反登CA→MR/MS依赖；本契约不复制其payload。结构schema除版本身份外沿CA2，新增性质须由跨记录模型/真实读面验证。
 
 | 缺口 | owner | 影响 |
 |---|---|---|
