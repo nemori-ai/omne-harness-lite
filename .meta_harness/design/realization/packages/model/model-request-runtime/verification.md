@@ -371,7 +371,7 @@ H19-G3 宿主提供真实授权选择关系（完整 compaction/Run 仍外置）
 | R20-V22：RT11 S-23/S-92 | 从真实统一服务逐项调用十四操作，原 failureSubject/consumeFailure/noRun/withRun 原归属门保持；root 类型、plugin 转发、store、codec、所有构造点同步破坏性迁移，无遗留本地 CallKey 或旧兼容 overload | runtime/消费者；真实调用记录＋类型负例，不是方法存在检查 |
 | R20-V23：RT11 S-54/S-84/S-89 | 公共独立 invoke 无 Session/Run/Cordis；packed runtime 的中文/英文 literal 都实际执行 creationKey→dispatch→release→acquire→原合法结算。demo loop fiber 重跑与应用 host 停止分开；diagnostic 具 action/ref/source，不泄原内容/秘密 | runtime/示例/独立验收；局部示例不能冒生产 Run 来源 |
 
-覆盖缺口及受阻消费者与正文一致：R20-G1 主线接受阻本候选实施；R20-G2（RT11 S-87/S-93/S-94）访问/日志装配未供真实当前资格与共同提交域，阻生产 read/wait/settle/cancel、原工作/Run 终态消费；R20-G3（RT11 S-85/S-86、MS7 S-55、MR10 S-46）内容 provider 与 session-log-jsonl 后继需两边写出 ModelContentRetention 共同域要求，阻 durable 创建/结果发布及 GC；R20-G4（S-84/S-90/S-91）停止/唯一恢复/新鲜索引的真实实现和 I/O 证据由 runtime/host 承担；R20-G5（S-75/S-77～S-83、MR10 S-47）真实转换来源、transport v16 候选联合交接待承接，阻派生消息路径；R20-G6 全部新实现及本表实际验收未开始。当前没有本批生产 assembly，examples bootstrap 只接其真实本地 noRun 身份/时钟/凭据/host；其余 owner 不因本页命名而已交付。
+覆盖缺口及受阻消费者与正文一致：R20-G1主线接受仍待；G2真实受信准入/生产Run来源仅阻对应生产访问与工作路径，不要求SQL/JSONL同事务；G3已选现Storage私有无GC内容行，真实持久、unknown和冷读尚待，外部引用provider仅限制实际外引用；G4停止/唯一恢复/新鲜索引与I/O证据待实现；G5真实媒体派生来源和后继transport仅限制该派生路径，当前文本ref无新增DTO前置；G6本表真实实现验收未开始。examples仅接真实本地noRun身份/时钟/凭据/host，不冒称生产Session/Run。
 
 本增量实际执行：2026-09-29 以本工作树 `.venv/bin/python` 执行 `check_design.py --root .meta_harness/design --formal registered`，exit 0，实际输出 `PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design passed gate=internal; formal=registered.`；`git diff --check` exit 0。首次使用系统 Python 因缺 `PurePosixPath.is_relative_to` 退出失败，不作为设计错误或成功证据。没有运行本表行为测试、上游网络或模型认证；formal=registered 只核登记，不执行模型。文档检查不提升语义接受、实现或实际验证层。
 

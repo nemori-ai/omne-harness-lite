@@ -113,7 +113,7 @@ dispatch 的调用等待者不是执行 owner：其调用 Promise 不再是唯�
 | ST3：S-85/S-91 | 同本 Session 日志的 creationKey 种类域唯一键 + CallKey 唯一键；同键 accepted/rejected 互斥，完整输入相等后认回 | open/recovery 同原批；并发 loser 不铸新公开 ref，唯一映射由日志权威重建 |
 | ST4：S-69/S-86/S-88；SL3 S-32～S-37 | **SessionLog(session)** 的 entries/tail/keys/fence：完整前缀一致快照、完整原批原子持久、tailEquals、判重冲突、unknown 可识别 | opened/cancel/ready/final/恢复共同触碰；新工作 fenced，原事实指定例外 unfenced |
 | ST5：S-87/S-93 | **受信访问准入协议**与 SessionLog 写方的实际次序；本地唯一入口锁覆盖完整append及停止后交权，不嵌套SQL+JSONL假事务 | 访问装配和所有受控写方；跨进程缺协议 unavailable，R20-G2；不要求本轮完整治理 |
-| ST6：S-91 | CallProjection(CallKey) 与 CreationProjection(tenant,session,creationKey)：持久可重建、generation/progress 及原稳定定位；SessionProjectionHead 提供一次当前性读 | runtime 追尾器单调推进同代 source watermark；不改变事实；按键当前读成本独立于总日志长度 |
+| ST6：S-91 | CallProjection(CallKey) 与 CreationProjection(tenant,session,creationKey)：持久可重建、generation/progress 及原稳定定位；当前性按下文SL3 readByKey权威tail双读核验，不从派生head自证 | runtime 追尾器单调推进同代 source watermark；不改变事实；按键当前读成本独立于总日志长度 |
 | ST7：S-84/S-90 | 原发布任务与 execution 登记可核代际、实际停止与唯一恢复责任，跨进程接手需要真实退出证明和单一承载协议 | ModelCallHost/恢复装配；时间过期或内存缺席不推停止，unknown 留责 |
 
 ST2 无回收路径的反证：在内容确认前暂停 writer，marker 不得出现；内容确认后 marker 失败或回执未知，原内容必须在关闭/reopen后仍可取得；marker成功后关掉host并冷读，原字节与摘要保持；另一writer尝试同键改内容必须拒绝。因为本路径没有删除动作，原“检查保留→GC删除→提交marker”交错不存在，不需要保留行与JSONL的共同事务。人为破坏删除/覆盖保护必须被真实测试检出，不能把源码未写GC当作已验。恢复/备份不得把内容存储与日志恢复成不相容代际；来源不可核返回unavailable，不能伪造完整结果。
