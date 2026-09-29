@@ -357,7 +357,7 @@
 > running text: *converter*.
 
 - **形态**：变体（父：[拓展件](#ul-loop-extension--拓展件--loop-extension)）
-- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 16） ·
+- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 17） ·
   [PF-012 §5.8 模态转换为什么必须落在这里](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 21）
 - **⚠️ 别混 ①**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
   那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
@@ -686,7 +686,7 @@
 - **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
   [上游限制与档案提供的上限](../../product/PF-013-model-profiles-and-invocation/design.md#上游限制与档案提供的上限) ·
   [档案的身份：所在范围加路由名](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·
-  [PF-013 flows §3.1 一条模型档案](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 16）
+  [PF-013 flows §3.1 一条模型档案](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17）
 - **⚠️ 别混 ①**：**官方档案 / 自建档案**（谁建的、落在哪一层）**不是
   [官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset) /
   [自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——
@@ -718,7 +718,7 @@
 - **形态**：变体（父：[模型档案](#ul-model-profile--模型档案--model-profile)）
 - **出处**：[PF-013 §4 官方档案 / 自建档案](../../product/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·
   [§5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) ·
-  [§6.3](../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 16）
+  [§6.3](../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 17）
 - **⚠️ 别混**：**不是[官方件](circulation-and-entitlement.md#ul-official-asset--官方件--official-asset)**——官方件说的是资产的来源，而档案不是资产；**所以这里叫「档案」不叫「件」**
 
 ### UL-custom-model-profile · 自建档案 · Custom Model Profile
@@ -739,8 +739,8 @@
 
 - **形态**：变体（父：[模型档案](#ul-model-profile--模型档案--model-profile)）
 - **出处**：[PF-013 §4 官方档案 / 自建档案](../../product/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·
-  [§5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)（rev 16） ·
-  [flows §四 角色与操作](../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 16）
+  [§5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)（rev 17） ·
+  [flows §四 角色与操作](../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 17）
 - **⚠️ 别混**：**不是[自定义件](circulation-and-entitlement.md#ul-customized-asset--自定义件--customized-asset)**——理由同上
 - **注意**：**组织层建的档案，成员配上自己那一把凭据之前用不上**——列表上标明缺的是什么；组织那一层给不了他一把兜底的
 
@@ -764,8 +764,8 @@
 
 - **形态**：状态
 - **出处**：[PF-013 §4 在册 / 已撤回](../../product/PF-013-model-profiles-and-invocation/design.md#在册--已撤回) ·
-  [§6.4](../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 16） ·
-  [flows §3.1](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 16）
+  [§6.4](../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 17） ·
+  [flows §3.1](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17）
 - **别混**：**「这个范围不允许它」不是这里的取值**——那是求值的结果，档案照样在册；两者要用户做的事不同：已下架要换一个，不被允许要去找管理员
 - **注意**：**同一个范围里想再用一个已撤回档案的路由名，走的是「恢复在册」，不是「建档」**——那个名字在这个范围里只对应这一条
 
@@ -780,7 +780,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
-  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 16）
+  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17）
 - **注意**：它是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)这个判断的**输入**，不是试尽的定义
 - **别混**：**不是「各家一把凭据」**——所有模型请求统一经 OpenRouter 出去，一个租户一把[模型凭据](#ul-model-credential--模型凭据--model-credential)，不分供应商
 
@@ -797,7 +797,7 @@
 
 - **形态**：属性
 - **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
-  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 16）
+  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17）
 - **注意**：它同样只是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)的输入；租户换掉默认重试件之后，怎么读它由那一件定
 
 ### UL-model-credential · 模型凭据 · Model Credential
@@ -825,7 +825,7 @@
 - **形态**：属性
 - **出处**：[PF-013 §5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) ·
   [组织那一层为什么不持有](../../product/PF-013-model-profiles-and-invocation/design.md#组织那一层为什么不持有) ·
-  [§6.2](../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)（rev 16）
+  [§6.2](../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)（rev 17）
 - **⚠️ 别混 ①**：**不是[设置](#ul-setting--设置--setting)**——设置是**资产**的属性，
   而[档案不是资产](#ul-model-profile--模型档案--model-profile)、凭据也不是；**它挂在租户身上**
 - **别混 ②**：**裸写「凭据」不作数**——账号的登录凭据、[连接件](#ul-connector--连接件--connector)的接入凭据、
@@ -850,7 +850,7 @@
 > at "before the model call" may override them for that one request.
 
 - **形态**：属性
-- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 16）
+- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 17）
 - **别混**：**不是[模型凭据](#ul-model-credential--模型凭据--model-credential)**——凭据挂租户、一租户一把；参数挂档案、一档案一组
 - **注意**：词表里有哪些参数、各取什么值，归规格，不归产品正文
 
@@ -902,7 +902,7 @@
 - **形态**：属性
 - **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
   [档案的身份：所在范围加路由名](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·
-  [§5.9](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 16）
+  [§5.9](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 17）
 - **⚠️ 别混**：用户界面上「你正在用 X」说的是它；**「刚才那句话是 X 说的」说的是另一件事**，两者完全可以不是同一个答案
 - **注意**：它是「用哪个模型」这项[设置](#ul-setting--设置--setting)在**会话那一格**的值；切换就是改这一格，**从没切换过时那一格没有值**，所以初值取沿层级求值的那一条
 - **注意 ②**：**它的每一次改变，都先是会话日志里的一条[切换](#ul-model-switch--模型切换--model-switch)事实**——[条目落盘即改变](../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（PF-013 rev 12），没有「自动从 A 变成别的」这条转移
@@ -929,7 +929,7 @@
 - **形态**：视图
 - **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·
   [§5.10](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·
-  [§6.9](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)（rev 16）
+  [§6.9](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)（rev 17）
 - **注意**：拓展件改掉它**不是静默的**——它[必须留下结论](../../product/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)
 - **注意 ②**：**出门之前核的是它，不是选中模型**——上层锁死了另一条，请求就用锁定的那条照常发出，不算失败；
   [只有它算不出来、或不是合法目标，这一次才失败](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)
@@ -954,8 +954,8 @@
 - **出处**：[PF-013 §5.9 换模型](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支) ·
   [§6.5](../../product/PF-013-model-profiles-and-invocation/design.md#65-切换是用户的直接命令合法目标不得拒绝) ·
   [§6.6](../../product/PF-013-model-profiles-and-invocation/design.md#66-切换先是一条要被记录的事实) ·
-  [§6.7](../../product/PF-013-model-profiles-and-invocation/design.md#67-生效点收到那条事实之后下一次模型请求之前)（rev 16） ·
-  [flows §3.3](../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（rev 16）
+  [§6.7](../../product/PF-013-model-profiles-and-invocation/design.md#67-生效点收到那条事实之后下一次模型请求之前)（rev 17） ·
+  [flows §3.3](../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（rev 17）
 - **别混 ①**：**选中模型变了，不等于[有效模型](#ul-effective-model--有效模型--effective-model)变了**——上层锁死过，求值出来的可能仍是别的
 - **别混 ②**：**不是[当前租户身份](subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity)的切换**。裸写「切换」不作数
 - **注意 ①**：**窗口更小、看着更「差」都不构成拒绝**——装不装得下，下一次请求前照常量、照常压缩

@@ -1,0 +1,213 @@
+{
+  "product_base": "90e2f0c7",
+  "product_candidate": "bdcb732e",
+  "new_objects": 0,
+  "definition_change": "UL-model-call execution lifetime distinguished from result retention and cleanup; no independent ACK object",
+  "unchanged_basis": "Model Profile scope/listing/capability and Model Response immutable record/original cost remain; remaining cited PF013 sections unchanged by bounded diff",
+  "entries": [
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/record-and-context.md",
+      "term": "### UL-session-log-projection · 会话日志投影 · Session Log Projection",
+      "source_field": "- **出处**：[PF-015 §5.8](../../product/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)（rev 20）·\n  [PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影)（rev 17）**给出了第一个实例**",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/record-and-context.md",
+      "term": "### UL-interruption-reminder · 中断提醒 · Interruption Reminder",
+      "source_field": "- **出处**：[PF-009 §5.6 中断这件事本身，要让 agent 知道](../../product/PF-009-context-message-types/design.md#中断这件事本身要让-agent-知道) ·\n  [§6.13](../../product/PF-009-context-message-types/design.md#613-只要发生了中断就补一条提醒)（rev 9） ·\n  [PF-013 §5.5](../../product/PF-013-model-profiles-and-invocation/design.md#55-上交交给谁看模型说没说出话)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/record-and-context.md",
+      "term": "### UL-derived-rendering · 派生表示 · Derived Rendering",
+      "source_field": "- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/record-and-context.md",
+      "term": "### UL-transcript · transcript · Transcript",
+      "source_field": "- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件) · [§5.11](../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/record-and-context.md",
+      "term": "### UL-modality · 模态 · Modality",
+      "source_field": "- **出处**：[PF-013 §4 模态](../../product/PF-013-model-profiles-and-invocation/design.md#模态)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/record-and-context.md",
+      "term": "### UL-media-type · 媒体类型 · Media Type",
+      "source_field": "- **出处**：[PF-009 §4 消息的内容是一串块](../../product/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·\n  [PF-013 §4 模态](../../product/PF-013-model-profiles-and-invocation/design.md#模态) ·\n  [§4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/record-and-context.md",
+      "term": "### UL-modality-projection · 模态投影 · Modality Projection",
+      "source_field": "- **出处**：[PF-013 §4 模态投影](../../product/PF-013-model-profiles-and-invocation/design.md#模态投影) ·\n  [§6.18](../../product/PF-013-model-profiles-and-invocation/design.md#618-模态投影要答得快而且是增量维护出来的)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md",
+      "term": "### UL-model-call · 一次模型调用 · Model Call",
+      "source_field": "- **出处**：[PF-013 flows §3.2 一次模型调用](../../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 17） ·\n  [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 17） ·\n  [PF-011 §5.3](../../product/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)（rev 5） ·\n  [PF-012 §5.4](../../product/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 21）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md",
+      "term": "### UL-upstream-send · 一次发出 · Upstream Send",
+      "source_field": "- **出处**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) ·\n  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试) ·\n  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md",
+      "term": "### UL-first-token · 首 token · First Token",
+      "source_field": "- **出处**：[PF-013 §5.4「已经开口说话了」优先于其余各类](../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类) ·\n  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 17） ·\n  [PF-009 §9.2](../../product/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 9）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md",
+      "term": "### UL-model-response · 模型响应体 · Model Response",
+      "source_field": "- **出处**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) ·\n  [§5.13 停机之后](../../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md",
+      "term": "### UL-call-account · 调用账目 · Call Account",
+      "source_field": "- **出处**：[PF-006 §5.4 每一次执行都留一份账](../../product/PF-006-tools-and-skills/design.md#每一次执行都留一份账)（rev 23） ·\n  [PF-009 §5.5](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法)（rev 9） ·\n  [PF-012 成本两层](../../product/PF-012-agent-loop-and-run/design.md#成本两层缺哪一层都会算错)（rev 21） ·\n  [PF-013 §5.13](../../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 17） ·\n  [PF-001 §6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 25）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md",
+      "term": "### UL-consecutive-veto-limit · 连续否决上限 · Consecutive Veto Limit",
+      "source_field": "- **出处**：[PF-012 §5.8 消息落盘之前的否决，按消息是谁产生的分三路](../../product/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 21） ·\n  [PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件) ·\n  [§5.4](../../product/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md",
+      "term": "### UL-retry-exhaustion · 试尽 · Retry Exhaustion",
+      "source_field": "- **出处**：[PF-013 §4 什么时候算试尽](../../product/PF-013-model-profiles-and-invocation/design.md#什么时候算试尽) ·\n  [§5.12](../../product/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md",
+      "term": "### UL-model-call-escalation-cause · 模型调用上交成因 · Model-Call Escalation Cause",
+      "source_field": "- **出处**：[PF-013 §5.7 上交带什么](../../product/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它) ·\n  [§6.14](../../product/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/scope-and-resolution.md",
+      "term": "### UL-capability-identifier · 能力标识 · Capability Identifier",
+      "source_field": "- **出处**：[PF-001 §4 范围化对象](../../product/PF-001-identity-scope-and-agent-constraints/design.md#范围化对象) · [§6.3](../../product/PF-001-identity-scope-and-agent-constraints/design.md#63-依赖与组合)（rev 25） · [PF-002 §4 身份是「类别 ＋ name」](../../product/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)（rev 32） · [PF-013 §4 档案的身份](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/scope-and-resolution.md",
+      "term": "### UL-legal-target-set · 合法目标集合 · Legal Target Set",
+      "source_field": "- **出处**：[PF-013 §5.10 合法目标集合与展示列表，是两件事](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·\n  [§4 档案的身份](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·\n  [§5.11](../../product/PF-013-model-profiles-and-invocation/design.md#511-有-transcript-的块不再把任何模型挡在外面) ·\n  [§6.5](../../product/PF-013-model-profiles-and-invocation/design.md#65-切换是用户的直接命令合法目标不得拒绝)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/scope-and-resolution.md",
+      "term": "### UL-model-display-list · 模型展示列表 · Model Display List",
+      "source_field": "- **出处**：[PF-013 §5.10 合法目标集合与展示列表，是两件事](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·\n  [§6.3](../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/agent-runtime-loop.md",
+      "term": "### UL-side-question · 旁路提问 · Side Question",
+      "source_field": "- **出处**：[PF-012 §4 Run 是三样东西的归属单位](../../product/PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)（rev 21） ·\n  [PF-013 §5.13 它只有一个宿主](../../product/PF-013-model-profiles-and-invocation/design.md#它只有一个宿主所以只有一种结局)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "term": "### UL-modality-converter · 模态转换件 · Modality Converter",
+      "source_field": "- **出处**：[PF-013 §4 转换件](../../product/PF-013-model-profiles-and-invocation/design.md#转换件)（rev 17） ·\n  [PF-012 §5.8 模态转换为什么必须落在这里](../../product/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 21）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "term": "### UL-model-profile · 模型档案 · Model Profile",
+      "source_field": "- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) ·\n  [上游限制与档案提供的上限](../../product/PF-013-model-profiles-and-invocation/design.md#上游限制与档案提供的上限) ·\n  [档案的身份：所在范围加路由名](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·\n  [PF-013 flows §3.1 一条模型档案](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "term": "### UL-official-model-profile · 官方档案 · Official Model Profile",
+      "source_field": "- **出处**：[PF-013 §4 官方档案 / 自建档案](../../product/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·\n  [§5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) ·\n  [§6.3](../../product/PF-013-model-profiles-and-invocation/design.md#63-官方与自建在同一份列表里)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "term": "### UL-custom-model-profile · 自建档案 · Custom Model Profile",
+      "source_field": "- **出处**：[PF-013 §4 官方档案 / 自建档案](../../product/PF-013-model-profiles-and-invocation/design.md#官方档案--自建档案) ·\n  [§5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上)（rev 17） ·\n  [flows §四 角色与操作](../../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "term": "### UL-profile-listing-status · 档案在册状态 · Profile Listing Status",
+      "source_field": "- **出处**：[PF-013 §4 在册 / 已撤回](../../product/PF-013-model-profiles-and-invocation/design.md#在册--已撤回) ·\n  [§6.4](../../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 17） ·\n  [flows §3.1](../../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "term": "### UL-allowed-providers · 允许的供应商 · Allowed Providers",
+      "source_field": "- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) ·\n  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "term": "### UL-provider-fallback · 供应商回退 · Provider Fallback",
+      "source_field": "- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案) ·\n  [§5.12 系统自带一件默认的](../../product/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "term": "### UL-model-credential · 模型凭据 · Model Credential",
+      "source_field": "- **出处**：[PF-013 §5.6](../../product/PF-013-model-profiles-and-invocation/design.md#56-凭据挂在范围上不挂在档案上) ·\n  [组织那一层为什么不持有](../../product/PF-013-model-profiles-and-invocation/design.md#组织那一层为什么不持有) ·\n  [§6.2](../../product/PF-013-model-profiles-and-invocation/design.md#62-凭据挂在范围上档案自己不存)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "term": "### UL-model-request-parameters · 模型请求参数 · Model Request Parameters",
+      "source_field": "- **出处**：[PF-013 §4 模型档案](../../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "term": "### UL-selected-model · 选中模型 · Selected Model",
+      "source_field": "- **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·\n  [档案的身份：所在范围加路由名](../../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名) ·\n  [§5.9](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "term": "### UL-effective-model · 有效模型 · Effective Model",
+      "source_field": "- **出处**：[PF-013 §4 选中模型 与 有效模型](../../product/PF-013-model-profiles-and-invocation/design.md#选中模型-与-有效模型) ·\n  [§5.10](../../product/PF-013-model-profiles-and-invocation/design.md#510-合法目标集合与展示列表是两件事) ·\n  [§6.9](../../product/PF-013-model-profiles-and-invocation/design.md#69-合法目标算不出来时不替用户改选)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "term": "### UL-model-switch · 模型切换 · Model Switch",
+      "source_field": "- **出处**：[PF-013 §5.9 换模型](../../product/PF-013-model-profiles-and-invocation/design.md#59-换模型一条事实一个生效点零个新分支) ·\n  [§6.5](../../product/PF-013-model-profiles-and-invocation/design.md#65-切换是用户的直接命令合法目标不得拒绝) ·\n  [§6.6](../../product/PF-013-model-profiles-and-invocation/design.md#66-切换先是一条要被记录的事实) ·\n  [§6.7](../../product/PF-013-model-profiles-and-invocation/design.md#67-生效点收到那条事实之后下一次模型请求之前)（rev 17） ·\n  [flows §3.3](../../product/PF-013-model-profiles-and-invocation/flows.md#33-一个会话的选中模型)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/domain_objects/objects.md",
+      "term": "### UL-model-profile · 模型档案",
+      "source_field": "- **依据**：[PF-013 §4 模型档案](../product/PF-013-model-profiles-and-invocation/design.md#模型档案)（rev 17）；[PF-013 §4 档案的身份](../product/PF-013-model-profiles-and-invocation/design.md#档案的身份所在范围加路由名)（rev 17）；[PF-013 flows §3.1](../product/PF-013-model-profiles-and-invocation/flows.md#31-一条模型档案)（rev 17）；[PF-013 flows §四](../product/PF-013-model-profiles-and-invocation/flows.md#四角色与操作)（rev 17）；[PF-013 §6.4](../product/PF-013-model-profiles-and-invocation/design.md#64-撤回不删行会话指向被撤回的档案时说已下架)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/domain_objects/objects.md",
+      "term": "### UL-model-call · 一次模型调用",
+      "source_field": "- **依据**：[PF-013 flows §3.2](../product/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)（rev 17）；[PF-013 §5.2](../product/PF-013-model-profiles-and-invocation/design.md#52-这一层的四要素填-pf-011-那一格)（rev 17）；[PF-013 §5.13](../product/PF-013-model-profiles-and-invocation/design.md#513-模型请求的运行时可以被单独控制而它停了看首-token)（rev 17）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    },
+    {
+      "file": ".meta_harness/design/domain_objects/objects.md",
+      "term": "### UL-model-response · 模型响应体",
+      "source_field": "- **依据**：[PF-013 §5.5 试过又失败的那几次，留痕，不进方程](../product/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程)（rev 17）；[PF-013 §5.13 停机之后](../product/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 17）；[PF-000 §4 条目效力](../product/PF-000-occurrences-and-record-entries/design.md#条目效力--entry-standing)（rev 1）",
+      "review": "PF013 rev17 diff checked; source semantics preserved except Model Call retention clarification below"
+    }
+  ]
+}

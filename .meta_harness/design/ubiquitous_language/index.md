@@ -249,7 +249,7 @@
 | [UL-background-execution](terms/execution-and-outcome.md#ul-background-execution--后台执行--background-execution) | 后台执行 | Background Execution | 不占当前这一轮地跑，**不声明就是不能** |
 | [UL-foreground-time-limit](terms/execution-and-outcome.md#ul-foreground-time-limit--前台上限--foreground-time-limit) | 前台上限 | Foreground Time Limit | 一次执行在前台最多跑多久，**等待态不算**；到点允许后台的转后台、不许的被中断，**不是失败** |
 | [UL-tool-concurrency-limit](terms/execution-and-outcome.md#ul-tool-concurrency-limit--工具并发上限--tool-concurrency-limit) | 工具并发上限 | Tool Concurrency Limit | 同一会话里同一工具同时执行的次数上限，前后台一起算；**超出的排队不拒绝** |
-| [UL-model-call](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) | 一次模型调用 | Model Call | 发出请求到拿回完整一份；**与工具执行是兄弟** |
+| [UL-model-call](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) | 一次模型调用 | Model Call | 发出请求到真实收场；结果确认后清理模型副本，原身份与账保留；**与工具执行是兄弟** |
 | [UL-upstream-send](terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send) | 一次发出 | Upstream Send | 调用里经**一家**供应商发出的那一次；失败的每次留痕、不进方程；**一次调用可多次发出、只有一份回复** |
 | [UL-first-token](terms/execution-and-outcome.md#ul-first-token--首-token--first-token) | 首 token | First Token | 回复交出的**第一样内容**，不论模态；它之后一律不重发、不回在途 |
 | [UL-model-response](terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response) | 模型响应体 | Model Response | 每份已确认模型请求责任的收场记录；**记录存在不证明已发送**，进日志不进上下文；**裸写「响应体」不作数** |
