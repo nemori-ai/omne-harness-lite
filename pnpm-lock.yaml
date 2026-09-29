@@ -280,6 +280,15 @@ importers:
 
   packages/agent-loop/loop-extension-runner:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/assembly-manifest-store':
+        specifier: workspace:*
+        version: link:../../assets/assembly-manifest-store
+      '@omne-harness-lite/asset-evaluation':
+        specifier: workspace:*
+        version: link:../../core/asset-evaluation
       '@omne-harness-lite/asset-model':
         specifier: workspace:*
         version: link:../../core/asset-model
@@ -289,9 +298,15 @@ importers:
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../core/content-blocks
+      '@omne-harness-lite/evaluation-input-store':
+        specifier: workspace:*
+        version: link:../../assets/evaluation-input-store
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../core/kernel-basis
       '@omne-harness-lite/loop-extension':
         specifier: workspace:*
         version: link:../../core/loop-extension
@@ -304,7 +319,22 @@ importers:
       '@omne-harness-lite/session-log-jsonl':
         specifier: workspace:*
         version: link:../../session/session-log-jsonl
+      '@omne-harness-lite/session-tenancy-table':
+        specifier: workspace:*
+        version: link:../../session/session-tenancy-table
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/organization-governance':
+        specifier: workspace:*
+        version: link:../../tenancy/organization-governance
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../../core/storage
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
