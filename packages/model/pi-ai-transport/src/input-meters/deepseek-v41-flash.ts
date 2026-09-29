@@ -1,4 +1,5 @@
 import { defineInputMeter } from '../input-meter.ts'
+import { measureDeepSeekBoundary } from './deepseek-boundary.ts'
 // Projection adapted from DeepSeek-V4.1-Flash encoding/encoding.py at
 // dba1be0a40aa45a94ad051997016db3960a90277 (MIT; tokenizers/deepseek-v41-flash/LICENSE).
 // This is an estimate of the chosen OpenRouter/DeepInfra route, not a claim that
@@ -511,9 +512,9 @@ function supplemental(body: JsonObject): JsonObject | undefined {
 export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): InputMeter {
   if (
     definition.modelId !== 'deepseek/deepseek-v4.1-flash' ||
-    definition.revision !== '1' ||
+    definition.revision !== '2' ||
     definition.implementation.name !== 'pi-ai:deepseek' ||
-    definition.implementation.revision !== 'mp4-2' ||
+    definition.implementation.revision !== 'mp4-4' ||
     !Object.hasOwn(definition.routes, 'deepinfra/fp8')
   )
     throw new TypeError('unsupported DeepSeek V4.1 Flash definition')
@@ -523,7 +524,24 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'deepinfra/fp8',
-    algorithmRevision: 'deepseek-v41-flash-reference-2',
+    algorithmRevision: 'deepseek-v41-flash-reference-3',
+    tokenizerRevision: 'deepseek-v41-flash-dba1be0a40aa45a94ad051997016db3960a90277',
+    replayRevision: 'deepseek-reference-boundary/1',
+    transformRevision: 'deepseek-flash-reference-projection/1',
+    measureReplay: input =>
+      measureDeepSeekBoundary(
+        input,
+        text => encoder.encode(text, { add_special_tokens: false }).ids.length,
+        supplemental,
+        inlineImageTokens,
+      ),
+    measureNew: input =>
+      measureDeepSeekBoundary(
+        input,
+        text => encoder.encode(text, { add_special_tokens: false }).ids.length,
+        supplemental,
+        inlineImageTokens,
+      ),
     evidence:
       'DeepSeek-V4.1-Flash dba1be0a40aa45a94ad051997016db3960a90277 encoding/encoding.py + tokenizer.json c90dfa01 + inference/image_processor.py SHA256 482759e3bcc4e9bb5ee582b244cc563f5d0e163d8b48dda91ebb7106e62f9272 + inference/config.json SHA256 2e84f45cf1dac8c7fcbb200e96667d4b913275690668ed496f24c7747207a809 (patch=14, downsample=3, min_pixels=295936, max_tokens=1024), MIT; OpenRouter/DeepInfra private projection remains estimated',
     measureFull({ body, serialized }): TokenMeasurement {

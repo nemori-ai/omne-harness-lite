@@ -1,15 +1,22 @@
+import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { deepSeekBoundaries } from '../src/input-meters/deepseek-boundary.ts'
 import { renderDeepSeekV4Prompt } from '../src/input-meters/deepseek-v4-pro.ts'
+import {
+  createDeepSeekV41FlashInputMeter,
+  renderDeepSeekV41Prompt,
+} from '../src/input-meters/deepseek-v41-flash.ts'
 import { projectOutput } from '../src/projection.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
-import { createDeepSeekV4ProInputMeter as createOpenAiInputMeter } from '../src/input-meters/deepseek-v4-pro.ts'
+import { createDeepSeekV4ProInputMeter } from '../src/input-meters/deepseek-v4-pro.ts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import {
-  deepseekV4Pro0813Configuration as openaiConfiguration,
-  deepseekV4Pro0813Definition as definition,
+  deepseekV4Pro0813Configuration,
+  deepseekV4Pro0813Definition,
+  deepseekV41FlashConfiguration,
+  deepseekV41FlashDefinition,
 } from '../src/official-models/deepseek.ts'
 import { createPiAiTransport } from '../src/transport.ts'
 import { planRequest } from '../src/plan.ts'
@@ -41,95 +48,114 @@ vi.mock('@huggingface/tokenizers', async importOriginal => {
     },
   }
 })
-function request(): PlanInput {
-  const profile = createOfficialProfileContent(definition, {
-    providers: ['deepinfra/fp8'],
-    allowFallback: false,
-    configuration: openaiConfiguration,
-  })
-  if ('rejected' in profile) throw Error(profile.rejected)
-  return {
-    ...input(),
-    routeName: definition.modelId,
-    provider: 'deepinfra/fp8',
-    parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
-    messages: [
-      message('system', 'Preserve the conversation.', 'sys'),
-      message('system_reminder', 'Use the completed tool result.', 'reminder'),
-      message('user', 'STABLE_PREFIX_MARKER ' + 'long history '.repeat(100), 'u1'),
-      judgedMessage({
-        type: 'assistant',
-        id: 'tool-call-message',
-        response: 'prior-tool-response',
-        ending: 'complete',
-        createdAt: at,
-        blocks: [
-          {
-            id: 'tool-call',
-            kind: 'tool_call',
-            callId: 'call-lookup',
-            tool: 'lookup',
-            arguments: { query: 'saved' },
-            complete: true,
-            visibility: { toHuman: true, toModel: true },
+const families = [
+  {
+    definition: deepseekV4Pro0813Definition,
+    configuration: deepseekV4Pro0813Configuration,
+    createMeter: createDeepSeekV4ProInputMeter,
+    render: (body: import('@omne-harness-lite/content-blocks').JsonObject) =>
+      renderDeepSeekV4Prompt(body, 'thinking'),
+    scale: 1_000_000,
+  },
+  {
+    definition: deepseekV41FlashDefinition,
+    configuration: deepseekV41FlashConfiguration,
+    createMeter: createDeepSeekV41FlashInputMeter,
+    render: (body: import('@omne-harness-lite/content-blocks').JsonObject) =>
+      renderDeepSeekV41Prompt(body, 'thinking', 'low'),
+    scale: 900_000,
+  },
+]
+describe.each(families)('$definition.modelId signed reference boundaries', family => {
+  const { definition, configuration, createMeter, scale } = family
+  function request(): PlanInput {
+    const profile = createOfficialProfileContent(definition, {
+      providers: ['deepinfra/fp8'],
+      allowFallback: false,
+      configuration,
+    })
+    if ('rejected' in profile) throw Error(profile.rejected)
+    return {
+      ...input(),
+      routeName: definition.modelId,
+      provider: 'deepinfra/fp8',
+      parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+      messages: [
+        message('system', 'Preserve the conversation.', 'sys'),
+        message('system_reminder', 'Use the completed tool result.', 'reminder'),
+        message('user', 'STABLE_PREFIX_MARKER ' + 'long history '.repeat(100), 'u1'),
+        judgedMessage({
+          type: 'assistant',
+          id: 'tool-call-message',
+          response: 'prior-tool-response',
+          ending: 'complete',
+          createdAt: at,
+          blocks: [
+            {
+              id: 'tool-call',
+              kind: 'tool_call',
+              callId: 'call-lookup',
+              tool: 'lookup',
+              arguments: { query: 'saved' },
+              complete: true,
+              visibility: { toHuman: true, toModel: true },
+            },
+          ],
+        }),
+        judgedMessage({
+          type: 'tool',
+          id: 'tool-result-message',
+          callId: 'call-lookup',
+          createdAt: at,
+          blocks: [
+            {
+              id: 'tool-result',
+              kind: 'tool_result',
+              callId: 'call-lookup',
+              outcome: 'completed',
+              visibility: { toHuman: true, toModel: true },
+              blocks: [
+                {
+                  id: 'tool-result-text',
+                  kind: 'text',
+                  text: 'saved value',
+                  visibility: { toHuman: true, toModel: true },
+                },
+              ],
+            },
+          ],
+        }),
+        message('user', 'Answer with the saved value.', 'after-tool'),
+      ],
+      tools: [
+        {
+          name: 'lookup',
+          description: 'Look up saved values',
+          parameters: {
+            type: 'object',
+            properties: { query: { type: 'string', enum: ['saved'] } },
+            required: ['query'],
+            additionalProperties: false,
           },
-        ],
-      }),
-      judgedMessage({
-        type: 'tool',
-        id: 'tool-result-message',
-        callId: 'call-lookup',
-        createdAt: at,
-        blocks: [
-          {
-            id: 'tool-result',
-            kind: 'tool_result',
-            callId: 'call-lookup',
-            outcome: 'completed',
-            visibility: { toHuman: true, toModel: true },
-            blocks: [
-              {
-                id: 'tool-result-text',
-                kind: 'text',
-                text: 'saved value',
-                visibility: { toHuman: true, toModel: true },
-              },
-            ],
-          },
-        ],
-      }),
-      message('user', 'Answer with the saved value.', 'after-tool'),
-    ],
-    tools: [
-      {
-        name: 'lookup',
-        description: 'Look up saved values',
-        parameters: {
-          type: 'object',
-          properties: { query: { type: 'string', enum: ['saved'] } },
-          required: ['query'],
-          additionalProperties: false,
         },
+      ],
+      snapshot: {
+        ...input().snapshot,
+        ...definition.capabilities,
+        adaptation: profile.ok.adaptation,
+        providers: profile.ok.providers,
+        allowFallback: profile.ok.allowFallback,
+        updatedAt: at,
       },
-    ],
-    snapshot: {
-      ...input().snapshot,
-      ...definition.capabilities,
-      adaptation: profile.ok.adaptation,
-      providers: profile.ok.providers,
-      allowFallback: profile.ok.allowFallback,
-      updatedAt: at,
-    },
-    tokenMargin: { multiplier: new LosslessNumber('1.0000000000000000001'), reserveTokens: 7 },
+      tokenMargin: { multiplier: new LosslessNumber('1.0000000000000000001'), reserveTokens: 7 },
+    }
   }
-}
-function planned(value: PlanInput, meter = createOpenAiInputMeter(definition)) {
-  const result = planRequest(value, [definition], meter)
-  if ('rejected' in result) throw Error(JSON.stringify(result))
-  return result.planned
-}
+  function planned(value: PlanInput, meter = createMeter(definition)) {
+    const result = planRequest(value, [definition], meter)
+    if ('rejected' in result) throw Error(JSON.stringify(result))
+    return result.planned
+  }
 
-describe('DeepSeek Pro signed reference boundaries', () => {
   let cert: ReturnType<typeof certificate>
   beforeAll(() => {
     cert = certificate()
@@ -139,7 +165,7 @@ describe('DeepSeek Pro signed reference boundaries', () => {
   it.each([false, true])(
     'real public three rounds with tools=%s, prefix/basis negatives',
     async tools => {
-      const meter = createOpenAiInputMeter(definition)
+      const meter = createMeter(definition)
       const full = vi.fn(meter.measureFull)
       const bound = { ...meter, measureFull: full }
       const host = await fixture(
@@ -149,7 +175,7 @@ describe('DeepSeek Pro signed reference boundaries', () => {
             sse({
               model: definition.modelId,
               provider: 'DeepInfra',
-              choices: [{ delta: { content: 'visible answer' } }],
+              choices: [{ delta: { content: 'visible answer', reasoning: 'new private thought' } }],
             }) +
               sse({
                 choices: [],
@@ -298,8 +324,7 @@ describe('DeepSeek Pro signed reference boundaries', () => {
   )
 
   it('signed finite framing, G/N empty, missing-usage multiple rounds, and substantive rewrite rejection', () => {
-    const render = (body: import('@omne-harness-lite/content-blocks').JsonObject) =>
-      renderDeepSeekV4Prompt(body, 'thinking')
+    const render = family.render
     const u = { role: 'user', content: 'stable' }
     const a = { role: 'assistant', content: 'answer', reasoning: 'reasoning' }
     const n = { role: 'user', content: 'next' }
@@ -354,7 +379,22 @@ describe('DeepSeek Pro signed reference boundaries', () => {
       throw Error('tool append should have a finite boundary')
     expect(toolBoundary.fresh.added).toContain('second value')
     expect(toolBoundary.fresh.added).not.toContain('first value')
-    const meter = createOpenAiInputMeter(definition)
+    const reordered = deepSeekBoundaries(
+      [u, call, result2, result1],
+      { tools },
+      3,
+      new Set(),
+      render,
+    )
+    if (definition.modelId === 'deepseek/deepseek-v4.1-flash')
+      expect(reordered).toEqual({ changed: true })
+    else expect(reordered).toHaveProperty('fresh')
+    const interleaved = deepSeekBoundaries([u, a, n, a, n], {}, 1, new Set([1, 3]), render)
+    if (!interleaved || 'changed' in interleaved)
+      throw Error('ordered anchor-external replay should be supported')
+    expect(interleaved.replay.added).toContain('reasoning')
+    expect(interleaved.fresh.added).not.toContain('reasoning')
+    const meter = createMeter(definition)
     const previousBody = { messages: [u], reasoning: { effort: 'low' } }
     const finalBody = { messages: [u, a, n], reasoning: { effort: 'low' } }
     const previousFull = meter.measureFull({
@@ -480,21 +520,122 @@ describe('DeepSeek Pro signed reference boundaries', () => {
     expect(result.serialized).toContain('old substantive thought')
   })
 
-  it('one million actual reference tokens: stable P never reaches the incremental tokenizer', () => {
-    const meter = createOpenAiInputMeter(definition)
+  it.runIf(definition.modelId === 'deepseek/deepseek-v4.1-flash')(
+    'meters only the new image span while checking every image byte',
+    () => {
+      const red = readFileSync(
+        new URL('./fixtures/deepseek-v41-flash/public-red-544.png', import.meta.url),
+      )
+      const blue = readFileSync(
+        new URL('./fixtures/deepseek-v41-flash/public-blue-1024.png', import.meta.url),
+      )
+      const imageMessage = (bytes: Buffer, id: string) =>
+        judgedMessage({
+          type: 'user',
+          id,
+          createdAt: at,
+          blocks: [
+            {
+              id: `${id}-text`,
+              kind: 'text',
+              text: id === 'old-image' ? 'STABLE_IMAGE' : 'new image',
+              visibility: { toHuman: true, toModel: true },
+            },
+            {
+              id: `${id}-image`,
+              kind: 'image',
+              mediaType: 'image/png',
+              data: { inline: bytes.toString('base64') },
+              visibility: { toHuman: true, toModel: true },
+            },
+          ],
+        })
+      const meter = createMeter(definition)
+      const full = vi.fn(meter.measureFull)
+      const bound = { ...meter, measureFull: full }
+      const first = { ...request(), tools: [], messages: [imageMessage(red, 'old-image')] }
+      const p = planned(first, bound)
+      const group = projectOutput({ blocks: [], source: 'none', completeness: 'complete' })
+      if (!('projected' in group)) throw Error('projection')
+      const next = (bytes: Buffer): PlanInput => ({
+        ...first,
+        messages: [...first.messages, imageMessage(bytes, 'new-image')],
+        calibration: {
+          kind: 'observation',
+          inputCalibration: {
+            requestInput: p.requestInput,
+            observedInput: {
+              kind: 'upstream_total',
+              tokens: 400,
+              provenance: {
+                adapterRevision: 'openrouter-usage-reader/2',
+                fieldPaths: ['usage.prompt_tokens'],
+                servingProvider: 'DeepInfra',
+                upstreamModel: definition.modelId,
+              },
+            },
+            outputGroup: group.projected,
+          },
+          usage: {
+            source: 'upstream',
+            input_tokens: 'unknown',
+            output_tokens: 3,
+            cache_read_tokens: 'unknown',
+            cache_write_tokens: 'unknown',
+          },
+          outputBlocks: [],
+          replaySelection: [],
+        },
+      })
+      tokenized.length = 0
+      full.mockClear()
+      const small = planned(next(red), bound),
+        large = planned(next(blue), bound)
+      expect(small.measurement.mode).toBe('marginal')
+      expect(large.measurement.mode).toBe('marginal')
+      expect(full).not.toHaveBeenCalled()
+      expect(ExactDecimal.from(large.measurement.predictedInput).toString()).toBe(
+        ExactDecimal.from(small.measurement.predictedInput).add(ExactDecimal.from(468)).toString(),
+      )
+      expect(large.inputLimitEvidence.imageBytes).toEqual([red.length, blue.length])
+      expect(
+        tokenized.some(
+          value =>
+            value.includes('STABLE_IMAGE') ||
+            value.includes(red.toString('base64')) ||
+            value.includes(blue.toString('base64')),
+        ),
+      ).toBe(false)
+      expect(
+        planRequest(
+          {
+            ...next(blue),
+            snapshot: { ...first.snapshot, inputConstraints: { maxImageBytes: 1 } },
+          },
+          [definition],
+          bound,
+        ),
+      ).toMatchObject({ rejected: 'invalidInput', reason: 'input_limit_exceeded' })
+    },
+  )
+
+  it('large actual reference token prefix never reaches the incremental tokenizer', () => {
+    const meter = createMeter(definition)
     const full = vi.fn(meter.measureFull)
     const bound = { ...meter, measureFull: full }
     const first: PlanInput = {
       ...request(),
       tools: [],
-      messages: [message('user', 'STABLE_MILLION ' + 'x '.repeat(1_000_000), 'million')],
+      messages: [message('user', 'STABLE_MILLION ' + 'x '.repeat(scale), 'million')],
     }
     tokenized.length = 0
     counts.length = 0
     const p = planned(first, bound)
-    expect(counts.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(1_000_000)
+    expect(counts.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(scale)
     const actualReferenceTokens = counts.reduce((a, b) => a + b, 0)
-    expect(p.measurement.predictedInput).toBeLessThan(1_032_192)
+    expect(p.measurement.predictedInput).toBeLessThan(
+      Number(definition.capabilities.maxInputTokens),
+    )
     const group = projectOutput({ blocks: [], source: 'none', completeness: 'complete' })
     if (!('projected' in group)) throw Error('projection')
     const next: PlanInput = {

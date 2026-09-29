@@ -18,6 +18,7 @@ import { object, ownedObject } from './json.ts'
 import type { InputMeter } from './input-meter.ts'
 import { deepSeekBoundaries } from './input-meters/deepseek-boundary.ts'
 import { renderDeepSeekV4Prompt } from './input-meters/deepseek-v4-pro.ts'
+import { renderDeepSeekV41Prompt } from './input-meters/deepseek-v41-flash.ts'
 
 export const INPUT_PROJECTION_REVISION = 'openrouter-input-projection/2'
 const anthropicModels = new Set([
@@ -161,12 +162,16 @@ export function projectOutput(input: OutputProjectionInput): OutputProjectionRes
 
 /** Narrow binding owns both the provider alias and the semantic boundary check. */
 export function deepSeekBoundaryRoute(input: PlanInput): boolean {
+  const binding = input.snapshot.adaptation
+  if (input.provider !== 'deepinfra/fp8' || binding.implementation.name !== 'pi-ai:deepseek')
+    return false
   return (
-    input.routeName === 'deepseek/deepseek-v4-pro-0813' &&
-    input.provider === 'deepinfra/fp8' &&
-    input.snapshot.adaptation.definition.revision === '3' &&
-    input.snapshot.adaptation.implementation.name === 'pi-ai:deepseek' &&
-    input.snapshot.adaptation.implementation.revision === 'mp4-3'
+    (input.routeName === 'deepseek/deepseek-v4-pro-0813' &&
+      binding.definition.revision === '3' &&
+      binding.implementation.revision === 'mp4-3') ||
+    (input.routeName === 'deepseek/deepseek-v4.1-flash' &&
+      binding.definition.revision === '2' &&
+      binding.implementation.revision === 'mp4-4')
   )
 }
 export function prepareDeepSeekBoundaries(
@@ -174,10 +179,10 @@ export function prepareDeepSeekBoundaries(
   n: number,
   replay: ReadonlySet<number>,
 ) {
-  return deepSeekBoundaries(projection.units, projection.envelope, n, replay, body =>
-    renderDeepSeekV4Prompt(
-      body,
-      object(body.reasoning) && body.reasoning.effort === 'low' ? 'thinking' : 'chat',
-    ),
-  )
+  return deepSeekBoundaries(projection.units, projection.envelope, n, replay, body => {
+    const mode = object(body.reasoning) && body.reasoning.effort === 'low' ? 'thinking' : 'chat'
+    return projection.requestInput.countingBasis.model === 'deepseek/deepseek-v4-pro-0813'
+      ? renderDeepSeekV4Prompt(body, mode)
+      : renderDeepSeekV41Prompt(body, mode, 'low')
+  })
 }

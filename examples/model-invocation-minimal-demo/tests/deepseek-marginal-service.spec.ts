@@ -4,6 +4,8 @@ import { judgeMessage } from '@omne-harness-lite/messages'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
   deepseekV4Pro0813Definition,
+  deepseekV41FlashDefinition,
+  createDeepSeekV41FlashInputMeter,
   createDeepSeekV4ProInputMeter,
   createOfficialProfileContent,
   type InputMeter,
@@ -14,7 +16,7 @@ import { createLocalTls } from './local-tls.ts'
 import { callDeployment } from './model-request-support.ts'
 import { activateModelFixture, actor, ref } from './support.ts'
 
-const models = ['deepseek/deepseek-v4-pro-0813']
+const models = ['deepseek/deepseek-v4-pro-0813', 'deepseek/deepseek-v4.1-flash']
 function user(index: number) {
   const judged = judgeMessage({
     type: 'user',
@@ -34,7 +36,10 @@ function user(index: number) {
 }
 describe.each(models)('remaining official meter through authorized service: %s', model => {
   it.each([false, true])('actual service, excess admission reserve %s', async overLimit => {
-    const definition = deepseekV4Pro0813Definition
+    const definition =
+      model === deepseekV4Pro0813Definition.modelId
+        ? deepseekV4Pro0813Definition
+        : deepseekV41FlashDefinition
     const base = await callDeployment('deepseek-marginal-service')
     const profile = createOfficialProfileContent(definition, {
       providers: ['deepinfra/fp8'],
@@ -42,7 +47,10 @@ describe.each(models)('remaining official meter through authorized service: %s',
       configuration: { revision: 'remaining-service-1', values: { cache: { mode: 'automatic' } } },
     })
     if ('rejected' in profile) throw Error(profile.rejected)
-    const original = createDeepSeekV4ProInputMeter(definition)
+    const original =
+      model === deepseekV4Pro0813Definition.modelId
+        ? createDeepSeekV4ProInputMeter(definition)
+        : createDeepSeekV41FlashInputMeter(definition)
     let full = 0,
       delta = 0
     const meter: InputMeter = {
@@ -82,6 +90,7 @@ describe.each(models)('remaining official meter through authorized service: %s',
       }),
       'DeepInfra',
     )
+    tls.setMode('reasoning')
     const app = createAcceptanceApplication(config, {
       stage: 'modelRequest',
       developmentTransport: tls.developmentTransport,
@@ -135,7 +144,7 @@ describe.each(models)('remaining official meter through authorized service: %s',
           model,
           messages: [
             { role: 'user', content: [{ type: 'text', text: 'Visible turn 1' }] },
-            { role: 'assistant', content: 'first second' },
+            { role: 'assistant', content: 'first second', reasoning: 'private reasoning' },
             { role: 'user', content: [{ type: 'text', text: 'Visible turn 2' }] },
           ],
         })

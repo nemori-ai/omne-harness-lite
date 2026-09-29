@@ -84,7 +84,7 @@ describe('DeepSeek V4.1 Flash public encoder projection', () => {
     expect(Number(second.tokens)).toBeGreaterThan(Number(first.tokens))
     expect(meter.measureFull({ body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
     expect(() =>
-      createDeepSeekV41FlashInputMeter({ ...deepseekV41FlashDefinition, revision: '2' }),
+      createDeepSeekV41FlashInputMeter({ ...deepseekV41FlashDefinition, revision: '1' }),
     ).toThrow(TypeError)
     expect(() =>
       createDeepSeekV41FlashInputMeter({
