@@ -25,7 +25,6 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { AssemblyManifestStore } from '@omne-harness-lite/assembly-manifest-store'
-import type { RegistryHistoryReader } from '@omne-harness-lite/evaluation-input-store/registry-history'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy-table'
 import { messagePrefix, type ControlledSingleRunSelection } from './model-request-text.ts'
 import type { AuthenticatedActor } from './types.ts'
@@ -51,7 +50,7 @@ export interface DemoRunnerServiceHostDependencies {
   readonly runnerHost: ReturnType<typeof createDemoRunnerHost>
   readonly model: ModelRuntimeService
   readonly manifest: AssemblyManifestStore
-  readonly history: RegistryHistoryReader
+  readonly history: RunnerReadScope['sources']['history']
   readonly sessionTenancy: SessionTenancyService
   readonly authorize: (
     session: string,

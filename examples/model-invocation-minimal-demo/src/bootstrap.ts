@@ -1614,7 +1614,7 @@ export function createAcceptanceApplication(
             runnerHost,
             model: modelRuntime.service,
             manifest,
-            history: registryHistory,
+            history: { read: registryHistory.read },
             sessionTenancy,
             authorize: async session => {
               const actor = runnerActors.getStore()

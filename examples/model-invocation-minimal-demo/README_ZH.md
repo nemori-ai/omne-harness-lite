@@ -150,6 +150,8 @@ export async function readEngineeringPage(config: DiagnosticJournalConfig) {
 写入，以及物理任务所有者。调用者不能替换这些存储端口，也不能自行宣称
 原写入者已停止。`subjectForCandidate` 为每条结论提供原始的定位 subject，
 包含嵌套 pass；runner adapter 会验证二者的关系。
+runner 服务 adapter 只借用历史读取器的 `read` 能力；读取器及其 `close()`
+仍由应用 bootstrap 持有和管理。
 
 始终等待 `app.close()`。它先关闭 runner 准入并取消 pass，保留仍在执行的
 贡献代码，停止其他共享日志消费者，再关闭真实日志。未知写入只能在对同一

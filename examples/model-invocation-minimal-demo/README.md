@@ -152,6 +152,8 @@ binding, conclusion writes, reminder reads/writes, and physical task owner.
 Callers cannot replace these storage ports or claim that the writer has stopped.
 `subjectForCandidate` identifies the original positioned subject for each
 conclusion, including nested passes; the runner adapter checks their relation.
+The runner service adapter borrows only the history reader's `read` capability;
+the application bootstrap retains ownership of the reader and its `close()`.
 
 Always await `app.close()`. It closes runner admission and cancels passes,
 retains still-running contributions, stops other shared-log consumers, and then

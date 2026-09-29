@@ -5,7 +5,6 @@ const providers = [
   'content-blocks',
   'messages',
   'model-profile',
-  'model-response',
   'loop-extension',
   'tool-definition',
   'asset-model',
@@ -13,7 +12,7 @@ const providers = [
 ]
 
 describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
-  it('登记八个已采用 schema/v2 入口；OE1 和 CB 中性 runtime 仍在原范围', () => {
+  it('登记七个已采用 schema/v2 入口；OE1 和 CB 中性 runtime 仍在原范围', () => {
     expect(
       Object.entries(PUBLIC_SUBPATHS)
         .filter(([, values]) => values.includes('schema/v2'))
@@ -75,14 +74,9 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
           },
         ]),
       ).toHaveLength(
-        [
-          'asset-model',
-          'skill-package',
-          'messages',
-          'model-profile',
-          'model-response',
-          'loop-extension',
-        ].includes(provider)
+        ['asset-model', 'skill-package', 'messages', 'model-profile', 'loop-extension'].includes(
+          provider,
+        )
           ? 0
           : 1,
       )
@@ -102,7 +96,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
   }
 
   it('D071/D073 current owners may import their exact retained v3 resources but no adjacent or future version', () => {
-    for (const provider of ['messages', 'model-response', 'loop-extension']) {
+    for (const provider of ['messages', 'loop-extension']) {
       const path = `core/${provider}/src/v3/schema.ts`
       expect(
         corePureImports.check([
@@ -121,6 +115,40 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
           ]),
         ).toHaveLength(1)
     }
+  })
+
+  it('D100 removes old model-response runtime and Schema entries without compatibility aliases', () => {
+    expect(PUBLIC_SUBPATHS['model-response']).toEqual([])
+    for (const suffix of [
+      'v2',
+      'v3',
+      'v4',
+      'v5',
+      'v6',
+      'v7',
+      'schema/v2',
+      'schema/v3',
+      'schema/v5',
+    ])
+      expect(
+        corePureImports.check([
+          {
+            path: 'core/model-response/src/schema.ts',
+            text: `import '@omne-harness-lite/model-response/${suffix}'`,
+          },
+        ]),
+      ).toHaveLength(1)
+  })
+
+  it('model-response uses the adopted Skill2 transitive Schema resource', () => {
+    expect(
+      corePureImports.check([
+        {
+          path: 'core/model-response/src/schema.ts',
+          text: "import schema from '@omne-harness-lite/skill-package/schema/v2'",
+        },
+      ]),
+    ).toEqual([])
   })
 
   for (const consumer of ['asset-evaluation', 'slash-command']) {
@@ -150,7 +178,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
   }
 
   it('the Skill2 pure value entry does not grant new package dependency edges', () => {
-    for (const consumer of ['content-blocks', 'messages', 'model-response', 'skill-package'])
+    for (const consumer of ['content-blocks', 'messages', 'skill-package'])
       expect(
         corePureImports.check([
           {
