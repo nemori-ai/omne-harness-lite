@@ -449,6 +449,15 @@ describe('D109 finite search, cache and resource ownership', () => {
       rejected: { reason: 'malformed_input', field: 'input' },
     })
     expect(accessed).toBe(false)
+    const spoofedBytes = new Uint8Array(300)
+    Object.defineProperty(spoofedBytes, 'byteLength', {
+      get() {
+        accessed = true
+        return 0
+      },
+    })
+    expect('rejected' in (await preparer.prepareRequestImages(batch(spoofedBytes)))).toBe(true)
+    expect(accessed).toBe(false)
     expect(
       'rejected' in
         (await preparer.prepareRequestImages(batch(new Uint8Array(new SharedArrayBuffer(1))))),

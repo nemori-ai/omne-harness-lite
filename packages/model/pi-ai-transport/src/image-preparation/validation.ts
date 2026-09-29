@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { types } from 'node:util'
 import type { ImagePreparePolicy, LoadedImageCodec } from './types.ts'
 export const positive = z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
 const background = z
@@ -62,9 +63,29 @@ export const metadataSchema = z
     hasAlpha: z.boolean(),
   })
   .strict()
-export const bytesSchema = z.custom<Uint8Array>(
-  value => value instanceof Uint8Array && value.buffer instanceof ArrayBuffer,
-)
+const typedArrayPrototype: object = Object.getPrototypeOf(Uint8Array.prototype)
+const actualBuffer = Object.getOwnPropertyDescriptor(typedArrayPrototype, 'buffer')?.get
+function validBytes(value: unknown): value is Uint8Array {
+  if (types.isProxy(value) || !(value instanceof Uint8Array) || !actualBuffer) return false
+  // Admission reads these lengths before making an owned copy. Reject shadowed
+  // view properties so a getter/value cannot spoof size or shared ownership.
+  let current: object | null = value
+  while (current && current !== typedArrayPrototype) {
+    if (types.isProxy(current)) return false
+    if (
+      ['buffer', 'byteLength', 'byteOffset', 'length'].some(
+        key => Object.getOwnPropertyDescriptor(current, key) !== undefined,
+      )
+    )
+      return false
+    const prototype: unknown = Object.getPrototypeOf(current)
+    if (prototype !== null && typeof prototype !== 'object') return false
+    current = prototype
+  }
+  const buffer: unknown = actualBuffer.call(value)
+  return current === typedArrayPrototype && buffer instanceof ArrayBuffer
+}
+export const bytesSchema = z.custom<Uint8Array>(validBytes)
 export const encodedSchema = z
   .object({ bytes: bytesSchema, mediaType: z.string().min(1), width: positive, height: positive })
   .strict()
@@ -87,6 +108,7 @@ export const inputSchema = z
   .strict()
 /** Inspect descriptors before reading members, so validation cannot invoke getters. */
 export function dataOnly(value: unknown, seen = new WeakSet<object>()): boolean {
+  if (types.isProxy(value)) return false
   if (
     value === null ||
     typeof value !== 'object' ||
@@ -102,9 +124,10 @@ export function dataOnly(value: unknown, seen = new WeakSet<object>()): boolean 
     return false
   if (seen.has(value)) return false
   seen.add(value)
-  const valid = Object.values(Object.getOwnPropertyDescriptors(value)).every(
-    descriptor => 'value' in descriptor && dataOnly(descriptor.value, seen),
-  )
+  const valid = Reflect.ownKeys(value).every(key => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    return descriptor !== undefined && 'value' in descriptor && dataOnly(descriptor.value, seen)
+  })
   seen.delete(value)
   return valid
 }
@@ -124,7 +147,8 @@ export function ownPolicy(value: ImagePreparePolicy): ImagePreparePolicy {
   return p
 }
 export function validateCodec(codec: LoadedImageCodec): void {
-  if (!codec || typeof codec !== 'object') throw new TypeError('Invalid loaded codec')
+  if (!codec || typeof codec !== 'object' || types.isProxy(codec))
+    throw new TypeError('Invalid loaded codec')
   const keys = [
     'name',
     'revision',
@@ -136,7 +160,7 @@ export function validateCodec(codec: LoadedImageCodec): void {
   ]
   const descriptors = Object.getOwnPropertyDescriptors(codec)
   if (
-    Object.keys(descriptors).length !== keys.length ||
+    Reflect.ownKeys(descriptors).length !== keys.length ||
     keys.some(key => !descriptors[key] || !('value' in descriptors[key]))
   )
     throw new TypeError('Invalid loaded codec')
@@ -148,6 +172,8 @@ export function validateCodec(codec: LoadedImageCodec): void {
     typeof codec.available !== 'function' ||
     typeof codec.inspect !== 'function' ||
     typeof codec.decode !== 'function' ||
+    !dataOnly(codec.inputMediaTypes) ||
+    !dataOnly(codec.outputFormats) ||
     !Array.isArray(codec.inputMediaTypes) ||
     !codec.inputMediaTypes.length ||
     !codec.inputMediaTypes.every(s => typeof s === 'string' && s.length > 0) ||
