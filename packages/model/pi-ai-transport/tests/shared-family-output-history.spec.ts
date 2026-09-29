@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   writeJsonLossless,
   LosslessNumber,
+  judgeContentBlock,
   toOpaqueJson,
   type JsonObject,
 } from '@omne-harness-lite/content-blocks'
@@ -172,7 +173,11 @@ describe('shared complete output group composition', () => {
   })
   it('multiple complete groups use exact decimal addition without binary rounding or extra reasoning', () => {
     const f = fixture()
-    const blocks = f.group.outputBlocks.map(block => ({ ...block, id: `${block.id}-second` }))
+    const blocks = f.group.outputBlocks.map(block => {
+      const judged = judgeContentBlock({ ...block, id: `${block.id}-second` })
+      if ('rejected' in judged) throw Error('block fixture')
+      return judged.ok
+    })
     const output = projectOutput({ blocks, source: 'reply', completeness: 'complete' })
     if (!('projected' in output)) throw Error('second output')
     const first = {

@@ -43,7 +43,7 @@ function history(raw: JsonValue | undefined): readonly PlanOutputHistoryGroup[] 
   if (!Array.isArray(raw)) return undefined
   const result: PlanOutputHistoryGroup[] = []
   for (const group of raw) {
-    if (!object(group) || !object(group.origin)) return undefined
+    if (!object(group) || Object.keys(group).length !== 5 || !object(group.origin)) return undefined
     const observed = ownCalibration({
       kind: 'observation',
       inputCalibration: group.inputCalibration,

@@ -9,7 +9,6 @@ import type {
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
-import { estimateOpenAi56Replay } from '../src/input-meters/openai-replay.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'
 import { projectInput, projectOutput } from '../src/projection.ts'
 import { planRequest, type PlannedRequest } from '../src/plan.ts'
@@ -504,7 +503,7 @@ describe('independent output-history coverage oracle', () => {
       outputHistory: [original],
       selectionSpans: [{ selectionIndex: 0, start: 3, end: 4 }],
     }
-    expect(estimateOpenAi56Replay(replay, meter)).toEqual({ kind: 'estimated', tokens: 19 })
+    expect(meter.measureReplay(replay)).toEqual({ kind: 'estimated', tokens: 19 })
     if (original.inputCalibration.requestInput.kind !== 'known')
       throw new Error('source plan lost known request input')
     const incompatible: PlanOutputHistoryGroup = {
@@ -521,17 +520,11 @@ describe('independent output-history coverage oracle', () => {
       },
     }
     expect(
-      estimateOpenAi56Replay(
-        {
-          ...replay,
-          observation: observation(incompatible) as Extract<
-            PlanCalibration,
-            { kind: 'observation' }
-          >,
-          outputHistory: [incompatible],
-        },
-        meter,
-      ),
+      meter.measureReplay({
+        ...replay,
+        observation: observation(incompatible) as Extract<PlanCalibration, { kind: 'observation' }>,
+        outputHistory: [incompatible],
+      }),
     ).toEqual({ kind: 'unavailable' })
   })
 })
