@@ -1,0 +1,103 @@
+{
+  "status": "unbound-research-hypothesis",
+  "algorithm": "o200k_base full visible messages/tools JSON; no model tokenizer identity or route calibration established",
+  "sourceFixtureSha256": "32139351afc3b2c7a6b4c9f32173f278e869c6bbcf70ba478c9748d1bb004398",
+  "cases": [
+    {
+      "id": "gpt-6-astra-plain-history",
+      "modelId": "openai/gpt-6-astra",
+      "set": "fit",
+      "requestSha256": "cea93b679f699138bfca9ea26e235d12c337c0557b26b6ffc4228c89b94a73d2",
+      "proposedTokens": 123,
+      "wire": "{\"model\":\"openai/gpt-6-astra\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: {\\\"status\\\":\\\"ready\\\"}\"}]},{\"role\":\"assistant\",\"content\":\"{\\\"status\\\":\\\"ready\\\"}\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Repeat your previous answer exactly.\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "gpt-6-astra-paired-tool-history",
+      "modelId": "openai/gpt-6-astra",
+      "set": "fit",
+      "requestSha256": "0b0a7ec22062aa5d4323cc68f1be077d7f5022e745995ace5184b787232880c8",
+      "proposedTokens": 296,
+      "wire": "{\"model\":\"openai/gpt-6-astra\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"This is a synthetic tool protocol experiment. Execute only the declared synthetic tool.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"seed-1\\\"]\"},{\"type\":\"text\",\"text\":\"System reminder for this request ec16f76e-cdbf-4d3d-a661-c3e2b700d5b6: call probe_echo with value ALPHA exactly once.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Call the declared tool now.\"}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"arguments\":\"{\\\"value\\\":\\\"ALPHA\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"content\":\"ALPHA\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"The tool has completed. State the returned value without calling another tool.\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"description\":\"Return the specified synthetic value ALPHA.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"enum\":[\"ALPHA\"]}},\"required\":[\"value\"],\"additionalProperties\":false}}}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "gpt-6-astra-tool-reminder-holdout",
+      "modelId": "openai/gpt-6-astra",
+      "set": "holdout",
+      "requestSha256": "319107aec619fe80e58db5016d8fa73483ab226ca8a65b72cf7ce1b4a90d51e9",
+      "proposedTokens": 404,
+      "wire": "{\"model\":\"openai/gpt-6-astra\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"This is a synthetic tool protocol experiment. Execute only the declared synthetic tool.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"seed-1\\\"]\"},{\"type\":\"text\",\"text\":\"System reminder for this request ec16f76e-cdbf-4d3d-a661-c3e2b700d5b6: call probe_echo with value ALPHA exactly once.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Call the declared tool now.\"}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"arguments\":\"{\\\"value\\\":\\\"ALPHA\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"content\":\"ALPHA\"},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"later-reminder\\\"]\"},{\"type\":\"text\",\"text\":\"保留完整工具历史。不要再调用工具。\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"请只返回工具给出的值；format: {\\\"value\\\":\\\"...\\\"}.\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"description\":\"Return the specified synthetic value ALPHA.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"enum\":[\"ALPHA\"]}},\"required\":[\"value\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"unused_status\",\"description\":\"An unrelated synthetic tool, do not call.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\",\"description\":\"Short status label.\",\"enum\":[\"READY\",\"WAIT\"]}},\"required\":[\"label\"],\"additionalProperties\":false}}}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "gpt-6-astra-pro-plain-history",
+      "modelId": "openai/gpt-6-astra-pro",
+      "set": "fit",
+      "requestSha256": "f5e3ef2dc67f578282bbb1bb4428ac7d309225e09f21a68fba41893bcbb082b6",
+      "proposedTokens": 123,
+      "wire": "{\"model\":\"openai/gpt-6-astra-pro\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: {\\\"status\\\":\\\"ready\\\"}\"}]},{\"role\":\"assistant\",\"content\":\"{\\\"status\\\":\\\"ready\\\"}\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Repeat your previous answer exactly.\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "gpt-6-astra-pro-paired-tool-history",
+      "modelId": "openai/gpt-6-astra-pro",
+      "set": "fit",
+      "requestSha256": "2e9f6adddf1f0b4057f0e6ffaa8bff9170bfb15b3fc89af4adea5e26c11f9db3",
+      "proposedTokens": 296,
+      "wire": "{\"model\":\"openai/gpt-6-astra-pro\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"This is a synthetic tool protocol experiment. Execute only the declared synthetic tool.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"seed-1\\\"]\"},{\"type\":\"text\",\"text\":\"System reminder for this request ec16f76e-cdbf-4d3d-a661-c3e2b700d5b6: call probe_echo with value ALPHA exactly once.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Call the declared tool now.\"}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"arguments\":\"{\\\"value\\\":\\\"ALPHA\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"content\":\"ALPHA\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"The tool has completed. State the returned value without calling another tool.\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"description\":\"Return the specified synthetic value ALPHA.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"enum\":[\"ALPHA\"]}},\"required\":[\"value\"],\"additionalProperties\":false}}}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "gpt-6-astra-pro-tool-reminder-holdout",
+      "modelId": "openai/gpt-6-astra-pro",
+      "set": "holdout",
+      "requestSha256": "05debfceec87112bdb1af2be8461d5fb468dbc6ff889fee64364ccf5b28ed8e0",
+      "proposedTokens": 404,
+      "wire": "{\"model\":\"openai/gpt-6-astra-pro\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"This is a synthetic tool protocol experiment. Execute only the declared synthetic tool.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"seed-1\\\"]\"},{\"type\":\"text\",\"text\":\"System reminder for this request ec16f76e-cdbf-4d3d-a661-c3e2b700d5b6: call probe_echo with value ALPHA exactly once.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Call the declared tool now.\"}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"arguments\":\"{\\\"value\\\":\\\"ALPHA\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"content\":\"ALPHA\"},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"later-reminder\\\"]\"},{\"type\":\"text\",\"text\":\"保留完整工具历史。不要再调用工具。\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"请只返回工具给出的值；format: {\\\"value\\\":\\\"...\\\"}.\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"description\":\"Return the specified synthetic value ALPHA.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"enum\":[\"ALPHA\"]}},\"required\":[\"value\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"unused_status\",\"description\":\"An unrelated synthetic tool, do not call.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\",\"description\":\"Short status label.\",\"enum\":[\"READY\",\"WAIT\"]}},\"required\":[\"label\"],\"additionalProperties\":false}}}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "gpt-6-sol-pro-plain-history",
+      "modelId": "openai/gpt-6-sol-pro",
+      "set": "fit",
+      "requestSha256": "a5de56f4aed85205758e00106ede13aed6655178849059f3ac23365600daa7a1",
+      "proposedTokens": 123,
+      "wire": "{\"model\":\"openai/gpt-6-sol-pro\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: {\\\"status\\\":\\\"ready\\\"}\"}]},{\"role\":\"assistant\",\"content\":\"{\\\"status\\\":\\\"ready\\\"}\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Repeat your previous answer exactly.\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "gpt-6-sol-pro-paired-tool-history",
+      "modelId": "openai/gpt-6-sol-pro",
+      "set": "fit",
+      "requestSha256": "689fc258f1d6c5fa02f6ce08a3fe419520aef2ebb0f943671b5470699a7d4b42",
+      "proposedTokens": 296,
+      "wire": "{\"model\":\"openai/gpt-6-sol-pro\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"This is a synthetic tool protocol experiment. Execute only the declared synthetic tool.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"seed-1\\\"]\"},{\"type\":\"text\",\"text\":\"System reminder for this request ec16f76e-cdbf-4d3d-a661-c3e2b700d5b6: call probe_echo with value ALPHA exactly once.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Call the declared tool now.\"}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"arguments\":\"{\\\"value\\\":\\\"ALPHA\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"content\":\"ALPHA\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"The tool has completed. State the returned value without calling another tool.\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"description\":\"Return the specified synthetic value ALPHA.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"enum\":[\"ALPHA\"]}},\"required\":[\"value\"],\"additionalProperties\":false}}}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "gpt-6-sol-pro-tool-reminder-holdout",
+      "modelId": "openai/gpt-6-sol-pro",
+      "set": "holdout",
+      "requestSha256": "7a08ed6254f9d05cf16fc1a3df4db2fa5f62a62fe77fbe8de9b43ff03981b2a8",
+      "proposedTokens": 404,
+      "wire": "{\"model\":\"openai/gpt-6-sol-pro\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"This is a synthetic tool protocol experiment. Execute only the declared synthetic tool.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"seed-1\\\"]\"},{\"type\":\"text\",\"text\":\"System reminder for this request ec16f76e-cdbf-4d3d-a661-c3e2b700d5b6: call probe_echo with value ALPHA exactly once.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Call the declared tool now.\"}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"arguments\":\"{\\\"value\\\":\\\"ALPHA\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"content\":\"ALPHA\"},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"later-reminder\\\"]\"},{\"type\":\"text\",\"text\":\"保留完整工具历史。不要再调用工具。\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"请只返回工具给出的值；format: {\\\"value\\\":\\\"...\\\"}.\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"description\":\"Return the specified synthetic value ALPHA.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"enum\":[\"ALPHA\"]}},\"required\":[\"value\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"unused_status\",\"description\":\"An unrelated synthetic tool, do not call.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\",\"description\":\"Short status label.\",\"enum\":[\"READY\",\"WAIT\"]}},\"required\":[\"label\"],\"additionalProperties\":false}}}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "gpt-6-luna-pro-plain-history",
+      "modelId": "openai/gpt-6-luna-pro",
+      "set": "fit",
+      "requestSha256": "86b0799f41e51b7b9076bc909836ef905bc46f9227c4228e0ba31a780719e2e3",
+      "proposedTokens": 123,
+      "wire": "{\"model\":\"openai/gpt-6-luna-pro\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"Answer briefly and truthfully.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"reminder\\\"]\"},{\"type\":\"text\",\"text\":\"Preserve the preceding conversation.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Reply with exactly: {\\\"status\\\":\\\"ready\\\"}\"}]},{\"role\":\"assistant\",\"content\":\"{\\\"status\\\":\\\"ready\\\"}\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Repeat your previous answer exactly.\"}]}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "gpt-6-luna-pro-paired-tool-history",
+      "modelId": "openai/gpt-6-luna-pro",
+      "set": "fit",
+      "requestSha256": "b14d4db6ba35a4259591f89a78790e521cd80ef4102f5681e82409c853ad298e",
+      "proposedTokens": 296,
+      "wire": "{\"model\":\"openai/gpt-6-luna-pro\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"This is a synthetic tool protocol experiment. Execute only the declared synthetic tool.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"seed-1\\\"]\"},{\"type\":\"text\",\"text\":\"System reminder for this request ec16f76e-cdbf-4d3d-a661-c3e2b700d5b6: call probe_echo with value ALPHA exactly once.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Call the declared tool now.\"}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"arguments\":\"{\\\"value\\\":\\\"ALPHA\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"content\":\"ALPHA\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"The tool has completed. State the returned value without calling another tool.\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"description\":\"Return the specified synthetic value ALPHA.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"enum\":[\"ALPHA\"]}},\"required\":[\"value\"],\"additionalProperties\":false}}}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    },
+    {
+      "id": "gpt-6-luna-pro-tool-reminder-holdout",
+      "modelId": "openai/gpt-6-luna-pro",
+      "set": "holdout",
+      "requestSha256": "4c4be58c988064ad64164ffa15831bdfb647c34184013d50e84568fa823fe15e",
+      "proposedTokens": 404,
+      "wire": "{\"model\":\"openai/gpt-6-luna-pro\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"This is a synthetic tool protocol experiment. Execute only the declared synthetic tool.\"}]},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"seed-1\\\"]\"},{\"type\":\"text\",\"text\":\"System reminder for this request ec16f76e-cdbf-4d3d-a661-c3e2b700d5b6: call probe_echo with value ALPHA exactly once.\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Call the declared tool now.\"}]},{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"arguments\":\"{\\\"value\\\":\\\"ALPHA\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_C04zkqJVnhXLB1A9hulsomNO\",\"content\":\"ALPHA\"},{\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"[system_reminder \\\"later-reminder\\\"]\"},{\"type\":\"text\",\"text\":\"保留完整工具历史。不要再调用工具。\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"请只返回工具给出的值；format: {\\\"value\\\":\\\"...\\\"}.\"}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"probe_echo\",\"description\":\"Return the specified synthetic value ALPHA.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"enum\":[\"ALPHA\"]}},\"required\":[\"value\"],\"additionalProperties\":false}}},{\"type\":\"function\",\"function\":{\"name\":\"unused_status\",\"description\":\"An unrelated synthetic tool, do not call.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\",\"description\":\"Short status label.\",\"enum\":[\"READY\",\"WAIT\"]}},\"required\":[\"label\"],\"additionalProperties\":false}}}],\"reasoning\":{\"effort\":\"low\"},\"max_tokens\":64}"
+    }
+  ]
+}
