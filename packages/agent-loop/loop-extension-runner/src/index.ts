@@ -43,3 +43,15 @@ export {
 } from './task-owner.ts'
 export { createRunnerLogAdapter, type RunnerLogAdapter } from './run-log.ts'
 export { createRunnerReminderLogAdapter, type RunnerReminderLogAdapter } from './reminder-log.ts'
+export {
+  readPassConclusions,
+  type ReadPassConclusionsInput,
+  type RunnerReplayFailure,
+} from './pass-history.ts'
+export {
+  createRunnerImplementationRegistry,
+  type RunnerBuiltinImplementation,
+  type RunnerImplementations,
+  type RunnerImplementationLease,
+  type RunnerImplementationRegistry,
+} from './implementation-registry.ts'

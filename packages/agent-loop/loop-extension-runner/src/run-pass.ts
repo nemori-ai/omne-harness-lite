@@ -3,8 +3,6 @@ import { isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import {
   judgeConclusion,
-  judgeConclusionForSubject,
-  judgeDefinition,
   judgeInput,
   judgeOutput,
   judgePositionedSubject,
@@ -15,7 +13,6 @@ import {
   type LoopExtensionDefinition,
   type PositionedSubject,
   type Power,
-  type Rejection,
 } from '@omne-harness-lite/loop-extension'
 import { judgeMessage, type SystemReminderMessage } from '@omne-harness-lite/messages'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
@@ -28,6 +25,14 @@ import {
 import { composeEffect, type RunnerEffect } from './effect.ts'
 import { passKeys, type RunnerOccurrence } from './keys.ts'
 import type { RunnerLogBinding } from './task-owner.ts'
+import {
+  validateHistoryScope,
+  readPassHistory,
+  currentSubject,
+  samePosition,
+  judgeConclusionForCurrent,
+  type Historical,
+} from './pass-history.ts'
 
 export interface RunnerPass {
   readonly initial: PositionedSubject
@@ -194,13 +199,6 @@ const replayInconsistent = Object.freeze({ failure: 'replayInconsistent' } as co
 const cancelled = Object.freeze({ failure: 'cancelled' } as const)
 const attemptSuperseded = Object.freeze({ failure: 'attemptSuperseded' } as const)
 
-interface Historical {
-  readonly entry: LogEntry
-  readonly conclusion: Conclusion
-  readonly occurrence: RunnerOccurrence
-  readonly reminders: readonly SystemReminderMessage[]
-}
-
 function isFailure(value: RunnerPassResult): value is RunnerFailure {
   return 'failure' in value
 }
@@ -241,13 +239,6 @@ function validPorts(value: RunnerPorts): boolean {
   )
 }
 
-function samePosition(
-  left: { readonly position: string; readonly dimension?: unknown },
-  right: { readonly position: string; readonly dimension?: unknown },
-): boolean {
-  return left.position === right.position && sameJson(left.dimension, right.dimension)
-}
-
 function validatePass(
   pass: RunnerPass,
   chain: readonly RunnerPiece[],
@@ -259,73 +250,24 @@ function validatePass(
     return first.rejected === 'position_unknown' ? { failure: 'positionUnknown' } : invalidInput
   if (!Array.isArray(chain) || !pass.execution || typeof pass.execution !== 'object')
     return invalidInput
-  const { position, subject } = first.ok
-  if (pass.execution.kind === 'noRun') {
-    if (
-      position !== 'before_persist_message' ||
-      (position === 'before_persist_message' &&
-        (subject.producer === 'model' || subject.producer === 'tool'))
-    )
-      return invalidInput
-  } else if (
-    position === 'before_persist_message' &&
-    subject.producer !== 'model' &&
-    subject.producer !== 'tool' &&
-    // S-19: only runner-owned reminder nesting inherits the outer write fence.
-    !(nested && subject.producer === 'system')
-  ) {
-    return invalidInput
-  } else if (
-    pass.execution.kind !== 'withRun' ||
-    !identity(pass.execution.run) ||
-    !isJsonNumber(pass.execution.attempt) ||
-    !ExactDecimal.from(pass.execution.attempt).isInteger ||
-    ExactDecimal.from(pass.execution.attempt).compare(ExactDecimal.from(0)) <= 0
+  if (
+    pass.execution.kind !== 'noRun' &&
+    (pass.execution.kind !== 'withRun' ||
+      !identity(pass.execution.run) ||
+      !isJsonNumber(pass.execution.attempt) ||
+      !ExactDecimal.from(pass.execution.attempt).isInteger ||
+      ExactDecimal.from(pass.execution.attempt).compare(ExactDecimal.from(0)) <= 0)
   )
     return invalidInput
-  const seen = new Set<string>()
-  for (const piece of chain) {
-    if (!piece || typeof piece !== 'object') return invalidInput
-    const judged = judgeDefinition(piece.definition)
-    if ('rejected' in judged) return invalidInput
-    if (
-      !samePosition(first.ok, judged.ok) ||
-      seen.has(judged.ok.name) ||
-      !['observe', 'rewrite', 'veto'].includes(piece.power)
-    )
-      return invalidInput
-    seen.add(judged.ok.name)
-    const levels: readonly Power[] = ['observe', 'rewrite', 'veto']
-    if (levels.indexOf(piece.power) > levels.indexOf(judged.ok.power)) return invalidInput
-    if (
-      piece.onError !== undefined &&
-      !['ignore', 'record', 'treat_as_veto'].includes(piece.onError)
-    )
-      return invalidInput
-    if (piece.fallback !== undefined) {
-      if (
-        (piece.fallback === 'modality' && position !== 'before_persist_message') ||
-        (piece.fallback === 'admission' &&
-          (judged.ok.name !== 'omne-official:admission-judgment' ||
-            position !== 'before_action' ||
-            piece.power !== 'veto')) ||
-        (piece.fallback === 'retry' &&
-          (judged.ok.name !== 'omne-official:default-retry' ||
-            first.ok.position !== 'after_model_call' ||
-            first.ok.dimension.ending !== 'failure' ||
-            piece.power !== 'rewrite')) ||
-        (piece.fallback === 'offload' &&
-          (judged.ok.name !== 'omne-official:offload-judgment' ||
-            first.ok.position !== 'after_action' ||
-            first.ok.dimension.scope !== 'each')) ||
-        (piece.fallback === 'loop' &&
-          (first.ok.position !== 'after_model_call' ||
-            first.ok.dimension.ending !== 'complete_reply'))
-      )
-        return invalidInput
-    }
-  }
-  return undefined
+  return validateHistoryScope(
+    {
+      initial: pass.initial,
+      anchor: pass.anchor,
+      ...(pass.execution.kind === 'withRun' ? { run: pass.execution.run } : {}),
+    },
+    chain,
+    nested,
+  )
 }
 
 function checkControl(signal: AbortSignal, ports: RunnerPorts): RunnerFailure | undefined {
@@ -369,16 +311,6 @@ function awaitWithAbort<T>(
   })
 }
 
-function currentSubject(
-  initial: PositionedSubject,
-  finals: readonly Conclusion[],
-): PositionedSubject | null {
-  const combined = composeEffect(initial, finals)
-  if ('invalidInput' in combined || combined.effect.kind !== 'proceed') return null
-  const judged = judgePositionedSubject({ ...initial, subject: combined.effect.subject })
-  return 'ok' in judged ? judged.ok : null
-}
-
 async function resolveEffect(
   initial: PositionedSubject,
   finals: readonly Conclusion[],
@@ -408,75 +340,6 @@ async function resolveEffect(
   }
   const combined = composeEffect(initial, finals)
   return 'invalidInput' in combined ? replayInconsistent : combined
-}
-
-function historyFor(
-  pass: RunnerPass,
-  chain: readonly RunnerPiece[],
-  binding: RunnerLogBinding,
-  read: ReadResult,
-): readonly Historical[] | RunnerFailure {
-  if (!('entries' in read)) return unavailable
-  const key = passKeys({
-    position: pass.initial.position,
-    ...(pass.initial.dimension === undefined ? {} : { dimension: pass.initial.dimension }),
-    anchor: pass.anchor,
-  })
-  if ('invalidInput' in key) return invalidInput
-  const records: Historical[] = []
-  const historicalFinals: Conclusion[] = []
-  let pieceIndex = 0
-  let askOrdinal = ExactDecimal.from(0)
-  let previousPosition = ExactDecimal.from(0)
-  for (const entry of read.entries) {
-    if (
-      !isJsonNumber(entry.position) ||
-      ExactDecimal.from(entry.position).compare(previousPosition) <= 0 ||
-      ExactDecimal.from(entry.position).compare(ExactDecimal.from(read.tail)) > 0 ||
-      !entry.readKeys.includes(key.pass)
-    )
-      return replayInconsistent
-    previousPosition = ExactDecimal.from(entry.position)
-    const inspected = inspectRunnerConclusion({
-      session: binding.session,
-      tenant: binding.tenant,
-      entry,
-    })
-    if ('invalid' in inspected || 'unrelated' in inspected) return replayInconsistent
-    if (
-      inspected.anchor !== pass.anchor ||
-      !samePosition(pass.initial, inspected.conclusion) ||
-      (pass.execution.kind === 'withRun' &&
-        (inspected.execution.kind !== 'withRun' ||
-          inspected.execution.run !== pass.execution.run)) ||
-      (pass.execution.kind === 'noRun' && inspected.execution.kind !== 'noRun')
-    )
-      return replayInconsistent
-    const piece = chain[pieceIndex]
-    if (piece === undefined || inspected.conclusion.extension !== piece.definition.name)
-      return replayInconsistent
-    if (inspected.conclusion.power !== piece.power) return replayInconsistent
-    const historicalSubject = currentSubject(pass.initial, historicalFinals)
-    if (historicalSubject === null) return replayInconsistent
-    const admitted = judgeConclusionForCurrent(inspected.conclusion, historicalSubject, piece)
-    if ('failure' in admitted) return replayInconsistent
-    if (inspected.occurrence.kind === 'ask') {
-      askOrdinal = askOrdinal.add(ExactDecimal.from(1))
-      if (ExactDecimal.from(inspected.occurrence.ordinal).compare(askOrdinal) !== 0)
-        return replayInconsistent
-    } else {
-      historicalFinals.push(inspected.conclusion)
-      pieceIndex++
-      askOrdinal = ExactDecimal.from(0)
-    }
-    records.push({
-      entry,
-      conclusion: inspected.conclusion,
-      occurrence: inspected.occurrence,
-      reminders: inspected.reminders,
-    })
-  }
-  return records
 }
 
 function failureIdentity(initial: PositionedSubject): Record<string, unknown> {
@@ -712,7 +575,16 @@ async function runPassInternal(
     } catch {
       return unavailable
     }
-    const existing = historyFor(pass, chain, ports.binding, read)
+    const existing = readPassHistory(
+      {
+        initial: pass.initial,
+        anchor: pass.anchor,
+        ...(pass.execution.kind === 'withRun' ? { run: pass.execution.run } : {}),
+      },
+      chain,
+      ports.binding,
+      read,
+    )
     if ('failure' in existing) return existing
     const history: Historical[] = [...existing]
     let index = 0
@@ -1054,16 +926,4 @@ async function runPassInternal(
   } finally {
     releaseFailure?.()
   }
-}
-
-function judgeConclusionForCurrent(
-  value: unknown,
-  subject: PositionedSubject,
-  piece: RunnerPiece,
-): { readonly conclusion: Conclusion } | RunnerFailure {
-  const result = judgeConclusionForSubject(value, {
-    positionedSubject: subject,
-    extensionName: piece.definition.name,
-  })
-  return 'ok' in result ? { conclusion: result.ok } : invalidInput
 }

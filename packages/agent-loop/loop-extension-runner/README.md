@@ -8,6 +8,8 @@ The adopted scope is [D-106](../../../.meta_harness/design/record/decisions/runn
 
 ## Public API
 
+- `readPassConclusions({ initial, anchor, run?, binding, chain, entries, tail })` purely reads the supplied pass history and returns all ordered conclusions or a named replay failure. It shares the history validator with `runPass`, takes no current attempt, and never invokes contributors, resolves waits, or fills reminders. The service/host must obtain authorized entries first; an empty list does not certify that a read succeeded.
+- `createRunnerImplementationRegistry()` owns the builtin generations. `registerBuiltin(name, implementation)` returns a synchronous idempotent disposer; duplicate live names throw. `capture(name)` holds the selected generation. A withdrawn running contribution returns an error even if a new generation has registered under that name. `closeAdmission()` blocks new work; `drain()` waits for actual contributor promises. The registration face is typed as `RunnerImplementations`; contributors use `RunnerBuiltinImplementation(input, signal, mode)`.
 - `runPass(pass, chain, ports, signal)` returns `{ conclusions, effect }` or a named failure. The history retains old asks after a final; only effective finals and the current ask determine the result. `noRun` is legal only for eligible user/system `before_persist_message` input. A pending ask does not invoke again; a ready ask requires an owner-provided replay binding and a deviation latch independent of contributor errors.
 - `createRunnerLogAdapter({ log, binding, owner, subjectForCandidate })` connects conclusion reads and writes to an SL3 `SessionLog`. The invocation host binds `subjectForCandidate` to the current original subject for each proposed conclusion; the adapter validates it and retains it for legal-winner recovery. `createRunnerTaskOwner(binding)` registers read/write work before provider calls, retains unknown append outcomes, and exposes `closeAdmission`, `reconcileStoppedLog`, and `drain`. The real log host must close the old physical writer and admit recovered reads before reconciliation; a new empty read alone is not proof of absence.
 - `createRunnerReminderLogAdapter({ log, binding, owner, readMessagePrefix })` uses the model runtime's `mrr/3` MessageId key and full message value. The callback must supply a complete, authorized prefix at that operation. A same-ID different message is a conflict, not an already-recorded success. The host supplies the nested chain separately.
@@ -25,6 +27,8 @@ node examples/public-pass.mjs
 ```
 
 It prints `fresh: asked`, `pending: asked`, `replay: proceed`, `final: proceed`, `unavailable: unavailable`, and `calls: 2`. Its in-memory waiting and log ports are controlled examples; production sources must provide their own durable facts. The package tests exercise the actual SL3 JSONL provider, including close/reopen and unknown-write recovery.
+
+Run `node examples/replay-and-registry.mjs` for an independent contribution registration and pure empty-history read. It prints `replay: 0`, `invocation: output`, and `withdrawn: true`. Its input history is explicitly empty; the example does not assert a production read or Run authority.
 
 The next example exercises only the pure functions. Its synthetic position stands in for a log provider's returned entry; production code must use the actual persisted entry.
 
