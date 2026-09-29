@@ -160,7 +160,7 @@ export async function activateModelFixture(
 ): Promise<DemoDiagnosticAssembly> {
   if (config.modelRequest === undefined) throw new Error('model request deployment required')
   const directory = dirname(config.databaseFile)
-  await mkdir(join(directory, 'diagnostics'), { mode: 0o700 })
+  await mkdir(join(directory, 'diagnostics'), { mode: 0o700, recursive: true })
   const diagnostics = await openDemoDiagnosticAssembly(
     createDemoDiagnosticConfig(
       directory,
