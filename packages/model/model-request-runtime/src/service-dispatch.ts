@@ -42,7 +42,6 @@ import type { PlannedSemantics } from './types.ts'
 import type { SettlementDiagnostic } from './settlement-types.ts'
 import type {
   DiagnosticAssociation,
-  DiagnosticCollector,
   DiagnosticEvent,
   DiagnosticReference,
 } from './diagnostics-types.ts'

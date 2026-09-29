@@ -260,7 +260,7 @@ export function createRuntimeReconcile(input: {
   readonly scheduler: SettlementScheduler
   readonly now: () => string
   readonly diagnostic: (event: SettlementDiagnostic) => void
-  readonly diagnosticCollector?: DiagnosticCollector
+  readonly diagnosticCollector?: Pick<DiagnosticCollector, 'emitter'>
   readonly onDiagnosticFailure?: () => void
 }): {
   readonly reconcile: (request: ReconcileInput) => Promise<ReconcileResult>

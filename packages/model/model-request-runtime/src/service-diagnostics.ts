@@ -10,7 +10,7 @@ import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 
 /** One verified service operation owns this emitter and the actual recorded parent reference. */
 export function operationDiagnostics(
-  collector: DiagnosticCollector | undefined,
+  collector: Pick<DiagnosticCollector, 'emitter'> | undefined,
   tenant: TenantId,
   association: DiagnosticAssociation,
   report: () => void,

@@ -465,7 +465,7 @@ export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   readonly recovery: RuntimeRecoveryAccess
   readonly diagnostic: (event: SettlementDiagnostic) => void
   /** Engineering diagnostics are bound per operation after verified session ownership. */
-  readonly diagnosticCollector?: DiagnosticCollector
+  readonly diagnosticCollector?: Pick<DiagnosticCollector, 'emitter'>
 }
 /** The host actually stops old effect-capable writers before returning a scope. */
 export interface RuntimeRecoveryScope {
