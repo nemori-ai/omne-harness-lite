@@ -685,6 +685,135 @@ describe('independent policies and propagation', () => {
 })
 
 describe('independent ownership and physical recovery', () => {
+  for (const stage of ['presence', 'handles'] as const)
+    it(`V6-5 replay cancellation during ${stage} releases acquired resources without invoking`, async () => {
+      const v = variants[2]!,
+        f = await fixture(v),
+        chain = [makePiece(v)],
+        controller = new AbortController()
+      let invoked = 0,
+        replaying = false,
+        bindingReleased = 0,
+        handleReleased = 0
+      let entered!: () => void, release!: () => void
+      const start = new Promise<void>(resolve => {
+          entered = resolve
+        }),
+        gate = new Promise<void>(resolve => {
+          release = resolve
+        })
+      const ports: RunnerPorts = {
+        ...f.ports,
+        invoke: async () => {
+          invoked++
+          return { kind: 'output', value: outputs(v)[7] }
+        },
+        readAskState: async association => ({
+          kind: 'ready',
+          binding: {
+            association,
+            cardId: 'card',
+            batchId: 'batch',
+            answerId: 'answer',
+            control: () => 'valid',
+            release() {
+              bindingReleased++
+            },
+          },
+        }),
+        presence: async () => {
+          if (replaying && stage === 'presence') {
+            entered()
+            await gate
+          }
+          return 'present'
+        },
+        openHandles: async () => {
+          if (replaying && stage === 'handles') {
+            entered()
+            await gate
+          }
+          return {
+            log: logHandle,
+            environment,
+            release() {
+              handleReleased++
+            },
+          }
+        },
+      }
+      try {
+        expect(await runPass(f.pass, chain, ports, signal())).toMatchObject({
+          effect: { kind: 'asked' },
+        })
+        replaying = true
+        const pending = runPass(f.pass, chain, ports, controller.signal)
+        await start
+        controller.abort()
+        release()
+        expect(await pending).toEqual({ failure: 'cancelled' })
+        expect(invoked).toBe(1)
+        expect(bindingReleased).toBe(1)
+        expect(handleReleased).toBe(stage === 'handles' ? 2 : 1)
+        expect(await f.log.readSince(session, 0)).toMatchObject({ tail: 1 })
+      } finally {
+        release()
+        await f.close()
+      }
+    })
+  for (const phase of ['pending', 'ready'] as const)
+    it(`V6-5 late ${phase} after instance removal returns unavailable`, async () => {
+      const v = variants[2]!,
+        f = await fixture(v),
+        chain = [makePiece(v)]
+      let active = true,
+        invokes = 0,
+        released = 0
+      const ports: RunnerPorts = {
+        ...f.ports,
+        isActive: () => active,
+        invoke: async () => {
+          invokes++
+          return { kind: 'output', value: outputs(v)[7] }
+        },
+      }
+      try {
+        await runPass(f.pass, chain, ports, signal())
+        expect(
+          await runPass(
+            f.pass,
+            chain,
+            {
+              ...ports,
+              readAskState: async association => {
+                active = false
+                return phase === 'pending'
+                  ? { kind: 'pending', association }
+                  : {
+                      kind: 'ready',
+                      binding: {
+                        association,
+                        cardId: 'card',
+                        batchId: 'batch',
+                        answerId: 'answer',
+                        control: () => 'valid',
+                        release() {
+                          released++
+                        },
+                      },
+                    }
+              },
+            },
+            signal(),
+          ),
+        ).toEqual({ failure: 'unavailable' })
+        expect(invokes).toBe(1)
+        expect(released).toBe(phase === 'ready' ? 1 : 0)
+        expect(await f.log.readSince(session, 0)).toMatchObject({ tail: 1 })
+      } finally {
+        await f.close()
+      }
+    })
   for (const v of variants)
     it(`V6-1 rejects illegal dimension before any source at ${v.position} ${JSON.stringify(v.dimension ?? {})}`, async () => {
       const f = await fixture(v)
