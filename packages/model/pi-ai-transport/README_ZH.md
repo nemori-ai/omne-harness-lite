@@ -522,4 +522,4 @@ reader每个终态都交同一个累积器的 `readFacts`；解析即保存usage
 
 GPT-5.6 Sol/Terra/Luna Pro 使用定义 revision 5／`pi-ai:openai/mp4-7`；GPT-6 Astra/Sol/Luna Pro 使用定义 revision 3／`mp4-8`。由于上游输入统计范围尚未确认，真实 usage/cost（包括部分未知项）原样保留，`observedInput` 为 `unavailable/scope_unknown`。缺失 usage、响应缓存命中和统计冲突继续优先沿原有具体分支处理；真实零值也不证明统计范围。规划阶段同时拒绝这些新贡献的历史锚及伪造的当前同形 known 锚。GPT-5.6 Pro 使用全量估算和配置余量准入；GPT-6 Pro 现通过官方工厂提供可见输入全量估算，每次施加显式余量；输入观察范围未知期间继续全量计量。
 
-规划与 reader 共用私有固定规则，由实际已拥有的请求绑定选择；不新增公开信任开关或额外 I/O。新 Pro transform revision 为 `openrouter-input-transform/pro-scope-1`，tokenizer 和估算算法未变。精确旧贡献身份仅在已有 lease 随 registry 退役协议排空时保留原捕获 reader 语义；默认官方表和工厂只供新身份。这不构成历史兼容入口，也不新增针对可信自定义完整代码贡献的全局禁入机制；其它可信贡献继承原 reader 前提，不因此取得新的上游统计范围认证。
+规划与 reader 共用私有固定规则，由实际已拥有的请求绑定选择；不新增公开信任开关或额外 I/O。新 Pro transform revision 为 `openrouter-input-transform/pro-scope-1`，该统计范围边界与所供估算算法修订分别约束。精确旧贡献身份仅在已有 lease 随 registry 退役协议排空时保留原捕获 reader 语义；默认官方表和工厂只供新身份。这不构成历史兼容入口，也不新增针对可信自定义完整代码贡献的全局禁入机制；其它可信贡献继承原 reader 前提，不因此取得新的上游统计范围认证。
