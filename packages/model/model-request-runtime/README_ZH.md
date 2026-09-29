@@ -376,7 +376,7 @@ console.log(delay.ok, next.ok)
 
 构造 `LosslessNumber` 时将 content-blocks 声明为直接依赖。时长接受 TD3 的 H/M/S 字符串、小数秒及等值写法，输出采用精确秒。系数复用公开 `JsonNumber` 表示，可保留十进制字面量及超过 2^53 的重试序号。普通 JavaScript 数值按调用时已有的十进制值处理，函数无法恢复调用前已经丢失的精度。
 
-函数复制并校验 JSON 数据、不读取 getter、不改调用者输入，也不取整到毫秒。算术结果不表示已经允许重试，不执行等待、发送、回退或默认重试贡献。实际定时精度和大时长调度仍受 R3-G7 约束；P-5/runner 接线及 37 模型认证尚待交付。
+函数复制并校验 JSON 数据、不读取 getter、不改调用者输入，也不取整到毫秒。算术结果不表示已经允许重试，不执行等待、发送、回退或默认重试贡献。实际定时精度和大时长调度仍受 R3-G7 约束。[交互 demo](../../../examples/model-invocation-minimal-demo/README_ZH.md) 已在模型路径接入 runner service 和 P-5 重试贡献；37 模型认证仍单独验收。
 
 ## 显式共享凭据脱敏
 
@@ -818,7 +818,7 @@ export function chooseRetry(subject: AfterModelCallFailureSubject) {
 }
 ```
 
-不允许回退时，本纯函数依据默认扩展已经记录的结论计数；同厂商续接不消耗那一次默认重试。若消费者不能取得完整结论历史，须返回 `unavailable`，不能补造结论；完整 P-5 接线仍待完成。
+不允许回退时，本纯函数依据默认扩展已经记录的结论计数；同厂商续接不消耗那一次默认重试。若消费者不能取得完整结论历史，须返回 `unavailable`，不能补造结论。P-5 工厂及插件已通过 demo 的 Cordis runner service 接线。携带 Run 的派发仍须由宿主提供已授权的 Run、日志及环境来源；普通无 Run CLI 不会自动调用 P-5。
 
 ## 在耐久调用中携带工具
 

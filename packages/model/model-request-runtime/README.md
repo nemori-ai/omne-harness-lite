@@ -378,7 +378,7 @@ console.log(delay.ok, next.ok)
 
 Declare content-blocks as a direct dependency when constructing `LosslessNumber` values. Durations accept TD3 H/M/S strings, including fractional seconds and equivalent spellings; output uses exact seconds. Coefficients use the public `JsonNumber` representation so a caller can preserve decimal literals and retry ordinals beyond 2^53. Ordinary JavaScript numbers retain the decimal value already present at the call boundary; precision lost before the call cannot be restored.
 
-The function copies and validates JSON data without reading getters, leaves caller data unchanged, and calculates without rounding to milliseconds. This arithmetic result supplies neither retry permission nor waiting, sending, fallback or a default retry contribution. Actual timer precision and large-duration scheduling remain subject to R3-G7; P-5/runner integration and the 37-model certification are pending.
+The function copies and validates JSON data without reading getters, leaves caller data unchanged, and calculates without rounding to milliseconds. This arithmetic result supplies neither retry permission nor waiting, sending, fallback or a default retry contribution. Actual timer precision and large-duration scheduling remain subject to R3-G7. The [interactive demo](../../../examples/model-invocation-minimal-demo/README.md) wires the runner service and P-5 retry contribution for the model path; 37-model certification remains separate.
 
 ## Decide a bounded default retry
 
@@ -397,7 +397,7 @@ export function chooseRetry(subject: AfterModelCallFailureSubject) {
 }
 ```
 
-The no-fallback branch counts the default extension's recorded conclusions, so a same-provider continuation does not spend its one default retry. If the complete conclusion history cannot be established, the consumer must return `unavailable` rather than invent one. The P-5 factory and plugin are available; production runner-host composition needs independent verification.
+The no-fallback branch counts the default extension's recorded conclusions, so a same-provider continuation does not spend its one default retry. If the complete conclusion history cannot be established, the consumer must return `unavailable` rather than invent one. The P-5 factory and plugin are wired through the demo's Cordis runner service. Run-backed dispatch still requires the host's authorized Run, log and environment sources; the ordinary no-Run CLI does not invoke P-5 automatically.
 
 ## Capture, prepare and recognize log values
 
@@ -634,7 +634,7 @@ console.log(legal.ok[0], list.ok[0].annotations, effective.ok.selectedBy)
 
 Legal targets do not filter credentials or deployment transport capabilities. A withdrawn tenant row lets a listed general row win; missing credentials or incompatible modalities do not cause fallback from the winner. Without a winner, landing prefers the most-specific listed row before any withdrawn row. Display includes legal names plus the selected name, with immutable refs and annotations; covered rows are annotations, not choices. No winner means exactly `withdrawn` or `scope_disallowed`, without evaluating its credentials or compatibility.
 
-Success is `{ ok: value }`. Malformed or missing required data returns `{ invalidInput: { reason } }`; explicit unknown required facts and an unexpectedly throwing compatibility callback return `{ unavailable: true }` without its original error. No partial result is returned. A selected/effective name with no row returns `{ profileNotFound: true }`. Credential facts are keyed by full winning ref and origin: absent required fact is malformed, explicitly unknown presence is unavailable. Outputs are owned and deeply immutable; borrowed callbacks remain caller-owned. The durable thirteen-operation service, actual current-evaluation reader and persistent projection cache remain pending.
+Success is `{ ok: value }`. Malformed or missing required data returns `{ invalidInput: { reason } }`; explicit unknown required facts and an unexpectedly throwing compatibility callback return `{ unavailable: true }` without its original error. No partial result is returned. A selected/effective name with no row returns `{ profileNotFound: true }`. Credential facts are keyed by full winning ref and origin: absent required fact is malformed, explicitly unknown presence is unavailable. Outputs are owned and deeply immutable; borrowed callbacks remain caller-owned. The thirteen methods are composed. This selection component does not provide a persistent projection cache; see “Durable session model selection” below for its bounded current-read consumer.
 
 ## Development
 
