@@ -67,3 +67,28 @@ describe('V12 six literal frozen definition alignments without reverse product d
     ).toEqual(causes.slice(0, 4))
   })
 })
+
+const currentMessages = schema('messages/v7/messages.schema.json')
+const currentResponse = schema('model-response/v10/model-response.schema.json')
+describe('M7-V6 MR10 owns the aligned no-cycle representations', () => {
+  for (const name of ['ResponseId', 'SelectedBy', 'CredentialScope', 'ParameterAdjustment'])
+    it(name, () => {
+      expect(assertions(path(currentMessages, ['$defs', name]))).toEqual(
+        assertions(path(currentResponse, ['$defs', name])),
+      )
+    })
+  it('dropped parameter representations remain exact', () => {
+    expect(
+      assertions(
+        path(currentMessages, [
+          '$defs',
+          'ModelCallDispatchedRecord',
+          'properties',
+          'droppedParameters',
+        ]),
+      ),
+    ).toEqual(
+      assertions(path(currentResponse, ['$defs', 'Route', 'properties', 'droppedParameters'])),
+    )
+  })
+})

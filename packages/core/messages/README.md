@@ -13,12 +13,14 @@ This is an experimental, private workspace package, currently not published on n
 | Public API                                                                | Purpose                                                                      |
 | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `judgeMessage`, `judgeMessageText`, `judgeMessageInLog`                   | Single-message admission, strict JSON reception and forward-reference checks |
-| `judgeModelInvocationRecord`, `judgeModelInvocationRecordText`            | Admit five invocation record kinds, separately from messages                 |
+| `judgeModelInvocationRecord`, `judgeModelInvocationRecordText`            | Admit seven invocation record kinds, separately from messages                 |
+| `judgeModelCallCreatedPayload`, `judgeModelCallCreatedPayloadText` | Intrinsic created payload judgment and strict text reception |
+| `judgeModelReplyMessage` | Original-first reply/persisted message relation |
 | `isReadable`, `judgePairing`, `judgeCompactionList`                       | Prefix-dependent checks with explicit external inputs                        |
 | `brandMessage`, `brandRecord`, `isWireMessage`, `isWireRecord`, `Wire<T>` | Shape-only transport restoration and wire typing                             |
 | Message/record types, `LogPrefixView`                                     | Seven message types and caller-owned ordered prefixes                        |
-| `validate`, `schemaId`; `./schema`                                        | Current MS6 shape validation                                                 |
-| `./schema/v2`, `./schema/v3`                                              | Exact resources for current transitive specification references              |
+| `validate`, `schemaId`; `./schema`                                        | Current MS7 shape validation                                                 |
+| `./schema/v2`, `./schema/v3`, `./schema/v6`                                              | Exact resources for current transitive specification references              |
 
 ## Examples
 
@@ -178,4 +180,63 @@ pnpm --filter @omne-harness-lite/messages run test
 
 Build workspace dependencies first. These checks cover this package; integration behavior requires the actual consumer and provider.
 
-The default entry and Schema use `data.messages/v6`. A dispatched record must carry the complete `profileSnapshot.inputConstraints` and `profileSnapshot.upstreamInputLimits` objects. `brandRecord` and `validate` check shape only; `judgeModelInvocationRecord` additionally checks the complete binding and actual parameter disposition. The snapshot receiver does not rerun the profile writer's cross-field cap comparison. Old record shapes fail at the current entry, without data rewriting. `./schema/v2` and `./schema/v3` remain exact Schema resources for current transitive specification references, without executable old codecs.
+The default entry and Schema use `data.messages/v7`. A dispatched record must carry the complete `profileSnapshot.inputConstraints` and `profileSnapshot.upstreamInputLimits` objects. `brandRecord` and `validate` check shape only; `judgeModelInvocationRecord` additionally checks the complete binding and actual parameter disposition. The snapshot receiver does not rerun the profile writer's cross-field cap comparison. Old record shapes fail at the current entry, without data rewriting. `./schema/v2`, `./schema/v3` and `./schema/v6` remain exact Schema resources for current transitive specification references, without executable old codecs.
+
+## MS7 creation and reply relations
+
+The current root compiles 50 definitions over 22 exact Schema resources. Creation values (`CallKey`, `CreationKey`, `ModelCallPayloadRef`, `ModelCallCreationInput`, `ModelCallCreatedPayload`) belong to this package. `model_call_created` and `model_call_reply_ready` are technical records, outside Message and OutboundMessage. `./schema/v6` preserves the original MS6 resource required by exact consumers; it is not an old execution entry. Adoption and verification obligations are in the [v7 mapping](../../../.meta_harness/design/realization/packages/core/messages/v7-design.md) and [M7-V1–V8](../../../.meta_harness/design/realization/packages/core/messages/verification.md#v7-创建记录与回复关系候选义务), accepted by [D110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md).
+
+### Receive original rejected creation input
+
+```ts
+import { judgeModelCallCreatedPayloadText } from '@omne-harness-lite/messages'
+
+const result = judgeModelCallCreatedPayloadText(JSON.stringify({
+  kind: 'created', status: 'rejected',
+  ref: { session: 'session_1', callId: 'call_1' }, creationKey: 'create_1',
+  origin: { tenant: { organization: 'organization_1', account: 'account_1' }, session: 'session_1' },
+  input: {
+    target: 'example/model', messages: [], tools: [],
+    basis: {
+      routeName: 'example/model', profile: { origin: 'official', routeName: 'example/model' },
+      selectedBy: 'session', selected: 'example/model',
+    },
+    sourceVersions: { report: 'immutable-report-version-1', context: 'immutable-context-version-1' },
+  },
+  cause: 'credential_unavailable',
+}))
+if ('rejected' in result) throw new Error(result.rejected)
+console.log(result.ok.status) // rejected
+```
+
+`judgeModelCallCreatedPayload` accepts explicit values; its text counterpart strictly rejects duplicate keys and preserves exact numbers. It checks intrinsic session, message and accepted binding relations. It does not resolve source versions, authenticate credentials, verify original bytes/digests or prove that a record was committed.
+
+### Judge a first paired derivation
+
+```ts
+import { judgeModelReplyMessage } from '@omne-harness-lite/messages'
+
+const original = {
+  id: 'reply_1', type: 'assistant', response: 'response_1', ending: 'complete',
+  createdAt: '2026-09-29T10:00:00Z',
+  blocks: [{
+    id: 'image_1', kind: 'image', visibility: { toHuman: true, toModel: true },
+    mediaType: 'image/png', data: { inline: 'eA==' },
+  }],
+}
+const image = original.blocks[0]
+if (image === undefined) throw new Error('missing original image')
+const persisted = { ...original, blocks: [{
+  ...image,
+  renderings: [{ producedBy: 'system', blocks: [{
+    id: 'description_1', kind: 'text', visibility: { toHuman: true, toModel: true }, text: 'A description',
+  }] }],
+  transcript: 'A description',
+}] }
+const result = judgeModelReplyMessage(original, persisted)
+if ('rejected' in result) throw new Error(result.rejected)
+console.log(result.ok.response, !Object.is(result.ok, persisted)) // response_1 true
+console.log(judgeModelReplyMessage(original, { ...persisted, response: 'other' })) // { rejected: 'malformed' }
+```
+
+`judgeModelReplyMessage` checks the original first, the persisted message second, and their relation last. Success returns an owned persisted value. Every original member and original block position remains equal, including existing derivation and opaque data. Only an eligible media block with neither derived member may acquire a legal pair of renderings/transcript. This function performs no conversion and grants no write permission: the final writer must verify actual trusted conversion provenance, current access and the original atomic message/final batch. A self-reported `producedBy: 'system'` is only a representation.

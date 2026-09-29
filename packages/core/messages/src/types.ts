@@ -1,6 +1,7 @@
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import type {
   BlockId,
+  CapabilityId,
   CallId,
   ContentBlock,
   FileBlock,
@@ -244,7 +245,7 @@ export interface ModelCallCreationInput {
     readonly selected: RouteName
   }
   readonly sourceVersions: Readonly<Record<string, string>>
-  readonly targetChangedBy?: string
+  readonly targetChangedBy?: CapabilityId
 }
 export type ModelCallCreatedPayload = {
   readonly kind: 'created'

@@ -13,12 +13,14 @@
 | 公开 API                                                                  | 用途                                     |
 | ------------------------------------------------------------------------- | ---------------------------------------- |
 | `judgeMessage`、`judgeMessageText`、`judgeMessageInLog`                   | 单消息准入、严格 JSON 接收与前向引用检查 |
-| `judgeModelInvocationRecord`、`judgeModelInvocationRecordText`            | 接收五类调用记录，与消息分开             |
+| `judgeModelInvocationRecord`、`judgeModelInvocationRecordText`            | 接收七类调用记录，与消息分开             |
+| `judgeModelCallCreatedPayload`、`judgeModelCallCreatedPayloadText` | 创建内容内在关系与严格文本判定 |
+| `judgeModelReplyMessage` | 原回复优先的持久消息关系判定 |
 | `isReadable`、`judgePairing`、`judgeCompactionList`                       | 依赖前缀的判定，外部输入显式传入         |
 | `brandMessage`、`brandRecord`、`isWireMessage`、`isWireRecord`、`Wire<T>` | 只检查形状的传输恢复与交换类型           |
 | 消息／记录类型、`LogPrefixView`                                           | 七类消息与调用方拥有的有序前缀           |
-| `validate`、`schemaId`；`./schema`                                        | 当前 MS6 的形状校验                      |
-| `./schema/v2`、`./schema/v3`                                              | 当前规范传递引用所需的精确资源           |
+| `validate`、`schemaId`；`./schema`                                        | 当前 MS7 的形状校验                      |
+| `./schema/v2`、`./schema/v3`、`./schema/v6`                               | 当前规范传递引用所需的精确资源           |
 
 ## 使用示例
 
@@ -178,4 +180,63 @@ pnpm --filter @omne-harness-lite/messages run test
 
 先构建 workspace 依赖。这些检查覆盖本包；组合行为需针对实际消费者与提供者验证。
 
-默认入口与 Schema 采用 `data.messages/v6`。「已出门」记录须带完整的 `profileSnapshot.inputConstraints` 和 `profileSnapshot.upstreamInputLimits`。`brandRecord` 与 `validate` 只检查形状；`judgeModelInvocationRecord` 还检查完整绑定与实际参数处置。快照接收者不重新运行档案写入方的跨字段上限比较。旧形状在当前入口明确拒绝，不改写数据。`./schema/v2` 和 `./schema/v3` 仅供当前规范传递依赖引用，不提供旧执行 codec。
+默认入口与 Schema 采用 `data.messages/v7`。「已出门」记录须带完整的 `profileSnapshot.inputConstraints` 和 `profileSnapshot.upstreamInputLimits`。`brandRecord` 与 `validate` 只检查形状；`judgeModelInvocationRecord` 还检查完整绑定与实际参数处置。快照接收者不重新运行档案写入方的跨字段上限比较。旧形状在当前入口明确拒绝，不改写数据。`./schema/v2`、`./schema/v3` 和 `./schema/v6` 仅供当前规范传递依赖引用，不提供旧执行 codec。
+
+## MS7 创建内容与回复关系
+
+当前根入口基于22份精确Schema资源编译50个定义。创建值（`CallKey`、`CreationKey`、`ModelCallPayloadRef`、`ModelCallCreationInput`、`ModelCallCreatedPayload`）由本包唯一拥有。`model_call_created` 与 `model_call_reply_ready` 是技术记录，不属于 Message 或 OutboundMessage。`./schema/v6` 保留精确消费者所需的原 MS6 资源，不提供旧执行入口。采用映射与验证义务见 [v7映射](../../../.meta_harness/design/realization/packages/core/messages/v7-design.md)、[M7-V1–V8](../../../.meta_harness/design/realization/packages/core/messages/verification.md#v7-创建记录与回复关系候选义务)，接受依据为 [D110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)。
+
+### 接收被拒绝创建的原输入
+
+```ts
+import { judgeModelCallCreatedPayloadText } from '@omne-harness-lite/messages'
+
+const result = judgeModelCallCreatedPayloadText(JSON.stringify({
+  kind: 'created', status: 'rejected',
+  ref: { session: 'session_1', callId: 'call_1' }, creationKey: 'create_1',
+  origin: { tenant: { organization: 'organization_1', account: 'account_1' }, session: 'session_1' },
+  input: {
+    target: 'example/model', messages: [], tools: [],
+    basis: {
+      routeName: 'example/model', profile: { origin: 'official', routeName: 'example/model' },
+      selectedBy: 'session', selected: 'example/model',
+    },
+    sourceVersions: { report: 'immutable-report-version-1', context: 'immutable-context-version-1' },
+  },
+  cause: 'credential_unavailable',
+}))
+if ('rejected' in result) throw new Error(result.rejected)
+console.log(result.ok.status) // rejected
+```
+
+`judgeModelCallCreatedPayload` 接收显式值；文本入口严格拒绝重复键并保留精确数字。它核内在会话关系、消息与 accepted 绑定关系，不取回来源版本、不验证凭据、原字节摘要或已提交记录。
+
+### 判定首次成对派生
+
+```ts
+import { judgeModelReplyMessage } from '@omne-harness-lite/messages'
+
+const original = {
+  id: 'reply_1', type: 'assistant', response: 'response_1', ending: 'complete',
+  createdAt: '2026-09-29T10:00:00Z',
+  blocks: [{
+    id: 'image_1', kind: 'image', visibility: { toHuman: true, toModel: true },
+    mediaType: 'image/png', data: { inline: 'eA==' },
+  }],
+}
+const image = original.blocks[0]
+if (image === undefined) throw new Error('missing original image')
+const persisted = { ...original, blocks: [{
+  ...image,
+  renderings: [{ producedBy: 'system', blocks: [{
+    id: 'description_1', kind: 'text', visibility: { toHuman: true, toModel: true }, text: 'A description',
+  }] }],
+  transcript: 'A description',
+}] }
+const result = judgeModelReplyMessage(original, persisted)
+if ('rejected' in result) throw new Error(result.rejected)
+console.log(result.ok.response, !Object.is(result.ok, persisted)) // response_1 true
+console.log(judgeModelReplyMessage(original, { ...persisted, response: 'other' })) // { rejected: 'malformed' }
+```
+
+`judgeModelReplyMessage` 先判原回复，再判持久消息，最后判两值关系。成功返回拥有自己的持久消息副本。每个原成员与原块位置都须保持相等，包括已有派生及 opaque。只有原本同时缺少两个派生成员的合格媒体块可新增合法 renderings/transcript 对。本函数不执行转换，也不授予写权：最终写方仍须核真实可信转换来源、当前资格和消息/final原子原批。自报 `producedBy: 'system'` 只证明表示。
