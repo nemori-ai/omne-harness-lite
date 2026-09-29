@@ -1,3 +1,11 @@
+## v7 模型路径服务接线候选（2026-09-29）
+
+**2026-09-29 模型路径窄增量已技术采用**：[D106后继](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)采用本节点新候选的精确受审字节及有限消费接续。语义沿现行接受规范；可实施范围见该决定；新增绑定0；实际源码和相应验收尚待，不把起草时candidate标签或旧checkpoint当现行采用结论。
+
+[v7-model-service-design.md](v7-model-service-design.md)接续已接受 Runner5/LC6 和 D106 公共执行面。**语义接受：既有契约有，本服务接线增量未技术采用**；**可实施：候选明确同 E 链读取、精确历史正文、登记/注销代际、同一公共 runPass 及纯 replay 核，待独立评审和采用**；**新增绑定：0**；**实际验证：本增量尚无**。当前源码已有公共 runPass/log adapter/task owner，既有 427 项函数证据不证明 Cordis 服务已经交付。
+
+本轮仅模型必要经过与 P5 登记组合，不建设通用资产、完整 Run、卡片等待或工具执行。MF4/AR4 实际来源的有限接续、既有 MF 公开投影到 Runner5 S-6 的窄映射及真实 Cordis/manifest/JSONL 验收义务见 [R7 验证与缺口](verification.md#v7-模型路径服务接线)。不增加 registry API；外部 waiting/生产 Run 来源缺席仍 unavailable，不用假值放行。以下段落是各自历史观察时点，公共函数的当前实施事实不反写旧采用正文。
+
 ## 2026-09-29 公共执行面采用增量
 
 [D106 追加](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md) 已技术采用 v6 revision1 及继承的公共 runPass／日志适配／任务 owner 范围；独立窄复核原 B1 闭合。可实施完整条件函数，尚未实施或验证。生产等待、Run、G3/G5、P-5 及 Cordis 服务装配未因采用关闭。下方候选状态是起草时事实，当前采用范围以该决定为准；V6-1～9 仍待执行。

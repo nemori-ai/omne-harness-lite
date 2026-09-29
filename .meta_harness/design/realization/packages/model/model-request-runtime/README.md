@@ -1,3 +1,12 @@
+## 2026-09-29 模型侧 Run／失败经过／默认重试接线候选
+
+**2026-09-29 模型路径窄增量已技术采用**：[D106后继](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)采用本节点新候选的精确受审字节及有限消费接续。语义沿现行接受规范；可实施范围见该决定；新增绑定0；实际源码和相应验收尚待，不把起草时candidate标签或旧checkpoint当现行采用结论。
+
+- **语义接受**：RT10、SL3、MR9、LC6、Runner5 及 D087/D100/D106/D107 对应责任已接受；本次 [v17 窄接线](v17-model-consumption-design.md) 未技术采用，不改原冻结映射。
+- **可实施**：候选明确 withRun 成组消费、同次 owned prefix 正向 Run 解释、原十三方法上的显式失败消费资源与 P-5 最小贡献。生产 Run 终结/卡片来源仍外置；缺来源具名 unavailable 不能掩盖模型消费成功面未实现。
+- **绑定证据**：新增 0；[M17-V1～V12](verification.md#m17-模型侧-run失败经过与默认重试接线候选) 为待执行真实组合义务，不重记已通过 runPass 或 U3 的证据。
+- **实际验证**：本增量没有运行验收；当前 noRun 实现、纯 retry 函数与公共 runner 已有证据分别保持，不因此称为 withRun/P-5/同 prefix 服务交付。M17-G1～G5 分列采用、外域前提与本程接线/验证。
+
 2026-09-29：[D-107 后继采用](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md#同日后继采用-transport-v12-revision-2-与-runtime-v16) 已技术采用本节点输入校准映射；原 Anthropic B1 在设计层闭合，实际组合/上游/性能验收仍待。新增绑定0，以下候选标记按起草日期读取。
 
 ## 2026-09-29 输入观察校准候选

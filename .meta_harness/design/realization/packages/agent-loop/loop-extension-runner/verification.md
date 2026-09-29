@@ -193,3 +193,33 @@ G3-0 的 runner3/runtime3 candidate 登记已完成，LC4/MS4/MR4/AE4/AR3/MF3 �
 - **RP6-G2（S-33/S-34、SL3 S-22/S-23）**：v5 RUN5-G5 实际宿主、可信停止/恢复与未知任务留存仍未验；本次补owner端口覆盖不关闭它。等待/执行资源同样需真实停止责任，不把abort当物理完成。
 - **RP6-G3（S-26/S-53/S-54）**：v5 RUN5-G3同prefix source、P-5实际贡献与生产Run来源/终结认法保持。函数需要真实合法Input，不能用假的Run解锁noRun demo，条件fixture不提升服务完成度。
 - **RP6-G4（S-21/S-29/S-32）**：完整Cordis服务、before_action整批协调、入口身份核实、时钟/发号/执行环境等宿主由原owner承担；本候选只释放完整函数施工条件，不把外部义务删去或暗放进胶水。原来源未裁项不重开不关闭。
+## v7 模型路径服务接线
+
+对象为 [v7 revision1 candidate](v7-model-service-design.md)，新增绑定 0，尚无本服务增量实际运行。既有公共函数 427 项报告保持它自己的版本/范围，不升格成 Cordis 或生产 Run/waiting 验证。
+
+| 门／条款 | 必须可失败的实际验证 | owner 与限制 |
+|---|---|---|
+| R7-V1 Runner5 S-6 | 真实 storage/MF/AR producer 写 loop_extension 表 E1、另一类别更新 E2，runner仍选E1；given/mint完整构成；另以契约合法输入经真实MF追加 loop_extension reuse 同序删除（不要求扩AR生产操作），本节点必须读成功，移用AR私有slash_command限制的负控须失败。错filledBy/producer、版本/来源/顺序/引用、content缺额外槽、读不到与空链分别测；造全局readEvaluation替换E1、当前lookup假锁历史版本均失败 | runner/source 接线；已有MF公开投影与本类别S-6映射，不以手写单P5链或一套新S-48通用validator签收 |
+| R7-V2 S-6/S-9/S-50、IV1 | 实际 STT 身份与 JSONL binding 一致；跨租户、不同session/物理代际、历史版本被换成当前body、资格不可读、来源插件卸载均不能调用实现或写结论；同 scope 可见不代替权限。真实EIS历史read与不可变发布版本接线 | 宿主与runner；限定已有提供者支持来源，不新开资产治理 |
+| R7-V3 S-7/S-12/S-34 | 真Cordis P5注册、同名第二fiber启动失败、原条目仍在；注销A→注册B→旧A disposer不删B；已开始A注销后迟到output必须errored，未开始缺席按unavailability，runner自身停止则unavailable且不落迟到结论 | 登记面唯一owner runner；P5政策/runtime独立 |
+| R7-V4 S-31～34、SL3 | sessionLog依赖替换导致runner/贡献者重载；实际延迟invoke、已发append、取消与停止交错，旧句柄失效、late rejection被消费、任务实际未停不得假close。部分初始化第二provide失败收回首面，借用log/reader不被runner关闭 | runner+日志宿主；不能只spy disposer |
+| R7-V5 S-21/S-28/S-53/S-54 | 服务dispatch经真实同E链→同一公开runPass→SL3；原完整failureSubject由同prefix runtime闭包核；串call/tenant/第二尾补history/遗漏重复retry负控失败。正常新追加不使原prefix自动失效，finally释放消费权 | runtime来源owner+runner；noRun after_model_call保持invalidInput |
+| R7-V6 S-22 | 纯readPassConclusions与dispatch共用历史核：跨attempt的原ask/final全序列；合法无记录空、不可读不空、改链replayInconsistent。服务replay不带attempt；给invoke/record/append/reminder/now/mint/guard/readAskState设会失败的调用探针，调用次数全部0 | runner；不使用有副作用runPass加假端口实现 |
+| R7-V7 S-14/S-26、RT10 S-35/S-50/S-67/S-76 | 真实P5 fiber从当前manifest选中、纯政策输出→真实canDispatchAgain全联合→落retry→后续dispatchAgain重新守卫。默认retry次数按其自身历史，不混dispatch/自定义结论；partial/interrupted_mid_reply无第二发送，事后限额拒绝保留既有retry事实 | runtime+runner+实际模型宿主；有Run成功仅在合法具名来源前提下 |
+| R7-V8 S-11/S-19/S-28、SL3 | 双调用同件竞争、合法异值胜者、共享提醒键相同/异值、ask及嵌套veto；真实JSONL delayed append/datasync失败unknown，旧host持责到实际stop/reopen/reconcile，原值/合法异值/可信absent分开 | 日志宿主主责；沿既有owner算法，不造第二恢复平台 |
+| R7-V9 S-9/S-21/S-50 | 等待源缺席unavailable；具名受控等待源四世界与偏离锁存，贡献者catch后output不能绕过；短句柄调用结束后读失败且不返缓存；缺执行环境不能落宿主机 | runner消费边界；不宣布产品卡片/等待交付 |
+| R7-V10 SYS-OPEN、P5登记账本 | 两包clean build/pack、仓库外只从公开入口把P5工厂结果接真实registerBuiltin，严格类型与运行装卸通过；检查runtime不反依runner包、不moduleaugmentation复制服务。缺登记面P5待依赖，非法静态policy/重复注册失败；两包README/README_ZH实例执行 | 实施/verification owner；禁止靠工作树残留dist消除构建环 |
+
+### R7 覆盖缺口
+
+| 缺口 | 精确影响 | 关闭条件 |
+|---|---|---|
+| R7-G1 当前服务/登记及MF4/AR4有限接续未采用 | Runner5 S-6/S-7/S-21/S-22；本服务实现 | 主线独立评审后采用本候选与runtime对应消费接线；不修改冻结依赖坐标冒自动升级 |
+| R7-G2 同E记录校验与历史正文公共接线待落 | S-6；真实chain reader | 复用已有MF公开readEvaluationProjection/core判定＋runner本类别S-6映射和既有精确历史reader；字段已足够，无需新registry API。受限reader借用授权/静态消费边界待有限采用；实际number/content与原请求绑定验收，不伪造AssetVersion.id或用最新lookup假冒指定版本 |
+| R7-G3 同prefix failure/模型guard/P5尚未实际组合 | S-14/S-26/S-53/S-54；模型失败经过 | runtime唯一拥有来源/政策接口，runner登记ledger已明确；通过R7-V5/V7/V10 |
+| R7-G4 物理日志宿主共享owner未在本增量验收 | S-34与SL3 unknown；服务停止/恢复 | 真实host持责与R7-V4/V8；不关闭借用资源、不将fiber卸载当物理停止 |
+| R7-G5 生产waiting/Run终结/工具执行外源不在本轮 | S-9/S-21/S-50及RT10 G28；依赖这些源的生产分支 | 外部owner另行供给；当前验收缺席具名失败和条件消费，不能永远硬编码所有有Run路径unavailable，也不能要求先实现完整系统 |
+
+### R7 本次静态检查
+
+2026-09-29：新候选全文及 README/本节新增内容的 24 个相对链接逐一核目标与锚点，错误 0；`git diff --check` 退出 0。未安装工具依赖；本 spoke 没有 Python 项目环境，完整 design gate 归主线集成检查。没有运行产品、Cordis、JSONL、formal 或付费模型验收；R7-V1～V10 仍是义务，不能写入绑定表。

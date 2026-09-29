@@ -35,3 +35,21 @@
 不采用为已完成：Cordis dispatch/replay 服务装配、P-5 真实贡献登记、G3 runtime 同 prefix 接线、G5 生产日志宿主可信停止/恢复、G28 生产 Run 终结来源和卡片等待 owner。公共函数可在明确受控前提下验证有 Run 的分支，但 noRun after_model_call 及 producer=model/tool 的 before_persist_message 仍 invalidInput；不能据函数测试签收真实治理 Run。MR9/RT10 usage 候选不是此增量的依赖，不预先消费。
 
 施工与技术签收按 V6-1～9 及仍适用 V5 义务：顺序确认、ask 四世界、多轮重演/偏离锁存、真实 JSONL 同键竞争/重开认回、未知保留与可信停止前不重求、共享提醒冲突、实际取消及迟到结果归属、严格公共类型、制品消费者和双语 README。生产接线与条件函数证据分别报告。新增绑定 0；此采用不是实现或完整 model runtime 纵线交付声明。
+
+
+## 2026-09-29 追加：模型侧条件消费与 runner 服务技术采用
+
+主线依用户持续实施、主调度与技术验收授权，依据原[模型适配提案](../../proposals/model-request-adaptation/design.md)及[本次联合架构和独立表达核对](../../proposals/model-request-adaptation/review.md#2026-09-29-模型侧条件消费与-runner-服务联合窄评)，技术采用以下精确提供者增量。两次独立核对均无本范围阻断，主线核源码消费边、既有正式规范及范围后作此采用；不是用户完整交付签收。
+
+- [runtime v17 revision1](../../../realization/packages/model/model-request-runtime/v17-model-consumption-design.md)，SHA256 `a4e73586c1614126874b641428914c767d0d8a2e514b93b615c7fc1f188f5b8e`，M17-P1～P6：合法同前缀Run解释、withRun写方/原批/结算/恢复成组消费、原三个操作的显式失败来源技术重载、P5纯贡献和薄插件、实际guard与所有权交接。
+- [runner v7 revision1](../../../realization/packages/agent-loop/loop-extension-runner/v7-model-service-design.md)，SHA256 `caf86ef7b78dae0a106ced11d14951bdc667e6eed1a1a6950758c7e06fe754a3`，R7-P1～P6：同E历史链、Cordis双服务面、唯一贡献登记代际、既有runPass消费及共享纯replay读取核、真实宿主的日志/未知任务责任。
+
+这次仅接续D087/D100/D106/D107的模型路径实现映射。RT10/MR9/Runner5/LC6等规范及冻结资源不改；十三业务操作不增加，技术source不序列化、不成为新凭证/存储。原正文candidate标签是受审字节的历史状态，当前可实施范围以本追加为准。新bindings为0，M17-V1～V12及R7-V1～V10尚待实际实现和验收。
+
+明确有限消费接续：Runner5原MF3/AR3依赖不自动改版；采用MF4保留的readHead/readHistory/dependencyPresence及AR4同E不可变正文关系，按v7的S-6窄映射消费真实公开MF投影。合法loop_extension reuse不得被AR六类生产操作里的slash_command限制误拒。不上移成通用registry API，不复制完整AR生产校验。
+
+同时显式扩展D080既有EIS `./registry-history`技术闭包的受信借用方：runner宿主可构造/持有关闭权，向runner注入read-only闭包。该消费者必须先核实际session/tenant/filledAt/capability/asset/version及同E来源，并由原EIS/STT/MF/OG实现核当前资格和历史绑定；不授权租户资产正文或任意插件取得构造/关闭权。原EIS提供者算法、存储及同步保证不变，静态来源边界检查须随实际生产接线更新且有拒绝负控。
+
+实施以runtime/runner两个唯一源码owner并行，公开重载与登记签名沿受审节点；共享host装配单独集成。P5不产生runtime→runner包依赖，不新增core包；runner纯replay不带假attempt、不求值、不写入；source必须由原owned前缀产生，撤除后失效且原unknown任务保留。每个包交付独立公开构件、Cordis生命周期、双语README和真实制品消费例。
+
+完整生产Run终结协议、卡片等待、Session/Inbound/AgentLoop和工具执行不纳入本次纵线。缺实际源仍按既有契约拒绝，但不得硬编码拒绝合法注入来源后宣称模型侧完成。仅此追加取代D106先前对应“服务/P5/G3尚未技术采用”的范围；不改写旧采用历史，不表示生产外部源或D1～D7/37模型已交付。

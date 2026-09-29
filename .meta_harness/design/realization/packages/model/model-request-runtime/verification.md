@@ -274,3 +274,25 @@ G-20初始模型完整推出规则、中心/据点复制、完整Agent Loop和�
 U16-V6/V7须分别覆盖原selected reply与同call较早dispatch的无reply响应：按同授权前缀核原D/R、稳定键、完整值、连续dispatch及调用身份/binding，固定planner再核P/θ/G；target call/dispatch来自当前服务调用，不能由外部trusted布尔替代。原G可来自reply、delivered或none；Input未知不推进锚。不同call无M且没有显式可判因果边时保持sourceUnavailable/更早合法观察，不能把物理日志先后当祖先证明或声称已完整支持该范围。
 
 物理M/R同批由原结算append协议和SL3保证，须在U16-V8/V9实际I/O中验证；只读的条目邻接和值关系不是物理batch certificate。本增量不新增存储证书。这是已采用v16的责任边界核对及待执行义务，不是新增实现通过结果。
+
+
+## M17 模型侧 Run失败经过与默认重试接线候选
+
+对应 [v17 revision 1](v17-model-consumption-design.md)，**技术采用尚无，新增 bindings 0，以下均待执行**。规范与原公共 runPass 接受不代真实消费验收。纯条件、实际 JSONL、实际 Cordis、正式生产外域源四种证据分开，不将测试认法发布成 Run 终结协议。
+
+| ID／条款 | 可实际运行的正向、反例与观察 | owner／覆盖限制 |
+|---|---|---|
+| M17-V1：RT10 S-17/S-69/G28 | 真 JSONL 全读 owned prefix；实际 MS6 attempt_started 检出原 attempt/更大 attempt；终结轴由明确受控解释器完整给出。前缀反射伪造、错 log/tenant/run、原 attempt 不存在、latest 小于原、一个轴未知皆 unavailable；未知终结不可因 superseded=true 短路 | runtime＋来源 owner；条件算法验收，不证明生产终结协议。取消 owned 校验或 unknown→false 的编译负控失败 |
+| M17-V2：S-69/S-70 | 原解释器只接捕获 prefix；新读另一尾、跨代际、局部 readByKey 重封为 full、terminal 来自 model_call_ended／after_terminal 都不能放行。noRun 不调用 Run reader；已有合法原完整响应认回不重新要求当前终结可判 | runtime；调用计数/完整输入和错误优先级一起验，不能仅看返回 unavailable |
+| M17-V3：S-68/S-69；SL3 S-17/S-33 | withRun 正常 dispatched/opened/intent 用真实 fenced+unconditional；响应及外部完整 M/R 用 unfenced+同前缀 tailEquals。真文件双写交错：更大 attempt 或无关条目先提交，旧尾零写；响应先提交后新 attempt，原 late 原值不追改 | runtime＋JSONL；tail比较由真实provider执行，移到内存检查/改unconditional的负控失败；终结轴条件前提单列 |
+| M17-V4：S-17/S-49/S-70/S-73 | 真实外部 persisted M/R 与 runtime consumed/vetoed/无回复R各向竞争；只一完整合法批，败方不留孤M；same处分认回与异处分alreadyEnded按原规则。response.call.runId、顶层attemptId、原dispatched壳和归账新attempt逐项核；amount/headers/InputCalibration全字段保真 | runtime＋外部回复owner；既有同键“任意碰撞即成功”负控必须失败；不跑第二次计量改原payload |
+| M17-V5：S-17/S-70/S-72 | opened追加迟到/回执丢失时，任何普通响应/失败subject/重试不可产；interrupt意图已确认仍原时点返回。旧append unknown后新tailChanged/alreadyRecorded/attemptSuperseded不清旧owner；延期socket/回调/stopped保持lease | 原宿主＋runtime＋JSONL；需要真实延迟写/物理停止观测，不能把AbortSignal当stopped |
+| M17-V6：S-33/S-69/S-81 | 同一withRun发出旧attempt、恢复在新attempt，原顶层attemptId不变而归账壳依规范取新attempt；零HTTP、原完整批优先、失联无事实如实unknown/null。缺生产Run reader依赖分支unavailable，无关noRun/selection不全停；普通控制记录有效fence缺失不伪造 | runtime恢复＋可信宿主；冷退出与权威恢复读，生产终结源仍外置；不重复以新meter重造旧批 |
+| M17-V7：S-34/S-76；Runner5 S-26/S-53 | readAttempts与已failed的dispatch/dispatchAgain显式技术申请，在**生产主体那一次full read**生成source；正常调用无scope。真实runner retry条目含同值重复/自定义/跨调用，完整保留次序；故意第二尾补证、漏同值项、换profile/dispatch/status/inBand、错tenant/call均拒绝 | runtime source＋runner组合；坏完整来源时原业务unavailable，不成功配空历史；规范结果序列化不含函数/资源 |
+| M17-V8：Runner5 S-26/S-54；RT10 S-36 | 真同日志代际配对进入runPass，普通无关追加后旧subject仍可verify；release后/撤销读权/日志更代/host关闭不可verify。runner finally与外层finally双release无害；初始化失败、未开始runner和取消均收资源；原unknown append仍由taskowner持有 | runtime＋共享宿主；scope释放不提前释放任务。技术申请wrapper吞第二参数、普通调用偷偷持scope、scope被重新序列化各负控失败 |
+| M17-V9：S-35/S-60/S-67/S-76 | P-5真factory＋真实runner登记；fixed name/position/dimension/implementation匹配；policy缺/非法启动失败，sample明确注入；两个dispatch但零/一条已给retry必须算不同，decorrelated从原同主体最后default retry plan.after，首次显式policy.base；自定义不计、重复default不去重 | runtime P-5＋runner；纯decideRetry已有回归复用，不重写。Math.random/固定n/另一尾/把resumable计retry负控失败 |
+| M17-V10：Runner5登记/撤除；Cordis生命周期 | 真Cordis起P-5，登记依赖缺席不发布；同名重复启动失败旧项仍在；热换/注销只本generation，迟到结果不能以新代际提交；样例显式cfg变化仅新贡献生效，部分失败无残留登记 | runner注册唯一owner＋P-5；runtime主P2不反向inject，clean制品build/类型/加载检查无workspace环，无moduleaugmentation双权威 |
+| M17-V11：S-30/S-50/S-66；Runner5 S-14/S-26 | 真实canDispatchAgain全联合映射，allowed才落retry，refused why原值；无why不补。已确认retry后显式调度等待，再由dispatchAgain重新guard；限额/凭据/停止拒绝保留retry；partial/interrupted_mid_reply/opened unknown零第二发，noRun after_model_call零invoke | 模型必要组合宿主；受控合法Run＋真JSONL/guard证明条件链，不能标生产Run完整交付 |
+| M17-V12：全部生命周期/公开消费 | 当前13方法业务返回回归；scope overload中英literal在两实际制品编译/执行，normal result无资源类型；P5贡献结构直接传runner真实registerBuiltin。共享宿主关所有准入→物理log停/可信退出→reconcileStoppedLog→drain，故障/unknown留存有原始证据；工程trace关联有据且不泄完整主体 | 各包/示例/主线；文档示例不制造产品Run终结记录，不新增acceptance app，既有U3/37模型证据不借此升级 |
+
+**覆盖缺口**：M17-G1 技术采用归主线；M17-G2 正式 Run 终结认法/写方是边界外前提，缺席行为与模型条件消费仍须实际验；M17-G3 同 prefix 服务消费和可信日志代际配对归 runtime/runner 组合；M17-G4 P-5登记/共享宿主归对应owner，真实卡片等待外置；M17-G5 当前withRun成组实现、错误顺序及十三方法正反/unknown义务属本轮，不能用外域未交作恒unavailable的免责。设计检查不证明运行，真实失败证据产生后才可另登记绑定。

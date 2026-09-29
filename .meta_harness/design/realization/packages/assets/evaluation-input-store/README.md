@@ -1,5 +1,7 @@
 # evaluation-input-store
 
+**2026-09-29 受限历史读面的新增消费者**：[D106后继](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)明确允许模型路径runner宿主借用既有 `./registry-history` read闭包；构造/关闭仍归受信宿主，实际资格/历史绑定和存储责任不变。静态边界及真实接线随runner实施验收，本条不扩大租户JS权限或改动D080受审正文。
+
 > 历史路径提示：本页所称 `apps/model-request-acceptance`／`model-request-acceptance` 是 D-076 采用时的技术验收装配坐标；当前已退出 `apps/` 映射。现行归属与剩余责任以[实现映射入口](../../../README.md)为准。
 
 

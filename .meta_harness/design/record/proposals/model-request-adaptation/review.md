@@ -237,3 +237,14 @@ G3返回完整authoritativeSubject并捕获同prefix/身份/代际/释放；G5�
 独立 architecture-reviewer 核对提交 `7eebe44bfc3196e050746a3c1ce452be43d5ac8a`（HUB `f7db3298`），[v6-run-pass-design.md](../../../realization/packages/agent-loop/loop-extension-runner/v6-run-pass-design.md) SHA256 `0ca2f23a21242d7d118ed978df27d86d11726b5fcd11377b5fb8fa8adf06240a`；v5 revision3 字节未变。原 B1（ask 就绪与重演偏离缺可区分端口）闭合：readAskState 区分 pending/ready/关联不一致/不可读，原轮次/卡片/批次/答复有来源校验；重演原 subject/earlier、新句柄，偏离由控制 owner 锁存，贡献者 catch 后正常返回也不能掩盖。
 
 四组结果：本范围无剩余阻断；无新增非阻断；生产等待、Run、G3/G5 及服务装配仍是范围外真实 owner 依赖，不阻具备明确前提的公共执行函数；未运行实现、TLA 或生命周期探针，V6-1～9 仍待执行。完整历史与有效结论分开投影，unknown owner、合法竞争胜者、共享提醒键与同 prefix 验证保留。反方的少端口/把所有偏离当普通错误虽较短，但不能区分四种等待事实，已由 v6 关键选择表承担其取舍。此审查不代替技术采用或生产签收。
+
+
+## 2026-09-29 模型侧条件消费与 runner 服务联合窄评
+
+对象为 runtime v17 revision1（SHA256 `a4e73586c1614126874b641428914c767d0d8a2e514b93b615c7fc1f188f5b8e`）及 runner v7 revision1（`caf86ef7b78dae0a106ced11d14951bdc667e6eed1a1a6950758c7e06fe754a3`），各自三文件/两spoke基线 b8018e93。独立 architecture-reviewer 核对六文件及规范SHA，结论在此范围无阻断、无新增非阻断架构缺陷或新产品裁决。主线另派未参与两稿起草的独立表达核对，按 spec-reviewer 职责核重载/生命周期/当前读面/验证对应，亦无阻断；不是同一作者自审。
+
+架构核对：同一 owned prefix 推导 Run/late/tail、原批优先与 unknown 原任务责任；失败 source 在原读取中形成、显式三方法技术重载保留业务联合；同 E 历史正文及合法 loop_extension reuse；runner 唯一登记代际与 P5 无反向包依赖；纯 replay 零求值/guard/写；完整 Run/Session/Inbound/Loop/工具执行保持边界外。表达核对：guarded 全链转发、两种返回投影、源释放与错误顺序、MF4/EIS 实际路径和请求七字段、P5 结构兼容及 M17-V1～12/R7-V1～10 可对应。
+
+保留前提：Run 终结和真实 waiting owner 由外部提供；受限 EIS reader 的 runner 消费授权及 MF4/AR4 有限接续须主线显式采用。外部源缺席不授权伪造成功，也不阻合法条件消费的实现与验证。两次核对未运行产品、Cordis、JSONL故障、形式、制品或付费模型；427公共函数证据不能代替服务验收。
+
+反方论据：直接在失败值附句柄减少包装但令普通调用暗持资源；全依赖inject提前暴露缺席但扩大不可用范围；复用runPass做replay少一个入口但不能兑现零副作用。若实施另读尾补scope、拒绝合法reuse、replay写入、scope撤除追改已完成事实、fiber撤除丢unknown，应重新判为交付阻断。主线复核后作[D106后继技术采用](../../decisions/runner-current-pure-provider-adoption/decision.md)，不将审查结论提升为实现通过。
