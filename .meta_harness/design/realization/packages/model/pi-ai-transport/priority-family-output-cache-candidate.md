@@ -1,6 +1,6 @@
 # 优先两家完整输出贡献与纯图缓存增量
 
-2026-09-29，revision 3，candidate，未接受、未实施；新增 bindings 0。实现基线 `b69f287d243b628210c1abce8f787fec8f95b508`。本页接续 D107 的 [v13](v13-output-history-design.md)、D109 的 [v15](v15-image-preparation-design.md)与[原 basis 适用接缝 revision 3](image-preparation-basis-applicability-candidate.md)，不覆盖其已接受字节。RT10/MR9 的 estimated、来源、历史组和 full/φ/δ 足以表达本增量；不新增公共契约或依赖 T29。
+2026-09-29，revision 4，candidate，未接受、未实施；新增 bindings 0。实现基线 `b69f287d243b628210c1abce8f787fec8f95b508`。本页接续 D107 的 [v13](v13-output-history-design.md)、D109 的 [v15](v15-image-preparation-design.md)与[原 basis 适用接缝 revision 3](image-preparation-basis-applicability-candidate.md)，不覆盖其已接受字节。RT10/MR9 的 estimated、来源、历史组和 full/φ/δ 足以表达本增量；不新增公共契约或依赖 T29。
 
 依据为 [OpenAI 窄研究](../../../../../research/model-request-adaptation/reports/2026-09-29-openai-closeout.md)、[Anthropic 窄研究](../../../../../research/model-request-adaptation/reports/2026-09-29-anthropic-closeout.md)，选择依据见[提案附页](../../../../record/proposals/model-input-usage-calibration/priority-family-choice.md)。原产品允许有依据的估算及可配置余量；以下均不是精确计数或可证明上界。
 
@@ -14,7 +14,7 @@
 
 算法顺序及失败：
 
-1. 沿 RT10/v13 核原 response 身份、摘要、组顺序、所选 Assistant 来源及字段一致性。可判伪造、坏摘要、矛盾或非法形状仍是 `invalidInput`，不能降格 full 或 unavailable。
+1. 沿 RT10/v13 核原 response 身份、摘要、组顺序、所选 Assistant 来源及字段一致性。可判伪造、坏摘要、矛盾或非法形状在 planner 仍是 `invalidInput{malformed}`，不能降格 full 或 unavailable。独立 measureReplay/measureNew 返回既有 invalidInput；独立 measureFull 的 TokenMeasurement 面只能沿 v13 返回 unavailable 且不产计量。这是既有端口表达差异，不是 planner 绕过来源门。
 2. 整组须对应当前实际发送投影中一个完整、连续、唯一的 assistant 单元；其中 text、tool、signed/encrypted reasoning 全部在同一覆盖中，不允许只取 reasoning、跨组拼接或重复覆盖。同组 text/tool 不再普通分词。已接受的工具 ID 映射沿原规则，不发明等价转换。
 3. 原 O 必须已知、来源为本次真实 upstream usage、响应完整，原输出字节/顺序未改；不得用推测 O、部分响应或实际非原组的派生表示。缺事实、未覆盖的不透明块、未知格式/算法或不在有限适用表时，该次必要贡献 `unavailable`，不按密文或 signature 的 JSON 长度分词，不丢历史。
 4. 原/今 basis 只经已接受 C 的 `relateMeterBases` 与家族 `OriginalBasisApplies` 纯谓词解释；所有复合 revision 解析复用共享 inspect。谓词精确命中有限原记录，不用版本范围、前缀匹配或 current 条件替代 original。
