@@ -101,173 +101,193 @@ function construction(
 }
 
 describe('D102 unified model runtime owner', () => {
-  it('runs selection, open, dispatch, reply settlement, durable read and close on real SQLite/JSONL', async () => {
-    const host = await selectionHost(true, true)
-    try {
-      const selected = host.create()
-      const registrations = new Set<Parameters<ModelCallHost['register']>[0]>()
-      const callHost: ModelCallHost = {
-        signal: new AbortController().signal,
-        stopping: () => false,
-        register(close) {
-          registrations.add(close)
-          return {
-            registration: {
-              unregister() {
-                if (!registrations.delete(close)) throw new Error('call owner released twice')
-              },
-            },
-          }
-        },
-      }
-      const wire = transport()
-      const calls = createCallContainerStore<TestPlan, object>()
-      let released = 0
-      let nextCall = 0
-      let holdBind = false
-      const bound = deferred<{ readonly binding: SessionRuntimeBinding }>()
-      const binding: SessionRuntimeBinding = {
-        log: selected.input.binding,
-        selection: { ...selected.input, projection: async () => ({ known: [] }) },
-        catalog: host.catalog,
-        currentEvaluationInputs: host.reader,
-        credentials: {
-          async value() {
+  it.each([false, true])(
+    'runs the real SQLite/JSONL runtime through close (scope cleanup initially fails: %s)',
+    async initiallyFails => {
+      const host = await selectionHost(true, true)
+      try {
+        const selected = host.create()
+        const registrations = new Set<Parameters<ModelCallHost['register']>[0]>()
+        const callHost: ModelCallHost = {
+          signal: new AbortController().signal,
+          stopping: () => false,
+          register(close) {
+            registrations.add(close)
             return {
-              scope: { layer: 'factory' as const },
-              value: new TextEncoder().encode('test-secret'),
+              registration: {
+                unregister() {
+                  if (!registrations.delete(close)) throw new Error('call owner released twice')
+                },
+              },
             }
           },
-        },
-        tools: {
-          async lookup() {
-            throw new Error('no tools requested')
-          },
-        },
-      }
-      const construction: RuntimeConstruction<TestPlan, object> = {
-        maxScopes: 4,
-        sessions: { bind: async () => (holdBind ? await bound.promise : { binding }) },
-        calls,
-        transport: {
-          clearReuseScope() {},
-          acquire: () => ({
-            lease: {
-              binding: {
-                implementation: { name: 'test', revision: '1' },
-                definition: { modelId: 'example/model-a', revision: '1' },
-                configuration: { revision: '1', values: {} },
-              },
-              transport: wire.adapter,
-              signal: new AbortController().signal,
-              async track<T>(completion: Promise<T>) {
-                return await completion
-              },
-              release() {
-                released++
-              },
+        }
+        const wire = transport()
+        const calls = createCallContainerStore<TestPlan, object>()
+        let released = 0
+        let nextCall = 0
+        let holdBind = false
+        let cleanupFailed = initiallyFails
+        let cleanupAttempts = 0
+        const bound = deferred<{ readonly binding: SessionRuntimeBinding }>()
+        const binding: SessionRuntimeBinding = {
+          log: selected.input.binding,
+          selection: { ...selected.input, projection: async () => ({ known: [] }) },
+          catalog: host.catalog,
+          currentEvaluationInputs: host.reader,
+          credentials: {
+            async value() {
+              return {
+                scope: { layer: 'factory' as const },
+                value: new TextEncoder().encode('test-secret'),
+              }
             },
+          },
+          tools: {
+            async lookup() {
+              throw new Error('no tools requested')
+            },
+          },
+        }
+        const construction: RuntimeConstruction<TestPlan, object> = {
+          maxScopes: 4,
+          sessions: { bind: async () => (holdBind ? await bound.promise : { binding }) },
+          calls,
+          transport: {
+            clearReuseScope() {
+              cleanupAttempts++
+              expect(released).toBe(2)
+              if (cleanupFailed) throw new Error('private cleanup error')
+            },
+            acquire: () => ({
+              lease: {
+                binding: {
+                  implementation: { name: 'test', revision: '1' },
+                  definition: { modelId: 'example/model-a', revision: '1' },
+                  configuration: { revision: '1', values: {} },
+                },
+                transport: wire.adapter,
+                signal: new AbortController().signal,
+                async track<T>(completion: Promise<T>) {
+                  return await completion
+                },
+                release() {
+                  released++
+                },
+              },
+            }),
+          },
+          settlementContention: settlementPolicy(),
+          settlementScheduler: noWaitScheduler,
+          reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
+          tokenMargin: { multiplier: 1, reserveTokens: 0 },
+          policy: { ...invocationPolicy(), schedule: () => () => {} },
+          identities: {
+            call: () => `runtime-call-${++nextCall}`,
+            response: () => 'runtime-response',
+            message: () => messageId,
+          },
+          history: {
+            call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
+            calibration: () => ({ sourceUnavailable: true }),
+            failure: () => ({ unavailable: true }),
+            run: () => ({ unavailable: true }),
+          },
+          recovery: { enter: async () => ({ unavailable: true }) },
+          diagnostic() {},
+        }
+        const runtime = createModelRuntime(construction)
+        expect(
+          await runtime.service.selectModel({
+            session: host.session,
+            routeName: 'example/model-a',
           }),
-        },
-        settlementContention: settlementPolicy(),
-        settlementScheduler: noWaitScheduler,
-        reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
-        tokenMargin: { multiplier: 1, reserveTokens: 0 },
-        policy: { ...invocationPolicy(), schedule: () => () => {} },
-        identities: {
-          call: () => `runtime-call-${++nextCall}`,
-          response: () => 'runtime-response',
-          message: () => messageId,
-        },
-        history: {
-          call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
-          calibration: () => ({ sourceUnavailable: true }),
-          failure: () => ({ unavailable: true }),
-          run: () => ({ unavailable: true }),
-        },
-        recovery: { enter: async () => ({ unavailable: true }) },
-        diagnostic() {},
-      }
-      const runtime = createModelRuntime(construction)
-      expect(
-        await runtime.service.selectModel({ session: host.session, routeName: 'example/model-a' }),
-      ).toEqual({ selected: 'example/model-a' })
-      const effective = await runtime.service.effectiveModel({ session: host.session })
-      if (!('effectiveModel' in effective)) throw new Error('effective model absent')
-      const opened = await runtime.service.openCall({
-        session: host.session,
-        target: effective.effectiveModel.routeName,
-        basis: effective.effectiveModel,
-        messages: [],
-        tools: [],
-        host: callHost,
-      })
-      expect(opened).toEqual({ callId: 'runtime-call-1', state: 'open' })
-      const dispatched = await runtime.service.dispatch({
-        session: host.session,
-        callId: 'runtime-call-1',
-      })
-      expect(dispatched).toHaveProperty('replyPending')
-      expect(wire.sends()).toBe(1)
-      const settled = await runtime.service.settleReply({
-        session: host.session,
-        callId: 'runtime-call-1',
-        disposition: { vetoed: { by: 'runtime-gate' } },
-      })
-      expect(settled).toEqual({ callId: 'runtime-call-1', state: 'complete' })
-      const attempts = await runtime.service.readAttempts({
-        session: host.session,
-        callId: 'runtime-call-1',
-      })
-      expect(attempts).toMatchObject({ state: 'complete' })
-      const log = await host.log.readSince(host.session, 0)
-      if (!('entries' in log)) throw new Error('durable log unavailable')
-      expect(log.entries.map(entry => payload(entry).kind).filter(Boolean)).toEqual([
-        'model_selection_changed',
-        'model_call_dispatched',
-        'model_call_opened',
-      ])
-      expect(
-        await runtime.service.openCall({
+        ).toEqual({ selected: 'example/model-a' })
+        const effective = await runtime.service.effectiveModel({ session: host.session })
+        if (!('effectiveModel' in effective)) throw new Error('effective model absent')
+        const opened = await runtime.service.openCall({
           session: host.session,
           target: effective.effectiveModel.routeName,
           basis: effective.effectiveModel,
           messages: [],
           tools: [],
           host: callHost,
-        }),
-      ).toEqual({ callId: 'runtime-call-2', state: 'open' })
-      holdBind = true
-      const lateOpen = runtime.service.openCall({
-        session: host.session,
-        target: effective.effectiveModel.routeName,
-        basis: effective.effectiveModel,
-        messages: [],
-        tools: [],
-        host: callHost,
-      })
-      let closeFinished = false
-      const closing = runtime.close().then(result => {
-        closeFinished = true
-        return result
-      })
-      await Promise.resolve()
-      expect(closeFinished).toBe(false)
-      expect(await runtime.service.openCall({} as never)).toEqual({ runtimeStopped: true })
-      bound.finish({ binding })
-      expect(await lateOpen).toEqual({ runtimeStopped: true })
-      expect(await closing).toEqual({ released: true })
-      expect(released).toBe(2)
-      expect(registrations.size).toBe(0)
-      const closedLog = await host.log.readSince(host.session, 0)
-      if (!('entries' in closedLog)) throw new Error('durable log unavailable after close')
-      expect(
-        closedLog.entries.filter(entry => payload(entry).kind === 'model_call_ended'),
-      ).toHaveLength(1)
-    } finally {
-      await host.close()
-    }
-  })
+        })
+        expect(opened).toEqual({ callId: 'runtime-call-1', state: 'open' })
+        const dispatched = await runtime.service.dispatch({
+          session: host.session,
+          callId: 'runtime-call-1',
+        })
+        expect(dispatched).toHaveProperty('replyPending')
+        expect(wire.sends()).toBe(1)
+        const settled = await runtime.service.settleReply({
+          session: host.session,
+          callId: 'runtime-call-1',
+          disposition: { vetoed: { by: 'runtime-gate' } },
+        })
+        expect(settled).toEqual({ callId: 'runtime-call-1', state: 'complete' })
+        const attempts = await runtime.service.readAttempts({
+          session: host.session,
+          callId: 'runtime-call-1',
+        })
+        expect(attempts).toMatchObject({ state: 'complete' })
+        const log = await host.log.readSince(host.session, 0)
+        if (!('entries' in log)) throw new Error('durable log unavailable')
+        expect(log.entries.map(entry => payload(entry).kind).filter(Boolean)).toEqual([
+          'model_selection_changed',
+          'model_call_dispatched',
+          'model_call_opened',
+        ])
+        expect(
+          await runtime.service.openCall({
+            session: host.session,
+            target: effective.effectiveModel.routeName,
+            basis: effective.effectiveModel,
+            messages: [],
+            tools: [],
+            host: callHost,
+          }),
+        ).toEqual({ callId: 'runtime-call-2', state: 'open' })
+        holdBind = true
+        const lateOpen = runtime.service.openCall({
+          session: host.session,
+          target: effective.effectiveModel.routeName,
+          basis: effective.effectiveModel,
+          messages: [],
+          tools: [],
+          host: callHost,
+        })
+        let closeFinished = false
+        const closing = runtime.close().then(result => {
+          closeFinished = true
+          return result
+        })
+        await Promise.resolve()
+        expect(closeFinished).toBe(false)
+        expect(await runtime.service.openCall({} as never)).toEqual({ runtimeStopped: true })
+        bound.finish({ binding })
+        expect(await lateOpen).toEqual({ runtimeStopped: true })
+        expect(await closing).toEqual(initiallyFails ? { unavailable: true } : { released: true })
+        expect(cleanupAttempts).toBe(1)
+        if (initiallyFails) {
+          cleanupFailed = false
+          expect(await runtime.close()).toEqual({ released: true })
+          expect(cleanupAttempts).toBe(2)
+        }
+        expect(await runtime.close()).toEqual({ released: true })
+        expect(cleanupAttempts).toBe(initiallyFails ? 2 : 1)
+        expect(released).toBe(2)
+        expect(registrations.size).toBe(0)
+        const closedLog = await host.log.readSince(host.session, 0)
+        if (!('entries' in closedLog)) throw new Error('durable log unavailable after close')
+        expect(
+          closedLog.entries.filter(entry => payload(entry).kind === 'model_call_ended'),
+        ).toHaveLength(1)
+      } finally {
+        await host.close()
+      }
+    },
+  )
 
   it('composes all thirteen actual methods and closes their shared healthy owners', async () => {
     const runtime = createModelRuntime(construction())
