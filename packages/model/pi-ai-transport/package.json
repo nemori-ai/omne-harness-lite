@@ -52,7 +52,8 @@
     "@omne-harness-lite/model-request-runtime": "workspace:*",
     "@omne-harness-lite/model-response": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "sharp": "catalog:"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:"
