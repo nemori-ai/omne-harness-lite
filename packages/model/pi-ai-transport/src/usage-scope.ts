@@ -23,22 +23,22 @@ export const openAiProBindings: Readonly<
     previousImplementation: 'mp4-1',
   },
   'openai/gpt-5.6-sol-pro': {
-    revision: '5',
+    revision: '6',
     previousRevision: '4',
     previousImplementation: 'mp4-5',
   },
   'openai/gpt-5.6-terra-pro': {
-    revision: '5',
+    revision: '6',
     previousRevision: '4',
     previousImplementation: 'mp4-5',
   },
   'openai/gpt-5.6-luna-pro': {
-    revision: '5',
+    revision: '6',
     previousRevision: '4',
     previousImplementation: 'mp4-5',
   },
 })
-export const PRO_IMPLEMENTATION_REVISION = 'mp4-7'
+export const PRO_IMPLEMENTATION_REVISION = 'mp4-13'
 export const PRO_TRANSFORM_REVISION = 'openrouter-input-transform/pro-scope-1'
 export const READER_REVISION = 'openrouter-usage-reader/2'
 export const PRO_READER_REVISION = 'openrouter-usage-reader/3-openai-pro-scope'

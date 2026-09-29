@@ -95,11 +95,11 @@ describe('OpenAI model-specific input estimator', () => {
       expect(meter).toMatchObject({
         modelId,
         provider: 'openai',
-        definitionRevision: proModels.includes(modelId) ? '5' : '6',
+        definitionRevision: '6',
       })
       expect(meter.algorithmRevision).toBe(
         proModels.includes(modelId)
-          ? 'openai-gpt-5.6-o200k-base-4/response-calibration-1'
+          ? 'openai-gpt-5.6-pro-base-image-proxy-1/response-calibration-1'
           : 'openai-gpt-5.6-o200k-base-complete-output-6/response-calibration-1',
       )
       expect(meter.algorithmRevision).toContain('gpt-5.6')
@@ -218,7 +218,7 @@ describe('OpenAI model-specific input estimator', () => {
     expect(directFull(meter, { body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
   })
 
-  it('applies official named-model image patch calculation; variants without a rule refuse images', () => {
+  it('applies official named-model image patch calculation; unsupported animated images remain unavailable', () => {
     for (const modelId of baseModels) {
       const small = measuredTokens(modelId, imageBody(modelId, url('1x1.png')))
       const square = measuredTokens(modelId, imageBody(modelId, url('1024x1024.png')))
@@ -226,7 +226,7 @@ describe('OpenAI model-specific input estimator', () => {
       expect(square - small).toBe(1227)
     }
     for (const modelId of proModels) {
-      const body = imageBody(modelId, url('1x1.png'))
+      const body = imageBody(modelId, url('two-frame.gif'))
       expect(
         directFull(createOpenAiInputMeter(definition(modelId)), {
           body,
@@ -655,7 +655,7 @@ describe('OpenAI model-specific input estimator', () => {
         }
         lease = service.acquire(input.snapshot.adaptation, modelId)
         if ('rejected' in lease) throw new Error(lease.rejected)
-        const unsupportedImage = modelId.endsWith('-pro') ? '1x1.png' : 'two-frame.gif'
+        const unsupportedImage = 'two-frame.gif'
         const visual = judgedMessage({
           id: 'service-unavailable-image',
           type: 'user',

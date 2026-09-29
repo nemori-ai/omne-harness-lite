@@ -172,3 +172,5 @@ replay, and close/reopen, together with local filesystem failure injection:
 # From the repository root; no model credentials or paid requests are used.
 pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/runner-host.spec.ts --maxWorkers=1
 ```
+
+The dedicated `tests/openai-pro-images-service.spec.ts` check exercises all three GPT-5.6 Pro bindings through three durable local TLS turns, preserving image history and upstream usage/cost. It verifies full **estimated** admission while input observation remains `scope_unknown`, plus zero-HTTP excess-margin rejection. Run it with `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/openai-pro-images-service.spec.ts`. Its controlled responses do not certify actual Pro image preprocessing or OpenRouter acceptance.

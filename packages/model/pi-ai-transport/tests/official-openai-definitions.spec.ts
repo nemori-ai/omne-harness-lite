@@ -75,7 +75,7 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
           : gpt6ProMetered
             ? 'mp4-8'
             : pro
-              ? 'mp4-7'
+              ? 'mp4-13'
               : metered
                 ? 'mp4-12'
                 : lunaHistoryMetered
@@ -91,7 +91,7 @@ describe('OpenAI complete MP4 definitions (offline declaration checks)', () => {
             ? '3'
             : pro
               ? metered
-                ? '5'
+                ? '6'
                 : '2'
               : metered
                 ? '6'

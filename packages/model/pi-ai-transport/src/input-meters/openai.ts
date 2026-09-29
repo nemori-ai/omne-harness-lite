@@ -108,7 +108,10 @@ function imageRuleFor(modelId: string): ImageRule | undefined {
     case 'openai/gpt-5.6-sol-pro':
     case 'openai/gpt-5.6-terra-pro':
     case 'openai/gpt-5.6-luna-pro':
-      return 'unknown'
+      // OpenRouter identifies these exact Pro leaves as the same base model
+      // in pro reasoning mode. Reuse the published base image rule only as an
+      // estimated proxy; actual Pro preprocessing and input scope are unverified.
+      return 'gpt56-patch'
     default:
       return undefined
   }
@@ -325,12 +328,14 @@ export function createOpenAiInputMeter(definition: ModelDefinition): InputMeter 
         ? 'openai-gpt-6-sol-final-visible-json-o200k-1'
         : encryptedReplay
           ? 'openai-gpt-5.6-o200k-base-complete-output-6'
-          : 'openai-gpt-5.6-o200k-base-4'),
+          : 'openai-gpt-5.6-pro-base-image-proxy-1'),
     evidence:
       finalBinding?.evidence ??
       (gpt6SolVisibleHistory
         ? 'OpenRouter OpenAI GPT-6 Sol low-effort o200k text surrogate baseline/length/CJK-code holdout (2026-09-28); complete visible final-request JSON includes controls and extends the surrogate to protocol framing as an estimate; OpenAI reasoning guide separates mode/effort (2026-09-29), declared Sol efforts and absent effort counted as sent; live multi-turn/effort errors and private framing remain unverified'
-        : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated; reasoning replay limited to visible text/summary, encrypted or unknown details have no applicable token basis'),
+        : pro
+          ? 'OpenAI reasoning guide mode and OpenRouter exact GPT-5.6 Sol/Terra/Luna Pro model pages identify Pro as the same base model in pro mode (2026-09-29); published GPT-5.6 base vision patches reused as an estimated proxy, not verified Pro preprocessing; o200k_base surrogate and private framing remain estimated, input usage scope remains unknown, opaque reasoning unavailable'
+          : 'openai/tiktoken 4e71bbe0 model.py gpt-5 -> o200k_base; developers.openai.com/api/docs/guides/images-vision GPT-5.6 base detail/patch rules (2026-09-28); OpenRouter/OpenAI private chat formatting estimated; reasoning replay limited to visible text/summary, encrypted or unknown details have no applicable token basis'),
     ...(gpt6SolVisibleHistory || finalBinding
       ? {
           tokenizerRevision: `js-tiktoken-1.0.21/o200k-base-${definition.modelId.slice('openai/'.length)}-surrogate/1`,
