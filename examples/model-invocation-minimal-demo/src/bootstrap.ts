@@ -39,6 +39,8 @@ import {
   type ObserverDiagnostic,
   type SettlementDiagnostic,
   type DiagnosticEvent,
+  type FailureConsumableOperation,
+  type FailureConsumption,
 } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
@@ -1896,6 +1898,28 @@ export function createAcceptanceApplication(
         return operation(input)
       })
     }
+    function scopedFailure<I extends { readonly session: SessionRef }, R>(
+      operation: FailureConsumableOperation<I, R>,
+      denied: R,
+    ): FailureConsumableOperation<I, R> {
+      function call(input: I): Promise<R>
+      function call(
+        input: I,
+        options: { readonly consumeFailure: true },
+      ): Promise<FailureConsumption<R>>
+      function call(
+        input: I,
+        options?: { readonly consumeFailure: true },
+      ): Promise<R | FailureConsumption<R>> {
+        return options === undefined
+          ? invoke(input, value => operation(value), denied)
+          : invoke(input, value => operation(value, options), {
+              result: denied,
+              consumption: { kind: 'notApplicable' },
+            } as const)
+      }
+      return call
+    }
     return {
       legalTargets: input =>
         invoke(input, value => service.legalTargets(value), { unavailable: true }),
@@ -1917,9 +1941,8 @@ export function createAcceptanceApplication(
           },
           { runtimeStopped: true },
         ),
-      dispatch: input => invoke(input, value => service.dispatch(value), { runtimeStopped: true }),
-      dispatchAgain: input =>
-        invoke(input, value => service.dispatchAgain(value), { runtimeStopped: true }),
+      dispatch: scopedFailure(service.dispatch, { runtimeStopped: true }),
+      dispatchAgain: scopedFailure(service.dispatchAgain, { runtimeStopped: true }),
       interrupt: input => invoke(input, value => service.interrupt(value), { unavailable: true }),
       releaseCall: input =>
         invoke(input, value => service.releaseCall(value), { unavailable: true }),
@@ -1928,8 +1951,7 @@ export function createAcceptanceApplication(
         const result = await reconcileModelRuntime(actor, session)
         return 'calls' in result || 'invalidInput' in result ? result : { unavailable: true }
       },
-      readAttempts: input =>
-        invoke(input, value => service.readAttempts(value), { unavailable: true }),
+      readAttempts: scopedFailure(service.readAttempts, { unavailable: true }),
       settleReply: input =>
         invoke(input, value => service.settleReply(value), { unavailable: true }),
       canDispatchAgain: input =>
