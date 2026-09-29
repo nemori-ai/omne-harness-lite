@@ -99,6 +99,10 @@
 - [TypeSafe Jev：结构化决策模型的能力与边界](typesafe-jev/README.md) — `jev-1.13.0`，取证 2026-09-19 两轮（主张核查；机制、训练与用途），消费者待出现
 - [实时语音通话：能力、链路与证据强度](realtime-voice-calling/README.md) — `gpt-live-1` 与整条语音链路，取证 2026-09-19，消费者待出现
 
+### 评估与优化方法
+
+- [评估设计与爬山优化：哪些做法有独立证据，哪些只是厂商自述](eval-design-and-hillclimbing/README.md) — Anthropic 博客 2026-09-28 版（钉字节）/ `anthropics/skills@8a1541c4` 的 claude-api `build-eval` 与 `hillclimb` 正文，对照学术文献与同行工程实践 42 条（其中 24 条主会话逐句复核）；未运行技能，取证 2026-09-29，消费者待出现
+
 ### 同类 harness 横向调研
 
 - [四个 agent harness 怎么设计「会话」](agent-harness-session-design/README.md) — DSH `c291e796` / Claude Code `2.1.278` / Codex `0.154.0` / Pi `3390bd9`，取证 2026-09-20，消费者 PF-015

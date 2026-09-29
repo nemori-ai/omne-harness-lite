@@ -1,0 +1,237 @@
+{
+  "format": 2,
+  "consumer": "待出现",
+  "selected": [
+    {
+      "file": "blog/claude-dev-automating-eval-design-and-hillclimbing-2026-09-29.html.txt",
+      "upstream_url": "https://claude.dev/blog/automating-eval-design-and-hillclimbing/",
+      "capture_date": "2026-09-29",
+      "capture_method": "curl -sSL -A \"Mozilla/5.0\"（HTTP 200，未经模型摘要，原样字节）",
+      "target_sha256": "dfe8158738b80ef85313ede052e41b9dfbf3a3aae6555938d6064b650777239e",
+      "bytes": 108327,
+      "normalization": "none；扩展名追加 .txt，只为不让仓库的链接检查去解析页内链接",
+      "etag": "2fe6e87bede1563e94544b8615425ea8",
+      "page_published": "Sep 28, 2026"
+    },
+    {
+      "file": "blog/anthropic-demystifying-evals-for-ai-agents-2026-09-29.html.txt",
+      "upstream_url": "https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents",
+      "capture_date": "2026-09-29",
+      "capture_method": "curl -sSL -A \"Mozilla/5.0\"（HTTP 200，未经模型摘要，原样字节）",
+      "target_sha256": "129d33119fd9fc4800cf15e6d767c9f618ddd6943a907db70e4dadc7f81d5301",
+      "bytes": 304431,
+      "normalization": "none；扩展名追加 .txt，只为不让仓库的链接检查去解析页内链接",
+      "page_published": "Jan 09, 2026"
+    },
+    {
+      "file": "blog/claude-com-reducing-cost-and-improving-performance-2026-09-29.html.txt",
+      "upstream_url": "https://claude.com/blog/reducing-cost-and-improving-performance-with-claude-platform",
+      "capture_date": "2026-09-29",
+      "capture_method": "curl -sSL -A \"Mozilla/5.0\"（HTTP 200，未经模型摘要，原样字节）",
+      "target_sha256": "1812ff6794b783fb3627c1b85fc0c7eecad5afa2587b72d3f2eeacc3f0248816",
+      "bytes": 557231,
+      "normalization": "none；扩展名追加 .txt，只为不让仓库的链接检查去解析页内链接",
+      "page_published": "2026-09-08 初版，页内 Update 注明其后重跑"
+    },
+    {
+      "file": "skill/anthropics-skills-8a1541c__claude-api_shared_evals_build-eval.md.txt",
+      "upstream_url": "https://github.com/anthropics/skills/blob/8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4/skills/claude-api/shared/evals/build-eval.md",
+      "capture_date": "2026-09-29",
+      "capture_method": "git clone --depth 1 https://github.com/anthropics/skills.git 后原样复制",
+      "target_sha256": "50e3381b55b7bb913f84c2645a409802084c5caf01bab2d271d6bef0090dbd6c",
+      "bytes": 54819,
+      "normalization": "none；扩展名追加 .txt，只为不让仓库的链接检查去解析页内链接",
+      "commit": "8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4",
+      "commit_date": "2026-09-28T19:20:03-07:00",
+      "license": "Apache-2.0（skills/claude-api/LICENSE.txt）"
+    },
+    {
+      "file": "skill/anthropics-skills-8a1541c__claude-api_shared_evals_eval-hillclimb.md.txt",
+      "upstream_url": "https://github.com/anthropics/skills/blob/8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4/skills/claude-api/shared/evals/eval-hillclimb.md",
+      "capture_date": "2026-09-29",
+      "capture_method": "git clone --depth 1 https://github.com/anthropics/skills.git 后原样复制",
+      "target_sha256": "6e2c829294c6bfcc0b544352bca66d5e4c10e8de5a63b66d5e0ac9a861de8710",
+      "bytes": 68773,
+      "normalization": "none；扩展名追加 .txt，只为不让仓库的链接检查去解析页内链接",
+      "commit": "8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4",
+      "commit_date": "2026-09-28T19:20:03-07:00",
+      "license": "Apache-2.0（skills/claude-api/LICENSE.txt）"
+    },
+    {
+      "file": "skill/anthropics-skills-8a1541c__claude-api_shared_evals_eval-audit.md.txt",
+      "upstream_url": "https://github.com/anthropics/skills/blob/8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4/skills/claude-api/shared/evals/eval-audit.md",
+      "capture_date": "2026-09-29",
+      "capture_method": "git clone --depth 1 https://github.com/anthropics/skills.git 后原样复制",
+      "target_sha256": "a013f8eb0452c51c5a31860df0fb47219dcdb4da507092fc98867225095026ba",
+      "bytes": 27892,
+      "normalization": "none；扩展名追加 .txt，只为不让仓库的链接检查去解析页内链接",
+      "commit": "8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4",
+      "commit_date": "2026-09-28T19:20:03-07:00",
+      "license": "Apache-2.0（skills/claude-api/LICENSE.txt）"
+    },
+    {
+      "file": "skill/anthropics-skills-8a1541c__claude-api_shared_evals_cost-hillclimb.md.txt",
+      "upstream_url": "https://github.com/anthropics/skills/blob/8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4/skills/claude-api/shared/evals/cost-hillclimb.md",
+      "capture_date": "2026-09-29",
+      "capture_method": "git clone --depth 1 https://github.com/anthropics/skills.git 后原样复制",
+      "target_sha256": "fe15b3bcce81613a98c80b309ddfba7881d5778e339dbb19e95aded5ca84283a",
+      "bytes": 31574,
+      "normalization": "none；扩展名追加 .txt，只为不让仓库的链接检查去解析页内链接",
+      "commit": "8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4",
+      "commit_date": "2026-09-28T19:20:03-07:00",
+      "license": "Apache-2.0（skills/claude-api/LICENSE.txt）"
+    }
+  ],
+  "probe": [
+    {
+      "file": "probe/wilson.py",
+      "origin": "主会话自写",
+      "target_sha256": "53da54fa93a98429b4909d1b996487a215e3d55f914a6787ac0482c07ccd941a"
+    },
+    {
+      "file": "probe/wilson-output.txt",
+      "origin": "python3 wilson.py 的输出，Python 3.8.10",
+      "target_sha256": "8e21fba5b4940269e1d1c5e0f2e9e79494733112f13e2611760409c9e0750dac"
+    },
+    {
+      "file": "probe/subagent-calc/stats.py",
+      "origin": "学术一路子代理自写，主会话未复跑",
+      "target_sha256": "3913f3cedb6f7734d3f14f0751f7efe7bed63aa9c4754bee30929befea93faf3"
+    },
+    {
+      "file": "probe/subagent-calc/paired.py",
+      "origin": "同上",
+      "target_sha256": "e4e7d37c438709531de4cd5fa5da87fb3d8fa2ada40c3c761b30b1a8b3daf966"
+    },
+    {
+      "file": "probe/subagent-calc/adaptive_sim.py",
+      "origin": "同上；玩具模拟，假设全由子代理设定",
+      "target_sha256": "3636e2a7b6286f19d3c47e3653aca0b2c3fd57b55f0eb8a46a7a81e4cc8793a2"
+    }
+  ],
+  "verified_not_stored": {
+    "note": "主会话 2026-09-29 独立下载用于逐句复核的副本，未随包保存；SHA256 用于判断上游是否已换版本。动态页面（博客、文档、GitHub API）的哈希会随页面改动而变。",
+    "items": [
+      {
+        "evidence_id": "E-B6",
+        "url": "https://cursor.com/blog/reward-hacking-coding-benchmarks",
+        "sha256": "b28fce52616a3c0dfe9bb583933f4c5a43f28ff4f2b80e56e4e24d847f71aade"
+      },
+      {
+        "evidence_id": "E-D2",
+        "url": "https://arxiv.org/html/2505.22954",
+        "sha256": "95a457fec7212a61800825e5df47032d00cda12658a97c264932c8dc482afede"
+      },
+      {
+        "evidence_id": "E-A7",
+        "url": "https://dropbox.tech/machine-learning/optimizing-dropbox-dash-relevance-judge-with-dspy",
+        "sha256": "d452affaaf04b55e4c7d96e90d8963715d16f9d64667d15c29a68f5ad69b791a"
+      },
+      {
+        "evidence_id": "E-C1",
+        "url": "https://hamel.dev/blog/posts/evals-faq/",
+        "sha256": "46806fffc831e8dcce9ae1908c439a11c01f6fd92049c41185f08f2856c65a00"
+      },
+      {
+        "evidence_id": "E-B8",
+        "url": "https://metr.org/blog/2025-06-05-recent-reward-hacking/",
+        "sha256": "0be03498f749146c1acac409cd433839049d863ba72adebd68fd831ad4a2470d"
+      },
+      {
+        "evidence_id": "E-A8",
+        "url": "https://arxiv.org/html/2309.03409",
+        "sha256": "2e0a87289ca37018f9cfe95aa7479d1e8c4fc71dbf36699b70a25329c90d06da"
+      },
+      {
+        "evidence_id": "E-A10",
+        "url": "https://www.promptfoo.dev/docs/usage/prompt-optimization/",
+        "sha256": "0bb53c0605a076a3d42329b0770130fb641babf94522a9ffe6ca03d4ce768d72"
+      },
+      {
+        "evidence_id": "E-A2",
+        "url": "https://api.github.com/repos/stanfordnlp/dspy/issues/1181/comments",
+        "sha256": "7784b60e9f678eb1e23007e9bd6bc1bb54999890ee694fbad8ad1d7184fc86f6"
+      },
+      {
+        "evidence_id": "E-A6",
+        "url": "https://api.github.com/repos/gepa-ai/gepa/issues/133/comments",
+        "sha256": "7c61a1096b68f52d5ee24dc89db7680d9c06fb2b255ed256ee88b227c95b1e10"
+      },
+      {
+        "evidence_id": "E-A6",
+        "url": "https://api.github.com/repos/gepa-ai/gepa/issues/261",
+        "sha256": "108e176d6c270efd09375de7c873c0ddde0b7f403d773c4da79857912777efc7"
+      },
+      {
+        "evidence_id": "E-B3",
+        "url": "https://api.github.com/repos/SWE-bench/SWE-bench/issues/465",
+        "sha256": "8d89ea6dd2f92b86fd1ef6360ee10745bb271e649ba4447de6d7e53028bf55f7"
+      },
+      {
+        "evidence_id": "E-A3",
+        "url": "https://raw.githubusercontent.com/stanfordnlp/dspy/9c900c7de0a3cc3114c23fe8202ebe48e2206ce1/dspy/teleprompt/gepa/gepa.py",
+        "sha256": "39c2b3b0c34700b849cc0aae7727335ee6eb525245308724e95e5d7f1993cc2c"
+      },
+      {
+        "evidence_id": "L-A2",
+        "url": "https://arxiv.org/pdf/1502.04585",
+        "sha256": "957ef4739df371a0a778360f0db4252a62f7c85abcd8343f581cd6250b1d31fe"
+      },
+      {
+        "evidence_id": "L-A1",
+        "url": "https://arxiv.org/pdf/1506.02629",
+        "sha256": "dcfbb9aa401c62949123be2d74787c4f9cca48597f18860760ef1580ddb4bc71"
+      },
+      {
+        "evidence_id": "L-S3",
+        "url": "https://arxiv.org/pdf/2010.06595",
+        "sha256": "92773a05853a84e8c1dfe0ad4229edf0eb85183e5588582ebe98430a2a75a396"
+      },
+      {
+        "evidence_id": "L-B2",
+        "url": "https://arxiv.org/pdf/2104.02145",
+        "sha256": "cf5f6930d68e22ec9de8e6de2de75a8fd70b507037cdc42803b399de3d372c34"
+      },
+      {
+        "evidence_id": "L-B1",
+        "url": "https://arxiv.org/pdf/2111.08181",
+        "sha256": "4d997a8cfed780cca257edca0b283a55da353b5c2e546a24aec0e0d496f1c78f"
+      },
+      {
+        "evidence_id": "L-J3",
+        "url": "https://arxiv.org/pdf/2406.07791",
+        "sha256": "1db719e5400f23b81af50d49647a0cc233c2c6e967e9dd514d9811e2355263a2"
+      },
+      {
+        "evidence_id": "L-S1",
+        "url": "https://arxiv.org/pdf/2411.00640",
+        "sha256": "22570aaf1313c7ab8861d2373f0e8e90c160f6c69c8960aecbb4733c48b22149"
+      },
+      {
+        "evidence_id": "L-J6",
+        "url": "https://arxiv.org/pdf/2502.01534",
+        "sha256": "f1204432f553296541ad2bd97b2f557b40c5235e2adc2d13810e618ffb2116c3"
+      },
+      {
+        "evidence_id": "L-S2",
+        "url": "https://arxiv.org/pdf/2503.01747",
+        "sha256": "b09606e94fd3574a05dfe362b63e0c3b418b4747df5fdd62969c92f0225fe682"
+      },
+      {
+        "evidence_id": "L-J7",
+        "url": "https://arxiv.org/pdf/2504.14716",
+        "sha256": "1257158555afd20ec4c52e9ae37d26ee70c4448b6070f64a54592b8021d7412e"
+      },
+      {
+        "evidence_id": "L-A13",
+        "url": "https://arxiv.org/pdf/2606.11045",
+        "sha256": "ba700f13b513e8774675d231b06096f4cef7a04c01bf6b0ad8b865dbbcf0dace"
+      },
+      {
+        "evidence_id": "L-A7",
+        "url": "https://papers.nips.cc/paper_files/paper/2019/file/ee39e503b6bedf0c98c388b7e8589aca-Paper.pdf",
+        "sha256": "29989c9b39e41dafd369530da2882bfacfdfa0d851ff782720a04c54d2020dcf"
+      }
+    ]
+  }
+}
