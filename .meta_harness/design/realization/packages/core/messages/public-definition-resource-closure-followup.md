@@ -1,6 +1,6 @@
 # MS7 / MR10 当前公开定义的精确资源闭包
 
-2026-09-29，revision 1，candidate，未采用；新增 binding 0。本页接续 D110 已接受的 [MS7映射](v7-design.md)、[MR10映射](../model-response/v10-reference-result-design.md)，仅修正资源注册/编译根的过度扩大，不改冻结 Schema、公开类型、judge 或契约版本。相关选择与范围见[附页](../../../../record/proposals/model-runtime-reference-lifecycle/public-schema-closure-choice.md)。
+2026-09-29，revision 2，candidate，未采用；新增 binding 0。本页接续 D110 已接受的 [MS7映射](v7-design.md)、[MR10映射](../model-response/v10-reference-result-design.md)，仅修正资源注册/编译根的过度扩大，不改冻结 Schema、公开类型、judge 或契约版本。相关选择与范围见[附页](../../../../record/proposals/model-runtime-reference-lifecycle/public-schema-closure-choice.md)。
 
 ## 已证差异与最小选择
 
@@ -19,11 +19,11 @@
 
 ## 对既有映射和验证的精确替代
 
-采用本页后仅替代：MS7 v7“精确依赖、资源与绑定”的22资源全图必要性、把MR10随LC6带入MS6的判断；M7-V1/M7-G2的同类全图要求；MR10 v10“数据图”中要求其图注册CA2/MS6/MP6/TD3及旧资产链的推论；R10-V7中这些资源对MR公开根一律必要的断言。原文冻结字节保留，当前采用以此精确范围为准。MS7 的50定义、MR10 的25定义及全部语义关系/负例不缩减。
+采用本页后仅替代：MS7 v7“精确依赖、资源与绑定”的22资源全图必要性、把MR10随LC6带入MS6的判断；M7-V1/M7-G2的同类全图要求；MR10 v10“数据图”中要求其图注册CA2/MS6/MP6/TD3及旧资产链的推论；R10-V7中这些资源对MR公开根一律必要的断言；以及R10-V1关于MR所需MP6闭包的表述，其余值判断义务保持。原文冻结字节保留，当前采用以此精确范围为准。MS7 的50定义、MR10 的25定义及全部语义关系/负例不缩减。
 
 | 义务 | 后继必验 | 已有与未覆盖 |
 | --- | --- | --- |
-| RC1／M7-V1、R10-V7 | 生产根名单与规范/current源码一致；九资源原字节/$id；全部公开defs及实际私有编译入口完整编译；漏根/漏资源/错URI不可通过 | T26固定源候选图已证；变更后的真实schema.ts初始化仍待 |
+| RC1／M7-V1、R10-V1/V7 | 生产根名单与规范/current源码一致；九资源原字节/$id；全部公开defs及实际私有编译入口完整编译；漏根/漏资源/错URI不可通过 | T26固定源候选图已证；变更后的真实schema.ts初始化仍待 |
 | RC2／最小图因果反控 | 每包分别从九资源完整新图删除一项，共18例，必须缺被删的精确URI；不能以任意异常或root空Schema编译代替 | T26已有同源实际18例可按hash复用；图/编译器/根变化才针对复验 |
 | RC3／删除无用依赖 | MS生产不再引LC/AM等无关Schema链，MR不再引MS6/CA2/MP6/TD3等无关注册；只为它们存在的依赖移除 | 不得仅改计数或测试而保留全部注册；有真实别用途的依赖不误删 |
 | RC4／制品与冷构建 | 实际独立pack消费公开入口，当前类型/纯值关系正反例不减；通过正式冷构建检查MS/LC旧manifest环是否已消除，不能借预编译另一spoke的dist | T26原报告没有验证生产修改或当前冷构建；本页不宣称已过 |
