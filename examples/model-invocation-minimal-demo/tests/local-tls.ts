@@ -58,7 +58,9 @@ export async function createLocalTls(
     socketClosed = deferred()
   const pending = new Set<Promise<void>>()
   const failures: unknown[] = []
-  let mode: 'complete' | 'reasoning' | 'hold' | 'http503' | 'http503empty' | 'tool' = 'complete',
+  let nextUsageJson: string | null | undefined = finalUsageJson
+  let mode: 'complete' | 'reasoning' | 'hold' | 'usage_hold' | 'http503' | 'http503empty' | 'tool' =
+      'complete',
     closedSockets = 0,
     held: ServerResponse | undefined
   const server = createServer({ key: await readFile(key), cert: certBytes }, (req, res) => {
@@ -99,11 +101,15 @@ export async function createLocalTls(
         res.write(
           `data: ${JSON.stringify({ choices: [{ delta: reasoningDetails === undefined ? { reasoning_content: 'private reasoning' } : { reasoning_details: reasoningDetails }, finish_reason: null }] })}\n\n`,
         )
+      if (mode === 'usage_hold')
+        res.write(
+          `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: null }], usage: { prompt_tokens: 9, completion_tokens: 3, total_tokens: 12, prompt_tokens_details: { cached_tokens: 4, cache_write_tokens: 0 }, cost: 0.0000117 } })}\n\n`,
+        )
       res.write(
         `data: ${JSON.stringify({ id: 'independent-generation', model: responseModel, provider, choices: [{ delta: { role: 'assistant', content: 'first ' }, finish_reason: null }] })}\n\n`,
       )
       contentSent.resolve()
-      if (mode === 'hold') {
+      if (mode === 'hold' || mode === 'usage_hold') {
         held = res
         return
       }
@@ -112,7 +118,7 @@ export async function createLocalTls(
         `data: ${JSON.stringify({ choices: [{ delta: { content: 'second' }, finish_reason: null }] })}\n\n`,
       )
       const usage =
-        finalUsageJson ??
+        nextUsageJson ??
         JSON.stringify({
           prompt_tokens: 9,
           completion_tokens: 3,
@@ -123,8 +129,9 @@ export async function createLocalTls(
           },
           cost: 0.0000117,
         })
+      const usageField = nextUsageJson === null ? '' : `,"usage":${usage}`
       res.end(
-        `data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":${usage}}\n\ndata: [DONE]\n\n`,
+        `data: {"choices":[{"delta":{},"finish_reason":"stop"}]${usageField}}\n\ndata: [DONE]\n\n`,
       )
     })()
     pending.add(work)
@@ -159,6 +166,10 @@ export async function createLocalTls(
     },
     setMode(value: typeof mode) {
       mode = value
+    },
+    /** Null omits usage; undefined restores the standard controlled usage frame. */
+    setUsageJson(value: string | null | undefined) {
+      nextUsageJson = value
     },
     closedSockets: () => closedSockets,
     finishHeld() {

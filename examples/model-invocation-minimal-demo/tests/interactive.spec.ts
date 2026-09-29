@@ -211,43 +211,51 @@ describe('real interactive durable conversation', () => {
       await tls.close()
     }
   })
-  it('system SIGINT stops a held actual TLS request and completes physical close', async () => {
-    const root = await setup('interrupt-'),
-      tls = await createLocalTls(join(root, 'tls'))
-    tls.setMode('hold')
-    const credential = Buffer.from('controlled-stop-key'),
-      input = new PassThrough(),
-      out = output()
-    try {
-      const demo = await openDemo(
-        join(root, 'data'),
-        { multiplier: 1.1, reserveTokens: 256 },
-        demoRetirement(),
-        16384,
-        credential,
-        {
-          developmentTransport: tls.developmentTransport,
-        },
-      )
-      const run = runInteractive(demo, input, out.stream, false)
-      input.write('hold this request\n')
-      await tls.contentSent.promise
-      await expect.poll(() => out.text(), { timeout: 1000 }).toContain('Assistant> first ')
-      process.emit('SIGINT')
-      expect(await run).toEqual({ complete: true, interrupted: true })
-      await tls.socketClosed.promise
-      expect(tls.closedSockets()).toBeGreaterThan(0)
-      expect(out.text()).toContain('Call settled without a conversation reply')
-      expect(out.text()).not.toContain('Saved.')
-      const closed = await batches(join(root, 'data/session-logs'))
-      expect(JSON.stringify(closed)).toContain('"initiator":"run_cancelled"')
-      expect(JSON.stringify(closed)).not.toContain('"type":"assistant"')
-    } finally {
-      input.destroy()
-      credential.fill(0)
-      await tls.close()
-    }
-  })
+  it.each(['hold', 'usage_hold'] as const)(
+    'system SIGINT stops a %s actual TLS request and preserves known facts',
+    async mode => {
+      const root = await setup('interrupt-'),
+        tls = await createLocalTls(join(root, 'tls'))
+      tls.setMode(mode)
+      const credential = Buffer.from('controlled-stop-key'),
+        input = new PassThrough(),
+        out = output()
+      try {
+        const demo = await openDemo(
+          join(root, 'data'),
+          { multiplier: 1.1, reserveTokens: 256 },
+          demoRetirement(),
+          16384,
+          credential,
+          {
+            developmentTransport: tls.developmentTransport,
+          },
+        )
+        const run = runInteractive(demo, input, out.stream, false)
+        input.write('hold this request\n')
+        await tls.contentSent.promise
+        await expect.poll(() => out.text(), { timeout: 1000 }).toContain('Assistant> first ')
+        process.emit('SIGINT')
+        expect(await run).toEqual({ complete: true, interrupted: true })
+        await tls.socketClosed.promise
+        expect(tls.closedSockets()).toBeGreaterThan(0)
+        expect(out.text()).toContain('Call settled without a conversation reply')
+        expect(out.text()).not.toContain('Saved.')
+        const closed = await batches(join(root, 'data/session-logs'))
+        expect(JSON.stringify(closed)).toContain('"initiator":"run_cancelled"')
+        expect(JSON.stringify(closed)).not.toContain('"type":"assistant"')
+        if (mode === 'usage_hold') {
+          expect(JSON.stringify(closed)).toContain('"observedInput":{"kind":"from_usage"')
+          expect(JSON.stringify(closed)).toContain('"input_tokens":5')
+          expect(JSON.stringify(closed)).toContain('"cache_read_tokens":4')
+        }
+      } finally {
+        input.destroy()
+        credential.fill(0)
+        await tls.close()
+      }
+    },
+  )
   it('SIGINT before the service send admits its host prevents a late physical call', async () => {
     const root = await setup('start-window-'),
       tls = await createLocalTls(join(root, 'tls'))
