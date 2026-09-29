@@ -206,7 +206,7 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)` 将单独的 V4.1 Flash tokenizer 和公开编码器绑定到 `deepseek/deepseek-v4.1-flash` / `deepinfra/fp8`。多轮工具与双图提示词使用固定的上游官方向量校验。`mp4-2` 实现按内联图片实际尺寸，使用固定公开图像处理器的 patch／下采样网格和 1,024-token 上限估算，并替换提示词已计入的图片占位符；实际供应商预处理并未公开。图片字节和数量仍由最终请求体的精确门检查。未知图片 URL 或不支持的内容在 HTTP 前返回计量不可得。估算包含提示词之外的序列化请求字段，不把内联 base64 当文本 token。余量由每次请求配置；估算不替代上游 usage，也不证明真实图片发送。
 
-`createOpenAiInputMeter(definition)` 绑定 `openai` 供应商下修订 4（`pi-ai:openai` `mp4-5`）的六个 GPT-5.6 Sol／Terra／Luna 基础版与 Pro 定义。它按[固定 GPT-5 前缀映射](https://github.com/openai/tiktoken/blob/4e71bbe0c078468e00fefbf94b39849389f346e5/tiktoken/model.py)使用固定版本 `js-tiktoken` 的 `o200k_base`，不认证 GPT-5.6 精确型号词表。估算覆盖最终序列化的多轮消息、`developer` 提醒、工具定义与结果、可见明文推理及协议字段。`reasoning_details` 可包含可见的 `reasoning.text`／`text`、`reasoning.summary`／`summary` 及 `id`、`index`、`format` 元数据；这里只估最终发送的可见表示，不据此推定隐藏推理保留量。加密或无法解释的 details 在 HTTP 前判不可计量：密文分词不能证明其输入上下文贡献。拒绝保留原历史、模型及路由；内联图片的 base64 在文本分词前替换为标记。三个基础版按[OpenAI 图像指南](https://developers.openai.com/api/docs/guides/images-vision)计 low（512 像素）、high（2048 像素且最多 2500 patches）、original／auto（最多 30000 patches），使用 32 像素 patch 和 1.2 倍系数。首次像素尺寸缩放向下取整是本地估算约定，指南未指定该步的取整方向；之后的 patch 预算缩放遵循已给公式。OpenRouter／OpenAI 的私有 chat 格式仍使整请求结果只能标为 `estimated`。GIF 必须具有一个完整帧；动画或截断 GIF 不可计量。Pro 图片、远程／非法／尺寸未知图片以及超出本 meter 支持尺寸的图片均在发送前判不可用。GPT-6 Astra 及全部 GPT-6 Pro 型号仍无计量绑定；下述 Sol／Luna 限定估算不证明真实 tokenizer。调用方逐次显式给出 `tokenMargin`；实际 usage 与费用只取上游。
+`createOpenAiInputMeter(definition)` 绑定 `openai` 供应商下修订 4（`pi-ai:openai` `mp4-5`）的三个 GPT-5.6 Sol／Terra／Luna 基础版，以及修订 5（`mp4-7`）的三个 Pro 定义。它按[固定 GPT-5 前缀映射](https://github.com/openai/tiktoken/blob/4e71bbe0c078468e00fefbf94b39849389f346e5/tiktoken/model.py)使用固定版本 `js-tiktoken` 的 `o200k_base`，不认证 GPT-5.6 精确型号词表。估算覆盖最终序列化的多轮消息、`developer` 提醒、工具定义与结果、可见明文推理及协议字段。`reasoning_details` 可包含可见的 `reasoning.text`／`text`、`reasoning.summary`／`summary` 及 `id`、`index`、`format` 元数据；这里只估最终发送的可见表示，不据此推定隐藏推理保留量。加密或无法解释的 details 在 HTTP 前判不可计量：密文分词不能证明其输入上下文贡献。拒绝保留原历史、模型及路由；内联图片的 base64 在文本分词前替换为标记。三个基础版按[OpenAI 图像指南](https://developers.openai.com/api/docs/guides/images-vision)计 low（512 像素）、high（2048 像素且最多 2500 patches）、original／auto（最多 30000 patches），使用 32 像素 patch 和 1.2 倍系数。首次像素尺寸缩放向下取整是本地估算约定，指南未指定该步的取整方向；之后的 patch 预算缩放遵循已给公式。OpenRouter／OpenAI 的私有 chat 格式仍使整请求结果只能标为 `estimated`。GIF 必须具有一个完整帧；动画或截断 GIF 不可计量。Pro 图片、远程／非法／尺寸未知图片以及超出本 meter 支持尺寸的图片均在发送前判不可用。GPT-6 Astra 及全部 GPT-6 Pro 型号仍无计量绑定；下述 Sol／Luna 限定估算不证明真实 tokenizer。调用方逐次显式给出 `tokenMargin`；实际 usage 与费用只取上游。
 
 六个 GPT-5.6 绑定从 definition 3／`mp4-3` 破坏性升级为 definition 4／`mp4-5`（算法 `openai-gpt-5.6-o200k-base-4`）。装配必须使用新建档案及匹配的 meter；旧绑定不是新绑定的别名，本 factory 不保留旧版分支。已有观测保留原绑定坐标，不自动认证新修订；六个 GPT-6 定义不变。`tests/openai-encrypted-input.spec.ts` 经公开调用验证完整及混合密文历史零 HTTP，并在委托真实拒绝 meter 时观察序列化；合成密文不作为 token 依据。demo OpenAI 组合另将受控加密响应实际落盘，验证后续 service 回放被拒绝、无新增日志且原响应保留。
 
@@ -512,3 +512,10 @@ Anthropic及适用OpenAI可见历史路径给新增回放/追加单元的JSON净
 reader每个终态都交同一个累积器的 `readFacts`；解析即保存usage，后续坏帧或取消不抹掉已知I。完整prompt total不依赖伪造缓存零项；实际响应头 `X-OpenRouter-Cache-Status: HIT` 为response-cache不可用，不是输入零锚。重复累计事实不相加。取消停止并等待真实资源，只交已有事实，不等未来usage。
 
 本地回归包括纯planner和实际TLS reader；37模型线上认证与完整runtime/service组合另验，本地通过不冒称上游路由认证。
+
+
+### OpenAI Pro 输入观察范围
+
+六个已供 OpenAI Pro 定义升级为 `pi-ai:openai/mp4-7`：GPT-5.6 Sol/Terra/Luna Pro 定义 revision 5，GPT-6 Astra/Sol/Luna Pro revision 2。由于上游输入统计范围尚未确认，真实 usage/cost（包括部分未知项）原样保留，`observedInput` 为 `unavailable/scope_unknown`。缺失 usage、响应缓存命中和统计冲突继续优先沿原有具体分支处理；真实零值也不证明统计范围。规划阶段同时拒绝这些新贡献的历史锚及伪造的当前同形 known 锚。GPT-5.6 Pro 使用全量估算和配置余量准入；GPT-6 Pro 仍无已供全量 meter，默认工厂不能发送。
+
+规划与 reader 共用私有固定规则，由实际已拥有的请求绑定选择；不新增公开信任开关或额外 I/O。新 Pro transform revision 为 `openrouter-input-transform/pro-scope-1`，tokenizer 和估算算法未变。精确旧贡献身份仅在已有 lease 随 registry 退役协议排空时保留原捕获 reader 语义；默认官方表和工厂只供新身份。这不构成历史兼容入口，也不新增针对可信自定义完整代码贡献的全局禁入机制；其它可信贡献继承原 reader 前提，不因此取得新的上游统计范围认证。
