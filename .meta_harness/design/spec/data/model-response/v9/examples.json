@@ -1,0 +1,3584 @@
+[
+  {
+    "name": "complete-disjoint-input",
+    "schemaValid": true,
+    "relationsValid": true,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "from_usage",
+          "provenance": {
+            "adapterRevision": "adapter-1",
+            "fieldPaths": [
+              "usage.prompt_tokens"
+            ]
+          }
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "upstream-total-with-missing-cache-detail",
+    "schemaValid": true,
+    "relationsValid": true,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": "unknown",
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "upstream_total",
+          "tokens": 30,
+          "provenance": {
+            "adapterRevision": "adapter-1",
+            "fieldPaths": [
+              "usage.prompt_tokens"
+            ]
+          }
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "missing-is-not-zero",
+    "schemaValid": true,
+    "relationsValid": true,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": "unknown",
+        "cache_read_tokens": "unknown",
+        "cache_write_tokens": "unknown",
+        "output_tokens": "unknown",
+        "source": "none"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "unavailable",
+          "reason": "missing_usage"
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "response-cache-not-anchor",
+    "schemaValid": true,
+    "relationsValid": true,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "unavailable",
+          "reason": "response_cache"
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "known-input-partial-output",
+    "schemaValid": true,
+    "relationsValid": true,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "from_usage",
+          "provenance": {
+            "adapterRevision": "adapter-1",
+            "fieldPaths": [
+              "usage.prompt_tokens"
+            ]
+          }
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "partial",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "reasoning-zero-distinct-from-absent",
+    "schemaValid": true,
+    "relationsValid": true,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream",
+        "reasoning_tokens": 0
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "from_usage",
+          "provenance": {
+            "adapterRevision": "adapter-1",
+            "fieldPaths": [
+              "usage.prompt_tokens"
+            ]
+          }
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "old-format-missing-required",
+    "schemaValid": false,
+    "relationsValid": false,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      }
+    }
+  },
+  {
+    "name": "missing-observation-discriminant",
+    "schemaValid": false,
+    "relationsValid": false,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "two-authorities-forbidden",
+    "schemaValid": false,
+    "relationsValid": false,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "from_usage",
+          "provenance": {
+            "adapterRevision": "adapter-1",
+            "fieldPaths": [
+              "usage.prompt_tokens"
+            ]
+          },
+          "tokens": 30
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "incomplete-disjoint-input",
+    "schemaValid": false,
+    "relationsValid": false,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": "unknown",
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "from_usage",
+          "provenance": {
+            "adapterRevision": "adapter-1",
+            "fieldPaths": [
+              "usage.prompt_tokens"
+            ]
+          }
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "projection-revision-mismatch",
+    "schemaValid": true,
+    "relationsValid": false,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "other",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "from_usage",
+          "provenance": {
+            "adapterRevision": "adapter-1",
+            "fieldPaths": [
+              "usage.prompt_tokens"
+            ]
+          }
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "group-count-mismatch",
+    "schemaValid": true,
+    "relationsValid": false,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "from_usage",
+          "provenance": {
+            "adapterRevision": "adapter-1",
+            "fieldPaths": [
+              "usage.prompt_tokens"
+            ]
+          }
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "total-smaller-than-known-parts",
+    "schemaValid": true,
+    "relationsValid": false,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": "unknown",
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "upstream_total",
+          "tokens": 1,
+          "provenance": {
+            "adapterRevision": "adapter-1",
+            "fieldPaths": [
+              "usage.prompt_tokens"
+            ]
+          }
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "reported-model-mismatch",
+    "schemaValid": true,
+    "relationsValid": false,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "actual",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "from_usage",
+          "provenance": {
+            "adapterRevision": "adapter-1",
+            "fieldPaths": [
+              "usage.prompt_tokens"
+            ],
+            "upstreamModel": "wrong"
+          }
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "conflicting-source-retained-no-anchor",
+    "schemaValid": true,
+    "relationsValid": true,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "replyDisposition": "persisted",
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "unavailable",
+          "reason": "inconsistent_usage"
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "pending-complete-required-evidence",
+    "schemaDefinition": "PendingModelResponse",
+    "schemaValid": true,
+    "relationsValid": true,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      },
+      "inputCalibration": {
+        "requestInput": {
+          "kind": "known",
+          "projectionRevision": "projection-1",
+          "prefixBoundary": 2,
+          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "countingBasis": {
+            "binding": {
+              "implementation": {
+                "name": "example-family",
+                "revision": "impl-1"
+              },
+              "definition": {
+                "modelId": "anthropic/claude-sonnet-4.5",
+                "revision": "model-1"
+              },
+              "configuration": {
+                "revision": "config-1",
+                "values": {}
+              }
+            },
+            "model": "anthropic/claude-sonnet-4.5",
+            "provider": "anthropic",
+            "tokenizerRevision": "tokenizer-1",
+            "meterRevision": "meter-1",
+            "projectionRevision": "projection-1",
+            "replayRevision": "replay-1",
+            "transformRevision": "transform-1"
+          }
+        },
+        "observedInput": {
+          "kind": "from_usage",
+          "provenance": {
+            "adapterRevision": "adapter-1",
+            "fieldPaths": [
+              "usage.prompt_tokens"
+            ]
+          }
+        },
+        "outputGroup": {
+          "kind": "known",
+          "source": "reply",
+          "blockDigests": [
+            "3333333333333333333333333333333333333333333333333333333333333333",
+            "3333333333333333333333333333333333333333333333333333333333333333"
+          ],
+          "completeness": "complete",
+          "usageRef": "usage"
+        }
+      }
+    }
+  },
+  {
+    "name": "pending-missing-evidence",
+    "schemaDefinition": "PendingModelResponse",
+    "schemaValid": false,
+    "relationsValid": false,
+    "value": {
+      "id": "resp_4c1e9a",
+      "call": {
+        "runId": "run_7a02",
+        "callId": "mc_19f3"
+      },
+      "dispatch": 1,
+      "attemptId": 1,
+      "route": {
+        "adaptation": {
+          "implementation": {
+            "name": "example-family",
+            "revision": "impl-1"
+          },
+          "definition": {
+            "modelId": "anthropic/claude-sonnet-4.5",
+            "revision": "model-1"
+          },
+          "configuration": {
+            "revision": "config-1",
+            "values": {}
+          }
+        },
+        "profile": {
+          "origin": "custom",
+          "scope": {
+            "layer": "organization",
+            "organization": "org_7fd2c1"
+          },
+          "routeName": "anthropic/claude-sonnet-4.5"
+        },
+        "profileSnapshot": {
+          "adaptation": {
+            "implementation": {
+              "name": "example-family",
+              "revision": "impl-1"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-4.5",
+              "revision": "model-1"
+            },
+            "configuration": {
+              "revision": "config-1",
+              "values": {}
+            }
+          },
+          "providers": [
+            "anthropic",
+            "amazon-bedrock",
+            "google-vertex",
+            "openai"
+          ],
+          "allowFallback": true,
+          "inputModalities": [
+            "text",
+            "image"
+          ],
+          "outputModalities": [
+            "text",
+            "image"
+          ],
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 64000,
+          "updatedAt": "2026-09-20T08:00:00Z",
+          "inputConstraints": {
+            "maxImageBytes": 5242880
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          }
+        },
+        "selectedBy": "session",
+        "provider": "anthropic",
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "parameters": {
+          "reasoningEffort": "medium",
+          "temperature": 0.7
+        }
+      },
+      "outcome": "complete",
+      "stopReason": "stop",
+      "reply": {
+        "id": "msg_51",
+        "type": "assistant",
+        "createdAt": "2026-09-23T10:00:04Z",
+        "response": "resp_4c1e9a",
+        "ending": "complete",
+        "blocks": [
+          {
+            "id": "b1",
+            "kind": "text",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "先读一下配置文件。"
+          },
+          {
+            "id": "b2",
+            "kind": "tool_call",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "complete": true,
+            "callId": "call_01",
+            "tool": "read_file",
+            "arguments": {
+              "path": "config.toml"
+            }
+          }
+        ]
+      },
+      "timing": {
+        "sentAt": "2026-09-23T10:00:00Z",
+        "firstTokenAt": "2026-09-23T10:00:01.2Z",
+        "endedAt": "2026-09-23T10:00:04Z"
+      },
+      "usage": {
+        "input_tokens": 10,
+        "cache_read_tokens": 20,
+        "cache_write_tokens": 0,
+        "output_tokens": 5,
+        "source": "upstream"
+      },
+      "cost": {
+        "cost_usd": 0.0031,
+        "source": "upstream_usage"
+      },
+      "raw": {
+        "headers": {
+          "content-type": "text/event-stream",
+          "x-generation-id": "gen-1758621600-a1b2c3"
+        },
+        "body": {
+          "storage": "attachments",
+          "key": "raw/resp_4c1e9a",
+          "mediaType": "text/event-stream",
+          "bytes": 18234
+        }
+      }
+    }
+  }
+]

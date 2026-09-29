@@ -2660,6 +2660,131 @@
         "spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming.tla"
       ],
       "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v10-usage-exactorbound",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ExactOrBound.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v10-usage-exactorbound",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ExactOrBound.cfg",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v10-usage-upperbound",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_UpperBound.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v10-usage-upperbound",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_UpperBound.cfg",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v10-usage-estimated",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Estimated.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v10-usage-estimated",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Estimated.cfg",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v10-usage-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v10-usage-progress",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v10-usage-threecalls",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ThreeCalls.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v10-usage-threecalls",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ThreeCalls.cfg",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+      ],
+      "timeout_seconds": 240
     }
   ]
 }

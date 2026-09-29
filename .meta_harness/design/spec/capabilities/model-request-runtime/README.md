@@ -85,3 +85,8 @@
 ## 2026-09-28 RT9 恢复时序候选
 
 [v9 契约](v9/contract.md) 为 candidate，未接受、未冻结；只补已确认锚点的中断结算中实际 sentAt 不可用表示。当前采用不自动升级，证据与消费者责任见[验证入口](verification.md#恢复时序候选)。
+
+
+## 2026-09-29 响应校准候选 v10
+
+[v10 contract](v10/contract.md) · [验证义务](v10/verification.md)。新增增量输入计量事实及其消费；candidate，未接受、未冻结，不自动升级现有消费者。
