@@ -451,16 +451,50 @@ async function openScope(
   try {
     return createDiagnosticCollector(config)
   } catch (error) {
-    const result = await store.close()
-    if (!('complete' in result)) throw new DemoDiagnosticStartupFailure(() => store.close())
+    let result: DiagnosticCloseResult | undefined
+    try {
+      result = await store.close()
+    } catch {
+      // A failed close retains its store owner for a later explicit retry.
+    }
+    if (result === undefined || !('complete' in result))
+      throw new DemoDiagnosticStartupFailure([() => store.close()])
     throw error
   }
 }
 
 /** A failed startup still gives its caller the owner needed to retry incomplete cleanup. */
 export class DemoDiagnosticStartupFailure extends Error {
-  constructor(readonly retryCleanup: () => Promise<DiagnosticCloseResult>) {
+  constructor(private readonly cleanupOwners: readonly (() => Promise<DiagnosticCloseResult>)[]) {
     super('diagnostic assembly startup cleanup incomplete')
+  }
+
+  static combine(
+    prior: unknown,
+    remaining: () => Promise<DiagnosticCloseResult>,
+  ): DemoDiagnosticStartupFailure {
+    return new DemoDiagnosticStartupFailure([
+      ...(prior instanceof DemoDiagnosticStartupFailure ? prior.cleanupOwners : []),
+      remaining,
+    ])
+  }
+
+  remainingOwners(): number {
+    return this.cleanupOwners.length
+  }
+
+  async retryCleanup(): Promise<{
+    readonly complete: boolean
+    readonly results: readonly (DiagnosticCloseResult | { readonly failed: true })[]
+  }> {
+    const attempts = await Promise.allSettled(this.cleanupOwners.map(close => close()))
+    const results = attempts.map(result =>
+      result.status === 'fulfilled' ? result.value : ({ failed: true } as const),
+    )
+    return {
+      complete: results.every(result => 'complete' in result && result.complete),
+      results,
+    }
   }
 }
 
@@ -522,9 +556,14 @@ export async function openDemoDiagnosticAssembly(
   try {
     tenantCollector = await openScope(config.tenant, tenantScope, config.collector)
   } catch (error) {
-    const cleaned = await localCollector.close()
-    if (!('complete' in cleaned))
-      throw new DemoDiagnosticStartupFailure(() => localCollector.close())
+    let cleaned: DiagnosticCloseResult | undefined
+    try {
+      cleaned = await localCollector.close()
+    } catch {
+      // Keep both store owners when the tenant and local closes fail independently.
+    }
+    if (cleaned === undefined || !('complete' in cleaned))
+      throw DemoDiagnosticStartupFailure.combine(error, () => localCollector.close())
     throw error
   }
   const local = scopeHandle(localScope, localCollector)

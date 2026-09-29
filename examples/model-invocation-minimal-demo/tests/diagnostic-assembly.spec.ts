@@ -4,7 +4,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
 import type { DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
-import { createModelTransportService } from '@omne-harness-lite/pi-ai-transport'
+import {
+  createDeepSeekV41FlashInputMeter,
+  createModelTransportService,
+  createOfficialProfileContent,
+  deepseekV41FlashConfiguration,
+  deepseekV41FlashDefinition,
+} from '@omne-harness-lite/pi-ai-transport'
 import type { ModelTransportService, RetirementPolicy } from '@omne-harness-lite/pi-ai-transport'
 import {
   createDemoTransportRetention,
@@ -238,6 +244,47 @@ describe('demo diagnostic assembly', () => {
     expect(tracker.health().transportLiveInstances).toBe(0)
     expect(tracker.health().transportTerminalSnapshots).toBe(1)
     expect(tracker.health().terminal[0]?.diagnostics.pending).toBe(0)
+  })
+
+  it('retains a real registry lease when retirement times out, then releases after the lease ends', async () => {
+    const tracker = createDemoTransportRetention(1, () => new Date('2026-09-28T20:30:00Z'))
+    const service = createModelTransportService({
+      policy: {
+        maxConnections: 1,
+        idleConnectionTimeoutMs: 1000,
+        connectTimeoutMs: 1000,
+        maxErrorBodyBytes: 1024,
+        maxSseEventBytes: 1024,
+        credentialRedaction: openRouterCredentialRedactionConfig,
+      },
+    })
+    const declaration = createOfficialProfileContent(deepseekV41FlashDefinition, {
+      providers: ['deepinfra/fp8'],
+      allowFallback: false,
+      configuration: deepseekV41FlashConfiguration,
+    })
+    if ('rejected' in declaration) throw new Error('official profile unavailable')
+    const registration = service.registerAdaptation(
+      deepseekV41FlashDefinition,
+      createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition),
+      {},
+      () => {},
+    )
+    if ('rejected' in registration) throw new Error('real registry registration failed')
+    const acquired = service.acquire(declaration.ok.adaptation, deepseekV41FlashDefinition.modelId)
+    if ('rejected' in acquired) throw new Error('real registry acquire failed')
+    const reserved = tracker.reserveReplacement()
+    if (!('reservation' in reserved)) throw new Error('reservation unavailable')
+    const id = reserved.reservation.commit(service)
+    tracker.markRetired(id)
+    const result = await tracker.closeRetired(id, { ...policy(), waitMilliseconds: 10 })
+    expect(result).toMatchObject({ remaining_active: true })
+    expect(tracker.health().transportLiveInstances).toBe(1)
+    expect(tracker.reserveReplacement()).toEqual({ unavailable: 'transport_retention_full' })
+    acquired.lease.release()
+    expect(await tracker.closeRetired(id, policy())).toEqual({ retired: true })
+    expect(tracker.health().transportLiveInstances).toBe(0)
+    expect(tracker.health().transportTerminalSnapshots).toBe(1)
   })
 
   it('keeps a partial-construction owner and business-incomplete writer visible', async () => {
