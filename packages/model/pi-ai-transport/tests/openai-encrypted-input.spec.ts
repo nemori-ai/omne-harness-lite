@@ -228,9 +228,14 @@ describe('OpenAI encrypted replay has no applicable input-token estimate', () =>
     async modelId => {
       const selected = definition(modelId)
       const meter = createOpenAiInputMeter(selected)
+      const pro = [
+        'openai/gpt-5.6-sol-pro',
+        'openai/gpt-5.6-terra-pro',
+        'openai/gpt-5.6-luna-pro',
+      ].includes(modelId)
       expect(selected).toMatchObject({
-        revision: '4',
-        implementation: { name: 'pi-ai:openai', revision: 'mp4-5' },
+        revision: pro ? '5' : '4',
+        implementation: { name: 'pi-ai:openai', revision: pro ? 'mp4-7' : 'mp4-5' },
       })
       expect(meter.algorithmRevision).toBe('openai-gpt-5.6-o200k-base-4/response-calibration-1')
       for (const old of [
