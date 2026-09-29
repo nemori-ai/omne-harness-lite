@@ -10,9 +10,9 @@
 
 若多组各自保持这些前提，把各组独立估算贡献放入 full 或 δ 是同一个估算的有限组合假设。误差可能随组数累积；一个三轮实测的总残差不能区分组修正、JSON 边界或 tokenizer 误差，也不能外推误差上界。没有在本文从实际残差拟合任何数字。
 
-## 待验证代理的精确适用账本
+## 待验证代理的实验坐标
 
-以下是本轮实现要核对的有限源／目标集合，**不是恢复旧工厂绑定**。每一行均逐一适用于上述三个精确 modelId，禁止跨型号合并：
+以下表格标识本次实验的有限源／目标坐标，便于复跑与定位结果，**不是模型发布注册表或旧工厂接受规则**。实验逐一考察上述三个精确 modelId，未把跨型号组纳入正向假设：
 
 | 原贡献 | 目标贡献 | 说明 |
 | --- | --- | --- |
@@ -21,15 +21,15 @@
 
 原 revision 6 的完整计量基准是 `openai-gpt-5.6-o200k-base-complete-output-6/response-calibration-1`、tokenizer `tokenizer-basis/openai-gpt-5.6-o200k-base-complete-output-6`、replay `openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/1`。目标 revision 7 的完整算法为 `openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1`，tokenizer 仍明确沿原 o200k basis，replay 为 `openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2`。两者投影为 `openrouter-input-projection/2`、transform 为 `openrouter-wire/2`。未知算法、变更 transform、其他 projection 和其他 binding 不在此账本内。
 
-原 `requestInput` known 时完整 basis 必须匹配对应行；它 unavailable 时只能由合法组的原 `origin.adaptation/provider/parameters` 指向同一有限原 binding，不能用当前请求补造原来源。原 observedInput 缺失不自动抹掉已知 O；但是原 usage 必须来自 upstream，O 已知非负，reasoning 若有不能超过 O。原组必须是 reply、complete、完整输出块按原顺序选入同一目标 assistant，且与实际最终投影完全对应。
+本实验的正向样本条件为：原 `requestInput` known 时完整 basis 匹配对应行；它 unavailable 时由合法组的原 `origin.adaptation/provider/parameters` 指向同一有限原 binding，没有用当前请求补造原来源。原 observedInput 缺失与已知 O 分开观察；原 usage 来自 upstream，O 已知非负，reasoning 若有不超过 O。原组为 reply、complete，完整输出块按原顺序选入同一目标 assistant，且与实际最终投影对应。这些是验证代理的样本条件，数据合法性与实现义务仍以已接受契约为准。
 
-映射假设只讨论 omitted context 的现有公开 wire；未知 mode 或额外 reasoning context 结构不能进入此假设。原／目标 reasoning effort 必须在已供给的 `{none,low,medium,high,max}` 或未指定域。当前与原 provider 均为 openai，目标 wire 固定单 provider、无 fallback、require_parameters；若原响应明确给 servingProvider/upstreamModel，它们还必须相符。该范围不推断 Pro、GPT-6、跨型号或部分历史的可转换性。
+映射假设只讨论 omitted context 的现有公开 wire；未知 mode 或额外 reasoning context 结构不能进入此假设。实验的原／目标 reasoning effort 取自已供给的 `{none,low,medium,high,max}` 或未指定域。当前与原 provider 均为 openai，目标 wire 固定单 provider、无 fallback、require_parameters；若原响应明确给 servingProvider/upstreamModel，正向样本要求其相符。该范围不推断 Pro、GPT-6、跨型号或部分历史的可转换性。
 
-## 组合与反例义务
+## 本次实验的组合假设与负控设计
 
-- 多个完整组各计一次 O；含完整加密组的 assistant 单元从**计量副本**整体替换，实际 wire 不变。不仅删 ciphertext 后再对同组 text/tool 计一次。
-- full 仍覆盖所有未被 O 覆盖的当前可见输入；δ 只消费分配给 N 的实际单位，P 不再次分词；φ 沿同一个组贡献函数。共享区域分配仍由既有 v13 负责，不能在 planner 加型号分支。
-- 部分选择、缺原来源、重复目标、跨区、不完整组、未知 O、跨型号和账本外 basis 必须有负控；非法源关系保留既有 invalidInput 与 full/unavailable 区分。
-- 独立数值 oracle 应验证 full = 剩余可见 full + ΣO、δ = 剩余可见净新增 + ΣO、φ = O；margin 最终只施一次。三轮本机 TLS 验证组来源及持久历史；这不证明真实上游零封装修正。
+- 待测组合假设为多个完整组各计一次 O；含完整加密组的 assistant 单元从**计量副本**整体替换，实际 wire 不变。不仅删 ciphertext 后再对同组 text/tool 计一次。
+- full 仍覆盖所有未被 O 覆盖的当前可见输入；δ 只消费分配给 N 的实际单位，P 不再次分词；φ 沿同一个组贡献函数。共享区域分配仍由既有 v13 负责，本实验不改变该共享分配。
+- 部分选择、缺原来源、重复目标、跨区、不完整组、未知 O、跨型号和账本外 basis 列入负控设计；观察非法源关系是否保持既有 invalidInput 与 full/unavailable 区分。
+- 独立数值 oracle 检验 full = 剩余可见 full + ΣO、δ = 剩余可见净新增 + ΣO、φ = O；margin 最终只施一次。三轮本机 TLS 验证组来源及持久历史；这不证明真实上游零封装修正。
 
 采用边界由已接受 D-101、D-107 及 transport v13 所有；本文不另立决定。没有实际 full/δ 多组 holdout 因本文而成为已执行。上游默认 context、模型身份、原输出计费口径或 transform 变化时，上述相关性和账本都需要复核。
