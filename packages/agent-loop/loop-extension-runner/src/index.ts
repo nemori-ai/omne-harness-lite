@@ -55,3 +55,21 @@ export {
   type RunnerImplementationLease,
   type RunnerImplementationRegistry,
 } from './implementation-registry.ts'
+
+export {
+  readRunnerChain,
+  type ReadRunnerChainInput,
+  type RunnerChainSources,
+} from './runner-chain.ts'
+
+export type {
+  RunnerReplayRequest,
+  RunnerDispatchRequest,
+  RunnerReadScope,
+  RunnerExecutionPorts,
+  RunnerDispatchScope,
+  RunnerScopeFailure,
+  RunnerServiceHost,
+  RunnerHostFactory,
+  LoopExtensionRunnerService,
+} from './service-types.ts'

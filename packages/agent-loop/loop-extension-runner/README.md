@@ -78,3 +78,16 @@ console.log(result.effect.kind) // proceed
 For every position other than `before_persist_message`, the caller must provide an actual `{ kind: 'withRun', run, attempt }` shell when preparing a durable conclusion. `before_persist_message` may inherit a real outer fence while its extension input omits Run fields. `composeEffect` uses the core pure subject and conclusion judgments; it needs no Run or handle and proves no execution occurred. Reminder message IDs use the same `mrr/3` message key as model runtime; the stored conclusion includes the full reminder copy for later exact comparison. For `producer: system`, only the runner's private reminder nesting inherits that fence; a public `runPass` with a system message and `withRun` remains invalid. Cancellation observed after waiting-source, presence, or handle acquisition prevents the next invocation and releases any acquired replay binding or handles.
 
 The pure functions are synchronous and use no network, clock, random source, or hidden storage. `runPass` is asynchronous and uses only its explicit ports. A successful function result does not certify that the host implemented authentic waiting/card ownership, same-prefix failure verification, physical writer-stop recovery, or actual Run provenance; those remain host integration obligations.
+
+`readRunnerChain({session, binding, sources})` reads one current loop-extension
+manifest record and the exact immutable version of every selected asset. Borrow
+`sessionTenancy`, `manifest`, and the restricted history reader's `read` method
+from an authorized host; `isActive` must track those captured providers and the
+physical log binding. It never acquires ownership of their `close` methods.
+Other-category updates do not substitute their evaluation for the selected
+record. A legal same-order `reuse` deletion remains readable.
+
+`RunnerServiceHost` separates `acquireDispatch` from `acquireReplay`: the latter
+must only acquire read authority. These assembly ports belong to the host, not to
+request data. They are exported for service composition; the service plugin and
+its lifecycle acceptance are a separate implementation increment.

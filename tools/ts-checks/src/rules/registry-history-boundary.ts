@@ -14,12 +14,17 @@ function ownSource(path: string): boolean {
 function valueAllowed(path: string): boolean {
   return (
     path === 'examples/model-invocation-minimal-demo/src/bootstrap.ts' ||
+    /^packages\/agent-loop\/loop-extension-runner\/tests\/.+\.ts$/u.test(path) ||
     /^packages\/tools\/asset-registry\/tests\/.+\.ts$/u.test(path) ||
     /^examples\/model-invocation-minimal-demo\/tests\/.+\.ts$/u.test(path)
   )
 }
 function typeAllowed(path: string): boolean {
-  return valueAllowed(path) || /^packages\/tools\/asset-registry\/src\/.+\.ts$/u.test(path)
+  return (
+    valueAllowed(path) ||
+    /^packages\/tools\/asset-registry\/src\/.+\.ts$/u.test(path) ||
+    /^packages\/agent-loop\/loop-extension-runner\/src\/.+\.ts$/u.test(path)
+  )
 }
 function restricted(file: SourceFile, specifier: string): boolean {
   const target =
@@ -45,7 +50,7 @@ const typeNames = new Set([
 ])
 export const registryHistoryBoundary: Rule = {
   id: 'registry-history-boundary',
-  source: 'D080; EIS history HI-1/HI-6/HI-V9 and AR4 S31/S33',
+  source: 'D080/D106 R7; EIS history HI-1/HI-6/HI-V9 and AR4 S31/S33',
   description:
     'history factory belongs to the trusted assembly; registry source may only import types',
   check(files) {

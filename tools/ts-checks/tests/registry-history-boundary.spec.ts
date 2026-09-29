@@ -57,3 +57,21 @@ test('TS-resolved private aliases do not bypass the public entry', () => {
     ]),
   ).not.toEqual([])
 })
+
+test('D106 permits runner read types and real source acceptance construction, never production factory ownership', () => {
+  const source = 'packages/agent-loop/loop-extension-runner/src/runner-chain.ts'
+  expect(
+    registryHistoryBoundary.check([
+      { path: source, text: `import type {RegistryHistoryReader} from '${entry}'` },
+    ]),
+  ).toEqual([])
+  expect(registryHistoryBoundary.check([{ path: source, text: factory }])).not.toEqual([])
+  expect(
+    registryHistoryBoundary.check([
+      {
+        path: 'packages/agent-loop/loop-extension-runner/tests/runner-chain-support.ts',
+        text: factory,
+      },
+    ]),
+  ).toEqual([])
+})

@@ -80,3 +80,13 @@ console.log(result.effect.kind) // proceed
 运行 `node examples/replay-and-registry.mjs` 可单独演示贡献登记与纯历史读取，
 输出 `replay: 0`、`invocation: output` 和 `withdrawn: true`。
 示例显式使用空历史，不宣称完成生产读取或取得 Run 来源授权。
+
+`readRunnerChain({session, binding, sources})` 读取一份当前 loop-extension
+清单记录及其所选资产的精确不可变版本。授权宿主借出 `sessionTenancy`、
+`manifest` 和受限历史 reader 的 `read`；`isActive` 必须关联这些被捕获的
+提供者与物理日志绑定。reader 不取得它们的 `close` 权。其他类别更新不会
+替换本表对应的求值，合法同序删除的 `reuse` 表仍然可读。
+
+`RunnerServiceHost` 将 `acquireDispatch` 和 `acquireReplay` 分开，后者只能
+取得读取授权。这些装配端口由宿主持有，不是请求数据中的证明。目前导出供
+服务组合使用；服务插件及其生命周期验收将在后续实施增量完成。
