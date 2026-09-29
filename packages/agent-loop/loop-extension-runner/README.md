@@ -101,3 +101,18 @@ Run `node examples/service-lifecycle.mjs` after building to see both actual
 Cordis service faces and the explicit unavailable result when no authorized
 manifest scope is supplied. It uses a temporary real JSONL log and closes it in
 the application, after withdrawing the runner.
+
+The service increment accepts the model path's `before_model_call`,
+`after_model_call`, `before_persist_message`, and `after_persist_message`
+positions. Known positions requiring the unprovided action/loop environment
+return `unavailable`; they are not reported as unknown positions. Requests carry
+`manifest` as the authorized session reference, the LC6 positioned subject and
+`anchor`; dispatch additionally carries `run`/`attempt` when required. The host
+supplies actual Run, waiting and environment facts. The service does not create
+those owners or treat missing facts as permission.
+
+`createLoopExtensionRunner({log, host, isActive})` exposes the same service
+assembly without starting a plugin. It returns the runner and registration
+faces plus `closeAdmission()` and `drain()`. Closing this instance does not drain
+the host's unknown log tasks: first close the physical writer, reopen under
+legitimate recovery admission, reconcile that owner's binding, then drain it.

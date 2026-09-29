@@ -98,3 +98,15 @@ console.log(result.effect.kind) // proceed
 编译后运行 `node examples/service-lifecycle.mjs`，可观察两个真实 Cordis 服务面，
 以及未提供授权清单作用域时明确返回 unavailable。示例使用临时真实 JSONL 日志，
 由应用在撤除 runner 后关闭。
+
+本服务增量接入模型路径的 `before_model_call`、`after_model_call`、
+`before_persist_message` 和 `after_persist_message`。依赖尚未提供的动作／循环
+环境的已知位置返回 `unavailable`，不会误报为未知位置。请求中的 `manifest`
+是已授权的会话指认，另携 LC6 定位主体与 `anchor`；dispatch 按需再带
+`run`／`attempt`。真实 Run、等待和环境事实仍由宿主供给，服务不创建这些 owner，
+也不把缺席事实解释为授权。
+
+`createLoopExtensionRunner({log, host, isActive})` 不启动插件，直接返回同一服务
+装配的执行面、登记面、`closeAdmission()` 与 `drain()`。关闭实例不会等待宿主
+持有的 unknown 日志任务：宿主必须先停止物理写者、合法准入重开、按原 owner
+绑定对账，再 drain。

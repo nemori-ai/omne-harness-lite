@@ -1,5 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, open, type FileHandle } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { expect, test, vi } from 'vitest'
@@ -45,16 +45,25 @@ async function serviceHost() {
     await facts.registry.fill(session, facts.evaluation, 'evaluation_one', facts.order),
   ).toHaveProperty('snapshots')
   const dir = await mkdtemp(join(tmpdir(), 'omne-runner-service-'))
-  const log = await openJsonlSessionLog({
+  const logOptions = {
     dir,
-    processOwnership: { current: 'runner-service-test', observeExit: async () => 'exited' },
-  })
+    processOwnership: {
+      current: 'runner-service-test',
+      observeExit: async () => 'exited' as const,
+    },
+  }
+  const log = await openJsonlSessionLog(logOptions)
+  const operations = {
+    append: vi.fn(log.append),
+    readByKey: vi.fn(log.readByKey),
+    readSince: vi.fn(log.readSince),
+  }
   const owner = createRunnerTaskOwner(facts.binding)
   const ctx = new Context()
   const provider = await ctx.plugin({
     name: 'actual-log',
     apply(inner) {
-      inner.provide('sessionLog', log)
+      inner.provide('sessionLog', operations)
     },
   })
   let scopes = 0
@@ -107,7 +116,10 @@ async function serviceHost() {
   const runner = ctx.get('loopExtensionRunner') as LoopExtensionRunnerService
   const implementations = ctx.get('loopExtensionImplementations') as RunnerImplementations
   return {
+    dir,
+    logOptions,
     facts,
+    operations,
     log,
     owner,
     ctx,
@@ -122,7 +134,8 @@ async function serviceHost() {
       await runnerFiber.dispose()
       await provider.dispose()
       await log.close()
-      await owner.drain()
+      // Do not mask a failed recovery assertion with an indefinitely pending unknown drain.
+      if (!owner.hasUnknown(facts.binding)) await owner.drain()
       await facts.close()
       await rm(dir, { recursive: true, force: true })
     },
@@ -145,11 +158,17 @@ test('Cordis service dispatches a real manifest chain into JSONL; replay reads w
     expect(invoke).toHaveBeenCalledTimes(2)
     for (const port of Object.values(h.execution)) vi.mocked(port).mockClear()
     invoke.mockClear()
+    h.operations.append.mockClear()
+    h.operations.readByKey.mockClear()
+    h.operations.readSince.mockClear()
     expect(await h.runner.replay(replay)).toMatchObject([
       { extension: 'example:b' },
       { extension: 'example:a' },
     ])
     expect(invoke).not.toHaveBeenCalled()
+    expect(h.operations.append).not.toHaveBeenCalled()
+    expect(h.operations.readByKey).toHaveBeenCalledOnce()
+    expect(h.operations.readSince).not.toHaveBeenCalled()
     expect(
       await h.log.readSince(unwrap(parseOpaqueIdentifier(session, 'SessionRef')), 0),
     ).toHaveProperty('tail', 2)
@@ -280,6 +299,161 @@ test('required log dependency removal invalidates retained service and restarts 
     expect(h.ctx.get('loopExtensionImplementations')).not.toBe(h.implementations)
   } finally {
     await replacement?.dispose()
+    await h.close()
+  }
+})
+
+for (const repairFails of [false, true])
+  test(`service unknown survives fiber removal until physical stop/reopen (${repairFails ? 'durable original' : 'authoritative absence'})`, async () => {
+    const h = await serviceHost()
+    const identity = unwrap(parseOpaqueIdentifier(session, 'SessionRef'))
+    const probe = await open(join(h.dir, 'probe'), 'w')
+    const prototype = Object.getPrototypeOf(probe) as Pick<FileHandle, 'datasync' | 'truncate'>
+    const originalSync = prototype.datasync,
+      originalTruncate = prototype.truncate
+    let armed = false,
+      failures = 0
+    const sync = vi.spyOn(prototype, 'datasync').mockImplementation(async function (
+      this: FileHandle,
+    ) {
+      if (armed && (repairFails || failures === 0)) {
+        failures++
+        throw Object.assign(new Error('actual runner service datasync fault'), { code: 'EIO' })
+      }
+      return originalSync.call(this)
+    })
+    const truncate = vi.spyOn(prototype, 'truncate').mockImplementation(async function (
+      this: FileHandle,
+      size?: number,
+    ) {
+      if (armed && repairFails)
+        throw Object.assign(new Error('actual runner service truncate fault'), { code: 'EIO' })
+      return originalTruncate.call(this, size)
+    })
+    try {
+      await h.log.append(
+        identity,
+        [{ tenant: h.facts.binding.tenant, readKeys: [], payload: 'warmup' }],
+        { kind: 'unfenced' },
+        { kind: 'unconditional' },
+      )
+      const invoked = vi.fn(async () => ({ kind: 'output' as const, value: { kind: 'observed' } }))
+      h.implementations.registerBuiltin('example:b', invoked)
+      armed = true
+      expect(await h.runner.dispatch(request, new AbortController().signal)).toEqual({
+        failure: 'unavailable',
+      })
+      expect(failures).toBeGreaterThan(0)
+      expect(h.owner.hasUnknown(h.facts.binding)).toBe(true)
+      armed = false
+      await h.runnerFiber.dispose()
+      expect(h.owner.hasUnknown(h.facts.binding)).toBe(true)
+      // Trusted physical stop precedes recovery admission; the service never does this itself.
+      h.owner.closeAdmission()
+      await h.log.close()
+      const recovered = await openJsonlSessionLog({
+        ...h.logOptions,
+        processOwnership: {
+          current: 'runner-service-recovery-test',
+          observeExit: async () => 'exited',
+        },
+      })
+      try {
+        const readByKey = async (key: string) => {
+          const read = await recovered.readByKey(identity, key)
+          return 'entries' in read ? read.entries : { unavailable: true as const }
+        }
+        expect(
+          await h.owner.reconcileStoppedLog({
+            binding: { ...h.facts.binding, logGeneration: 'wrong_generation' },
+            readByKey,
+          }),
+        ).toEqual({ unavailable: true })
+        expect(h.owner.hasUnknown(h.facts.binding)).toBe(true)
+        expect(
+          await h.owner.reconcileStoppedLog({ binding: h.facts.binding, readByKey }),
+        ).toMatchObject([{ kind: repairFails ? 'same' : 'absent' }])
+        await h.owner.drain()
+        expect(h.owner.hasUnknown(h.facts.binding)).toBe(false)
+        expect(invoked).toHaveBeenCalledOnce()
+      } finally {
+        await recovered.close()
+      }
+    } finally {
+      armed = false
+      sync.mockRestore()
+      truncate.mockRestore()
+      await probe.close()
+      await h.close()
+    }
+  })
+
+test('two actual service dispatchers adopt the legal durable winner rather than requiring byte-identical candidates', async () => {
+  const h = await serviceHost(),
+    entered = latch()
+  let firstCount = 0,
+    time = 0
+  try {
+    vi.mocked(h.execution.now).mockImplementation(() => `2026-09-29T00:00:0${time++}Z`)
+    h.implementations.registerBuiltin('example:b', async () => {
+      if (++firstCount === 2) entered.resolve()
+      await entered.promise
+      return { kind: 'output', value: { kind: 'observed' } }
+    })
+    h.implementations.registerBuiltin('example:a', async () => ({
+      kind: 'output',
+      value: { kind: 'observed' },
+    }))
+    const results = await Promise.all([
+      h.runner.dispatch(request, new AbortController().signal),
+      h.runner.dispatch(request, new AbortController().signal),
+    ])
+    expect(firstCount).toBe(2)
+    expect(results[0]).toMatchObject({
+      conclusions: [{ extension: 'example:b' }, { extension: 'example:a' }],
+    })
+    expect(results[1]).toEqual(results[0])
+    expect(
+      await h.log.readSince(unwrap(parseOpaqueIdentifier(session, 'SessionRef')), 0),
+    ).toHaveProperty('tail', 2)
+  } finally {
+    entered.resolve()
+    await h.close()
+  }
+})
+
+test('runner fiber can withdraw while the shared owner retains an already admitted delayed physical append', async () => {
+  const h = await serviceHost(),
+    entered = latch(),
+    finish = latch()
+  let drained = false
+  try {
+    h.implementations.registerBuiltin('example:b', async () => ({
+      kind: 'output',
+      value: { kind: 'observed' },
+    }))
+    h.operations.append.mockImplementation(async (...args) => {
+      entered.resolve()
+      await finish.promise
+      return h.log.append(...args)
+    })
+    const dispatch = h.runner.dispatch(request, new AbortController().signal)
+    await entered.promise
+    await h.runnerFiber.dispose()
+    expect(await dispatch).toEqual({ failure: 'unavailable' })
+    h.owner.closeAdmission()
+    const draining = h.owner.drain().then(() => {
+      drained = true
+    })
+    await Promise.resolve()
+    expect(drained).toBe(false)
+    finish.resolve()
+    await draining
+    expect(
+      await h.log.readSince(unwrap(parseOpaqueIdentifier(session, 'SessionRef')), 0),
+    ).toHaveProperty('tail', 1)
+  } finally {
+    finish.resolve()
     await h.close()
   }
 })
