@@ -8,10 +8,10 @@ import expirySchema from '@omne-harness-lite/offer-expiry/schema/v1' with { type
 import assetSchema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
 import retainedAssetSchema from '@omne-harness-lite/asset-model/schema/v2' with { type: 'json' }
 import connectorSchema from '@omne-harness-lite/asset-model/schema/connector/v2' with { type: 'json' }
-import accountsSchema from '@omne-harness-lite/call-accounts/schema' with { type: 'json' }
+import accountsSchema from '@omne-harness-lite/call-accounts/schema/v2' with { type: 'json' }
 import profileSchema from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
 import retainedProfileSchema from '@omne-harness-lite/model-profile/schema/v2' with { type: 'json' }
-import messageSchema from '@omne-harness-lite/messages/schema' with { type: 'json' }
+import messageSchema from '@omne-harness-lite/messages/schema/v6' with { type: 'json' }
 import retainedMessageSchemaV3 from '@omne-harness-lite/messages/schema/v3' with { type: 'json' }
 import retainedMessageSchemaV2 from '@omne-harness-lite/messages/schema/v2' with { type: 'json' }
 import toolSchema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }

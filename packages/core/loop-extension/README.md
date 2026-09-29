@@ -138,7 +138,7 @@ A valid conclusion is not dispatch authorization. The caller supplies the effect
 
 Rewrites preserve the immutable members for their position. An unparseable tool call cannot be repaired into parsed arguments by an extension. Injected reminders must name the actual extension as their source. Dependencies, policy execution, persistence and recovery belong to consumers.
 
-Public JSON Schema entries are `@omne-harness-lite/loop-extension/schema` (v6), `/schema/v3` and `/schema/v2`. See [source exports](src/index.ts), [tests](tests/) and [tool definition](../tool-definition/README.md).
+Public JSON Schema entries are `@omne-harness-lite/loop-extension/schema` (v6), `/schema/v3` and `/schema/v2`. The current schema graph consumes the exact `messages/schema/v6` and `call-accounts/schema/v2` resources required by those contracts, rather than following their changing root schemas. See [source exports](src/index.ts), [tests](tests/) and [tool definition](../tool-definition/README.md).
 
 ## Admit a recorded retry
 

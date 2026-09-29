@@ -20,6 +20,9 @@
 | 到达／事件／开块／归约类型                             | `open`、`fill`、`close`、`trim`、`account`、`finish` 值 |
 | `validate`、`schemaId`、`SCHEMA_DEF_NAMES`；`./schema` | 形状校验与 v2 Schema                                    |
 
+Schema 图使用 arrival-events v2 所引用的精确 `call-accounts/schema/v2` 资源，
+不随 call-accounts 根 Schema 的版本升级而改变。
+
 ## 使用示例
 
 每个 TypeScript 示例独立完整，使用构建后的公开导出。

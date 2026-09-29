@@ -138,7 +138,7 @@ console.log(conclusion.ok.output) // { kind: 'observed' }
 
 改写保留对应位置的不可改成员。拓展件不能把无法解析的工具调用修补成已解析参数。注入提醒必须以真实拓展件名作为来源。依赖、策略执行、持久化与恢复归消费者负责。
 
-公开 JSON Schema 入口是 `@omne-harness-lite/loop-extension/schema`（v6）、`/schema/v3` 和 `/schema/v2`。参见[源码导出](src/index.ts)、[测试](tests/)与[工具定义](../tool-definition/README_ZH.md)。
+公开 JSON Schema 入口是 `@omne-harness-lite/loop-extension/schema`（v6）、`/schema/v3` 和 `/schema/v2`。当前 Schema 图使用这些契约引用的精确 `messages/schema/v6` 与 `call-accounts/schema/v2` 资源，不随各包根 Schema 升级而改变。参见[源码导出](src/index.ts)、[测试](tests/)与[工具定义](../tool-definition/README_ZH.md)。
 
 ## 校验已记录的重试结论
 

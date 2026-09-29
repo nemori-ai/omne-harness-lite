@@ -20,6 +20,9 @@ This is an experimental, private workspace package, currently not published on n
 | Arrival/event/open/reduction types                     | `open`, `fill`, `close`, `trim`, `account`, `finish` values             |
 | `validate`, `schemaId`, `SCHEMA_DEF_NAMES`; `./schema` | Shape validation and v2 Schema                                          |
 
+The schema graph uses the exact `call-accounts/schema/v2` resource required by
+arrival-events v2, independently of the current call-accounts root schema.
+
 ## Examples
 
 Each TypeScript example is self-contained and uses the built public exports.
