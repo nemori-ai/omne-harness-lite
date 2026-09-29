@@ -15,6 +15,10 @@
     "./plugin": {
       "types": "./dist/service-plugin.d.ts",
       "import": "./dist/service-plugin.js"
+    },
+    "./default-retry-plugin": {
+      "types": "./dist/default-retry-plugin.d.ts",
+      "import": "./dist/default-retry-plugin.js"
     }
   },
   "files": [
