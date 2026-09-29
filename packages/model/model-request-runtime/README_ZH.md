@@ -115,24 +115,32 @@ export async function inspectWithRuntime(
 }
 ```
 
-`readAttempts`、`dispatch` 和 `dispatchAgain` 为需要运行失败扩展的调用方提供显式 `{ consumeFailure: true }` 重载，返回 `{ result, consumption }`。普通单参数调用仍只返回业务结果，不持有失败作用域。`consumption.kind === 'failure'` 给出不可序列化的 `ModelFailureSource`，来源就是产出失败结果的同一次授权完整前缀读取。交给 runner 前核验精确主体，并始终释放借用。核验只检查自有快照、当前准入和代际，不另读更新的日志尾；无关追加不会使其失效，释放、撤权、宿主停止或代际替换则会。
+`readAttempts`、`dispatch` 和 `dispatchAgain` 为需要运行失败扩展的调用方提供显式 `{ consumeFailure: true }` 重载，返回 `{ result, consumption }`。普通单参数调用仍只返回业务结果，不持有失败作用域。`consumption.kind === 'failure'` 给出不可序列化的 `ModelFailureSource`，来源就是产出失败结果的同一次授权完整前缀读取。来源会核对该前缀中的原 dispatched 条目壳和失败响应。交给 runner 前，须同时核验精确主体与**该次 runner 的实际 execution**，并始终释放借用。核验只检查自有快照、当前准入和代际，不另读更新的日志尾；无关追加不会使其失效，释放、撤权、宿主停止或代际替换则会。
 
 ```ts
-import type { CallKey, ModelRuntimeService } from '@omne-harness-lite/model-request-runtime'
+import type {
+  CallKey,
+  ModelFailureExecution,
+  ModelRuntimeService,
+} from '@omne-harness-lite/model-request-runtime'
 
-export async function inspectFailure(service: ModelRuntimeService, key: CallKey) {
+export async function inspectFailure(
+  service: ModelRuntimeService,
+  key: CallKey,
+  execution: ModelFailureExecution,
+) {
   const answer = await service.readAttempts(key, { consumeFailure: true })
   if (answer.consumption.kind !== 'failure') return answer.result
   const source = answer.consumption.source
   try {
-    return source.verify(source.subject)
+    return source.verify(source.subject, execution)
   } finally {
     source.release()
   }
 }
 ```
 
-主体中按序保留的 retry 结论必须取自同一原调用的授权前缀；runner 历史不可读时返回 `unavailable`，不能补造空数组。宿主还要把本来源和 runner 的真实绑定配对，在 `runPass` 外层 `finally` 再释放一次；重复释放无害。不属于 Run 的失败不能进入 runner 的 `after_model_call` 位置。采用依据见 [runtime v17 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v17-model-consumption-design.md)。
+宿主应从同一次 `runPass` 实际使用的 `RunnerPass.execution` 得到上述 `execution`，并核对来源与 runner 的会话、租户和日志代际。来源对 noRun 失败或另一 Run 返回 `invalidInput`；同一 Run 的后续 attempt 可以继续。这里仅校当前 attempt 的合法形状，其准入及栅栏由 runner 和日志负责。主体中按序保留的 retry 结论必须取自同一原调用的授权前缀；runner 历史不可读时返回 `unavailable`，不能补造空数组。宿主在 `runPass` 外层 `finally` 再释放一次，重复释放无害。采用依据见 [runtime v17 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v17-model-consumption-design.md)及 [v18 经过绑定](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v18-failure-execution-design.md)。
 
 服务宿主分别提供 `call()`、`response()` 和 `message()` 身份来源。回复的 `MessageId` 在那次发送时由 `message()` 产生，不复用 `ResponseId`，也不交由适配器自定。
 

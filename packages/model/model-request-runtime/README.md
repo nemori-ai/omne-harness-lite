@@ -119,24 +119,32 @@ export async function inspectWithRuntime(
 }
 ```
 
-`readAttempts`, `dispatch` and `dispatchAgain` have an explicit `{ consumeFailure: true }` overload for a caller that will run the failure extension. It returns `{ result, consumption }`; a normal one-argument call still returns only the business result and holds no failure scope. `consumption.kind === 'failure'` provides a non-serializable `ModelFailureSource` from the same authorized full-prefix read that supplied the failed result. Verify the exact subject before passing it to the runner, and always release the borrow. Verification reads the owned snapshot and current admission/generation, without reading a later log tail. A later unrelated append does not invalidate it; release, owner revocation, host stop or generation replacement does.
+`readAttempts`, `dispatch` and `dispatchAgain` have an explicit `{ consumeFailure: true }` overload for a caller that will run the failure extension. It returns `{ result, consumption }`; a normal one-argument call still returns only the business result and holds no failure scope. `consumption.kind === 'failure'` provides a non-serializable `ModelFailureSource` from the same authorized full-prefix read that supplied the failed result. The source checks the original dispatched entry shells and failed response in that prefix. Verify the exact subject **and the actual runner execution** before passing it to the runner, and always release the borrow. Verification reads the owned snapshot and current admission/generation, without reading a later log tail. A later unrelated append does not invalidate it; release, owner revocation, host stop or generation replacement does.
 
 ```ts
-import type { CallKey, ModelRuntimeService } from '@omne-harness-lite/model-request-runtime'
+import type {
+  CallKey,
+  ModelFailureExecution,
+  ModelRuntimeService,
+} from '@omne-harness-lite/model-request-runtime'
 
-export async function inspectFailure(service: ModelRuntimeService, key: CallKey) {
+export async function inspectFailure(
+  service: ModelRuntimeService,
+  key: CallKey,
+  execution: ModelFailureExecution,
+) {
   const answer = await service.readAttempts(key, { consumeFailure: true })
   if (answer.consumption.kind !== 'failure') return answer.result
   const source = answer.consumption.source
   try {
-    return source.verify(source.subject)
+    return source.verify(source.subject, execution)
   } finally {
     source.release()
   }
 }
 ```
 
-The source's ordered retry conclusions must come from the authorized original call prefix; a missing runner history is `unavailable`, never an invented empty array. The host pairs this source with the runner's actual binding and releases it again in the outer `finally` around `runPass`; repeated release is harmless. A no-Run failure cannot enter the runner's `after_model_call` position. See the adopted [runtime v17 mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v17-model-consumption-design.md).
+The host must supply `execution` from the same actual `RunnerPass.execution` used by `runPass`, after pairing the source with the runner's session, tenant and log generation. The source rejects a no-Run failure or another Run as `invalidInput`; a later attempt of the same Run remains possible. Its attempt value is checked for shape here; the runner and log fence own current-attempt admission. The source's ordered retry conclusions must come from the authorized original call prefix; a missing runner history is `unavailable`, never an invented empty array. The host releases the source again in the outer `finally` around `runPass`; repeated release is harmless. See the adopted [runtime v17 mapping](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v17-model-consumption-design.md) and [v18 execution binding](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v18-failure-execution-design.md).
 
 The service host supplies distinct `call()`, `response()` and `message()` identity sources. The reply's `MessageId` comes from `message()` for that send; it is neither copied from the `ResponseId` nor chosen by the adapter.
 

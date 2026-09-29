@@ -308,14 +308,16 @@ test('service dispatch writes both anchors before handing out a complete pending
         },
         failure: (prefix, callId) => {
           const found = interpretCallHistory({ prefix, callId })
-          const last = 'known' in found ? found.known.dispatches.at(-1) : undefined
-          return last?.response?.projection.outcome === 'failed'
+          if (!('known' in found)) return { unavailable: true }
+          const first = found.known.dispatches[0]?.record
+          const last = found.known.dispatches.at(-1)
+          return first !== undefined && last?.response?.projection.outcome === 'failed'
             ? {
                 subject: {
                   failure: 'upstream_unavailable',
                   statusCode: 503,
                   profile: last.record.profileSnapshot,
-                  dispatches: [last.record],
+                  dispatches: [first, ...found.known.dispatches.slice(1).map(item => item.record)],
                   retryConclusions: [],
                 },
               }
@@ -783,20 +785,59 @@ test('service dispatch writes both anchors before handing out a complete pending
     })
     failSend = true
     expect(await opening.openCall(runRequest)).toEqual({ callId: 'actual-call-8', state: 'open' })
-    expect(
-      await dispatch.dispatch({ session: host.session, callId: 'actual-call-8', attempt: 1 }),
-    ).toHaveProperty('settled')
+    const firstRunFailure = await dispatch.dispatch(
+      { session: host.session, callId: 'actual-call-8', attempt: 1 },
+      { consumeFailure: true },
+    )
+    expect(firstRunFailure.result).toHaveProperty('settled')
+    if (firstRunFailure.consumption.kind !== 'failure') throw new Error('Run failure source absent')
+    const firstRunSource = firstRunFailure.consumption.source
+    expect(firstRunSource.verify(firstRunSource.subject, { run, attempt: 1 })).toHaveProperty(
+      'authoritativeSubject',
+    )
+    expect(firstRunSource.verify(firstRunSource.subject, { run: 'other-run', attempt: 1 })).toEqual(
+      {
+        invalidInput: true,
+      },
+    )
+    const runReads = createRuntimeReads(runtime)
+    const readRunFailure = await runReads.methods.readAttempts(
+      { session: host.session, callId: 'actual-call-8' },
+      { consumeFailure: true },
+    )
+    if (readRunFailure.consumption.kind !== 'failure')
+      throw new Error('Run read failure source absent')
+    const readRunSource = readRunFailure.consumption.source
+    expect(readRunSource.verify(readRunSource.subject, { run, attempt: 1 })).toHaveProperty(
+      'authoritativeSubject',
+    )
+    expect(await runReads.close()).toEqual({ released: true })
+    expect(readRunSource.verify(readRunSource.subject, { run, attempt: 1 })).toEqual({
+      unavailable: true,
+    })
     await appendAttempt(2)
     latestRunAttempt = 2
-    failSend = false
-    expect(
-      await dispatch.dispatchAgain({
+    const retryRunFailure = await dispatch.dispatchAgain(
+      {
         session: host.session,
         callId: 'actual-call-8',
         attempt: 2,
         plan: { provider: 'test' },
-      }),
-    ).toHaveProperty('replyPending')
+      },
+      { consumeFailure: true },
+    )
+    expect(retryRunFailure.result).toHaveProperty('settled')
+    if (retryRunFailure.consumption.kind !== 'failure')
+      throw new Error('Run retry failure source absent')
+    const retryRunSource = retryRunFailure.consumption.source
+    expect(retryRunSource.verify(retryRunSource.subject, { run, attempt: 2 })).toHaveProperty(
+      'authoritativeSubject',
+    )
+    expect(firstRunSource.verify(firstRunSource.subject, { run, attempt: 2 })).toHaveProperty(
+      'authoritativeSubject',
+    )
+    firstRunSource.release()
+    retryRunSource.release()
     expect(calibrationTargets.at(-1)).toEqual({
       callId: 'actual-call-8',
       dispatch: 2,

@@ -102,7 +102,12 @@ export function createModelFailureSource(input: {
   readonly retain: (source: ModelFailureSource) => void
   readonly forget: (source: ModelFailureSource) => void
 }): ModelFailureSource | null {
-  const history = interpretCallHistory({ prefix: input.prefix, callId: input.callId })
+  let history: ReturnType<typeof interpretCallHistory>
+  try {
+    history = interpretCallHistory({ prefix: input.prefix, callId: input.callId })
+  } catch {
+    return null
+  }
   if (!('known' in history) || history.known.phase !== 'awaiting_decision') return null
   const checkedHistory = readFailureSubject({
     prefix: input.prefix,
@@ -138,16 +143,13 @@ export function createModelFailureSource(input: {
         return null
     }
   }
-  const copied = copyJsonValue(input.subject)
-  if ('failed' in copied || !validateLoop('AfterModelCallFailureSubject', copied.ok).valid)
-    return null
-  // The LC6 validator above checked the owned JSON representation before this projection.
+  // The subject was copied and validated against this same prefix by readFailureSubject.
   const freezeJson = (value: unknown): void => {
     if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return
     for (const member of Object.values(value)) freezeJson(member)
     Object.freeze(value)
   }
-  const subject = copied.ok as unknown as AfterModelCallFailureSubject
+  const subject = checkedHistory.subject
   freezeJson(subject)
   const { owner, usable, retain, forget } = input
   let prefix: SettlementPrefix | undefined = input.prefix
@@ -168,22 +170,25 @@ export function createModelFailureSource(input: {
       } catch {
         return { unavailable: true }
       }
-      if (
-        !object(execution) ||
-        Object.keys(execution).length !== 2 ||
-        !('ok' in judgeAccountValue('RunId', execution.run)) ||
-        !('ok' in judgeAccountValue('AttemptId', execution.attempt)) ||
-        originalRun === undefined ||
-        execution.run !== originalRun
-      )
+      try {
+        if (
+          !object(execution) ||
+          !('ok' in judgeAccountValue('RunId', execution.run)) ||
+          !('ok' in judgeAccountValue('AttemptId', execution.attempt)) ||
+          originalRun === undefined ||
+          execution.run !== originalRun
+        )
+          return { invalidInput: true }
+        const checked = copyJsonValue(candidate)
+        if (
+          'failed' in checked ||
+          !validateLoop('AfterModelCallFailureSubject', checked.ok).valid ||
+          !modelLogJsonEqual(checked.ok, subject)
+        )
+          return { invalidInput: true }
+      } catch {
         return { invalidInput: true }
-      const checked = copyJsonValue(candidate)
-      if (
-        'failed' in checked ||
-        !validateLoop('AfterModelCallFailureSubject', checked.ok).valid ||
-        !modelLogJsonEqual(checked.ok, subject)
-      )
-        return { invalidInput: true }
+      }
       return { authoritativeSubject: subject }
     },
     release() {

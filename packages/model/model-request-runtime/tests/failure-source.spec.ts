@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { createModelFailureSource } from '../src/failure-subject.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
@@ -97,9 +98,80 @@ describe('v17 failure source lifetime', () => {
         invalidInput: true,
       })
       expect(source.verify(source.subject, { run, attempt: 0 })).toEqual({ invalidInput: true })
-      expect(source.verify(source.subject, { run, attempt: 1, extra: true } as never)).toEqual({
+      expect(source.verify(source.subject, { run, attempt: new LosslessNumber('1.5') })).toEqual({
         invalidInput: true,
       })
+      // A deliberately untyped caller cannot omit the required execution member.
+      expect(source.verify(source.subject, { run } as never)).toEqual({ invalidInput: true })
+      expect(
+        createModelFailureSource({
+          prefix: read.prefix,
+          callId: 'run-call',
+          owner,
+          subject: {
+            ...subject,
+            dispatches: [{ ...record, response: 'forged-response' }],
+          },
+          usable: () => true,
+          retain() {},
+          forget() {},
+        }),
+      ).toBeNull()
+      const otherRun = 'other-source-run'
+      const otherShell = { tenant, run: otherRun, attempt: 1 }
+      const otherStart = {
+        ...start,
+        id: 'other-source-attempt-start',
+      }
+      expect(
+        await binding.log.append(
+          session,
+          [prepare('message', otherStart, { kind: 'message' }, otherShell)],
+          { kind: 'fenced', run: otherRun, attempt: 1 },
+          { kind: 'unconditional' },
+        ),
+      ).toHaveProperty('positions')
+      expect(
+        await binding.log.append(
+          session,
+          [
+            prepare(
+              'record',
+              { ...anchor, dispatch: 2, response: 'other-response', provider: 'second' },
+              { kind: 'record' },
+              otherShell,
+            ),
+          ],
+          { kind: 'fenced', run: otherRun, attempt: 1 },
+          { kind: 'unconditional' },
+        ),
+      ).toHaveProperty('positions')
+      const secondGrant = owner.acquire(2)
+      if (!('registration' in secondGrant))
+        throw new Error('changed prefix registration unavailable')
+      const changed = await readSettlementPrefix({
+        binding,
+        registration: secondGrant.registration,
+      })
+      secondGrant.registration.release()
+      if (!('prefix' in changed)) throw new Error('changed prefix unavailable')
+      expect(interpretCallHistory({ prefix: changed.prefix, callId: 'run-call' })).toHaveProperty(
+        'unavailable',
+      )
+      expect(
+        createModelFailureSource({
+          prefix: changed.prefix,
+          callId: 'run-call',
+          owner,
+          subject,
+          usable: () => true,
+          retain() {},
+          forget() {},
+        }),
+      ).toBeNull()
+      expect(source.verify(source.subject, { run, attempt: 2 })).toHaveProperty(
+        'authoritativeSubject',
+      )
       source.release()
       expect(source.verify(source.subject, { run, attempt: 1 })).toEqual({ unavailable: true })
     })
