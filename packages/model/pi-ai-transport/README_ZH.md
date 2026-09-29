@@ -591,3 +591,16 @@ try {
 `fullOutputHistory`、`newOutputHistory` 和 `replayOutputHistory` 使用同一完整输出组遍历算法。调用者提供包含有限厂商来源与 basis 规则的 `OutputHistoryPolicy`，以及纯可见 body 计数函数。单元分类分为可见、需要完整输出组、无法解释三态。公共实现只将完整且唯一选中的 assistant 单元替换为原上游 output 计数一次；其中已经包含推理 tokens。这是估算贡献，不承诺输入与输出 token 精确相等。未知映射返回 unavailable，不对 opaque 字节做 tokenizer 回退。
 
 全量计量核对真实 body 与缓存中性投影。投影版本 `openrouter-input-projection/3` 只移除经验证且来自配置的 Anthropic 缓存控制，提交的 wire 不变。历史 `/2` 摘要按原版本核验，不因此复用旧输入锚点。签名前缀规则通过最终 marginal 输入对象上的私有同步 planner 能力消费；独立 marginal 调用缺少该能力时返回 unavailable。
+
+为自定义有限家族，将公开公共核与纯可见计数函数、具版本的规则组合：
+
+```ts
+import { fullOutputHistory, newOutputHistory, replayOutputHistory } from '@omne-harness-lite/pi-ai-transport'
+import { meter, finiteFamilyPolicy, visibleBodyCounter } from './my-finite-model.js'
+
+const full = fullOutputHistory(fullInput, meter, visibleBodyCounter, finiteFamilyPolicy)
+const added = newOutputHistory(newInput, meter, visibleBodyCounter, finiteFamilyPolicy)
+const replay = replayOutputHistory(replayInput, meter, visibleBodyCounter, finiteFamilyPolicy)
+```
+
+三种输入都携带实际原组及选择区间；只有不存在已选入的原观测时才显式给空历史。`fullInput` 另携带真实序列化 body 及其投影。独立 full 的畸形输入返回 unavailable；畸形 new/replay 返回 invalidInput。合法来源缺少必要解释或签名前缀依据时，贡献返回 unavailable。planner 先从增量回退全量；全量仍不可计量时，既有 `invalidInput/input_size_unavailable` 表示准入失败，不表示签名或参数值非法。

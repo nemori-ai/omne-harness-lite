@@ -521,7 +521,7 @@ The shared planner validates all groups before calling any meter, then allocates
 
 A replay implementation can inspect `input.observation.usage.output_tokens` together with the original group and actual selection; this does not authorize adding that aggregate to input tokens. Whole-group reasoning must check coverage, source identity, actual target order and exactly-once selection, rather than selection-array order. A source block may legitimately map to several targets; those facts remain visible instead of being globally rejected. Partial, repeated or reordered groups must not silently receive a full-group formula. Independent calls through the exported `measureReplay(meter, input)` must supply valid source and projection relationships; TypeScript `readonly` does not establish provenance. Model-specific unsupported relationships retain `invalidInput`/`unavailable` results and the planner’s existing full fallback. This interface adds no model-specific I+O rule.
 
-The four Anthropic definitions use revision 3 / `pi-ai:anthropic` `mp4-17`: nonempty assistant/tool text is a single text-block array from its first request, and only the exact supported 1h cache marker is omitted from its input-bearing projection. Wire markers and complete request byte/image checks remain. Cache layout stays `last_message`; no additional omne-next breakpoint strategy is enabled. New revisions first run full. Stable later prefixes are scanned/hashed but never tokenized again.
+Current Anthropic definitions use revision 4 / `pi-ai:anthropic/mp4-18` and projection `/3`. Stable text arrays and exact cache-neutral metadata preserve the full/marginal boundary. Stable prefixes are scanned and hashed but not tokenized again. Terminal pure-image caching uses the same validated selector described above.
 
 Anthropic and the applicable OpenAI visible-history routes provide **estimated** JSON net contributions for newly replayed/appended units. They remove empty-envelope framing in the surrogate; this is not a proof of private template/BPE boundary equality. They do not infer hidden thinking input from aggregate output tokens or ciphertext length. Other existing full meters retain their supported domain and explicitly return marginal unavailable until route-specific evidence exists; no missing model is silently supplied. A failed marginal calculation tries full; if full is unavailable the request is rejected without HTTP or history removal.
 
@@ -595,3 +595,16 @@ Factory and Cordis plugin configuration accepts explicit `imagePreparation: { po
 `fullOutputHistory`, `newOutputHistory` and `replayOutputHistory` share one complete-output-group walker. Supply an `OutputHistoryPolicy` with finite family source/basis rules and a pure visible-body counter. Units have three classifications: visible, requiring a complete group, or uninterpretable. The common implementation replaces an intact, uniquely selected assistant unit with its original upstream output count once; reasoning tokens are already included in that count. This is an estimated contribution, not an exact input/output-token equality guarantee. Unknown mappings return unavailable instead of tokenizing opaque bytes.
 
 Full measurement verifies the actual body against its cache-neutral projection. Projection revision `openrouter-input-projection/3` removes only a verified, configured Anthropic cache marker; the submitted wire is unchanged. Historical revision `/2` digests are checked using their original revision, without making old input anchors reusable. A signed-prefix rule is consumed through a private, synchronous planner capability on the exact marginal input object; standalone marginal calls without that capability return unavailable.
+
+For a custom finite family, compose the public core with a pure visible counter and your versioned rules:
+
+```ts
+import { fullOutputHistory, newOutputHistory, replayOutputHistory } from '@omne-harness-lite/pi-ai-transport'
+import { meter, finiteFamilyPolicy, visibleBodyCounter } from './my-finite-model.js'
+
+const full = fullOutputHistory(fullInput, meter, visibleBodyCounter, finiteFamilyPolicy)
+const added = newOutputHistory(newInput, meter, visibleBodyCounter, finiteFamilyPolicy)
+const replay = replayOutputHistory(replayInput, meter, visibleBodyCounter, finiteFamilyPolicy)
+```
+
+The three inputs carry actual original groups and selection spans; supply an explicitly empty history only when there are no selected original observations. `fullInput` also carries the actual serialized body and its projection. A malformed standalone full input yields unavailable; malformed new/replay input yields invalidInput. A valid source with missing necessary interpretation or signed-prefix evidence yields unavailable. The planner first falls back from marginal to full; if full is also unmeasurable, its existing `invalidInput/input_size_unavailable` result describes admission failure rather than an illegal signature or parameter value.

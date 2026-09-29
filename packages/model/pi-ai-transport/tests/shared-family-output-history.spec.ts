@@ -338,6 +338,35 @@ describe('shared complete output group composition', () => {
       ),
     ).toEqual({ kind: 'unavailable' })
   })
+  it('an original opaque group cannot become ordinary visible counting through partial selection', () => {
+    const f = fixture()
+    const body = {
+      ...f.full.body,
+      messages: [
+        f.projection.units[0]!,
+        { role: 'assistant', content: 'answer' },
+        f.projection.units[2]!,
+      ],
+    }
+    const projection = projectInput(body, f.request, f.meter)
+    const group = {
+      ...f.group,
+      replaySelection: [{ sourceBlockIndex: 1, messageIndex: 1, blockIndex: 0 }],
+    }
+    const full = {
+      ...f.full,
+      body,
+      serialized: writeJsonLossless(body),
+      projection,
+      outputHistory: [group],
+      historySpans: [{ groupIndex: 0, selectionIndex: 0, start: 1, end: 2 }],
+    }
+    expect(fullOutputHistory(full, f.meter, f.counter, f.policy)).toEqual({ kind: 'unavailable' })
+    expect(f.counter).not.toHaveBeenCalled()
+    expect(projectAssistant(f.group.outputBlocks, 'different-model', false)).toEqual({
+      rejected: 'unavailable',
+    })
+  })
   it('owns inputs before trusted rules run and verifies independent full projection facts', () => {
     const f = fixture()
     const policy = {

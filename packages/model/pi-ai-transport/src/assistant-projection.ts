@@ -38,6 +38,7 @@ export function projectAssistant(
         object(opaque) && opaque.routeName === routeName && Array.isArray(opaque.reasoning_details)
           ? opaque.reasoning_details
           : undefined
+      if (block.opaque !== undefined && !replayed?.length) return { rejected: 'unavailable' }
       if (replayed) details.push(...replayed)
       if (!replayed?.length && block.text.length > 0) independentPlainThinking = true
     } else if (block.kind === 'tool_call' && block.complete) {

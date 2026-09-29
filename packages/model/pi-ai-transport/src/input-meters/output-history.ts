@@ -170,7 +170,16 @@ function contributions(
   let output = ExactDecimal.from(0)
   for (const [groupIndex, group] of input.outputHistory.entries()) {
     const spans = input.historySpans.filter(span => span.groupIndex === groupIndex)
+    const originalProjection = projectAssistant(
+      group.outputBlocks,
+      meter.modelId,
+      meter.provider === 'anthropic',
+    )
+    if ('rejected' in originalProjection) return undefined
+    const originalClass = policy.classifyUnit(originalProjection.message)
+    if (!['visible', 'wholeGroup'].includes(originalClass)) return undefined
     if (
+      originalClass !== 'wholeGroup' &&
       !spans.some(span => classifications[input.unitIndices.indexOf(span.start)] === 'wholeGroup')
     )
       continue
@@ -311,7 +320,16 @@ export function replayOutputHistory(
     const classifications = input.units.map(unit => policy.classifyUnit(unit))
     if (classifications.some(kind => !['visible', 'wholeGroup'].includes(kind)))
       return { kind: 'unavailable' }
-    if (!classifications.includes('wholeGroup')) return fullJsonMarginal(countBody, input)
+    const originalProjection = projectAssistant(
+      input.observation.outputBlocks,
+      meter.modelId,
+      meter.provider === 'anthropic',
+    )
+    if ('rejected' in originalProjection) return { kind: 'unavailable' }
+    const originalClass = policy.classifyUnit(originalProjection.message)
+    if (!['visible', 'wholeGroup'].includes(originalClass)) return { kind: 'unavailable' }
+    if (originalClass !== 'wholeGroup' && !classifications.includes('wholeGroup'))
+      return fullJsonMarginal(countBody, input)
     const source =
       input.outputHistory[0] === undefined
         ? { observation: input.observation }
