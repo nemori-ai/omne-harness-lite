@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, readFile, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 import { describe, expect, it, vi } from 'vitest'
+import { officialModelIds } from '@omne-harness-lite/pi-ai-transport'
 import { openDemo } from '../src/demo.ts'
 import { MODEL } from '../src/deployment.ts'
 import { runInteractive } from '../src/interactive.ts'
@@ -118,6 +119,11 @@ describe('interactive model commands on the real demo assembly', () => {
       expect(before.text()).toContain(`/model <identifier>`)
       expect(before.text()).toContain(`* ${MODEL} [official] legal`)
       expect(before.text()).toContain(`  ${FLASH} [official] legal`)
+      // The display list carries every official leaf the transport package publishes, once each.
+      const listed = [...before.text().matchAll(/[* ] (\S+) \[official\] legal\n/gu)].map(
+        match => match[1],
+      )
+      expect(listed.sort()).toEqual([...officialModelIds].sort())
       expect(before.text()).toContain(`Selected: ${FLASH}`)
       expect(before.text()).toContain(`Effective: ${FLASH} (session, official)`)
       expect(before.text()).toContain('Model profile was not found.')

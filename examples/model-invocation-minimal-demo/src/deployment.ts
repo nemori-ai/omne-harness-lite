@@ -9,17 +9,16 @@ import { toOpaqueJson, type JsonObject } from '@omne-harness-lite/content-blocks
 import type { CapabilityId, AssetDefinition, AssetHolding } from '@omne-harness-lite/asset-model'
 import { judgeDefinition } from '@omne-harness-lite/loop-extension'
 import {
-  createOfficialProfileContent,
-  createDeepSeekV4ProInputMeter,
-  createDeepSeekV41FlashInputMeter,
+  createOfficialCatalogProfile,
   createSharpImageCodec,
   modelImageBalancedV1,
-  deepseekV4Pro0813Configuration,
   deepseekV4Pro0813Definition,
-  deepseekV41FlashConfiguration,
-  deepseekV41FlashDefinition,
+  officialCatalog,
+  type InputMeter,
+  type ModelDefinition,
   type RetirementPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
+import type { ModelProfileContent } from '@omne-harness-lite/model-profile'
 import {
   openRouterCredentialRedactionConfig,
   type AcknowledgementCleanupPolicy,
@@ -30,6 +29,41 @@ import type { AcceptanceConfig, AuthenticatedActor, ModelInputSource } from './t
 import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 
 export const MODEL = deepseekV4Pro0813Definition.modelId
+/**
+ * Official manifest ordinal. Raise it whenever the installed entries change: the directory keeps a
+ * manifest whose ordinal equals the stored one but whose entries differ as `manifestNotNewer`, so an
+ * existing data directory would keep its previous list. 4 replaced the two-DeepSeek list (3).
+ */
+export const DEMO_OFFICIAL_MANIFEST_ORDINAL = 4
+/** Configuration revision of every official profile this demo installs. */
+export const DEMO_OFFICIAL_CONFIGURATION_REVISION = 'model-invocation-minimal-demo-1'
+
+/**
+ * Every official leaf the transport package catalogs: its definition, one meter from the catalog's
+ * own binding and one profile on its only route. A rejected profile stops the assembly.
+ */
+function officialModels(): {
+  readonly definitions: readonly ModelDefinition[]
+  readonly inputMeters: readonly InputMeter[]
+  readonly profiles: readonly ModelProfileContent[]
+} {
+  const definitions: ModelDefinition[] = [],
+    inputMeters: InputMeter[] = [],
+    profiles: ModelProfileContent[] = []
+  for (const entry of officialCatalog) {
+    const profile = createOfficialCatalogProfile(entry, DEMO_OFFICIAL_CONFIGURATION_REVISION)
+    if (!('ok' in profile))
+      throw new Error(
+        `official profile for ${entry.definition.modelId} rejected: ${profile.rejected}`,
+      )
+    definitions.push(entry.definition)
+    inputMeters.push(entry.createInputMeter(entry.definition))
+    profiles.push(profile.ok)
+  }
+  if (!definitions.some(definition => definition.modelId === MODEL))
+    throw new Error('the initial demo model is not an official catalog entry')
+  return { definitions, inputMeters, profiles }
+}
 export const DEMO_ROOT: CapabilityId = {
   category: 'agent_definition',
   name: 'demo:model-invocation-root',
@@ -197,18 +231,7 @@ export function createDemoConfig(
   }
   const ttl = parseOfferTtl(60_000)
   if (!isOk(ttl)) throw new Error('explicit demo duration invalid')
-  const profile = createOfficialProfileContent(deepseekV4Pro0813Definition, {
-    providers: ['deepinfra/fp8'],
-    allowFallback: false,
-    configuration: deepseekV4Pro0813Configuration,
-  })
-  if ('rejected' in profile) throw new Error('frozen first model declaration rejected')
-  const flashProfile = createOfficialProfileContent(deepseekV41FlashDefinition, {
-    providers: ['deepinfra/fp8'],
-    allowFallback: false,
-    configuration: deepseekV41FlashConfiguration,
-  })
-  if ('rejected' in flashProfile) throw new Error('frozen second model declaration rejected')
+  const official = officialModels()
   return {
     runId,
     databaseFile: join(directory, 'db.sqlite'),
@@ -220,7 +243,7 @@ export function createDemoConfig(
       affiliationRequestTtlDefault: ttl.ok,
       teamCreationKeyRetention: ttl.ok,
     },
-    officialManifest: { ordinal: 3, entries: [profile.ok, flashProfile.ok] },
+    officialManifest: { ordinal: DEMO_OFFICIAL_MANIFEST_ORDINAL, entries: official.profiles },
     wait: {
       clockTimeoutMs: 15_000,
       pollMs: 10,
@@ -264,11 +287,8 @@ export function createDemoConfig(
           policy: modelImageBalancedV1,
           codec: createSharpImageCodec(sharp),
         },
-        definitions: [deepseekV4Pro0813Definition, deepseekV41FlashDefinition],
-        inputMeters: [
-          createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition),
-          createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition),
-        ],
+        definitions: official.definitions,
+        inputMeters: official.inputMeters,
         policy: {
           maxConnections: 1,
           idleConnectionTimeoutMs: 5000,
