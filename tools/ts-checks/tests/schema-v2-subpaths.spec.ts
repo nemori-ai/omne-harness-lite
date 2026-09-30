@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { CORE_PURE_DEPENDENCIES, PUBLIC_SUBPATHS, corePureImports } from '../src/index.ts'
 
 const providers = [
+  'call-accounts',
   'content-blocks',
   'messages',
   'model-profile',
@@ -12,7 +13,7 @@ const providers = [
 ]
 
 describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
-  it('登记七个已采用 schema/v2 入口；OE1 和 CB 中性 runtime 仍在原范围', () => {
+  it('登记八个已采用 schema/v2 入口；OE1 和 CB 中性 runtime 仍在原范围', () => {
     expect(
       Object.entries(PUBLIC_SUBPATHS)
         .filter(([, values]) => values.includes('schema/v2'))
@@ -115,6 +116,63 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
           ]),
         ).toHaveLength(1)
     }
+  })
+
+  it('A1 core 集成后的精确保留资源：CA2、MS6、MP6 只经登记依赖的精确入口', () => {
+    expect(PUBLIC_SUBPATHS['call-accounts']).toEqual(['schema/v2'])
+    for (const [consumer, provider, subpath] of [
+      ['arrival-events', 'call-accounts', 'schema/v2'],
+      ['loop-extension', 'call-accounts', 'schema/v2'],
+      ['loop-extension', 'messages', 'schema/v6'],
+      ['messages', 'model-profile', 'schema/v6'],
+    ] as const) {
+      const path = `core/${consumer}/src/schema.ts`
+      expect(
+        corePureImports.check([
+          { path, text: `import '@omne-harness-lite/${provider}/${subpath}'` },
+        ]),
+      ).toEqual([])
+      for (const suffix of [`${subpath}/private`, `${subpath}.json`, 'schema/v99'])
+        expect(
+          corePureImports.check([
+            { path, text: `import '@omne-harness-lite/${provider}/${suffix}'` },
+          ]),
+        ).toHaveLength(1)
+    }
+    for (const consumer of ['content-blocks', 'tool-definition'])
+      expect(
+        corePureImports.check([
+          {
+            path: `core/${consumer}/src/schema.ts`,
+            text: "import '@omne-harness-lite/messages/schema/v6'",
+          },
+        ]),
+      ).toHaveLength(1)
+  })
+
+  it('messages 的 TD3 依赖与 MS8 语义摘要 crypto 只授予 messages', () => {
+    const good = [
+      {
+        path: 'core/messages/src/types.ts',
+        text: "import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'",
+      },
+      {
+        path: 'core/messages/src/schema.ts',
+        text: "import toolsSchema from '@omne-harness-lite/tool-definition/schema'",
+      },
+      {
+        path: 'core/messages/src/semantic-digest.ts',
+        text: "import { createHash } from 'node:crypto'",
+      },
+    ]
+    expect(corePureImports.check(good)).toEqual([])
+    for (const [path, text] of [
+      ['core/messages/src/x.ts', "import 'node:fs'"],
+      ['core/call-accounts/src/x.ts', "import { createHash } from 'node:crypto'"],
+      ['core/content-blocks/src/x.ts', "import '@omne-harness-lite/tool-definition'"],
+      ['core/tool-definition/src/x.ts', "import '@omne-harness-lite/messages'"],
+    ] as const)
+      expect(corePureImports.check([{ path, text }])).toHaveLength(1)
   })
 
   it('D100 removes old model-response runtime and Schema entries without compatibility aliases', () => {

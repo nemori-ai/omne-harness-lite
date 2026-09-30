@@ -17,7 +17,15 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
   ],
   'model-profile': ['content-blocks', 'identity-values', 'offer-expiry'],
   'call-accounts': ['content-blocks', 'asset-model', 'identity-values', 'offer-expiry'],
-  messages: ['content-blocks', 'call-accounts', 'model-profile', 'identity-values', 'offer-expiry'],
+  // MS7/MS8 精确依赖 TD3 ModelToolEntry：messages v7-design「精确依赖、资源与绑定」。
+  messages: [
+    'content-blocks',
+    'call-accounts',
+    'model-profile',
+    'tool-definition',
+    'identity-values',
+    'offer-expiry',
+  ],
   'tool-definition': ['content-blocks', 'asset-model'],
   'loop-extension': [
     'content-blocks',
@@ -80,13 +88,19 @@ const BUILTINS: Readonly<Record<string, readonly string[]>> = {
   'arrival-events': ['node:buffer'],
   'stream-assembly': ['node:buffer'],
   'asset-evaluation': ['node:crypto'],
+  // MS8 S-56 语义摘要喂 SHA-256：messages v8-acknowledgement-design「编码与依赖」。
+  messages: ['node:crypto'],
 }
 
 /** 精确子入口登记不替代上面的包依赖批准，也不准许相邻私有路径。 */
 export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
   'content-blocks': ['schema-runtime', 'schema/v2'],
-  messages: ['schema/v2', 'schema/v3'],
-  'model-profile': ['schema/v2', 'schema/v3'],
+  // MS6 原字节供 LC6 固定图：messages v7-design「另需保留 MS6 ./schema/v6」。
+  messages: ['schema/v2', 'schema/v3', 'schema/v6'],
+  // MP6 原字节供 MS7/MS8 created：model-profile v6-schema-resource-design。
+  'model-profile': ['schema/v2', 'schema/v3', 'schema/v6'],
+  // 根为 CA4 后 CA2 原字节供 AR2/LC6/SA3：call-accounts v3-design「本包 Schema 与元数据」。
+  'call-accounts': ['schema/v2'],
   'model-response': [],
   'loop-extension': ['schema/v2', 'schema/v3'],
   'asset-evaluation': [],
