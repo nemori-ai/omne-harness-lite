@@ -6,9 +6,9 @@
 
 `omne-harness-lite` 是一个更轻量化、更高性能的 OMNE harness 系统，以 DeepSeek 提出的 Cordis 为内核，保留和遵循原 `omne-next/omne_harness` 的核心设计理念和最佳实践。目标是实现真正意义上的完全动态系统，产品表现为能够超长期待机、稳定运行、持续进化，并与所服务的组织或个人始终保持利益对齐的智能体系统；功能上继承并进一步发展 `omne-next` 现有或已承诺交付的机制与功能。
 
-内核层复用 Cordis 与 DSH `agent` 原语；Agent Loop、Harness 层、工具协议、治理和其他子系统由本项目自行定义和实现。不要把 DeepSeek Harness 当作本项目的实现，也不要把本项目称为 Cordis Harness。
+从 DeepSeek Harness 仅复用 Cordis，不复用 DSH `agent` 原语；Agent Runtime（Agent Loop）完全由本项目自主设计，Harness 层、工具协议、治理和其他子系统由本项目自行定义和实现。不要把 DeepSeek Harness 当作本项目的实现，也不要把本项目称为 Cordis Harness。
 
-Cordis 直接使用官方发布包，其他选定的 DSH 复用组件由本项目 fork 维护；设计时将这些 fork 视为可按需求与项目契约演化的自有模块。维护边界归 [SYS-KERNEL](.meta_harness/design/foundation/cross-system-constraints/requirements.md#sys-kernel)，判断方法见 `harness-design-handbook` skill 的 `references/architecture/assurance/judgment.md`「复杂度与复用」。
+Cordis 直接使用官方发布包。维护边界归 [SYS-KERNEL](.meta_harness/design/foundation/cross-system-constraints/requirements.md#sys-kernel)，判断方法见 `harness-design-handbook` skill 的 `references/architecture/assurance/judgment.md`「复杂度与复用」。
 
 当前处于设计、规格建模与实验性演进阶段，尚未正式上线或对外提供生产服务。接受有明确设计和验证依据的大胆重构，不为旧版本保留未经要求的实现兼容层；历史材料的保留不构成兼容承诺。
 

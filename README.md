@@ -57,8 +57,8 @@ Agent 定义与装配、执行环境与沙箱、工具与技能、Meta Capabilit
 
 ## 技术基础
 
-内核层复用 Cordis 与 DSH `agent` 原语；Agent Loop、Harness 层、工具协议、治理及其他
-子系统由本项目定义和实现。
+从 DeepSeek Harness 仅复用 Cordis，不复用 DSH `agent` 原语；Agent Runtime（Agent Loop）
+完全由本项目自主设计，Harness 层、工具协议、治理及其他子系统由本项目定义和实现。
 
 - **动态组合。** 可替换能力以具有生命周期、作用域和所有权的插件或服务组合；
   定义、运行实例、持久状态与物理部署分别建模。
