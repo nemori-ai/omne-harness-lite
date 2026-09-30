@@ -13,6 +13,8 @@ import { createLocalTls, deferred } from './local-tls.ts'
 import { activateModelFixture, actor, ref } from './support.ts'
 
 const MODEL = 'deepseek/deepseek-v4-pro-0813'
+/** Explicit budget for one forked real-demo phase; see the cold-process case below. */
+const CHILD_PHASE_BUDGET_MS = 90_000
 const AT = '2026-09-28T00:00:00Z'
 
 function user(label: string) {
@@ -281,89 +283,97 @@ describe('unknown control writer on actual demo JSONL', () => {
     }
   }, 45_000)
 
-  it('recognizes the exact release record only after actual old-process exit and successor full scan', async () => {
-    const base = fileURLToPath(
-      new URL('../../../tmp/model-request-runtime/control-writer-cold/', import.meta.url),
-    )
-    await mkdir(base, { recursive: true, mode: 0o700 })
-    const root = await mkdtemp(join(base, 'release-'))
-    const dataDirectory = join(root, 'data')
-    const tls = await createLocalTls(join(root, 'tls'))
-    tls.setMode('http503')
-    const shared = {
-      dataDirectory,
-      baseUrl: tls.developmentTransport.baseUrl,
-      ca: Buffer.from(tls.developmentTransport.tls.ca).toString('base64'),
-    }
-    const originalIdentity = 'control-release-original'
-    const original = childFixture({ phase: 'original', identity: originalIdentity, ...shared })
-    let successor: ReturnType<typeof childFixture> | undefined
-    try {
-      await vi.waitFor(() => expect(childMessage(original.messages, 'unknown')).toBeDefined(), {
-        timeout: 15_000,
-      })
-      const unknown = childMessage(original.messages, 'unknown')
-      if (typeof unknown?.callId !== 'string') throw new Error('original call identity absent')
-      expect(unknown).toMatchObject({ writes: 1, syncFailures: 1, truncateFailures: 1 })
-      expect(tls.requests).toHaveLength(1)
-      const before = await logBytes(join(dataDirectory, 'session-logs'))
-      expect(await recoveryMarker(join(dataDirectory, 'session-logs'))).toEqual({
-        v: 1,
-        state: 'active',
-        owner: originalIdentity,
-      })
-      expect(controlRows(before, unknown.callId, 'model_call_ended')).toEqual([
-        { kind: 'model_call_ended', call: unknown.callId, ending: 'released' },
-      ])
-      expect(original.child.kill('SIGKILL')).toBe(true)
-      expect(await original.exited).toEqual({ code: null, signal: 'SIGKILL' })
-      await original.closed
-
-      // Only the observed exit/close fact authorizes this test host's successor observer.
-      successor = childFixture({
-        phase: 'successor',
-        identity: 'control-release-successor',
-        previousOwner: originalIdentity,
-        previousExitObserved: true,
-        callId: unknown.callId,
-        ...shared,
-      })
-      await vi.waitFor(
-        () => expect(childMessage(successor?.messages ?? [], 'recovered')).toBeDefined(),
-        {
-          timeout: 15_000,
-        },
+  // Each phase forks a fresh Node process that imports the built demo (Cordis, sharp, SQLite)
+  // and opens a complete demo before it reports. On the shared host this measured 9.5-11 s for
+  // the import alone and about 50 s for the whole case, so these budgets bound real process
+  // start-up rather than the assertions below.
+  it(
+    'recognizes the exact release record only after actual old-process exit and successor full scan',
+    async () => {
+      const base = fileURLToPath(
+        new URL('../../../tmp/model-request-runtime/control-writer-cold/', import.meta.url),
       )
-      expect(childMessage(successor.messages, 'recovered')).toMatchObject({
-        endedCount: 1,
-        ending: 'released',
-        historyState: 'handed_up',
-        closeComplete: true,
-      })
-      expect((await successor.exited).code).toBe(0)
-      await successor.closed
-      expect(await logBytes(join(dataDirectory, 'session-logs'))).toBe(before)
-      expect(await recoveryMarker(join(dataDirectory, 'session-logs'))).toEqual({
-        v: 1,
-        state: 'clean',
-      })
-      expect(tls.requests).toHaveLength(1)
-    } finally {
-      if (original.child.exitCode === null && original.child.signalCode === null) {
-        original.child.kill('SIGKILL')
+      await mkdir(base, { recursive: true, mode: 0o700 })
+      const root = await mkdtemp(join(base, 'release-'))
+      const dataDirectory = join(root, 'data')
+      const tls = await createLocalTls(join(root, 'tls'))
+      tls.setMode('http503')
+      const shared = {
+        dataDirectory,
+        baseUrl: tls.developmentTransport.baseUrl,
+        ca: Buffer.from(tls.developmentTransport.tls.ca).toString('base64'),
+      }
+      const originalIdentity = 'control-release-original'
+      const original = childFixture({ phase: 'original', identity: originalIdentity, ...shared })
+      let successor: ReturnType<typeof childFixture> | undefined
+      try {
+        await vi.waitFor(() => expect(childMessage(original.messages, 'unknown')).toBeDefined(), {
+          timeout: CHILD_PHASE_BUDGET_MS,
+        })
+        const unknown = childMessage(original.messages, 'unknown')
+        if (typeof unknown?.callId !== 'string') throw new Error('original call identity absent')
+        expect(unknown).toMatchObject({ writes: 1, syncFailures: 1, truncateFailures: 1 })
+        expect(tls.requests).toHaveLength(1)
+        const before = await logBytes(join(dataDirectory, 'session-logs'))
+        expect(await recoveryMarker(join(dataDirectory, 'session-logs'))).toEqual({
+          v: 1,
+          state: 'active',
+          owner: originalIdentity,
+        })
+        expect(controlRows(before, unknown.callId, 'model_call_ended')).toEqual([
+          { kind: 'model_call_ended', call: unknown.callId, ending: 'released' },
+        ])
+        expect(original.child.kill('SIGKILL')).toBe(true)
+        expect(await original.exited).toEqual({ code: null, signal: 'SIGKILL' })
         await original.closed
-      }
-      if (
-        successor !== undefined &&
-        successor.child.exitCode === null &&
-        successor.child.signalCode === null
-      ) {
-        successor.child.kill('SIGKILL')
+
+        // Only the observed exit/close fact authorizes this test host's successor observer.
+        successor = childFixture({
+          phase: 'successor',
+          identity: 'control-release-successor',
+          previousOwner: originalIdentity,
+          previousExitObserved: true,
+          callId: unknown.callId,
+          ...shared,
+        })
+        await vi.waitFor(
+          () => expect(childMessage(successor?.messages ?? [], 'recovered')).toBeDefined(),
+          {
+            timeout: CHILD_PHASE_BUDGET_MS,
+          },
+        )
+        expect(childMessage(successor.messages, 'recovered')).toMatchObject({
+          endedCount: 1,
+          ending: 'released',
+          historyState: 'handed_up',
+          closeComplete: true,
+        })
+        expect((await successor.exited).code).toBe(0)
         await successor.closed
+        expect(await logBytes(join(dataDirectory, 'session-logs'))).toBe(before)
+        expect(await recoveryMarker(join(dataDirectory, 'session-logs'))).toEqual({
+          v: 1,
+          state: 'clean',
+        })
+        expect(tls.requests).toHaveLength(1)
+      } finally {
+        if (original.child.exitCode === null && original.child.signalCode === null) {
+          original.child.kill('SIGKILL')
+          await original.closed
+        }
+        if (
+          successor !== undefined &&
+          successor.child.exitCode === null &&
+          successor.child.signalCode === null
+        ) {
+          successor.child.kill('SIGKILL')
+          await successor.closed
+        }
+        await tls.close()
       }
-      await tls.close()
-    }
-  }, 45_000)
+    },
+    2 * CHILD_PHASE_BUDGET_MS + 30_000,
+  )
 
   it('does not abort an in-flight send when its interrupt intent is known uncommitted', async () => {
     const entered = deferred(),
