@@ -21,7 +21,7 @@ Cordis 使用 [D025 的官方 4.0.4](../../../../record/decisions/cordis-adoptio
 | A22-P3：RT12 S-97/S-100/S-101 | 所有指定读、wait、同键 open 的 acknowledged 分支 | 原 call-state/history/reads/reconcile/creation projection | A22-V8/V9；不从旧缓存重新给全文 |
 | A22-P4：RT12 S-98/S-102 | 原 host 任务留存、读写许可、内存引用与外部额外保留清理 | 原 preparation/container/observer/assembly owner；无新 fiber | A22-V4/V6/V10；actual stopped 非 abort/Map absence |
 | A22-P5：RT12 S-99；MR11 S-46/S-47 | settleReply 可选 retainedResult；独立授权消息写方原同批 persisted | 原 coordinator/两个 core 关系 judge + MS8 语义摘要核验 | A22-V11/V12；不开放 persisted 或 anchored 控制 |
-| A22-P6：RT12 S-99⑧/S-103 G-42 | 已实际开始的新 final 原批耐久暂存与自动释放 | 本包私有 ModelCallSettlementWork；[候选接缝](../../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md) 待独立复评 | A22-V13/V14；A22-G2，不提升接受状态 |
+| A22-P6：RT12 S-99⑧/S-103 G-42 | 已实际开始的新 final 原批耐久暂存与自动释放 | 本包私有 ModelCallSettlementWork；[候选接缝](../../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)已定点评审、修订后可接受；接缝 revision 2 已落地，待主调度复核采用（评审页 `record/proposals/model-runtime-reference-lifecycle/ack-seam-review.md`） | A22-V13/V14；A22-G2，不提升接受状态 |
 | A22-P7：CA4 S-43；RT12 S-101；MS8 S-57 | 按 ResponseId 先选 final > ACK witness > ready，再原费用算法 | 原读面/费用消费者；纯 summarize 不改签名 | A22-V15；不同发出不按 CallKey 合一笔 |
 | A22-P8：MS8 S-56；RT12 S-100/S-101 | 原 creationInput 和自持 Pending 的角色化语义摘要 | 复用 core messages 唯一摘要定义/公开构件，不在 runtime 重写算法 | A22-V9/V11；原 UTF-8 bytes hash 不作语义比较 |
 
@@ -112,7 +112,7 @@ pendingReasons 在运行时强制非空、去重且只来自当前真实阻碍�
 
 ## ACK 后真实处分的原批责任
 
-本节投影 RT12 S-99⑧及[独立待审的候选接缝](../../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)，状态保留 A22-G2，不视为接受。ACK 前原权威 pending 不可被 caller 值覆盖；ACK 后已有 final 优先按同/异处分认回；无 final 必须 caller 自持完整 Pending，经当前 settle 资格、原身份/origin、MS8 结果角色摘要、witness 和 MR11 全值判断，才开始新写责任。缺值 wrongPhase；形状/摘要/身份可判矛盾 invalidInput/malformed；来源不可核 unavailable。摘要不能重造全文。
+本节投影 RT12 S-99⑧及[候选接缝](../../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md) revision 2 的 R1、R3、R4（B3 见选择表）。接缝已定点评审、修订后可接受；接缝 revision 2 已落地，待主调度复核采用（评审页 `record/proposals/model-runtime-reference-lifecycle/ack-seam-review.md`）；状态保留 A22-G2，不视为接受。ACK 前原权威 pending 不可被 caller 值覆盖；ACK 后已有 final 优先按同/异处分认回；无 final 必须 caller 自持完整 Pending，经当前 settle 资格、原身份/origin、MS8 结果角色摘要、witness 和 MR11 全值判断，才开始新写责任。缺值 wrongPhase；形状/摘要/身份可判矛盾 invalidInput/malformed；来源不可核 unavailable。摘要不能重造全文。
 
 候选私有 `ModelCallSettlementWork(tenant,session,callId,response,workId)` 仅在**实际新处分开始**建立，保存原完整 `[M,R]` 或 `[R]` 批、原键、授权/来源定位、generation 与实际 writer 状态。选单独私有表而非复用已删除 ModelCallContent 的 locator/version，避免恢复旧领取面；不是新 service/journal 平台，也不在 ACK 时预存未来可能需要的全文。首次可能追加前 Storage.write 确认原批已耐久；该提交未知就先认回自身原行，不发 JSONL。来源/资格确认仍必须覆盖实际追加准入，暂存本身不是写权。
 
@@ -176,10 +176,10 @@ JSONL 回执 unknown 或旧 writer 未实停时保留 SettlementWork 与原批�
 | 持久 retention 门+精确许可+日志后删 | JSONL与内容放同库可简化原子性 | 两提交域需认回和耐久待办；保留已采用日志/Storage边界，不假分布式事务；高 |
 | 只保护真实读，不保护 idle handle | 句柄引用计数最容易编码、避免旧 consumer 取值失败 | 所有读取入口必须迁移，同句柄后续变小视图；兑现明确ACK后清理且不等离线consumer；高 |
 | 独立 ACK 小批+摘要/witness | ACK与final合批更少状态 | 多一步账选择与摘要核验；避免伪处分并支持之后真实persisted；高 |
-| 新 final 用私有 SettlementWork 临时行 | 复用旧 ready 永久保留可省暂存 | 增一次实际写入前耐久和自动清理；仅为已开始写责任保管，避免恢复旧全文领取；中，独立接缝待审 |
+| 新 final 用私有 SettlementWork 临时行 | 复用旧 ready 永久保留可省暂存 | 增一次实际写入前耐久和自动清理；仅为已开始写责任保管，避免恢复旧全文领取；中，接缝已定点评审、待主调度复核采用 |
 | 崩溃恢复默认「停写方→权威读→缺席即结束并 unavailable」，不代重送 | 恢复 owner 按策略代重送同批：与 ACK 前 final unknown 的 v20 同批重送一致，消费者不必重调 | 消费者须持自持值重调；ACK 前后两条恢复路径不同，实现按是否存在 SettlementWork 行分流；代重送只作 S-71 显式选择且先重核 S-99②；中高 |
 | 真实当前 ack 准入，沿原必需 inject | 可序列化签名授权更便于离线调用 | 依赖当前来源；签名/ref无法单独兑现撤权和ack/settle分权；高 |
 
 反例义务：① reader/publisher 先取得原门许可，ACK retiring/确认后清理必须等真实停；反过来 retiring 先提交，新 reader/publisher 必须被拒而不能持旧缓存开工。② JSONL ACK 已落回执 unknown→进程退出→重开，SQL 未记录 acknowledged 仍只能认回原批后删；没有合法 ACK 的同形内容不能删。③ SQL 删除已落回执丢失必须从 released 行认回；拆成删内容/标状态两事务的变异必须失败。④ ACK 先清原 payload，后继自持值的新 persisted unknown→崩溃，原完整暂存足以认回同批，final确认后自动删除；去掉暂存应失败。⑤ A：合法 `tailChanged` 后重构 `late`，未先把重构批耐久替换进暂存行就发新追加→崩溃，恢复只剩旧批；有限模型变异 `spec/capabilities/model-request-runtime/v-next/formal/validity-check/Ack-staleTemp.cfg` 去掉「追加前暂存行须持有将追加批」守卫，`RecoveredMatchesFinal` 必须失败。⑥ B：暂存行或日志读不到被当作零写而结束、删 work；同目录变异 `Ack-absenceUnreadable.cfg` 允许不可读时结束，`EndedMeansAbsent` 必须失败。⑦ C：ACK 前已取得发布许可的原晚 writer 先提交 final，新写不追加第二批——同处分认回原 final、异处分 `alreadyEnded`；work 仍自动删，`cleanup=released` 不回退。⑧ D：新写命中 `alreadyRecorded` 部分碰撞/身份不符/残批（S-70③）：不报成功、不补残批、不换 ID，work 保留、阶段未完成、返回 `unavailable`。⑨ E：旧 workId 的迟到 worker 对新 workId 行写或删，每条语句带 workId+generation 条件而被代际比较拒绝；新行不丢、不被覆盖。⑤–⑨ 即[接缝](../../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)反例 A–E：A、B 是 spec 侧否定配置，不登记 formal task、不作绑定，实现层仍在 A22-V13/V14 真实交错复现；C–E 只有 A22-V13/V14 的真实并发观察义务（[规格侧验证](../../../../spec/capabilities/model-request-runtime/verification.md)「真实并发验收义务」表）。以上均须真实并发/故障验收，不能以顺序 fixture 代替。
 
-A22-G1：RT12/MS8/MR11/CA4及本节点尚未接受，主线 owner；不释放本增量实施。A22-G2：RT12 S-99⑧/S-103 G-42 的确认后新处分接缝仍待独立复评/接受及实际恢复证据，阻该分支，不能偷用已删 ready。A22-G3：S-95/S-98/S-102真实 ack授权、旧writer停止/唯一恢复和启用外部保留仍由实际装配核实，不由表/布尔完成；缺哪个仅阻对应路径。A22-G4：S-96～S-101 的 Storage/JSONL/内存释放及全入口迁移尚无实现验收，A22-V1～V16由runtime/存储/消息写方与独立验收 owner 完成。绑定新增0；源码存在、候选模型登记、架构提案无阻断均不关闭这些缺口。
+A22-G1：RT12/MS8/MR11/CA4及本节点尚未接受，主线 owner；不释放本增量实施。A22-G2：RT12 S-99⑧/S-103 G-42 的确认后新处分接缝已定点评审、修订后可接受；接缝 revision 2 已落地，待主调度复核采用（评审页 `record/proposals/model-runtime-reference-lifecycle/ack-seam-review.md`）；实际恢复证据仍缺，阻该分支，不能偷用已删 ready。A22-G3：S-95/S-98/S-102真实 ack授权、旧writer停止/唯一恢复和启用外部保留仍由实际装配核实，不由表/布尔完成；缺哪个仅阻对应路径。A22-G4：S-96～S-101 的 Storage/JSONL/内存释放及全入口迁移尚无实现验收，A22-V1～V16由runtime/存储/消息写方与独立验收 owner 完成。绑定新增0；源码存在、候选模型登记、架构提案无阻断均不关闭这些缺口。
