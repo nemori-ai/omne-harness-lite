@@ -216,6 +216,50 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       expect(await reads.close()).toEqual({ released: true })
     })
   })
+  it('RT12 S-98 (review S3): a refused marker is admitted before put and leaves no content row', async () => {
+    await host(async h => {
+      const store = createModelCallContentStore({ storage: h.storage, policy })
+      const { owner, active } = publicationOwner()
+      const reads = new OwnedReadTracker()
+      const publish = (content: ModelCallContentValue, locator: string) =>
+        publishModelCallContent({
+          binding: h.binding,
+          owner,
+          concurrent: 2,
+          reads,
+          contentStore: store,
+          content,
+          locator,
+          version: 'v1',
+          at: '2026-09-20T08:00:00Z',
+          retainUnknown() {
+            throw new Error('a refused marker must not append')
+          },
+        })
+      const rows = async (call: string) =>
+        await h.storage.read(async tx => {
+          const found = await narrow<{ model_call_content: { call: string } }>(tx)
+            .selectFrom('model_call_content')
+            .select('call')
+            .where('call', '=', call)
+            .execute()
+          return found.length
+        })
+      expect(await publish(h.content, 'created-s3')).toEqual({ published: true })
+      // Another call under the same creation key is refused from the prefix before any put.
+      const other = {
+        kind: 'created' as const,
+        value: { ...h.content.value, ref: { ...h.content.value.ref, callId: 'call-s3-other' } },
+      }
+      expect(await publish(other, 'created-s3-other')).toEqual({ unavailable: true })
+      expect(await rows('call-s3-other')).toBe(0)
+      const log = await h.binding.log.readSince(h.binding.session, 0)
+      expect('entries' in log ? log.entries : []).toHaveLength(1)
+      expect(active()).toBe(0)
+      await store.close()
+      expect(await reads.close()).toEqual({ released: true })
+    })
+  })
   it('rebuilds cold call and creation indexes from the real marker and immutable row', async () => {
     await host(async h => {
       const owner = publicationOwner().owner
