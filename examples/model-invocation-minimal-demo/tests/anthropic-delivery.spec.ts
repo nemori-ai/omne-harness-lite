@@ -249,7 +249,7 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
         MODEL,
         usage,
         'Anthropic',
-        mode === 'signed' ? SIGNED_REASONING : undefined,
+        mode === 'signed' ? [{ reasoning_details: SIGNED_REASONING }] : undefined,
       )
       tls.setMode('reasoning')
       const app = createAcceptanceApplication(config, {

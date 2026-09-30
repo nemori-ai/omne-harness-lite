@@ -192,7 +192,13 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
         MODEL,
         undefined,
         'OpenAI',
-        [{ type: 'reasoning.encrypted', data: 'fixture-only-ciphertext', index: 0 }],
+        [
+          {
+            reasoning_details: [
+              { type: 'reasoning.encrypted', data: 'fixture-only-ciphertext', index: 0 },
+            ],
+          },
+        ],
       )
       tls.setMode('tool')
       const app = createAcceptanceApplication(config, {
