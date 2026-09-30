@@ -172,16 +172,17 @@ afterAll(() => cert.dispose())
 
 describe('Qwen3.8 public tokenizer input meters', () => {
   it.each(commercial)(
-    '%s counts the complete visible history with a new exact binding',
+    '%s renders the public template for the complete history with its new exact binding',
     async modelId => {
       const selected = definition(modelId),
         meter = createQwenInputMeter(selected)
-      expect(selected.revision).toBe('3')
-      expect(selected.implementation.revision).toBe('mp4-17')
-      expect(meter.algorithmRevision).toBe(
-        `${modelId.slice('qwen/'.length)}-final-visible-json-proxy-1`,
-      )
+      expect(selected.revision).toBe('4')
+      expect(selected.implementation.revision).toBe('mp4-20')
+      expect(meter.algorithmRevision).toBe(`${modelId.slice('qwen/'.length)}-public-template-1`)
       expect(() => createQwenInputMeter({ ...selected, revision: '1' })).toThrow(TypeError)
+      expect(() => createQwenInputMeter({ ...selected, revision: '3' })).toThrow(TypeError)
+      // 3.7 leaves drop reasoning before the last user query (preserve_thinking=false).
+      const dropsEarlierReasoning = modelId.startsWith('qwen/qwen3.7-')
       const planned = await planRequest(
         await request(modelId),
         [selected],
@@ -212,7 +213,9 @@ describe('Qwen3.8 public tokenizer input meters', () => {
           serialized: writeJsonLossless(changed),
         })
         expect(measured.kind).toBe('estimated')
-        expect(measured).not.toEqual(baseline)
+        if (original === 'Need an exact lookup.' && dropsEarlierReasoning)
+          expect(measured).toEqual(baseline)
+        else expect(measured).not.toEqual(baseline)
       }
       expect(directFull(meter, { body, serialized: '{}' })).toEqual({ kind: 'unavailable' })
       expect(

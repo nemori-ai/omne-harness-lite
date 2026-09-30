@@ -1,14 +1,51 @@
 // Offline only. Does not import HTTP, credentials or a paid ledger.
+// `candidate` is the production meter's full count for each unsent probe: the official
+// Prime/FlashX release (pi-ai:zai@mp4-18, visible reasoning history) through the shared
+// source guard, recorded with its coordinates. The former unbound history candidate is gone.
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { createZaiHistoryCandidateMeter } from '../../../dist/input-meters/zai-candidate.js'
+import {
+  createOfficialProfileContent,
+  createZaiCommercialInputMeter,
+  zaiDefinitions,
+} from '../../../dist/index.js'
 import { projectZaiCommercialBody } from '../../../dist/input-meters/zai-commercial.js'
-import { zaiDefinitions } from '../../../dist/official-models/zai.js'
+import { projectInput } from '../../../dist/projection.js'
 
 const sha = value => createHash('sha256').update(value).digest('hex')
 const source = new URL('./history-complete-streams.json', import.meta.url)
+
+/** The meter input a body-only direct call needs: the exact profile's counting basis. */
+function fullInput(model, provider, meter, body, serialized) {
+  const profile = createOfficialProfileContent(model, {
+    providers: [provider],
+    allowFallback: false,
+    configuration: {
+      revision: 'zai-history-probes-1',
+      values: {
+        cache:
+          provider === 'alibaba'
+            ? { mode: 'explicit', ttl: '5m', breakpoints: ['last_message'] }
+            : { mode: 'automatic' },
+      },
+    },
+  })
+  assert.ok('ok' in profile)
+  const request = {
+    routeName: model.modelId,
+    provider,
+    snapshot: { adaptation: profile.ok.adaptation },
+  }
+  return {
+    body,
+    serialized,
+    projection: projectInput(body, request, meter),
+    outputHistory: [],
+    historySpans: [],
+  }
+}
 
 export function freezeHistoryCandidateProbes(maxOutputTokens) {
   assert.ok(Number.isSafeInteger(maxOutputTokens) && maxOutputTokens > 0)
@@ -29,7 +66,7 @@ export function freezeHistoryCandidateProbes(maxOutputTokens) {
     assert.ok(original && Array.isArray(original.messages))
     const model = zaiDefinitions.find(item => item.modelId === row.model)
     assert.ok(model && maxOutputTokens <= Number(model.capabilities.maxOutputTokens))
-    const meter = createZaiHistoryCandidateMeter(model)
+    const meter = createZaiCommercialInputMeter(model)
     // Exact last_message configuration: move its marker to the new final message.
     const last = {
       role: 'user',
@@ -69,7 +106,12 @@ export function freezeHistoryCandidateProbes(maxOutputTokens) {
         sseSha256: row.sseSha256,
         requestSha256: sha(serialized),
         body,
-        candidate: meter.measureFull({ body, serialized }),
+        meter: {
+          definition: meter.definitionRevision,
+          implementation: meter.implementation.revision,
+          algorithm: meter.algorithmRevision,
+        },
+        candidate: meter.measureFull(fullInput(model, row.provider, meter, body, serialized)),
       })
     }
   }

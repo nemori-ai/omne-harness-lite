@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
-import { createOfficialProfileContent } from '@omne-harness-lite/pi-ai-transport'
+import {
+  createOfficialProfileContent,
+  type ModelDefinition,
+} from '@omne-harness-lite/pi-ai-transport'
 import { googleDefinitions } from '../../../src/official-models/google.ts'
 import { judgedMessage, message } from '../../support.ts'
 
@@ -25,9 +28,14 @@ export const googleCertificationTool: ModelToolEntry = {
   },
 }
 
-/** Official-binding input case; callers still need a real route-applicable meter. */
-export function googleCertificationRequest(modelId: string): PlanInput {
-  const definition = googleDefinitions.find(candidate => candidate.modelId === modelId)
+/**
+ * Official-binding input case; callers still need a real route-applicable meter. A caller may
+ * supply a declaration of the same model at other binding coordinates (the unpinned V4 row).
+ */
+export function googleCertificationRequest(modelId: string, declared?: ModelDefinition): PlanInput {
+  if (declared !== undefined && declared.modelId !== modelId)
+    throw new TypeError('declaration is for another model')
+  const definition = declared ?? googleDefinitions.find(candidate => candidate.modelId === modelId)
   if (!definition) throw new TypeError(`Google model is not in the selected catalog: ${modelId}`)
   const profile = createOfficialProfileContent(definition, {
     providers: [googleCertificationProvider],

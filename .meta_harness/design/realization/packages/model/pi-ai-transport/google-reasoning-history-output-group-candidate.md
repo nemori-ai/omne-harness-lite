@@ -212,8 +212,8 @@ T-only 是非工具路径上唯一见过的完整形状。三个候选都没有 
 
 | 叶 | 当前 → 候选坐标 | 身份映射依据 | 完整 E 组真实原件 | 回放的真实观察 | GS-V1–V6（本机） | GS-V7（真实） | GS-V9（P2） | 采用后可声称 |
 |---|---|---|---|---|---|---|---|---|
-| `google/gemini-3.8-flash` | 3/`mp4-17` → 4/`mp4-N`（证据上可钉；建议 GS-V9 A 之后钉） | 09-30 raw 5/5 帧＋reader 完整回复；09-28 探针 | 1 份（09-30） | 无：第 2 轮在计划期拒绝、零 HTTP | 待实施 | 最小观测已完成；三轮待实施后执行 | 待执行 | 本机：工具续接多轮 full 可估（estimated，无误差界）；T-only 组仍 `input_size_unavailable`；真实回放接受与误差由 GS-V9、GS-V7 读出 |
-| `google/gemini-3.7-flash` | 同上 | 09-30 raw 5/5 帧＋reader 完整回复 | 1 份（09-30） | 同上 | 待实施 | 同上 | 待执行 | 同上 |
+| `google/gemini-3.8-flash` | 3/`mp4-17` → 4/`mp4-N`（证据上可钉；建议 GS-V9 A 之后钉） | 09-30 raw 5/5 帧＋reader 完整回复；09-28 探针 | 1 份（09-30） | 无：第 2 轮在计划期拒绝、零 HTTP | 已实施（增量树 `f667d8b7`，GS-V1～V6 本机全过，坐标未钉，见 verification.md GS 段） | 最小观测已完成；三轮待实施后执行 | 待执行 | 本机：工具续接多轮 full 可估（estimated，无误差界）；T-only 组仍 `input_size_unavailable`；真实回放接受与误差由 GS-V9、GS-V7 读出 |
+| `google/gemini-3.7-flash` | 同上 | 09-30 raw 5/5 帧＋reader 完整回复 | 1 份（09-30） | 同上 | 已实施（增量树 `f667d8b7`，GS-V1～V6 本机全过，坐标未钉，见 verification.md GS 段） | 同上 | 待执行 | 同上 |
 
 ## 缺口与受阻消费者
 
@@ -234,6 +234,10 @@ T-only 是非工具路径上唯一见过的完整形状。三个候选都没有 
 | GG-14 | E 的 id 等于首轮工具调用的上游 id，但 reader 登记的 CallId 由自身生成，投影以它写回 `tool_calls[].id` 与 `tool_call_id`，回放时两者不等；OpenRouter／Gemini 是否凭 id 关联签名未知。可能后果：上游拒绝、静默丢弃 E（接受不等于 E 被使用）、或无影响。本页不改写 opaque 与工具调用 id | [content-blocks v3 S-9](../../../../spec/data/content-blocks/v3/contract.md#s-9-思考块与不透明数据)、[S-14](../../../../spec/data/content-blocks/v3/contract.md#s-14-callid)；[RT12 S-74](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-74-每次发送之前的完整输入限制与固定计划) ③ | transport reader／投影 owner；读数由主调度 GS-V9（含 D）、GS-V7 提供 | GS-V7 通过；工具续接的实际语义；坐标钉定（K7） |
 
 本页自身没有兑现不了的条款，也没有发现与 RT12 S-74/S-77/S-78/S-79、MR11 S-43 冲突的观测。GG-10 与 GG-14 是共享 reader／投影层的事项，不在本页兑现范围，已点名 owner。机制接线按主调度 2026-09-30 裁决可先行实施与正反验证；三个坐标的钉定与官方发布等主线采用决定（本页建议以 GS-V9 A 为前置）。
+
+## 实施附注（2026-09-30，主线）
+
+机制接线交付于增量集成分支（`12b56c83`…`7084bffb` → 增量树 `f667d8b7`）：V4 工厂 `createGoogleHistoryInputMeter(definition, release)` 委托共享核，坐标按 O-1 未钉（官方目录仍 V3），replay 保持 `unsupported-marginal/1`。登记偏离：部分选择取 unavailable；跨路由仅 origin 变时由共享层判 malformed；补强 basis provider 检查与「退役坐标不得复用」。GS-V7／V9／V10 待主调度付费执行后钉坐标。
 
 ## 修订记录
 

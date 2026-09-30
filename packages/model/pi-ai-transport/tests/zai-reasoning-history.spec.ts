@@ -135,7 +135,7 @@ describe('Z.AI complete historical reasoning at the public planning boundary', (
       { modelId, opaque: true },
     ]),
   )(
-    '$modelId opaque=$opaque retains history and refuses an unproven token estimate',
+    '$modelId opaque=$opaque retains history; only a released plain string is estimated',
     async ({ modelId, opaque }) => {
       const model = definition(modelId)
       const actual = meter(model)
@@ -157,11 +157,19 @@ describe('Z.AI complete historical reasoning at the public planning boundary', (
         },
         testImagePreparerFor(planRequest),
       )
-      expect(result).toEqual({
-        rejected: 'invalidInput',
-        reason: 'input_size_unavailable',
-        metrics: ['maxInputTokens'],
-      })
+      // GLM-5.2 is released at mp4-18 (visible history); GLM-5.3 and Flash keep refusing
+      // until ZV0. This hand-built detail lacks the captured `format` key: always refused.
+      if (modelId === 'z-ai/glm-5.2' && !opaque) {
+        expect(model.implementation.revision).toBe('mp4-18')
+        expect(result).toMatchObject({
+          planned: { measurement: { mode: 'full', precision: 'estimated' } },
+        })
+      } else
+        expect(result).toEqual({
+          rejected: 'invalidInput',
+          reason: 'input_size_unavailable',
+          metrics: ['maxInputTokens'],
+        })
       expect(finalBody?.messages).toMatchObject([
         {
           role: 'assistant',

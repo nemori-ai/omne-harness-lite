@@ -1,0 +1,35 @@
+{
+  "z-ai/glm-5.2": {
+    "definition": "3",
+    "implementation": {
+      "name": "pi-ai:zai",
+      "revision": "mp4-18"
+    },
+    "algorithm": "glm-5.2-public-template-2",
+    "tokenizer": "tokenizer-basis/glm-5.2-public-template-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  },
+  "z-ai/glm-5.3-prime": {
+    "definition": "4",
+    "implementation": {
+      "name": "pi-ai:zai",
+      "revision": "mp4-18"
+    },
+    "algorithm": "prime-public-glm53-declared-effort-route-fit-3",
+    "tokenizer": "tokenizer-basis/prime-public-glm53-declared-effort-route-fit-2",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  },
+  "z-ai/glm-5.3-flashx": {
+    "definition": "3",
+    "implementation": {
+      "name": "pi-ai:zai",
+      "revision": "mp4-18"
+    },
+    "algorithm": "flashx-public-glm53-route-fit-2",
+    "tokenizer": "tokenizer-basis/flashx-public-glm53-route-fit-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  }
+}

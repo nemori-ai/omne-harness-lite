@@ -22,7 +22,23 @@ import {
 import { createGoogleInputMeter } from '../src/input-meters/google.ts'
 import { googleDefinitions } from '../src/official-models/google.ts'
 import { googleCertificationRequest, googleCertificationTool } from './fixtures/google/cases.ts'
+import {
+  detailsDelta,
+  encryptedDetail,
+  googleHistoryDefinition,
+  googleHistoryMeter,
+  googleHistoryTool,
+  googleLeaves,
+  googleReply,
+  GOOGLE_SERVING_PROVIDER,
+  googleV3Definition,
+  originalToolReply,
+  signatureDelta,
+  syntheticCiphertext,
+  textFragmentDelta,
+} from './fixtures/google/history.ts'
 import { appendGoogleRound, googleThreeRoundInput } from './fixtures/google/three-round.ts'
+import { directFull } from './direct-full-input.ts'
 import { certificate, content, finish, fixture, judgedMessage, policy, sse } from './support.ts'
 
 // Credential-free invokeModel scenarios over a local TLS fixture, through the
@@ -617,6 +633,272 @@ describe.each(googleDefinitions)('Google public invoke boundary: $modelId', defi
       expect(second.provider).toEqual(provider)
       expect(second.reasoning).toBeUndefined()
       expect(outside.parameters).not.toHaveProperty('reasoningEffort')
+    } finally {
+      await transport.close()
+      await host.close()
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// GS-V6 (Google revision 4): the tool path with a complete E-only group, through the public
+// transport and the Cordis-leased service, on the unpinned V4 candidate binding. Frames follow
+// the 2026-09-30 raw originals (frame 0 = one E whose id equals the stream's tool-call id);
+// ciphertexts are same-length synthetic base64. This proves the local mechanism only, not
+// upstream acceptance of the replay (GG-4) or of the id mismatch (GG-14).
+
+const secondE = { callId: 'call_local_round_2', output: 57, reasoning: 40, prompt: 1180 }
+const remainingCounter = new Map<string, InputMeter>()
+/** The published V3 counter over the wire minus every assistant unit that carries details. */
+function counterWithoutGroups(modelId: string, body: Record<string, unknown>): number {
+  let v3 = remainingCounter.get(modelId)
+  if (!v3) {
+    v3 = createGoogleInputMeter(googleV3Definition(modelId))
+    if (!v3) throw new Error('missing V3 meter')
+    remainingCounter.set(modelId, v3)
+  }
+  if (!Array.isArray(body.messages)) throw new Error('messages required')
+  const rest = {
+    ...body,
+    messages: body.messages.filter(
+      (unit: unknown) =>
+        !(unit !== null && typeof unit === 'object' && Object.hasOwn(unit, 'reasoning_details')),
+    ),
+  }
+  const measured = directFull(v3, { body: rest, serialized: writeJsonLossless(rest) })
+  if (measured.kind !== 'estimated') throw new Error(`counter: ${JSON.stringify(measured)}`)
+  return Number(writeJsonLossless(measured.tokens))
+}
+
+function historyRequest(modelId: string, effort: 'low' | 'medium' | 'high'): PlanInput {
+  return {
+    ...googleThreeRoundInput(modelId, effort, true, googleHistoryDefinition(modelId)),
+    tools: [googleHistoryTool],
+  }
+}
+
+const historyCases = (['public', 'cordis'] as const).flatMap(entry =>
+  googleLeaves.flatMap(leaf =>
+    (['low', 'medium', 'high'] as const).map(effort => ({ entry, leaf, effort })),
+  ),
+)
+
+describe.each(historyCases)('GS-V6 Google E tool path %#', ({ entry, leaf, effort }) => {
+  it(`${entry} ${leaf.modelId} ${effort}: rounds 2 and 3 full/estimated, E replayed verbatim`, async () => {
+    const definition = googleHistoryDefinition(leaf.modelId)
+    const candidate = googleHistoryMeter(leaf.modelId)
+    expect(candidate.replayRevision).toBe('unsupported-marginal/1')
+    const { meter, marginal } = countedMeter(candidate)
+    const first = originalToolReply(leaf)
+    const secondDetail = encryptedDetail(
+      syntheticCiphertext(leaf.ciphertextBytes, `${leaf.modelId}-round-2`),
+      secondE.callId,
+    )
+    const replies = [
+      first.sse,
+      googleReply({
+        modelId: leaf.modelId,
+        generation: 'gen-local-google-round-2',
+        servingProvider: GOOGLE_SERVING_PROVIDER,
+        reasoning: [detailsDelta([secondDetail])],
+        calls: [{ id: secondE.callId, arguments: '{"query":"PINE"}' }],
+        usage: { prompt: secondE.prompt, output: secondE.output, reasoning: secondE.reasoning },
+      }),
+      googleReply({
+        modelId: leaf.modelId,
+        generation: 'gen-local-google-round-3',
+        servingProvider: GOOGLE_SERVING_PROVIDER,
+        reasoning: [],
+        answer: 'CEDAR is 7 and PINE is 7.',
+        usage: { prompt: 1400, output: 12, reasoning: 0 },
+      }),
+    ]
+    const host = await fixture(
+      cert.tls,
+      res => {
+        const next = replies.shift()
+        if (next === undefined) {
+          res.writeHead(500)
+          res.end('{"error":{"message":"unexpected local HTTP"}}')
+          return
+        }
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.end(next)
+      },
+      {},
+      undefined,
+      [definition],
+    )
+    let request = historyRequest(leaf.modelId, effort)
+    const opened = await openEntry(entry, host.options, definition, meter, request)
+    const results: ModelInvocationResult[] = []
+    try {
+      for (let round = 1; round <= 3; round++) {
+        const planned = await opened.transport.plan(request, {
+          signal: new AbortController().signal,
+        })
+        if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+        const { measurement, body, inputLimitEvidence } = planned.planned
+        expect(measurement).toMatchObject({
+          mode: 'full',
+          precision: 'estimated',
+          // Display-name provenance differs from the slug basis: full-only, φ/δ never asked.
+          fallbackReason: round === 1 ? 'no_observation' : 'basis_changed',
+          fullContribution: { precision: 'estimated' },
+          basis: {
+            provider: 'google-ai-studio',
+            meterRevision: 'gemma4-visible-offset6-complete-output-group-estimated/1',
+            replayRevision: 'unsupported-marginal/1',
+          },
+        })
+        if (inputLimitEvidence.inputTokens.kind !== 'estimated') throw new Error('estimated')
+        // Round r counts every earlier E group by its original O once, the rest by G4.
+        const outputs = [leaf.output, secondE.output].slice(0, round - 1)
+        expect(Number(writeJsonLossless(inputLimitEvidence.inputTokens.tokens))).toBe(
+          counterWithoutGroups(leaf.modelId, body) + outputs.reduce((sum, o) => sum + o, 0),
+        )
+        expect(body).toMatchObject({ model: leaf.modelId, reasoning: { effort }, provider })
+        const result = await opened.invoke(request)
+        if (!('outcome' in result) || result.outcome !== 'complete')
+          throw new Error(JSON.stringify(result))
+        expect(host.requests).toHaveLength(round)
+        expect(host.requests[round - 1]?.body).toBe(planned.planned.serialized)
+        expect(result).toMatchObject({
+          servingProvider: GOOGLE_SERVING_PROVIDER,
+          upstreamModel: leaf.modelId,
+        })
+        expect(result.blocks.map(block => block.kind)).toEqual(
+          round < 3 ? ['thinking', 'tool_call'] : ['text'],
+        )
+        results.push(result)
+        if (round < 3) request = nextRound(request, result, round + 1)
+      }
+      // Full-only: no φ/δ contribution was requested (the slug negative control below shows
+      // both factory methods answering unavailable when the planner does ask).
+      expect(marginal).toEqual([])
+      const wires = host.requests.map(
+        sent =>
+          JSON.parse(sent.body).messages as {
+            role: string
+            reasoning_details?: unknown
+            tool_calls?: { id: string }[]
+            tool_call_id?: string
+          }[],
+      )
+      const details = [first.detail, secondDetail]
+      for (const round of [2, 3]) {
+        const sent = host.requests[round - 1]?.body ?? ''
+        const assistants = (wires[round - 1] ?? []).filter(unit => unit.role === 'assistant')
+        const tools = (wires[round - 1] ?? []).filter(unit => unit.role === 'tool')
+        expect(assistants.map(unit => unit.reasoning_details)).toEqual(
+          details.slice(0, round - 1).map(detail => [detail]),
+        )
+        for (const [index, detail] of details.slice(0, round - 1).entries()) {
+          // Each E goes back byte-for-byte (id included), exactly once.
+          expect(sent.split(writeJsonLossless(detail))).toHaveLength(2)
+          const call = results[index]?.blocks.find(block => block.kind === 'tool_call')
+          if (!call || call.kind !== 'tool_call') throw new Error('missing original call')
+          expect(assistants[index]?.tool_calls?.map(item => item.id)).toEqual([call.callId])
+          expect(tools[index]?.tool_call_id).toBe(call.callId)
+          // GG-14 OBSERVATION, not a semantic guarantee: the replayed tool-call id is the
+          // reader-generated CallId and differs from the E id (the upstream call id). Flip
+          // this assertion when the reader/projection owner resolves GG-14.
+          expect(call.callId).not.toBe(detail.id)
+        }
+      }
+    } finally {
+      await opened.close()
+      await host.close()
+    }
+  })
+})
+
+describe.each(googleLeaves)('GS-V6 negative controls on the V4 candidate: $modelId', leaf => {
+  const signature = syntheticCiphertext(252, 'google-09-28-signature')
+  const variants = [
+    {
+      name: 'slug provider instead of the display name',
+      reply: originalToolReply(leaf, 'google-ai-studio').sse,
+      // Provenance equals the slug basis, so φ/δ are asked first and stay unavailable.
+      marginal: ['replay:unavailable', 'new:unavailable'],
+    },
+    {
+      name: 'T-only first reply (K2 candidate a)',
+      reply: googleReply({
+        modelId: leaf.modelId,
+        generation: 'gen-local-google-t-only',
+        servingProvider: GOOGLE_SERVING_PROVIDER,
+        reasoning: [textFragmentDelta('Considering '), textFragmentDelta('the code.')],
+        answer: 'CEDAR-7',
+        usage: { prompt: 949, output: 313, reasoning: 312 },
+      }),
+      marginal: [],
+    },
+    {
+      name: 'TS first reply (R-L merged signed text, kept as a negative control)',
+      reply: googleReply({
+        modelId: leaf.modelId,
+        generation: 'gen-local-google-ts',
+        servingProvider: GOOGLE_SERVING_PROVIDER,
+        reasoning: [textFragmentDelta('Considering the code.'), signatureDelta(signature)],
+        answer: 'CEDAR-7',
+        usage: { prompt: 949, output: 40, reasoning: 30 },
+      }),
+      marginal: [],
+    },
+    {
+      name: '[REDACTED] E',
+      reply: googleReply({
+        modelId: leaf.modelId,
+        generation: 'gen-local-google-redacted',
+        servingProvider: GOOGLE_SERVING_PROVIDER,
+        reasoning: [detailsDelta([encryptedDetail('[REDACTED]', leaf.callId)])],
+        calls: [{ id: leaf.callId, arguments: '{"query":"CEDAR"}' }],
+        usage: { prompt: leaf.prompt, output: leaf.output, reasoning: leaf.reasoning },
+      }),
+      marginal: [],
+    },
+  ]
+  it.each(variants)('$name: round 2 is input_size_unavailable with zero HTTP', async variant => {
+    const definition = googleHistoryDefinition(leaf.modelId)
+    const { meter, marginal } = countedMeter(googleHistoryMeter(leaf.modelId))
+    const host = await fixture(
+      cert.tls,
+      res => {
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.end(variant.reply)
+      },
+      {},
+      undefined,
+      [definition],
+    )
+    const transport = createPiAiTransport({
+      ...host.options,
+      definitions: [definition],
+      inputMeters: [meter],
+    })
+    try {
+      const first = historyRequest(leaf.modelId, 'high')
+      const result = await invoke(first, transport)
+      if (!('outcome' in result) || result.outcome !== 'complete')
+        throw new Error(JSON.stringify(result))
+      const second = nextRound(first, result, 2)
+      const assistant = await host.transport.plan(second, { signal: new AbortController().signal })
+      // The projection itself carries the details (synthetic fixture meter).
+      if ('rejected' in assistant) throw new Error(JSON.stringify(assistant))
+      expect(assistant.planned.serialized).toContain('reasoning_details')
+      marginal.length = 0
+      const refused = {
+        rejected: 'invalidInput',
+        reason: 'input_size_unavailable',
+        metrics: ['maxInputTokens'],
+      }
+      expect(await transport.plan(second, { signal: new AbortController().signal })).toEqual(
+        refused,
+      )
+      expect(marginal).toEqual(variant.marginal)
+      expect(await invoke(second, transport)).toEqual(refused)
+      expect(host.requests).toHaveLength(1)
     } finally {
       await transport.close()
       await host.close()

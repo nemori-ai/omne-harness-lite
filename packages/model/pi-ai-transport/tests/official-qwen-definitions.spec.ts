@@ -82,10 +82,10 @@ describe('official Qwen complete declarations (offline)', () => {
       const open = modelId === 'qwen/qwen3.8-2.4t-a95b' || modelId === 'qwen/qwen3.8-27b'
       expect(definition).toMatchObject({
         modelId,
-        revision: open ? '4' : '3',
+        revision: '4',
         implementation: {
           name: 'pi-ai:qwen',
-          revision: open ? 'mp4-19' : 'mp4-17',
+          revision: open ? 'mp4-19' : 'mp4-20',
         },
         capabilities: {
           inputModalities: [...row.input],

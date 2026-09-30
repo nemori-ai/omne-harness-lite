@@ -5,7 +5,6 @@ import { readOpaqueJson, toOpaqueJson, type JsonObject } from '@omne-harness-lit
 import { start, accept, closeOut } from '@omne-harness-lite/stream-assembly'
 import { invokeModel } from '@omne-harness-lite/model-request-runtime'
 import { createZaiCommercialInputMeter } from '../src/input-meters/zai-commercial.ts'
-import { createZaiHistoryCandidateMeter } from '../src/input-meters/zai-candidate.ts'
 import { planRequest } from '../src/plan.ts'
 import { object } from '../src/json.ts'
 import { definition, histories, historyInput, jsonBody } from './fixtures/zai/history-cases.ts'
@@ -85,7 +84,10 @@ describe('authentic complete ZAI reasoning through production stream and assembl
           { signal: new AbortController().signal },
           testImagePreparerFor(planRequest),
         )
-        expect(replay).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+        // Released at mp4-18: the same-route merged detail is metered as visible reasoning.
+        expect(replay).toMatchObject({
+          planned: { measurement: { mode: 'full', precision: 'estimated' } },
+        })
         expect(captured?.messages).toMatchObject([
           { role: 'system' },
           { role: 'user' },
@@ -96,18 +98,28 @@ describe('authentic complete ZAI reasoning through production stream and assembl
         const otherId =
           row.model === 'z-ai/glm-5.3-prime' ? 'z-ai/glm-5.3-flashx' : 'z-ai/glm-5.3-prime'
         const other = definition(otherId)
+        const otherMeter = createZaiCommercialInputMeter(other)
+        let otherCalls = 0
         const changed = await planRequest(
           {
             ...historyInput(otherId),
             messages: [...request.messages, assistant, message('user', 'Continue.', 'followup')],
           },
           [other],
-          createZaiHistoryCandidateMeter(other),
+          {
+            ...otherMeter,
+            measureFull(value) {
+              otherCalls++
+              return otherMeter.measureFull(value)
+            },
+          },
           { signal: new AbortController().signal },
           testImagePreparerFor(planRequest),
         )
-        // The other route has no projector for this opaque unit: reject, never degrade to plaintext.
+        // The other route has no projector for this opaque unit: reject, never degrade to
+        // plaintext, and never reach its meter.
         expect(changed).toEqual({ rejected: 'unavailable' })
+        expect(otherCalls).toBe(0)
         expect(host.requests).toHaveLength(1)
       } finally {
         await host.close()
@@ -217,9 +229,7 @@ describe('authentic complete ZAI reasoning through production stream and assembl
       })
     for (const opaque of [false, true]) {
       let captured: JsonObject | undefined
-      const meter = opaque
-        ? createZaiCommercialInputMeter(model)
-        : createZaiHistoryCandidateMeter(model)
+      const meter = createZaiCommercialInputMeter(model)
       const result = await planRequest(
         { ...request, messages: [...request.messages, makeAssistant(opaque)] },
         [model],
@@ -240,6 +250,7 @@ describe('authentic complete ZAI reasoning through production stream and assembl
       if (opaque) {
         expect(assistantWire).toHaveProperty('reasoning_details')
         expect(assistantWire).not.toHaveProperty('reasoning')
+        // This hand-built detail lacks the captured `format` key: unexplained, refused.
         expect(result).toMatchObject({
           rejected: 'invalidInput',
           reason: 'input_size_unavailable',

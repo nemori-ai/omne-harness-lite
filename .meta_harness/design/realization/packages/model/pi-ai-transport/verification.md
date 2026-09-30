@@ -345,20 +345,60 @@ UCT-V12 的官方配置不能换成禁用缓存或固定在旧位置的研究配
 
 包全量 `npx vitest run`：默认 5 s 门槛下 2052 过、1 跳、7 超时（`acceptance-d4-contributions` D4-A 子进程与 `openai-visible-history-candidate` 六例，均为高负载下的 5 s 超时）；`--testTimeout=60000` 复跑同一源码 123 个文件 2059 过、1 跳、0 失败；`tsc -p tsconfig.test.json` 0 错。同批变异负控（各自单独施加、跑两份新 spec 后还原）：去掉并行键同文检查使反例 2 失败（两叶各 1 例）；把显式 `signature: null` 当作缺席使反例 3 与反例 5「显式 null 签名」失败（共 4 例）；放行非 0 index 使反例 3 失败（两叶各 1 例）。演示装配 `examples/model-invocation-minimal-demo` 的两份 Qwen spec 不含 details 用例、按导出定义动态取修订，本次未改；在本 spoke 上该装配因依赖包 `@omne-harness-lite/loop-extension-runner` 未构建而无法加载，未实际运行。本节不关闭 QV4（每叶有／无工具真实三轮回放与必做同路由对照，归 root 账本）、G1 上游转换、G3 真实回放或两叶 D7 认证。
 
+## 2026-09-30 Qwen 商业六叶公开模板本机覆盖
+
+对象：[Qwen 商业六叶可见推理计量 revision 1](qwen-commercial-visible-reasoning-estimate-design.md)（[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-commercial-visible-reasoning-decision.md)，含 QC-V0 附注）在 `qwen/qwen3.8-max-0902`、`qwen3.8-max-prime`、`qwen3.8-flash`、`qwen3.7-max`、`qwen3.7-plus`、`qwen3.7-flash`@`alibaba` 的新发布：definition 4、`pi-ai:qwen@mp4-20`，algorithm `<叶名>-public-template-1`，tokenizer 修订显式换为 `tokenizer-basis/qwen-commercial-38-template-wire-order-1`（3.8 三叶）／`tokenizer-basis/qwen-commercial-37-template-wire-order-1`（3.7 三叶），φ/δ 仍为 `unsupported-marginal/1`，transform 仍为 `openrouter-wire/2`。`renderQwenPrompt` 增一个逐绑定设定参数（`preserveThinking`、`effortInstruction`、`toolJson`），商业叶取 wire 键序 `tojson`；开源两叶取缺省设定，definition 4／`mp4-19` 与 algorithm、tokenizer 修订不动。JSON 替身 `qwen-visible.ts` 与 `qwenVisibleBindings` 删除，结构前置迁入商业分支。夹具：[QC-V0 复算](../../../../../research/model-request-adaptation/vendor-continuation/qwen/batch8-20260930/README.md)的 18 个重建请求体（逐个 SHA-256 等于 run 的 `plannedWireSha256`，只入请求体与计数，不含原始 SSE）；十种几何的 wire 形请求体及其独立 Jinja2 3.1.6＋HF `tokenizers` 0.23.2 黄金值（执行仓库 `tests/fixtures/qwen/commercial-reference-render.py`）；改动前开源两叶在同十种几何上的渲染哈希与计数（基线 `2d0dd969`，与独立 Jinja 键排序黄金值逐个相同）。本机流沿 QC-V0 读到的逐帧形状（每帧 `reasoning` 加一项同文四键 detail），文字取 batch8 第 3 轮请求体回放的两段推理、切片后交真实 reader 合并。未发任何付费请求，未读任何密钥，原始运行输出未归档为 evidence run。
+
+| 义务 | 执行仓库用例 | 用例数 | 实际结果 |
+|---|---|---:|---|
+| QC-V1 | `tests/qwen-commercial-rounds.spec.ts`：六叶 × 各自 wire effort 域（0902 缺省／`high`／`max`，其余缺省）× 有/无工具 × {public transport，Cordis transport service} | 33 | 32 组三轮：第 2、3 轮 full／`estimated`；每轮恰一次 HTTP 且字节等于计划；线上只回放 reader 合并后的一项 details、不带 `reasoning`／`reasoning_content`；显式档四叶恰一个 `ephemeral`／`5m` system 标记，两 flash 叶不带；只有 0902 发 effort；每轮估算等于独立 meter 与「details 换成 `reasoning` 字符串」的计数；余量只在门上应用一次；Cordis 路径 `basis_changed`，public 路径 φ/δ 被询问且为 unavailable；资源实停。有工具时第 2 轮是回合内几何（只续工具结果） |
+| QC-V2 | `tests/qwen-commercial-template.spec.ts`：十种几何（末个 query 之前／之后、连续工具结果与带文字的工具调用、被 `<tool_response>` 包裹的 user、工具结果后的提醒 user、无 system 无工具、空 system、有 system 无工具、有工具无 system、非 ASCII 用户文字／工具 schema／工具参数）× `preserve_thinking` {缺省，false} × effort {缺省，无说明}；batch8 18 个请求体 | 19 | 40 个渲染的 SHA-256 与 token 数逐个等于独立 Jinja 黄金值；六叶 factory 在十种几何上的计数等于各自设定的黄金值；18 个 batch8 请求残差全为 0（见下表），渲染结果与复算的 wire 键序 prompt 逐字节相同，改用键排序 `tojson` 则 18 个全为 +1，互换两族设定则全部对不上 |
+| QC-V3 | 同文件：等价预言（六叶 × 18 个 batch8 体＋十种几何）与开源两叶回归预言 | 8 | details 版与 `reasoning` 串版逐值相等（每叶 28 组）；开源两叶在十种几何上的渲染哈希与计数等于改动前捕获值，也等于独立 Jinja 键排序黄金值，algorithm／tokenizer 修订与 `mp4-19` 不变；既有 `public-template-*.txt` 黄金值照常通过 |
+| QC-V4 | `tests/qwen-commercial-counterexamples.spec.ts`：开源页反例 1–7、9、10 按各叶设定复跑，新增反例 11–13、15、16、18 | 96 | 反例 1：3.8 叶两条末个 query 之前的推理各计一次，3.7 叶计 0，回合内两族都计入；反例 2、3 的全部形态在 meter 与规划器均 unavailable／`input_size_unavailable`；反例 4：五叶带任何 `reasoning`、0902 带 `none`／`low`／`medium`／`xhigh` 为 unavailable；反例 5、10 经真实 reader；反例 11：3.7 叶末个 query 之前的推理（details 或串）计数等于删去推理，回合内与真分支渲染逐字节相同；反例 12：包裹 user 与 tool 不算 query，提醒 user 算，有无 system 判定相同；反例 13：无说明分支无 system 且无工具（含空白 system）不渲 system 块，有工具时工具段前无说明句；反例 15：summary、带 id、同块两项、两个 detail 块、数组参数、不可解析参数经规划器为 `input_size_unavailable`，零新增 HTTP，原消息不变，对象参数正控仍可计；反例 16：自动档叶任何 `cache_control`、显式档叶 system 以外或非 `ephemeral`／`5m`、`require_parameters` 缺席或为假、多余 provider 键、图片、工具定义带缓存标记或多余函数键、调用无 id、非布尔 `stream`、未知 body 键、参数对象含数组下标键（JS 对象会重排）、工具 schema 含孤立代理项均 unavailable；反例 18：旧 3／`mp4-17`、4／`mp4-17`、3／`mp4-20`、4／`mp4-19`、5／`mp4-20` 与其他实现名构造期抛错 |
+| QC-V5 | 同文件，直接调用 `createQwenInputMeter` 对六叶返回的方法 | 6 | 修订坐标如上；body-only full 为 `estimated`，等于以独立 tokenizer 对各叶设定渲染的计数；显式合法 history 同值；缺 span、部分组、越界、重复目标、组被篡改、来源矛盾、序列化不一致、不可解释的 details 均 unavailable；φ/δ 合法输入 unavailable、坏输入 `invalidInput`；共同包装无递归 |
+| QC-V8 | 修订与制品 | — | 六叶坐标见上；`evidence` 逐叶写明分支与依据（参数参考默认值，max-prime 为仅观察推断的假设，0902 另写 R-B 扩展与 `max` 未观察）、batch8 残差 0 与键排序 +1、单 user 常数未复算、误差方向未知、无 holdout、无误差界、OpenRouter 转换与 `preserve_thinking` 转发未知；包 README／README_ZH Qwen 段双语同步；`qwen-input-meter`（修订、3.7 叶末个 query 之前的推理不再改变计数）、`qwen-family-current`（商业叶第 2 轮 `summary` 由估算改为拒绝、`text` 八叶一致估算、修订）、`official-qwen-definitions`、`official-reader-bindings`（新增 `qwen-commercial-public-template.json` 六行，`before-mp4-17.json` 保留为原件）跟随新发布 |
+
+batch8 18 个请求的残差（预测 − 上游 `prompt_tokens`；预测为 factory full 计数）：
+
+| 叶 | 第 1 轮 | 第 2 轮 | 第 3 轮 |
+|---|---|---|---|
+| qwen3.7-flash | 1147 − 1147 = 0 | 1218 − 1218 = 0 | 1283 − 1283 = 0 |
+| qwen3.7-max | 1147 − 1147 = 0 | 1218 − 1218 = 0 | 1283 − 1283 = 0 |
+| qwen3.7-plus | 1144 − 1144 = 0 | 1215 − 1215 = 0 | 1280 − 1280 = 0 |
+| qwen3.8-flash | 1185 − 1185 = 0 | 1283 − 1283 = 0 | 1367 − 1367 = 0 |
+| qwen3.8-max-0902 | 1188 − 1188 = 0 | 1366 − 1366 = 0 | 1528 − 1528 = 0 |
+| qwen3.8-max-prime | 1186 − 1186 = 0 | 1284 − 1284 = 0 | 1383 − 1383 = 0 |
+
+包全量 `pnpm exec vitest run --maxWorkers=1`（源码 `b7b8e791`）：默认 5 s 门槛下 126 个文件 2215 过、1 跳、6 超时（均为 `openai-visible-history-candidate` 的 5 s 超时，与本改动无关）；`--testTimeout=60000` 复跑该文件与后补孤立代理项反例的 `qwen-commercial-counterexamples` 共 117 过、0 失败；`pnpm run build`、`pnpm run typecheck` 0 错，`pnpm format:check` 与 `make docs-check` 通过。演示装配 `examples/model-invocation-minimal-demo` 的 `qwen-visible-service`（六商业叶经授权服务三轮，按导出定义动态取修订）与 `qwen-open-effort-service` 在构建其依赖后以 `--testTimeout=60000` 实际运行，20 过、0 失败，源码未改。
+
+同批变异负控（各自单独施加、跑受影响 spec 后以 `git checkout` 还原）：商业两族改回键排序 `tojson` 使 13 例失败（六叶黄金计数、batch8 残差、六叶数组下标键反例）；3.7 三叶误走缺省（保留推理）分支使 13 例失败（3.7 三叶黄金计数、batch8 残差、3.7 三叶反例 1 与 11、3.7 三叶 QC-V5）；`last_query_index` 不识别 `<tool_response>` 包裹使 11 例失败（包裹几何黄金值、3.7 三叶黄金计数、几何断言、六叶反例 12）；开源叶误传假分支使 12 例失败（两叶回归预言、既有公开模板黄金值与开源反例 1 等）；跳过商业结构前置使六叶反例 16 失败。
+
+本节不关闭 QC-V6（每叶有／无工具真实三轮、必做 A／B／C 同路由对照、回合内与提醒几何、中文多轮、0902 缺省与 `max`）与 QC-V7（service 路径），均归 root 唯一账本付费执行；也不证明阿里私有渲染用 wire 键序、OpenRouter 的 details 转换或 `preserve_thinking` 转发。单 user 形状的 −9／0 常数与开源两叶 QV4 原件复算（QC-V0b）未在本节复算。
+
 ## ZAI 五叶可见推理历史候选义务
 
-对象为 [ZAI 可见推理计量 revision 1](zai-visible-reasoning-estimate-design.md)（缺口 GG-12），消费已接受 RT12/MR11 与 D-111 R-A 的 full-only。**本节均为待执行义务，新增绑定 0**；候选未评审、未采用、未实施，本次文档检查不证明源码、模型或上游已兑现。释放分两批：GLM-5.2、Prime、FlashX 可随采用释放，GLM-5.3、Flash 以 ZV0 为前置。
+对象为 [ZAI 可见推理计量 revision 1](zai-visible-reasoning-estimate-design.md)（缺口 GG-12；[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/zai-visible-reasoning-decision.md)），消费已接受 RT12/MR11 与 D-111 R-A 的 full-only。新增绑定 0。释放分两批：第一批 GLM-5.2、Prime、FlashX 已在执行仓库实施并本机验证（ZV1–ZV3、ZV5，见下表状态），GLM-5.3、Flash 机制已接（同一渲染器与投影，模板预言本机通过），坐标待 ZV0 后由主线发布，当前仍为 definition 2／`pi-ai:zai@mp4-17` 的拒绝发布。ZV0、ZV4 未执行。
+
+第一批释放坐标（`pi-ai:zai@mp4-18` 首次使用；φ/δ 仍为 `unsupported-marginal/1`，transform `openrouter-wire/2`）：
+
+| 叶 | definition | implementation | algorithm | tokenizer（显式钉在未变依据） |
+|---|---|---|---|---|
+| `z-ai/glm-5.2` | `3` | `mp4-18` | `glm-5.2-public-template-2` | `tokenizer-basis/glm-5.2-public-template-1` |
+| `z-ai/glm-5.3-prime` | `4` | `mp4-18` | `prime-public-glm53-declared-effort-route-fit-3` | `tokenizer-basis/prime-public-glm53-declared-effort-route-fit-2` |
+| `z-ai/glm-5.3-flashx` | `3` | `mp4-18` | `flashx-public-glm53-route-fit-2` | `tokenizer-basis/flashx-public-glm53-route-fit-1` |
+
+分流键是 implementation 修订（执行仓库 `official-models/zai.ts` 的 `zaiHistoryTreatments`：`mp4-17` 拒绝、`mp4-18` 可见推理），不是开关；GLM-5.3、Flash 发布时只需新增唯一坐标。实现提交 `eeb84bca`（源码与受影响用例）、`69c254fd`（ZV1–ZV3 新用例与夹具），均在 spoke `panqiwei/model-request-runtime-zai-impl`，基线 `63980767`。夹具为 [2026-09-27 probe run](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md) 十三份带推理 ZAI 原件的有序片段（634 帧，成员 SHA-256 随夹具记录）与五份 2026-09-28 完整流（126 帧，从原 SSE 逐帧读取），按原 delta 形状重建成本机 TLS SSE、交真实 reader 合并；未发任何付费请求，原始运行输出未归档为 evidence run。
 
 | 编号／条款 | 正向、反例与必须失败的负控 | 门类 | owner／受阻消费者 |
 |---|---|---|---|
 | ZV0：RT12 S-74③ | GLM-5.3（缺省或 `max`）、Flash（缺省）各一次当前绑定单轮真实流，题面能激发可见推理、输出上限足以 `stop`；逐帧核 details 恰四键、无显式 `signature: null`、并行 `reasoning` 同文、推理恰一段连续。形状不同则修订候选页，仍无推理则该叶维持现拒绝 | 释放前置，付费 | root 唯一账本；两叶释放 |
-| ZV1：RT12 S-74、S-79；MR11 S-43 | 已释放叶 × 当前 effort 发送域 × 有/无 tools × {public，Cordis transport service} 三轮：第 2、3 轮 full/`estimated`，每轮恰一次 HTTP 且字节等于计划，wire 保留 details，资源实停；Prime 带显式 5m `last_message`。`zai-three-round-invoke.spec.ts` 等既有拒绝用例按候选页 ZV1 改期望，混合 opaque／明文与异路由 opaque 仍规划拒绝 | 本机 | transport 实施者；已释放叶真实多轮 |
-| ZV2：RT12 S-74③、S-78 | 反例 1–8、10–13；模板预言扩到 GLM-5.3、Flash、GLM-5.2 三套固定模板（`clear_thinking=false`，推理 assistant 在末条 user 前后各一），GLM-5.2 另存缺省口径黄金值；夹具由两批原件片段经真实 reader 合成。变异负控各自单独施加须失败：去掉并行 `reasoning` 同文检查、把显式 `signature: null` 当缺席、放行非 0 index、GLM-5.2 渲染器漏渲槽位、Prime／FlashX 对历史多减一次常数 | 本机 | transport 实施者；同上 |
-| ZV3：RT12 S-77、S-79⑥；H13 | 直接调用三个 factory 为五叶返回的 full／φ／δ：非法显式 history 由共同包装拒绝，body-only 合法 full 为 `estimated` 且数值与接线前相同，包装无递归；不以规划器或独立包装函数的测试代证 | 本机 | transport 实施者；直接调用公开函数的消费者 |
+| ZV1：RT12 S-74、S-79；MR11 S-43 | 已释放叶 × 当前 effort 发送域 × 有/无 tools × {public，Cordis transport service} 三轮：第 2、3 轮 full/`estimated`，每轮恰一次 HTTP 且字节等于计划，wire 保留 details，资源实停；Prime 带显式 5m `last_message`。`zai-three-round-invoke.spec.ts` 等既有拒绝用例按候选页 ZV1 改期望，混合 opaque／明文与异路由 opaque 仍规划拒绝。**状态：本机通过**（`eeb84bca`／`69c254fd`）：`tests/zai-visible-reasoning-rounds.spec.ts` 28 组合（GLM-5.2 缺省／`high`、Prime 缺省／`low`／`high`／`max`、FlashX 缺省 × 有无 tools × 两入口）＋范围断言共 29 例，第 2、3 轮 full/`estimated`，每轮 HTTP 恰一次且字节等于计划，wire 只回放 reader 合并后的一项 details，独立计量与「details 换成 `reasoning` 串」计数相等，余量一次，Prime 末条恰一个 5m 标记且后续轮 `prefix_changed`，资源实停；`zai-three-round-invoke.spec.ts` 回放边界改为已释放叶第 2 轮估算并发送、GLM-5.3／Flash 仍拒绝，`zai-reasoning-history`、`zai-history-replay`（异路由另证计量器未被调用）、`zai-commercial-meter`、`zai-glm52/53-meter`、`official-zai-definitions`、`official-reader-bindings`（新增 `zai-visible-reasoning.json` 发布样本）跟随新发布 | 本机 | transport 实施者；已释放叶真实多轮 |
+| ZV2：RT12 S-74③、S-78 | 反例 1–8、10–13；模板预言扩到 GLM-5.3、Flash、GLM-5.2 三套固定模板（`clear_thinking=false`，推理 assistant 在末条 user 前后各一），GLM-5.2 另存缺省口径黄金值；夹具由两批原件片段经真实 reader 合成。变异负控各自单独施加须失败：去掉并行 `reasoning` 同文检查、把显式 `signature: null` 当缺席、放行非 0 index、GLM-5.2 渲染器漏渲槽位、Prime／FlashX 对历史多减一次常数。**状态：本机通过**（`69c254fd`）：`tests/zai-visible-reasoning.spec.ts`（与 ZV3 同文件共 84 例）——模板预言 36 例（18 段原件文字 × 末条 user 前后；GLM-5.2、GLM-5.3、Flash 三套模板逐一等于 Jinja 2.10.1 黄金值，details 形渲染相同，`mp4-17` 口径两形均拒绝；GLM-5.2 缺省口径黄金值等于「去掉末条 user 之前推理」的渲染，末条 user 之后两口径相同），原五个 GLM-5.3 黄金值复现且 Prime／FlashX 估算等于公开模板计数减 1；等价预言 58 组比较；反例 1–4、8 逐叶；反例 5 带 id、迟到签名、显式 `signature: null` 发送前拒绝，被 content 隔开的两段推理按主线裁决合并为一项拼接文字、回放估算且计量文字等于发出文字；反例 10、11、12（计量器未被调用、零 HTTP）、13（两未释放叶数值不变且两形均拒）。五个变异负控各自单独施加后跑两份新 spec 均失败并已还原：去同文检查 3 例、`signature: null` 当缺席 6 例、放行非 0 index 3 例、GLM-5.2 漏渲槽位 38 例、历史多减常数 7 例 | 本机 | transport 实施者；同上 |
+| ZV3：RT12 S-77、S-79⑥；H13 | 直接调用三个 factory 为五叶返回的 full／φ／δ：非法显式 history 由共同包装拒绝，body-only 合法 full 为 `estimated` 且数值与接线前相同，包装无递归；不以规划器或独立包装函数的测试代证。**状态：本机通过**（`eeb84bca`／`69c254fd`）：同文件 5 例，直接调用 `createGlm52InputMeter`／`createGlm53InputMeter`／`createZaiCommercialInputMeter` 为五叶返回的方法；body-only 合法 full 在各叶全部 effort 下等于在 `63980767` 构建产物上实测的接线前值（199，Prime／FlashX 198），共同包装同值；缺 span、部分组、越界、重复目标、组被篡改、来源矛盾、序列化不一致均 unavailable；φ/δ 合法为 unavailable、畸形为 `invalidInput`（Prime 因断点移位规划期不询问 φ/δ） | 本机 | transport 实施者；直接调用公开函数的消费者 |
 | ZV4：RT12 S-74③、S-78 | 已释放叶有／无 tools 各至少一组当前绑定三轮真实流，第 2 轮起回放 details，记录上游接受、`prompt_tokens` 残差、cache 与 cost、逐帧形状。**必做**同路由对照：同一第 2 轮历史以 (A) details、(B) `reasoning` 字符串、(C) 无推理发送；A＝B＞C 闭合该叶 ZG1，A＝B＝C 记为路由清除、后继改口径，A≠B 由后继撤回该叶 details 映射。残差不引入修正常数 | 认证门，付费 | root 唯一账本；五叶 D7 逐模型真实多轮 |
-| ZV5 | 已释放叶 definition／implementation／algorithm 唯一修订、显式 tokenizerRevision、`evidence` 字串、包 README／README_ZH 双语段与制品消费；删除 `zai-candidate.ts` 并迁移其消费者；未知与失败原件保留 | 交付 | 实施者＋主线；包文档读者 |
+| ZV5 | 已释放叶 definition／implementation／algorithm 唯一修订、显式 tokenizerRevision、`evidence` 字串、包 README／README_ZH 双语段与制品消费；删除 `zai-candidate.ts` 并迁移其消费者；未知与失败原件保留。**状态：已交付**（`eeb84bca` 与本节所在文档提交）：三叶坐标见上表，evidence 追加可见推理口径与「OpenRouter 转换与路由清除策略未知、无 holdout」，Prime 保留 R-B 原文；`zai-candidate.ts` 与其 spec 删除，其 GLM-5.3 黄金值检查迁入 ZV2，冻结探针 `history-candidate-probes.mjs` 改用生产计量器并记录计量器坐标，研究页链接由主线改为纯文字；包 README／README_ZH 的 ZAI 段已改写；GLM-5.3、Flash 坐标未发布，待 ZV0 | 交付 | 实施者＋主线；包文档读者 |
 
-覆盖缺口与受阻消费者见候选页 ZG1～ZG9，本节不复述。候选须经独立 architecture-reviewer 与主线技术采用后才释放 ZV1–ZV3 与 ZV5 的实施；ZV0、ZV4 的付费观测不因本节登记而获授权。
+覆盖缺口与受阻消费者见候选页 ZG1～ZG9，本节不复述。ZV0、ZV4 的付费观测不因本节登记而获授权。本机状态不关闭 ZG1 上游转换与路由清除口径、ZG3 真实回放、ZG5 托管模板误差或任何一叶的 D7 真实多轮认证；演示装配 `examples/model-invocation-minimal-demo/tests/zai-prime-effort-service.spec.ts` 按导出定义取修订，本次未改也未运行。
 
 ## H13 多个历史输出组候选
 
@@ -412,16 +452,20 @@ H13-G4 不改变 MR9/RT10 的原接受状态，不将旧形式任务重绑给未
 
 ## Google 推理历史候选 revision 4 的 GS 义务
 
-对象：[Google 有限适用页 revision 4](google-reasoning-history-output-group-candidate.md#验证义务与逐叶采用矩阵)（candidate，未采用）。逐条的可失败验收与「不能冒用」以该页为准，本节只记状态与覆盖缺口。**全部为待执行义务，新增绑定 0**；本次只有文档检查，不证明源码、模型或上游已兑现。唯一已发生的是 GS-V7 的最小观测：上表 `batch6d` 两叶第 1 轮，逐帧读数入研究页 `research/model-request-adaptation/vendor-continuation/google/2026-09-30-complete-reply-originals.md`。
+对象：[Google 有限适用页 revision 4](google-reasoning-history-output-group-candidate.md#验证义务与逐叶采用矩阵)，按 [Google 采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/google-reasoning-history-decision.md)机制先行。逐条的可失败验收与「不能冒用」以该页为准，本节只记状态与覆盖缺口。**新增绑定 0**。GS-V1～V6 的机制接线与本机正反测试已在执行分支 `panqiwei/model-request-runtime-google-impl` 实施（基线 `63980767`；机制 `12b56c83`，测试 `3241dbb8`、`60e4bc3a`、`63137f0c`、`cb92cd45`、`25556b9b`），**三个坐标未钉定**：V4 由 `createGoogleHistoryInputMeter(definition, release)` 接收调用方给出的 definition／implementation 修订，测试用未钉定标签 `4`／`mp4-google-history-unpinned`；官方目录仍只绑 V3（3／`mp4-17`），replay 两者都是 `unsupported-marginal/1`。本机流只证机制，不证上游接受、计入量或 id 失配的后果。GS-V7 的最小观测：上表 `batch6d` 两叶第 1 轮，逐帧读数入研究页 `research/model-request-adaptation/vendor-continuation/google/2026-09-30-complete-reply-originals.md`。
 
 | 义务 | 覆盖什么 | owner | 状态 |
 |---|---|---|---|
-| GS-V1 | 两叶 V3/V4 工厂坐标导出核表、旧 factory 删除、evidence 串带 09-30 两条 generation id | 实施者 | 待实施；坐标待主线钉定（K7） |
-| GS-V2 | E（单条、多条）为 `wholeGroup`；T-only 为 `uninterpretable`；TS、S、混排、E 缺 id、`[REDACTED]`、多余成员等逐一负例；夹具经真实 reader | 实施者 | 待实施 |
-| GS-V3 | full＝G4(剩余)＋ΣO，O 与 reasoning 不双加，密文与 id 不进 tokenizer，变异反控 | 实施者 | 待实施 |
-| GS-V4 | 部分选择、篡改、伪造、截断回复、独立 `measureFull` 失败不产计量 | 实施者 | 待实施 |
-| GS-V5 | basis 关系与身份对（同缺放行、单字段与一边缺 unavailable、冲突 malformed） | 实施者 | 待实施 |
-| GS-V6 | 本机 TLS 工具路径三轮，public 与 Cordis 两入口；E 逐字节回放，工具调用 id 照实断言为投影生成值；TS 用例保留为负控 | 实施者 | 待实施 |
+| GS-V1 | 两叶 V3/V4 工厂坐标导出核表、旧 factory 删除、evidence 串带 09-30 两条 generation id | 实施者 | **机制部分通过**（`3241dbb8`，`tests/google-history-policy.spec.ts`）：V3（当前构建）与 V4（未钉定 release）逐字段导出核表，含规划写入 basis 的 projection `/3`；tokenizer 显式等于 V3、replay 不升；evidence 带两条 generation id 与「counted once／no error bound」；退役行（1／`mp4-2`、2／`mp4-3`、3／`mp4-17`）与其任一半、空值、多余成员的 release，以及修订、实现名、能力、路由、模型 ID 不符的声明均无 factory。**未完成**：真实坐标导出核表与「旧 factory 删除」属钉定发布步骤（K7，GS-V9 A 之后），届时 V4 成为唯一官方 factory、删除 V3 factory 并以真实坐标替换测试标签 |
+| GS-V2 | E（单条、多条）为 `wholeGroup`；T-only 为 `uninterpretable`；TS、S、混排、E 缺 id、`[REDACTED]`、多余成员等逐一负例；夹具经真实 reader | 实施者 | **通过**（`3241dbb8`，同文件，每叶 3 正例＋20 负例各为独立用例）：流按 09-30 帧序（帧 0 恰一条 E、id 等于同流工具调用 id、等长合成 base64）与 09-28 片段序经真实 reader 合成；单条 E、并行两条 E、分两片的完整 E 为 `wholeGroup` 且下一轮 full/`estimated`；E 缺 id、id 为 null／空串／数字、data 为 `[REDACTED]`／空串／数字、缺 index、index 为字符串、带 signature／text／未知成员、异 format、混合 format、E＋T、E＋TS、summary、T-only（K2 a）、TS、S 均 `uninterpretable`，规划与 invoke 都 `input_size_unavailable`、零新增 HTTP；非 assistant、同带 `reasoning`、空或非数组 details 直调分类为 `uninterpretable` |
+| GS-V3 | full＝G4(剩余)＋ΣO，O 与 reasoning 不双加，密文与 id 不进 tokenizer，变异反控 | 实施者 | **通过**（`60e4bc3a`，`tests/google-output-history.spec.ts`）：第 2 轮 full 等于现 V3 counter 对剩余 body 的结果加原 O、不加 reasoning、组内工具调用不另计，余量只在门上一次；第 3 轮两个 E 组各计一次；tokenizer spy 未见任何密文、E id 或 details 成员名；无完整组时 V4 与 V3 逐值相等（F1／F2／H1／H2 与可见推理历史）。变异反控见下 |
+| GS-V4 | 部分选择、篡改、伪造、截断回复、独立 `measureFull` 失败不产计量 | 实施者 | **通过**（`60e4bc3a`，同文件）：部分选择与未认领 details 单元 `input_size_unavailable`；乱序、跨消息、消息缺块、重复认领、未同步摘要的篡改为 malformed；自洽伪造不报 malformed（合法形状照常计 O，计量不背书密文真伪；域外形状只走 unavailable）；`length` 截断不带 opaque、分类为 `visible`；直调 factory 返回的 `measureFull`：合法输入等于规划值，缺 span、部分 span、越界、无 history、块乱序、来源矛盾、序列化不一致、空 messages、非对象输入均 `{kind:'unavailable'}` |
+| GS-V5 | basis 关系与身份对（同缺放行、单字段与一边缺 unavailable、冲突 malformed） | 实施者 | **通过**（`60e4bc3a`，同文件）：原 V3 组在 V4 下 full 且值同原 V4；2／`mp4-3`、V3 配 V4 算法、未知算法、未知 implementation、V3 在 projection `/2` 下均 unavailable；当前 effort、max_tokens 改变仍 full 且值不变；origin 与 basis 同为 `google-ai-studio` 以外、origin effort 越界、`parameters.extra` 非空均 unavailable；与自身 basis 矛盾的 origin provider 为 malformed；当前 basis 为 V3 时 unavailable；跨模型 opaque 在投影处 `unavailable`（R-K）；身份整对或同缺放行，slug、`Google`、大小写与首尾空白、带日期、另一叶、单字段、origin／provenance 一边缺均 unavailable，同名值冲突 malformed |
+| GS-V6 | 本机 TLS 工具路径三轮，public 与 Cordis 两入口；E 逐字节回放，工具调用 id 照实断言为投影生成值；TS 用例保留为负控 | 实施者 | **通过**（`63137f0c`，`tests/google-three-round-invoke.spec.ts` 新增 20 例）：两叶 × 三档 effort × {public transport，Cordis lease 服务}，第 1 轮按 09-30 帧序、第 2 轮再一个 E 工具回复、第 3 轮文本；第 2、3 轮 full/`estimated` 且数值等于剩余 counter＋先前各组 O，发送字节等于计划，每个 E 逐字节恰回放一次，basis 的 replay 为 `unsupported-marginal/1`，φ/δ 从未被询问；展示名 `Google AI Studio`。**GG-14 观察断言**（非语义保证，修复后应反转）：回放的 `tool_calls[].id` 与 `tool_call_id` 是 reader 生成的 CallId，不等于 E 的 id。负控：slug provider（φ/δ 被询问且 unavailable）、T-only、TS、`[REDACTED]` E 的第 2 轮均 `input_size_unavailable`、零新增 HTTP；原 V3 TS 用例保留 |
+
+变异反控（各自单独施加、只跑受影响 spec 后以 `git checkout` 还原，未提交）：共享 `addOutput` 去掉 O 加项使 GS-V3 第 2、3 轮用例失败（两叶共 4 例），并使 GS-V6 全部 12 例失败；把 E 单元分类为 `visible`（counter 收到 details 单元）使 24 例失败；T-only 当作 `wholeGroup` 使 T-only 与 E＋T 负例失败（4 例）；去掉身份守卫使 K4 用例失败（2 例）；放行 `[REDACTED]` 使 GS-V2 对应负例与 GS-V4 自洽伪造的域外分支失败（4 例）。
+
+包检查（`25556b9b`）：`build`、`typecheck` 0 错；`pnpm exec vitest run --maxWorkers=1` 全包 125 个文件 2156 过、1 跳、1 失败——失败为 `openai-visible-history-candidate` 的 `sol-plain-history` 在 5 s 默认门槛超时（5028 ms，机器负载约 11／8 核），与 Google 改动无关，该文件单独以同一命令复跑通过（连同 `acceptance-d4-contributions`、`openai-astra-images` 与六份 Google 相关 spec 共 9 文件 236 过）；前一轮负载约 26 时另有同类 5 s 超时，其中 Google 新 spec 的首例超时已由 `25556b9b` 按同包先例设 30 s 用例与钩子门槛解决。同一源码以 `--maxWorkers=1 --testTimeout=60000` 复跑全包：125 个文件 2157 过、1 跳、0 失败。GS-V7／V9／V10 与坐标钉定不在本次范围。
 | GS-V7 | 真实认证：两叶 public 与 service 工具路径三轮，逐帧记录第 2 轮 E 与第 3 轮文本回复形状 | 主调度（付费） | 最小观测已完成（工具路径）；三轮待实施后 |
 | GS-V8 | 旧证据只复用于可见 counter，在 V4 构建上重跑 | 实施者 | 待实施 |
 | GS-V9 | P2 同路由对照（必做）：A 带 E、C 不带推理、条件性 D 只改工具调用 id；读 Δ_E、上游接受与 id 失配后果；A 的接受读数建议先于坐标钉定 | 主调度（付费研究请求） | 待执行，不依赖实施 |

@@ -16,7 +16,8 @@ export function candidatePrompt(body) {
     if (!Array.isArray(message.content)) continue
     for (const part of message.content) delete part.cache_control
   }
-  return renderGlm53Prompt(projected, false)
+  // The fitted text/tool wires carry no reasoning history; keep that original domain.
+  return renderGlm53Prompt(projected, false, 'refuse')
 }
 
 export function candidateTokens(body) {

@@ -336,9 +336,15 @@ function appendRound(
   }
 }
 
+// Open leaves replay the plain reasoning string; commercial leaves replay one visible
+// `reasoning.text` detail in rounds 1 and 2 (a summary detail is refused on every leaf).
+function roundReasoning(isOpen: boolean, round: number): Reasoning {
+  return isOpen || round === 3 ? 'plain' : 'text'
+}
+
 /** The exact wire assistant unit a prior round must replay unchanged. */
 function replayedAssistant(isOpen: boolean, round: number, call: boolean): JsonObject {
-  const reasoning: Reasoning = isOpen || round === 3 ? 'plain' : round === 1 ? 'text' : 'summary'
+  const reasoning = roundReasoning(isOpen, round)
   const delta = reasoningDelta(reasoning, round)
   return {
     role: 'assistant',
@@ -399,9 +405,7 @@ describe.each(['public', 'cordis'] as const)('%s Qwen current-binding local TLS'
         cert.tls,
         res => {
           round++
-          // Open-weight leaves only have a public template for the plain reasoning string.
-          const reasoning: Reasoning =
-            isOpen || round === 3 ? 'plain' : round === 1 ? 'text' : 'summary'
+          const reasoning = roundReasoning(isOpen, round)
           res.end(response(modelId, round, { reasoning, call: tools && round < 3 }))
         },
         {},
@@ -630,23 +634,20 @@ describe('Qwen current-binding boundaries for all eight leaves', () => {
         replayRevision: 'unsupported-marginal/1',
         transformRevision: 'openrouter-wire/2',
       })
-      expect(definition.revision).toBe(openIds.includes(modelId) ? '4' : '3')
+      expect(definition.revision).toBe('4')
       expect(definition.implementation.revision).toBe(
-        openIds.includes(modelId) ? 'mp4-19' : 'mp4-17',
+        openIds.includes(modelId) ? 'mp4-19' : 'mp4-20',
       )
     },
   )
 
   it.each(qwenDefinitions.map(definition => definition.modelId))(
-    '%s refuses opaque history before a second HTTP request without dropping it; open leaves estimate visible text',
+    '%s refuses opaque or summary history before a second HTTP request without dropping it; visible text is estimated',
     async modelId => {
       const definition = definitionFor(modelId)
-      const isOpen = openIds.includes(modelId)
-      // Open leaves: one visible `reasoning.text` detail is now a full estimate (Qwen
-      // visible reasoning revision 2); summary and encrypted stay refused.
-      const reasoning: readonly Reasoning[] = isOpen
-        ? ['encrypted', 'text', 'summary']
-        : ['encrypted']
+      // One visible `reasoning.text` detail is a full estimate on every leaf (open revision 2,
+      // commercial public template); summary and encrypted details are refused before HTTP.
+      const reasoning: readonly Reasoning[] = ['encrypted', 'text', 'summary']
       for (const kind of reasoning) {
         const host = await fixture(
           cert.tls,
@@ -686,7 +687,7 @@ describe('Qwen current-binding boundaries for all eight leaves', () => {
             policy: policy(),
           }).outcome
           expect(writeJsonLossless(second.messages)).toBe(retained)
-          if (isOpen && kind === 'text') {
+          if (kind === 'text') {
             if ('rejected' in secondPlan) throw new Error(JSON.stringify(secondPlan))
             expect(secondPlan.planned.measurement).toMatchObject({
               mode: 'full',

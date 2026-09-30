@@ -8,22 +8,49 @@ import {
 } from '@omne-harness-lite/pi-ai-transport'
 import { zaiDefinitions, zaiModelRoutes } from '../src/official-models/zai.ts'
 
+// GLM-5.2, Prime and FlashX are released at mp4-18 (visible reasoning history, GG-12);
+// GLM-5.3 and Flash keep 2 / mp4-17 until their ZV0 observation.
 const supplied = [
-  { id: 'z-ai/glm-5.3', provider: 'z-ai/fp8', input: 917504, modalities: ['text'] },
-  { id: 'z-ai/glm-5.3-prime', provider: 'alibaba', input: 868928, modalities: ['text'] },
+  {
+    id: 'z-ai/glm-5.3',
+    provider: 'z-ai/fp8',
+    input: 917504,
+    modalities: ['text'],
+    revision: '2',
+    implementation: 'mp4-17',
+  },
+  {
+    id: 'z-ai/glm-5.3-prime',
+    provider: 'alibaba',
+    input: 868928,
+    modalities: ['text'],
+    revision: '4',
+    implementation: 'mp4-18',
+  },
   {
     id: 'z-ai/glm-5.3-flash',
     provider: 'z-ai/fp8',
     input: 917504,
     modalities: ['image', 'text', 'video'],
+    revision: '2',
+    implementation: 'mp4-17',
   },
   {
     id: 'z-ai/glm-5.3-flashx',
     provider: 'z-ai/fp8',
     input: 917504,
     modalities: ['image', 'text', 'video'],
+    revision: '3',
+    implementation: 'mp4-18',
   },
-  { id: 'z-ai/glm-5.2', provider: 'z-ai/fp8', input: 917504, modalities: ['text'] },
+  {
+    id: 'z-ai/glm-5.2',
+    provider: 'z-ai/fp8',
+    input: 917504,
+    modalities: ['text'],
+    revision: '3',
+    implementation: 'mp4-18',
+  },
 ] as const
 
 describe('ZAI complete official declarations (MP4)', () => {
@@ -35,10 +62,10 @@ describe('ZAI complete official declarations (MP4)', () => {
     for (const expected of supplied) {
       const definition = zaiDefinitions.find(value => value.modelId === expected.id)
       if (!definition) throw new Error(`missing ${expected.id}`)
-      expect(definition.revision).toBe(expected.id === 'z-ai/glm-5.3-prime' ? '3' : '2')
+      expect(definition.revision).toBe(expected.revision)
       expect(definition.implementation).toEqual({
         name: 'pi-ai:zai',
-        revision: 'mp4-17',
+        revision: expected.implementation,
       })
       expect(Object.keys(definition.routes)).toEqual([expected.provider])
       expect(Object.values(definition.routes)[0]).toEqual(

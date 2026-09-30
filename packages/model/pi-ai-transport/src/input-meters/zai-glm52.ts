@@ -16,6 +16,14 @@ import {
 import { object } from '../json.ts'
 import type { ModelDefinition } from '../definitions.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type { ZaiHistoryTreatment } from '../official-models/zai.ts'
+import { guardInputMeter } from './shared.ts'
+import {
+  projectZaiHistory,
+  zaiAssistantReasoning,
+  zaiCurrentRelease,
+  zaiVisibleHistoryEvidence,
+} from './zai-release.ts'
 
 const tokenizerSha256 = '19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d'
 const configSha256 = '98b1271574f41abf89427ae2dda030d94dc9478f0edc5a8bd240db213c6fd5fc'
@@ -104,9 +112,17 @@ export function toolCalls(value: JsonValue | undefined): string | undefined {
   return rendered
 }
 
-/** The public GLM-5.2 text/tool template's supported OpenAI-compatible subset. */
-export function renderGlm52Prompt(body: JsonObject): string | undefined {
-  if (!Array.isArray(body.messages)) return undefined
+/**
+ * The public GLM-5.2 text/tool template's supported OpenAI-compatible subset. Historical
+ * reasoning renders as with an explicit `clear_thinking=false` (every assistant, before or
+ * after the last user), not the template default that clears it before the last user.
+ */
+export function renderGlm52Prompt(
+  wire: JsonObject,
+  history: ZaiHistoryTreatment,
+): string | undefined {
+  const body = projectZaiHistory(wire, history)
+  if (!body || !Array.isArray(body.messages)) return undefined
   if (
     !exactKeys(body, [
       'model',
@@ -139,13 +155,14 @@ export function renderGlm52Prompt(body: JsonObject): string | undefined {
     } else if (raw.role === 'assistant') {
       if (!exactKeys(raw, ['role', 'content', 'tool_calls', 'reasoning', 'reasoning_details']))
         return undefined
-      // The final OpenRouter wire sends reasoning/reasoning_details, whereas
-      // the published template consumes reasoning_content. Their mapping is
-      // not proven for this route, so retaining either requires another meter.
-      if (raw.reasoning !== undefined || raw.reasoning_details !== undefined) return undefined
+      // The final OpenRouter wire sends reasoning/reasoning_details, whereas the published
+      // template consumes reasoning_content. Only a visible-history release maps the plain
+      // string into that slot; nothing is ever silently discarded.
+      const thought = zaiAssistantReasoning(raw, history)
+      if (thought === undefined) return undefined
       const content = visibleText(raw.content)
       if (content === undefined || content.includes('</think>')) return undefined
-      const thinking = '<think></think>'
+      const thinking = `<think>${thought.reasoning ?? ''}</think>`
       const calls = toolCalls(raw.tool_calls)
       if (calls === undefined) return undefined
       rendered += `<|assistant|>${thinking}${content.trim()}${calls}${calls ? '\n' : ''}`
@@ -183,29 +200,32 @@ export function glm5Tokenizer(): Tokenizer {
   return sharedTokenizer
 }
 
-/** One pinned GLM-5.2 model/provider binding; OpenRouter prompt conversion remains estimated. */
+/**
+ * One pinned GLM-5.2 model/provider binding at its current exported release; OpenRouter
+ * prompt conversion remains estimated. The full/φ/δ methods run the shared source guards.
+ */
 export function createGlm52InputMeter(definition: ModelDefinition): InputMeter {
-  if (
-    definition.modelId !== 'z-ai/glm-5.2' ||
-    definition.revision !== '2' ||
-    definition.implementation.name !== 'pi-ai:zai' ||
-    definition.implementation.revision !== 'mp4-17' ||
-    !Object.hasOwn(definition.routes, 'z-ai/fp8')
-  )
-    throw new TypeError('unsupported GLM-5.2 input-meter binding')
+  const current =
+    definition.modelId === 'z-ai/glm-5.2' ? zaiCurrentRelease(definition, 'z-ai/fp8') : undefined
+  if (!current) throw new TypeError('unsupported GLM-5.2 input-meter binding')
+  const { release, history } = current
   const encoder = glm5Tokenizer()
-  const meter = defineInputMeter({
+  const evidence =
+    'zai-org/GLM-5.2 cf457fa734ab149ffef225f80893eb38c6ff5cdc chat_template.jinja + tokenizer.json 19e77364 (MIT); OpenRouter/Z.AI fp8 private conversion is estimated'
+  const raw = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'z-ai/fp8',
-    algorithmRevision: 'glm-5.2-public-template-1',
-    evidence:
-      'zai-org/GLM-5.2 cf457fa734ab149ffef225f80893eb38c6ff5cdc chat_template.jinja + tokenizer.json 19e77364 (MIT); OpenRouter/Z.AI fp8 private conversion is estimated',
+    algorithmRevision: release.algorithmRevision,
+    ...(release.tokenizerRevision === undefined
+      ? {}
+      : { tokenizerRevision: release.tokenizerRevision }),
+    evidence: history === 'visible' ? `${evidence}; ${zaiVisibleHistoryEvidence}` : evidence,
     measureFull({ body, serialized }): TokenMeasurement {
       if (body.model !== definition.modelId || writeJsonLossless(body) !== serialized)
         return { kind: 'unavailable' }
-      const prompt = renderGlm52Prompt(body)
+      const prompt = renderGlm52Prompt(body, history)
       if (prompt === undefined) return { kind: 'unavailable' }
       try {
         return {
@@ -217,5 +237,5 @@ export function createGlm52InputMeter(definition: ModelDefinition): InputMeter {
       }
     },
   })
-  return Object.freeze(meter)
+  return guardInputMeter(raw)
 }

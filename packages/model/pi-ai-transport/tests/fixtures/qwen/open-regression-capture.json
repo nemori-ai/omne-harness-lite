@@ -1,0 +1,90 @@
+{
+  "note": "Open-leaf regression oracle (QC-V3, counterexample 14): renderQwenPrompt(projectQwenMeterBody(body)) and the factory full count for both open leaves on commercial-template-cases.json, captured with the pre-change renderer at 2d0dd969 (definition 4 / mp4-19). Every prompt hash also equals the independent Jinja sorted-keys golden row.",
+  "capturedAt": "2d0dd969",
+  "rows": {
+    "qwen/qwen3.8-2.4t-a95b": {
+      "assistant-before-last-query": {
+        "promptSha256": "4164f849c0243312f50576c28529dd9755adc751593430040774914ed556e3e5",
+        "tokens": 412
+      },
+      "assistant-after-last-query": {
+        "promptSha256": "47ac1e7c2de960fb2829ab3a84d5b3ad1b157049843daa3751f7876dea3638d7",
+        "tokens": 393
+      },
+      "consecutive-tool-results": {
+        "promptSha256": "f966398164b59a49cc7c0bbb3eb74bd7cfb08f5f3d7fcfe37ac6e169048ec9f5",
+        "tokens": 469
+      },
+      "wrapped-tool-response-user": {
+        "promptSha256": "a8b1d88fed75c745ef0786bf23e69e29b08f99aea8d839c7c5adaa0b480ed70d",
+        "tokens": 417
+      },
+      "reminder-after-tool-result": {
+        "promptSha256": "d21a8eae312ef424ebb86ef14fbd395fadbbf58a4f77c0ea9ddca71814425740",
+        "tokens": 426
+      },
+      "no-system-no-tools": {
+        "promptSha256": "ddd035ad081365512b5fe4742e6db1cb5e0a3767de0f4ce42c176af2bafe383c",
+        "tokens": 82
+      },
+      "empty-system-no-tools": {
+        "promptSha256": "ddd035ad081365512b5fe4742e6db1cb5e0a3767de0f4ce42c176af2bafe383c",
+        "tokens": 82
+      },
+      "system-no-tools": {
+        "promptSha256": "c3e7e8d3551de63504abdc890eff70e4412da695c2bf21c81acbbe21b6516714",
+        "tokens": 88
+      },
+      "tools-without-system": {
+        "promptSha256": "e42268950026684cd13a057b7e8c0f4de21078332d9bd990751f51c63700f404",
+        "tokens": 391
+      },
+      "non-ascii-history": {
+        "promptSha256": "2dfdd0b81fce72f5ff0a22a5eaf3f7869e2133d727f074b5b8ae8b88c11c7578",
+        "tokens": 585
+      }
+    },
+    "qwen/qwen3.8-27b": {
+      "assistant-before-last-query": {
+        "promptSha256": "4164f849c0243312f50576c28529dd9755adc751593430040774914ed556e3e5",
+        "tokens": 412
+      },
+      "assistant-after-last-query": {
+        "promptSha256": "47ac1e7c2de960fb2829ab3a84d5b3ad1b157049843daa3751f7876dea3638d7",
+        "tokens": 393
+      },
+      "consecutive-tool-results": {
+        "promptSha256": "f966398164b59a49cc7c0bbb3eb74bd7cfb08f5f3d7fcfe37ac6e169048ec9f5",
+        "tokens": 469
+      },
+      "wrapped-tool-response-user": {
+        "promptSha256": "a8b1d88fed75c745ef0786bf23e69e29b08f99aea8d839c7c5adaa0b480ed70d",
+        "tokens": 417
+      },
+      "reminder-after-tool-result": {
+        "promptSha256": "d21a8eae312ef424ebb86ef14fbd395fadbbf58a4f77c0ea9ddca71814425740",
+        "tokens": 426
+      },
+      "no-system-no-tools": {
+        "promptSha256": "ddd035ad081365512b5fe4742e6db1cb5e0a3767de0f4ce42c176af2bafe383c",
+        "tokens": 82
+      },
+      "empty-system-no-tools": {
+        "promptSha256": "ddd035ad081365512b5fe4742e6db1cb5e0a3767de0f4ce42c176af2bafe383c",
+        "tokens": 82
+      },
+      "system-no-tools": {
+        "promptSha256": "c3e7e8d3551de63504abdc890eff70e4412da695c2bf21c81acbbe21b6516714",
+        "tokens": 88
+      },
+      "tools-without-system": {
+        "promptSha256": "e42268950026684cd13a057b7e8c0f4de21078332d9bd990751f51c63700f404",
+        "tokens": 391
+      },
+      "non-ascii-history": {
+        "promptSha256": "2dfdd0b81fce72f5ff0a22a5eaf3f7869e2133d727f074b5b8ae8b88c11c7578",
+        "tokens": 585
+      }
+    }
+  }
+}

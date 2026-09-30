@@ -91,7 +91,7 @@ describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
       model: model.modelId,
       messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello 世界' }] }],
     }
-    const simplePrompt = renderGlm52Prompt(simple)
+    const simplePrompt = renderGlm52Prompt(simple, 'visible')
     expect(simplePrompt).toBe(
       '[gMASK]<sop><|system|>Reasoning Effort: Max<|user|>Hello 世界<|assistant|><think>',
     )
@@ -123,8 +123,10 @@ describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
         },
       ],
     }
-    const prompt = renderGlm52Prompt(body)
+    const prompt = renderGlm52Prompt(body, 'visible')
     expect(prompt).toBeDefined()
+    // Without reasoning, both history treatments render the same text/tool prompt.
+    expect(renderGlm52Prompt(body, 'refuse')).toBe(prompt)
     expect(digest(prompt ?? '')).toBe(
       'b228004f593761373debfb32b6e47815709d5fc47f9b8e66c7c7c7b579471461',
     )
@@ -232,7 +234,7 @@ describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
       testImagePreparerFor(planRequest),
     )
     if ('rejected' in planned) throw new Error(JSON.stringify(planned))
-    const prompt = renderGlm52Prompt(planned.planned.body)
+    const prompt = renderGlm52Prompt(planned.planned.body, 'visible')
     expect(prompt).toContain(
       '<tool_call>lookup<arg_key>query</arg_key><arg_value>value</arg_value></tool_call>',
     )
@@ -265,9 +267,20 @@ describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
         messages: [{ role: 'assistant', content: 'ok', reasoning_details: [{ type: 'opaque' }] }],
       }),
     ).toEqual({ kind: 'unavailable' })
+    // The mp4-18 release renders a plain reasoning string into the think slot.
+    const thought = measured({
+      ...body,
+      messages: [{ role: 'assistant', content: 'ok', reasoning: 'thought' }],
+    })
+    const bare = measured({ ...body, messages: [{ role: 'assistant', content: 'ok' }] })
+    if (thought.kind !== 'estimated' || bare.kind !== 'estimated') throw new Error('estimates')
+    expect(Number(String(thought.tokens))).toBeGreaterThan(Number(String(bare.tokens)))
     expect(
-      measured({ ...body, messages: [{ role: 'assistant', content: 'ok', reasoning: 'thought' }] }),
-    ).toEqual({ kind: 'unavailable' })
+      renderGlm52Prompt(
+        { ...body, messages: [{ role: 'assistant', content: 'ok', reasoning: 'thought' }] },
+        'refuse',
+      ),
+    ).toBeUndefined()
     expect(
       measured({
         ...body,
@@ -290,5 +303,16 @@ describe('Z.AI GLM-5.2 pinned public-template estimate', () => {
       TypeError,
     )
     expect(() => createGlm52InputMeter({ ...model, routes: {} })).toThrow(TypeError)
+    // The previous refusing release is retired, not kept as a compatible overload.
+    expect(model).toMatchObject({
+      revision: '3',
+      implementation: { name: 'pi-ai:zai', revision: 'mp4-18' },
+    })
+    for (const coordinates of [
+      { revision: '2', implementation: { name: 'pi-ai:zai', revision: 'mp4-17' } },
+      { revision: '3', implementation: { name: 'pi-ai:zai', revision: 'mp4-17' } },
+      { revision: '2', implementation: { name: 'pi-ai:zai', revision: 'mp4-18' } },
+    ])
+      expect(() => createGlm52InputMeter({ ...model, ...coordinates })).toThrow(TypeError)
   })
 })

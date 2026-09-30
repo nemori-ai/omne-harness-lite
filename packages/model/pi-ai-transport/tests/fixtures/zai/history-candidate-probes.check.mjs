@@ -20,10 +20,20 @@ test('15 unsent complete-history probes preserve pair geometry and explicit outp
       assert.deepEqual(row.body.tools, control.body.tools)
       assert.equal(row.sourceSha256, control.sourceSha256)
     }
+    // Production mp4-18 meter: plain and details history count identically, above control.
+    for (const row of [control, plain, details])
+      assert.deepEqual(row.meter, {
+        definition: row.model === 'z-ai/glm-5.3-prime' ? '4' : '3',
+        implementation: 'mp4-18',
+        algorithm:
+          row.model === 'z-ai/glm-5.3-prime'
+            ? 'prime-public-glm53-declared-effort-route-fit-3'
+            : 'flashx-public-glm53-route-fit-2',
+      })
     assert.equal(control.candidate.kind, 'estimated')
     assert.equal(plain.candidate.kind, 'estimated')
-    assert.notEqual(control.candidate.tokens, plain.candidate.tokens)
-    assert.equal(details.candidate.kind, 'unavailable')
+    assert.ok(plain.candidate.tokens > control.candidate.tokens)
+    assert.deepEqual(details.candidate, plain.candidate)
     assert.equal(
       plain.body.messages.at(-2).reasoning,
       details.body.messages.at(-2).reasoning_details[0].text,
