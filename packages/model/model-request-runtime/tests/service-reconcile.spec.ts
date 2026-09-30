@@ -935,6 +935,59 @@ describe('S-33 retained recovery ownership', () => {
     )
   })
 
+  it('resubmits the same original recovery batch after proven absence instead of a new one', async () => {
+    await controlled(
+      'service-reconcile-response-absent',
+      async ({ binding, owner, wrap, submissions }) => {
+        let lose = true
+        const attempted: (readonly unknown[])[] = []
+        const lossy: SessionLog = {
+          ...binding.log,
+          async append(sessionRef, entries, fence, condition) {
+            attempted.push(entries)
+            if (lose) return { failure: 'unavailable' }
+            return await binding.log.append(sessionRef, entries, fence, condition)
+          },
+        }
+        let clock = 0
+        const component = createRuntimeReconcile({
+          contention: policy(),
+          scheduler: noWaitScheduler,
+          // Each reconstruction would observe a different end time.
+          now: () => `2026-09-27T00:00:0${++clock}Z`,
+          diagnostic() {},
+          recovery: {
+            async enter() {
+              return {
+                scope: {
+                  binding: { log: wrap(lossy) } as SessionRuntimeBinding,
+                  owner,
+                  originalInvocation: () => ({ absent: true }) as const,
+                  async close() {},
+                },
+              }
+            },
+          },
+        })
+        expect(await component.reconcile({ session })).toEqual({ unavailable: true })
+        expect(attempted).toHaveLength(1)
+        expect(owner.active).toBe(1)
+        lose = false
+        expect(await component.reconcile({ session })).toMatchObject({
+          calls: [{ callId: 'call', state: 'interrupted' }],
+        })
+        expect(attempted).toHaveLength(2)
+        // RT11 S-86: the stopped original's absence is proven first; the exact request is
+        // settled again rather than a new interruption with another end time.
+        expect(attempted[1]).toEqual(attempted[0])
+        expect(clock).toBe(1)
+        expect(submissions.map(item => item.count)).toEqual([2, 1])
+        expect(await component.close()).toEqual({ released: true })
+        expect(owner.active).toBe(0)
+      },
+    )
+  })
+
   it('keeps a response writer that was already appending when close sealed admission', async () => {
     await controlled(
       'service-reconcile-response-close-race',
