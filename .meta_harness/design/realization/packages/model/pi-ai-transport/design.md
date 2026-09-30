@@ -160,7 +160,7 @@
 | `SystemReminderMessage` | `role: user`，内容前后由本包按类型加系统标识；路由在 `routeWireHints` 里写了 `reminderRole: developer` 的落 `role: developer` | PF-009 §5.2 的示意（openai → Developer，anthropic → User）只说各家可以不同，落点由 adapter 定；**不按路由名认家族**，所以缺省取各家都支持的 `user`；**标识防冒充的做法未定**（PF-009 §5.3，PAT-N12） |
 | `CompactionMessage` | `role: user`，同样加系统标识 | 同上 |
 | 助手消息：文本、工具调用 | `role: assistant`，文本拼成字符串；工具调用 `tool_calls[{ id: CallId, type: function, function: { name, arguments: 原文 } }]` | 同 pi；`CallId` 不合上游词法时按 pi 的 `normalizeToolCallId` 在同一个请求里确定性地改写，调用与结果一起改 |
-| 助手消息：思考块 | 同一路由名且带着本传输写的 `opaque` ⇒ `reasoning_details` 原样带回；否则只把思考文本放进 `reasoning` 字段、**不折进正文** | `data.content-blocks/v2` S-9 把「换了模型带不带」交给传输适配；比较门「私有 replay」项（PAT-N13） |
+| 助手消息：思考块 | 同一路由名且带着本传输写的 `opaque` ⇒ `reasoning_details` 原样带回；带 `opaque` 但路由名不同 ⇒ **规划拒绝** `unavailable`，原块不剥离、不降级为明文；不带 `opaque` 的思考文本放进 `reasoning` 字段、**不折进正文** | `data.content-blocks/v2` S-9 把「换了模型带不带」交给传输适配；本包选拒绝：签名／密文降级为明文会改线上语义与计量基准，`reasoning.encrypted` 亦无文本可降级；跨模型切换时对外来 opaque 思考块的处置归运行时上下文组装（GG-11）；比较门「私有 replay」项（PAT-N13） |
 | 工具消息（结果） | `role: tool`，文本块拼接；结果里的图 ⇒ 紧跟一条 `role: user` 装图（chat-completions 的工具消息不收图，同 pi） | 模型不收图 ⇒ 规划拒绝（S-38 第 7 条）；结果为空时 pi 写「(no tool output)」——本包照写，列入比较门 |
 | `ToolInternalMessage` | **规划拒绝**（它根本不该到这里，`data.messages/v2` S-36） | — |
 | 有调用、无结果的工具调用 | **规划拒绝** `orphan_tool_call`（pi 会补一条「No result provided」，那是凭空造内容） | 组装一侧的缺陷应当暴露 |
