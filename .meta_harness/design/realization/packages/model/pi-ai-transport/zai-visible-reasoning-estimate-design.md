@@ -185,3 +185,7 @@ ZV5：已释放叶 definition／implementation／algorithm 唯一修订与显式
 - ZG7 证据归档：本页 09-27 形状表是起草者对归档原件的复算，长期家应在 research；09-28 原件在 HUB 私有目录，工作区只有研究页的哈希与执行仓库夹具里的原样 SSE。归主线。
 - ZG8 裁决与缺口入档：R-O 已裁未入档；GG-12 只在 [verification 逐叶表](verification.md#2026-09-30-真实认证逐叶证据r6r7-认证工具唯一预算账本)提及，未进 D-111 的共享缺口清单。随采用决定入档。
 - ZG9 认证工具缓存档：Prime 路由要求显式 5m `last_message`；若认证工具 service 配置档仍固定 automatic，Prime 的 service 路径会与 Qwen 开源两叶同样在 prepare 被拒（**已被观测**：冻结 SHA 重跑中 Qwen 开源两叶 service 已因同一原因在 prepare 被拒，见 verification.md；owner：root 认证工具 R8，作为 ZV4 service 路径的前置；未试）。归 root 工具 owner。
+
+## 实施附注（2026-09-30，主线）
+
+ZV0 通过后第二批两叶释放（执行仓库 `fc5b5384`，`officialCatalogRevision` 2）：GLM-5.3 与 Flash 由 2／`pi-ai:zai@mp4-17` 升为 definition 3／`pi-ai:zai@mp4-18`，algorithm `glm-5.3-public-template-2`／`glm-5.3-flash-public-template-2`，tokenizer 显式钉在未变的 `tokenizer-basis/glm-5.3-public-template-1`／`tokenizer-basis/glm-5.3-flash-public-template-1`；逐叶采用矩阵与 ZG2 记录的是起草时状态，ZV0 读数与本机验证见 [verification.md](verification.md#zai-五叶可见推理历史候选义务)。
