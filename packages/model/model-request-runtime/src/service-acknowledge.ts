@@ -369,7 +369,7 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
         )
         try {
           if ((await waited.completion) !== 'elapsed') return 'unavailable'
-          await waited.stopped
+          await requestStopAndWait(waited)
         } catch {
           return 'unavailable'
         }

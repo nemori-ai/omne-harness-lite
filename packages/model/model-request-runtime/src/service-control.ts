@@ -862,7 +862,9 @@ export function createServiceControl<P extends PlannedSemantics, R>(
             const recoveryOwner = borrowed.owner
             const recovery = (async () => {
               await reservationReleased
-              await Promise.allSettled(pending.map(write => write.task.stopped))
+              // Asking for the stop is not assuming it: the actual stopped proof still gates
+              // the recovery read, and an owner that stops only on request is not left waiting.
+              await Promise.allSettled(pending.map(write => requestStopAndWait(write.task)))
               const next = await runtime.calls.waitReserve(key, {
                 policy: runtime.reservationWaitPolicy,
                 scheduler: runtime.settlementScheduler,

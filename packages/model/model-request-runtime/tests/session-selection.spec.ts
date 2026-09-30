@@ -487,6 +487,8 @@ describe('RT5 real session model selection and current evaluation', () => {
       let stopCalls = 0,
         failedDiagnostics = 0
       let readingCurrent = false
+      // Finished commands also ask their own tasks to stop; count only from the close under test.
+      let armed = false
       Reflect.set(owner, 'acquire', (limit: JsonNumber) => {
         const acquired = acquire(limit)
         if ('unavailable' in acquired) return acquired
@@ -497,6 +499,7 @@ describe('RT5 real session model selection and current evaluation', () => {
             return {
               ...task,
               requestStop() {
+                if (!armed) return task.requestStop()
                 stopCalls++
                 if (stopCalls === 1) throw new Error('stop request defect')
                 task.requestStop()
@@ -521,11 +524,13 @@ describe('RT5 real session model selection and current evaluation', () => {
         },
       })
       await component.selectModel('example/model-a')
+      failedDiagnostics = 0
       readingCurrent = true
       const initialStarts = owner.starts.length
       owner.stopBarrier = barrier.promise
       const reading = component.effectiveModel()
       await readEntered.promise
+      armed = true
       let closeReceipt = false
       const closing = component.close().then(value => {
         closeReceipt = true

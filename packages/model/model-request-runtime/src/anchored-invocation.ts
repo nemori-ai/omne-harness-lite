@@ -472,7 +472,8 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
   function drain(): Promise<void> {
     draining ??= (async () => {
       while (controlBorrows.size > 0) await Promise.race(controlBorrows)
-      await Promise.all(tasks.map(task => task.stopped))
+      // Draining ends this registration: ask every task to stop, then wait for the proof.
+      await Promise.all(tasks.map(requestStopAndWait))
       if (!registrationReleased && unresolved.size === 0) {
         registration.release()
         registrationReleased = true
@@ -776,7 +777,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
       }
       if (!('outcome' in result)) {
         if (!('cancelledBeforeSend' in result)) return unavailable
-        await work.stopped
+        await requestStopAndWait(work)
         const original = invocation?.observedFacts()
         if (original !== undefined && !('facts' in original)) return unavailable
         if (original !== undefined && original.facts.sentAt !== undefined) return unavailable

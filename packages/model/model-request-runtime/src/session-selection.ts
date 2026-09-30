@@ -188,6 +188,9 @@ export function createSessionModelSelection(
       emit(stage, 'unavailable')
       return unavailable()
     } finally {
+      // Completion and actual stop are independent: the finished command asks for the stop of
+      // every task it started before waiting for the proof, or it may wait on itself forever.
+      for (const task of operation.tasks.keys()) requestStop(task)
       const stopped = await Promise.all(operation.tasks.values())
       const cleanupFailed = stopped.some(fulfilled => !fulfilled)
       live.delete(operation)
