@@ -56,6 +56,7 @@ export function createRequestOwner(name: string) {
       let done = false,
         unknownWrite = false
       const owned = new Set<SettlementTask<unknown>>()
+      const ownWriters = new Set<SettlementTask<AppendResult>>()
       const registration: SettlementRegistration = {
         start<T>(
           kind: SettlementTaskKind,
@@ -85,6 +86,7 @@ export function createRequestOwner(name: string) {
                 if ('failure' in result && result.failure === 'unavailable') {
                   unknownWrite = true
                   writers.add(writer)
+                  ownWriters.add(writer)
                 }
               },
               () => undefined,
@@ -103,7 +105,13 @@ export function createRequestOwner(name: string) {
           if (done) throw new Error('request registration released twice')
           if (owned.size !== 0) throw new Error('request registration still active')
           done = true
-          if (!unknownWrite) registrations--
+          // Runtime releases an uncertain registration only after actual stop and
+          // same-source full-prefix recognition; clear precisely this registration.
+          if (unknownWrite) {
+            for (const writer of ownWriters) writers.delete(writer)
+            ownWriters.clear()
+          }
+          registrations--
         },
       }
       return { registration }

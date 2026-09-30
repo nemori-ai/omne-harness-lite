@@ -12,6 +12,8 @@ import {
   captureModelLogValue,
   inspectSettlementMembers,
   prepareModelLogEntry,
+  type ModelLogSettlementCurrent,
+  type ModelLogSettlementTarget,
 } from './log-codec.ts'
 import type { OwnedLogEntry, AppendResult } from '@omne-harness-lite/session-log-jsonl'
 import {
@@ -31,6 +33,7 @@ import type {
   SettlementScheduler,
   SettlementTask,
   SettlementTaskKind,
+  SettlementUnknownRecognition,
   SettlementUnavailableReason,
 } from './settlement-types.ts'
 
@@ -122,6 +125,17 @@ export function createSettlementCoordinator(
   let closed = false
   const live = new Set<SettlementHandle>()
   const unknownWrites = new Set<SettlementTask<AppendResult>>()
+  const unknown = new Map<
+    SettlementHandle,
+    {
+      readonly registration: SettlementRegistration
+      readonly tasks: readonly SettlementTask<unknown>[]
+      readonly writes: ReadonlySet<SettlementTask<AppendResult>>
+      readonly target: ModelLogSettlementTarget
+      readonly current: ModelLogSettlementCurrent | null
+      readonly batch: readonly OwnedLogEntry[]
+    }
+  >()
   function settle(request: SettlementRequest): SettlementHandle {
     if (closed || owner.admission() !== 'open') return failedHandle('closed')
     const selected = capturePolicy(input)
@@ -168,6 +182,8 @@ export function createSettlementCoordinator(
     if ('unavailable' in grant) return failedHandle('concurrent')
     const acquired = grant.registration
     const tasks: SettlementTask<unknown>[] = []
+    const ownUnknownWrites = new Set<SettlementTask<AppendResult>>()
+    let originalBatch: readonly OwnedLogEntry[] | undefined
     const controller = new AbortController()
     let submissions = 0n,
       conflicts = 0n,
@@ -415,6 +431,8 @@ export function createSettlementCoordinator(
         retained += bytes(batch)
         const beforeAppend = guard(true)
         if (beforeAppend !== null) return unavailable(beforeAppend)
+        // Keep the exact submitted members, including the selected late shell, before IO.
+        originalBatch = Object.freeze([...batch])
         submissions++
         diagnostic('settlement.append')
         let appended: AppendResult
@@ -439,12 +457,14 @@ export function createSettlementCoordinator(
           const receipt = settlementAppendReceipt(await task.completion, batch.length)
           if (receipt === null) {
             unknownWrites.add(task)
+            ownUnknownWrites.add(task)
             diagnostic('settlement.receipt_unconfirmed')
             return unavailable('write_unknown')
           }
           appended = receipt
         } catch {
           unknownWrites.add(task)
+          ownUnknownWrites.add(task)
           diagnostic('settlement.unknown_retained')
           return unavailable('write_unknown')
         }
@@ -454,6 +474,7 @@ export function createSettlementCoordinator(
         }
         if (appended.failure === 'unavailable') {
           unknownWrites.add(task)
+          ownUnknownWrites.add(task)
           diagnostic('settlement.unknown_retained')
           return unavailable('write_unknown')
         }
@@ -472,9 +493,13 @@ export function createSettlementCoordinator(
       }
     }
     let finishStopped: (() => void) | undefined
-    const stopped = new Promise<void>(resolve => {
+    let failStopped: ((reason: unknown) => void) | undefined
+    const stopped = new Promise<void>((resolve, reject) => {
       finishStopped = resolve
+      failStopped = reject
     })
+    // The owner observes this promise too; attach a handler before any task can reject.
+    void stopped.catch(() => {})
     // Parent ownership must be established by acquire before the first asynchronous IO.
     const completion = advance().then(result => {
       if ('unavailable' in result) {
@@ -487,27 +512,96 @@ export function createSettlementCoordinator(
     live.add(handle)
     // Both branches are owned; a rejected stopped promise prevents release and remains visible.
     async function drain() {
+      let result: SettlementResult | undefined
       try {
-        await completion
+        result = await completion
       } catch {
         stop()
       }
+      // completion and actual stop are independent; some owners stop only on request.
+      stop()
       for (const task of tasks) await task.stopped
+      if (ownUnknownWrites.size !== 0 && originalBatch !== undefined) {
+        unknown.set(handle, {
+          registration: acquired,
+          tasks,
+          writes: ownUnknownWrites,
+          target: stableTarget,
+          current: stableCurrent,
+          batch: originalBatch,
+        })
+        finishStopped?.()
+        return
+      }
       acquired.release()
       live.delete(handle)
       finishStopped?.()
     }
-    drain().catch(() => {
+    drain().catch(error => {
       diagnostic('settlement.stop_unconfirmed')
+      failStopped?.(error)
     })
     return handle
   }
   return Object.freeze({
     settle,
+    async recognizeUnknown(handle: SettlementHandle): Promise<SettlementUnknownRecognition> {
+      const held = unknown.get(handle)
+      if (held === undefined || held.batch.length === 0) return { unavailable: true }
+      const stopped = await Promise.allSettled(held.tasks.map(task => task.stopped))
+      if (stopped.some(result => result.status === 'rejected')) return { unavailable: true }
+      const reads: SettlementTask<unknown>[] = []
+      let read: Awaited<ReturnType<typeof readSettlementPrefix>>
+      try {
+        read = await readSettlementPrefix({
+          binding,
+          registration: {
+            start(kind, operation) {
+              const task = held.registration.start(kind, operation)
+              reads.push(task)
+              return task
+            },
+            release: held.registration.release,
+          },
+        })
+      } catch {
+        return { unavailable: true }
+      } finally {
+        for (const task of reads) {
+          try {
+            task.requestStop()
+          } catch {
+            // The stopped receipt remains authoritative.
+          }
+        }
+      }
+      const readsStopped = await Promise.allSettled(reads.map(task => task.stopped))
+      if (readsStopped.some(result => result.status === 'rejected') || 'unavailable' in read)
+        return { unavailable: true }
+      const interpretation = interpretSettlementPrefix({
+        prefix: read.prefix,
+        target: held.target,
+        current: held.current,
+      })
+      if ('unavailable' in interpretation) return { unavailable: true }
+      try {
+        held.registration.release()
+      } catch {
+        return { unavailable: true }
+      }
+      unknown.delete(handle)
+      live.delete(handle)
+      for (const task of held.writes) unknownWrites.delete(task)
+      return 'completeMembers' in interpretation.facts.members
+        ? { settled: interpretation.facts.members.completeMembers }
+        : { absent: true }
+    },
     async close() {
       closed = true
       for (const task of live) task.requestStop()
-      await Promise.all([...live].map(task => task.stopped))
+      const stopped = await Promise.allSettled([...live].map(task => task.stopped))
+      if (stopped.some(result => result.status === 'rejected') || unknown.size !== 0)
+        throw new Error('Settlement work remains owned')
     },
   })
 }

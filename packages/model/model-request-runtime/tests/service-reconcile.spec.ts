@@ -4,7 +4,7 @@ import {
   judgePendingModelResponse,
   type PendingModelResponse,
 } from '@omne-harness-lite/model-response'
-import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import { createSettlementCoordinator } from '@omne-harness-lite/model-request-runtime'
 import { captureModelLogValue, modelLogJsonEqual, prepareModelLogEntry } from '../src/log-codec.ts'
 import { inspectCurrentModelLogPrefix } from '../src/log-codec-settlement.ts'
 import {
@@ -42,14 +42,18 @@ import { controlled, deferred, noWaitScheduler, policy, request } from './settle
 import { selectionHost } from './session-selection-fixture.ts'
 import { unavailableReferencePorts } from './reference-ports-fixture.ts'
 
-function originalInvocation(coordinator: {
-  settle: (candidate: typeof request) => {
-    completion: Promise<unknown>
-    stopped: Promise<void>
-  }
-}) {
+function originalInvocation(
+  coordinator: Pick<ReturnType<typeof createSettlementCoordinator>, 'settle' | 'recognizeUnknown'>,
+) {
+  let held: ReturnType<typeof coordinator.settle> | undefined
   return {
     async settleReply(disposition: SettleReplyInput['disposition']) {
+      if (held !== undefined) {
+        const recognized = await coordinator.recognizeUnknown(held)
+        if ('unavailable' in recognized) return { unavailable: true, reason: 'write_unknown' }
+        held = undefined
+        if ('settled' in recognized) return { settled: recognized.settled, origin: 'recognized' }
+      }
       const candidate = { ...pending(), replyDisposition: disposition }
       const task = coordinator.settle({
         target: { call: 'call', dispatch: candidate.dispatch, response: candidate.id },
@@ -58,6 +62,7 @@ function originalInvocation(coordinator: {
       })
       const result = await task.completion
       await task.stopped
+      if ('unavailable' in result && result.reason === 'write_unknown') held = task
       return result
     },
   } as Parameters<typeof settlePendingReply>[0]['invocation']
@@ -172,7 +177,7 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
           opening.reservation.attachInvocation(owned)
           opening.reservation.publish({ phase: 'reply_pending', pending: pending() })
           opening.reservation.release()
-          const settleReply = createRuntimeSettleReply({
+          const settlementService = createRuntimeSettleReply({
             ...unavailableReferencePorts<PlannedSemantics, never>(),
             calls,
             contention: policy(),
@@ -187,6 +192,7 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
               },
             },
           })
+          const settleReply = settlementService.settleReply
           expect(await settleReply(vetoed)).toEqual({ unavailable: true })
           expect(container.view().operation.phase).toBe('reply_pending')
           expect(released).toBe(0)
@@ -202,6 +208,7 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
           expect(invocations).toBe(2)
           expect(sessionReads).toBe(2)
           expect(submissions.map(item => item.count)).toEqual([2, 1])
+          expect(await settlementService.close()).toEqual({ released: true })
         },
       )
     } finally {

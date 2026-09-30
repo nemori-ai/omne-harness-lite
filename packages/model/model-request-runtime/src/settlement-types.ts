@@ -49,7 +49,7 @@ export interface SettlementRegistration {
     kind: SettlementTaskKind,
     operation: (signal: AbortSignal) => Promise<T>,
   ) => SettlementTask<T>
-  /** Called only once, after all this registration's tasks actually stopped. */
+  /** Called once after actual stop; an unknown append additionally needs same-source full-prefix recognition. */
   readonly release: () => void
 }
 export interface SettlementOwner {
@@ -142,8 +142,14 @@ export type SettlementResult =
   | { readonly settled: SettlementComplete; readonly origin: 'appended' | 'recognized' }
   | { readonly unavailable: true; readonly reason: SettlementUnavailableReason }
 export interface SettlementHandle extends SettlementTask<SettlementResult> {}
+export type SettlementUnknownRecognition =
+  | { readonly settled: SettlementComplete }
+  | { readonly absent: true }
+  | { readonly unavailable: true }
 export interface SettlementCoordinator {
   readonly settle: (request: SettlementRequest) => SettlementHandle
+  /** The original registration remains owned until its stopped writer and full-prefix result are known. */
+  readonly recognizeUnknown: (handle: SettlementHandle) => Promise<SettlementUnknownRecognition>
   /** Close admission/request stop. Promise completes only when actual owned tasks stop. */
   readonly close: () => Promise<void>
 }

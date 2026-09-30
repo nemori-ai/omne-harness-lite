@@ -142,7 +142,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     releaseCall: guarded(control.releaseCall, unavailable),
     reconcile: guarded(reconcile.reconcile, unavailable),
     readAttempts: guardedFailure(reads.methods.readAttempts, unavailable),
-    settleReply: guarded(settleReply, unavailable),
+    settleReply: guarded(settleReply.settleReply, unavailable),
     canDispatchAgain: guarded(reads.methods.canDispatchAgain, unavailable),
   })
 
@@ -152,6 +152,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     ['calls', calls.close],
     ['dispatch', dispatch.close],
     ['control', control.close],
+    ['settleReply', settleReply.close],
     ['reconcile', reconcile.close],
   ] as const
   async function closeOwners(): Promise<{ readonly released: boolean; readonly threw: boolean }> {

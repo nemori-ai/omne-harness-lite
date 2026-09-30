@@ -50,11 +50,21 @@ import type {
   SettlementTask,
   SettlementLogBinding,
   SettlementOwner,
+  SettlementHandle,
 } from './settlement-types.ts'
 
 interface RecoveryRead {
   readonly registration: SettlementRegistration
   readonly tasks: Set<SettlementTask<unknown>>
+}
+
+interface DurableReplySettlement {
+  readonly key: string
+  readonly request: SettleReplyInput
+  readonly pending: PendingModelResponse
+  readonly coordinator: ReturnType<typeof createSettlementCoordinator>
+  task: SettlementHandle | undefined
+  processing: boolean
 }
 
 interface RecoverySettlement {
@@ -107,6 +117,8 @@ export async function settlePendingReply(input: {
     if (result.settled.disposition === 'firstWinner') return { alreadyEnded: true }
     const original = result.settled.response.response
     if (original === null) return { unavailable: true }
+    if (!modelLogJsonEqual(original.replyDisposition, request.disposition))
+      return { alreadyEnded: true }
     if (
       original.outcome !== 'interrupted' &&
       original.outcome !== 'complete' &&
@@ -123,7 +135,7 @@ export async function settlePendingReply(input: {
   }
 }
 
-/** The original invocation is the only owner that can submit this handed-off reply. */
+/** A cold ready reply has its own runtime-owned writer until its original batch is resolved. */
 export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
   readonly calls: CallContainerStore<P, R>
   readonly sessions: RuntimeSessionAccess
@@ -134,8 +146,16 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
   readonly reservationWaitPolicy: ReservationWaitPolicy
   readonly run?: RunHistoryReader
   readonly diagnostic: (event: SettlementDiagnostic) => void
-}): (request: SettleReplyInput) => Promise<SettleReplyResult> {
-  return async request => {
+}): {
+  readonly settleReply: (request: SettleReplyInput) => Promise<SettleReplyResult>
+  readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
+} {
+  const entries = new Map<string, DurableReplySettlement>()
+  let closed = false
+  const keyOf = (request: SettleReplyInput): string =>
+    JSON.stringify([request.session, request.callId])
+
+  async function settleReply(request: SettleReplyInput): Promise<SettleReplyResult> {
     if (
       !isServiceDisposition(request.disposition) ||
       typeof request.session !== 'string' ||
@@ -144,6 +164,7 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
       request.callId.length === 0
     )
       return { invalidInput: { reason: 'malformed' } }
+    if (closed) return { unavailable: true }
     const admitted = await input.calls.waitReserve(request, {
       policy: input.reservationWaitPolicy,
       scheduler: input.scheduler,
@@ -155,6 +176,7 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
       const container = input.calls.find(request)
       const local = container?.view()
       if (
+        !entries.has(keyOf(request)) &&
         container !== undefined &&
         local?.operation.phase === 'reply_pending' &&
         local.invocation !== undefined
@@ -184,8 +206,7 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
       )
         return { unavailable: true }
       const fact = await input.callFacts.lookup({ binding: session.log, ref: request })
-      if ('view' in fact && fact.view.result?.disposition === 'disposition_pending') {
-        const pending = fact.view.result.pending
+      if ('view' in fact && (fact.view.result !== undefined || entries.has(keyOf(request)))) {
         const admittedSettle = await input.callAccess.check(
           { binding: session.log, ref: request, action: 'settle', origin: fact.view.origin },
           async evidence => {
@@ -200,6 +221,35 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
               evidence.revoked.aborted
             )
               return { unavailable: true } as const
+            const key = keyOf(request)
+            const held = entries.get(key)
+            if (held !== undefined) {
+              if (held.processing || held.task === undefined) return { unavailable: true } as const
+              const recognized = await held.coordinator.recognizeUnknown(held.task)
+              if ('unavailable' in recognized) return { unavailable: true } as const
+              try {
+                await held.coordinator.close()
+              } catch {
+                return { unavailable: true } as const
+              }
+              entries.delete(key)
+              if ('settled' in recognized) {
+                if (
+                  recognized.settled.disposition === 'firstWinner' ||
+                  !modelLogJsonEqual(held.request.disposition, request.disposition)
+                )
+                  return { alreadyEnded: true } as const
+                return {
+                  callId: request.callId,
+                  state: held.pending.outcome === 'interrupted' ? 'interrupted' : 'complete',
+                } as const
+              }
+              if (!modelLogJsonEqual(held.request.disposition, request.disposition))
+                return { unavailable: true } as const
+            }
+            if (fact.view.result?.disposition !== 'disposition_pending')
+              return { unavailable: true } as const
+            const pending = fact.view.result.pending
             const final = { ...pending, replyDisposition: request.disposition }
             if ('rejected' in judgeResponseFinalization(pending, final))
               return { unavailable: true } as const
@@ -211,23 +261,44 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
               settlementScheduler: input.scheduler,
               diagnostic: input.diagnostic,
             })
+            const entry: DurableReplySettlement = {
+              key,
+              request,
+              pending,
+              coordinator,
+              task: undefined,
+              processing: true,
+            }
+            entries.set(key, entry)
             try {
               const task = coordinator.settle({
                 target: { call: request.callId, dispatch: pending.dispatch, response: pending.id },
                 current: { messageId: pending.reply.id, disposition: request.disposition },
                 response: final,
               })
+              entry.task = task
               const result = await task.completion
+              task.requestStop()
               await task.stopped
-              if (!('settled' in result)) return { unavailable: true } as const
+              if (!('settled' in result)) {
+                if (result.reason !== 'write_unknown') {
+                  await coordinator.close()
+                  entries.delete(key)
+                }
+                return { unavailable: true } as const
+              }
+              await coordinator.close()
+              entries.delete(key)
               if (result.settled.disposition === 'firstWinner')
                 return { alreadyEnded: true } as const
               return {
                 callId: request.callId,
                 state: pending.outcome === 'interrupted' ? 'interrupted' : 'complete',
               } as const
+            } catch {
+              return { unavailable: true } as const
             } finally {
-              await coordinator.close()
+              entry.processing = false
             }
           },
         )
@@ -243,6 +314,33 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
       reservation.release()
     }
   }
+
+  async function close(): Promise<{ readonly released: true } | { readonly unavailable: true }> {
+    closed = true
+    for (const entry of entries.values()) {
+      try {
+        entry.task?.requestStop()
+      } catch {
+        // Actual stopped and original-batch recognition remain authoritative.
+      }
+    }
+    for (const entry of [...entries.values()]) {
+      if (entry.task === undefined) continue
+      const stopped = await Promise.allSettled([entry.task.stopped])
+      if (stopped[0]?.status === 'rejected' || entry.processing) continue
+      const recognized = await entry.coordinator.recognizeUnknown(entry.task)
+      if ('unavailable' in recognized) continue
+      try {
+        await entry.coordinator.close()
+        entries.delete(entry.key)
+      } catch {
+        // Keep the original owner visible for a later close attempt.
+      }
+    }
+    return entries.size === 0 ? { released: true } : { unavailable: true }
+  }
+
+  return Object.freeze({ settleReply, close })
 }
 
 async function recognizeSettledReply(
@@ -415,6 +513,16 @@ export function createRuntimeReconcile(input: {
       try {
         settlement.task?.requestStop()
         if (settlement.task !== undefined) await settlement.task.stopped
+        if (settlement.task !== undefined) {
+          const result = await settlement.task.completion
+          if ('unavailable' in result && result.reason === 'write_unknown') {
+            const recognized = await settlement.coordinator.recognizeUnknown(settlement.task)
+            if ('unavailable' in recognized) {
+              safe = false
+              continue
+            }
+          }
+        }
         await settlement.coordinator.close()
       } catch {
         safe = false

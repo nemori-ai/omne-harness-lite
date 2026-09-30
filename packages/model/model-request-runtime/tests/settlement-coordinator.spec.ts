@@ -13,6 +13,8 @@ import {
 import { join } from 'node:path'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { response, anchors, session } from './log-codec-fixture.ts'
+import type { SettlementOwner, SettlementTask } from '../src/settlement-types.ts'
+import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import { batchV2, responseV5 } from './log-codec-v2-fixture.ts'
 import {
   controlled,
@@ -28,6 +30,98 @@ function noReply(): JsonObject {
   return { ...base, outcome: 'interrupted', initiator: 'runtime_lost' }
 }
 describe('A1a actual SQL/SL3 coordinator; controlled all-writer scope', () => {
+  it.each([true, false])(
+    'retains an unknown original append until actual stop and full-prefix %s recognition',
+    async committed => {
+      await controlled(`unknown-retained-${committed}`, async ({ binding, owner, wrap }) => {
+        let unreadable = false
+        const uncertain: SessionLog = {
+          ...binding.log,
+          async readSince(...args) {
+            return unreadable ? { failure: 'unavailable' } : await binding.log.readSince(...args)
+          },
+          async append(...args) {
+            if (committed) await binding.log.append(...args)
+            return { failure: 'unavailable' }
+          },
+        }
+        const coordinator = createSettlementCoordinator({
+          binding: wrap(uncertain),
+          owner,
+          settlementContention: policy(),
+          settlementScheduler: noWaitScheduler,
+          diagnostic() {},
+        })
+        const handle = coordinator.settle(request)
+        expect(await handle.completion).toMatchObject({ reason: 'write_unknown' })
+        await handle.stopped
+        expect(owner.active).toBe(1)
+        unreadable = true
+        expect(await coordinator.recognizeUnknown(handle)).toEqual({ unavailable: true })
+        await expect(coordinator.close()).rejects.toThrow('Settlement work remains owned')
+        expect(owner.active).toBe(1)
+        unreadable = false
+        const recognized = await coordinator.recognizeUnknown(handle)
+        if (committed) expect(recognized).toHaveProperty('settled')
+        else expect(recognized).toEqual({ absent: true })
+        expect(owner.active).toBe(0)
+        await coordinator.close()
+      })
+    },
+  )
+
+  it('requests actual stop after successful completion before releasing the registration', async () => {
+    await controlled('completion-needs-stop', async ({ binding, owner }) => {
+      let stopRequested = false
+      const stoppingOwner: SettlementOwner = {
+        name: owner.name,
+        admission: owner.admission,
+        opened: owner.opened,
+        unresolvedWrites: owner.unresolvedWrites,
+        acquire(limit: JsonNumber) {
+          const granted = owner.acquire(limit)
+          if ('unavailable' in granted) return granted
+          return {
+            registration: {
+              start<T>(
+                kind: Parameters<typeof granted.registration.start>[0],
+                operation: (signal: AbortSignal) => Promise<T>,
+              ): SettlementTask<T> {
+                const task = granted.registration.start(kind, operation)
+                let finishStop = () => {}
+                const stop = new Promise<void>(resolve => {
+                  finishStop = resolve
+                })
+                return {
+                  completion: task.completion,
+                  stopped: Promise.all([task.stopped, stop]).then(() => undefined),
+                  requestStop() {
+                    stopRequested = true
+                    task.requestStop()
+                    finishStop()
+                  },
+                }
+              },
+              release: granted.registration.release,
+            },
+          }
+        },
+      }
+      const coordinator = createSettlementCoordinator({
+        binding,
+        owner: stoppingOwner,
+        settlementContention: policy(),
+        settlementScheduler: noWaitScheduler,
+        diagnostic() {},
+      })
+      const handle = coordinator.settle(request)
+      expect(await handle.completion).toHaveProperty('settled')
+      await handle.stopped
+      expect(stopRequested).toBe(true)
+      expect(owner.active).toBe(0)
+      await coordinator.close()
+    })
+  })
   it('once whole [M,R], exact MR5 original value and close/reopen', async () => {
     await controlled('whole', async ({ coordinator, binding, owner, submissions, dir, reopen }) => {
       const handle = coordinator.settle(request)

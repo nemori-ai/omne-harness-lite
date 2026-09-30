@@ -37,6 +37,8 @@ import type {
   SettlementTask,
   SettlementRegistration,
   SettlementResult,
+  SettlementHandle,
+  SettlementRequest,
   SettlementOwner,
   SettlementTaskKind,
 } from './settlement-types.ts'
@@ -401,6 +403,8 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
   let construction: ResponseConstructionInput | undefined
   let interruption: Extract<ResponseConstructionResult, { readonly response: unknown }> | undefined
   let settled = false
+  let heldSettlement:
+    { readonly handle: SettlementHandle; readonly request: SettlementRequest } | undefined
   let dispatchConfirmed = false
   let dispatchedPosition: JsonNumber | undefined
   let openedPosition: JsonNumber | undefined
@@ -466,7 +470,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
     draining ??= (async () => {
       while (controlBorrows.size > 0) await Promise.race(controlBorrows)
       await Promise.all(tasks.map(task => task.stopped))
-      if (!registrationReleased) {
+      if (!registrationReleased && unresolved.size === 0) {
         registration.release()
         registrationReleased = true
       }
@@ -615,29 +619,55 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
     withoutReply = false,
   ): Promise<SettlementResult> {
     recordAnchors('settlement')
-    if ((!construction && !interruption) || quarantined || unresolved.size > 0)
+    if (
+      (!construction && !interruption && heldSettlement === undefined) ||
+      quarantined ||
+      unresolved.size > 0
+    )
       return { unavailable: true, reason: 'opened_unknown' }
-    const candidate =
-      interruption ??
-      (construction === undefined
-        ? { rejected: 'invalidInput' as const }
-        : constructModelResponse(construction, disposition, withoutReply))
-    if ('rejected' in candidate) return { unavailable: true, reason: 'candidate' }
     await drain()
-    const handle = coordinator.settle({
-      target: {
-        call: dispatched.call,
-        dispatch: dispatched.dispatch,
-        response: dispatched.response,
-      },
-      current: {
-        messageId: withoutReply || !('reply' in candidate.response) ? null : input.messageId,
-        disposition: withoutReply ? null : disposition,
-      },
-      response: candidate.response,
-    })
+    let original = heldSettlement?.request
+    if (heldSettlement !== undefined) {
+      const recognized = await coordinator.recognizeUnknown(heldSettlement.handle)
+      if ('unavailable' in recognized) return { unavailable: true, reason: 'write_unknown' }
+      if ('settled' in recognized) {
+        heldSettlement = undefined
+        settled = true
+        return { settled: recognized.settled, origin: 'recognized' }
+      }
+      heldSettlement = undefined
+    }
+    if (original === undefined) {
+      const candidate =
+        interruption ??
+        (construction === undefined
+          ? { rejected: 'invalidInput' as const }
+          : constructModelResponse(construction, disposition, withoutReply))
+      if ('rejected' in candidate) return { unavailable: true, reason: 'candidate' }
+      original = {
+        target: {
+          call: dispatched.call,
+          dispatch: dispatched.dispatch,
+          response: dispatched.response,
+        },
+        current: {
+          messageId: withoutReply || !('reply' in candidate.response) ? null : input.messageId,
+          disposition: withoutReply ? null : disposition,
+        },
+        response: candidate.response,
+      }
+    }
+    const handle = coordinator.settle(original)
     const result = await handle.completion
-    await handle.stopped
+    handle.requestStop()
+    try {
+      await handle.stopped
+    } catch {
+      heldSettlement = { handle, request: original }
+      return { unavailable: true, reason: 'task' }
+    }
+    if ('unavailable' in result && result.reason === 'write_unknown')
+      heldSettlement = { handle, request: original }
     if ('settled' in result) settled = true
     return result
   }
