@@ -23,7 +23,7 @@
     {
       "file": "src/stream.ts",
       "source": "packages/ai/src/api/openai-completions.ts",
-      "changes": "Own ArrivalEvent producer; no intermediate tool JSON parse; preserve provider/cost/opaque; length never closes blocks."
+      "changes": "Own ArrivalEvent producer; no intermediate tool JSON parse; preserve provider/cost/opaque; length never closes blocks. Narrower than appendOpenAIReasoningDetail: adjacent reasoning.text fragments join only with equal non-text/non-signature members and either the same nonempty id (absent/null signature filled once by a later nonempty one, equal signatures continue) or no id and no signature on both; encrypted details stay discrete."
     },
     {
       "file": "src/sse.ts",
