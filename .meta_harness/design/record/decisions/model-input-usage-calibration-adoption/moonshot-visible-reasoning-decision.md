@@ -15,3 +15,16 @@
 两叶 factory 的直接公开方法须接到现有共同包装；definition／implementation／algorithm 升为新唯一值，tokenizerRevision 显式钉当前值，旧 lease 不热替换，无旧工厂兼容过渡。summary、encrypted、任何附加键（含显式 `signature: null`）、多项或空数组、非 `unknown` format、非 0 index 一律 unavailable。
 
 释放 MV1–MV3 实施与受影响验收（两叶有／无 tools 三轮本机公开与 Cordis 路径、等价预言与负控、直接入口正反测试、`moonshot-closeout-boundaries.spec.ts` 与演示装配 details 用例改为估算）。MV4 真实路线（含**必做**同路由对照）仅由 root 沿现有预算与唯一账本执行；本采用不证明这些门已通过，不关闭 T21／T22／Moonshot 整家。新增 bindings 0；不扩大完整 Session／Run、ACK 或其他模型的责任。
+
+## 2026-09-30 MV4 真实路线与 P2 同路由对照结果
+
+主调度沿唯一预算账本以 R7 认证工具（HUB `104ce616`／`a2fd1e50`）执行：两叶**有 tools**（第六批 d）与**无 tools**（第六批 e）三轮各 3/3 complete、exit 0，`reasoning.text` details 自第 2 轮起原样回放并被上游接受，缓存命中递增（K3 1024→1280、无 tools 768；K2.7 768→1024、无 tools 768），答案判据全部 accepted，逐帧 details 恰四键、无显式 `signature: null`。本地 full 估算残差（预测 − 实际 prompt）：K3 +3／+3／+3（0.3%），K2.7 +7／+39／+71（0.7%→6.3%），方向为高估；残差只作记录，不引入修正常数。
+
+**P2 同路由对照（必做，闭合 G1）**：研究阶段探针（HUB `74bdd9ef`，账本 research 条目）对同一第 2 轮历史分别发送 (A) `reasoning_details` 回放、(B) `reasoning` 字符串、(C) 不带推理，其余字节相同，`stream:false`：
+
+| 叶 | A details | B reasoning 串 | C 无推理 | 本地预测 |
+|---|---|---|---|---|
+| kimi-k3 | 1209 | 1209 | 1179 | 1212 |
+| kimi-k2.7-code | 1035 | 1035 | 1011 | 1074 |
+
+A 与 B 的 `prompt_tokens` 逐 token 相等，C 恰少推理文本占用（30／24 token）：「同一槽位」假设成立，OpenRouter 把 `reasoning.text` details 与 `reasoning` 字符串转发为同一 Moonshot 原生推理字段并计入 prompt。G1 由此闭合。MV4 全部义务完成；本节不关闭 T21／T22 或 Moonshot 整家交付。证据：主检出 HUB `tmp/model-request-runtime/private/paid-out/batch6d-104ce616/moonshot-*`、`batch6e-a2fd1e50/moonshot-*-notools`、`p2-74bdd9ef/p2-moonshotai_*.json`（0600）。
