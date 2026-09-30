@@ -1002,6 +1002,11 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
             expect(value.usage).toEqual(responseV5.usage)
             expect(value.cost).toEqual(responseV5.cost)
             expect(assistantMessages).toHaveLength(value.replyDisposition === 'persisted' ? 1 : 0)
+            // M17-V4: the losing side answers with the durable winner, never its own candidate.
+            for (const result of results) {
+              if (!('settled' in result)) throw new Error('race side not settled')
+              expect(modelLogJsonEqual(result.settled.response.value, value)).toBe(true)
+            }
             expect(
               submissions.filter(
                 item =>
