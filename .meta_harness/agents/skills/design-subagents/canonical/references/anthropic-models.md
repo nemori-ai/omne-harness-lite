@@ -13,6 +13,7 @@
 | [Claude Opus 5.5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5) | 思考恒开，effort 是唯一的思考控制，默认 `medium`；同档位比 Opus 5 想得更多，`xhigh`/`max` 留给测得出收益的工作；无人值守时可能以进展汇报收尾，官方建议点名不想要的几种提前收尾 | 派发档位显式给出，先只换模型、再扫档；无人值守角色写明「以纯文字结束就是交回」与不该停的几种形态，同时保留角色自己的停止条件 |
 | [Claude Fable 5.1](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1) | 关注长任务沟通、压缩保留信息、任务范围，以及低 effort 时检索触发；effort 应重新评估 | 明确恢复时必须保留的约束、决定和未知；进展说明与检索触发仅在相关工作需要时补充 |
 | [Claude Opus 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5) | 默认会自检，反复要求验证可能造成额外成本；建议控制叙述与无谓委派 | 将必需验收与重复自检区分；写出结果需要保留的信息，不机械添加“再找 agent 检查一次” |
+| [Claude Sonnet 5.5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5) | 档位重新校准，不沿用 Sonnet 5 的设置；智能体编码上规格明确的任务从 `medium` 起、更难更长的用 `high`，`xhigh`/`max` 留给测得出收益的工作；`low`/`medium` 下长任务更容易中途停下确认；各档位都倾向顺手补测试与文档；官方说最难的长程工作用 Opus 更合适 | 只派给规格、验收清单齐全的角色，档位取 `medium` 或 `high`；无人值守角色保留「做完并核对后才交回」与不该停的几种形态；要求改动限于所派范围的角色写明不加未要求的文件 |
 | [Claude Sonnet 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5) | 输出随任务复杂度变化；effort 和 thinking 行为需要按版本重新核对 | 用目标样例校准产物充分性，评估实际 effort；不同代际相同档位不等于相同计算量 |
 | [Claude Opus 4.8](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8) | 对 effort 和工具使用有特定建议，某些强制进展脚手架可能多余 | 对确需事实核对的任务明确工具用途，按观察精简重复进展指令；不沿用 Opus 5 的默认 thinking 假设 |
 

@@ -17,7 +17,7 @@
 | kernel-developer | 实现明确划入内核的基础原语与生命周期机制；默认 xhigh | [内核开发](kernel-developer/role.md) |
 | capability-developer | 实现已定义能力及组合的状态转换、规则与交接；默认 high | [能力开发](capability-developer/role.md) |
 | infrastructure-developer | 实现具体提供者、后端与实际资源/持久性/失败保证；默认 high | [提供者开发](infrastructure-developer/role.md) |
-| application-developer | 消费能力，完成应用装配和 API/CLI/Web 交互；默认 medium | [应用开发](application-developer/role.md) |
+| application-developer | 消费能力，完成应用装配和 API/CLI/Web 交互；默认 high | [应用开发](application-developer/role.md) |
 | verification-developer | 实现跨边界场景、故障注入、测量及形式工具适配；默认 high | [验证开发](verification-developer/role.md) |
 | tui-developer | 按已接受契约实现终端交互与呈现、终端生命周期和输出边界；负责修复与自身回归，不代替独立取证或验收；默认 high | [TUI 开发](tui-developer/role.md) |
 | tui-debugger | 对终端界面（TUI）应用的异常现象做**取证**：可重跑的复现、分层证据、假设账本、修复建议，先排除终端特有的嫌疑变量；**不修、不判「修好」**，只写证据目录；默认 high | [TUI 取证](tui-debugger/role.md) |

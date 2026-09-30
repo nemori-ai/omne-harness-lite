@@ -43,6 +43,11 @@
       "scope": "Claude Opus 5 prompting"
     },
     {
+      "id": "claude-sonnet55",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5",
+      "scope": "Claude Sonnet 5.5 prompting; behavior changes in https://platform.claude.com/docs/en/models/sonnet-5-5/whats-new-sonnet-5-5"
+    },
+    {
       "id": "claude-sonnet5",
       "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5",
       "scope": "Claude Sonnet 5 prompting"
