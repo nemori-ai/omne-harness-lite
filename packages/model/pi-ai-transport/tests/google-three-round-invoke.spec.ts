@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { readOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
   invokeModel,
@@ -6,17 +7,26 @@ import {
   type PlanInput,
 } from '@omne-harness-lite/model-request-runtime'
 import {
+  createModelTransportService,
   createOfficialProfileContent,
   createPiAiTransport,
+  type AdaptationLease,
   type InputMeter,
+  type ModelDefinition,
+  type RetirementPolicy,
 } from '@omne-harness-lite/pi-ai-transport'
+import {
+  createModelPlugin,
+  MODEL_TRANSPORT_SERVICE,
+} from '@omne-harness-lite/pi-ai-transport/plugin'
 import { createGoogleInputMeter } from '../src/input-meters/google.ts'
 import { googleDefinitions } from '../src/official-models/google.ts'
 import { googleCertificationRequest, googleCertificationTool } from './fixtures/google/cases.ts'
 import { appendGoogleRound, googleThreeRoundInput } from './fixtures/google/three-round.ts'
 import { certificate, content, finish, fixture, judgedMessage, policy, sse } from './support.ts'
 
-// Credential-free public invokeModel scenarios over a local TLS fixture. The
+// Credential-free invokeModel scenarios over a local TLS fixture, through the
+// standalone transport and the Cordis-leased transport service. The
 // upstream stream is synthetic: this proves the local plan/send/read/replay
 // path on definition 3 / mp4-17, not live Gemini behavior or billing.
 
@@ -98,26 +108,89 @@ function nextRound(request: PlanInput, result: ModelInvocationResult, round: num
   })
 }
 
-async function invoke(request: PlanInput, transport: ReturnType<typeof createPiAiTransport>) {
+type Transport = AdaptationLease['transport']
+async function invoke(request: PlanInput, transport: Transport, signal?: AbortSignal) {
   return invokeModel({
     ...request,
     transport,
     credential: 'google-local-credential',
-    signal: new AbortController().signal,
+    signal: signal ?? new AbortController().signal,
     policy: policy(),
   }).outcome
 }
 
-const cases = googleDefinitions.flatMap(definition =>
-  (['low', 'medium', 'high'] as const).flatMap(effort =>
-    [false, true].map(withTools => ({ definition, effort, withTools })),
+const retirement: RetirementPolicy = {
+  waitMilliseconds: 100,
+  force: false,
+  schedule(ms, callback) {
+    const timer = setTimeout(callback, ms)
+    return () => clearTimeout(timer)
+  },
+}
+
+/**
+ * The public entry is the standalone transport; the Cordis entry is the leased
+ * transport of the official model plugin on a provided transport service.
+ */
+async function openEntry(
+  entry: 'public' | 'cordis',
+  options: Parameters<typeof createModelTransportService>[0],
+  definition: ModelDefinition,
+  meter: InputMeter,
+  first: PlanInput,
+) {
+  if (entry === 'public') {
+    const direct = createPiAiTransport({
+      ...options,
+      definitions: [definition],
+      inputMeters: [meter],
+    })
+    return {
+      transport: direct as Transport,
+      invoke: (request: PlanInput) => invoke(request, direct),
+      close: () => direct.close(),
+    }
+  }
+  const service = createModelTransportService(options)
+  const context = new Context()
+  const provided: Plugin.Object = {
+    name: 'google-local-https',
+    apply(ctx) {
+      ctx.provide(MODEL_TRANSPORT_SERVICE, service)
+      ctx.effect(() => async () => {
+        await service.close(retirement)
+        await service.closed
+      })
+    },
+  }
+  await context.plugin(provided)
+  await context.plugin(createModelPlugin(definition, meter, retirement), {})
+  expect(context.get(MODEL_TRANSPORT_SERVICE)).toBe(service)
+  const acquired = service.acquire(first.snapshot.adaptation, first.routeName)
+  if ('rejected' in acquired) throw new Error(acquired.rejected)
+  const lease = acquired.lease
+  return {
+    transport: lease.transport,
+    invoke: (request: PlanInput) => lease.track(invoke(request, lease.transport, lease.signal)),
+    close: async () => {
+      lease.release()
+      await context.fiber.dispose()
+    },
+  }
+}
+
+const cases = (['public', 'cordis'] as const).flatMap(entry =>
+  googleDefinitions.flatMap(definition =>
+    (['low', 'medium', 'high'] as const).flatMap(effort =>
+      [false, true].map(withTools => ({ entry, definition, effort, withTools })),
+    ),
   ),
 )
 
 describe.each(cases)(
-  'Google public invoke %#: three local TLS rounds',
-  ({ definition, effort, withTools }) => {
-    it(`${definition.modelId} ${effort} tools=${withTools}: full estimated, φ/δ unavailable, original history replayed`, async () => {
+  'Google transport invoke %#: three local TLS rounds',
+  ({ entry, definition, effort, withTools }) => {
+    it(`${entry} ${definition.modelId} ${effort} tools=${withTools}: full estimated, φ/δ unavailable, original history replayed`, async () => {
       let responses = 0
       const host = await fixture(
         cert.tls,
@@ -145,16 +218,14 @@ describe.each(cases)(
       if (!official) throw new Error('Google meter unavailable')
       expect(official.replayRevision).toBe('unsupported-marginal/1')
       const { meter, marginal } = countedMeter(official)
-      const transport = createPiAiTransport({
-        ...host.options,
-        definitions: [definition],
-        inputMeters: [meter],
-      })
       let request = googleThreeRoundInput(definition.modelId, effort, withTools)
+      const opened = await openEntry(entry, host.options, definition, meter, request)
       const estimates: number[] = []
       try {
         for (let round = 1; round <= 3; round++) {
-          const planned = await transport.plan(request, { signal: new AbortController().signal })
+          const planned = await opened.transport.plan(request, {
+            signal: new AbortController().signal,
+          })
           if ('rejected' in planned) throw new Error(JSON.stringify(planned))
           const { measurement, body, inputLimitEvidence } = planned.planned
           expect(measurement).toMatchObject({
@@ -172,7 +243,7 @@ describe.each(cases)(
           estimates.push(Number(inputLimitEvidence.inputTokens.tokens))
           expect(body).toMatchObject({ model: definition.modelId, reasoning: { effort }, provider })
           expect(body.tools === undefined).toBe(!withTools)
-          const result = await invoke(request, transport)
+          const result = await opened.invoke(request)
           if (!('outcome' in result) || result.outcome !== 'complete')
             throw new Error(JSON.stringify(result))
           expect(host.requests).toHaveLength(round)
@@ -229,7 +300,7 @@ describe.each(cases)(
         }
         expect(host.requests.every(sent => !sent.body.includes('reasoning_details'))).toBe(true)
       } finally {
-        await transport.close()
+        await opened.close()
         await host.close()
       }
     })
