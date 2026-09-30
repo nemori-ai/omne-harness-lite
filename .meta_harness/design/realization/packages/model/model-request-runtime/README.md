@@ -3,14 +3,14 @@
 - **语义接受**：[D-110 ACK 后继](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受 RT12/MS8/MR11/CA4，精确版本与摘要由 registry 和接受文件登记。
 - **可实施**：本节点对应的 ACK 后继映射已技术采用，当前实现直接迁移；下方候选与 noGC 文字保留其历史快照，不代表现行采用状态。
 - **绑定证据**：新增 0，原绑定保持原范围；有限规格模型不提升实际提供者绑定。
-- **实际验证**：ACK 实现、该节点真实组合与公开制品验收仍待，不能据采用或旧实现通过宣称完成。
+- **实际验证**：ACK 实现经 T29 第二、三轮验收（记录在 [verification 的 A22 节末](verification.md#a22-ack与模型副本释放候选)，B-2 部分关闭项照录）；最终 SHA `cfc410ee` 上八家 37 叶的 public／service 真实认证与仓外制品消费经此路径（见 [pi-ai-transport 验证页最终认证节](../pi-ai-transport/verification.md#最终-sha-cfc410ee-认证-r92026-09-30-21252224z)）。
 
 ## 2026-09-29 ACK 与模型副本释放候选
 
 - **语义接受：已接受**。RT12/MS8/MR11/CA4 由 [ACK 契约决定](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)（2026-09-30）接受并在 registry 登记 accepted；[v22 映射](v22-acknowledgement-design.md) revision 2 已技术采用，revision 3（接缝同步）经主调度复核采用。D110 的 T29/v20 与 D109 的 v21 原采用边界保持。
 - **可实施：已放行，实施进行中**。现有 modelRuntime 增第十五操作 acknowledgeCall；真实读/旧发布/删除共用持久 ModelCallRetention 门，ACK 日志确认后同 Storage 事务删内容并更新 released。所有读、同键创建与结算同步迁移，旧 noGC/Map 全文保管不能继续成为后继默认。ACK 后新 final 暂存接缝 revision 2 已经定点评审并由主调度复核采用（A22-G2 闭合，实施归 A4）；外域来源按 A22-G3 只限制实际依赖路径。
 - **绑定证据：新增 0**，原 bindings 不改；[A22-V1～V16](verification.md#a22-ack与模型副本释放候选) 是待执行义务，不以候选模型登记或提案评审证明实际释放。
-- **实际验证：部分**。A1（core 组合入）、A2（acknowledgeCall／S-97 已确认分支／S-100 传播）、A3（S-98 保留门）及首轮独立评审的修复批已入集成分支（作者自测＋第一轮独立评审 79 例回归），第二轮独立验收（A22-V1～V12/V15/V16）进行中；A4（S-99⑧ 结算暂存、A22-V13/V14）实施中；A22-G1～G4 列明接受、候选恢复接缝、真实来源和实际组合证据 owner。demo 仅为 Session identity-scoped assembly，不是正式 Session/Run。
+- **实际验证：见上节 2026-09-30 条目**。历史快照：A1（core 组合入）、A2（acknowledgeCall／S-97 已确认分支／S-100 传播）、A3（S-98 保留门）及首轮独立评审的修复批已入集成分支（作者自测＋第一轮独立评审 79 例回归），第二轮独立验收（A22-V1～V12/V15/V16）与 A4（S-99⑧ 结算暂存、A22-V13/V14）其后由 T29 第二、三轮完成；A22-G1～G4 列明接受、候选恢复接缝、真实来源和实际组合证据 owner。demo 仅为 Session identity-scoped assembly，不是正式 Session/Run。
 
 2026-09-29：[D109](../../../../record/decisions/model-request-image-preparation-adoption/decision.md) 技术采用 v21 r3 异步图片规划与资源归属，精确正文不变；新增 binding 0，实际生命周期与组合验收待实施。
 
@@ -145,11 +145,11 @@
 
 ## 按当前问题展开
 
-| 当前问题 | 阅读入口 |
-|---|---|
-| 两个插件、inject 边与换代时收掉什么、一次调用的 effect、跨 owner 的共同存储对象、装配给怎样兑现 | [实现设计](design.md) |
-| 哪条承诺由哪份证据支持、前提是什么 | [绑定表](bindings.yaml) |
-| 实际跑过什么、还缺什么 | [验证与证据](verification.md) |
+| 当前问题                                                                                        | 阅读入口                      |
+| ----------------------------------------------------------------------------------------------- | ----------------------------- |
+| 两个插件、inject 边与换代时收掉什么、一次调用的 effect、跨 owner 的共同存储对象、装配给怎样兑现 | [实现设计](design.md)         |
+| 哪条承诺由哪份证据支持、前提是什么                                                              | [绑定表](bindings.yaml)       |
+| 实际跑过什么、还缺什么                                                                          | [验证与证据](verification.md) |
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
@@ -157,6 +157,7 @@
 ## 2026-09-27 最终技术采用
 
 [D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md)接受对应精确规格与本节点投影。旧候选读数和验证历史保留。此事件不代替源码、真实故障/停止或37模型生产认证；新增实际绑定另附运行证据。
+
 ## G-6 纯政策构件当前采用（2026-09-27）
 
 [D-093](../../../../record/decisions/model-credential-policy-adoption/decision.md)限定采用[v5-redaction-design rev2](v5-redaction-design.md)的显式配置基线及text/header/raw-error JSON共有构件。独立安全复评在此范围内无剩余阻断；源码与实际制品尚待。R5R-G2跨包接线、G3附件、G4必需事实碰撞、完整S-20及生产H出值不放行，新增绑定0。
@@ -164,7 +165,6 @@
 ## 2026-09-28 G6纯构件实施与有限验证
 
 [D093实施事件](../../../../record/decisions/model-credential-policy-adoption/decision.md#2026-09-28-纯构件有限实施签收)及[完整实际原档](../../../../record/evidence/2026-09-28-tests-model-credential-redaction-pure/README.md)记录源码f6a5d1f2／HUB7f580351、独立GI1–7有限Pass及当前HUB4a268c91专用字节与组合回归。限定签收显式配置／纯text/header/raw-error JSON政策构件；新增规范绑定0，不签收raw.body／附件、生产H和完整S20、G4必需事实、十三操作或37模型认证。历史“源码尚待”属于2026-09-27的状态。
-
 
 ## MR5 codec显式接续（2026-09-28）
 
@@ -179,7 +179,6 @@ D-100 实施接续另采用 [mrr/3 当前承载字节](v8-current-codec-design.m
 ## 2026-09-28 精确传输取得结果补正
 
 [D-100追加](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md)技术采用[v13 acquire结果补正](v13-acquire-result-design.md)的三分结果，纠正v7遗漏RT9 S-53.1非法配置拒绝的投影。仅允许现有端口与消费者保真迁移，不改变冻结规范、lease责任或操作数量。新增绑定0；实现和真实组合验证仍按实际证据记录，未接受完整D4。
-
 
 ## v21 图片准备接入候选（2026-09-29）
 
