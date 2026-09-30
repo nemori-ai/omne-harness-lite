@@ -379,7 +379,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
-  }, 20_000) // Each CLI invocation now also checks the real repository's restricted entry paths.
+  }, 60_000) // Two real CLI scans of the repository (~15 s each under load); budget covers both, assertions unchanged.
 })
 
 describe('SC-OE-3 no-wall-clock', () => {

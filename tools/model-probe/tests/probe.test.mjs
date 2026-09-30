@@ -171,13 +171,14 @@ test('abandoned reservation stops restart even after lock release', async () => 
     await rm(directory, { recursive: true, force: true })
   }
 })
+// Values sit one above APPROVED_SCOPE_LIMIT_USD (200 since 169fedc3) so the guard, not the fixture, decides.
 test('hard approved limit and configured allocation are checked', async () => {
   await assert.rejects(
-    openLedger('/unused', { limitUsd: '101', researchLimitUsd: '50' }),
+    openLedger('/unused', { limitUsd: '201', researchLimitUsd: '50' }),
     /approved/,
   )
   await assert.rejects(
-    openLedger('/unused', { limitUsd: '100', researchLimitUsd: '101' }),
+    openLedger('/unused', { limitUsd: '200', researchLimitUsd: '201' }),
     /approved/,
   )
 })
