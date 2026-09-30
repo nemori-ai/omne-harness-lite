@@ -80,43 +80,56 @@ function sameReasoningHead(
 /**
  * One streamed `reasoning.text` detail may arrive as several adjacent fragments. They are
  * joined only when every member except text and signature (type, id, index, format,
- * unknown metadata) is equal and either:
- * - both carry the same nonempty `id`: signatures may go from absent/null to one nonempty
- *   value and then only repeat it; an invalid, empty or conflicting signature stays distinct;
- * - neither carries an id nor any signature (absent/null): plain streamed reasoning deltas.
- * A signed group's identity is never inferred from adjacency alone.
+ * unknown metadata) is equal and the fragments share one content-block identity:
+ * - both carry the same nonempty `id`; or
+ * - neither carries an id (absent/null). Unsigned id-less deltas join as before. When a
+ *   signature is involved, identity is carried by `index`: both must have the same
+ *   nonnegative integer index.
+ * Within one identity, signatures may go from absent/null to one nonempty value and then
+ * only repeat it. An invalid, empty or conflicting signature stays distinct, and an unsigned
+ * fragment after a signed one starts a new entry. A fragment without a `text` member
+ * contributes no text and is accepted only when it carries that nonempty signature.
+ *
+ * Assumption (dispatcher ruling R-L, 2026-09-30): within one response, adjacent id-less
+ * fragments with the same index belong to the same upstream content block. This is the
+ * Anthropic content-block identity: OpenRouter streams Anthropic thinking_delta and a final
+ * signature_delta as id-less, same-index `reasoning.text` fragments, the signature alone in
+ * the last one (paid observation, ledger entry cecc12c9-300e-43db-8389-7bb4ac859d4f).
  * Returns the merged detail, or undefined when `next` must stay a separate original entry.
  */
 function continueReasoningText(previous: JsonValue | undefined, next: JsonObject) {
+  const unsigned = (value: JsonValue | undefined) => value === undefined || value === null
+  const signed = (value: JsonValue | undefined): value is string =>
+    typeof value === 'string' && value.length > 0
+  const earlier = object(previous) ? previous.signature : undefined,
+    later = next.signature
+  const nextText = next.text === undefined && signed(later) ? '' : next.text
   if (
     !object(previous) ||
     previous.type !== 'reasoning.text' ||
     next.type !== 'reasoning.text' ||
     typeof previous.text !== 'string' ||
-    typeof next.text !== 'string' ||
-    // Includes id: both absent/null, or the same value.
-    !sameReasoningHead(previous, next, 'text', 'signature')
+    typeof nextText !== 'string' ||
+    // Includes id and index: both absent/null, or the same value.
+    !sameReasoningHead(previous, next, 'text', 'signature') ||
+    !(unsigned(earlier) || signed(earlier)) ||
+    !(unsigned(later) || signed(later))
   )
     return undefined
-  const unsigned = (value: JsonValue | undefined) => value === undefined || value === null
-  const earlier = previous.signature,
-    later = next.signature
-  const signed = (value: JsonValue | undefined): value is string =>
-    typeof value === 'string' && value.length > 0
   if (unsigned(previous.id) && unsigned(next.id)) {
-    if (!unsigned(earlier) || !unsigned(later)) return undefined
-  } else {
-    if (typeof previous.id !== 'string' || previous.id.length === 0 || previous.id !== next.id)
+    if (
+      (!unsigned(earlier) || !unsigned(later)) &&
+      (!isNonNegativeJsonInteger(previous.index) || !isNonNegativeJsonInteger(next.index))
+    )
       return undefined
-    if (!(unsigned(earlier) || signed(earlier)) || !(unsigned(later) || signed(later)))
-      return undefined
-    // After a signature has arrived, only the identical signature may continue the detail.
-    if (signed(earlier) && earlier !== later) return undefined
-  }
+  } else if (typeof previous.id !== 'string' || previous.id.length === 0 || previous.id !== next.id)
+    return undefined
+  // After a signature has arrived, only the identical signature may continue the detail.
+  if (signed(earlier) && earlier !== later) return undefined
   const adopt = signed(later) || (earlier === undefined && later === null)
   return {
     ...previous,
-    text: previous.text + next.text,
+    text: previous.text + nextText,
     ...(adopt ? { signature: later } : {}),
   }
 }

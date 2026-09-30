@@ -98,11 +98,85 @@ describe('OpenRouter reasoning detail stream identity', () => {
     expect(await retainedDetails([first, next])).toEqual([first, next])
   })
 
-  it('does not infer one logical detail when both fragments lack an id', async () => {
+  it('joins id-less same-index fragments that repeat one signature (R-L)', async () => {
     const { id: _id, ...unidentified } = base
-    const first = { ...unidentified, text: 'first', signature: 'signed-one' }
+    const first = { ...unidentified, text: 'first ', signature: 'signed-one' }
     const next = { ...unidentified, text: 'second', signature: 'signed-one' }
+    expect(await retainedDetails([first, next])).toEqual([
+      { ...unidentified, text: 'first second', signature: 'signed-one' },
+    ])
+  })
+
+  it('does not infer signed id-less identity without an index on both fragments', async () => {
+    const { id: _id, index: _index, ...unindexed } = base
+    const first = { ...unindexed, text: 'first', signature: null }
+    const next = { ...unindexed, text: 'second', signature: 'signed-one' }
     expect(await retainedDetails([first, next])).toEqual([first, next])
+  })
+
+  // Normalized shape of the paid anthropic/claude-sonnet-5 round 1
+  // (ledger entry cecc12c9-300e-43db-8389-7bb4ac859d4f, gen-1790750429-iSYvIqIsDRNfqp6eeU7P):
+  // two id-less index-0 `reasoning.text` details, text without a signature member followed by a
+  // signature without a text member. No raw SSE bytes were retained; the fragments below are
+  // built from that normalized receipt, with synthetic text and signature values.
+  const observedText = {
+    type: 'reasoning.text',
+    text: 'Thinking about CEDAR. ',
+    format: 'anthropic-claude-v1',
+    index: 0,
+  }
+  const observedSignature = {
+    type: 'reasoning.text',
+    signature: 'SIGNATURE_OBSERVED',
+    format: 'anthropic-claude-v1',
+    index: 0,
+  }
+
+  it('rebuilds the observed id-less text then signature-only fragments into one signed detail', async () => {
+    expect(await retainedDetails([observedText, observedSignature])).toEqual([
+      { ...observedText, signature: 'SIGNATURE_OBSERVED' },
+    ])
+    expect(
+      await retainedDetails([
+        observedText,
+        { ...observedText, text: 'Second delta.' },
+        observedSignature,
+      ]),
+    ).toEqual([
+      {
+        ...observedText,
+        text: 'Thinking about CEDAR. Second delta.',
+        signature: 'SIGNATURE_OBSERVED',
+      },
+    ])
+  })
+
+  it('starts a new id-less entry for an unsigned fragment after the late signature', async () => {
+    const after = { ...observedText, text: 'next block' }
+    expect(await retainedDetails([observedText, observedSignature, after])).toEqual([
+      { ...observedText, signature: 'SIGNATURE_OBSERVED' },
+      after,
+    ])
+  })
+
+  it('keeps a late signature on a different index distinct', async () => {
+    const elsewhere = { ...observedSignature, index: 1 }
+    expect(await retainedDetails([observedText, elsewhere])).toEqual([observedText, elsewhere])
+  })
+
+  it('keeps a text-less fragment without a nonempty signature distinct', async () => {
+    const { signature: _none, ...textless } = observedSignature
+    expect(await retainedDetails([observedText, textless])).toEqual([observedText, textless])
+    const empty = { ...observedSignature, signature: '' }
+    expect(await retainedDetails([observedText, empty])).toEqual([observedText, empty])
+  })
+
+  it('keeps a different second signature distinct after the first one arrived', async () => {
+    const other = { ...observedSignature, signature: 'SIGNATURE_OTHER' }
+    expect(await retainedDetails([observedText, observedSignature, other])).toEqual([
+      { ...observedText, signature: 'SIGNATURE_OBSERVED' },
+      other,
+    ])
   })
 
   it('joins adjacent id-less unsigned fragments whose heads are equal', async () => {
@@ -120,11 +194,20 @@ describe('OpenRouter reasoning detail stream identity', () => {
     expect(await retainedDetails([first, other])).toEqual([first, other])
   })
 
+  it('fills a null id-less signature from a later same-index signature (R-L)', async () => {
+    const { id: _id, ...unidentified } = base
+    const first = { ...unidentified, text: 'first ', signature: null }
+    const next = { ...unidentified, text: 'second', signature: 'signed-one' }
+    expect(await retainedDetails([first, next])).toEqual([
+      { ...unidentified, text: 'first second', signature: 'signed-one' },
+    ])
+  })
+
   it.each([
-    ['a later nonempty signature', null, 'signed-one'],
-    ['an earlier nonempty signature', 'signed-one', null],
+    ['an earlier nonempty signature then none', 'signed-one', null],
     ['an invalid signature type', null, 7],
-  ])('keeps id-less fragments distinct when one carries %s', async (_case, early, late) => {
+    ['an empty signature', null, ''],
+  ])('keeps id-less fragments distinct when they carry %s', async (_case, early, late) => {
     const { id: _id, ...unidentified } = base
     const first = { ...unidentified, text: 'first', signature: early }
     const next = { ...unidentified, text: 'second', signature: late }
@@ -236,6 +319,33 @@ describe.each(['anthropic/claude-sonnet-5', 'anthropic/claude-opus-5.5'])(
             ...anthropic,
             text: 'first middle last',
             signature: 'SIGNATURE_A',
+          },
+        ],
+      },
+      {
+        // Paid Sonnet 5 receipt cecc12c9-300e-43db-8389-7bb4ac859d4f (normalized shape only).
+        name: 'the observed id-less text then signature-only fragments',
+        fragments: [
+          {
+            type: 'reasoning.text',
+            text: 'observed thinking ',
+            format: 'anthropic-claude-v1',
+            index: 0,
+          },
+          {
+            type: 'reasoning.text',
+            signature: 'SIGNATURE_OBSERVED',
+            format: 'anthropic-claude-v1',
+            index: 0,
+          },
+        ],
+        replayed: [
+          {
+            type: 'reasoning.text',
+            text: 'observed thinking ',
+            format: 'anthropic-claude-v1',
+            index: 0,
+            signature: 'SIGNATURE_OBSERVED',
           },
         ],
       },

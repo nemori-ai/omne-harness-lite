@@ -23,7 +23,7 @@
     {
       "file": "src/stream.ts",
       "source": "packages/ai/src/api/openai-completions.ts",
-      "changes": "Own ArrivalEvent producer; no intermediate tool JSON parse; preserve provider/cost/opaque; length never closes blocks. Narrower than appendOpenAIReasoningDetail: adjacent reasoning.text fragments join only with equal non-text/non-signature members and either the same nonempty id (absent/null signature filled once by a later nonempty one, equal signatures continue) or no id and no signature on both; encrypted details stay discrete."
+      "changes": "Own ArrivalEvent producer; no intermediate tool JSON parse; preserve provider/cost/opaque; length never closes blocks. Narrower than appendOpenAIReasoningDetail: adjacent reasoning.text fragments join only with equal non-text/non-signature members and one content-block identity: the same nonempty id, or no id on both (unsigned deltas join as before; when a signature is involved both must carry the same nonnegative integer index, per dispatcher ruling R-L after the paid Sonnet 5 receipt cecc12c9-300e-43db-8389-7bb4ac859d4f showed id-less same-index text then signature-only fragments). Within one identity an absent/null signature is filled once by a later nonempty one, equal signatures continue, a text-less fragment contributes only its nonempty signature, and an unsigned fragment after a signed one starts a new entry; encrypted details stay discrete."
     },
     {
       "file": "src/sse.ts",
