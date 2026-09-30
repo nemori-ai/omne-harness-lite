@@ -311,9 +311,12 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
         plan: { provider: 'deepinfra/fp8' },
       })
       expect(result).toHaveProperty('replyPending')
-      expect(await service.readAttempts({ session, callId })).toMatchObject({
-        state: 'reply_pending',
-      })
+      // RT12 S-86: the confirmed ready is the complete terminal fact with disposition_pending.
+      const attempts = await service.readAttempts({ session, callId })
+      expect(attempts).toMatchObject({ state: 'complete' })
+      expect(
+        'dispatches' in attempts ? attempts.dispatches?.at(-1)?.result?.disposition : undefined,
+      ).toBe('disposition_pending')
       expect(tls.requests.map(request => (request.body as { model: string }).model)).toEqual([
         model.modelId,
         model.modelId,

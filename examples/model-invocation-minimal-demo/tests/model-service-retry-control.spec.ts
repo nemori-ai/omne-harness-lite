@@ -306,9 +306,12 @@ describe('real model service retry and control', () => {
       const [firstResult, secondResult] = await Promise.all([first, second])
       expect(firstResult).toHaveProperty('replyPending')
       expect(secondResult).toEqual({ unavailable: true })
-      expect(await service.readAttempts({ session, callId })).toMatchObject({
-        state: 'reply_pending',
-      })
+      // RT12 S-86: the confirmed ready is the complete terminal fact with disposition_pending.
+      const attempts = await service.readAttempts({ session, callId })
+      expect(attempts).toMatchObject({ state: 'complete' })
+      expect(
+        'dispatches' in attempts ? attempts.dispatches?.at(-1)?.result?.disposition : undefined,
+      ).toBe('disposition_pending')
       expect(tls.requests).toHaveLength(1)
     } finally {
       release.resolve()
