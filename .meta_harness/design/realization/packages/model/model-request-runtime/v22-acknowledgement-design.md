@@ -120,7 +120,9 @@ pendingReasons 在运行时强制非空、去重且只来自当前真实阻碍�
 
 原合法 persisted 写方继续独立核消息写权/真实系统转换来源，组合 messages 的唯一回复关系 judge 与 model-response 的 pending/final judge，取得原协调器窄资格后同日志同批写 M/R；ordinary settleReply 的 disposition 仍排除 persisted，ref/acquire/ACK 不授 anchored 控制。原 pending.reply/calibration 保真，final 只增真实处分/late；ACK 不伪造 consumed。
 
-JSONL 回执 unknown 或旧 writer 未实停时保留 SettlementWork 与原批；崩溃恢复只从这份已经实际开始的暂存和原日志认回，不能取已删 ready 或重跑转换/外部消费。confirmed final+所有可能 writer 停止后，同 Storage 事务删除该 work 及仅为它取得的暂存引用；若实际全部停、权威完整前缀确证无原批且原显式结算策略结束，也清除并返回 unavailable。策略选择继续时仍沿 S-70/S-71 原批/允许的 late 重构；未知不等于零写，不能因新重试碰撞或策略耗尽丢旧批。
+JSONL 回执 unknown 或旧 writer 未实停时保留 SettlementWork 与原批；崩溃恢复只从这份已经实际开始的暂存和原日志认回，不能取已删 ready 或重跑转换/外部消费。confirmed final+所有可能 writer 停止后，同 Storage 事务删除该 work 及仅为它取得的暂存引用。原写方未崩溃时按原显式结算策略处理：实际全部停、权威完整前缀确证无原批且策略结束本次写责任，清除并返回 unavailable；策略继续则沿 S-70/S-71 原批/允许的 late 重构（上段 R1）。未知不等于零写，不能因新重试碰撞或策略耗尽丢旧批。
+
+**崩溃恢复的默认路径**（接缝 R4，本节点选定）：恢复 owner 先使本次写方实际停止（停止信号、卸载开始、fence 都不算，[S-70⑤](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-70-稳定身份完整原批和未知结果)）→ 读权威完整前缀 → 读得本原批按已确认收口，final 确认后删 work；权威读确证缺席则**结束本次物理写责任**、返回明确 `unavailable`、删除该 work，消费者持自持值按 [S-99](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-99-ack-后的真实处分与-retainedresult) 重调 settleReply，以新 workId 开始新的写责任。暂存行或日志读不到按 `unavailable` 保留 work，不作缺席证明。「策略继续、由恢复 owner 代重送」**不是默认**，只作 [S-71](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-71-争用政策与责任保留) 策略的显式选择；选它时，重送前按 work 行记录的原主体与授权定位在当前访问装配重核 S-99② settle 资格——原写方取得的资格不随暂存行转给恢复 owner，资格不可核即 `unavailable`、不重送。ACK 前 final unknown 的 v20 同批重送路径不变，本段只管 ACK 后的 SettlementWork。
 
 新的实际写责任独立报告诊断与暂存字节；原 ACK cleanup=released 不回退，旧 ref 不通过暂存重新领取全文，无需第二 ACK。确认成功或证真结束后自动删暂存，禁止常驻恢复缓存。该小范围 recovery 是 G-42 的兑现点，不扩充消息、Run 或外域生命周期。
 
@@ -175,6 +177,7 @@ JSONL 回执 unknown 或旧 writer 未实停时保留 SettlementWork 与原批�
 | 只保护真实读，不保护 idle handle | 句柄引用计数最容易编码、避免旧 consumer 取值失败 | 所有读取入口必须迁移，同句柄后续变小视图；兑现明确ACK后清理且不等离线consumer；高 |
 | 独立 ACK 小批+摘要/witness | ACK与final合批更少状态 | 多一步账选择与摘要核验；避免伪处分并支持之后真实persisted；高 |
 | 新 final 用私有 SettlementWork 临时行 | 复用旧 ready 永久保留可省暂存 | 增一次实际写入前耐久和自动清理；仅为已开始写责任保管，避免恢复旧全文领取；中，独立接缝待审 |
+| 崩溃恢复默认「停写方→权威读→缺席即结束并 unavailable」，不代重送 | 恢复 owner 按策略代重送同批：与 ACK 前 final unknown 的 v20 同批重送一致，消费者不必重调 | 消费者须持自持值重调；ACK 前后两条恢复路径不同，实现按是否存在 SettlementWork 行分流；代重送只作 S-71 显式选择且先重核 S-99②；中高 |
 | 真实当前 ack 准入，沿原必需 inject | 可序列化签名授权更便于离线调用 | 依赖当前来源；签名/ref无法单独兑现撤权和ack/settle分权；高 |
 
 反例义务：① reader/publisher 先取得原门许可，ACK retiring/确认后清理必须等真实停；反过来 retiring 先提交，新 reader/publisher 必须被拒而不能持旧缓存开工。② JSONL ACK 已落回执 unknown→进程退出→重开，SQL 未记录 acknowledged 仍只能认回原批后删；没有合法 ACK 的同形内容不能删。③ SQL 删除已落回执丢失必须从 released 行认回；拆成删内容/标状态两事务的变异必须失败。④ ACK 先清原 payload，后继自持值的新 persisted unknown→崩溃，原完整暂存足以认回同批，final确认后自动删除；去掉暂存应失败。以上均须真实并发/故障验收，不能以顺序 fixture 代替。
