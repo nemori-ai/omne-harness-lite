@@ -15,3 +15,16 @@
 两叶 factory 的直接公开方法接到现有共同包装；definition／implementation／algorithm 升为新唯一值，tokenizerRevision 显式钉当前值，旧 lease 不热替换，无旧工厂兼容过渡。summary、encrypted、附加键（含显式 `signature: null`）、多项或空数组、非 `unknown` format、非 0 index 一律 unavailable。商业六叶（G7）不在本次门内。
 
 释放 QV1–QV3 实施与受影响验收（两叶有／无 tools 三轮本机公开与 Cordis 路径、等价预言与负控、直接入口正反测试、演示装配 details 用例改为估算）与 QV5 文档义务。QV4 真实路线（含**必做**同路由对照，P2）仅由 root 沿现有预算与唯一账本执行；本采用不证明这些门已通过，不关闭 T21／T22／Qwen 整家。新增 bindings 0。
+
+## 2026-09-30 QV4 真实路线与 P2 同路由对照结果
+
+实现（definition 4／`pi-ai:qwen@mp4-19`，HUB `545ad86c`…`badc686b`）入 HUB 后，主调度沿唯一预算账本以 R7 认证工具（HUB `eb35677c`）执行：两叶**有 tools** 与**无 tools** 三轮各 3/3 complete、exit 0，`reasoning.text` details 自第 2 轮起原样回放并被上游接受，答案判据全部 accepted；有 tools 组第 1 轮显式缓存 write 1159／1161、第 2、3 轮 read 同值（无 tools 组前缀不足 1024 token 未触发缓存，非门）。serving `Alibaba`，逐帧 details 恰四键，无显式 `signature: null`。本地 full 估算残差（预测 − 实际 prompt）：27B 有 tools +39／+39／+39，2.4T 有 tools +39／+39／+39，无 tools 两叶 +38／+38／+38（约 3.2%，恒定偏移、方向为高估）；残差只作记录，不引入修正常数。
+
+**P2 同路由对照（必做，闭合 G1）**：研究阶段探针对同一第 2 轮历史分别发送 (A) `reasoning_details` 回放、(B) `reasoning` 字符串、(C) 不带推理，其余字节相同：
+
+| 叶 | A details | B reasoning 串 | C 无推理 | 本地预测 |
+|---|---|---|---|---|
+| qwen3.8-27b | 1288 | 1288 | 1250 | 1327 |
+| qwen3.8-2.4t-a95b | 1272 | 1272 | 1252 | 1311 |
+
+A 与 B 逐 token 相等，C 恰少推理文本占用（38／20 token）：「同一槽位」假设在 `alibaba` 路由成立，OpenRouter 把 details 与 `reasoning` 字符串转发为同一 `reasoning_content` 槽位并计入 prompt。G1 闭合。QV1–QV5 全部义务完成；商业六叶（G7）与本节无关；本节不关闭 T21／T22 或 Qwen 整家交付。证据：主检出 HUB `tmp/model-request-runtime/private/paid-out/batch7-eb35677c/qwen-*`、`p2-eb35677c/p2-qwen_*.json`（0600）。
