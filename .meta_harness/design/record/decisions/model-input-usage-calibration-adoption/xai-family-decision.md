@@ -28,7 +28,7 @@ X1–X6 是实施完成条件：工厂精确表、完整组一次贡献、来源
 
 ## 2026-09-30 采用附注：真实身份映射与 mp4-20
 
-主线技术负责人复核 xAI 身份线交付（HUB `70a0eabf`…`e6b6f92e`）后采用：守卫 4 的 `servingProvider`/`upstreamModel` 映射按[真实身份原件](../../../research/model-request-adaptation/vendor-continuation/xai/2026-09-30-identity-and-reasoning-format.md#2026-09-30-真实身份原件)（两叶 raw SSE 逐帧 `provider: "xAI"`、`model` 等于精确路由 ID）实现为逐字节精确一对：`servingProvider === 'xAI'` 且 `upstreamModel` 等于该叶模型 ID，且输出组来源与观测 usage 来源报告同一对；不折叠大小写、不修剪、不按前缀；单字段缺失答 unavailable，两字段全缺仍按守卫 4 准入且不从路由或供应商名补填。
+主线技术负责人复核 xAI 身份线交付（HUB `70a0eabf`…`e6b6f92e`）后采用：守卫 4 的 `servingProvider`/`upstreamModel` 映射按[真实身份原件](../../../../research/model-request-adaptation/vendor-continuation/xai/2026-09-30-identity-and-reasoning-format.md#2026-09-30-真实身份原件)（两叶 raw SSE 逐帧 `provider: "xAI"`、`model` 等于精确路由 ID）实现为逐字节精确一对：`servingProvider === 'xAI'` 且 `upstreamModel` 等于该叶模型 ID，且输出组来源与观测 usage 来源报告同一对；不折叠大小写、不修剪、不按前缀；单字段缺失答 unavailable，两字段全缺仍按守卫 4 准入且不从路由或供应商名补填。
 
 因准入身份改变计划出值（`input_size_unavailable` 变为估算），两叶当前执行由 definition `5` / `pi-ai:xai/mp4-19` 升为 definition `5` / **`pi-ai:xai/mp4-20`**；definition、algorithm、tokenizer、replay 与 transform 不变，沿 [v4 定义设计](../../../realization/packages/model/pi-ai-transport/v4-definition-design.md)「家族行为改变升 implementation、同 revision 不替换函数」与 Moonshot 先例 `19bb829a`。`mp4-19` 保存组仍作合法保存来源行：full 可解释其 O，其 I 不作 marginal 复用。xAI 无 `tokenizers/*/provenance.json`，变更记于 meter 证据串（含两条 generation id）、节点 README 与 [本机覆盖](../../../realization/packages/model/pi-ai-transport/verification.md#2026-09-30-xai-身份映射本机覆盖)。[提供者 revision 2](../../../realization/packages/model/pi-ai-transport/xai-complete-output-applicability-candidate.md) X1 表中的 `5/mp4-19` 保留当时状态，当前坐标以本附注为准。
 
