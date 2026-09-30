@@ -12,6 +12,8 @@ import type {
   SessionRef,
 } from '@omne-harness-lite/messages'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
+import { finalMatchesWitness } from './acknowledged-view.ts'
 import type { ModelLogResponseProjection } from './log-codec.ts'
 import { modelLogJsonEqual } from './log-codec-key.ts'
 import {
@@ -355,6 +357,10 @@ export function interpretCallHistory(input: {
   }
 }
 
+function isModelResponse(value: unknown): value is ModelResponse {
+  return 'ok' in judgeModelResponse(value)
+}
+
 function after(later: LogEntry, earlier: LogEntry): boolean {
   return ExactDecimal.from(later.position).compare(ExactDecimal.from(earlier.position)) > 0
 }
@@ -399,7 +405,9 @@ function acknowledgementConsistent(input: {
   if (
     !record.releasablePayloads.every(payload =>
       owned.some(candidate => modelLogJsonEqual(candidate, payload)),
-    )
+    ) ||
+    // MS8 S-58: an empty list is lawful only when the call owns no model copy at all.
+    (record.releasablePayloads.length === 0 && owned.length !== 0)
   )
     return false
   const endedState =
@@ -436,6 +444,13 @@ function acknowledgementConsistent(input: {
     if (
       body !== undefined &&
       (body.outcome !== witness.outcome || body.initiator !== witness.initiator)
+    )
+      return false
+    // S-101/MS8 S-58: a final that won before the ACK must agree value by value.
+    const final = last.response?.value
+    if (
+      last.response !== null &&
+      (!isModelResponse(final) || !finalMatchesWitness(final, last.response.entry, witness))
     )
       return false
   }

@@ -110,14 +110,32 @@ export function attemptFromWitness(witness: ModelCallAccountingWitness): Acknowl
 }
 
 /** The accounting identity of an attempt, without its current disposition. */
+/**
+ * The account facts one ResponseId must agree on across final, witness and ready (CA4 S-43,
+ * MS8 S-58). The entry shell is excluded: a ready and its later final may carry different
+ * legal shells, each checked against its own record.
+ */
 function accountingOf(attempt: AcknowledgedAttempt): unknown {
   const {
     disposition: _disposition,
     replyDisposition: _replyDisposition,
     late: _late,
+    origin: _origin,
     ...accounting
   } = attempt
   return accounting
+}
+
+/** A final and an ACK witness of the same ResponseId agree on every account fact. */
+export function finalMatchesWitness(
+  final: ModelResponse,
+  finalEntry: LogEntry,
+  witness: ModelCallAccountingWitness,
+): boolean {
+  return modelLogJsonEqual(
+    accountingOf(attemptFromFinal(final, finalEntry)),
+    accountingOf(attemptFromWitness(witness)),
+  )
 }
 
 export interface AcknowledgedDispatch {
