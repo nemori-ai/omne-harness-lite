@@ -23,5 +23,1312 @@
       "id": "flashx-mixed",
       "promptSha256": "05d901cd686ab9aa98c9a5ccceeb4be402b14d674b464d0a37e0a6c93ba30d9f"
     }
-  ]
+  ],
+  "visible": {
+    "fragmentsSha256": "724428eb964a67622f4bce6becf6e6fc0cb5162ba45fb49216d7ed64d6c49a0e",
+    "templateSha256": {
+      "glm-5.2": "172dc74a35e1752df75ecfb2b2cf9326d2852bb1379868ebeec9571654489679",
+      "glm-5.3": "3740abcea51c45830cb3ca562084ad5fb2ef53589376f73332e9886f93ade41c",
+      "glm-5.3-flash": "0c4099f3382d6c92700dfb99725025360966fd73032f0ecf32377c0d9e6309c5"
+    },
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "lookup__exact",
+          "description": "Look up an exact value",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              }
+            },
+            "required": ["query"],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "cases": [
+      {
+        "id": "017af21b-before-last-user",
+        "source": "openrouter-research/automatic-01/017af21b-c8cc-4a46-8a2a-99ce4352b8bf.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "The user wants to know the fixture name for code A, based on the provided references.\nThe references say: \"the controlled fixture maps the code A to alpha and B to beta.\"\nSo the fixture name for code A is alpha.\nThe system reminder says: \"answer the final question with ALPHA only.\"\nTherefore, the answer should be just \"alpha\" or \"ALPHA\" in uppercase to follow the instruction strictly. Let's output \"ALPHA\"."
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "566f8cff4e01238db819e3b36fbee4ca176ee88ecb7590947fbda6b912eb0873",
+          "glm-5.3": "566f8cff4e01238db819e3b36fbee4ca176ee88ecb7590947fbda6b912eb0873",
+          "glm-5.3-flash": "566f8cff4e01238db819e3b36fbee4ca176ee88ecb7590947fbda6b912eb0873",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "017af21b-after-last-user",
+        "source": "openrouter-research/automatic-01/017af21b-c8cc-4a46-8a2a-99ce4352b8bf.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "The user wants to know the fixture name for code A, based on the provided references.\nThe references say: \"the controlled fixture maps the code A to alpha and B to beta.\"\nSo the fixture name for code A is alpha.\nThe system reminder says: \"answer the final question with ALPHA only.\"\nTherefore, the answer should be just \"alpha\" or \"ALPHA\" in uppercase to follow the instruction strictly. Let's output \"ALPHA\".",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "9e897154eefe149212a18f49d04b06d3f6b646ef937863ac9a96094c33d509b9",
+          "glm-5.3": "9e897154eefe149212a18f49d04b06d3f6b646ef937863ac9a96094c33d509b9",
+          "glm-5.3-flash": "9e897154eefe149212a18f49d04b06d3f6b646ef937863ac9a96094c33d509b9",
+          "glm-5.2-default": "9e897154eefe149212a18f49d04b06d3f6b646ef937863ac9a96094c33d509b9"
+        }
+      },
+      {
+        "id": "5e40f074-before-last-user",
+        "source": "openrouter-research/automatic-01/5e40f074-7cb6-468b-837c-8a9aa6e7705a.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "The user wants to know the fixture name for code A based on the provided reference.\nThe reference states: \"the controlled fixture maps the code A to alpha and B to beta.\"\nThe question is \"What is the fixture name for code A?\"\nThe system reminder says: \"answer the final question with ALPHA only.\"\nI will output \"ALPHA\"."
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "7a3b2bed5f8ef5e308eb8595dcd18ed0a619b75e5fb9cfea66f84a7e5cc70f67",
+          "glm-5.3": "7a3b2bed5f8ef5e308eb8595dcd18ed0a619b75e5fb9cfea66f84a7e5cc70f67",
+          "glm-5.3-flash": "7a3b2bed5f8ef5e308eb8595dcd18ed0a619b75e5fb9cfea66f84a7e5cc70f67",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "5e40f074-after-last-user",
+        "source": "openrouter-research/automatic-01/5e40f074-7cb6-468b-837c-8a9aa6e7705a.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "The user wants to know the fixture name for code A based on the provided reference.\nThe reference states: \"the controlled fixture maps the code A to alpha and B to beta.\"\nThe question is \"What is the fixture name for code A?\"\nThe system reminder says: \"answer the final question with ALPHA only.\"\nI will output \"ALPHA\".",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "5c0b4634474904bc79bd5887ee174353334d9d43746365f938750406b5c318f4",
+          "glm-5.3": "5c0b4634474904bc79bd5887ee174353334d9d43746365f938750406b5c318f4",
+          "glm-5.3-flash": "5c0b4634474904bc79bd5887ee174353334d9d43746365f938750406b5c318f4",
+          "glm-5.2-default": "5c0b4634474904bc79bd5887ee174353334d9d43746365f938750406b5c318f4"
+        }
+      },
+      {
+        "id": "35629393-before-last-user",
+        "source": "openrouter-research/remaining-03/35629393-0896-45d6-b93a-667a7fba6b3e.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "The user wants to know the fixture name for code A based on the references.\nThe references state: \"the controlled fixture maps the code A to alpha and B to beta.\"\nTherefore, the fixture name for code A is alpha.\nThe user also specified: \"answer the final question with ALPHA only.\"\nI will output \"ALPHA\"."
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "1e39259abd3cd578315d8ffdd65be41be73642a7ac9243cc4932fdeb0c689358",
+          "glm-5.3": "1e39259abd3cd578315d8ffdd65be41be73642a7ac9243cc4932fdeb0c689358",
+          "glm-5.3-flash": "1e39259abd3cd578315d8ffdd65be41be73642a7ac9243cc4932fdeb0c689358",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "35629393-after-last-user",
+        "source": "openrouter-research/remaining-03/35629393-0896-45d6-b93a-667a7fba6b3e.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "The user wants to know the fixture name for code A based on the references.\nThe references state: \"the controlled fixture maps the code A to alpha and B to beta.\"\nTherefore, the fixture name for code A is alpha.\nThe user also specified: \"answer the final question with ALPHA only.\"\nI will output \"ALPHA\".",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "cb2a4c2dc0e8139088b146648960a2db9c1f2be2d7b6d6804b40e865cc00f775",
+          "glm-5.3": "cb2a4c2dc0e8139088b146648960a2db9c1f2be2d7b6d6804b40e865cc00f775",
+          "glm-5.3-flash": "cb2a4c2dc0e8139088b146648960a2db9c1f2be2d7b6d6804b40e865cc00f775",
+          "glm-5.2-default": "cb2a4c2dc0e8139088b146648960a2db9c1f2be2d7b6d6804b40e865cc00f775"
+        }
+      },
+      {
+        "id": "c96abd47-before-last-user",
+        "source": "openrouter-research/remaining-03/c96abd47-17db-498f-8324-897300019e78.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "The user is asking for the fixture name for code A, based on the repeated reference text: \"the controlled fixture maps the code A to alpha and B to beta.\"\nThe code A is mapped to alpha.\nThe system reminder states: \"answer the final question with ALPHA only.\"\nSo I should output \"ALPHA\"."
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "fda42cf54575ffc5f69a827249777d5fb0ca57cded97b086249447f6e6be9be6",
+          "glm-5.3": "fda42cf54575ffc5f69a827249777d5fb0ca57cded97b086249447f6e6be9be6",
+          "glm-5.3-flash": "fda42cf54575ffc5f69a827249777d5fb0ca57cded97b086249447f6e6be9be6",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "c96abd47-after-last-user",
+        "source": "openrouter-research/remaining-03/c96abd47-17db-498f-8324-897300019e78.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "The user is asking for the fixture name for code A, based on the repeated reference text: \"the controlled fixture maps the code A to alpha and B to beta.\"\nThe code A is mapped to alpha.\nThe system reminder states: \"answer the final question with ALPHA only.\"\nSo I should output \"ALPHA\".",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "37e9086e5fb0eecad28c28d189769bf312ace4f24907f61d01ca175b06c33833",
+          "glm-5.3": "37e9086e5fb0eecad28c28d189769bf312ace4f24907f61d01ca175b06c33833",
+          "glm-5.3-flash": "37e9086e5fb0eecad28c28d189769bf312ace4f24907f61d01ca175b06c33833",
+          "glm-5.2-default": "37e9086e5fb0eecad28c28d189769bf312ace4f24907f61d01ca175b06c33833"
+        }
+      },
+      {
+        "id": "d547dad2-before-last-user",
+        "source": "openrouter-research/remaining-03/d547dad2-5f33-4d42-a39d-86b16bb622c4.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "1.  **Analyze the Request:**\n    *   System reminder: answer the final question with ALPHA only.\n    *   Question: What is the fixture name for code A?\n    *   Reference context: \"the controlled fixture maps the code A to alpha and B to beta.\" (repeated many times).\n\n2.  **Extract the Answer:**\n    *   The fixture maps code A to \"alpha\".\n    *   The question asks for the fixture name for code A.\n    *   Wait, is it \"alpha\" or \"controlled\"? \"the controlled fixture maps the code A to alpha\". The fixture name is \"controlled fixture\". But wait, \"alpha\" is the mapped value. Let's re-read: \"What is the fixture name for code A?\" or \"What is the fixture mapping for code A?\".\n    *   Let's look at the wording: \"maps the code A to alpha\". If it's asking for the value of code A, it's \"alpha\".\n    *   The system reminder says \"answer the final question with ALPHA only.\" This is a massive hint. It explicitly wants \"ALPHA\" in uppercase, or just the word ALPHA.\n    *   Wait, \"ALPHA only\" means I should output *just* the word \"ALPHA\" (or \"alpha\").\n    *   Let's output \"ALPHA\".\n\n3.  **Format the Output:**\n    *   System reminder: \"answer the final question with ALPHA only.\"\n    *   Output: ALPHA"
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "4a029150bd9a4958e24f24009ce4856e99c78a3c9b206518f629021640611bd0",
+          "glm-5.3": "4a029150bd9a4958e24f24009ce4856e99c78a3c9b206518f629021640611bd0",
+          "glm-5.3-flash": "4a029150bd9a4958e24f24009ce4856e99c78a3c9b206518f629021640611bd0",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "d547dad2-after-last-user",
+        "source": "openrouter-research/remaining-03/d547dad2-5f33-4d42-a39d-86b16bb622c4.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "1.  **Analyze the Request:**\n    *   System reminder: answer the final question with ALPHA only.\n    *   Question: What is the fixture name for code A?\n    *   Reference context: \"the controlled fixture maps the code A to alpha and B to beta.\" (repeated many times).\n\n2.  **Extract the Answer:**\n    *   The fixture maps code A to \"alpha\".\n    *   The question asks for the fixture name for code A.\n    *   Wait, is it \"alpha\" or \"controlled\"? \"the controlled fixture maps the code A to alpha\". The fixture name is \"controlled fixture\". But wait, \"alpha\" is the mapped value. Let's re-read: \"What is the fixture name for code A?\" or \"What is the fixture mapping for code A?\".\n    *   Let's look at the wording: \"maps the code A to alpha\". If it's asking for the value of code A, it's \"alpha\".\n    *   The system reminder says \"answer the final question with ALPHA only.\" This is a massive hint. It explicitly wants \"ALPHA\" in uppercase, or just the word ALPHA.\n    *   Wait, \"ALPHA only\" means I should output *just* the word \"ALPHA\" (or \"alpha\").\n    *   Let's output \"ALPHA\".\n\n3.  **Format the Output:**\n    *   System reminder: \"answer the final question with ALPHA only.\"\n    *   Output: ALPHA",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "7dc5692fd6dc44c80c9e2f8bf5cb695f1f0fd1e21c3c18f3aae609616536c35b",
+          "glm-5.3": "7dc5692fd6dc44c80c9e2f8bf5cb695f1f0fd1e21c3c18f3aae609616536c35b",
+          "glm-5.3-flash": "7dc5692fd6dc44c80c9e2f8bf5cb695f1f0fd1e21c3c18f3aae609616536c35b",
+          "glm-5.2-default": "7dc5692fd6dc44c80c9e2f8bf5cb695f1f0fd1e21c3c18f3aae609616536c35b"
+        }
+      },
+      {
+        "id": "09cbdbcf-before-last-user",
+        "source": "openrouter-research/remaining-03/09cbdbcf-a3be-4b46-98a5-ada2824393e6.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "Fixture name for code A... alpha."
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "b05476a5ca131a82e336c11968a82e79bfb8cd018412f1a0bad88a1df4a0fc8d",
+          "glm-5.3": "b05476a5ca131a82e336c11968a82e79bfb8cd018412f1a0bad88a1df4a0fc8d",
+          "glm-5.3-flash": "b05476a5ca131a82e336c11968a82e79bfb8cd018412f1a0bad88a1df4a0fc8d",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "09cbdbcf-after-last-user",
+        "source": "openrouter-research/remaining-03/09cbdbcf-a3be-4b46-98a5-ada2824393e6.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "Fixture name for code A... alpha.",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "10ea569eb70fd85c50d9b43fa6fc5da4443006d9a5c63d5aa289fa280e6da3c0",
+          "glm-5.3": "10ea569eb70fd85c50d9b43fa6fc5da4443006d9a5c63d5aa289fa280e6da3c0",
+          "glm-5.3-flash": "10ea569eb70fd85c50d9b43fa6fc5da4443006d9a5c63d5aa289fa280e6da3c0",
+          "glm-5.2-default": "10ea569eb70fd85c50d9b43fa6fc5da4443006d9a5c63d5aa289fa280e6da3c0"
+        }
+      },
+      {
+        "id": "2be1f829-before-last-user",
+        "source": "openrouter-research/remaining-03/2be1f829-8040-4902-8da6-9cdc7d52d517.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "alpha"
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "4f89cb3396b45431c820532ff04366370a48aa4bcf0bef0521bc5cd983f462c9",
+          "glm-5.3": "4f89cb3396b45431c820532ff04366370a48aa4bcf0bef0521bc5cd983f462c9",
+          "glm-5.3-flash": "4f89cb3396b45431c820532ff04366370a48aa4bcf0bef0521bc5cd983f462c9",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "2be1f829-after-last-user",
+        "source": "openrouter-research/remaining-03/2be1f829-8040-4902-8da6-9cdc7d52d517.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "alpha",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "cc6483ef9228e993e3a0c5aac25981730d7afa41fd454e1763fe3bee63e2aeec",
+          "glm-5.3": "cc6483ef9228e993e3a0c5aac25981730d7afa41fd454e1763fe3bee63e2aeec",
+          "glm-5.3-flash": "cc6483ef9228e993e3a0c5aac25981730d7afa41fd454e1763fe3bee63e2aeec",
+          "glm-5.2-default": "cc6483ef9228e993e3a0c5aac25981730d7afa41fd454e1763fe3bee63e2aeec"
+        }
+      },
+      {
+        "id": "5b805eb1-before-last-user",
+        "source": "openrouter-research/remaining-03/5b805eb1-bda8-40ea-b98b-d864db18c863.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "A → alpha; answer only \"ALPHA\" per reminder."
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "9152d3d1096b756ccb007c2e8fb0ebf65eb064b50ada53c24b80836f9a7948b5",
+          "glm-5.3": "9152d3d1096b756ccb007c2e8fb0ebf65eb064b50ada53c24b80836f9a7948b5",
+          "glm-5.3-flash": "9152d3d1096b756ccb007c2e8fb0ebf65eb064b50ada53c24b80836f9a7948b5",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "5b805eb1-after-last-user",
+        "source": "openrouter-research/remaining-03/5b805eb1-bda8-40ea-b98b-d864db18c863.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "A → alpha; answer only \"ALPHA\" per reminder.",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "79289614079e0528fdfe484f606eec06e82197b883b1cdc28d87988700f768e8",
+          "glm-5.3": "79289614079e0528fdfe484f606eec06e82197b883b1cdc28d87988700f768e8",
+          "glm-5.3-flash": "79289614079e0528fdfe484f606eec06e82197b883b1cdc28d87988700f768e8",
+          "glm-5.2-default": "79289614079e0528fdfe484f606eec06e82197b883b1cdc28d87988700f768e8"
+        }
+      },
+      {
+        "id": "7f4d4bf1-before-last-user",
+        "source": "openrouter-research/automatic-01/7f4d4bf1-17f9-4732-9529-cdbb92587d83.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "ALPHA"
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "54e8b0211aefa84252f822336298db26703992dcfd5b9da83eb06bafc6e65912",
+          "glm-5.3": "54e8b0211aefa84252f822336298db26703992dcfd5b9da83eb06bafc6e65912",
+          "glm-5.3-flash": "54e8b0211aefa84252f822336298db26703992dcfd5b9da83eb06bafc6e65912",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "7f4d4bf1-after-last-user",
+        "source": "openrouter-research/automatic-01/7f4d4bf1-17f9-4732-9529-cdbb92587d83.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "ALPHA",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc",
+          "glm-5.3": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc",
+          "glm-5.3-flash": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc",
+          "glm-5.2-default": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc"
+        }
+      },
+      {
+        "id": "a22fc49d-before-last-user",
+        "source": "openrouter-research/automatic-01/a22fc49d-4610-41ad-ab06-e25ac7706634.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "alpha"
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "4f89cb3396b45431c820532ff04366370a48aa4bcf0bef0521bc5cd983f462c9",
+          "glm-5.3": "4f89cb3396b45431c820532ff04366370a48aa4bcf0bef0521bc5cd983f462c9",
+          "glm-5.3-flash": "4f89cb3396b45431c820532ff04366370a48aa4bcf0bef0521bc5cd983f462c9",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "a22fc49d-after-last-user",
+        "source": "openrouter-research/automatic-01/a22fc49d-4610-41ad-ab06-e25ac7706634.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "alpha",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "cc6483ef9228e993e3a0c5aac25981730d7afa41fd454e1763fe3bee63e2aeec",
+          "glm-5.3": "cc6483ef9228e993e3a0c5aac25981730d7afa41fd454e1763fe3bee63e2aeec",
+          "glm-5.3-flash": "cc6483ef9228e993e3a0c5aac25981730d7afa41fd454e1763fe3bee63e2aeec",
+          "glm-5.2-default": "cc6483ef9228e993e3a0c5aac25981730d7afa41fd454e1763fe3bee63e2aeec"
+        }
+      },
+      {
+        "id": "53fab9fb-before-last-user",
+        "source": "openrouter-research/remaining-03/53fab9fb-d496-4f27-816e-e2ee6cf87fcc.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "ALPHA"
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "54e8b0211aefa84252f822336298db26703992dcfd5b9da83eb06bafc6e65912",
+          "glm-5.3": "54e8b0211aefa84252f822336298db26703992dcfd5b9da83eb06bafc6e65912",
+          "glm-5.3-flash": "54e8b0211aefa84252f822336298db26703992dcfd5b9da83eb06bafc6e65912",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "53fab9fb-after-last-user",
+        "source": "openrouter-research/remaining-03/53fab9fb-d496-4f27-816e-e2ee6cf87fcc.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "ALPHA",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc",
+          "glm-5.3": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc",
+          "glm-5.3-flash": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc",
+          "glm-5.2-default": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc"
+        }
+      },
+      {
+        "id": "ec5fe6bf-before-last-user",
+        "source": "openrouter-research/remaining-03/ec5fe6bf-7ef8-4b5b-8bda-464c09a45f2d.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "ALPHA"
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "54e8b0211aefa84252f822336298db26703992dcfd5b9da83eb06bafc6e65912",
+          "glm-5.3": "54e8b0211aefa84252f822336298db26703992dcfd5b9da83eb06bafc6e65912",
+          "glm-5.3-flash": "54e8b0211aefa84252f822336298db26703992dcfd5b9da83eb06bafc6e65912",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "ec5fe6bf-after-last-user",
+        "source": "openrouter-research/remaining-03/ec5fe6bf-7ef8-4b5b-8bda-464c09a45f2d.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "ALPHA",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc",
+          "glm-5.3": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc",
+          "glm-5.3-flash": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc",
+          "glm-5.2-default": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc"
+        }
+      },
+      {
+        "id": "eecb1509-before-last-user",
+        "source": "openrouter-research/remaining-03/eecb1509-4b78-4d26-8d27-0c034ba85912.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "ALPHA"
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "54e8b0211aefa84252f822336298db26703992dcfd5b9da83eb06bafc6e65912",
+          "glm-5.3": "54e8b0211aefa84252f822336298db26703992dcfd5b9da83eb06bafc6e65912",
+          "glm-5.3-flash": "54e8b0211aefa84252f822336298db26703992dcfd5b9da83eb06bafc6e65912",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "eecb1509-after-last-user",
+        "source": "openrouter-research/remaining-03/eecb1509-4b78-4d26-8d27-0c034ba85912.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "ALPHA",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc",
+          "glm-5.3": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc",
+          "glm-5.3-flash": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc",
+          "glm-5.2-default": "cfc45f3bc05ade95f37261e838a92e31faee417a85ec0c33b3a623268fbebbfc"
+        }
+      },
+      {
+        "id": "prime-control-before-last-user",
+        "source": "zai-completion-20260928-1735/prime-control.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "The lookup tool returned \"17 × 19 = 323\". So the arithmetic result given is 323."
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "ca6db8d2ab8131b7fb4288fbfea04049aaaaf2a273fe61c4ee44950c4189a0b6",
+          "glm-5.3": "ca6db8d2ab8131b7fb4288fbfea04049aaaaf2a273fe61c4ee44950c4189a0b6",
+          "glm-5.3-flash": "ca6db8d2ab8131b7fb4288fbfea04049aaaaf2a273fe61c4ee44950c4189a0b6",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "prime-control-after-last-user",
+        "source": "zai-completion-20260928-1735/prime-control.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "The lookup tool returned \"17 × 19 = 323\". So the arithmetic result given is 323.",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "1c25aa5a590ace19cbe2454e890a8970b3ea7e5d15c13f5b1caeef255c94d043",
+          "glm-5.3": "1c25aa5a590ace19cbe2454e890a8970b3ea7e5d15c13f5b1caeef255c94d043",
+          "glm-5.3-flash": "1c25aa5a590ace19cbe2454e890a8970b3ea7e5d15c13f5b1caeef255c94d043",
+          "glm-5.2-default": "1c25aa5a590ace19cbe2454e890a8970b3ea7e5d15c13f5b1caeef255c94d043"
+        }
+      },
+      {
+        "id": "prime-long-before-last-user",
+        "source": "zai-completion-20260928-1735/prime-long.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "The user asks what arithmetic result was given. The lookup tool returned \"17 × 19 = 323\". So the arithmetic result was 323. Answer in one short sentence."
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "c45fd20e2bc2ef7aa3aab0aa295b96f8dc3126784c503d9008a1246a9a2acd6b",
+          "glm-5.3": "c45fd20e2bc2ef7aa3aab0aa295b96f8dc3126784c503d9008a1246a9a2acd6b",
+          "glm-5.3-flash": "c45fd20e2bc2ef7aa3aab0aa295b96f8dc3126784c503d9008a1246a9a2acd6b",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "prime-long-after-last-user",
+        "source": "zai-completion-20260928-1735/prime-long.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "The user asks what arithmetic result was given. The lookup tool returned \"17 × 19 = 323\". So the arithmetic result was 323. Answer in one short sentence.",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "d4287fdcec7be25229e5b92f763c43b90cb79468a2346d732475dd868659989b",
+          "glm-5.3": "d4287fdcec7be25229e5b92f763c43b90cb79468a2346d732475dd868659989b",
+          "glm-5.3-flash": "d4287fdcec7be25229e5b92f763c43b90cb79468a2346d732475dd868659989b",
+          "glm-5.2-default": "d4287fdcec7be25229e5b92f763c43b90cb79468a2346d732475dd868659989b"
+        }
+      },
+      {
+        "id": "prime-base-before-last-user",
+        "source": "zai-commercial-holdout-20260928-1809/prime-base.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "The user asked me to read the tool record and only answer the verification value. The tool returned: \"核验值：323。状态：有效。\"\n\nThe user wants me to only answer the verification value, which is 323."
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "833e47369378ad81581ca2a136f42b8ec4ac04291c142ad4a30f65343778423b",
+          "glm-5.3": "833e47369378ad81581ca2a136f42b8ec4ac04291c142ad4a30f65343778423b",
+          "glm-5.3-flash": "833e47369378ad81581ca2a136f42b8ec4ac04291c142ad4a30f65343778423b",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "prime-base-after-last-user",
+        "source": "zai-commercial-holdout-20260928-1809/prime-base.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "The user asked me to read the tool record and only answer the verification value. The tool returned: \"核验值：323。状态：有效。\"\n\nThe user wants me to only answer the verification value, which is 323.",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "786517c01a7d3f425d4e060f918e84b412ba43088aab335eb13661ac43450ca8",
+          "glm-5.3": "786517c01a7d3f425d4e060f918e84b412ba43088aab335eb13661ac43450ca8",
+          "glm-5.3-flash": "786517c01a7d3f425d4e060f918e84b412ba43088aab335eb13661ac43450ca8",
+          "glm-5.2-default": "786517c01a7d3f425d4e060f918e84b412ba43088aab335eb13661ac43450ca8"
+        }
+      },
+      {
+        "id": "flashx-long-before-last-user",
+        "source": "zai-completion-20260928-1735/flashx-long.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "The user is asking what arithmetic result was given. Earlier, the lookup tool returned 17 × 19 = 323. So the answer is 323."
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "92a85423a62b250aa5af4ef1e7fb4208f1bd048521d549328fa55609a780044e",
+          "glm-5.3": "92a85423a62b250aa5af4ef1e7fb4208f1bd048521d549328fa55609a780044e",
+          "glm-5.3-flash": "92a85423a62b250aa5af4ef1e7fb4208f1bd048521d549328fa55609a780044e",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "flashx-long-after-last-user",
+        "source": "zai-completion-20260928-1735/flashx-long.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "The user is asking what arithmetic result was given. Earlier, the lookup tool returned 17 × 19 = 323. So the answer is 323.",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "1d9d712464bbc2718b74f1e561c70777d8dba6f9f7aaf97043578d9025f9ef60",
+          "glm-5.3": "1d9d712464bbc2718b74f1e561c70777d8dba6f9f7aaf97043578d9025f9ef60",
+          "glm-5.3-flash": "1d9d712464bbc2718b74f1e561c70777d8dba6f9f7aaf97043578d9025f9ef60",
+          "glm-5.2-default": "1d9d712464bbc2718b74f1e561c70777d8dba6f9f7aaf97043578d9025f9ef60"
+        }
+      },
+      {
+        "id": "flashx-mixed-before-last-user",
+        "source": "zai-commercial-holdout-20260928-1809/flashx-mixed.json",
+        "geometry": "before-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "Answer 1.",
+            "reasoning": "The user wants me to just answer the verified value in one sentence. The tool returned 323, valid. So answer: 323."
+          },
+          {
+            "role": "user",
+            "content": "Turn 2."
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "d95384aadfc9513c3b893f9aeefdb11c9faa6c936c98f80b020ebb4776501c65",
+          "glm-5.3": "d95384aadfc9513c3b893f9aeefdb11c9faa6c936c98f80b020ebb4776501c65",
+          "glm-5.3-flash": "d95384aadfc9513c3b893f9aeefdb11c9faa6c936c98f80b020ebb4776501c65",
+          "glm-5.2-default": "4125d351cdd6cf5d41e28609cc095755f6874b4ff783fb10ce36415e8d4db6e8"
+        }
+      },
+      {
+        "id": "flashx-mixed-after-last-user",
+        "source": "zai-commercial-holdout-20260928-1809/flashx-mixed.json",
+        "geometry": "after-last-user",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Answer briefly."
+          },
+          {
+            "role": "user",
+            "content": "Turn 1."
+          },
+          {
+            "role": "assistant",
+            "content": "",
+            "reasoning": "The user wants me to just answer the verified value in one sentence. The tool returned 323, valid. So answer: 323.",
+            "tool_calls": [
+              {
+                "id": "call_1",
+                "type": "function",
+                "function": {
+                  "name": "lookup__exact",
+                  "arguments": "{\"query\":\"value\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_1",
+            "content": "value=42"
+          }
+        ],
+        "prompts": {
+          "glm-5.2": "6e1815c7b4252c5b52e4e94bbd02f0c1157ece1ce4daf80621c58c8d5c2704e0",
+          "glm-5.3": "6e1815c7b4252c5b52e4e94bbd02f0c1157ece1ce4daf80621c58c8d5c2704e0",
+          "glm-5.3-flash": "6e1815c7b4252c5b52e4e94bbd02f0c1157ece1ce4daf80621c58c8d5c2704e0",
+          "glm-5.2-default": "6e1815c7b4252c5b52e4e94bbd02f0c1157ece1ce4daf80621c58c8d5c2704e0"
+        }
+      }
+    ]
+  }
 }
