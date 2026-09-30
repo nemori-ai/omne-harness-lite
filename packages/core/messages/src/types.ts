@@ -295,14 +295,12 @@ export interface ModelCallSemanticDigest {
   readonly role: ModelCallSemanticDigestRole
   readonly hex: string
 }
-export interface ModelCallAccountingWitness {
+type ModelCallAccountingWitnessFacts = {
   readonly response: ResponseId
   readonly dispatch: JsonNumber
   readonly readyPosition: JsonNumber
   readonly payload: ModelCallPayloadRef & { readonly kind: 'reply_ready' }
   readonly origin: ModelCallOrigin
-  readonly outcome: 'complete' | 'truncated' | 'interrupted'
-  readonly initiator?: 'user' | 'run_cancelled' | 'runtime_lost'
   readonly usage: Usage
   readonly cost: Cost
   readonly credentialScope: CredentialScope
@@ -314,6 +312,14 @@ export interface ModelCallAccountingWitness {
     readonly endedAt: string
   }
 }
+export type ModelCallAccountingWitness = ModelCallAccountingWitnessFacts &
+  (
+    | {
+        readonly outcome: 'interrupted'
+        readonly initiator: 'user' | 'run_cancelled' | 'runtime_lost'
+      }
+    | { readonly outcome: 'complete' | 'truncated'; readonly initiator?: never }
+  )
 export type ModelCallAcknowledgedRecord = {
   readonly kind: 'model_call_acknowledged'
   readonly call: ModelCallId
@@ -321,22 +327,30 @@ export type ModelCallAcknowledgedRecord = {
   readonly creationInput: ModelCallSemanticDigest & {
     readonly role: 'model-call-creation-semantic-sha256/v1'
   }
-  readonly terminalState: 'complete' | 'handed_up' | 'interrupted'
   readonly acknowledgedAt: string
   readonly releasablePayloads: readonly ModelCallPayloadRef[]
 } & (
-  | {
+  | ({
       readonly target: { readonly kind: 'response'; readonly response: ResponseId }
-      readonly retainedResultDigest?: ModelCallSemanticDigest & {
-        readonly role: 'model-call-retained-result-semantic-sha256/v1'
-      }
-      readonly accountingWitness?: ModelCallAccountingWitness
+      readonly terminalState: 'complete' | 'handed_up' | 'interrupted'
+    } & (
+      | {
+          readonly retainedResultDigest: ModelCallSemanticDigest & {
+            readonly role: 'model-call-retained-result-semantic-sha256/v1'
+          }
+          readonly accountingWitness: ModelCallAccountingWitness
+        }
+      | { readonly retainedResultDigest?: never; readonly accountingWitness?: never }
+    ))
+  | {
+      readonly target: { readonly kind: 'ended'; readonly ending: 'undispatched' | 'released' }
+      readonly terminalState: 'handed_up'
+      readonly retainedResultDigest?: never
+      readonly accountingWitness?: never
     }
   | {
-      readonly target: {
-        readonly kind: 'ended'
-        readonly ending: 'undispatched' | 'released' | 'interrupted'
-      }
+      readonly target: { readonly kind: 'ended'; readonly ending: 'interrupted' }
+      readonly terminalState: 'interrupted'
       readonly retainedResultDigest?: never
       readonly accountingWitness?: never
     }

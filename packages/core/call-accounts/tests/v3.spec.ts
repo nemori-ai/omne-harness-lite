@@ -100,8 +100,15 @@ describe('CA4 A4-V1..2: pure explicit inputs, without source selection', () => {
         runtime.compile({ $ref: `${schema.$id}#/$defs/${name}` })
     }
     expect(() => compile(resources)).not.toThrow()
-    for (let index = 0; index < resources.length; index++)
-      expect(() => compile(resources.filter((_, item) => item !== index))).toThrow()
+    for (let index = 0; index < resources.length; index++) {
+      let failure: unknown
+      try {
+        compile(resources.filter((_, item) => item !== index))
+      } catch (error) {
+        failure = error
+      }
+      expect(failure).toMatchObject({ missingSchema: resources[index]?.$id })
+    }
   })
 
   it('checks both normative ACK examples with original cost shape', () => {

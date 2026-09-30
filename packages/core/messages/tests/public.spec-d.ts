@@ -9,6 +9,8 @@ import type {
   ModelInvocationRecord,
   ModelCallEndedRecord,
   ModelCallDispatchedRecord,
+  ModelCallAcknowledgedRecord,
+  ModelCallAccountingWitness,
   AssistantMessage,
   ToolMessage,
   AttemptStartedSource,
@@ -192,6 +194,41 @@ it('MS7 public owner types preserve paired creation and original-first reply sig
   expectTypeOf<Accepted['adopted']['profileSnapshot']>().toEqualTypeOf<
     ModelCallDispatchedRecord['profileSnapshot']
   >()
+  void badPair
+  void badEnding
+})
+
+it('MS8 public ACK types enforce paired evidence and ended state', () => {
+  type InterruptedWitness = Extract<ModelCallAccountingWitness, { outcome: 'interrupted' }>
+  expectTypeOf<InterruptedWitness['initiator']>().toEqualTypeOf<
+    'user' | 'run_cancelled' | 'runtime_lost'
+  >()
+  const base = {
+    kind: 'model_call_acknowledged',
+    call: 'call',
+    creationKey: key,
+    creationInput: { role: 'model-call-creation-semantic-sha256/v1', hex: 'a'.repeat(64) },
+    acknowledgedAt: '2026-09-29T12:00:00Z',
+    releasablePayloads: [],
+  } as const
+  const unpaired = {
+    ...base,
+    target: { kind: 'response', response: 'response' },
+    terminalState: 'complete',
+    retainedResultDigest: {
+      role: 'model-call-retained-result-semantic-sha256/v1',
+      hex: 'b'.repeat(64),
+    },
+  } as const
+  // @ts-expect-error a retained result digest requires the accounting witness
+  const badPair: ModelCallAcknowledgedRecord = unpaired
+  const falseEnding = {
+    ...base,
+    target: { kind: 'ended', ending: 'released' },
+    terminalState: 'complete',
+  } as const
+  // @ts-expect-error released ends handed up, never complete
+  const badEnding: ModelCallAcknowledgedRecord = falseEnding
   void badPair
   void badEnding
 })
