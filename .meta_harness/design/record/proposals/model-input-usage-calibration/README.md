@@ -26,3 +26,4 @@
 
 当前仅供候选评审；未修改任何已发布规格、registry、产品正文、提供者设计或源码。后继候选版本号由 registry owner 再保留；正文中的 MR9/RT10/MP7 是从输入基线顺推的施工占位，不是登记或接受。基于新形式工件的检查尚未执行，不能复用旧 TLC 结果声称本方案已验证。
 - [Google rev4 与 ZAI rev1 联合架构评审](google-zai-visible-reasoning-review.md)（2026-09-30）：Google 修后可采用（G-R1／G-R2 已闭合）、ZAI 可采用；范围外待裁 O-1～O-5 由采用决定处置。
+- [Qwen 商业六叶架构评审](qwen-commercial-visible-reasoning-review.md)（2026-09-30）：无阻断，M1～M3 已闭合；O-1～O-8 由采用决定处置。
