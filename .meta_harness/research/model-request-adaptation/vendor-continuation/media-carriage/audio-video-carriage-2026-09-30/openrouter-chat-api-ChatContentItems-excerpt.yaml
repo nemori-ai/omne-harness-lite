@@ -1,0 +1,30 @@
+    ChatContentItems:
+      description: Content part for chat completion messages
+      discriminator:
+        mapping:
+          file:
+            $ref: '#/components/schemas/ChatContentFile'
+          image_url:
+            $ref: '#/components/schemas/ChatContentImage'
+          input_audio:
+            $ref: '#/components/schemas/ChatContentAudio'
+          input_video:
+            $ref: '#/components/schemas/Legacy_ChatContentVideo'
+          text:
+            $ref: '#/components/schemas/ChatContentText'
+          video_url:
+            $ref: '#/components/schemas/ChatContentVideo'
+        propertyName: type
+      example:
+        text: Hello, world!
+        type: text
+      oneOf:
+        - $ref: '#/components/schemas/ChatContentText'
+        - $ref: '#/components/schemas/ChatContentImage'
+        - $ref: '#/components/schemas/ChatContentAudio'
+        - $ref: '#/components/schemas/Legacy_ChatContentVideo'
+        - $ref: '#/components/schemas/ChatContentVideo'
+        - $ref: '#/components/schemas/ChatContentFile'
+    ChatAssistantImages:
+      description: Generated images from image generation models
+      example:
