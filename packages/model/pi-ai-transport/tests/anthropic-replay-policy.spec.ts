@@ -114,6 +114,19 @@ describe('Anthropic complete-output policy facts', () => {
   it('routes signed, encrypted and mixed complete details to the same group contribution', () => {
     for (const details of [[signed], [encrypted], [signed, encrypted]])
       expect(classifyAnthropicReasoning(details)).toBe('wholeGroup')
+    // R-L: an id-less thinking block reconstructed from its text and late signature
+    // fragments is one ordinary signed detail for the classifier.
+    expect(
+      classifyAnthropicReasoning([
+        {
+          type: 'reasoning.text',
+          text: 'reconstructed thinking',
+          format: 'anthropic-claude-v1',
+          index: 0,
+          signature: 'late-signature',
+        },
+      ]),
+    ).toBe('wholeGroup')
     expect(classifyAnthropicReasoning(undefined)).toBe('visible')
   })
 
@@ -135,6 +148,9 @@ describe('Anthropic complete-output policy facts', () => {
     [{ ...signed, text: null }],
     [{ type: 'reasoning.text', text: 'unsigned', format: 'anthropic-claude-v1' }],
     [{ ...encrypted, data: '' }],
+    // R-M: OpenRouter's streamed placeholder is not replayable ciphertext.
+    [{ ...encrypted, data: '[REDACTED]' }],
+    [signed, { ...encrypted, data: '[REDACTED]' }],
     [{ ...encrypted, format: 'openai-responses-v1' }],
     [{ ...signed, type: 'reasoning.summary' }],
     [{ ...signed, index: -1 }],

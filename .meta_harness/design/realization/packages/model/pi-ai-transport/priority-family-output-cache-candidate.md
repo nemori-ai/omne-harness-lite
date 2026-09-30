@@ -47,7 +47,7 @@
 
 **OpenAI 域**：provider 精确 openai，当前和原模型相同；保持固定 provider 路由、不 fallback；仅当前既有 slug execution mode，reasoning.context **省略**，既有 effort 合法值。显式 current_turn/all_turns 不在九叶新增域。完整 reasoning_details 序列保留。官方 GPT5.6 默认 all_turns 不证明 GPT6 或 Pro；九叶采用 O 的依据是与完整回放工作量相关的估算，而不是声称隐藏路由已证 keep-all。六 Pro current I 坚持 scope_unknown，不能借旧源 ledger 的历史例外将 current reader 改为 contextual-known。
 
-**Anthropic 域**：provider 精确 anthropic、同一模型、完整 `anthropic-claude-v1` 序列；signed reasoning.text 含非空 signature，encrypted 含非空 data。已支持的合法未知成员仍原样保留，未知 format 不进入估算域。四叶使用相同组算法；原生 keep-all 仅支持相关性，不证明 OR 净修正为零。Opus5.5/Fable5.1 必须能用原 requestInput 的已知源与前缀边界/摘要、当前实际投影，确认该组之前 system/tools/messages 的签名前缀未改变；只比较最新 user 或 model ID 不够。缺原 requestInput/source/prefix 明确 unavailable，不合成。其它两叶仍要求原完整组、同模型及当前组合满足现有追加/重算规则，不建立跨模型或修改签名回放的许可。
+**Anthropic 域**：provider 精确 anthropic、同一模型、完整 `anthropic-claude-v1` 序列；signed reasoning.text 含非空 signature，encrypted 含非空且非 `[REDACTED]` 占位的 data（OpenRouter 流式占位值不是可回放密文，主调度裁决 R-M，2026-09-30）。已支持的合法未知成员仍原样保留，未知 format 不进入估算域。四叶使用相同组算法；原生 keep-all 仅支持相关性，不证明 OR 净修正为零。Opus5.5/Fable5.1 必须能用原 requestInput 的已知源与前缀边界/摘要、当前实际投影，确认该组之前 system/tools/messages 的签名前缀未改变；只比较最新 user 或 model ID 不够。缺原 requestInput/source/prefix 明确 unavailable，不合成。其它两叶仍要求原完整组、同模型及当前组合满足现有追加/重算规则，不建立跨模型或修改签名回放的许可。
 
 ## 原 signed prefix 的包内承接
 

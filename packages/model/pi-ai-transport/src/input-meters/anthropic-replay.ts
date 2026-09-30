@@ -166,7 +166,14 @@ export function classifyAnthropicReasoning(
       )
         return 'uninterpretable'
     } else if (detail.type === 'reasoning.encrypted') {
-      if (typeof detail.data !== 'string' || detail.data.length === 0) return 'uninterpretable'
+      // OpenRouter may stream the literal `[REDACTED]` placeholder instead of ciphertext
+      // (dispatcher ruling R-M, same as the xAI policy); it is neither replayable nor meterable.
+      if (
+        typeof detail.data !== 'string' ||
+        detail.data.length === 0 ||
+        detail.data === '[REDACTED]'
+      )
+        return 'uninterpretable'
     } else return 'uninterpretable'
   }
   return 'wholeGroup'
