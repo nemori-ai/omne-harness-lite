@@ -79,6 +79,44 @@ console.log(result.effect.kind) // proceed
 
 失败来源端口为 `verifyFailure(subject, binding, execution)`。`runPass` 在首个异步边界前自有捕获并冻结经过，来源核验、扩展输入与日志栅栏使用同一个 execution；服务在向宿主取得 scope 前固定该值。宿主仍须核对失败所属原 Run、会话和实际日志代际。同一 Run 中，原 attempt 1 的失败可由合法 attempt 2 接续消费，当前尝试仍受实际日志栅栏约束。第三参必填，不保留旧二参验证模式。
 
+宿主已将模型 runtime 的 `ModelFailureSource` 与本 runner 绑定配对后，可原样转交实际 execution。无 Run 的 execution 在此拒绝；另一 Run 由来源自身拒绝。
+
+```ts
+import type { ModelFailureSource } from '@omne-harness-lite/model-request-runtime'
+import type { RunnerLogBinding, RunnerPorts } from '@omne-harness-lite/loop-extension-runner'
+
+export function failurePort(
+  source: ModelFailureSource,
+  paired: RunnerLogBinding,
+): RunnerPorts['verifyFailure'] {
+  return async (subject, binding, execution) => {
+    if (
+      binding !== paired ||
+      subject.position !== 'after_model_call' ||
+      subject.dimension.ending !== 'failure' ||
+      !('dispatches' in subject.subject)
+    )
+      return { kind: 'unavailable' }
+    if (execution.kind !== 'withRun') return { kind: 'invalidInput' }
+    const verified = source.verify(subject.subject, {
+      run: execution.run,
+      attempt: execution.attempt,
+    })
+    if ('invalidInput' in verified) return { kind: 'invalidInput' }
+    if ('unavailable' in verified) return { kind: 'unavailable' }
+    return {
+      kind: 'verified',
+      subject: {
+        position: 'after_model_call',
+        dimension: { ending: 'failure' },
+        subject: verified.authoritativeSubject,
+      },
+      release: source.release,
+    }
+  }
+}
+```
+
 运行 `node examples/replay-and-registry.mjs` 可单独演示贡献登记与纯历史读取，
 输出 `replay: 0`、`invocation: output` 和 `withdrawn: true`。
 示例显式使用空历史，不宣称完成生产读取或取得 Run 来源授权。

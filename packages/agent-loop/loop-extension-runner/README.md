@@ -88,6 +88,46 @@ An original failure from attempt 1 can still be consumed by a legal continuation
 attempt 2 of the same Run; the current attempt remains subject to the real log fence.
 The third argument is required; there is no legacy two-argument verification mode.
 
+A host that has already paired a model runtime `ModelFailureSource` with this runner
+binding can forward the actual execution unchanged. A no-Run execution is rejected here;
+the source itself rejects another Run.
+
+```ts
+import type { ModelFailureSource } from '@omne-harness-lite/model-request-runtime'
+import type { RunnerLogBinding, RunnerPorts } from '@omne-harness-lite/loop-extension-runner'
+
+export function failurePort(
+  source: ModelFailureSource,
+  paired: RunnerLogBinding,
+): RunnerPorts['verifyFailure'] {
+  return async (subject, binding, execution) => {
+    if (
+      binding !== paired ||
+      subject.position !== 'after_model_call' ||
+      subject.dimension.ending !== 'failure' ||
+      !('dispatches' in subject.subject)
+    )
+      return { kind: 'unavailable' }
+    if (execution.kind !== 'withRun') return { kind: 'invalidInput' }
+    const verified = source.verify(subject.subject, {
+      run: execution.run,
+      attempt: execution.attempt,
+    })
+    if ('invalidInput' in verified) return { kind: 'invalidInput' }
+    if ('unavailable' in verified) return { kind: 'unavailable' }
+    return {
+      kind: 'verified',
+      subject: {
+        position: 'after_model_call',
+        dimension: { ending: 'failure' },
+        subject: verified.authoritativeSubject,
+      },
+      release: source.release,
+    }
+  }
+}
+```
+
 `readRunnerChain({session, binding, sources})` reads one current loop-extension
 manifest record and the exact immutable version of every selected asset. Borrow
 `sessionTenancy`, `manifest`, and the restricted history reader's `read` method
