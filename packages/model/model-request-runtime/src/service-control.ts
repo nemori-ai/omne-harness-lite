@@ -35,6 +35,7 @@ import type {
   SettlementRegistration,
   SettlementTask,
 } from './settlement-types.ts'
+import { requestStopAndWait } from './settlement-stop.ts'
 
 interface ReadScope {
   readonly registration: SettlementRegistration
@@ -72,7 +73,7 @@ export class OwnedReadTracker {
 
   finish(scope: ReadScope): Promise<void> {
     scope.finish ??= (async () => {
-      await Promise.all(scope.tasks.map(task => task.stopped))
+      await Promise.all(scope.tasks.map(requestStopAndWait))
       scope.registration.release()
       this.#scopes.delete(scope)
     })()
@@ -342,7 +343,7 @@ export async function appendControlRecord(
         return { unavailable: true }
       }
       try {
-        await task.stopped
+        await requestStopAndWait(task)
         registration.release()
       } catch {
         input.retainUnknown(registration, task)
@@ -358,7 +359,7 @@ export async function appendControlRecord(
       return { unavailable: true }
     }
     try {
-      await task.stopped
+      await requestStopAndWait(task)
     } catch {
       input.retainUnknown(registration, task)
       return { unavailable: true }
@@ -591,7 +592,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     const attempt = (async (): Promise<UnacknowledgedCallHistory> => {
       if (writes.some(write => !write.stopped || write.stopFailed))
         return { unavailable: true, reason: 'history' }
-      const previous = await Promise.allSettled([...first.readTasks].map(task => task.stopped))
+      const previous = await Promise.allSettled([...first.readTasks].map(requestStopAndWait))
       if (previous.some(result => result.status === 'rejected'))
         return { unavailable: true, reason: 'prefix' }
       first.readTasks.clear()
@@ -611,7 +612,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       } catch {
         return { unavailable: true, reason: 'prefix' }
       }
-      const stopped = await Promise.allSettled([...first.readTasks].map(task => task.stopped))
+      const stopped = await Promise.allSettled([...first.readTasks].map(requestStopAndWait))
       if (stopped.some(result => result.status === 'rejected'))
         return { unavailable: true, reason: 'prefix' }
       first.readTasks.clear()

@@ -60,6 +60,7 @@ import type { CurrentHistoryReaders } from './service-types.ts'
 import type { SettlementLogBinding } from './settlement-types.ts'
 import type { PlannedSemantics } from './types.ts'
 import type { ModelCallPublishPermit } from './reference-types.ts'
+import { requestStopAndWait } from './settlement-stop.ts'
 
 function observeAcquireRefusal<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
@@ -491,7 +492,7 @@ export class UnknownAppendTracker {
       }
       // The original writer still owns the only registration when concurrent=1.
       // Reuse it for recognition instead of waiting for a second owner grant.
-      const priorReads = await Promise.allSettled([...write.readTasks].map(task => task.stopped))
+      const priorReads = await Promise.allSettled([...write.readTasks].map(requestStopAndWait))
       if (priorReads.some(result => result.status === 'rejected')) continue
       write.readTasks.clear()
       let read: Awaited<ReturnType<typeof readSettlementPrefix>>
@@ -510,7 +511,7 @@ export class UnknownAppendTracker {
       } catch {
         continue
       }
-      const stopped = await Promise.allSettled([...write.readTasks].map(task => task.stopped))
+      const stopped = await Promise.allSettled([...write.readTasks].map(requestStopAndWait))
       if (stopped.some(result => result.status === 'rejected')) continue
       write.readTasks.clear()
       if ('unavailable' in read) continue

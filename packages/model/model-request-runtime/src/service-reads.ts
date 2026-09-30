@@ -24,6 +24,7 @@ import type {
 } from './service-types.ts'
 import type { SettlementRegistration, SettlementTask } from './settlement-types.ts'
 import type { PlannedSemantics } from './types.ts'
+import { requestStopAndWait } from './settlement-stop.ts'
 
 type ReadMethods = Pick<
   ModelRuntimeService,
@@ -206,7 +207,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     } finally {
       const stopped = await Promise.all(
         [...tasks].map(task =>
-          task.stopped.then(
+          requestStopAndWait(task).then(
             () => true,
             () => false,
           ),

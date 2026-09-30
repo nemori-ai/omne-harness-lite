@@ -55,6 +55,7 @@ import type {
   SettlementOwner,
   SettlementRequest,
 } from './settlement-types.ts'
+import { requestStopAndWait } from './settlement-stop.ts'
 
 interface RecoveryRead {
   readonly registration: SettlementRegistration
@@ -488,7 +489,7 @@ async function readSettledReply(
       state: response.outcome === 'interrupted' ? 'interrupted' : 'complete',
     }
   } finally {
-    await Promise.all(tasks.map(task => task.stopped))
+    await Promise.all(tasks.map(requestStopAndWait))
     admitted.registration.release()
   }
 }
@@ -1057,7 +1058,7 @@ async function readRecoveredCalls(
         const settled = await task.completion
         if ('unavailable' in settled && settled.reason === 'write_unknown')
           entry.originals.set(originalKey, original)
-        await task.stopped
+        await requestStopAndWait(task)
         if (!('settled' in settled)) return { unavailable: true }
         entry.originals.delete(originalKey)
       } catch {

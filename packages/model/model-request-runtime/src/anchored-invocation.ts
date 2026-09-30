@@ -52,6 +52,7 @@ import type {
   DiagnosticEvent,
   DiagnosticRecordResult,
 } from './diagnostics-types.ts'
+import { requestStopAndWait } from './settlement-stop.ts'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
 /** One actual emitter is shared by the anchored owner and the inner public invocation. */
@@ -320,7 +321,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
     try {
       plan = await task.completion
     } finally {
-      await task.stopped
+      await requestStopAndWait(task)
     }
   } finally {
     planningRegistration.release()
@@ -591,7 +592,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
       if (result.failure === 'unavailable' || result.failure === 'alreadyRecorded')
         quarantined = true
       else {
-        await task.stopped
+        await requestStopAndWait(task)
         unresolved.delete(task)
         if (task === openedTask) openedKnownAbsent = true
       }

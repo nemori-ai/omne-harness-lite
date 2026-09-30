@@ -22,6 +22,7 @@ import type {
   SettlementRegistration,
   SettlementTask,
 } from './settlement-types.ts'
+import { requestStopAndWait } from './settlement-stop.ts'
 
 /** S-85/S-86: confirm original content before an unfenced, same-prefix publication marker.
  * An uncertain marker retains the original writer; it is never promoted to success. */
@@ -223,7 +224,7 @@ async function publishMarker(
       return unavailable
     }
     try {
-      await task.stopped
+      await requestStopAndWait(task)
     } catch {
       retainUnknown(registration, task)
       return unavailable

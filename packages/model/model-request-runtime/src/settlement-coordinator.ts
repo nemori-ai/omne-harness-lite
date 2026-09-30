@@ -42,6 +42,7 @@ import type {
 } from './settlement-types.ts'
 
 import { settlementAppendReceipt } from './settlement-receipt.ts'
+import { requestStopAndWait } from './settlement-stop.ts'
 
 const unavailable = (reason: SettlementUnavailableReason): SettlementResult =>
   Object.freeze({ unavailable: true, reason })
@@ -460,7 +461,7 @@ export function createSettlementCoordinator(
           }
         })
         const finished = await waiting.completion
-        await waiting.stopped
+        await requestStopAndWait(waiting)
         if (finished === 'cancelled') return 'cancelled'
         if (finished !== 'elapsed') return 'policy'
       } catch {

@@ -41,6 +41,7 @@ import type {
   SettlementTask,
 } from './settlement-types.ts'
 import type { PlannedSemantics } from './types.ts'
+import { requestStopAndWait } from './settlement-stop.ts'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
 const malformed = Object.freeze({ invalidInput: { reason: 'malformed' } } as const)
@@ -333,7 +334,7 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
         return 'unavailable'
       }
       try {
-        await task.stopped
+        await requestStopAndWait(task)
       } catch {
         retained.set(keyOf(ref), { registration, task })
         return 'unavailable'
