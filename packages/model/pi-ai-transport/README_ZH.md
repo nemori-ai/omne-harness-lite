@@ -217,7 +217,7 @@ DeepSeek Flash／Pro 当前分别绑定 definition 修订 4／5 与 `mp4-18`，�
 
 可见输入沿固定 `js-tiktoken` 的 `o200k_base` 代理。GPT-5.6 base 视觉规则及 Astra 原有尺寸规则保留已说明的本地取整；Sol/Luna 和 Pro 图像仍是显式估算代理，不承诺精确词表或上游预处理一致。实际图片、完整历史、提醒角色、工具参数及结果仍保留在请求中。未知远程 URL、非法或 MIME 不匹配图片、动画或不完整 GIF 以及不支持的 detail 不可计量。调用方配置 `tokenMargin`，实际 usage 与费用保留上游事实。
 
-公共输出组算法对完整 `openai-responses-v1` 加密历史只计一次原上游 O，净 framing 暂取零，结果标记 `estimated`；O 已包含推理 tokens。原模型、provider、mode、binding 及每个原 block 与顺序必须符合有限策略。未知 format、缺失密文、部分选择和不可解释 opaque 单元均不回退密文分词。full/new 可在原 I 不可用时解释合法 O；φ 必须有已知原 I 且完整 effective basis 相同。六个 Pro 保留 `scope_unknown`，不能重锚 I。本地规则不认证真实保留行为、零 framing 或误差上界。
+公共输出组算法对完整 `openai-responses-v1` 加密历史只计一次原上游 O，净 framing 暂取零，结果标记 `estimated`；O 已包含推理 tokens。原模型、provider、mode、binding 及每个原 block 与顺序必须符合有限策略。换到没有适用 opaque 投影的型号会在计量和发送前拒绝，原块不会被剥离。未知 format、缺失密文、部分选择和不可解释 opaque 单元均不回退密文分词。full/new 可在原 I 不可用时解释合法 O；φ 必须有已知原 I 且完整 effective basis 相同。六个 Pro 保留 `scope_unknown`，不能重锚 I。本地规则不认证真实保留行为、零 framing 或误差上界。
 
 `createAnthropicInputMeter(definition)` 以唯一有限家族策略提供四个当前 Claude 型号，definition 修订 4 / `pi-ai:anthropic/mp4-18`。可见文字与图像保留固定的旧 Claude BPE 与视觉 patch 粗估，不声称等于新的官方 tokenizer。signed `reasoning.text` 与 encrypted `reasoning.encrypted` 必须具备完整、未变的 assistant 输出组及已知上游 O；公共 full/new/φ 只将整组替换一次，贡献为 estimated O 加实验性的零净 framing。不将密文、签名或未知推理当普通 JSON 分词。Opus 5.5/Fable 5.1 另需包内持有未变原前缀证据，缺少必要依据则贡献不可用。原 `/2` 事实完整保留，不能证明 `/3` 签名前缀。
 

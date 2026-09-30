@@ -234,7 +234,7 @@ describe('OpenAI selected route rules (offline fixtures, not official profiles)'
     })
   })
 
-  it('replays same-route opaque reasoning and leaves another route without those details', async () => {
+  it('replays same-route opaque reasoning and rejects a route without its projector', async () => {
     const details = [{ type: 'reasoning.encrypted', data: 'fixture-only', index: 0 }]
     const assistant = judgedMessage({
       id: 'assistant-reasoning',
@@ -261,11 +261,12 @@ describe('OpenAI selected route rules (offline fixtures, not official profiles)'
       { role: 'assistant', reasoning_details: details },
     ])
     const other = await setup(ids[4])
+    const retained = JSON.stringify(assistant.blocks)
     const otherPlan = await planRequest({ ...other.request, messages: [assistant] }, [
       other.definition,
     ])
-    if ('rejected' in otherPlan) throw new Error(otherPlan.rejected)
-    expect(JSON.stringify(otherPlan.planned.body.messages)).not.toContain('reasoning_details')
+    expect(otherPlan).toEqual({ rejected: 'unavailable' })
+    expect(JSON.stringify(assistant.blocks)).toBe(retained)
   })
 
   it('rejects a wrong provider and output above the fixture profile', async () => {
