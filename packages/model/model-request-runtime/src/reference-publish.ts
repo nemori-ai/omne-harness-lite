@@ -144,7 +144,12 @@ export async function publishModelCallContent(input: {
       dispatch.entry.run !== run ||
       ExactDecimal.from(dispatch.entry.attempt ?? 0).compare(ExactDecimal.from(attempt ?? 0)) !==
         0 ||
-      sameCall.some(item => item.captured.record?.kind === 'model_call_ended') ||
+      sameCall.some(
+        item =>
+          item.captured.record?.kind === 'model_call_ended' ||
+          // RT12 S-98: an acknowledged call admits no new model-copy publication.
+          item.captured.record?.kind === 'model_call_acknowledged',
+      ) ||
       inspected.ok.some(item => item.captured.response?.id === record.response)
     ) {
       return unavailable

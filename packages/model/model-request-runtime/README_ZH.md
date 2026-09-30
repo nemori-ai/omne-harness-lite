@@ -185,6 +185,8 @@ export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, cal
 
 返回的 `CallHistoryDispatch` 保留原「已出门」条目、「已开口」锚点、经验证的完整原响应值及其投影。`in_flight`、`speaking` 只描述耐久事实前沿，不证明旧网络请求或写者已实际停止。只有中断意图、没有发出记录时，历史保留 `phase: null` 供对账，状态投影在收场未明前返回 `unavailable`。未知模型日志格式也返回 `unavailable`，不冒充缺席。完整前缀中的 Run 原锚与已提交响应可以读取。新建属于 Run 的结算还必须核同前缀 MS6 尝试事实和宿主授权的 G28 终结来源；未知返回 `run_history_unavailable`。
 
+MS8 `model_call_acknowledged` 记录使用独立的按调用稳定日志键；只有本前缀核实其创建键与条目壳、每项可释放载荷都属于该调用、目标确为该调用真实终结记录或最后一次终结响应（仅有 ready 标记时还须带原账见证）后，才以 `known.acknowledged` 暴露。缺少或矛盾的终态来源、或出现不同值的第二条 ACK，返回原因 `history` 的 `unavailable`。RT12 S-97 的已确认小视图和 `acknowledgeCall` 尚未实现：`projectCallState`、调用事实索引以及会依据阶段或完整内容行动的各服务操作，遇到已确认调用一律返回 `unavailable`，不当作缺席，也不从缓存再给全文。见 [runtime v22 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v22-acknowledgement-design.md)。
+
 响应 usage 校准遵循 [D107 采用决定](../../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/decision.md)及 [runtime v16 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md)。
 
 ## 调用显式传入的请求

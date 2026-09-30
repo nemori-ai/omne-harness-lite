@@ -2,7 +2,7 @@ import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { Message } from '@omne-harness-lite/messages'
 import { judgeModelResponse } from '@omne-harness-lite/model-response'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
-import { interpretCallHistory } from './call-history.ts'
+import { interpretCallHistory, rejectAcknowledgedHistory } from './call-history.ts'
 import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
 import { modelLogJsonEqual } from './log-codec.ts'
 import { interpretSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
@@ -51,7 +51,8 @@ export function authorizedCalibration(
     })
     if (
       !('ok' in inspected) ||
-      'unavailable' in interpretCallHistory({ prefix, callId: target.callId })
+      'unavailable' in
+        rejectAcknowledgedHistory(interpretCallHistory({ prefix, callId: target.callId }))
     )
       return { unavailable: true }
     // A reader failure cannot demote a selected reply with a broken original
@@ -221,7 +222,9 @@ export function authorizedCalibration(
         originalMembers.message !== null
       )
         return { unavailable: true }
-      const history = interpretCallHistory({ prefix, callId: target.callId })
+      const history = rejectAcknowledgedHistory(
+        interpretCallHistory({ prefix, callId: target.callId }),
+      )
       const latest = 'known' in history ? history.known.dispatches.at(-1) : undefined
       if (
         !('known' in history) ||

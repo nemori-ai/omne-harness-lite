@@ -11,7 +11,12 @@ import {
 import { copyJsonValue, isJsonNumber } from '@omne-harness-lite/content-blocks'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { modelLogJsonEqual } from './log-codec.ts'
-import { interpretCallHistory, type CallHistoryDispatch } from './call-history.ts'
+import {
+  interpretCallHistory,
+  rejectAcknowledgedHistory,
+  type CallHistoryDispatch,
+  type UnacknowledgedCallHistory,
+} from './call-history.ts'
 import type {
   CurrentHistoryReaders,
   ModelFailureExecution,
@@ -102,9 +107,11 @@ export function createModelFailureSource(input: {
   readonly retain: (source: ModelFailureSource) => void
   readonly forget: (source: ModelFailureSource) => void
 }): ModelFailureSource | null {
-  let history: ReturnType<typeof interpretCallHistory>
+  let history: UnacknowledgedCallHistory
   try {
-    history = interpretCallHistory({ prefix: input.prefix, callId: input.callId })
+    history = rejectAcknowledgedHistory(
+      interpretCallHistory({ prefix: input.prefix, callId: input.callId }),
+    )
   } catch {
     return null
   }

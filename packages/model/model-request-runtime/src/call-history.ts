@@ -1,6 +1,8 @@
 import { ExactDecimal, type ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { JsonNumber, JsonValue } from '@omne-harness-lite/content-blocks'
+import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type {
+  ModelCallAcknowledgedRecord,
   ModelCallCreatedRecord,
   ModelCallDispatchedRecord,
   ModelCallEndedRecord,
@@ -11,6 +13,7 @@ import type {
 } from '@omne-harness-lite/messages'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
 import type { ModelLogResponseProjection } from './log-codec.ts'
+import { modelLogJsonEqual } from './log-codec-key.ts'
 import {
   interpretSettlementPrefix,
   isOwnedSettlementPrefix,
@@ -33,24 +36,40 @@ export interface CallHistoryDispatch {
   } | null
 }
 
+/**
+ * `acknowledged` names a consumer that met a durable RT12 S-97 acknowledgement it does not yet
+ * project. It is never produced by the interpreter itself.
+ */
+export type CallHistoryUnavailableReason =
+  'prefix' | 'history' | 'unknown_format' | 'run_history_unavailable' | 'acknowledged'
+
+export interface CallHistoryKnown {
+  readonly session: SessionRef
+  readonly callId: ModelCallId
+  /** Null means an intent exists, but no durable call phase can yet be concluded. */
+  readonly phase: DispatchGuardPhase | null
+  readonly dispatches: readonly CallHistoryDispatch[]
+  readonly intent: ModelCallInterruptIntentRecord | null
+  readonly ending: ModelCallEndedRecord | null
+  /**
+   * RT12 S-95/S-97: the one durable acknowledgement fact of this CallKey, checked against the
+   * creation source, terminal target and ordering in this prefix. After it, released payloads
+   * may be absent; a consumer without the S-97 small view must not read full content.
+   */
+  readonly acknowledged: ModelCallAcknowledgedRecord | null
+}
+
 /** A complete log prefix can establish durable facts, but cannot establish an in-memory reply. */
 export type CallHistoryResult =
   | { readonly absent: true }
-  | {
-      readonly unavailable: true
-      readonly reason: 'prefix' | 'history' | 'unknown_format' | 'run_history_unavailable'
-    }
-  | {
-      readonly known: {
-        readonly session: SessionRef
-        readonly callId: ModelCallId
-        /** Null means an intent exists, but no durable call phase can yet be concluded. */
-        readonly phase: DispatchGuardPhase | null
-        readonly dispatches: readonly CallHistoryDispatch[]
-        readonly intent: ModelCallInterruptIntentRecord | null
-        readonly ending: ModelCallEndedRecord | null
-      }
-    }
+  | { readonly unavailable: true; readonly reason: CallHistoryUnavailableReason }
+  | { readonly known: CallHistoryKnown }
+
+/** A history on which pre-acknowledgement full-content paths may still act. */
+export type UnacknowledgedCallHistory =
+  | { readonly absent: true }
+  | { readonly unavailable: true; readonly reason: CallHistoryUnavailableReason }
+  | { readonly known: CallHistoryKnown & { readonly acknowledged: null } }
 
 type RecordEntry = {
   readonly entry: LogEntry
@@ -61,10 +80,23 @@ type RecordEntry = {
     | ModelCallOpenedRecord
     | ModelCallInterruptIntentRecord
     | ModelCallEndedRecord
+    | ModelCallAcknowledgedRecord
 }
 
-const unavailable = (reason: 'prefix' | 'history' | 'unknown_format' | 'run_history_unavailable') =>
+const unavailable = (reason: CallHistoryUnavailableReason) =>
   ({ unavailable: true, reason }) as const
+
+/**
+ * RT12 S-97/S-100 fail-closed gate. Until a consumer implements the acknowledged small view, a
+ * durable acknowledgement makes it unavailable; it never treats the call as absent or reads
+ * released full content from caches or payload stores.
+ */
+export function rejectAcknowledgedHistory(history: CallHistoryResult): UnacknowledgedCallHistory {
+  if (!('known' in history)) return history
+  const known = history.known
+  if (known.acknowledged !== null) return unavailable('acknowledged')
+  return { known: { ...known, acknowledged: null } }
+}
 
 /**
  * RT5 S-6/S-8/S-34: read one call from the owned, complete SL3 prefix.
@@ -133,6 +165,10 @@ export function interpretCallHistory(input: {
   const endings = records.filter(
     (item): item is RecordEntry & { readonly record: ModelCallEndedRecord } =>
       item.record.kind === 'model_call_ended',
+  )
+  const acknowledgements = records.filter(
+    (item): item is RecordEntry & { readonly record: ModelCallAcknowledgedRecord } =>
+      item.record.kind === 'model_call_acknowledged',
   )
   if (
     created.length > 1 ||
@@ -263,6 +299,30 @@ export function interpretCallHistory(input: {
   } else {
     phase = last?.opened === null ? 'in_flight' : 'speaking'
   }
+  let acknowledged: ModelCallAcknowledgedRecord | null = null
+  const acknowledgement = acknowledgements[0]
+  if (acknowledgement !== undefined) {
+    // RT12 S-96⑦/MS8 S-58: one business fact per CallKey. The same original batch may be
+    // recognized again; any differing record is a rebuilt or conflicting batch, not a repeat.
+    if (acknowledgements.some(item => !modelLogJsonEqual(item.record, acknowledgement.record)))
+      return unavailable('history')
+    // A rejected creation is carried by its undispatched ending with the original creation key.
+    const creation = created[0] ?? endings.find(item => item.record.creationKey !== undefined)
+    if (
+      creation === undefined ||
+      !acknowledgementConsistent({
+        prefix,
+        acknowledgement,
+        creation,
+        ready,
+        ending: endings[0] ?? null,
+        last,
+        phase,
+      })
+    )
+      return unavailable('history')
+    acknowledged = acknowledgement.record
+  }
   return {
     known: {
       session: prefix.binding.session,
@@ -271,6 +331,118 @@ export function interpretCallHistory(input: {
       dispatches: Object.freeze(dispatches),
       intent,
       ending,
+      acknowledged,
     },
   }
+}
+
+function after(later: LogEntry, earlier: LogEntry): boolean {
+  return ExactDecimal.from(later.position).compare(ExactDecimal.from(earlier.position)) > 0
+}
+
+function sameAttempt(left: LogEntry['attempt'], right: LogEntry['attempt']): boolean {
+  if (left === undefined || right === undefined) return left === right
+  return ExactDecimal.from(left).compare(ExactDecimal.from(right)) === 0
+}
+
+/**
+ * RT12 S-95/S-101 and MS8 S-58/S-59 cross-record checks that this log prefix alone can decide:
+ * creation source, releasable payload ownership, terminal target and ordering. Semantic digest
+ * and full accounting value comparison belong to the S-97/CA4 S-43 readers, which do not yet
+ * exist; consumers therefore stay fail-closed through rejectAcknowledgedHistory.
+ */
+function acknowledgementConsistent(input: {
+  readonly prefix: SettlementPrefix
+  readonly acknowledgement: RecordEntry & { readonly record: ModelCallAcknowledgedRecord }
+  readonly creation: RecordEntry & {
+    readonly record: ModelCallCreatedRecord | ModelCallEndedRecord
+  }
+  readonly ready: readonly (RecordEntry & { readonly record: ModelCallReplyReadyRecord })[]
+  readonly ending: (RecordEntry & { readonly record: ModelCallEndedRecord }) | null
+  readonly last: CallHistoryDispatch | undefined
+  readonly phase: DispatchGuardPhase | null
+}): boolean {
+  const { prefix, acknowledgement, creation, ready, ending, last, phase } = input
+  const record = acknowledgement.record
+  const entry = acknowledgement.entry
+  // The ACK shell is the original creation shell, never the acknowledging consumer's Run.
+  if (
+    creation.record.creationKey !== record.creationKey ||
+    creation.entry.run !== entry.run ||
+    !sameAttempt(creation.entry.attempt, entry.attempt) ||
+    !after(entry, creation.entry)
+  )
+    return false
+  const owned = [
+    ...(creation.record.payload === undefined ? [] : [creation.record.payload]),
+    ...ready.map(item => item.record.payload),
+  ]
+  if (
+    !record.releasablePayloads.every(payload =>
+      owned.some(candidate => modelLogJsonEqual(candidate, payload)),
+    )
+  )
+    return false
+  const endedState =
+    ending === null ? null : ending.record.ending === 'interrupted' ? 'interrupted' : 'handed_up'
+  if (ending !== null && !after(entry, ending.entry)) return false
+  const target = record.target
+  if (target.kind === 'ended')
+    return (
+      ending !== null &&
+      ending.record.ending === target.ending &&
+      endedState === record.terminalState
+    )
+  // A response target is the last dispatch's terminal response, never an earlier failed one.
+  if (last === undefined || last.record.response !== target.response) return false
+  if (!after(entry, last.dispatched)) return false
+  const marker = ready.find(item => item.record.response === target.response)
+  const witness = record.accountingWitness
+  if (witness !== undefined) {
+    const origin = witness.origin
+    if (
+      marker === undefined ||
+      witness.response !== target.response ||
+      ExactDecimal.from(witness.dispatch).compare(ExactDecimal.from(last.ordinal)) !== 0 ||
+      ExactDecimal.from(witness.readyPosition).compare(ExactDecimal.from(marker.entry.position)) !==
+        0 ||
+      !modelLogJsonEqual(witness.payload, marker.record.payload) ||
+      !tenantIdEquals(origin.tenant, prefix.binding.tenant) ||
+      origin.session !== prefix.binding.session ||
+      origin.run !== marker.entry.run ||
+      !sameAttempt(origin.attempt, marker.entry.attempt)
+    )
+      return false
+    const body = last.response?.projection
+    if (
+      body !== undefined &&
+      (body.outcome !== witness.outcome || body.initiator !== witness.initiator)
+    )
+      return false
+  }
+  if (last.response?.projection.outcome === 'failed') return false
+  // A final committed after the ACK was not independently readable when it was fixed.
+  if (last.response !== null && after(last.response.entry, entry) && witness === undefined)
+    return false
+  if (endedState !== null) {
+    if (endedState !== record.terminalState) return false
+    if (last.response !== null)
+      return marker !== undefined ? after(entry, marker.entry) : after(entry, last.response.entry)
+    return marker !== undefined && witness !== undefined && after(entry, marker.entry)
+  }
+  if (last.response !== null) {
+    // A durable final (or a body without ready marker) decides the terminal state itself.
+    if ((phase !== 'complete' && phase !== 'interrupted') || phase !== record.terminalState)
+      return false
+    return marker !== undefined ? after(entry, marker.entry) : after(entry, last.response.entry)
+  }
+  // Only a ready marker: the ACK must carry the witness of the complete original Pending.
+  if (marker === undefined || witness === undefined || !after(entry, marker.entry)) return false
+  const witnessed =
+    witness.outcome === 'interrupted'
+      ? witness.initiator === 'runtime_lost' && last.opened === null
+        ? null
+        : 'interrupted'
+      : 'complete'
+  return witnessed !== null && witnessed === record.terminalState
 }

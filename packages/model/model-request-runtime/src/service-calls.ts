@@ -35,7 +35,7 @@ import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import { publishModelCallContent } from './reference-publish.ts'
 import { authorizedCalibration } from './service-calibration.ts'
-import type { CallHistoryResult } from './call-history.ts'
+import { rejectAcknowledgedHistory, type UnacknowledgedCallHistory } from './call-history.ts'
 import type {
   CallPreparationOwner,
   CallObserverBinding,
@@ -546,7 +546,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
   async function historyFor(
     session: SessionRuntimeBinding,
     callId: NonNullable<OpenCallInput['callId']>,
-  ): Promise<CallHistoryResult> {
+  ): Promise<UnacknowledgedCallHistory> {
     const read = await withOwnedReads(
       session.selection.owner,
       runtime.settlementContention.limits.concurrent,
@@ -555,7 +555,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         const prefix = await readSettlementPrefix({ binding: session.log, registration })
         return 'unavailable' in prefix
           ? ({ unavailable: true, reason: 'prefix' } as const)
-          : runtime.history.call(prefix.prefix, callId)
+          : rejectAcknowledgedHistory(runtime.history.call(prefix.prefix, callId))
       },
     )
     return 'unavailable' in read ? { unavailable: true, reason: 'prefix' } : read.ok

@@ -1,6 +1,7 @@
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { validate as validateLoop } from '@omne-harness-lite/loop-extension'
 import { createSessionModelSelection } from './session-selection.ts'
+import { rejectAcknowledgedHistory } from './call-history.ts'
 import { projectCallState, type LocalCallResponsibility } from './call-state.ts'
 import { dispatchGuard, type DispatchGuardFact } from './dispatch-guard.ts'
 import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
@@ -237,7 +238,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
       return malformed()
     let createdSource: ModelFailureSource | undefined
     const read = await withPrefix(input, (prefix, binding) => {
-      const history = construction.history.call(prefix, input.callId)
+      const history = rejectAcknowledgedHistory(construction.history.call(prefix, input.callId))
       const localView = construction.calls.find(input)?.view()
       const local: LocalCallResponsibility | undefined =
         localView?.operation.phase === 'ready'
@@ -336,7 +337,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     async canDispatchAgain(input) {
       if (!validateLoop('RetryPlan', input.plan).valid) return malformed()
       return await withPrefix(input, (prefix, _binding) => {
-        const history = construction.history.call(prefix, input.callId)
+        const history = rejectAcknowledgedHistory(construction.history.call(prefix, input.callId))
         const localView = construction.calls.find(input)?.view()
         const local: LocalCallResponsibility | undefined =
           localView?.operation.phase === 'ready'

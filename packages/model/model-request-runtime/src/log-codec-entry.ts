@@ -125,6 +125,12 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
           ],
         }
       }
+      if (record.kind === 'model_call_acknowledged') {
+        // MS8 S-58/RT12 S-96⑦: its own kind-domain stable key, one business fact per CallKey,
+        // never shared with an ending or a final settlement key.
+        const dedupe: ModelLogKey = { kind: 'acknowledged', call: record.call }
+        return { dedupe, read: [dedupe, all, call] }
+      }
       const dedupe: ModelLogKey = {
         kind: record.kind === 'model_call_interrupt_intent' ? 'intent' : 'ended',
         call: record.call,

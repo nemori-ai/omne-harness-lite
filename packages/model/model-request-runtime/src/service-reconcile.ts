@@ -29,7 +29,7 @@ import {
   inspectCurrentModelLogPrefix,
   type ModelLogSettlementTarget,
 } from './log-codec-settlement.ts'
-import { interpretCallHistory } from './call-history.ts'
+import { interpretCallHistory, rejectAcknowledgedHistory } from './call-history.ts'
 import { readSettlementPrefix } from './settlement-prefix.ts'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 import { modelLogJsonEqual } from './log-codec.ts'
@@ -404,7 +404,9 @@ async function readSettledReply(
   try {
     const read = await readSettlementPrefix({ binding: log, registration })
     if ('unavailable' in read) return { unavailable: true }
-    const history = interpretCallHistory({ prefix: read.prefix, callId: request.callId })
+    const history = rejectAcknowledgedHistory(
+      interpretCallHistory({ prefix: read.prefix, callId: request.callId }),
+    )
     if ('absent' in history) return { callNotFound: true }
     if (!('known' in history)) return { unavailable: true }
     const response = history.known.dispatches.at(-1)?.response?.projection
@@ -489,6 +491,8 @@ export function createRuntimeReconcile(input: {
     }
     const control = await entry.unknownControl.close({
       concurrent: input.contention.limits.concurrent,
+      // Recognition of an original stopped writer's batch reads no payload and no phase-derived
+      // action, so a later acknowledgement neither hides nor replaces that durable fact.
       call: (prefix, callId) => interpretCallHistory({ prefix, callId }),
     })
     if ('unavailable' in control) safe = false
@@ -497,6 +501,7 @@ export function createRuntimeReconcile(input: {
       if ('unavailable' in read) safe = false
       else {
         for (const callId of entry.pendingControl) {
+          // Original control-batch recognition only; see the unknown control reader above.
           const history = interpretCallHistory({ prefix: read.prefix, callId })
           if (!('known' in history) || history.known.intent === null) safe = false
           else if (
@@ -533,6 +538,7 @@ export function createRuntimeReconcile(input: {
         safe = false
         continue
       }
+      // Original settlement-batch recognition only; no acknowledged content view is consumed.
       const history = interpretCallHistory({ prefix: read.prefix, callId: settlement.target.call })
       const last = 'known' in history ? history.known.dispatches.at(-1) : undefined
       if (
@@ -845,7 +851,7 @@ async function readRecoveredCalls(
       prefix: read.prefix,
     })
     if (!('ok' in rowInspected)) return { unavailable: true }
-    const history = interpretCallHistory({ prefix: read.prefix, callId })
+    const history = rejectAcknowledgedHistory(interpretCallHistory({ prefix: read.prefix, callId }))
     if (!('known' in history)) return { unavailable: true }
     const previous = history.known.dispatches.slice(0, -1)
     if (previous.some(item => item.response === null)) return { unavailable: true }
@@ -900,7 +906,9 @@ async function readRecoveredCalls(
       if ('unavailable' in appended) return { unavailable: true }
       const reread = await readRecoveryPrefix(entry, input.contention)
       if ('unavailable' in reread) return { unavailable: true }
-      const after = interpretCallHistory({ prefix: reread.prefix, callId })
+      const after = rejectAcknowledgedHistory(
+        interpretCallHistory({ prefix: reread.prefix, callId }),
+      )
       if (!('known' in after) || after.known.phase !== 'interrupted') return { unavailable: true }
       calls.push({ callId, state: 'interrupted' })
       continue
@@ -979,7 +987,9 @@ async function readRecoveredCalls(
       // same-binding prefix determine the whole batch or its absence.
       const reread = await readRecoveryPrefix(entry, input.contention)
       if ('unavailable' in reread) return { unavailable: true }
-      const after = interpretCallHistory({ prefix: reread.prefix, callId })
+      const after = rejectAcknowledgedHistory(
+        interpretCallHistory({ prefix: reread.prefix, callId }),
+      )
       if (!('known' in after)) return { unavailable: true }
       const state = after.known.phase
       if (!recoveredState(state)) return { unavailable: true }

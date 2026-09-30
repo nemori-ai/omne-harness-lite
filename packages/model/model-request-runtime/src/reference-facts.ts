@@ -4,6 +4,7 @@ import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type {
   CallKey,
   CreationKey,
+  ModelCallAcknowledgedRecord,
   ModelCallCreatedRecord,
   ModelCallEndedRecord,
   ModelCallReplyReadyRecord,
@@ -27,6 +28,7 @@ import type {
 import type { SettlementLogBinding } from './settlement-types.ts'
 
 type RelevantRecord =
+  | ModelCallAcknowledgedRecord
   | ModelCallCreatedRecord
   | ModelCallEndedRecord
   | ModelCallReplyReadyRecord
@@ -44,6 +46,8 @@ interface ProjectedCall {
   readonly ready?: ModelCallReplyReadyRecord
   readonly final?: ModelResponse
   readonly ended?: ModelCallEndedRecord
+  /** RT12 S-97: once present, this index never serves the pre-ACK full view again. */
+  readonly acknowledged?: ModelCallAcknowledgedRecord
 }
 interface Scope {
   readonly binding: SettlementLogBinding
@@ -93,7 +97,8 @@ function relevant(record: unknown): record is RelevantRecord {
       record.kind === 'model_call_ended' ||
       record.kind === 'model_call_reply_ready' ||
       record.kind === 'model_call_dispatched' ||
-      record.kind === 'model_call_opened')
+      record.kind === 'model_call_opened' ||
+      record.kind === 'model_call_acknowledged')
   )
 }
 function project(
@@ -125,6 +130,10 @@ function project(
   const record = captured.record
   if (!relevant(record) || !('call' in record)) return undefined
   const call = record.call
+  if (record.kind === 'model_call_acknowledged') {
+    if (existing?.acknowledged !== undefined) return unavailable
+    return { call, next: { ...existing, acknowledged: record } }
+  }
   if (record.kind === 'model_call_created') {
     if (existing?.created !== undefined || existing?.rejected !== undefined) return unavailable
     return { call, next: { ...existing, created: record }, creationKey: record.creationKey }
@@ -282,6 +291,9 @@ export function createModelCallFacts(input: {
   ): Promise<{ readonly view: CallReadView } | typeof notFound | typeof unavailable> {
     const projected = scope.calls.get(ref.callId)
     if (projected === undefined) return notFound
+    // RT12 S-97/S-100: the acknowledged small view is not implemented here yet. Fail closed
+    // instead of reading payloads the acknowledgement allows to be released.
+    if (projected.acknowledged !== undefined) return unavailable
     const marker = projected.created ?? projected.rejected
     if (marker === undefined) return unavailable
     const contentRef = marker.payload

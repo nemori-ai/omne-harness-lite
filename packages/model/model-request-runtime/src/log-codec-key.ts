@@ -14,7 +14,10 @@ export const modelLogFormat = 'mrr/3'
 
 export type ModelLogKey =
   | { readonly kind: 'all' | 'messages' | 'selection' }
-  | { readonly kind: 'call' | 'created' | 'intent' | 'ended'; readonly call: string }
+  | {
+      readonly kind: 'call' | 'created' | 'intent' | 'ended' | 'acknowledged'
+      readonly call: string
+    }
   | { readonly kind: 'creation'; readonly creationKey: string }
   | {
       readonly kind: 'dispatch' | 'dispatched' | 'opened'
@@ -83,7 +86,13 @@ function parts(key: JsonObject): readonly string[] | ModelLogInvalidValue {
   if (kind === 'all' || kind === 'messages' || kind === 'selection') {
     return Object.keys(key).length === 1 ? [kind] : invalidValue('identity')
   }
-  if (kind === 'call' || kind === 'created' || kind === 'intent' || kind === 'ended') {
+  if (
+    kind === 'call' ||
+    kind === 'created' ||
+    kind === 'intent' ||
+    kind === 'ended' ||
+    kind === 'acknowledged'
+  ) {
     return Object.keys(key).length === 2 && identity(key.call)
       ? [kind, key.call]
       : invalidValue('identity')
@@ -141,7 +150,11 @@ export function decodeModelLogKey(
   if ((kind === 'all' || kind === 'messages' || kind === 'selection') && decoded.length === 1)
     key = { kind }
   else if (
-    (kind === 'call' || kind === 'created' || kind === 'intent' || kind === 'ended') &&
+    (kind === 'call' ||
+      kind === 'created' ||
+      kind === 'intent' ||
+      kind === 'ended' ||
+      kind === 'acknowledged') &&
     typeof id === 'string' &&
     decoded.length === 2
   )

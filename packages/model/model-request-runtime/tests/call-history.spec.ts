@@ -14,6 +14,7 @@ import {
   type SettlementPrefixResult,
   type SettlementTaskKind,
 } from '@omne-harness-lite/model-request-runtime'
+import { rejectAcknowledgedHistory } from '../src/call-history.ts'
 import { dispatched, opened, prepare, reply, session, tenant } from './log-codec-fixture.ts'
 import { batchV2, prepareV2, responseV5 } from './log-codec-v2-fixture.ts'
 import { ControlledSettlementOwner } from './settlement-fixture.ts'
@@ -412,6 +413,274 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
         known: { phase: null, intent: { initiator: 'user' }, dispatches: [] },
       })
       expect(projectCallState({ session, callId: 'call', history })).toEqual({ unavailable: true })
+    })
+  })
+
+  describe('RT12 S-95/S-97 acknowledged history projection', () => {
+    const createdPayload = {
+      kind: 'created',
+      locator: 'created-locator',
+      version: '1',
+      digest: 'c'.repeat(64),
+    } as const
+    const readyPayload = {
+      kind: 'reply_ready',
+      locator: 'ready-locator',
+      version: '1',
+      digest: 'd'.repeat(64),
+    } as const
+    const created = {
+      kind: 'model_call_created',
+      call: 'call',
+      creationKey: 'creation',
+      payload: createdPayload,
+      createdAt: '2026-09-27T00:00:00Z',
+    }
+    const ready = {
+      kind: 'model_call_reply_ready',
+      call: 'call',
+      dispatch: 1,
+      response: 'response',
+      payload: readyPayload,
+      readyAt: '2026-09-27T00:00:02Z',
+    }
+    const acknowledgement = {
+      kind: 'model_call_acknowledged',
+      call: 'call',
+      creationKey: 'creation',
+      creationInput: { role: 'model-call-creation-semantic-sha256/v1', hex: 'a'.repeat(64) },
+      acknowledgedAt: '2026-09-27T00:00:03Z',
+      releasablePayloads: [createdPayload],
+      target: { kind: 'response', response: 'response' },
+      terminalState: 'complete',
+    }
+    const record = (value: unknown) => prepare('record', value, { kind: 'record' })
+    function witness(readyPosition: number) {
+      return {
+        retainedResultDigest: {
+          role: 'model-call-retained-result-semantic-sha256/v1',
+          hex: 'b'.repeat(64),
+        },
+        accountingWitness: {
+          response: 'response',
+          dispatch: 1,
+          readyPosition,
+          payload: readyPayload,
+          origin: { tenant, session },
+          outcome: 'complete',
+          usage: {
+            input_tokens: 11,
+            output_tokens: 5,
+            cache_read_tokens: 'unknown',
+            cache_write_tokens: 0,
+            source: 'upstream',
+          },
+          cost: {
+            cost_usd: new LosslessNumber('0.0000000000000000000000000310'),
+            source: 'upstream_usage',
+          },
+          credentialScope: { layer: 'factory' },
+          provider: 'first',
+          timing: { sentAt: '2026-09-27T00:00:00Z', endedAt: '2026-09-27T00:00:02Z' },
+        },
+      }
+    }
+
+    it('exposes one acknowledged complete call and every pre-ACK consumer fails closed', async () => {
+      await withLog('ack-complete', async ({ append, submit, read }) => {
+        await append(record(created))
+        await append(record(dispatched))
+        await append(record(opened))
+        await append(...batchV2())
+        await append(record(acknowledgement))
+        const history = interpretCallHistory({ prefix: await read(), callId: 'call' })
+        expect(history).toMatchObject({
+          known: { phase: 'complete', acknowledged: { target: acknowledgement.target } },
+        })
+        expect(rejectAcknowledgedHistory(history)).toEqual({
+          unavailable: true,
+          reason: 'acknowledged',
+        })
+        expect(projectCallState({ session, callId: 'call', history })).toEqual({
+          unavailable: true,
+        })
+        // MS8 S-58: the ACK has its own stable key; a different target is one conflicting fact.
+        const conflicting = await submit(
+          record({
+            ...acknowledgement,
+            target: { kind: 'ended', ending: 'interrupted' },
+            terminalState: 'interrupted',
+          }),
+        )
+        expect(conflicting).toHaveProperty('failure')
+        expect(await submit(record(acknowledgement))).toMatchObject({ failure: 'alreadyRecorded' })
+        expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toMatchObject({
+          known: { acknowledged: { acknowledgedAt: acknowledgement.acknowledgedAt } },
+        })
+        const unacknowledged = interpretCallHistory({ prefix: await read(), callId: 'other' })
+        expect(rejectAcknowledgedHistory(unacknowledged)).toEqual({ absent: true })
+      })
+    })
+
+    it('accepts a ready-only terminal ACK only with its original accounting witness', async () => {
+      await withLog('ack-ready-witness', async ({ append, read }) => {
+        await append(record(created))
+        await append(record(dispatched))
+        await append(record(opened))
+        await append(record(ready))
+        await append(record({ ...acknowledgement, ...witness(4) }))
+        const history = interpretCallHistory({ prefix: await read(), callId: 'call' })
+        expect(history).toMatchObject({
+          known: { phase: 'reply_pending', acknowledged: { accountingWitness: { dispatch: 1 } } },
+        })
+        expect(rejectAcknowledgedHistory(history)).toEqual({
+          unavailable: true,
+          reason: 'acknowledged',
+        })
+      })
+      await withLog('ack-ready-no-witness', async ({ append, read }) => {
+        await append(record(created))
+        await append(record(dispatched))
+        await append(record(opened))
+        await append(record(ready))
+        await append(record(acknowledgement))
+        expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
+          unavailable: true,
+          reason: 'history',
+        })
+      })
+      await withLog('ack-ready-wrong-position', async ({ append, read }) => {
+        await append(record(created))
+        await append(record(dispatched))
+        await append(record(opened))
+        await append(record(ready))
+        await append(record({ ...acknowledgement, ...witness(3) }))
+        expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
+          unavailable: true,
+          reason: 'history',
+        })
+      })
+    })
+
+    it('treats an ACK without its matching terminal source as history contradiction', async () => {
+      await withLog('ack-not-terminal', async ({ append, read }) => {
+        await append(record(created))
+        await append(record(dispatched))
+        await append(record(opened))
+        await append(record(acknowledgement))
+        expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
+          unavailable: true,
+          reason: 'history',
+        })
+      })
+      await withLog('ack-open', async ({ append, read }) => {
+        await append(record(created))
+        await append(
+          record({
+            ...acknowledgement,
+            target: { kind: 'ended', ending: 'released' },
+            terminalState: 'handed_up',
+          }),
+        )
+        expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
+          unavailable: true,
+          reason: 'history',
+        })
+      })
+      await withLog('ack-before-ending', async ({ append, read }) => {
+        await append(record(created))
+        await append(record(dispatched))
+        await append(
+          record({
+            ...acknowledgement,
+            target: { kind: 'ended', ending: 'interrupted' },
+            terminalState: 'interrupted',
+          }),
+        )
+        await append(
+          record({
+            kind: 'model_call_ended',
+            call: 'call',
+            ending: 'interrupted',
+            initiator: 'user',
+          }),
+        )
+        expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
+          unavailable: true,
+          reason: 'history',
+        })
+      })
+      await withLog('ack-ended-interrupted', async ({ append, read }) => {
+        await append(record(created))
+        await append(record(dispatched))
+        await append(
+          record({
+            kind: 'model_call_ended',
+            call: 'call',
+            ending: 'interrupted',
+            initiator: 'user',
+          }),
+        )
+        await append(
+          record({
+            ...acknowledgement,
+            target: { kind: 'ended', ending: 'interrupted' },
+            terminalState: 'interrupted',
+          }),
+        )
+        const history = interpretCallHistory({ prefix: await read(), callId: 'call' })
+        expect(history).toMatchObject({
+          known: { phase: 'interrupted', acknowledged: { terminalState: 'interrupted' } },
+        })
+      })
+    })
+
+    it('rejects an ACK whose creation source or releasable payloads are not this call', async () => {
+      await withLog('ack-creation-key', async ({ append, read }) => {
+        await append(record(created))
+        await append(record(dispatched))
+        await append(record(opened))
+        await append(...batchV2())
+        await append(record({ ...acknowledgement, creationKey: 'another-creation' }))
+        expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
+          unavailable: true,
+          reason: 'history',
+        })
+      })
+      await withLog('ack-foreign-payload', async ({ append, read }) => {
+        await append(record(created))
+        await append(record(dispatched))
+        await append(record(opened))
+        await append(...batchV2())
+        await append(
+          record({
+            ...acknowledgement,
+            releasablePayloads: [{ ...createdPayload, locator: 'another-call-content' }],
+          }),
+        )
+        expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
+          unavailable: true,
+          reason: 'history',
+        })
+      })
+      await withLog('ack-other-run', async ({ append, read }) => {
+        await append(record(created))
+        await append(record(dispatched))
+        await append(record(opened))
+        await append(...batchV2())
+        await append(
+          prepare(
+            'record',
+            acknowledgement,
+            { kind: 'record' },
+            { tenant, run: 'run', attempt: 1 },
+          ),
+        )
+        expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toEqual({
+          unavailable: true,
+          reason: 'history',
+        })
+      })
     })
   })
 

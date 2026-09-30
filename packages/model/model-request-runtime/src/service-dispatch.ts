@@ -31,7 +31,7 @@ import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-
 import { authorizedCalibration } from './service-calibration.ts'
 import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
 import { modelLogJsonEqual } from './log-codec.ts'
-import type { CallHistoryResult } from './call-history.ts'
+import { rejectAcknowledgedHistory, type UnacknowledgedCallHistory } from './call-history.ts'
 import type {
   CallOperationState,
   CallKey,
@@ -201,7 +201,7 @@ export function validDispatchInput(input: DispatchInput | DispatchAgainInput): b
 }
 
 function effectivePhase(
-  history: CallHistoryResult,
+  history: UnacknowledgedCallHistory,
   local: CallOperationState | undefined,
 ): DispatchGuardPhase | 'absent' | 'unknown' {
   if ('unavailable' in history) return 'unknown'
@@ -217,7 +217,7 @@ function effectivePhase(
   return history.known.phase
 }
 
-function alreadySpoke(history: CallHistoryResult): boolean {
+function alreadySpoke(history: UnacknowledgedCallHistory): boolean {
   return 'known' in history && history.known.dispatches.some(item => item.opened !== null)
 }
 
@@ -231,7 +231,7 @@ export type DispatchAdmission =
 
 /** RT7 S-29 order: authoritative terminal and opened facts outrank local readiness. */
 export function dispatchAdmission(
-  history: CallHistoryResult,
+  history: UnacknowledgedCallHistory,
   local: CallOperationState | undefined,
   firstProvider: string,
 ): DispatchAdmission {
@@ -266,7 +266,7 @@ export type DispatchAgainAdmission =
 /** Use the same closed S-30/S-50 guard for actual resend; never derive a weaker check. */
 export function dispatchAgainAdmission(
   key: CallKey,
-  history: CallHistoryResult,
+  history: UnacknowledgedCallHistory,
   local: CallOperationState | undefined,
   snapshot: ModelProfileSnapshot,
   plan: RetryPlan,
@@ -427,7 +427,7 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           const prefix = await readSettlementPrefix({ binding: session.log, registration })
           return 'unavailable' in prefix
             ? ({ unavailable: true, reason: 'prefix' } as const)
-            : runtime.history.call(prefix.prefix, key.callId)
+            : rejectAcknowledgedHistory(runtime.history.call(prefix.prefix, key.callId))
         },
       )
       if ('unavailable' in received) return { unavailable: true }
@@ -999,7 +999,9 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
             async registration => {
               const prefix = await readSettlementPrefix({ binding: session.log, registration })
               if ('unavailable' in prefix) return { unavailable: true } as const
-              const history = runtime.history.call(prefix.prefix, key.callId)
+              const history = rejectAcknowledgedHistory(
+                runtime.history.call(prefix.prefix, key.callId),
+              )
               if (!('known' in history)) return { unavailable: true } as const
               const latest = history.known.dispatches.at(-1)
               if (

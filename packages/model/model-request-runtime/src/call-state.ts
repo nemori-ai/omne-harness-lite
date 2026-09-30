@@ -1,6 +1,6 @@
 import type { ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { SessionRef } from '@omne-harness-lite/messages'
-import type { CallHistoryResult } from './call-history.ts'
+import { rejectAcknowledgedHistory, type CallHistoryResult } from './call-history.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
 
 /** Process-owned responsibility, never a replacement for a durable log fact. */
@@ -34,7 +34,9 @@ export function projectCallState(input: {
   readonly history: CallHistoryResult
   readonly local?: LocalCallResponsibility
 }): CallStateResult {
-  const { session, callId, history, local } = input
+  const { session, callId, local } = input
+  // RT12 S-97: this projection has no acknowledged small view; an ACK fails closed here.
+  const history = rejectAcknowledgedHistory(input.history)
   if ('unavailable' in history) return { unavailable: true }
   const sameLocal = local?.session === session && local.callId === callId
   if ('absent' in history)

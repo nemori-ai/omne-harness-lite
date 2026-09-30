@@ -10,7 +10,11 @@ import { captureModelLogValue, prepareModelLogEntry } from './log-codec.ts'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
 import { readSettlementPrefix } from './settlement-prefix.ts'
-import type { CallHistoryResult } from './call-history.ts'
+import {
+  rejectAcknowledgedHistory,
+  type CallHistoryResult,
+  type UnacknowledgedCallHistory,
+} from './call-history.ts'
 import type {
   CallKey,
   CallOperationState,
@@ -184,7 +188,7 @@ export interface ControlFacts {
 
 /** Project only already-validated history; this does not authorize a raw log or infer a Run. */
 export function controlFactsFromHistory(
-  history: CallHistoryResult,
+  history: UnacknowledgedCallHistory,
   localCall: boolean,
   operation?: CallOperationState,
 ): ControlFacts {
@@ -377,7 +381,7 @@ interface UnknownControlWrite {
   readonly registration: SettlementRegistration
   readonly task: SettlementTask<AppendResult>
   readonly readTasks: Set<SettlementTask<unknown>>
-  recognizing: Promise<CallHistoryResult> | undefined
+  recognizing: Promise<UnacknowledgedCallHistory> | undefined
   stopped: boolean
   stopFailed: boolean
   released: boolean
@@ -389,7 +393,7 @@ export interface ServiceControl {
 }
 
 function controlAccount(
-  history: CallHistoryResult,
+  history: UnacknowledgedCallHistory,
   run: RunId | undefined,
   requestAttempt: AttemptId | undefined,
   operation: CallOperationState | undefined,
@@ -436,7 +440,7 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
             const result = await readSettlementPrefix({ binding: view.session.log, registration })
             return 'unavailable' in result
               ? ({ unavailable: true } as const)
-              : runtime.history.call(result.prefix, key.callId)
+              : rejectAcknowledgedHistory(runtime.history.call(result.prefix, key.callId))
           },
         )
         if ('unavailable' in received) return { unavailable: true }
@@ -574,11 +578,11 @@ export function createServiceControl<P extends PlannedSemantics, R>(
 
   async function recognizeUnknown(
     writes: readonly UnknownControlWrite[],
-  ): Promise<CallHistoryResult> {
+  ): Promise<UnacknowledgedCallHistory> {
     const first = writes.find(write => !write.released)
     if (first === undefined) return { unavailable: true, reason: 'history' }
     if (first.recognizing !== undefined) return await first.recognizing
-    const attempt = (async (): Promise<CallHistoryResult> => {
+    const attempt = (async (): Promise<UnacknowledgedCallHistory> => {
       if (writes.some(write => !write.stopped || write.stopFailed))
         return { unavailable: true, reason: 'history' }
       const previous = await Promise.allSettled([...first.readTasks].map(task => task.stopped))
@@ -606,6 +610,8 @@ export function createServiceControl<P extends PlannedSemantics, R>(
         return { unavailable: true, reason: 'prefix' }
       first.readTasks.clear()
       if ('unavailable' in received) return { unavailable: true, reason: 'prefix' }
+      // Recognizing the stopped writers' original batch needs no acknowledged view; the
+      // returned history is gated below for callers that derive a control phase from it.
       let history: CallHistoryResult
       try {
         history = runtime.history.call(received.prefix, first.key.callId)
@@ -626,7 +632,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       const remaining = unknown.get(token)?.filter(write => !write.released)
       if (remaining?.length) unknown.set(token, remaining)
       else unknown.delete(token)
-      return history
+      return rejectAcknowledgedHistory(history)
     })()
     first.recognizing = attempt
     try {
@@ -640,7 +646,7 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     session: SessionRuntimeBinding,
     owner: SettlementOwner,
     key: CallKey,
-  ): Promise<CallHistoryResult> {
+  ): Promise<UnacknowledgedCallHistory> {
     const waiting = unknown.get(keyOf(key))
     if (waiting !== undefined) return await recognizeUnknown([...waiting])
     const received = await withOwnedReads(
@@ -652,9 +658,9 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     if ('unavailable' in received) return { unavailable: true, reason: 'prefix' }
     const result = received.ok
     if ('unavailable' in result) return { unavailable: true, reason: 'prefix' }
-    let history: CallHistoryResult
+    let history: UnacknowledgedCallHistory
     try {
-      history = runtime.history.call(result.prefix, key.callId)
+      history = rejectAcknowledgedHistory(runtime.history.call(result.prefix, key.callId))
     } catch {
       return { unavailable: true, reason: 'history' }
     }
@@ -1008,7 +1014,8 @@ export function createServiceControl<P extends PlannedSemantics, R>(
           const result = await readSettlementPrefix({ binding: failed.binding, registration })
           return 'unavailable' in result
             ? ({ unavailable: true } as const)
-            : runtime.history.call(result.prefix, failed.key.callId)
+            : // Recognizes the durable interrupt of an already stopped local owner only.
+              runtime.history.call(result.prefix, failed.key.callId)
         },
       )
       if (
