@@ -116,6 +116,8 @@ pendingReasons 在运行时强制非空、去重且只来自当前真实阻碍�
 
 候选私有 `ModelCallSettlementWork(tenant,session,callId,response,workId)` 仅在**实际新处分开始**建立，保存原完整 `[M,R]` 或 `[R]` 批、原键、授权/来源定位、generation 与实际 writer 状态。选单独私有表而非复用已删除 ModelCallContent 的 locator/version，避免恢复旧领取面；不是新 service/journal 平台，也不在 ACK 时预存未来可能需要的全文。首次可能追加前 Storage.write 确认原批已耐久；该提交未知就先认回自身原行，不发 JSONL。来源/资格确认仍必须覆盖实际追加准入，暂存本身不是写权。
 
+**该行保存的是「最近一次结果尚未确知为零写的追加所用完整批」**（接缝 R1），不是曾经构造过的任一批。[S-70④](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-70-稳定身份完整原批和未知结果) `tailChanged` 确认该次整批零写、经 [S-71](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-71-争用政策与责任保留) 策略准许重构 `late` 后，重构批须在新追加可能生效之前，于同一 Storage.write 锁该行、核 workId/generation 后原位替换并确认耐久；替换提交未知同样先认回自身行，不发 JSONL。先前追加回执未知（S-70⑤：`unavailable`、丢回执或仍在途）期间**禁止覆盖该行**——那一批可能已提交，是恢复认回的唯一依据。S-99⑧ 本身未写这一精确含义，接缝 R1 已将其记为 v12 版本外勘误、待下一版本并入；本节点按此兑现，不另立语义。
+
 原合法 persisted 写方继续独立核消息写权/真实系统转换来源，组合 messages 的唯一回复关系 judge 与 model-response 的 pending/final judge，取得原协调器窄资格后同日志同批写 M/R；ordinary settleReply 的 disposition 仍排除 persisted，ref/acquire/ACK 不授 anchored 控制。原 pending.reply/calibration 保真，final 只增真实处分/late；ACK 不伪造 consumed。
 
 JSONL 回执 unknown 或旧 writer 未实停时保留 SettlementWork 与原批；崩溃恢复只从这份已经实际开始的暂存和原日志认回，不能取已删 ready 或重跑转换/外部消费。confirmed final+所有可能 writer 停止后，同 Storage 事务删除该 work 及仅为它取得的暂存引用；若实际全部停、权威完整前缀确证无原批且原显式结算策略结束，也清除并返回 unavailable。策略选择继续时仍沿 S-70/S-71 原批/允许的 late 重构；未知不等于零写，不能因新重试碰撞或策略耗尽丢旧批。
@@ -136,7 +138,7 @@ JSONL 回执 unknown 或旧 writer 未实停时保留 SettlementWork 与原批�
 |---|---|---|
 | RT12 S-98/S-102 | 同 Storage 的锁定准入、唯一 use/task、行所属关系、原子删 content+released；小状态耐久、未知提交可认回 | read/publish/ACK prepare/cleanup 均锁 ModelCallRetention；Content/Use 为同域引用，不另靠 in-memory 锁 |
 | RT12 S-96/S-101；MS8 S-58 | 独立 ACK 稳定键、整批原子持久、完整前缀/tailEquals、same-call 重复与异值冲突 | ACK 和 final 共同 SessionLog 顺序但各自键；SQL/JSONL 两阶段，不互称回滚 |
-| RT12 S-99⑧ | 发前完整新批耐久、workId/generation 唯一、原批不覆盖、终责后原子删暂存/标结束 | 新 final writer/恢复/暂存 cleanup 同 SettlementWork 行；旧 content 无需复活 |
+| RT12 S-99⑧ | 发前完整新批耐久、workId/generation 唯一、回执未知期间原批不覆盖、确认零写后的重构批于新追加前原位替换并耐久、终责后原子删暂存/标结束 | 新 final writer/恢复/暂存 cleanup 同 SettlementWork 行；旧 content 无需复活 |
 | RT12 S-97/S-101；MS8 S-56；CA4 S-43 | 最小来源/摘要/确认定位及费用小值可读，原大内容删除不破坏身份索引 | open/读/账/清理认回同真实日志源；缺源 unavailable，不默认0/空 |
 | RT12 S-98 | 启用外部额外保留时真实 owner 配对解除且不损共享者 | 外部 owner 自己的引用协议；本包只释放所持使用权，缺证据 pending |
 
