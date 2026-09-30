@@ -232,7 +232,7 @@ pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run t
 
 `tests/qwen-visible-service.spec.ts` 在六个商业 Qwen 叶各自声明的显式或 automatic 缓存配置下，验证三轮持久本机 TLS 交互与超限余量零 HTTP 拒绝。`tests/qwen-open-effort-service.spec.ts` 对 Qwen3.8 2.4T-A95B 与 27B 的已声明 effort `high`／`max` 做同样检查。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/qwen-visible-service.spec.ts tests/qwen-open-effort-service.spec.ts --maxWorkers=1`。每次请求都做全量计量；合成响应不认证真实 token 精度、effort 映射或缓存保留。
 
-`tests/openai-sol-luna-images-service.spec.ts` 覆盖 `mp4-17` 的 Sol/Luna 及对应 Pro：三轮持久调用保留旧图片，基础型号复用合法响应校准，Pro 保持 `scope_unknown` 下全量计量。恰好 4 MiB 的有效 PNG 场景要求经服务原样发送；4 MiB + 1 字节及配置 token 余量超限要求零 HTTP。该大历史测试显式配置结算保留数据 16 MiB、结算窗口 60 秒；demo 默认部署仍为 1 MiB／5 秒，编程接口的图片消费者须按保留的会话前缀配置 `modelRequest.settlement.contention.limits`。模型图片上限不会覆盖这项独立运行预算。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/openai-sol-luna-images-service.spec.ts --maxWorkers=1`。图片沿现有编程接口的用户消息进入，不增加 CLI 附件语法；合成响应仅验证组合，不认证私有预处理或实机型号完整交付。
+`tests/openai-sol-luna-images-service.spec.ts` 覆盖 `mp4-17` 的 Sol/Luna 及对应 Pro：三轮持久调用保留旧图片，基础型号复用合法响应校准，Pro 保持 `scope_unknown` 下全量计量。恰好 4 MiB 的有效 PNG 场景要求经服务原样发送。4 MiB + 1 字节的 PNG 由装配的传输图片准备器在最终门之前处理：发出一次请求，携带重新编码后不超过 4 MiB 上限的图片，持久的用户消息保留原字节。配置 token 余量超限要求零 HTTP。这些大历史用例显式配置结算保留数据 16 MiB、结算窗口 60 秒，每例测试预算 180 秒；demo 默认部署仍为 1 MiB／5 秒，编程接口的图片消费者须按保留的会话前缀配置 `modelRequest.settlement.contention.limits`。模型图片上限不会覆盖这项独立运行预算。运行 `pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/openai-sol-luna-images-service.spec.ts --maxWorkers=1`。图片沿现有编程接口的用户消息进入，不增加 CLI 附件语法；合成响应仅验证组合，不认证私有预处理或实机型号完整交付。
 
 沿现有配置接口覆盖程序化部署预算（按自己的负载选择有限值）：
 

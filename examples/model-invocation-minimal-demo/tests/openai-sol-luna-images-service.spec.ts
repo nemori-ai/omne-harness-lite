@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { crc32 } from 'node:zlib'
 import { dirname, join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
@@ -70,14 +70,41 @@ function user(index: number, bytes?: number) {
   if (!('ok' in judged) || judged.ok.type !== 'user') throw Error('invalid user fixture')
   return judged.ok
 }
+function member(value: unknown, key: string): unknown {
+  if (typeof value !== 'object' || value === null) return undefined
+  const found: unknown = Object.entries(value).find(([name]) => name === key)?.[1]
+  return found
+}
+/** The image URL of the first message's image part in an actual wire body. */
+function firstImageUrl(body: unknown): string {
+  const messages = member(body, 'messages')
+  const content = Array.isArray(messages) ? member(messages[0], 'content') : undefined
+  const part = Array.isArray(content)
+    ? content.find(value => member(value, 'type') === 'image_url')
+    : undefined
+  const url = member(member(part, 'image_url'), 'url')
+  if (typeof url !== 'string') throw Error('sent image absent')
+  return url
+}
+// Each case runs the real demo assembly: planning and metering over the final body, a durable
+// JSONL batch and settlement over the retained prefix. With a 4 MiB inline image (and, for
+// `bytes`, image preparation) cases measured 30-58 s on the shared host, so they carry an
+// explicit budget instead of the 60 s suite default. Assertions are unchanged by it.
+const IMAGE_CASE_BUDGET_MS = 180_000
+vi.setConfig({ testTimeout: IMAGE_CASE_BUDGET_MS })
 describe.each(models)('%s images through authorized service', model => {
   const modes =
     model === 'openai/gpt-6-sol'
       ? (['positive', 'tokens', 'bytes', 'boundary'] as const)
       : (['positive', 'tokens', 'bytes'] as const)
   it.each(modes)('actual service %s', async mode => {
-    const overLimit = mode === 'tokens' || mode === 'bytes'
-    const rounds = overLimit || mode === 'boundary' ? 1 : 3
+    // D-109 adopts transport v15 image preparation: an image above maxImageBytes is re-encoded
+    // within the finite policy before the final gate, and input_limit_exceeded is reserved for an
+    // actual prepared candidate that still exceeds a cap (v15-image-preparation-design.md,
+    // "失败与观测"). A 4 MiB + 1 byte PNG whose excess is only a tEXt chunk therefore plans and sends.
+    const overLimit = mode === 'tokens'
+    const large = mode === 'bytes' || mode === 'boundary'
+    const rounds = mode === 'positive' ? 3 : 1
     const pro = model.endsWith('-pro')
     const definition = openaiDefinitions.find(value => value.modelId === model)!
     const base = await callDeployment('openai-sol-luna-images-completion-service')
@@ -111,22 +138,18 @@ describe.each(models)('%s images through authorized service', model => {
       officialManifest: { ordinal: 1, entries: [profile.ok] },
       modelRequest: {
         ...base.modelRequest,
-        // This byte-boundary scenario exercises a large durable history. Keep a
-        // bounded operational settlement window independent of the 4 MiB gate.
+        // The byte scenarios exercise a large durable history. Keep a bounded
+        // operational settlement window independent of the 4 MiB gate.
         settlement: {
           ...base.modelRequest.settlement,
           contention: {
             ...base.modelRequest.settlement.contention,
             limits: {
               ...base.modelRequest.settlement.contention.limits,
-              retainedBytes:
-                mode === 'boundary'
-                  ? 16 * 1024 * 1024
-                  : base.modelRequest.settlement.contention.limits.retainedBytes,
-              elapsedMs:
-                mode === 'boundary'
-                  ? 60000
-                  : base.modelRequest.settlement.contention.limits.elapsedMs,
+              retainedBytes: large
+                ? 16 * 1024 * 1024
+                : base.modelRequest.settlement.contention.limits.retainedBytes,
+              elapsedMs: large ? 60000 : base.modelRequest.settlement.contention.limits.elapsedMs,
             },
           },
         },
@@ -194,9 +217,7 @@ describe.each(models)('%s images through authorized service', model => {
         })
         if (overLimit) {
           expect(JSON.stringify(sent)).toContain('input_limit_exceeded')
-          expect(JSON.stringify(sent)).toContain(
-            mode === 'bytes' ? 'maxImageBytes' : 'maxInputTokens',
-          )
+          expect(JSON.stringify(sent)).toContain('maxInputTokens')
           expect(tls.requests).toHaveLength(0)
           continue
         }
@@ -257,11 +278,26 @@ describe.each(models)('%s images through authorized service', model => {
               role: 'user',
               content: [
                 { type: 'text', text: 'Visible turn 1' },
-                { type: 'image_url', image_url: { url: `data:image/png;base64,${expectedImage}` } },
+                {
+                  type: 'image_url',
+                  image_url: { url: `data:image/png;base64,${expectedImage}` },
+                },
               ],
             },
           ],
         })
+      }
+      if (mode === 'bytes') {
+        const original = paddedImage(4194305)
+        const url = firstImageUrl(tls.requests[0]?.body)
+        const match = /^data:(image\/(?:png|jpeg|webp));base64,(.*)$/.exec(url)
+        if (match?.[2] === undefined) throw Error('sent image is not an inline data URL')
+        expect(match[2]).not.toBe(original)
+        expect(Buffer.from(match[2], 'base64').length).toBeLessThanOrEqual(4194304)
+        // The durable user message keeps the caller's original bytes; only the wire is prepared.
+        const logged = await app.readSessionLog(who, session)
+        if (!('entries' in logged)) throw Error('durable session read unavailable')
+        expect(JSON.stringify(logged.entries)).toContain(original)
       }
       for (const sent of tls.requests) expect(sent.body).toMatchObject({ model })
       for (const sent of tls.requests) {
