@@ -1,6 +1,6 @@
 # ZAI 五叶可见推理历史的参考计量
 
-2026-09-30，revision 1，candidate；独立架构评审 2026-09-30「可采用」，Z-N1～Z-N5 已按评审闭合，待主线采用；尚未独立评审、未技术采用、未实施、未实际验证，新增 bindings 0。本页登记缺口 GG-12（ZAI 可见推理历史），按已采用的 [DeepSeek](deepseek-visible-reasoning-estimate-design.md)、[Moonshot](moonshot-visible-reasoning-estimate-design.md)、[Qwen 开源两叶](qwen-open-visible-reasoning-estimate-design.md)三页（采用决定：[DeepSeek](../../../../record/decisions/model-input-usage-calibration-adoption/deepseek-visible-reasoning-decision.md)、[Moonshot](../../../../record/decisions/model-input-usage-calibration-adoption/moonshot-visible-reasoning-decision.md)、[Qwen](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-visible-reasoning-decision.md)）的结构，补充已采用的 [v10](v10-token-estimate-design.md)、[v12](v12-usage-calibration-design.md)，不改这些页的受审字节。持续消费者为五款 ZAI 官方定义、`createGlm53InputMeter`／`createGlm52InputMeter`／`createZaiCommercialInputMeter` 三个 factory 与模型调用规划器；固定公开模板、OpenRouter 推理详情协议、共享分组规则或 Prime/FlashX 的托管路由变化时复核本页。
+2026-09-30，revision 1，candidate；独立架构评审 2026-09-30「可采用」，Z-N1～Z-N5 已按评审闭合；同日[主线技术采用](../../../../record/decisions/model-input-usage-calibration-adoption/zai-visible-reasoning-decision.md)；实施与释放状态以本页「实施附注」与 [verification.md](verification.md) 的 ZV 段为准（五叶均已释放为 `pi-ai:zai@mp4-18`；ZV4 真实回放待主线付费执行）。
 
 ## 基准、性质与证据
 
@@ -177,7 +177,7 @@ ZV5：已释放叶 definition／implementation／algorithm 唯一修订与显式
 ## 缺口与受阻消费者
 
 - ZG1 上游转换与路由清除口径：OpenRouter 如何把 `reasoning` 字符串与 `reasoning.text` details 转成 Z.AI／Alibaba 原生字段、所选路由是否清除历史推理——待核对主张；本页只到 [S-74](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-74-每次发送之前的完整输入限制与固定计划)③ 允许的有据 estimated，不承诺误差界。由 ZV4 的必做同路由对照闭合。
-- ZG2 当前绑定形状：GLM-5.3 从未产出推理，Flash 只在发送域外的 `low` 观察到。归主调度付费（ZV0）。受阻：两叶释放。
+- ZG2 当前绑定形状：已由 ZV0（2026-09-30 17:15Z）闭合——GLM-5.3（max）139 帧、Flash 78 帧均为四键 `reasoning.text`，与三叶同形；原「GLM-5.3 从未产出推理，Flash 只在 `low` 观察到」为起草时状态。受阻：两叶释放。
 - ZG3 真实回放：带推理的历史从未真实发送，上游接受、usage、cache 均未知。归主调度付费认证（ZV4）。受阻消费者：五叶 D7 逐模型真实多轮认证（现第 2 轮本地拒绝）。
 - ZG4 GLM-5.2 模板口径：本页取 `clear_thinking=false`，与该模板缺省相反；由 ZV4 对照裁定，证伪则后继改口径。
 - ZG5 托管两叶：Prime／FlashX 未找到公开模板，减 1 只在无历史的文本／工具上 fit 与 holdout；带历史输入的误差未知。归 ZV4 残差记录。
