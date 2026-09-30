@@ -4,6 +4,7 @@ import {
   type ModelRoute,
   type ParameterRules,
 } from '../definitions.ts'
+import type { QwenTemplateSettings } from '../input-meters/qwen.ts'
 
 // A supplied request subset. Dropped parameters remain visible in planning
 // history; this does not assert that Alibaba's models reject those parameters.
@@ -209,40 +210,103 @@ const offer = {
   },
 } as const
 
-/** Exact commercial leaves sharing the final visible JSON proxy, never an ID-prefix match. */
-export const qwenVisibleBindings: Readonly<
-  Record<
-    string,
-    {
-      readonly revision: string
-      readonly implementationRevision: string
-      readonly algorithmRevision: string
-      readonly evidence: string
-    }
-  >
-> = Object.freeze(
-  Object.fromEntries(
-    [
+/**
+ * One released binding of a commercial leaf to the pinned public Qwen3.8 template. The
+ * template settings are part of the counting function: changing any of them is a new
+ * definition/implementation/algorithm and tokenizer revision (basis_changed), never
+ * host configuration.
+ */
+export interface QwenCommercialBinding {
+  readonly revision: string
+  readonly implementationRevision: string
+  readonly algorithmRevision: string
+  /** Tokenizer file plus render basis; explicit, never derived from the algorithm name. */
+  readonly tokenizerRevision: string
+  readonly template: QwenTemplateSettings
+  readonly evidence: string
+}
+
+// Alibaba's parameter reference (2026-09-30) names 3.8 Max/Max-0902/Flash with
+// `preserve_thinking` on by default and 3.7 Max/Plus/Flash supported but off by default.
+// Max Prime is on no list; it follows 3.8 as an adopted assumption (O-3). The tokenizer
+// revision names the tokenizer file plus this render basis.
+const commercialTemplates = {
+  '3.8': {
+    template: Object.freeze({
+      preserveThinking: true,
+      effortInstruction: 'xhigh',
+      toolJson: 'wire-order',
+    }),
+    tokenizerRevision: 'tokenizer-basis/qwen-commercial-38-template-wire-order-1',
+  },
+  '3.7': {
+    template: Object.freeze({
+      preserveThinking: false,
+      effortInstruction: 'none',
+      toolJson: 'wire-order',
+    }),
+    tokenizerRevision: 'tokenizer-basis/qwen-commercial-37-template-wire-order-1',
+  },
+} as const satisfies Record<
+  string,
+  { readonly template: QwenTemplateSettings; readonly tokenizerRevision: string }
+>
+
+const commercialCommon =
+  'Qwen/Qwen3.8-2.4T-A95B 207bd685a7e3696cfaff12ded7c6a7ea0f88c996 public chat_template.jinja sha256:40ce34a5bcbc0231462740761215bc31a83882a8b3a4b6aa1c6e869b95945e4e rendered with the transformers/vLLM wire-key-order tojson, and tokenizer.json sha256:0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3; batch8 f8e55130 three one-tool rounds on the fixed alibaba route: residual 0 on all 3 requests in the QC-V0 independent recompute (sorted-key tojson gives +1); error direction unknown, no holdout, no error bound; how OpenRouter converts reasoning details for Alibaba and whether it forwards or sets preserve_thinking is unknown; one visible reasoning.text detail per assistant only, summary, id-bearing or several details, a differing parallel reasoning, images and every other effort shape unavailable'
+const thinking38 =
+  "Alibaba parameter reference (2026-09-30) names preserve_thinking default true: every assistant's visible reasoning is rendered; template default xhigh instruction"
+const thinking37 =
+  'Alibaba parameter reference (2026-09-30): preserve_thinking supported, default false: only assistants after the last user query render reasoning, earlier reasoning counts 0 (may underestimate if upstream starts preserving it); no effort instruction, the template medium frame as a rendering equivalence only'
+
+function commercialBinding(
+  modelId: string,
+  family: keyof typeof commercialTemplates,
+  evidence: string,
+): QwenCommercialBinding {
+  return Object.freeze({
+    revision: '4',
+    implementationRevision: 'mp4-20',
+    algorithmRevision: `${modelId.slice('qwen/'.length)}-public-template-1`,
+    ...commercialTemplates[family],
+    evidence: `${evidence}; ${commercialCommon}`,
+  })
+}
+
+/** The six exact commercial leaves on the pinned public template, never an ID-prefix match. */
+export const qwenCommercialBindings: Readonly<Record<string, QwenCommercialBinding>> =
+  Object.freeze({
+    'qwen/qwen3.8-max-0902': commercialBinding(
       'qwen/qwen3.8-max-0902',
+      '3.8',
+      `${thinking38}; declared high/max request effort renders the same xhigh instruction per Alibaba's high/max-to-xhigh mapping (R-B estimated extension adopted for 0902, max unobserved); single-user constant -9 from earlier observations, not recomputed`,
+    ),
+    'qwen/qwen3.8-max-prime': commercialBinding(
       'qwen/qwen3.8-max-prime',
+      '3.8',
+      'On no Alibaba preserve_thinking list: the 3.8 settings (all reasoning, xhigh instruction) are an assumption inferred from batch8 counts only; no single-user sample',
+    ),
+    'qwen/qwen3.8-flash': commercialBinding(
       'qwen/qwen3.8-flash',
+      '3.8',
+      `${thinking38}; single-user constant -9 from earlier observations, not recomputed`,
+    ),
+    'qwen/qwen3.7-max': commercialBinding(
       'qwen/qwen3.7-max',
+      '3.7',
+      `${thinking37}; single-user constant 0 from earlier observations, not recomputed`,
+    ),
+    'qwen/qwen3.7-plus': commercialBinding(
       'qwen/qwen3.7-plus',
+      '3.7',
+      `${thinking37}; single-user constant 0 from earlier observations, not recomputed`,
+    ),
+    'qwen/qwen3.7-flash': commercialBinding(
       'qwen/qwen3.7-flash',
-    ].map(modelId => [
-      modelId,
-      Object.freeze({
-        revision: '3',
-        implementationRevision: 'mp4-17',
-        algorithmRevision: `${modelId.slice('qwen/'.length)}-final-visible-json-proxy-1`,
-        evidence:
-          modelId === 'qwen/qwen3.8-max-prime'
-            ? 'OpenRouter exact Max Prime page (2026-09-29): higher-throughput Max variant with matching text/tool capabilities; lineage supports a Qwen public-tokenizer proxy, not tokenizer identity or measured error'
-            : 'Fixed Alibaba route prior single-user text observations support Qwen public-tokenizer proxy applicability only; extending to the complete documented Chat JSON is an uncalibrated framing estimate, not transfer of historical per-request offsets',
-      }),
-    ]),
-  ),
-)
+      '3.7',
+      `${thinking37}; single-user constant 0 from earlier observations, not recomputed`,
+    ),
+  })
 
 /**
  * The two open-weight leaves keep the pinned public-template estimator. Their
@@ -257,7 +321,7 @@ export const qwenPublicTemplateBindings: Readonly<
 })
 
 function bindingFor(modelId: QwenAlibabaModelId) {
-  const binding = qwenVisibleBindings[modelId] ?? qwenPublicTemplateBindings[modelId]
+  const binding = qwenCommercialBindings[modelId] ?? qwenPublicTemplateBindings[modelId]
   if (!binding) throw new TypeError(`unbound Qwen leaf: ${modelId}`)
   return binding
 }

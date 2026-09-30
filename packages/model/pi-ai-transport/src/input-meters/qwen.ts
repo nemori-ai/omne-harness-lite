@@ -1,14 +1,14 @@
-import { qwenPublicTemplateBindings, qwenVisibleBindings } from '../official-models/qwen.ts'
-import { renderQwenVisibleInput } from './qwen-visible.ts'
+import { qwenCommercialBindings, qwenPublicTemplateBindings } from '../official-models/qwen.ts'
 import { defineInputMeter } from '../input-meter.ts'
-// Public-template projections and commercial final-JSON surrogates share the
-// pinned Qwen tokenizer. Every OpenRouter conversion remains estimated.
+// All eight leaves render the pinned public Qwen3.8 template and count with its pinned
+// tokenizer; per-leaf template settings differ. Every OpenRouter conversion is estimated.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { Tokenizer } from '@huggingface/tokenizers'
 import { imageSize } from 'image-size'
 import {
   isJsonNumber,
+  isNonNegativeJsonInteger,
   jsonNumberSource,
   readJsonStrict,
   writeJsonLossless,
@@ -19,6 +19,7 @@ import {
   codePointOrder,
   ruleAccepts,
   type ModelDefinition,
+  type ModelRoute,
   type ParameterRule,
 } from '../definitions.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
@@ -57,19 +58,52 @@ function tokenizer(directory: string): Tokenizer {
   return new Tokenizer(JSON.parse(data.toString('utf8')), JSON.parse(config))
 }
 
+/**
+ * Settings of the pinned public template that a released binding fixes. They are part of
+ * the counting function, not host configuration.
+ */
+export interface QwenTemplateSettings {
+  /**
+   * Template `preserve_thinking`. True (the template default) renders every assistant's
+   * think block; false renders it only for assistants after the last user query.
+   */
+  readonly preserveThinking: boolean
+  /**
+   * `xhigh`: the template default reasoning instruction. `none`: no instruction, the
+   * template's `medium` frame (a rendering equivalence, not a claim about effort).
+   */
+  readonly effortInstruction: 'xhigh' | 'none'
+  /**
+   * Semantics of the template's `tojson` filter for tool definitions and non-string call
+   * arguments. `sorted-keys`: Jinja2's built-in filter. `wire-order`: the transformers/vLLM
+   * chat-template filter (insertion order, no ASCII or HTML escaping).
+   */
+  readonly toolJson: 'sorted-keys' | 'wire-order'
+}
+
+/** The settings of the two open leaves' public-template estimator. */
+export const qwenOpenTemplateSettings: QwenTemplateSettings = Object.freeze({
+  preserveThinking: true,
+  effortInstruction: 'xhigh',
+  toolJson: 'sorted-keys',
+})
+
+// Python's JSON loader changes decimal/exponent spellings before tojson; only canonical
+// safe integers can be rendered directly from their wire spelling.
+function integerJson(value: JsonValue): string | undefined {
+  if (!isJsonNumber(value)) return undefined
+  const source = jsonNumberSource(value)
+  return source !== '-0' &&
+    /^-?(?:0|[1-9][0-9]*)$/u.test(source) &&
+    Number.isSafeInteger(Number(source))
+    ? source
+    : undefined
+}
+
 // Jinja's default tojson sorts keys by Unicode code point, retains separator
 // spaces, escapes non-ASCII code units, and escapes HTML-sensitive characters.
-// Python's JSON loader changes decimal/exponent spellings before tojson; only
-// canonical safe integers can be rendered directly from their wire spelling.
 function jinjaJson(value: JsonValue): string | undefined {
-  if (isJsonNumber(value)) {
-    const source = jsonNumberSource(value)
-    return source !== '-0' &&
-      /^-?(?:0|[1-9][0-9]*)$/u.test(source) &&
-      Number.isSafeInteger(Number(source))
-      ? source
-      : undefined
-  }
+  if (isJsonNumber(value)) return integerJson(value)
   if (value === null || typeof value !== 'object')
     return JSON.stringify(value)
       .replace(
@@ -92,6 +126,41 @@ function jinjaJson(value: JsonValue): string | undefined {
     entries.push(`${jinjaJson(key)}: ${rendered}`)
   }
   return `{${entries.join(', ')}}`
+}
+
+const loneSurrogate = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/u
+
+// transformers' chat-template tojson: `json.dumps(value, ensure_ascii=False)`. Keys keep
+// their order, separators keep their spaces, and only `"`, `\` and C0 controls are escaped,
+// exactly as JSON.stringify escapes them. A lone surrogate has no Python str/UTF-8 form.
+function wireOrderJson(value: JsonValue): string | undefined {
+  if (isJsonNumber(value)) return integerJson(value)
+  if (typeof value === 'string')
+    return loneSurrogate.test(value) ? undefined : JSON.stringify(value)
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) {
+    const items = value.map(wireOrderJson)
+    return items.some(item => item === undefined) ? undefined : `[${items.join(', ')}]`
+  }
+  if (!object(value)) throw new TypeError('JSON object required')
+  const entries: string[] = []
+  for (const [key, item] of Object.entries(value)) {
+    const name = wireOrderJson(key)
+    const rendered = wireOrderJson(item)
+    if (name === undefined || rendered === undefined) return undefined
+    entries.push(`${name}: ${rendered}`)
+  }
+  return `{${entries.join(', ')}}`
+}
+
+// A JavaScript object lists array-index keys first, so a parsed argument string keeps its
+// source key order only without them. Python's parser keeps the source order.
+function keepsSourceOrder(value: JsonValue): boolean {
+  if (Array.isArray(value)) return value.every(keepsSourceOrder)
+  if (!object(value)) return true
+  return Object.entries(value).every(
+    ([key, item]) => !/^(?:0|[1-9][0-9]*)$/u.test(key) && keepsSourceOrder(item),
+  )
 }
 
 const visionPlaceholder = '<|vision_start|><|image_pad|><|vision_end|>'
@@ -200,7 +269,11 @@ function tools(value: JsonValue | undefined): JsonObject[] | undefined {
   return result
 }
 
-function renderToolCalls(calls: readonly JsonObject[], priorContent: string): string | undefined {
+function renderToolCalls(
+  calls: readonly JsonObject[],
+  priorContent: string,
+  toolJson: QwenTemplateSettings['toolJson'],
+): string | undefined {
   let output = ''
   for (const [index, raw] of calls.entries()) {
     const fn = object(raw.function) ? raw.function : undefined
@@ -210,10 +283,16 @@ function renderToolCalls(calls: readonly JsonObject[], priorContent: string): st
     if (Object.keys(fn).some(key => key !== 'name' && key !== 'arguments')) return undefined
     const parsed = readJsonStrict(fn.arguments)
     if (!('ok' in parsed) || !object(parsed.ok)) return undefined
+    if (toolJson === 'wire-order' && !keepsSourceOrder(parsed.ok)) return undefined
     output += index === 0 && priorContent.trim() ? '\n\n' : index > 0 ? '\n' : ''
     output += `<tool_call>\n<function=${fn.name}>\n`
     for (const [name, value] of Object.entries(parsed.ok)) {
-      const rendered = typeof value === 'string' ? value : jinjaJson(value)
+      const rendered =
+        typeof value === 'string'
+          ? value
+          : toolJson === 'wire-order'
+            ? wireOrderJson(value)
+            : jinjaJson(value)
       if (rendered === undefined) return undefined
       output += `<parameter=${name}>\n${rendered}\n</parameter>\n`
     }
@@ -222,8 +301,31 @@ function renderToolCalls(calls: readonly JsonObject[], priorContent: string): st
   return output
 }
 
-/** Public template projection for text, tools, and multi-turn history. */
-export function renderQwenPrompt(body: JsonObject): string | undefined {
+// The template's reversed scan: the last user message whose trimmed content is not
+// wrapped in <tool_response>...</tool_response>. Indices include system and tool messages.
+function lastQueryIndex(sequence: readonly PromptMessage[]): number {
+  for (let index = sequence.length - 1; index >= 0; index--) {
+    const message = sequence[index]
+    if (
+      message?.role === 'user' &&
+      !(
+        message.content.startsWith('<tool_response>') &&
+        message.content.endsWith('</tool_response>')
+      )
+    )
+      return index
+  }
+  return -1
+}
+
+/**
+ * Public template projection for text, tools, and multi-turn history, under the pinned
+ * template settings of one binding. The default is the open leaves' estimator.
+ */
+export function renderQwenPrompt(
+  body: JsonObject,
+  settings: QwenTemplateSettings = qwenOpenTemplateSettings,
+): string | undefined {
   if (
     Object.keys(body).some(
       key =>
@@ -244,29 +346,36 @@ export function renderQwenPrompt(body: JsonObject): string | undefined {
   if (!sequence || !definitions) return undefined
   const first = sequence[0]
   if (!first) return undefined
+  const instruction = settings.effortInstruction === 'xhigh' ? xhighInstruction : ''
+  const toolJson = settings.toolJson === 'wire-order' ? wireOrderJson : jinjaJson
+  const systemContent = first.role === 'system' ? first.content : ''
   let prompt = ''
   if (definitions.length) {
-    prompt = `<|im_start|>system\n${xhighInstruction}\n\n${toolPrefix}`
+    prompt = `<|im_start|>system\n${instruction ? `${instruction}\n\n` : ''}${toolPrefix}`
     for (const definition of definitions) {
-      const rendered = jinjaJson(definition)
+      const rendered = toolJson(definition)
       if (rendered === undefined) return undefined
       prompt += `\n${rendered}`
     }
     prompt += toolSuffix
-    if (first.role === 'system' && first.content) prompt += `\n\n${first.content}`
+    if (systemContent) prompt += `\n\n${systemContent}`
     prompt += '<|im_end|>\n'
-  } else if (first.role === 'system') {
-    prompt = `<|im_start|>system\n${xhighInstruction}${first.content ? `\n\n${first.content}` : ''}<|im_end|>\n`
-  } else {
-    prompt = `<|im_start|>system\n${xhighInstruction}<|im_end|>\n`
+  } else if (systemContent) {
+    prompt = `<|im_start|>system\n${instruction ? `${instruction}\n\n` : ''}${systemContent}<|im_end|>\n`
+  } else if (instruction) {
+    prompt = `<|im_start|>system\n${instruction}<|im_end|>\n`
   }
+  const lastQuery = lastQueryIndex(sequence)
   for (const [index, message] of sequence.entries()) {
     if (message.role === 'system') continue
     if (message.role === 'user') {
       prompt += `<|im_start|>user\n${message.content}<|im_end|>\n`
     } else if (message.role === 'assistant') {
-      prompt += `<|im_start|>assistant\n<think>\n${message.reasoning}\n</think>\n\n${message.content}`
-      const callText = renderToolCalls(message.toolCalls, message.content)
+      prompt +=
+        settings.preserveThinking || index > lastQuery
+          ? `<|im_start|>assistant\n<think>\n${message.reasoning}\n</think>\n\n${message.content}`
+          : `<|im_start|>assistant\n${message.content}`
+      const callText = renderToolCalls(message.toolCalls, message.content, settings.toolJson)
       if (callText === undefined) return undefined
       prompt += `${callText}<|im_end|>\n`
     } else {
@@ -357,7 +466,7 @@ function withoutXhighEffort(
 }
 
 /**
- * Meter-only copy for the two public-template leaves. An assistant's one visible
+ * Meter-only copy for the eight public-template leaves. An assistant's one visible
  * `reasoning.text` detail (shared shape, not `[REDACTED]`) whose parallel `reasoning` is
  * absent or the identical string (compared before the template's trim) reaches the public
  * template's `reasoning_content` slot exactly once, through the same plain `reasoning` path.
@@ -368,27 +477,148 @@ export function projectQwenMeterBody(body: JsonObject): JsonObject | undefined {
   return projectVisibleReasoningBody(body, ['reasoning'])
 }
 
-/** Pinned-tokenizer estimates for the eight exact Alibaba leaves. */
+function onlyKeys(value: JsonObject, allowed: readonly string[]): boolean {
+  return Object.keys(value).every(key => allowed.includes(key))
+}
+
+function commercialContent(value: JsonValue | undefined, systemCache: boolean): boolean {
+  if (typeof value === 'string' || value === null) return true
+  return (
+    Array.isArray(value) &&
+    value.every(part => {
+      if (
+        !object(part) ||
+        part.type !== 'text' ||
+        typeof part.text !== 'string' ||
+        !onlyKeys(part, ['type', 'text', 'cache_control'])
+      )
+        return false
+      if (part.cache_control === undefined) return true
+      return (
+        systemCache &&
+        object(part.cache_control) &&
+        onlyKeys(part.cache_control, ['type', 'ttl']) &&
+        part.cache_control.type === 'ephemeral' &&
+        part.cache_control.ttl === '5m'
+      )
+    })
+  )
+}
+
+/**
+ * Structural preconditions the commercial leaves kept from their final-JSON estimator:
+ * the exact provider object with `require_parameters: true`, a cache control only on a
+ * system text block of an explicit-cache route and exactly `ephemeral`/`5m`, and the exact
+ * tool, call and message member sets. The template renderer judges everything else.
+ */
+function commercialStructure(body: JsonObject, route: ModelRoute): boolean {
+  if (
+    !onlyKeys(body, [
+      'model',
+      'provider',
+      'stream',
+      'store',
+      'messages',
+      'tools',
+      'max_tokens',
+      'reasoning',
+    ]) ||
+    !object(body.provider) ||
+    !onlyKeys(body.provider, ['order', 'allow_fallbacks', 'require_parameters']) ||
+    body.provider.require_parameters !== true ||
+    (body.stream !== undefined && typeof body.stream !== 'boolean') ||
+    (body.store !== undefined && typeof body.store !== 'boolean') ||
+    (body.max_tokens !== undefined && !isNonNegativeJsonInteger(body.max_tokens)) ||
+    !Array.isArray(body.messages)
+  )
+    return false
+  if (
+    body.tools !== undefined &&
+    (!Array.isArray(body.tools) ||
+      body.tools.some(
+        tool =>
+          !object(tool) ||
+          !onlyKeys(tool, ['type', 'function']) ||
+          tool.type !== 'function' ||
+          !object(tool.function) ||
+          !onlyKeys(tool.function, ['name', 'description', 'parameters']) ||
+          typeof tool.function.name !== 'string' ||
+          (tool.function.description !== undefined &&
+            typeof tool.function.description !== 'string') ||
+          !object(tool.function.parameters),
+      ))
+  )
+    return false
+  const explicitCache = route.cache.mode === 'explicit'
+  return body.messages.every(message => {
+    if (
+      !object(message) ||
+      !onlyKeys(message, [
+        'role',
+        'content',
+        'reasoning',
+        'reasoning_details',
+        'tool_calls',
+        'tool_call_id',
+      ]) ||
+      !commercialContent(message.content, explicitCache && message.role === 'system')
+    )
+      return false
+    if (
+      message.role !== 'assistant' &&
+      (message.reasoning !== undefined ||
+        message.reasoning_details !== undefined ||
+        message.tool_calls !== undefined)
+    )
+      return false
+    if (
+      message.role === 'tool'
+        ? typeof message.tool_call_id !== 'string'
+        : message.tool_call_id !== undefined
+    )
+      return false
+    return (
+      message.tool_calls === undefined ||
+      (Array.isArray(message.tool_calls) &&
+        message.tool_calls.every(
+          call =>
+            object(call) &&
+            onlyKeys(call, ['id', 'type', 'function']) &&
+            typeof call.id === 'string' &&
+            call.type === 'function' &&
+            object(call.function) &&
+            onlyKeys(call.function, ['name', 'arguments']) &&
+            typeof call.function.name === 'string' &&
+            typeof call.function.arguments === 'string',
+        ))
+    )
+  })
+}
+
+/** Pinned public-template estimates for the eight exact Alibaba leaves. */
 export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
   const source = sourceFor(definition.modelId)
-  const visible = Object.hasOwn(qwenVisibleBindings, definition.modelId)
-    ? qwenVisibleBindings[definition.modelId]
+  const commercial = Object.hasOwn(qwenCommercialBindings, definition.modelId)
+    ? qwenCommercialBindings[definition.modelId]
     : undefined
   const binding =
-    visible ??
+    commercial ??
     (Object.hasOwn(qwenPublicTemplateBindings, definition.modelId)
       ? qwenPublicTemplateBindings[definition.modelId]
       : undefined)
+  const route = definition.routes.alibaba
   if (
-    (!source && !visible) ||
+    (!source && !commercial) ||
     !binding ||
     definition.revision !== binding.revision ||
     definition.implementation.name !== 'pi-ai:qwen' ||
     definition.implementation.revision !== binding.implementationRevision ||
-    !Object.hasOwn(definition.routes, 'alibaba')
+    !Object.hasOwn(definition.routes, 'alibaba') ||
+    !route
   )
     throw new TypeError('unsupported Qwen definition')
-  const effortRule = definition.routes.alibaba?.parameters.reasoningEffort
+  const effortRule = route.parameters.reasoningEffort
+  const settings = commercial?.template ?? qwenOpenTemplateSettings
   const encoder = tokenizer(source?.directory ?? 'qwen-38-24t')
   const raw = defineInputMeter({
     modelId: definition.modelId,
@@ -396,22 +626,20 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
     implementation: definition.implementation,
     provider: 'alibaba',
     algorithmRevision:
-      visible?.algorithmRevision ??
+      commercial?.algorithmRevision ??
       (definition.modelId === visualModelId
         ? 'qwen-38-public-template-image-effort-5'
         : 'qwen-38-public-template-effort-4'),
-    // The tokenizer and template are unchanged; only the projected domain grew.
-    ...(visible
-      ? {}
-      : {
-          tokenizerRevision:
-            definition.modelId === visualModelId
-              ? 'tokenizer-basis/qwen-38-public-template-image-effort-4'
-              : 'tokenizer-basis/qwen-38-public-template-effort-3',
-        }),
-    evidence: visible
-      ? `${visible.evidence}; Alibaba OpenAI-compatible Chat API (2026-09-29) defines ordered messages, tool schemas/results and visible reasoning; complete final JSON including protocol controls is the explicit surrogate; Qwen/Qwen3.8-2.4T-A95B 207bd685a7e3696cfaff12ded7c6a7ea0f88c996 tokenizer.json sha256:${tokenizerSha256}; no exactness, error bound, offset transfer, media/opaque or incremental claim; actual OpenRouter multi-turn residual/holdout pending`
-      : `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; ${definition.modelId === visualModelId ? 'Alibaba Qwen3.8 32x32 image formula, unscaled inline PNG only;' : 'text/tools subset;'} OpenRouter/Alibaba conversion remains estimated; declared high/max request effort renders the template default xhigh instruction per Alibaba's documented high/max-to-xhigh mapping, an estimated scope extension with no actual effort holdout or error bound; one visible reasoning.text detail per assistant is projected into the public template reasoning_content slot, OpenRouter details conversion unknown, no holdout; none, other effort shapes and every other reasoning_details shape (summary, encrypted, redacted or extra keys) remain unavailable`,
+    // Open leaves: the tokenizer and template are unchanged; only the projected domain grew.
+    // Commercial leaves: the render basis changed class, so the value is explicit and new.
+    tokenizerRevision:
+      commercial?.tokenizerRevision ??
+      (definition.modelId === visualModelId
+        ? 'tokenizer-basis/qwen-38-public-template-image-effort-4'
+        : 'tokenizer-basis/qwen-38-public-template-effort-3'),
+    evidence:
+      commercial?.evidence ??
+      `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; ${definition.modelId === visualModelId ? 'Alibaba Qwen3.8 32x32 image formula, unscaled inline PNG only;' : 'text/tools subset;'} OpenRouter/Alibaba conversion remains estimated; declared high/max request effort renders the template default xhigh instruction per Alibaba's documented high/max-to-xhigh mapping, an estimated scope extension with no actual effort holdout or error bound; one visible reasoning.text detail per assistant is projected into the public template reasoning_content slot, OpenRouter details conversion unknown, no holdout; none, other effort shapes and every other reasoning_details shape (summary, encrypted, redacted or extra keys) remain unavailable`,
     measureFull({ body, serialized }): TokenMeasurement {
       if (
         body.model !== definition.modelId ||
@@ -420,16 +648,15 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
         body.provider.order.length !== 1 ||
         body.provider.order[0] !== 'alibaba' ||
         body.provider.allow_fallbacks !== false ||
-        writeJsonLossless(body) !== serialized
+        writeJsonLossless(body) !== serialized ||
+        (commercial !== undefined && !commercialStructure(body, route))
       )
         return { kind: 'unavailable' }
       // Effort stripping and the details projection touch disjoint fields; rendering and
-      // image counting read the same meter-only copy.
-      const effortless = visible ? undefined : withoutXhighEffort(body, effortRule)
+      // image counting read the same meter-only copy. Routes that drop effort admit none.
+      const effortless = withoutXhighEffort(body, effortRule)
       const template = effortless && projectQwenMeterBody(effortless)
-      const prompt = visible
-        ? renderQwenVisibleInput(body, definition)
-        : template && renderQwenPrompt(template)
+      const prompt = template && renderQwenPrompt(template, settings)
       if (prompt === undefined) return { kind: 'unavailable' }
       const imageTokens =
         definition.modelId === visualModelId && template ? inlineImageTokens(template) : 0
@@ -444,7 +671,6 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
       }
     },
   })
-  // All eight factory methods run the shared source/basis guards; the six visible-JSON
-  // leaves only gain those checks, never a different value.
+  // All eight factory methods run the shared source/basis guards.
   return guardInputMeter(raw)
 }

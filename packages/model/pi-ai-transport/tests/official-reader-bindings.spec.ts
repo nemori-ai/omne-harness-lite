@@ -7,6 +7,7 @@ import qwenOpenEffort from './fixtures/shared-reader/qwen-open-effort.json' with
 import moonshotVisible from './fixtures/shared-reader/moonshot-visible-reasoning.json' with { type: 'json' }
 import qwenVisible from './fixtures/shared-reader/qwen-visible-reasoning.json' with { type: 'json' }
 import zaiVisible from './fixtures/shared-reader/zai-visible-reasoning.json' with { type: 'json' }
+import qwenCommercial from './fixtures/shared-reader/qwen-commercial-public-template.json' with { type: 'json' }
 import {
   openaiDefinitions,
   anthropicDefinitions,
@@ -71,6 +72,7 @@ const successors: Readonly<Record<string, (typeof priorityRelease)[keyof typeof 
     ...moonshotVisible,
     ...qwenVisible,
     ...zaiVisible,
+    ...qwenCommercial,
   }
 
 describe('Current official reader and priority-family releases', () => {
