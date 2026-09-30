@@ -281,6 +281,8 @@ definitions 必填，缺席、undefined、非数组或不完整定义在建立�
 
 四项基础 token 都未知时 source 为 none，省略 reasoning_tokens；任一有效基础计数（含零）则 source 为 upstream，费用独立保留。推理 opaque 元数据与供应商变化保留 revision 6 行为。本完整定义公共实现为 revision 7，旧证据不自动认证它；definition/configuration 修订归实际事实与配置来源拥有者。
 
+共享读取器把流式 `reasoning_details` 重建进思考块的 `opaque`，不猜测身份。相邻的 `reasoning.text` 片段只有在除 `text` 与 `signature` 之外的所有成员（type、id、index、format 及任何未知元数据，后者原样保留）逐值相等，且满足以下两种情形之一时，才按到达顺序拼接文本。一是双方 `id` 相同且非空：缺席或 `null` 的签名可以续接，直到被后到的一个非空签名填上，此后只允许同一签名继续。二是双方都没有 id，且都不带签名（缺席或 `null`），即普通的流式推理增量。其余情形一律保留为独立的原始条目：身份或元数据不同、签名冲突、已签名后又来未签名片段、无 id 却带签名，或签名不是字符串或为空串。`reasoning.encrypted` 从不拼接；`reasoning.summary` 维持原有的等头拼接。各家族的签名回放规则不变，因此未签名或被拆开的 Anthropic 组在规划时仍为 unavailable，不会被修补。
+
 此路径采用 [D095](../../../.meta_harness/design/record/decisions/model-credential-path-adoption/decision.md) 与 [transport 凭据投影 revision 3](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/v6-credential-path-design.md)。将下例保存为 `execute-once.ts`，传入拥有已核实完整定义的 transport。函数借用 transport，保留同次已处理 H 并在返回前停止响应；transport 拥有者在使用完毕后关闭它。
 
 ```ts
