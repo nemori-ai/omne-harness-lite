@@ -38,6 +38,7 @@ import type {
   SettlementTask,
   SettlementTaskKind,
   SettlementComplete,
+  SettlementStaging,
   SettlementUnavailableReason,
 } from './settlement-types.ts'
 
@@ -324,6 +325,9 @@ export function createSettlementCoordinator(
             messageId: request.current.messageId,
             disposition: request.current.disposition,
           })
+    const staging = request.staging
+    if (staging !== undefined && typeof staging.hold !== 'function')
+      return failedHandle('candidate')
     // Resolve the original retained handle instead of starting a competing writer for it.
     for (const entry of retainedUnknowns)
       if (sameTarget(entry.target, stableTarget)) return resolutionHandle(entry, policy.name)
@@ -585,6 +589,30 @@ export function createSettlementCoordinator(
           facts.anchors.dispatched.run === undefined
             ? { kind: 'unconditional' }
             : { kind: 'tailEquals', tail: read.prefix.tail }
+        if (staging !== undefined) {
+          // RT12 S-99⑧: the very batch below is durable before this append may take effect.
+          // No earlier append of this request is unresolved here (guard above), so replacing a
+          // held batch after a proven zero write can never overwrite a possibly committed one.
+          let held: Awaited<ReturnType<SettlementStaging['hold']>>
+          try {
+            held = await staging.hold(
+              Object.freeze({
+                target: stableTarget,
+                current: stableCurrent,
+                entries: Object.freeze([...batch]),
+                condition,
+              }),
+            )
+          } catch {
+            held = { unavailable: true }
+          }
+          if (!('held' in held)) {
+            diagnostic('settlement.staging_unavailable')
+            return unavailable('staging')
+          }
+          const afterHold = guard(true)
+          if (afterHold !== null) return unavailable(afterHold)
+        }
         // Keep the exact submitted members, late shell and condition before the first IO.
         originalBatch = Object.freeze({ batch: Object.freeze([...batch]), condition })
         submissions++

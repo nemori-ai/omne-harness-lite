@@ -40,6 +40,7 @@ import type {
 import type { ServiceInvalidInput, ServiceUnavailable } from './service-types.ts'
 import type { SettlementLogBinding } from './settlement-types.ts'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
+import { createSettlementWorkStore, settlementWorkMigration } from './settlement-work-store.ts'
 
 interface ContentRow {
   readonly organization: string
@@ -82,8 +83,8 @@ export interface ModelCallContentPolicy {
   readonly maxContentBytes: number
 }
 /**
- * Private content and RT12 S-98 retention migrations. Content, retention and permits share one
- * Storage; SQL and SL3 never share a claimed transaction.
+ * Private content, RT12 S-98 retention and S-99⑧ settlement-work migrations. Content,
+ * retention, permits and staging rows share one Storage; SQL and SL3 never share a transaction.
  */
 export function modelCallContentMigrations(
   backend: 'sqlite' | 'postgres',
@@ -157,6 +158,7 @@ export function modelCallContentMigrations(
         },
       },
     },
+    settlementWorkMigration,
   ]
 }
 function validBinding(binding: SettlementLogBinding): boolean {
@@ -743,6 +745,7 @@ export function createModelCallContentStore(input: {
         return unavailable
       }
     },
+    work: createSettlementWorkStore({ storage, owned, closed: () => closed }),
     async close() {
       closed = true
       await Promise.all([...tasks])

@@ -2,7 +2,12 @@ import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
-import type { AppendResult, SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type {
+  AppendCondition,
+  AppendResult,
+  OwnedLogEntry,
+  SessionLog,
+} from '@omne-harness-lite/session-log-jsonl'
 import type {
   ModelLogSettlementTarget,
   ModelLogSettlementCurrent,
@@ -116,6 +121,28 @@ export interface SettlementRequest {
   readonly current: ModelLogSettlementCurrent | null
   /** Complete declared response. Snapshot is captured before any asynchronous work. */
   readonly response: unknown
+  /**
+   * RT12 S-99⑧: when present, every batch is durably held here before its append may take
+   * effect. Absent keeps the original pre-ACK behaviour, where the runtime holds the source.
+   */
+  readonly staging?: SettlementStaging
+}
+/** RT12 S-99⑧: the exact batch one settlement is about to append, with its identity. */
+export interface SettlementStagedBatch {
+  readonly target: ModelLogSettlementTarget
+  readonly current: ModelLogSettlementCurrent | null
+  readonly entries: readonly OwnedLogEntry[]
+  readonly condition: AppendCondition
+}
+/**
+ * The coordinator calls `hold` only while no earlier append of the same request can still take
+ * effect: first before the initial append, then after a proven zero write (`tailChanged` or
+ * `alreadyRecorded`) before a rebuilt batch. It never calls it while a receipt is unknown.
+ */
+export interface SettlementStaging {
+  readonly hold: (
+    batch: SettlementStagedBatch,
+  ) => Promise<{ readonly held: true } | { readonly unavailable: true }>
 }
 export type SettlementComplete = Extract<
   SettlementMembersResult,
@@ -138,6 +165,8 @@ export type SettlementUnavailableReason =
   | 'write_unknown'
   | 'task'
   | 'candidate'
+  /** The batch could not be durably held before its append (RT12 S-99⑧); nothing was sent. */
+  | 'staging'
 export type SettlementResult =
   | { readonly settled: SettlementComplete; readonly origin: 'appended' | 'recognized' }
   | { readonly unavailable: true; readonly reason: SettlementUnavailableReason }
