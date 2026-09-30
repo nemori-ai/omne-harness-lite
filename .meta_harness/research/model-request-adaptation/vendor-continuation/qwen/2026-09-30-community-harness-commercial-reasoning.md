@@ -224,3 +224,11 @@
 - GitHub tarball：`earendil-works/pi@d86654abb8862e201933517d6f1fce9f88dd117f`（v0.99.1）`48941ee95f08ca84972f36cd1f55bbbc85a2345cbcaffc6205fad8f8e3c091be`；`QwenLM/qwen-code@b12edec1401a28fc53cd9e714d5928b285071fc8`（v0.24.7）`fde3b250ad61d250c944889b523804e672129544581ebf93e0a6b6e079d6bc8f`；本仓库 pi fork 基线 `3390bd93`（0.86.1）见 `tmp/sources/pi-3390bd9.tar.gz` 与上文快照链接。
 
 本仓库此前的 Qwen 页：[六例观察](2026-09-28-fixed-route-six-observations.md)、[3.8-Flash 单 user](2026-09-28-flash-final-wire-input-meter.md)、[3.7-Flash 单 user](2026-09-28-flash37-final-wire-input-meter.md)、[Hosted Max 例](2026-09-28-hosted-max-example.md)、[公开模板缺口](2026-09-28-public-template-gaps.md)、[可见完整代理](2026-09-29-visible-full-surrogate.md)。
+
+## QC-V0 独立复算（2026-09-30）
+
+事件词：补充。上文正文不改。第二执行者没有读作者的计算，也没有调用包内 `renderQwenPrompt`，而是按[上文方法](#本仓库-batch8-的离线复算推断级)独立重写：先由已批准场景和原始 SSE 重建 18 个请求，再用 Jinja2 3.1.6 直接渲染固定模板，最后用 HuggingFace `tokenizers` 0.23.2 读固定 `tokenizer.json` 计数。脚本、六份汇总副本、哈希与逐行结果见 [batch8-20260930/](batch8-20260930/README.md)。
+
+- **一致的项**：18 个上游 `prompt_tokens`、18 个现行 JSON 替身预测（残差 −186～+609）、12 个轮间增量残差全为 0、3.7 三叶增量 71／65、3.8 六个增量减去 3.7 增量和上一轮 reasoning tokens 后余数全为 5、18 轮 `delta.reasoning` 与 details text 逐字相同，以及六份汇总的 SHA-256，都与上文一致。18 轮重建体的 SHA-256 全部等于 run 记录的 `plannedWireSha256`，所以复算用的输入与规划体逐字节相同。
+- **与模板规则预测列的关系**：模板用 `tool | tojson` 渲染工具定义。按 Jinja2 内置 `tojson`（键按字母排序，包内渲染器也这样做）渲染时，18 个预测与上文逐值相同，残差全为 +1。按 HF transformers／vLLM 的 `tojson`（保持 wire 键序）渲染时，18 个残差全为 0。两种渲染只差工具定义那一行，排序版在那一行多 1 个 token。所以在这一个形状里，上文记作「来源未知」的 +1 可以完全由这个渲染选择解释。阿里私有渲染用哪种键序仍然未知：零残差与插入序相容，但本批数据不能排除别的解释。单 user 形状的 −9／0 不含工具，本次没有复算。
+- **输入字符范围**：上文说「英文 ASCII 内容」，这对场景文字成立；但 0902 第 2、3 轮回放的历史推理里有 `—`、`→` 两个非 ASCII 字符。
