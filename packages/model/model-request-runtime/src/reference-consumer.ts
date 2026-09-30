@@ -20,8 +20,16 @@ export function offerReferenceConsumers(
   for (const listener of listeners.get(container) ?? []) listener.offer(event, snapshot)
 }
 
+function bucketOf(container: object): Set<Listener> {
+  const existing = listeners.get(container)
+  if (existing !== undefined) return existing
+  const created = new Set<Listener>()
+  listeners.set(container, created)
+  return created
+}
+
 /** Receiver ownership only. This module has no invocation, cancel, settle or recovery handle. */
-export function createIndependentCallConsumer(input: {
+export function createIndependentCallConsumer(options: {
   readonly container: object
   readonly revoked: AbortSignal
   readonly valid: () => boolean
@@ -30,6 +38,8 @@ export function createIndependentCallConsumer(input: {
   readonly initialSnapshot?: AssemblySnapshot
   readonly onStopped: () => void
 }): CallConsumer {
+  // Closures below capture `input`, which excludes the container (see `bucket`).
+  const { container, ...input } = options
   let terminal:
     | Exclude<CallWaitResult, { readonly view: CallReadView } | { readonly aborted: true }>
     | undefined
@@ -87,9 +97,7 @@ export function createIndependentCallConsumer(input: {
     if (terminal !== undefined) return
     terminal = result
     input.revoked.removeEventListener('abort', revoked)
-    const bucket = listeners.get(input.container)
-    bucket?.delete(listener)
-    if (bucket?.size === 0) listeners.delete(input.container)
+    bucket.delete(listener)
     announceClosed(result)
     changed()
     stopReceiver()
@@ -117,11 +125,10 @@ export function createIndependentCallConsumer(input: {
       })
   }
   const revoked = () => terminate({ unavailable: true })
-  let bucket = listeners.get(input.container)
-  if (bucket === undefined) {
-    bucket = new Set()
-    listeners.set(input.container, bucket)
-  }
+  // The handle keeps only its listener bucket, never the container itself (RT12 S-97: a
+  // caller handle holds ref + access entry). An empty bucket stays keyed by the container in
+  // the WeakMap and is collected with it, so the handle cannot pin a released container.
+  const bucket = bucketOf(container)
   bucket.add(listener)
   input.revoked.addEventListener('abort', revoked, { once: true })
   if (input.revoked.aborted || !input.valid()) revoked()
