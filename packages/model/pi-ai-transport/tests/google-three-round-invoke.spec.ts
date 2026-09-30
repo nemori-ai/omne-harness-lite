@@ -426,14 +426,16 @@ describe.each(googleDefinitions)('Google public invoke boundary: $modelId', defi
         const result = await invoke(first, transport)
         if (!('outcome' in result) || result.outcome !== 'complete')
           throw new Error(JSON.stringify(result))
-        // R-F: the unsigned text detail and the id-less signature detail stay separate.
+        // R-L: id-less, same-index text then signature-only fragments are one content block,
+        // rebuilt as a single signed reasoning.text detail (format-independent).
+        const merged = [{ ...details[0], signature: details[1]?.signature }]
         const thinking = result.blocks.filter(block => block.kind === 'thinking')
         expect(thinking).toHaveLength(1)
         const opaque = thinking[0]?.opaque
         if (opaque === undefined) throw new Error('signed reasoning lost its original details')
         expect(readOpaqueJson(opaque)).toEqual({
           routeName: definition.modelId,
-          reasoning_details: details,
+          reasoning_details: merged,
         })
         const second = nextRound(first, result, 2)
         const retained = writeJsonLossless(second.messages)
@@ -455,7 +457,7 @@ describe.each(googleDefinitions)('Google public invoke boundary: $modelId', defi
         const assistant = (
           carried.planned.body.messages as { role: string; reasoning_details?: unknown }[]
         ).find(unit => unit.role === 'assistant')
-        expect(assistant?.reasoning_details).toEqual(details)
+        expect(assistant?.reasoning_details).toEqual(merged)
         expect(assistant).not.toHaveProperty('reasoning')
         expect(host.requests).toHaveLength(1)
       } finally {
