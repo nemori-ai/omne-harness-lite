@@ -100,7 +100,7 @@ describe.each(cases)(
           cost: 0.0000117,
         }),
         'OpenAI',
-        [detail],
+        [{ reasoning_details: [detail] }],
       )
       tls.setMode('reasoning')
       const app = createAcceptanceApplication(config, {
