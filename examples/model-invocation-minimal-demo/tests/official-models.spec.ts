@@ -1,17 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
-  createOfficialProfileContent,
-  deepseekV41FlashConfiguration,
-  deepseekV41FlashDefinition,
-  deepseekV4Pro0813Configuration,
-  deepseekV4Pro0813Definition,
   officialCatalog,
+  officialCatalogRevision,
   officialModelIds,
 } from '@omne-harness-lite/pi-ai-transport'
-import type { OfficialManifest } from '@omne-harness-lite/model-profile-directory'
 import { createAcceptanceApplication, type AcceptanceEvent } from '../src/index.ts'
 import {
   createDemoConfig,
+  DEMO_MANIFEST_BASE,
   DEMO_OFFICIAL_CONFIGURATION_REVISION,
   DEMO_OFFICIAL_MANIFEST_ORDINAL,
   MODEL,
@@ -29,26 +25,6 @@ function demoConfig() {
     { multiplier: 1.1, reserveTokens: 256 },
     demoRetirement(),
   )
-}
-
-/** The manifest the demo shipped before it installed the whole catalog (two DeepSeek leaves). */
-function previousManifest(): OfficialManifest {
-  const entries = [
-    [deepseekV4Pro0813Definition, deepseekV4Pro0813Configuration],
-    [deepseekV41FlashDefinition, deepseekV41FlashConfiguration],
-  ] as const
-  return {
-    ordinal: 3,
-    entries: entries.map(([definition, configuration]) => {
-      const profile = createOfficialProfileContent(definition, {
-        providers: ['deepinfra/fp8'],
-        allowFallback: false,
-        configuration,
-      })
-      if (!('ok' in profile)) throw new Error('previous profile fixture rejected')
-      return profile.ok
-    }),
-  }
 }
 
 describe('demo official model installation follows the package catalog', () => {
@@ -71,7 +47,9 @@ describe('demo official model installation follows the package catalog', () => {
     )
     expect(catalogIds).toHaveLength(37)
     expect(config.officialManifest.ordinal).toBe(DEMO_OFFICIAL_MANIFEST_ORDINAL)
-    expect(DEMO_OFFICIAL_MANIFEST_ORDINAL).toBeGreaterThan(previousManifest().ordinal as number)
+    // The ordinal follows the package catalog revision; the earlier two-DeepSeek manifest was 3.
+    expect(DEMO_OFFICIAL_MANIFEST_ORDINAL).toBe(DEMO_MANIFEST_BASE + officialCatalogRevision)
+    expect(DEMO_OFFICIAL_MANIFEST_ORDINAL).toBeGreaterThan(3)
     expect(transport.definitions.some(definition => definition.modelId === MODEL)).toBe(true)
     expect(MODEL).toBe('deepseek/deepseek-v4-pro-0813')
   })
@@ -111,9 +89,15 @@ describe('demo official model installation follows the package catalog', () => {
     },
   )
 
-  it('upgrades a data directory holding the previous two-leaf manifest to the whole catalog', async () => {
+  it('shows an existing data directory the added leaf once the catalog revision rises by one', async () => {
     const base = await deployment('official-catalog-upgrade')
-    const previous = previousManifest()
+    const [dropped] = config.officialManifest.entries.slice(-1)
+    if (dropped === undefined) throw new Error('catalog manifest empty')
+    // The directory as the demo wrote it one catalog revision earlier: one leaf fewer.
+    const previous = {
+      ordinal: DEMO_MANIFEST_BASE + officialCatalogRevision - 1,
+      entries: config.officialManifest.entries.slice(0, -1),
+    }
     const first = createAcceptanceApplication(
       { ...base, officialManifest: previous },
       { stage: 'requestPreparation', diagnostics: { record() {} } },
@@ -122,12 +106,11 @@ describe('demo official model installation follows the package catalog', () => {
     const before = await first.readOfficialProfiles(await actor(first, 'before'))
     expect((await first.close()).complete).toBe(true)
     if (!Array.isArray(before)) throw new Error('previous profiles unreadable')
-    expect(sorted(before.map(row => row.profile.routeName))).toEqual(
-      sorted(previous.entries.map(entry => entry.routeName)),
-    )
-    expect(persisted(base.databaseFile).manifest).toBe('3')
+    expect(before.map(row => row.profile.routeName)).not.toContain(dropped.routeName)
+    expect(before).toHaveLength(previous.entries.length)
+    expect(persisted(base.databaseFile).manifest).toBe(String(previous.ordinal))
 
-    // Same ordinal with different entries is kept as manifestNotNewer: the old list survives.
+    // Without the revision step the directory keeps its list: manifestNotNewer.
     const staleEvents: AcceptanceEvent[] = []
     const stale = createAcceptanceApplication(
       { ...base, officialManifest: { ...config.officialManifest, ordinal: previous.ordinal } },

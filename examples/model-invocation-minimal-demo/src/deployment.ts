@@ -14,6 +14,7 @@ import {
   modelImageBalancedV1,
   deepseekV4Pro0813Definition,
   officialCatalog,
+  officialCatalogRevision,
   type InputMeter,
   type ModelDefinition,
   type RetirementPolicy,
@@ -30,11 +31,13 @@ import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 
 export const MODEL = deepseekV4Pro0813Definition.modelId
 /**
- * Official manifest ordinal. Raise it whenever the installed entries change: the directory keeps a
- * manifest whose ordinal equals the stored one but whose entries differ as `manifestNotNewer`, so an
- * existing data directory would keep its previous list. 4 replaced the two-DeepSeek list (3).
+ * The directory keeps a manifest whose ordinal equals the stored one but whose entries differ as
+ * `manifestNotNewer`, so the ordinal must rise with every change of the installed entries. Catalog
+ * changes raise `officialCatalogRevision`; raise this base only when the demo's own profile
+ * configuration changes. Base 3 follows the earlier two-DeepSeek manifest (ordinal 3).
  */
-export const DEMO_OFFICIAL_MANIFEST_ORDINAL = 4
+export const DEMO_MANIFEST_BASE = 3
+export const DEMO_OFFICIAL_MANIFEST_ORDINAL = DEMO_MANIFEST_BASE + officialCatalogRevision
 /** Configuration revision of every official profile this demo installs. */
 export const DEMO_OFFICIAL_CONFIGURATION_REVISION = 'model-invocation-minimal-demo-1'
 
