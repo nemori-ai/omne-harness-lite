@@ -5,14 +5,27 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import type { MarginalMeterInput, MeterContribution } from '../input-meter.ts'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import {
+  measureFull,
+  measureNew,
+  measureReplay,
+  type InputMeter,
+  type MarginalMeterInput,
+  type MeterContribution,
+} from '../input-meter.ts'
 import { object } from '../json.ts'
-import { measureFull, measureNew, measureReplay, type InputMeter } from '../input-meter.ts'
 
 const terminalFrames = ['<｜Assistant｜><think>', '<｜Assistant｜></think>']
 export const DEEPSEEK_BOUNDARY_REVISION = 'deepseek-reference-boundary/2'
 
-/** Only this observed visible wire form has a reference reasoning_content projection. */
+/**
+ * Meter-only copy of the actual body. Exactly one assistant detail with own keys
+ * type/text/format/index = `reasoning.text`/string/`unknown`/0, and no parallel
+ * `reasoning` or `reasoning_content`, becomes reference `reasoning_content`.
+ * Any other details shape is unexplained: undefined, never a JSON-length proxy.
+ * The result is still an estimate; the private serving projection is unknown.
+ */
 export function projectDeepSeekMeterBody(body: JsonObject): JsonObject | undefined {
   if (!Array.isArray(body.messages)) return undefined
   const messages: JsonValue[] = []
@@ -39,7 +52,8 @@ export function projectDeepSeekMeterBody(body: JsonObject): JsonObject | undefin
       detail.type !== 'reasoning.text' ||
       typeof detail.text !== 'string' ||
       detail.format !== 'unknown' ||
-      !Object.is(detail.index, 0)
+      !isJsonNumber(detail.index) ||
+      ExactDecimal.from(detail.index).compare(ExactDecimal.from(0)) !== 0
     )
       return undefined
     messages.push({
@@ -52,7 +66,10 @@ export function projectDeepSeekMeterBody(body: JsonObject): JsonObject | undefin
   return { ...body, messages }
 }
 
-/** The public factory methods must enforce the same history/basis guard as the planner. */
+/**
+ * Public factory methods run the shared source/basis guards around the private raw
+ * meter; `defineInputMeter` only freezes. The guards call `raw`, so no recursion.
+ */
 export function guardDeepSeekMeter(raw: InputMeter): InputMeter {
   return Object.freeze({
     ...raw,
@@ -169,8 +186,8 @@ export function createDeepSeekSupplemental(renderedContentFields: readonly strin
     )
     const messages: JsonValue[] = []
     for (const message of body.messages) {
-      // The pinned reference does not explain private reasoning details. Counting
-      // their serialized bytes cannot account for the hidden prompt contribution.
+      // Callers pass the projected meter body. Raw details left here were not
+      // explained; counting their serialized bytes is not a token estimate.
       if (!object(message) || message.reasoning_details !== undefined) return undefined
       const extra = Object.fromEntries(
         Object.entries(message).filter(
