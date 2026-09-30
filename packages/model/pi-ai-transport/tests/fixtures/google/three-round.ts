@@ -5,6 +5,7 @@ import type {
   PlanInput,
   PlanOutputHistoryGroup,
 } from '@omne-harness-lite/model-request-runtime'
+import type { ModelDefinition } from '@omne-harness-lite/pi-ai-transport'
 import { googleCertificationRequest, googleCertificationTool } from './cases.ts'
 import { judgedMessage, message } from '../../support.ts'
 
@@ -17,8 +18,9 @@ export function googleThreeRoundInput(
   modelId: string,
   effort: GoogleEffort,
   withTools: boolean,
+  declared?: ModelDefinition,
 ): PlanInput {
-  const base = googleCertificationRequest(modelId)
+  const base = googleCertificationRequest(modelId, declared)
   return {
     ...base,
     target: {
