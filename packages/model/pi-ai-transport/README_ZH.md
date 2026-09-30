@@ -400,7 +400,7 @@ pnpm --filter @omne-harness-lite/pi-ai-transport run test
 
 ### 显式的 DeepSeek Pro 定义
 
-`deepseekV4Pro0813Definition` 提供固定模型 `deepseek/deepseek-v4-pro-0813`、固定路由 `deepinfra/fp8` 的一个窄定义。它复用 OpenRouter 公共规划器和 DeepSeek 家族规则，完整实现坐标为 `pi-ai:deepseek / mp4-17`，定义修订为 `4`。导入不会注册模型、分配连接池或发送请求。
+`deepseekV4Pro0813Definition` 提供固定模型 `deepseek/deepseek-v4-pro-0813`、固定路由 `deepinfra/fp8` 的一个窄定义。它复用 OpenRouter 公共规划器和 DeepSeek 家族规则，完整实现坐标为 `pi-ai:deepseek / mp4-18`，定义修订为 `5`。Flash 型号在同一实现下为修订 `4`。导入定义不会注册模型、分配连接池或发送请求。
 
 模型记载的能力是文本输入、文本输出。所选路由提供 1,048,576 token 共享窗口和 16,384 token 输出容量；1,032,192 token 输入预算预留了完整输出容量。这是换算的只计输入预算，不是路由 `max_prompt_tokens` 的原值，也不是极值请求实测。空输入限制对象表示该纯文本声明没有活动的图片限制；两个适用的上游事实明确为 `unknown`，不表示无限。
 
@@ -428,7 +428,7 @@ if ('rejected' in schema) throw new Error(schema.rejected)
 
 配置是明确选用的来源值（`revision: '1'`、`values: { cache: { mode: 'automatic' } }`），不会作为隐藏的传输默认值。静态传输需显式传入定义，动态使用经既有模型贡献插件登记；目录发布和租户准入分别归已有 owner。
 
-本次只验证本地构造和纯规划。seed／stop 真正生效、完整参数调优与生产 public／service 认证仍待完成。首次端到端调用只使用已有观察的 `low` 与 `1024`。Flash 已在 `deepseekDefinitions` 中单独声明，有限单图上限和未知上游图片事实明确记录；这两条声明都不证明图片真实发送已通过。
+本地已验证纯构造、规划及当前绑定的受控三轮 public／Cordis transport 路径。完整生产 public／runtime-service 认证、seed／stop 真正生效和完整参数调优仍待完成。本地三轮场景使用 `low` 与 `2048`；合成上游用量不能证明远端缓存命中或 tokenizer 准确度。Flash 声明有图片上限，上游图片事实明确为未知。历史真实图片观察早于当前绑定，不认证当前生产路径。
 
 ### 家族策略与完整模型定义
 

@@ -400,7 +400,7 @@ Tests use complete nonofficial fixtures, actual temporary HTTPS, public core jud
 
 ### Explicit DeepSeek Pro definition
 
-`deepseekV4Pro0813Definition` provides one fixed leaf for `deepseek/deepseek-v4-pro-0813` through `deepinfra/fp8`. It shares the OpenRouter planner and DeepSeek family rules under `pi-ai:deepseek / mp4-17`; its definition revision is `4`. Importing it does not register a model, allocate a connection pool or send a request.
+`deepseekV4Pro0813Definition` provides one fixed leaf for `deepseek/deepseek-v4-pro-0813` through `deepinfra/fp8`. It shares the OpenRouter planner and DeepSeek family rules under `pi-ai:deepseek / mp4-18`; its definition revision is `5`. The Flash leaf is revision `4` under the same implementation. Importing a definition does not register a model, allocate a connection pool or send a request.
 
 The model's recorded capability is text input and text output. Its route reports a 1,048,576-token shared window and 16,384-token output capacity. The 1,032,192-token input budget reserves that complete output capacity; it is a derived input-only budget, not the route's `max_prompt_tokens` field or an extreme-size request test. The empty input-constraint object has no active image constraint in this text-only declaration. Its two applicable upstream facts are explicitly `unknown`, not unlimited.
 
@@ -428,7 +428,7 @@ if ('rejected' in schema) throw new Error(schema.rejected)
 
 The configuration is an explicitly selected source value (`revision: '1'`, `values: { cache: { mode: 'automatic' } }`), never a hidden transport default. Pass the definition explicitly to a static transport, or register it through the existing model contribution plugin. Catalog publication and tenant authorization remain with their respective owners.
 
-Pure construction and planning are verified locally. Seed/stop effectiveness, full parameter tuning and production public/service certification remain pending. The first end-to-end call uses only the previously observed `low` and `1024` parameters. The separate Flash definition is present in `deepseekDefinitions`; its image cap and unknown upstream image facts are explicit. Neither declaration proves live image carriage.
+Pure construction, planning and current-binding controlled three-turn public/Cordis transport paths are verified locally. A complete production public/runtime-service certification, seed/stop effectiveness and full parameter tuning remain pending. The local three-turn cases use `low` and `2048`; their synthetic upstream usage does not prove a remote cache hit or tokenizer accuracy. The Flash definition has an image cap and explicit unknown upstream image facts. Historical live image observations predate this binding and do not certify its current production path.
 
 ### Family policies and complete model definitions
 
