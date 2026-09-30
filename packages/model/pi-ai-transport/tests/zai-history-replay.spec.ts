@@ -106,12 +106,8 @@ describe('authentic complete ZAI reasoning through production stream and assembl
           { signal: new AbortController().signal },
           testImagePreparerFor(planRequest),
         )
-        if ('rejected' in changed) throw new Error(JSON.stringify(changed))
-        const messages = changed.planned.body.messages
-        if (!Array.isArray(messages)) throw new Error('no wire history')
-        const previous = messages.find(value => object(value) && value.role === 'assistant')
-        expect(previous).toMatchObject({ reasoning: row.thought, content: row.content })
-        expect(previous).not.toHaveProperty('reasoning_details')
+        // The other route has no projector for this opaque unit: reject, never degrade to plaintext.
+        expect(changed).toEqual({ rejected: 'unavailable' })
         expect(host.requests).toHaveLength(1)
       } finally {
         await host.close()

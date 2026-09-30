@@ -493,8 +493,10 @@ describe('public transport conformance increments against actual HTTPS and strea
       expect(reading.end).toMatchObject({ ended: 'end' })
       const settled = assemble(reading)
       const same = await replayBody(input(), settled.blocks)
-      const changed = await replayBody(input(true), settled.blocks)
-      expect(changed).not.toHaveProperty('reasoning_details')
+      // Another route has no projector for these opaque units: reject, never strip.
+      await expect(replayBody(input(true), settled.blocks)).rejects.toThrow(
+        'replay planning rejected: unavailable',
+      )
       await assertStoppedOnce(host)
       if (same.reasoning_details === undefined) throw new Error('same-route replay omitted details')
       expect(comparableJson(same.reasoning_details)).toEqual(comparableJson(details))

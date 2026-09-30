@@ -594,10 +594,8 @@ describe('OpenAI model-specific input estimator', () => {
           },
           { signal: new AbortController().signal },
         )
-        if ('rejected' in foreign) throw new Error(JSON.stringify(foreign))
-        expect(foreign.planned.inputLimitEvidence.inputTokens.kind).toBe('estimated')
-        expect(foreign.planned.serialized).not.toContain('reasoning_details')
-        expect(foreign.planned.serialized).not.toContain('foreign-fixture')
+        // A different model has no projector for this opaque unit: reject, never strip.
+        expect(foreign).toEqual({ rejected: 'unavailable' })
         expect(host.requests).toHaveLength(0)
         const signal = new AbortController().signal
         const sent = await transport.send(planned.planned, 'controlled-test-credential', signal)
