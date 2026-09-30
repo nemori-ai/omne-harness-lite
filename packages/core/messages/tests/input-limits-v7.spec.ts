@@ -10,7 +10,7 @@ import { brandRecord, judgeModelInvocationRecord, validate } from '@omne-harness
 const examples = JSON.parse(
   readFileSync(
     new URL(
-      '../../../../.meta_harness/design/spec/data/messages/v7/input-limit-examples.json',
+      '../../../../.meta_harness/design/spec/data/messages/v8/input-limit-examples.json',
       import.meta.url,
     ),
     'utf8',
@@ -24,7 +24,7 @@ const examples = JSON.parse(
   }[]
 }
 
-describe('MS7 current complete snapshot reception', () => {
+describe('MS8 current complete snapshot reception', () => {
   it('consumes all 12 current contract examples', () => {
     expect(examples.contract).toBe('data.messages/v7')
     expect(examples.cases).toHaveLength(12)

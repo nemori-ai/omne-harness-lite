@@ -62,6 +62,10 @@ export const SCHEMA_DEF_NAMES = Object.freeze([
   'ModelCallCreatedPayload',
   'ModelCallCreatedRecord',
   'ModelCallReplyReadyRecord',
+  'ModelCallSemanticDigest',
+  'ModelCallOrigin',
+  'ModelCallAccountingWitness',
+  'ModelCallAcknowledgedRecord',
 ] as const)
 export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number]
 export interface SchemaValidation {

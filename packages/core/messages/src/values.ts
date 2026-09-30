@@ -122,6 +122,38 @@ export function brandRecord(source: unknown): ModelInvocationRecord {
     value.creationKey !== undefined
   )
     return Object.freeze({ ...value, creationKey: id(value.creationKey, 'CreationKey') })
+  if (value.kind === 'model_call_acknowledged') {
+    if (value.target.kind === 'ended') {
+      const { accountingWitness, retainedResultDigest, ...common } = value
+      return Object.freeze({ ...common, creationKey: id(value.creationKey, 'CreationKey') })
+    }
+    const witness = value.accountingWitness
+    if (witness === undefined) {
+      const { accountingWitness, ...common } = value
+      return Object.freeze({ ...common, creationKey: id(value.creationKey, 'CreationKey') })
+    }
+    const tenant = parseTenantId(witness.origin.tenant)
+    if (!('ok' in tenant)) throw new Error('validated witness tenant failed branding')
+    const credentialScope =
+      witness.credentialScope.layer === 'factory'
+        ? Object.freeze({ layer: 'factory' as const })
+        : scope(witness.credentialScope)
+    if (credentialScope.layer !== witness.credentialScope.layer)
+      throw new Error('validated witness credential scope changed layer')
+    return Object.freeze({
+      ...value,
+      creationKey: id(value.creationKey, 'CreationKey'),
+      accountingWitness: Object.freeze({
+        ...witness,
+        origin: Object.freeze({
+          ...witness.origin,
+          tenant: tenant.ok,
+          session: id(witness.origin.session, 'SessionRef'),
+        }),
+        credentialScope,
+      }),
+    })
+  }
   if (value.kind !== 'model_call_dispatched') return Object.freeze(value)
   if (value.credentialScope.layer === 'factory')
     return Object.freeze({

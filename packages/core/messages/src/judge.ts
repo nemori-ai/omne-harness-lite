@@ -155,7 +155,11 @@ export function judgeModelInvocationRecord(value: unknown): ModelInvocationJudgm
     copied === undefined ||
     !isObject(copied) ||
     !isWireRecord(copied) ||
-    (copied.kind === 'model_call_dispatched' && !dispatchedValid(copied))
+    (copied.kind === 'model_call_dispatched' && !dispatchedValid(copied)) ||
+    (copied.kind === 'model_call_acknowledged' &&
+      copied.accountingWitness !== undefined &&
+      (copied.target.kind !== 'response' ||
+        copied.target.response !== copied.accountingWitness.response))
   )
     return Object.freeze({ rejected: 'malformed' } as const)
   return Object.freeze({ ok: brandRecord(copied) })

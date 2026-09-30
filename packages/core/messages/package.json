@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.messages v7 的当前消息、创建内容与模型记录纯值判定",
+  "description": "data.messages v8 的当前消息、ACK 记录与无损语义摘要判定",
   "engines": {
     "node": ">=24.18.0 <25"
   },

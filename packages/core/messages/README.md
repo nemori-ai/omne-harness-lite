@@ -13,13 +13,14 @@ This is an experimental, private workspace package, currently not published on n
 | Public API                                                                | Purpose                                                                      |
 | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `judgeMessage`, `judgeMessageText`, `judgeMessageInLog`                   | Single-message admission, strict JSON reception and forward-reference checks |
-| `judgeModelInvocationRecord`, `judgeModelInvocationRecordText`            | Admit seven invocation record kinds, separately from messages                 |
+| `judgeModelInvocationRecord`, `judgeModelInvocationRecordText`            | Admit eight invocation record kinds, separately from messages                 |
+| `createModelCallSemanticDigest`, `judgeModelCallSemanticDigest` | Create and verify role-bound lossless SHA-256 value digests |
 | `judgeModelCallCreatedPayload`, `judgeModelCallCreatedPayloadText` | Intrinsic created payload judgment and strict text reception |
 | `judgeModelReplyMessage` | Original-first reply/persisted message relation |
 | `isReadable`, `judgePairing`, `judgeCompactionList`                       | Prefix-dependent checks with explicit external inputs                        |
 | `brandMessage`, `brandRecord`, `isWireMessage`, `isWireRecord`, `Wire<T>` | Shape-only transport restoration and wire typing                             |
 | Message/record types, `LogPrefixView`                                     | Seven message types and caller-owned ordered prefixes                        |
-| `validate`, `schemaId`; `./schema`                                        | Current MS7 shape validation                                                 |
+| `validate`, `schemaId`; `./schema`                                        | Current MS8 shape validation                                                 |
 | `./schema/v2`, `./schema/v3`, `./schema/v6`                                              | Exact resources for current transitive specification references              |
 
 ## Examples
@@ -180,11 +181,29 @@ pnpm --filter @omne-harness-lite/messages run test
 
 Build workspace dependencies first. These checks cover this package; integration behavior requires the actual consumer and provider.
 
-The default entry and Schema use `data.messages/v7`. A dispatched record must carry the complete `profileSnapshot.inputConstraints` and `profileSnapshot.upstreamInputLimits` objects. `brandRecord` and `validate` check shape only; `judgeModelInvocationRecord` additionally checks the complete binding and actual parameter disposition. The snapshot receiver does not rerun the profile writer's cross-field cap comparison. Old record shapes fail at the current entry, without data rewriting. `./schema/v2`, `./schema/v3` and `./schema/v6` remain exact Schema resources for current transitive specification references, without executable old codecs.
+The default entry and Schema use `data.messages/v8`. A dispatched record must carry the complete `profileSnapshot.inputConstraints` and `profileSnapshot.upstreamInputLimits` objects. `brandRecord` and `validate` check shape only; `judgeModelInvocationRecord` additionally checks the complete binding and actual parameter disposition, and the ACK witness response against its target. The snapshot receiver does not rerun the profile writer's cross-field cap comparison. Old record shapes fail at the current entry, without data rewriting. `./schema/v2`, `./schema/v3` and `./schema/v6` remain exact Schema resources for current transitive specification references, without executable old codecs.
 
-## MS7 creation and reply relations
+## MS8 creation, reply and ACK values
 
-The current root compiles all 50 public definitions over nine exact Schema resources: MS7, CB3, CB2, OE1, CA3, IV1, MP5, MP6 and TD3. Only referenced definitions determine this graph; unused definitions in a dependency file do not add dependencies. Creation values (`CallKey`, `CreationKey`, `ModelCallPayloadRef`, `ModelCallCreationInput`, `ModelCallCreatedPayload`) belong to this package. `model_call_created` and `model_call_reply_ready` are technical records, outside Message and OutboundMessage. `./schema/v6` preserves the original MS6 resource required by exact consumers; it is not an old execution entry. Adoption and verification obligations are in the [v7 mapping](../../../.meta_harness/design/realization/packages/core/messages/v7-design.md) and [M7-V1–V8](../../../.meta_harness/design/realization/packages/core/messages/verification.md#v7-创建记录与回复关系候选义务), accepted by [D110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md).
+The current root compiles all 54 public definitions over nine exact Schema resources: MS8, CB3, CB2, OE1, CA4, IV1, MP5, MP6 and TD3. Only referenced definitions determine this graph; unused definitions in a dependency file do not add dependencies. Creation values (`CallKey`, `CreationKey`, `ModelCallPayloadRef`, `ModelCallCreationInput`, `ModelCallCreatedPayload`) and the ACK digest, witness and record belong to this package. `model_call_created`, `model_call_reply_ready` and `model_call_acknowledged` are technical records, outside Message and OutboundMessage. An ACK's release list specifies only model-owned copies eligible for release; shape admission does not establish source, authorization or actual deletion. `./schema/v6` preserves the original MS6 resource required by exact consumers; it is not an old execution entry. Adoption and verification obligations are in the [ACK decision](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md), [MS8 contract](../../../.meta_harness/design/spec/data/messages/v8/contract.md) and [provider mapping](../../../.meta_harness/design/realization/packages/core/messages/v8-acknowledgement-design.md).
+
+### Verify a saved complete value
+
+```ts
+import { readJsonStrict } from '@omne-harness-lite/content-blocks'
+import { createModelCallSemanticDigest, judgeModelCallSemanticDigest } from '@omne-harness-lite/messages'
+
+const saved = readJsonStrict('{"route":{"provider":"example"},"count":9007199254740993}')
+if ('failed' in saved) throw new Error(saved.failed)
+const role = 'model-call-retained-result-semantic-sha256/v1'
+const created = createModelCallSemanticDigest(role, saved.ok)
+if ('rejected' in created) throw new Error(created.rejected)
+const checked = judgeModelCallSemanticDigest(role, saved.ok, created.ok)
+if ('rejected' in checked) throw new Error(checked.rejected)
+console.log(checked.ok.role === role) // true
+```
+
+The helper accepts strict JSON values and does not claim that an arbitrary value came from a real ready record. Runtime must check the original source and current permission before ACK or later disposition. Its semantic digest differs from `ModelCallPayloadRef.digest`, which covers original stored UTF-8 bytes.
 
 ### Receive original rejected creation input
 

@@ -36,11 +36,11 @@ const publicPaths = [
   'messages/schema',
 ]
 const completeRuntime = createSchemaRuntime(resources)
-describe('RC1 / M7-V1 exact public-definition resource closure', () => {
-  it('compiles all 50 definitions with MP5 and MP6 both present', () => {
+describe('M8-V1 exact public-definition resource closure', () => {
+  it('compiles all 54 definitions with MP5 and MP6 both present', () => {
     expect(resources).toHaveLength(9)
     expect(new Set(resources.map(resource => resource.$id)).size).toBe(9)
-    expect(SCHEMA_DEF_NAMES).toHaveLength(50)
+    expect(SCHEMA_DEF_NAMES).toHaveLength(54)
     expect(new Set(SCHEMA_DEF_NAMES)).toEqual(new Set(Object.keys(schema.$defs)))
     const runtime = completeRuntime
     for (const name of SCHEMA_DEF_NAMES) {

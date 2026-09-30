@@ -18,7 +18,7 @@ import type {
   ToolResultReason,
   VoiceBlock,
 } from '@omne-harness-lite/content-blocks'
-import type { AttemptId, ModelCallId, RunId } from '@omne-harness-lite/call-accounts'
+import type { AttemptId, ModelCallId, RunId, Usage, Cost } from '@omne-harness-lite/call-accounts'
 import type {
   OpaqueIdentifier,
   ScopeLayerIdentity,
@@ -247,14 +247,15 @@ export interface ModelCallCreationInput {
   readonly sourceVersions: Readonly<Record<string, string>>
   readonly targetChangedBy?: CapabilityId
 }
+export type ModelCallOrigin = { readonly tenant: TenantId; readonly session: SessionRef } & (
+  | { readonly run: RunId; readonly attempt: AttemptId }
+  | { readonly run?: never; readonly attempt?: never }
+)
 export type ModelCallCreatedPayload = {
   readonly kind: 'created'
   readonly ref: CallKey
   readonly creationKey: CreationKey
-  readonly origin: { readonly tenant: TenantId; readonly session: SessionRef } & (
-    | { readonly run: RunId; readonly attempt: AttemptId }
-    | { readonly run?: never; readonly attempt?: never }
-  )
+  readonly origin: ModelCallOrigin
   readonly input: ModelCallCreationInput
 } & (
   | {
@@ -288,6 +289,58 @@ export interface ModelCallReplyReadyRecord {
   readonly payload: ModelCallPayloadRef & { readonly kind: 'reply_ready' }
   readonly readyAt: string
 }
+export type ModelCallSemanticDigestRole =
+  'model-call-creation-semantic-sha256/v1' | 'model-call-retained-result-semantic-sha256/v1'
+export interface ModelCallSemanticDigest {
+  readonly role: ModelCallSemanticDigestRole
+  readonly hex: string
+}
+export interface ModelCallAccountingWitness {
+  readonly response: ResponseId
+  readonly dispatch: JsonNumber
+  readonly readyPosition: JsonNumber
+  readonly payload: ModelCallPayloadRef & { readonly kind: 'reply_ready' }
+  readonly origin: ModelCallOrigin
+  readonly outcome: 'complete' | 'truncated' | 'interrupted'
+  readonly initiator?: 'user' | 'run_cancelled' | 'runtime_lost'
+  readonly usage: Usage
+  readonly cost: Cost
+  readonly credentialScope: CredentialScope
+  readonly provider: ProviderName
+  readonly upstreamRequestId?: string
+  readonly timing: {
+    readonly sentAt: string
+    readonly firstTokenAt?: string
+    readonly endedAt: string
+  }
+}
+export type ModelCallAcknowledgedRecord = {
+  readonly kind: 'model_call_acknowledged'
+  readonly call: ModelCallId
+  readonly creationKey: CreationKey
+  readonly creationInput: ModelCallSemanticDigest & {
+    readonly role: 'model-call-creation-semantic-sha256/v1'
+  }
+  readonly terminalState: 'complete' | 'handed_up' | 'interrupted'
+  readonly acknowledgedAt: string
+  readonly releasablePayloads: readonly ModelCallPayloadRef[]
+} & (
+  | {
+      readonly target: { readonly kind: 'response'; readonly response: ResponseId }
+      readonly retainedResultDigest?: ModelCallSemanticDigest & {
+        readonly role: 'model-call-retained-result-semantic-sha256/v1'
+      }
+      readonly accountingWitness?: ModelCallAccountingWitness
+    }
+  | {
+      readonly target: {
+        readonly kind: 'ended'
+        readonly ending: 'undispatched' | 'released' | 'interrupted'
+      }
+      readonly retainedResultDigest?: never
+      readonly accountingWitness?: never
+    }
+)
 export type ModelCallCreatedPayloadJudgment =
   { readonly ok: ModelCallCreatedPayload } | { readonly rejected: 'malformed' }
 export type ModelReplyMessageJudgment =
@@ -363,6 +416,7 @@ export type ModelInvocationRecord =
   | ModelCallInterruptIntentRecord
   | ModelCallEndedRecord
   | ModelSelectionChangedRecord
+  | ModelCallAcknowledgedRecord
 export type MessageRejection =
   | 'type_unknown'
   | 'kind_unknown'

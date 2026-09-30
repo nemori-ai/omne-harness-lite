@@ -33,6 +33,7 @@ it('public unions are complete, branded, immutable and keep owned numeric identi
     | 'model_call_interrupt_intent'
     | 'model_call_ended'
     | 'model_selection_changed'
+    | 'model_call_acknowledged'
   >()
   expectTypeOf<AttemptStartedSource['attempt']>().toEqualTypeOf<AttemptId>()
   expectTypeOf<Extract<InterruptedSource, { what: 'model_call' }>['about']>().toEqualTypeOf<

@@ -18,3 +18,8 @@ export {
 } from './judge.ts'
 export { isReadable, judgeCompactionList, judgePairing } from './prefix.ts'
 export { brandMessage, brandRecord, isWireMessage, isWireRecord, type Wire } from './values.ts'
+export {
+  createModelCallSemanticDigest,
+  judgeModelCallSemanticDigest,
+  type ModelCallSemanticDigestJudgment,
+} from './semantic-digest.ts'

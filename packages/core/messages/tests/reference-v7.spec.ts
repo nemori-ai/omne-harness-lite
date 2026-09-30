@@ -46,7 +46,7 @@ function parsed(source: string): JsonValue {
 const rawRows = parsed(
   readFileSync(
     new URL(
-      '../../../../.meta_harness/design/spec/data/messages/v7/reference-examples.json',
+      '../../../../.meta_harness/design/spec/data/messages/v8/reference-examples.json',
       import.meta.url,
     ),
     'utf8',
