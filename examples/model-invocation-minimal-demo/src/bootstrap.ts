@@ -1630,6 +1630,7 @@ export function createAcceptanceApplication(
               run: options.runHistory ?? (() => ({ unavailable: true })),
             },
             reservationWaitPolicy: deployment.reservationWaitPolicy,
+            acknowledgementCleanup: deployment.acknowledgementCleanup,
             recovery: {
               async enter(input) {
                 const ready = recoveryReady.get(input.session)
@@ -2365,6 +2366,18 @@ export function createAcceptanceApplication(
           if (!('borrow' in access) || recoveryAdmission.has(session)) return { unavailable: true }
           runtimeActors.set(session, access.checked)
           return service.acquireCall(input)
+        })
+      },
+      acknowledgeCall: input => {
+        if (input?.ref?.session !== session || closing || recoveryAdmission.has(session))
+          return Promise.resolve({ unavailable: true })
+        // Only the runtime's own fresh, awaited `ack` access check can confirm; a held reference
+        // or an unreleased consumer never does.
+        return trackSession(session, async () => {
+          const access = await sessionAccess(actor, session)
+          if (!('borrow' in access) || recoveryAdmission.has(session)) return { unavailable: true }
+          runtimeActors.set(session, access.checked)
+          return service.acknowledgeCall(input)
         })
       },
       legalTargets: input =>

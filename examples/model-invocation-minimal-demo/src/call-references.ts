@@ -157,17 +157,18 @@ async function sourceOf(
   origin: CallOrigin | undefined,
 ): Promise<CallSource | undefined> {
   const found = await facts.lookup({ binding, ref })
-  if ('view' in found) {
-    const actual = found.view.origin
+  if ('view' in found || 'acknowledged' in found) {
+    // An acknowledged call keeps its S-97 small facts; its access decision uses the same source.
+    const actual = 'view' in found ? found.view : found.acknowledged
     // The caller cannot substitute the original association; it is only checked, never trusted.
     if (
       origin !== undefined &&
-      (origin.session !== actual.session ||
-        !tenantIdEquals(origin.tenant, actual.tenant) ||
-        origin.run !== actual.run)
+      (origin.session !== actual.origin.session ||
+        !tenantIdEquals(origin.tenant, actual.origin.tenant) ||
+        origin.run !== actual.origin.run)
     )
       return undefined
-    return found.view.source
+    return actual.source
   }
   if (!('callNotFound' in found)) return undefined
   // Absence inside an authorized Session is still answered from the authoritative log tail.

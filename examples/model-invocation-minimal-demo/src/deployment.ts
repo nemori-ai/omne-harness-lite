@@ -22,6 +22,7 @@ import {
 } from '@omne-harness-lite/pi-ai-transport'
 import {
   openRouterCredentialRedactionConfig,
+  type AcknowledgementCleanupPolicy,
   type TokenMargin,
   type DefaultRetryConfiguration,
 } from '@omne-harness-lite/model-request-runtime'
@@ -36,6 +37,25 @@ export const DEMO_ROOT: CapabilityId = {
 export const DEMO_DEFAULT_RETRY: CapabilityId = {
   category: 'loop_extension',
   name: 'omne-official:default-retry',
+}
+/**
+ * An explicit, finite retry schedule: automatic cleanup retry number `attempts` waits
+ * `waitsMs[attempts - 1]`, and the round stops once the list is exhausted. Replace it with any
+ * `AcknowledgementCleanupPolicy`; the durable cleanup responsibility itself never stops.
+ */
+export function createExplicitCleanupSchedule(
+  waitsMs: readonly number[],
+): AcknowledgementCleanupPolicy {
+  if (!waitsMs.every(wait => Number.isSafeInteger(wait) && wait >= 0))
+    throw new TypeError('cleanup schedule needs non-negative integer waits')
+  const schedule = Object.freeze([...waitsMs])
+  const policy: AcknowledgementCleanupPolicy = {
+    next: ({ attempts }) => {
+      const wait = schedule[Number(attempts) - 1]
+      return wait === undefined ? { stop: true } : { waitMs: wait }
+    },
+  }
+  return Object.freeze(policy)
 }
 export const PUBLICATION_TIME = '2026-09-28T00:00:00Z'
 export function createDemoDefaultRetryConfiguration(): DefaultRetryConfiguration {
@@ -217,6 +237,7 @@ export function createDemoConfig(
     },
     modelRequest: {
       maxScopes: 64,
+      acknowledgementCleanup: createExplicitCleanupSchedule([200, 1_000, 5_000, 30_000]),
       callReferences: {
         maxScopes: 64,
         content: { maxConcurrentWrites: 4, maxContentBytes: 16 * 1024 * 1024 },

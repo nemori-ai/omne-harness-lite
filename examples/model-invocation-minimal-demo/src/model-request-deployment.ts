@@ -24,6 +24,7 @@ export function prepareModelRequestDeployment(
     input === null ||
     !Number.isSafeInteger(input.maxScopes) ||
     input.maxScopes < 1 ||
+    typeof input.acknowledgementCleanup?.next !== 'function' ||
     input.callReferences === undefined ||
     input.callReferences === null ||
     !Number.isSafeInteger(input.callReferences.maxScopes) ||
@@ -81,6 +82,7 @@ export function prepareModelRequestDeployment(
   // The public transport constructor owns and validates complete nested definitions/policy.
   return Object.freeze({
     ...input,
+    acknowledgementCleanup: input.acknowledgementCleanup,
     callReferences: Object.freeze({
       maxScopes: input.callReferences.maxScopes,
       content: Object.freeze({ ...input.callReferences.content }),

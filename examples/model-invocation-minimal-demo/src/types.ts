@@ -16,6 +16,7 @@ import type {
   ModelDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
 import type {
+  AcknowledgementCleanupPolicy,
   InvocationPolicy,
   TokenMargin,
   SettlementContention,
@@ -89,6 +90,11 @@ export interface ModelRequestDeployment {
     /** Immutable creation and reply-ready content rows in this demo's own SQLite storage. */
     readonly content: ModelCallContentPolicy
   }
+  /**
+   * Explicit schedule for retrying durable acknowledgement cleanup. The runtime supplies no
+   * default; stopping a round never drops the durable responsibility.
+   */
+  readonly acknowledgementCleanup: AcknowledgementCleanupPolicy
   /** Borrowed trusted provider; its owner keeps it alive through application close. */
   readonly assetRegistry?: Pick<AssetRegistryService, 'lookup'>
   readonly tokenMargin: TokenMargin

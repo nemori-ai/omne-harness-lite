@@ -134,6 +134,7 @@ async function callConfig(
     },
     modelRequest: {
       maxScopes: 64,
+      acknowledgementCleanup: { next: () => ({ stop: true }) },
       callReferences: {
         maxScopes: 64,
         content: { maxConcurrentWrites: 4, maxContentBytes: 16 * 1024 * 1024 },
