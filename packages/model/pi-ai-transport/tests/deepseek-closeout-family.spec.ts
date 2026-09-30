@@ -4,6 +4,73 @@ import {
   createDeepSeekSupplemental,
   deepSeekPythonJson,
 } from '../src/input-meters/deepseek-boundary.ts'
+import { deepSeekBoundaryRoute } from '../src/projection.ts'
+import { createOfficialProfileContent } from '../src/configuration.ts'
+import {
+  deepseekV4Pro0813Definition,
+  deepseekV41FlashDefinition,
+} from '../src/official-models/deepseek.ts'
+import { input } from './support.ts'
+
+describe.each([deepseekV4Pro0813Definition, deepseekV41FlashDefinition])(
+  '$modelId current reference boundary binding',
+  definition => {
+    it('admits only its exact current definition, implementation and route', () => {
+      const profile = createOfficialProfileContent(definition, {
+        providers: ['deepinfra/fp8'],
+        allowFallback: false,
+        configuration: { revision: '1', values: { cache: { mode: 'automatic' } } },
+      })
+      if ('rejected' in profile) throw Error(profile.rejected)
+      const base = input()
+      const request = {
+        ...base,
+        routeName: definition.modelId,
+        provider: 'deepinfra/fp8',
+        snapshot: { ...base.snapshot, adaptation: profile.ok.adaptation },
+      }
+      expect(deepSeekBoundaryRoute(request)).toBe(true)
+      expect(deepSeekBoundaryRoute({ ...request, routeName: 'deepseek/unknown' })).toBe(false)
+      expect(deepSeekBoundaryRoute({ ...request, provider: 'other/fp8' })).toBe(false)
+      expect(
+        deepSeekBoundaryRoute({
+          ...request,
+          snapshot: {
+            ...request.snapshot,
+            adaptation: {
+              ...request.snapshot.adaptation,
+              definition: { ...request.snapshot.adaptation.definition, revision: 'old' },
+            },
+          },
+        }),
+      ).toBe(false)
+      expect(
+        deepSeekBoundaryRoute({
+          ...request,
+          snapshot: {
+            ...request.snapshot,
+            adaptation: {
+              ...request.snapshot.adaptation,
+              implementation: { name: 'other', revision: 'mp4-18' },
+            },
+          },
+        }),
+      ).toBe(false)
+      expect(
+        deepSeekBoundaryRoute({
+          ...request,
+          snapshot: {
+            ...request.snapshot,
+            adaptation: {
+              ...request.snapshot.adaptation,
+              implementation: { name: definition.implementation.name, revision: 'mp4-17' },
+            },
+          },
+        }),
+      ).toBe(false)
+    })
+  },
+)
 
 describe('DeepSeek common reference accounting', () => {
   it('retains nested exact numbers and official Python JSON separators', () => {

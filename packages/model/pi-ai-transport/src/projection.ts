@@ -20,6 +20,7 @@ import type { InputMeter } from './input-meter.ts'
 import { deepSeekBoundaries } from './input-meters/deepseek-boundary.ts'
 import { renderDeepSeekV4Prompt } from './input-meters/deepseek-v4-pro.ts'
 import { renderDeepSeekV41Prompt } from './input-meters/deepseek-v41-flash.ts'
+import { deepseekDefinitions } from './official-models/deepseek.ts'
 import { composeTransformRevision, type ImagePreparationRevision } from './meter-transform.ts'
 
 export const INPUT_PROJECTION_REVISION = 'openrouter-input-projection/3'
@@ -155,16 +156,14 @@ export function projectOutput(input: OutputProjectionInput): OutputProjectionRes
 
 /** Narrow binding owns both the provider alias and the semantic boundary check. */
 export function deepSeekBoundaryRoute(input: PlanInput): boolean {
+  const definition = deepseekDefinitions.find(item => item.modelId === input.routeName)
   const binding = input.snapshot.adaptation
-  if (input.provider !== 'deepinfra/fp8' || binding.implementation.name !== 'pi-ai:deepseek')
-    return false
+  if (!definition || !Object.hasOwn(definition.routes, input.provider)) return false
   return (
-    (input.routeName === 'deepseek/deepseek-v4-pro-0813' &&
-      binding.definition.revision === '4' &&
-      binding.implementation.revision === 'mp4-17') ||
-    (input.routeName === 'deepseek/deepseek-v4.1-flash' &&
-      binding.definition.revision === '3' &&
-      binding.implementation.revision === 'mp4-17')
+    binding.definition.modelId === definition.modelId &&
+    binding.definition.revision === definition.revision &&
+    binding.implementation.name === definition.implementation.name &&
+    binding.implementation.revision === definition.implementation.revision
   )
 }
 export function prepareDeepSeekBoundaries(
