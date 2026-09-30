@@ -19,7 +19,11 @@ import type {
   RuntimeRecoveryScope,
   SessionRuntimeBinding,
 } from '../src/service-types.ts'
-import type { SettlementContention, SettlementScheduler } from '../src/settlement-types.ts'
+import type {
+  SettlementContention,
+  SettlementOwner,
+  SettlementScheduler,
+} from '../src/settlement-types.ts'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import {
   ControlledSettlementOwner,
@@ -53,6 +57,8 @@ export interface HostOptions {
   readonly acknowledgementCleanup?: AcknowledgementCleanupPolicy
   readonly settlementScheduler?: SettlementScheduler
   readonly settlementContention?: SettlementContention
+  /** The settlement owner of this runtime's selection; the host default otherwise. */
+  readonly owner?: SettlementOwner
 }
 
 export async function acknowledgementHost(options: HostOptions = {}) {
@@ -73,7 +79,9 @@ export async function acknowledgementHost(options: HostOptions = {}) {
    * a restarted process after the first one stopped responding.
    */
   function runtimeOver(runtimeOptions: HostOptions) {
-    const selected = host.create()
+    const selected = host.create(
+      runtimeOptions.owner === undefined ? {} : { owner: runtimeOptions.owner },
+    )
     const realLog = selected.input.binding.log
     const logBinding =
       runtimeOptions.append === undefined

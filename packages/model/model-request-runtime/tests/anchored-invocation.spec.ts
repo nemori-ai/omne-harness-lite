@@ -825,6 +825,82 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       })
     },
   )
+  it('N-5: a work that ends before send without a caller abort is asked to stop before it is awaited', async () => {
+    await harness(async h => {
+      const sourceOwner = h.owner
+      // The owner's admission closes after the durable dispatch, without any caller abort: the
+      // invocation work ends as cancelledBeforeSend while none of its tasks was asked to stop.
+      let closed = false
+      // Every task of this owner certifies its actual stop only after a stop request.
+      const owner = {
+        name: sourceOwner.name,
+        admission: () => (closed ? ('closed' as const) : sourceOwner.admission()),
+        opened: sourceOwner.opened,
+        unresolvedWrites: sourceOwner.unresolvedWrites,
+        acquire(limit: Parameters<typeof sourceOwner.acquire>[0]) {
+          const acquired = sourceOwner.acquire(limit)
+          if ('unavailable' in acquired) return acquired
+          const registration = acquired.registration
+          return {
+            registration: {
+              release: registration.release,
+              start: <T>(
+                kind: Parameters<typeof registration.start>[0],
+                operation: (signal: AbortSignal) => Promise<T>,
+              ) => {
+                const task = registration.start(kind, operation)
+                let ask = () => {}
+                const asked = new Promise<void>(resolve => {
+                  ask = resolve
+                })
+                return {
+                  completion: task.completion,
+                  requestStop: () => {
+                    ask()
+                    task.requestStop()
+                  },
+                  stopped: Promise.all([task.stopped, asked]).then(() => undefined),
+                }
+              },
+            },
+          }
+        },
+      }
+      const t = transport()
+      let triggered = false
+      const handle = createAnchoredModelInvocation({
+        ...h.input,
+        transport: t.adapter,
+        settlement: { ...h.input.settlement, owner },
+        policy: {
+          ...h.input.policy,
+          schedule(milliseconds, callback) {
+            if (!triggered) {
+              triggered = true
+              closed = true
+            }
+            return h.input.policy.schedule(milliseconds, callback)
+          },
+        },
+      })
+      const outcome = await Promise.race([
+        handle.outcome,
+        new Promise(resolve => setTimeout(() => resolve('hung'), 5_000)),
+      ])
+      expect(triggered).toBe(true)
+      if (outcome === 'hung' || !(typeof outcome === 'object' && outcome !== null))
+        throw new Error('the cancelled-before-send path waited on a task it never asked to stop')
+      expect(t.sends()).toBe(0)
+      // With the owner's admission closed nothing may be settled here: the honest answer.
+      expect(outcome).toEqual({ unavailable: true })
+      closed = false
+      const closing = await Promise.race([
+        handle.close(),
+        new Promise(resolve => setTimeout(() => resolve('hung'), 5_000)),
+      ])
+      expect(closing).not.toBe('hung')
+    })
+  })
   it('one plan, dispatched before send, opened before visible, one complete [M,R], exact reopened MR5', async () => {
     await harness(async h => {
       let appendNumber = 0,

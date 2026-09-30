@@ -16,7 +16,12 @@ import {
   kinds,
   type HostOptions,
 } from './acknowledgement-host-fixture.ts'
-import type { SettlementScheduler } from '../src/settlement-types.ts'
+import type {
+  SettlementOwner,
+  SettlementRegistration,
+  SettlementScheduler,
+  SettlementTask,
+} from '../src/settlement-types.ts'
 
 /** Another writer moves the tail before the first ACK batch: that batch writes nothing. */
 function racingFirstAck(race: { raced: boolean }): NonNullable<HostOptions['append']> {
@@ -537,6 +542,73 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
       expect(acknowledgements(await h.entries(), 'a22-call-1')).toHaveLength(1)
       await h.runtime.close()
     } finally {
+      await h.host.close()
+    }
+  }, 30_000)
+
+  it('N-5: an anchored dispatch and close over tasks that stop only on request neither hang nor leak a registration', async () => {
+    let active = 0
+    const controllers = new Set<AbortController>()
+    const owner: SettlementOwner = {
+      name: 'a22-stop-on-request',
+      admission: () => 'open',
+      opened: () => ({ confirmed: true }),
+      unresolvedWrites: () => [],
+      acquire: () => {
+        active++
+        let running = 0
+        const registration: SettlementRegistration = {
+          start<T>(_kind: unknown, operation: (signal: AbortSignal) => Promise<T>) {
+            running++
+            const controller = new AbortController()
+            controllers.add(controller)
+            const completion = Promise.resolve().then(() => operation(controller.signal))
+            const asked = new Promise<void>(resolve =>
+              controller.signal.addEventListener('abort', () => resolve(), { once: true }),
+            )
+            // Completion alone never certifies the stop: only a stop request does.
+            const stopped = completion
+              .then(
+                () => asked,
+                () => asked,
+              )
+              .then(() => {
+                running--
+                controllers.delete(controller)
+              })
+            return {
+              completion,
+              requestStop: () => controller.abort(),
+              stopped,
+            } satisfies SettlementTask<T>
+          },
+          release: () => {
+            if (running !== 0) throw new Error('released a live registration')
+            active--
+          },
+        }
+        return { registration }
+      },
+    }
+    const h = await acknowledgementHost({ owner })
+    const bounded = <T>(promise: Promise<T>, what: string) =>
+      Promise.race([
+        promise,
+        new Promise<never>((_resolve, reject) =>
+          setTimeout(() => reject(new Error(`${what} hung`)), 5_000),
+        ),
+      ])
+    try {
+      h.grant('owner', ['read', 'wait', 'settle', 'cancel', 'ack'])
+      expect(await h.service.openCall(h.request('a22_drain'))).toMatchObject({
+        callId: 'a22-call-1',
+      })
+      const ref = { session: h.host.session, callId: 'a22-call-1' }
+      expect(await bounded(h.service.dispatch(ref), 'dispatch')).toHaveProperty('replyPending')
+      expect(await bounded(h.runtime.close(), 'runtime.close')).toEqual({ released: true })
+      expect(active, 'registrations still held after close').toBe(0)
+    } finally {
+      for (const controller of controllers) controller.abort()
       await h.host.close()
     }
   }, 30_000)
