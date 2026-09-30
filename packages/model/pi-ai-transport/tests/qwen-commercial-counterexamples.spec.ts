@@ -548,7 +548,10 @@ describe.each(qwenCommercialModels)('$modelId visible details at the meter', mod
       ],
       [
         'call without id',
-        body(reply({ tool_calls: [{ type: call.type, function: call.function }] }, ''), toolMessage),
+        body(
+          reply({ tool_calls: [{ type: call.type, function: call.function }] }, ''),
+          toolMessage,
+        ),
       ],
       // Wire key order: a JavaScript object would list the index key first, unlike the
       // source string that Python parses in order.
