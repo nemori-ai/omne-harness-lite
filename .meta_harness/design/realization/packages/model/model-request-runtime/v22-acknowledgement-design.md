@@ -177,6 +177,7 @@ JSONL 回执 unknown 或旧 writer 未实停时保留 SettlementWork 与原批�
 | 只保护真实读，不保护 idle handle | 句柄引用计数最容易编码、避免旧 consumer 取值失败 | 所有读取入口必须迁移，同句柄后续变小视图；兑现明确ACK后清理且不等离线consumer；高 |
 | 独立 ACK 小批+摘要/witness | ACK与final合批更少状态 | 多一步账选择与摘要核验；避免伪处分并支持之后真实persisted；高 |
 | 新 final 用私有 SettlementWork 临时行 | 复用旧 ready 永久保留可省暂存 | 增一次实际写入前耐久和自动清理；仅为已开始写责任保管，避免恢复旧全文领取；中，接缝已定点评审、待主调度复核采用 |
+| 暂存完整批，不按摘要认回 | (e) 原批身份+MS8 摘要+日志结构完整性认回、缺席即结束：不暂存全文，省一次发前耐久写与暂存字节 | 排除原因：须给 [S-70②](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-70-稳定身份完整原批和未知结果) 在 ACK 后路径一个「摘要等价即完整认回」的解释（摘要不是原值），且回执未知、写方未实停时「缺席即结束」会把未决旧批判为未提交，与 S-70⑤ 冲突；主线裁定本轮不改 S-70/S-71（评审页 `record/proposals/model-runtime-reference-lifecycle/ack-seam-review.md` 范围外裁决）。本方代价是暂存字节与发前耐久写；S-70 未来若改须重新对照；高 |
 | 崩溃恢复默认「停写方→权威读→缺席即结束并 unavailable」，不代重送 | 恢复 owner 按策略代重送同批：与 ACK 前 final unknown 的 v20 同批重送一致，消费者不必重调 | 消费者须持自持值重调；ACK 前后两条恢复路径不同，实现按是否存在 SettlementWork 行分流；代重送只作 S-71 显式选择且先重核 S-99②；中高 |
 | 真实当前 ack 准入，沿原必需 inject | 可序列化签名授权更便于离线调用 | 依赖当前来源；签名/ref无法单独兑现撤权和ack/settle分权；高 |
 
