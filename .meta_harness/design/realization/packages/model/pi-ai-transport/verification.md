@@ -347,18 +347,28 @@ UCT-V12 的官方配置不能换成禁用缓存或固定在旧位置的研究配
 
 ## ZAI 五叶可见推理历史候选义务
 
-对象为 [ZAI 可见推理计量 revision 1](zai-visible-reasoning-estimate-design.md)（缺口 GG-12），消费已接受 RT12/MR11 与 D-111 R-A 的 full-only。**本节均为待执行义务，新增绑定 0**；候选未评审、未采用、未实施，本次文档检查不证明源码、模型或上游已兑现。释放分两批：GLM-5.2、Prime、FlashX 可随采用释放，GLM-5.3、Flash 以 ZV0 为前置。
+对象为 [ZAI 可见推理计量 revision 1](zai-visible-reasoning-estimate-design.md)（缺口 GG-12；[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/zai-visible-reasoning-decision.md)），消费已接受 RT12/MR11 与 D-111 R-A 的 full-only。新增绑定 0。释放分两批：第一批 GLM-5.2、Prime、FlashX 已在执行仓库实施并本机验证（ZV1–ZV3、ZV5，见下表状态），GLM-5.3、Flash 机制已接（同一渲染器与投影，模板预言本机通过），坐标待 ZV0 后由主线发布，当前仍为 definition 2／`pi-ai:zai@mp4-17` 的拒绝发布。ZV0、ZV4 未执行。
+
+第一批释放坐标（`pi-ai:zai@mp4-18` 首次使用；φ/δ 仍为 `unsupported-marginal/1`，transform `openrouter-wire/2`）：
+
+| 叶 | definition | implementation | algorithm | tokenizer（显式钉在未变依据） |
+|---|---|---|---|---|
+| `z-ai/glm-5.2` | `3` | `mp4-18` | `glm-5.2-public-template-2` | `tokenizer-basis/glm-5.2-public-template-1` |
+| `z-ai/glm-5.3-prime` | `4` | `mp4-18` | `prime-public-glm53-declared-effort-route-fit-3` | `tokenizer-basis/prime-public-glm53-declared-effort-route-fit-2` |
+| `z-ai/glm-5.3-flashx` | `3` | `mp4-18` | `flashx-public-glm53-route-fit-2` | `tokenizer-basis/flashx-public-glm53-route-fit-1` |
+
+分流键是 implementation 修订（执行仓库 `official-models/zai.ts` 的 `zaiHistoryTreatments`：`mp4-17` 拒绝、`mp4-18` 可见推理），不是开关；GLM-5.3、Flash 发布时只需新增唯一坐标。实现提交 `eeb84bca`（源码与受影响用例）、`69c254fd`（ZV1–ZV3 新用例与夹具），均在 spoke `panqiwei/model-request-runtime-zai-impl`，基线 `63980767`。夹具为 [2026-09-27 probe run](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md) 十三份带推理 ZAI 原件的有序片段（634 帧，成员 SHA-256 随夹具记录）与五份 2026-09-28 完整流（126 帧，从原 SSE 逐帧读取），按原 delta 形状重建成本机 TLS SSE、交真实 reader 合并；未发任何付费请求，原始运行输出未归档为 evidence run。
 
 | 编号／条款 | 正向、反例与必须失败的负控 | 门类 | owner／受阻消费者 |
 |---|---|---|---|
 | ZV0：RT12 S-74③ | GLM-5.3（缺省或 `max`）、Flash（缺省）各一次当前绑定单轮真实流，题面能激发可见推理、输出上限足以 `stop`；逐帧核 details 恰四键、无显式 `signature: null`、并行 `reasoning` 同文、推理恰一段连续。形状不同则修订候选页，仍无推理则该叶维持现拒绝 | 释放前置，付费 | root 唯一账本；两叶释放 |
-| ZV1：RT12 S-74、S-79；MR11 S-43 | 已释放叶 × 当前 effort 发送域 × 有/无 tools × {public，Cordis transport service} 三轮：第 2、3 轮 full/`estimated`，每轮恰一次 HTTP 且字节等于计划，wire 保留 details，资源实停；Prime 带显式 5m `last_message`。`zai-three-round-invoke.spec.ts` 等既有拒绝用例按候选页 ZV1 改期望，混合 opaque／明文与异路由 opaque 仍规划拒绝 | 本机 | transport 实施者；已释放叶真实多轮 |
-| ZV2：RT12 S-74③、S-78 | 反例 1–8、10–13；模板预言扩到 GLM-5.3、Flash、GLM-5.2 三套固定模板（`clear_thinking=false`，推理 assistant 在末条 user 前后各一），GLM-5.2 另存缺省口径黄金值；夹具由两批原件片段经真实 reader 合成。变异负控各自单独施加须失败：去掉并行 `reasoning` 同文检查、把显式 `signature: null` 当缺席、放行非 0 index、GLM-5.2 渲染器漏渲槽位、Prime／FlashX 对历史多减一次常数 | 本机 | transport 实施者；同上 |
-| ZV3：RT12 S-77、S-79⑥；H13 | 直接调用三个 factory 为五叶返回的 full／φ／δ：非法显式 history 由共同包装拒绝，body-only 合法 full 为 `estimated` 且数值与接线前相同，包装无递归；不以规划器或独立包装函数的测试代证 | 本机 | transport 实施者；直接调用公开函数的消费者 |
+| ZV1：RT12 S-74、S-79；MR11 S-43 | 已释放叶 × 当前 effort 发送域 × 有/无 tools × {public，Cordis transport service} 三轮：第 2、3 轮 full/`estimated`，每轮恰一次 HTTP 且字节等于计划，wire 保留 details，资源实停；Prime 带显式 5m `last_message`。`zai-three-round-invoke.spec.ts` 等既有拒绝用例按候选页 ZV1 改期望，混合 opaque／明文与异路由 opaque 仍规划拒绝。**状态：本机通过**（`eeb84bca`／`69c254fd`）：`tests/zai-visible-reasoning-rounds.spec.ts` 28 组合（GLM-5.2 缺省／`high`、Prime 缺省／`low`／`high`／`max`、FlashX 缺省 × 有无 tools × 两入口）＋范围断言共 29 例，第 2、3 轮 full/`estimated`，每轮 HTTP 恰一次且字节等于计划，wire 只回放 reader 合并后的一项 details，独立计量与「details 换成 `reasoning` 串」计数相等，余量一次，Prime 末条恰一个 5m 标记且后续轮 `prefix_changed`，资源实停；`zai-three-round-invoke.spec.ts` 回放边界改为已释放叶第 2 轮估算并发送、GLM-5.3／Flash 仍拒绝，`zai-reasoning-history`、`zai-history-replay`（异路由另证计量器未被调用）、`zai-commercial-meter`、`zai-glm52/53-meter`、`official-zai-definitions`、`official-reader-bindings`（新增 `zai-visible-reasoning.json` 发布样本）跟随新发布 | 本机 | transport 实施者；已释放叶真实多轮 |
+| ZV2：RT12 S-74③、S-78 | 反例 1–8、10–13；模板预言扩到 GLM-5.3、Flash、GLM-5.2 三套固定模板（`clear_thinking=false`，推理 assistant 在末条 user 前后各一），GLM-5.2 另存缺省口径黄金值；夹具由两批原件片段经真实 reader 合成。变异负控各自单独施加须失败：去掉并行 `reasoning` 同文检查、把显式 `signature: null` 当缺席、放行非 0 index、GLM-5.2 渲染器漏渲槽位、Prime／FlashX 对历史多减一次常数。**状态：本机通过**（`69c254fd`）：`tests/zai-visible-reasoning.spec.ts`（与 ZV3 同文件共 84 例）——模板预言 36 例（18 段原件文字 × 末条 user 前后；GLM-5.2、GLM-5.3、Flash 三套模板逐一等于 Jinja 2.10.1 黄金值，details 形渲染相同，`mp4-17` 口径两形均拒绝；GLM-5.2 缺省口径黄金值等于「去掉末条 user 之前推理」的渲染，末条 user 之后两口径相同），原五个 GLM-5.3 黄金值复现且 Prime／FlashX 估算等于公开模板计数减 1；等价预言 58 组比较；反例 1–4、8 逐叶；反例 5 带 id、迟到签名、显式 `signature: null` 发送前拒绝，被 content 隔开的两段推理按主线裁决合并为一项拼接文字、回放估算且计量文字等于发出文字；反例 10、11、12（计量器未被调用、零 HTTP）、13（两未释放叶数值不变且两形均拒）。五个变异负控各自单独施加后跑两份新 spec 均失败并已还原：去同文检查 3 例、`signature: null` 当缺席 6 例、放行非 0 index 3 例、GLM-5.2 漏渲槽位 38 例、历史多减常数 7 例 | 本机 | transport 实施者；同上 |
+| ZV3：RT12 S-77、S-79⑥；H13 | 直接调用三个 factory 为五叶返回的 full／φ／δ：非法显式 history 由共同包装拒绝，body-only 合法 full 为 `estimated` 且数值与接线前相同，包装无递归；不以规划器或独立包装函数的测试代证。**状态：本机通过**（`eeb84bca`／`69c254fd`）：同文件 5 例，直接调用 `createGlm52InputMeter`／`createGlm53InputMeter`／`createZaiCommercialInputMeter` 为五叶返回的方法；body-only 合法 full 在各叶全部 effort 下等于在 `63980767` 构建产物上实测的接线前值（199，Prime／FlashX 198），共同包装同值；缺 span、部分组、越界、重复目标、组被篡改、来源矛盾、序列化不一致均 unavailable；φ/δ 合法为 unavailable、畸形为 `invalidInput`（Prime 因断点移位规划期不询问 φ/δ） | 本机 | transport 实施者；直接调用公开函数的消费者 |
 | ZV4：RT12 S-74③、S-78 | 已释放叶有／无 tools 各至少一组当前绑定三轮真实流，第 2 轮起回放 details，记录上游接受、`prompt_tokens` 残差、cache 与 cost、逐帧形状。**必做**同路由对照：同一第 2 轮历史以 (A) details、(B) `reasoning` 字符串、(C) 无推理发送；A＝B＞C 闭合该叶 ZG1，A＝B＝C 记为路由清除、后继改口径，A≠B 由后继撤回该叶 details 映射。残差不引入修正常数 | 认证门，付费 | root 唯一账本；五叶 D7 逐模型真实多轮 |
-| ZV5 | 已释放叶 definition／implementation／algorithm 唯一修订、显式 tokenizerRevision、`evidence` 字串、包 README／README_ZH 双语段与制品消费；删除 `zai-candidate.ts` 并迁移其消费者；未知与失败原件保留 | 交付 | 实施者＋主线；包文档读者 |
+| ZV5 | 已释放叶 definition／implementation／algorithm 唯一修订、显式 tokenizerRevision、`evidence` 字串、包 README／README_ZH 双语段与制品消费；删除 `zai-candidate.ts` 并迁移其消费者；未知与失败原件保留。**状态：已交付**（`eeb84bca` 与本节所在文档提交）：三叶坐标见上表，evidence 追加可见推理口径与「OpenRouter 转换与路由清除策略未知、无 holdout」，Prime 保留 R-B 原文；`zai-candidate.ts` 与其 spec 删除，其 GLM-5.3 黄金值检查迁入 ZV2，冻结探针 `history-candidate-probes.mjs` 改用生产计量器并记录计量器坐标，研究页链接由主线改为纯文字；包 README／README_ZH 的 ZAI 段已改写；GLM-5.3、Flash 坐标未发布，待 ZV0 | 交付 | 实施者＋主线；包文档读者 |
 
-覆盖缺口与受阻消费者见候选页 ZG1～ZG9，本节不复述。候选须经独立 architecture-reviewer 与主线技术采用后才释放 ZV1–ZV3 与 ZV5 的实施；ZV0、ZV4 的付费观测不因本节登记而获授权。
+覆盖缺口与受阻消费者见候选页 ZG1～ZG9，本节不复述。ZV0、ZV4 的付费观测不因本节登记而获授权。本机状态不关闭 ZG1 上游转换与路由清除口径、ZG3 真实回放、ZG5 托管模板误差或任何一叶的 D7 真实多轮认证；演示装配 `examples/model-invocation-minimal-demo/tests/zai-prime-effort-service.spec.ts` 按导出定义取修订，本次未改也未运行。
 
 ## H13 多个历史输出组候选
 
