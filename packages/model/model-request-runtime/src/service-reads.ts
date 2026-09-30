@@ -19,10 +19,18 @@ import type {
   RuntimeConstruction,
   SessionRuntimeBinding,
   ReadAttemptsResult,
+  ReadAttemptDispatch,
   FailureConsumption,
   ModelFailureSource,
 } from './service-types.ts'
-import type { SettlementRegistration, SettlementTask } from './settlement-types.ts'
+import type {
+  SettlementLogBinding,
+  SettlementRegistration,
+  SettlementTask,
+} from './settlement-types.ts'
+import type { CallHistoryDispatch } from './call-history.ts'
+import type { CallFacts } from './reference-types.ts'
+import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import type { PlannedSemantics } from './types.ts'
 import { requestStopAndWait } from './settlement-stop.ts'
 
@@ -230,6 +238,47 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     return result
   }
 
+  /** Reads each ready-only dispatch's immutable content row; any gap is unavailable, not partial. */
+  async function readyAttempts(
+    input: CallKey,
+    dispatches: readonly CallHistoryDispatch[],
+    log: SettlementLogBinding,
+  ): Promise<ReadAttemptsResult> {
+    const attempts: ReadAttemptDispatch[] = []
+    let last: PendingModelResponse | undefined
+    for (const item of dispatches) {
+      if (item.ready === null || item.response !== null) {
+        attempts.push(item)
+        continue
+      }
+      let read: Awaited<ReturnType<CallFacts['content']['read']>>
+      try {
+        read = await construction.callFacts.content.read({
+          binding: log,
+          call: input.callId,
+          ref: item.ready.record.payload,
+        })
+      } catch {
+        return unavailable()
+      }
+      if (
+        !('content' in read) ||
+        read.content.kind !== 'reply_ready' ||
+        read.content.value.id !== item.ready.record.response ||
+        read.content.value.call.callId !== input.callId
+      )
+        return unavailable()
+      last = read.content.value
+      attempts.push({ ...item, result: { disposition: 'disposition_pending', pending: last } })
+    }
+    const final = dispatches.at(-1)
+    if (last === undefined || final?.response !== null || final.ready === null) return unavailable()
+    return {
+      state: last.outcome === 'interrupted' ? 'interrupted' : 'complete',
+      dispatches: Object.freeze(attempts),
+    }
+  }
+
   function readAttempts(input: CallKey): Promise<ReadAttemptsResult>
   function readAttempts(
     input: CallKey,
@@ -313,8 +362,16 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
         createdSource = source
         return { result: { ...result, failureSubject: source.subject }, source }
       }
+      // RT11/RT12 S-86: the durable ready is the complete/interrupted terminal fact with
+      // disposition_pending; its outcome and full original value live in the content row.
+      if (state.source === 'durable' && state.phase === 'reply_pending')
+        return { ready: { dispatches, log: binding.log } }
       return { result: { state: state.phase, dispatches } }
     })
+    if ('ready' in read && read.ready !== undefined) {
+      const result = await readyAttempts(input, read.ready.dispatches, read.ready.log)
+      return requested ? { result, consumption: { kind: 'notApplicable' } } : result
+    }
     if ('acknowledged' in read && read.acknowledged !== undefined) {
       const { facts, log } = read.acknowledged
       const view = custody === undefined ? undefined : await custody.view(log, facts)

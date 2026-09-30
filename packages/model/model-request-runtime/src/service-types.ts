@@ -28,6 +28,7 @@ import type {
   CallFacts,
   CallPresence,
   CallLifecycleState,
+  CallResultFact,
 } from './reference-types.ts'
 export type { CallKey } from '@omne-harness-lite/messages'
 import type {
@@ -355,6 +356,14 @@ export type ReconciledCall =
     }
 export type ReconcileResult =
   { readonly calls: readonly ReconciledCall[] } | ServiceInvalidInput | ServiceUnavailable
+/**
+ * RT12 S-34⑤/S-86: one dispatch as readAttempts returns it. A confirmed ready without a final
+ * carries its complete original result with disposition_pending; a final stays in `response`.
+ */
+export type ReadAttemptDispatch = CallHistoryDispatch & {
+  readonly result?: Extract<CallResultFact, { readonly disposition: 'disposition_pending' }>
+}
+
 export type ReadAttemptsResult =
   | {
       readonly state: 'open'
@@ -364,13 +373,13 @@ export type ReadAttemptsResult =
     }
   | {
       readonly state: 'awaiting_decision'
-      readonly dispatches: readonly CallHistoryDispatch[]
+      readonly dispatches: readonly ReadAttemptDispatch[]
       readonly failureSubject: AfterModelCallFailureSubject
       readonly acknowledged?: never
     }
   | {
       readonly state: Exclude<DispatchGuardPhase, 'open' | 'awaiting_decision'>
-      readonly dispatches: readonly CallHistoryDispatch[]
+      readonly dispatches: readonly ReadAttemptDispatch[]
       readonly failureSubject?: never
       readonly acknowledged?: never
     }

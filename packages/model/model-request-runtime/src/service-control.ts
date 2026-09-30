@@ -260,6 +260,9 @@ export function classifyRelease(facts: ControlFacts): ReleaseAdmission {
   if (current === 'unknown') return { rejected: 'unavailable' }
   if (current === 'complete' || current === 'handed_up' || current === 'interrupted')
     return { rejected: 'alreadyEnded' }
+  // S-86: a durable ready is terminal; only a local, unconfirmed reply stays reply_pending.
+  if ('phase' in facts.durable && facts.durable.phase === 'reply_pending')
+    return { rejected: 'alreadyEnded' }
   if (current !== 'awaiting_decision' && current !== 'resumable') return { wrongPhase: current }
   if ('intentExists' in facts.durable && facts.durable.intentExists)
     return { rejected: 'unavailable' }
@@ -460,14 +463,17 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
           return { unavailable: true }
         }
         // A verified acknowledgement exists only for a terminal call (RT12 S-95): stopping it
-        // needs no content and no acknowledged view, so it never blocks close.
+        // needs no content and no acknowledged view, so it never blocks close. A confirmed
+        // ready marker is already complete/interrupted with disposition_pending (S-86): the
+        // owner stop neither cancels nor changes it and needs no final.
         const durable = received.ok
         if (
           'known' in durable &&
           (durable.known.acknowledged !== null ||
             durable.known.phase === 'complete' ||
             durable.known.phase === 'interrupted' ||
-            durable.known.phase === 'handed_up')
+            durable.known.phase === 'handed_up' ||
+            durable.known.phase === 'reply_pending')
         ) {
           control.publishStopped()
           return { released: true }

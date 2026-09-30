@@ -50,7 +50,9 @@ export function projectCallState(input: {
     (history.known.intent !== null &&
       history.known.ending === null &&
       history.known.phase !== 'complete' &&
-      history.known.phase !== 'interrupted')
+      history.known.phase !== 'interrupted' &&
+      // S-86: a durable ready marker is already the complete/interrupted terminal fact.
+      history.known.phase !== 'reply_pending')
   )
     return { unavailable: true }
   const last = history.known.dispatches.at(-1)

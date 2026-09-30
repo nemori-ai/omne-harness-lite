@@ -36,6 +36,14 @@ export interface CallHistoryDispatch {
     readonly projection: ModelLogResponseProjection
     readonly entry: LogEntry
   } | null
+  /**
+   * RT11/RT12 S-86: the confirmed ready marker of this dispatch. Its complete original result
+   * lives in the immutable content row; this prefix alone proves only that it is durable.
+   */
+  readonly ready: {
+    readonly record: ModelCallReplyReadyRecord
+    readonly entry: LogEntry
+  } | null
 }
 
 /**
@@ -222,9 +230,11 @@ export function interpretCallHistory(input: {
         ) === 0,
     )
     const body = responses.filter(candidate => candidate.response.id === item.record.response)
+    const marker = ready.filter(candidate => candidate.record.response === item.record.response)
     if (
       anchor.length > 1 ||
       body.length > 1 ||
+      marker.length > 1 ||
       (anchor[0] !== undefined &&
         (anchor[0].entry.run !== item.entry.run ||
           ExactDecimal.from(anchor[0].entry.attempt ?? 0).compare(
@@ -267,6 +277,7 @@ export function interpretCallHistory(input: {
               entry: responseEntry,
             }
           : null,
+      ready: marker[0] === undefined ? null : { record: marker[0].record, entry: marker[0].entry },
     })
   }
   if (

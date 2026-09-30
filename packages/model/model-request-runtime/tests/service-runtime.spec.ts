@@ -231,6 +231,21 @@ describe('D102 unified model runtime owner', () => {
         })
         expect(dispatched).toHaveProperty('replyPending')
         expect(wire.sends()).toBe(1)
+        // S-86/S-34⑤: the confirmed ready is complete with disposition_pending on every read
+        // face; readAttempts carries the complete original result, never reply_pending.
+        const beforeSettle = await runtime.service.readAttempts({
+          session: host.session,
+          callId: 'runtime-call-1',
+        })
+        if (!('dispatches' in beforeSettle) || beforeSettle.dispatches === undefined)
+          throw new Error(`readAttempts: ${JSON.stringify(beforeSettle)}`)
+        expect(beforeSettle.state).toBe('complete')
+        expect(beforeSettle.dispatches).toHaveLength(1)
+        expect(beforeSettle.dispatches[0]).toMatchObject({
+          response: null,
+          ready: { record: { kind: 'model_call_reply_ready', response: 'runtime-response' } },
+          result: { disposition: 'disposition_pending', pending: { id: 'runtime-response' } },
+        })
         const settled = await runtime.service.settleReply({
           session: host.session,
           callId: 'runtime-call-1',
@@ -242,6 +257,10 @@ describe('D102 unified model runtime owner', () => {
           callId: 'runtime-call-1',
         })
         expect(attempts).toMatchObject({ state: 'complete' })
+        if (!('dispatches' in attempts) || attempts.dispatches === undefined)
+          throw new Error('readAttempts')
+        expect(attempts.dispatches[0]?.response).not.toBeNull()
+        expect(attempts.dispatches[0]).not.toHaveProperty('result')
         const log = await host.log.readSince(host.session, 0)
         if (!('entries' in log)) throw new Error('durable log unavailable')
         expect(log.entries.map(entry => payload(entry).kind).filter(Boolean)).toEqual([
