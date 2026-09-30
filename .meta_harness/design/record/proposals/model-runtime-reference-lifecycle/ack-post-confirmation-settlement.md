@@ -10,6 +10,8 @@
 
 沿原结算owner及现Storage，把这次已经构造、核验且获当前资格的完整原批与原批身份/判重键/来源前缀作为该次结算的临时恢复数据，在首次可能产生追加效果前确认耐久。该记录不发布ModelResponse、不构成第二个模型结果事实源；SessionLog仍裁决实际final。既有提供者若已有能跨崩溃认回该原批的暂存机制，直接复用，不另建通用journal或GC服务。
 
+**暂存行的精确含义（R1）。**暂存行保存的是**最近一次结果尚未确知为零写的追加所用的完整批**——连同该批的原批身份、判重键与来源前缀——不是「某个曾经构造过的批」。[S-70④](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-70-稳定身份完整原批和未知结果)的 `tailChanged` 确认该次整批零写之后，写方可按 [S-71](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-71-争用政策与责任保留) 策略准许重读并重构 `late`，并**用重构后的完整批更新暂存行**；这次更新必须在新的追加可能生效之前耐久，否则崩溃后恢复 owner 手里只有旧批。回执未知期间（[S-70⑤](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-70-稳定身份完整原批和未知结果)：先前追加为 `unavailable`、丢回执或仍在途）**禁止覆盖暂存行**——那一批可能已经提交，暂存行是认回它的唯一依据。[RT12 S-99⑧](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-99-ack-后的真实处分与-retainedresult)已写「首次可能追加前耐久」与「同原批/合法 late 重构」，但没有写暂存行的这一精确含义；v12 已接受冻结，不原地补句，该句作为版本外勘误指引登记在[契约入口](../../../spec/capabilities/model-request-runtime/README.md#v12-ack后继候选)，并列为 [v-next 待并入项](../../../spec/capabilities/model-request-runtime/v-next/README.md)，由下一版本正文并入。
+
 - 仅在此次真实处分开始时取得，不能在ACK时预存一份“以防未来”的full ready。
 - 回执unknown时，暂存与真实writer责任保留；取消/关闭/超时不假定原写者停止。原S70完整原批认回与实际停止前提不变，不能重跑消费副作用。
 - 已确认原合法完整final、所有可能晚写者真实收束后，自动释放该临时原批与纯暂存引用，不需消费方再次ACK；正式final/消息保持不可变。

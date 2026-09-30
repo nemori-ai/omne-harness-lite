@@ -101,3 +101,5 @@
 ## v12 ACK后继候选
 
 [v12 contract](v12/contract.md) · [消费者影响](v12/consumer-impact.md) · [验证义务](v12/verification.md)。candidate，未接受；前驱v11接受状态不传递。ACK确认、真实处分与清理分别可见；本批证据未完成时不据目录存在宣称通过。
+
+2026-09-30 版本外勘误指引（v12 已由 [ACK 契约决定](../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受并冻结，正文不原地改）：[S-99⑧](v12/contract.md#s-99-ack-后的真实处分与-retainedresult)未写明暂存行的精确含义——暂存行 = 最近一次结果尚未确知为零写的追加所用完整批；`tailChanged` 确认零写后重构批须在新追加可能生效前耐久更新到该行；回执未知期间禁止覆盖。候选正文在[ACK 后新处分接缝 revision 2](../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)，待并入项与扩展形式工件在 [v-next](v-next/README.md)；并入由下一版本 contract 完成，不改变 v12 的接受状态。
