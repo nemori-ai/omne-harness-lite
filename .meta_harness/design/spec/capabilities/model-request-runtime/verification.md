@@ -576,3 +576,36 @@ FinalPlan 两份正配置实际 TLC 退出 0（WithLog=true：8737 不同状态�
 形式工具为TLC2 2026.09.12.025210（867aefb）、Temurin 21.0.12.1；2calls/2consumers、单Focus、一次可选crash、显式公平性范围见新版本formal/ACK-README。90份继承形式工件逐字相同，本批未重跑；不把它们算为ACK新证据。design检查internal/formal=registered已通过，该模式只核登记不执行模型。实际脚本、commands、输入SHA与日志由主线提升正式evidence；真实提供者/授权/存储/内存清理/未知写入组合验收仍未开始。
 
 本批文档检查亦实际通过：1948份Markdown；冻结清单970文件SHA均保持。文档检查不代表语义接受。
+
+### 接缝 revision 2 修订（2026-09-30）
+
+按独立定点架构评审的最小修订清单（主调度摘录在 HUB 任务区 `tmp/model-request-runtime/ack-adoption/a22-g2-seam-review-20260930.md`，裁决 `rulings-20260930-main-dispatcher.md` R-G；正式记录待主线提升）把[ACK 后新处分接缝](../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)修到 revision 2。v12 已接受冻结（[决定](../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)），本轮不改 v12 任何字节、不改 registry；契约侧变化以版本外勘误指引（[README](README.md#v12-ack后继候选)）与 [v-next 待并入项](v-next/README.md)承接。接受仍以修订落地后主调度复核为条件，本节不提升状态。
+
+变化的影响：
+
+- R1：暂存行定义为「最近一次结果尚未确知为零写的追加所用完整批」；`tailChanged` 确认零写后重构批须在新追加可能生效前耐久更新；回执未知期间禁止覆盖。S-99⑧ 的补句留给下一版本正文，v12 不动。
+- R2：反例 A–E 补入接缝；A、B 各得一份 `validity-check` 变异（下表），C–E 列为真实并发验收义务（再下表）。
+
+#### 扩展模型的本次执行
+
+TLC2 2026.09.12.025210（rev 867aefb）、Temurin 21.0.12.1、`-workers 8`；输入为本 spoke [`v-next/formal/`](v-next/formal/README.md) 当前字节（`AckLifecycle.tla` SHA-256 `2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45`）。原始日志与每份配置在任务 worktree 的 `tmp/model-request-runtime/ack-seam-revision/tlc-vnext-20260930/`，未提升为 evidence，登记与否由主线决定。
+
+| 配置 | 本次结果 |
+|---|---|
+| `AckLifecycle.cfg` | exit 0；32617 generated / 8384 distinct；13 条不变量无反例 |
+| `AckProgress.cfg` | exit 0；同上；`EventuallyReleased`、`EventuallyDropTemp` 无反例 |
+| `validity-check/Ack-staleTemp.cfg`（反例 A） | exit 12，`RecoveredMatchesFinal` 反例：StartSettlement→Reconstruct→BeginAppend（暂存仍 gen 0）→AppendLands（final gen 1） |
+| `validity-check/Ack-absenceUnreadable.cfg`（反例 B） | exit 12，`EndedMeansAbsent` 反例：OldFinal→StopNew→Crash→Recover（不可读）→PresumeAbsent |
+| v12 原八份变异（逐字复制） | 各 exit 12 并命中原目标不变量（ackFirst/admission/atomic/drain/missing/sum/tamper/temporaryBatch） |
+
+有限模型不证明真实字节、耐久、权限或密码学；A、B 是否定配置，不登记 formal task；v12 冻结的模型与配置本轮未重跑，不把本次结果算作 v12 证据。
+
+#### 真实并发验收义务（反例 C–E，对应节点 A22-V13/V14）
+
+| 义务 | 落点 | 必须观察到 | 状态 |
+|---|---|---|---|
+| C 原晚 writer 的 final 先落 | 节点 [A22-V13/V14](../../../realization/packages/model/model-request-runtime/verification.md)；结算写方/恢复 owner | ACK 前已取得发布许可的原晚 writer 先提交 final 后，新写不追加第二批：同处分认回原 final、异处分 `alreadyEnded`；暂存行仍自动删；`cleanup=released` 不回退 | 未开始 |
+| D 部分碰撞/残批 | A22-V13；结算写方 | 新写命中 `alreadyRecorded` 部分碰撞/身份不符/残批：不报成功、不补残批、不换 ID；暂存行保留、阶段未完成、返回 `unavailable` | 未开始 |
+| E 迟到 worker 的代际拒绝 | A22-V14；Storage 控制行 | 旧代际 worker 对新代际暂存行的写/删被代际比较拒绝；新行不丢、不被覆盖 | 未开始 |
+
+节点 verification 的 A22-V13/V14 行尚未写入 C–E（节点正文归 realization-drafter，另派）；本表是规格侧的义务登记，不代替节点绑定。

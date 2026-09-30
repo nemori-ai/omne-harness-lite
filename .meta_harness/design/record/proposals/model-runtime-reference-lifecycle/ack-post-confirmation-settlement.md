@@ -33,3 +33,8 @@ runtime后继在现Storage中给该次结算暂存明确owner/键/代际/状态�
 3. final已确认但实际旧writer尚未停，不得提前删其恢复责任；全部收束后自动删，无第二ACK。
 4. 真实停止+完整读确证未提交+策略结束，临时原批释放，不遗留默认永久副本；仍pending处分且费用沿ACK见证，不伪final。
 5. 原cleanup保持已释放，既有旧ref不重新交全文；新写入责任与实际临时字节可观察，其他调用不受影响。
+6. **A：late 重构后暂存未更新。**合法 `tailChanged` 后写方重构了 `late`，却没有把重构批耐久更新到暂存行就发起新追加→崩溃→恢复 owner 手里只有旧批：要么以旧 `late` 重送，要么与已提交的重构批认回失败。有限模型变异 [`Ack-staleTemp.cfg`](../../../spec/capabilities/model-request-runtime/v-next/formal/README.md) 去掉「追加前暂存行须持有将追加批」的守卫，`RecoveredMatchesFinal` 必须失败。
+7. **B：暂存行/日志不可得判零写。**恢复 owner 在暂存行或日志读不到时把「读不到」当作「零写」，结束写责任并释放暂存；而该批（或原晚 writer 的 final）可能已经提交。变异 [`Ack-absenceUnreadable.cfg`](../../../spec/capabilities/model-request-runtime/v-next/formal/README.md) 允许在不可读时结束，`EndedMeansAbsent` 必须失败。
+8. **C：原晚 writer 的 final 先落。**ACK 前已取得发布许可的原晚 writer 在新处分开始后先提交 final；新写必须按 [S-49⑦](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-49-settlereply)/[S-86](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-86-结果发布计账处分与关闭) 同处分认回原 final 或以 `alreadyEnded` 收口，不追加第二批；暂存行仍自动删除，原 `cleanup=released` 不回退。有限模型能走出这一交错，但没有为「认回/alreadyEnded 的返回」设断言；证据是真实并发验收（节点 [A22-V13/V14](../../../realization/packages/model/model-request-runtime/verification.md)）。
+9. **D：部分碰撞/残批。**新写命中 `alreadyRecorded` 且为部分碰撞、身份不符或残批（[S-70③](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-70-稳定身份完整原批和未知结果)）：不报成功、不补残批、不换 ID 再写；暂存行保留、阶段保持未完成、返回 `unavailable`。真实并发验收（A22-V13）。
+10. **E：迟到 worker 的代际拒绝。**旧一次写责任的迟到 worker 对新一次写责任（新代际；节点以 workId 区分）的暂存行做写或删，必须被代际比较拒绝；新写责任的暂存行不因此丢失或被覆盖。真实并发验收（A22-V14）。
