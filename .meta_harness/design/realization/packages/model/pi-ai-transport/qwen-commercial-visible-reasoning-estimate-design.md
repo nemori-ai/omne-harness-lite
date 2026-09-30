@@ -196,6 +196,10 @@ OpenRouter 侧同[开源页](qwen-open-visible-reasoning-estimate-design.md#上�
 
 [独立复算](../../../../../research/model-request-adaptation/vendor-continuation/qwen/batch8-20260930/README.md)（第二执行者，真实 Jinja2＋HF tokenizers，未用包内渲染器；18 个重建请求体与 `plannedWireSha256` 全部相符）复现研究页全部数字，并解释了 +1：模板 `tojson` 若按 Jinja2 内建（键排序，包内渲染器同法）18 个残差全为 +1；若按 transformers／vLLM 语义（保留 wire 键序）18 个残差**全为 0**，差别只在工具定义行。12 个轮间增量残差两种口径下均为 0，3.8「＋5」恒等式成立；details 帧恰四键、第 2～3 轮计划体只带 details；反向对照（互换两家设定）残差 −242～+609，渲染能区分两分支。**主线裁决**：六叶实施以 wire 键序的 `tojson` 渲染（作为逐叶版本化设定的一部分），QG4 的 +1 在此形状下已由渲染选择解释、不再是未知常数；单 user 形状的 −9／0 未复算，仍列 QG4。开源两叶本程不动（N5）；其既有 QV4 原件用同一脚本零付费复算列为 QC-V0b，读数出来后再决定是否随口径换代。0902 第 2～3 轮回放推理含 `—`／`→`，非 ASCII 覆盖不再是零样本，但仍按 QC-V6 补中文多轮。QC-V0 通过，QC-V1～V5 与 QC-V8 的实施据采用决定释放。
 
+## 实施附注（2026-09-30，主线）
+
+实施交付于增量集成分支（`cc8512bc`…`d11d6829` → 增量树 …`7fc0f18e`）：六叶 definition 4／`pi-ai:qwen@mp4-20`／algorithm `<叶>-public-template-1`，tokenizer 修订按 3.8／3.7 两族取 `tokenizer-basis/qwen-commercial-3{8,7}-template-wire-order-1`；逐叶设定为版本化常量 `qwenCommercialBindings`（含第三字段 `toolJson`＝wire 键序，承载 QC-V0 裁决）；开源两叶字节不变仍 `mp4-19`。18 个 batch8 请求残差全 0。登记偏离：数组索引样键的工具参数与孤代理项取 unavailable（JS 与 Python 键序不一致，宁拒不错计）。逐叶设定表「当前坐标」列记录的是起草时坐标（3／`mp4-17`），以本附注为准。QC-V6／V7 待主调度付费执行。
+
 ## 修订记录
 
 | revision | 日期 | 变更 | 基线 |
