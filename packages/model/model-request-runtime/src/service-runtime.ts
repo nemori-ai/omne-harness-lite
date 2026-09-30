@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { createPlanReuseScopes } from './plan-reuse-scopes.ts'
 import { createRuntimeAcquire } from './service-acquire.ts'
 import { createServiceAcknowledge } from './service-acknowledge.ts'
@@ -55,6 +56,8 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     reservationWaitPolicy: construction.reservationWaitPolicy,
     ...(construction.history.run === undefined ? {} : { run: construction.history.run }),
     diagnostic: construction.diagnostic,
+    custody,
+    instance: randomUUID(),
   })
   let recoveryDiagnosticReportEnabled = true
   const reportRecoveryDiagnosticFailure = (): void => {
@@ -80,6 +83,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
       : { diagnosticCollector: construction.diagnosticCollector }),
     onDiagnosticFailure: reportRecoveryDiagnosticFailure,
     custody,
+    settlementWork: { store: construction.callFacts.content.work, owns: settleReply.ownsWork },
   })
   ownedStores.add(construction.calls)
 

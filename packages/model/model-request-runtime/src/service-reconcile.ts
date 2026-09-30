@@ -33,7 +33,9 @@ import { interpretCallHistory, rejectAcknowledgedHistory } from './call-history.
 import { acknowledgedFactsFromHistory } from './acknowledged-view.ts'
 import { judgeAcknowledgedSettlement } from './acknowledged-settlement.ts'
 import type { AcknowledgementCustody } from './acknowledgement-custody.ts'
-import { readSettlementPrefix } from './settlement-prefix.ts'
+import { createSettlementWork, type SettlementWork } from './settlement-work.ts'
+import type { ModelCallSettlementWorkStore } from './reference-types.ts'
+import { interpretSettlementPrefix, readSettlementPrefix } from './settlement-prefix.ts'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 import { modelLogJsonEqual } from './log-codec.ts'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
@@ -165,11 +167,19 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
   readonly reservationWaitPolicy: ReservationWaitPolicy
   readonly run?: RunHistoryReader
   readonly diagnostic: (event: SettlementDiagnostic) => void
+  /** RT12 S-99⑧: retires ended post-ACK work rows on the ACK cleanup's one pending mechanism. */
+  readonly custody: AcknowledgementCustody
+  /** This runtime instance; recorded on each work row it starts. */
+  readonly instance: string
 }): {
   readonly settleReply: (request: SettleReplyInput) => Promise<SettleReplyResult>
+  /** Whether this component currently owns a started post-ACK work of the call. */
+  readonly ownsWork: (ref: CallKey) => boolean
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
 } {
   const entries = new Map<string, DurableReplySettlement>()
+  /** RT12 S-99⑧: started post-ACK write responsibilities, one per CallKey. */
+  const works = new Map<string, SettlementWork>()
   let closed = false
   const keyOf = (request: SettleReplyInput): string =>
     JSON.stringify([request.session, request.callId])
@@ -249,27 +259,7 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
               return { unavailable: true }
             const judged = judgeAcknowledgedSettlement(request, retainedResult, facts)
             if (!('validated' in judged)) return judged
-            // S-99⑧: a new final after release needs its durable pre-append staging
-            // (SettlementWork, A22-G2). Until that exists, no write starts: unavailable.
-            try {
-              drainDiagnosticThenable(
-                input.diagnostic({
-                  kind: 'model_ack.settle_after_release',
-                  tenant: session.log.tenant,
-                  session: request.session,
-                  call: request.callId,
-                  dispatch: judged.validated.dispatch,
-                  response: judged.validated.id,
-                  owner: 'settleReply',
-                  policy: 'staging_unavailable',
-                  submissions: 0,
-                  tailConflicts: 0,
-                }),
-              )
-            } catch {
-              // A diagnostic failure is not a settlement fact.
-            }
-            return { unavailable: true }
+            return await settleAcknowledged(request, judged.validated, session)
           },
         )
         if ('allowed' in admittedAck) return admittedAck.allowed
@@ -378,6 +368,97 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
     }
   }
 
+  /**
+   * RT12 S-99⑧: a validated caller-held original after ACK starts (or continues) exactly one
+   * write responsibility whose batch is durable before each append. A row this component does
+   * not own belongs to another instance: only the recovery owner may conclude it (seam R4).
+   */
+  async function settleAcknowledged(
+    request: SettleReplyInput,
+    pending: PendingModelResponse,
+    session: SessionRuntimeBinding,
+  ): Promise<SettleReplyResult> {
+    const key = keyOf(request)
+    const ref = { session: request.session, callId: request.callId }
+    let work = works.get(key)
+    if (work === undefined) {
+      const existing = await input.callFacts.content.work.read({
+        binding: session.log,
+        call: request.callId,
+        response: pending.id,
+      })
+      if (!('absent' in existing)) {
+        emitWork('work' in existing ? 'settlement_work.foreign' : 'settlement_work.unreadable')
+        return { unavailable: true }
+      }
+      const final = { ...pending, replyDisposition: request.disposition }
+      if ('rejected' in judgeResponseFinalization(pending, final)) return { unavailable: true }
+      work = createSettlementWork({
+        binding: session.log,
+        owner: session.selection.owner,
+        store: input.callFacts.content.work,
+        custody: input.custody,
+        instance: input.instance,
+        ref,
+        request: {
+          target: { call: request.callId, dispatch: pending.dispatch, response: pending.id },
+          current: { messageId: pending.reply.id, disposition: request.disposition },
+          response: final,
+        },
+        contention: input.contention,
+        scheduler: input.scheduler,
+        ...(input.run === undefined ? {} : { run: input.run }),
+        diagnostic: input.diagnostic,
+        // A pre-ACK writer of this call still owned here must actually stop first.
+        obstacles: () => (entries.has(key) ? ['writer_in_flight'] : []),
+      })
+      works.set(key, work)
+    }
+    const outcome = await work.advance()
+    if ('retained' in outcome) return { unavailable: true }
+    works.delete(key)
+    // Ended: nothing of this work was written; the consumer may apply again with its value.
+    if ('ended' in outcome) return { unavailable: true }
+    const original = outcome.settled.response.response
+    if (
+      outcome.settled.disposition === 'firstWinner' ||
+      original === null ||
+      !modelLogJsonEqual(original.replyDisposition, request.disposition)
+    )
+      return { alreadyEnded: true }
+    if (
+      original.outcome !== 'interrupted' &&
+      original.outcome !== 'complete' &&
+      original.outcome !== 'truncated'
+    )
+      return { unavailable: true }
+    return {
+      callId: request.callId,
+      state: original.outcome === 'interrupted' ? 'interrupted' : 'complete',
+    }
+
+    function emitWork(kind: string): void {
+      try {
+        drainDiagnosticThenable(
+          input.diagnostic({
+            kind,
+            tenant: session.log.tenant,
+            session: request.session,
+            call: request.callId,
+            dispatch: pending.dispatch,
+            response: pending.id,
+            owner: 'settleReply',
+            policy: input.contention.name,
+            submissions: 0,
+            tailConflicts: 0,
+          }),
+        )
+      } catch {
+        // A diagnostic failure is not a settlement fact.
+      }
+    }
+  }
+
   async function closeEntry(entry: DurableReplySettlement): Promise<boolean> {
     try {
       await entry.coordinator.close()
@@ -397,12 +478,24 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
         return true
       }),
     )
-    return outcomes.every(Boolean) && entries.size === 0
+    // A work whose writer stopped keeps only its durable row; the recovery owner concludes it.
+    const workOutcomes = await Promise.all(
+      [...works.entries()].map(async ([key, work]) => {
+        if (!(await work.close())) return false
+        works.delete(key)
+        return true
+      }),
+    )
+    return outcomes.every(Boolean) && workOutcomes.every(Boolean) && entries.size === 0
       ? { released: true }
       : { unavailable: true }
   }
 
-  return Object.freeze({ settleReply, close })
+  return Object.freeze({
+    settleReply,
+    ownsWork: (ref: CallKey) => works.has(JSON.stringify([ref.session, ref.callId])),
+    close,
+  })
 }
 
 async function recognizeSettledReply(
@@ -494,6 +587,85 @@ async function readSettledReply(
   }
 }
 
+/** A runtime's view of the post-ACK work rows it may conclude as the recovery owner. */
+export interface SettlementWorkRecovery {
+  readonly store: ModelCallSettlementWorkStore
+  /** A live component of this runtime still owns the work; recovery leaves it alone. */
+  readonly owns: (ref: CallKey) => boolean
+}
+
+/**
+ * Seam R4 default path for one post-ACK work row left by a writer this runtime does not own:
+ * the host's recovery scope must confirm the original execution absent (actual stop, not a
+ * signal or fence); then the complete prefix decides. A complete batch (this one, or a first
+ * winner that excludes it) or a whole absence ends the responsibility and retires the row; the
+ * consumer re-applies with its own value. Anything unreadable or residual keeps the row.
+ */
+async function recoverSettlementWork(input: {
+  readonly key: CallKey
+  readonly response: string
+  readonly prefix: SettlementPrefix
+  readonly scope: RuntimeRecoveryScope
+  readonly binding: SettlementLogBinding
+  readonly work: SettlementWorkRecovery
+  readonly custody: AcknowledgementCustody
+  readonly diagnostic: (event: SettlementDiagnostic) => void
+}): Promise<void> {
+  const { key, binding } = input
+  const emit = (kind: string, dispatch: JsonNumber = 0) => {
+    try {
+      drainDiagnosticThenable(
+        input.diagnostic({
+          kind,
+          tenant: binding.tenant,
+          session: key.session,
+          call: key.callId,
+          dispatch,
+          response: input.response,
+          owner: input.scope.owner.name,
+          policy: 'recovery',
+          submissions: 0,
+          tailConflicts: 0,
+        }),
+      )
+    } catch {
+      // A diagnostic failure is not a recovery fact.
+    }
+  }
+  if (input.work.owns(key)) return
+  const read = await input.work.store.read({ binding, call: key.callId, response: input.response })
+  if ('absent' in read) return
+  // An unreadable row is never evidence of absence: the pending item stays.
+  if ('unavailable' in read) return emit('settlement_work.recovery_unreadable')
+  const { staged, workId, generation } = read.work
+  const original = input.scope.originalInvocation(key, staged.target)
+  if (!('absent' in original))
+    return emit('settlement_work.recovery_writer_unproven', staged.target.dispatch)
+  const interpreted = interpretSettlementPrefix({
+    prefix: input.prefix,
+    target: staged.target,
+    current: staged.current,
+  })
+  if ('unavailable' in interpreted)
+    return emit('settlement_work.recovery_retained', staged.target.dispatch)
+  const members = interpreted.facts.members
+  if (!('completeMembers' in members) && !('absent' in members))
+    return emit('settlement_work.recovery_retained', staged.target.dispatch)
+  emit(
+    'completeMembers' in members
+      ? 'settlement_work.recovery_recognized'
+      : 'settlement_work.recovery_ended',
+    staged.target.dispatch,
+  )
+  await input.custody.retireWork({
+    binding,
+    ref: key,
+    response: input.response,
+    workId,
+    generation,
+  })
+}
+
 /** S-33 recovery owns every entered scope until its original work and full-prefix read are settled. */
 export function createRuntimeReconcile(input: {
   readonly recovery: RuntimeRecoveryAccess
@@ -509,6 +681,11 @@ export function createRuntimeReconcile(input: {
    * so reconcile needs the owning runtime's ACK custody; one ACK never blocks the session.
    */
   readonly custody: AcknowledgementCustody
+  /**
+   * RT12 S-99⑧ seam R4: the recovery owner concludes post-ACK work rows that no live component
+   * of this runtime owns. Without it such rows are only kept, never judged.
+   */
+  readonly settlementWork?: SettlementWorkRecovery
 }): {
   readonly reconcile: (request: ReconcileInput) => Promise<ReconcileResult>
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
@@ -866,6 +1043,7 @@ async function readRecoveredCalls(
     readonly diagnostic: (event: SettlementDiagnostic) => void
     readonly run?: RunHistoryReader
     readonly custody: AcknowledgementCustody
+    readonly settlementWork?: SettlementWorkRecovery
   },
   closed: () => boolean,
   onAnchor: (anchor: {
@@ -921,6 +1099,17 @@ async function readRecoveredCalls(
       })
       if (facts === undefined) return { unavailable: true }
       calls.push({ callId, acknowledged: await input.custody.view(binding, facts) })
+      if (facts.record.target.kind === 'response' && input.settlementWork !== undefined)
+        await recoverSettlementWork({
+          key: { session: request.session, callId },
+          response: facts.record.target.response,
+          prefix: read.prefix,
+          scope,
+          binding,
+          work: input.settlementWork,
+          custody: input.custody,
+          diagnostic: input.diagnostic,
+        })
       continue
     }
     const history = rejectAcknowledgedHistory(raw)

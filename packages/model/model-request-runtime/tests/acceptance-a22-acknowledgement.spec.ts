@@ -208,6 +208,16 @@ async function acknowledgementHost(options: HostOptions = {}) {
     if (!('entries' in log)) throw new Error('durable log unavailable')
     return log.entries
   }
+  async function workRows(call: string): Promise<number> {
+    return await host.storage.read(async tx => {
+      const rows = await narrow<{ model_call_settlement_work: { call: string } }>(tx)
+        .selectFrom('model_call_settlement_work')
+        .select('call')
+        .where('call', '=', call)
+        .execute()
+      return rows.length
+    })
+  }
   async function contentRows(call: string): Promise<number> {
     return await host.storage.read(async tx => {
       const rows = await narrow<{ model_call_content: { call: string } }>(tx)
@@ -232,6 +242,7 @@ async function acknowledgementHost(options: HostOptions = {}) {
     request,
     entries,
     contentRows,
+    workRows,
     grant,
     as(name: string) {
       principal = name
@@ -435,7 +446,7 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
     }
   }, 30_000)
 
-  it('A22-V2/V8: a ready reply ACK fixes the witness, pends on a real reader and never settles', async () => {
+  it('A22-V2/V8/V11: a ready reply ACK fixes the witness, pends on a real reader, then a caller-held value settles', async () => {
     const h = await acknowledgementHost()
     try {
       h.grant('owner', ['read', 'wait', 'settle', 'cancel', 'ack'])
@@ -504,12 +515,38 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
           retainedResult: { ...retained, usage: { ...retained.usage, input_tokens: 999 } },
         }),
       ).toEqual({ invalidInput: { reason: 'malformed' } })
-      // A validated new final waits for S-99⑧ durable staging: nothing is written yet.
+      // S-99⑧: a validated caller-held original starts one staged write and completes it.
       const before = await h.entries()
       expect(
         await h.service.settleReply({ ...ref, disposition, retainedResult: retained }),
-      ).toEqual({ unavailable: true })
-      expect(await h.entries()).toHaveLength(before.length)
+      ).toEqual({ callId: 'a22-call-1', state: 'complete' })
+      const written = (await h.entries()).slice(before.length)
+      expect(written).toHaveLength(1)
+      expect(payload(written[0] as LogEntry)).toMatchObject({
+        id: retained.id,
+        replyDisposition: disposition,
+      })
+      // The staging row is retired with the confirmed final; the ACK cleanup never regresses.
+      expect(await h.workRows('a22-call-1')).toBe(0)
+      expect(await h.contentRows('a22-call-1')).toBe(0)
+      const settledRead = await h.service.acquireCall({ ref, mode: 'read' })
+      expect(settledRead).toMatchObject({
+        view: {
+          acknowledged: { cleanup: 'released' },
+          attempts: [
+            { response: retained.id, disposition: 'final', replyDisposition: disposition },
+          ],
+        },
+      })
+      expect(settledRead).not.toHaveProperty('view.result')
+      // S-99⑦: the committed final decides repeats without any full value.
+      expect(await h.service.settleReply({ ...ref, disposition })).toEqual({
+        callId: 'a22-call-1',
+        state: 'complete',
+      })
+      expect(
+        await h.service.settleReply({ ...ref, disposition: { consumed: { by: 'compaction' } } }),
+      ).toEqual({ alreadyEnded: true })
       // A22-V1: a non-terminal call is never acknowledged.
       expect(await h.service.openCall(h.request('a22_create_open'))).toMatchObject({
         callId: 'a22-call-2',

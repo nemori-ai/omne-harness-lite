@@ -175,6 +175,8 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
           opening.reservation.publish({ phase: 'reply_pending', pending: pending() })
           opening.reservation.release()
           const settlementService = createRuntimeSettleReply({
+            custody: storeUnavailableCustody(),
+            instance: 'settle-test-runtime',
             ...unavailableReferencePorts<PlannedSemantics, never>(),
             calls,
             contention: policy(),
@@ -244,6 +246,8 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
             const source = { generation: log.generation, progress: 0 }
             const reference = unavailableReferencePorts<PlannedSemantics, never>()
             const settlementService = createRuntimeSettleReply({
+              custody: storeUnavailableCustody(),
+              instance: 'settle-test-runtime',
               ...reference,
               callFacts: {
                 ...reference.callFacts,
@@ -327,6 +331,8 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
           const source = { generation: log.generation, progress: 0 }
           const reference = unavailableReferencePorts<PlannedSemantics, never>()
           const settlementService = createRuntimeSettleReply({
+            custody: storeUnavailableCustody(),
+            instance: 'settle-test-runtime',
             ...reference,
             callFacts: {
               ...reference.callFacts,

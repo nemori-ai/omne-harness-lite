@@ -1,6 +1,7 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isNonNegativeJsonInteger, type JsonValue } from '@omne-harness-lite/content-blocks'
 import type { CallKey, ModelCallAcknowledgedRecord } from '@omne-harness-lite/messages'
+import type { ResponseId } from '@omne-harness-lite/model-response'
 import { completeAcknowledgedView } from './acknowledged-view.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import type {
@@ -41,6 +42,20 @@ export interface AcknowledgementCustody {
     binding: SettlementLogBinding,
     facts: AcknowledgedCallFacts,
   ) => Promise<AcknowledgedCallView>
+  /**
+   * RT12 S-99⑧ with seam R3: delete one ended settlement work row. A failed or unknown delete
+   * keeps the row as a durable pending item of this same custody: the same policy object, the
+   * same scheduler and the same wake-up entries retry it; no second queue or timer exists.
+   * `obstacles` names other writers that must actually stop first; each keeps the row.
+   */
+  readonly retireWork: (input: {
+    readonly binding: SettlementLogBinding
+    readonly ref: CallKey
+    readonly response: ResponseId
+    readonly workId: string
+    readonly generation: number
+    readonly obstacles?: () => readonly AckPendingReason[]
+  }) => Promise<ModelCallCleanupResult>
   readonly close: () => Promise<RuntimeCloseResult>
 }
 
@@ -77,7 +92,8 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
   if (
     typeof input.policy?.next !== 'function' ||
     typeof input.scheduler?.wait !== 'function' ||
-    typeof input.content?.releaseAcknowledged !== 'function'
+    typeof input.content?.releaseAcknowledged !== 'function' ||
+    typeof input.content.work?.remove !== 'function'
   )
     throw new TypeError('explicit ACK cleanup policy, scheduler and retention store required')
   const running = new Map<string, Promise<ModelCallCleanupResult>>()
@@ -157,13 +173,16 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
     return await input.content.releaseAcknowledged({ binding, call: ref.callId })
   }
 
+  /**
+   * One durable pending item per key (an ACK cleanup or a settlement work row), retried by the
+   * one explicit policy and scheduler of this custody. Stopping a round keeps the durable item.
+   */
   function schedule(
-    binding: SettlementLogBinding,
+    key: string,
     ref: CallKey,
-    record: ModelCallAcknowledgedRecord,
     result: ModelCallCleanupResult,
+    retry: () => Promise<unknown>,
   ): void {
-    const key = keyOf(ref)
     if (closed || result.cleanup === 'released') {
       const existing = scheduled.get(key)
       if (existing !== undefined && result.cleanup === 'released') {
@@ -194,8 +213,8 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
       !isNonNegativeJsonInteger(decision.waitMs) ||
       ExactDecimal.from(decision.waitMs).compare(ExactDecimal.from(0)) < 0
     ) {
-      // The durable acknowledged row remains; a later read, ACK repeat or restart resumes it.
-      report('retry_stopped', ref, { attempts: entry.attempts })
+      // The durable row remains; a later read, repeat or restart resumes it.
+      report('retry_stopped', ref, { item: key, attempts: entry.attempts })
       scheduled.delete(key)
       return
     }
@@ -211,32 +230,35 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
       .then(async elapsed => {
         entry.task = undefined
         if (elapsed !== 'elapsed' || closed) return
-        await cleanup({ binding, ref, record })
+        await retry()
       })
       .catch(() => {
         entry.task = undefined
       })
   }
 
-  function cleanup(request: {
-    readonly binding: SettlementLogBinding
-    readonly ref: CallKey
-    readonly record: ModelCallAcknowledgedRecord
-  }): Promise<ModelCallCleanupResult> {
-    const key = keyOf(request.ref)
+  /** Single flight per pending item; every outcome is reported and rescheduled if pending. */
+  function run(
+    key: string,
+    ref: CallKey,
+    stage: string,
+    work: () => Promise<ModelCallCleanupResult>,
+    retry: () => Promise<unknown>,
+  ): Promise<ModelCallCleanupResult> {
     const existing = running.get(key)
     if (existing !== undefined) return existing
-    const task = attempt(request.binding, request.ref, request.record)
+    const task = work()
       .catch((): ModelCallCleanupResult => ({
         cleanup: 'pending',
         pendingReasons: ['storage_unavailable'],
       }))
       .then(result => {
-        report('attempt', request.ref, {
+        report(stage, ref, {
+          item: key,
           cleanup: result.cleanup,
           ...(result.cleanup === 'pending' ? { reasons: [...result.pendingReasons] } : {}),
         })
-        schedule(request.binding, request.ref, request.record, result)
+        schedule(key, ref, result, retry)
         return result
       })
       .finally(() => {
@@ -246,8 +268,57 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
     return task
   }
 
+  function cleanup(request: {
+    readonly binding: SettlementLogBinding
+    readonly ref: CallKey
+    readonly record: ModelCallAcknowledgedRecord
+  }): Promise<ModelCallCleanupResult> {
+    return run(
+      `ack:${keyOf(request.ref)}`,
+      request.ref,
+      'attempt',
+      () => attempt(request.binding, request.ref, request.record),
+      () => cleanup(request),
+    )
+  }
+
+  async function removeWork(
+    request: Parameters<AcknowledgementCustody['retireWork']>[0],
+  ): Promise<ModelCallCleanupResult> {
+    let obstacles: readonly AckPendingReason[]
+    try {
+      obstacles = request.obstacles?.() ?? []
+    } catch {
+      obstacles = ['writer_in_flight']
+    }
+    if (obstacles.length !== 0) return { cleanup: 'pending', pendingReasons: obstacles }
+    const removed = await input.content.work.remove({
+      binding: request.binding,
+      call: request.ref.callId,
+      response: request.response,
+      workId: request.workId,
+      generation: request.generation,
+    })
+    // `rejected`: the row now belongs to another work or generation; this work has no row.
+    if ('removed' in removed || 'rejected' in removed) return { cleanup: 'released' }
+    return { cleanup: 'pending', pendingReasons: [removed.pending] }
+  }
+
+  function retireWork(
+    request: Parameters<AcknowledgementCustody['retireWork']>[0],
+  ): Promise<ModelCallCleanupResult> {
+    return run(
+      `work:${JSON.stringify([request.ref.session, request.ref.callId, request.response, request.workId])}`,
+      request.ref,
+      'work_retire',
+      () => removeWork(request),
+      () => retireWork(request),
+    )
+  }
+
   return Object.freeze<AcknowledgementCustody>({
     cleanup,
+    retireWork,
     async view(binding, facts) {
       const result = await cleanup({ binding, ref: facts.ref, record: facts.record })
       return completeAcknowledgedView(facts, result)
