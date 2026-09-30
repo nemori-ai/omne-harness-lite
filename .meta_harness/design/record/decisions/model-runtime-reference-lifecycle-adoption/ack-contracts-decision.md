@@ -34,6 +34,8 @@ ACK 后 ref 返回可核的小状态与原账事实，不重新领取全文。�
 
 2026-09-30 附注：上段对「ACK 后新处分接缝」的接受以独立定点架构评审的 R1–R4 修订为条件（主调度裁决 R-G）；修订已作为接缝 [revision 2](../../proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md) 落地，由主调度复核；复核前该接缝仍为 candidate。原句不改。
 
+2026-09-30 复核附注：主调度已复核接缝 revision 2（SHA256 `edb9524f27477a45f9bed1fd8ef4c39d1c7c0182fa249d932245e72d81c9a910`）：R1 暂存行精确含义、R2 反例 A–E（A、B 各配 validity-check 变异配置并经 TLC 证据 [2026-09-30 运行](../../evidence/2026-09-30-ack-seam-vnext-tlc/README.md)，C–E 归 A22-V13/V14 真实并发验收）、R3 删除重试复用 ACK 清理同一套耐久待办与可配置策略、R4 崩溃恢复默认路径与重送前重核资格均已落地，B3 候选对照已补；**接缝接受生效**。同时采用节点 [v22 revision 3](../../../realization/packages/model/model-request-runtime/v22-acknowledgement-design.md)（SHA256 `003b9eaf6c4386ef37427d6ca95fd829500d3cab49f6bdf91d23dd084c6fed55`），它只按接缝 revision 2 同步节点表，不改 revision 2 已采用的范围。实施状态：A1–A3 与首轮独立评审修复批已入集成分支，第二轮独立验收进行中；接缝对应的 A4 实施与 A22-V13/V14 仍待。
+
 实施按 CA4→MS8→MR11 的实际资源边集成；可并行编写独立包，不能以缺资源占位符通过消费者检查。runtime 保留唯一写入 owner，公共类型/codec、持久控制与所有入口的传播一致交付；示例只实现合法消费的 Cordis loop，不建设完整 Session/Run。每个增量同步 README/README_ZH、实际包制品与受影响消费者。
 
 必须执行四节点的 A4、M8、R11、A22 验收义务，特别是真实双提交域故障、ACK 与 final 竞争、重复确认、旧 ref 小视图、在途读写排空、后 ACK 新原批崩溃恢复与自动清理。新增实际 bindings 为 0；本决定不接受任何 ACK 实现或整项 T29 完成，不替代全纵线 D1～D7 与37型号认证。

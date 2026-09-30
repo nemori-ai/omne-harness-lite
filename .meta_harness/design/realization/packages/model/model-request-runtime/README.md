@@ -7,10 +7,10 @@
 
 ## 2026-09-29 ACK 与模型副本释放候选
 
-- **语义接受：本增量无**。RT12/MS8/MR11/CA4 均为 candidate；[v22 映射](v22-acknowledgement-design.md) 未技术采用。D110 的 T29/v20 与 D109 的 v21 原采用边界保持。
-- **可实施：候选设计，未放行**。现有 modelRuntime 增第十五操作 acknowledgeCall；真实读/旧发布/删除共用持久 ModelCallRetention 门，ACK 日志确认后同 Storage 事务删内容并更新 released。所有读、同键创建与结算同步迁移，旧 noGC/Map 全文保管不能继续成为后继默认。ACK 后新 final 暂存接缝仍独立待审（A22-G2）；外域来源按 A22-G3 只限制实际依赖路径。
+- **语义接受：已接受**。RT12/MS8/MR11/CA4 由 [ACK 契约决定](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)（2026-09-30）接受并在 registry 登记 accepted；[v22 映射](v22-acknowledgement-design.md) revision 2 已技术采用，revision 3（接缝同步）经主调度复核采用。D110 的 T29/v20 与 D109 的 v21 原采用边界保持。
+- **可实施：已放行，实施进行中**。现有 modelRuntime 增第十五操作 acknowledgeCall；真实读/旧发布/删除共用持久 ModelCallRetention 门，ACK 日志确认后同 Storage 事务删内容并更新 released。所有读、同键创建与结算同步迁移，旧 noGC/Map 全文保管不能继续成为后继默认。ACK 后新 final 暂存接缝 revision 2 已经定点评审并由主调度复核采用（A22-G2 闭合，实施归 A4）；外域来源按 A22-G3 只限制实际依赖路径。
 - **绑定证据：新增 0**，原 bindings 不改；[A22-V1～V16](verification.md#a22-ack与模型副本释放候选) 是待执行义务，不以候选模型登记或提案评审证明实际释放。
-- **实际验证：本增量尚无**。源码包已存在，ACK/控制行/自动清理及确认后处分恢复尚无实施验收；A22-G1～G4 列明接受、候选恢复接缝、真实来源和实际组合证据 owner。demo 仅为 Session identity-scoped assembly，不是正式 Session/Run。
+- **实际验证：部分**。A1（core 组合入）、A2（acknowledgeCall／S-97 已确认分支／S-100 传播）、A3（S-98 保留门）及首轮独立评审的修复批已入集成分支（作者自测＋第一轮独立评审 79 例回归），第二轮独立验收（A22-V1～V12/V15/V16）进行中；A4（S-99⑧ 结算暂存、A22-V13/V14）实施中；A22-G1～G4 列明接受、候选恢复接缝、真实来源和实际组合证据 owner。demo 仅为 Session identity-scoped assembly，不是正式 Session/Run。
 
 2026-09-29：[D109](../../../../record/decisions/model-request-image-preparation-adoption/decision.md) 技术采用 v21 r3 异步图片规划与资源归属，精确正文不变；新增 binding 0，实际生命周期与组合验收待实施。
 
