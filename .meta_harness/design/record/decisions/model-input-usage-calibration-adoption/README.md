@@ -16,4 +16,4 @@
 
 [DeepSeek 可见推理后继](deepseek-visible-reasoning-decision.md)采用两款有限明文参考估算 revision 2；共用解码及直接 meter 来源守门须实施，DV1–DV5 与真实路线差分尚待，不新增 O 映射或规范版本。
 
-[Moonshot 可见推理后继](moonshot-visible-reasoning-decision.md)采用两叶有限明文参考估算 revision 2（2026-09-30）；Qwen 开源两叶候选以 QV0 为前置本次不采用；MV1–MV3 实施与 MV4 真实回放（含必做同路由对照）尚待。
+[Moonshot 可见推理后继](moonshot-visible-reasoning-decision.md)采用两叶有限明文参考估算 revision 2（2026-09-30）；MV1–MV3 已实施入 HUB，MV4 带 tools 真实回放两叶 3/3 已过（2026-09-30 第六批 d），无 tools 与同路由对照待。[Qwen 可见推理后继](qwen-visible-reasoning-decision.md)在 QV0 真实形状确认后采用 revision 2（2026-09-30）；QV1–QV3 实施与 QV4 真实回放尚待。
