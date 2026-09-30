@@ -192,6 +192,10 @@ OpenRouter 侧同[开源页](qwen-open-visible-reasoning-estimate-design.md#上�
 - QG9 入档：用户 2026-09-30 的方向尚无记录；派发引用的「按 R-K 列为未覆盖」与 D-111 中 R-K 的内容（换路由 opaque 规划拒绝）对不上，引用的 R-V 在本基线的 record 中不存在。已随[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-commercial-visible-reasoning-decision.md)入档并更正（R-K 引用系派发笔误，本页未用；R-V 为主调度临时裁决簿条目，不在 record）。
 - QG10 P2 外推：开源两叶在 `alibaba` 路由上的同槽位结论不外推到商业六叶，由 QC-V6 逐叶取得。
 
+## QC-V0 结果（2026-09-30，主线附注）
+
+[独立复算](../../../../research/model-request-adaptation/vendor-continuation/qwen/batch8-20260930/README.md)（第二执行者，真实 Jinja2＋HF tokenizers，未用包内渲染器；18 个重建请求体与 `plannedWireSha256` 全部相符）复现研究页全部数字，并解释了 +1：模板 `tojson` 若按 Jinja2 内建（键排序，包内渲染器同法）18 个残差全为 +1；若按 transformers／vLLM 语义（保留 wire 键序）18 个残差**全为 0**，差别只在工具定义行。12 个轮间增量残差两种口径下均为 0，3.8「＋5」恒等式成立；details 帧恰四键、第 2～3 轮计划体只带 details；反向对照（互换两家设定）残差 −242～+609，渲染能区分两分支。**主线裁决**：六叶实施以 wire 键序的 `tojson` 渲染（作为逐叶版本化设定的一部分），QG4 的 +1 在此形状下已由渲染选择解释、不再是未知常数；单 user 形状的 −9／0 未复算，仍列 QG4。开源两叶本程不动（N5）；其既有 QV4 原件用同一脚本零付费复算列为 QC-V0b，读数出来后再决定是否随口径换代。0902 第 2～3 轮回放推理含 `—`／`→`，非 ASCII 覆盖不再是零样本，但仍按 QC-V6 补中文多轮。QC-V0 通过，QC-V1～V5 与 QC-V8 的实施据采用决定释放。
+
 ## 修订记录
 
 | revision | 日期 | 变更 | 基线 |

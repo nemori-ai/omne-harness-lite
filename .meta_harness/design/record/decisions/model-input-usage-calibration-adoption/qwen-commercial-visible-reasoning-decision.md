@@ -21,3 +21,7 @@
 ## 释放的实施与不可省略的验收
 
 **QC-V0 通过后**释放 QC-V1～V5 与 QC-V8 的实施（六叶修订、`renderQwenPrompt` 两参、结构前置迁移与替身删除、开源两叶回归预言逐字节不变且 `mp4-19` 不动、直接入口正反测试、双语 README）。QC-V6（含 M1／M2 补充场景）与 QC-V7 由主调度执行。本采用不证明这些门已通过，不关闭 M-Qwen 或 Qwen 整家交付。新增 bindings 0。
+
+## 2026-09-30 附注：QC-V0 通过，实施释放
+
+[独立复算](../../../../research/model-request-adaptation/vendor-continuation/qwen/batch8-20260930/README.md)复现全部数字并说明 +1 来自 `tojson` 键排序（wire 键序下 18/18 残差为 0）。裁决：六叶以 wire 键序 `tojson` 渲染（逐叶版本化设定的一部分）；开源两叶本程不动，其 QV4 原件零付费复算列 QC-V0b。QC-V1～V5、QC-V8 实施自本附注起释放；QC-V6／V7 仍归主调度付费执行。
