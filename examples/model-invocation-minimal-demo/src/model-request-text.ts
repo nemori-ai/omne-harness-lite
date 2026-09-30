@@ -210,6 +210,12 @@ export function readDemoCalibrationHistory(
     }
     const source = decoded.selectedMessageSources[sourceIndex]
     const original = decoded.messages[sourceIndex]
+    if (source === undefined && original === undefined && selected.type === 'system_reminder') {
+      // A request-local reminder after the whole durable chain has no durable source; the
+      // runtime accepts a null entry only for exactly such a message, never for an ancestor.
+      selectedSources.push({ messageIndex, entry: null })
+      continue
+    }
     if (source === undefined || original === undefined || !modelLogJsonEqual(selected, original))
       return { sourceUnavailable: true }
     sourceIndex++
