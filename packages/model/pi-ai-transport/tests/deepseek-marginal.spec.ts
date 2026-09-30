@@ -1,5 +1,6 @@
 import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
-import { basisFor, directFull, directNew } from './direct-full-input.ts'
+import { basisFor, directFull, directNew, fullInputWithoutSource } from './direct-full-input.ts'
+import type { ReplayMeterInput } from '../src/input-meter.ts'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { deepSeekBoundaries } from '../src/input-meters/deepseek-boundary.ts'
@@ -484,49 +485,55 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
       completeness: 'complete',
     })
     if (!('projected' in outputGroup)) throw Error('output group unavailable')
-    const phi = directNew(meter, {
+    // φ goes through the factory's own guarded replay method with a legitimate
+    // source: the previous request's actual projection supplies the original basis.
+    const previousRequest = fullInputWithoutSource(meter, {
+      body: previousBody,
+      serialized: writeJsonLossless(previousBody),
+    }).projection.requestInput
+    if (previousRequest.kind !== 'known') throw Error('known previous request required')
+    const replayInput = (
+      requestInput: ReplayMeterInput['observation']['inputCalibration']['requestInput'],
+    ): ReplayMeterInput => ({
+      countingBasis: basisFor(meter),
       units: [a],
       envelope: {},
       precedingUnitCount: 1,
       boundary: b.replay,
-    })
-    expect(
-      meter.measureReplay({
-        countingBasis: basisFor(meter),
-        units: [a],
-        envelope: {},
-        precedingUnitCount: 1,
-        boundary: b.replay,
-        outputHistory: [],
-        observation: {
-          kind: 'observation',
-          inputCalibration: {
-            requestInput: { kind: 'unavailable', reason: 'not_retained' },
-            observedInput: { kind: 'unavailable', reason: 'missing_usage' },
-            outputGroup: outputGroup.projected,
-          },
-          usage: {
-            input_tokens: 'unknown',
-            output_tokens: 'unknown',
-            cache_read_tokens: 'unknown',
-            cache_write_tokens: 'unknown',
-            source: 'none',
-          },
-          outputBlocks,
-          replaySelection: outputBlocks.map((_block, index) => ({
-            sourceBlockIndex: index,
-            messageIndex: 1,
-            blockIndex: index,
-          })),
+      outputHistory: [],
+      observation: {
+        kind: 'observation',
+        inputCalibration: {
+          requestInput,
+          observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+          outputGroup: outputGroup.projected,
         },
-        unitIndices: [1],
-        selectionSpans: outputBlocks.map((_block, index) => ({
-          selectionIndex: index,
-          start: 1,
-          end: 2,
+        usage: {
+          input_tokens: 'unknown',
+          output_tokens: 'unknown',
+          cache_read_tokens: 'unknown',
+          cache_write_tokens: 'unknown',
+          source: 'none',
+        },
+        outputBlocks,
+        replaySelection: outputBlocks.map((_block, index) => ({
+          sourceBlockIndex: index,
+          messageIndex: 1,
+          blockIndex: index,
         })),
-      }),
-    ).toEqual({ kind: 'invalidInput' })
+      },
+      unitIndices: [1],
+      selectionSpans: outputBlocks.map((_block, index) => ({
+        selectionIndex: index,
+        start: 1,
+        end: 2,
+      })),
+    })
+    const phi = meter.measureReplay(replayInput(previousRequest))
+    // Without an original basis the guarded φ is not same-effective: unavailable, not a raw count.
+    expect(
+      meter.measureReplay(replayInput({ kind: 'unavailable', reason: 'not_retained' })),
+    ).toEqual({ kind: 'unavailable' })
     const delta = directNew(meter, {
       units: [n],
       envelope: {},
