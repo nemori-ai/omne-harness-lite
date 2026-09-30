@@ -375,7 +375,8 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     if ('acknowledged' in read && read.acknowledged !== undefined) {
       const { facts, log } = read.acknowledged
       const view = custody === undefined ? undefined : await custody.view(log, facts)
-      const result: ReadAttemptsResult = view === undefined ? unavailable() : { acknowledged: view }
+      const result: ReadAttemptsResult =
+        view === undefined || 'unavailable' in view ? unavailable() : { acknowledged: view }
       return requested ? { result, consumption: { kind: 'notApplicable' } } : result
     }
     if (!('result' in read)) {

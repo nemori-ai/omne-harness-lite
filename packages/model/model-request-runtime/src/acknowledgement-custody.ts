@@ -16,6 +16,7 @@ import type {
   CallContainerStore,
   RuntimeCloseResult,
   RuntimeConstruction,
+  ServiceUnavailable,
 } from './service-types.ts'
 import type {
   SettlementLogBinding,
@@ -31,17 +32,23 @@ import type { PlannedSemantics } from './types.ts'
  * releasable contents in one Storage commit. Obstacles are reported as closed reasons and
  * retried on the explicit policy; nothing here waits on a consumer, Run or handle.
  */
+/**
+ * A durable ACK record that contradicts the retained originals it names (RT12 S-98, S-101): it
+ * authorizes no release, and reads that would rest on it fail instead of answering small.
+ */
+export type AcknowledgementContradicted = { readonly contradicted: true }
+
 export interface AcknowledgementCustody {
   readonly cleanup: (input: {
     readonly binding: SettlementLogBinding
     readonly ref: CallKey
     readonly record: ModelCallAcknowledgedRecord
-  }) => Promise<ModelCallCleanupResult>
+  }) => Promise<ModelCallCleanupResult | AcknowledgementContradicted>
   /** Complete durable S-97 facts with the current progress (attempting cleanup first). */
   readonly view: (
     binding: SettlementLogBinding,
     facts: AcknowledgedCallFacts,
-  ) => Promise<AcknowledgedCallView>
+  ) => Promise<AcknowledgedCallView | ServiceUnavailable>
   /**
    * RT12 S-99⑧ with seam R3: delete one ended settlement work row. A failed or unknown delete
    * keeps the row as a durable pending item of this same custody: the same policy object, the
@@ -96,7 +103,7 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
     typeof input.content.work?.remove !== 'function'
   )
     throw new TypeError('explicit ACK cleanup policy, scheduler and retention store required')
-  const running = new Map<string, Promise<ModelCallCleanupResult>>()
+  const running = new Map<string, Promise<ModelCallCleanupResult | AcknowledgementContradicted>>()
   const scheduled = new Map<string, Scheduled>()
   let closed = false
   const keyOf = (ref: CallKey): string => JSON.stringify([ref.session, ref.callId])
@@ -152,12 +159,16 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
     binding: SettlementLogBinding,
     ref: CallKey,
     record: ModelCallAcknowledgedRecord,
-  ): Promise<ModelCallCleanupResult> {
+  ): Promise<ModelCallCleanupResult | AcknowledgementContradicted> {
     const confirmed = await input.content.confirmAcknowledgement({
       binding,
       call: ref.callId,
       record,
     })
+    if ('contradicted' in confirmed) {
+      report('confirm', ref, { result: 'contradicted' })
+      return confirmed
+    }
     if (!('phase' in confirmed)) {
       report('confirm', ref, { result: 'unavailable' })
       return { cleanup: 'pending', pendingReasons: ['storage_unavailable'] }
@@ -242,17 +253,19 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
     key: string,
     ref: CallKey,
     stage: string,
-    work: () => Promise<ModelCallCleanupResult>,
+    work: () => Promise<ModelCallCleanupResult | AcknowledgementContradicted>,
     retry: () => Promise<unknown>,
-  ): Promise<ModelCallCleanupResult> {
+  ): Promise<ModelCallCleanupResult | AcknowledgementContradicted> {
     const existing = running.get(key)
     if (existing !== undefined) return existing
     const task = work()
-      .catch((): ModelCallCleanupResult => ({
+      .catch((): ModelCallCleanupResult | AcknowledgementContradicted => ({
         cleanup: 'pending',
         pendingReasons: ['storage_unavailable'],
       }))
       .then(result => {
+        // A contradicted record is not a pending item: nothing retries its release.
+        if (!('cleanup' in result)) return result
         report(stage, ref, {
           item: key,
           cleanup: result.cleanup,
@@ -272,7 +285,7 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
     readonly binding: SettlementLogBinding
     readonly ref: CallKey
     readonly record: ModelCallAcknowledgedRecord
-  }): Promise<ModelCallCleanupResult> {
+  }): Promise<ModelCallCleanupResult | AcknowledgementContradicted> {
     return run(
       `ack:${keyOf(request.ref)}`,
       request.ref,
@@ -313,6 +326,11 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
       'work_retire',
       () => removeWork(request),
       () => retireWork(request),
+    ).then(result =>
+      // A work row is never judged against ACK originals; this branch cannot occur.
+      'cleanup' in result
+        ? result
+        : { cleanup: 'pending', pendingReasons: ['storage_unavailable'] },
     )
   }
 
@@ -321,7 +339,7 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
     retireWork,
     async view(binding, facts) {
       const result = await cleanup({ binding, ref: facts.ref, record: facts.record })
-      return completeAcknowledgedView(facts, result)
+      return 'cleanup' in result ? completeAcknowledgedView(facts, result) : { unavailable: true }
     },
     async close() {
       closed = true

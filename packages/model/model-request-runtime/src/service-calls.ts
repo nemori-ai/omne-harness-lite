@@ -595,6 +595,7 @@ async function recognizeAcknowledgedCreation<P extends PlannedSemantics, R>(
   if (!sameAssociation || !('ok' in digest)) return { creationConflict: true }
   if (custody === undefined) return { unavailable: true }
   const view = await custody.view(session.log, facts)
+  if ('unavailable' in view) return { unavailable: true }
   return { ref: facts.ref, callId: facts.ref.callId, acknowledged: view }
 }
 

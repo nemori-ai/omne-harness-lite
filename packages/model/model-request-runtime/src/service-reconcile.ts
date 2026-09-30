@@ -1098,7 +1098,10 @@ async function readRecoveredCalls(
         progress: read.prefix.tail,
       })
       if (facts === undefined) return { unavailable: true }
-      calls.push({ callId, acknowledged: await input.custody.view(binding, facts) })
+      const small = await input.custody.view(binding, facts)
+      // A contradicted ACK record is a broken source for this call, never a small answer.
+      if ('unavailable' in small) return { unavailable: true }
+      calls.push({ callId, acknowledged: small })
       if (facts.record.target.kind === 'response' && input.settlementWork !== undefined)
         await recoverSettlementWork({
           key: { session: request.session, callId },

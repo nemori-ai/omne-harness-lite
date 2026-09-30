@@ -20,6 +20,7 @@ import {
 import { judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import {
   judgeModelCallCreatedPayload,
+  judgeModelCallSemanticDigest,
   judgeModelInvocationRecord,
   type ModelCallAcknowledgedRecord,
   type ModelCallPayloadRef,
@@ -385,6 +386,55 @@ export function createModelCallContentStore(input: {
       .where('version', '=', ref.version)
       .executeTakeFirst()
   }
+  /** Every listed payload is this call's exact retained row, and the ACK digests match them. */
+  async function agreesWithOriginals(
+    tx: ReadTx,
+    binding: SettlementLogBinding,
+    call: string,
+    record: ModelCallAcknowledgedRecord,
+  ): Promise<boolean> {
+    const contents: ModelCallContentValue[] = []
+    for (const ref of record.releasablePayloads) {
+      const existing = await contentRow(tx, binding, ref)
+      // A listed original that is gone cannot be checked; that is not a verdict either way.
+      if (existing === undefined) throw new Refused(unavailable)
+      const decoded = decodeRow(existing, ref, binding, call)
+      if (decoded === undefined) return false
+      contents.push(decoded)
+    }
+    const created = contents.find(content => content.kind === 'created')
+    if (
+      created?.kind !== 'created' ||
+      created.value.creationKey !== record.creationKey ||
+      !(
+        'ok' in
+        judgeModelCallSemanticDigest(
+          'model-call-creation-semantic-sha256/v1',
+          created.value.input,
+          record.creationInput,
+        )
+      )
+    )
+      return false
+    const digest = record.retainedResultDigest
+    if (digest === undefined) return true
+    const target = record.target
+    const retained = contents.find(
+      content =>
+        content.kind === 'reply_ready' &&
+        target.kind === 'response' &&
+        content.value.id === target.response,
+    )
+    return (
+      retained?.kind === 'reply_ready' &&
+      'ok' in
+        judgeModelCallSemanticDigest(
+          'model-call-retained-result-semantic-sha256/v1',
+          retained.value,
+          digest,
+        )
+    )
+  }
   async function writeOwned<T>(
     work: (tx: WriteTx) => Promise<T>,
   ): Promise<T | ServiceInvalidInput | ServiceUnavailable> {
@@ -640,6 +690,10 @@ export function createModelCallContentStore(input: {
               throw new Refused(unavailable)
             if (row.phase === 'acknowledged' || row.phase === 'released')
               return { phase: row.phase }
+            // RT12 S-98 (a lawful ACK only): a batch this store never fixed must agree with the
+            // exact retained originals before anything may be released on its authority.
+            if (fixed === undefined && !(await agreesWithOriginals(tx, binding, call, record)))
+              return { contradicted: true as const }
             await narrow<ContentDatabase>(tx)
               .updateTable('model_call_retention')
               .set({ phase: 'acknowledged', acknowledgement: writeJsonLossless(record) })

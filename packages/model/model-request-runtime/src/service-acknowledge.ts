@@ -428,6 +428,8 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
           if (!modelLogJsonEqual(record.target, expectedResult))
             return { wrongPhase: { phase: record.terminalState } }
           const cleanup = await custody.cleanup({ binding, ref, record })
+          // A durable record that contradicts the retained originals is no lawful ACK.
+          if (!('cleanup' in cleanup)) return unavailable
           return current()
             ? { acknowledged: acknowledgementSummary(ref, record, cleanup) }
             : unavailable

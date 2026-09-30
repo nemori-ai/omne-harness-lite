@@ -180,6 +180,7 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
             )
               return unavailable
             const small = await custody.view(binding, facts)
+            if ('unavailable' in small) return unavailable
             const acknowledged: { readonly view: AcknowledgedCallView; readonly consumer?: never } =
               { view: small }
             return current() ? acknowledged : unavailable

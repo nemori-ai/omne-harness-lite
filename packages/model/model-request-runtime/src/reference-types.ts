@@ -343,11 +343,18 @@ export interface ModelCallContentStore {
     | ServiceInvalidInput
     | ServiceUnavailable
   >
-  /** Record that the log confirmed this exact batch; never retreats from a later phase. */
+  /**
+   * Record that the log confirmed this exact batch; never retreats from a later phase. A record
+   * this store never fixed is first checked against the still retained originals (exact bytes,
+   * creation and retained-result digests); a contradiction is reported and nothing changes.
+   */
   readonly confirmAcknowledgement: (
     input: ModelCallRetentionKey & { readonly record: ModelCallAcknowledgedRecord },
   ) => Promise<
-    { readonly phase: 'acknowledged' | 'released' } | ServiceInvalidInput | ServiceUnavailable
+    | { readonly phase: 'acknowledged' | 'released' }
+    | { readonly contradicted: true }
+    | ServiceInvalidInput
+    | ServiceUnavailable
   >
   /**
    * RT12 S-98: in one transaction, recheck confirmation and drained publishers, delete exactly

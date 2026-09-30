@@ -442,10 +442,10 @@ function kinds(entries: readonly LogEntry[]): (string | undefined)[] {
           mode: 'read',
         })
         expect(view).toMatchObject({ view: { state: 'open' } })
-        // and the acknowledged one answers only its small S-97 branch
+        // The forged ACK contradicts the still retained original (N-4, RT12 S-98/S-101): it is
+        // no lawful ACK, so the read fails instead of answering small, and discloses nothing.
         const acknowledged = await built.runtime.service.acquireCall({ ref, mode: 'read' })
-        expect(acknowledged).toMatchObject({ view: { ref, terminalState: 'complete' } })
-        expect(JSON.stringify(acknowledged)).not.toContain(LEAK)
+        expect(acknowledged).toEqual({ unavailable: true })
         expect(await built.runtime.close()).toEqual({ released: true })
         expect(built.acquired()).toBe(built.released())
       } finally {
