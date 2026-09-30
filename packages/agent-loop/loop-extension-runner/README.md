@@ -26,7 +26,7 @@ pnpm run build
 node examples/public-pass.mjs
 ```
 
-It prints `fresh: asked`, `pending: asked`, `replay: proceed`, `final: proceed`, `unavailable: unavailable`, and `calls: 2`. Its in-memory waiting and log ports are controlled examples; production sources must provide their own durable facts. The package tests exercise the actual SL3 JSONL provider, including close/reopen and unknown-write recovery.
+It prints one object literal: `{ fresh: 'asked', pending: 'asked', replay: 'proceed', final: 'proceed', unavailable: 'unavailable', calls: 2 }`. Its in-memory waiting and log ports are controlled examples; production sources must provide their own durable facts. The package tests exercise the actual SL3 JSONL provider, including close/reopen and unknown-write recovery.
 
 Run `node examples/replay-and-registry.mjs` for an independent contribution registration and pure empty-history read. It prints `replay: 0`, `invocation: output`, and `withdrawn: true`. Its input history is explicitly empty; the example does not assert a production read or Run authority.
 

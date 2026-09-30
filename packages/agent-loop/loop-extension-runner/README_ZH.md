@@ -26,7 +26,7 @@ pnpm run build
 node examples/public-pass.mjs
 ```
 
-输出依次包含 `fresh: asked`、`pending: asked`、`replay: proceed`、`final: proceed`、`unavailable: unavailable`、`calls: 2`。示例里的内存等待与日志端口只用于受控演示；正式宿主须提供自己的耐久事实。包测试还使用真实 SL3 JSONL，覆盖关闭重开和未知写入恢复。
+输出是一个对象字面量：`{ fresh: 'asked', pending: 'asked', replay: 'proceed', final: 'proceed', unavailable: 'unavailable', calls: 2 }`。示例里的内存等待与日志端口只用于受控演示；正式宿主须提供自己的耐久事实。包测试还使用真实 SL3 JSONL，覆盖关闭重开和未知写入恢复。
 
 下面的示例只演示纯函数。本地构造的位置仅代替日志提供者返回的条目；生产调用必须传真实持久化条目。
 
