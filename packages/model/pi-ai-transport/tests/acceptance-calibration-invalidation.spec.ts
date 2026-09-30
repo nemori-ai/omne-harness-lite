@@ -197,12 +197,38 @@ describe('independent final projection invalidation from a real TLS observation'
         fallbackReason: 'prefix_changed',
       })
     })
-  for (const revision of ['tokenizerRevision', 'algorithmRevision', 'replayRevision'] as const)
+  // The shared family meter measures against its own closed-over identity, so a relabelled copy
+  // of it cannot measure (see the next test). The old observation carries the original basis:
+  // change that member instead, which is exactly what a later meter revision means to it.
+  for (const [revision, member] of [
+    ['tokenizerRevision', 'tokenizerRevision'],
+    ['algorithmRevision', 'meterRevision'],
+    ['replayRevision', 'replayRevision'],
+  ] as const)
     it(`changed ${revision} cannot reuse the old observation`, async () => {
-      expect(
-        (await planned(replayed, { ...meter, [revision]: 'independent-other-revision' }))
-          .measurement,
-      ).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
+      const source = observation()
+      const original = source.inputCalibration.requestInput
+      if (original.kind !== 'known') throw Error('known request input absent')
+      const calibration = {
+        ...source,
+        inputCalibration: {
+          ...source.inputCalibration,
+          requestInput: {
+            ...original,
+            countingBasis: { ...original.countingBasis, [member]: 'independent-other-revision' },
+          },
+        },
+      }
+      expect((await planned({ ...replayed, calibration })).measurement).toMatchObject({
+        mode: 'full',
+        fallbackReason: 'basis_changed',
+      })
+    })
+  for (const revision of ['tokenizerRevision', 'algorithmRevision', 'replayRevision'] as const)
+    it(`a meter relabelled with a changed ${revision} but not re-measured is unavailable`, async () => {
+      await expect(
+        planned(replayed, { ...meter, [revision]: 'independent-other-revision' }),
+      ).rejects.toThrow('input_size_unavailable')
     })
   for (const field of ['upstreamModel', 'servingProvider'] as const)
     it(`known wrong ${field} is not a matching route`, async () => {

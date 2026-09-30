@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { LosslessNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
 import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { canonicalProjection, projectOutput } from '../src/projection.ts'
+import { canonicalProjection, INPUT_PROJECTION_REVISION, projectOutput } from '../src/projection.ts'
 import { createReadFactsAccumulator } from '../src/read-facts.ts'
 import { anthropicDefinitions } from '../src/official-models/anthropic.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'
@@ -34,7 +34,8 @@ function anchor(planned: PlannedRequest, tokens: number) {
       },
       outputGroup: {
         kind: 'known' as const,
-        projectionRevision: 'openrouter-input-projection/2',
+        // model-response S-43: a known request input and a known output group share one revision.
+        projectionRevision: INPUT_PROJECTION_REVISION,
         source: 'none' as const,
         completeness: 'complete' as const,
         usageRef: 'usage' as const,
