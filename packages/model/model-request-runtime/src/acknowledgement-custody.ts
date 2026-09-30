@@ -138,8 +138,11 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
       const local = reservation.view()
       if (local === undefined) return []
       try {
-        // The pending reply is the model-side copy; later reads use the S-97 branch.
-        if (local.operation.phase !== 'ready') reservation.publish({ phase: 'ready' })
+        // The pending reply is the model-side copy; later reads use the S-97 branch. A local
+        // reply_pending (ready publication unknown) is left for the original stop, which
+        // finishes it as ready from the durable log and never closes it into another final.
+        if (local.operation.phase !== 'ready' && local.operation.phase !== 'reply_pending')
+          reservation.publish({ phase: 'ready' })
       } catch {
         return ['writer_in_flight']
       }

@@ -435,8 +435,41 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
         view = control.view()
         if (view.key.session !== key.session || view.key.callId !== key.callId)
           return { unavailable: true }
-        if (view.invocation !== undefined && 'unavailable' in (await view.invocation.close()))
-          return { unavailable: true }
+        if (view.invocation !== undefined) {
+          let closed: RuntimeCloseResult
+          if (view.operation.phase === 'reply_pending') {
+            // RT11/RT12 S-86: a formed complete result is never closed into another final. Its
+            // ready publication was unknown: only a durable ready (or a later terminal fact)
+            // lets the original invocation finish as ready; otherwise responsibility stays.
+            const responseId = view.operation.pending.id
+            const durable = await withOwnedReads(
+              view.owner,
+              runtime.settlementContention.limits.concurrent,
+              reads,
+              async registration => {
+                const result = await readSettlementPrefix({
+                  binding: view.session.log,
+                  registration,
+                })
+                return 'unavailable' in result
+                  ? ({ unavailable: true } as const)
+                  : runtime.history.call(result.prefix, key.callId)
+              },
+            )
+            if ('unavailable' in durable || !('known' in durable.ok)) return { unavailable: true }
+            const known = durable.ok.known
+            const readyDurable =
+              known.acknowledged !== null ||
+              known.dispatches.some(
+                item =>
+                  item.record.response === responseId &&
+                  (item.ready !== null || item.response !== null),
+              )
+            if (!readyDurable) return { unavailable: true }
+            closed = await view.invocation.finishReady()
+          } else closed = await view.invocation.close()
+          if ('unavailable' in closed) return { unavailable: true }
+        }
         const received = await withOwnedReads(
           view.owner,
           runtime.settlementContention.limits.concurrent,
