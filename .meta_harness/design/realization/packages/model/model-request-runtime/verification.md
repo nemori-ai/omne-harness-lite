@@ -400,7 +400,7 @@ G3 修订：本轮选定runtime私有无GC耐久内容行，引用与尚可能�
 | A22-V15：CA4 S-43；MS8 S-57；RT12 S-101 | ready→ACK witness→final及迟到补账各阶段同ResponseId只计一次；历史failed分别计；源矛盾不能被final优先遮盖；合法删除不要求全文。创建attempt A、终结attempt B 分别核壳；unknown/零/optional保真、归原Run/Session | 实际费用reader→selector→summarize；witness不是补账后总数 |
 | A22-V16：RT12 S-98/S-102/S-103 | 真实Cordis 4.0.4 provider替换/并行effect完成、构造部分失败、清理调度中断与恢复不丢责任；存储恢复/真实工作停且公平调度后released，不等旧consumer。中英README的保存/ACK/释放/旧ref/后继处分例子在仓库外制品均实际执行；最小可达Schema删必要URI负控 | runtime/assembly/core/独立验收；formal登记、文档编译和产品完整交付分别报告 |
 
-覆盖缺口：A22-G1为本批语义/技术接受，owner主线；A22-G2为S-99⑧/G-42新处分暂存接缝（已定点评审、修订后可接受；接缝 revision 2 已落地，待主调度复核采用，评审页 `record/proposals/model-runtime-reference-lifecycle/ack-seam-review.md`）的采用复核与真实恢复，owner结算写方/Storage及主线；A22-G3为S-95/S-98/S-102真实ack资格、停止/唯一恢复与实际启用外部配对保留，owner访问/宿主/外引用提供者；A22-G4为本表实际实现/验收，owner runtime/Storage/消息写方及独立验收。缺外域来源只阻依赖路径，inline/noRun不因未来平台阻塞。没有本批正式Session/Run assembly，示例仅承担其真实本地绑定。
+覆盖缺口：A22-G1为本批语义/技术接受，owner主线；A22-G2为S-99⑧/G-42新处分暂存接缝（已定点评审、修订后可接受；接缝 revision 2 已落地，待主调度复核采用，评审页 [评审页](../../../../record/proposals/model-runtime-reference-lifecycle/ack-seam-review.md)）的采用复核与真实恢复，owner结算写方/Storage及主线；A22-G3为S-95/S-98/S-102真实ack资格、停止/唯一恢复与实际启用外部配对保留，owner访问/宿主/外引用提供者；A22-G4为本表实际实现/验收，owner runtime/Storage/消息写方及独立验收。缺外域来源只阻依赖路径，inline/noRun不因未来平台阻塞。没有本批正式Session/Run assembly，示例仅承担其真实本地绑定。
 
 实际执行：2026-09-29，以本工作树 `.venv/bin/python` 运行 `check_design.py --root .meta_harness/design --formal registered`，exit 0，实际输出 `PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/.meta_harness/design passed gate=internal; formal=registered.`；`git diff --check` exit 0。七份最终接口输入均与固定摘要一致。本轮未执行上述行为测试或模型，formal=registered 仅核登记。原 bindings 保持原范围，不登记计划证据或空占位。
 
