@@ -24,3 +24,7 @@
 - **GG-11**（runtime／上下文组装 owner）：见 R-K 落点。
 
 返回[决定](../README.md)。
+
+## 2026-09-30 附注：R-N／P1 扩用与 GG-12／GG-14
+
+R-N 与 R-P 的 P1 自 [ZAI 采用决定](../model-input-usage-calibration-adoption/zai-visible-reasoning-decision.md)起扩用到 ZAI（第四家已知并行键差异）。共享缺口清单补：GG-12（ZAI 可见推理历史映射，已由该决定处置）；GG-14（Google `reasoning.encrypted` 条目 `id` 等于上游 tool-call id、回放时工具调用 id 为 reader 生成的 CallId，永不匹配；owner transport reader／投影，可能需 content-blocks 规格演进）。

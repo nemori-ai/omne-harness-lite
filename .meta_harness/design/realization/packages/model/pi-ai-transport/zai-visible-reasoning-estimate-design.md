@@ -1,6 +1,6 @@
 # ZAI 五叶可见推理历史的参考计量
 
-2026-09-30，revision 1，candidate；尚未独立评审、未技术采用、未实施、未实际验证，新增 bindings 0。本页登记缺口 GG-12（ZAI 可见推理历史），按已采用的 [DeepSeek](deepseek-visible-reasoning-estimate-design.md)、[Moonshot](moonshot-visible-reasoning-estimate-design.md)、[Qwen 开源两叶](qwen-open-visible-reasoning-estimate-design.md)三页（采用决定：[DeepSeek](../../../../record/decisions/model-input-usage-calibration-adoption/deepseek-visible-reasoning-decision.md)、[Moonshot](../../../../record/decisions/model-input-usage-calibration-adoption/moonshot-visible-reasoning-decision.md)、[Qwen](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-visible-reasoning-decision.md)）的结构，补充已采用的 [v10](v10-token-estimate-design.md)、[v12](v12-usage-calibration-design.md)，不改这些页的受审字节。持续消费者为五款 ZAI 官方定义、`createGlm53InputMeter`／`createGlm52InputMeter`／`createZaiCommercialInputMeter` 三个 factory 与模型调用规划器；固定公开模板、OpenRouter 推理详情协议、共享分组规则或 Prime/FlashX 的托管路由变化时复核本页。
+2026-09-30，revision 1，candidate；独立架构评审 2026-09-30「可采用」，Z-N1～Z-N5 已按评审闭合，待主线采用；尚未独立评审、未技术采用、未实施、未实际验证，新增 bindings 0。本页登记缺口 GG-12（ZAI 可见推理历史），按已采用的 [DeepSeek](deepseek-visible-reasoning-estimate-design.md)、[Moonshot](moonshot-visible-reasoning-estimate-design.md)、[Qwen 开源两叶](qwen-open-visible-reasoning-estimate-design.md)三页（采用决定：[DeepSeek](../../../../record/decisions/model-input-usage-calibration-adoption/deepseek-visible-reasoning-decision.md)、[Moonshot](../../../../record/decisions/model-input-usage-calibration-adoption/moonshot-visible-reasoning-decision.md)、[Qwen](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-visible-reasoning-decision.md)）的结构，补充已采用的 [v10](v10-token-estimate-design.md)、[v12](v12-usage-calibration-design.md)，不改这些页的受审字节。持续消费者为五款 ZAI 官方定义、`createGlm53InputMeter`／`createGlm52InputMeter`／`createZaiCommercialInputMeter` 三个 factory 与模型调用规划器；固定公开模板、OpenRouter 推理详情协议、共享分组规则或 Prime/FlashX 的托管路由变化时复核本页。
 
 ## 基准、性质与证据
 
@@ -86,7 +86,7 @@ full 先按原件核：原 body 的 `model` 等于定义、原 body 与原 seria
 
 φ/δ 按 R-A 保持 `defineInputMeter` 默认 `unsupported-marginal/1`，调用即 unavailable；本页不开增量。日后若由提供者页开放，φ/δ 必须经同一投影函数，禁止另写一条推理解释路径。full-only 下每轮整份分词是既有 full 语义，不是稳定 P 复用。服务方展示名 `Z.AI`／`Alibaba` 与 basis 路由 tag 不等，共享校准会判 `basis_changed`（Prime 先因断点移位 `prefix_changed`）；这只在将来开增量时相关。
 
-产品路径上纯字符串一侧也有实际来源：没有 opaque 的 thinking 块按共享投影发 `reasoning` 字符串，典型是以 `length` 截断、reader 未封 opaque 的回复（GG-10 所述）。已释放叶对这类历史由拒绝改为估算；GG-10 的「截断是否算 complete」裁决不因此改变。
+产品路径上纯字符串一侧也有实际来源：没有 opaque 的 thinking 块按共享投影发 `reasoning` 字符串，典型是以 `length` 截断、reader 未封 opaque 的回复（GG-10 所述）。已释放叶对这类历史由拒绝改为估算；GG-10 的「截断是否算 complete」裁决不因此改变。 本页是 ZAI 第一次放行该串，前提是外来思考块（他模型的明文思考、本家族截断回复）由上下文组装处置（GG-11），本页不判来源（评审 Z-N4）。
 
 修订：已释放叶的 `algorithmRevision` 各升新唯一值（现 GLM-5.2 `glm-5.2-public-template-1`、Prime `prime-public-glm53-declared-effort-route-fit-2`、FlashX `flashx-public-glm53-route-fit-1`；ZV0 后 GLM-5.3 `glm-5.3-public-template-1`、Flash `glm-5.3-flash-public-template-1`）；`tokenizerRevision` 显式设为各自当前派生值 `tokenizer-basis/<现算法修订>`，不随 algorithm 默认派生——tokenizer 与模板文件都没变，变的只是投影域，那由 algorithm 修订表达（与 Google r2、Anthropic、xAI、Moonshot、Qwen 一致）；`transformRevision` 保持 `openrouter-wire/2`；`evidence` 追加「可见推理（纯字符串与单项 `reasoning.text` details）按 `clear_thinking=false` 投到模板推理槽位、OpenRouter 转换与路由清除策略未知、无 holdout」同义表述，Prime 保留 R-B「无 effort holdout、无误差界」原文。`createGlm53InputMeter`、`createGlm52InputMeter` 的绑定核验改为对照当前导出定义，不再写死 `'2'`／`'mp4-17'`（商业 factory 已如此）。
 
@@ -106,7 +106,7 @@ full 先按原件核：原 body 的 `model` 等于定义、原 body 与原 seria
 
 形态不在表内：沿既有 unavailable，经 PlanFailure `invalidInput{reason: input_size_unavailable}` 发前拒绝，零 HTTP、零新响应或账，原消息不删不改。显式非法组：由共同包装拒绝，不能借可见文字分支绕过。上游接受后又带内或以 HTTP 拒绝：保留真实请求与用量事实，不自动删历史、降参数或重试。三层不混。
 
-发布时每个已释放叶的 definition、`pi-ai:zai` implementation 与 algorithm 提升到新的唯一修订，未释放叶保持原修订；固定旧 lease 不热替换，已借出的旧 meter 跑完各自规划；不保留旧 factory 或兼容重载，旧到新 basis 未证兼容即 full。历史事实保留原坐标。配置错误沿同一政策：未知或滞后的 definition／implementation 修订在 factory 构造期抛错，贡献不发布半份。
+发布时每个已释放叶的 definition、`pi-ai:zai` implementation 与 algorithm 提升到新的唯一修订，未释放叶保持原修订；固定旧 lease 不热替换，已借出的旧 meter 跑完各自规划；不保留旧 factory 或兼容重载，旧到新 basis 未证兼容即 full。历史事实保留原坐标。配置错误沿同一政策：未知或滞后的 definition／implementation 修订在 factory 构造期抛错，贡献不发布半份。 分两批释放时，同一 GLM-5.3 渲染器同时承载已释放叶（放行）与未释放叶（维持拒绝），分流键是各叶的 definition／implementation 修订，不是布尔开关或参数切换（评审 Z-N5）。
 
 Cordis 继续由原官方模型贡献插件与 transport service 固定整份 meter，采用版本沿 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md)；不新增 service、fiber、inject、effect 或事件，不新增上游内核主张。装载时 meter 取得既有 tokenizer（摘要不符即构造期抛错）与模板常量；一次调用的派生副本随规划结束释放；插件卸载、lease 引用与实停责任不变。meter 是纯函数，没有在途调用可取消；跨进程无新状态可继承；已发请求与上游费用不因纯函数结束而改变。新增 Storage 要求 0、装配节点 0、bindings 0；无跨 owner 提交。
 
@@ -124,7 +124,7 @@ Cordis 继续由原官方模型贡献插件与 transport service 固定整份 me
 | 选择 | 本方 | 落选方及其最强论据 | 本方弱点 | 置信度 |
 |---|---|---|---|---|
 | 怎样计入推理 | 纯字符串与单项可见 details 都投到固定模板推理槽位 | 维持全拒：[研究页](../../../../../research/model-request-adaptation/vendor-continuation/zai/2026-09-28-reasoning-and-commercial-meter.md)明写接受历史推理前需要来源级映射或更强的受控反例；JSON 替身（Qwen 商业六叶先例）：不依赖模板槽位假设；原 O：有真实上游来源 | 本家族没有已接受的纯字符串路径可依托，「路由计入且不清除」是新假设 | 中 |
-| 采用门 | 形状已在当前发送域观察到的叶：机制接线先行、ZV4 真实回放作门（R-P 同法）；其余叶 ZV0 前置。理由：主要未知（路由清除）在本口径下只会高估。把对照前移不改本页设计，由主线在采用时定 | 把 ZV4 的同路由对照挪到采用之前：每叶三请求、Prime／FlashX 已有冻结的 control／plain／details 探针包，成本低，且正对研究页的前置要求 | 若对照证伪「同一槽位」，已发布修订要由后继撤回；比 Moonshot／Qwen 多承担一个新假设 | 中 |
+| 采用门 | 形状已在当前发送域观察到的叶：机制接线先行、ZV4 真实回放作门（R-P 同法）；其余叶 ZV0 前置。理由：两类未知分开看——「路由是否清除历史推理」未知只会高估；「details 与 `reasoning` 串是否同一槽位」方向未知，与 Moonshot／Qwen 在 R-P 下承担的风险同类（两家 P2 已证同槽位），由 ZV4 必做对照闭合（评审 Z-N1）。把对照前移不改本页设计，由主线在采用时定 | 把 ZV4 的同路由对照挪到采用之前：每叶三请求、Prime／FlashX 已有冻结的 control／plain／details 探针包，成本低，且正对研究页的前置要求 | 若对照证伪「同一槽位」，已发布修订要由后继撤回；比 Moonshot／Qwen 多承担一个新假设 | 中 |
 | GLM-5.2 模板口径 | 按模板显式 `clear_thinking=false` 对全部历史渲染 | 按 GLM-5.2 模板缺省只渲染末条 user 之后的推理：忠于该模板默认，路由若照默认清除则不高估 | 路由若照默认清除，高估随跨轮推理累积；三轮工具循环内两口径相同，只有跨轮历史能区分 | 中 |
 | 并行键政策 | `reasoning` 逐字相同则只计一次；`reasoning_content` 沿既有键集拒绝（Qwen 同形） | DeepSeek 一律拒：最简单，产品路径本就不同时发两键；Moonshot 两键都收：官方快照说二者同义 | 与 DeepSeek、Moonshot 不同，按 P1 登记为已知差异 | 中高 |
 | Prime／FlashX 托管历史 | 沿既有 GLM-5.3 公开模板诊断投影与减 1，推理进同一槽位 | 在托管模板可得前维持拒绝：两款未找到公开模板或 checkpoint，减 1 只在无历史的文本／工具上拟合 | 以公开模板代理托管模板；减 1 迁移到带历史输入未经检验 | 中 |
@@ -170,7 +170,7 @@ ZV2：反例 1–8、10–13；模板预言把现有 GLM-5.3 黄金值扩到 Fla
 
 ZV3：反例 9；必须直接调用三个 factory 为五叶返回的方法，不以规划器或独立包装函数的测试充作直接入口证据。
 
-ZV4：真实路线由 root 沿唯一预算账本执行：每个已释放叶有、无 tools 各至少一组当前绑定三轮真实流，第 2 轮起回放 details；记录上游是否接受、`prompt_tokens` 与本地估算残差、cache 与 cost，并逐帧核对 details 形状（含是否出现显式 `signature: null`）。**必做**同路由对照（P2 同法）：同一第 2 轮历史（推理 assistant 位于末条 user 之前）分别以 (A) details、(B) `reasoning` 字符串、(C) 不带推理发送，其余字节相同；Prime／FlashX 可复用研究冻结的 control／plain／details 探针包，按当前绑定重定输出上限并重算请求哈希。另记 B−C 与本地两口径（保留／清除）预测差。判读：A＝B＞C，「同一槽位且不清除」成立，闭合该叶 ZG1；A＝B＝C，路由清除历史推理，本页在该叶高估，记录残差，由后继修订改用清除口径（GLM-5.2 即模板缺省口径），不引入修正常数；A≠B，details 与字符串不是同一槽位，该叶的 details 映射被证伪，认证前由后继撤回。Prime 的 service 路径须以显式 5m `last_message` 配置档执行。残差只作记录，受控 usage 不当精度。
+ZV4：真实路线由 root 沿唯一预算账本执行：每个已释放叶有、无 tools 各至少一组当前绑定三轮真实流，第 2 轮起回放 details；记录上游是否接受、`prompt_tokens` 与本地估算残差、cache 与 cost，并逐帧核对 details 形状（含是否出现显式 `signature: null`）。**必做**同路由对照（P2 同法）：同一第 2 轮历史（推理 assistant 位于末条 user 之前）分别以 (A) details、(B) `reasoning` 字符串、(C) 不带推理发送，其余字节相同；Prime／FlashX 可复用研究冻结的 control／plain／details 探针包，按当前绑定重定输出上限并重算请求哈希。另记 B−C 与本地两口径（保留／清除）预测差。判读：A＝B＞C，「同一槽位且不清除」成立，闭合该叶 ZG1；A＝B＝C，路由清除历史推理，本页在该叶高估，记录残差，由后继修订改用清除口径（GLM-5.2 即模板缺省口径），不引入修正常数；A≠B，details 与字符串不是同一槽位，该叶的 details 映射被证伪，认证前由后继撤回。Prime 的 service 路径须以显式 5m `last_message` 配置档执行。残差只作记录，受控 usage 不当精度。 判读补充（评审 Z-N2）：A/B/C 只测「推理 assistant 在末条 user 之前」这一几何，A＝B＝C 分不开「按模板缺省只清末条 user 之前」与「清全部历史」；ZV4 三轮真实流的逐轮残差覆盖另一几何（assistant 在末条 user 之后），补救口径由两组读数共同决定。
 
 ZV5：已释放叶 definition／implementation／algorithm 唯一修订与显式 tokenizerRevision、`evidence` 字串、包 README／README_ZH 双语段与制品消费；删除 `zai-candidate.ts` 并迁移其消费者；未知与失败原件保留。无新代数或并发性质，不扩 TLA 范围，以既有共享形式边界和上述正反例承接。候选须经独立 architecture-reviewer 与主线技术采用后才释放实现。
 
@@ -184,4 +184,4 @@ ZV5：已释放叶 definition／implementation／algorithm 唯一修订与显式
 - ZG6 观察覆盖：GLM-5.2 `high`、Prime `high`/`max`、回复带 tool_calls 时的 details 形状未观察，列为 ZV4 的前提假设。
 - ZG7 证据归档：本页 09-27 形状表是起草者对归档原件的复算，长期家应在 research；09-28 原件在 HUB 私有目录，工作区只有研究页的哈希与执行仓库夹具里的原样 SSE。归主线。
 - ZG8 裁决与缺口入档：R-O 已裁未入档；GG-12 只在 [verification 逐叶表](verification.md#2026-09-30-真实认证逐叶证据r6r7-认证工具唯一预算账本)提及，未进 D-111 的共享缺口清单。随采用决定入档。
-- ZG9 认证工具缓存档：Prime 路由要求显式 5m `last_message`；若认证工具 service 配置档仍固定 automatic，Prime 的 service 路径会与 Qwen 开源两叶同样在 prepare 被拒（推导，未试）。归 root 工具 owner。
+- ZG9 认证工具缓存档：Prime 路由要求显式 5m `last_message`；若认证工具 service 配置档仍固定 automatic，Prime 的 service 路径会与 Qwen 开源两叶同样在 prepare 被拒（**已被观测**：冻结 SHA 重跑中 Qwen 开源两叶 service 已因同一原因在 prepare 被拒，见 verification.md；owner：root 认证工具 R8，作为 ZV4 service 路径的前置；未试）。归 root 工具 owner。

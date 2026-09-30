@@ -1,6 +1,6 @@
 # Google 两叶 `google-gemini-v1` 推理历史的完整输出组计量
 
-2026-09-30，revision 4，**candidate：工具路径的真实完整形状已观测，待独立评审与主线采用；未采用、未实施、未实际验证；新增 bindings 0**。接续已采用的 [v13 多输出组交接](v13-output-history-design.md)、[共享家族机制 revision 5](priority-family-output-cache-candidate.md)（[priority-family 决定](../../../../record/decisions/model-input-usage-calibration-adoption/priority-family-decision.md)）、[xAI 有限适用 revision 2](xai-complete-output-applicability-candidate.md)（[xAI 决定](../../../../record/decisions/model-input-usage-calibration-adoption/xai-family-decision.md)）与[原 basis 适用接缝](image-preparation-basis-applicability-candidate.md)，不改它们的受审字节。采用形式比照 xAI 决定与 [Qwen 采用](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-visible-reasoning-decision.md)：形状观测之后采用，机制接线先行，真实三轮回放（GS-V7）作实施完成门，同路由对照（GS-V9）必做；本页另建议 GS-V9 的回放接受读数先于坐标钉定（K7）。主调度 2026-09-30 的裁决「机制接线（policy、countBody、共享核委托、K3 域、K4 身份、K5 修订规则；replay 保留 `unsupported-marginal/1`）可先行实施与正反验证」继续有效，K3 域以本修订为准。
+2026-09-30，revision 4，**candidate：工具路径的真实完整形状已观测，独立架构评审 2026-09-30「修后可采用」，G-R1／G-R2 已按评审闭合，待主线采用；未采用、未实施、未实际验证；新增 bindings 0**。接续已采用的 [v13 多输出组交接](v13-output-history-design.md)、[共享家族机制 revision 5](priority-family-output-cache-candidate.md)（[priority-family 决定](../../../../record/decisions/model-input-usage-calibration-adoption/priority-family-decision.md)）、[xAI 有限适用 revision 2](xai-complete-output-applicability-candidate.md)（[xAI 决定](../../../../record/decisions/model-input-usage-calibration-adoption/xai-family-decision.md)）与[原 basis 适用接缝](image-preparation-basis-applicability-candidate.md)，不改它们的受审字节。采用形式比照 xAI 决定与 [Qwen 采用](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-visible-reasoning-decision.md)：形状观测之后采用，机制接线先行，真实三轮回放（GS-V7）作实施完成门，同路由对照（GS-V9）必做；本页另建议 GS-V9 的回放接受读数先于坐标钉定（K7）。主调度 2026-09-30 的裁决「机制接线（policy、countBody、共享核委托、K3 域、K4 身份、K5 修订规则；replay 保留 `unsupported-marginal/1`）可先行实施与正反验证」继续有效，K3 域以本修订为准。
 
 本页只回答一件事：**full 估算怎样对待同模型、完整的 `google-gemini-v1` 推理历史组**，目标是让带回首轮推理详情的续轮请求不再在发送前被官方 meter 拒绝。证据关系：**主承载是工具路径的密文组（E-only）**——2026-09-30 两叶各一份当前绑定的真实完整工具调用回复，raw SSE 已捕获，推理详情恰为一条 `reasoning.encrypted`；它按共享机制以原 O 计一次（K1）。只含文本条目的组（T-only，09-28 唯一的非工具完整回复）仍 unavailable（K2）；带签名的 `reasoning.text`（TS、S）只见于截断帧，移出域（K3）。不开 φ/δ，不涉图片与音视频，不新增公共契约、服务、插件、状态、存储或第二个 walker。持续消费者是两款 Google 官方定义及其 InputMeter、公开 `planRequest`/`invokeModel`、transport service 的 lease 消费者；上游推理流形状、身份字面值或计费口径变化，或共享输出组核、reader 分组规则、工具调用 id 的投影换方案时，复核本页。
 
@@ -31,7 +31,7 @@
 
 - **主承载是 E-only**：两叶首轮都是 `thinking`＋`tool_call` 两块，思考块可见文本为空串（帧内 `reasoning` 为 null；[S-9](../../../../spec/data/content-blocks/v3/contract.md#s-9-思考块与不透明数据) 允许），opaque 恰一条 E；输出组 complete、O 来自上游。同批第 2 轮把这一组带回，现行 meter 在计划期以 `input_size_unavailable` 拒绝、零 HTTP——这正是本页要释放的缺口。首轮 full 的可见替身预测 948／950，实际 949／951。
 - **H-S 的处置**：rev3 的待证伪假设「S 只伴随截断帧出现，完整回复不带 S」按字面既未证伪也未证实——迄今三份完整回复都不带 S。但它的推论「完整回复不带签名类材料，签名组可能是空集」在工具路径上被推翻：完整工具调用回复带 E。E 的 data 与 09-28 S 的 signature 解码首字节都是 `0x12`（10/10），只是编码前缀相同的观察，是否同一种上游载荷未知。
-- **E 的 id 绑定上游工具调用 id**（2/2）。reader 原样保留 E（含 id），但领域 CallId 由 reader 另行生成（[S-14](../../../../spec/data/content-blocks/v3/contract.md#s-14-callid)，`src/stream.ts` 的 `generatedCallId`），投影以它写回 `tool_calls[].id`；所以回放时 E 的 id 与回放出去的工具调用 id **不相等**。上游是否凭 id 把 E 重新关联到工具调用，没有依据（GG-14）。
+- **E 的 id 绑定上游工具调用 id**（2/2）。reader 原样保留 E（含 id），但领域 CallId 由 reader 另行生成（[S-14](../../../../spec/data/content-blocks/v3/contract.md#s-14-callid)，`src/stream.ts` 的 `generatedCallId`），投影以它写回 `tool_calls[].id`；所以回放时 E 的 id 与回放出去的工具调用 id **不相等**。上游是否凭 id 把 E 重新关联到工具调用，没有依据（GG-14）。 修复空间可能触及契约：S-9 禁止出网时改写 opaque（E.id）、S-14 把 CallId 唯一性交给登记方、S-12 工具调用块无承载上游 id 的成员——GG-14 的 owner 行注明「可能需 content-blocks 规格演进」，不当作 reader 局部缺陷搁置（评审 O-2）。
 - **未观测**：非工具路径在当前绑定下的完整形状（唯一的非工具完整回复是 09-28 的领域结果，raw 未捕获，不能代表当前绑定）；一次回复多个工具调用；E 分片流出；E 与 T 混排；其他 effort；上游是否接受原样回放；回放的 E 计入多少输入。
 - **身份**：两叶都有 reader 产出的完整回复原件与逐帧 raw，字面映射 `Google AI Studio`／精确模型 ID 不再依赖截断帧（GG-5 闭合）。研究区 09-30 端点快照（`research/model-request-adaptation/vendor-continuation/media-carriage/audio-video-carriage-2026-09-30/openrouter-endpoints/` 下两款文件）的 AI Studio 端点 `provider_name` 同为 `Google AI Studio`；端点名带日期后缀，SSE `model` 不带。
 - **O ⊇ reasoning**：11/11 `reasoning_tokens ≤ completion_tokens`；同一端点快照 `internal_reasoning` 单价等于 `completion`。这是观察，不是上游计数契约。
@@ -54,7 +54,7 @@
 
 - **路由与参数**：origin.provider、原/今 basis.provider 精确为 `google-ai-studio`；当前 envelope.provider 恰为 `{order:['google-ai-studio'],allow_fallbacks:false,require_parameters:true}`。原 `origin.parameters.reasoningEffort` 与当前 wire `reasoning.effort` 分别限于缺席或 `low`/`medium`/`high`，**不要求相等**；原 `parameters.extra` 缺席或为空。max_tokens 改变不影响原 O。
 - **不入表的原坐标**：definition 1/`mp4-2`、2/`mp4-3`，以及 3/`mp4-17` 在 `openrouter-input-projection/2` 下的事实。研究运行与认证运行的原件用于选择估算，**不升格为 outputHistory 的原 basis**；这些组 unavailable，不 malformed。若主线确认有须解释的已存事实，另登记后继行，不按前缀放行。
-- **身份按对判定**（照 xAI 决定守卫 4）：origin 与 `observedInput.provenance` 上的 servingProvider/upstreamModel 两字段都缺席即放行、不被填补；只有一个字段有值 → unavailable；有值须整对逐字命中本行。origin 与 provenance 须报告同一对（含同缺）：同名值两边都有且不等，由共享 `groupFactsValid` 判非法（planner 给 malformed，独立 full 给 unavailable，沿 v13）；一边有一边缺 → unavailable。provenance.adapterRevision 须为 `openrouter-usage-reader/2`。不宽匹配：slug `google-ai-studio`、Vertex 显示名 `Google`、带日期的端点名、大小写或空白变体、`contains('Gemini')` 一概不命中。
+- **身份按对判定**（照 xAI 决定守卫 4）：origin 与 `observedInput.provenance` 上的 servingProvider/upstreamModel 两字段都缺席即放行、不被填补；只有一个字段有值 → unavailable；有值须整对逐字命中本行。origin 与 provenance 须报告同一对（含同缺）：同名值两边都有且不等，由共享 `groupFactsValid` 判非法（planner 给 malformed，独立 full 给 unavailable，沿 v13）；一边有一边缺 → unavailable。provenance.adapterRevision 须为 `openrouter-usage-reader/2`。不宽匹配：slug `google-ai-studio`、Vertex 显示名 `Google`、带日期的端点名、大小写或空白变体、`contains('Gemini')` 一概不命中。（复核本页的触发条件含 reader 修订号因 R-L 等分组规则变化而提升：届时 V4 对新 reader 产出的 E 组整体 unavailable，须修订有限表——失败方向为关闭）
 - **映射够不够**：09-30 原件支撑两款字面映射的**快照**。显示名是否稳定未知；漂移时这两款的 E 组失败闭合为 unavailable，靠新原件与新修订重开，不以宽匹配续命。
 - **发布核表**：实施提交须从当前构建导出 V3、从实施构建导出 V4 的全部工厂坐标，逐字段核上表；任一不符先纠正本页或采用决定，不编造历史坐标。meter 的 evidence 串写明 09-30 两条 generation id（`gen-1790765022-soWzJ2kSKKIdOhKsWM7Z`、`gen-1790765039-T89IaeRcxSpJm8DIEXzO`）与「O 计一次、无误差界」。
 
@@ -102,7 +102,7 @@
 - **R-K**：跨模型的 opaque 思考块在规划投影处拒绝，本页不增不减；同会话切模型后怎样处置外来 opaque 块，是 D-111 登记给运行时上下文组装的 GG-11，不归本页。
 - **R-M**：data 为 `[REDACTED]` 的 E 域外（上节）。
 - **工具调用 id**：reader 与投影都不改 E 的 id，投影写回的工具调用 id 是 reader 生成的 CallId。本页**不改写** opaque，也不改工具调用 id 的投影；GS-V7、GS-V9 若显示上游因此拒绝或静默丢弃 E，转 reader／投影 owner（GG-14），不在计量里兜底，也不以删签名规避。
-- **不需要共享改动**：policy 接口已覆盖本页全部谓词。`requiresSignedPrefix` 取 false 不是声称 Google 签名与前缀无关，而是本页没有这方面的研究（GG-3）：真实回放若出现与前缀相关的拒绝，那是上游拒绝层，按实际终结记录，不由计量兜底，并触发本页复议。
+- **不需要共享改动**：policy 接口已覆盖本页全部谓词。`requiresSignedPrefix` 取 false 不是声称 Google 签名与前缀无关，而是本页没有这方面的研究（GG-3）：真实回放若出现与前缀相关的拒绝，那是上游拒绝层，按实际终结记录，不由计量兜底，并触发本页复议。 **显式范围（评审 G-R2）**：GS-V7／GS-V9 的历史都只在签名轮之后追加，不改签名轮之前的前缀；E 组之前的前缀发生变化（上下文压缩、system／tools 改动）后再回放 E **不在本页覆盖范围**，采用后不得据此声称；该场景的受阻消费者归 GG-3（与 GG-11 同 owner），是否加一个改前缀的 GS-V9 变体归主调度。
 
 ## 契约责任到兑现点
 
@@ -128,7 +128,7 @@
 | 部分选择：只回放工具调用、跳过思考块、删掉 details | 原块未全选、跨消息，或当前单元与原组投影不等 | unavailable；摘要可判不符时 planner 先给 malformed | 共享 `completeGroup`／来源门 |
 | 截断回复（`length`） | 当前 reader 不给领域块附 details，单元只有可见 `reasoning` | 走现 Gemma4 可见路径，不进入本页（GG-10） | reader；`classifyUnit` |
 | 篡改密文或 id | 未同步摘要 → 与原块摘要不符；连摘要一起自洽伪造 → 不可判 | 前者 malformed；后者计量不背书真伪，密文真伪归上游核验 | 共享来源门 |
-| E 的 id 与回放出去的工具调用 id 不等 | 每一次真实回放都如此（GG-14） | **不是计量反例**：meter 照常估算；上游若拒绝，按上游终结记录并转 GG-14 | 上游；reader／投影 owner |
+| E 的 id 与回放出去的工具调用 id 不等 | 每一次真实回放都如此（GG-14；多条 E 时逐条失配，随并行工具调用按条数放大） | **不是计量反例**：meter 照常估算；上游若拒绝，按上游终结记录并转 GG-14 | 上游；reader／投影 owner |
 | 身份有值但不命中，或只有一个字段 | 例如 slug、`Google`、带日期的模型名、大小写变体 | unavailable；origin 与 provenance 同名值互相矛盾则 malformed | `sourceApplies`；共享 `groupFactsValid` |
 | 原 basis 变化 | 原 V3、今 V4 → changedEffective；原 V4 → sameEffective；原坐标不在表 → unavailable；当前 basis 不是 V4 → unavailable | 前两者 full 独立应用 O；不借此复用 I | 共享 `relateMeterBases`＋`originalBasisApplies` |
 | reader 合并规则日后改变 | 原块摘要与当前投影不再相等 | unavailable 或 malformed，不静默重计 | 共享核 |
@@ -182,7 +182,7 @@ T-only 是非工具路径上唯一见过的完整形状。三个候选都没有 
 | GS-V3 唯一贡献 | full＝G4(剩余)＋ΣO；两个 E 组（第 3 轮）各计一次；reasoning 不另加；margin 一次；spy 证明密文与 id 字符串对 tokenizer 的调用为零；无完整组的请求与现行 meter 逐值一致，有完整组时剩余部分等于现 counter 对同一剩余 body 的结果。变异反控：去掉 O 加项、或让 counter 接收 details 单元，用例必须失败 | 不以估算单调递增代替数值核对 |
 | GS-V4 完整性与真实性 | 部分选择、乱序、跨消息、缺块、重复认领、未认领的 details 单元、摘要篡改（malformed）与自洽伪造（只走 unavailable 分支）；截断回复不产生 `wholeGroup`；独立 `measureFull` 对非法输入返回 unavailable 且不产计量 | 不只测 planner，须直调 factory 返回的方法 |
 | GS-V5 失效 | 原 V3→今 V4 可 full；原坐标不在表 unavailable；当前 effort 或 max_tokens 改变仍可 full；身份不命中、只有一个字段、origin 有而 provenance 缺均 unavailable；origin 与 provenance 同名值冲突 malformed | — |
-| GS-V6 本机两入口 | `tests/google-three-round-invoke.spec.ts` 新增工具路径 E 用例：首轮流按 09-30 帧序重建（帧 0 为 E，其后工具调用片段，`tool_calls`／`STOP`，末帧 usage），第 2、3 轮 full estimated 并发送；wire 带回的 E 逐字节等于原件（id 不变），`tool_calls[].id` 与工具消息 `tool_call_id` 为投影生成值——两者不等，照实断言，不在本机伪造一致；public 与 Cordis 两入口、三档 effort；φ/δ 调用仍为 unavailable；首轮 SSE `provider` 用真实显示名，另加 slug 负控；只含 T 的首轮回复第二轮仍 `input_size_unavailable`、零 HTTP；现有 R-L 合成的 TS 用例**保留为负控**（第 2 轮仍 `input_size_unavailable`）；`[REDACTED]` E 负控；`replayRevision` 断言保持 `unsupported-marginal/1` | 受控输入删掉 details 后通过不算成功；本机流只证机制，不证上游接受 |
+| GS-V6 本机两入口 | `tests/google-three-round-invoke.spec.ts` 新增工具路径 E 用例：首轮流按 09-30 帧序重建（帧 0 为 E，其后工具调用片段，`tool_calls`／`STOP`，末帧 usage），第 2、3 轮 full estimated 并发送；wire 带回的 E 逐字节等于原件（id 不变），`tool_calls[].id` 与工具消息 `tool_call_id` 为投影生成值——两者不等，照实断言，不在本机伪造一致；public 与 Cordis 两入口、三档 effort；φ/δ 调用仍为 unavailable；首轮 SSE `provider` 用真实显示名，另加 slug 负控；只含 T 的首轮回复第二轮仍 `input_size_unavailable`、零 HTTP；现有 R-L 合成的 TS 用例**保留为负控**（第 2 轮仍 `input_size_unavailable`）；`[REDACTED]` E 负控；`replayRevision` 断言保持 `unsupported-marginal/1` | 受控输入删掉 details 后通过不算成功；本机流只证机制，不证上游接受；工具调用 id 与 E 的 id 不等的断言是 **GG-14 的观察断言**而非语义保证，reader／投影修复 GG-14 后应随之反转 |
 | GS-V7 真实认证（付费，归主调度） | **最小观测已完成（工具路径，09-30，研究页）**。余下：实施后每叶 public 与 service 各一组工具路径三轮（同 09-30 场景），第 2、3 轮 full estimated 并发送，捕获 raw SSE；记录完整 wire、source、basis、O、实际 input usage、逐轮残差、cache 与 cost；逐帧记录第 2 轮回复的 E 与其 id、第 3 轮文本回复的推理详情形状（供 K3、GS-V10）。上游拒绝、出现前缀绑定或 E 被静默丢弃（GS-V9）→ 本页复议，不以删签名或改 opaque 规避 | 本机合成流、研究截断原件都不是 E 组的认证；未经投影的手写体不算 |
 | GS-V8 旧证据复用 | fit/holdout、公开探针与 09-30 首轮的字节级结论只复用于可见 counter（这些输入无完整组，剩余计数不变），须在 V4 构建上重跑核对 | 不能充当 E 组的真实认证；旧的第二轮拒绝用例保留为回归负控 |
 | GS-V9 同路由对照（P2，**必做**；付费研究请求，归主调度） | 见下节。每叶 A、C 两个变体，条件满足时加 D；A 的接受读数先于坐标钉定（K7）；读出 Δ_E、残差与 GG-14 的后果 | 本机或合成流；与产品投影不逐字节一致的线上体 |
@@ -195,7 +195,7 @@ T-only 是非工具路径上唯一见过的完整形状。三个候选都没有 
 - **设定**：每叶同一固定路由（provider 块恰为 `order:['google-ai-studio']`、`allow_fallbacks:false`、`require_parameters:true`）、同一 effort `high`、同一 tools 与 `max_tokens`，不开响应缓存（09-28 源码跟进页记其零计费混淆）。历史是一份当前绑定的工具路径首轮真实回复（可复用 09-30 原件，或新取一份并落 raw），加工具结果与第 2 轮 user。变体之间只差下述字节，按 A、C、D 顺序发送，记研究账本条目。
 - **A**：产品投影产出的第 2 轮线上体——助手消息 `content: ""`、`tool_calls`（id 为投影生成值）、`reasoning_details: [E]`（逐字节原样，含 id）；工具消息的 `tool_call_id` 为同一生成值。线上体须由当前投影产出（例如以合成 meter 规划得到固定请求后原样发送），不手写。
 - **C**：A 去掉该助手消息的 `reasoning_details` 成员，其余字节不变；不补 `reasoning` 字符串（E 无文本可补）。
-- **D**（仅当 A、C 都被接受且 `prompt_tokens` 相等时发）：A 中助手 `tool_calls[].id` 与工具消息 `tool_call_id` 一起换成 E 的 id 所载的上游 id，opaque 字节不变。
+- **D**（A、C 都被接受即发，不论 Δ_E 为何——评审 G-R1：只有 D 才能区分「E 被计入且按 id 关联到工具调用」与「E 被计入但因 id 失配未被关联」，后者是续接语义退化而非计量问题）：A 中助手 `tool_calls[].id` 与工具消息 `tool_call_id` 一起换成 E 的 id 所载的上游 id，opaque 字节不变。
 - **读数**：各变体的 HTTP 状态与上游错误体、`prompt_tokens`（含缓存读，缓存分项另记）、`completion_tokens`、`reasoning_tokens`、cost；同一 A 体的本地预测 G4(P ∖ W)＋O（由 V4 候选 meter 或同一 counter 算出）。Δ_E = I_A − I_C。
 
 | 读数 | 结论 | 去向 |
@@ -204,6 +204,8 @@ T-only 是非工具路径上唯一见过的完整形状。三个候选都没有 
 | A 接受、C 被拒 | E 是续接所必需，A 的接受说明上游用了 E；Δ_E 不可测 | 残差只由 A 读出；GG-3 得一条实证 |
 | A、C 都接受，Δ_E > 0 | 回放的 E 被计入输入 | 与 reasoning、O 比较并记录残差，不引入修正常数 |
 | A、C 都接受，Δ_E = 0，D 的 `prompt_tokens` 大于 C | id 失配使 E 在产品路径上被静默丢弃：接受不等于 E 被使用 | GG-14 升为 GS-V7 阻断，转 reader／投影 owner |
+| A、C 都接受，Δ_E > 0，D 的 `prompt_tokens` ≠ A | E 被计入，但按 id 关联与否影响上游处理：D 与 A 之差即 id 失配的续接代价 | GG-14 读为「影响续接语义」，转 reader／投影 owner 并注明可能需规格演进（S-9／S-12／S-14） |
+| A、C 都接受，Δ_E > 0，D 的 `prompt_tokens` = A | E 被计入且 id 失配对计入无影响；是否被「使用」仍不可由本对照读出 | 「使用」归 reader／投影 owner 另设读数；GS-V9 只读「计入」 |
 | A、C、D 三者相等 | 上游不把回放的 E 计为输入（或不论 id 都丢弃） | O 一次每组约多计 reasoning；主线在后继决定里复议 K1（「E 计 0」以本读数为模型依据） |
 
 每叶 2–3 次请求；残差只作记录。
