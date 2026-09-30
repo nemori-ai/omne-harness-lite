@@ -77,31 +77,28 @@ function presenceFact(
   input: CallPresenceInput,
 ): CallPresenceFact | undefined {
   const sourceVersion = DEMO_REFERENCE_SOURCE_VERSION
-  const live = host.calls.find(input.ref)?.view()
-  if (live !== undefined) {
+  const stored = host.calls.find(input.ref)
+  // A closed container can remain findable until the store drops it, so the container itself,
+  // not its presence in the store, says whether the original execution still holds resources.
+  const container = stored ?? host.retained(input.ref)
+  if (container !== undefined) {
+    const view = container.view()
     if (
-      live.session.log.generation !== input.source.generation ||
-      live.session.log.session !== input.ref.session ||
-      !tenantIdEquals(live.session.log.tenant, input.origin.tenant)
+      view.session.log.generation !== input.source.generation ||
+      view.session.log.session !== input.ref.session ||
+      !tenantIdEquals(view.session.log.tenant, input.origin.tenant)
     )
       return undefined
-    return {
-      kind: 'live',
-      source: input.source,
-      executionGeneration: live.executionGeneration,
-      sourceVersion,
-    }
-  }
-  const retained = host.retained(input.ref)
-  if (retained !== undefined) {
-    // Absence from the store is not proof: only the exact retained container that released its
-    // lease, with no unknown writer left on the session owner, is an actual stop.
-    const view = retained.view()
-    if (
-      !retained.canRemove() ||
-      !host.settled(input.ref.session) ||
-      view.session.log.generation !== input.source.generation
-    )
+    if (stored !== undefined && !container.canRemove())
+      return {
+        kind: 'live',
+        source: input.source,
+        executionGeneration: view.executionGeneration,
+        sourceVersion,
+      }
+    // Only a container that released its exact lease, with no unknown writer left on the
+    // session owner, is an actual stop.
+    if (!container.canRemove() || !host.settled(input.ref.session))
       return { kind: 'unknown', source: input.source, executionGeneration: null, sourceVersion }
     return {
       kind: 'stopped',
