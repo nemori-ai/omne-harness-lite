@@ -390,3 +390,7 @@ H13-G4 不改变 MR9/RT10 的原接受状态，不将旧形式任务重绑给未
 | Qwen | qwen/qwen3.8-27b、qwen3.8-2.4t-a95b | eb35677c／`batch7` 带 tools 3/3、无 tools 3/3；P2 对照 `p2-eb35677c` | 未跑 | QV4 与 P2 完成；service 路径待冻结后同批 |
 | Google | gemini-3.8-flash、gemini-3.7-flash | 104ce616／`batch6d` 第 1 轮观察（`reasoning.encrypted`，`google-gemini-v1`）；第 2 轮按当前绑定计划期拒绝 | 未跑 | GS-V7 候选未采用，不在本程范围 |
 | Qwen 商业六叶、ZAI 五叶 | — | 未跑 | 未跑 | G7 不作本次门；ZAI 可见推理历史 GG-12 待下一程 |
+
+### 冻结 SHA `cb744210` 重跑（2026-09-30 12:07–12:33Z）
+
+同批以 R7 在冻结候选 `cb744210` 上重跑：public 25 份（OpenAI 12、Anthropic 三叶三轮 v3／v4＋纯图、DeepSeek 有／无 tools、Moonshot 有／无 tools、Qwen 开源两叶有／无 tools、xAI 4.6）全部 exit 0；service 22 叶中 OpenAI 12、Anthropic 3、DeepSeek 2、Moonshot 2、xAI 4.6 全部 exit 0。xAI 4.6 在该 SHA 上带工具判据的 v2／v3 场景三次于第 2 轮被模型文本作答（产品 marginal 回放均完成），改为 v4 场景（第 1 轮工具调用形成签名组，第 2、3 轮文本判据）通过；xAI 相关源在 `a2fd1e50`→`cb744210` 间无改动。Qwen 开源两叶 service 路径在 R7 `service-v3` prepare 被拒（配置档固定 automatic 缓存，Qwen 路由要求显式 5m），属认证工具限制，待 R8。证据目录：`freeze-public-cb744210{,-rerun}`、`freeze-service-cb744210{,-rerun}`。
