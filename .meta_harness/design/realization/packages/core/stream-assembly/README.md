@@ -1,3 +1,9 @@
+## 2026-09-30 call-accounts 包根换版后的采用核对
+
+采用不变：SA3 仍依赖 CB3／AR2／CA2，不升 CA4。A1 core 集成把 call-accounts 包根 `./schema` 换为 CA4 原字节（[ACK 后继决定](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)），CA2 原字节由同包公开 `./schema/v2`（`schema/v2/call-accounts.schema.json`）保留，依据 [call-accounts v3-design](../call-accounts/v3-design.md)「本包 Schema 与元数据」行；旧精确消费者不自动升级见 [v4 ACK 映射](../call-accounts/v4-acknowledgement-design.md)迁移段。AR2 固定图正是经该入口解析 CA2。因此本节点 INPUT-02/INPUT-04 的 CA2 原字节比对对象改为该入口文件，采用版本表与 17 项冻结资源不变。
+
+本包源码另从 call-accounts 根取 `ExactDecimal` 值与 `TrimSummary` 类型；v4 ACK 映射第一行登记 CA4 的既有值形状、`ExactDecimal` 与计算「未因 ACK 改变」，CA2 与 CA4 Schema 仅顶层 `$id`／`title`／`description`／`$comment` 不同，`$defs` 逐项相同。这是值面同形的事实，不构成本节点对 CA4 的采用；新增 binding 0。
+
 ## 最终 core 阶段签收（2026-09-26）
 
 本节点本阶段的 15 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。

@@ -1,3 +1,7 @@
+## 2026-09-30 源码依赖对账（A1 core 集成后）
+
+LC6 的固定资源图精确引用 CA2 与 MS6（[v6-design.md](v6-design.md)「LC6、MP5、MS6」行、「asset-model/v3、call-accounts/v2、tool-definition/v3」行与 21 资源清单；[资源闭包后继](../messages/public-definition-resource-closure-followup.md)的 LC6 行重申二者是真实直接引用）。A1 把 call-accounts 根换为 CA4、messages 根换为 MS8 后，本包改从各 owner 保留的精确入口取原字节：`@omne-harness-lite/call-accounts/schema/v2`（[call-accounts v3-design](../call-accounts/v3-design.md)「本包 Schema 与元数据」行）与 `@omne-harness-lite/messages/schema/v6`（[messages v7-design](../messages/v7-design.md)「另需保留 MS6 `./schema/v6`」段）。包依赖边不变，LC6 不因 CA4/MS8 自动升级（[call-accounts v4 ACK 映射](../call-accounts/v4-acknowledgement-design.md)迁移段）。`core-pure-imports` 表随此对齐；新增 binding 0。
+
 ## 最终 core 阶段签收（2026-09-26）
 
 2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v6-design.md](v6-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。

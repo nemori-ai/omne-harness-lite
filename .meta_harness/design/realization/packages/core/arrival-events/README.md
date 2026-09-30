@@ -1,3 +1,7 @@
+## 2026-09-30 源码依赖对账（A1 core 集成后）
+
+AR2 Schema 精确引用 CA2，依赖见 [design.md](design.md)「依赖、作用域与绑定」的 `data.call-accounts` v2 行。A1 把 call-accounts 根换为 CA4 后，本包从 owner 保留的 `@omne-harness-lite/call-accounts/schema/v2` 取 CA2 原字节，依据 [call-accounts v3-design](../call-accounts/v3-design.md)「本包 Schema 与元数据」行与迁移表 `arrival-events/src/schema.ts` 行（D-110 采用）；AR2 不因 CA4 自动升级（[call-accounts v4 ACK 映射](../call-accounts/v4-acknowledgement-design.md)迁移段）。包依赖边不变，`core-pure-imports` 表随此对齐；新增 binding 0。
+
 ## 最终 core 阶段签收（2026-09-26）
 
 本节点本阶段的 10 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。

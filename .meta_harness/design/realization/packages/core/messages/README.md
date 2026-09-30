@@ -5,6 +5,16 @@
 - **绑定证据**：新增 0，原绑定保持原范围；有限规格模型不提升实际提供者绑定。
 - **实际验证**：ACK 实现、该节点真实组合与公开制品验收仍待，不能据采用或旧实现通过宣称完成。
 
+## 2026-09-30 源码依赖对账（A1 core 集成后）
+
+`packages/core/messages/src` 现有三类跨包导入都出自已采用的增量设计，不新增语义或依赖方向；这里只汇总位置，依赖正文仍归各设计页：
+
+- `@omne-harness-lite/tool-definition` 根类型面（`ModelToolEntry`）与 `./schema`（TD3 原字节）：[v7-design.md](v7-design.md)「精确依赖、资源与绑定」的 TD3/TD2 行及「TD3 ModelToolEntry 显式静态模块依赖」行、第 75 行「类型只从其规范 owner 的公开类型面取用」；MS8 闭包仍含 TD3（[v8-acknowledgement-design.md](v8-acknowledgement-design.md)「编码与依赖」）。tool-definition 不依赖 messages，无环。
+- `@omne-harness-lite/model-profile/schema/v6`（MP6 原字节）：v7-design.md 的 MP6/MP5/MP2 行（created 精确 MP6）、[model-profile v6 资源增补](../model-profile/v6-schema-resource-design.md)发布的 `./schema/v6`；MS8 闭包同含 MP6。
+- `node:crypto`：仅供 MS8 S-56 语义摘要纯构件喂 SHA-256，依据 v8-acknowledgement-design.md「编码与依赖」中「可迭代/流式喂成熟SHA-256（提供者可用Node标准crypto）」。
+
+采用依据：v7-design 由 [D-110](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md) 采用，v8 由[ACK 后继决定](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)采用。`tools/ts-checks` 的 `core-pure-imports` 表随此登记对齐；这是静态边界检查，不是新增 binding（仍为 0）或行为证据。
+
 ## v7 创建记录与回复关系候选（2026-09-29）
 
 节点为 `provider`，源码 `packages/core/messages` 已存在、当前实现 MS6；本次只起草 [v7-design.md](v7-design.md)，不修改原 v6 设计与采用。
