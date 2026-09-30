@@ -71,7 +71,7 @@ export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number]
 export interface SchemaValidation {
   readonly valid: boolean
 }
-// Exact resource closure of the 50 public definitions; dependency definitions are not extra roots.
+// Exact resource closure of the 54 public definitions; dependency definitions are not extra roots.
 // No caller-schema cache or remote resolution.
 const runtime = createSchemaRuntime([
   identitySchema,

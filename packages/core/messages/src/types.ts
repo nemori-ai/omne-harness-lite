@@ -220,7 +220,7 @@ export type Message =
   | CompactionMessage
 export type OutboundMessage = Exclude<Message, ToolInternalMessage>
 export type LoggedMessage = Exclude<Message, SystemMessage>
-/** MS7 S-51: identity value only; it grants no access. */
+/** MS8 S-51: identity value only; it grants no access. */
 export interface CallKey {
   readonly session: SessionRef
   readonly callId: ModelCallId

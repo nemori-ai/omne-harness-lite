@@ -187,7 +187,7 @@ function dispatchedValid(value: JsonObject): boolean {
   )
 }
 
-/** MS7 S-53 intrinsic value checks; never a source, permission or publication check. */
+/** MS8 S-53 intrinsic value checks; never a source, permission or publication check. */
 export function judgeModelCallCreatedPayload(value: unknown): ModelCallCreatedPayloadJudgment {
   const copied = snapshot(value)
   if (
@@ -209,7 +209,7 @@ export function judgeModelCallCreatedPayloadText(text: string): ModelCallCreated
     ? Object.freeze({ rejected: 'malformed' } as const)
     : judgeModelCallCreatedPayload(read.ok)
 }
-/** MS7 S-9: original first, persisted second, then the permitted first-publication relation. */
+/** MS8 S-9: original first, persisted second, then the permitted first-publication relation. */
 export function judgeModelReplyMessage(
   originalReply: unknown,
   persistedMessage: unknown,
