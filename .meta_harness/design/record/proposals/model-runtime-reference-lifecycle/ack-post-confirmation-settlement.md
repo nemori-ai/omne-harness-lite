@@ -17,7 +17,7 @@
 - 已确认原合法完整final、所有可能晚写者真实收束后，自动释放该临时原批与纯暂存引用，不需消费方再次ACK；正式final/消息保持不可变。
 - 若实际全部写者已停止且权威完整前缀确证该批未提交，按原显式结算重试策略继续同原批/允许的late重构；策略决定结束本次写责任时，可释放仅此原批并返回明确unavailable。后续重新申请真实处分仍由消费方提供其自持原值，不能宣称此前已经提交或替其决定用途。
 - 未决旧批不能因一次新的零写/碰撞、当前writer离开或策略耗尽而删除。恢复owner读取暂存与原日志认回；暂存/日志不可得明确unavailable，不以缺失为零写证明。
-- **暂存删除的重试与唤醒（R3）**：暂存行删除失败或删除回执未知时，重试与唤醒复用 ACK 清理（[S-96～S-98](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-100-全部现有入口的九项传播)之 host 关闭/撤除行「确认与清理责任另耐久」）同一套耐久待办与可配置的策略/调度构件——同一策略对象、同一唤醒入口——不新建第二套待办或计时器。删除回执未知从同一暂存行幂等认回：确切读到该行已不存在（不是读失败）才算已删，行仍在则按同一策略重试，读不到按 `unavailable` 保留待办；不重复报成功，也不因一次读失败宣称已删。
+- **暂存删除的重试与唤醒（R3）**：暂存行删除失败或删除回执未知时，重试与唤醒复用 ACK 清理（[S-100](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-100-全部现有入口的九项传播) host 关闭/撤除/替换行「确认与清理责任另耐久」、[S-102](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-102-保证归属及验证义务)「关闭准入/真实排空/释放同提交」）同一套耐久待办与可配置的策略/调度构件——同一策略对象、同一唤醒入口——不新建第二套待办或计时器。删除回执未知从同一暂存行幂等认回：确切读到该行已不存在（不是读失败）才算已删，行仍在则按同一策略重试，读不到按 `unavailable` 保留待办；不重复报成功，也不因一次读失败宣称已删。
 
 **崩溃恢复后的默认路径（R4）。**恢复 owner 的默认路径是：先让本次写方实际停止（停止信号、卸载开始、fence 都不算，[S-70⑤](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-70-稳定身份完整原批和未知结果)）→ 读取权威完整前缀 → 读得本原批则按已确认继续收口；权威读确证缺席（零写）则**结束本次物理写责任**、返回明确 `unavailable`、删除暂存行，消费者持自持值按 [S-99](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-99-ack-后的真实处分与-retainedresult) 重新申请处分。这沿用节点现行 reconcile 路径的语义（`service-reconcile`：认回或结束，不代写）。「策略继续、由恢复 owner 代重送」**不是默认**，只作为 [S-71](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-71-争用政策与责任保留) 策略的显式选择存在；选择它时，重送前必须重核当前 settle 资格（[S-99②](../../../spec/capabilities/model-request-runtime/v12/contract.md#s-99-ack-后的真实处分与-retainedresult)）——原写方取得的资格不随暂存行转移给恢复 owner，资格不可核即 `unavailable`，不重送。
 
