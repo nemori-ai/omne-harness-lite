@@ -371,3 +371,22 @@ UCT-V12 的官方配置不能换成禁用缓存或固定在旧位置的研究配
 | H13-G4 | RT10 S-77/S-78/S-81：现 UsageCalibration.tla 有锚/失效/原批性质，但未表达多组 target 分配及 aggregate 转换守卫；NoDoubleOutput 不证明实际覆盖互斥 | 主线明确新组级形式证明范围；若要求此保证，spec owner 发布后继形式工件与负控，不改冻结版本。H13-V2/V3/V4 是必要实现证据，不能冒称已有 TLA 已证 |
 
 H13-G4 不改变 MR9/RT10 的原接受状态，不将旧形式任务重绑给未建模性质；组级来源映射以本节真实反例和后继正式证据分别兑现。新增 store/持久事务/服务均为零，仍须验证原 batch 发布与旧 lease 交错，不靠进程锁或时间谓词补来源门。
+
+## 2026-09-30 真实认证逐叶证据（R6／R7 认证工具，唯一预算账本）
+
+主调度沿唯一预算账本执行，逐叶证据目录在主检出 HUB `tmp/model-request-runtime/private/paid-out/`（0700，raw SSE 与收据 0600）；`public` 指 R6／R7 `paid-v1` 三轮（family）或 `public-v2`（OpenAI／Anthropic 十二叶三轮）；`service` 指 R7 `service-v3` 经演示装配 Cordis lease 服务入口的三轮。所有条目均为 exit 0、每轮 complete、答案判据 accepted；代认条目标明裁决。本节不声称最终冻结 SHA 上的重跑已完成。
+
+| 家族 | 叶 | public（源 SHA／批次） | service（源 SHA／批次） | 备注 |
+|---|---|---|---|---|
+| OpenAI | gpt-6-luna／sol／astra、gpt-5.6-luna／sol／terra 及六个 -pro | 155b94f2／`openai-12-155b94f2` 36/36 | ebca6726／`service1-ebca6726` 36/36 | pro 六叶 `observedInput=unavailable`（路由不回输入校准） |
+| Anthropic | claude-sonnet-5 | 1d372a66／`batch4c` 三轮 3/3＋纯图 2/2 | ebca6726／`service1` 3/3 | 签名 opaque 组真实回放、1 h 显式缓存命中 |
+| Anthropic | claude-opus-5.5 | 1d372a66／`batch4d` 三轮 3/3＋纯图 2/2 | ebca6726／`service1` 3/3 | |
+| Anthropic | claude-fable-5.1 | 1d372a66／`batch4d` 三轮 3/3＋纯图 2/2 | ebca6726／`service1` 3/3 | |
+| Anthropic | claude-opus-5 | 纯图 2/2；三轮**以 opus-5.5 代认（用户裁决 R-S）** | 以 opus-5.5 代认（R-S） | 三次上游 content_filter 拒答，三条 unknown hold 已确认不释放 |
+| DeepSeek | deepseek-v4.1-flash、deepseek-v4-pro-0813 | 1d372a66／`batch5b` 无 tools 3/3（DV4，marginal 逐 token 命中）＋此前带 tools 3/3 | baac88e4／`service2-baac88e4` 3/3 | |
+| xAI | x-ai/grok-4.6 | a2fd1e50／`batch6e` v2 3/3（mp4-20 身份准入、密文回放接受） | ebca6726／`service1` 3/3 | |
+| xAI | x-ai/grok-4.7 | 身份原件已落盘（`batch5b`）；三轮**以 grok-4.6 代认（用户裁决 R-U）** | 以 grok-4.6 代认（R-U） | 同日三次上游停滞，三条 unknown hold 已确认不释放 |
+| Moonshot | moonshotai/kimi-k3、kimi-k2.7-code | 104ce616／`batch6d` 带 tools 3/3；a2fd1e50／`batch6e` 无 tools 3/3；P2 对照 `p2-74bdd9ef` | baac88e4／`service2` 3/3 | MV4 与 P2 完成 |
+| Qwen | qwen/qwen3.8-27b、qwen3.8-2.4t-a95b | eb35677c／`batch7` 带 tools 3/3、无 tools 3/3；P2 对照 `p2-eb35677c` | 未跑 | QV4 与 P2 完成；service 路径待冻结后同批 |
+| Google | gemini-3.8-flash、gemini-3.7-flash | 104ce616／`batch6d` 第 1 轮观察（`reasoning.encrypted`，`google-gemini-v1`）；第 2 轮按当前绑定计划期拒绝 | 未跑 | GS-V7 候选未采用，不在本程范围 |
+| Qwen 商业六叶、ZAI 五叶 | — | 未跑 | 未跑 | G7 不作本次门；ZAI 可见推理历史 GG-12 待下一程 |
