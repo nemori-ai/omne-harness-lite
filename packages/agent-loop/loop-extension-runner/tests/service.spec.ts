@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { expect, test, vi } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
 import { judgePositionedSubject } from '@omne-harness-lite/loop-extension'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { createModelDefaultRetryPlugin } from '@omne-harness-lite/model-request-runtime/default-retry-plugin'
@@ -213,6 +214,44 @@ test('real P5 contribution fiber registers with runner; duplicate fails without 
     )
     await next.dispose()
   } finally {
+    await h.close()
+  }
+})
+
+test('M17-V10 P5 stays unpublished while the runner registry is absent and registers once it appears', async () => {
+  const h = await serviceHost()
+  const policy = {
+    kind: 'linear' as const,
+    base: 'PT1S',
+    factor: 2,
+    max: 'PT10S',
+    jitter: 'none' as const,
+  }
+  let replacement: Awaited<ReturnType<typeof h.ctx.plugin>> | undefined
+  let contribution: Awaited<ReturnType<typeof h.ctx.plugin>> | undefined
+  try {
+    await h.runnerFiber.dispose()
+    expect(h.ctx.get('loopExtensionImplementations')).toBeUndefined()
+    contribution = h.ctx.plugin(createModelDefaultRetryPlugin({ policy, sample: () => 0.5 }), {})
+    await Promise.resolve()
+    expect(contribution.state).not.toBe(FIBER_STATE.ACTIVE)
+    replacement = await h.ctx.plugin(loopExtensionRunnerPlugin, { host: () => h.host })
+    await contribution
+    const implementations = h.ctx.get('loopExtensionImplementations') as RunnerImplementations
+    // The contribution registered with the new registry generation, so a second one is refused.
+    expect(() =>
+      implementations.registerBuiltin('omne-official:default-retry', async () => ({
+        kind: 'notStartedUnavailable',
+      })),
+    ).toThrow('already registered')
+    await contribution.dispose()
+    const fresh = implementations.registerBuiltin('omne-official:default-retry', async () => ({
+      kind: 'notStartedUnavailable',
+    }))
+    fresh()
+  } finally {
+    await contribution?.dispose()
+    await replacement?.dispose()
     await h.close()
   }
 })
