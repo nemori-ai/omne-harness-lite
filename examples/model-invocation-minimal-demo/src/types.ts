@@ -21,6 +21,7 @@ import type {
   SettlementContention,
   SettlementScheduler,
   ReservationWaitPolicy,
+  ModelCallContentPolicy,
   ObserverDiagnostic,
   SettlementDiagnostic,
   DefaultRetryConfiguration,
@@ -81,6 +82,13 @@ export type { ModelInputSource } from './bootstrap.ts'
 export interface ModelRequestDeployment {
   /** Finite runtime-owned image preparation scopes; not an upstream model limit. */
   readonly maxScopes: number
+  /** Explicit finite budgets for durable call references; the runtime supplies no defaults. */
+  readonly callReferences: {
+    /** Bounded number of Session log generations the call-fact projection keeps warm. */
+    readonly maxScopes: number
+    /** Immutable creation and reply-ready content rows in this demo's own SQLite storage. */
+    readonly content: ModelCallContentPolicy
+  }
   /** Borrowed trusted provider; its owner keeps it alive through application close. */
   readonly assetRegistry?: Pick<AssetRegistryService, 'lookup'>
   readonly tokenMargin: TokenMargin

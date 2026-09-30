@@ -24,6 +24,16 @@ export function prepareModelRequestDeployment(
     input === null ||
     !Number.isSafeInteger(input.maxScopes) ||
     input.maxScopes < 1 ||
+    input.callReferences === undefined ||
+    input.callReferences === null ||
+    !Number.isSafeInteger(input.callReferences.maxScopes) ||
+    input.callReferences.maxScopes < 1 ||
+    input.callReferences.content === undefined ||
+    input.callReferences.content === null ||
+    !Number.isSafeInteger(input.callReferences.content.maxConcurrentWrites) ||
+    input.callReferences.content.maxConcurrentWrites < 1 ||
+    !Number.isSafeInteger(input.callReferences.content.maxContentBytes) ||
+    input.callReferences.content.maxContentBytes < 1 ||
     input.evaluationInputs === undefined ||
     typeof input.evaluationInputs.storeKey !== 'string' ||
     !input.evaluationInputs.storeKey ||
@@ -71,6 +81,10 @@ export function prepareModelRequestDeployment(
   // The public transport constructor owns and validates complete nested definitions/policy.
   return Object.freeze({
     ...input,
+    callReferences: Object.freeze({
+      maxScopes: input.callReferences.maxScopes,
+      content: Object.freeze({ ...input.callReferences.content }),
+    }),
     evaluationInputs: Object.freeze({ ...input.evaluationInputs }),
     registryPolicy: Object.freeze({ ...input.registryPolicy }),
     defaultRetry: Object.freeze({

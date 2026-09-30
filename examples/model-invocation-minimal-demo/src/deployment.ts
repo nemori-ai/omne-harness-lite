@@ -217,6 +217,10 @@ export function createDemoConfig(
     },
     modelRequest: {
       maxScopes: 64,
+      callReferences: {
+        maxScopes: 64,
+        content: { maxConcurrentWrites: 4, maxContentBytes: 16 * 1024 * 1024 },
+      },
       tokenMargin,
       defaultRetry: createDemoDefaultRetryConfiguration(),
       registryPolicy: { maxRetries: 2, maxInFlight: 8 },

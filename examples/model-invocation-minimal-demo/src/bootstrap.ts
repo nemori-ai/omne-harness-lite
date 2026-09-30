@@ -6,7 +6,10 @@ import {
 import {
   createSessionModelSelection,
   createCallContainerStore,
+  createModelCallContentStore,
+  createModelCallFacts,
   createModelRuntime,
+  modelCallContentMigrations,
   interpretCallHistory,
   readSettlementPrefix,
   type ModelRuntimeService,
@@ -69,6 +72,11 @@ import {
 import type { ModelToolName } from '@omne-harness-lite/tool-definition'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import { createRequestOwner } from './model-request-owner.ts'
+import {
+  createDemoCallAccess,
+  createDemoCallPresence,
+  deriveCreationKey,
+} from './call-references.ts'
 import { createDemoRunnerHost, type DemoRunnerRequest } from './runner-host.ts'
 import {
   LOOP_EXTENSION_RUNNER_SERVICE,
@@ -579,6 +587,10 @@ export function createAcceptanceApplication(
     }
   >()
   const runtimeActors = new Map<SessionRef, AuthenticatedActor>()
+  // Aborted when this application withdraws access; every access evidence carries this signal.
+  const accessRevocation = new AbortController()
+  // Sessions whose cold recovery scope was built under host-witnessed exit of the old worker.
+  const coldStopped = new Map<SessionRef, ReadonlyMap<string, ModelLogSettlementTarget>>()
   const runtimeBindings = new Map<SessionRef, SessionRuntimeBinding>()
   const controlledRuns = new Map<SessionRef, ControlledSingleRunSelection>()
   const calls = createCallContainerStore<PlannedRequest, RawResponse>()
@@ -812,6 +824,7 @@ export function createAcceptanceApplication(
     if (cleanupPromise !== undefined) return cleanupPromise
     closing = true
     gateOpen = false
+    accessRevocation.abort()
     runnerHost?.closeAdmission()
     record({ event: 'gate', phase: 'scenario', outcome: 'closed' })
     const attempt = (async () => {
@@ -864,6 +877,7 @@ export function createAcceptanceApplication(
       }
       for (const borrow of sessionBorrows.values()) borrow.owner.release()
       runtimeActors.clear()
+      coldStopped.clear()
       runtimeBindings.clear()
       controlledRuns.clear()
       const unfinished: string[] = []
@@ -991,6 +1005,7 @@ export function createAcceptanceApplication(
         ...(preparationStage ? requestPreparationMigrations : acceptanceMigrations),
         ...(stage === 'modelRequest' ? evaluationInputMigrations : []),
         ...(stage === 'modelRequest' ? assemblyManifestMigrations : []),
+        ...(stage === 'modelRequest' ? modelCallContentMigrations('sqlite') : []),
         ...(hooks?.extraMigrations ?? []).filter(
           extra => !assemblyManifestMigrations.some(builtin => builtin === extra),
         ),
@@ -1471,7 +1486,66 @@ export function createAcceptanceApplication(
             if (!isOk(parsed)) throw new Error('model identity source invalid')
             return parsed.ok
           }
+          if (storage === undefined) throw new Error('acceptance storage absent')
+          const callPresence = createDemoCallPresence({
+            calls,
+            retained: ref => trackedCalls.get(ref.session)?.get(ref.callId),
+            settled: session => {
+              const owner = sessionBorrows.get(session)?.owner.owner
+              return (
+                owner !== undefined &&
+                'confirmed' in owner.opened() &&
+                owner.unresolvedWrites().length === 0
+              )
+            },
+            coldRecovered: ref => {
+              const targets = coldStopped.get(ref.session)
+              return targets === undefined ? undefined : { target: targets.get(ref.callId) ?? null }
+            },
+          })
+          const callFacts = createModelCallFacts({
+            content: createModelCallContentStore({
+              storage,
+              policy: deployment.callReferences.content,
+            }),
+            presence: callPresence,
+            maxScopes: deployment.callReferences.maxScopes,
+          })
+          const callAccess = createDemoCallAccess({
+            async authorize(session) {
+              const actor = runtimeActors.get(session)
+              if (actor === undefined || closing || recoveryAdmission.has(session))
+                return { unavailable: true }
+              const access = await sessionAccess(actor, session)
+              if ('borrow' in access) {
+                runtimeActors.set(session, access.checked)
+                return { binding: access.borrow.binding }
+              }
+              return 'failure' in access &&
+                (access.failure === 'identityMismatch' ||
+                  access.failure === 'membershipNotEffective')
+                ? { denied: true }
+                : { unavailable: true }
+            },
+            facts: callFacts,
+            revoked: accessRevocation.signal,
+            diagnostic: outcome => record({ event: 'operation', phase: 'callAccess', outcome }),
+          })
+          // Immutable deployment identifiers only; the created payload cannot cite a mutable path.
+          const sourceVersions = Object.freeze({
+            officialManifest: `ordinal:${config.officialManifest.ordinal}`,
+            deployedOfficial: deployment.evaluationInputs.deployedOfficial
+              .map(
+                entry =>
+                  `${entry.capability.category}/${entry.capability.name}${entry.meta ? '#meta' : ''}`,
+              )
+              .sort()
+              .join(','),
+          })
           const construction: RuntimeConstruction<PlannedRequest, RawResponse> = {
+            callAccess,
+            callPresence,
+            callFacts,
             maxScopes: deployment.maxScopes,
             sessions: {
               async bind(session) {
@@ -1495,6 +1569,7 @@ export function createAcceptanceApplication(
                 const binding: SessionRuntimeBinding = {
                   log: access.borrow.binding,
                   selection: selectionInput,
+                  sourceVersions,
                   catalog,
                   credentials: lookup,
                   currentEvaluationInputs: currentInputs,
@@ -1599,6 +1674,8 @@ export function createAcceptanceApplication(
                       closed = true
                       recoveryReady.delete(input.session)
                       recoveryAdmission.delete(input.session)
+                      // Every unresolved dispatch of the covered cold worker is now settled.
+                      if (coldStopped.has(input.session)) coldStopped.set(input.session, new Map())
                       record({ event: 'operation', phase: 'recovery', outcome: 'closed' })
                     },
                   },
@@ -1608,7 +1685,13 @@ export function createAcceptanceApplication(
             diagnosticCollector: tenant.collector,
             diagnostic: recordSettlement,
           }
-          modelRuntime = createModelRuntime(construction)
+          try {
+            modelRuntime = createModelRuntime(construction)
+          } catch (error) {
+            // The runtime never took ownership of the facts owner; stop its content writes here.
+            await callFacts.close()
+            throw error
+          }
           if (
             runnerHost === undefined ||
             manifest === undefined ||
@@ -2263,6 +2346,16 @@ export function createAcceptanceApplication(
       return call
     }
     return {
+      acquireCall: input => {
+        if (input?.ref?.session !== session || closing || recoveryAdmission.has(session))
+          return Promise.resolve({ unavailable: true })
+        return trackSession(session, async () => {
+          const access = await sessionAccess(actor, session)
+          if (!('borrow' in access) || recoveryAdmission.has(session)) return { unavailable: true }
+          runtimeActors.set(session, access.checked)
+          return service.acquireCall(input)
+        })
+      },
       legalTargets: input =>
         invoke(input, value => service.legalTargets(value), { unavailable: true }),
       displayList: input =>
@@ -2455,6 +2548,7 @@ export function createAcceptanceApplication(
             scopeIssued: false,
           }
           recoveryReady.set(key, ready)
+          if (ready.coldAbsent) coldStopped.set(key, coldTargets)
         } else {
           await Promise.allSettled([...(sessionTasks.get(key) ?? [])])
           await access.borrow.owner.drain()
@@ -2636,6 +2730,12 @@ export function createAcceptanceApplication(
       )
       if (!('messages' in appended)) return appended
       const opened = await modelRuntime.service.openCall({
+        creationKey: deriveCreationKey({
+          session: borrow.binding.session,
+          userMessage: copiedUser.id,
+          ...(callId === undefined ? {} : { callId: callId.ok }),
+          ...(request.run === undefined ? {} : { run: request.run, attempt: request.attempt }),
+        }),
         session: borrow.binding.session,
         ...(callId === undefined ? {} : { callId: callId.ok }),
         target: effective.effectiveModel.routeName,

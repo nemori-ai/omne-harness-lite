@@ -134,6 +134,10 @@ async function callConfig(
     },
     modelRequest: {
       maxScopes: 64,
+      callReferences: {
+        maxScopes: 64,
+        content: { maxConcurrentWrites: 4, maxContentBytes: 16 * 1024 * 1024 },
+      },
       tokenMargin: { multiplier: 1.1, reserveTokens: 256 },
       defaultRetry: createDemoDefaultRetryConfiguration(),
       registryPolicy: { maxRetries: 2, maxInFlight: 8 },
