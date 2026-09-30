@@ -1,3 +1,5 @@
+2026-09-30：[Moonshot 可见推理采用](../../../../record/decisions/model-input-usage-calibration-adoption/moonshot-visible-reasoning-decision.md)接受有限估算 [revision 2](moonshot-visible-reasoning-estimate-design.md)；已实施两叶投影、直接 meter 守门与新发布（definition 3、`pi-ai:moonshot@mp4-18`），[MV1–MV3 本机覆盖](verification.md#2026-09-30-moonshot-可见推理-mv1mv3-本机覆盖)通过；MV4 真实回放与必做同路由对照待 root，演示装配组合未实际通过，新增 binding 0。
+
 2026-09-30：[DeepSeek 可见推理采用](../../../../record/decisions/model-input-usage-calibration-adoption/deepseek-visible-reasoning-decision.md)接受有限明文参考估算 revision 2；仅释放两叶共享投影及直接 meter 守门接线，DV1–DV5 未执行，新增 binding 0。
 
 2026-09-29：[xAI 有限贡献采用](../../../../record/decisions/model-input-usage-calibration-adoption/xai-family-decision.md)接受两款完整组提供者 revision 2；释放共享核上的窄实现，真实身份、图片及 X1–X6 仍待，新增 binding 0。

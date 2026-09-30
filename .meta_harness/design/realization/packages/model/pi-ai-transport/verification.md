@@ -306,6 +306,19 @@ UCT-V12 的官方配置不能换成禁用缓存或固定在旧位置的研究配
 
 范围：带推理历史的多轮在当前源码上一律 unavailable，可见推理历史计量映射是登记缺口，未采用。隐藏 thinking 的多轮能通过，是运行时上下文组装中调用方的决定，不证明 transport 对推理回放可用或可计量。同批以当前源码重放了冻结证据：8 条固定路由请求 wire 的估算等于观测 `prompt_tokens`，5 份已记录 SSE 按固定 SHA-256 装配，GLM-5.2／5.3／Flash 模板黄金输出一致，五叶坐标与迁移后记录相同；逐叶表在包 README。本节不关闭 UCT-V11、上节「G：新增逐模型适配」或任何真实 OpenRouter public/service、cache 与费用认证。
 
+## 2026-09-30 Moonshot 可见推理 MV1–MV3 本机覆盖
+
+对象：[Moonshot 可见推理计量 revision 2](moonshot-visible-reasoning-estimate-design.md)（[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/moonshot-visible-reasoning-decision.md)）在 `moonshotai/kimi-k3`@`moonshotai/mxfp4` 与 `moonshotai/kimi-k2.7-code`@`moonshotai/int4` 的新发布：definition 3、`pi-ai:moonshot@mp4-18`，algorithm `moonshot-k3-xtml-image-5`／`moonshot-k27-jinja-image-4`，tokenizer 修订钉在不变的 `tokenizer-basis/moonshot-k3-xtml-image-4`／`tokenizer-basis/moonshot-k27-jinja-image-3`，φ/δ 仍为 `unsupported-marginal/1`。夹具是 [2026-09-27 probe run](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md) 十份 Moonshot 原件的有序片段（816 帧，成员 SHA-256 随夹具记录），按原 delta 形状重建成本机 TLS SSE、交真实 reader 合并；未发任何付费请求，原始运行输出未归档为 evidence run。
+
+| 义务 | 执行仓库用例 | 用例数 | 实际结果 |
+|---|---|---:|---|
+| MV1 | `tests/moonshot-visible-reasoning-rounds.spec.ts`：K3 low/high/max 与 K2.7 Code × 有/无工具 × {public transport，Cordis transport service} | 16 | 第 2、3 轮 full/`estimated`；每轮恰一次 HTTP 且字节等于计划；线上只回放 reader 合并后的一项 details，不带 `reasoning`／`reasoning_content`；每轮估算等于独立 meter 与「details 换成 `reasoning` 字符串」的计数；余量只在门上应用一次；资源实停 |
+| MV2 | `tests/moonshot-visible-reasoning.spec.ts`：反例 1–7、9 与等价预言（十份原件 × 有/无工具 × K3 三档） | 19 | 合格 details 计数与字符串形逐值相等；反例 2–5 的每种形态（含显式 `signature: null`、R-L 迟到签名、带 id 片段）在 meter 与规划器均为 unavailable／`input_size_unavailable`，零新增 HTTP；原 body 与字节不变；replay/new 被询问且为 unavailable，measurement 为 full |
+| MV3 | 同文件，直接调用两叶 factory 返回的方法 | 2 | body-only full 为 `estimated`；缺 span、部分组、越界、重复目标、组被篡改、来源矛盾、序列化不一致均 unavailable；φ/δ 坏输入 `invalidInput`；共同包装无递归 |
+| 受影响既有用例 | `tests/moonshot-closeout-boundaries.spec.ts` 真实形状 details 由拒绝改为估算、encrypted 负控保留；`official-reader-bindings`、`official-moonshot-definitions`、`moonshot-input-meter` 跟随新发布 | — | 通过 |
+
+同批对实现做了变异负控：去掉投影、放宽并行键逐字相同、去掉 `[REDACTED]` 排除、拆掉共同包装、图片计数改读原 body，各自使上述用例失败。演示装配 `examples/model-invocation-minimal-demo/tests/moonshot-three-round-service.spec.ts` 的 details 用例已改为真实形状与只发 details 两个变体（均期望估算），但在本 spoke 基线上整份演示装配因 `model-request-runtime` 要求 `callAccess`／`callPresence`／`callFacts` 而启动失败（与本改动无关，其他演示 spec 同样失败），该组合尚未实际通过。本节不关闭 MV4（真实回放与必做同路由对照，归 root 账本）、G1 上游转换、G2 真实回放或两叶 D7 认证。
+
 ## H13 多个历史输出组候选
 
 对象为 [v13 revision 1](v13-output-history-design.md)，精确消费 D-107 已接受 MR9/RT10 与 runtime v19 候选唯一账本。**本节均为待执行义务，新增绑定 0**；本次文档检查不证明源码、模型或上游已兑现。

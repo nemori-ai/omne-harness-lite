@@ -269,9 +269,9 @@ const meter = createXaiInputMeter(definition)
 // 向 createPiAiTransport({ ..., inputMeters: [meter!] }) 显式传入计量器。
 ```
 
-`createMoonshotInputMeter(definition)` 将 Kimi K3（`moonshotai/mxfp4`）与 K2.7 Code（`moonshotai/int4`）绑定到固定词表及各自 XTML／Jinja 提示词模板，两者均为定义修订 `2`、`pi-ai:moonshot@mp4-17`。文本、明文推理及配对工具历史参与估算，不再重复计入完整 JSON 外壳。K3 沿固定 encoder 按前一 assistant 的 call IDs 排序连续并行工具结果，仅用于提示词估算；实际发出的历史不改序。两型号按各自固定视觉处理规则估算内联 PNG/JPEG/WebP 图片，计入完整文本、工具与图片历史。K3 只发送 `low`、`high`、`max` 三档 effort，其他取值丢弃；K2.7 Code 丢弃任何显式 effort，不发送 `reasoning` 成员。两种丢弃都记在 `droppedParameters`。
+`createMoonshotInputMeter(definition)` 将 Kimi K3（`moonshotai/mxfp4`）与 K2.7 Code（`moonshotai/int4`）绑定到固定词表及各自 XTML／Jinja 提示词模板，两者均为定义修订 `3`、`pi-ai:moonshot@mp4-18`。文本、明文推理及配对工具历史参与估算，不再重复计入完整 JSON 外壳。K3 沿固定 encoder 按前一 assistant 的 call IDs 排序连续并行工具结果，仅用于提示词估算；实际发出的历史不改序。两型号按各自固定视觉处理规则估算内联 PNG/JPEG/WebP 图片，计入完整文本、工具与图片历史。K3 只发送 `low`、`high`、`max` 三档 effort，其他取值丢弃；K2.7 Code 丢弃任何显式 effort，不发送 `reasoning` 成员。两种丢弃都记在 `droppedParameters`。
 
-Moonshot 计量只做 full。每次请求都按完整输入计为 `estimated`，带上一轮响应观察的后续轮次也一样。本家族未采用增量的回放／新增贡献（φ/δ），二者返回 `unavailable`（`unsupported-marginal/1`），不声称任何增量估算。不透明推理无法计量：任何 `reasoning_details`（包括可见的 `reasoning.text` 条目）都使估算不可用，远程图片和未识别模型输入字段同样如此；这类请求在 HTTP 之前被拒绝。两条选定路由的已存档真实流，在每个推理片段旁都附带一条可见的 `reasoning.text` detail，因此回放这类回复目前会被拒绝，原因是尚无已采用的映射。K3 定义中保留视频输入声明；本期只承载文本和图片，视频不在本期范围内，不承载（`modality_not_carried`）。此估算不代表已认证 OpenRouter 实际用量、缓存保留期或费用；两型号的真实 public／service 认证仍待完成。余量由调用方显式提供。随包的 `LICENSE.K3`、`LICENSE.K27` 保留各自上游许可和归属要求。
+Moonshot 计量只做 full。每次请求都按完整输入计为 `estimated`，带上一轮响应观察的后续轮次也一样。本家族未采用增量的回放／新增贡献（φ/δ），二者返回 `unavailable`（`unsupported-marginal/1`），不声称任何增量估算。两条选定路由的已存档真实流，在每个推理片段旁都附带一条与明文 `reasoning` 片段逐字相同的可见 `reasoning.text` detail；reader 将其合并为一项，下一请求原样回放该项。可见推理历史按有限估算计量：assistant 消息的 `reasoning_details` 恰为一项、own keys 恰为 `type`、`text`、`format`、`index`（`reasoning.text`、非 `[REDACTED]` 的字符串 text、format `unknown`、index 0、无 `id` 与 `signature`），且并行的 `reasoning`／`reasoning_content` 若在场须为逐字相同的字符串时，该文字在仅供计量的副本中只放进模板推理槽位一次（K3 的 think 段、K2.7 Code 的 `<think>` 槽位）。实际发送体与字节仍保留 details；不另加输出或 `reasoning_tokens` 项，调用方余量只在最终门应用一次。OpenRouter 如何为这两条路由转换 details 未知，因此结果仍为 `estimated`，不承诺误差界。summary 或 encrypted 推理、任何附加键（含显式 `signature: null`）、多项或空数组、其他 format 或 index、不一致的并行字符串，以及非 assistant 消息上的 details 都使估算不可用，远程图片和未识别模型输入字段同样如此；这类请求在 HTTP 之前被拒绝。factory 返回的 full、replay、new 方法都经共同的来源与历史守门，直接交入的非法历史会被拒绝而不是计量。这些 details 的上游真实回放，以及必做的同路由 details 与明文 `reasoning` 字符串对照（MV4），仍待完成，只由 root 沿预算账本执行。K3 定义中保留视频输入声明；本期只承载文本和图片，视频不在本期范围内，不承载（`modality_not_carried`）。此估算不代表已认证 OpenRouter 实际用量、缓存保留期或费用；两型号的真实 public／service 认证仍待完成。余量由调用方显式提供。随包的 `LICENSE.K3`、`LICENSE.K27` 保留各自上游许可和归属要求。
 
 ## 持有传输资源
 
@@ -517,7 +517,7 @@ Anthropic 缓存探针（`tests/fixtures/anthropic/cache-public.mjs`）显式配
 
 `tests/openai-sol-calibration.spec.ts` 覆盖 Sol 全部已声明 effort 与缺省、精确十进制余量边界、本机 TLS 的真实公开 invoke、full→marginal→marginal、确认稳定前缀不进入 tokenizer 的 spy，以及前缀／依据／来源负控。`tests/openai-visible-history-candidate.spec.ts` 以保留的冻结历史输入验证正式 Sol/Luna 工厂。原 Sol 文字代理观察与新最终 JSON 估值分别保留。本机符合性不冒称新的 OpenRouter 认证。
 
-Moonshot 图片探针分别验证 PNG 完整性与生产输入限额：`node --test tests/fixtures/moonshot/repair-image.test.mjs` 和 `pnpm exec vitest run tests/fixtures/moonshot/repair-image.spec.ts`。`pnpm exec vitest run tests/moonshot-three-round.spec.ts tests/moonshot-closeout-boundaries.spec.ts` 让两型号在本机 TLS 上各跑三轮，分别经公开 `invokeModel` 与挂载官方模型插件的 Cordis transport service，有工具、无工具各一套；同时覆盖 effort、图片、不透明历史与视频边界。这些本机检查不证明上游接受或缓存命中。
+Moonshot 图片探针分别验证 PNG 完整性与生产输入限额：`node --test tests/fixtures/moonshot/repair-image.test.mjs` 和 `pnpm exec vitest run tests/fixtures/moonshot/repair-image.spec.ts`。`pnpm exec vitest run tests/moonshot-three-round.spec.ts tests/moonshot-closeout-boundaries.spec.ts` 让两型号在本机 TLS 上各跑三轮，分别经公开 `invokeModel` 与挂载官方模型插件的 Cordis transport service，有工具、无工具各一套；同时覆盖 effort、图片、不透明历史与视频边界。`pnpm exec vitest run tests/moonshot-visible-reasoning-rounds.spec.ts tests/moonshot-visible-reasoning.spec.ts` 把十份存档真实流的片段按原形状交真实 reader 合并：两型号有、无工具在两条路径上各跑三轮（K3 覆盖 `low`、`high`、`max`），后续轮次按回放的 details 计为 full estimated；并核对 details 计数与明文 `reasoning` 字符串计数相等、各拒绝形态，以及经守门的 factory 方法。这些本机检查不证明上游接受或缓存命中。
 
 ### ZAI 历史候选验证
 
