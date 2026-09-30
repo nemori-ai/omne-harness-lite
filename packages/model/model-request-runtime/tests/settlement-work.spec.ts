@@ -15,11 +15,19 @@ import { createCallContainerStore } from '../src/service-container.ts'
 import { createSettlementWork } from '../src/settlement-work.ts'
 import type { ModelCallSettlementWorkStore } from '../src/reference-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
+import type { AcknowledgementCleanupPolicy } from '../src/service-types.ts'
+import type { SettlementScheduler } from '../src/settlement-types.ts'
 import { anchors, jsonObject, session } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
-import { controlled, noWaitScheduler, policy, request } from './settlement-fixture.ts'
+import { controlled, deferred, noWaitScheduler, policy, request } from './settlement-fixture.ts'
 
-async function workStorage(dir: string) {
+async function workStorage(
+  dir: string,
+  retry: {
+    readonly scheduler?: SettlementScheduler
+    readonly policy?: AcknowledgementCleanupPolicy
+  } = {},
+) {
   const storage = await openStorage({
     dialect: 'sqlite',
     file: join(dir, 'work.sqlite'),
@@ -33,8 +41,8 @@ async function workStorage(dir: string) {
   const custody = createAcknowledgementCustody({
     calls: createCallContainerStore<PlannedSemantics, unknown>(),
     content,
-    scheduler: noWaitScheduler,
-    policy: { next: () => ({ stop: true }) },
+    scheduler: retry.scheduler ?? noWaitScheduler,
+    policy: retry.policy ?? { next: () => ({ stop: true }) },
     diagnostic() {},
   })
   return { storage, content, custody }
@@ -252,6 +260,64 @@ describe('RT12 S-99⑧ settlement work over the real coordinator, JSONL and SQLi
       // Repeating does not complete the residual batch or switch identities either.
       expect(await work.advance()).toEqual({ retained: true })
       expect(await held(content.work, key)).toBe(submitted)
+      await custody.close()
+      await content.close()
+      await storage.close()
+    })
+  })
+
+  it('A22-V14: a confirmed final never retires the row while another writer still runs; the shared retry does', async () => {
+    await controlled('work-writer-still-running', async ({ binding, owner, dir }) => {
+      const fired: (() => void)[] = []
+      const scheduler: SettlementScheduler = {
+        nowMonotonicMs: () => 0,
+        wait: (_ms, signal) => {
+          const done = deferred<'elapsed' | 'cancelled'>()
+          signal.addEventListener('abort', () => done.resolve('cancelled'), { once: true })
+          fired.push(() => done.resolve('elapsed'))
+          return {
+            completion: done.promise,
+            requestStop() {},
+            stopped: done.promise.then(() => {}),
+          }
+        },
+      }
+      const reasons: unknown[] = []
+      const { storage, content, custody } = await workStorage(dir, {
+        scheduler,
+        policy: {
+          next(input) {
+            reasons.push(input.pendingReasons)
+            return { waitMs: 0 }
+          },
+        },
+      })
+      const key = { binding, call: 'call', response: 'response' }
+      let otherWriterRunning = true
+      const work = createSettlementWork({
+        binding,
+        owner,
+        store: content.work,
+        custody,
+        instance: 'runtime-v14',
+        ref: { session, callId: 'call' },
+        request,
+        contention: policy(),
+        scheduler: noWaitScheduler,
+        diagnostic() {},
+        obstacles: () => (otherWriterRunning ? ['writer_in_flight'] : []),
+      })
+      expect(await work.advance()).toHaveProperty('origin', 'appended')
+      // The final is confirmed, but another possible writer has not stopped: the row stays.
+      expect(await held(content.work, key)).not.toBeNull()
+      expect(reasons).toEqual([['writer_in_flight']])
+      expect(fired).toHaveLength(1)
+      otherWriterRunning = false
+      // The same custody retry (same policy, same scheduler) retires it; no second ACK.
+      fired[0]?.()
+      for (let index = 0; index < 50 && (await held(content.work, key)) !== null; index++)
+        await new Promise(resolve => setTimeout(resolve, 10))
+      expect(await held(content.work, key)).toBeNull()
       await custody.close()
       await content.close()
       await storage.close()
