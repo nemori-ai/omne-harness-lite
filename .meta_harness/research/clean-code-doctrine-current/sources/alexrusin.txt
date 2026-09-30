@@ -1,0 +1,35 @@
+
+				AI-Augmented Development			
+## How Uncle Bob Uses AI Coding Agents
+	Byalexrusin					
+						August 20, 2026August 20, 2026					
+Most developers hit the same wall within a week of running an agent hard. Code arrives fast. Then the mess piles up, and the mess slows everything down. Robert C. Martin — Uncle Bob, author of Clean Code — ran into that wall last December. His answer was not a longer instruction file. He built machinery around the model instead. His approach to AI coding agents revives old ideas that nobody could afford to run until now.
+🚀 Complete Claude Code & Coding Agents Course
+## Why messy code breaks AI coding agents
+Bob started with an early Grok agent on a real project. It wrote code quickly, but it left a mess behind every time. He kept moving instead of cleaning up. Then he watched the agent slow down.
+It began changing one thing and breaking another. It fixed that and broke something else. It went in circles. One agent eventually gave up and said it could not deal with the codebase anymore.
+His conclusion is blunt. Agents suffer from messy code the same way humans do. The threshold may sit higher, but the threshold is still there. Clean code is not a matter of taste here. It is what keeps the agent moving.
+## Deterministic tools beat long instruction files
+Bob’s first instinct was steering. He wrote prompts explaining test-driven development, clean code, and every rule he cared about. Those documents grew to five or ten pages. The models treated them like the Pirate’s Code — more of a guideline than an actual rule.
+He blames a known effect called “lost in the middle.” Text at the start and end of a context window carries weight. Everything else fades. A long rule file buries its own rules.
+So he trimmed the prompt to the bare minimum and moved enforcement into tools that run afterward. Two of them come from the early 2000s. The CRAP score combines test coverage with cyclomatic complexity to flag ugly functions. Mutation testing flips operators in your source and demands that your tests fail. Both were impractical back then, because a run took all night. Agents do not mind boring work.
+## The gauntlet: five agents, one story
+Bob now hands each story to a chain of narrow agents. A specifier turns a human document into Gherkin acceptance criteria and a QA procedure. A coder writes the unit tests and the implementation. A cleaner runs CRAP analysis and tidies the mess the coder left. A hardener runs mutation testing and shows no mercy. A QA agent turns the QA document into an executable script.
+Narrow tasks keep each context window small, so the rules at the top actually stick. Agents can also start fresh and die when done. The tradeoff is real: a task one agent finishes in five minutes with dubious results takes about an hour through the gauntlet. A human would take half a day. Bob accepts that trade because AI coding agents produce far better quality inside the loop than outside it.
+## Plan less, iterate more
+Heavy upfront specification tempted the industry in the 1970s and produced waterfall. Uncle Bob says the same temptation is back under the name spec-driven development. His experiments with it failed the same way every time. The plan looks gorgeous, the agents run half-cocked, and you stop everything to rewrite it.
+## Specs are disposable
+He keeps no specification archive in the repo. Specs are ephemeral. He points to an old lecture analogy: if every change to a house cost one dollar, you would not pay an architect thousands for a perfect plan. You would move the kitchen and see how it feels. The cost of code change has collapsed, so iterate.
+## Module boundaries still need you
+Bob designs module structure by hand. He interrogates the agents about dependencies, gets frightened by the answers, and repartitions. He also had the agents build him an architecture viewer and a dependency specification file that a checker enforces at the end. Automating that design work is still beating him.
+## Key Takeaways
+Agents thrash in messy code just like humans do, so cleanup is a throughput problem rather than a style preference.
+Rules buried in a long prompt get lost in the middle of the context window, while deterministic checks never fade.
+Splitting work across narrow, short-lived agents keeps each context window small enough that instructions actually hold.
+Human disciplines like strict TDD should not be forced on agents, though human values and quality thresholds still apply.
+Bob tells newcomers to write real code first, then work like an agent under the same tools before they get to direct one.
+## Conclusion
+The pattern here is old advice with new economics. Coverage tools, mutation testing, and tight module boundaries were always good ideas, and they were always too slow for humans to sustain. Machines that never get bored change that math. Point your AI coding agents at a gauntlet they cannot escape, then spend your own time on the structure they cannot see.
+Share this article
+			Post Tags:		
+		#ai coding	

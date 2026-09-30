@@ -1,0 +1,39 @@
+[00:00] types. You got the static typers and you got the dynamic typers, right? And the static
+[00:10] typers are all about, you know, getting the compiler to check every type. And you must
+[00:15] specify your types perfectly into the nth degree. And, you know, and first, this sounds
+[00:23] fairly reasonable, right? Because you don't want to pass, you know, a double into a function
+[00:28] that expects an int. And you don't want to do that. You'd like the compiler to tell you,
+[00:32] you know, you know, you're doing the wrong thing. Okay, fine. But then what happens? Well,
+[00:38] I mean, you know, you start creating your own types, you start creating types like employee
+[00:43] and order and things like that, you know, domain oriented types. Oh, and then you want
+[00:48] to put them in the lists. Well, you know, in order to put them in the lists, you need some
+[00:52] kind of generics. So some kind of template language, okay, well, that seems fine until you
+[00:58] start running into the problems of contravariance and covariance and all the nonsense. And then you
+[01:04] have to put all these widgets and, and our king symbols into your template language. And it starts
+[01:10] to get really, really complicated. And in the end, it turns into a touring, complete language
+[01:16] that you can execute entire programs in in just the compiler without ever running a program.
+[01:21] It's just the compiler running your program. And you know what? That programming language
+[01:26] is dynamically typed. This is like the worm or a Boris eating its tail, right? The whole
+[01:33] problem, the whole mind set leads to a self-contradiction. But then, but then you've got the dynamic
+[01:41] types and the dynamic papers are like, we're free. We're butterflies. We can fly away. We don't need
+[01:50] types. Oh, the machine will determine the types for us. And it'll convert the types in life will
+[01:56] be beautiful all the time. And I'll be happy to see those nice young men. Oh, yes, yes. Some years ago,
+[02:08] a fellow by the name of Capers Jones did a study, a long study on various programming languages.
+[02:15] And he measured the performance or the productivity of programmers using different languages. And one of
+[02:24] the things he found was that small talk programmers were five times more productive than C++ programmers.
+[02:31] That was a big shock. And of course, small talk is a dynamically typed language, but C++ is
+[02:37] a statically typed language. And so there was a big war fought between Sun and IBM over which language
+[02:45] would dominate the internet and Sun wanted it to be Java, which is really just C++ with all the
+[02:50] warts cut off. And you've got IBM who wanted to use small talk. And that didn't fly at all.
+[02:56] Eventually, the C++ programmers won that war by forcing Java on the rest of the world. Oh my god.
+[03:03] And it was gone back and forth several times, right? So everybody gets all excited about static typing.
+[03:09] And then after a while, he had burned out on static typing and they start all becoming Ruby programmers
+[03:14] because that's a dynamically typed language. But then they get all burned out on having type errors
+[03:19] everywhere. And so then they start becoming Swift programmers. It just goes back and forth and back and forth.
+[03:27] And you know what? The answer? You know what the answer is? That's both wrong. That's what the answer is.
+[03:32] They're both wrong. All right? The dynamic people want the types checked at runtime, which is a really bad idea
+[03:40] because when the missile is approaching its target, it would be really unfortunate if it threw a type error
+[03:48] just five milliseconds before it was supposed to detonate. And then the static typeers went all the
+[03:54] types checked at compile time, which is a really bad idea because you wind up with the Wormorabora's
+[04:00] eating its tail. No, no, no, no. If the answer, the answer, the answer, the answer, boys and girls,
+[04:07] is to check your types at test time.

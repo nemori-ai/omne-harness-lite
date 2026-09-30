@@ -1,0 +1,85 @@
+# Handoff Rules
+
+## Sending Handoffs
+- Write a draft handoff file with only structured headers under `./tmp/` in the assigned worktree, then run `swarm_handoff.sh <draft-file>`.
+- `swarm_handoff.sh` rejects drafts in `/tmp` and `.swarmforge/handoffs/outbox/tmp/`.
+- `swarm_handoff.sh --help` prints usage. Do not pass `--help` as a draft path.
+- Use only these message types:
+  - `git_handoff`
+  - `note`
+- Do not send `note` handoffs unless the user, role prompt, or constitution
+  explicitly directs you to send one.
+- When blocked by ambiguity, contradiction, or test/specification conflict,
+  ask the operator with `pack_dashboard_request.sh clarify ./tmp/question.txt`.
+  Do not ask in the pane. Do not send a `note` handoff unless one of
+  the explicit authorities above directed that note.
+- For `git_handoff`, commit first, then write a draft. The helper fills `commit` and `artifacts` from the sender worktree HEAD; do not type a SHA. If `SWARMFORGE_ROLE` is unset, the helper infers the role from `roles.tsv` and this worktree.
+- If you are the master agent on a pack that includes specifier, queue `git_handoff` when the work is ready. Do not ask for approval in the pane; the operator uses Attention.
+- Do not add extra git headers (`coverage`, CRAP, evidence). If evidence is needed, the helper writes it.
+- For `git_handoff`, write:
+
+```text
+type: git_handoff
+to: <role>[,<role>...]
+priority: NN
+task: <short-stable-task-name>
+```
+
+- After completing a forward inbound task, always send a `git_handoff` to the
+  next role in the chain, regardless of what changed. Formatting-only,
+  manifest-only, audit-only, generated metadata, and other non-functional churn
+  still require a forward down the chain.
+- A reverse (`non-forwarding`) inbound `git_handoff` is merge-only. Merge it,
+  then `done_with_current`. Do not send a `git_handoff` for that inbound. The
+  helper refuses a `git_handoff` while inbound is `non-forwarding`.
+- Preserve the received task name when forwarding work for the same task.
+- The master agent uses the existing New Task / board card name as `task:`. Do not invent a name.
+- For `note`, write:
+
+```text
+type: note
+to: <role>[,<role>...]
+priority: NN
+message: <one line, max 80 chars>
+```
+
+- If `swarm_handoff.sh` reports validation errors, repair the draft and rerun it.
+- After a successful send, the helper removes the draft file. If you need to
+  remove a stale draft manually, use `rm <draft-file>`, not `rm -f`.
+- Do not write long handoff bodies. The helper generates the delivered payload.
+- Do not send tmux notifications directly.
+- Do not hand-edit, merge, stage, or commit handoff runtime state.
+
+## Receiving Handoffs
+- When notified, run `ready_for_next.sh`. If `SWARMFORGE_ROLE` is unset, the
+  helper infers the role from `roles.tsv` and this worktree.
+- `ready_for_next.sh` dispatches to the task or batch helper configured for
+  your role. For `git_handoff` it merges the inbound commit
+  (`merge_and_process.sh <sender> <commit>`).
+- Structure improves as work moves down the pack. On a reverse
+  (`non-forwarding`) `git_handoff`, the inbound tree is the structure. Replay
+  this role's current task onto that shape. Do not keep the pre-inbound layout
+  in order to save local work. On a forward `git_handoff`, this role's current
+  tree is the structure. Replay the inbound work onto that shape. Do not adopt
+  the inbound layout in order to save merge work.
+- If merge_and_process.sh or ready_for_next reports a merge conflict, resolve
+  every conflicted file, `git add` them, and commit. You own conflict
+  resolution. Do not invent a new `git merge`. Parallel cards on one tree
+  will conflict; that is expected.
+- If it prints `NO_TASK`, stop waiting for work.
+- If it prints `TASK: <path>`, treat the printed `PAYLOAD` as the task.
+- If it prints `TASK_NAME: <name>`, use that as the stable task name for any
+  work you forward from that task.
+- If it prints `BATCH: <path>`, treat each printed `BATCH_ITEM` as part of the
+  current batch in helper-delivered order.
+- Use only the task information printed by the helper scripts.
+- If a tmux wake-up arrives while already working on a task, ignore it.
+- When the task or batch is fully complete, run `done_with_current.sh`. After a
+  reverse (`non-forwarding`) merge, that is the completion; do not queue a
+  `git_handoff` for that inbound.
+- `note` handoffs are tasks too; after reading or acting on a note, run
+  `done_with_current.sh` before accepting any other handoff.
+- If `done_with_current.sh` prints `MAIL_WAITING`, run `ready_for_next.sh` as a
+  new turn. Do not treat done output as the next merge.
+- If a done helper prints `NO_TASK`, stop waiting for work.
+- On restart, run `ready_for_next.sh` and follow its output.

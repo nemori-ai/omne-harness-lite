@@ -1,0 +1,221 @@
+ID 1937839430821085604 | Wed Jun 25 11:44:58 +0000 2025 |@unclebobmartin | reply_to: davefarley77 1937832142018347453 | views 2943
+I have found AI to be moderately helpful with TDD. The most critical thing to remember is that TDD is double entry bookkeeping. The human must be the pilot of both sides. Tests must not be derived from code, and code must not be derived from tests. They both require independent structure and divergent designs.
+-----
+ID 1945820624318075240 | Thu Jul 17 12:19:23 +0000 2025 |@unclebobmartin | reply_to: None None | views 20777
+When designing software, should we be reactive, or proactive?  Should we adopt YAGNI or Hammock Driven Development as our overarching rule?  Should we be 100% “Agile” or 100% waterfall. 
+
+Answer:  It’s _always_ a mix of moderate amounts of both. The best way to drive a project off the rails is ideologically demand adherence to one side or the other. 
+
+Wise teams will spend _some_ time “in the hammock” thinking things through; but not so much that they miss the opportunities to react to the dynamic environment that dominates virtually all software projects. 
+
+If you don’t plan, you die. 
+If you don’t react, you die.
+-----
+ID 2027126394510069933 | Thu Feb 26 20:59:29 +0000 2026 |@unclebobmartin | reply_to: None None | views 18439
+I always thought that mutation testing was a good idea; but it was always hard to afford.  Now it's just one more Claude agent working down a list.  And the benefit is amazing.  Lots of coverage.  Lots of overloading.  Lots of refactoring and separation of concerns.  Astounding.
+-----
+ID 2032562619849101804 | Fri Mar 13 21:01:06 +0000 2026 |@unclebobmartin | reply_to: None None | views 39647
+In the last three days I have:
+1. Designed and implemented a complete JVM language that Codex believes (whatever that means) would be ideal for AIs to use regardless of what humans think about it.  It compiles down to JVM bytecode.
+
+2. Designed and build, from scratch, a wiki with it's own internal web server and fully described by Gherkin style acceptance tests.
+
+3. Made significant updates to the computer strategy of the Empire game.  
+
+4. Produce the crap4java and mutate4java tools that I used to help build the wiki.
+
+5. Conceived of and implemented the differential mutation strategy used in both my clojure and Java mutation tools.  
+
+And for every one of those projects I implemented a strict TDD, ATDD, Crap, and Mutate workflow that forced coverage into the high 90s, kept Crap below 8, and split any files with more than 50 mutation sites.
+
+My poor laptop had all 16 (8 hyperthreaded) cores burning at 100%.  The fan was raging the whole time.  I was hopping from window to window overseeing the entire campaign.  It was exhausting!
+
+Did that workflow slow the process down?  Probably.  Probably a lot.  On the other hand all these projects maintained rigorous semantic stability, with all unit tests, and acceptance tests passing.  
+
+I never ran the wiki until it was done.  It worked first time.  I never compiled a program with AIR-J until it was done.  It worked first time.  No bugs have been introduced into the Empire game (so far).  
+
+And that, boys and girls, is a freaking miracle.
+-----
+ID 2044114698451476492 | Tue Apr 14 18:04:56 +0000 2026 |@unclebobmartin | reply_to: wookash_podcast 2043781023687676250 | views 163797
+I don’t review code written by agents. I measure things like test coverage, dependency structure, cyclomatic complexity, module sizes, mutation testing, etc. 
+
+Much can be inferred about the quality of the code from those metrics. The code itself I leave to the AI. 
+
+Humans are slow at code. To get productivity we humans need to disengage from code and manage from a higher level.
+-----
+ID 2080257779395154409 | Thu Jul 23 11:44:38 +0000 2026 |@unclebobmartin | reply_to: ori_pomerantz 2080024439345828249 | views 5058237
+I’m significantly older than you. I started coding in the late 60s. My current strategy is to not read any of the code written by my agents. That’s the only way I can take advantage of their productivity. What I do instead is to surround the agents with extreme constraints. Unit tests, gherkin tests, QA procedures, quality metrics, mutation testing, test coverage, and a plethora of others. In the end, I have very high confidence in the code they produce because they’ve had to run the gauntlet of all of my constraints and tests.
+-----
+ID 2080622218527084961 | Fri Jul 24 11:52:47 +0000 2026 |@unclebobmartin | reply_to: themoridwan 2080618267190702090 | views 20099
+Many people have marveled at the fact that I don’t review the code anymore. Perhaps they view it as some kind of abandonment of clean code principles. That is not at all what has happened. It’s just that now I have tools that help me to enforce my agents to produce clean code and follow those principles.
+-----
+ID 2082850576832905657 | Thu Jul 30 15:27:29 +0000 2026 |@unclebobmartin | reply_to: None None | views 85401
+TDD is a human discipline.  I don't expect agents to follow it.  I DO expect agents to write unit tests as carefully and comprehensively as a human would, and I ensure that by running coverage, crap, and mutation tests.  
+
+The reason agents don't have to follow the tight human TDD loop is that they have better and bigger short term memories.
+-----
+ID 2084247338613162240 | Mon Aug 03 11:57:43 +0000 2026 |@unclebobmartin | reply_to: HermanBovens 2084006372597977147 | views 190
+My strategy to prevent that is to make it harder to change the tests than the code. Towards that end I create three streams of tests at three different levels. Unit tests in code, acceptance tests in gherkin. QA tests in markdown. The first two are mutation tested to tightly lock them into the existing code. 
+
+So far this has worked pretty well.
+-----
+ID 2084638878548304046 | Tue Aug 04 13:53:34 +0000 2026 |@unclebobmartin | reply_to: None None | views 156845
+I've been working on an orchestration harness for a squad of agents.  I want to have a squad leader agent that supervises a bevy of workers.  The workers are analysts, reviewers, gherkin authors, QA authors, implementers, cleaners, code reviewers, hardeners, QA testers, architects, and senior implementers.  
+
+There is a fixed workflow from themes to stories to gherkin and QA, to code, unit tests, and acceptance tests, to cleaned code, to hardened code, to QA'd code, to architecture.
+
+This fixed workflow can be described by a static FSM.  So I had my agents build it.  Then I had my agents build a simulator of my  squad and drive the simulator through the FSM.  Then I had them jitter the simulator, simulating delays and failures.  I had them run monte-carlo testing for many runs.  
+
+The agents never would have thought of that kind of testing regime.  They never would have build the simulator on their own and engaged in monte-carlo testing.
+
+Don't tell me software engineering is dead.
+-----
+ID 2085351669433303421 | Thu Aug 06 13:05:56 +0000 2026 |@unclebobmartin | reply_to: LifeArtStudios 2085139222986404037 | views 1612
+Don’t tell an agent to calculate code coverage, or cyclomatic complexity. Have the agent run deterministic tools that calculate those metrics.
+
+Don’t tell the agents to mutate the code and check for survivors. Run deterministic mutation testers that do that.
+
+Don’t tell an agent to follow a procedure. Don’t give it a long chain of if/else statements to follow. It will lose track of them. Instead create an executable finite state machine that directs the agents actions.
+-----
+ID 2086125060104810625 | Sat Aug 08 16:19:07 +0000 2026 |@unclebobmartin | reply_to: aiisa11youneed 2085991630310617521 | views 120
+Let the agents write them. You spot check them. 
+
+I use three separate threads of tests. Unit tests, gherkin tests, and QA procedures.  The three of them together keep everything honest. In order to deviate from the desired path, the agent would have to modify more than one source file.
+-----
+ID 2086141128768668111 | Sat Aug 08 17:22:58 +0000 2026 |@unclebobmartin | reply_to: Arthur11750360 2085818421321621911 | views 111
+@Arthur11750360 The issue is that an Agile project that uses AI will have to shrink their Sprint size to one day (or less) in order to keep the feedback cycle meaningful.
+-----
+ID 2086862545319612838 | Mon Aug 10 17:09:37 +0000 2026 |@unclebobmartin | reply_to: CalEvans 2086846970375643348 | views 143
+@CalEvans @VictorTaelin I wish it were possible to prompt good code -- but that's not the way the models work.
+-----
+ID 2087240459949125984 | Tue Aug 11 18:11:19 +0000 2026 |@unclebobmartin | reply_to: albedo030 2087225764433276933 | views 1085
+@albedo_yandex @reckt32 I spot check the code looking for general conformance.  The tools I use (CRAP, MUTATE, DRY, etc.) do a lot to constrain the agents to make the code clean.
+-----
+ID 2087502674648305858 | Wed Aug 12 11:33:16 +0000 2026 |@unclebobmartin | reply_to: RailaPaulius 2087422387482443861 | views 317
+I’ve run the experiment. If I give an agent a big ball of mud, and ask it to make a change, it will spin and thrash hopelessly. If I give an agent a nicely partitioned and clean project, I can ask it to make changes all day long, and it has no trouble.
+
+The rules that I find to be most useful are intense test coverage, three strands of tests: unit tests, acceptance tests, and QA tests.  Small well named functions (although not as small for agents as for humans.) Well partitioned modules. Appropriate dependency structure. And the keen eye of the supervising human doing spot checks over all of it.
+-----
+ID 2087538351175799108 | Wed Aug 12 13:55:02 +0000 2026 |@unclebobmartin | reply_to: VibeCoderMcSwag 2087352551389720717 | views 205
+I just tell my agents to write failing tests first and write the production code that passes them second.  They do this tolerably well -- just like people.
+
+Then I make sure they run coverage, CRAP, and Mutation tests to drive the test coverage to as close to 100% as possible.
+
+I also have the agents build three kinds of tests.  Unit tests, which I don't look at much, Gherkin acceptance tests that I subject to slightly more scrutiny, and slightly more scrutinized QA procedures that test the system at the UI.
+
+Without unit tests I have found that the agents create too many regressions.  They are recoverable, but they are frustrating.  Without the acceptance test I have found that the agents lose the separation between UI and business rules.  That's correctable, but I'd rather enforce it early.  Without the QA procedures I find that the agents deliver perfectly good software that works at the API, but not at the UI.
+
+I learned this all by trial and error; and I could still be wrong.  But that's the course I'm currently on.
+
+See http://github.com/unclebob/swarm-forge for a lot more detail on this.
+-----
+ID 2087563797632278592 | Wed Aug 12 15:36:09 +0000 2026 |@unclebobmartin | reply_to: None None | views 65694
+The ability to wrangle these immensely powerful, yet dangerously capricious, agents into a productive harness that produces high quality systems  — is the  software engineering challenge of this decade.
+-----
+ID 2087565882079711599 | Wed Aug 12 15:44:26 +0000 2026 |@unclebobmartin | reply_to: None None | views 49082
+If you go to the squad branch of http://GitHub.com/unclebob/swarm-forge you’ll see what I’ve been spending a lot of time on. 
+
+It’s still in progress, but early results are promising.
+-----
+ID 2088993782477811904 | Sun Aug 16 14:18:24 +0000 2026 |@unclebobmartin | reply_to: None None | views 76349
+My son Justin has an interesting idea.  What if you use TDD to get a module working. Then delete all the tests. And then run the mutation tester and kill all the mutants.  Does that make a more efficient test suite?
+-----
+ID 2089140250773696905 | Mon Aug 17 00:00:24 +0000 2026 |@unclebobmartin | reply_to: None None | views 43590
+TDD tests are intentional.  They are are "positive".  Mutations tests are reactions to testing gaps.  They are negative. 
+
+Is there an advantage to a wholly negative test suite?
+-----
+ID 2089449442089025936 | Mon Aug 17 20:29:01 +0000 2026 |@unclebobmartin | reply_to: None None | views 21215
+I ran the negative test experiment.  Interesting.   repo below.
+
+Abstract written by grok:
+
+We wrote Hunt the Wumpus eight times from empty: four testing disciplines, with and without forcing CRAP below 4. Every run passed the same 25 acceptance cases. The programs were not the same. Discipline changed both the unit suite and the shape of the source. Three laws grew a layered immutable hunt; test-last left a small program with a few fat functions; bundling named every function and kept the domain off stdout; none produced a BASIC-style listing with no unit tests. CRAP then split functions and added tests until every score was under 4. It raised coverage (and invented a whole suite when there had been none) and made every program harder to read. It did not improve design. Mutation, run afterward against each frozen tree, wrote a second suite aimed at operators, not a different Wumpus. Acceptance never distinguished any of this.
+
+https://github.com/unclebob/negative-test-experiment
+-----
+ID 2089475660116877769 | Mon Aug 17 22:13:12 +0000 2026 |@unclebobmartin | reply_to: formigarafa 2089451088034554197 | views 6039
+@formigarafa @wmksidebottom Certainly not a classic, line by line, review. 
+
+I typically don't look much at the code itself.  Sometimes I'll pop it open and do a spot check.  Most of the time I'm reviewing the output of the tools that measure code quality, coverage, and conformance to requirements.
+-----
+ID 2089685418828538284 | Tue Aug 18 12:06:42 +0000 2026 |@unclebobmartin | reply_to: lassekt 2089618499953930590 | views 105
+@lassekt @mattpocockuk Testing is not sufficient. You need to remain situationally aware. I do this by watching the process and probing the artifacts.  I even spot check some of the code and look carefully at the architecture using appropriate visualization tools. 
+
+In short, I watch it like a hawk.
+-----
+ID 2089687652610060514 | Tue Aug 18 12:15:35 +0000 2026 |@unclebobmartin | reply_to: ivars_auzins 2089611496770719794 | views 332
+The “big takeaway” in that writeup is a bit silly. Otherwise the writeup is pretty good. 
+
+For me the big takeaway (if big is the right word) is that TDD and bundling have a positive effect on the structure of the code. That CRAP analysis can be overdone (eg 4). And that the tests produced by mutation are not significantly different to justify the premise that negative tests are superior to intentional positive tests. 
+
+That last was the goal of this experiment.
+-----
+ID 2090068337489306092 | Wed Aug 19 13:28:17 +0000 2026 |@unclebobmartin | reply_to: bob_dobalinaa 2090062345435586955 | views 182
+@bob_dobalinaa I'm building an agent harness based on a squad of agents and a squad leader.  I pursued a highly elaborate scheme.  It became unworkable.  I'm scrapping it for a simpler scheme.
+-----
+ID 2090077791278489800 | Wed Aug 19 14:05:51 +0000 2026 |@unclebobmartin | reply_to: None None | views 276698
+It is amazing how much work it is to wrestle these agents to my will.  
+
+Don't get me wrong, it's crazy productive.  But it's also a lot of hard, focussed work.  All my software engineering and problem solving skills are brought into play -- even though I barely look at the code.
+-----
+ID 2090758607302267226 | Fri Aug 21 11:11:11 +0000 2026 |@unclebobmartin | reply_to: kentcdodds 2090310717954281947 | views 11200
+Up until AI, driving coverage high, and making it real, had been considered so laborious as to be impractical for most projects. But AI trivializes the labor. High, meaningful coverage is within easy reach of even the most casual projects. 
+
+So the question is no longer about the relative necessity of high coverage. Nowadays it’s tantamount to adolescent carelessness to ignore it.
+-----
+ID 2090786479744160075 | Fri Aug 21 13:01:56 +0000 2026 |@unclebobmartin | reply_to: None None | views 14014
+From a research point of view, agents are an interesting tool.  Every agent is in an equivalent state once started.  So we can use them to compare different approaches, disciplines, and standards without the vagaries of human variability and human memory.
+-----
+ID 2090814740276642173 | Fri Aug 21 14:54:14 +0000 2026 |@unclebobmartin | reply_to: None None | views 103702
+This should not be a surprise; but...
+
+Breaking a problem up into a bunch of independent stories that are implemented separately by a squad of agents that do not collaborate, does not end well.  
+
+If only we could get the agents to pair...
+-----
+ID 2090818167874449438 | Fri Aug 21 15:07:51 +0000 2026 |@unclebobmartin | reply_to: jlchnc 2090817274407968982 | views 224
+@jlchnc @kentcdodds CRAP and MUTATE usually improve the tests considerably.
+-----
+ID 2090845662698987654 | Fri Aug 21 16:57:06 +0000 2026 |@unclebobmartin | reply_to: None None | views 49350
+Wait.  One agent makes us go faster.  Two makes us go even faster.  But does that scale linearly?
+
+I've had good luck with six arranged in an assembly line.
+I've had very bad results with six running in parallel.
+-----
+ID 2090846406181322783 | Fri Aug 21 17:00:03 +0000 2026 |@unclebobmartin | reply_to: None None | views 20955
+having one agent fix another agent's prompt is spooky.
+-----
+ID 2090848397846565150 | Fri Aug 21 17:07:58 +0000 2026 |@unclebobmartin | reply_to: Krypius 2090846681906463122 | views 2679
+@Krypius They don't know enough about what each other is doing, so they create inappropriate interfaces, double up on functionality, create independent test access...  And then there is the horrible cascade of merges.
+-----
+ID 2090851553527681288 | Fri Aug 21 17:20:31 +0000 2026 |@unclebobmartin | reply_to: TrentonDAdams 2090850460848800048 | views 1801
+subagents work ok.  Though my impression is that with a group of subagents leave all the writing to one, while the others are readers.  I don't know if that's true for all agent systems.
+
+But the problem I'm working on is a bit different.  Give a squad of agents N stories, and have them assemble that into a cogent whole by working in parallel.   Many writers.  Lots of merges.  Lots of stepping all over each other.
+-----
+ID 2090877283305234651 | Fri Aug 21 19:02:45 +0000 2026 |@unclebobmartin | reply_to: nethumdev 2090875623648502019 | views 5388
+@nethumdev I have a means of sending messages between agents.  It's fast and reliable.  That's not the issue.  Collaboration requires a lot of discussion and compromise.  The last thing I want is a gaggle of agents honking at each other like a flock of geese.
+-----
+ID 2091146331892944975 | Sat Aug 22 12:51:51 +0000 2026 |@unclebobmartin | reply_to: None None | views 16911
+Six-packs to a pretty good job.
+
+So...  I'm thinking a good model for a squad would be a set of six-packs (or 4-packs in some cases) that work on independent issues, with a supervisor that designs the interfaces between them, integrates, and runs integration tests.  
+
+Hmmm.
+-----
+ID 2091511895324795292 | Sun Aug 23 13:04:28 +0000 2026 |@unclebobmartin | reply_to: Joobman 2091494702029713725 | views 361
+Don't look at swarm-forge as a drop-in product that you can use.  Look at it (and the many other harnesses out there) as templates that you can customize to your particular needs.
+
+One of the great powers of AI agents is that you can point them at an existing project and tell them to create something like it, but with a bunch of exceptions and differences.  In the end you wind up with something tuned to you, not to me.
+-----
+ID 2091530252803531107 | Sun Aug 23 14:17:25 +0000 2026 |@unclebobmartin | reply_to: xsamueljr_log 2091529219939418442 | views 155
+My current plan for a squad based system is to use six-packs or 4-packs (or even 2-packs) as the workers.  The squad leader divides the project into sub-projects and assigns them to the packs.  It also designs the interfaces between the sub projects.  
+
+The trick is going to be keeping those interfaces narrow and focussed so that the packs do not step on each other.  Typical project lead stuff.
+-----
+ID 2091530576666710227 | Sun Aug 23 14:18:42 +0000 2026 |@unclebobmartin | reply_to: xsamueljr_log 2091529219939418442 | views 115
+Probably not.  I don't want a lot of chatter between agents.  I fear the "fixed point" problem.  I also don't want to burn a load of tokens that way.
+
+My preference is to have focussed work units that are independent of each other and who build components the communicate through a narrow focussed interface.
+-----

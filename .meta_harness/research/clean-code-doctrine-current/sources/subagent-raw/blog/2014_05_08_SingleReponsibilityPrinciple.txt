@@ -1,0 +1,386 @@
+
+ Clean Coder Blog
+ The Clean Code Blog
+by Robert C. Martin (Uncle Bob)
+ atom/rss feed
+ Functional Classes in Clojure
+ 01-19-2023
+ Functional Classes
+ 01-18-2023
+ Space War
+ 11-28-2021
+ Functional Duplications
+ 10-28-2021
+ Roots
+ 09-25-2021
+ More On Types
+ 06-29-2021
+ On Types
+ 06-25-2021
+ if-else-switch
+ 03-06-2021
+ Pairing Guidelines
+ 01-17-2021
+ Solid Relevance
+ 10-18-2020
+ Loopy
+ 09-30-2020
+ Conference Conduct
+ 09-23-2020
+ The Disinvitation
+ 09-12-2020
+ REPL Driven Design
+ 05-27-2020
+ A Little More Clojure
+ 04-09-2020
+ A Little Clojure
+ 04-06-2020
+ A New Hope
+ 04-05-2020
+ Open Letter to the Linux Foundation
+ 11-08-2019
+ What They Thought of Programmers.
+ 11-03-2019
+ Circulatory
+ 10-31-2019
+ Why Clojure?
+ 08-22-2019
+ Why won't it...
+ 07-22-2019
+ Classes vs. Data Structures
+ 06-16-2019
+ Types and Tests
+ 06-08-2019
+ 737 Max 8
+ 05-18-2019
+ FP vs. OO List Processing
+ 12-17-2018
+ We, The Unoffended
+ 12-16-2018
+ SJWJS
+ 12-14-2018
+ The Tragedy of Craftsmanship.
+ 08-28-2018
+ Too Clean?
+ 08-13-2018
+ Integers and Estimates
+ 06-21-2018
+ Pickled State
+ 06-06-2018
+ Craftsman, Craftswoman, Craftsperson
+ 05-02-2018
+ FP vs. OO
+ 04-13-2018
+ In The Large
+ 04-02-2018
+ We Programmers
+ 03-29-2018
+ Uncle Bob Fly-In.
+Have I got a deal for you!
+ 02-25-2018
+ The Citizenship Argument
+ 01-18-2018
+ Operating Behind the Power Curve
+ 01-15-2018
+ Excuses
+ 12-18-2017
+ Dbtails
+ 12-09-2017
+ Bobby Tables
+ 12-03-2017
+ Living on the Plateau
+ 11-18-2017
+ Women In Demand
+ 10-04-2017
+ Tools are not the Answer
+ 10-04-2017
+ Test Contra-variance
+ 10-03-2017
+ The Unscrupulous Meme
+ 09-29-2017
+ Sierra Juliet Foxtrot
+ 09-26-2017
+ Just Following Orders
+ 08-28-2017
+ Women in Tech
+ 08-14-2017
+ On the Diminished Capacity to Discuss Things Rationally
+ 08-10-2017
+ Thought Police
+ 08-09-2017
+ The Brain Problem
+ 07-28-2017
+ Drive me to Toronto, Hal.
+ 07-24-2017
+ Pragmatic Functional Programming
+ 07-11-2017
+ First-Class Tests.
+ 05-05-2017
+ Is Dr. Calvin in the Room?
+ 03-16-2017
+ Symmetry Breaking
+ 03-07-2017
+ Testing Like the TSA
+ 03-06-2017
+ TDD Harms Architecture
+ 03-03-2017
+ Necessary Comments
+ 02-23-2017
+ Types and Tests
+ 01-13-2017
+ The Dark Path
+ 01-11-2017
+ TDD Lesson - Terrain Generation
+ 01-09-2017
+ TDD Doesn't Work
+ 11-10-2016
+ Dijkstra's Algorithm
+ 10-26-2016
+ The Lurn
+ 09-01-2016
+ The Churn
+ 07-27-2016
+ Mutation Testing
+ 06-10-2016
+ Blue. No! Yellow!
+ 05-21-2016
+ Type Wars
+ 05-01-2016
+ Giving Up on TDD
+ 03-19-2016
+ Manhandled
+ 01-15-2016
+ Stabilization Phases
+ 01-14-2016
+ A Little Architecture
+ 01-04-2016
+ Prelude to a Profession
+ 11-27-2015
+ The Programmer's Oath
+ 11-18-2015
+ The Force of Pliers
+ 11-01-2015
+ Future Proof
+ 10-30-2015
+ Agile is not now, nor was it ever, Waterfall.
+ 10-16-2015
+ VW
+ 10-14-2015
+ WATS Line 54
+ 10-05-2015
+ A Little Structure
+ 09-23-2015
+ Make the Magic go away.
+ 08-06-2015
+ Pattern Pushers
+ 07-05-2015
+ The Little Singleton
+ 07-01-2015
+ The First Micro-service Architecture
+ 05-28-2015
+ Language Layers
+ 04-27-2015
+ Does Organization Matter?
+ 04-15-2015
+ The MODE-B Imperative
+ 02-21-2015
+ They Called them Computers.
+ 02-19-2015
+ 'Interface' Considered Harmful
+ 01-08-2015
+ The Cycles of TDD
+ 12-17-2014
+ OO vs FP
+ 11-24-2014
+ Thorns around the Gold
+ 11-19-2014
+ The Obligation of the Programmer.
+ 11-15-2014
+ One Hacker Way!
+ 11-12-2014
+ Laughter in the male dominated room.
+ 10-26-2014
+ GOML-1, Responsive Design
+ 10-08-2014
+ Clean Micro-service Architecture
+ 10-01-2014
+ Microservices and Jars
+ 09-19-2014
+ The More Things Change...
+ 09-18-2014
+ Test Time
+ 09-03-2014
+ A Little About Patterns.
+ 06-30-2014
+ My Lawn
+ 06-20-2014
+ Is TDD Dead?
+Final Thoughts about Teams.
+ 06-17-2014
+ First
+ 05-19-2014
+ The Little Mocker
+ 05-14-2014
+ The Open Closed Principle
+ 05-12-2014
+ Framework Bound[2]
+ 05-11-2014
+ When to Mock
+ 05-10-2014
+ The Single Responsibility Principle
+ 05-08-2014
+ Professionalism and TDD (Reprise)
+ 05-02-2014
+ Test Induced Design Damage?
+ 05-01-2014
+ When TDD doesn't work.
+ 04-30-2014
+ Monogamous TDD
+ 04-25-2014
+ Code Hoarders
+ 04-03-2014
+ The True Corruption of Agile
+ 03-28-2014
+ When Should You Think?
+ 03-11-2014
+ A Spectrum of Trust
+ 02-27-2014
+ Oh Foreman, Where art Thou?
+ 02-23-2014
+ Where is the Foreman?
+ 02-21-2014
+ The Domain Discontinuity
+ 01-27-2014
+ Coding in the Clink (9)
+ 01-20-2014
+ Extreme Programming, a Reflection
+ 12-10-2013
+ Novices. A Coda
+ 11-25-2013
+ Hordes Of Novices
+ 11-19-2013
+ Healthcare.gov
+ 11-12-2013
+ The Careless Ones
+ 10-24-2013
+ Dance you Imps!
+ 10-01-2013
+ A.T. FAIL!
+ 09-26-2013
+ Test First
+ 09-23-2013
+ Transformation Priority and Sorting
+ 05-27-2013
+ The Transformation Priority Premise
+ 05-27-2013
+ Flash - TPP
+ 05-27-2013
+ Fib. The T-P Premise.
+ 05-27-2013
+ There are Ladies Present
+ 03-22-2013
+ The Frenzied Panic of Rushing
+ 03-11-2013
+ An Open and Closed Case
+ 03-08-2013
+ The Pragmatics of TDD
+ 03-06-2013
+ The Start-Up Trap
+ 03-05-2013
+ The Principles of Craftsmanship
+ 02-10-2013
+ The Humble Craftsman
+ 02-01-2013
+ The Laborer and the Craftsman
+ 01-30-2013
+ FP Basics E4
+ 01-29-2013
+ FP Basics E3
+ 01-07-2013
+ FP Basics E2
+ 01-02-2013
+ Brave New Year
+ 12-29-2012
+ FP Basics E1
+ 12-22-2012
+ Three Paradigms
+ 12-19-2012
+ The New CTO
+ 09-06-2012
+ Functional Programming for the Object Oriented Programmer
+ 08-24-2012
+ The Clean Architecture
+ 08-13-2012
+ NO DB
+ 05-15-2012
+ Why is Estimating so Hard?
+ 04-20-2012
+ After the Disaster
+ 04-18-2012
+ Service Oriented Agony
+ 02-01-2012
+ The Ruby Colored Box
+ 01-31-2012
+ Fecophiles
+ 01-20-2012
+ The Letter
+ 01-12-2012
+ Flipping the Bit
+ 01-11-2012
+ The Barbarians are at the Gates
+ 12-11-2011
+ Clean Architecture
+ 11-22-2011
+ Double Entry Bookkeeping Dilemma. Should I Invest or Not?
+ 11-06-2011
+ Simple Hickey
+ 10-20-2011
+ Screaming Architecture
+ 09-30-2011
+ Bringing Balance to the Force
+ 01-19-2011
+ What Software Craftsmanship is about
+ 01-17-2011
+ The Single Responsibility Principle
+ 08 May 2014
+ In 1972 David L. Parnas published a classic paper entitled On the Criteria To Be Used in Decomposing Systems into Modules. It appeared in the December issue of the Communications of the ACM, Volume 15, Number 12.
+In this paper, Parnas compared two different strategies for decomposing and separating the logic in a simple algorithm. The paper is fascinating reading, and I strongly urge you to study it. His conclusion, in part, is as follows:
+ “We have tried to demonstrate by these examples that 
+it is almost always incorrect to begin the decomposition 
+of a system into modules on the basis of a flowchart. 
+We propose instead that one begins with a list of 
+difficult design decisions or design decisions which are 
+likely to change. Each module is then designed to hide 
+such a decision from the others.”
+I added the emphasis in the second to last sentence. Parnas’ conclusion was that modules should be separated based, at lease in part, on the way that they might change.
+Two years later, Edsger Dijkstra wrote another classic paper entitled On the role of scientific thought. in which he introduced the term: The Separation of Concerns.
+The 1970s and 1980s were a fertile time for principles of software architecture. Structured Programming and Design were all the rage. During that time the notions of Coupling and Cohesion were introduced by Larry Constantine, and amplified by Tom DeMarco, Meilir Page-Jones and many others.
+In the late 1990s I tried to consolidate these notions into a principle, which I called: The Single Responsibility Principle. (I have this vague feeling that I stole the name of this principle from Bertrand Meyer, but I have not been able to confirm that.)
+The Single Responsibility Principle (SRP) states that each software module should have one and only one reason to change. This sounds good, and seems to align with Parnas’ formulation. However it begs the question: What defines a reason to change?
+Some folks have wondered whether a bug-fix qualifies as a reason to change. Others have wondered whether refactorings are reasons to change. These questions can be answered by pointing out the coupling between the term “reason to change” and “responsibility”.
+Certainly the code is not responsible for bug fixes or refactoring. Those things are the responsibility of the programmer, not of the program. But if that is the case, what is the program responsible for? Or, perhaps a better question is: who is the program responsible to? Better yet: who must the design of the program respond to?
+Imagine a typical business organization. There is a CEO at the top. Reporting to that CEO are the C-level executives: the CFO, COO, and CTO among others. The CFO is responsible for controlling the finances of the company. The COO is responsible for managing the operations of the company. And the CTO is responsible for the technology infrastructure and development within the company.
+Now consider this bit of Java code:
+public class Employee {
+ public Money calculatePay();
+ public void save();
+ public String reportHours();
+}
+ The calculatePay method implements the algorithms that determine how much a particular employee should be paid, based on that employee’s contract, status, hours worked, etc.
+ The ‘save’ method stores the data managed by the Employee object onto the enterprise database.
+ The reportHours method returns a string which is appended to a report that auditors use to ensure that employees are working the appropriate number of hours and are being paid the appropriate compensation.
+Now, which of those C-Level executives reporting to the CEO is responsible for specifying the behavior of the calculatePay method? Which of them would be fired[1] by the CEO if that method were catastrophically mis-specified? Clearly the answer is the CFO. Specifying the pay of employees is a financial responsibility. If all the employees were paid double for a year because someone in the CFOs organization mis-specified the rules for calculating pay, the CFO would likely be fired.
+A different C-Level executive is responsible for specifying the format and content of the string returned from the reportHours method. That executive manages the auditors and reviewers, and that’s an operations responsibility. So if there were a catastrophic mis-specification of that report, the COO would be fired.
+Finally, it should be obvious which of the C-Level executives would be fired if there were a catastrophic mis-specification of the save method. If the enterprise database were to be corrupted by such a horrific mis-specification, the CTO would likely be fired.
+So it stands to reason that when changes are made to the algorithm within the calculatePay method, the request for those changes will originate from the organization headed by the CFO. Similarly it will be the COO’s organization that will request changes to the reportHours method, and the CTOs organization that will request changes to the save method.
+And this gets to the crux of the Single Responsibility Principle. This principle is about people.
+When you write a software module, you want to make sure that when changes are requested, those changes can only originate from a single person, or rather, a single tightly coupled group of people representing a single narrowly defined business function. You want to isolate your modules from the complexities of the organization as a whole, and design your systems such that each module is responsible (responds to) the needs of just that one business function.
+Why? Because we don’t want to get the COO fired because we made a change requested by the CTO. Nothing terrifies our customers and managers more that discovering that a program malfunctioned in a way that was, from their point of view, completely unrelated to the changes they requested. If you change the calculatePay method, and inadvertently break the reportHours method; then the COO will start demanding that you never change the calculatePay method again.
+Imagine you took your car to a mechanic in order to fix a broken electric window. He calls you the next day saying it’s all fixed. When you pick up your car, you find the window works fine; but the car won’t start. It’s not likely you will return to that mechanic because he’s clearly an idiot.
+That’s how customers and managers feel when we break things they care about that they did not ask us to change.
+This is the reason we do not put SQL in JSPs. This is the reason we do not generate HTML in the modules that compute results. This is the reason that business rules should not know the database schema. This is the reason we separate concerns.
+Another wording for the Single Responsibility Principle is:
+ Gather together the things that change for the same reasons. Separate those things that change for different reasons.
+If you think about this you’ll realize that this is just another way to define cohesion and coupling. We want to increase the cohesion between things that change for the same reasons, and we want to decrease the coupling between those things that change for different reasons.
+However, as you think about this principle, remember that the reasons for change are people. It is people who request changes. And you don’t want to confuse those people, or yourself, by mixing together the code that many different people care about for different reasons.
+[1] I am indulging in a bit of hyperbole here. C-level executives don’t usually get fired for small mis-specifications. Still, it’s not outside the realm of possibility, and it does emphasize that the organizations reporting to these executives care about different concerns.

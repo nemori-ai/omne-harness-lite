@@ -1,0 +1,140 @@
+ Edsger Dijkstra: The First Computer Scientist | The Man | InformIT
+ if(isEnableGA){
+ if(currentEnvironment == 'QA'){
+ }else{
+ }
+ }
+ Home
+ >
+ Articles
+ Edsger Dijkstra: The First Computer Scientist
+ By Robert C. Martin
+ Feb 17, 2025
+ 📄 Contents
+ ␡ 
+ The Man
+ The ARRA: 1952-1955
+ The ARMAC: 1955-1958
+ ALGOL and the X1: 1958-1962
+ The Gathering Gloom: 1962
+ The Rise of Science: 1963-1967
+ Mathematics: 1968
+ Structured Programming: 1968
+ References
+ ⎙ Print
+ Page 1 of 9
+ Next >
+ This chapter is from the book 
+ This chapter is from the book
+ We, Programmers: A Chronicle of Coders from Ada to AI
+ Learn More
+ Buy
+ This chapter is from the book
+ This chapter is from the book 
+ We, Programmers: A Chronicle of Coders from Ada to AI
+ Learn More
+ Buy
+ Edsger Dijkstra is one of the most famous names in software. He is the father of structured programming and the guy who told us not to use GOTO. He invented the semaphore construct and was the author of many useful algorithms. He cowrote the first working version of the ALGOL 60 compiler and participated in the design of early multiprogramming operating systems.
+But these accomplishments are mere mile markers along a battle-torn path. The true legacy of Edsger Dijkstra is the ascendance of the abstract over the physical, a battle he fought with himself, with his peers, and with the profession at large, and eventually won.
+He was a pioneer and a legend and a programmer, and perhaps not particularly humble. Alan Kay once affectionately said of him: “Arrogance in computer science is measured in nano-Dijkstras.” He went on to explain that “Dijkstra was much more funny than annoying for anyone who had any sense of self.” In any case, the story of Edsger Dijkstra is fascinating.
+The Man
+Edsger Wybe Dijkstra was born in Rotterdam on May 11, 1930. His father was a chemistry teacher and president of the Dutch Chemical Society. His mother was a mathematician. So the boy was surrounded by math and technology.
+During the German occupation of the Netherlands, his parents sent him away to the countryside until things calmed down. After the war, a lot was broken, but there was also a lot of hope.
+Dijkstra graduated high school in 1948 with the highest possible marks in math and science.
+Like all young people, I suppose, he rejected his parents’ technical calling at first, and thought he’d be better suited to study law and represent the Netherlands at the UN. But the technical bug caught him at Leiden University, and his interests quickly changed to theoretical physics.
+Those interests changed again in 1951 when his father arranged for him to go to Cambridge, in the UK, to attend a three-week course introducing programming on the EDSAC. His father thought that learning about the new tools of the day would enhance his career in theoretical physics. But the result was quite different.
+Although he struggled with English, he very much enjoyed the class; and he learned a great deal. He said that those three weeks changed his life. While there, he met the director of the Mathematical Centre (MC) in Amsterdam, Adriaan van Wijngaarden, who offered him a part-time job as a programmer.
+Dijkstra accepted that job in March of 1952. He was the first programmer in the Netherlands. He was hooked by how unforgiving computers were.
+The MC did not have a computer at the time. They were trying to build the ARRA, an electromechanical machine. He helped design the instruction set and wrote programs that would have to wait until the machine was built.
+It was here that he met Gerrit Blaauw, who had studied under Howard Aiken at Harvard in ’52 and would go on to help design the IBM 360 with Fred Brooks and Gene Amdahl. Blaauw imported both material and many decent techniques into the MC from Aiken’s laboratory.
+Dijkstra and Blaauw worked together on the ARRA1 and other projects. Of Blaauw, Dijkstra once told the following story:2
+“He was a very punctual man, and that was a good thing because for a couple of months [he] and I debugged the FERTA3 that was installed at Schiphol Aircraft.4 The place was a little hard to reach and, thank goodness, he had a car. So early in the morning, at 7:00, I would jump on my bicycle, go to the highway, hide my bicycle, and wait on the side until Gerrit came and picked me up. It was a grim winter, and it could only be done thanks to an old Canadian army code and due to the fact that, as I said, Gerrit was a very punctual man. I remember one horrible occasion that we had been debugging the FERTA all day long and it was 10:00 in the evening and his [car] was the last car in the […] parking lot, and it was beginning to snow, and the thing wouldn’t start. I don’t exactly remember how we got home, my guess is that Gerrit Blaauw fixed […] another bug that day.”
+Dijkstra loved the challenge of “being ingenious and being accurate.” But the deeper he got into the efforts of the MC, the more he feared that programming was not an appropriate field for him. He was, after all, being groomed as a first-class theoretical physicist, and programming computers was not first-class anything at the time.
+This personal dilemma came to a head in 1955 when he expressed his fears to Wijngaarden. Dijkstra said:
+“When I left his office a number of hours later, I was another man. [Wijngaarden explained] quietly that automatic computers were here to stay, that we were just at the beginning and [I could] be one of the persons called to make programming a respectable discipline in the years to come. This was a turning point in my life….”5
+In 1957 Dijkstra married Maria (Ria) Debets, one of the girls working as a “computer” in the MC. The officials in Amsterdam refused to recognize the profession of “programmer” that Dijkstra had written upon his marriage license. Of this, he says:
+“Believe it or not, but under the heading of ‘profession’ my marriage act shows the ridiculous entry ‘theoretical physicist’!”
+ Page 1 of 9
+ Next >
+ 🔖 Save To Your Account 
+ InformIT Promotional Mailings & Special Offers
+ ⚠
+ I would like to receive exclusive offers and hear about products from InformIT and its family of brands. I can unsubscribe at any time.
+ Email Address
+books, eBooks, and digital learning
+
+ 
+ View Your Cart
+ Join
+ |
+ Sign In
+ Search
+Search
+  View Your Cart
+ 👤 Sign In
+ Join
+ Store
+ Business & Management
+Certification
+ Cloud Computing & Virtualization
+Data
+Digital Photography
+Engineering
+ Graphics & Web Design
+ Home & Office Computing
+Information Technology
+ Mobile Application Development & Programming
+Networking
+Open Source
+Operating Systems, Server
+Programming
+Security
+ Software Development & Management
+Web Development
+Web Services
+FormatsBooks
+eBooks
+Practice Tests
+Software
+Video
+Web Editions
+ Deals & Promotions
+Video Training
+ImprintsAddison-Wesley Professional
+Adobe Press
+Cisco Press
+FT Press
+IBM Press
+Microsoft Press Store
+Oracle Press Books
+Peachpit
+Pearson IT Certification
+Que Publishing
+Sams Publishing
+ExploreAbout
+Affiliate Program
+Authors
+ Chapters & Articles
+ Deals & Promotions
+Popular Topics
+Product Registration
+ Special Offers & Newsletter
+Support
+Video Training
+CommunityPress and Media Relations
+Product Review Team
+User Groups
+About
+Affiliates
+Cookies
+FAQ
+Legal Notice
+Ordering Information
+Pearson+
+Privacy
+Do Not Sell My Personal Information
+Press
+Promotions
+Support
+Write for Us
+ © 2026 Pearson. All rights reserved, including those for text and data mining and training of artificial intelligence and similar technologies.

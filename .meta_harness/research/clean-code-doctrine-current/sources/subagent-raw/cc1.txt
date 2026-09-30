@@ -1,0 +1,388 @@
+ Clean Code: A Handbook of Agile Software Craftsmanship | InformIT
+ if(isEnableGA){
+ if(currentEnvironment == 'QA'){
+ }else{
+ }
+ }
+ Home
+ >
+ Store
+ View Larger Image
+ Register your product
+ to gain access to bonus material or receive a coupon.
+ Clean Code: A Handbook of Agile Software Craftsmanship
+ By Robert C. Martin
+ Published Aug 1, 2008
+ by Pearson. Part of the Robert C. Martin Series series.
+ Best Value Purchase
+Book + eBook Bundle 
+ Your Price: $64.79
+ List Price: $107.98
+ Includes EPUB and PDF
+ About eBook Formats
+ This eBook includes the following formats, accessible from your Account page after purchase:
+ EPUB
+ The open industry format known for its reflowable content and usability on supported mobile devices.
+ PDF
+ The popular standard, used most often with the free Acrobat® Reader® software.
+ This eBook requires no passwords or activation to read. We customize your eBook by discreetly watermarking it with your name, making it uniquely yours.
+ Watermarked eBook FAQ
+ eBook Download Instructions
+ Add to cart
+ FREE SHIPPING!
+ More Purchase Options
+Book 
+ Your Price: $47.99
+ List Price: $59.99
+ Usually ships in 24 hours.
+ Add to cart
+ FREE SHIPPING!
+eBook 
+ Your Price: $38.39
+ List Price: $47.99
+ Includes EPUB and PDF
+ About eBook Formats
+ This eBook includes the following formats, accessible from your Account page after purchase:
+ EPUB
+ The open industry format known for its reflowable content and usability on supported mobile devices.
+ PDF
+ The popular standard, used most often with the free Acrobat® Reader® software.
+ This eBook requires no passwords or activation to read. We customize your eBook by discreetly watermarking it with your name, making it uniquely yours.
+ Watermarked eBook FAQ
+ eBook Download Instructions
+ Add to cart
+ Audiobook now available at your favorite audiobook retailer
+ Description
+ Downloads
+ Extras
+ Sample Content
+ Updates
+ More Information
+ Description
+ Copyright 2009
+ Dimensions: 7" x 9-1/4"
+ Pages: 464
+ Edition: 1st
+Book 
+ ISBN-10: 0-13-235088-2
+ ISBN-13: 978-0-13-235088-4
+ Even bad code can function. But if code isn’t clean, it can bring a development organization to its knees. Every year, countless hours and significant resources are lost because of poorly written code. But it doesn’t have to be that way.
+Noted software expert Robert C. Martin presents a revolutionary paradigm with Clean Code: A Handbook of Agile Software Craftsmanship. Martin has teamed up with his colleagues from Object Mentor to distill their best agile practice of cleaning code “on the fly” into a book that will instill within you the values of a software craftsman and make you a better programmer—but only if you work at it.
+What kind of work will you be doing? You’ll be reading code—lots of code. And you will be challenged to think about what’s right about that code, and what’s wrong with it. More importantly, you will be challenged to reassess your professional values and your commitment to your craft.
+Clean Code is divided into three parts. The first describes the principles, patterns, and practices of writing clean code. The second part consists of several case studies of increasing complexity. Each case study is an exercise in cleaning up code—of transforming a code base that has some problems into one that is sound and efficient. The third part is the payoff: a single chapter containing a list of heuristics and “smells” gathered while creating the case studies. The result is a knowledge base that describes the way we think when we write, read, and clean code.
+Readers will come away from this book understanding
+How to tell the difference between good and bad code
+How to write good code and how to transform bad code into good code
+How to create good names, good functions, good objects, and good classes
+How to format code for maximum readability
+How to implement complete error handling without obscuring code logic
+How to unit test and practice test-driven development
+This book is a must for any developer, software engineer, project manager, team lead, or systems analyst with an interest in producing better code.
+ 
+ Downloads
+ Sample Files
+ Download the sample pages
+ 
+ Extras
+ Related Articles
+ Exploring the Mythical Weekend Coding Project
+ Robert C. Martin’s Clean Code Tip of the Week #1: An Accidental Doppelgänger in Ruby
+ Robert C. Martin's Clean Code Tip #12: Eliminate Boolean Arguments
+ Robert C. Martin's Clean Code Tip of the Week #10: Avoid Too Many Arguments
+ Robert C. Martin's Clean Code Tip of the Week #11: Output Arguments are Counterintuitive
+ Robert C. Martin's Clean Code Tip of the Week #2: The Inverse Scope Law of Function Names
+ Robert C. Martin's Clean Code Tip of the Week #3: Avoid Inappropriate Information
+ Robert C. Martin's Clean Code Tip of the Week #4: Avoid Obsolete Comments
+ Robert C. Martin's Clean Code Tip of the Week #6: Avoid Poorly Written Comments
+ Robert C. Martin's Clean Code Tip of the Week #7: Clean up Old Commented Out Code
+ Robert C. Martin's Clean Code Tip of the Week #8: Your Build Shouldn't Require More Than One Step
+ Robert C. Martin's Clean Code Tip of the Week #9: One Step Test
+ 
+ Sample Content
+ Online Sample Chapters
+ Robert C. Martin's Clean Code Tip of the Week #5: Avoid Redundant Comments
+ What Is Clean Code?
+ Sample Pages
+ Download the sample pages
+ Table of Contents
+ Foreword                      xix
+Introduction              xxv
+On the Cover                     xxix
+Chapter 1: Clean Code                    1
+There Will Be Code                        2
+Bad Code                           3
+The Total Cost of Owning a Mess                 4
+Schools of Thought                        12
+We Are Authors                      13
+The Boy Scout Rule                     14
+Prequel and Principles                   15
+Conclusion                        15
+Bibliography                  15
+Chapter 2: Meaningful Names                     17
+Introduction               17
+Use Intention-Revealing Names                     18
+Avoid Disinformation                         19
+Make Meaningful Distinctions                20
+Use Pronounceable Names                            21
+Use Searchable Names                                22
+Avoid Encodings                          23
+Avoid Mental Mapping                    25
+Class Names                    25
+Method Names                              25
+Don’t Be Cute                    26
+Pick One Word per Concept                 26
+Don’t Pun                    26
+Use Solution Domain Names                    27
+Use Problem Domain Names                   27
+Add Meaningful Context                       27
+Don’t Add Gratuitous Context                    29
+Final Words                        30
+Chapter 3: Functions                                           31
+Small!                               34
+Do One Thing                         35
+One Level of Abstraction per Function                           36
+Switch Statements                     37
+Use Descriptive Names                      39
+Function Arguments                          40
+Have No Side Effects                          44
+Command Query Separation                           45
+Prefer Exceptions to Returning Error Codes              46
+Don’t Repeat Yourself                          48
+Structured Programming                   48
+How Do You Write Functions Like This?                49
+Conclusion                          49
+SetupTeardownIncluder                        50
+Bibliography                                       52
+Chapter 4: Comments                                                  53
+Comments Do Not Make Up for Bad Code                   55
+Explain Yourself in Code                        55
+Good Comments                              55
+Bad Comments                          59
+Bibliography                          74
+Chapter 5: Formatting                                           75
+The Purpose of Formatting                     76
+Vertical Formatting                         76
+Horizontal Formatting                         85
+Team Rules                      90
+Uncle Bob’s Formatting Rules                  90
+Chapter 6: Objects and Data Structures                      93
+Data Abstraction                     93
+Data/Object Anti-Symmetry                        95
+The Law of Demeter                         97
+Data Transfer Objects                     100
+Conclusion                       101
+Bibliography                           101
+Chapter 7: Error Handling                           103
+Use Exceptions Rather Than Return Codes                  104
+Write Your Try-Catch-Finally Statement First                    105
+Use Unchecked Exceptions                         106
+Provide Context with Exceptions                      107
+Define Exception Classes in Terms of a Caller’s Needs                107
+Define the Normal Flow                  109
+Don’t Return Null                        110
+Don’t Pass Null                       111
+Conclusion                           112
+Bibliography                                 112
+Chapter 8: Boundaries                                                            113
+Using Third-Party Code                               114
+Exploring and Learning Boundaries                      116
+Learning log4j                         116
+Learning Tests Are Better Than Free                      118
+Using Code That Does Not Yet Exist                     118
+Clean Boundaries                           120
+Bibliography                           120
+Chapter 9: Unit Tests                                    121
+The Three Laws of TDD                   122
+Keeping Tests Clean                          123
+Clean Tests                        124
+One Assert per Test                        130
+F.I.R.S.T.                      132
+Conclusion                       133
+Bibliography                        133
+Chapter 10: Classes                         135
+Class Organization                  136
+Classes Should Be Small!                 136
+Organizing for Change                   147
+Bibliography                     151
+Chapter 11: Systems                                                  153
+How Would You Build a City?                     154
+Separate Constructing a System from Using It                      154
+Scaling Up                            157
+Java Proxies                        161
+Pure Java AOP Frameworks                     163
+AspectJ Aspects                     166
+Test Drive the System Architecture                      166
+Optimize Decision Making                       167
+Use Standards Wisely, When They Add Demonstrable Value                168
+Systems Need Domain-Specific Languages                   168
+Conclusion                    169
+Bibliography                      169
+Chapter 12: Emergence                        171
+Getting Clean via Emergent Design                171
+Simple Design Rule 1: Runs All the Tests                  172
+Simple Design Rules 2–4: Refactoring                        172
+No Duplication                      173
+Expressive                        175
+Minimal Classes and Methods               176
+Conclusion                   176
+Bibliography                     176
+Chapter 13: Concurrency                         177
+Why Concurrency?                    178
+Challenges                        180
+Concurrency Defense Principles                   180
+Know Your Library                    182
+Know Your Execution Models                       183
+Beware Dependencies Between Synchronized Methods            185
+Keep Synchronized Sections Small                  185
+Writing Correct Shut-Down Code Is Hard                 186
+Testing Threaded Code                     186
+Conclusion                      190
+Bibliography                         191
+Chapter 14: Successive Refinement                     193
+Args Implementation                          194
+Args: The Rough Draft                       201
+String Arguments                   214
+Conclusion                       250
+Chapter 15: JUnit Internals                                    251
+The JUnit Framework                    252
+Conclusion                 265
+Chapter 16: Refactoring SerialDate                         267
+First, Make It Work                     268
+Then Make It Right                    270
+Conclusion                      284
+Bibliography                     284
+Chapter 17: Smells and Heuristics                         285
+Comments                           286
+Environment                       287
+Functions                            288
+General                               288
+Java                                     307
+Names                                 309
+Tests                                    313
+Conclusion                         314
+Bibliography                      315
+Appendix A: Concurrency II                              317
+Client/Server Example                           317
+Possible Paths of Execution                    321
+Knowing Your Library                      326
+Dependencies Between Methods Can Break Concurrent Code         329
+Increasing Throughput                  333
+Deadlock                    335
+Testing Multithreaded Code                   339
+Tool Support for Testing Thread-Based Code                    342
+Conclusion                    342
+Tutorial: Full Code Examples                    343
+Appendix B: org.jfree.date.SerialDate                             349
+Appendix C: Cross References of Heuristics                  409
+Epilogue                           411
+Index                                  413
+ 
+ Updates
+ Errata
+ We've made every effort to ensure the accuracy of this book and its companion content. Any errors that have been confirmed since this book was published can be downloaded below.
+Download the errata (46 KB .doc)
+ Submit Errata
+ 
+ More Information
+ 
+ InformIT Promotional Mailings & Special Offers
+ ⚠
+ I would like to receive exclusive offers and hear about products from InformIT and its family of brands. I can unsubscribe at any time.
+ Email Address
+ Request an
+ Instructor
+ or
+ Media
+ review copy.
+ Corporate, Academic, and Employee Purchases
+ International Buying Options
+ Other Things You Might Like
+ Essential Test-Driven Development
+ By Rob Myers
+ eBook 
+ $30.39 
+ Essential Test-Driven Development
+ By Rob Myers
+ Book 
+ $31.99 
+ Continuous Deployment Strategies (Video Course)
+ By Byron Sommardahl
+ Online Video 
+ $399.99 
+books, eBooks, and digital learning
+
+ 
+ View Your Cart
+ Join
+ |
+ Sign In
+ Search
+Search
+  View Your Cart
+ 👤 Sign In
+ Join
+ Store
+ Business & Management
+Certification
+ Cloud Computing & Virtualization
+Data
+Digital Photography
+Engineering
+ Graphics & Web Design
+ Home & Office Computing
+Information Technology
+ Mobile Application Development & Programming
+Networking
+Open Source
+Operating Systems, Server
+Programming
+Security
+ Software Development & Management
+Web Development
+Web Services
+FormatsBooks
+eBooks
+Practice Tests
+Software
+Video
+Web Editions
+ Deals & Promotions
+Video Training
+ImprintsAddison-Wesley Professional
+Adobe Press
+Cisco Press
+FT Press
+IBM Press
+Microsoft Press Store
+Oracle Press Books
+Peachpit
+Pearson IT Certification
+Que Publishing
+Sams Publishing
+ExploreAbout
+Affiliate Program
+Authors
+ Chapters & Articles
+ Deals & Promotions
+Popular Topics
+Product Registration
+ Special Offers & Newsletter
+Support
+Video Training
+CommunityPress and Media Relations
+Product Review Team
+User Groups
+About
+Affiliates
+Cookies
+FAQ
+Legal Notice
+Ordering Information
+Pearson+
+Privacy
+Do Not Sell My Personal Information
+Press
+Promotions
+Support
+Write for Us
+ © 2026 Pearson. All rights reserved, including those for text and data mining and training of artificial intelligence and similar technologies.

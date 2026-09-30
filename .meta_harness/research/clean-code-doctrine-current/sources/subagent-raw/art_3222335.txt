@@ -1,0 +1,162 @@
+ First Principles | Everything Small, Well Named, Organized, and Ordered | InformIT
+ if(isEnableGA){
+ if(currentEnvironment == 'QA'){
+ }else{
+ }
+ }
+ Home
+ >
+ Articles
+ First Principles
+ By Robert C. Martin
+ Feb 24, 2026
+ 📄 Contents
+ ␡ 
+ Everything Small, Well Named, Organized, and Ordered
+ A More Significant Example
+ A Final Thought
+ ⎙ Print
+ Page 1 of 3
+ Next >
+ This chapter is from the book 
+ This chapter is from the book
+ Clean Code: A Handbook of Agile Software Craftsmanship, 2nd Edition
+ Learn More
+ Buy
+ This chapter is from the book
+ This chapter is from the book 
+ Clean Code: A Handbook of Agile Software Craftsmanship, 2nd Edition
+ Learn More
+ Buy
+Click to view larger image
+If you read this chapter and grasp all the principles within, then you’ll be 90% of the way toward cleaning code. The ideas presented here are old and well established. They have stood the test of time and should be part of every programmer’s regimen of discipline.
+Keep in mind that these are not strict laws. They are not rules that must be followed. They are, more or less, guidelines. Each should be applied in the context of the problem at hand, and every programmer should feel free to take whatever license is necessary to solve that problem.
+But, when all else is equal, and all the variables are averaged out, these are the principles that I believe emanate from well-cleaned code.
+If, as you read what follows, you encounter concepts that are foreign or novel, be assured that all will be explained in subsequent chapters. Indeed, when you have finished reading this book, you may wish to complete the circle by rereading this chapter.
+Everything Small, Well Named, Organized, and Ordered
+If you stop now and read nothing more than that heading, you’ll have much of the essence of what it takes to clean code.
+Keep everything small. Choose names for those small elements that communicate to other programmers. Define and maintain a structure and organization that present the software in such a way that others can easily consume it. Keep the elements within that organization well-ordered so that one concept follows another in a rational and sensible way.
+Remember that your own understanding of the code will likely bias your attempts at providing good names and structures; so work hard to put yourself in the headspace of those who do not understand the code.
+Functions
+Functions should be small. Most should be just a handful of lines. This allows them to have nice, descriptive names and promotes the separation of concerns. It ensures that each function does one, and only one, thing.
+Let’s start with the name. If you see a snippet of lines that does something that can be reasonably named, then that snippet should be moved into a function named for what that snippet does. The name should be a verb that says what the function does and that allows the calling sequence to read “like well-written prose.”1
+As an example, consider this function, adapted from the JCommon library. It finds the date of a specified weekday before a given date. The weekday codes are integers 1 (Sunday) through 7 (Saturday).
+public static Date getPreviousDayOfWeek(int weekday, Date from) {
+ // check arguments…
+ if (!isValidWeekdayCode(weekday)) {
+ throw new IllegalArgumentException(
+ "Invalid day-of-the-week code."
+ );
+ }
+ // find the date…
+ final int adjust;
+ final int baseDOW = from.getDayOfWeek();
+ if (baseDOW > weekday) {
+ adjust = Math.min(0, weekday - baseDOW);
+ } else {
+ adjust = -7 + Math.max(0, weekday - baseDOW);
+ }
+ return Date.addDays(adjust, from);
+}
+There are at least two snippets of code that we could extract into smaller and better-named functions. And those extractions will lead to some simplifications.
+public static Date getPreviousDayOfWeek(int weekday, Date from) {
+ checkWeekdayArgument(weekday);
+ return addDays(-daysBefore(weekday, from), from);
+}
+private static void checkWeekdayArgument(int weekday) {
+ if (!isValidWeekdayCode(weekday))
+ throw new IllegalArgumentException(
+ "Invalid day-of-the-week code.");
+}
+private static int daysBefore(int targetWeekday, Date from) {
+ int fromWeekday = from.getDayOfWeek();
+ int diff = fromWeekday - targetWeekday;
+ return diff + (diff > 0 ? 0 : 7);
+}
+Notice how the simplified getPreviousDayOfWeek function reads. It’s short, and it’s obvious. If you need to know more, all you have to do is look down to see the extracted functions. However, most often you would not need to know more. You’d simply look at that function, agree with it, and move on. It may not read like the prose of a Crichton novel, but it reads pretty well.
+FUTURE BOB:
+I don’t like the leading minus sign. It would have been better to create a subtractDays function in order to get rid of it. That’s a small thing, but small things matter.
+ Page 1 of 3
+ Next >
+ 🔖 Save To Your Account 
+ InformIT Promotional Mailings & Special Offers
+ ⚠
+ I would like to receive exclusive offers and hear about products from InformIT and its family of brands. I can unsubscribe at any time.
+ Email Address
+books, eBooks, and digital learning
+
+ 
+ View Your Cart
+ Join
+ |
+ Sign In
+ Search
+Search
+  View Your Cart
+ 👤 Sign In
+ Join
+ Store
+ Business & Management
+Certification
+ Cloud Computing & Virtualization
+Data
+Digital Photography
+Engineering
+ Graphics & Web Design
+ Home & Office Computing
+Information Technology
+ Mobile Application Development & Programming
+Networking
+Open Source
+Operating Systems, Server
+Programming
+Security
+ Software Development & Management
+Web Development
+Web Services
+FormatsBooks
+eBooks
+Practice Tests
+Software
+Video
+Web Editions
+ Deals & Promotions
+Video Training
+ImprintsAddison-Wesley Professional
+Adobe Press
+Cisco Press
+FT Press
+IBM Press
+Microsoft Press Store
+Oracle Press Books
+Peachpit
+Pearson IT Certification
+Que Publishing
+Sams Publishing
+ExploreAbout
+Affiliate Program
+Authors
+ Chapters & Articles
+ Deals & Promotions
+Popular Topics
+Product Registration
+ Special Offers & Newsletter
+Support
+Video Training
+CommunityPress and Media Relations
+Product Review Team
+User Groups
+About
+Affiliates
+Cookies
+FAQ
+Legal Notice
+Ordering Information
+Pearson+
+Privacy
+Do Not Sell My Personal Information
+Press
+Promotions
+Support
+Write for Us
+ © 2026 Pearson. All rights reserved, including those for text and data mining and training of artificial intelligence and similar technologies.

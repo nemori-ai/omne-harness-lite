@@ -1,0 +1,19 @@
+[00:00] micro-services. Why are people so enthusiastic about that little Greek character
+[00:08] Mew right? Oh they're micro-services. They're just services guys. That's all. They're just
+[00:17] certain. They might be small. Doesn't matter. They're just services. And you know
+[00:21] what the service is don't you? A service is a function. That's right. It has a way
+[00:28] to call it and it has arguments. Oh okay it's an asynchronous function. Fine. You don't
+[00:36] have to wait for the return value. Fine. You know you could do that with a thread
+[00:41] inside the same address space. You could do that. Oh but it's much better of
+[00:48] course to take the function name and function arguments and convert them into
+[00:53] some horrible string. You know like a Jason string or a Yamal string or God
+[01:00] help you. An XML string is much better to do that. And then squirt it one bit at a
+[01:08] time through a network connection. That's what you're supposed to do. Oh yes. That's
+[01:14] very efficient. That's really wise thing to do. And then of course you've got to
+[01:19] receive it on the other end. And you've got to unpack it and put it all together
+[01:23] into a function call. Now look there are reasons to have services. Oh yes there are, but they're
+[01:36] not many of them. And you do not want to have services being your architectural and design
+[01:45] mechanism. There is no such thing as a service-oriented architecture. There is a service-oriented
+[01:52] deployment, but not an architecture. And please please never never never use services or
+[01:59] microservices for the purpose of decoupling. You can decouple your functions without sticking
+[02:07] in between them.
