@@ -207,11 +207,11 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `InputMeter` 是提供给函数或 transport factory 的可信可执行构件，不进 model profile JSON，也不是调用者传入的准入布尔值。定义、供应商、算法版本及证据绑定到贡献；另一计量来源签发的计划不能经本宿主发送。`createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)` 针对精确的 `deepseek/deepseek-v4-pro-0813` / `deepinfra/fp8` 路由，固定 DeepSeek V4 Pro 公开提示词编码器与 tokenizer。由于已查来源未公开 OpenRouter／DeepInfra 的字节完全一致的私有提示词装配，它返回的是**估算**。打包 tokenizer/config 的哈希及官方文本、推理、工具 golden 离线验证。余量由调用者显式选择；估算不替代上游 usage 和费用。没有计量证据的官方定义无法成功规划。上面的合成 `controlledMeter` 只演示本地协议，绝不可用于真实供应商。
 
-37 个供给型号共用拒答文本读取器。当前 OpenAI、Anthropic 和 DeepSeek 定义绑定各家族 `mp4-18` 实现，xAI 绑定 `mp4-19`，其他家族仍为 `mp4-17`。`tests/official-reader-bindings.spec.ts` 对照明确的发布样本，验证所有当前工厂、完整 profile 和实际 planner 调用；工厂拒绝旧执行绑定。这些本地检查不等于 37 型号真实 OpenRouter 认证，Pro 上下文用量仍明确未知。
+37 个供给型号共用拒答文本读取器。当前 OpenAI、Anthropic 定义绑定各家族 `mp4-18` 实现，DeepSeek 与 xAI 绑定 `mp4-19`，其他家族仍为 `mp4-17`。`tests/official-reader-bindings.spec.ts` 对照明确的发布样本，验证所有当前工厂、完整 profile 和实际 planner 调用；工厂拒绝旧执行绑定。这些本地检查不等于 37 型号真实 OpenRouter 认证，Pro 上下文用量仍明确未知。
 
-`createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)` 将单独的 V4.1 Flash tokenizer 和公开编码器绑定到 `deepseek/deepseek-v4.1-flash` / `deepinfra/fp8`。多轮工具与双图提示词使用固定的上游官方向量校验。`mp4-18` 实现按内联图片实际尺寸，使用固定公开图像处理器的 patch／下采样网格和 1,024-token 上限估算，并替换提示词已计入的图片占位符；实际供应商预处理并未公开。图片字节和数量仍由最终请求体的精确门检查。未知图片 URL 或不支持的内容在 HTTP 前返回计量不可得。估算包含提示词之外的序列化请求字段，不把内联 base64 当文本 token。余量由每次请求配置；估算不替代上游 usage，也不证明真实图片发送。
+`createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)` 将单独的 V4.1 Flash tokenizer 和公开编码器绑定到 `deepseek/deepseek-v4.1-flash` / `deepinfra/fp8`。多轮工具与双图提示词使用固定的上游官方向量校验。`mp4-19` 实现按内联图片实际尺寸，使用固定公开图像处理器的 patch／下采样网格和 1,024-token 上限估算，并替换提示词已计入的图片占位符；实际供应商预处理并未公开。图片字节和数量仍由最终请求体的精确门检查。未知图片 URL 或不支持的内容在 HTTP 前返回计量不可得。估算包含提示词之外的序列化请求字段，不把内联 base64 当文本 token。余量由每次请求配置；估算不替代上游 usage，也不证明真实图片发送。
 
-DeepSeek Flash／Pro 当前分别绑定 definition 修订 4／5 与 `mp4-18`，共用 wire 元数据及增量计量，保留不同的参考编码器。full 和增量路径均在发送前拒绝无法解释的私有 `reasoning_details`，不以密文 JSON 分词代替隐藏推理计量；支持的可见历史完整保留。算法标识更新使旧校准锚点失效。
+DeepSeek Flash／Pro 当前分别绑定 definition 修订 5／6 与 `mp4-19`（Flash 算法 `deepseek-v41-flash-reference-5`，Pro `deepseek-v4-pro-reference-4`，边界 `deepseek-reference-boundary/2`，transform `/2`），共用 wire 元数据、可见详情投影及增量计量，保留不同的参考编码器。只解释一种有限的 `reasoning_details` 形态：assistant 消息恰有一项详情，其自有键恰为 `type`、`text`、`format`、`index`，取值为 `reasoning.text`、字符串文字、原字面 `unknown` 与精确值为 0 的 index，且消息不同时带 `reasoning` 或 `reasoning_content`。仅在计量副本中把该文字交给参考编码器的 `reasoning_content`；full、φ、δ 共用同一投影。实际请求体、序列化字节、输出块及摘要不变，该文字不再作为序列化元数据重复计数，也不加原输出计数 O 或 `reasoning_tokens`。结果仍是**估算**：OpenRouter／DeepInfra 的私有投影未知，不声称误差上界。其他详情形态、summary、密文或混合推理来源一律不可计量，请求在 HTTP 前被拒；不以密文 JSON 分词代替隐藏推理计量。两款工厂的公开方法本身经过共同的 `measureFull`／`measureReplay`／`measureNew` 来源守门。旧 `mp4-18` basis 未证明兼容，回落 full；不保留旧工厂。
 
 `createOpenAiInputMeter(definition)` 通过唯一 `openaiFamilyRecord` 表和 `openAiOutputHistoryPolicy` 提供 12 个当前 OpenAI 型号。GPT-6 Astra/Sol/Luna 的 definition 修订为 5/6/7，三个 Pro 为 6；GPT-5.6 Sol/Terra/Luna 为 9，三个 Pro 为 8，统一绑定 `pi-ai:openai/mp4-18`。工厂拒绝旧执行绑定，精确留存的原绑定仅作为有限历史事实解释 O。
 
@@ -406,7 +406,7 @@ pnpm --filter @omne-harness-lite/pi-ai-transport run test
 
 ### 显式的 DeepSeek Pro 定义
 
-`deepseekV4Pro0813Definition` 提供固定模型 `deepseek/deepseek-v4-pro-0813`、固定路由 `deepinfra/fp8` 的一个窄定义。它复用 OpenRouter 公共规划器和 DeepSeek 家族规则，完整实现坐标为 `pi-ai:deepseek / mp4-18`，定义修订为 `5`。Flash 型号在同一实现下为修订 `4`。导入定义不会注册模型、分配连接池或发送请求。
+`deepseekV4Pro0813Definition` 提供固定模型 `deepseek/deepseek-v4-pro-0813`、固定路由 `deepinfra/fp8` 的一个窄定义。它复用 OpenRouter 公共规划器和 DeepSeek 家族规则，完整实现坐标为 `pi-ai:deepseek / mp4-19`，定义修订为 `6`。Flash 型号在同一实现下为修订 `5`。导入定义不会注册模型、分配连接池或发送请求。
 
 模型记载的能力是文本输入、文本输出。所选路由提供 1,048,576 token 共享窗口和 16,384 token 输出容量；1,032,192 token 输入预算预留了完整输出容量。这是换算的只计输入预算，不是路由 `max_prompt_tokens` 的原值，也不是极值请求实测。空输入限制对象表示该纯文本声明没有活动的图片限制；两个适用的上游事实明确为 `unknown`，不表示无限。
 
@@ -545,11 +545,13 @@ reader每个终态都交同一个累积器的 `readFacts`；解析即保存usage
 
 ### DeepSeek 有符号增量参考计量
 
-Pro0813 修订 4 / `mp4-17` 与 Flash 修订 3 / `mp4-17` 在固定 `deepinfra/fp8` 上用已钉 public reference renderer 提供 full 与有符号 replay/new 估算。固定绑定识别 OpenRouter 的 `DeepInfra` 显示名；其他 provider/model 身份仍使锚失效。纯投影比较旧/新参考 prompt，不分词稳定历史；只有锚外片段和有限末端 assistant framing 进入增量 tokenizer。有 N 时由 δ 承担最终 framing 变化，否则由 φ 承担。锚内正文或 substantive reasoning 重写回退 full；密文长度不会使未知 opaque reasoning 获得增量支持。
+Pro0813 修订 6 与 Flash 修订 5 / `mp4-19` 在固定 `deepinfra/fp8` 上用各自已钉 public reference renderer 提供 full 与有符号 replay/new 估算。固定绑定识别 OpenRouter 的 `DeepInfra` 显示名；其他 provider/model 身份仍使锚失效。纯投影比较旧/新参考 prompt，不分词稳定历史；只有锚外片段和有限末端 assistant framing 进入增量 tokenizer。有 N 时由 δ 承担最终 framing 变化，否则由 φ 承担。锚内正文或 substantive reasoning 重写回退 full。上述有限可见详情形态经同一计量副本投影进入边界；含该详情的稳定 P 仍不分词。密文长度不会使未知 opaque reasoning 获得增量支持。
 
 `MarginalMeterInput.boundary` 是可选的 provider-owned 边界描述，在来源、前缀和 basis 校验后产生，不是调用者 trust 标志。DeepSeek 在拆分 G/N 之前保留实际顺序，计算有符号后缀差分，覆盖缺 usage 的多轮、user/tool 合并及空分支。φ 估算 P→P+G 后缀变化，δ 估算 P+G→实际最终顺序的变化，因此 δ 可以扣掉因后继 user 而排除的本次新增回放 reasoning；两者是估算净贡献，不是逐消息实测 token。独立后缀分词与 OpenRouter/DeepInfra 私有模板均仍为 **estimated**，不是精确值或上界；合成后只应用一次配置余量。本次不新增付费 serving 认证或缓存命中保证。完整请求 bytes/图片限制继续检查；完整线性序列化、参考渲染和 hash 仍然存在，稳定 P 不进入增量 tokenizer。
 
 Flash 保留自身钉住的 renderer、tool result 排序、tokenizer 与 image span 公式；增量只加新图片 span，已在 prompt 中的占位 token 只扣一次。追加工具结果若重排了锚内实质内容，则回退 full。
+
+`tests/deepseek-visible-reasoning.spec.ts` 将捕获的详情形态与带／不带 tools 的官方编码器向量对照，并覆盖全部拒绝形态、带非法历史的工厂直接调用，以及前缀、tools、basis 变化时回落 full。`tests/deepseek-visible-reasoning-rounds.spec.ts` 经本机 TLS 流式发送捕获的 `delta.reasoning_details` 形态，分别走公开 transport 与 Cordis transport 服务，有／无 tools 各三轮。这些是本地一致性检查；相对真实 OpenRouter／DeepInfra 输入用量的误差尚未在此测量。
 
 ### 显式图片准备
 
