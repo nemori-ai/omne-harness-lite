@@ -11,14 +11,26 @@ import {
 import { object } from '../json.ts'
 import { jsonEqual, ruleAccepts } from '../definitions.ts'
 import type { ModelDefinition } from '../definitions.ts'
-import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type { FullMeterInput, InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { googleDefinitions } from '../official-models/google.ts'
 import { estimateGoogleCandidate, googleCandidateFeatures } from './google-candidate.ts'
+import {
+  GOOGLE_HISTORY_ALGORITHM,
+  GOOGLE_HISTORY_EVIDENCE,
+  GOOGLE_TOKENIZER_REVISION,
+  GOOGLE_VISIBLE_ALGORITHM,
+  googleHistoryReleaseValid,
+  googleHistoryRow,
+  googleOutputHistoryPolicy,
+  type GoogleHistoryRelease,
+} from './google-history-policy.ts'
+import { fullOutputHistory, type OutputBodyCounter } from './output-history.ts'
 
 const tokenizerHash = 'cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f'
 const configHash = '9f4fec4b1dc6ecddf8f4a92e9caea5971c0e67d81309f3f9066a2bee8c362633'
-const algorithmRevision = 'gemma4-visible-text-tools-effort-offset6-2'
 const modelIds = new Set(['google/gemini-3.7-flash', 'google/gemini-3.8-flash'])
+const visibleEvidence =
+  'google-gemma4-pilot-2026-09-28:fit-F1-F2/holdout-H1-H2; messages/tools Gemma4 surrogate plus frozen offset6, not Gemini tokenizer; declared request effort is a generation control outside this input projection, private hosted framing unverified; low/medium/high scope is an estimated implementation extension without actual effort holdout or error bound'
 
 function verifiedFile(name: string, hash: string): Buffer {
   const content = readFileSync(new URL(`../../tokenizers/google-gemma4/${name}`, import.meta.url))
@@ -140,54 +152,108 @@ function supported(body: JsonObject, definition: ModelDefinition): boolean {
   return true
 }
 
-/** Rough text/tool estimate for the two measured AI Studio routes only. */
-export function createGoogleInputMeter(definition: ModelDefinition): InputMeter | undefined {
+/**
+ * The visible Gemma 4 surrogate over one final body: field guards, features and the frozen
+ * offset 6 once per request. Shared unchanged by V3 (whole body) and V4 (remaining units).
+ * Empty messages are refused, never padded.
+ */
+function visibleBodyCounter(definition: ModelDefinition): OutputBodyCounter {
+  const tokenizer = encoder()
+  return ({ body, serialized }) => {
+    if (writeJsonLossless(body) !== serialized || !supported(body, definition))
+      return { kind: 'unavailable' }
+    const features = googleCandidateFeatures(
+      body,
+      text => tokenizer.encode(text, { add_special_tokens: false }).ids.length,
+    )
+    if (!features) return { kind: 'unavailable' }
+    return {
+      kind: 'estimated',
+      tokens: estimateGoogleCandidate(
+        {
+          revision: 'google-gemma4-experimental-1',
+          modelId: definition.modelId,
+          offset: 6,
+          fitCaseIds: ['F1', 'F2'],
+        },
+        features,
+      ),
+    }
+  }
+}
+
+/** Exact canonical declaration with the given binding coordinates, or no factory. */
+function canonicalAt(definition: ModelDefinition, revision: string, implementation: string) {
   const canonical = googleDefinitions.find(item => item.modelId === definition.modelId)
   const left = copyJsonValue(definition)
-  const right = copyJsonValue(canonical)
-  if (
-    !canonical ||
-    !('ok' in left) ||
-    !('ok' in right) ||
-    !jsonEqual(left.ok, right.ok) ||
-    definition.revision !== '3' ||
-    definition.implementation.name !== 'pi-ai:google' ||
-    definition.implementation.revision !== 'mp4-17' ||
-    !Object.hasOwn(definition.routes, 'google-ai-studio')
+  const right = copyJsonValue(
+    canonical && {
+      ...canonical,
+      revision,
+      implementation: { name: 'pi-ai:google', revision: implementation },
+    },
   )
-    return undefined
-  const tokenizer = encoder()
+  return (
+    canonical !== undefined &&
+    'ok' in left &&
+    'ok' in right &&
+    jsonEqual(left.ok, right.ok) &&
+    Object.hasOwn(definition.routes, 'google-ai-studio')
+  )
+}
+
+/** Rough text/tool estimate for the two measured AI Studio routes only (published V3). */
+export function createGoogleInputMeter(definition: ModelDefinition): InputMeter | undefined {
+  if (!canonicalAt(definition, '3', 'mp4-17')) return undefined
+  const countBody = visibleBodyCounter(definition)
   return defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'google-ai-studio',
-    algorithmRevision,
-    evidence:
-      'google-gemma4-pilot-2026-09-28:fit-F1-F2/holdout-H1-H2; messages/tools Gemma4 surrogate plus frozen offset6, not Gemini tokenizer; declared request effort is a generation control outside this input projection, private hosted framing unverified; low/medium/high scope is an estimated implementation extension without actual effort holdout or error bound',
-    measureFull({
-      body,
-      serialized,
-    }: Readonly<{ body: JsonObject; serialized: string }>): TokenMeasurement {
-      if (writeJsonLossless(body) !== serialized || !supported(body, definition))
-        return { kind: 'unavailable' }
-      const features = googleCandidateFeatures(
-        body,
-        text => tokenizer.encode(text, { add_special_tokens: false }).ids.length,
-      )
-      if (!features) return { kind: 'unavailable' }
-      return {
-        kind: 'estimated',
-        tokens: estimateGoogleCandidate(
-          {
-            revision: 'google-gemma4-experimental-1',
-            modelId: definition.modelId,
-            offset: 6,
-            fitCaseIds: ['F1', 'F2'],
-          },
-          features,
-        ),
-      }
-    },
+    algorithmRevision: GOOGLE_VISIBLE_ALGORITHM,
+    evidence: visibleEvidence,
+    measureFull: ({ body, serialized }: Readonly<{ body: JsonObject; serialized: string }>) =>
+      countBody({ body, serialized }),
   })
+}
+
+/**
+ * Google revision 4 V4 meter: the V3 visible surrogate over units not claimed by a complete
+ * E-only output group, plus each claimed group's original upstream O once (shared core).
+ * Full-only: φ/δ keep the unavailable defaults and replay stays `unsupported-marginal/1`.
+ *
+ * The definition/implementation revisions are not pinned yet (K7: after the GS-V9 A reading);
+ * the caller supplies them and the official catalog still binds the V3 factory above. When the
+ * main line pins them, this becomes the only official factory and the V3 factory is deleted.
+ */
+export function createGoogleHistoryInputMeter(
+  definition: ModelDefinition,
+  release: GoogleHistoryRelease,
+): InputMeter | undefined {
+  if (
+    !googleHistoryReleaseValid(release) ||
+    !googleHistoryRow(definition.modelId) ||
+    !canonicalAt(definition, release.definitionRevision, release.implementationRevision)
+  )
+    return undefined
+  const countBody = visibleBodyCounter(definition)
+  const policy = googleOutputHistoryPolicy(release)
+  const meter: InputMeter = defineInputMeter({
+    modelId: definition.modelId,
+    definitionRevision: definition.revision,
+    implementation: definition.implementation,
+    provider: 'google-ai-studio',
+    algorithmRevision: GOOGLE_HISTORY_ALGORITHM,
+    tokenizerRevision: GOOGLE_TOKENIZER_REVISION,
+    evidence: `${GOOGLE_HISTORY_EVIDENCE} Visible part: ${visibleEvidence}`,
+    measureFull: (input: FullMeterInput): TokenMeasurement =>
+      object(input) &&
+      object(input.body) &&
+      Array.isArray(input.body.messages) &&
+      input.body.messages.length > 0
+        ? fullOutputHistory(input, meter, countBody, policy)
+        : { kind: 'unavailable' },
+  })
+  return meter
 }
