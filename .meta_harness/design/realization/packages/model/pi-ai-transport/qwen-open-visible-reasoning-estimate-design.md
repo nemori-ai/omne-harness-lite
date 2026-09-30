@@ -143,5 +143,5 @@ QV5：两叶 definition／绑定／algorithm 唯一修订、`evidence` 字串、
 - G3 真实回放：带 details 的历史从未真实发送，上游接受、usage、cache 均未知。归主调度付费认证。受阻消费者：两叶 D7 逐模型真实多轮认证（现第 2 轮本地拒绝）。
 - G4 解释点（反例 10）：按 R-N 闭合，与 Moonshot 候选同一裁决。同文只在 wire 层强制，流级同文性由归档原件支撑，不另开共享层候选；反例 10 固定为可计（estimated）。
 - G5 证据归档：本页流式形状表是起草者对归档原件的复算，长期家应在 research。归主线。
-- G6 裁决入档：R-A、R-B、R-F＋R-L、R-K、R-M 已登记于 D-111（`record/decisions/model-request-runtime-rulings-2026-09-30/README.md`；HUB 已有，本 spoke 基线尚无该文件，合入后改为链接）。R-N 与 R-P（P1–P4）已裁未入档，随采用决定入档。R-L 的共享 reader 改动尚未进入本 spoke 基线，QV1 须在含 R-L 的 reader 上复跑。
+- G6 裁决入档：R-A、R-B、R-F＋R-L、R-K、R-M 已登记于 D-111（[D-111](../../../../record/decisions/model-request-runtime-rulings-2026-09-30/README.md)；HUB 已有，本 spoke 基线尚无该文件，合入后改为链接）。R-N 与 R-P（P1–P4）已裁未入档，随采用决定入档。R-L 的共享 reader 改动尚未进入本 spoke 基线，QV1 须在含 R-L 的 reader 上复跑。
 - G7 六款可见替身的既有直接入口：它们已在 JSON 替身里放行可见 `reasoning.text`/`summary`，而同一 factory 的直接方法不经共同包装，与 DeepSeek 评审 N1 同构。这是本页之前就存在的缺口。主调度 2026-09-30 裁决（R-N）登记为 Qwen 家族既有缺口，随两叶接线一起收口，不阻本页采用；六款直接入口测试不作本次验收门（P3）。已裁未入档，随采用决定入档。

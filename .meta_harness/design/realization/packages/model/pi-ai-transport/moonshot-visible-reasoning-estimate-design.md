@@ -140,4 +140,4 @@ MV5：两叶 definition／implementation／algorithm 唯一修订、`evidence` �
 - G3 解释点（反例 10）：按 R-N 闭合。同文只在 wire 层强制，流级同文性由归档原件支撑，不另开共享层候选；反例 10 固定为可计（estimated）。
 - G4 观察覆盖：K3 high/max、带 tools 的 details 形状未观察，列为 MV4 的前提假设。
 - G5 证据归档：本页真实形状表是起草者对归档原件的复算，长期家应在 research；09-28 三条 K3 同形流原件尚未入档。归主线。
-- G6 裁决入档：R-A、R-F＋R-L、R-K、R-M 已登记于 D-111（`record/decisions/model-request-runtime-rulings-2026-09-30/README.md`；HUB 已有，本 spoke 基线尚无该文件，合入后改为链接）。R-N 与 R-P（P1–P4）已裁未入档，随采用决定入档。R-L 的共享 reader 改动尚未进入本 spoke 基线，MV1 须在含 R-L 的 reader 上复跑。
+- G6 裁决入档：R-A、R-F＋R-L、R-K、R-M 已登记于 D-111（[D-111](../../../../record/decisions/model-request-runtime-rulings-2026-09-30/README.md)；HUB 已有，本 spoke 基线尚无该文件，合入后改为链接）。R-N 与 R-P（P1–P4）已裁未入档，随采用决定入档。R-L 的共享 reader 改动尚未进入本 spoke 基线，MV1 须在含 R-L 的 reader 上复跑。
