@@ -437,3 +437,7 @@ G3 修订：本轮选定runtime私有无GC耐久内容行，引用与尚可能�
 实际执行：2026-09-29，以本工作树 `.venv/bin/python` 运行 `check_design.py --root .meta_harness/design --formal registered`，exit 0，实际输出 `PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/.meta_harness/design passed gate=internal; formal=registered.`；`git diff --check` exit 0。七份最终接口输入均与固定摘要一致。本轮未执行上述行为测试或模型，formal=registered 仅核登记。原 bindings 保持原范围，不登记计划证据或空占位。
 
 A22补充反控：删除已释放Content后再分配，仍不得复用相同CallKey+分配序号/locator/version（不能只依已删行的唯一索引）；丢弃永久小分配依据的实现必须失败。合法tailChanged后重构late，在新append可能产生效果之前，原临时工作存储须先耐久替换为实际将追加的完整批；以旧暂存批恢复新已发批的实现必须失败。
+
+### M17／F18 主线验收（2026-09-30）
+
+在 HUB `c020cb81`（含 R-X `7114b3e0`）集成：runtime 78 文件 906/906、runner 462/462、示例三个 M17 spec 9/9、三包 typecheck 0。主线独立变异三处：M17-V9 上一延迟固定为 base（1 红）；F18-V2 `verify` 去掉 execution 与原 Run 绑定（runtime 3 红＋示例 1 红）；`createModelFailureSource` 内层 runId 比较去掉（0 红，外层 `call-history`／codec 先拒，冗余防御，与实施记录一致）。M17-V1～V12、F18-V1～V7 按上表接受；实施记录列出的未证项保持未证，不随本验收关闭。
