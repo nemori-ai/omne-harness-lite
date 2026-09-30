@@ -40,6 +40,8 @@ export interface OfficialCatalogEntry {
   /** The single route key the definition pins; a leaf never carries a provider fallback. */
   readonly provider: ProviderName
   readonly createInputMeter: OfficialInputMeterFactory
+  /** Exported name of the package factory bound to this leaf, e.g. `createGlm53InputMeter`. */
+  readonly inputMeterFactory: string
   /**
    * Initial cache configuration read from the route declaration: `automatic` stays automatic,
    * `explicit` takes the first declared TTL and the first declared breakpoint layout. A caller
@@ -49,52 +51,67 @@ export interface OfficialCatalogEntry {
   readonly cache: CachePolicy
 }
 
-function required(
-  factory: (definition: ModelDefinition) => InputMeter | undefined,
-): OfficialInputMeterFactory {
-  return definition => {
-    const meter = factory(definition)
-    if (meter === undefined)
-      throw new TypeError(`no input meter for official model ${definition.modelId}`)
-    return meter
+/**
+ * Publication revision of the catalog. Raise it by one whenever the catalog changes — a leaf
+ * added or removed, a definition or implementation coordinate, a meter algorithm or a factory
+ * binding — and record the new fingerprint in `tests/fixtures/official-catalog/fingerprint.json`.
+ * Consumers that publish a directory manifest derive their ordinal from it.
+ */
+export const officialCatalogRevision = 1
+
+interface MeterBinding {
+  readonly name: string
+  readonly create: OfficialInputMeterFactory
+}
+
+function bind(factory: (definition: ModelDefinition) => InputMeter | undefined): MeterBinding {
+  return {
+    name: factory.name,
+    create: definition => {
+      const meter = factory(definition)
+      if (meter === undefined)
+        throw new TypeError(`no input meter for official model ${definition.modelId}`)
+      return meter
+    },
   }
 }
 
-// The one place that binds each official leaf to its meter factory. A leaf the resolver does not
-// cover fails at module load below, not when a consumer first asks for a meter.
-const glm53 = new Set(['z-ai/glm-5.3', 'z-ai/glm-5.3-flash'])
+// The one place that binds each official leaf to its meter factory. Families whose leaves need
+// different factories list every leaf; a leaf they do not list fails at module load below, not
+// when a consumer first asks for a meter.
+const leafBindings = (bindings: Readonly<Record<string, MeterBinding>>) => (modelId: string) =>
+  Object.hasOwn(bindings, modelId) ? bindings[modelId] : undefined
 const families: Readonly<
   Record<
     OfficialFamily,
     {
       readonly definitions: readonly ModelDefinition[]
-      readonly meter: (modelId: string) => OfficialInputMeterFactory | undefined
+      readonly meter: (modelId: string) => MeterBinding | undefined
     }
   >
 > = {
-  openai: { definitions: openaiDefinitions, meter: () => createOpenAiInputMeter },
-  anthropic: { definitions: anthropicDefinitions, meter: () => createAnthropicInputMeter },
-  google: { definitions: googleDefinitions, meter: () => required(createGoogleInputMeter) },
+  openai: { definitions: openaiDefinitions, meter: () => bind(createOpenAiInputMeter) },
+  anthropic: { definitions: anthropicDefinitions, meter: () => bind(createAnthropicInputMeter) },
+  google: { definitions: googleDefinitions, meter: () => bind(createGoogleInputMeter) },
   deepseek: {
     definitions: deepseekDefinitions,
-    meter: modelId =>
-      modelId === deepseekV4Pro0813Definition.modelId
-        ? createDeepSeekV4ProInputMeter
-        : modelId === deepseekV41FlashDefinition.modelId
-          ? createDeepSeekV41FlashInputMeter
-          : undefined,
+    meter: leafBindings({
+      [deepseekV4Pro0813Definition.modelId]: bind(createDeepSeekV4ProInputMeter),
+      [deepseekV41FlashDefinition.modelId]: bind(createDeepSeekV41FlashInputMeter),
+    }),
   },
-  xai: { definitions: xaiDefinitions, meter: () => required(createXaiInputMeter) },
-  qwen: { definitions: qwenDefinitions, meter: () => createQwenInputMeter },
-  moonshot: { definitions: moonshotDefinitions, meter: () => createMoonshotInputMeter },
+  xai: { definitions: xaiDefinitions, meter: () => bind(createXaiInputMeter) },
+  qwen: { definitions: qwenDefinitions, meter: () => bind(createQwenInputMeter) },
+  moonshot: { definitions: moonshotDefinitions, meter: () => bind(createMoonshotInputMeter) },
   zai: {
     definitions: zaiDefinitions,
-    meter: modelId =>
-      modelId === 'z-ai/glm-5.2'
-        ? createGlm52InputMeter
-        : glm53.has(modelId)
-          ? createGlm53InputMeter
-          : createZaiCommercialInputMeter,
+    meter: leafBindings({
+      'z-ai/glm-5.2': bind(createGlm52InputMeter),
+      'z-ai/glm-5.3': bind(createGlm53InputMeter),
+      'z-ai/glm-5.3-flash': bind(createGlm53InputMeter),
+      'z-ai/glm-5.3-prime': bind(createZaiCommercialInputMeter),
+      'z-ai/glm-5.3-flashx': bind(createZaiCommercialInputMeter),
+    }),
   },
 }
 
@@ -114,14 +131,15 @@ function catalogEntry(family: OfficialFamily, definition: ModelDefinition): Offi
   if (routes.length !== 1 || only === undefined)
     throw new TypeError(`official model ${definition.modelId} must pin exactly one route`)
   const [provider, route] = only
-  const createInputMeter = families[family].meter(definition.modelId)
-  if (createInputMeter === undefined)
+  const binding = families[family].meter(definition.modelId)
+  if (binding === undefined)
     throw new TypeError(`official model ${definition.modelId} has no input meter binding`)
   return Object.freeze({
     family,
     definition,
     provider,
-    createInputMeter,
+    createInputMeter: binding.create,
+    inputMeterFactory: binding.name,
     cache: initialCachePolicy(route.cache),
   })
 }

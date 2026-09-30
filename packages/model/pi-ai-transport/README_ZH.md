@@ -21,16 +21,18 @@
 | `createModelTransportService`、`AdaptationLease`、`RetirementPolicy`    | 进程内精确登记、固定引用和显式排空                             |
 | `parseSSE`、`canonicalInteger`、`generatedCallId`                       | 分帧与精确确定性标识辅助                                       |
 | `officialModelIds`、八个 `<family>Definitions` 与 `<family>ModelRoutes` | 完整 MP4 声明、精确路由策略及派生的目标身份                    |
-| `officialCatalog`、`createOfficialCatalogProfile(entry, revision)`      | 全部官方叶及其唯一路由、绑定的计量器工厂与推导的初始缓存配置；逐项构造档案内容 |
+| `officialCatalog`、`officialCatalogRevision`、`createOfficialCatalogProfile(entry, revision)` | 全部官方叶及其唯一路由、绑定的计量器工厂与推导的初始缓存配置；目录发布修订；逐项构造档案内容 |
 | `OPENROUTER_BASE_URL`、`PI_AI_CARRIABLE_MODALITIES`                     | 产品端点与当前可承载的 text/image 输入                         |
 
 纯读取返回 `{ ok }`、invalidInput 或 unavailable。内容构造器保留 core 表示拒绝原名（如 parameter_out_of_range、max_output_exceeds_profile）；定义/路由/配置一致性失败仍为提供者 invalidInput。陌生精确版本/路由不可用，非法定义/配置为输入错误。失败只给有限拒绝类别，不输出配置正文。根入口不加载 Cordis；`./plugin` 显式依赖 Cordis 4.0.4。
 
 ## 官方目录
 
-`officialCatalog` 按家族顺序列出全部官方叶（当前 37 叶）。每项给出 `family`、`definition`、唯一路由键 `provider`、`createInputMeter(definition)` 与 `cache`。模型到计量器工厂的绑定只在 `src/official-catalog.ts` 写一处：DeepSeek 两叶各用专属工厂；OpenAI、Anthropic、Google、xAI、Qwen、Moonshot 用家族工厂；ZAI 的 GLM-5.2 用 `createGlm52InputMeter`，GLM-5.3 与 GLM-5.3-Flash 用 `createGlm53InputMeter`，其余用 `createZaiCommercialInputMeter`。`cache` 由路由声明推导：`automatic` 保持自动；`explicit` 取声明的第一个 TTL 与第一个断点布局。它只是初值；要用其他已声明值的调用方以 `createOfficialProfileContent` 自行给出配置。`createOfficialCatalogProfile(entry, revision)` 以该项唯一路由、禁止回退和推导的缓存构造内容，返回形状与 `createOfficialProfileContent` 相同；不写目录，也不登记。目录不持有计量器：由消费者调用 `createInputMeter` 构造，并承担构造成本（部分工厂每次调用都会解析固定词表）。
+`officialCatalog` 按家族顺序列出全部官方叶（当前 37 叶）。每项给出 `family`、`definition`、唯一路由键 `provider`、`createInputMeter(definition)`、所绑工厂的导出名 `inputMeterFactory` 与 `cache`。模型到计量器工厂的绑定只在 `src/official-catalog.ts` 写一处：DeepSeek 两叶各用专属工厂；OpenAI、Anthropic、Google、xAI、Qwen、Moonshot 用家族工厂；ZAI 逐叶登记：GLM-5.2 用 `createGlm52InputMeter`，GLM-5.3 与 GLM-5.3-Flash 用 `createGlm53InputMeter`，GLM-5.3-Prime 与 GLM-5.3-FlashX 用 `createZaiCommercialInputMeter`。`cache` 由路由声明推导：`automatic` 保持自动；`explicit` 取声明的第一个 TTL 与第一个断点布局。它只是初值；要用其他已声明值的调用方以 `createOfficialProfileContent` 自行给出配置。`createOfficialCatalogProfile(entry, revision)` 以该项唯一路由、禁止回退和推导的缓存构造内容，返回形状与 `createOfficialProfileContent` 相同；不写目录，也不登记。目录不持有计量器：由消费者调用 `createInputMeter` 构造，并承担构造成本（每个家族的首个计量器在进程内加载一次固定词表）。
 
-新增一叶：在 `official-models/<family>.ts` 加完整定义，且恰钉一条路由；家族工厂不接受它时在 `input-meters/` 加计量器；需要专属工厂时在 `official-catalog.ts` 登记一行。已有家族导出中的新叶自动进入目录，`tests/official-catalog.spec.ts` 逐叶构造计量器与档案。目录模块加载时断言其模型 ID 集合等于 `officialModelIds`，且每叶恰一条路由、有计量器绑定；漏登记的家族或叶在加载期抛错，不会拖到运行时才表现为缺项。进入目录不等于认证：逐叶真实 OpenRouter 证据以[实现映射的验证页](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)为准。
+`officialCatalogRevision` 是正整数，目录每变一次就加一。发布目录清单的消费者（如最小示例）由它推导清单序号，目录变化时已有数据目录无需改消费者代码即可看到。`tests/official-catalog.spec.ts` 把目录指纹（逐叶的模型 ID、definition 与 implementation 修订、计量算法修订与工厂名）连同修订冻结在 `tests/fixtures/official-catalog/fingerprint.json`；指纹变了而修订未升即失败。
+
+新增一叶：在 `official-models/<family>.ts` 加完整定义，且恰钉一条路由；家族工厂不接受它时在 `input-meters/` 加计量器；所属家族逐叶登记（DeepSeek、ZAI）时在 `official-catalog.ts` 登记一行；升 `officialCatalogRevision`；在夹具中追加新修订与指纹并替换叶清单。按家族工厂绑定的家族中，新叶自动进入目录，`tests/official-catalog.spec.ts` 逐叶构造计量器与档案。目录模块加载时断言其模型 ID 集合等于 `officialModelIds`，且每叶恰一条路由、有计量器绑定；漏登记的家族或叶在加载期抛错，不会拖到运行时才表现为缺项。进入目录不等于认证：逐叶真实 OpenRouter 证据以[实现映射的验证页](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)为准。
 
 ## 显式声明教学定义
 

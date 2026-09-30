@@ -129,6 +129,7 @@ export {
 } from './input-meters/output-history.ts'
 export {
   officialCatalog,
+  officialCatalogRevision,
   createOfficialCatalogProfile,
   type OfficialCatalogEntry,
   type OfficialFamily,

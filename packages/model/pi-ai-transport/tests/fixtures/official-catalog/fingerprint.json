@@ -1,0 +1,269 @@
+{
+  "history": [
+    {
+      "revision": 1,
+      "sha256": "e1f3f60360ea15bcfec2d7c1e09ab0e9b23616606c90589b8a4b79315734d2a1"
+    }
+  ],
+  "leaves": [
+    {
+      "modelId": "anthropic/claude-fable-5.1",
+      "definition": "4",
+      "implementation": "pi-ai:anthropic@mp4-18",
+      "algorithm": "anthropic-legacy-bpe-plus-vision-patches-complete-output-5/response-calibration-1",
+      "factory": "createAnthropicInputMeter"
+    },
+    {
+      "modelId": "anthropic/claude-opus-5",
+      "definition": "4",
+      "implementation": "pi-ai:anthropic@mp4-18",
+      "algorithm": "anthropic-legacy-bpe-plus-vision-patches-complete-output-5/response-calibration-1",
+      "factory": "createAnthropicInputMeter"
+    },
+    {
+      "modelId": "anthropic/claude-opus-5.5",
+      "definition": "4",
+      "implementation": "pi-ai:anthropic@mp4-18",
+      "algorithm": "anthropic-legacy-bpe-plus-vision-patches-complete-output-5/response-calibration-1",
+      "factory": "createAnthropicInputMeter"
+    },
+    {
+      "modelId": "anthropic/claude-sonnet-5",
+      "definition": "4",
+      "implementation": "pi-ai:anthropic@mp4-18",
+      "algorithm": "anthropic-legacy-bpe-plus-vision-patches-complete-output-5/response-calibration-1",
+      "factory": "createAnthropicInputMeter"
+    },
+    {
+      "modelId": "deepseek/deepseek-v4-pro-0813",
+      "definition": "6",
+      "implementation": "pi-ai:deepseek@mp4-19",
+      "algorithm": "deepseek-v4-pro-reference-4",
+      "factory": "createDeepSeekV4ProInputMeter"
+    },
+    {
+      "modelId": "deepseek/deepseek-v4.1-flash",
+      "definition": "5",
+      "implementation": "pi-ai:deepseek@mp4-19",
+      "algorithm": "deepseek-v41-flash-reference-5",
+      "factory": "createDeepSeekV41FlashInputMeter"
+    },
+    {
+      "modelId": "google/gemini-3.7-flash",
+      "definition": "3",
+      "implementation": "pi-ai:google@mp4-17",
+      "algorithm": "gemma4-visible-text-tools-effort-offset6-2",
+      "factory": "createGoogleInputMeter"
+    },
+    {
+      "modelId": "google/gemini-3.8-flash",
+      "definition": "3",
+      "implementation": "pi-ai:google@mp4-17",
+      "algorithm": "gemma4-visible-text-tools-effort-offset6-2",
+      "factory": "createGoogleInputMeter"
+    },
+    {
+      "modelId": "moonshotai/kimi-k2.7-code",
+      "definition": "3",
+      "implementation": "pi-ai:moonshot@mp4-18",
+      "algorithm": "moonshot-k27-jinja-image-4",
+      "factory": "createMoonshotInputMeter"
+    },
+    {
+      "modelId": "moonshotai/kimi-k3",
+      "definition": "3",
+      "implementation": "pi-ai:moonshot@mp4-18",
+      "algorithm": "moonshot-k3-xtml-image-5",
+      "factory": "createMoonshotInputMeter"
+    },
+    {
+      "modelId": "openai/gpt-5.6-luna",
+      "definition": "9",
+      "implementation": "pi-ai:openai@mp4-18",
+      "algorithm": "openai-visible-json-complete-output-group-estimated/1",
+      "factory": "createOpenAiInputMeter"
+    },
+    {
+      "modelId": "openai/gpt-5.6-luna-pro",
+      "definition": "8",
+      "implementation": "pi-ai:openai@mp4-18",
+      "algorithm": "openai-visible-json-complete-output-group-estimated/1",
+      "factory": "createOpenAiInputMeter"
+    },
+    {
+      "modelId": "openai/gpt-5.6-sol",
+      "definition": "9",
+      "implementation": "pi-ai:openai@mp4-18",
+      "algorithm": "openai-visible-json-complete-output-group-estimated/1",
+      "factory": "createOpenAiInputMeter"
+    },
+    {
+      "modelId": "openai/gpt-5.6-sol-pro",
+      "definition": "8",
+      "implementation": "pi-ai:openai@mp4-18",
+      "algorithm": "openai-visible-json-complete-output-group-estimated/1",
+      "factory": "createOpenAiInputMeter"
+    },
+    {
+      "modelId": "openai/gpt-5.6-terra",
+      "definition": "9",
+      "implementation": "pi-ai:openai@mp4-18",
+      "algorithm": "openai-visible-json-complete-output-group-estimated/1",
+      "factory": "createOpenAiInputMeter"
+    },
+    {
+      "modelId": "openai/gpt-5.6-terra-pro",
+      "definition": "8",
+      "implementation": "pi-ai:openai@mp4-18",
+      "algorithm": "openai-visible-json-complete-output-group-estimated/1",
+      "factory": "createOpenAiInputMeter"
+    },
+    {
+      "modelId": "openai/gpt-6-astra",
+      "definition": "5",
+      "implementation": "pi-ai:openai@mp4-18",
+      "algorithm": "openai-visible-json-complete-output-group-estimated/1",
+      "factory": "createOpenAiInputMeter"
+    },
+    {
+      "modelId": "openai/gpt-6-astra-pro",
+      "definition": "6",
+      "implementation": "pi-ai:openai@mp4-18",
+      "algorithm": "openai-visible-json-complete-output-group-estimated/1",
+      "factory": "createOpenAiInputMeter"
+    },
+    {
+      "modelId": "openai/gpt-6-luna",
+      "definition": "7",
+      "implementation": "pi-ai:openai@mp4-18",
+      "algorithm": "openai-visible-json-complete-output-group-estimated/1",
+      "factory": "createOpenAiInputMeter"
+    },
+    {
+      "modelId": "openai/gpt-6-luna-pro",
+      "definition": "6",
+      "implementation": "pi-ai:openai@mp4-18",
+      "algorithm": "openai-visible-json-complete-output-group-estimated/1",
+      "factory": "createOpenAiInputMeter"
+    },
+    {
+      "modelId": "openai/gpt-6-sol",
+      "definition": "6",
+      "implementation": "pi-ai:openai@mp4-18",
+      "algorithm": "openai-visible-json-complete-output-group-estimated/1",
+      "factory": "createOpenAiInputMeter"
+    },
+    {
+      "modelId": "openai/gpt-6-sol-pro",
+      "definition": "6",
+      "implementation": "pi-ai:openai@mp4-18",
+      "algorithm": "openai-visible-json-complete-output-group-estimated/1",
+      "factory": "createOpenAiInputMeter"
+    },
+    {
+      "modelId": "qwen/qwen3.7-flash",
+      "definition": "4",
+      "implementation": "pi-ai:qwen@mp4-20",
+      "algorithm": "qwen3.7-flash-public-template-1",
+      "factory": "createQwenInputMeter"
+    },
+    {
+      "modelId": "qwen/qwen3.7-max",
+      "definition": "4",
+      "implementation": "pi-ai:qwen@mp4-20",
+      "algorithm": "qwen3.7-max-public-template-1",
+      "factory": "createQwenInputMeter"
+    },
+    {
+      "modelId": "qwen/qwen3.7-plus",
+      "definition": "4",
+      "implementation": "pi-ai:qwen@mp4-20",
+      "algorithm": "qwen3.7-plus-public-template-1",
+      "factory": "createQwenInputMeter"
+    },
+    {
+      "modelId": "qwen/qwen3.8-2.4t-a95b",
+      "definition": "4",
+      "implementation": "pi-ai:qwen@mp4-19",
+      "algorithm": "qwen-38-public-template-effort-4",
+      "factory": "createQwenInputMeter"
+    },
+    {
+      "modelId": "qwen/qwen3.8-27b",
+      "definition": "4",
+      "implementation": "pi-ai:qwen@mp4-19",
+      "algorithm": "qwen-38-public-template-image-effort-5",
+      "factory": "createQwenInputMeter"
+    },
+    {
+      "modelId": "qwen/qwen3.8-flash",
+      "definition": "4",
+      "implementation": "pi-ai:qwen@mp4-20",
+      "algorithm": "qwen3.8-flash-public-template-1",
+      "factory": "createQwenInputMeter"
+    },
+    {
+      "modelId": "qwen/qwen3.8-max-0902",
+      "definition": "4",
+      "implementation": "pi-ai:qwen@mp4-20",
+      "algorithm": "qwen3.8-max-0902-public-template-1",
+      "factory": "createQwenInputMeter"
+    },
+    {
+      "modelId": "qwen/qwen3.8-max-prime",
+      "definition": "4",
+      "implementation": "pi-ai:qwen@mp4-20",
+      "algorithm": "qwen3.8-max-prime-public-template-1",
+      "factory": "createQwenInputMeter"
+    },
+    {
+      "modelId": "x-ai/grok-4.6",
+      "definition": "5",
+      "implementation": "pi-ai:xai@mp4-20",
+      "algorithm": "xai-visible-json-complete-output-group-estimated/1",
+      "factory": "createXaiInputMeter"
+    },
+    {
+      "modelId": "x-ai/grok-4.7",
+      "definition": "5",
+      "implementation": "pi-ai:xai@mp4-20",
+      "algorithm": "xai-visible-json-complete-output-group-estimated/1",
+      "factory": "createXaiInputMeter"
+    },
+    {
+      "modelId": "z-ai/glm-5.2",
+      "definition": "3",
+      "implementation": "pi-ai:zai@mp4-18",
+      "algorithm": "glm-5.2-public-template-2",
+      "factory": "createGlm52InputMeter"
+    },
+    {
+      "modelId": "z-ai/glm-5.3",
+      "definition": "2",
+      "implementation": "pi-ai:zai@mp4-17",
+      "algorithm": "glm-5.3-public-template-1",
+      "factory": "createGlm53InputMeter"
+    },
+    {
+      "modelId": "z-ai/glm-5.3-flash",
+      "definition": "2",
+      "implementation": "pi-ai:zai@mp4-17",
+      "algorithm": "glm-5.3-flash-public-template-1",
+      "factory": "createGlm53InputMeter"
+    },
+    {
+      "modelId": "z-ai/glm-5.3-flashx",
+      "definition": "3",
+      "implementation": "pi-ai:zai@mp4-18",
+      "algorithm": "flashx-public-glm53-route-fit-2",
+      "factory": "createZaiCommercialInputMeter"
+    },
+    {
+      "modelId": "z-ai/glm-5.3-prime",
+      "definition": "4",
+      "implementation": "pi-ai:zai@mp4-18",
+      "algorithm": "prime-public-glm53-declared-effort-route-fit-3",
+      "factory": "createZaiCommercialInputMeter"
+    }
+  ]
+}
