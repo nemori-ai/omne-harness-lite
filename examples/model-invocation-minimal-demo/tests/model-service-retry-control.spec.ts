@@ -264,7 +264,8 @@ describe('real model service retry and control', () => {
       })
       const keys = await logKeys(app, who, session)
       expect(kinds(keys, first).filter(kind => kind === 'intent')).toHaveLength(1)
-      expect(kinds(keys, other)).toHaveLength(0)
+      // The interrupt touches nothing of the other call beyond its durable creation markers.
+      expect(kinds(keys, other)).toEqual(['call', 'created'])
       await expect
         .poll(() => service.readAttempts({ session, callId: first }), { timeout: 5000 })
         .toMatchObject({ state: 'interrupted' })
@@ -404,7 +405,7 @@ describe('real model service retry and control', () => {
       })
       const beforeServerRelease = await logKeys(app, who, session)
       expect(kinds(beforeServerRelease, callId).filter(kind => kind === 'intent')).toHaveLength(1)
-      expect(kinds(beforeServerRelease, other)).toHaveLength(0)
+      expect(kinds(beforeServerRelease, other)).toEqual(['call', 'created'])
       await tls.socketClosed.promise
       expect(tls.closedSockets()).toBeGreaterThan(0)
       release.resolve()

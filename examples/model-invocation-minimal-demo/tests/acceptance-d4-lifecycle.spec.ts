@@ -216,7 +216,7 @@ function user(label: string) {
 }
 
 describe('D4 independent runtime retained leases and historical reacquisition', () => {
-  it('retains A while awaiting_decision and reply_pending after B loads and A retires; releases only on settlement', async () => {
+  it('retains A while awaiting_decision after B loads and A retires; releases when the ready result is durable', async () => {
     const config = await callConfig('waiting-states')
     const tls = await createLocalTls(resolve(config.databaseFile, '../tls'))
     let provider: Fiber | undefined,
@@ -317,13 +317,16 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
         model.modelId,
         model.modelId,
       ])
+      // The durable ready result is published, so the runtime no longer holds A's exact
+      // transport lease while the disposition is pending (RT11 reference lifecycle mapping).
+      await retirement
+      expect(retired).toBe(true)
       expect(registry.inspect()).toMatchObject({
-        registrations: 2,
-        retiring: 1,
-        references: 1,
+        registrations: 1,
+        retiring: 0,
+        references: 0,
         executions: 0,
       })
-      expect(retired).toBe(false)
       expect(
         await service.settleReply({
           session,
@@ -331,7 +334,6 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
           disposition: { consumed: { by: 'side_query' } },
         }),
       ).toEqual({ callId, state: 'complete' })
-      await retirement
       expect(registry.inspect()).toMatchObject({
         registrations: 1,
         retiring: 0,
@@ -511,7 +513,11 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
         {},
       )
       await restored
-      expect(await service.openCall(resume)).toEqual({ callId, state: 'resumable' })
+      expect(await service.openCall(resume)).toEqual({
+        ref: { session, callId },
+        callId,
+        state: 'resumable',
+      })
       expect(await service.readAttempts({ session, callId })).toMatchObject({ state: 'resumable' })
       expect(registry.inspect()).toMatchObject({ registrations: 2, references: 1, executions: 0 })
       let retired = false
@@ -525,7 +531,10 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
         model.modelId,
         model.modelId,
       ])
-      expect(registry.inspect()).toMatchObject({ registrations: 2, retiring: 1, references: 1 })
+      // The second dispatch's ready result is durable, so its exact lease is released before the
+      // disposition; the restored version's retirement therefore completes.
+      await retirement
+      expect(retired).toBe(true)
       expect(
         await service.settleReply({
           session,
@@ -533,7 +542,6 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
           disposition: { consumed: { by: 'side_query' } },
         }),
       ).toEqual({ callId, state: 'complete' })
-      await retirement
       expect(registry.inspect()).toMatchObject({
         registrations: 1,
         references: 0,
