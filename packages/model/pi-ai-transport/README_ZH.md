@@ -235,6 +235,8 @@ Anthropic 配置的 `last_message` 布局选择最后一个真实非空 text blo
 
 OpenRouter 的流式加密推理数据可能是 `[REDACTED]` 占位值。它不是完整可回放输出组，不能用于按 O 估算。
 
+`tests/xai-x5-local-replay.spec.ts` 在本机 TLS 上用合成的 `xai-responses-v1` summary 与密文 detail、原工具 callId 和三轮工具场景，经公开 invoke 与 Cordis transport service 租约两条入口，钉住两款当前守卫：回复带上游身份时，后续轮在任何新 HTTP 之前返回 `input_size_unavailable`；不带身份时完整组原样重发，第二轮上游拒绝记为失败调用。这些合成用例不是真实回放证据。
+
 仅含可见内容的响应复用采用共享 JSON 净增量估算：相对于空消息 framing 计算新回放的可见单元及新增输入，不重复计算稳定前缀及工具声明。空消息仅可用于内部 framing，完整请求计量仍返回不可计量。新算法／回放依据使旧输入锚失效；旧保存的完整输出组经来源核验后仍可贡献 O。无需新增用户配置。图片仍不在此计量器的支持范围内。
 
 ```ts

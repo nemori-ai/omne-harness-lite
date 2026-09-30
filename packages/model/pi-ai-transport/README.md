@@ -235,6 +235,8 @@ Anthropic's configured `last_message` layout selects the last real nonempty text
 
 OpenRouter may stream `[REDACTED]` in place of encrypted reasoning data. This placeholder is not a complete replay group and remains unavailable for the O-based estimate.
 
+`tests/xai-x5-local-replay.spec.ts` pins the current guard for both leaves through the public invoke and the Cordis transport-service lease, using synthetic `xai-responses-v1` summary plus encrypted details, the original tool callId and a three-turn tool case over local TLS. When the reply carries an upstream identity, the following turns return `input_size_unavailable` before any further HTTP. Without identity, the complete group is resent unchanged, and an upstream refusal on the second turn is a failed invocation. These synthetic cases are not live replay evidence.
+
 Visible-only response reuse uses the shared JSON marginal estimator: it counts newly replayed visible units and new input against empty-message framing without repeating the stable prefix or tool declarations. Empty messages are allowed only for internal framing and remain unavailable through full-request measurement. The new algorithm/replay basis invalidates old input anchors; old saved complete output groups may still contribute O after source verification. No extra configuration is introduced. Images remain outside this meter’s supported counting scope.
 
 ```ts
