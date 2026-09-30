@@ -203,7 +203,7 @@ T-1/T-3/T-9/T-10a/T-12/T-14/T-17/T-18 等取得局部控制证据，T-17 只有�
 | SC-2 | 包内无 process.env 凭据或 TTL 回退；配置必须来自显式 binding/装配 | 未开始，保留并扩大检查 |
 | SC-3 | 唯一网络出口是 send；plan/factory/注册均不开连接，模型插件没有第二出口 | 未开始，保留 |
 | G：D-019 全十五项及原新增项 | 原表所有路由、身份、费用/generation 对账、私有 replay、重定向、错误、首内容前后断流和 abort、无隐藏重试，以及 max_tokens/max_completion_tokens、store、reasoning、strict、transforms、require_parameters、状态码含义、delta 闭集、cost 单位/BYOK、token 组成、CallId 词法均保留 | 未开始；研究短请求不算完整比较门 |
-| G：新增逐模型适配 | 对 37 模型分别用生产函数与服务路径取角色、参数、工具回传、推理、缓存/精确费用证据；每个指定路由独立认证，禁止一次族代表通过后把整族判通过 | 未开始；研究暖读仅作后续输入 |
+| G：新增逐模型适配 | 对 37 模型分别用生产函数与服务路径取角色、参数、工具回传、推理、缓存/精确费用证据；每个指定路由独立认证，禁止一次族代表通过后把整族判通过 | 未开始；研究暖读仅作后续输入。ZAI 五叶只有本机 TLS 三轮（见 2026-09-30 ZAI 节），真实认证 0/5，不计入本行 |
 
 ### 增量证据义务与覆盖缺口
 
@@ -291,6 +291,20 @@ UCT-V12 的官方配置不能换成禁用缓存或固定在旧位置的研究配
 ## 2026-09-29 Fable 5.1 生产路径有限验证
 
 [实际生产公开调用／三轮service／响应校准](../../../../record/evidence/2026-09-29-tests-fable-production-invocation/README.md)：固定Anthropic路由，full→marginal→marginal、物理[M,R]同批和真实关闭；7笔全部结清，含两次截断原结果。只验证本次文本/low场景，cache命中、TTL及全部模态/模型认证未由此关闭。
+
+## 2026-09-30 ZAI 五叶本机 TLS 有限覆盖
+
+对象：`z-ai/glm-5.3`、`glm-5.3-prime`、`glm-5.3-flash`、`glm-5.3-flashx`、`glm-5.2` 的当前绑定（definition 2/3，`pi-ai:zai@mp4-17`），五个计量器均为 full-only（`unsupported-marginal/1`）。执行仓库 `packages/model/pi-ai-transport/tests/zai-three-round-invoke.spec.ts` 共 110 例，本机 TLS 全部通过；上游为合成流或已记录的 Prime/FlashX 真实 SSE，未发起任何付费请求。原始运行输出未归档为 evidence run。
+
+| 覆盖 | 用例数 | 实际结果 |
+|---|---:|---|
+| 回复不含推理：五叶 × 已接受 effort（Flash/FlashX 缺省）× 有/无工具 × {public，Cordis transport service} | 36 | 每轮 full/`estimated`，fallback 为 `no_observation` 后接 `basis_changed`（Prime 为 `prefix_changed`）；φ/δ 未被调用；每轮恰一次 HTTP，线上字节与计划一致 |
+| 调用方隐藏 thinking（`visibility.toModel: false`）后追加，含 Prime/FlashX 已记录真实流 | 36 | 三轮 full/`estimated`，HTTP 次数 1/2/3，任何 wire 消息都不带 `reasoning`／`reasoning_details`；真实流的无 id 无签名片段装配为一条 detail |
+| 原样回放推理历史（纯 `reasoning` 或 details）：五叶 × 2 形状 × 2 入口 | 20 | 第 2 轮 `input_size_unavailable`，不再发 HTTP，历史不变 |
+| provenance 与依据一致时的 φ/δ；集合外 effort 丢弃 | 10 | fp8 四叶 φ/δ 被调用且均为 unavailable；Prime 因断点移位在此之前回退；集合外 effort 进 `droppedParameters` |
+| Flash/FlashX 声明媒体：图片、视频 × 2 入口 | 8 | 图片由 wire 投影承载，但官方计量器在 HTTP 前拒绝；视频 `modality_not_carried` |
+
+范围：带推理历史的多轮在当前源码上一律 unavailable，可见推理历史计量映射是登记缺口，未采用。隐藏 thinking 的多轮能通过，是运行时上下文组装中调用方的决定，不证明 transport 对推理回放可用或可计量。同批以当前源码重放了冻结证据：8 条固定路由请求 wire 的估算等于观测 `prompt_tokens`，5 份已记录 SSE 按固定 SHA-256 装配，GLM-5.2／5.3／Flash 模板黄金输出一致，五叶坐标与迁移后记录相同；逐叶表在包 README。本节不关闭 UCT-V11、上节「G：新增逐模型适配」或任何真实 OpenRouter public/service、cache 与费用认证。
 
 ## H13 多个历史输出组候选
 
