@@ -207,7 +207,7 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `InputMeter` 是提供给函数或 transport factory 的可信可执行构件，不进 model profile JSON，也不是调用者传入的准入布尔值。定义、供应商、算法版本及证据绑定到贡献；另一计量来源签发的计划不能经本宿主发送。`createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)` 针对精确的 `deepseek/deepseek-v4-pro-0813` / `deepinfra/fp8` 路由，固定 DeepSeek V4 Pro 公开提示词编码器与 tokenizer。由于已查来源未公开 OpenRouter／DeepInfra 的字节完全一致的私有提示词装配，它返回的是**估算**。打包 tokenizer/config 的哈希及官方文本、推理、工具 golden 离线验证。余量由调用者显式选择；估算不替代上游 usage 和费用。没有计量证据的官方定义无法成功规划。上面的合成 `controlledMeter` 只演示本地协议，绝不可用于真实供应商。
 
-37 个供给型号共用拒答文本读取器。当前 OpenAI、Anthropic 定义绑定各家族 `mp4-18` 实现，DeepSeek 绑定 `mp4-19`、xAI 绑定 `mp4-20`，其他家族仍为 `mp4-17`。`tests/official-reader-bindings.spec.ts` 对照明确的发布样本，验证所有当前工厂、完整 profile 和实际 planner 调用；工厂拒绝旧执行绑定。这些本地检查不等于 37 型号真实 OpenRouter 认证，Pro 上下文用量仍明确未知。
+37 个供给型号共用拒答文本读取器。当前 OpenAI、Anthropic、Moonshot 定义绑定各家族 `mp4-18` 实现，DeepSeek 与两个开源权重 Qwen 叶绑定 `mp4-19`，xAI 绑定 `mp4-20`，Google、Z.ai 与六个商业 Qwen 叶仍为 `mp4-17`。`tests/official-reader-bindings.spec.ts` 对照明确的发布样本，验证所有当前工厂、完整 profile 和实际 planner 调用；工厂拒绝旧执行绑定。这些本地检查不等于 37 型号真实 OpenRouter 认证，Pro 上下文用量仍明确未知。
 
 `createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)` 将单独的 V4.1 Flash tokenizer 和公开编码器绑定到 `deepseek/deepseek-v4.1-flash` / `deepinfra/fp8`。多轮工具与双图提示词使用固定的上游官方向量校验。`mp4-19` 实现按内联图片实际尺寸，使用固定公开图像处理器的 patch／下采样网格和 1,024-token 上限估算，并替换提示词已计入的图片占位符；实际供应商预处理并未公开。图片字节和数量仍由最终请求体的精确门检查。未知图片 URL 或不支持的内容在 HTTP 前返回计量不可得。估算包含提示词之外的序列化请求字段，不把内联 base64 当文本 token。余量由每次请求配置；估算不替代上游 usage，也不证明真实图片发送。
 
@@ -229,7 +229,7 @@ Anthropic 配置的 `last_message` 布局选择最后一个真实非空 text blo
 
 `tests/anthropic-family-current.spec.ts` 对每个型号分别在有工具和无工具两种情况下，经公开 transport 与 Cordis transport 服务租约，各跑三轮本机 TLS。它核对：第一轮 full、后两轮 marginal；每轮恰好一次 HTTP，且字节与计划一致；终端消息上恰有一个配置的 1h 标记。第一轮用无 id 的“文本后跟签名”形状，重建为一条已签名 detail；后两轮分别是加密组和两条真正分离的签名 detail。每个先前的组都按原顺序只回放一次，原 O 只计一次。同一文件还核对以下拒绝：其他 cache TTL 与布局会被拒；无签名 `reasoning.text`、`[REDACTED]` 占位值和来自其他路由的组都在 HTTP 之前被拒；音频与视频保持 `modality_not_carried`。它也核对拒答会作为普通文本回放、末端纯图使用顶层 TTL。上游是合成的，这些检查不能替代四个型号的真实 OpenRouter 认证。
 
-`createQwenInputMeter(definition)` 为八个固定 Alibaba 型号提供计量。所有 Qwen 叶都**只做全量**：回放（φ）与新增输入（δ）贡献不可用且未采用，每次请求都重新全量计量。两个开源权重叶 Qwen3.8 2.4T-A95B 与 27B 绑定 definition 修订 4／`mp4-19`，采用固定公开词表/Jinja 估算器；27B 保留不缩放的规范内联 PNG 子集。二者已声明的请求 effort `high`／`max` 按 Alibaba 文档中 high/max 映射到 xhigh 的说法，渲染模板默认的 xhigh 指令。该 estimated 扩域没有实际 effort 留出证据，也没有误差界。两个开源叶在 `alibaba` 路由上的已存档与当前真实流，在每个推理片段旁都附带一条与明文 `reasoning` 片段逐字相同的可见 `reasoning.text` detail；reader 将其合并为一项，下一请求原样回放该项。可见推理历史按有限估算计量：assistant 消息的 `reasoning_details` 恰为一项、own keys 恰为 `type`、`text`、`format`、`index`（`reasoning.text`、非 `[REDACTED]` 的字符串 text、format `unknown`、index 0、无 `id` 与 `signature`），且并行的 `reasoning` 若在场须为逐字相同的字符串（在模板 trim 之前比较）时，该文字在仅供计量的副本中只放进公开模板的 `reasoning_content` 槽位一次，与明文 `reasoning` 字符串完全同路。实际发送体与字节仍保留 details；不另加输出或 `reasoning_tokens` 项，调用方余量只在最终门应用一次。OpenRouter 如何为 Alibaba 转换 details 未知，因此结果仍为 `estimated`，不承诺误差界。summary 或 encrypted 推理、任何附加键（含显式 `signature: null`）、多项或空数组、其他 format 或 index、不一致的并行 `reasoning`、任何并行 `reasoning_content`、非 assistant 消息上的 details，以及 27B 的 `none` 与其他 effort 形状仍不可计量。factory 返回的 full、replay、new 方法（八个叶）都经共同的来源与历史守门，直接交入的非法历史会被拒绝而不是计量。这些 details 的上游真实回放，以及必做的同路由 details 与明文 `reasoning` 字符串对照（QV4），仍待完成，只由 root 沿预算账本执行。六个商业叶（Max 0902、MaxPrime、3.8 Flash、3.7 Max／Plus／Flash）统一绑定 definition 修订 3／`mp4-17`，采用完整**可见最终 JSON** 估算器。以固定 Qwen 公开 tokenizer 为代理，计入实际请求中按序的 system/user/assistant/tool 消息、提醒、schema、调用参数/结果、可见推理（`reasoning` 及 `reasoning.text`／`reasoning.summary` 明细）和协议/缓存控制；保留空白及 schema 无损数值。这是在私有 OpenRouter/Alibaba framing 未公开条件下的估算，不声称各型号词表相同或 JSON 就是原生 prompt。旧单 user 的 `+51`／`0` 拟合不迁移到新表示。商业叶的图片、加密/未知推理及未知字段仍不可计量，拒绝不会删除历史。纯文本的 2.4T 与 3.7 Max 对图片返回 `modality_not_carried`。五个叶声明了视频，但在有已采用的线上投影之前一律返回 `modality_not_carried`，声明的视频域尚未验证。六条路由使用显式 `5m`／`system` 缓存，两款 Flash 使用 automatic 缓存；保留时长和命中都未确立。调用方显式配置余量，实际 usage/cost 始终保留上游事实。`tests/qwen-family-current.spec.ts` 对每个叶分别经公开 transport 与 Cordis transport service 执行三轮本机 TLS，含有工具与无工具两种。`pnpm exec vitest run tests/qwen-visible-reasoning-rounds.spec.ts tests/qwen-visible-reasoning.spec.ts` 把六份开源叶存档真实流的片段按原形状交真实 reader 合并：每个开源叶在缺省、`high`、`max` 三档 effort、有无工具、两条路径上各跑三轮，后续轮次按回放的 details 计为 full estimated；并核对 details 计数与明文 `reasoning` 字符串计数相等（27B 另含内联 PNG 轮次）、各拒绝形态，以及经守门的 factory 方法。合成的本机轮次不能替代真实 OpenRouter public/service 认证，完整型号交付仍需后者。
+`createQwenInputMeter(definition)` 为八个固定 Alibaba 型号提供计量。所有 Qwen 叶都**只做全量**：回放（φ）与新增输入（δ）贡献不可用且未采用，每次请求都重新全量计量。两个开源权重叶 Qwen3.8 2.4T-A95B 与 27B 绑定 definition 修订 4／`mp4-19`，采用固定公开词表/Jinja 估算器；27B 保留不缩放的规范内联 PNG 子集。二者已声明的请求 effort `high`／`max` 按 Alibaba 文档中 high/max 映射到 xhigh 的说法，渲染模板默认的 xhigh 指令。该 estimated 扩域没有实际 effort 留出证据，也没有误差界。两个开源叶在 `alibaba` 路由上的已存档与当前真实流，在每个推理片段旁都附带一条与明文 `reasoning` 片段逐字相同的可见 `reasoning.text` detail；reader 将其合并为一项，下一请求原样回放该项。可见推理历史按有限估算计量：assistant 消息的 `reasoning_details` 恰为一项、own keys 恰为 `type`、`text`、`format`、`index`（`reasoning.text`、非 `[REDACTED]` 的字符串 text、format `unknown`、index 0、无 `id` 与 `signature`），且并行的 `reasoning` 若在场须为逐字相同的字符串（在模板 trim 之前比较）时，该文字在仅供计量的副本中只放进公开模板的 `reasoning_content` 槽位一次，与明文 `reasoning` 字符串完全同路。实际发送体与字节仍保留 details；不另加输出或 `reasoning_tokens` 项，调用方余量只在最终门应用一次。OpenRouter 如何为 Alibaba 转换 details 未知，因此结果仍为 `estimated`，不承诺误差界。summary 或 encrypted 推理、任何附加键（含显式 `signature: null`）、多项或空数组、其他 format 或 index、不一致的并行 `reasoning`、任何并行 `reasoning_content`、非 assistant 消息上的 details，以及 27B 的 `none` 与其他 effort 形状仍不可计量。factory 返回的 full、replay、new 方法（八个叶）都经共同的来源与历史守门，直接交入的非法历史会被拒绝而不是计量。这些 details 的上游真实回放，以及必做的同路由 details 与明文 `reasoning` 字符串对照（QV4 含 P2），结果记录在 [Qwen 可见推理决定](../../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/qwen-visible-reasoning-decision.md)。六个商业叶（Max 0902、MaxPrime、3.8 Flash、3.7 Max／Plus／Flash）统一绑定 definition 修订 3／`mp4-17`，采用完整**可见最终 JSON** 估算器。以固定 Qwen 公开 tokenizer 为代理，计入实际请求中按序的 system/user/assistant/tool 消息、提醒、schema、调用参数/结果、可见推理（`reasoning` 及 `reasoning.text`／`reasoning.summary` 明细）和协议/缓存控制；保留空白及 schema 无损数值。这是在私有 OpenRouter/Alibaba framing 未公开条件下的估算，不声称各型号词表相同或 JSON 就是原生 prompt。旧单 user 的 `+51`／`0` 拟合不迁移到新表示。商业叶的图片、加密/未知推理及未知字段仍不可计量，拒绝不会删除历史。纯文本的 2.4T 与 3.7 Max 对图片返回 `modality_not_carried`。五个叶声明了视频，但在有已采用的线上投影之前一律返回 `modality_not_carried`，声明的视频域尚未验证。六条路由使用显式 `5m`／`system` 缓存，两款 Flash 使用 automatic 缓存；保留时长和命中都未确立。调用方显式配置余量，实际 usage/cost 始终保留上游事实。`tests/qwen-family-current.spec.ts` 对每个叶分别经公开 transport 与 Cordis transport service 执行三轮本机 TLS，含有工具与无工具两种。`pnpm exec vitest run tests/qwen-visible-reasoning-rounds.spec.ts tests/qwen-visible-reasoning.spec.ts` 把六份开源叶存档真实流的片段按原形状交真实 reader 合并：每个开源叶在缺省、`high`、`max` 三档 effort、有无工具、两条路径上各跑三轮，后续轮次按回放的 details 计为 full estimated；并核对 details 计数与明文 `reasoning` 字符串计数相等（27B 另含内联 PNG 轮次）、各拒绝形态，以及经守门的 factory 方法。合成的本机轮次不能替代真实 OpenRouter 认证；两个开源叶已记录的真实 public 轮次，以及尚未跑过的叶与路径，列在 [transport 验证](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)。
 
 `createGlm52InputMeter(definition)` 与 `createGlm53InputMeter(definition)` 使用固定公开模板和词表，覆盖 GLM-5.2、GLM-5.3、GLM-5.3-Flash（definition 2／`mp4-17`，`z-ai/fp8`）的文本与工具请求。结果是固定 OpenRouter 路由的估算，调用方显式提供余量。GLM-5.3 发送已声明的 `low`／`high`／`max` effort，GLM-5.2 发送 `high`；Flash 与 FlashX 不发送 effort。其他显式 effort 一律丢弃，并记入 `droppedParameters`。`createZaiCommercialInputMeter(definition)` 分别将 Prime 的 `alibaba` 与 FlashX 的 `z-ai/fp8` 路由绑定到限定文本／工具粗估：固定公开 GLM-5.3 模板与词表投影减去一个 token，依据八次固定路由的拟合及独立留出观测。这不证明托管模型的词表身份、精确计费或误差上界。Prime definition 3／`mp4-17` 沿同一公共模板识别已声明的请求 effort `low`／`high`／`max`，不重拟合一 token 修正；该 estimated 扩域尚无实际 effort 留出证据或托管模板保证。FlashX 保留 definition 2／`mp4-17`。畸形或未声明的 effort 结构、不支持的缓存布局仍不可计量。各自上游许可随 tokenizer 原件打包，其中 GLM-5.3 使用独立许可。
 
@@ -253,7 +253,7 @@ Anthropic 配置的 `last_message` 布局选择最后一个真实非空 text blo
 
 Google 只有全量计量。该计量器不提供增量 replay/new 贡献（`unsupported-marginal/1`），因此每一轮（包括多轮续接）都按全量计量，不报告任何 φ/δ 值。纯文本可见推理历史（`reasoning`）会回放并计入。带签名的 Gemini 推理历史（`reasoning_details`，例如 `google-gemini-v1` 的文本条目与签名条目）由 wire 投影原样回放，但该计量器对其返回不可计量：这类续接在发送前以 `input_size_unavailable` 拒绝，历史不会被剥离。内联图片同样由 wire 投影承载，但没有离线图片计量依据，计量器以同样方式拒绝。音频与视频仍保留为已声明输入模态，但属于本期范围外：不承载，以 `modality_not_carried` 拒绝。不支持的 effort 结构、其他不透明推理及未知控制字段仍不可计量。本机 TLS 场景以合成上游覆盖三轮 public 与 Cordis transport 调用；两款型号的真实 OpenRouter public/service 认证仍待完成。
 
-`createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6／4.7 绑定 definition 5／`mp4-20`。可见文本／工具仍按第一方 Grok Build UTF-8 字节代理估算，保留两个 fit 样本得出的偏移 141／1181；独立可见工具历史 holdout 分别对完整输入高估 35／34 token。对于来源有限且完整、原样保留的 assistant 输出组，full/new/φ 把原上游输出计数 O 作为一次与工作负载相关的 **estimated** 输入代理；O 已包含 reasoning，同组 summary、密文、文本和工具不再另计。旧 definition 3／4 及 definition 5／`mp4-19` 只用于解释保存的来源事实，不保留旧工厂。回复带上游身份时，只接纳取自两款 2026-09-30 真实原始 SSE 的精确一对：serving provider 为 `xAI`、upstream model 等于该叶路由 ID，且输出组 origin 与观测用量来源两处一致；校准步骤把 `xAI` 认作 `xai` 路由的显示名，同依据续轮因此走 marginal。身份缺席照常接纳、不补填；只有单个字段、任何其他拼写（`xai`、`x.ai`、尾随空格、另一模型 ID）或 origin 与观测不一致均不可计量。未知格式与 partial 组同样不可计量，原 wire 保持不变。当前 effort 或 max-token 改变会使输入锚失效；full 仍可独立解释合法原 O。它不是精确输入占用或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。可见偏移未按 effort 单独拟合。身份映射已按真实原件实现并本机验证；真实密文回放是否被接受、图片及真实三轮 public/service 认证仍未完成。
+`createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6／4.7 绑定 definition 5／`mp4-20`。可见文本／工具仍按第一方 Grok Build UTF-8 字节代理估算，保留两个 fit 样本得出的偏移 141／1181；独立可见工具历史 holdout 分别对完整输入高估 35／34 token。对于来源有限且完整、原样保留的 assistant 输出组，full/new/φ 把原上游输出计数 O 作为一次与工作负载相关的 **estimated** 输入代理；O 已包含 reasoning，同组 summary、密文、文本和工具不再另计。旧 definition 3／4 及 definition 5／`mp4-19` 只用于解释保存的来源事实，不保留旧工厂。回复带上游身份时，只接纳取自两款 2026-09-30 真实原始 SSE 的精确一对：serving provider 为 `xAI`、upstream model 等于该叶路由 ID，且输出组 origin 与观测用量来源两处一致；校准步骤把 `xAI` 认作 `xai` 路由的显示名，同依据续轮因此走 marginal。身份缺席照常接纳、不补填；只有单个字段、任何其他拼写（`xai`、`x.ai`、尾随空格、另一模型 ID）或 origin 与观测不一致均不可计量。未知格式与 partial 组同样不可计量，原 wire 保持不变。当前 effort 或 max-token 改变会使输入锚失效；full 仍可独立解释合法原 O。它不是精确输入占用或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。可见偏移未按 effort 单独拟合。身份映射已按真实原件实现并本机验证。Grok 4.6 的真实三轮 public 与 service 证据（含上游接受密文回放），以及 Grok 4.7 以 Grok 4.6 代认的裁决，记录在 [transport 验证](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)与 [xAI 家族决定](../../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/xai-family-decision.md)；图片输入仍在本计量器计数范围之外。
 
 OpenRouter 的流式加密推理数据可能是 `[REDACTED]` 占位值。它不是完整可回放输出组，不能用于按 O 估算。
 
@@ -271,7 +271,7 @@ const meter = createXaiInputMeter(definition)
 
 `createMoonshotInputMeter(definition)` 将 Kimi K3（`moonshotai/mxfp4`）与 K2.7 Code（`moonshotai/int4`）绑定到固定词表及各自 XTML／Jinja 提示词模板，两者均为定义修订 `3`、`pi-ai:moonshot@mp4-18`。文本、明文推理及配对工具历史参与估算，不再重复计入完整 JSON 外壳。K3 沿固定 encoder 按前一 assistant 的 call IDs 排序连续并行工具结果，仅用于提示词估算；实际发出的历史不改序。两型号按各自固定视觉处理规则估算内联 PNG/JPEG/WebP 图片，计入完整文本、工具与图片历史。K3 只发送 `low`、`high`、`max` 三档 effort，其他取值丢弃；K2.7 Code 丢弃任何显式 effort，不发送 `reasoning` 成员。两种丢弃都记在 `droppedParameters`。
 
-Moonshot 计量只做 full。每次请求都按完整输入计为 `estimated`，带上一轮响应观察的后续轮次也一样。本家族未采用增量的回放／新增贡献（φ/δ），二者返回 `unavailable`（`unsupported-marginal/1`），不声称任何增量估算。两条选定路由的已存档真实流，在每个推理片段旁都附带一条与明文 `reasoning` 片段逐字相同的可见 `reasoning.text` detail；reader 将其合并为一项，下一请求原样回放该项。可见推理历史按有限估算计量：assistant 消息的 `reasoning_details` 恰为一项、own keys 恰为 `type`、`text`、`format`、`index`（`reasoning.text`、非 `[REDACTED]` 的字符串 text、format `unknown`、index 0、无 `id` 与 `signature`），且并行的 `reasoning`／`reasoning_content` 若在场须为逐字相同的字符串时，该文字在仅供计量的副本中只放进模板推理槽位一次（K3 的 think 段、K2.7 Code 的 `<think>` 槽位）。实际发送体与字节仍保留 details；不另加输出或 `reasoning_tokens` 项，调用方余量只在最终门应用一次。OpenRouter 如何为这两条路由转换 details 未知，因此结果仍为 `estimated`，不承诺误差界。summary 或 encrypted 推理、任何附加键（含显式 `signature: null`）、多项或空数组、其他 format 或 index、不一致的并行字符串，以及非 assistant 消息上的 details 都使估算不可用，远程图片和未识别模型输入字段同样如此；这类请求在 HTTP 之前被拒绝。factory 返回的 full、replay、new 方法都经共同的来源与历史守门，直接交入的非法历史会被拒绝而不是计量。这些 details 的上游真实回放，以及必做的同路由 details 与明文 `reasoning` 字符串对照（MV4），仍待完成，只由 root 沿预算账本执行。K3 定义中保留视频输入声明；本期只承载文本和图片，视频不在本期范围内，不承载（`modality_not_carried`）。此估算不代表已认证 OpenRouter 实际用量、缓存保留期或费用；两型号的真实 public／service 认证仍待完成。余量由调用方显式提供。随包的 `LICENSE.K3`、`LICENSE.K27` 保留各自上游许可和归属要求。
+Moonshot 计量只做 full。每次请求都按完整输入计为 `estimated`，带上一轮响应观察的后续轮次也一样。本家族未采用增量的回放／新增贡献（φ/δ），二者返回 `unavailable`（`unsupported-marginal/1`），不声称任何增量估算。两条选定路由的已存档真实流，在每个推理片段旁都附带一条与明文 `reasoning` 片段逐字相同的可见 `reasoning.text` detail；reader 将其合并为一项，下一请求原样回放该项。可见推理历史按有限估算计量：assistant 消息的 `reasoning_details` 恰为一项、own keys 恰为 `type`、`text`、`format`、`index`（`reasoning.text`、非 `[REDACTED]` 的字符串 text、format `unknown`、index 0、无 `id` 与 `signature`），且并行的 `reasoning`／`reasoning_content` 若在场须为逐字相同的字符串时，该文字在仅供计量的副本中只放进模板推理槽位一次（K3 的 think 段、K2.7 Code 的 `<think>` 槽位）。实际发送体与字节仍保留 details；不另加输出或 `reasoning_tokens` 项，调用方余量只在最终门应用一次。OpenRouter 如何为这两条路由转换 details 未知，因此结果仍为 `estimated`，不承诺误差界。summary 或 encrypted 推理、任何附加键（含显式 `signature: null`）、多项或空数组、其他 format 或 index、不一致的并行字符串，以及非 assistant 消息上的 details 都使估算不可用，远程图片和未识别模型输入字段同样如此；这类请求在 HTTP 之前被拒绝。factory 返回的 full、replay、new 方法都经共同的来源与历史守门，直接交入的非法历史会被拒绝而不是计量。这些 details 的上游真实回放，以及必做的同路由 details 与明文 `reasoning` 字符串对照（MV4 含 P2），结果记录在 [Moonshot 可见推理决定](../../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/moonshot-visible-reasoning-decision.md)。K3 定义中保留视频输入声明；本期只承载文本和图片，视频不在本期范围内，不承载（`modality_not_carried`）。此估算不代表已认证 OpenRouter 实际用量、缓存保留期或费用；两型号已记录的真实 public 与 service 轮次列在 [transport 验证](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)。余量由调用方显式提供。随包的 `LICENSE.K3`、`LICENSE.K27` 保留各自上游许可和归属要求。
 
 ## 持有传输资源
 
@@ -311,8 +311,21 @@ definitions 必填，缺席、undefined、非数组或不完整定义在建立�
 
 ```ts
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput, ReadFacts } from '@omne-harness-lite/model-request-runtime'
 import type { PiAiTransport } from '@omne-harness-lite/pi-ai-transport'
+
+// 只用于提前结束未读完的 reader，从不作为读取事实上报。
+const notRead: ReadFacts = {
+  usage: {
+    input_tokens: 'unknown',
+    output_tokens: 'unknown',
+    cache_read_tokens: 'unknown',
+    cache_write_tokens: 'unknown',
+    source: 'none',
+  },
+  cost: { cost_usd: 'unknown', source: 'none' },
+  observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+}
 
 export async function executeOnce(
   transport: PiAiTransport,
@@ -339,7 +352,7 @@ export async function executeOnce(
     }
   } finally {
     try {
-      await reader.return({ aborted: true })
+      await reader.return({ aborted: true, readFacts: notRead })
     } finally {
       sent.response.stop()
       await sent.response.stopped
@@ -458,7 +471,7 @@ if ('rejected' in schema) throw new Error(schema.rejected)
 
 配置是明确选用的来源值（`revision: '1'`、`values: { cache: { mode: 'automatic' } }`），不会作为隐藏的传输默认值。静态传输需显式传入定义，动态使用经既有模型贡献插件登记；目录发布和租户准入分别归已有 owner。
 
-本地已验证纯构造、规划及当前绑定的受控三轮 public／Cordis transport 路径。完整生产 public／runtime-service 认证、seed／stop 真正生效和完整参数调优仍待完成。本地三轮场景使用 `low` 与 `2048`；合成上游用量不能证明远端缓存命中或 tokenizer 准确度。Flash 声明有图片上限，上游图片事实明确为未知。历史真实图片观察早于当前绑定，不认证当前生产路径。
+本地已验证纯构造、规划及当前绑定的受控三轮 public／Cordis transport 路径。两个 DeepSeek 叶已记录的真实 public 与 service 轮次列在 [transport 验证](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)；seed／stop 是否真正生效和完整参数调优未确立。本地三轮场景使用 `low` 与 `2048`；合成上游用量不能证明远端缓存命中或 tokenizer 准确度。Flash 声明有图片上限，上游图片事实明确为未知。历史真实图片观察早于当前绑定，不认证当前生产路径。
 
 ### 家族策略与完整模型定义
 
