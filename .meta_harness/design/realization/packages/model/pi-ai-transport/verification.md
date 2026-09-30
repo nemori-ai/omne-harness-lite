@@ -345,6 +345,21 @@ UCT-V12 的官方配置不能换成禁用缓存或固定在旧位置的研究配
 
 包全量 `npx vitest run`：默认 5 s 门槛下 2052 过、1 跳、7 超时（`acceptance-d4-contributions` D4-A 子进程与 `openai-visible-history-candidate` 六例，均为高负载下的 5 s 超时）；`--testTimeout=60000` 复跑同一源码 123 个文件 2059 过、1 跳、0 失败；`tsc -p tsconfig.test.json` 0 错。同批变异负控（各自单独施加、跑两份新 spec 后还原）：去掉并行键同文检查使反例 2 失败（两叶各 1 例）；把显式 `signature: null` 当作缺席使反例 3 与反例 5「显式 null 签名」失败（共 4 例）；放行非 0 index 使反例 3 失败（两叶各 1 例）。演示装配 `examples/model-invocation-minimal-demo` 的两份 Qwen spec 不含 details 用例、按导出定义动态取修订，本次未改；在本 spoke 上该装配因依赖包 `@omne-harness-lite/loop-extension-runner` 未构建而无法加载，未实际运行。本节不关闭 QV4（每叶有／无工具真实三轮回放与必做同路由对照，归 root 账本）、G1 上游转换、G3 真实回放或两叶 D7 认证。
 
+## ZAI 五叶可见推理历史候选义务
+
+对象为 [ZAI 可见推理计量 revision 1](zai-visible-reasoning-estimate-design.md)（缺口 GG-12），消费已接受 RT12/MR11 与 D-111 R-A 的 full-only。**本节均为待执行义务，新增绑定 0**；候选未评审、未采用、未实施，本次文档检查不证明源码、模型或上游已兑现。释放分两批：GLM-5.2、Prime、FlashX 可随采用释放，GLM-5.3、Flash 以 ZV0 为前置。
+
+| 编号／条款 | 正向、反例与必须失败的负控 | 门类 | owner／受阻消费者 |
+|---|---|---|---|
+| ZV0：RT12 S-74③ | GLM-5.3（缺省或 `max`）、Flash（缺省）各一次当前绑定单轮真实流，题面能激发可见推理、输出上限足以 `stop`；逐帧核 details 恰四键、无显式 `signature: null`、并行 `reasoning` 同文、推理恰一段连续。形状不同则修订候选页，仍无推理则该叶维持现拒绝 | 释放前置，付费 | root 唯一账本；两叶释放 |
+| ZV1：RT12 S-74、S-79；MR11 S-43 | 已释放叶 × 当前 effort 发送域 × 有/无 tools × {public，Cordis transport service} 三轮：第 2、3 轮 full/`estimated`，每轮恰一次 HTTP 且字节等于计划，wire 保留 details，资源实停；Prime 带显式 5m `last_message`。`zai-three-round-invoke.spec.ts` 等既有拒绝用例按候选页 ZV1 改期望，混合 opaque／明文与异路由 opaque 仍规划拒绝 | 本机 | transport 实施者；已释放叶真实多轮 |
+| ZV2：RT12 S-74③、S-78 | 反例 1–8、10–13；模板预言扩到 GLM-5.3、Flash、GLM-5.2 三套固定模板（`clear_thinking=false`，推理 assistant 在末条 user 前后各一），GLM-5.2 另存缺省口径黄金值；夹具由两批原件片段经真实 reader 合成。变异负控各自单独施加须失败：去掉并行 `reasoning` 同文检查、把显式 `signature: null` 当缺席、放行非 0 index、GLM-5.2 渲染器漏渲槽位、Prime／FlashX 对历史多减一次常数 | 本机 | transport 实施者；同上 |
+| ZV3：RT12 S-77、S-79⑥；H13 | 直接调用三个 factory 为五叶返回的 full／φ／δ：非法显式 history 由共同包装拒绝，body-only 合法 full 为 `estimated` 且数值与接线前相同，包装无递归；不以规划器或独立包装函数的测试代证 | 本机 | transport 实施者；直接调用公开函数的消费者 |
+| ZV4：RT12 S-74③、S-78 | 已释放叶有／无 tools 各至少一组当前绑定三轮真实流，第 2 轮起回放 details，记录上游接受、`prompt_tokens` 残差、cache 与 cost、逐帧形状。**必做**同路由对照：同一第 2 轮历史以 (A) details、(B) `reasoning` 字符串、(C) 无推理发送；A＝B＞C 闭合该叶 ZG1，A＝B＝C 记为路由清除、后继改口径，A≠B 由后继撤回该叶 details 映射。残差不引入修正常数 | 认证门，付费 | root 唯一账本；五叶 D7 逐模型真实多轮 |
+| ZV5 | 已释放叶 definition／implementation／algorithm 唯一修订、显式 tokenizerRevision、`evidence` 字串、包 README／README_ZH 双语段与制品消费；删除 `zai-candidate.ts` 并迁移其消费者；未知与失败原件保留 | 交付 | 实施者＋主线；包文档读者 |
+
+覆盖缺口与受阻消费者见候选页 ZG1～ZG9，本节不复述。候选须经独立 architecture-reviewer 与主线技术采用后才释放 ZV1–ZV3 与 ZV5 的实施；ZV0、ZV4 的付费观测不因本节登记而获授权。
+
 ## H13 多个历史输出组候选
 
 对象为 [v13 revision 1](v13-output-history-design.md)，精确消费 D-107 已接受 MR9/RT10 与 runtime v19 候选唯一账本。**本节均为待执行义务，新增绑定 0**；本次文档检查不证明源码、模型或上游已兑现。
