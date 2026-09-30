@@ -33,24 +33,27 @@ export function createDemoCallHost(): DemoCallHost {
 
   /**
    * Containers of one Session share a settlement owner whose concurrency is a finite budget, so
-   * closing several at once can lose that admission and leave the loser registered ("close
-   * again"). A pass retries only the registrations that stayed; the loop ends when everything is
-   * released or a whole pass made no progress, so it needs neither a timer nor a retry count.
+   * closing several at once can lose that admission and answer `unavailable` ("close again")
+   * while the loser stays registered. A pass retries only those clean refusals; the loop ends
+   * when none is left or a whole pass released nothing, so it needs neither a timer nor a retry
+   * count. An owner that threw is a defect: it stays registered for an explicit later stop.
    */
   async function releaseRegistrations(): Promise<RuntimeCloseResult> {
     let pending = [...registrations]
     while (pending.length !== 0) {
       const results = await Promise.allSettled(pending.map(close => Promise.resolve().then(close)))
-      const kept = pending.filter((close, index) => {
-        const result = results[index]
-        if (result?.status === 'fulfilled' && 'released' in result.value) {
+      const refused: (typeof pending)[number][] = []
+      let progressed = false
+      results.forEach((result, index) => {
+        const close = pending[index]
+        if (close === undefined || result.status === 'rejected') return
+        if ('released' in result.value) {
           registrations.delete(close)
-          return false
-        }
-        return true
+          progressed = true
+        } else refused.push(close)
       })
-      if (kept.length === pending.length) break
-      pending = kept
+      if (!progressed) break
+      pending = refused
     }
     released = registrations.size === 0
     return released ? { released: true } : { unavailable: true }
