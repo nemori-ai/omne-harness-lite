@@ -1,5 +1,7 @@
 # Qwen 开源两叶可见推理详情的参考计量
 
+实施状态（2026-09-30，不改下文受审字节）：已按[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-visible-reasoning-decision.md)实施，两叶当前为 definition `4`／`pi-ai:qwen@mp4-19`、algorithm `qwen-38-public-template-effort-4`／`qwen-38-public-template-image-effort-5`；QV1–QV3 本机覆盖见 [verification](verification.md#2026-09-30-qwen-可见推理本机覆盖)，QV4 待 root。
+
 2026-09-30，revision 2，candidate，**待当前绑定真实形状确认后采用**；独立架构评审无阻断，按主调度 2026-09-30 裁决（R-P）在 QV0 之后与 Moonshot 同法采用（机制接线先行、QV4 真实回放作门）；尚未技术采用、未实施、未实际验证，新增 bindings 0。本页按已采用的 [DeepSeek 可见推理计量](deepseek-visible-reasoning-estimate-design.md)（[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/deepseek-visible-reasoning-decision.md)）的结构，补充已采用的 [v10](v10-token-estimate-design.md)、[v12](v12-usage-calibration-design.md)，与同日 [Moonshot 候选](moonshot-visible-reasoning-estimate-design.md)共用形状识别与守门接线，不改这些页的受审字节。持续消费者为 `qwen/qwen3.8-2.4t-a95b`、`qwen/qwen3.8-27b` 两款官方定义、`createQwenInputMeter` 的公开模板分支与模型调用规划器；固定公开模板、OpenRouter 推理详情协议或共享分组规则变化时复核本页。其余六款 Qwen（可见 JSON 替身分支）不在范围内。
 
 ## 基准、性质与证据

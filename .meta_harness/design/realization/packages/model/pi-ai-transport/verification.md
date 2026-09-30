@@ -332,6 +332,19 @@ UCT-V12 的官方配置不能换成禁用缓存或固定在旧位置的研究配
 
 同批变异负控：去掉校准例外行使「真实身份 → marginal」用例失败（6 例）；把服务商比较改为大小写折叠使小写反例失败（6 例）；去掉 origin/观测一致性使「origin 有、观测缺」反例失败（2 例）；均已还原。演示装配用例在基线上已因共享本机 TLS 助手改为逐帧 delta 而失败（回复无 opaque），本次按同一助手改传 `reasoning_details` delta 一并修复。本节不关闭 X5 真实两入口三轮、回放是否被上游接受、续轮误差、cache 与费用、图片或 effort holdout；真实三轮认证归 root。
 
+## 2026-09-30 Qwen 可见推理本机覆盖
+
+对象：[Qwen 开源两叶可见推理计量 revision 2](qwen-open-visible-reasoning-estimate-design.md)（[采用决定](../../../../record/decisions/model-input-usage-calibration-adoption/qwen-visible-reasoning-decision.md)）在 `qwen/qwen3.8-2.4t-a95b`、`qwen/qwen3.8-27b`@`alibaba` 的新发布：definition 4、`pi-ai:qwen@mp4-19`，algorithm `qwen-38-public-template-effort-4`／`qwen-38-public-template-image-effort-5`，tokenizer 修订钉在不变的 `tokenizer-basis/qwen-38-public-template-effort-3`／`tokenizer-basis/qwen-38-public-template-image-effort-4`，φ/δ 仍为 `unsupported-marginal/1`；六款商业叶仍为 3／`mp4-17`、数值不变，只随八叶 factory 方法一起接上共同包装。四键形状谓词沿用已有 `visibleReasoningDetailText`；Moonshot 的「并行键同文、只计一次」投影抽为共享 `projectVisibleReasoningBody`，家族只传入同文键集合（Moonshot 两键、Qwen 只 `reasoning`，`reasoning_content` 沿既有渲染器拒绝），Moonshot 行为不变。夹具是 [2026-09-27 probe run](../../../../record/evidence/2026-09-27-probe-model-request-runtime/README.md) 六份 Qwen 开源叶原件的有序片段（104 帧，成员 SHA-256 随夹具记录），按原 delta 形状重建成本机 TLS SSE、交真实 reader 合并；另只读核对了 QV0 两份当前绑定原始 SSE（HUB 私有目录，未入库），逐帧形状与夹具相同、无显式 `signature: null`。未发任何付费请求，原始运行输出未归档为 evidence run。
+
+| 义务 | 执行仓库用例 | 用例数 | 实际结果 |
+|---|---|---:|---|
+| QV1 | `tests/qwen-visible-reasoning-rounds.spec.ts`：两叶 × {缺省，`high`，`max`} × 有/无工具 × {public transport，Cordis transport service} | 24 | 第 2、3 轮 full/`estimated`；每轮恰一次 HTTP 且字节等于计划，带唯一的显式 5m `system` 缓存控制；线上只回放 reader 合并后的一项 details，不带 `reasoning`／`reasoning_content`；每轮估算等于独立 meter 与「details 换成 `reasoning` 字符串」的计数；余量只在门上应用一次；Cordis 路径展示名 `Alibaba` 使第 2、3 轮 `basis_changed`，public 路径 φ/δ 被询问且为 unavailable；资源实停 |
+| QV2 | `tests/qwen-visible-reasoning.spec.ts`：反例 1–7、9、10 与等价预言（六份原件 × 有/无工具 × 三档 effort，27B 另含内联 PNG 轮次，共 54 组比较） | 22 | 合格 details 计数与字符串形逐值相等；同文并行 `reasoning` 只计一次；并行 `reasoning` 差一字、仅首尾空白不同、空串、`null`、非字符串，及任何并行 `reasoning_content`（含同文）为 unavailable；反例 3 的 18 种形态（含 `id:null`、`signature:null`、`index:1`、`index:"0"`、`[REDACTED]`）与反例 5 的带 id、R-L 迟到签名、显式 `signature: null` 片段流在 meter 与规划器均为 unavailable／`input_size_unavailable`，零新增 HTTP、原消息不变；非 assistant 消息带 details、27B `none`（带或不带 details）为 unavailable；原 body 与字节不变；replay/new 被询问且为 unavailable，measurement 为 full；只发 details 的流（反例 10）回放为估算 |
+| QV3 | 同文件，直接调用 `createQwenInputMeter` 对两叶返回的方法 | 2 | body-only full 为 `estimated`；缺 span、部分组、越界、重复目标、组被篡改、来源矛盾、序列化不一致均 unavailable；φ/δ 坏输入 `invalidInput`；共同包装无递归 |
+| 受影响既有用例 | `tests/qwen-family-current.spec.ts` 开源两叶 `text` 用例由拒绝改为估算（线上保留 details、不补 `reasoning`），`summary`、`encrypted` 负控保留；`qwen-input-meter`（修订、tokenizer 钉值、证据串、拒绝 2/`mp4-17`、3/`mp4-18`、4/`mp4-18`、3/`mp4-19`）、`official-qwen-definitions`、`official-reader-bindings`（新增 `qwen-visible-reasoning.json` 行，`qwen-open-effort.json` 保留为前一发布原件）跟随新发布；Moonshot 可见推理 MV1–MV3 在抽出共享投影后照常通过 | — | 通过 |
+
+包全量 `npx vitest run`：默认 5 s 门槛下 2052 过、1 跳、7 超时（`acceptance-d4-contributions` D4-A 子进程与 `openai-visible-history-candidate` 六例，均为高负载下的 5 s 超时）；`--testTimeout=60000` 复跑同一源码 123 个文件 2059 过、1 跳、0 失败；`tsc -p tsconfig.test.json` 0 错。同批变异负控（各自单独施加、跑两份新 spec 后还原）：去掉并行键同文检查使反例 2 失败（两叶各 1 例）；把显式 `signature: null` 当作缺席使反例 3 与反例 5「显式 null 签名」失败（共 4 例）；放行非 0 index 使反例 3 失败（两叶各 1 例）。演示装配 `examples/model-invocation-minimal-demo` 的两份 Qwen spec 不含 details 用例、按导出定义动态取修订，本次未改；在本 spoke 上该装配因依赖包 `@omne-harness-lite/loop-extension-runner` 未构建而无法加载，未实际运行。本节不关闭 QV4（每叶有／无工具真实三轮回放与必做同路由对照，归 root 账本）、G1 上游转换、G3 真实回放或两叶 D7 认证。
+
 ## H13 多个历史输出组候选
 
 对象为 [v13 revision 1](v13-output-history-design.md)，精确消费 D-107 已接受 MR9/RT10 与 runtime v19 候选唯一账本。**本节均为待执行义务，新增绑定 0**；本次文档检查不证明源码、模型或上游已兑现。
