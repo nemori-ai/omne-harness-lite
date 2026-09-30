@@ -26,6 +26,7 @@ import { batchV2 } from './log-codec-v2-fixture.ts'
 import { createRuntimeReconcile } from '../src/service-reconcile.ts'
 import type { SessionRuntimeBinding } from '../src/service-types.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
+import { storeUnavailableCustody } from './reference-ports-fixture.ts'
 
 const rejections: unknown[] = []
 const onRejection = (reason: unknown) => {
@@ -460,13 +461,13 @@ describe('review 2026-09-30 Q4 unknown ownership on the original handle (coordin
   })
 })
 
-describe('review 2026-09-30 Q3 interim fail-closed granularity: reconcile (characterization)', () => {
+describe('review 2026-09-30 Q3/S2 fail-closed granularity: reconcile per call (RT12 S-100)', () => {
   it.each([false, true])(
     'reconcile over one terminal call (acknowledged: %s) next to an in-flight call',
     async withAck => {
       // RT12 S-100 reconcile row: "已ACK返回S-97，可继续会话对账；不能因已释放payload永久unavailable".
-      // The S-97 view is out of A1's scope, so this is recorded as the current interim behavior and
-      // its blast radius (any ACK in a session blocks recovery of every other call in it).
+      // Adopted from the A1 characterization (where any ACK blocked the whole session): the
+      // acknowledged call now answers its own S-97 branch and the other call still recovers.
       await controlled(`rv-reconcile-acked-${withAck}`, async ({ binding, owner }) => {
         const rec = (value: unknown) => prepare('record', value, { kind: 'record' })
         const payloadOf = (locator: string, kind: 'created' | 'reply_ready') => ({
@@ -523,6 +524,7 @@ describe('review 2026-09-30 Q3 interim fail-closed granularity: reconcile (chara
         if ('failure' in appended) throw new Error('acked call')
         void tenant
         const reconcile = createRuntimeReconcile({
+          custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
           now: () => '2026-09-30T00:00:03Z',
@@ -541,9 +543,24 @@ describe('review 2026-09-30 Q3 interim fail-closed granularity: reconcile (chara
           },
         })
         // 'call' (harness anchors) is an in-flight call that recovery would interrupt; 'acked' is
-        // terminal and acknowledged. Interim behavior: the whole session answer is unavailable.
+        // terminal and acknowledged: it answers only its small branch, per call.
         const result = await reconcile.reconcile({ session })
-        if (withAck) expect(result).toEqual({ unavailable: true })
+        if (withAck)
+          expect(result).toMatchObject({
+            calls: expect.arrayContaining([
+              expect.objectContaining({
+                callId: 'acked',
+                acknowledged: expect.objectContaining({
+                  terminalState: 'complete',
+                  acknowledged: expect.objectContaining({
+                    cleanup: 'pending',
+                    pendingReasons: ['storage_unavailable'],
+                  }),
+                }),
+              }),
+              { callId: 'call', state: 'interrupted' },
+            ]),
+          })
         else
           expect(result).toMatchObject({
             calls: expect.arrayContaining([

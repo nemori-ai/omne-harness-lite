@@ -1,9 +1,15 @@
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { createModelCallContentStore } from '../src/reference-content.ts'
 import { createModelCallFacts } from '../src/reference-facts.ts'
+import {
+  createAcknowledgementCustody,
+  type AcknowledgementCustody,
+} from '../src/acknowledgement-custody.ts'
+import { createCallContainerStore } from '../src/service-container.ts'
 import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
 import type { selectionHost } from './session-selection-fixture.ts'
+import { noWaitScheduler } from './settlement-fixture.ts'
 
 type Host = Awaited<ReturnType<typeof selectionHost>>
 type Ports<P extends PlannedSemantics, R> = Pick<
@@ -99,4 +105,18 @@ export function unavailableReferencePorts<P extends PlannedSemantics, R>(): Port
       close: async () => ({ released: true }),
     },
   }
+}
+
+/**
+ * ACK custody for a component tested without a retention store: cleanup of an acknowledged
+ * call honestly stays pending (storage_unavailable) and is never retried.
+ */
+export function storeUnavailableCustody(): AcknowledgementCustody {
+  return createAcknowledgementCustody({
+    calls: createCallContainerStore<PlannedSemantics, unknown>(),
+    content: unavailableReferencePorts<PlannedSemantics, unknown>().callFacts.content,
+    scheduler: noWaitScheduler,
+    policy: { next: () => ({ stop: true }) },
+    diagnostic() {},
+  })
 }

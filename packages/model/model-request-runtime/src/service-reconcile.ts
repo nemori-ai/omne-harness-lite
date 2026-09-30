@@ -504,8 +504,11 @@ export function createRuntimeReconcile(input: {
   readonly diagnostic: (event: SettlementDiagnostic) => void
   readonly diagnosticCollector?: Pick<DiagnosticCollector, 'emitter'>
   readonly onDiagnosticFailure?: () => void
-  /** RT12 S-100: without the runtime's ACK custody an acknowledged call is unavailable. */
-  readonly custody?: AcknowledgementCustody
+  /**
+   * RT12 S-100: an acknowledged call answers its S-97 branch with the current cleanup progress,
+   * so reconcile needs the owning runtime's ACK custody; one ACK never blocks the session.
+   */
+  readonly custody: AcknowledgementCustody
 }): {
   readonly reconcile: (request: ReconcileInput) => Promise<ReconcileResult>
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
@@ -862,7 +865,7 @@ async function readRecoveredCalls(
     readonly now: () => string
     readonly diagnostic: (event: SettlementDiagnostic) => void
     readonly run?: RunHistoryReader
-    readonly custody?: AcknowledgementCustody
+    readonly custody: AcknowledgementCustody
   },
   closed: () => boolean,
   onAnchor: (anchor: {
@@ -916,7 +919,7 @@ async function readRecoveredCalls(
         generation: binding.generation,
         progress: read.prefix.tail,
       })
-      if (facts === undefined || input.custody === undefined) return { unavailable: true }
+      if (facts === undefined) return { unavailable: true }
       calls.push({ callId, acknowledged: await input.custody.view(binding, facts) })
       continue
     }
