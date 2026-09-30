@@ -2,7 +2,7 @@
 
 本地 JSONL 会话日志提供者，实现 session-log v3 的三项操作：带条件整批追加、按不透明键读取、从位置之后读取。一次提交占一行。载荷通过 core 的严格无损 JSON 边界；提供者不解释 Run 记录、模型响应或业务键。
 
-包根入口公开 `checkAppendInput`、`judgeAppend`、`emptyLogState`、`foldCommit`、`encodeCommitLine`、`decodeLogBytes` 和 `openJsonlSessionLog`。这些函数及独立属主闭包不解析 Cordis。`./plugin` 公开 `Config`、`sessionLogJsonl` 和默认插件。`sessionLog` 服务恰有 `append`、`readByKey`、`readSince`；`close` 归物理属主。
+包根入口公开 `checkAppendInput`、`judgeAppend`、`emptyLogState`、`foldCommit`、`encodeCommitLine`、`decodeLogBytes`、`commitFormatVersion`、`indexFoldVersion`、`openJsonlSessionLog`、`defaultSessionLogPolicy`，以及政策、选项、诊断与进程归属类型。这些函数及独立属主闭包不解析 Cordis。`./plugin` 公开 `Config`、`sessionLogJsonl` 和默认插件。`sessionLog` 服务恰有 `append`、`readByKey`、`readSince`；`close` 归物理属主。
 
 ## 纯构件
 
@@ -169,8 +169,8 @@ try {
 
 `processOwnership` 是闭包及插件构造的必填本地生命周期依赖，不是租户配置或日志业务参数。`current` 标识一个实际物理进程的本次生命，提供者捕获不可变值；同进程所有 open 和 fiber 重跑必须相同。`observeExit(owner)` 返回 `exited`、`alive` 或 `unknown`，异常和非法返回按 unknown。示例只在物理进程启动时生成一次身份，对历史 owner 保守返回 unknown，演示健康使用而非生产进程观察器。主管可以保留实际子进程 exit 证据；主管自身重启后无法确认的历史仍是 unknown。生产宿主这项责任 RG-G1 尚未闭合。
 
-旧 writer 的目录没有正式标记，只有可选 `observeLegacyExit(dir)` 能给出全部旧物理写进程退出证据时才迁移；缺席则拒绝。先停旧准入、排空所有写方并确认实际进程退出，再迁移四参数追加调用者、提供新宿主端口、打开旧数据。损坏正式标记保持不可用，不转成 legacy；遗留 `recovery.json.next` 永不作为权威。旧写器不能安全回开新布局。本包不等于完整 model-request-runtime 纵线交付，runtime v3 仍消费 session-log v2。
+旧 writer 的目录没有正式标记，只有可选 `observeLegacyExit(dir)` 能给出全部旧物理写进程退出证据时才迁移；缺席则拒绝。先停旧准入、排空所有写方并确认实际进程退出，再迁移四参数追加调用者、提供新宿主端口、打开旧数据。损坏正式标记保持不可用，不转成 legacy；遗留 `recovery.json.next` 永不作为权威。旧写器不能安全回开新布局。`@omne-harness-lite/model-request-runtime` 经公开根入口消费本提供者的 SL3 操作；本包不解释这些记录。
 
 源码采用关系：[SL3](../../../.meta_harness/design/spec/capabilities/session-log/v3/contract.md)、[D083](../../../.meta_harness/design/record/decisions/session-log-tail-condition-adoption/decision.md)、[D084 投影](../../../.meta_harness/design/realization/packages/session/session-log-jsonl/v3-design.md)、[D085 恢复投影](../../../.meta_harness/design/realization/packages/session/session-log-jsonl/v3-recovery-design.md)。Run 解释、共同业务键 codec、合法读取权限、消费者重试策略和所有旧业务写方的实际停止，仍归各自 owner。
 
-model-data 回归以当前 MS6/MR9 载荷验证追加和重开，包括响应自身的输入计量依据。日志只保存 JSON 值，不解释校准或修补业务非法载荷；这些判断归模型消费者。
+model-data 回归（`tests/model-data.spec.ts`）以当前 `messages` 与 `model-response` 判定仍接受的 MS6 回复和 MR9 响应夹具验证追加和重开，包括响应自身的输入计量依据。日志只保存 JSON 值，不解释校准或修补业务非法载荷；这些判断归模型消费者。
