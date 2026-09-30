@@ -3,10 +3,10 @@ import {
   measureDeepSeekBoundary,
   createDeepSeekSupplemental,
   deepSeekPythonJson,
-  guardDeepSeekMeter,
   projectDeepSeekMeterBody,
   DEEPSEEK_BOUNDARY_REVISION,
 } from './deepseek-boundary.ts'
+import { guardInputMeter } from './shared.ts'
 // Projection adapted from DeepSeek-V4.1-Flash encoding/encoding.py at
 // dba1be0a40aa45a94ad051997016db3960a90277 (MIT; tokenizers/deepseek-v41-flash/LICENSE).
 // This is an estimate of the chosen OpenRouter/DeepInfra route, not a claim that
@@ -493,5 +493,5 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
       }
     },
   })
-  return guardDeepSeekMeter(raw)
+  return guardInputMeter(raw)
 }

@@ -3,10 +3,10 @@ import {
   measureDeepSeekBoundary,
   createDeepSeekSupplemental,
   deepSeekPythonJson,
-  guardDeepSeekMeter,
   projectDeepSeekMeterBody,
   DEEPSEEK_BOUNDARY_REVISION,
 } from './deepseek-boundary.ts'
+import { guardInputMeter } from './shared.ts'
 // Projection adapted from DeepSeek-V4-Pro encoding/encoding_dsv4.py at
 // b5968e9190ef611bbf34a7229255be88a0e937c1 (MIT; tokenizers/deepseek-v4/LICENSE).
 // This is an estimate of the chosen OpenRouter/DeepInfra route, not a claim that
@@ -324,5 +324,5 @@ export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): Inpu
       }
     },
   })
-  return guardDeepSeekMeter(raw)
+  return guardInputMeter(raw)
 }

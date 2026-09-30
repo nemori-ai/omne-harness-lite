@@ -5,24 +5,17 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import {
-  measureFull,
-  measureNew,
-  measureReplay,
-  type InputMeter,
-  type MarginalMeterInput,
-  type MeterContribution,
-} from '../input-meter.ts'
+import type { MarginalMeterInput, MeterContribution } from '../input-meter.ts'
 import { object } from '../json.ts'
+import { visibleReasoningDetailText } from './shared.ts'
 
 const terminalFrames = ['<｜Assistant｜><think>', '<｜Assistant｜></think>']
 export const DEEPSEEK_BOUNDARY_REVISION = 'deepseek-reference-boundary/2'
 
 /**
- * Meter-only copy of the actual body. Exactly one assistant detail with own keys
- * type/text/format/index = `reasoning.text`/string/`unknown`/0, and no parallel
- * `reasoning` or `reasoning_content`, becomes reference `reasoning_content`.
+ * Meter-only copy of the actual body. The shared visible detail shape
+ * (`visibleReasoningDetailText`) with no parallel `reasoning` or `reasoning_content`
+ * becomes reference `reasoning_content`.
  * Any other details shape is unexplained: undefined, never a JSON-length proxy.
  * The result is still an estimate; the private serving projection is unknown.
  */
@@ -35,48 +28,19 @@ export function projectDeepSeekMeterBody(body: JsonObject): JsonObject | undefin
       messages.push(message)
       continue
     }
-    const details = message.reasoning_details
-    if (
-      message.role !== 'assistant' ||
-      Object.hasOwn(message, 'reasoning') ||
-      Object.hasOwn(message, 'reasoning_content') ||
-      !Array.isArray(details) ||
-      details.length !== 1
-    )
+    // DeepSeek policy: any parallel reasoning string makes the text source ambiguous.
+    if (Object.hasOwn(message, 'reasoning') || Object.hasOwn(message, 'reasoning_content'))
       return undefined
-    const detail = details[0]
-    if (
-      !object(detail) ||
-      Object.keys(detail).length !== 4 ||
-      !['type', 'text', 'format', 'index'].every(name => Object.hasOwn(detail, name)) ||
-      detail.type !== 'reasoning.text' ||
-      typeof detail.text !== 'string' ||
-      detail.format !== 'unknown' ||
-      !isJsonNumber(detail.index) ||
-      ExactDecimal.from(detail.index).compare(ExactDecimal.from(0)) !== 0
-    )
-      return undefined
+    const text = visibleReasoningDetailText(message)
+    if (text === undefined) return undefined
     messages.push({
       ...Object.fromEntries(
         Object.entries(message).filter(([name]) => name !== 'reasoning_details'),
       ),
-      reasoning_content: detail.text,
+      reasoning_content: text,
     })
   }
   return { ...body, messages }
-}
-
-/**
- * Public factory methods run the shared source/basis guards around the private raw
- * meter; `defineInputMeter` only freezes. The guards call `raw`, so no recursion.
- */
-export function guardDeepSeekMeter(raw: InputMeter): InputMeter {
-  return Object.freeze({
-    ...raw,
-    measureFull: (input: Parameters<InputMeter['measureFull']>[0]) => measureFull(raw, input),
-    measureReplay: (input: Parameters<InputMeter['measureReplay']>[0]) => measureReplay(raw, input),
-    measureNew: (input: Parameters<InputMeter['measureNew']>[0]) => measureNew(raw, input),
-  })
 }
 
 /** Reference rendering is linear; this function never invokes a tokenizer. */
