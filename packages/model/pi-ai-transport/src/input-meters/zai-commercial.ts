@@ -8,10 +8,12 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
 import { ruleAccepts, type ModelDefinition } from '../definitions.ts'
-import { zaiDefinitions } from '../official-models/zai.ts'
+import { zaiDefinitions, type ZaiHistoryTreatment } from '../official-models/zai.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import { guardInputMeter } from './shared.ts'
 import { exactKeys, glm5Tokenizer } from './zai-glm52.ts'
 import { renderGlm53Prompt } from './zai-glm53.ts'
+import { zaiCurrentRelease, zaiVisibleHistoryEvidence } from './zai-release.ts'
 
 const commercialRoutes = {
   'z-ai/glm-5.3-prime': 'alibaba',
@@ -116,46 +118,53 @@ export function projectZaiCommercialBody(
   return projection
 }
 
-/** Supported final-wire subset, projected through the pinned public template. */
-export function renderZaiCommercialPrompt(body: JsonObject): string | undefined {
+/**
+ * Supported final-wire subset, projected through the pinned public template. The cache-marker
+ * projection and the history treatment touch disjoint members, so their order is immaterial.
+ */
+export function renderZaiCommercialPrompt(
+  body: JsonObject,
+  history: ZaiHistoryTreatment,
+): string | undefined {
   if (typeof body.model !== 'string' || !commercialModelId(body.model)) return undefined
   const projected = projectZaiCommercialBody(body, body.model)
-  return projected ? renderGlm53Prompt(projected, false) : undefined
+  return projected ? renderGlm53Prompt(projected, false, history) : undefined
 }
 
-/** Separate exact bindings; one-token calibration is observed only for text/tools. */
+/**
+ * Separate exact bindings at their current exported release; one-token calibration is
+ * observed only for text/tools and is applied once, also to history-bearing input. The
+ * full/φ/δ methods run the shared source guards.
+ */
 export function createZaiCommercialInputMeter(definition: ModelDefinition): InputMeter {
-  const canonical = zaiDefinitions.find(value => value.modelId === definition.modelId)
-  if (
-    !commercialModelId(definition.modelId) ||
-    definition.revision !== canonical?.revision ||
-    definition.implementation.name !== 'pi-ai:zai' ||
-    definition.implementation.revision !== canonical?.implementation.revision ||
-    !Object.hasOwn(definition.routes, commercialRoutes[definition.modelId])
-  )
-    throw new TypeError('unsupported ZAI commercial input-meter binding')
   const modelId = definition.modelId
+  const unsupported = new TypeError('unsupported ZAI commercial input-meter binding')
+  if (!commercialModelId(modelId)) throw unsupported
+  const current = zaiCurrentRelease(definition, commercialRoutes[modelId])
+  if (!current) throw unsupported
+  const { release, history } = current
   const provider = commercialRoutes[modelId]
   const encoder = glm5Tokenizer()
-  const meter = defineInputMeter({
+  const evidence =
+    'zai-org/GLM-5.3 aca966e4 template + pinned GLM-5 tokenizer 19e77364; ' +
+    'selected OpenRouter route fit/independent holdout 2026-09-28 (each observed=public-1); ' +
+    'text/tools only, hosted tokenizer and private transform unknown; ' +
+    'declared request effort uses the pinned public template mapping without refitting; ' +
+    'Prime low/high/max scope extension has no actual effort holdout or error bound'
+  const raw = defineInputMeter({
     modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider,
-    algorithmRevision:
-      modelId === 'z-ai/glm-5.3-prime'
-        ? 'prime-public-glm53-declared-effort-route-fit-2'
-        : 'flashx-public-glm53-route-fit-1',
-    evidence:
-      'zai-org/GLM-5.3 aca966e4 template + pinned GLM-5 tokenizer 19e77364; ' +
-      'selected OpenRouter route fit/independent holdout 2026-09-28 (each observed=public-1); ' +
-      'text/tools only, hosted tokenizer and private transform unknown; ' +
-      'declared request effort uses the pinned public template mapping without refitting; ' +
-      'Prime low/high/max scope extension has no actual effort holdout or error bound',
+    algorithmRevision: release.algorithmRevision,
+    ...(release.tokenizerRevision === undefined
+      ? {}
+      : { tokenizerRevision: release.tokenizerRevision }),
+    evidence: history === 'visible' ? `${evidence}; ${zaiVisibleHistoryEvidence}` : evidence,
     measureFull({ body, serialized }): TokenMeasurement {
       if (body.model !== modelId || writeJsonLossless(body) !== serialized)
         return { kind: 'unavailable' }
-      const prompt = renderZaiCommercialPrompt(body)
+      const prompt = renderZaiCommercialPrompt(body, history)
       if (prompt === undefined) return { kind: 'unavailable' }
       try {
         const publicTokens = encoder.encode(prompt, { add_special_tokens: false }).ids.length
@@ -167,5 +176,5 @@ export function createZaiCommercialInputMeter(definition: ModelDefinition): Inpu
       }
     },
   })
-  return Object.freeze(meter)
+  return guardInputMeter(raw)
 }

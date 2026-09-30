@@ -175,7 +175,7 @@ function publicInput(
 }
 
 describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
-  it('rejects the retired Prime meter coordinate', () => {
+  it('rejects retired meter coordinates, including the refusing mp4-17 releases', () => {
     expect(() =>
       createZaiCommercialInputMeter({
         ...definition('z-ai/glm-5.3-prime'),
@@ -183,6 +183,20 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
         implementation: { name: 'pi-ai:zai', revision: 'mp4-1' },
       }),
     ).toThrow('unsupported')
+    for (const [modelId, revision] of [
+      ['z-ai/glm-5.3-prime', '3'],
+      ['z-ai/glm-5.3-flashx', '2'],
+    ] as const) {
+      expect(definition(modelId).implementation).toEqual({ name: 'pi-ai:zai', revision: 'mp4-18' })
+      for (const implementation of ['mp4-17', 'mp4-18'])
+        expect(() =>
+          createZaiCommercialInputMeter({
+            ...definition(modelId),
+            revision,
+            implementation: { name: 'pi-ai:zai', revision: implementation },
+          }),
+        ).toThrow('unsupported')
+    }
   })
 
   it('matches eight independent fit/holdout usage counts from frozen real request wires', () => {
@@ -252,88 +266,98 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
     })
   })
 
-  it.each(ids)('%s retains plain and opaque reasoning history on rejection', async modelId => {
-    const selected = definition(modelId)
-    const original = createZaiCommercialInputMeter(selected)
-    for (const opaque of [false, true]) {
-      const input = publicInput(modelId)
-      const thought = 'I checked all prior context.'
-      const assistant = message({
-        type: 'assistant',
-        id: 'assistant',
-        response: 'response-one',
-        ending: 'complete',
-        createdAt: at,
-        blocks: [
+  it.each(ids)(
+    '%s estimates plain reasoning history and retains an unexplained detail on rejection',
+    async modelId => {
+      const selected = definition(modelId)
+      const original = createZaiCommercialInputMeter(selected)
+      for (const opaque of [false, true]) {
+        const input = publicInput(modelId)
+        const thought = 'I checked all prior context.'
+        const assistant = message({
+          type: 'assistant',
+          id: 'assistant',
+          response: 'response-one',
+          ending: 'complete',
+          createdAt: at,
+          blocks: [
+            {
+              id: 'thinking',
+              kind: 'thinking',
+              text: thought,
+              ...(opaque
+                ? {
+                    opaque: toOpaqueJson({
+                      routeName: modelId,
+                      reasoning_details: [{ type: 'reasoning.text', text: thought, index: 0 }],
+                    }),
+                  }
+                : {}),
+              visibility: { toHuman: false, toModel: true },
+            },
+            {
+              id: 'answer',
+              kind: 'text',
+              text: 'The value is 323.',
+              visibility: { toHuman: true, toModel: true },
+            },
+            {
+              id: 'call',
+              kind: 'tool_call',
+              callId: 'lookup-1',
+              tool: 'lookup',
+              complete: true,
+              arguments: { value: 17 },
+              visibility: { toHuman: true, toModel: true },
+            },
+          ],
+        })
+        let finalBody: JsonObject | undefined
+        const observing: InputMeter = {
+          ...original,
+          measureFull(request) {
+            finalBody = request.body
+            return original.measureFull(request)
+          },
+        }
+        const result = await planRequest(
           {
-            id: 'thinking',
-            kind: 'thinking',
-            text: thought,
+            ...input,
+            messages: input.messages.map((item, index) => (index === 2 ? assistant : item)),
+          },
+          [selected],
+          observing,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
+        )
+        // The plain string reaches the template slot; the detail lacks the captured four-key
+        // shape (no `format`), so it stays unexplained and is refused without stripping history.
+        if (opaque)
+          expect(result).toEqual({
+            rejected: 'invalidInput',
+            reason: 'input_size_unavailable',
+            metrics: ['maxInputTokens'],
+          })
+        else
+          expect(result).toMatchObject({
+            planned: { measurement: { mode: 'full', precision: 'estimated' } },
+          })
+        expect(finalBody?.messages).toMatchObject([
+          { role: 'user' },
+          { role: 'user' },
+          {
+            role: 'assistant',
+            content: 'The value is 323.',
             ...(opaque
-              ? {
-                  opaque: toOpaqueJson({
-                    routeName: modelId,
-                    reasoning_details: [{ type: 'reasoning.text', text: thought, index: 0 }],
-                  }),
-                }
-              : {}),
-            visibility: { toHuman: false, toModel: true },
+              ? { reasoning_details: [{ type: 'reasoning.text', text: thought, index: 0 }] }
+              : { reasoning: thought }),
           },
-          {
-            id: 'answer',
-            kind: 'text',
-            text: 'The value is 323.',
-            visibility: { toHuman: true, toModel: true },
-          },
-          {
-            id: 'call',
-            kind: 'tool_call',
-            callId: 'lookup-1',
-            tool: 'lookup',
-            complete: true,
-            arguments: { value: 17 },
-            visibility: { toHuman: true, toModel: true },
-          },
-        ],
-      })
-      let finalBody: JsonObject | undefined
-      const observing: InputMeter = {
-        ...original,
-        measureFull(request) {
-          finalBody = request.body
-          return original.measureFull(request)
-        },
+          { role: 'tool' },
+          { role: 'user' },
+        ])
       }
-      const result = await planRequest(
-        {
-          ...input,
-          messages: input.messages.map((item, index) => (index === 2 ? assistant : item)),
-        },
-        [selected],
-        observing,
-        { signal: new AbortController().signal },
-        testImagePreparerFor(planRequest),
-      )
-      expect(result).toEqual({
-        rejected: 'invalidInput',
-        reason: 'input_size_unavailable',
-        metrics: ['maxInputTokens'],
-      })
-      expect(finalBody?.messages).toMatchObject([
-        { role: 'user' },
-        { role: 'user' },
-        {
-          role: 'assistant',
-          content: 'The value is 323.',
-          ...(opaque
-            ? { reasoning_details: [{ type: 'reasoning.text', text: thought, index: 0 }] }
-            : { reasoning: thought }),
-        },
-        { role: 'tool' },
-        { role: 'user' },
-      ])
-    }
-  })
+    },
+  )
 
   it.each([
     ...(['low', 'high', 'max'] as const).map(effort => ({
@@ -363,7 +387,7 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
       if ('rejected' in planned) throw new Error(JSON.stringify(planned))
       if (effort) {
         expect(planned.planned.body.reasoning).toEqual({ effort })
-        expect(renderZaiCommercialPrompt(planned.planned.body)).toContain(
+        expect(renderZaiCommercialPrompt(planned.planned.body, 'visible')).toContain(
           `Reasoning Effort: ${effort[0]?.toUpperCase()}${effort.slice(1)}`,
         )
       }
@@ -455,6 +479,12 @@ describe('ZAI Prime/FlashX narrow selected-route estimates', () => {
         measured({
           ...body,
           messages: [{ role: 'assistant', content: 'ok', reasoning: 'private' }],
+        }).kind,
+      ).toBe('estimated')
+      expect(
+        measured({
+          ...body,
+          messages: [{ role: 'assistant', content: 'ok', reasoning: null }],
         }),
       ).toEqual({ kind: 'unavailable' })
       expect(

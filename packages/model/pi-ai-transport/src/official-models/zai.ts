@@ -71,6 +71,74 @@ export const zaiModelRoutes = {
   'z-ai/glm-5.2': { 'z-ai/fp8': glm52ZAiFp8Route },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, ModelRoute>>>>
 
+/** One leaf's current definition, `pi-ai:zai` implementation and meter coordinates. */
+export interface ZaiRelease {
+  readonly revision: string
+  readonly implementationRevision: ZaiImplementationRevision
+  readonly algorithmRevision: string
+  /** Pinned where the tokenizer and template are unchanged but the algorithm moved. */
+  readonly tokenizerRevision?: string
+}
+
+/**
+ * How each `pi-ai:zai` implementation revision treats assistant reasoning history. `mp4-17`
+ * refuses any; `mp4-18` projects a plain `reasoning` string and one visible `reasoning.text`
+ * detail into the pinned template's think slot (GG-12). A leaf's treatment follows only its
+ * released implementation revision: it is never a flag or a caller parameter.
+ */
+export const zaiHistoryTreatments = Object.freeze({
+  'mp4-17': 'refuse',
+  'mp4-18': 'visible',
+} as const)
+export type ZaiImplementationRevision = keyof typeof zaiHistoryTreatments
+export type ZaiHistoryTreatment = (typeof zaiHistoryTreatments)[ZaiImplementationRevision]
+
+/**
+ * Current release per leaf. GLM-5.2, Prime and FlashX publish visible reasoning history at
+ * new unique coordinates; GLM-5.3 and Flash keep their refusing release until their ZV0
+ * observation, and only a new release here can change that.
+ */
+export const zaiReleases: Readonly<Record<keyof typeof zaiModelRoutes, ZaiRelease>> = Object.freeze(
+  {
+    'z-ai/glm-5.3': Object.freeze({
+      revision: '2',
+      implementationRevision: 'mp4-17',
+      algorithmRevision: 'glm-5.3-public-template-1',
+    }),
+    'z-ai/glm-5.3-prime': Object.freeze({
+      revision: '4',
+      implementationRevision: 'mp4-18',
+      algorithmRevision: 'prime-public-glm53-declared-effort-route-fit-3',
+      tokenizerRevision: 'tokenizer-basis/prime-public-glm53-declared-effort-route-fit-2',
+    }),
+    'z-ai/glm-5.3-flash': Object.freeze({
+      revision: '2',
+      implementationRevision: 'mp4-17',
+      algorithmRevision: 'glm-5.3-flash-public-template-1',
+    }),
+    'z-ai/glm-5.3-flashx': Object.freeze({
+      revision: '3',
+      implementationRevision: 'mp4-18',
+      algorithmRevision: 'flashx-public-glm53-route-fit-2',
+      tokenizerRevision: 'tokenizer-basis/flashx-public-glm53-route-fit-1',
+    }),
+    'z-ai/glm-5.2': Object.freeze({
+      revision: '3',
+      implementationRevision: 'mp4-18',
+      algorithmRevision: 'glm-5.2-public-template-2',
+      tokenizerRevision: 'tokenizer-basis/glm-5.2-public-template-1',
+    }),
+  },
+)
+
+function released(modelId: keyof typeof zaiReleases) {
+  const release = zaiReleases[modelId]
+  return {
+    revision: release.revision,
+    implementation: { name: 'pi-ai:zai', revision: release.implementationRevision },
+  }
+}
+
 // Selected endpoint evidence is in the tracked ZAI route-facts report. The
 // project caps reserve full reported output capacity from the context window.
 // Unknown upstream limits are explicit facts; project input caps do not imply
@@ -81,8 +149,7 @@ const unknown = { status: 'unknown' } as const
 export const zaiDefinitions = ownDefinitions([
   {
     modelId: 'z-ai/glm-5.3',
-    revision: '2',
-    implementation: { name: 'pi-ai:zai', revision: 'mp4-17' },
+    ...released('z-ai/glm-5.3'),
     capabilities: {
       inputModalities: ['text'],
       outputModalities: ['text'],
@@ -95,8 +162,7 @@ export const zaiDefinitions = ownDefinitions([
   },
   {
     modelId: 'z-ai/glm-5.3-prime',
-    revision: '3',
-    implementation: { name: 'pi-ai:zai', revision: 'mp4-17' },
+    ...released('z-ai/glm-5.3-prime'),
     capabilities: {
       inputModalities: ['text'],
       outputModalities: ['text'],
@@ -109,8 +175,7 @@ export const zaiDefinitions = ownDefinitions([
   },
   {
     modelId: 'z-ai/glm-5.3-flash',
-    revision: '2',
-    implementation: { name: 'pi-ai:zai', revision: 'mp4-17' },
+    ...released('z-ai/glm-5.3-flash'),
     capabilities: {
       inputModalities: ['image', 'text', 'video'],
       outputModalities: ['text'],
@@ -128,8 +193,7 @@ export const zaiDefinitions = ownDefinitions([
   },
   {
     modelId: 'z-ai/glm-5.3-flashx',
-    revision: '2',
-    implementation: { name: 'pi-ai:zai', revision: 'mp4-17' },
+    ...released('z-ai/glm-5.3-flashx'),
     capabilities: {
       inputModalities: ['image', 'text', 'video'],
       outputModalities: ['text'],
@@ -147,8 +211,7 @@ export const zaiDefinitions = ownDefinitions([
   },
   {
     modelId: 'z-ai/glm-5.2',
-    revision: '2',
-    implementation: { name: 'pi-ai:zai', revision: 'mp4-17' },
+    ...released('z-ai/glm-5.2'),
     capabilities: {
       inputModalities: ['text'],
       outputModalities: ['text'],

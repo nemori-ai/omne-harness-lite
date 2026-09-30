@@ -135,7 +135,7 @@ describe('Z.AI GLM-5.3 and Flash pinned public-template estimates', () => {
       },
     ]
     const standard = { model: 'z-ai/glm-5.3', messages, tools }
-    const prompt = renderGlm53Prompt(standard, false)
+    const prompt = renderGlm53Prompt(standard, false, 'refuse')
     expect(
       createHash('sha256')
         .update(prompt ?? '')
@@ -146,14 +146,16 @@ describe('Z.AI GLM-5.3 and Flash pinned public-template estimates', () => {
     )
     expect(
       createHash('sha256')
-        .update(renderGlm53Prompt({ ...standard, reasoning: { effort: 'low' } }, false) ?? '')
+        .update(
+          renderGlm53Prompt({ ...standard, reasoning: { effort: 'low' } }, false, 'refuse') ?? '',
+        )
         .digest('hex'),
     ).toBe('de28a1454d5dcfe5aac18a373df6be002463373da8195739029b80c9b68edb88')
     expect(measured(standard.model, standard).kind).toBe('estimated')
     const flash = { ...standard, model: 'z-ai/glm-5.3-flash' }
     expect(
       createHash('sha256')
-        .update(renderGlm53Prompt(flash, true) ?? '')
+        .update(renderGlm53Prompt(flash, true, 'refuse') ?? '')
         .digest('hex'),
     ).toBe('5345eddccee6e2f361762a929cbecc979330f55795f74488b86cecf93ac1dcdc')
     expect(measured(flash.model, flash).kind).toBe('estimated')
@@ -206,5 +208,16 @@ describe('Z.AI GLM-5.3 and Flash pinned public-template estimates', () => {
         modelId: 'z-ai/glm-5.3-flashx',
       }),
     ).toThrow(TypeError)
+    // Only the current exported release binds; an unpublished successor (the visible-history
+    // implementation before ZV0) or a retired coordinate throws at construction.
+    for (const modelId of ['z-ai/glm-5.3', 'z-ai/glm-5.3-flash'])
+      for (const coordinates of [
+        { revision: '3', implementation: { name: 'pi-ai:zai', revision: 'mp4-18' } },
+        { revision: '2', implementation: { name: 'pi-ai:zai', revision: 'mp4-18' } },
+        { revision: '1', implementation: { name: 'pi-ai:zai', revision: 'mp4-1' } },
+      ])
+        expect(() => createGlm53InputMeter({ ...definition(modelId), ...coordinates })).toThrow(
+          TypeError,
+        )
   })
 })
