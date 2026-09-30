@@ -162,7 +162,15 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     ])
     const queue = observer?.queue
     const authorization = observer?.authorization
-    const attached = invocation
+    // One close path, two calls told apart by the phase the system stop left behind (RT12
+    // S-86, A22-V16′ B-2). A `reply_pending` call holds a formed complete reply whose ready
+    // never became durable: the stop above finishes it as ready only over a durable ready and
+    // otherwise answers `unavailable`. The anchored `close()` would instead settle it as a
+    // no-reply interruption (`settleCandidate(null, true)`), a final contradicting the reply
+    // this process holds; so it is never asked here and the responsibility stays local. Every
+    // other phase is a real in-flight or already settled invocation, for which `close()` is the
+    // lawful S-86 closure (or a no-op over an already finished handle).
+    const attached = operation.phase === 'reply_pending' ? undefined : invocation
     const orphaned = [...pendingObserverCleanup]
     const results = await Promise.allSettled([
       ...(attached === undefined ? [] : [Promise.resolve().then(() => attached.close())]),
