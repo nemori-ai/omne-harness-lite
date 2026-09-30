@@ -63,7 +63,7 @@ export interface GoogleHost {
   readonly meter: InputMeter
   readonly transport: ReturnType<typeof createPiAiTransport>
   readonly requests: readonly { readonly body: string }[]
-  /** Serve `sse` for the next HTTP request. */
+  /** Serve `sse` for the next HTTP request, replacing any unconsumed reply. */
   serve(sse: string): void
   invoke(request: PlanInput): Promise<InvocationOutcome>
   close(): Promise<void>
@@ -99,7 +99,11 @@ export async function openGoogleHost(tls: ServerOptions, modelId: string): Promi
     meter,
     transport,
     requests: host.requests,
-    serve: sse => queue.push(sse),
+    // One reply per invocation; a reply left unconsumed by a failed test never leaks forward.
+    serve: sse => {
+      queue.length = 0
+      queue.push(sse)
+    },
     invoke: request =>
       invokeModel({
         ...request,
