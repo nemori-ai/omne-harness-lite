@@ -124,7 +124,7 @@ JSONL 回执 unknown 或旧 writer 未实停时保留 SettlementWork 与原批�
 
 **崩溃恢复的默认路径**（接缝 R4，本节点选定）：恢复 owner 先使本次写方实际停止（停止信号、卸载开始、fence 都不算，[S-70⑤](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-70-稳定身份完整原批和未知结果)）→ 读权威完整前缀 → 读得本原批按已确认收口，final 确认后删 work；权威读确证缺席则**结束本次物理写责任**、返回明确 `unavailable`、删除该 work，消费者持自持值按 [S-99](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-99-ack-后的真实处分与-retainedresult) 重调 settleReply，以新 workId 开始新的写责任。暂存行或日志读不到按 `unavailable` 保留 work，不作缺席证明。「策略继续、由恢复 owner 代重送」**不是默认**，只作 [S-71](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-71-争用政策与责任保留) 策略的显式选择；选它时，重送前按 work 行记录的原主体与授权定位在当前访问装配重核 S-99② settle 资格——原写方取得的资格不随暂存行转给恢复 owner，资格不可核即 `unavailable`、不重送。ACK 前 final unknown 的 v20 同批重送路径不变，本段只管 ACK 后的 SettlementWork。
 
-新的实际写责任独立报告诊断与暂存字节；原 ACK cleanup=released 不回退，旧 ref 不通过暂存重新领取全文，无需第二 ACK。确认成功或证真结束后自动删暂存，禁止常驻恢复缓存。该小范围 recovery 是 G-42 的兑现点，不扩充消息、Run 或外域生命周期。
+新的实际写责任独立报告诊断与暂存字节；原 ACK cleanup=released 不回退，旧 ref 不通过暂存重新领取全文，无需第二 ACK。确认成功或证真结束后自动删暂存，禁止常驻恢复缓存。首次删除随终责确定执行；删除失败或删除回执未知时（接缝 R3），该 work 行本身就是耐久待办，与 retention 行「acknowledged 未 released」同归上文 ACK 清理的**同一套耐久待办、同一可配置策略对象与同一唤醒入口**（启动、来源恢复与策略调度），不另建待办表或计时器；每次重试以 Storage.write 锁该行、重核终责条件再删。删除回执未知从同一行幂等认回：确切读到该行已不存在才算已删，行仍在按同一策略重试，读失败按 `unavailable` 保留待办；不重复报成功，也不因一次读失败宣称已删。该小范围 recovery 是 G-42 的兑现点，不扩充消息、Run 或外域生命周期。
 
 ## 账选择与来源当前性
 
@@ -150,7 +150,7 @@ JSONL 回执 unknown 或旧 writer 未实停时保留 SettlementWork 与原批�
 | content/read/publish 许可 | 真实 task 在取得 bytes/追加可能性前登记精确代际 | 创建许可未知先认回；释放只删自己许可，任务未停仍持有，重装不能清整桶 |
 | ACK 准备/确认批与清理调度 | 原 host/恢复 owner；准备耐久后保有，日志确认后清理责任成立 | construct/append/Storage 故障保留原小任务；卸载取消本代调度入口，不撤 durable 责任，接手须唯一来源 |
 | observer/idle handle/cache | 原 consumer/容器 owner；仅实际复制是读占用 | ACK 关闭新全文、丢未入读队列、排空真实接收；已交付 owned 值不回滚，idle 不 pin |
-| 新 SettlementWork | 原真实 final 写方，发前耐久确认后可追加 | unknown 留原批；final确认+writer停或证真零写结束后自动清除；无第二 ACK |
+| 新 SettlementWork | 原真实 final 写方，发前耐久确认后可追加 | unknown 留原批；final确认+writer停或证真零写结束后自动清除；删除失败/回执未知时行留作 ACK 清理同一待办，按同一策略与唤醒入口重试，读到行不存在才算已删；卸载只取消本代调度入口，不撤该待办；无第二 ACK |
 | 原 Storage/日志连接与权限入口使用权 | 原装配按真实任务保留；不能在 writer 排空前关闭 | 旧在途跑完按各次提交收场；实际 unavailable 留责，close 不当物理停止证据 |
 
 依赖沿现必需 inject，不增可选 inject/service。依据 [plugin-body-reruns-on-provider-change](../../../../basis/cordis/plugin-body-reruns-on-provider-change.md)（4.0.4，有 probe），重跑需从同代际的耐久控制/原批认回，不能重建另一次 ACK。依据 [effect-disposal-concurrent-not-ordered](../../../../basis/cordis/effect-disposal-concurrent-not-ordered.md)（4.0.4，有 probe），不同 effect 不保证异步完成次序；先关准入、等真实任务、交接/留责再释放底层资源，放在原组合 close 里明确等待。Cordis 不替本节点取消在途或提供跨库事务，本页没有新增无 basis 的内核保证。
@@ -163,7 +163,7 @@ JSONL 回执 unknown 或旧 writer 未实停时保留 SettlementWork 与原批�
 |---|---|
 | src/service-types.ts、service-runtime.ts、service-plugin.ts、index.ts | ACK 第十五方法、当前 action、closed read 不 blanket 拒绝、acknowledged 联合、retainedResult；共享类型单一 owner，不保留旧 noGC 模式 |
 | service-calls/reads/reconcile/control/dispatch、call-state/history、callFacts/creation index | 所有入口先核 ACK 与当前来源；创建摘要认回、终态禁止复活、历史小序列和 live 识别；不残留旧 marker 全文必读路径 |
-| service-container、observer queue、anchored invocation、settlement coordinator | 每个旧内容读/发布取得同门许可；清原持有链；实际 close/unknown 留责；新 final 暂存/认回/自动删 |
+| service-container、observer queue、anchored invocation、settlement coordinator | 每个旧内容读/发布取得同门许可；清原持有链；实际 close/unknown 留责；新 final 暂存/认回/自动删；work 删除重试接入 ACK 清理同一策略对象与唤醒入口，不另建计时器 |
 | 本包私有 Storage migration/codec/log settlement | retention/content ownership/use/work 表与约束；MS8 ACK kind、来源/清单/摘要/witness 校验；不删除日志或改原记录 |
 | core messages/model-response/call-accounts 消费 | 精确 MS8/MR11/CA4 资源与关系 helper；只编译各公开入口真正可达的 `$ref` 子图，不遍历所有依赖资源的全部 `$defs`；旧精确 MP/CB/LC 引用不为“最新”漂移 |
 | 成本读面、诊断、examples 及双语 README | final>witness>ready 后原 sum；诊断只 ref/目标/phase/reason/任务进度，不打全文；保存→ACK→released→旧 ref 小视图→真实延后处分路径两语实际运行 |
