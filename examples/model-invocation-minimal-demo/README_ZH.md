@@ -203,7 +203,7 @@ const app = createAcceptanceApplication(imageConfig, {
 
 ### token 余量与响应校准
 
-两个 token 余量选项都是显式部署选择。命令行在 `ceil(estimatedTokens * multiplier) + reserve` 不超过项目输入上限时准入请求。两个固定的 DeepSeek 计量构件在受支持的参考渲染域内提供有符号的回放／新增估算。来源、计量依据、投影与参考边界校验通过后，规划器复用上游输入观察，只计量回放输出与新增输入，稳定前缀不进入边际 tokenizer。不适用时回退全量计量；全量仍不可用则在发送前拒绝请求（[DeepSeek 服务回归](tests/deepseek-marginal-service.spec.ts)）。
+两个 token 余量选项都是显式部署选择。命令行在 `ceil(estimatedTokens * multiplier) + reserve` 不超过项目输入上限时准入请求。命令行装入 37 个计量构件（各家族按目录绑定）；其中两个 DeepSeek 计量构件在受支持的参考渲染域内提供有符号的回放／新增估算，其余家族的回放／新增能力各按其计量构件（见 pi-ai-transport README）。来源、计量依据、投影与参考边界校验通过后，规划器复用上游输入观察，只计量回放输出与新增输入，稳定前缀不进入边际 tokenizer。不适用时回退全量计量；全量仍不可用则在发送前拒绝请求（[DeepSeek 服务回归](tests/deepseek-marginal-service.spec.ts)）。
 
 后续每轮，示例 reader 从同一已认证日志前缀交出所有实际选入的旧 assistant 响应。runtime 把最新可用的准确输入观察作为锚，并单独交出全部已知的选入输出组，包括输入计数不可用的响应。切换模型或改变输入前缀会触发全量计量；某轮缺可用 usage 时，更早的合法观察仍可用。历史响应从不改写，估算也从不代替实际用量或费用。该 reader 覆盖线性无 Run 会话和显式受控的单 Run fixture，不据此确立任意分支或压缩来源。余量不保证与上游计数相等。
 
