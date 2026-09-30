@@ -8,16 +8,16 @@ import {
 } from '@omne-harness-lite/pi-ai-transport'
 import { zaiDefinitions, zaiModelRoutes } from '../src/official-models/zai.ts'
 
-// GLM-5.2, Prime and FlashX are released at mp4-18 (visible reasoning history, GG-12);
-// GLM-5.3 and Flash keep 2 / mp4-17 until their ZV0 observation.
+// All five leaves are released at mp4-18 (visible reasoning history, GG-12): GLM-5.2, Prime
+// and FlashX in the first batch, GLM-5.3 and Flash after their 2026-09-30 ZV0 observation.
 const supplied = [
   {
     id: 'z-ai/glm-5.3',
     provider: 'z-ai/fp8',
     input: 917504,
     modalities: ['text'],
-    revision: '2',
-    implementation: 'mp4-17',
+    revision: '3',
+    implementation: 'mp4-18',
   },
   {
     id: 'z-ai/glm-5.3-prime',
@@ -32,8 +32,8 @@ const supplied = [
     provider: 'z-ai/fp8',
     input: 917504,
     modalities: ['image', 'text', 'video'],
-    revision: '2',
-    implementation: 'mp4-17',
+    revision: '3',
+    implementation: 'mp4-18',
   },
   {
     id: 'z-ai/glm-5.3-flashx',

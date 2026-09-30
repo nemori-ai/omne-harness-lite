@@ -63,8 +63,6 @@ import {
   type CapturedRequest,
 } from './support.ts'
 import {
-  releasedLeaves,
-  unreleasedLeaves,
   zaiArchivedFor,
   zaiArchivedStreams,
   zaiDefinition,
@@ -76,6 +74,7 @@ import {
   zaiRequest,
   zaiToolResult,
   zaiUserTurn,
+  zv0Leaves,
   type ZaiEffort,
   type ZaiLeaf,
 } from './zai-visible-support.ts'
@@ -381,10 +380,10 @@ describe('ZV2 counterexample 6: template oracle against three pinned Jinja templ
   )
 })
 
-describe('ZV2 counterexample 7: equivalence oracle on the archived streams of released leaves', () => {
+describe('ZV2 counterexample 7: equivalence oracle on the archived streams of every leaf', () => {
   it('real reader merges each archive into one detail; details count == reasoning string count', async () => {
     let checked = 0
-    for (const leaf of releasedLeaves) {
+    for (const leaf of zaiLeaves) {
       const streams = zaiArchivedFor(leaf)
       expect(streams.length).toBeGreaterThan(0)
       for (const stream of streams)
@@ -440,12 +439,13 @@ describe('ZV2 counterexample 7: equivalence oracle on the archived streams of re
             }
         })
     }
-    // GLM-5.2: 5 streams × 2 efforts; Prime: 3 × 4; FlashX: 7 × 1; each with/without tools.
-    expect(checked).toBe((5 * 2 + 3 * 4 + 7 * 1) * 2)
+    // GLM-5.2: 5 streams × 2 efforts; Prime: 3 × 4; FlashX: 7 × 1; GLM-5.3 (on the Flash
+    // archive): 3 × 4; Flash: 3 × 1; each with/without tools.
+    expect(checked).toBe((5 * 2 + 3 * 4 + 7 * 1 + 3 * 4 + 3 * 1) * 2)
   }, 300_000)
 })
 
-describe.each(releasedLeaves)('$modelId visible reasoning at the meter', leaf => {
+describe.each(zaiLeaves)('$modelId visible reasoning at the meter', leaf => {
   const streams = zaiArchivedFor(leaf)
   const [first, second] = [streams[0], streams[1] ?? streams[0]].map(stream =>
     stream ? archivedText(stream) : undefined,
@@ -653,7 +653,7 @@ describe.each(releasedLeaves)('$modelId visible reasoning at the meter', leaf =>
   })
 })
 
-describe.each(releasedLeaves)('$modelId stream-level fragments through the real reader', leaf => {
+describe.each(zaiLeaves)('$modelId stream-level fragments through the real reader', leaf => {
   const stream = zaiArchivedFor(leaf).find(value => value.fragments.length > 1)
   if (!stream) throw new Error('multi-fragment archived stream missing')
   const text = archivedText(stream)
@@ -918,53 +918,94 @@ describe('counterexample 12: mixed opaque/plain and foreign-route opaque stay re
   })
 })
 
-describe.each(unreleasedLeaves)(
-  'counterexample 13: $modelId stays at its refusing release',
-  leaf => {
-    const text = archivedText(flashStream)
-    it('definition 2 / mp4-17; plain and details history unavailable; numbers unchanged', async () => {
-      expect(zaiDefinition(leaf)).toMatchObject({
-        revision: '2',
-        implementation: { name: 'pi-ai:zai', revision: 'mp4-17' },
-      })
-      const meter = zaiMeter(leaf)
-      expect(meter.algorithmRevision).toBe(
-        leaf.modelId === 'z-ai/glm-5.3'
-          ? 'glm-5.3-public-template-1'
-          : 'glm-5.3-flash-public-template-1',
-      )
-      expect(meter.evidence).not.toContain('visible reasoning history')
-      const measure = (value: JsonObject) => directFull(meter, serialized(value))
-      for (const effort of leaf.efforts) {
-        // Pre-wiring value of this body at 63980767 (same coordinates): unchanged.
-        expect(measure(zaiPlainWire(leaf, effort))).toEqual({ kind: 'estimated', tokens: 199 })
-        for (const history of [
-          { role: 'assistant', content: 'ALPHA', reasoning: text },
-          { role: 'assistant', content: 'ALPHA', reasoning_details: [visibleDetail(text)] },
-          {
-            role: 'assistant',
-            content: 'ALPHA',
-            reasoning: text,
-            reasoning_details: [visibleDetail(text)],
-          },
-        ])
-          expect(measure(zaiPlainWire(leaf, effort, [history]))).toEqual(unavailable)
-      }
-      // Through the real reader and the planner: the replayed detail is refused before HTTP.
-      await withFirstRound(
-        leaf,
-        { stream: flashStream },
-        async ({ first, outcome, requests, invoke }) => {
-          expect(mergedDetails(outcome)).toEqual([visibleDetail(text)])
-          const next = secondRound(first, outcome)
-          expect(await plan(leaf, next)).toEqual(sizeUnavailable)
-          expect(await invoke(next)).toMatchObject({ rejected: 'invalidInput' })
-          expect(requests).toHaveLength(1)
-        },
-      )
+// Counterexample 13 guarded the second batch while it kept its refusing release. After ZV0
+// (2026-09-30: GLM-5.3 `max` 139 and Flash default 78 detail frames, all exactly the archived
+// four-key shape) both leaves are released; this is the positive side of that split.
+describe.each(zv0Leaves)('counterexample 13 after ZV0: $modelId is released', leaf => {
+  const flash = leaf.modelId === 'z-ai/glm-5.3-flash'
+  const text = archivedText(flashStream)
+  const tokens = (prompt: string | undefined) => {
+    if (prompt === undefined) throw new Error('template rendering refused')
+    return glm5Tokenizer().encode(prompt, { add_special_tokens: false }).ids.length
+  }
+  it('definition 3 / mp4-18 at new unique coordinates; the retired refusing release throws', () => {
+    expect(zaiDefinition(leaf)).toMatchObject({
+      revision: '3',
+      implementation: { name: 'pi-ai:zai', revision: 'mp4-18' },
     })
-  },
-)
+    const meter = zaiMeter(leaf)
+    const template = flash ? 'glm-5.3-flash-public-template' : 'glm-5.3-public-template'
+    expect(meter.algorithmRevision).toBe(`${template}-2`)
+    // The tokenizer and template are unchanged: the basis stays pinned at the old default.
+    expect(meter.tokenizerRevision).toBe(`tokenizer-basis/${template}-1`)
+    expect(meter.evidence).toContain('visible reasoning history')
+    expect(meter.evidence).toContain(
+      flash
+        ? 'ZV0 2026-09-30 default effort: one Z.AI stream, 78/78 detail frames'
+        : 'ZV0 2026-09-30 effort max: one Z.AI stream, 139/139 detail frames',
+    )
+    for (const retired of [
+      { revision: '2', implementation: { name: 'pi-ai:zai', revision: 'mp4-17' } },
+      { revision: '3', implementation: { name: 'pi-ai:zai', revision: 'mp4-17' } },
+      { revision: '2', implementation: { name: 'pi-ai:zai', revision: 'mp4-18' } },
+    ])
+      expect(() => zaiFactory(leaf)({ ...zaiDefinition(leaf), ...retired })).toThrow(TypeError)
+  })
+
+  it('plain and details history are estimated at the template think-slot rendering', () => {
+    const meter = zaiMeter(leaf)
+    const measure = (value: JsonObject) => directFull(meter, serialized(value))
+    for (const effort of leaf.efforts) {
+      // Input without reasoning keeps its pre-release value.
+      expect(measure(zaiPlainWire(leaf, effort))).toEqual({ kind: 'estimated', tokens: 199 })
+      const plainBody = zaiPlainWire(leaf, effort, [
+        { role: 'assistant', content: 'ALPHA', reasoning: text },
+      ])
+      const prompt = renderGlm53Prompt(plainBody, flash, 'visible')
+      expect(prompt).toContain(`<|assistant|><think>${text}</think>ALPHA`)
+      const expected = { kind: 'estimated', tokens: tokens(prompt) }
+      expect(tokens(prompt)).toBeGreaterThan(199)
+      for (const history of [
+        { role: 'assistant', content: 'ALPHA', reasoning: text },
+        { role: 'assistant', content: 'ALPHA', reasoning_details: [visibleDetail(text)] },
+        {
+          role: 'assistant',
+          content: 'ALPHA',
+          reasoning: text,
+          reasoning_details: [visibleDetail(text)],
+        },
+      ])
+        expect(measure(zaiPlainWire(leaf, effort, [history])), String(effort)).toEqual(expected)
+    }
+  })
+
+  it('round 2 through the real reader and planner is full/estimated at the slot rendering and sent', async () => {
+    await withFirstRound(
+      leaf,
+      { stream: flashStream },
+      async ({ first, outcome, requests, invoke }) => {
+        expect(mergedDetails(outcome)).toEqual([visibleDetail(text)])
+        const next = secondRound(first, outcome)
+        const planned = await plan(leaf, next)
+        if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+        const measurement = planned.planned.measurement
+        expect(measurement).toMatchObject({ mode: 'full', precision: 'estimated' })
+        if (measurement.mode !== 'full') throw new Error('full required')
+        const slot = renderGlm53Prompt(asReasoningString(planned.planned.body), flash, 'visible')
+        expect(slot).toContain(`<think>${text}</think>`)
+        expect(writeJsonLossless(measurement.predictedInput)).toBe(writeJsonLossless(tokens(slot)))
+        const sent = await invoke(next)
+        expect(sent).toMatchObject({ outcome: 'complete' })
+        expect(requests).toHaveLength(2)
+        // The wire keeps the one merged detail; only the meter's copy became a string.
+        expect(requests[1]?.body).toBe(planned.planned.serialized)
+        expect(planned.planned.serialized).toContain(
+          '"reasoning_details":[{"type":"reasoning.text"',
+        )
+      },
+    )
+  })
+})
 
 describe.each(zaiLeaves)(
   'ZV3 counterexample 9: $modelId factory methods run the shared guard',
@@ -981,48 +1022,11 @@ describe.each(zaiLeaves)(
         expect(meter.measureFull(input)).toEqual({ kind: 'estimated', tokens: pinned })
         expect(measureFull(meter, input)).toEqual({ kind: 'estimated', tokens: pinned })
       }
-      const stream = leaf.released ? zaiArchivedFor(leaf)[0] : undefined
-      // Unreleased leaves are compared on input without reasoning: a text + tool-call reply.
-      const raw = leaf.released
-        ? undefined
-        : sse({
-            id: 'gen-local-1',
-            model: leaf.modelId,
-            choices: [{ index: 0, delta: { role: 'assistant', content: 'Answer 1.' } }],
-          }) +
-          sse({
-            id: 'gen-local-1',
-            model: leaf.modelId,
-            choices: [
-              {
-                index: 0,
-                delta: {
-                  tool_calls: [
-                    {
-                      index: 0,
-                      id: 'call_upstream_1',
-                      type: 'function',
-                      function: { name: lookupTool.name, arguments: '{"query":"value"}' },
-                    },
-                  ],
-                },
-              },
-            ],
-          }) +
-          sse({
-            id: 'gen-local-1',
-            model: leaf.modelId,
-            choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }],
-            usage: {
-              prompt_tokens: 100,
-              completion_tokens: 10,
-              prompt_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
-            },
-          }) +
-          sse('[DONE]')
+      const stream = zaiArchivedFor(leaf)[0]
+      if (!stream) throw new Error('archived stream missing')
       await withFirstRound(
         leaf,
-        { ...(stream ? { stream } : {}), ...(raw ? { raw } : {}) },
+        { stream },
         async ({ first, outcome }) => {
           const tracked = trackedMeter(meter)
           const inputs: { replay?: ReplayMeterInput; fresh?: NewMeterInput } = {}

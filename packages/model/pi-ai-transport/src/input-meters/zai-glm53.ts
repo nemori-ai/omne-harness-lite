@@ -156,6 +156,13 @@ export function renderGlm53Prompt(
   return prompt + '<|assistant|><think>'
 }
 
+// Release-gating ZV0 observation of each leaf's current-binding reply shape (one paid
+// single-round stream each, Z.AI route); receipts stay in the private certification archive.
+const glm53Zv0Evidence =
+  'ZV0 2026-09-30 effort max: one Z.AI stream, 139/139 detail frames exactly the four-key reasoning.text shape with identical parallel reasoning, one reasoning segment; receipt sha256 7fa6ac6610cf66589d9eea7a51997f6bd9e4f06b991e41cfd687dc963f647fae'
+const flashZv0Evidence =
+  'ZV0 2026-09-30 default effort: one Z.AI stream, 78/78 detail frames exactly the four-key reasoning.text shape with identical parallel reasoning, one reasoning segment; receipt sha256 b86083068e9fabdb4fa3bb03114b30c105160f782120cf54fb865c60f8f307be'
+
 /**
  * Distinct exact model bindings use the same pinned tokenizer and their own templates. Only
  * the current exported release of each leaf is accepted; its implementation revision fixes
@@ -182,7 +189,10 @@ export function createGlm53InputMeter(definition: ModelDefinition): InputMeter {
     ...(release.tokenizerRevision === undefined
       ? {}
       : { tokenizerRevision: release.tokenizerRevision }),
-    evidence: history === 'visible' ? `${evidence}; ${zaiVisibleHistoryEvidence}` : evidence,
+    evidence:
+      history === 'visible'
+        ? `${evidence}; ${zaiVisibleHistoryEvidence}; ${flash ? flashZv0Evidence : glm53Zv0Evidence}`
+        : evidence,
     measureFull({ body, serialized }): TokenMeasurement {
       if (body.model !== definition.modelId || writeJsonLossless(body) !== serialized)
         return { kind: 'unavailable' }

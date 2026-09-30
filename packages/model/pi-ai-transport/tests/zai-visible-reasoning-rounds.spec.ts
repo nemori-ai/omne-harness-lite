@@ -1,5 +1,6 @@
-// ZV1 of the adopted ZAI visible reasoning estimate (revision 1): the three released leaves
-// (GLM-5.2, Prime, FlashX at pi-ai:zai@mp4-18), each current effort send domain, with and
+// ZV1 of the adopted ZAI visible reasoning estimate (revision 1): all five released leaves
+// (GLM-5.2, Prime, FlashX, and after ZV0 GLM-5.3 and Flash, at pi-ai:zai@mp4-18; GLM-5.3 on
+// the Flash archive text), each current effort send domain, with and
 // without tools, through the public transport and the Cordis transport service: three rounds
 // of archived-shape SSE (every frame `reasoning` + one identical `reasoning.text` detail)
 // merged by the real reader. Rounds 2 and 3 replay the merged details and are full estimated.
@@ -33,9 +34,9 @@ import {
 } from './moonshot-visible-support.ts'
 import { at, certificate, fixture, judgedMessage, policy } from './support.ts'
 import {
-  releasedLeaves,
   zaiArchivedFor,
   zaiDefinition,
+  zaiLeaves,
   zaiMeter,
   zaiRequest,
   zaiToolResult,
@@ -43,7 +44,7 @@ import {
 } from './zai-visible-support.ts'
 
 type ModelTransport = TransportAdapter<PlannedRequest, RawResponse>
-const cases = releasedLeaves.flatMap(leaf =>
+const cases = zaiLeaves.flatMap(leaf =>
   leaf.efforts.flatMap(effort =>
     [false, true].flatMap(tools =>
       (['public', 'cordis'] as const).map(path => ({ leaf, effort, tools, path })),
@@ -62,15 +63,16 @@ const retirement = {
 let cert: ReturnType<typeof certificate>
 beforeAll(() => {
   cert = certificate()
-  for (const leaf of releasedLeaves) zaiMeter(leaf)
+  for (const leaf of zaiLeaves) zaiMeter(leaf)
 }, 120_000)
 afterAll(() => cert.dispose())
 
 describe('ZV1 scope', () => {
   it('covers each released leaf × current effort domain × tools × {public, Cordis}', () => {
-    // GLM-5.2 {omitted, high}; Prime {omitted, low, high, max}; FlashX {omitted}.
-    expect(cases).toHaveLength((2 + 4 + 1) * 2 * 2)
-    for (const leaf of releasedLeaves)
+    // GLM-5.2 {omitted, high}; Prime {omitted, low, high, max}; FlashX {omitted};
+    // GLM-5.3 {omitted, low, high, max}; Flash {omitted}.
+    expect(cases).toHaveLength((2 + 4 + 1 + 4 + 1) * 2 * 2)
+    for (const leaf of zaiLeaves)
       expect(zaiDefinition(leaf).implementation).toEqual({ name: 'pi-ai:zai', revision: 'mp4-18' })
   })
 })

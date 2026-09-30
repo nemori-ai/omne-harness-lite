@@ -1,10 +1,11 @@
-// Fixtures for the adopted ZAI visible reasoning estimate (revision 1, GG-12). Released:
-// GLM-5.2 (definition 3), Prime (4) and FlashX (3) at `pi-ai:zai@mp4-18`; GLM-5.3 and Flash
-// keep their refusing 2 / mp4-17 release until ZV0. Archived text comes from both evidence
-// batches: the thirteen 2026-09-27 raw streams (fixtures/zai/visible-reasoning-fragments.json)
-// and the five 2026-09-28 complete streams (fixtures/zai/history-complete-streams.json), whose
-// fragments are read here from the original SSE frames. Frames are rebuilt in that exact delta
-// shape and merged by the real reader; every response is a controlled local TLS stand-in.
+// Fixtures for the adopted ZAI visible reasoning estimate (revision 1, GG-12). All five leaves
+// are released at `pi-ai:zai@mp4-18`: GLM-5.2 (definition 3), Prime (4) and FlashX (3) in the
+// first batch, GLM-5.3 (3) and Flash (3) after their 2026-09-30 ZV0 observation. Archived text
+// comes from both evidence batches: the thirteen 2026-09-27 raw streams (fixtures/zai/
+// visible-reasoning-fragments.json) and the five 2026-09-28 complete streams (fixtures/zai/
+// history-complete-streams.json), whose fragments are read here from the original SSE frames.
+// Frames are rebuilt in that exact delta shape and merged by the real reader; every response is
+// a controlled local TLS stand-in.
 import { createHash } from 'node:crypto'
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
 import type { Message } from '@omne-harness-lite/messages'
@@ -34,8 +35,12 @@ export interface ZaiLeaf {
   readonly servingProvider: 'Alibaba' | 'Z.AI'
   /** The leaf's current effort send domain (omitted is the template default). */
   readonly efforts: readonly ZaiEffort[]
-  /** Test-side expectation of the current release, checked against the exported definitions. */
-  readonly released: boolean
+  /**
+   * Model whose archived fragments stand in for this leaf's reply text. Only GLM-5.3 needs one:
+   * it produced no reasoning before ZV0, its ZV0 reply was judged the same shape as the
+   * archived originals, and that paid raw stream stays out of the repository.
+   */
+  readonly archiveModel?: string
 }
 
 export const zaiLeaves: readonly ZaiLeaf[] = [
@@ -44,39 +49,37 @@ export const zaiLeaves: readonly ZaiLeaf[] = [
     provider: 'z-ai/fp8',
     servingProvider: 'Z.AI',
     efforts: [undefined, 'high'],
-    released: true,
   },
   {
     modelId: 'z-ai/glm-5.3-prime',
     provider: 'alibaba',
     servingProvider: 'Alibaba',
     efforts: [undefined, 'low', 'high', 'max'],
-    released: true,
   },
   {
     modelId: 'z-ai/glm-5.3-flashx',
     provider: 'z-ai/fp8',
     servingProvider: 'Z.AI',
     efforts: [undefined],
-    released: true,
   },
   {
     modelId: 'z-ai/glm-5.3',
     provider: 'z-ai/fp8',
     servingProvider: 'Z.AI',
     efforts: [undefined, 'low', 'high', 'max'],
-    released: false,
+    archiveModel: 'z-ai/glm-5.3-flash',
   },
   {
     modelId: 'z-ai/glm-5.3-flash',
     provider: 'z-ai/fp8',
     servingProvider: 'Z.AI',
     efforts: [undefined],
-    released: false,
   },
 ]
-export const releasedLeaves = zaiLeaves.filter(leaf => leaf.released)
-export const unreleasedLeaves = zaiLeaves.filter(leaf => !leaf.released)
+/** The second batch, released after ZV0 at definition 3 / `pi-ai:zai@mp4-18`. */
+export const zv0Leaves = zaiLeaves.filter(
+  leaf => leaf.modelId === 'z-ai/glm-5.3' || leaf.modelId === 'z-ai/glm-5.3-flash',
+)
 
 export function zaiLeaf(modelId: string): ZaiLeaf {
   const leaf = zaiLeaves.find(value => value.modelId === modelId)
@@ -157,7 +160,7 @@ export const zaiArchivedStreams: readonly ArchivedStream[] = [
 ]
 
 export function zaiArchivedFor(leaf: ZaiLeaf): readonly ArchivedStream[] {
-  return archivedFor(leaf, zaiArchivedStreams)
+  return archivedFor({ modelId: leaf.archiveModel ?? leaf.modelId }, zaiArchivedStreams)
 }
 
 /** Official profile snapshot: Prime's route requires an explicit 5m `last_message` breakpoint. */

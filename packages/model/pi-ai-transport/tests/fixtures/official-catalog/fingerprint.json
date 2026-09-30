@@ -3,6 +3,10 @@
     {
       "revision": 1,
       "sha256": "e1f3f60360ea15bcfec2d7c1e09ab0e9b23616606c90589b8a4b79315734d2a1"
+    },
+    {
+      "revision": 2,
+      "sha256": "bae908652bd0cf555fed3b4711adeccfcd7eb6a296edca7c13b3924d71cc5545"
     }
   ],
   "leaves": [
@@ -239,16 +243,16 @@
     },
     {
       "modelId": "z-ai/glm-5.3",
-      "definition": "2",
-      "implementation": "pi-ai:zai@mp4-17",
-      "algorithm": "glm-5.3-public-template-1",
+      "definition": "3",
+      "implementation": "pi-ai:zai@mp4-18",
+      "algorithm": "glm-5.3-public-template-2",
       "factory": "createGlm53InputMeter"
     },
     {
       "modelId": "z-ai/glm-5.3-flash",
-      "definition": "2",
-      "implementation": "pi-ai:zai@mp4-17",
-      "algorithm": "glm-5.3-flash-public-template-1",
+      "definition": "3",
+      "implementation": "pi-ai:zai@mp4-18",
+      "algorithm": "glm-5.3-flash-public-template-2",
       "factory": "createGlm53InputMeter"
     },
     {

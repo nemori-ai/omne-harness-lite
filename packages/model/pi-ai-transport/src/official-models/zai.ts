@@ -94,16 +94,18 @@ export type ZaiImplementationRevision = keyof typeof zaiHistoryTreatments
 export type ZaiHistoryTreatment = (typeof zaiHistoryTreatments)[ZaiImplementationRevision]
 
 /**
- * Current release per leaf. GLM-5.2, Prime and FlashX publish visible reasoning history at
- * new unique coordinates; GLM-5.3 and Flash keep their refusing release until their ZV0
- * observation, and only a new release here can change that.
+ * Current release per leaf. All five leaves publish visible reasoning history at new unique
+ * coordinates: GLM-5.2, Prime and FlashX in the first batch, GLM-5.3 and Flash after their
+ * 2026-09-30 ZV0 observation. The refusing `mp4-17` treatment stays for retired coordinates;
+ * only a new release here changes a leaf's treatment.
  */
 export const zaiReleases: Readonly<Record<keyof typeof zaiModelRoutes, ZaiRelease>> = Object.freeze(
   {
     'z-ai/glm-5.3': Object.freeze({
-      revision: '2',
-      implementationRevision: 'mp4-17',
-      algorithmRevision: 'glm-5.3-public-template-1',
+      revision: '3',
+      implementationRevision: 'mp4-18',
+      algorithmRevision: 'glm-5.3-public-template-2',
+      tokenizerRevision: 'tokenizer-basis/glm-5.3-public-template-1',
     }),
     'z-ai/glm-5.3-prime': Object.freeze({
       revision: '4',
@@ -112,9 +114,10 @@ export const zaiReleases: Readonly<Record<keyof typeof zaiModelRoutes, ZaiReleas
       tokenizerRevision: 'tokenizer-basis/prime-public-glm53-declared-effort-route-fit-2',
     }),
     'z-ai/glm-5.3-flash': Object.freeze({
-      revision: '2',
-      implementationRevision: 'mp4-17',
-      algorithmRevision: 'glm-5.3-flash-public-template-1',
+      revision: '3',
+      implementationRevision: 'mp4-18',
+      algorithmRevision: 'glm-5.3-flash-public-template-2',
+      tokenizerRevision: 'tokenizer-basis/glm-5.3-flash-public-template-1',
     }),
     'z-ai/glm-5.3-flashx': Object.freeze({
       revision: '3',

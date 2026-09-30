@@ -35,9 +35,9 @@ import { at, certificate, fixture, judgedMessage, message, policy, sse } from '.
 
 // Credential-free invokeModel scenarios for the five current ZAI leaves over local
 // TLS, through the standalone transport and the Cordis-leased transport service:
-// GLM-5.2 (definition 3), Prime (4) and FlashX (3) at `pi-ai:zai@mp4-18`, which
-// meters visible reasoning history, and GLM-5.3 and Flash (2, `mp4-17`), which
-// still refuse it. Upstream streams are the recorded Prime/FlashX SSE fixtures or
+// GLM-5.2 (definition 3), Prime (4), FlashX (3), and after ZV0 GLM-5.3 (3) and
+// Flash (3), all at `pi-ai:zai@mp4-18`, which meters visible reasoning history.
+// Upstream streams are the recorded Prime/FlashX SSE fixtures or
 // synthetic streams of the same shape. Nothing here observes OpenRouter conversion,
 // billing, cache retention or how the hosted model consumes historical reasoning.
 
@@ -704,19 +704,13 @@ const boundaries = entries.flatMap(entry =>
   ),
 )
 
-// Visible reasoning history (GG-12) is released for these leaves only; the split is the
-// published definition/implementation revision, never a switch.
-const visibleHistoryReleases = new Set([
-  'z-ai/glm-5.2',
-  'z-ai/glm-5.3-prime',
-  'z-ai/glm-5.3-flashx',
-])
-
+// Visible reasoning history (GG-12) is released for every leaf: GLM-5.2, Prime and FlashX in
+// the first batch, GLM-5.3 and Flash after ZV0. The split was the published
+// definition/implementation revision, never a switch; the refusing `mp4-17` is retired.
 describe.each(boundaries)('ZAI reasoning history replayed as returned: $name', scenario => {
-  it('released leaves estimate round 2; the others refuse it before HTTP; history unchanged', async () => {
+  it('each released leaf estimates round 2 and sends it; history unchanged', async () => {
     const { entry, leaf, shape } = scenario
-    const released = visibleHistoryReleases.has(leaf.definition.modelId)
-    expect(leaf.definition.implementation.revision).toBe(released ? 'mp4-18' : 'mp4-17')
+    expect(leaf.definition.implementation.revision).toBe('mp4-18')
     const { definition } = leaf
     // Recorded streams are the details shape; other leaves use the same frame shape.
     const row = shape === 'details' ? leaf.recorded[0] : undefined
@@ -747,29 +741,16 @@ describe.each(boundaries)('ZAI reasoning history replayed as returned: $name', s
       expect(thinking.opaque === undefined).toBe(shape === 'plain')
       const second = appendRound(first, result, 2, leaf, false)
       const retained = JSON.stringify(second.messages)
-      if (released) {
-        const planned = await opened.transport.plan(second, {
-          signal: new AbortController().signal,
-        })
-        if ('rejected' in planned) throw new Error(JSON.stringify(planned))
-        expect(planned.planned.measurement).toMatchObject({ mode: 'full', precision: 'estimated' })
-        const replayed = await opened.invoke(second)
-        if (!('outcome' in replayed) || replayed.outcome !== 'complete')
-          throw new Error(JSON.stringify(replayed))
-        expect(host.requests).toHaveLength(2)
-        expect(host.requests[1]?.body).toBe(planned.planned.serialized)
-      } else {
-        const refused = {
-          rejected: 'invalidInput',
-          reason: 'input_size_unavailable',
-          metrics: ['maxInputTokens'],
-        }
-        expect(
-          await opened.transport.plan(second, { signal: new AbortController().signal }),
-        ).toEqual(refused)
-        expect(await opened.invoke(second)).toEqual(refused)
-        expect(host.requests).toHaveLength(1)
-      }
+      const planned = await opened.transport.plan(second, {
+        signal: new AbortController().signal,
+      })
+      if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+      expect(planned.planned.measurement).toMatchObject({ mode: 'full', precision: 'estimated' })
+      const replayed = await opened.invoke(second)
+      if (!('outcome' in replayed) || replayed.outcome !== 'complete')
+        throw new Error(JSON.stringify(replayed))
+      expect(host.requests).toHaveLength(2)
+      expect(host.requests[1]?.body).toBe(planned.planned.serialized)
       expect(JSON.stringify(second.messages)).toBe(retained)
       // The synthetic fixture meter shows the projection itself carries the history
       // unchanged; whether it is metered is the official meter's release.
@@ -785,14 +766,12 @@ describe.each(boundaries)('ZAI reasoning history replayed as returned: $name', s
         expect(assistant).toHaveProperty('reasoning_details')
         expect(assistant).not.toHaveProperty('reasoning')
       }
-      if (released) {
-        // The sent second request carries the same member on the wire.
-        const sent = wireMessages(host.requests[1]?.body ?? '{}').find(
-          unit => unit.role === 'assistant',
-        )
-        expect(sent).toEqual(assistant)
-      }
-      expect(host.requests).toHaveLength(released ? 2 : 1)
+      // The sent second request carries the same member on the wire.
+      const sent = wireMessages(host.requests[1]?.body ?? '{}').find(
+        unit => unit.role === 'assistant',
+      )
+      expect(sent).toEqual(assistant)
+      expect(host.requests).toHaveLength(2)
     } finally {
       await opened.close()
       await host.close()

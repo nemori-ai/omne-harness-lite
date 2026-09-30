@@ -157,10 +157,10 @@ describe('Z.AI complete historical reasoning at the public planning boundary', (
         },
         testImagePreparerFor(planRequest),
       )
-      // GLM-5.2 is released at mp4-18 (visible history); GLM-5.3 and Flash keep refusing
-      // until ZV0. This hand-built detail lacks the captured `format` key: always refused.
-      if (modelId === 'z-ai/glm-5.2' && !opaque) {
-        expect(model.implementation.revision).toBe('mp4-18')
+      // All three leaves are released at mp4-18 (visible history; GLM-5.3 and Flash after
+      // ZV0). This hand-built detail lacks the captured `format` key: always refused.
+      expect(model.implementation.revision).toBe('mp4-18')
+      if (!opaque) {
         expect(result).toMatchObject({
           planned: { measurement: { mode: 'full', precision: 'estimated' } },
         })

@@ -189,12 +189,28 @@ describe('Z.AI GLM-5.3 and Flash pinned public-template estimates', () => {
           ],
         }),
       ).toEqual({ kind: 'unavailable' })
+      // Released at mp4-18 after ZV0: a plain reasoning string is visible history; opaque
+      // details and `reasoning_content` stay unavailable.
       expect(
         measured(modelId, {
           ...body,
           messages: [{ role: 'assistant', content: 'Hello', reasoning: 'secret' }],
         }),
-      ).toEqual({ kind: 'unavailable' })
+      ).toMatchObject({ kind: 'estimated' })
+      for (const extra of [
+        {
+          reasoning_details: [
+            { type: 'reasoning.encrypted', data: 'OPAQUE', format: 'unknown', index: 0 },
+          ],
+        },
+        { reasoning_content: 'secret' },
+      ])
+        expect(
+          measured(modelId, {
+            ...body,
+            messages: [{ role: 'assistant', content: 'Hello', ...extra }],
+          }),
+        ).toEqual({ kind: 'unavailable' })
       expect(measured(modelId, { ...body, unknown_prompt_field: 'test' })).toEqual({
         kind: 'unavailable',
       })
@@ -208,12 +224,14 @@ describe('Z.AI GLM-5.3 and Flash pinned public-template estimates', () => {
         modelId: 'z-ai/glm-5.3-flashx',
       }),
     ).toThrow(TypeError)
-    // Only the current exported release binds; an unpublished successor (the visible-history
-    // implementation before ZV0) or a retired coordinate throws at construction.
+    // Only the current exported release (3 / mp4-18) binds; the retired refusing release,
+    // any mixed or unpublished coordinate throws at construction.
     for (const modelId of ['z-ai/glm-5.3', 'z-ai/glm-5.3-flash'])
       for (const coordinates of [
-        { revision: '3', implementation: { name: 'pi-ai:zai', revision: 'mp4-18' } },
+        { revision: '2', implementation: { name: 'pi-ai:zai', revision: 'mp4-17' } },
+        { revision: '3', implementation: { name: 'pi-ai:zai', revision: 'mp4-17' } },
         { revision: '2', implementation: { name: 'pi-ai:zai', revision: 'mp4-18' } },
+        { revision: '4', implementation: { name: 'pi-ai:zai', revision: 'mp4-18' } },
         { revision: '1', implementation: { name: 'pi-ai:zai', revision: 'mp4-1' } },
       ])
         expect(() => createGlm53InputMeter({ ...definition(modelId), ...coordinates })).toThrow(

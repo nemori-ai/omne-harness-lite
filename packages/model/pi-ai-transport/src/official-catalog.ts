@@ -57,7 +57,7 @@ export interface OfficialCatalogEntry {
  * binding — and record the new fingerprint in `tests/fixtures/official-catalog/fingerprint.json`.
  * Consumers that publish a directory manifest derive their ordinal from it.
  */
-export const officialCatalogRevision = 1
+export const officialCatalogRevision = 2
 
 interface MeterBinding {
   readonly name: string
