@@ -74,8 +74,23 @@ interface RetentionUseRow {
   /** The store instance that registered the use; another generation's use is never cleared. */
   readonly owner: string
 }
+/**
+ * RT12 S-98 (identities are never reused): a released content identity keeps a small row with
+ * its owner and exact ref after the bytes are deleted. No call may publish under it again.
+ */
+interface ContentTombstoneRow {
+  readonly organization: string
+  readonly account: string
+  readonly session: string
+  readonly locator: string
+  readonly version: string
+  readonly call: string
+  readonly kind: 'created' | 'reply_ready'
+  readonly digest: string
+}
 interface ContentDatabase {
   model_call_content: ContentRow
+  model_call_content_tombstone: ContentTombstoneRow
   model_call_retention: RetentionRow
   model_call_retention_use: RetentionUseRow
 }
@@ -160,6 +175,32 @@ export function modelCallContentMigrations(
       },
     },
     settlementWorkMigration,
+    {
+      name: 'model_call_content_tombstone',
+      migration: {
+        async up(db) {
+          await db.schema
+            .createTable('model_call_content_tombstone')
+            .ifNotExists()
+            .addColumn('organization', 'text', c => c.notNull())
+            .addColumn('account', 'text', c => c.notNull())
+            .addColumn('session', 'text', c => c.notNull())
+            .addColumn('locator', 'text', c => c.notNull())
+            .addColumn('version', 'text', c => c.notNull())
+            .addColumn('call', 'text', c => c.notNull())
+            .addColumn('kind', 'text', c => c.notNull())
+            .addColumn('digest', 'text', c => c.notNull())
+            .addPrimaryKeyConstraint('model_call_content_tombstone_pkey', [
+              'organization',
+              'account',
+              'session',
+              'locator',
+              'version',
+            ])
+            .execute()
+        },
+      },
+    },
   ]
 }
 function validBinding(binding: SettlementLogBinding): boolean {
@@ -513,6 +554,17 @@ export function createModelCallContentStore(input: {
           const row = await lockRetention(tx, binding, call)
           // RT12 S-98: retiring closes new publication; the original bytes stay unchanged.
           if (row.phase !== 'retained') throw new Refused(unavailable)
+          // A released identity is never published again, by this call or any other.
+          const tombstone = await narrow<ContentDatabase>(tx)
+            .selectFrom('model_call_content_tombstone')
+            .select('call')
+            .where('organization', '=', binding.tenant.organization)
+            .where('account', '=', binding.tenant.account)
+            .where('session', '=', binding.session)
+            .where('locator', '=', ref.locator)
+            .where('version', '=', ref.version)
+            .executeTakeFirst()
+          if (tombstone !== undefined) throw new Refused(malformed)
           const existing = await contentRow(tx, binding, ref)
           if (existing === undefined) {
             await narrow<ContentDatabase>(tx)
@@ -732,6 +784,21 @@ export function createModelCallContentStore(input: {
             }
             const db = narrow<ContentDatabase>(tx)
             for (const ref of fixed.releasablePayloads) {
+              // The identity outlives the bytes in the same commit (no reuse after release).
+              await db
+                .insertInto('model_call_content_tombstone')
+                .values({
+                  organization: binding.tenant.organization,
+                  account: binding.tenant.account,
+                  session: binding.session,
+                  locator: ref.locator,
+                  version: ref.version,
+                  call,
+                  kind: ref.kind,
+                  digest: ref.digest,
+                })
+                .onConflict(oc => oc.doNothing())
+                .execute()
               await db
                 .deleteFrom('model_call_content')
                 .where('organization', '=', binding.tenant.organization)
