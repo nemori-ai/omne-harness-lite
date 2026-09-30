@@ -1005,6 +1005,24 @@ test('service dispatch writes both anchors before handing out a complete pending
       run,
       attempt: 2,
     })
+    // F18-V6: the calibration target is the same Run/attempt as the new dispatched shell, while
+    // the original dispatch and its response keep attempt 1.
+    const durable = await binding.log.log.readSince(host.session, 0)
+    if (!('entries' in durable)) throw new Error('durable Run prefix')
+    const shells = durable.entries.flatMap(entry => {
+      const payload = entry.payload
+      if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return []
+      const value = 'value' in payload ? payload.value : undefined
+      if (value === null || typeof value !== 'object' || Array.isArray(value)) return []
+      const record = value as { readonly kind?: unknown; readonly call?: unknown }
+      return record.kind === 'model_call_dispatched' && record.call === 'actual-call-8'
+        ? [{ run: entry.run, attempt: entry.attempt }]
+        : []
+    })
+    expect(shells).toEqual([
+      { run, attempt: 1 },
+      { run, attempt: 2 },
+    ])
   } finally {
     await contentStore.close()
     await host.close()
