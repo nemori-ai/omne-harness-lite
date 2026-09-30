@@ -1,7 +1,7 @@
-// Archived-shape SSE for the adopted Moonshot visible reasoning estimate (revision 2).
-// The fragments come from the ten 2026-09-27 raw streams (fixtures/moonshot/
-// visible-reasoning-fragments.json); frames are rebuilt in that exact delta shape and the
-// real reader merges them. Every response is a controlled local TLS stand-in.
+// Archived-shape SSE for the adopted visible reasoning estimates (Moonshot and Qwen open
+// leaves, both revision 2). The fragments come from 2026-09-27 raw streams (fixtures/
+// <family>/visible-reasoning-fragments.json); frames are rebuilt in that exact delta shape
+// and the real reader merges them. Every response is a controlled local TLS stand-in.
 import { readFileSync } from 'node:fs'
 import {
   readJsonStrict,
@@ -10,7 +10,7 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../src/json.ts'
-import { lookupTool, type MoonshotModel } from './moonshot-support.ts'
+import { lookupTool } from './moonshot-support.ts'
 import { sse } from './support.ts'
 
 export interface ArchivedStream {
@@ -22,13 +22,13 @@ export interface ArchivedStream {
   readonly fragments: readonly string[]
 }
 
-function loadArchived(): readonly ArchivedStream[] {
-  const parsed = readJsonStrict(
-    readFileSync(
-      new URL('./fixtures/moonshot/visible-reasoning-fragments.json', import.meta.url),
-      'utf8',
-    ),
-  )
+/** Only the model identity selects archives and labels frames. */
+export interface ArchivedModel {
+  readonly modelId: string
+}
+
+export function loadArchivedStreams(fixture: URL): readonly ArchivedStream[] {
+  const parsed = readJsonStrict(readFileSync(fixture, 'utf8'))
   if (!('ok' in parsed) || !object(parsed.ok) || !Array.isArray(parsed.ok.streams))
     throw new Error('invalid archived fragment fixture')
   return parsed.ok.streams.map(item => {
@@ -56,10 +56,15 @@ function loadArchived(): readonly ArchivedStream[] {
   })
 }
 
-export const archivedStreams = loadArchived()
+export const archivedStreams = loadArchivedStreams(
+  new URL('./fixtures/moonshot/visible-reasoning-fragments.json', import.meta.url),
+)
 
-export function archivedFor(model: MoonshotModel): readonly ArchivedStream[] {
-  return archivedStreams.filter(stream => stream.model === model.modelId)
+export function archivedFor(
+  model: ArchivedModel,
+  streams: readonly ArchivedStream[] = archivedStreams,
+): readonly ArchivedStream[] {
+  return streams.filter(stream => stream.model === model.modelId)
 }
 
 export function archivedText(stream: ArchivedStream): string {
@@ -80,7 +85,7 @@ export interface ArchivedReplyOptions {
 
 /** One archived-shape SSE response: every reasoning frame carries `reasoning` + one detail. */
 export function archivedReply(
-  model: MoonshotModel,
+  model: ArchivedModel,
   round: number,
   stream: ArchivedStream,
   options: ArchivedReplyOptions = {},
