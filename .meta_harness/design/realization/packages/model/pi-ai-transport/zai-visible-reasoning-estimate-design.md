@@ -94,7 +94,7 @@ full 先按原件核：原 body 的 `model` 等于定义、原 body 与原 seria
 
 | 共享件 | 本页依赖 | 不改什么 |
 |---|---|---|
-| `stream.ts` `continueReasoningText`（R-F＋R-L） | 真实流 1–311 个无 id 无签名的相邻片段合成恰一项；本页的「恰一项」就是这条规则的产物 | 不改合并规则。无 id 的迟到签名并进同一项而多出 `signature` 键，按上表附加键拒绝；片段带显式 `signature: null` 时合成项多出该键，整家族回放回到拒绝；一次回复若出现两段不相邻的推理，合成多项而拒绝。失败方向都是拒绝而非多计；ZV0 与 ZV4 首次真实回放须逐帧识别 |
+| `stream.ts` `continueReasoningText`（R-F＋R-L） | 真实流 1–311 个无 id 无签名的相邻片段合成恰一项；本页的「恰一项」就是这条规则的产物 | 不改合并规则。无 id 的迟到签名并进同一项而多出 `signature` 键，按上表附加键拒绝；片段带显式 `signature: null` 时合成项多出该键，整家族回放回到拒绝；一次回复若出现两段不相邻推理（推理 A→content→推理 B），真实 reader 在 `stream.ts` 约 316–343 行只开一个 thinking 块、跨 content 帧继续合并，合成**恰一项**拼接文字的四键 detail；发出的就是这一项，计量按该项文字估算一次，不多计（ZV2 实测，主线 2026-09-30 修订：原「合成多项而拒绝」的预期与共享 reader 实际行为相反，reader 是分组规则的唯一 owner，本页不改它）|
 | `assistant-projection.ts` `projectAssistant` | 带同路由 opaque 的 thinking 块只发 `reasoning_details`；无 opaque 的发 `reasoning` 字符串；异路由 opaque 规划拒绝（R-K）；同一 assistant 兼有同路由 opaque 与独立非空明文块时规划拒绝（执行仓库 `zai-history-replay.spec.ts` 已固定） | 不改发送协议，不把 details 改写成字符串，不放行混合形 |
 | `input-meter.ts` 共同包装 `measureFull`／`measureReplay`／`measureNew`；接线函数 `guardInputMeter`（`input-meters/shared.ts`） | 来源、basis、history 校验的唯一所在 | 不复制；见下「直接入口守门」 |
 | 形状识别与投影 `visibleReasoningDetailText`／`projectVisibleReasoningBody` | 直接复用，同文键集合传 `['reasoning']`（与 Qwen 相同）；`[REDACTED]` 排除在共享函数内 | 不改共享函数。并行键政策四家：DeepSeek 任何并行键即拒，Moonshot 两键同文只计一次，Qwen 与本家族 `reasoning` 同文只计一次、`reasoning_content` 拒。沿主调度 2026-09-30 裁决 P1 同法登记为已知差异（P1 原只点名前三家）：产品路径永不同时发两键，差异只对直接调用者可见 |
@@ -140,7 +140,7 @@ Cordis 继续由原官方模型贡献插件与 transport service 固定整份 me
 2. 并行 `reasoning` 与 text 差一字符（含只差首尾空白）、`reasoning:""` 对非空 text、`reasoning:null`、非字符串 `reasoning`、并行 `reasoning_content`（即使同文）：unavailable。
 3. `id:null`、`signature:null`、附加未知键、`index:1`、`index:"0"`、`format:"anthropic-claude-v1"`、`reasoning.summary`、`reasoning.encrypted`、两项、空数组、`null`、`text:"[REDACTED]"`：unavailable。
 4. user、tool、system 消息带 details：unavailable；只带 `reasoning:null` 的 assistant：unavailable；effort 越出各叶既有允许集：仍 unavailable。
-5. 带 `id` 的 `reasoning.text` 片段、无 id 而末片迟到 `signature` 的片段流、带显式 `signature: null` 的片段流、两段不相邻推理的回复，回放时多出键或多项：unavailable；无 id 无签名相邻片段合成一项：可计。
+5. 带 `id` 的 `reasoning.text` 片段、无 id 而末片迟到 `signature` 的片段流、带显式 `signature: null` 的片段流，回放时多出键：unavailable；无 id 无签名片段（含被 content 帧隔开的两段推理，reader 合并为一项拼接文字）合成一项：可计，按该项文字估算一次。
 6. 模板预言：以两批原件文字构造历史，纯字符串路径的渲染等于三套固定 Jinja 模板在 `reasoning_content = text`、`clear_thinking=false` 下的输出；推理 assistant 分别位于末条 user 之前与之后；GLM-5.2 另记录模板缺省口径的黄金值供 ZV4 对照，不进 meter。
 7. 等价预言：同上历史的 details 版与 `reasoning` 字符串版 full 计数逐值相等；覆盖各叶当前 effort 发送域、有／无 tools，Prime 含末条 5m 标记。Prime／FlashX 的估算等于公开模板计数减 1，不多出第二个常数。
 8. 原件不可变：计量前后原 body/serialized 逐字节不变；实际 HTTP 体等于计划 serialized 且仍含 `reasoning_details`；Prime 的缓存标记只在派生副本里去掉。
