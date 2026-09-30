@@ -440,7 +440,7 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
             const result = await readSettlementPrefix({ binding: view.session.log, registration })
             return 'unavailable' in result
               ? ({ unavailable: true } as const)
-              : rejectAcknowledgedHistory(runtime.history.call(result.prefix, key.callId))
+              : runtime.history.call(result.prefix, key.callId)
           },
         )
         if ('unavailable' in received) return { unavailable: true }
@@ -456,16 +456,20 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
           }
           return { unavailable: true }
         }
-        const history = received.ok
+        // A verified acknowledgement exists only for a terminal call (RT12 S-95): stopping it
+        // needs no content and no acknowledged view, so it never blocks close.
+        const durable = received.ok
         if (
-          'known' in history &&
-          (history.known.phase === 'complete' ||
-            history.known.phase === 'interrupted' ||
-            history.known.phase === 'handed_up')
+          'known' in durable &&
+          (durable.known.acknowledged !== null ||
+            durable.known.phase === 'complete' ||
+            durable.known.phase === 'interrupted' ||
+            durable.known.phase === 'handed_up')
         ) {
           control.publishStopped()
           return { released: true }
         }
+        const history = rejectAcknowledgedHistory(durable)
         if (
           'known' in history &&
           history.known.phase !== null &&

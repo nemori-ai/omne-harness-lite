@@ -14,6 +14,7 @@ import type {
 } from '../src/service-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
+import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
 import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
@@ -249,6 +250,68 @@ describe('D102 unified model runtime owner', () => {
           'model_call_opened',
           'model_call_reply_ready',
         ])
+
+        // RT12 S-97/S-100: a durable ACK (written here as a fixture fact; acknowledgeCall is
+        // not implemented yet) stops every pre-ACK full-content path of the service.
+        const acknowledgedRef = { session: host.session, callId: 'runtime-call-1' }
+        const own = log.entries.filter(entry => payload(entry).call === 'runtime-call-1')
+        const createdEntry = own.find(entry => payload(entry).kind === 'model_call_created')
+        const readyEntry = own.find(entry => payload(entry).kind === 'model_call_reply_ready')
+        if (createdEntry === undefined || readyEntry === undefined) throw new Error('markers')
+        const acknowledgement = captureModelLogValue({
+          category: 'record',
+          input: {
+            kind: 'value',
+            value: {
+              kind: 'model_call_acknowledged',
+              call: 'runtime-call-1',
+              creationKey: payload(createdEntry).creationKey,
+              creationInput: {
+                role: 'model-call-creation-semantic-sha256/v1',
+                hex: 'a'.repeat(64),
+              },
+              acknowledgedAt: '2026-09-30T00:00:00Z',
+              releasablePayloads: [payload(createdEntry).payload, payload(readyEntry).payload],
+              target: { kind: 'response', response: 'runtime-response' },
+              terminalState: 'complete',
+            },
+          },
+        })
+        if (!('ok' in acknowledgement)) throw new Error('acknowledgement capture')
+        const acknowledgementEntry = prepareModelLogEntry({
+          session: host.session,
+          shell: { tenant: binding.log.tenant },
+          captured: acknowledgement.ok,
+          purpose: { kind: 'record' },
+          messagePrefix: null,
+        })
+        if (!('ok' in acknowledgementEntry)) throw new Error('acknowledgement entry')
+        expect(
+          await host.log.append(
+            host.session,
+            [acknowledgementEntry.ok],
+            { kind: 'unfenced' },
+            { kind: 'unconditional' },
+          ),
+        ).not.toHaveProperty('failure')
+        const acknowledgedLog = await host.log.readSince(host.session, 0)
+        if (!('entries' in acknowledgedLog)) throw new Error('durable log unavailable')
+        expect(await runtime.service.acquireCall({ ref: acknowledgedRef, mode: 'read' })).toEqual({
+          unavailable: true,
+        })
+        expect(await runtime.service.readAttempts(acknowledgedRef)).toEqual({ unavailable: true })
+        expect(
+          await runtime.service.canDispatchAgain({
+            ...acknowledgedRef,
+            plan: { provider: 'test' },
+          }),
+        ).toEqual({ unavailable: true })
+        expect(await runtime.service.dispatch(acknowledgedRef)).toEqual({ unavailable: true })
+        const refusedLog = await host.log.readSince(host.session, 0)
+        if (!('entries' in refusedLog)) throw new Error('durable log unavailable')
+        // Fail-closed reads and refusals append nothing and send nothing.
+        expect(refusedLog.entries).toHaveLength(acknowledgedLog.entries.length)
+        expect(wire.sends()).toBe(1)
         expect(
           await runtime.service.openCall({
             creationKey: unwrap(parseOpaqueIdentifier('runtime_create_2', 'CreationKey')),
