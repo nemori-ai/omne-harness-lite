@@ -78,12 +78,13 @@ function sameReasoningHead(
 }
 
 /**
- * One streamed `reasoning.text` detail may arrive as several fragments whose signature is
- * only present on the last one. Fragments are one logical detail only when the stream says
- * so explicitly: adjacent, same nonempty `id`, and every other member except text and
- * signature (type, index, format, unknown metadata) equal. Adjacency alone never implies
- * identity. Signatures may go from absent/null to one nonempty value and then only repeat
- * that value; an invalid, empty or conflicting signature keeps the fragments distinct.
+ * One streamed `reasoning.text` detail may arrive as several adjacent fragments. They are
+ * joined only when every member except text and signature (type, id, index, format,
+ * unknown metadata) is equal and either:
+ * - both carry the same nonempty `id`: signatures may go from absent/null to one nonempty
+ *   value and then only repeat it; an invalid, empty or conflicting signature stays distinct;
+ * - neither carries an id nor any signature (absent/null): plain streamed reasoning deltas.
+ * A signed group's identity is never inferred from adjacency alone.
  * Returns the merged detail, or undefined when `next` must stay a separate original entry.
  */
 function continueReasoningText(previous: JsonValue | undefined, next: JsonObject) {
@@ -91,11 +92,9 @@ function continueReasoningText(previous: JsonValue | undefined, next: JsonObject
     !object(previous) ||
     previous.type !== 'reasoning.text' ||
     next.type !== 'reasoning.text' ||
-    typeof previous.id !== 'string' ||
-    previous.id.length === 0 ||
-    previous.id !== next.id ||
     typeof previous.text !== 'string' ||
     typeof next.text !== 'string' ||
+    // Includes id: both absent/null, or the same value.
     !sameReasoningHead(previous, next, 'text', 'signature')
   )
     return undefined
@@ -104,10 +103,16 @@ function continueReasoningText(previous: JsonValue | undefined, next: JsonObject
     later = next.signature
   const signed = (value: JsonValue | undefined): value is string =>
     typeof value === 'string' && value.length > 0
-  if (!(unsigned(earlier) || signed(earlier)) || !(unsigned(later) || signed(later)))
-    return undefined
-  // After a signature has arrived, only the identical signature may continue the detail.
-  if (signed(earlier) && earlier !== later) return undefined
+  if (unsigned(previous.id) && unsigned(next.id)) {
+    if (!unsigned(earlier) || !unsigned(later)) return undefined
+  } else {
+    if (typeof previous.id !== 'string' || previous.id.length === 0 || previous.id !== next.id)
+      return undefined
+    if (!(unsigned(earlier) || signed(earlier)) || !(unsigned(later) || signed(later)))
+      return undefined
+    // After a signature has arrived, only the identical signature may continue the detail.
+    if (signed(earlier) && earlier !== later) return undefined
+  }
   const adopt = signed(later) || (earlier === undefined && later === null)
   return {
     ...previous,

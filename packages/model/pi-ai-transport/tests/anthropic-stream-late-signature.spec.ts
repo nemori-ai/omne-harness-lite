@@ -105,6 +105,32 @@ describe('OpenRouter reasoning detail stream identity', () => {
     expect(await retainedDetails([first, next])).toEqual([first, next])
   })
 
+  it('joins adjacent id-less unsigned fragments whose heads are equal', async () => {
+    const { id: _id, ...unidentified } = base
+    const { signature: _none, ...absent } = { ...unidentified, text: 'b ', signature: null }
+    expect(
+      await retainedDetails([
+        { ...unidentified, text: 'a ', signature: null },
+        absent,
+        { ...unidentified, text: 'c', signature: null },
+      ]),
+    ).toEqual([{ ...unidentified, text: 'a b c', signature: null }])
+    const first = { ...unidentified, text: 'a', signature: null }
+    const other = { ...unidentified, text: 'b', signature: null, index: 1 }
+    expect(await retainedDetails([first, other])).toEqual([first, other])
+  })
+
+  it.each([
+    ['a later nonempty signature', null, 'signed-one'],
+    ['an earlier nonempty signature', 'signed-one', null],
+    ['an invalid signature type', null, 7],
+  ])('keeps id-less fragments distinct when one carries %s', async (_case, early, late) => {
+    const { id: _id, ...unidentified } = base
+    const first = { ...unidentified, text: 'first', signature: early }
+    const next = { ...unidentified, text: 'second', signature: late }
+    expect(await retainedDetails([first, next])).toEqual([first, next])
+  })
+
   it('continues absent and null signature fragments of one id until the signature arrives', async () => {
     const { signature: _none, ...absent } = { ...base, text: 'b ', signature: null }
     expect(
