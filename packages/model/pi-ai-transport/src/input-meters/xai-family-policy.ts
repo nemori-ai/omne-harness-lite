@@ -11,11 +11,14 @@ import { object } from '../json.ts'
 import { canonicalProjection, INPUT_PROJECTION_REVISION } from '../projection.ts'
 import type { OutputGroupSource, OutputHistoryPolicy } from './output-history.ts'
 
-export const XAI_HISTORY_IMPLEMENTATION = 'mp4-19'
+// mp4-20 = mp4-19 plus the guard-4 identity mapping. Admitting a present identity
+// changes planned outputs (unavailable -> estimated), so the family implementation
+// is bumped; algorithm, tokenizer, replay and definition 5 are unchanged.
+export const XAI_HISTORY_IMPLEMENTATION = 'mp4-20'
 export const XAI_HISTORY_ALGORITHM = 'xai-visible-json-complete-output-group-estimated/1'
 export const XAI_HISTORY_REPLAY = 'xai-complete-output-group-workload-estimated/1'
 export const XAI_HISTORY_EVIDENCE =
-  'D107 xAI complete-output applicability revision 2: one complete same-model original upstream O is a workload-related estimated input proxy, including reasoning, with zero estimated net group framing; not exact occupancy or an upper bound. Visible Grok Build bytes/4 offsets remain two-fit surrogates. Real serving-provider/upstream-model identities, ciphertext replay, images and effort holdouts remain unverified.'
+  'D107 xAI complete-output applicability revision 2: one complete same-model original upstream O is a workload-related estimated input proxy, including reasoning, with zero estimated net group framing; not exact occupancy or an upper bound. Visible Grok Build bytes/4 offsets remain two-fit surrogates. mp4-20 guard 4 admits only the exact identity pair servingProvider "xAI" / upstreamModel = route id, extracted from the 2026-09-30 real raw SSE originals gen-1790759928-ziQ41FzufJSwqWS13mog (grok-4.7) and gen-1790759941-akexGaVG7WbS2xgQmRwI (grok-4.6); absent identity is not backfilled. Ciphertext replay acceptance, images and effort holdouts remain unverified.'
 
 interface BasisRow {
   readonly definition: string
@@ -24,9 +27,20 @@ interface BasisRow {
   readonly replay: string
   readonly projection: string
 }
+/**
+ * Literal OpenRouter serving identity observed for one leaf. Values come from the
+ * 2026-09-30 real raw SSE originals (research/.../xai/2026-09-30-identity-and-reasoning-format.md
+ * "2026-09-30 真实身份原件"): every frame carried `provider: "xAI"` and `model` equal to the
+ * exact route id. Matching is byte-exact; no case folding, trimming or prefix rule.
+ */
+interface XaiIdentity {
+  readonly servingProvider: string
+  readonly upstreamModel: string
+}
 interface XaiRow {
   readonly modelId: string
   readonly tokenizer: string
+  readonly identity: XaiIdentity
   readonly original: readonly BasisRow[]
 }
 const visibleReplay = 'visible-final-units-json-net-estimated/1'
@@ -35,6 +49,7 @@ const rows: readonly XaiRow[] = [
   {
     modelId: 'x-ai/grok-4.6',
     tokenizer: 'tokenizer-basis/grok-build-visible-text-tools-effort-offset141-2',
+    identity: { servingProvider: 'xAI', upstreamModel: 'x-ai/grok-4.6' },
     original: [
       {
         definition: '3',
@@ -55,6 +70,7 @@ const rows: readonly XaiRow[] = [
   {
     modelId: 'x-ai/grok-4.7',
     tokenizer: 'tokenizer-basis/grok-build-visible-text-tools-effort-offset1181-2',
+    identity: { servingProvider: 'xAI', upstreamModel: 'x-ai/grok-4.7' },
     original: [
       {
         definition: '3',
@@ -92,12 +108,15 @@ function currentMeterApplies(meter: InputMeter, row: XaiRow): boolean {
   )
 }
 
+/** V5 sources: mp4-19 (no identity mapping) and the current mp4-20 share every basis coordinate. */
+const v5Implementations: readonly string[] = ['mp4-19', XAI_HISTORY_IMPLEMENTATION]
+
 function originalRow(
   row: XaiRow,
   definition: string,
   implementation: string,
 ): BasisRow | undefined {
-  if (definition === '5' && implementation === XAI_HISTORY_IMPLEMENTATION)
+  if (definition === '5' && v5Implementations.includes(implementation))
     return {
       definition,
       implementation,
@@ -175,6 +194,29 @@ export function classifyXaiUnit(unit: JsonValue): 'visible' | 'wholeGroup' | 'un
     : 'uninterpretable'
 }
 
+interface ReportedIdentity {
+  readonly servingProvider?: string | undefined
+  readonly upstreamModel?: string | undefined
+}
+
+/**
+ * D107 xAI revision 2 guard 4. Absent identity is admitted and never backfilled
+ * from the route or provider name. A present identity must be the complete pair
+ * extracted from the real originals; a lone field or any other value is unavailable.
+ */
+function identityApplies(row: XaiRow, reported: ReportedIdentity): boolean {
+  if (reported.servingProvider === undefined && reported.upstreamModel === undefined) return true
+  return (
+    reported.servingProvider === row.identity.servingProvider &&
+    reported.upstreamModel === row.identity.upstreamModel
+  )
+}
+
+/** Origin identity must agree with the observed response provenance, absence included. */
+function sameIdentity(a: ReportedIdentity, b: ReportedIdentity): boolean {
+  return a.servingProvider === b.servingProvider && a.upstreamModel === b.upstreamModel
+}
+
 function sourceApplies(
   source: OutputGroupSource,
   meter: InputMeter,
@@ -213,20 +255,17 @@ function sourceApplies(
     source.origin &&
     (source.origin.provider !== 'xai' ||
       !effortApplies(source.origin.parameters.reasoningEffort) ||
-      source.origin.servingProvider !== undefined ||
-      source.origin.upstreamModel !== undefined)
+      !identityApplies(row, source.origin))
   )
     return false
   const observed = source.observation.inputCalibration.observedInput
   if (
     observed.kind !== 'unavailable' &&
     (observed.provenance.adapterRevision !== 'openrouter-usage-reader/2' ||
-      observed.provenance.servingProvider !== undefined ||
-      observed.provenance.upstreamModel !== undefined)
+      !identityApplies(row, observed.provenance) ||
+      (source.origin !== undefined && !sameIdentity(source.origin, observed.provenance)))
   )
     return false
-  // No real upstream identity mapping has been verified yet. Present identity
-  // fields remain unavailable rather than being matched to synthetic TLS labels.
   return source.observation.outputBlocks.some(block => {
     if (block.kind !== 'thinking' || block.opaque === undefined) return false
     const opaque = readOpaqueJson(block.opaque)

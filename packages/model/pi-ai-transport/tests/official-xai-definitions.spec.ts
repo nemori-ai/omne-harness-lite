@@ -19,7 +19,7 @@ describe('xAI complete MP4 declarations', () => {
         revision: '5',
         implementation: {
           name: 'pi-ai:xai',
-          revision: 'mp4-19',
+          revision: 'mp4-20',
         },
       })
       expect(Object.keys(definition.routes)).toEqual(['xai'])

@@ -6,7 +6,6 @@ import {
   createOfficialProfileContent,
   createXaiInputMeter,
   xaiDefinitions,
-  type InputMeter,
 } from '@omne-harness-lite/pi-ai-transport'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
@@ -32,8 +31,8 @@ function user(round: number) {
   return value.ok
 }
 
-describe.each(xaiDefinitions)('$modelId service encrypted-history closeout gap', definition => {
-  it('persists the actual opaque reply and presents intact history to the currently unsupported meter', async () => {
+describe.each(xaiDefinitions)('$modelId service encrypted-history closeout', definition => {
+  it('persists the actual opaque reply and resends it intact in an identity-admitted second round', async () => {
     const base = await callDeployment('xai-closeout-service')
     const profile = createOfficialProfileContent(definition, {
       providers: ['xai'],
@@ -41,16 +40,8 @@ describe.each(xaiDefinitions)('$modelId service encrypted-history closeout gap',
       configuration: { revision: '1', values: { cache: { mode: 'automatic' } } },
     })
     if ('rejected' in profile) throw new Error(profile.rejected)
-    const original = createXaiInputMeter(definition)
-    if (!original) throw new Error('missing xAI meter')
-    const measuredBodies: string[] = []
-    const meter: InputMeter = {
-      ...original,
-      measureFull(input) {
-        measuredBodies.push(input.serialized)
-        return original.measureFull(input)
-      },
-    }
+    const meter = createXaiInputMeter(definition)
+    if (!meter) throw new Error('missing xAI meter')
     const config = {
       ...base,
       officialManifest: { ordinal: 1, entries: [profile.ok] },
@@ -87,7 +78,7 @@ describe.each(xaiDefinitions)('$modelId service encrypted-history closeout gap',
         cost: 0.0001,
       }),
       'xAI',
-      details,
+      [{ reasoning_details: details }],
     )
     tls.setMode('reasoning')
     const app = createAcceptanceApplication(config, {
@@ -145,21 +136,22 @@ describe.each(xaiDefinitions)('$modelId service encrypted-history closeout gap',
         parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
         host: host.host,
       })
-      // This is the explicit current gap, not a model completion assertion. Replace with
-      // three-round positive coverage when the adopted xAI history mapping is implemented.
-      expect('result' in second ? second.result : second).toMatchObject({
-        invalidInput: { reason: 'input_size_unavailable', metrics: ['maxInputTokens'] },
-      })
-      expect(tls.requests).toHaveLength(1)
-      const measured = measuredBodies.at(-1)
-      if (!measured) throw new Error('missing actual full-meter input')
-      expect(JSON.parse(measured)).toMatchObject({
+      // The local reply carries the real `xAI` / route-id identity pair, which mp4-20 admits:
+      // the second round is planned and sent with the complete original group resent verbatim.
+      // Three-round two-entry coverage lives in pi-ai-transport's xAI identity specs.
+      if (!('result' in second) || !('replyPending' in second.result))
+        throw new Error(JSON.stringify(second))
+      expect(tls.requests).toHaveLength(2)
+      expect(tls.requests[1]?.body).toMatchObject({
         messages: [
           { role: 'user' },
           { role: 'assistant', content: 'first second', reasoning_details: details },
           { role: 'user' },
         ],
       })
+      expect(await app.persistModelReply(who, session, second.result.replyPending)).toHaveProperty(
+        'settled',
+      )
       const durable = await app.readSessionLog(who, session)
       if (!('entries' in durable)) throw new Error('durable log unavailable')
       expect(durable.entries.slice(0, before.entries.length)).toEqual(before.entries)

@@ -13,6 +13,7 @@ import { judgedMessage, message } from './support.ts'
 import { xaiCloseoutInput } from './fixtures/xai/closeout-scenarios.ts'
 
 const at = '2026-09-29T00:00:00Z'
+type Identity = { readonly servingProvider?: string; readonly upstreamModel?: string }
 const visible = { toHuman: true, toModel: true }
 const hidden = { toHuman: false, toModel: true }
 const tool = {
@@ -169,7 +170,7 @@ describe.each(xaiDefinitions)('$modelId complete xAI output groups', definition 
   it('publishes the exact successor coordinates and retains the visible tokenizer basis', () => {
     const offset = definition.modelId === 'x-ai/grok-4.6' ? 141 : 1181
     expect(definition.revision).toBe('5')
-    expect(definition.implementation).toEqual({ name: 'pi-ai:xai', revision: 'mp4-19' })
+    expect(definition.implementation).toEqual({ name: 'pi-ai:xai', revision: 'mp4-20' })
     expect({
       algorithm: meter.algorithmRevision,
       tokenizer: meter.tokenizerRevision,
@@ -182,12 +183,10 @@ describe.each(xaiDefinitions)('$modelId complete xAI output groups', definition 
       transform: 'openrouter-wire/2',
     })
     expect(createXaiInputMeter({ ...definition, revision: '4' })).toBeUndefined()
-    expect(
-      createXaiInputMeter({
-        ...definition,
-        implementation: { name: 'pi-ai:xai', revision: 'mp4-18' },
-      }),
-    ).toBeUndefined()
+    for (const revision of ['mp4-18', 'mp4-19'])
+      expect(
+        createXaiInputMeter({ ...definition, implementation: { name: 'pi-ai:xai', revision } }),
+      ).toBeUndefined()
   })
 
   it('retains the entire original wire and replaces summary, encrypted, text and tool once by O', async () => {
@@ -318,6 +317,34 @@ describe.each(xaiDefinitions)('$modelId complete xAI output groups', definition 
     }
   })
 
+  it('explains a saved V5/mp4-19 group by O in full, without reusing its I as a marginal', async () => {
+    const { input, original } = await history()
+    const request = original.inputCalibration.requestInput
+    if (request.kind !== 'known') throw Error('known source required')
+    const binding = {
+      ...original.origin.adaptation,
+      implementation: { name: 'pi-ai:xai', revision: 'mp4-19' },
+    }
+    const saved: PlanOutputHistoryGroup = {
+      ...original,
+      origin: { ...original.origin, adaptation: binding },
+      inputCalibration: {
+        ...original.inputCalibration,
+        requestInput: { ...request, countingBasis: { ...request.countingBasis, binding } },
+      },
+    }
+    const expected = await planned(input)
+    for (const calibration of [input.calibration, observed(saved)]) {
+      const result = await planned({ ...input, outputHistory: [saved], calibration })
+      expect(result.measurement).toMatchObject({ mode: 'full' })
+      expect(
+        ExactDecimal.from(result.measurement.predictedInput).compare(
+          ExactDecimal.from(expected.measurement.predictedInput),
+        ),
+      ).toBe(0)
+    }
+  })
+
   it('counts two disjoint complete groups once each, including O=0', async () => {
     const { input, original } = await history()
     const second = await planned(input)
@@ -350,11 +377,101 @@ describe.each(xaiDefinitions)('$modelId complete xAI output groups', definition 
     ).toBe(0)
   })
 
-  it('keeps partial groups and unknown upstream identities unavailable', async () => {
+  function identified(
+    group: PlanOutputHistoryGroup,
+    origin: Identity | undefined,
+    reported: Identity | undefined = origin,
+  ): PlanOutputHistoryGroup {
+    const observedInput = group.inputCalibration.observedInput
+    if (observedInput.kind === 'unavailable') throw Error('observed provenance required')
+    return {
+      ...group,
+      origin: { ...group.origin, ...origin },
+      inputCalibration: {
+        ...group.inputCalibration,
+        observedInput: {
+          ...observedInput,
+          provenance: { ...observedInput.provenance, ...reported },
+        },
+      },
+    }
+  }
+
+  it('admits the exact real identity pair: full counts O once and the next call is marginal', async () => {
+    const { input, original } = await history()
+    const real = { servingProvider: 'xAI', upstreamModel: definition.modelId }
+    const source = identified(original, real)
+    const anonymous = await planned(input)
+    const full = await planned({ ...input, outputHistory: [source] })
+    expect(full.measurement.mode).toBe('full')
+    expect(
+      ExactDecimal.from(full.measurement.predictedInput).compare(
+        ExactDecimal.from(anonymous.measurement.predictedInput),
+      ),
+    ).toBe(0)
+    const marginal = await planned({
+      ...input,
+      outputHistory: [source],
+      calibration: observed(source),
+    })
+    expect(marginal.measurement.mode).toBe('marginal')
+    if (marginal.measurement.mode !== 'marginal') throw Error('missing marginal')
+    expect(marginal.measurement.replayContribution).toEqual({ precision: 'estimated', tokens: 23 })
+    expect(
+      ExactDecimal.from(marginal.measurement.predictedInput).compare(
+        ExactDecimal.from(123).add(ExactDecimal.from(marginal.measurement.newContribution.tokens)),
+      ),
+    ).toBe(0)
+  })
+
+  it('keeps unadopted, re-cased, lone or disagreeing identities unavailable', async () => {
+    const { input, original } = await history()
+    const other = definition.modelId === 'x-ai/grok-4.6' ? 'x-ai/grok-4.7' : 'x-ai/grok-4.6'
+    const suspects: [Identity | undefined, Identity | undefined][] = [
+      ...['xai', 'XAI', 'x.ai', 'xAI ', ' xAI', 'x-ai', 'xAI/xai'].map(
+        servingProvider =>
+          [{ servingProvider, upstreamModel: definition.modelId }, undefined] as [
+            Identity,
+            undefined,
+          ],
+      ),
+      ...[
+        other,
+        definition.modelId.toUpperCase(),
+        `${definition.modelId} `,
+        definition.modelId.replace('x-ai/', ''),
+        `${definition.modelId}-mini`,
+      ].map(
+        upstreamModel =>
+          [{ servingProvider: 'xAI', upstreamModel }, undefined] as [Identity, undefined],
+      ),
+      // A lone field is not the adopted pair.
+      [{ servingProvider: 'xAI' }, undefined],
+      [{ upstreamModel: definition.modelId }, undefined],
+      // Origin and observed provenance must agree, absence included; neither is backfilled.
+      [{ servingProvider: 'xAI', upstreamModel: definition.modelId }, {}],
+      [{}, { servingProvider: 'xAI', upstreamModel: definition.modelId }],
+    ]
+    for (const [origin, reported] of suspects) {
+      const suspect = identified(original, origin, reported ?? origin)
+      for (const calibration of [input.calibration, observed(suspect)])
+        expect(
+          await planRequest(
+            { ...input, outputHistory: [suspect], calibration },
+            [definition],
+            meter,
+            {
+              signal: new AbortController().signal,
+            },
+          ),
+          JSON.stringify({ origin, reported }),
+        ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+    }
+  })
+
+  it('keeps partial groups and unknown output facts unavailable', async () => {
     const { input, original } = await history()
     const changed = [
-      { ...original, origin: { ...original.origin, servingProvider: 'xAI' } },
-      { ...original, origin: { ...original.origin, upstreamModel: definition.modelId } },
       {
         ...original,
         inputCalibration: {

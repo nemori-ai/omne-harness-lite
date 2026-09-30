@@ -28,7 +28,7 @@
     "transform": "openrouter-wire/2",
     "implementation": {
       "name": "pi-ai:xai",
-      "revision": "mp4-19"
+      "revision": "mp4-20"
     },
     "definition": "5"
   },
@@ -39,7 +39,7 @@
     "transform": "openrouter-wire/2",
     "implementation": {
       "name": "pi-ai:xai",
-      "revision": "mp4-19"
+      "revision": "mp4-20"
     },
     "definition": "5"
   }

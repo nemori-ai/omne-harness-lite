@@ -198,6 +198,8 @@ export function measureCalibrated(
             basis.provider === 'anthropic' && observed.provenance.servingProvider === 'Anthropic'
           ) &&
           !(basis.provider === 'openai' && observed.provenance.servingProvider === 'OpenAI') &&
+          // Route `xai` reports the display name `xAI`: 2026-09-30 real raw SSE of both Grok leaves.
+          !(basis.provider === 'xai' && observed.provenance.servingProvider === 'xAI') &&
           !(deepSeekBoundaryRoute(input) && observed.provenance.servingProvider === 'DeepInfra'))
       )
         fallback = 'basis_changed'

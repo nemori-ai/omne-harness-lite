@@ -148,7 +148,8 @@ describe.each(xaiDefinitions)('$modelId credential-free closeout scenario', defi
             writeJsonLossless(response.blocks),
           )
           expect(request.outputHistory[round - 1]?.origin.parameters).toEqual(response.parameters)
-          // Current real gap remains explicit: the official contribution cannot count this history.
+          // The real `xAI` identity is admitted since mp4-20, but these groups were metered by the
+          // unbound research candidate; its algorithm is no official source row, so O stays unused.
           expect(
             await official.plan(request, { signal: new AbortController().signal }),
           ).toMatchObject({
