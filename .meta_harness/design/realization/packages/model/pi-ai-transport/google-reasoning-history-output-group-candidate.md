@@ -239,6 +239,17 @@ T-only 是非工具路径上唯一见过的完整形状。三个候选都没有 
 
 机制接线交付于增量集成分支（`12b56c83`…`7084bffb` → 增量树 `f667d8b7`）：V4 工厂 `createGoogleHistoryInputMeter(definition, release)` 委托共享核，坐标按 O-1 未钉（官方目录仍 V3），replay 保持 `unsupported-marginal/1`。登记偏离：部分选择取 unavailable；跨路由仅 origin 变时由共享层判 malformed；补强 basis provider 检查与「退役坐标不得复用」。GS-V7／V9／V10 待主调度付费执行后钉坐标。
 
+## GS-V9 读数（2026-09-30 17:15Z，主线付费观测，HUB `712ae76e`）
+
+两叶各一组同路由对照（`google-ai-studio`，第 1 轮 E-only 工具回复为种子，第 2 轮 A＝按产品路径原样回放 E（工具调用 id 为 reader 生成的 CallId）、C＝无推理、D＝把 E 的 `id` 改为上游 tool-call id 回放）：
+
+| 叶 | A `prompt_tokens` | C | D | Δ_E＝A−C | 读数 |
+|---|---|---|---|---|---|
+| gemini-3.8-flash | 963 | 963 | 1069 | 0 | D＞C，且 D−C＝106 |
+| gemini-3.7-flash | 964 | 964 | 1189 | 0 | D＞C，且 D−C＝225 |
+
+三个变体上游均 200 接受。按本页读数表：**Δ_E＝0 而 D＞C** ——上游在 id 失配时静默丢弃 E、id 匹配时计入 E。结论：GG-14（回放工具调用 id 为登记方生成的 CallId、永不等于上游 id）在产品路径上直接决定 E 是否被计入，本页的 O 一次映射（A 预测 1091／1211）在今日产品路径上高估（实测等于 C），而在 id 修复后才成立。**主线裁决（R-Z）**：首版 Google 两叶保持 V3 坐标（E 历史回放 unavailable，早暴露不静默丢）；V4 机制保留、坐标不钉；GG-14 升级为设计项（content-blocks S-12／S-14 与 reader 投影：回放须携带上游 tool-call id），归后继 T35；GS-V7 随 T35 之后执行。费用：四次 seed＋六次对照合计约 0.011 美元。
+
 ## 修订记录
 
 - revision 4（2026-09-30）：纳入 09-30 两叶真实完整工具调用回复（研究页）。主承载改为 E-only 组（`reasoning.encrypted`，id 等于同回复工具调用 id），以原 O 计一次；TS、S 移出域，现有 TS 本机用例改作负控；T-only 维持 unavailable，映射缺口由 GG-11 改记 GG-13（与 D-111 撞号）；身份改为按对判定，GG-5 闭合；三个坐标证据上可钉，新增 K7（建议 GS-V9 A 先于钉定）；新增 GG-14（E 的 id 与投影生成的工具调用 id 不等）；GS-V7 最小观测标记完成，新增 GS-V9（P2 同路由对照，必做）与 GS-V10（K2 对照）。

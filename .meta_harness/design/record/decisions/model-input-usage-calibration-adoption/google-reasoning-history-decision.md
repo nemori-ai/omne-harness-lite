@@ -17,3 +17,7 @@
 ## 释放的实施与不可省略的验收
 
 释放 GS-V1～V6 实施与本机验证（两叶 public 与 Cordis 路径三轮、E 组等价预言与反例、直接入口正反测试、GS-V6 中 id 不等断言标为 GG-14 观察断言）。GS-V7 真实三轮、GS-V9 同路由对照与 GS-V10 K2 对照由主调度执行；坐标钉定与官方 factory 发布另记后继附注。新增 bindings 0；不关闭 T21、M-Google 或 Google 整家交付；不扩大 Session／Run、ACK 或其他模型的责任。
+
+## 2026-09-30 附注：GS-V9 读数与 R-Z
+
+GS-V9 两叶均读出 Δ_E＝0、D＞C（[读数表](../../../realization/packages/model/pi-ai-transport/google-reasoning-history-output-group-candidate.md#gs-v9-读数2026-09-30-1715z主线付费观测hub-712ae76e)）：上游按 tool-call id 匹配决定是否计入 E，产品路径的 reader 生成 CallId 永不匹配。裁决 R-Z：首版两叶保持 V3（E 历史 unavailable）；V4 机制不钉坐标；GG-14 升级为设计项 T35（回放携带上游 tool-call id，涉及 content-blocks S-12／S-14 与 reader 投影）；GS-V7 与钉定在 T35 之后。K1「E 计 0」不采用：它把 id 失配缺陷固化为计数规则。
