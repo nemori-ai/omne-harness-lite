@@ -48,14 +48,21 @@ function sourceFor(modelId: string): (typeof sources)[PublicQwenModelId] | undef
   return undefined
 }
 
+// One verified tokenizer per pinned directory for the whole process, as the other families do;
+// encoding is stateless, so every Qwen meter built from the same directory shares it.
+const sharedTokenizers = new Map<string, Tokenizer>()
 function tokenizer(directory: string): Tokenizer {
+  const cached = sharedTokenizers.get(directory)
+  if (cached) return cached
   const base = new URL(`../../tokenizers/${directory}/`, import.meta.url)
   // Both pinned repositories publish byte-identical tokenizer.json files.
   const data = readFileSync(new URL('../qwen-38-24t/tokenizer.json', base))
   if (createHash('sha256').update(data).digest('hex') !== tokenizerSha256)
     throw new TypeError('Qwen tokenizer content differs from pinned source')
   const config = readFileSync(new URL('tokenizer_config.json', base), 'utf8')
-  return new Tokenizer(JSON.parse(data.toString('utf8')), JSON.parse(config))
+  const loaded = new Tokenizer(JSON.parse(data.toString('utf8')), JSON.parse(config))
+  sharedTokenizers.set(directory, loaded)
+  return loaded
 }
 
 /**
