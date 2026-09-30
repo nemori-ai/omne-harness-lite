@@ -1,0 +1,74 @@
+# Experiment summary
+
+We built Hunt the Wumpus eight times. Same game, same acceptance script. Every run passed 25/25. Then we moved the source to `runs/` and started over.
+
+A first pass of this grid had copied one program into every CRAP-off cell and another into every CRAP-on cell. That pass is not this write-up. This run wrote eight programs from empty. They are eight different trees.
+
+The question was never “which program is better.” It was: **what kind of unit tests do you get?** The programs themselves are still there, and they have statistics of their own.
+
+## The two knobs
+
+1. **How you write tests** — three laws, test-last, one-function-then-test, or no tests.
+2. **Whether you then force CRAP below 4** — split functions and/or add tests until every function is simple and covered.
+
+After that, we hid those tests and grew a second suite with mutation.
+
+## What we got
+
+Without CRAP:
+
+| How we tested | Examples | Assertions | Spec lines | What they look like | Program |
+|---|---:|---:|---:|---|---|
+| Three laws | 39 | 154 | 234 | Names the hunt: pit, bats, crooked arrows | 396 lines, 40 fns (`tunnels`/`den`/`flags`/`console`) |
+| Test-last | 15 | 115 | 226 | Fewer, bigger tests of the finished API | 331 lines, 33 fns (`world`/`drive`) |
+| Bundling | 110 | 229 | 587 | One test group per function | 387 lines, 52 fns (`mesh`/`lair`/`talk`) |
+| None | 0 | 0 | 0 | Nothing. The game still passed acceptance. | 340 lines, 41 fns (`yob`) |
+
+Example count and assertion count are not the same story. Test-last packs ~8 checks into each example; bundling writes many small ones (~2 each). Coverage for the first three was high (86–100% of lines). The four programs are **not** the same tree.
+
+With CRAP on, we split big functions and added tests — except **None**, where CRAP had to invent a whole suite (40 examples, 150 assertions). Each CRAP-on program is a new write plus those splits, not a copy of its CRAP-off twin:
+
+| How we built | CRAP | Lines | Functions | sha12 |
+|---|---|---:|---:|---|
+| Three laws | off | 396 | 40 | `2da4de2ca7a4` |
+| Three laws | on | 478 | 88 | `3e77ce53cd64` |
+| Test-last | off | 331 | 33 | `0381d2203923` |
+| Test-last | on | 549 | 86 | `1ee1f3b80b16` |
+| Bundling | off | 387 | 52 | `ff5115f863da` |
+| Bundling | on | 603 | 118 | `9cef53539171` |
+| None | off | 340 | 41 | `0ac0ce662437` |
+| None | on | 524 | 95 | `bee9b151a60a` |
+
+Mutation then wrote a second suite against each frozen tree (9–63 examples, 133–257 assertions, 55–119 sites). Leftovers were the mutator’s parent-line `1→0` no-op. The game did not change.
+
+## What the code looks like
+
+Eight different programs, not eight copies.
+
+- **Three laws** grew an immutable five-file hunt. CRAP-on kept that split and shattered the prompt loop into one-if functions; `--seed` became a handwritten LCG.
+- **Test-last** is the smallest named tree: rules in `world`, `println` in `drive`, one `case` for argv. CRAP-on injected IO and carved `session` into 73 helpers. Hazard order flipped (Yob’s wumpus-then-pit-then-bat off; bats-first on).
+- **Bundling** named every function and kept domain strings in `:echo`. CRAP-on is the cleanest domain/IO cut (118 predicates, injected `out`/`in`) and the hardest to read. Row 5’s instruction pages are paraphrased; row 6’s are not.
+- **None** is a BASIC listing: 1-indexed `S`, atoms `L`/`A`/`TAPE`, `fna`/`fnb`/`fnc`. CRAP-on kept the listing in `listing.clj` and split `boot` to 89 functions, swapping atoms for a map.
+
+Hazard check order, `--seed` implementation (`Random` vs two LCGs), and whether IO is injected all vary. Acceptance does not see any of that.
+
+## Ratings (1–5)
+
+Design = split and Yob-faithful rules. Coverage = the discipline suite, not mutation. Cleanliness = can you still see a move.
+
+| Approach | Design | Coverage | Cleanliness |
+|---|---:|---:|---:|
+| Three laws, off | 4 | 3 | 4 |
+| Three laws, on | 4 | 5 | 2 |
+| Test-last, off | 3 | 5 | 4 |
+| Test-last, on | 3 | 5 | 2 |
+| Bundling, off | 4 | 5 | 4 |
+| Bundling, on | 4 | 5 | 1 |
+| None, off | 3 | 1 | 3 |
+| None, on | 3 | 5 | 2 |
+
+CRAP buys coverage and spends cleanliness. It does not improve design. Best CRAP-off package is bundling (4 / 5 / 4). Three-laws off is the same design with a thinner console suite. Test-last off is the smallest readable program. None off is a listing with no unit tests. Every CRAP-on row is a 1 or 2 for cleanliness.
+
+## In one sentence
+
+How you test changes the **size and shape of the suite** — examples, assertions, and how densely they pack — and, when you actually write the program again, the **size and shape of the Hunt**. CRAP raises coverage and wrecks cleanliness; it does not improve design. Mutation, given that program, writes **operator tests** — never a different Wumpus.

@@ -1,0 +1,155 @@
+# Hunt the Wumpus in Clojure
+
+This repository is a Clojure implementation of *Hunt the Wumpus*, the classic 1973 text adventure by Gregory Yob. The game is played entirely through the console. You move through a fixed 20-room dodecahedral cave, read sensory warnings, avoid hazards, and try to kill the Wumpus with crooked arrows.
+
+The implementation keeps the core historical mechanics: a fixed 20-room cave where each room has three tunnels, two bottomless pits, two super bats, one Wumpus, five crooked arrows, warning messages for adjacent hazards, Wumpus wake-and-move behavior, and same-setup replay after losing. It also includes deliberate extensions from the project tasks: the Holy Hand Grenade, Sleepy Wumpus behavior, Jumping Wumpus behavior, and a Rest command.
+
+## Running The Game
+
+Start normal play:
+
+```sh
+clojure -M:run
+```
+
+The terminal asks whether to print instructions, then shows the current room, exits, warnings, arrow count, and a command prompt. Commands are case-insensitive:
+
+```text
+m <room>                 move to an adjacent room
+s <room1> ... <roomN>    shoot a crooked arrow through 1 to 5 rooms
+t <room>                 throw the Holy Hand Grenade when carrying it
+r                        rest for one turn
+```
+
+Invalid commands are rejected without advancing the game state. Examples include `X IS NOT A COMMAND`, `CAN'T MOVE THERE`, `CAN'T SHOOT THERE`, and `CAN'T THROW THERE`.
+
+## Game Rules
+
+The player starts in one room. The Wumpus, two pits, two bat rooms, and one Holy Hand Grenade are placed in distinct rooms. At the start of each turn the game reports the current room and its three tunnels. It also prints warnings for hazards exactly one tunnel away:
+
+```text
+I SMELL A WUMPUS
+BATS NEARBY
+I FEEL A DRAFT
+```
+
+Entering a pit kills the player. Entering a bat room moves the player to a random room, which can immediately trigger another hazard. Entering the Wumpus room or shooting an arrow wakes the Wumpus; it either stays or moves to a neighboring room, and the player loses if the Wumpus ends up in the player's room.
+
+Crooked arrows can travel through one to five named rooms. If a requested arrow segment is not a tunnel, the arrow takes a random valid tunnel from its current room. The player wins if the arrow hits the Wumpus, loses if the arrow hits the player, and loses after exhausting all five arrows.
+
+The extensions add more ways for the cave to behave:
+
+- The Holy Hand Grenade can be picked up, thrown into an adjacent room, and detonates after the next player turn. It kills the Wumpus in the blast radius, destroys bats, leaves pits intact, and can kill the player.
+- Sleepy Wumpus rules add snoring, sleeping-room encounters, breakfast deaths, and wake-up messages.
+- Jumping Wumpus rules add spontaneous movement after turns, including trample/slam outcomes.
+- Rest consumes a turn without moving or shooting; it can still trigger turn-end effects.
+
+## QA Mode
+
+The console has QA-only launch flags for deterministic manual and scripted verification:
+
+```sh
+clojure -M:run --qa-reveal-state
+clojure -M:run --qa-inert-hazards
+clojure -M:run --qa-seed 1973
+clojure -M:run --qa-random-script qa-random.edn
+```
+
+Flags can be combined. `--qa-reveal-state` prints hidden state each turn, `--qa-inert-hazards` keeps hazards visible but suppresses their consequences, `--qa-seed` fixes initial placement, and `--qa-random-script` supplies deterministic random streams.
+
+QA mode also enables prompt commands:
+
+```text
+qa set player <room>
+qa set wumpus <room>
+qa set pits <room1> <room2>
+qa set bats <room1> <room2>
+qa set hhg <room>
+qa set hhg none
+```
+
+The full console-only QA plan is in [QA.md](QA.md).
+
+## Testing
+
+Run focused examples:
+
+```sh
+clojure -M:spec
+```
+
+Run property checks:
+
+```sh
+clojure -M:properties
+```
+
+Run the console-only QA plan:
+
+```sh
+bb scripts/run-qa.clj
+```
+
+The QA runner drives `clojure -M:run` as a real console program, writes deterministic random-script EDN files under `build/qa`, verifies all 16 QA sections from `QA.md`, prints a PASS/FAIL table, and exits nonzero on failure.
+
+Run generated acceptance scenarios:
+
+```sh
+./scripts/run-acceptance.sh
+```
+
+The acceptance script parses every `features/*.feature` file with `tmp/bin/gherkin-parser`, generates Clojure acceptance code under `build/acceptance/generated`, then runs `clojure -M:acceptance/run`. The repository also contains aliases for coverage, mutation, duplication, and CRAP checks:
+
+```sh
+clojure -M:cov
+clojure -M:mutate
+clojure -M:dry4clj
+clojure -M:crap
+```
+
+## Development Process And Timeline
+
+The project was built from scenario-oriented tasks recorded in [tasks.md](tasks.md), feature files under [features](features), and handoff notes in [logbook.md](logbook.md). The logbook shows a multi-role SwarmForge process: specifier agents wrote behavior handoffs, coder agents implemented them, refactorer agents reviewed and reshaped the code, and architect agents hardened design and tests before merging back to `master`.
+
+Major events from the logbook and git history:
+
+- 2026-06-01 17:08 CDT: repository initialized with the SwarmForge structure.
+- 2026-06-01 17:18-17:32 CDT: tasks 1-8 were specified in rapid succession: cave setup, movement/hazards, crooked arrows, full loop/replay, Holy Hand Grenade, Sleepy Wumpus, Jumping Wumpus, and Rest.
+- 2026-06-01 17:28 CDT: task 1 cave setup was first implemented and handed to refactoring.
+- 2026-06-01 17:32-17:45 CDT: movement hazards, crooked arrows, and the interactive game loop were implemented.
+- 2026-06-01 17:55-18:24 CDT: the extension features landed: Holy Hand Grenade, Sleepy Wumpus, Jumping Wumpus, and Rest.
+- 2026-06-01 17:43-19:30 CDT: refactorer and architect passes added property checks, acceptance parsing improvements, command-loop hardening, grenade event preservation, movement/shooting architecture hardening, and Wumpus behavior hardening.
+- 2026-06-01 19:32 CDT: queued architect handoffs for the later tasks were resolved and merged into `master`.
+- 2026-06-02 08:09 CDT: terminal randomness was wired into the playable program so console runs could use real random choices.
+- 2026-06-02 09:39 CDT: console QA controls and [QA.md](QA.md) were added, including seeded setup, inert hazards, state reveal, QA placement commands, and scripted random streams.
+- 2026-06-02 09:53 CDT: [scripts/run-qa.clj](scripts/run-qa.clj) was added to execute the full QA plan from the console.
+
+## Project Layout
+
+The main pieces are:
+
+```text
+src/htw/          pure game domain: cave, setup, game actions, loop state
+env/htw/main.clj  terminal entry point and QA console controls
+features/         natural-language feature specifications
+acceptance/       custom feature runner and generated acceptance support
+spec/             example-based Speclj tests
+property/         property checks
+scripts/          acceptance and console QA scripts
+QA.md             manual console-only QA plan
+tasks.md          implementation task plan
+logbook.md        dated SwarmForge handoff notes
+```
+
+## Quick Check From A Fresh Checkout
+
+After installing Clojure and Babashka, these commands exercise the important surfaces:
+
+```sh
+clojure -M:spec
+clojure -M:properties
+bb scripts/run-qa.clj
+clojure -M:run
+```
+
+The first two commands verify the domain tests, the QA runner verifies the playable console surface, and the final command starts the game for human play.

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Why Hardcore Technical Focus Still Matters Big Time | Uncle Bob</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono&display=swap"></noscript>
+    <link rel="stylesheet" type="text/css" href="/assets/css/screen.min.css?v=DepEtlQjYTN7WFul">
+
+    <link rel="icon" href="/content/images/size/w150/2026/08/podcast-cover.webp">
+    <link rel="apple-touch-icon" href="/content/images/size/w400/2026/08/podcast-cover.webp">
+
+    <meta name="description" content="Robert C. Martin, author of Clean Code and Clean Architecture, explains how engineers can use static analysis, testing and technical judgement to steer AI coding agents towards better software.">
+    <link rel="canonical" href="https://productengineers.com/episodes/season2/why-hardcore-technical-focus-still-matters-big-time-uncle-bob/">
+    <link rel="alternate" type="text/markdown" href="https://productengineers.com/episodes/season2/why-hardcore-technical-focus-still-matters-big-time-uncle-bob.md">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    
+    <meta property="og:site_name" content="The Product Engineers Podcast">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Why Hardcore Technical Focus Still Matters Big Time | Uncle Bob">
+    <meta property="og:description" content="Robert C. Martin, author of Clean Code and Clean Architecture, explains how engineers can use static analysis, testing and technical judgement to steer AI coding agents towards better software.">
+    <meta property="og:url" content="https://productengineers.com/episodes/season2/why-hardcore-technical-focus-still-matters-big-time-uncle-bob/">
+    <meta property="og:image" content="https://productengineers.com/content/images/size/w1200/2026/09/spotify-thumbnail-1.jpg">
+    <meta property="article:published_time" content="2026-09-29T09:15:06.000Z">
+    <meta property="article:modified_time" content="2026-09-29T09:15:06.000Z">
+    
+    <meta property="article:publisher" content="https://www.facebook.com/ghost">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Why Hardcore Technical Focus Still Matters Big Time | Uncle Bob">
+    <meta name="twitter:description" content="Robert C. Martin, author of Clean Code and Clean Architecture, explains how engineers can use static analysis, testing and technical judgement to steer AI coding agents towards better software.">
+    <meta name="twitter:url" content="https://productengineers.com/episodes/season2/why-hardcore-technical-focus-still-matters-big-time-uncle-bob/">
+    <meta name="twitter:image" content="https://productengineers.com/content/images/size/w1200/2026/09/spotify-thumbnail-1.jpg">
+    <meta name="twitter:label1" content="Written by">
+    <meta name="twitter:data1" content="Robert C. Martin">
+    <meta name="twitter:label2" content="Filed under">
+    <meta name="twitter:data2" content="">
+    <meta name="twitter:site" content="@ghost">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="1200">
+    
+    <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "publisher": {
+        "@type": "Organization",
+        "name": "The Product Engineers Podcast",
+        "url": "https://productengineers.com/",
+        "logo": {
+            "@type": "ImageObject",
+            "url": "https://productengineers.com/favicon.ico",
+            "width": 48,
+            "height": 48
+        }
+    },
+    "author": {
+        "@type": "Person",
+        "name": "Robert C. Martin",
+        "image": {
+            "@type": "ImageObject",
+            "url": "https://productengineers.com/content/images/2026/08/uncle-bob.webp",
+            "width": 384,
+            "height": 512
+        },
+        "url": "https://productengineers.com/author/robert-c-martin/",
+        "sameAs": []
+    },
+    "contributor": [
+        {
+            "@type": "Person",
+            "name": "Peppe Silletti",
+            "image": {
+                "@type": "ImageObject",
+                "url": "https://www.gravatar.com/avatar/cc376e8136d3f78789e19333ae822867?s=250&r=x&d=mp"
+            },
+            "url": "https://productengineers.com/author/peppe/",
+            "sameAs": []
+        }
+    ],
+    "headline": "Why Hardcore Technical Focus Still Matters Big Time | Uncle Bob",
+    "url": "https://productengineers.com/episodes/season2/why-hardcore-technical-focus-still-matters-big-time-uncle-bob/",
+    "datePublished": "2026-09-29T09:15:06.000Z",
+    "dateModified": "2026-09-29T09:15:06.000Z",
+    "image": {
+        "@type": "ImageObject",
+        "url": "https://productengineers.com/content/images/size/w1200/2026/09/spotify-thumbnail-1.jpg",
+        "width": 1200,
+        "height": 1200
+    },
+    "description": "Robert C. Martin, author of Clean Code and Clean Architecture, explains how engineers can use static analysis, testing and technical judgement to steer AI coding agents towards better software.",
+    "mainEntityOfPage": "https://productengineers.com/episodes/season2/why-hardcore-technical-focus-still-matters-big-time-uncle-bob/"
+}
+    </script>
+
+    <meta name="generator" content="Ghost 6.61">
+    <link rel="alternate" type="application/rss+xml" title="The Product Engineers Podcast" href="https://productengineers.com/episodes/season1/rss/">
+    <script defer src="https://cdn.jsdelivr.net/ghost/portal@~2.71/umd/portal.min.js" data-i18n="true" data-ghost="https://productengineers.com/" data-key="6c6d21870717590f02359c0c84" data-api="https://productengineers.com/ghost/api/content/" data-locale="en" crossorigin="anonymous"></script><style id="gh-members-styles">.gh-post-upgrade-cta-content,
+.gh-post-upgrade-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    text-align: center;
+    width: 100%;
+    color: #ffffff;
+    font-size: 16px;
+}
+
+.gh-post-upgrade-cta-content {
+    border-radius: 8px;
+    padding: 40px 4vw;
+}
+
+.gh-post-upgrade-cta h2 {
+    color: #ffffff;
+    font-size: 28px;
+    letter-spacing: -0.2px;
+    margin: 0;
+    padding: 0;
+}
+
+.gh-post-upgrade-cta p {
+    margin: 20px 0 0;
+    padding: 0;
+}
+
+.gh-post-upgrade-cta small {
+    font-size: 16px;
+    letter-spacing: -0.2px;
+}
+
+.gh-post-upgrade-cta a {
+    color: #ffffff;
+    cursor: pointer;
+    font-weight: 500;
+    box-shadow: none;
+    text-decoration: underline;
+}
+
+.gh-post-upgrade-cta a:hover {
+    color: #ffffff;
+    opacity: 0.8;
+    box-shadow: none;
+    text-decoration: underline;
+}
+
+.gh-post-upgrade-cta a.gh-btn {
+    display: block;
+    background: #ffffff;
+    text-decoration: none;
+    margin: 28px 0 0;
+    padding: 8px 18px;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.gh-post-upgrade-cta a.gh-btn:hover {
+    opacity: 0.92;
+}</style>
+    <script defer src="https://cdn.jsdelivr.net/ghost/sodo-search@~1.8/umd/sodo-search.min.js" data-key="6c6d21870717590f02359c0c84" data-styles="https://cdn.jsdelivr.net/ghost/sodo-search@~1.8/umd/main.css" data-sodo-search="https://productengineers.com/" data-locale="en" crossorigin="anonymous"></script>
+    
+    <link href="https://productengineers.com/webmentions/receive/" rel="webmention">
+    <script defer src="/public/cards.min.js?v=ShRHxgy4po8zN-Wf"></script>
+    <link rel="stylesheet" type="text/css" href="/public/cards.min.css?v=WwnU9jw5ancNC8Gc">
+    <script defer src="/public/comment-counts.min.js?v=oFYkaGLdiMqB8VN9" data-ghost-comments-counts-api="https://productengineers.com/members/api/comments/counts/"></script>
+    <script defer src="/public/member-attribution.min.js?v=AKG4hWena9j3yX3I"></script>
+    <script defer src="/public/ghost-stats.min.js?v=vFcCUf6ZQ0Hyhc8h" data-stringify-payload="false" data-datasource="analytics_events" data-storage="localStorage" data-host="https://productengineers.com/.ghost/analytics/api/v1/page_hit"  tb_site_uuid="8915828a-5e92-4ca6-bde6-6a145ec111dc" tb_post_uuid="da65073d-91b3-45e0-b08c-f92d94bb728f" tb_post_type="post" tb_member_uuid="undefined" tb_member_status="undefined" tb_gift_link=""></script><style>:root {--ghost-accent-color: #B34700;}</style>
+</head>
+<body class="post-template tag-hash-season-2">
+
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="spotlight" data-spotlight aria-hidden="true"></div>
+
+    <header class="site-header is-sticky">
+    <div class="wrap nav-bar">
+        <a class="wordmark" href="https://productengineers.com">
+            
+            <span>The Product Engineers Podcast</span>
+        </a>
+
+        <div class="nav-desktop">
+            <nav aria-label="Main navigation">
+                <ul class="nav-list"><li><a class="nav-link" href="https://productengineers.com/#season-2">S02</a></li>
+<li><a class="nav-link" href="https://productengineers.com/#season-1">S01</a></li>
+<li><a class="nav-link" href="https://productengineers.com/blog/">Blog</a></li>
+<li><a class="nav-link" href="https://productengineers.com/community/">Community</a></li>
+<li><a class="nav-link" href="https://productengineers.com/support-me/">Support</a></li>
+</ul>
+            </nav>
+            <a class="btn btn-primary btn-sm" href="#/portal/signup" data-portal="signup">Subscribe &rarr;</a>
+        </div>
+
+        <button type="button" class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="mobile-menu" aria-label="Open menu">
+            <svg class="icon-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <svg class="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+
+    <div class="nav-mobile" id="mobile-menu" data-nav-menu>
+        <div class="nav-mobile-inner">
+            <nav aria-label="Mobile navigation">
+                <ul class="nav-mobile-list">
+                    <li><a class="nav-link" href="https://productengineers.com/#season-2">S02</a></li>
+<li><a class="nav-link" href="https://productengineers.com/#season-1">S01</a></li>
+<li><a class="nav-link" href="https://productengineers.com/blog/">Blog</a></li>
+<li><a class="nav-link" href="https://productengineers.com/community/">Community</a></li>
+<li><a class="nav-link" href="https://productengineers.com/support-me/">Support</a></li>
+
+                    <li><a class="btn btn-primary btn-block" href="#/portal/signup" data-portal="signup">Subscribe &rarr;</a></li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</header>
+
+    <main id="main">
+        
+<article class="episode">
+    <section class="article-hero blueprint">
+        <div class="wrap-6xl ep-hero-grid">
+            <div class="ep-hero-art">
+                <div class="ep-hero-art-inner">
+                    <div class="hero-cover-frame crosshair">
+                        <span class="hero-cover-rule" aria-hidden="true"></span>
+                        <img src="/content/images/size/w1000/2026/09/spotify-thumbnail-1.jpg"
+                             srcset="/content/images/size/w750/2026/09/spotify-thumbnail-1.jpg 750w, /content/images/size/w1000/2026/09/spotify-thumbnail-1.jpg 1000w"
+                             sizes="(max-width: 900px) 90vw, 480px"
+                             alt="Why Hardcore Technical Focus Still Matters Big Time — Robert C. Martin" width="640" height="640" fetchpriority="high" decoding="async">
+                    </div>
+                </div>
+            </div>
+
+            <div class="ep-hero-body">
+                <h1 class="article-title">Why Hardcore Technical Focus Still Matters Big Time | Uncle Bob</h1>
+                <div class="article-meta">
+                    <span class="who">Robert C. Martin</span>
+                    <span class="rule"></span><span>&quot;Uncle Bob&quot; · Author of Clean Code</span>
+                    <span class="rule"></span>
+                    <span>3 min read</span>
+                    <span class="rule"></span>
+                    <time datetime="2026-09-29">Sep 29, 2026</time>
+                </div>
+
+                <p class="article-excerpt">Robert C. Martin, author of Clean Code and Clean Architecture, explains how engineers can use static analysis, testing and technical judgement to steer AI coding agents towards better software.</p>
+                <a class="label label-11 label-primary more-link" href="#show-notes">More &rarr;</a>
+
+                <div class="article-actions">
+                    <div class="platform-buttons">
+    <a class="platform-button" href="https://open.spotify.com/show/6Um3ezZvDLlbP1RW6rrrIx" target="_blank" rel="noopener noreferrer" aria-label="Listen on Spotify"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+ Spotify</a>
+    <a class="platform-button" href="https://podcasts.apple.com/us/podcast/product-engineers-create-fiercely/id1836853484" target="_blank" rel="noopener noreferrer" aria-label="Listen on Apple Podcasts"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 12c0-3.8-3.1-6.9-6.9-6.9S5.1 8.2 5.1 12c0 3.6 2.8 6.5 6.3 6.9v4.7h1.2v-4.7c3.5-.3 6.3-3.3 6.3-6.9zm-7.5 5.5v-3.1c0-.3.2-.5.5-.5h.1c.3 0 .5.2.5.5v3.1c-.3.1-.7.1-1.1.1-.4 0-.8 0-1.1-.1zm.5-9.1c-2.5 0-4.5 2-4.5 4.5s2 4.5 4.5 4.5 4.5-2 4.5-4.5-2-4.5-4.5-4.5z"/></svg>
+ Apple Podcast</a>
+    <a class="platform-button" href="https://www.youtube.com/@theproductengineerspodcast" target="_blank" rel="noopener noreferrer" aria-label="Watch on YouTube"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+ YouTube</a>
+</div>
+                    <button type="button" class="btn btn-ghost" data-copy-link>Share episode</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-tight section-bottom section-card">
+        <div class="wrap-6xl">
+            <h2 class="display-md mb-8">Listen now.</h2>
+            <div class="label mb-4">Also on</div>
+            <div class="platform-buttons">
+    <a class="platform-button" href="https://open.spotify.com/show/6Um3ezZvDLlbP1RW6rrrIx" target="_blank" rel="noopener noreferrer" aria-label="Listen on Spotify"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+ Spotify</a>
+    <a class="platform-button" href="https://podcasts.apple.com/us/podcast/product-engineers-create-fiercely/id1836853484" target="_blank" rel="noopener noreferrer" aria-label="Listen on Apple Podcasts"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 12c0-3.8-3.1-6.9-6.9-6.9S5.1 8.2 5.1 12c0 3.6 2.8 6.5 6.3 6.9v4.7h1.2v-4.7c3.5-.3 6.3-3.3 6.3-6.9zm-7.5 5.5v-3.1c0-.3.2-.5.5-.5h.1c.3 0 .5.2.5.5v3.1c-.3.1-.7.1-1.1.1-.4 0-.8 0-1.1-.1zm.5-9.1c-2.5 0-4.5 2-4.5 4.5s2 4.5 4.5 4.5 4.5-2 4.5-4.5-2-4.5-4.5-4.5z"/></svg>
+ Apple Podcast</a>
+    <a class="platform-button" href="https://www.youtube.com/@theproductengineerspodcast" target="_blank" rel="noopener noreferrer" aria-label="Watch on YouTube"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+ YouTube</a>
+</div>
+        </div>
+    </section>
+
+    <section class="section" id="show-notes">
+        <div class="wrap-3xl">
+            <h2 class="display-md mb-8">Episode notes.</h2>
+            <div class="notes-panel">
+                <div class="article-body"><p>Robert C. Martin, also known as Uncle Bob, is the author of Clean Code and Clean Architecture and one of the original authors of the Agile Manifesto. In this episode, we explore why hardcore technical focus still matters big time when AI can write the code, and where engineers should apply that expertise as more implementation moves to agents.</p><p>Robert walks through the static analysis tools, dependency checks and testing practices he uses to steer agents towards better software. We discuss how clean code helps AI work with a codebase, how he stays technically involved while reading less code, and why understanding customers remains essential to making sound engineering decisions.</p><hr><p>Listen on <a href="https://youtu.be/rNdfQ6mRXAQ?ref=productengineers.com">YouTube</a>, <a href="https://open.spotify.com/episode/5fM55PZbT0SSIy2uqEYpoy?si=Ceky64U0RXaUs49akA4wzw&ref=productengineers.com">Spotify</a> or <a href="https://podcasts.apple.com/us/podcast/why-hardcore-technical-focus-still-matters-big-time/id1836853484?i=1000792147726&ref=productengineers.com">Apple Podcasts</a></p><hr><h3 id="in-our-conversation-we-discuss">In our conversation, we discuss:</h3><ol><li>Why clean code and clean architecture still matter when AI writes the code</li><li>How static analysis and dependency checks help steer agents towards better software</li><li>How Robert combines acceptance tests, QA tests and mutation testing to check AI-written code</li><li>How engineers can stay technically in control without reading every line of code</li><li>Why understanding customers leads to better technical decisions</li></ol><h3 id="where-to-find-robert-c-martin">Where to find Robert C. Martin:</h3><ul><li>X: <a href="https://x.com/unclebobmartin?ref=productengineers.com">@unclebobmartin</a></li><li>Website: <a href="https://cleancoder.com/?ref=productengineers.com">The Clean Coder</a></li><li>Videos: <a href="https://cleancoders.com/?ref=productengineers.com">Clean Coders</a></li></ul><hr><h3 id="lessons-learned">Lessons Learned</h3><ul><li><strong>Keep technical judgement at the centre of your work.</strong> Robert sees engineers spending less time on low-level implementation and more time directing agents. That still requires understanding the system, questioning its behaviour and deciding whether the technical choices serve the product.</li><li><strong>Keep the code understandable for agents.</strong> Tangled dependencies and poorly organised code make an agent's job harder, just as they do for a human. Robert still cares about clear names, manageable functions and coherent modules because they make the code easier to work with.</li><li><strong>Turn standards into executable checks.</strong> A reminder in a prompt can be forgotten as an agent focuses on a task. Robert writes deterministic tools that measure the code and report failures, then asks the agent to keep working until it meets those standards.</li><li><strong>Use complexity and coverage together.</strong> Robert uses the CRAP metric to give agents feedback on both cyclomatic complexity and test coverage. Reducing the score can require better test coverage and splitting complex functions. His thresholds describe his workflow; they are a starting point for discussion, not a universal target.</li><li><strong>Check for duplication.</strong> Robert also uses tools that detect repeated code, including near-duplicates. He finds agents effective at extracting shared behaviour once the duplication is made explicit. A concrete diagnostic gives the agent a specific structural problem to solve.</li><li><strong>Make dependency rules explicit.</strong> Robert records which modules may depend on others and in which direction. A checker compares the code against those rules and reports violations. That gives agents feedback they can use to break dependency cycles or introduce an interface, while the engineer retains control over the intended architecture.</li><li><strong>Check behaviour through several kinds of tests.</strong> Robert asks agents to write unit tests, Gherkin acceptance tests and QA tests that exercise the human interface. He reviews or spot-checks the latter two to see whether they make sense, then has the agents run all three streams.</li><li><strong>Test whether the tests catch mistakes.</strong> Mutation testing deliberately changes the code and checks whether the tests fail. When a change survives, Robert asks the agent to improve the tests. This gives him evidence about what the suite detects beyond whether it passes against the current implementation.</li><li><strong>Keep the design pressure of tests written first.</strong> Robert has not found a reliable way to make agents follow the tiny steps of human TDD. He still asks them to write tests before implementation, because making the code testable pushes them to address coupling and structure.</li><li><strong>Build a mental model and challenge it.</strong> Robert describes reading less production code while making occasional spot checks and questioning agents about the system. He uses those explanations to develop a model he can challenge with technical questions and tests. The reduced reading is part of his wider checking process.</li><li><strong>Learn how customers actually work.</strong> Riding along with a telephone repair technician helped Robert understand the people affected by his code. Answering field-service calls kept that contact alive. Direct exposure gives engineers context they can use when deciding which technical trade-offs matter.</li><li><strong>Preserve the reason behind technical requirements.</strong> Robert recalls a response-time requirement slipping from under one second to three seconds as newer engineers lost the customer context behind it. Passing on the reason for a constraint helps future engineers understand its importance when they change the system.</li></ul></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-tight section-top" id="comments">
+        <div class="wrap-3xl">
+            <h2 class="display-md mb-8">Discussion.</h2>
+            
+        <script defer src="https://cdn.jsdelivr.net/ghost/comments-ui@~1.6/umd/comments-ui.min.js" data-locale="en" data-ghost-comments="https://productengineers.com/" data-api="https://productengineers.com/ghost/api/content/" data-admin="https://productengineers.com/ghost/" data-key="6c6d21870717590f02359c0c84" data-title="" data-count="false" data-post-id="6abab21d251b740001cb01ee" data-color-scheme="dark" data-avatar-saturation="60" data-accent-color="#B34700" data-comments-enabled="all" data-publication="The Product Engineers Podcast" crossorigin="anonymous"></script>
+    
+        </div>
+    </section>
+
+    <section class="section-tight section-top section-card">
+        <div class="wrap-6xl">
+            <h2 class="display-md mb-8">More episodes.</h2>
+            <div class="pager">
+                <div class="pager-empty">You're on the latest episode.</div>
+                <a class="pager-item is-next" href="/episodes/season2/how-to-interview-users-like-a-pro-even-if-youre-an-engineer-sara-iacozza-senior-ux-researcher/">
+                    <div class="n">&rarr;</div>
+                    <div>
+                        <div class="label">Older episode</div>
+                        <h3>How to Interview Users Like a Pro (Even If You&#x27;re an Engineer) | Sara Iacozza, Senior UX Researcher</h3>
+                        <div class="label">Sara Iacozza</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+</article>
+
+
+    </main>
+
+    <footer class="site-footer">
+    <div class="wrap footer-inner">
+        <div>&copy; 2026 &middot; The Product Engineers Podcast</div>
+        <nav aria-label="Footer navigation">
+            <ul class="footer-nav">
+                <li><a class="nav-link" href="https://productengineers.com/episodes/">Episodes</a></li>
+<li><a class="nav-link" href="https://productengineers.com/blog/">Blog</a></li>
+<li><a class="nav-link" href="https://productengineers.com/community/">Community</a></li>
+<li><a class="nav-link" href="https://productengineers.com/support-me/">Support</a></li>
+<li><a class="nav-link" href="https://productengineers.com/about/">About</a></li>
+
+                <li><a class="nav-link" href="https://productengineers.com/terms/">Terms</a></li>
+                <li><a class="nav-link" href="https://productengineers.com/privacy/">Privacy</a></li>
+            </ul>
+        </nav>
+        <div>MADE IN ITALY</div>
+    </div>
+</footer>
+
+    <script src="/assets/js/main.js?v=hK0a7sQqv_phP1Vy"></script>
+    
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a433f8886a996c75',t:'MTc5MDc3OTEwMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

@@ -1,0 +1,136 @@
+ Robert C. Martin Series Series | InformIT
+ if(isEnableGA){
+ if(currentEnvironment == 'QA'){
+ }else{
+ }
+ }
+The Robert C. Martin Series
+The Robert C. Martin Series is directed at software developers, team-leaders, business analysts, and managers who want to increase their skills and proficiency to the level of a Master Craftsman. The series contains books that guide software professionals in the principles, patterns, and practices of programming, software project management, requirements gathering, design, analysis, testing, and others..
+All Titles
+Showing 1-10 of 23
+ Sort by Date | Title
+Clean Code: A Handbook of Agile Software Craftsmanship, 2nd Edition
+ By
+ Robert C. Martin
+Book 
+ $47.99
+Clean Code: A Handbook of Agile Software Craftsmanship, 2nd Edition, 2nd Edition
+eBook 
+ $47.99
+We, Programmers: A Chronicle of Coders from Ada to AI
+ By
+ Robert C. Martin
+eBook 
+ $30.39
+We, Programmers: A Chronicle of Coders from Ada to AI
+ By
+ Robert C. Martin
+Book 
+ $31.99
+Functional Design: Principles, Patterns, and Practices
+ By
+ Robert C. Martin
+eBook 
+ $38.39
+Functional Design: Principles, Patterns, and Practices
+ By
+ Robert C. Martin
+Book 
+ $39.99
+Code That Fits in Your Head: Heuristics for Software Engineering
+ By
+ Mark Seemann
+Book 
+ $31.99
+Clean Craftsmanship: Disciplines, Standards, and Ethics
+ By
+ Robert C. Martin, Robert C. Martin
+Book 
+ $43.99
+Code That Fits in Your Head: Heuristics for Software Engineering
+ By
+ Mark Seemann
+eBook 
+ $30.39
+Clean Craftsmanship: Disciplines, Standards, and Ethics
+ By
+ Robert C. Martin, Robert C. Martin
+eBook 
+ $34.39
+ Page
+ 1
+ 2
+ 3
+ Next >
+books, eBooks, and digital learning
+Join|Sign In View Your Cart
+Search
+Search
+ View Your Cart
+👤 Sign In
+Join
+Store
+ Business & Management
+Certification
+ Cloud Computing & Virtualization
+Data
+Digital Photography
+Engineering
+ Graphics & Web Design
+ Home & Office Computing
+Information Technology
+ Mobile Application Development & Programming
+Networking
+Open Source
+Operating Systems, Server
+Programming
+Security
+ Software Development & Management
+Web Development
+Web Services
+FormatsBooks
+eBooks
+Practice Tests
+Software
+Video
+Web Editions
+ Deals & Promotions
+Video Training
+ImprintsAddison-Wesley Professional
+Adobe Press
+Cisco Press
+FT Press
+IBM Press
+Microsoft Press Store
+Oracle Press Books
+Peachpit
+Pearson IT Certification
+Que Publishing
+Sams Publishing
+ExploreAbout
+Affiliate Program
+Authors
+ Chapters & Articles
+ Deals & Promotions
+Popular Topics
+Product Registration
+ Special Offers & Newsletter
+Support
+Video Training
+CommunityPress and Media Relations
+Product Review Team
+User Groups
+About
+Affiliates
+Cookies
+FAQ
+Legal Notice
+Ordering Information
+Pearson+
+Privacy
+Do Not Sell My Personal Information
+Press
+Promotions
+Support
+Write for Us
+ © 2026 Pearson. All rights reserved, including those for text and data mining and training of artificial intelligence and similar technologies.

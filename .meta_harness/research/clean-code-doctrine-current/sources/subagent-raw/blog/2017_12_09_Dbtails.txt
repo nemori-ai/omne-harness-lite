@@ -1,0 +1,381 @@
+
+ Clean Coder Blog
+ The Clean Code Blog
+by Robert C. Martin (Uncle Bob)
+ atom/rss feed
+ Functional Classes in Clojure
+ 01-19-2023
+ Functional Classes
+ 01-18-2023
+ Space War
+ 11-28-2021
+ Functional Duplications
+ 10-28-2021
+ Roots
+ 09-25-2021
+ More On Types
+ 06-29-2021
+ On Types
+ 06-25-2021
+ if-else-switch
+ 03-06-2021
+ Pairing Guidelines
+ 01-17-2021
+ Solid Relevance
+ 10-18-2020
+ Loopy
+ 09-30-2020
+ Conference Conduct
+ 09-23-2020
+ The Disinvitation
+ 09-12-2020
+ REPL Driven Design
+ 05-27-2020
+ A Little More Clojure
+ 04-09-2020
+ A Little Clojure
+ 04-06-2020
+ A New Hope
+ 04-05-2020
+ Open Letter to the Linux Foundation
+ 11-08-2019
+ What They Thought of Programmers.
+ 11-03-2019
+ Circulatory
+ 10-31-2019
+ Why Clojure?
+ 08-22-2019
+ Why won't it...
+ 07-22-2019
+ Classes vs. Data Structures
+ 06-16-2019
+ Types and Tests
+ 06-08-2019
+ 737 Max 8
+ 05-18-2019
+ FP vs. OO List Processing
+ 12-17-2018
+ We, The Unoffended
+ 12-16-2018
+ SJWJS
+ 12-14-2018
+ The Tragedy of Craftsmanship.
+ 08-28-2018
+ Too Clean?
+ 08-13-2018
+ Integers and Estimates
+ 06-21-2018
+ Pickled State
+ 06-06-2018
+ Craftsman, Craftswoman, Craftsperson
+ 05-02-2018
+ FP vs. OO
+ 04-13-2018
+ In The Large
+ 04-02-2018
+ We Programmers
+ 03-29-2018
+ Uncle Bob Fly-In.
+Have I got a deal for you!
+ 02-25-2018
+ The Citizenship Argument
+ 01-18-2018
+ Operating Behind the Power Curve
+ 01-15-2018
+ Excuses
+ 12-18-2017
+ Dbtails
+ 12-09-2017
+ Bobby Tables
+ 12-03-2017
+ Living on the Plateau
+ 11-18-2017
+ Women In Demand
+ 10-04-2017
+ Tools are not the Answer
+ 10-04-2017
+ Test Contra-variance
+ 10-03-2017
+ The Unscrupulous Meme
+ 09-29-2017
+ Sierra Juliet Foxtrot
+ 09-26-2017
+ Just Following Orders
+ 08-28-2017
+ Women in Tech
+ 08-14-2017
+ On the Diminished Capacity to Discuss Things Rationally
+ 08-10-2017
+ Thought Police
+ 08-09-2017
+ The Brain Problem
+ 07-28-2017
+ Drive me to Toronto, Hal.
+ 07-24-2017
+ Pragmatic Functional Programming
+ 07-11-2017
+ First-Class Tests.
+ 05-05-2017
+ Is Dr. Calvin in the Room?
+ 03-16-2017
+ Symmetry Breaking
+ 03-07-2017
+ Testing Like the TSA
+ 03-06-2017
+ TDD Harms Architecture
+ 03-03-2017
+ Necessary Comments
+ 02-23-2017
+ Types and Tests
+ 01-13-2017
+ The Dark Path
+ 01-11-2017
+ TDD Lesson - Terrain Generation
+ 01-09-2017
+ TDD Doesn't Work
+ 11-10-2016
+ Dijkstra's Algorithm
+ 10-26-2016
+ The Lurn
+ 09-01-2016
+ The Churn
+ 07-27-2016
+ Mutation Testing
+ 06-10-2016
+ Blue. No! Yellow!
+ 05-21-2016
+ Type Wars
+ 05-01-2016
+ Giving Up on TDD
+ 03-19-2016
+ Manhandled
+ 01-15-2016
+ Stabilization Phases
+ 01-14-2016
+ A Little Architecture
+ 01-04-2016
+ Prelude to a Profession
+ 11-27-2015
+ The Programmer's Oath
+ 11-18-2015
+ The Force of Pliers
+ 11-01-2015
+ Future Proof
+ 10-30-2015
+ Agile is not now, nor was it ever, Waterfall.
+ 10-16-2015
+ VW
+ 10-14-2015
+ WATS Line 54
+ 10-05-2015
+ A Little Structure
+ 09-23-2015
+ Make the Magic go away.
+ 08-06-2015
+ Pattern Pushers
+ 07-05-2015
+ The Little Singleton
+ 07-01-2015
+ The First Micro-service Architecture
+ 05-28-2015
+ Language Layers
+ 04-27-2015
+ Does Organization Matter?
+ 04-15-2015
+ The MODE-B Imperative
+ 02-21-2015
+ They Called them Computers.
+ 02-19-2015
+ 'Interface' Considered Harmful
+ 01-08-2015
+ The Cycles of TDD
+ 12-17-2014
+ OO vs FP
+ 11-24-2014
+ Thorns around the Gold
+ 11-19-2014
+ The Obligation of the Programmer.
+ 11-15-2014
+ One Hacker Way!
+ 11-12-2014
+ Laughter in the male dominated room.
+ 10-26-2014
+ GOML-1, Responsive Design
+ 10-08-2014
+ Clean Micro-service Architecture
+ 10-01-2014
+ Microservices and Jars
+ 09-19-2014
+ The More Things Change...
+ 09-18-2014
+ Test Time
+ 09-03-2014
+ A Little About Patterns.
+ 06-30-2014
+ My Lawn
+ 06-20-2014
+ Is TDD Dead?
+Final Thoughts about Teams.
+ 06-17-2014
+ First
+ 05-19-2014
+ The Little Mocker
+ 05-14-2014
+ The Open Closed Principle
+ 05-12-2014
+ Framework Bound[2]
+ 05-11-2014
+ When to Mock
+ 05-10-2014
+ The Single Responsibility Principle
+ 05-08-2014
+ Professionalism and TDD (Reprise)
+ 05-02-2014
+ Test Induced Design Damage?
+ 05-01-2014
+ When TDD doesn't work.
+ 04-30-2014
+ Monogamous TDD
+ 04-25-2014
+ Code Hoarders
+ 04-03-2014
+ The True Corruption of Agile
+ 03-28-2014
+ When Should You Think?
+ 03-11-2014
+ A Spectrum of Trust
+ 02-27-2014
+ Oh Foreman, Where art Thou?
+ 02-23-2014
+ Where is the Foreman?
+ 02-21-2014
+ The Domain Discontinuity
+ 01-27-2014
+ Coding in the Clink (9)
+ 01-20-2014
+ Extreme Programming, a Reflection
+ 12-10-2013
+ Novices. A Coda
+ 11-25-2013
+ Hordes Of Novices
+ 11-19-2013
+ Healthcare.gov
+ 11-12-2013
+ The Careless Ones
+ 10-24-2013
+ Dance you Imps!
+ 10-01-2013
+ A.T. FAIL!
+ 09-26-2013
+ Test First
+ 09-23-2013
+ Transformation Priority and Sorting
+ 05-27-2013
+ The Transformation Priority Premise
+ 05-27-2013
+ Flash - TPP
+ 05-27-2013
+ Fib. The T-P Premise.
+ 05-27-2013
+ There are Ladies Present
+ 03-22-2013
+ The Frenzied Panic of Rushing
+ 03-11-2013
+ An Open and Closed Case
+ 03-08-2013
+ The Pragmatics of TDD
+ 03-06-2013
+ The Start-Up Trap
+ 03-05-2013
+ The Principles of Craftsmanship
+ 02-10-2013
+ The Humble Craftsman
+ 02-01-2013
+ The Laborer and the Craftsman
+ 01-30-2013
+ FP Basics E4
+ 01-29-2013
+ FP Basics E3
+ 01-07-2013
+ FP Basics E2
+ 01-02-2013
+ Brave New Year
+ 12-29-2012
+ FP Basics E1
+ 12-22-2012
+ Three Paradigms
+ 12-19-2012
+ The New CTO
+ 09-06-2012
+ Functional Programming for the Object Oriented Programmer
+ 08-24-2012
+ The Clean Architecture
+ 08-13-2012
+ NO DB
+ 05-15-2012
+ Why is Estimating so Hard?
+ 04-20-2012
+ After the Disaster
+ 04-18-2012
+ Service Oriented Agony
+ 02-01-2012
+ The Ruby Colored Box
+ 01-31-2012
+ Fecophiles
+ 01-20-2012
+ The Letter
+ 01-12-2012
+ Flipping the Bit
+ 01-11-2012
+ The Barbarians are at the Gates
+ 12-11-2011
+ Clean Architecture
+ 11-22-2011
+ Double Entry Bookkeeping Dilemma. Should I Invest or Not?
+ 11-06-2011
+ Simple Hickey
+ 10-20-2011
+ Screaming Architecture
+ 09-30-2011
+ Bringing Balance to the Force
+ 01-19-2011
+ What Software Craftsmanship is about
+ 01-17-2011
+ Dbtails
+ 09 December 2017
+ A Bit of History about Bits.
+Memory was always the problem. Once we had established that we could process information with relays, or vaccuum tubes, or transistors; the problem was where to keep the information we were processing.
+Random Access Memory (RAM) within the computer was tricky during those days. By the time I became a programmer, in 1968, the move to core memory was pretty well established. But in the years just before that there were many different schemes, including accoustic waves through tubes of mercury, or magnetic drums, or even using electron beams to store charge on the surface of a Cathode Ray Tube.
+Indeed, one of the early programmable calculators that I used in High School, the Olivetti-Underwood Programma 101, stored its information in accoustic waves travelling down steel wires.
+Paper with Holes.
+Early computers used paper tape and punched cards to store the information being processed. In my earliest years as a programmer, back in 1968 when computers were frightfully expensive, I worked for a company that offered computing services to companies. Those companies would ship us massive crates full of punched cards containing their business records. We’d process that data and punch a new massive pile of punched cards that we’d crate up and ship back to them. It was quite an operation.
+What’s more, we had a whole room full of equipment just for dealing with cards. We had card sorters, and card duplicators all over the place. We even had little patch panel machines that could read cards and make small modifications to the information on those cards – like punching new sequence numbers. Much of the preparation work for a big batch job was done on these machines because they were a lot cheaper than time on the big IBM 360.
+Magnetic Tape.
+I started working as a programmer just as magnetic tape was replacing punched cards. As you can imagine, shipping reels of magnetic tape back and forth to the customer was a lot cheaper, and a lot more reliable, than shipping crates of cards. What’s more, the computer could read those tapes a lot faster than it could read cards, so time on the computer was reduced by a huge margin.
+At first, of course, the cards were simply copied to tape. A card was 80 bytes of data, so the data on tape was simply a linear array of 80 byte records. But as time went by we realized that there was no need to limit ourselves to 80 byte records on tape. So tape record size became independent of cards.
+But as fast and convenient as tapes were, the information density was still pretty low. You could store 800 bytes per inch on those tapes. So a megabyte was a thousand inches. A gigabyte would have required almost sixteen miles of tape. What’s more, the data on tape was stored serially. There was no way to get the data on the end of the tape other than to read the whole tape. Random access was simply not an option.
+Disks.
+Disks were invented to solve that problem. Disks were thin platters of metal with a magnetic coating. A dozen or so of these platters were stacked up on a spindle and then spun at high speed. Typically 3600 RPM. Magnetic read-write heads were mounted on servo motors so they could move radially across the platters.
+The data on the disk were written onto circular tracks. Each platter could have several hundred of these tracks. The tracks were subdivided into records that could hold a fixed amount of data. Since the platters were stacked up vertically, we called the vertical group of tracks cylinders. In order to read a record from the disk, the programmer would seek the heads to the appropriate cylinder, select the appropriate head, and then wait for the desired record to travel around the spindle until it came under the head. We called the address of a record a CHR, or Cylinder-Head-Record.
+Programmers could format the disk any way they liked. They could decide that the first 20 cylinders should hold Employee records that were 250 bytes long; and that the next 50 cylinders should hold item records that were 500 bytes long. We could arrange the record size and the number of records per track, as part of the design of our application. We could even split the disk vertically such that the top few platters held index information while the bottom platters held the data. We could set that disk up any way we liked. The data on the disk had a fixed formal arrangement.
+Of course that fixed formal arrangement meant that the disks were specific to a particular application. When it was time to run the Bill of Materials application, the computer operators would load the Bill of Materials disks into the disk drives. Those disks were formatted just for that Bill of Materials application.
+File Systems.
+As time went on we realized that we wanted to use the disks in a different way. We wanted easy access to the capacity and random access that disks afforded without imposing a fixed formal arragnement to our data. So we invented file systems. In general, files systems required that we format the disks in a uniform way. Every track was formatted to hold a relatively small number of records (called sectors). All tracks were formatted identically. We invented direcrories, and indexes, and files, and all of the trappings that we have become so used to in our daily work.
+File systems allowed us to view the memory on disk as named arrays of bytes. They imposed no fixed formal arrangement of the data. Rather, we could have any number of directories, containing any number of files, containing any number of bytes. The actual structure of the disk itself was invisible to this view. It did not matter to us which cylinder, head, and record we were accessing. We simply created, wrote, read, and deleted individual files. The structure of the disk had been entirely abstracted away and decoupled from the structure of the data.
+Relational Databases.
+As convenient as file systems were for storing documents and simple linear files, they weren’t all that convenient at accessing vast arrays of fixed-sized, organized records. Finding the Employee Record for Bob in the Employees.dat file usually implied a linear search, or some kind of ad hoc, nightmarish indexing scheme. And so other modes of access were invented. One of those methods was the Relational Database.
+Relational databases abstract away the physical nature of the disk, just as file systems do; but instead of storing informal arrays of bytes, relational databases provide access to sets of fixed sized records. Each record type is called a table, and each record within a table is called a row. Each row has a unique identifier called a key.
+This is similar to the way we conceived of disks in the early days, except back then we specifically formatted the disk to hold the fixed sized records, and we used the CHR as the key.
+SSD.
+The disks are going away. Your laptop or desktop computer almost certainly does not contain a piece of spinning metal. (If it does, I’m sorry. ;-) Within the next few years. all the disks will go away. They will have been replaced by solid state memory – RAM. (We call it SSD. What could that “D” stand for? Not “disk”, certainly. Not “drive”. What?)
+Every time our technology has changed, from Cards, to Tape, to Disk, new access methods were invented. The older technology fell away, and newer modes of access were adopted.
+Will this happen with SSD? Will file systems and relational databases fall to the wayside? If so, what will replace them?
+With each new technology a fact that we considered essential was abstracted away. Cards were linear arrays of 80 byte records, period. There wasn’t any arguing about that. It was a physical limitation of the medium.
+Magnetic tape abstracted away the record size limit; but maintained the linear sequence.
+Disk abstracted away the linear sequence, but replaced it with that strange physical CHR addressing scheme.
+File systems abstracted away the physical structure of the disk but provided no easy access to fixed sized records.
+Relational databases (which often ride on top of file systems nowadays) provided random access to fixed sized records.
+What does SSD change? What physical limitation can be abstracted away because of this change?
+Well, the one big thing that has changed is time. Accessing SSD is fast. There is no rotaional latency. There is no seek time. The time to access a byte in SSD is the same regardless of where that byte is.
+So what does this mean for us?
+Tape made cards faster; but changed the way we viewed records. Disks made tape faster but changed the way we viewed access. SSD makes everything faster but changed the way we viewed _____. Fill in that blank.

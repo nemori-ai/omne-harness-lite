@@ -1,0 +1,8 @@
+[00:01] So I thought you might like to see the UML viewer in action.
+[00:06] This is how I review projects now.
+[00:09] And the one I'm reviewing is missile command.
+[00:11] That was one that I wrote with my agents several months ago.
+[00:15] You can see the basic structure, basic layered structure.
+[00:19] I double clicked on the game class and I brought the card up.
+[00:23] You can see the coverage and the mutation.
+[00:26] And I'm going to double click on handle click and bring up the code.

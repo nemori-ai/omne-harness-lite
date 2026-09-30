@@ -1,0 +1,414 @@
+ Clean Architecture: A Craftsman's Guide to Software Structure and Design | InformIT
+ if(isEnableGA){
+ if(currentEnvironment == 'QA'){
+ }else{
+ }
+ }
+ Home
+ >
+ Store
+ View Larger Image
+ Register your product
+ to gain access to bonus material or receive a coupon.
+ Clean Architecture: A Craftsman's Guide to Software Structure and Design
+ By Robert C. Martin
+ Published Sep 10, 2017
+ by Pearson. Part of the Robert C. Martin Series series.
+ Best Value Purchase
+Book + eBook Bundle 
+ Your Price: $52.94
+ List Price: $86.98
+ Includes EPUB and PDF
+ About eBook Formats
+ This eBook includes the following formats, accessible from your Account page after purchase:
+ EPUB
+ The open industry format known for its reflowable content and usability on supported mobile devices.
+ PDF
+ The popular standard, used most often with the free Acrobat® Reader® software.
+ This eBook requires no passwords or activation to read. We customize your eBook by discreetly watermarking it with your name, making it uniquely yours.
+ Watermarked eBook FAQ
+ eBook Download Instructions
+ Add to cart
+ FREE SHIPPING!
+ More Purchase Options
+Book 
+ Your Price: $39.99
+ List Price: $49.99
+ Usually ships in 24 hours.
+ Add to cart
+ FREE SHIPPING!
+eBook 
+ Your Price: $29.59
+ List Price: $36.99
+ Includes EPUB and PDF
+ About eBook Formats
+ This eBook includes the following formats, accessible from your Account page after purchase:
+ EPUB
+ The open industry format known for its reflowable content and usability on supported mobile devices.
+ PDF
+ The popular standard, used most often with the free Acrobat® Reader® software.
+ This eBook requires no passwords or activation to read. We customize your eBook by discreetly watermarking it with your name, making it uniquely yours.
+ Watermarked eBook FAQ
+ eBook Download Instructions
+ Add to cart
+ Audiobook now available at your favorite audiobook retailer
+ About
+ Description
+ Extras
+ Sample Content
+ Updates
+ More Information
+ About
+ Features
+ Practical answers to the most crucial questions software architects and designers face How to choose the best high-level structures for each of today's diverse application types: from web to database, thick-client to console to embedded Understanding the core principles of software architecture and design, and what you're really trying to achieve By the renowned Robert C. Martin, author of The Clean Coder, Clean Code, and Agile Software Development: Principles, Patterns, and Practices
+ 
+ Description
+ Copyright 2018
+ Dimensions: 7" x 9-1/8"
+ Pages: 432
+ Edition: 1st
+Book 
+ ISBN-10: 0-13-449416-4
+ ISBN-13: 978-0-13-449416-6
+ Building upon the success of best-sellers The Clean Coder and Clean Code, legendary software craftsman Robert C. "Uncle Bob" Martin shows how to bring greater professionalism and discipline to application architecture and design. As with his other books, Martin's Clean Architecture doesn't merely present multiple choices and options, and say "use your best judgment": it tells you what choices to make, and why those choices are critical to your success. Martin offers direct, no-nonsense answers to key architecture and design questions like: What are the best high level structures for different kinds of applications, including web, database, thick-client, console, and embedded apps? What are the core principles of software architecture? What is the role of the architect, and what is he/she really trying to achieve? What are the core principles of software design? How do designs and architectures go wrong, and what can you do about it? What are the disciplines and practices of professional architects and designers? Clean Architecture is essential reading for every software architect, systems analyst, system designer, and software manager -- and for any programmer who aspires to these roles or is impacted by their work.
+ 
+ Extras
+ Author's Site
+ Please visit the author's site at https://cleancoders.com/.
+ 
+ Sample Content
+ Online Sample Chapter 
+ The Clean Architecture Dependency Rule
+ Table of Contents
+ Foreword xv
+ Preface xix
+ Acknowledgments xxiii
+ About the Author xxv
+ Part I: Introduction 1
+ Chapter 1: What Is Design and Architecture? 3
+ The Goal? 4
+ Case Study 5
+ Conclusion 12
+ Chapter 2: A Tale of Two Values 13
+ Behavior 14
+ Architecture 14
+ The Greater Value 15
+ Eisenhower’s Matrix 16
+ Fight for the Architecture 18
+ Part II: Starting with the Bricks: Programming Paradigms 19
+ Chapter 3: Paradigm Overview 21
+ Structured Programming 22
+ Object-Oriented Programming 22
+ Functional Programming 22
+ Food for Thought 23
+ Conclusion 24
+ Chapter 4: Structured Programming 25
+ Proof 27
+ A Harmful Proclamation 28
+ Functional Decomposition 29
+ No Formal Proofs 30
+ Science to the Rescue 30
+ Tests 31
+ Conclusion 31
+ Chapter 5: Object-Oriented Programming 33
+ Encapsulation? 34
+ Inheritance? 37
+ Polymorphism? 40
+ Conclusion 47
+ Chapter 6: Functional Programming 49
+ Squares of Integers 50
+ Immutability and Architecture 52
+ Segregation of Mutability 52
+ Event Sourcing 54
+ Conclusion 56
+ Part III: Design Principles 57
+ Chapter 7: SRP: The Single Responsibility Principle 61
+ Symptom 1: Accidental Duplication 63
+ Symptom 2: Merges 65
+ Solutions 66
+ Conclusion 67
+ Chapter 8: OCP: The Open-Closed Principle 69
+ A Thought Experiment 70
+ Directional Control 74
+ Information Hiding 74
+ Conclusion 75
+ Chapter 9: LSP: The Liskov Substitution Principle 77
+ Guiding the Use of Inheritance 78
+ The Square/Rectangle Problem 79
+ LSP and Architecture 80
+ Example LSP Violation 80
+ Conclusion 82
+ Chapter 10: ISP: The Interface Segregation Principle 83
+ ISP and Language 85
+ ISP and Architecture 86
+ Conclusion 86
+ Chapter 11: DIP: The Dependency Inversion Principle 87
+ Stable Abstractions 88
+ Factories 89
+ Concrete Components 91
+ Conclusion 91
+ Part IV: Component Principles 93
+ Chapter 12: Components 95
+ A Brief History of Components 96
+ Relocatability 99
+ Linkers 100
+ Conclusion 102
+ Chapter 13: Component Cohesion 103
+ The Reuse/Release Equivalence Principle 104
+ The Common Closure Principle 105
+ The Common Reuse Principle 107
+ The Tension Diagram for Component Cohesion 108
+ Conclusion 110
+ Chapter 14: Component Coupling 111
+ The Acyclic Dependencies Principle 112
+ Top-Down Design 118
+ The Stable Dependencies Principle 120
+ The Stable Abstractions Principle 126
+ Conclusion 132
+ Part V: Architecture 133
+ Chapter 15: What Is Architecture? 135
+ Development 137
+ Deployment 138
+ Operation 138
+ Maintenance 139
+ Keeping Options Open 140
+ Device Independence 142
+ Junk Mail 144
+ Physical Addressing 145
+ Conclusion 146
+ Chapter 16: Independence 147
+ Use Cases 148
+ Operation 149
+ Development 149
+ Deployment 150
+ Leaving Options Open 150
+ Decoupling Layers 151
+ Decoupling Use Cases 152
+ Decoupling Mode 153
+ Independent Develop-ability 153
+ Independent Deployability 154
+ Duplication 154
+ Decoupling Modes (Again) 155
+ Conclusion 158
+ Chapter 17: Boundaries: Drawing Lines 159
+ A Couple of Sad Stories 160
+ FitNesse 163
+ Which Lines Do You Draw, and When Do You Draw Them? 165
+ What About Input and Output? 169
+ Plugin Architecture 170
+ The Plugin Argument 172
+ Conclusion 173
+ Chapter 18: Boundary Anatomy 175
+ Boundary Crossing 176
+ The Dreaded Monolith 176
+ Deployment Components 178
+ Threads 179
+ Local Processes 179
+ Services 180
+ Conclusion 181
+ Chapter 19: Policy and Level 183
+ Level 184
+ Conclusion 187
+ Chapter 20: Business Rules 189
+ Entities 190
+ Use Cases 191
+ Request and Response Models 193
+ Conclusion 194
+ Chapter 21: Screaming Architecture 195
+ The Theme of an Architecture 196
+ The Purpose of an Architecture 197
+ But What About the Web? 197
+ Frameworks Are Tools, Not Ways of Life 198
+ Testable Architectures 198
+ Conclusion 199
+ Chapter 22: The Clean Architecture 201
+ The Dependency Rule 203
+ A Typical Scenario 207
+ Conclusion 209
+ Chapter 23: Presenters and Humble Objects 211
+ The Humble Object Pattern 212
+ Presenters and Views 212
+ Testing and Architecture 213
+ Database Gateways 214
+ Data Mappers 214
+ Service Listeners 215
+ Conclusion 215
+ Chapter 24: Partial Boundaries 217
+ Skip the Last Step 218
+ One-Dimensional Boundaries 219
+ Facades 220
+ Conclusion 220
+ Chapter 25: Layers and Boundaries 221
+ Hunt the Wumpus 222
+ Clean Architecture? 223
+ Crossing the Streams 226
+ Splitting the Streams 227
+ Conclusion 228
+ Chapter 26: The Main Component 231
+ The Ultimate Detail 232
+ Conclusion 237
+ Chapter 27: Services: Great and Small 239
+ Service Architecture? 240
+ Service Benefits? 240
+ The Kitty Problem 242
+ Objects to the Rescue 244
+ Component-Based Services 245
+ Cross-Cutting Concerns 246
+ Conclusion 247
+ Chapter 28: The Test Boundary 249
+ Tests as System Components 250
+ Design for Testability 251
+ The Testing API 252
+ Conclusion 253
+ Chapter 29: Clean Embedded Architecture 255
+ App-titude Test 258
+ The Target-Hardware Bottleneck 261
+ Conclusion 273
+ Part VI: Details 275
+ Chapter 30: The Database Is a Detail 277
+ Relational Databases 278
+ Why Are Database Systems So Prevalent? 279
+ What If There Were No Disk? 280
+ Details 281
+ But What about Performance? 281
+ Anecdote 281
+ Conclusion 283
+ Chapter 31: The Web Is a Detail 285
+ The Endless Pendulum 286
+ The Upshot 288
+ Conclusion 289
+ Chapter 32: Frameworks Are Details 291
+ Framework Authors 292
+ Asymmetric Marriage 292
+ The Risks 293
+ The Solution 294
+ I Now Pronounce You … 295
+ Conclusion 295
+ Chapter 33: Case Study: Video Sales 297
+ The Product 298
+ Use Case Analysis 298
+ Component Architecture 300
+ Dependency Management 302
+ Conclusion 302
+ Chapter 34: The Missing Chapter 303
+ Package by Layer 304
+ Package by Feature 306
+ Ports and Adapters 308
+ Package by Component 310
+ The Devil Is in the Implementation Details 315
+ Organization versus Encapsulation 316
+ Other Decoupling Modes 319
+ Conclusion: The Missing Advice 321
+ Part VII: Appendix 323
+ Appendix A Architecture Archaeology 325
+ Index 375
+ 
+ Updates
+ Errata
+ We've made every effort to ensure the accuracy of this book and its companion content. Any errors that have been confirmed since this book was published can be downloaded below.
+Download the errata (46 KB .doc)
+ Submit Errata
+ 
+ More Information
+ 
+ InformIT Promotional Mailings & Special Offers
+ ⚠
+ I would like to receive exclusive offers and hear about products from InformIT and its family of brands. I can unsubscribe at any time.
+ Email Address
+ Request an
+ Instructor
+ or
+ Media
+ review copy.
+ Corporate, Academic, and Employee Purchases
+ International Buying Options
+ Other Things You Might Like
+ Clean Code: A Handbook of Agile Software Craftsmanship, 2nd Edition
+ By Robert C. Martin
+ Book 
+ $47.99 
+ Clean Code: A Handbook of Agile Software Craftsmanship, 2nd Edition, 2nd Edition
+ By 
+ eBook 
+ $47.99 
+ Architecture for Flow: Adaptive Systems with Domain-Driven Design, Wardley Mapping, and Team Topologies
+ By Susanne Kaiser
+ eBook 
+ $31.99 
+books, eBooks, and digital learning
+
+ 
+ View Your Cart
+ Join
+ |
+ Sign In
+ Search
+Search
+  View Your Cart
+ 👤 Sign In
+ Join
+ Store
+ Business & Management
+Certification
+ Cloud Computing & Virtualization
+Data
+Digital Photography
+Engineering
+ Graphics & Web Design
+ Home & Office Computing
+Information Technology
+ Mobile Application Development & Programming
+Networking
+Open Source
+Operating Systems, Server
+Programming
+Security
+ Software Development & Management
+Web Development
+Web Services
+FormatsBooks
+eBooks
+Practice Tests
+Software
+Video
+Web Editions
+ Deals & Promotions
+Video Training
+ImprintsAddison-Wesley Professional
+Adobe Press
+Cisco Press
+FT Press
+IBM Press
+Microsoft Press Store
+Oracle Press Books
+Peachpit
+Pearson IT Certification
+Que Publishing
+Sams Publishing
+ExploreAbout
+Affiliate Program
+Authors
+ Chapters & Articles
+ Deals & Promotions
+Popular Topics
+Product Registration
+ Special Offers & Newsletter
+Support
+Video Training
+CommunityPress and Media Relations
+Product Review Team
+User Groups
+About
+Affiliates
+Cookies
+FAQ
+Legal Notice
+Ordering Information
+Pearson+
+Privacy
+Do Not Sell My Personal Information
+Press
+Promotions
+Support
+Write for Us
+ © 2026 Pearson. All rights reserved, including those for text and data mining and training of artificial intelligence and similar technologies.

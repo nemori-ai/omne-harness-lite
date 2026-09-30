@@ -1,0 +1,346 @@
+ We, Programmers: A Chronicle of Coders from Ada to AI | InformIT
+ if(isEnableGA){
+ if(currentEnvironment == 'QA'){
+ }else{
+ }
+ }
+ Home
+ >
+ Store
+ View Larger Image
+ Register your product
+ to gain access to bonus material or receive a coupon.
+ We, Programmers: A Chronicle of Coders from Ada to AI
+ By Robert C. Martin
+ Published Nov 20, 2024
+ by Addison-Wesley Professional. Part of the Robert C. Martin Series series.
+ Best Value Purchase
+Book + eBook Bundle 
+ Your Price: $45.29
+ List Price: $77.98
+ Includes EPUB and PDF
+ About eBook Formats
+ This eBook includes the following formats, accessible from your Account page after purchase:
+ EPUB
+ The open industry format known for its reflowable content and usability on supported mobile devices.
+ PDF
+ The popular standard, used most often with the free Acrobat® Reader® software.
+ This eBook requires no passwords or activation to read. We customize your eBook by discreetly watermarking it with your name, making it uniquely yours.
+ Watermarked eBook FAQ
+ eBook Download Instructions
+ Add to cart
+ FREE SHIPPING!
+ More Purchase Options
+Book 
+ Your Price: $31.99
+ List Price: $39.99
+ Usually ships in 24 hours.
+ Add to cart
+ FREE SHIPPING!
+eBook 
+ Your Price: $30.39
+ List Price: $37.99
+ Includes EPUB and PDF
+ About eBook Formats
+ This eBook includes the following formats, accessible from your Account page after purchase:
+ EPUB
+ The open industry format known for its reflowable content and usability on supported mobile devices.
+ PDF
+ The popular standard, used most often with the free Acrobat® Reader® software.
+ This eBook requires no passwords or activation to read. We customize your eBook by discreetly watermarking it with your name, making it uniquely yours.
+ Watermarked eBook FAQ
+ eBook Download Instructions
+ Add to cart
+ Description
+ Extras
+ Sample Content
+ Updates
+ More Information
+ Description
+ Copyright 2025
+ Dimensions: 7" x 9-1/8"
+ Pages: 480
+ Edition: 1st
+Book 
+ ISBN-10: 0-13-534426-3
+ ISBN-13: 978-0-13-534426-2
+ The Journey of Programming and Its Pioneers: From the Birth of Code to the Rise of AI
+ In We, Programmers, software legend Robert C. Martin--"Uncle Bob"--dives deep into the world of programming, exploring the lives of the groundbreaking pioneers who built the foundation of modern computing. From Charles Babbage and Ada Lovelace to Alan Turing, Grace Hopper, and Dennis Ritchie, Martin shines a light on the figures whose brilliance and perseverance changed the world.
+ This memoir-infused narrative provides a rich human history filled with technical insights for developers, examining the coding breakthroughs that shaped computing at the bit and byte level. By connecting these technical achievements with the human stories behind them, Martin gives readers a rare glimpse into the struggles and triumphs of the people who made modern technology possible. Depression, failure, and ridicule--these pioneers faced it all, and their stories intertwine with the evolution of computing itself as the field evolved from its humble beginnings to the cloud-based AIs of today. With the rise of AI, Martin also explores how this technology is transforming the future of programming and the ethical challenges that come with it.
+ Notable topics include
+ Understanding programming's roots and how they shaped today's tech landscape
+ The human side of coding pioneers--what drove them, and what they overcame
+ Key programming breakthroughs, from the early days of assembly to the rise of object-oriented languages
+ The pivotal role World War II played in advancing computer science
+ Insights and predictions regarding the ethical considerations surrounding AI and the future of programming
+ For programmers, coders, and anyone fascinated by the intersection of people and machines, this guide to the history, humanity, and technology behind the code that powers our world today is a fascinating and essential read.
+Register your book for convenient access to downloads, updates, and/or corrections as they become available. See inside book for details.
+ 
+ Extras
+ Author's Site
+ Please visit the author's sites at cleancoders.com and cleancoder.com.
+ 
+ Sample Content
+ Online Sample Chapter 
+ Edsger Dijkstra: The First Computer Scientist
+ Sample Pages
+ Download the sample pages (includes Chapter 6)
+ Table of Contents
+ Foreword xv
+Preface xix
+Timeline xxiii
+About This Book xxvii
+Acknowledgments xxix
+About the Author xxxi
+ Part I: Setting the Stage 1
+ Chapter 1: Who Are We? 3
+Why Are We Here? 6
+ Part II: The Giants 11
+ Chapter 2: Babbage: The First Computer Engineer 13
+The Man 13
+Tables 15
+Babbage's Vision 23
+The Difference Engine 24
+Mechanical Notation 26
+Party Tricks 27
+The Engine's Demise 28
+The Analytical Engine 30
+Ada: The Countess of Lovelace 34
+The First Programmer? 39
+A Mixed End 40
+Conclusion 42
+ Chapter 3: Hilbert, Turing, and Von Neumann: The First Computer Architects 45
+David Hilbert 46
+John von Neumann 53
+Alan Turing 57
+The Turing-Von Neumann Architecture 60
+ Chapter 4: Grace Hopper: The First Software Engineer 77
+War, and the Summer of 1944 78
+Discipline: 1944-1945 83
+Subroutines: 1944-1946 89
+The Symposium: 1947 90
+The UNIVAC: 1949-1951 93
+Sorting, and the Beginning of Compilers 99
+Alcohol: Circa 1949 100
+Compilers: 1951-1952 101
+The Type A Compilers 103
+Languages: 1953-1956 105
+COBOL: 1955-1960 108
+My COBOL Rant 112
+An Unmitigated Success 113
+ Chapter 5: John Backus: The First High-Level Language 115
+John Backus, the Man 115
+Colored Lights That Hypnotize 117
+Speedcoding and the 701 120
+The Need for Speed 124
+ALGOL and Everything Else 131
+ Chapter 6: Edsger Dijkstra: The First Computer Scientist 135
+The Man 135
+The ARRA: 1952-1955 138
+The ARMAC: 1955-1958 143
+ALGOL and the X1: 1958-1962 145
+The Gathering Gloom: 1962 150
+The Rise of Science: 1963-1967 152
+Mathematics: 1968 156
+Structured Programming: 1968 160
+ Chapter 7: Nygaard and Dahl: The First OOPL 165
+Kristen Nygaard 165
+Ole-Johan Dahl 167
+SIMULA and OO 168
+ Chapter 8: John Kemeny: The First "Everyman's" Language--BASIC 185
+The Man, John Kemeny 185
+The Man, Thomas Kurtz 188
+The Revolutionary Idea 188
+Impossible 190
+BASIC 192
+Time-sharing 193
+Computer Kids 194
+Escape 195
+The Blind Prophet 195
+Through a Glass Darkly 201
+References 202
+ Chapter 9: Judith Allen 203
+The ECP-18 204
+Judy 205
+A Stellar Career 209
+ Chapter 10: Thompson, Ritchie, and Kernighan 211
+Ken Thompson 211
+Dennis Ritchie 214
+Brian Kernighan 219
+Unix 226
+PDP-11 230
+C 232
+K&R 236
+Conclusion 239
+ Part III: The Knee of the Curve 243
+ Chapter 11: The Sixties 245
+ECP-18 249
+What Fathers Do 252
+ Chapter 12: The Seventies 253
+1969 253
+1970 258
+1973 261
+1974 266
+1976 271
+1978 275
+1979 277
+ Chapter 13: The Eighties 281
+1980 281
+1981 285
+1982 289
+1983 291
+1984-1986: VRS 293
+1986 295
+1987-1988: The UK 298
+ Chapter 14: The Nineties 301
+1989-1992: Clear Communications 301
+1992: The C++ Report 304
+1993: Rational Inc. 304
+1994: ETS 306
+1995-1996: First Book, Conferences, Classes, and Object Mentor Inc. 310
+1997-1999: The C++ Report, UML, and Dotcom 312
+1999-2000: eXtreme Programming 313
+ Chapter 15: The Millennium 317
+2000: XP Leadership 317
+2001: Agile and the Crash(es) 318
+2002-2008: Wandering in the Wilderness 320
+2009: SICP and Chroma-key 321
+2010-2023: Videos, Craftsmanship, and Professionalism 324
+2023: The Plateau 326
+ Part IV: The Future 329
+ Chapter 16: Languages 331
+Types 333
+Lisp 335
+ Chapter 17: AI 337
+The Human Brain 337
+Neural Nets 340
+Building Neural Nets Is Not Programming 342
+Large Language Models 343
+The DISRUPTION of Large X Models 351
+ Chapter 18: Hardware 355
+Moore's Law 356
+Quantum Computers 358
+ Chapter 19: The World Wide Web 361
+ Chapter 20: Programming 367
+The Aviation Analogy 368
+Principles 368
+Methods 369
+Disciplines 369
+Ethics 370
+ Afterword 371
+Reflections on the Content 371
+Personal Anecdotes or Stories 372
+Reflections on the Content 380
+Afterword Author's Perspective 381
+Discussion of Future Trends 381
+Calls to Action, or Closing Thoughts 384
+ Glossary of Terms 385
+Cast of Supporting Characters 411
+Index 435
+ 
+ Updates
+ Submit Errata
+ 
+ More Information
+ 
+ InformIT Promotional Mailings & Special Offers
+ ⚠
+ I would like to receive exclusive offers and hear about products from InformIT and its family of brands. I can unsubscribe at any time.
+ Email Address
+ Request an
+ Instructor
+ or
+ Media
+ review copy.
+ Corporate, Academic, and Employee Purchases
+ International Buying Options
+ Other Things You Might Like
+ Java for Programmers: with Generative AI, 5th Edition
+ By Paul Deitel, Harvey M. Deitel
+ eBook 
+ $38.39 
+ Java for Programmers: with Generative AI, 5th Edition
+ By Paul Deitel, Harvey M. Deitel
+ Book 
+ $47.99 
+ Art of Computer Programming, Volume 4, Fascicle 7, The: Constraint Satisfaction
+ By Donald E. Knuth
+ eBook 
+ $22.39 
+books, eBooks, and digital learning
+
+ 
+ View Your Cart
+ Join
+ |
+ Sign In
+ Search
+Search
+  View Your Cart
+ 👤 Sign In
+ Join
+ Store
+ Business & Management
+Certification
+ Cloud Computing & Virtualization
+Data
+Digital Photography
+Engineering
+ Graphics & Web Design
+ Home & Office Computing
+Information Technology
+ Mobile Application Development & Programming
+Networking
+Open Source
+Operating Systems, Server
+Programming
+Security
+ Software Development & Management
+Web Development
+Web Services
+FormatsBooks
+eBooks
+Practice Tests
+Software
+Video
+Web Editions
+ Deals & Promotions
+Video Training
+ImprintsAddison-Wesley Professional
+Adobe Press
+Cisco Press
+FT Press
+IBM Press
+Microsoft Press Store
+Oracle Press Books
+Peachpit
+Pearson IT Certification
+Que Publishing
+Sams Publishing
+ExploreAbout
+Affiliate Program
+Authors
+ Chapters & Articles
+ Deals & Promotions
+Popular Topics
+Product Registration
+ Special Offers & Newsletter
+Support
+Video Training
+CommunityPress and Media Relations
+Product Review Team
+User Groups
+About
+Affiliates
+Cookies
+FAQ
+Legal Notice
+Ordering Information
+Pearson+
+Privacy
+Do Not Sell My Personal Information
+Press
+Promotions
+Support
+Write for Us
+ © 2026 Pearson. All rights reserved, including those for text and data mining and training of artificial intelligence and similar technologies.

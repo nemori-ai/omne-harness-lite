@@ -1,0 +1,7 @@
+[00:01] face it. The AIs will outcode you many times to one. There is no task that would take you
+[00:11] a day that the AI can't do in five minutes. It's over. You are not going to be the ones
+[00:20] writing the code. I know. Deal with it. But here's the thing. That gives you a lot of
+[00:28] power. Because now you can do things that you never would have dreamed of doing before.
+[00:35] For example, think about test coverage. You know what a pain that was. I mean, you've got
+[00:41] to write all these damn tests. And you know the tests don't really mean that the code works.
+[00:48] So you run code coverage and you kind of smirk at it and go, yeah, well, OK. But here, doesn't

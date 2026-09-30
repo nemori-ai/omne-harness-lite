@@ -1,0 +1,302 @@
+ Clean Coder, The: A Code of Conduct for Professional Programmers | InformIT
+ if(isEnableGA){
+ if(currentEnvironment == 'QA'){
+ }else{
+ }
+ }
+ Home
+ >
+ Store
+ View Larger Image
+ Register your product
+ to gain access to bonus material or receive a coupon.
+ Clean Coder, The: A Code of Conduct for Professional Programmers
+ By Robert C. Martin
+ Published May 13, 2011
+ by Pearson. Part of the Robert C. Martin Series series.
+ Best Value Purchase
+Book + eBook Bundle 
+ Your Price: $55.04
+ List Price: $92.98
+ Includes EPUB and PDF
+ About eBook Formats
+ This eBook includes the following formats, accessible from your Account page after purchase:
+ EPUB
+ The open industry format known for its reflowable content and usability on supported mobile devices.
+ PDF
+ The popular standard, used most often with the free Acrobat® Reader® software.
+ This eBook requires no passwords or activation to read. We customize your eBook by discreetly watermarking it with your name, making it uniquely yours.
+ Watermarked eBook FAQ
+ eBook Download Instructions
+ Add to cart
+ FREE SHIPPING!
+ More Purchase Options
+Book 
+ Your Price: $39.99
+ List Price: $49.99
+ Usually ships in 24 hours.
+ Add to cart
+ FREE SHIPPING!
+eBook 
+ Your Price: $34.39
+ List Price: $42.99
+ Includes EPUB and PDF
+ About eBook Formats
+ This eBook includes the following formats, accessible from your Account page after purchase:
+ EPUB
+ The open industry format known for its reflowable content and usability on supported mobile devices.
+ PDF
+ The popular standard, used most often with the free Acrobat® Reader® software.
+ This eBook requires no passwords or activation to read. We customize your eBook by discreetly watermarking it with your name, making it uniquely yours.
+ Watermarked eBook FAQ
+ eBook Download Instructions
+ Add to cart
+ Audiobook now available at your favorite audiobook retailer
+ Description
+ Extras
+ Sample Content
+ Updates
+ More Information
+ Description
+ Copyright 2011
+ Dimensions: 7" x 9-1/8"
+ Pages: 256
+ Edition: 1st
+Book 
+ ISBN-10: 0-13-708107-3
+ ISBN-13: 978-0-13-708107-3
+ Programmers who endure and succeed amidst swirling uncertainty and nonstop pressure share a common attribute: They care deeply about the practice of creating software. They treat it as a craft. They are professionals.
+In The Clean Coder: A Code of Conduct for Professional Programmers, legendary software expert Robert C. Martin introduces the disciplines, techniques, tools, and practices of true software craftsmanship. This book is packed with practical advice–about everything from estimating and coding to refactoring and testing. It covers much more than technique: It is about attitude. Martin shows how to approach software development with honor, self-respect, and pride; work well and work clean; communicate and estimate faithfully; face difficult decisions with clarity and honesty; and understand that deep knowledge comes with a responsibility to act.
+Readers will learn
+What it means to behave as a true software craftsman
+How to deal with conflict, tight schedules, and unreasonable managers
+How to get into the flow of coding, and get past writer’s block
+How to handle unrelenting pressure and avoid burnout
+How to combine enduring attitudes with new development paradigms
+How to manage your time, and avoid blind alleys, marshes, bogs, and swamps
+How to foster environments where programmers and teams can thrive
+When to say “No”–and how to say it
+When to say “Yes”–and what yes really means
+ Great software is something to marvel at: powerful, elegant, functional, a pleasure to work with as both a developer and as a user. Great software isn’t written by machines. It is written by professionals with an unshakable commitment to craftsmanship. The Clean Coder will help you become one of them–and earn the pride and fulfillment that they alone possess.
+ 
+ Extras
+ Related Articles
+ An Academy for Software Craftsmen? An Interview with Founder Ken Auer
+ Do Professional Programmers Need a Code of Conduct? An Interview with Robert C. "Uncle Bob" Martin
+ 'Not Invented Here' Syndrome: How to Break the Habit of Reinventing Code
+ Programming with SOLID Principles
+ Putting the "Journey" in Journeyman Software Developer: An Interview with Corey Haines
+ Source Code Is Dead! Long Live Source Code!
+ Ten Years Of Agile: An Interview with Robert C. "Uncle Bob" Martin
+ 
+ Sample Content
+ Online Sample Chapter 
+ The Clean Coder: Saying Yes
+ Sample Pages
+ Download Chapter 4 Coding 
+ Table of Contents
+ Foreword xiii 
+Preface xix
+Acknowledgments xxiii
+About the Author xxix
+On the Cover xxxi
+Pre-Requisite Introduction 1
+Chapter 1: Professionalism 7
+Be Careful What You Ask For 8
+Taking Responsibility 8
+First, Do No Harm 11
+Work Ethic 16
+Bibliography 22
+Chapter 2: Saying No 23
+Adversarial Roles 26
+High Stakes 29
+Being a “Team Player” 30
+The Cost of Saying Yes 36
+Code Impossible 41
+Chapter 3: Saying Yes 45
+A Language of Commitment 47
+Learning How to Say “Yes” 52
+Conclusion 56
+Chapter 4: Coding 57
+Preparedness 58
+The Flow Zone 62
+Writer’s Block 64
+Debugging 66
+Pacing Yourself 69
+Being Late 71
+Help 73
+Bibliography 76
+Chapter 5: Test Driven Development 77
+The Jury Is In 79
+The Three Laws of TDD 79
+What TDD Is Not 83
+Bibliography 84
+Chapter 6: Practicing 85
+Some Background on Practicing 86
+The Coding Dojo 89
+Broadening Your Experience 93
+Conclusion 94
+Bibliography 94
+Chapter 7: Acceptance Testing 95
+Communicating Requirements 95
+Acceptance Tests 100
+Conclusion 111
+Chapter 8: Testing Strategies 113
+QA Should Find Nothing 114
+The Test Automation Pyramid 115
+Conclusion 119
+Bibliography 119
+Chapter 9: Time Management 121
+Meetings 122
+Focus-Manna 127
+Time Boxing and Tomatoes 130
+Avoidance 131
+Blind Alleys 131
+Marshes, Bogs, Swamps, and Other Messes 132
+Conclusion 133
+Chapter 10: Estimation 135
+What Is an Estimate? 138
+PERT 141
+Estimating Tasks 144
+The Law of Large Numbers 147
+Conclusion 147
+Bibliography 148
+Chapter 11: Pressure 149
+Avoiding Pressure 151
+Handling Pressure 153
+Conclusion 155
+Chapter 12: Collaboration 157
+Programmers versus People 159
+Cerebellums 164
+Conclusion 166
+Chapter 13: Teams and Projects 167
+Does It Blend? 168
+Conclusion 171
+Bibliography 171
+Chapter 14: Mentoring, Apprenticeship, and Craftsmanship 173
+Degrees of Failure 174
+Mentoring 174
+Apprenticeship 180
+Craftsmanship 184
+Conclusion 185
+Appendix A: Tooling 187
+Tools 189
+Source Code Control 189
+IDE/Editor 194
+Issue Tracking 196
+Continuous Build 197
+Unit Testing Tools 198
+Component Testing Tools 199
+Integration Testing Tools 200
+UML/MDA 201
+Conclusion 204
+Index 205
+ 
+ Updates
+ Errata
+ Download the correct index
+ Submit Errata
+ 
+ More Information
+ 
+ InformIT Promotional Mailings & Special Offers
+ ⚠
+ I would like to receive exclusive offers and hear about products from InformIT and its family of brands. I can unsubscribe at any time.
+ Email Address
+ Request an
+ Instructor
+ or
+ Media
+ review copy.
+ Corporate, Academic, and Employee Purchases
+ International Buying Options
+ Other Things You Might Like
+ Architecture for Flow: Adaptive Systems with Domain-Driven Design, Wardley Mapping, and Team Topologies
+ By Susanne Kaiser
+ eBook 
+ $31.99 
+ Architecture for Flow: Adaptive Systems with Domain-Driven Design, Wardley Mapping, and Team Topologies
+ By Susanne Kaiser
+ Book 
+ $39.99 
+ Agile Kata: Patterns and Practices for Transformative Organizational Agility
+ By Joe Krebs
+ eBook 
+ $27.19 
+books, eBooks, and digital learning
+
+ 
+ View Your Cart
+ Join
+ |
+ Sign In
+ Search
+Search
+  View Your Cart
+ 👤 Sign In
+ Join
+ Store
+ Business & Management
+Certification
+ Cloud Computing & Virtualization
+Data
+Digital Photography
+Engineering
+ Graphics & Web Design
+ Home & Office Computing
+Information Technology
+ Mobile Application Development & Programming
+Networking
+Open Source
+Operating Systems, Server
+Programming
+Security
+ Software Development & Management
+Web Development
+Web Services
+FormatsBooks
+eBooks
+Practice Tests
+Software
+Video
+Web Editions
+ Deals & Promotions
+Video Training
+ImprintsAddison-Wesley Professional
+Adobe Press
+Cisco Press
+FT Press
+IBM Press
+Microsoft Press Store
+Oracle Press Books
+Peachpit
+Pearson IT Certification
+Que Publishing
+Sams Publishing
+ExploreAbout
+Affiliate Program
+Authors
+ Chapters & Articles
+ Deals & Promotions
+Popular Topics
+Product Registration
+ Special Offers & Newsletter
+Support
+Video Training
+CommunityPress and Media Relations
+Product Review Team
+User Groups
+About
+Affiliates
+Cookies
+FAQ
+Legal Notice
+Ordering Information
+Pearson+
+Privacy
+Do Not Sell My Personal Information
+Press
+Promotions
+Support
+Write for Us
+ © 2026 Pearson. All rights reserved, including those for text and data mining and training of artificial intelligence and similar technologies.
