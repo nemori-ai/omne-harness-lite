@@ -33,3 +33,7 @@ X1–X6 是实施完成条件：工厂精确表、完整组一次贡献、来源
 因准入身份改变计划出值（`input_size_unavailable` 变为估算），两叶当前执行由 definition `5` / `pi-ai:xai/mp4-19` 升为 definition `5` / **`pi-ai:xai/mp4-20`**；definition、algorithm、tokenizer、replay 与 transform 不变，沿 [v4 定义设计](../../../realization/packages/model/pi-ai-transport/v4-definition-design.md)「家族行为改变升 implementation、同 revision 不替换函数」与 Moonshot 先例 `19bb829a`。`mp4-19` 保存组仍作合法保存来源行：full 可解释其 O，其 I 不作 marginal 复用。xAI 无 `tokenizers/*/provenance.json`，变更记于 meter 证据串（含两条 generation id）、节点 README 与 [本机覆盖](../../../realization/packages/model/pi-ai-transport/verification.md#2026-09-30-xai-身份映射本机覆盖)。[提供者 revision 2](../../../realization/packages/model/pi-ai-transport/xai-complete-output-applicability-candidate.md) X1 表中的 `5/mp4-19` 保留当时状态，当前坐标以本附注为准。
 
 `calibration.ts` 仅新增一行 `provider === 'xai' && servingProvider === 'xAI'` 的例外并注明原件，其余家族不受影响。本机覆盖：xAI 套件与 reader 绑定 11 文件 189/189，含六种拼写反例（小写 `xai`、`x.ai`、尾随空格、另一叶模型、只有 provider、只有 model）零额外 HTTP；三条变异（去例外行、折叠大小写、去来源一致检查）各被检出。真实三轮（第 2、3 轮 marginal、原样重发密文被上游接受、缓存与费用）仍待 root 以 R7 认证工具执行；此前 R6 场景草稿「第 2 轮 `rejected:input_size_unavailable`」的预期同步改为 marginal。
+
+## 2026-09-30 用户裁决：grok-4.7 以 grok-4.6 代认
+
+grok-4.6 以 `pi-ai:xai@mp4-20` 真实三轮通过（第 1 轮身份准入，第 2、3 轮 marginal 回放签名密文被上游接受，缓存命中，答案判据通过；R7 第六批 e）。grok-4.7 同日三次第 1 轮在上游停滞（HTTP 200 后仅 OpenRouter 保活、无 usage；计划 wire 与此前 batch5b 已完成的请求逐字节相同），账本三条 unknown hold 已确认不释放。两叶共用同一 definition、implementation、路由与身份规则，4.7 的身份原件已在 batch5b 落盘。用户裁决：**grok-4.7 的三轮认证以 grok-4.6 代认**，逐叶证据标「代认」；不再为 4.7 消耗 hold；上游恢复后如有空档可补跑一次作观察，不作为门。
