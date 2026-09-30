@@ -10,7 +10,62 @@ import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { payload } from './anchored-invocation-fixture.ts'
 import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
-import { acknowledgementHost, acknowledgements, kinds } from './acknowledgement-host-fixture.ts'
+import {
+  acknowledgementHost,
+  acknowledgements,
+  kinds,
+  type HostOptions,
+} from './acknowledgement-host-fixture.ts'
+import type { SettlementScheduler } from '../src/settlement-types.ts'
+
+/** Another writer moves the tail before the first ACK batch: that batch writes nothing. */
+function racingFirstAck(race: { raced: boolean }): NonNullable<HostOptions['append']> {
+  return real => async (session, entries, fence, condition) => {
+    const [entry] = entries
+    const wrapper = entry?.payload
+    const isAck =
+      typeof wrapper === 'object' &&
+      wrapper !== null &&
+      'value' in wrapper &&
+      typeof wrapper.value === 'object' &&
+      wrapper.value !== null &&
+      'kind' in wrapper.value &&
+      wrapper.value.kind === 'model_call_acknowledged'
+    if (isAck && !race.raced && entry !== undefined) {
+      // Another writer moves the tail first: THIS ACK batch writes nothing (tailChanged).
+      race.raced = true
+      const unrelated = captureModelLogValue({
+        category: 'record',
+        input: {
+          kind: 'value',
+          value: {
+            kind: 'model_call_ended',
+            call: 'a22-unrelated',
+            ending: 'undispatched',
+            cause: 'credential_unavailable',
+          },
+        },
+      })
+      if (!('ok' in unrelated)) throw new Error('unrelated capture')
+      const prepared = prepareModelLogEntry({
+        session,
+        shell: { tenant: entry.tenant },
+        captured: unrelated.ok,
+        purpose: { kind: 'record' },
+        messagePrefix: [],
+      })
+      if (!('ok' in prepared)) throw new Error('unrelated prepare')
+      const moved = await real(
+        session,
+        [prepared.ok],
+        { kind: 'unfenced' },
+        { kind: 'unconditional' },
+      )
+      if ('failure' in moved) throw new Error('unrelated append')
+    }
+    return await real(session, entries, fence, condition)
+  }
+}
 
 describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', () => {
   it('A22-V1/V2/V8: only current ack authority confirms; all fifteen entries then answer small', async () => {
@@ -391,7 +446,7 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
   )
 
   it('A22-V5 (B-1): a zero-write ACK whose policy stops retreats to retained; nothing is deleted', async () => {
-    let raced = false
+    const race = { raced: false }
     let stop = true
     const h = await acknowledgementHost({
       settlementContention: {
@@ -400,51 +455,7 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
         decide: ({ stage }) =>
           stage !== 'initial' && stop ? { stop: true } : { proceed: { waitMs: 0 } },
       },
-      append: real => async (session, entries, fence, condition) => {
-        const [entry] = entries
-        const wrapper = entry?.payload
-        const isAck =
-          typeof wrapper === 'object' &&
-          wrapper !== null &&
-          'value' in wrapper &&
-          typeof wrapper.value === 'object' &&
-          wrapper.value !== null &&
-          'kind' in wrapper.value &&
-          wrapper.value.kind === 'model_call_acknowledged'
-        if (isAck && !raced && entry !== undefined) {
-          // Another writer moves the tail first: THIS ACK batch writes nothing (tailChanged).
-          raced = true
-          const unrelated = captureModelLogValue({
-            category: 'record',
-            input: {
-              kind: 'value',
-              value: {
-                kind: 'model_call_ended',
-                call: 'a22-unrelated',
-                ending: 'undispatched',
-                cause: 'credential_unavailable',
-              },
-            },
-          })
-          if (!('ok' in unrelated)) throw new Error('unrelated capture')
-          const prepared = prepareModelLogEntry({
-            session,
-            shell: { tenant: entry.tenant },
-            captured: unrelated.ok,
-            purpose: { kind: 'record' },
-            messagePrefix: [],
-          })
-          if (!('ok' in prepared)) throw new Error('unrelated prepare')
-          const moved = await real(
-            session,
-            [prepared.ok],
-            { kind: 'unfenced' },
-            { kind: 'unconditional' },
-          )
-          if ('failure' in moved) throw new Error('unrelated append')
-        }
-        return await real(session, entries, fence, condition)
-      },
+      append: racingFirstAck(race),
     })
     try {
       h.grant('owner', ['read', 'wait', 'settle', 'cancel', 'ack'])
@@ -458,7 +469,7 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
       expect(await h.service.acknowledgeCall({ ref, expectedResult: target })).toEqual({
         unavailable: true,
       })
-      expect(raced).toBe(true)
+      expect(race.raced).toBe(true)
       expect(acknowledgements(await h.entries(), 'a22-call-1')).toHaveLength(0)
       // The one retreat: back to retained with the original contents readable again.
       expect(await h.contentRows('a22-call-1')).toBe(2)
@@ -469,6 +480,60 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
       expect(await h.service.acknowledgeCall({ ref, expectedResult: target })).toMatchObject({
         acknowledged: { ref, target, cleanup: 'released' },
       })
+      expect(acknowledgements(await h.entries(), 'a22-call-1')).toHaveLength(1)
+      await h.runtime.close()
+    } finally {
+      await h.host.close()
+    }
+  }, 30_000)
+
+  it('N-5: after a zero-write ACK the retry wait of a scheduler that stops only on request neither hangs nor leaks', async () => {
+    const race = { raced: false }
+    const stopRequests: number[] = []
+    const settlementScheduler: SettlementScheduler = {
+      nowMonotonicMs: () => 0,
+      wait() {
+        let stop = () => {}
+        const stopped = new Promise<void>(resolve => {
+          stop = resolve
+        })
+        const index = stopRequests.push(0) - 1
+        return {
+          completion: Promise.resolve('elapsed' as const),
+          // This timer owner certifies its stop only once it was asked to stop.
+          requestStop: () => {
+            stopRequests[index] = (stopRequests[index] ?? 0) + 1
+            stop()
+          },
+          stopped,
+        }
+      },
+    }
+    const h = await acknowledgementHost({
+      settlementScheduler,
+      settlementContention: {
+        name: 'a22-wait-then-retry',
+        limits: { submissions: 4, elapsedMs: 100000, retainedBytes: 1000000, concurrent: 2 },
+        decide: () => ({ proceed: { waitMs: 1 } }),
+      },
+      append: racingFirstAck(race),
+    })
+    try {
+      h.grant('owner', ['read', 'wait', 'settle', 'cancel', 'ack'])
+      expect(await h.service.openCall(h.request('a22_wait_stop'))).toMatchObject({
+        callId: 'a22-call-1',
+      })
+      const ref = { session: h.host.session, callId: 'a22-call-1' }
+      const dispatched = await h.service.dispatch(ref)
+      if (!('replyPending' in dispatched)) throw new Error('ready reply')
+      const target = { kind: 'response' as const, response: dispatched.replyPending.id }
+      const outcome = await Promise.race([
+        h.service.acknowledgeCall({ ref, expectedResult: target }),
+        new Promise(resolve => setTimeout(() => resolve('hung'), 5_000)),
+      ])
+      expect(race.raced).toBe(true)
+      expect(outcome).toMatchObject({ acknowledged: { ref, target, cleanup: 'released' } })
+      expect(stopRequests).toEqual([1])
       expect(acknowledgements(await h.entries(), 'a22-call-1')).toHaveLength(1)
       await h.runtime.close()
     } finally {
