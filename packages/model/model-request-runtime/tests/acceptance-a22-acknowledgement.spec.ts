@@ -9,6 +9,7 @@ import {
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { payload } from './anchored-invocation-fixture.ts'
+import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
 import { acknowledgementHost, acknowledgements, kinds } from './acknowledgement-host-fixture.ts'
 
 describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', () => {
@@ -388,6 +389,92 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
     },
     30_000,
   )
+
+  it('A22-V5 (B-1): a zero-write ACK whose policy stops retreats to retained; nothing is deleted', async () => {
+    let raced = false
+    let stop = true
+    const h = await acknowledgementHost({
+      settlementContention: {
+        name: 'a22-stop-after-conflict',
+        limits: { submissions: 4, elapsedMs: 100000, retainedBytes: 1000000, concurrent: 2 },
+        decide: ({ stage }) =>
+          stage !== 'initial' && stop ? { stop: true } : { proceed: { waitMs: 0 } },
+      },
+      append: real => async (session, entries, fence, condition) => {
+        const [entry] = entries
+        const wrapper = entry?.payload
+        const isAck =
+          typeof wrapper === 'object' &&
+          wrapper !== null &&
+          'value' in wrapper &&
+          typeof wrapper.value === 'object' &&
+          wrapper.value !== null &&
+          'kind' in wrapper.value &&
+          wrapper.value.kind === 'model_call_acknowledged'
+        if (isAck && !raced && entry !== undefined) {
+          // Another writer moves the tail first: THIS ACK batch writes nothing (tailChanged).
+          raced = true
+          const unrelated = captureModelLogValue({
+            category: 'record',
+            input: {
+              kind: 'value',
+              value: {
+                kind: 'model_call_ended',
+                call: 'a22-unrelated',
+                ending: 'undispatched',
+                cause: 'credential_unavailable',
+              },
+            },
+          })
+          if (!('ok' in unrelated)) throw new Error('unrelated capture')
+          const prepared = prepareModelLogEntry({
+            session,
+            shell: { tenant: entry.tenant },
+            captured: unrelated.ok,
+            purpose: { kind: 'record' },
+            messagePrefix: [],
+          })
+          if (!('ok' in prepared)) throw new Error('unrelated prepare')
+          const moved = await real(
+            session,
+            [prepared.ok],
+            { kind: 'unfenced' },
+            { kind: 'unconditional' },
+          )
+          if ('failure' in moved) throw new Error('unrelated append')
+        }
+        return await real(session, entries, fence, condition)
+      },
+    })
+    try {
+      h.grant('owner', ['read', 'wait', 'settle', 'cancel', 'ack'])
+      expect(await h.service.openCall(h.request('a22_withdraw'))).toMatchObject({
+        callId: 'a22-call-1',
+      })
+      const ref = { session: h.host.session, callId: 'a22-call-1' }
+      const dispatched = await h.service.dispatch(ref)
+      if (!('replyPending' in dispatched)) throw new Error('ready reply')
+      const target = { kind: 'response' as const, response: dispatched.replyPending.id }
+      expect(await h.service.acknowledgeCall({ ref, expectedResult: target })).toEqual({
+        unavailable: true,
+      })
+      expect(raced).toBe(true)
+      expect(acknowledgements(await h.entries(), 'a22-call-1')).toHaveLength(0)
+      // The one retreat: back to retained with the original contents readable again.
+      expect(await h.contentRows('a22-call-1')).toBe(2)
+      const read = await h.service.acquireCall({ ref, mode: 'read' })
+      expect(read).toMatchObject({ view: { state: 'complete' } })
+      // A later ACK prepares afresh and confirms.
+      stop = false
+      expect(await h.service.acknowledgeCall({ ref, expectedResult: target })).toMatchObject({
+        acknowledged: { ref, target, cleanup: 'released' },
+      })
+      expect(acknowledgements(await h.entries(), 'a22-call-1')).toHaveLength(1)
+      await h.runtime.close()
+    } finally {
+      await h.host.close()
+    }
+  }, 30_000)
 
   it('A22-V9: the core semantic digest, not a byte hash or another role, identifies a creation', () => {
     const input = { messages: [], sourceVersions: { fixture: 'v1' }, n: 1 }

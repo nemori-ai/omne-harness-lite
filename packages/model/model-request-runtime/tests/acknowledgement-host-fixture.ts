@@ -19,7 +19,7 @@ import type {
   RuntimeRecoveryScope,
   SessionRuntimeBinding,
 } from '../src/service-types.ts'
-import type { SettlementScheduler } from '../src/settlement-types.ts'
+import type { SettlementContention, SettlementScheduler } from '../src/settlement-types.ts'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import {
   ControlledSettlementOwner,
@@ -52,6 +52,7 @@ export interface HostOptions {
   readonly content?: (store: ModelCallContentStore) => ModelCallContentStore
   readonly acknowledgementCleanup?: AcknowledgementCleanupPolicy
   readonly settlementScheduler?: SettlementScheduler
+  readonly settlementContention?: SettlementContention
 }
 
 export async function acknowledgementHost(options: HostOptions = {}) {
@@ -176,7 +177,7 @@ export async function acknowledgementHost(options: HostOptions = {}) {
           },
         }),
       },
-      settlementContention: settlementPolicy(),
+      settlementContention: runtimeOptions.settlementContention ?? settlementPolicy(),
       settlementScheduler: runtimeOptions.settlementScheduler ?? noWaitScheduler,
       reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
       acknowledgementCleanup: runtimeOptions.acknowledgementCleanup ?? {

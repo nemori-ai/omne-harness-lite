@@ -344,6 +344,14 @@ export interface ModelCallContentStore {
     | ServiceUnavailable
   >
   /**
+   * RT12 S-96: the only retreat of a preparation. The caller proved that this exact fixed batch
+   * wrote nothing, that its writers stopped and that the explicit policy ends; the row returns
+   * to retained and the original contents stay. A confirmed or different batch never retreats.
+   */
+  readonly withdrawAcknowledgement: (
+    input: ModelCallRetentionKey & { readonly record: ModelCallAcknowledgedRecord },
+  ) => Promise<{ readonly phase: 'retained' } | ServiceInvalidInput | ServiceUnavailable>
+  /**
    * Record that the log confirmed this exact batch; never retreats from a later phase. A record
    * this store never fixed is first checked against the still retained originals (exact bytes,
    * creation and retained-result digests); a contradiction is reported and nothing changes.

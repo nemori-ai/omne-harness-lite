@@ -267,7 +267,7 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
     record: ModelCallAcknowledgedRecord,
     shell: ModelLogShell,
     prefix: SettlementPrefix,
-  ): Promise<'appended' | 'present' | 'unavailable' | 'conflict'> {
+  ): Promise<'appended' | 'present' | 'unavailable' | 'conflict' | 'withdrawn'> {
     const binding = session.log
     const owner = session.selection.owner
     const captured = captureModelLogValue({
@@ -361,7 +361,9 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
         const again = recordedAcknowledgement(current, ref.callId)
         if (again === 'conflict' || again === 'unavailable') return again
         if (again !== undefined) return modelLogJsonEqual(again, record) ? 'present' : 'conflict'
-        if ('stop' in decision) return 'unavailable'
+        // This batch wrote nothing (tailChanged/alreadyRecorded), its writer stopped, the fresh
+        // complete prefix has no ACK, and the explicit policy ends: the preparation may retreat.
+        if ('stop' in decision) return 'withdrawn'
         previousWaitMs = decision.proceed.waitMs
         const waited = runtime.settlementScheduler.wait(
           decision.proceed.waitMs,
@@ -402,14 +404,23 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
     )
       return unavailable
     const first = await runtime.callFacts.lookup({ binding, ref })
-    if (!('view' in first) && !('acknowledged' in first) && !('callNotFound' in first))
-      return unavailable
-    const origin =
+    let origin =
       'view' in first
         ? first.view.origin
         : 'acknowledged' in first
           ? first.acknowledged.origin
           : undefined
+    if (origin === undefined && !('callNotFound' in first)) {
+      // RT12 S-96⑧/S-98: a batch fixed before an unconfirmed append closed the copy reads, so the
+      // facts view is unavailable; the original creation shell in the log still names the
+      // origin, and the retry below resends or recognizes the same fixed batch only.
+      const retention = await runtime.callFacts.content.retention({ binding, call: ref.callId })
+      if (!('phase' in retention) || retention.phase !== 'retiring') return unavailable
+      const prefix = await readPrefix(session)
+      const sources = prefix === undefined ? undefined : sourcesOf(prefix, ref.callId)
+      if (sources === undefined) return unavailable
+      origin = originOfEntry(sources.creation)
+    }
     const admitted = await runtime.callAccess.check(
       { binding, ref, action: 'ack', ...(origin === undefined ? {} : { origin }) },
       async (evidence: CallAccessEvidence): Promise<AcknowledgeCallResult> => {
@@ -500,6 +511,18 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
         }
         const written = await append(session, ref, record, shell, prefix)
         if (written === 'conflict') return unavailable
+        if (written === 'withdrawn') {
+          // RT12 S-96 (the one retreat): back to retained on the same row; nothing is deleted.
+          const withdrawn = await runtime.callFacts.content.withdrawAcknowledgement({
+            binding,
+            call: ref.callId,
+            record,
+          })
+          report('withdrawn', ref, {
+            result: 'phase' in withdrawn ? withdrawn.phase : 'unavailable',
+          })
+          return unavailable
+        }
         if (written === 'unavailable') return unavailable
         // R-J/MS8 S-58: the log deduplicates by key only, so neither a receipt nor a key
         // collision recognizes this batch. Read the durable value back and compare it whole.

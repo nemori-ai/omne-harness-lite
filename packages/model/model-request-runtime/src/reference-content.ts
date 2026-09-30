@@ -722,6 +722,42 @@ export function createModelCallContentStore(input: {
         }
       })
     },
+    async withdrawAcknowledgement(request) {
+      const key = retentionInput(request)
+      if ('invalidInput' in key) return key
+      const judged = judgeModelInvocationRecord(request.record)
+      if (!('ok' in judged) || judged.ok.kind !== 'model_call_acknowledged') return malformed
+      const record = judged.ok
+      const { binding, call } = key
+      return await owned(async () => {
+        try {
+          return await writeOwned(async tx => {
+            const row = await lockRetention(tx, binding, call)
+            if (row.phase === 'retained') return { phase: 'retained' as const }
+            const fixed = acknowledgementOf(row.acknowledgement)
+            // Only the very batch this caller fixed, still unconfirmed, may retreat.
+            if (
+              row.phase !== 'retiring' ||
+              fixed === undefined ||
+              !modelLogJsonEqual(fixed, record)
+            )
+              throw new Refused(unavailable)
+            await narrow<ContentDatabase>(tx)
+              .updateTable('model_call_retention')
+              .set({ phase: 'retained', acknowledgement: null })
+              .where('organization', '=', binding.tenant.organization)
+              .where('account', '=', binding.tenant.account)
+              .where('session', '=', binding.session)
+              .where('call', '=', call)
+              .where('phase', '=', 'retiring')
+              .execute()
+            return { phase: 'retained' as const }
+          })
+        } catch {
+          return unavailable
+        }
+      })
+    },
     async confirmAcknowledgement(request) {
       const key = retentionInput(request)
       if ('invalidInput' in key) return key
