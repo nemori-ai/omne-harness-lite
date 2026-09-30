@@ -3,6 +3,9 @@ import {
   measureDeepSeekBoundary,
   createDeepSeekSupplemental,
   deepSeekPythonJson,
+  guardDeepSeekMeter,
+  projectDeepSeekMeterBody,
+  DEEPSEEK_BOUNDARY_REVISION,
 } from './deepseek-boundary.ts'
 // Projection adapted from DeepSeek-V4-Pro encoding/encoding_dsv4.py at
 // b5968e9190ef611bbf34a7229255be88a0e937c1 (MIT; tokenizers/deepseek-v4/LICENSE).
@@ -276,9 +279,9 @@ const supplemental = createDeepSeekSupplemental(['type', 'text'])
 export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): InputMeter {
   if (
     definition.modelId !== 'deepseek/deepseek-v4-pro-0813' ||
-    definition.revision !== '5' ||
+    definition.revision !== '6' ||
     definition.implementation.name !== 'pi-ai:deepseek' ||
-    definition.implementation.revision !== 'mp4-18' ||
+    definition.implementation.revision !== 'mp4-19' ||
     !Object.hasOwn(definition.routes, 'deepinfra/fp8')
   )
     throw new TypeError('unsupported DeepSeek V4 Pro definition')
@@ -289,24 +292,26 @@ export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): Inpu
       text => encoder.encode(text, { add_special_tokens: false }).ids.length,
       supplemental,
     )
-  const meter = defineInputMeter({
+  const raw = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'deepinfra/fp8',
-    algorithmRevision: 'deepseek-v4-pro-reference-3',
+    algorithmRevision: 'deepseek-v4-pro-reference-4',
     tokenizerRevision: 'deepseek-v4-pro-b5968e9190ef611bbf34a7229255be88a0e937c1',
-    replayRevision: 'deepseek-reference-boundary/1',
-    transformRevision: 'deepseek-pro-reference-projection/1',
+    replayRevision: DEEPSEEK_BOUNDARY_REVISION,
+    transformRevision: 'deepseek-pro-reference-projection/2',
     measureReplay: measureBoundary,
     measureNew: measureBoundary,
     evidence:
       'DeepSeek-V4-Pro b5968e9190ef611bbf34a7229255be88a0e937c1 encoding_dsv4.py + tokenizer.json 8f9f37ca; OpenRouter/DeepInfra private projection remains estimated',
     measureFull({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
+      const projected = projectDeepSeekMeterBody(body)
+      if (!projected) return { kind: 'unavailable' }
       const mode = object(body.reasoning) && body.reasoning.effort === 'low' ? 'thinking' : 'chat'
-      const prompt = renderDeepSeekV4Prompt(body, mode)
-      const extra = supplemental(body)
+      const prompt = renderDeepSeekV4Prompt(projected, mode)
+      const extra = supplemental(projected)
       if (prompt === undefined || extra === undefined) return { kind: 'unavailable' }
       try {
         const mainTokens = encoder.encode(prompt, { add_special_tokens: false }).ids.length
@@ -319,5 +324,5 @@ export function createDeepSeekV4ProInputMeter(definition: ModelDefinition): Inpu
       }
     },
   })
-  return Object.freeze(meter)
+  return guardDeepSeekMeter(raw)
 }

@@ -1,25 +1,25 @@
 {
   "deepseek/deepseek-v4.1-flash": {
-    "algorithm": "deepseek-v41-flash-reference-4",
+    "algorithm": "deepseek-v41-flash-reference-5",
     "tokenizer": "deepseek-v41-flash-dba1be0a40aa45a94ad051997016db3960a90277",
-    "replay": "deepseek-reference-boundary/1",
-    "transform": "deepseek-flash-reference-projection/1",
+    "replay": "deepseek-reference-boundary/2",
+    "transform": "deepseek-flash-reference-projection/2",
     "implementation": {
       "name": "pi-ai:deepseek",
-      "revision": "mp4-18"
-    },
-    "definition": "4"
-  },
-  "deepseek/deepseek-v4-pro-0813": {
-    "algorithm": "deepseek-v4-pro-reference-3",
-    "tokenizer": "deepseek-v4-pro-b5968e9190ef611bbf34a7229255be88a0e937c1",
-    "replay": "deepseek-reference-boundary/1",
-    "transform": "deepseek-pro-reference-projection/1",
-    "implementation": {
-      "name": "pi-ai:deepseek",
-      "revision": "mp4-18"
+      "revision": "mp4-19"
     },
     "definition": "5"
+  },
+  "deepseek/deepseek-v4-pro-0813": {
+    "algorithm": "deepseek-v4-pro-reference-4",
+    "tokenizer": "deepseek-v4-pro-b5968e9190ef611bbf34a7229255be88a0e937c1",
+    "replay": "deepseek-reference-boundary/2",
+    "transform": "deepseek-pro-reference-projection/2",
+    "implementation": {
+      "name": "pi-ai:deepseek",
+      "revision": "mp4-19"
+    },
+    "definition": "6"
   },
   "x-ai/grok-4.7": {
     "algorithm": "xai-visible-json-complete-output-group-estimated/1",

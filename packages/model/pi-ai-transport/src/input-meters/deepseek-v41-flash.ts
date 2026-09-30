@@ -3,6 +3,9 @@ import {
   measureDeepSeekBoundary,
   createDeepSeekSupplemental,
   deepSeekPythonJson,
+  guardDeepSeekMeter,
+  projectDeepSeekMeterBody,
+  DEEPSEEK_BOUNDARY_REVISION,
 } from './deepseek-boundary.ts'
 // Projection adapted from DeepSeek-V4.1-Flash encoding/encoding.py at
 // dba1be0a40aa45a94ad051997016db3960a90277 (MIT; tokenizers/deepseek-v41-flash/LICENSE).
@@ -434,9 +437,9 @@ const supplemental = createDeepSeekSupplemental(['type', 'text', 'image_url'])
 export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): InputMeter {
   if (
     definition.modelId !== 'deepseek/deepseek-v4.1-flash' ||
-    definition.revision !== '4' ||
+    definition.revision !== '5' ||
     definition.implementation.name !== 'pi-ai:deepseek' ||
-    definition.implementation.revision !== 'mp4-18' ||
+    definition.implementation.revision !== 'mp4-19' ||
     !Object.hasOwn(definition.routes, 'deepinfra/fp8')
   )
     throw new TypeError('unsupported DeepSeek V4.1 Flash definition')
@@ -448,21 +451,23 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
       supplemental,
       inlineImageTokens,
     )
-  const meter = defineInputMeter({
+  const raw = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'deepinfra/fp8',
-    algorithmRevision: 'deepseek-v41-flash-reference-4',
+    algorithmRevision: 'deepseek-v41-flash-reference-5',
     tokenizerRevision: 'deepseek-v41-flash-dba1be0a40aa45a94ad051997016db3960a90277',
-    replayRevision: 'deepseek-reference-boundary/1',
-    transformRevision: 'deepseek-flash-reference-projection/1',
+    replayRevision: DEEPSEEK_BOUNDARY_REVISION,
+    transformRevision: 'deepseek-flash-reference-projection/2',
     measureReplay: measureBoundary,
     measureNew: measureBoundary,
     evidence:
       'DeepSeek-V4.1-Flash dba1be0a40aa45a94ad051997016db3960a90277 encoding/encoding.py + tokenizer.json c90dfa01 + inference/image_processor.py SHA256 482759e3bcc4e9bb5ee582b244cc563f5d0e163d8b48dda91ebb7106e62f9272 + inference/config.json SHA256 2e84f45cf1dac8c7fcbb200e96667d4b913275690668ed496f24c7747207a809 (patch=14, downsample=3, min_pixels=295936, max_tokens=1024), MIT; OpenRouter/DeepInfra private projection remains estimated',
     measureFull({ body, serialized }): TokenMeasurement {
       if (writeJsonLossless(body) !== serialized) return { kind: 'unavailable' }
+      const projected = projectDeepSeekMeterBody(body)
+      if (!projected) return { kind: 'unavailable' }
       const imageTokens = inlineImageTokens(body)
       if (imageTokens === undefined) return { kind: 'unavailable' }
       if (
@@ -471,8 +476,8 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
       )
         return { kind: 'unavailable' }
       const mode = object(body.reasoning) && body.reasoning.effort === 'low' ? 'thinking' : 'chat'
-      const prompt = renderDeepSeekV41Prompt(body, mode, 'low')
-      const extra = supplemental(body)
+      const prompt = renderDeepSeekV41Prompt(projected, mode, 'low')
+      const extra = supplemental(projected)
       if (prompt === undefined || extra === undefined) return { kind: 'unavailable' }
       try {
         const mainTokens = encoder.encode(prompt, { add_special_tokens: false }).ids.length
@@ -488,5 +493,5 @@ export function createDeepSeekV41FlashInputMeter(definition: ModelDefinition): I
       }
     },
   })
-  return Object.freeze(meter)
+  return guardDeepSeekMeter(raw)
 }

@@ -34,7 +34,7 @@ describe.each(models)('$definition.modelId unsupported private reasoning', model
         envelope: {},
         precedingUnitCount: 1,
         boundary: {
-          revision: 'deepseek-reference-boundary/1',
+          revision: 'deepseek-reference-boundary/2',
           removed: '',
           added: 'visible answer',
         },

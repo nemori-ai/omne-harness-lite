@@ -7,9 +7,60 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import type { MarginalMeterInput, MeterContribution } from '../input-meter.ts'
 import { object } from '../json.ts'
+import { measureFull, measureNew, measureReplay, type InputMeter } from '../input-meter.ts'
 
 const terminalFrames = ['<｜Assistant｜><think>', '<｜Assistant｜></think>']
-export const DEEPSEEK_BOUNDARY_REVISION = 'deepseek-reference-boundary/1'
+export const DEEPSEEK_BOUNDARY_REVISION = 'deepseek-reference-boundary/2'
+
+/** Only this observed visible wire form has a reference reasoning_content projection. */
+export function projectDeepSeekMeterBody(body: JsonObject): JsonObject | undefined {
+  if (!Array.isArray(body.messages)) return undefined
+  const messages: JsonValue[] = []
+  for (const message of body.messages) {
+    if (!object(message)) return undefined
+    if (!Object.hasOwn(message, 'reasoning_details')) {
+      messages.push(message)
+      continue
+    }
+    const details = message.reasoning_details
+    if (
+      message.role !== 'assistant' ||
+      Object.hasOwn(message, 'reasoning') ||
+      Object.hasOwn(message, 'reasoning_content') ||
+      !Array.isArray(details) ||
+      details.length !== 1
+    )
+      return undefined
+    const detail = details[0]
+    if (
+      !object(detail) ||
+      Object.keys(detail).length !== 4 ||
+      !['type', 'text', 'format', 'index'].every(name => Object.hasOwn(detail, name)) ||
+      detail.type !== 'reasoning.text' ||
+      typeof detail.text !== 'string' ||
+      detail.format !== 'unknown' ||
+      !Object.is(detail.index, 0)
+    )
+      return undefined
+    messages.push({
+      ...Object.fromEntries(
+        Object.entries(message).filter(([name]) => name !== 'reasoning_details'),
+      ),
+      reasoning_content: detail.text,
+    })
+  }
+  return { ...body, messages }
+}
+
+/** The public factory methods must enforce the same history/basis guard as the planner. */
+export function guardDeepSeekMeter(raw: InputMeter): InputMeter {
+  return Object.freeze({
+    ...raw,
+    measureFull: (input: Parameters<InputMeter['measureFull']>[0]) => measureFull(raw, input),
+    measureReplay: (input: Parameters<InputMeter['measureReplay']>[0]) => measureReplay(raw, input),
+    measureNew: (input: Parameters<InputMeter['measureNew']>[0]) => measureNew(raw, input),
+  })
+}
 
 /** Reference rendering is linear; this function never invokes a tokenizer. */
 export function deepSeekBoundaries(
@@ -19,11 +70,15 @@ export function deepSeekBoundaries(
   replay: ReadonlySet<number>,
   render: (body: JsonObject) => string | undefined,
 ): { replay: JsonObject; fresh: JsonObject } | { changed: true } | undefined {
-  // JSON/ciphertext size does not explain private reasoning replay semantics.
-  if (units.some(unit => !object(unit) || unit.reasoning_details !== undefined)) return undefined
-  const previous = render({ ...envelope, messages: units.slice(0, n) })
-  const middle = render({ ...envelope, messages: units.filter((_, i) => i < n || replay.has(i)) })
-  const current = render({ ...envelope, messages: [...units] })
+  const projected = projectDeepSeekMeterBody({ ...envelope, messages: [...units] })
+  if (!projected || !Array.isArray(projected.messages)) return undefined
+  const messages = projected.messages
+  const previous = render({ ...envelope, messages: messages.slice(0, n) })
+  const middle = render({
+    ...envelope,
+    messages: messages.filter((_, i) => i < n || replay.has(i)),
+  })
+  const current = render(projected)
   if (previous === undefined || middle === undefined || current === undefined) return undefined
   const terminal = terminalFrames.find(frame => previous.endsWith(frame)) ?? ''
   const stable = terminal ? previous.slice(0, -terminal.length) : previous
@@ -63,7 +118,8 @@ export function measureDeepSeekBoundary(
     Object.keys(b).some(key => !['revision', 'removed', 'added'].includes(key))
   )
     return { kind: 'unavailable' }
-  const body = { messages: [...input.units] }
+  const body = projectDeepSeekMeterBody({ messages: [...input.units] })
+  if (!body) return { kind: 'unavailable' }
   const extra = supplemental(body),
     empty = supplemental({ messages: [] })
   const imageTokens = images(body)

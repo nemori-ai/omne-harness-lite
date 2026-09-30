@@ -286,8 +286,28 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
             )
           ).measurement,
         ).toMatchObject({ mode: 'full', fallbackReason: 'prefix_changed' })
+        if (next.calibration.kind !== 'observation') throw Error('missing source')
+        const original = next.calibration.inputCalibration.requestInput
+        if (original.kind !== 'known') throw Error('known source required')
         expect(
-          (await planned(next, { ...bound, replayRevision: 'new-test-replay' })).measurement,
+          (
+            await planned({
+              ...next,
+              calibration: {
+                ...next.calibration,
+                inputCalibration: {
+                  ...next.calibration.inputCalibration,
+                  requestInput: {
+                    ...original,
+                    countingBasis: {
+                      ...original.countingBasis,
+                      replayRevision: 'new-test-replay',
+                    },
+                  },
+                },
+              },
+            })
+          ).measurement,
         ).toMatchObject({ mode: 'full', fallbackReason: 'basis_changed' })
         expect(
           (
@@ -464,41 +484,49 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
       completeness: 'complete',
     })
     if (!('projected' in outputGroup)) throw Error('output group unavailable')
-    const phi = meter.measureReplay({
-      countingBasis: basisFor(meter),
+    const phi = directNew(meter, {
       units: [a],
       envelope: {},
       precedingUnitCount: 1,
       boundary: b.replay,
-      outputHistory: [],
-      observation: {
-        kind: 'observation',
-        inputCalibration: {
-          requestInput: { kind: 'unavailable', reason: 'not_retained' },
-          observedInput: { kind: 'unavailable', reason: 'missing_usage' },
-          outputGroup: outputGroup.projected,
-        },
-        usage: {
-          input_tokens: 'unknown',
-          output_tokens: 'unknown',
-          cache_read_tokens: 'unknown',
-          cache_write_tokens: 'unknown',
-          source: 'none',
-        },
-        outputBlocks,
-        replaySelection: outputBlocks.map((_block, index) => ({
-          sourceBlockIndex: index,
-          messageIndex: 1,
-          blockIndex: index,
-        })),
-      },
-      unitIndices: [1],
-      selectionSpans: outputBlocks.map((_block, index) => ({
-        selectionIndex: index,
-        start: 1,
-        end: 2,
-      })),
     })
+    expect(
+      meter.measureReplay({
+        countingBasis: basisFor(meter),
+        units: [a],
+        envelope: {},
+        precedingUnitCount: 1,
+        boundary: b.replay,
+        outputHistory: [],
+        observation: {
+          kind: 'observation',
+          inputCalibration: {
+            requestInput: { kind: 'unavailable', reason: 'not_retained' },
+            observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+            outputGroup: outputGroup.projected,
+          },
+          usage: {
+            input_tokens: 'unknown',
+            output_tokens: 'unknown',
+            cache_read_tokens: 'unknown',
+            cache_write_tokens: 'unknown',
+            source: 'none',
+          },
+          outputBlocks,
+          replaySelection: outputBlocks.map((_block, index) => ({
+            sourceBlockIndex: index,
+            messageIndex: 1,
+            blockIndex: index,
+          })),
+        },
+        unitIndices: [1],
+        selectionSpans: outputBlocks.map((_block, index) => ({
+          selectionIndex: index,
+          start: 1,
+          end: 2,
+        })),
+      }),
+    ).toEqual({ kind: 'invalidInput' })
     const delta = directNew(meter, {
       units: [n],
       envelope: {},
@@ -525,7 +553,7 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
       directNew(meter, {
         ...zero,
         boundary: {
-          revision: 'deepseek-reference-boundary/1',
+          revision: 'deepseek-reference-boundary/2',
           removed: 'many tokens here',
           added: '',
         },
@@ -534,7 +562,7 @@ describe.each(families)('$definition.modelId signed reference boundaries', famil
     const negative = directNew(meter, {
       ...zero,
       boundary: {
-        revision: 'deepseek-reference-boundary/1',
+        revision: 'deepseek-reference-boundary/2',
         removed: 'many tokens here',
         added: '',
       },
