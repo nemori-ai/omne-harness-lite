@@ -1,3 +1,5 @@
+2026-09-30：[DeepSeek 可见推理采用](../../../../record/decisions/model-input-usage-calibration-adoption/deepseek-visible-reasoning-decision.md)接受有限明文参考估算 revision 2；仅释放两叶共享投影及直接 meter 守门接线，DV1–DV5 未执行，新增 binding 0。
+
 2026-09-29：[xAI 有限贡献采用](../../../../record/decisions/model-input-usage-calibration-adoption/xai-family-decision.md)接受两款完整组提供者 revision 2；释放共享核上的窄实现，真实身份、图片及 X1–X6 仍待，新增 binding 0。
 
 2026-09-29：[D109](../../../../record/decisions/model-request-image-preparation-adoption/decision.md) 技术采用 v15 r4 请求图片准备，精确正文不变；新增 binding 0，实际实现与 IP-V1～10 待验。
