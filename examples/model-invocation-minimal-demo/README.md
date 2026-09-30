@@ -12,6 +12,7 @@ This example is a runnable **Cordis model-call loop**, not a formal business app
 | `callPresence.read` | `createDemoCallPresence`. It reports `live` only while the original container still holds its execution resources. It reports `stopped` only for a container that released its exact lease with no unknown writer left on the Session's settlement owner, or for a covered cold worker after its recovery scope was built from host-witnessed exit evidence. An empty registry is never proof of a stop; anything else is `unknown`. |
 | `callFacts` | `createModelCallFacts` over `createModelCallContentStore`, both from the runtime, using this demo's own SQLite storage. The content table comes from `modelCallContentMigrations('sqlite')`, which the model-request stage composes into the demo's migration sequence. Budgets come from `modelRequest.callReferences` (`maxScopes` and the content `maxConcurrentWrites`/`maxContentBytes`); the runtime supplies no default. |
 | `SessionRuntimeBinding.sourceVersions` | Deployment-immutable identifiers: the official manifest ordinal and the deployed official capability set. The demo has no per-call revision reader, so it never cites a mutable path or profile name. |
+| `acknowledgementCleanup` | An explicit, finite retry schedule (`createExplicitCleanupSchedule`) in `modelRequest.acknowledgementCleanup`. Stopping a round never drops the durable cleanup responsibility. |
 | `openCall` `creationKey` | `deriveCreationKey`: a pure hash of the Session, the user message identity and any explicit call and Run coordinates. It is stable across processes and is never a random value. |
 
 ```ts
@@ -27,12 +28,24 @@ const opened = await service.openCall({
   host: callHost.host, // the execution owner that outlives any one consumer
 })
 if (!('callId' in opened)) throw new Error('open refused')
-await service.dispatch({ session, callId: opened.callId })
+const reply = await service.dispatch({ session, callId: opened.callId })
 // Any later loop can read the durable result by reference; this never sends again.
 const viewed = await service.acquireCall({ ref: opened.ref, mode: 'read' })
 ```
 
-`acquireCall` is exposed on the same bound service. A `read` acquisition returns the durable view (state, origin, presence and result when ready). A `wait` acquisition on a live call returns an independent consumer whose `release()` only stops its own observation. Releasing it never cancels the execution owner; that stops when the host stops. A reference from another Session, an absent call, or a closing application is answered without touching the model. The runtime does not implement acknowledgement yet, so the demo exposes no acknowledgement entry.
+```ts
+// `reply` is the caller's own copy of the dispatched result (`'replyPending' in reply`).
+if (!('replyPending' in reply)) throw new Error('no pending reply to hand over')
+const acknowledged = await service.acknowledgeCall({
+  ref: opened.ref,
+  expectedResult: { kind: 'response', response: reply.replyPending.id },
+})
+// { acknowledged: { ref, target, acknowledgedAt, cleanup: 'released' | 'pending' } }
+```
+
+`acquireCall` and `acknowledgeCall` are exposed on the same bound service. A `read` acquisition returns the durable view (state, origin, presence and result when ready). A `wait` acquisition on a live call returns an independent consumer whose `release()` only stops its own observation. Releasing it never cancels the execution owner; that stops when the host stops. A reference from another Session, an absent call, or a closing application is answered without touching the model.
+
+`acknowledgeCall({ ref, expectedResult })` hands the model-side copy over for release. It is a separate action from reading: the demo's `callAccess` checks `ack` afresh with the same captured identity, membership and Session holding, and a held reference or a released consumer never acknowledges. The runtime writes one durable acknowledgement, then deletes the call's stored copies under an explicit retry policy, so `modelRequest.acknowledgementCleanup` is required and has no default (`createExplicitCleanupSchedule([200, 1_000, 5_000, 30_000])` is this demo's initial schedule; any policy object can replace it). After acknowledgement the old reference answers only a small accounting view without the route, reply, or input calibration, and the reply text can no longer be re-read: keep your own copy of the original result before you acknowledge. Settling a final disposition afterwards with `retainedResult` is validated by the runtime but its durable staging is not implemented yet, so the demo relies on `persistModelReply` (or `settleReply`) before acknowledging.
 
 `tests/call-reference-service.spec.ts` runs this path through the real SQLite, JSONL and local TLS service. At this baseline the runtime does not yet recognize a replayed creation key (same-key recognition and `creationConflict` are not produced), so the demo derives one key per user message and does not depend on replay recognition.
 

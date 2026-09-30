@@ -12,6 +12,7 @@
 | `callPresence.read` | `createDemoCallPresence`。只有原容器仍持有执行资源时才报告 `live`；只有容器已释放其精确租约且该 Session 结算 owner 无未知写入时，或受覆盖的冷 worker 依据宿主见证的退出证据建成恢复 scope 之后，才报告 `stopped`。登记表为空绝不是停止证明，其余一律 `unknown`。 |
 | `callFacts` | runtime 的 `createModelCallFacts` 与 `createModelCallContentStore`，落在本示例自己的 SQLite 存储上。内容表由 `modelCallContentMigrations('sqlite')` 提供，模型请求阶段把它并入示例的迁移序列。预算来自 `modelRequest.callReferences`（`maxScopes` 与内容的 `maxConcurrentWrites`／`maxContentBytes`），runtime 不提供默认值。 |
 | `SessionRuntimeBinding.sourceVersions` | 部署期不可变标识：官方清单序号与已部署的官方能力集合。示例没有逐次调用的修订读取器，因此不引用可变路径或档案名。 |
+| `acknowledgementCleanup` | `modelRequest.acknowledgementCleanup` 中显式、有限的重试计划（`createExplicitCleanupSchedule`）。中止一轮不会丢弃耐久的清理责任。 |
 | `openCall` 的 `creationKey` | `deriveCreationKey`：对 Session、用户消息身份及显式 call／Run 坐标做纯哈希，跨进程稳定，绝不是随机值。 |
 
 ```ts
@@ -27,12 +28,24 @@ const opened = await service.openCall({
   host: callHost.host, // 比任何单个消费者都长寿的执行 owner
 })
 if (!('callId' in opened)) throw new Error('open refused')
-await service.dispatch({ session, callId: opened.callId })
+const reply = await service.dispatch({ session, callId: opened.callId })
 // 之后任何 loop 都可按引用读取耐久结果；这不会再次发送。
 const viewed = await service.acquireCall({ ref: opened.ref, mode: 'read' })
 ```
 
-`acquireCall` 暴露在同一个绑定 service 上。`read` 返回耐久视图（状态、来源、presence，就绪时含结果）；对 live 调用的 `wait` 返回独立的 consumer，其 `release()` 只停止自己的观察，不会取消执行 owner——执行 owner 随宿主停止而停止。其他 Session 的引用、不存在的调用或正在关闭的应用，都不会触及模型即被回答。runtime 尚未实现确认（ACK），因此示例不提供确认入口。
+```ts
+// `reply` 是调用方自己保存的派发结果（`'replyPending' in reply`）。
+if (!('replyPending' in reply)) throw new Error('no pending reply to hand over')
+const acknowledged = await service.acknowledgeCall({
+  ref: opened.ref,
+  expectedResult: { kind: 'response', response: reply.replyPending.id },
+})
+// { acknowledged: { ref, target, acknowledgedAt, cleanup: 'released' | 'pending' } }
+```
+
+`acquireCall` 与 `acknowledgeCall` 暴露在同一个绑定 service 上。`read` 返回耐久视图（状态、来源、presence，就绪时含结果）；对 live 调用的 `wait` 返回独立的 consumer，其 `release()` 只停止自己的观察，不会取消执行 owner——执行 owner 随宿主停止而停止。其他 Session 的引用、不存在的调用或正在关闭的应用，都不会触及模型即被回答。
+
+`acknowledgeCall({ ref, expectedResult })` 把模型侧副本交出去释放。它与读取是不同的动作：示例的 `callAccess` 以同一份捕获的身份、成员资格和 Session 持有关系重新核验 `ack`，持有引用或释放 consumer 都不会确认。runtime 先写一条耐久确认，再按显式重试政策删除该调用存下的副本，因此 `modelRequest.acknowledgementCleanup` 是必填项且没有默认值（`createExplicitCleanupSchedule([200, 1_000, 5_000, 30_000])` 是本示例的初始计划，可换成任何政策对象）。确认之后旧引用只回答一个不含路由、回复和输入校准的小型账务视图，回复正文不能再读回：确认前请自己保存原始结果。确认后再带 `retainedResult` 结算最终处分，runtime 会校验，但其耐久暂存尚未实现，因此示例在确认前先用 `persistModelReply`（或 `settleReply`）处分。
 
 `tests/call-reference-service.spec.ts` 通过真实的 SQLite、JSONL 与本机 TLS 服务运行这条路径。在当前基线上，runtime 还不识别重放的 creation key（同键认回与 `creationConflict` 尚未产生），所以示例按每条用户消息派生一个键，不依赖重放认回。
 
