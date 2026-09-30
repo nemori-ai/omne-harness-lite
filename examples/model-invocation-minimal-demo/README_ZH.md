@@ -1,6 +1,42 @@
 # 模型调用最小示例
 
-`createDemoConfig()` 显式加载已安装的 sharp codec，采用可替换的 `modelImageBalancedV1` 图片准备政策，并将 `modelRequest.maxScopes` 设为 64。程序调用方可在打开应用前替换 `modelRequest.transport.imagePreparation` 和 `maxScopes`；它们是本地资源与质量配置，不是上游模型限制。正式与受控 HTTPS 传输使用同一准备配置；runtime 通过捕获的原 transport owner 清理 scope，关闭时也保持该归属。原消息不变，计量与发送共用准备后的图片字节。本次不增加 CLI 图片附件语法。
+本示例是一个可运行的 **Cordis 模型调用 loop**，不是正式业务应用。它展示单个宿主进程如何接线 `@omne-harness-lite/model-request-runtime` 的公开面：在同一个 Cordis context 里组合真实本地存储（SQLite）、JSONL 会话日志、加密凭据副本、账号与成员资格检查以及 OpenRouter 传输。它不实现 Session、Run、Inbound 或 Agent Loop 领域，也不是生产治理。凡需要受信提供者之处，本示例只提供单进程、单宿主的证据并如实说明，不能当作跨进程权威的模板。
+
+## 装配 runtime 的公开面
+
+`createModelRuntime(construction)` 除传输、历史 reader 和政策外，还需要宿主才能提供的三个受信端口。`src/bootstrap.ts` 的 `createAcceptanceApplication` 用真实组件提供它们（不用内存替身，也不发布恒答 `unavailable` 的端口）：
+
+| runtime 输入 | 本示例提供 |
+| --- | --- |
+| `callAccess.check` | `createDemoCallAccess`（`src/call-references.ts`）。每次 read、wait、settle、cancel 都重新核验认证入口捕获的登录状态、有效成员资格和 Session 到租户的持有关系，检查借用的日志绑定与原调用关联，然后才在带撤权信号的证据下运行准入回调；应用开始关闭时该信号被中止。调用者不能传入 `allowed` 标志。 |
+| `callPresence.read` | `createDemoCallPresence`。只有原容器仍持有执行资源时才报告 `live`；只有容器已释放其精确租约且该 Session 结算 owner 无未知写入时，或受覆盖的冷 worker 依据宿主见证的退出证据建成恢复 scope 之后，才报告 `stopped`。登记表为空绝不是停止证明，其余一律 `unknown`。 |
+| `callFacts` | runtime 的 `createModelCallFacts` 与 `createModelCallContentStore`，落在本示例自己的 SQLite 存储上。内容表由 `modelCallContentMigrations('sqlite')` 提供，模型请求阶段把它并入示例的迁移序列。预算来自 `modelRequest.callReferences`（`maxScopes` 与内容的 `maxConcurrentWrites`／`maxContentBytes`），runtime 不提供默认值。 |
+| `SessionRuntimeBinding.sourceVersions` | 部署期不可变标识：官方清单序号与已部署的官方能力集合。示例没有逐次调用的修订读取器，因此不引用可变路径或档案名。 |
+| `openCall` 的 `creationKey` | `deriveCreationKey`：对 Session、用户消息身份及显式 call／Run 坐标做纯哈希，跨进程稳定，绝不是随机值。 |
+
+```ts
+// app.bindModelRuntime(actor, session) 返回的 service 限定在该 Session。
+const opened = await service.openCall({
+  creationKey: deriveCreationKey({ session, userMessage: user.id }),
+  session,
+  target: effective.effectiveModel.routeName,
+  basis: effective.effectiveModel,
+  messages: [user],
+  tools: [],
+  parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+  host: callHost.host, // 比任何单个消费者都长寿的执行 owner
+})
+if (!('callId' in opened)) throw new Error('open refused')
+await service.dispatch({ session, callId: opened.callId })
+// 之后任何 loop 都可按引用读取耐久结果；这不会再次发送。
+const viewed = await service.acquireCall({ ref: opened.ref, mode: 'read' })
+```
+
+`acquireCall` 暴露在同一个绑定 service 上。`read` 返回耐久视图（状态、来源、presence，就绪时含结果）；对 live 调用的 `wait` 返回独立的 consumer，其 `release()` 只停止自己的观察，不会取消执行 owner——执行 owner 随宿主停止而停止。其他 Session 的引用、不存在的调用或正在关闭的应用，都不会触及模型即被回答。runtime 尚未实现确认（ACK），因此示例不提供确认入口。
+
+`tests/call-reference-service.spec.ts` 通过真实的 SQLite、JSONL 与本机 TLS 服务运行这条路径。在当前基线上，runtime 还不识别重放的 creation key（同键认回与 `creationConflict` 尚未产生），所以示例按每条用户消息派生一个键，不依赖重放认回。
+
+`createDemoConfig()` 显式加载已安装的 sharp codec，采用可替换的 `modelImageBalancedV1` 图片准备政策，并将 `modelRequest.maxScopes` 与 `modelRequest.callReferences.maxScopes` 设为 64。程序调用方可在打开应用前替换 `modelRequest.transport.imagePreparation`、`maxScopes` 和 `callReferences`；它们是本地资源与质量配置，不是上游模型限制。正式与受控 HTTPS 传输使用同一准备配置；runtime 通过捕获的原 transport owner 清理 scope，关闭时也保持该归属。原消息不变，计量与发送共用准备后的图片字节。本次不增加 CLI 图片附件语法。
 
 这是一个可在终端交互、真实流式输出且持久化的多轮模型对话示例。它使用真实本地账号、组织资格、会话归属、当前求值输入、官方模型档案、加密凭据副本、OpenRouter 传输和 JSONL 会话日志。原 `model-request-acceptance` 装配迁入此示例；可复用能力仍在 `packages/`。
 

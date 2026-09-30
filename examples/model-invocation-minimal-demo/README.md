@@ -1,6 +1,42 @@
 # Model invocation minimal demo
 
-`createDemoConfig()` explicitly loads the installed sharp codec with the replaceable `modelImageBalancedV1` preparation policy and sets `modelRequest.maxScopes` to 64. Programmatic callers can replace `modelRequest.transport.imagePreparation` and `maxScopes` before opening the application. These are local resource/quality settings, not model limits. Production and controlled HTTPS transports receive the same preparation configuration; the runtime clears scopes through its captured transport owner, including during shutdown. Original messages remain intact; prepared image bytes are shared by metering and sending. This does not add CLI image-attachment syntax.
+This example is a runnable **Cordis model-call loop**, not a formal business application. It shows how one host process wires the public surface of `@omne-harness-lite/model-request-runtime`: it composes real local storage (SQLite), a JSONL session log, an encrypted credential replica, account and membership checks, and the OpenRouter transport around one Cordis context. It implements no Session, Run, Inbound or Agent Loop domain and no production governance. Where a trusted provider is needed, this demo supplies only single-process, single-host evidence and says so; it is not a template for cross-process authority.
+
+## Assembling the runtime's public surface
+
+`createModelRuntime(construction)` takes the transport, history readers and policies plus three trusted ports that only the host can supply. `createAcceptanceApplication` in `src/bootstrap.ts` provides them from real components (no in-memory stand-ins and no ports that always answer `unavailable`):
+
+| Runtime input | What this demo provides |
+| --- | --- |
+| `callAccess.check` | `createDemoCallAccess` (`src/call-references.ts`). Every read, wait, settle and cancel re-verifies the login state, effective membership and Session-to-tenant holding captured at the authenticated entry, checks the borrowed log binding and the original call association, and only then runs the admitted callback with evidence that carries a revocation signal. The application aborts that signal when it starts closing. A caller can never pass an `allowed` flag. |
+| `callPresence.read` | `createDemoCallPresence`. It reports `live` only while the original container still holds its execution resources. It reports `stopped` only for a container that released its exact lease with no unknown writer left on the Session's settlement owner, or for a covered cold worker after its recovery scope was built from host-witnessed exit evidence. An empty registry is never proof of a stop; anything else is `unknown`. |
+| `callFacts` | `createModelCallFacts` over `createModelCallContentStore`, both from the runtime, using this demo's own SQLite storage. The content table comes from `modelCallContentMigrations('sqlite')`, which the model-request stage composes into the demo's migration sequence. Budgets come from `modelRequest.callReferences` (`maxScopes` and the content `maxConcurrentWrites`/`maxContentBytes`); the runtime supplies no default. |
+| `SessionRuntimeBinding.sourceVersions` | Deployment-immutable identifiers: the official manifest ordinal and the deployed official capability set. The demo has no per-call revision reader, so it never cites a mutable path or profile name. |
+| `openCall` `creationKey` | `deriveCreationKey`: a pure hash of the Session, the user message identity and any explicit call and Run coordinates. It is stable across processes and is never a random value. |
+
+```ts
+// The service returned by app.bindModelRuntime(actor, session) is scoped to that Session.
+const opened = await service.openCall({
+  creationKey: deriveCreationKey({ session, userMessage: user.id }),
+  session,
+  target: effective.effectiveModel.routeName,
+  basis: effective.effectiveModel,
+  messages: [user],
+  tools: [],
+  parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+  host: callHost.host, // the execution owner that outlives any one consumer
+})
+if (!('callId' in opened)) throw new Error('open refused')
+await service.dispatch({ session, callId: opened.callId })
+// Any later loop can read the durable result by reference; this never sends again.
+const viewed = await service.acquireCall({ ref: opened.ref, mode: 'read' })
+```
+
+`acquireCall` is exposed on the same bound service. A `read` acquisition returns the durable view (state, origin, presence and result when ready). A `wait` acquisition on a live call returns an independent consumer whose `release()` only stops its own observation. Releasing it never cancels the execution owner; that stops when the host stops. A reference from another Session, an absent call, or a closing application is answered without touching the model. The runtime does not implement acknowledgement yet, so the demo exposes no acknowledgement entry.
+
+`tests/call-reference-service.spec.ts` runs this path through the real SQLite, JSONL and local TLS service. At this baseline the runtime does not yet recognize a replayed creation key (same-key recognition and `creationConflict` are not produced), so the demo derives one key per user message and does not depend on replay recognition.
+
+`createDemoConfig()` explicitly loads the installed sharp codec with the replaceable `modelImageBalancedV1` preparation policy and sets `modelRequest.maxScopes` and `modelRequest.callReferences.maxScopes` to 64. Programmatic callers can replace `modelRequest.transport.imagePreparation`, `maxScopes` and `callReferences` before opening the application. These are local resource/quality settings, not model limits. Production and controlled HTTPS transports receive the same preparation configuration; the runtime clears scopes through its captured transport owner, including during shutdown. Original messages remain intact; prepared image bytes are shared by metering and sending. This does not add CLI image-attachment syntax.
 
 An interactive command-line example of a durable, streaming, multi-turn model conversation. It uses the real local account, organization standing, session ownership, current evaluation input, official model profile, encrypted credential replica, OpenRouter transport, and JSONL session log. The former model-request-acceptance assembly now lives in this example. Reusable capabilities remain in `packages/`.
 
