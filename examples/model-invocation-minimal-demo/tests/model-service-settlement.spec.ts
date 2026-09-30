@@ -503,7 +503,9 @@ describe('S-49 settlement through the actual demo model service', () => {
         callId: sent.callId,
         state: 'complete',
       })
-      expect(failedUnregisters).toBeGreaterThan(0)
+      // A ready reply is settled from its durable call facts; that path does not close the
+      // container registered with this host, so the registration waits for the host's stop.
+      expect(failedUnregisters).toBe(0)
       expect(activeRegistrations).toBe(1)
       const first = await s.app.readSessionLog(s.who, s.session)
       if (!('entries' in first)) throw new Error('durable session read unavailable')
@@ -520,6 +522,7 @@ describe('S-49 settlement through the actual demo model service', () => {
       ).toEqual({ alreadyEnded: true })
       expect(await s.app.readSessionLog(s.who, s.session)).toEqual(first)
       expect(await host.stop()).toEqual({ unavailable: true })
+      expect(failedUnregisters).toBeGreaterThan(0)
       expect(activeRegistrations).toBe(1)
       refuseUnregister = false
       expect(await host.stop()).toEqual({ released: true })
