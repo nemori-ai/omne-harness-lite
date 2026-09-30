@@ -64,25 +64,30 @@ export function judgeAcknowledgedSettlement(
     return malformed
   // The digest covers the whole Pending; the witness is checked field by field as well so a
   // contradiction between the two fixed ACK facts cannot be hidden.
+  // Absent members stay absent: strict JSON comparison has no `undefined` value.
   const smallFacts = {
     usage: retainedResult.usage,
     cost: retainedResult.cost,
     credentialScope: retainedResult.route.credentialScope,
     provider: retainedResult.route.provider,
-    upstreamRequestId: retainedResult.route.upstreamRequestId,
+    ...(retainedResult.route.upstreamRequestId === undefined
+      ? {}
+      : { upstreamRequestId: retainedResult.route.upstreamRequestId }),
     timing: retainedResult.timing,
     outcome: retainedResult.outcome,
-    initiator: retainedResult.initiator,
+    ...(retainedResult.outcome === 'interrupted' ? { initiator: retainedResult.initiator } : {}),
   }
   const witnessed = {
     usage: expected.usage,
     cost: expected.cost,
     credentialScope: expected.credentialScope,
     provider: expected.provider,
-    upstreamRequestId: expected.upstreamRequestId,
+    ...(expected.upstreamRequestId === undefined
+      ? {}
+      : { upstreamRequestId: expected.upstreamRequestId }),
     timing: expected.timing,
     outcome: expected.outcome,
-    initiator: expected.initiator,
+    ...(expected.outcome === 'interrupted' ? { initiator: expected.initiator } : {}),
   }
   if (!modelLogJsonEqual(smallFacts, witnessed)) return malformed
   return { validated: retainedResult }

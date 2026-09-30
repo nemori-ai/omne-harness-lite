@@ -420,6 +420,24 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
           !evidence.revoked.aborted &&
           settlementGenerationCurrent(binding)
         if (!current()) return unavailable
+        const recognize = async (
+          record: ModelCallAcknowledgedRecord,
+        ): Promise<AcknowledgeCallResult> => {
+          // RT12 S-96⑦: the same target recognizes the original ACK and its current progress.
+          if (!modelLogJsonEqual(record.target, expectedResult))
+            return { wrongPhase: { phase: record.terminalState } }
+          const cleanup = await custody.cleanup({ binding, ref, record })
+          return current()
+            ? { acknowledged: acknowledgementSummary(ref, record, cleanup) }
+            : unavailable
+        }
+        if (closed) {
+          // RT12 S-96⑧/S-100: a stopped host still recognizes a readable durable ACK and its
+          // cleanup progress, but starts no new ACK work.
+          const durable = await runtime.callFacts.lookup({ binding, ref })
+          if ('acknowledged' in durable) return await recognize(durable.acknowledged.record)
+          return 'callNotFound' in durable ? notFound : unavailable
+        }
         const key = keyOf(ref)
         if (!(await settleRetained(key))) return unavailable
         const prefix = await readPrefix(session)
@@ -433,17 +451,6 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
         if ('absent' in history) return notFound
         if (!('known' in history)) return unavailable
         const known = history.known
-        const recognize = async (
-          record: ModelCallAcknowledgedRecord,
-        ): Promise<AcknowledgeCallResult> => {
-          // RT12 S-96⑦: the same target recognizes the original ACK and its current progress.
-          if (!modelLogJsonEqual(record.target, expectedResult))
-            return { wrongPhase: { phase: record.terminalState } }
-          const cleanup = await custody.cleanup({ binding, ref, record })
-          return current()
-            ? { acknowledged: acknowledgementSummary(ref, record, cleanup) }
-            : unavailable
-        }
         if (known.acknowledged !== null) return await recognize(known.acknowledged.record)
         const sources = sourcesOf(prefix, ref.callId)
         if (sources === undefined) return unavailable
@@ -511,7 +518,6 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
   }
 
   async function acknowledgeCall(input: AcknowledgeCallInput): Promise<AcknowledgeCallResult> {
-    if (closed) return unavailable
     // One original ACK task per CallKey; concurrent repeats recognize its result.
     const key =
       input !== null &&
