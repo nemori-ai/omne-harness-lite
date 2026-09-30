@@ -63,14 +63,57 @@ interface ToolParts {
 }
 const visibility = Object.freeze({ toHuman: true, toModel: true })
 
-function sameReasoningHead(left: JsonObject, right: JsonObject, textKey: string): boolean {
+function sameReasoningHead(
+  left: JsonObject,
+  right: JsonObject,
+  ...excluded: readonly string[]
+): boolean {
   const head = (value: JsonObject) =>
     Object.fromEntries(
       Object.entries(value)
-        .filter(([name]) => name !== textKey)
+        .filter(([name]) => !excluded.includes(name))
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
     )
   return writeJsonLossless(head(left)) === writeJsonLossless(head(right))
+}
+
+/**
+ * One streamed `reasoning.text` detail may arrive as several fragments whose signature is
+ * only present on the last one. Fragments are one logical detail only when the stream says
+ * so explicitly: adjacent, same nonempty `id`, and every other member except text and
+ * signature (type, index, format, unknown metadata) equal. Adjacency alone never implies
+ * identity. Signatures may go from absent/null to one nonempty value and then only repeat
+ * that value; an invalid, empty or conflicting signature keeps the fragments distinct.
+ * Returns the merged detail, or undefined when `next` must stay a separate original entry.
+ */
+function continueReasoningText(previous: JsonValue | undefined, next: JsonObject) {
+  if (
+    !object(previous) ||
+    previous.type !== 'reasoning.text' ||
+    next.type !== 'reasoning.text' ||
+    typeof previous.id !== 'string' ||
+    previous.id.length === 0 ||
+    previous.id !== next.id ||
+    typeof previous.text !== 'string' ||
+    typeof next.text !== 'string' ||
+    !sameReasoningHead(previous, next, 'text', 'signature')
+  )
+    return undefined
+  const unsigned = (value: JsonValue | undefined) => value === undefined || value === null
+  const earlier = previous.signature,
+    later = next.signature
+  const signed = (value: JsonValue | undefined): value is string =>
+    typeof value === 'string' && value.length > 0
+  if (!(unsigned(earlier) || signed(earlier)) || !(unsigned(later) || signed(later)))
+    return undefined
+  // After a signature has arrived, only the identical signature may continue the detail.
+  if (signed(earlier) && earlier !== later) return undefined
+  const adopt = signed(later) || (earlier === undefined && later === null)
+  return {
+    ...previous,
+    text: previous.text + next.text,
+    ...(adopt ? { signature: later } : {}),
+  }
 }
 
 export async function* readStream(
@@ -267,25 +310,19 @@ export async function* readStream(
             if (!object(raw) || typeof raw.type !== 'string')
               throw new SseProtocolError('invalid reasoning detail')
             const last = thinkingBlock.details.at(-1)
-            const key =
+            const continued =
               raw.type === 'reasoning.text'
-                ? 'text'
-                : raw.type === 'reasoning.summary'
-                  ? 'summary'
+                ? continueReasoningText(last, raw)
+                : raw.type === 'reasoning.summary' &&
+                    object(last) &&
+                    last.type === raw.type &&
+                    typeof last.summary === 'string' &&
+                    typeof raw.summary === 'string' &&
+                    sameReasoningHead(last, raw, 'summary')
+                  ? { ...last, summary: last.summary + raw.summary }
                   : undefined
-            if (
-              key &&
-              object(last) &&
-              last.type === raw.type &&
-              typeof last[key] === 'string' &&
-              typeof raw[key] === 'string' &&
-              sameReasoningHead(last, raw, key)
-            ) {
-              thinkingBlock.details[thinkingBlock.details.length - 1] = {
-                ...last,
-                [key]: last[key] + raw[key],
-              }
-            } else thinkingBlock.details.push(raw)
+            if (continued) thinkingBlock.details[thinkingBlock.details.length - 1] = continued
+            else thinkingBlock.details.push(raw)
           }
         }
         if (nonempty(callParts)) {
