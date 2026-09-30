@@ -61,16 +61,19 @@ describe('INPUT frozen adoption and language-neutral source artifacts', () => {
     }
   })
   it('INPUT-02 consumes exact dependency Schema copies and creates no assembly Schema', () => {
-    for (const name of ['arrival-events', 'content-blocks', 'call-accounts']) {
+    // call-accounts 包根已是 CA4；本节点仍采用 CA2，比对其公开 `./schema/v2` 原字节。
+    for (const [name, file, version] of [
+      ['arrival-events', 'arrival-events.schema.json', 2],
+      ['content-blocks', 'content-blocks.schema.json', 3],
+      ['call-accounts', 'v2/call-accounts.schema.json', 2],
+    ] as const) {
       expect(
-        readFileSync(resolve(root, `packages/core/${name}/schema/${name}.schema.json`)).equals(
+        readFileSync(resolve(root, `packages/core/${name}/schema/${file}`)).equals(
           readFileSync(
-            resolve(
-              root,
-              `.meta_harness/design/spec/data/${name}/v${name === 'content-blocks' ? 3 : 2}/${name}.schema.json`,
-            ),
+            resolve(root, `.meta_harness/design/spec/data/${name}/v${version}/${name}.schema.json`),
           ),
         ),
+        name,
       ).toBe(true)
     }
     const manifest: { exports: Record<string, unknown> } = JSON.parse(
@@ -81,7 +84,7 @@ describe('INPUT frozen adoption and language-neutral source artifacts', () => {
   it('INPUT-04 retains exact old resources and compiles every definition in the fixed dependency graph', () => {
     const paths = [
       ['arrival-events', 'arrival-events.schema.json', 2],
-      ['call-accounts', 'call-accounts.schema.json', 2],
+      ['call-accounts', 'v2/call-accounts.schema.json', 2],
       ['content-blocks', 'content-blocks.schema.json', 3],
       ['content-blocks', 'content-blocks.v2.schema.json', 2],
       ['loop-extension', 'loop-extension.v2.schema.json', 2],
