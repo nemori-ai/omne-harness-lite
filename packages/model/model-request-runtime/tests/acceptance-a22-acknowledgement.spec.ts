@@ -416,7 +416,7 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
     } finally {
       await h.host.close()
     }
-  })
+  }, 30_000)
 
   it('A22-V2/V8: a ready reply ACK fixes the witness, pends on a real reader and never settles', async () => {
     const h = await acknowledgementHost()
@@ -509,7 +509,7 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
     } finally {
       await h.host.close()
     }
-  })
+  }, 30_000)
 
   it('A22-V9: the core semantic digest, not a byte hash or another role, identifies a creation', () => {
     const input = { messages: [], sourceVersions: { fixture: 'v1' }, n: 1 }

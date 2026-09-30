@@ -139,6 +139,7 @@ test('retry checks the same fact-class and provider rules as the public guard', 
   ).toEqual({ retryRefused: { why: 'provider_not_allowed' } })
 })
 
+// Real SQLite/JSONL end to end: an explicit budget, since shared-host load alone crosses 5 s.
 test('service dispatch writes both anchors before handing out a complete pending response', async () => {
   const host = await selectionHost(true, true)
   const contentStore = createModelCallContentStore({
@@ -1008,4 +1009,4 @@ test('service dispatch writes both anchors before handing out a complete pending
     await contentStore.close()
     await host.close()
   }
-})
+}, 30_000)
