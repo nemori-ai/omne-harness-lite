@@ -392,6 +392,8 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
   const tasks: SettlementTask<unknown>[] = []
   const unresolved = new Set<SettlementTask<AppendResult>>()
   let openedTask: SettlementTask<AppendResult> | undefined
+  /** The content gate that owns the opened append; its end is the bound of that receipt. */
+  let openedGate: SettlementTask<void> | undefined
   let openedConfirmed = false,
     openedKnownAbsent = false,
     quarantined = false,
@@ -723,8 +725,8 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
             ...(invocationEmitter === undefined
               ? {}
               : { diagnosticEmitterFactory: () => invocationEmitter }),
-            beforeFirstContent: () =>
-              start('wait', async () => {
+            beforeFirstContent: () => {
+              openedGate = start('wait', async () => {
                 if (!usable()) throw new Error('model_anchor.stopped')
                 const at = policy.now()
                 if (!('ok' in compareRfc3339Instants(at, at))) throw new Error('model_anchor.clock')
@@ -769,7 +771,9 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
                     quarantined = true
                   throw new Error('model_anchor.stopped')
                 }
-              }).completion,
+              })
+              return openedGate.completion
+            },
           })
           return await invocation.outcome
         } finally {
@@ -777,6 +781,15 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
         }
       })
       const result = await work.completion
+      // The invocation may end first (host stop, cancel) while the opened append is still on
+      // its way. Its receipt is bounded by that append itself, so wait for the gate that owns
+      // it instead of isolating the call: a landed anchor takes the S-86 no-reply final, a
+      // proven absent one closes as unopened, and only an unknown receipt stays quarantined.
+      if (openedGate !== undefined)
+        await openedGate.completion.then(
+          () => undefined,
+          () => undefined,
+        )
       if (openedTask !== undefined && !openedConfirmed && !openedKnownAbsent) quarantined = true
       if (quarantined) {
         diagnose('model_anchor.quarantined')

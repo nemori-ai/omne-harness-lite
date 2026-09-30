@@ -1076,7 +1076,7 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       ])
     })
   })
-  it('cancelled gate returns unavailable, close waits actual late append stop, never releases unknown', async () => {
+  it('cancelled gate waits the late opened receipt; a landed anchor settles the no-reply final and close releases', async () => {
     await harness(async h => {
       const entered = deferred<void>(),
         late = deferred<void>()
@@ -1094,19 +1094,119 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       const handle = createAnchoredModelInvocation(h.input)
       await entered.promise
       handle.abort()
-      expect(await handle.outcome).toEqual({ unavailable: true })
+      // The invocation ended first; the outcome is bounded by the append, never guessed.
+      let finished = false
+      const outcome = handle.outcome.then(result => {
+        finished = true
+        return result
+      })
+      await new Promise(resolve => setTimeout(resolve, 20))
+      expect(finished).toBe(false)
+      expect(h.released()).toBe(0)
+      late.resolve()
+      const result = await outcome
+      if (!('settled' in result)) throw new Error('settled interrupted')
+      expect(result.settled.settled.response.value).toMatchObject({
+        outcome: 'interrupted',
+        initiator: 'run_cancelled',
+      })
+      expect(result.settled.settled.response.value).not.toHaveProperty('reply')
+      expect(result.settled.settled.response.value).toHaveProperty(['timing', 'firstTokenAt'])
+      expect(handle.snapshot().firstContentAt).toBeUndefined()
+      expect(await handle.close()).toEqual({ released: true })
+      expect(h.released()).toBe(1)
+      expect(h.writes).toHaveLength(3)
+      const read = await h.log.readSince(h.input.settlement.binding.session, 0)
+      if (!('entries' in read)) throw new Error('read')
+      expect(read.entries.map(payload).map(v => v.kind)).toEqual([
+        'model_call_dispatched',
+        'model_call_opened',
+        undefined,
+      ])
+    })
+  })
+  it('cancelled gate whose late opened receipt is unknown stays unavailable, close waits the actual append stop and never releases', async () => {
+    await harness(async h => {
+      const entered = deferred<void>(),
+        late = deferred<void>()
+      let number = 0
+      h.wrap({
+        ...h.log,
+        async append(...args) {
+          if (++number === 2) {
+            entered.resolve()
+            await late.promise
+            await h.log.append(...args)
+            return { failure: 'unavailable' }
+          }
+          return h.log.append(...args)
+        },
+      })
+      const handle = createAnchoredModelInvocation(h.input)
+      await entered.promise
+      handle.abort()
       let closed = false
       const close = handle.close().then(result => {
         closed = true
         return result
       })
-      await Promise.resolve()
+      await new Promise(resolve => setTimeout(resolve, 20))
       expect(closed).toBe(false)
       expect(h.released()).toBe(0)
       late.resolve()
+      expect(await handle.outcome).toEqual({ unavailable: true })
       expect(await close).toEqual({ unavailable: true })
       expect(handle.snapshot().firstContentAt).toBeUndefined()
+      expect(h.released()).toBe(0)
+      expect(h.owner.active).toBe(1)
       expect(h.writes).toHaveLength(2)
+      const read = await h.log.readSince(h.input.settlement.binding.session, 0)
+      if (!('entries' in read)) throw new Error('read')
+      expect(read.entries.map(payload).map(v => v.kind)).toEqual([
+        'model_call_dispatched',
+        'model_call_opened',
+      ])
+    })
+  })
+  it('cancelled gate whose late opened receipt proves absence (tailChanged) settles the unopened no-reply final', async () => {
+    await harness(async h => {
+      const entered = deferred<void>(),
+        late = deferred<void>()
+      let number = 0
+      h.wrap({
+        ...h.log,
+        async append(session, ...rest) {
+          if (++number === 2) {
+            entered.resolve()
+            await late.promise
+            const read = await h.log.readSince(session, 0)
+            if (!('tail' in read)) throw new Error('read')
+            return { failure: 'tailChanged', tail: read.tail }
+          }
+          return h.log.append(session, ...rest)
+        },
+      })
+      const handle = createAnchoredModelInvocation(h.input)
+      await entered.promise
+      handle.abort()
+      late.resolve()
+      const result = await handle.outcome
+      if (!('settled' in result)) throw new Error('settled interrupted')
+      expect(result.settled.settled.response.value).toMatchObject({
+        outcome: 'interrupted',
+        initiator: 'run_cancelled',
+      })
+      expect(result.settled.settled.response.value).not.toHaveProperty('reply')
+      expect(result.settled.settled.response.value).not.toHaveProperty('delivered')
+      expect(result.settled.settled.response.value).not.toHaveProperty(['timing', 'firstTokenAt'])
+      expect(await handle.close()).toEqual({ released: true })
+      expect(h.writes).toHaveLength(3)
+      const read = await h.log.readSince(h.input.settlement.binding.session, 0)
+      if (!('entries' in read)) throw new Error('read')
+      expect(read.entries.map(payload).map(v => v.kind)).toEqual([
+        'model_call_dispatched',
+        undefined,
+      ])
     })
   })
   it('definitively refused opened produces legal unopened failed [R], retains multi-value H', async () => {
@@ -1390,7 +1490,7 @@ describe('v17 conditional Run anchored invocation', () => {
       expect(h.writes).toHaveLength(2)
     })
   })
-  it('waits for a delayed opened append to stop before a cancelled Run owner can close', async () => {
+  it('waits for a delayed opened receipt before a cancelled Run owner settles and closes', async () => {
     await harness(async h => {
       await appendStarted(h)
       const entered = deferred<void>()
@@ -1416,23 +1516,40 @@ describe('v17 conditional Run anchored invocation', () => {
       })
       await entered.promise
       handle.abort()
-      expect(await handle.outcome).toEqual({ unavailable: true })
-      let closed = false
-      const closing = handle.close().then(result => {
-        closed = true
+      let finished = false
+      const outcome = handle.outcome.then(result => {
+        finished = true
         return result
       })
-      await Promise.resolve()
-      expect(closed).toBe(false)
+      await new Promise(resolve => setTimeout(resolve, 20))
+      expect(finished).toBe(false)
       expect(h.owner.active).toBe(1)
       expect(h.released()).toBe(0)
       finish.resolve()
-      expect(await closing).toEqual({ unavailable: true })
+      const result = await outcome
+      if (!('settled' in result)) throw new Error('settled interrupted')
+      expect(result.settled.settled.response.value).toMatchObject({
+        outcome: 'interrupted',
+        initiator: 'run_cancelled',
+        call: { runId: run },
+        attemptId: attempt,
+      })
+      expect(result.settled.settled.response.value).not.toHaveProperty('reply')
+      expect(await handle.close()).toEqual({ released: true })
+      expect(h.owner.active).toBe(0)
+      expect(h.released()).toBe(1)
       expect(wire.sends()).toBe(1)
-      expect(h.writes).toHaveLength(2)
+      expect(h.writes).toHaveLength(3)
       const read = await h.log.readSince(h.input.settlement.binding.session, 0)
       if (!('entries' in read)) throw new Error('Run prefix unreadable')
-      expect(read.entries).toHaveLength(3)
+      expect(read.entries).toHaveLength(4)
+      expect(read.entries.map(payload).map(value => value.kind)).toEqual([
+        undefined,
+        'model_call_dispatched',
+        'model_call_opened',
+        undefined,
+      ])
+      expect(read.entries.at(-2)).toMatchObject({ run, attempt })
       expect(read.entries.at(-1)).toMatchObject({ run, attempt })
     })
   })
