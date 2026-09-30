@@ -1,6 +1,6 @@
 # Google 两叶 `google-gemini-v1` 推理历史的完整输出组计量
 
-2026-09-30，revision 2，**candidate：登记待观测；未采用、未实施、未实际验证；新增 bindings 0**。主调度 2026-09-30 裁决：机制接线（policy、countBody、共享核委托、K3 域、K4 身份、K5 修订规则；replay 名保留 `unsupported-marginal/1`）可比照 xAI 决定先行实施与正反验证；definition `4`、implementation `mp4-N`、meter algorithm 三个坐标在 GS-V7 观测前不钉为已采用。坐标一经官方发布就进入已保存的 basis，所以观测前不以它们发布官方 factory（推导；发布时机归主线采用决定）。接续已采用的 [v13 多输出组交接](v13-output-history-design.md)、[共享家族机制 revision 5](priority-family-output-cache-candidate.md)（[priority-family 决定](../../../../record/decisions/model-input-usage-calibration-adoption/priority-family-decision.md)）、[xAI 有限适用 revision 2](xai-complete-output-applicability-candidate.md)（[xAI 决定](../../../../record/decisions/model-input-usage-calibration-adoption/xai-family-decision.md)）与[原 basis 适用接缝](image-preparation-basis-applicability-candidate.md)，不改它们的受审字节。
+2026-09-30，revision 3，**candidate：登记待观测；未采用、未实施、未实际验证；新增 bindings 0**。主调度 2026-09-30 裁决：机制接线（policy、countBody、共享核委托、K3 域、K4 身份、K5 修订规则；replay 名保留 `unsupported-marginal/1`）可比照 xAI 决定先行实施与正反验证；definition `4`、implementation `mp4-N`、meter algorithm 三个坐标在 GS-V7 观测前不钉为已采用。坐标一经官方发布就进入已保存的 basis，所以观测前不以它们发布官方 factory（推导；发布时机归主线采用决定）。接续已采用的 [v13 多输出组交接](v13-output-history-design.md)、[共享家族机制 revision 5](priority-family-output-cache-candidate.md)（[priority-family 决定](../../../../record/decisions/model-input-usage-calibration-adoption/priority-family-decision.md)）、[xAI 有限适用 revision 2](xai-complete-output-applicability-candidate.md)（[xAI 决定](../../../../record/decisions/model-input-usage-calibration-adoption/xai-family-decision.md)）与[原 basis 适用接缝](image-preparation-basis-applicability-candidate.md)，不改它们的受审字节。
 
 本页只回答一件事：**full 估算怎样对待同模型、完整的 `google-gemini-v1` 推理历史组**，目标是让第二轮带回首轮 `reasoning_details` 的请求不再在发送前被官方 meter 拒绝。证据关系先写清：**唯一观测到的真实完整形状是只含文本条目的组（T-only），它是本页的主承载**，映射待 GS-V7 决定，观测前 unavailable（K2），结果与现行 meter 相同；**带签名的组（K1）是从 8 份 `MAX_TOKENS` 截断帧外推的形状**，真实完整形态未观测。因此 GS-V7 之前本页对唯一真实形状不产生新的可估结果。不开 φ/δ，不涉图片与音视频，不新增公共契约、服务、插件、状态、存储或第二个 walker。持续消费者是两款 Google 官方定义及其 InputMeter、公开 `planRequest`/`invokeModel`、transport service 的 lease 消费者；上游推理流形状、身份字面值或计费口径变化，或共享输出组核、reader 分组规则换方案时，复核本页。
 
@@ -10,7 +10,7 @@
 |---|---|---|
 | 装配基准 | 目标态＝已采用的共享完整输出组机制＋两叶当前 definition `3` / `pi-ai:google` `mp4-17`（源码 `packages/model/pi-ai-transport/src/input-meters/google.ts`，起草基线 `f4ea05ef`）。该 meter 的逐消息成员白名单不含 `reasoning_details`（同文件 `supported()`），首轮真实形状的回复带回后，第二轮 full 为 unavailable，规划以 `input_size_unavailable` 拒绝、零 HTTP | 已知：源码与本机三轮用例 |
 | 契约 | [RT12 S-74](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-74-每次发送之前的完整输入限制与固定计划)、[S-77](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-77-计量依据身份与两类失效)、[S-78](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-78-递推关系精度与重新校准)、[S-79](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-79-现有公开函数的九项增量)；[MR11 S-43](../../../../spec/data/model-response/v11/contract.md#s-43-outputgroup-与回放)。catalog 均 accepted；计量义务沿 RT10/MR9（[D-107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md)），RT12 S-77 另有「真实性先于复用」一段 | 契约承诺 |
-| 共同约定 | ① Google 本轮 **full-only**：φ/δ 保持 `defineInputMeter` 默认 unavailable，不作交付门；② 共享 reader 对无 id `reasoning.text` 的分组以 `src/stream.ts` 的 `continueReasoningText` 为准——双方都不带 signature 时相邻同头才拼接，带 signature 的无 id 条目一律独立；③ 本期模型运行时只交付 text 与 image，音视频声明保留、不承载。三项由主调度 2026-09-30 裁定；record 家由主线在采用决定里补（GG-9） | 共同约定裁定 |
+| 共同约定 | ① Google 本轮 **full-only**：φ/δ 保持 `defineInputMeter` 默认 unavailable，不作交付门；② 共享 reader 对无 id `reasoning.text` 的分组以 `src/stream.ts` 的 `continueReasoningText` 为准——无 id 且相邻、type/format/index 及其余成员逐值相等时拼接，签名允许从缺席到一次非空值（仅签名片段只贡献签名），之后只许重复同值，签名到达后再来的无签名片段为新条目（[D-111](../../../../record/decisions/model-request-runtime-rulings-2026-09-30/README.md) R-F＋R-L，不按 format 分支）；③ 本期模型运行时只交付 text 与 image，音视频声明保留、不承载。三项由主调度 2026-09-30 裁定，record 家为 [D-111](../../../../record/decisions/model-request-runtime-rulings-2026-09-30/README.md)（GG-9 已闭合） | 共同约定裁定 |
 | Cordis | 沿 [D-025](../../../../record/decisions/cordis-adoption-version/decision.md) 采用 4.0.4；本页不新增上游语义主张 | 采用决定 |
 
 ## 真实原件核读
@@ -64,8 +64,9 @@ fit、holdout 两次 09-28 付费运行由研究页 `research/model-request-adap
 | detail 形状 | 判定 | 要求 | 依据 |
 |---|---|---|---|
 | T：`reasoning.text` 文本条目 | 域内 | 成员恰为 `{type,text,format,index}`；text 为非空字符串且不等于 `[REDACTED]`；format `google-gemini-v1`；index 为非负 JSON 整数 | 9 份原件，其中唯一完整回复即 T-only 探针 |
-| S：`reasoning.text` 签名条目 | 域内 | 成员恰为 `{type,signature,format,index}`；signature 为非空字符串且不等于 `[REDACTED]`；其余同 T | 8 份截断原件的 raw 帧；领域层从未出现，属外推（H-S） |
-| 同条 text+signature、signature 为 null 或空串、text 为空串、带 `id`、其他任何成员 | 域外 | — | 未观测 |
+| TS：`reasoning.text` 文本＋签名条目 | 域内 | 成员恰为 `{type,text,signature,format,index}`；text 与 signature 均为非空字符串且不等于 `[REDACTED]`；format `google-gemini-v1`；index 为非负 JSON 整数。这是共享 reader 按 R-L 把「文本片段＋紧随其后同 index 的仅签名片段」合并后的形状，即本页的签名组主形 | Gemini raw 帧的片段序列（8 份截断原件）与 Anthropic 同形真实观测（entry cecc12c9）；完整回复中的 TS 未观测（H-S） |
+| S：`reasoning.text` 仅签名条目 | 域内 | 成员恰为 `{type,signature,format,index}`；signature 为非空字符串且不等于 `[REDACTED]`；其余同 T。只在仅签名片段前面没有可并入的同 index 文本片段时才独立成条 | 8 份截断原件的 raw 帧；领域层从未出现，属外推（H-S） |
+| signature 为 null 或空串、text 为空串、带 `id`、其他任何成员 | 域外 | — | 未观测 |
 | `reasoning.summary` | 域外 | 将来开放须有真实原件与新修订，要求非空 summary、排除 `[REDACTED]` | 未观测 |
 | `reasoning.encrypted` | 域外 | 同上，要求非空 data、排除 `[REDACTED]` | 未观测 |
 | 其他 format、同一数组内混合 format | 域外 | — | — |
@@ -114,11 +115,11 @@ fit、holdout 两次 09-28 付费运行由研究页 `research/model-request-adap
 | 跨路由组（Vertex 或其他供应商） | origin.provider 不是 `google-ai-studio`，或 servingProvider 为 `Google` 等 | unavailable | `sourceApplies` |
 | 部分选择：只回放 text、跳过某块、删掉 details | 原块未全选、跨消息，或当前单元与原组投影不等 | unavailable；摘要可判不符时 planner 先给 malformed | 共享 `completeGroup`／来源门 |
 | 截断回复（`length`） | 当前 reader 不给领域块附 details，单元只有可见 `reasoning` | 走现 Gemma4 可见路径，不进入本页；签名在 reader 一层已不保留（GG-10） | reader；`classifyUnit` |
-| 签名冲突 | 无 id 时两条不同签名是两个独立条目（reader 规则），不构成冲突，整组 O 计一次；同 id 异签名只可能出现在带 id 的形状，id 在域外 | 前者可估；后者 unavailable | reader；`classifyUnit` |
+| 签名冲突 | 无 id 时，仅签名片段只并入前一同 index 且尚无签名的文本片段；签名已存在再来不同签名即分离为独立条目（reader 规则），不构成冲突，整组 O 计一次；同 id 异签名只可能出现在带 id 的形状，id 在域外 | 前者可估；后者 unavailable | reader；`classifyUnit` |
 | 篡改签名 | 未同步摘要 → 与原块摘要不符；连摘要一起自洽伪造 → 不可判 | 前者 malformed；后者计量不背书真伪，签名真伪归上游核验 | 共享来源门 |
 | 身份有值但不命中 | 例如 slug、`Google`、带日期的模型名 | unavailable；origin 与 provenance 互相矛盾则 malformed | `sourceApplies`；共享 `groupFactsValid` |
 | 原 basis 变化 | 原 V3、今 V4 → changedEffective；原 V4 → sameEffective；原坐标不在表 → unavailable；当前 basis 不是 V4 → unavailable | 前两者 full 独立应用 O；不借此复用 I | 共享 `relateMeterBases`＋`originalBasisApplies` |
-| 无 id 片段 | 连续的无签名 T 片段合成一条；S 独立；交错的 T、S、T、S 保序为四条 | 整组 O 计一次，不按条数分摊 | reader；共享核 |
+| 无 id 片段 | 连续的无签名 T 片段合成一条；紧随其后同 index 的仅签名片段并入成 TS；签名后再来的无签名片段为新条目；交错的 T、S、T、S 保序合成 TS、TS 两条（R-L） | 整组 O 计一次，不按条数分摊 | reader；共享核 |
 | reader 分组规则日后改变 | 原块摘要与当前投影不再相等 | unavailable 或 malformed，不静默重计 | 共享核 |
 | 调用者自造、不属于任何历史组的带 details 单元 | 被分类为 `wholeGroup` 却无组认领 | unavailable | 共享 `contributions` |
 | 同一单元同时带 `reasoning` 与 `reasoning_details` | 投影从不产出此形 | `uninterpretable` | `classifyUnit` |
@@ -165,7 +166,7 @@ T-only 是本页在当前证据下唯一能命中的真实形状，所以 K2 是
 | 义务 | 必须新增的可失败验收 | 不能冒用 |
 |---|---|---|
 | GS-V1 有限表与发布 | 两叶 V3（当前构建）、V4（实施构建）工厂逐字段导出核表；未知 definition/implementation/algorithm/projection、跨模型、身份不命中的反控；tokenizer 与 replay 坐标不变；旧 factory 已删 | 不以手抄坐标代替导出 |
-| GS-V2 详情域 | T+S、只有 S、T/S 交错多条为 `wholeGroup` 正例；只有 T 的完整组单列，K2 判定前须得 `uninterpretable` 并以 `input_size_unavailable` 收场；`[REDACTED]`（两种）、空 text、空或 null signature、同条 text+signature、带 id、summary、encrypted、异 format、混合 format、非 assistant、同时带 `reasoning` 逐一为负例 | 负例须各自单独失败，不能只测一个 |
+| GS-V2 详情域 | TS（合并单条）、TS＋TS、独立 S、TS 与 T 混排为 `wholeGroup` 正例；只有 T 的完整组单列，K2 判定前须得 `uninterpretable` 并以 `input_size_unavailable` 收场；`[REDACTED]`（两种）、空 text、空或 null signature、带 id、summary、encrypted、异 format、混合 format、非 assistant、同时带 `reasoning` 逐一为负例；夹具须经真实 reader 从片段序列合成，不手写合并后的条目 | 负例须各自单独失败，不能只测一个 |
 | GS-V3 唯一贡献 | full＝G4(剩余)＋ΣO；两组各计一次；reasoning 不另加；margin 一次；spy 证明签名与 details 字符串对 tokenizer 的调用为零；无完整组的请求与现行 meter 逐值一致，有完整组时剩余部分等于现 counter 对同一剩余 body 的结果。变异反控：去掉 O 加项、或让 counter 接收 details 单元，用例必须失败 | 不以估算单调递增代替数值核对 |
 | GS-V4 完整性与真实性 | 部分选择、乱序、跨消息、缺块、重复认领、未认领的 details 单元、摘要篡改（malformed）与自洽伪造（只走 unavailable 分支）；截断回复不产生 `wholeGroup`；独立 `measureFull` 对非法输入返回 unavailable 且不产计量 | 不只测 planner，须直调 factory 返回的方法 |
 | GS-V5 失效 | 原 V3→今 V4 可 full；原坐标不在表 unavailable；当前 effort 或 max_tokens 改变仍可 full；身份不命中 unavailable；origin 与 provenance 冲突 malformed | — |
@@ -190,7 +191,7 @@ T-only 是本页在当前证据下唯一能命中的真实形状，所以 K2 是
 | GG-6 | φ/δ 不开；将来开放需共享 `calibration.ts` 认 `Google AI Studio` 显示名 | [RT12 S-79](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-79-现有公开函数的九项增量) ⑧ | 主线（共享 owner） | 无：本轮不是交付门 |
 | GG-7 | 图片计量仍 unavailable（本页不涉）；音视频本期范围外 | [RT12 S-74](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-74-每次发送之前的完整输入限制与固定计划) ④ | 各自既有 owner | 不由本页解除 |
 | GG-8 | definition `4` 与 mp4 编号由主线发布协调，GS-V7 之前不钉 | — | 主线 | 实施提交与 GS-V1 |
-| GG-9 | 共同约定三项（full-only、无 id 分组规则、text/image 范围）的 record 家由主线在采用决定里补；本页只留这条指针 | — | 主线（采用决定） | 采用决定须能引用 |
+| GG-9 | 已闭合：共同约定三项的 record 家为 [D-111](../../../../record/decisions/model-request-runtime-rulings-2026-09-30/README.md)（R-A、R-F＋R-L、R-I） | — | — | — |
 | GG-10 | 截断回复（`length`）的 details 在 reader 一层不保留，runtime 却把该输出组记为 complete：`packages/model/pi-ai-transport/src/stream.ts:438` 只在 finish 不是 `length` 时发带 opaque 的收束事件 → `packages/core/stream-assembly/src/blocks.ts:66` 的 `settleBlock` 对未收束块只以文本结算、不带 opaque → `packages/model/model-request-runtime/src/invoke.ts:644` 按 `'ended' in end` 记 `complete`（行号于 `31a14838`）。它与 [MR11 S-43](../../../../spec/data/model-response/v11/contract.md#s-43-outputgroup-与回放)「completeness=complete 表示实际收到且保留」是否相符、怎样收口，**已单独转 reader/runtime owner**。本页只消费 completeness=complete 且带 opaque 的组；complete 标记本身的正确性归 GG-10 owner。共享行为，不限于 Google，不阻本页 | [MR11 S-43](../../../../spec/data/model-response/v11/contract.md#s-43-outputgroup-与回放) | 共享 reader 与 runtime owner（已转） | 截断后续接的签名或密文回放；各家截断回复的 opaque 保全 |
 | GG-11 | K2 的映射方向（a／b／c）待 GS-V7 判定，选定前 a 生效 | [RT12 S-79](../../../../spec/capabilities/model-request-runtime/v12/contract.md#s-79-现有公开函数的九项增量) ⑧ | 主线（采用决定），依据由主调度 GS-V7 提供 | Google 多轮会话：唯一真实完整形状第二轮仍被拒 |
 
@@ -198,4 +199,5 @@ T-only 是本页在当前证据下唯一能命中的真实形状，所以 K2 是
 
 ## 修订记录
 
+- revision 3（2026-09-30）：共享 reader 采用 R-L（[D-111](../../../../record/decisions/model-request-runtime-rulings-2026-09-30/README.md)）后同步领域表：文本片段与紧随的仅签名片段合并成 TS 条目并作为签名组主形，S 仅在无可并入文本时独立；反例表与 GS-V2 随之改写；GG-9 指向 D-111。
 - revision 2（2026-09-30）：据 2026-09-30 架构评审修订。要点：证据关系改正（T-only 为唯一真实完整形状，签名组为截断帧外推，H-S 挂 GS-V7）；K2 改为映射待 GS-V7 判定、观测前 unavailable，列 a／b／c；replay 保留 `unsupported-marginal/1`；MR11 S-43 兑现行改写；GS-V7 加最小观测；GG-9 改为指针；GG-10 转 reader/runtime owner；新增 GG-11。
