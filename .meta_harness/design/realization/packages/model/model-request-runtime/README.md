@@ -37,7 +37,7 @@
 - **语义接受**：RT10／Runner5／LC6 及 D106 的 v17 责任已接受；[v18 窄补充](v18-failure-execution-design.md) 未技术采用，不改冻结 v17。
 - **可实施**：候选补 source 对原 Run/attempt 来源的捕获、实际消费 execution 交接、noRun/跨 Run 拒绝与 withRun 校准 target；同 Run 跨 attempt 不新增相等门。
 - **绑定证据**：新增 0；[F18-V1～V7](verification.md#f18-失败来源的实际执行绑定候选) 为待执行义务，已跑组件测试不证明该边界已闭合。
-- **实际验证**：本增量无实现验收。真实上下文/generation/attempt fence 归原宿主/runner，生产 G28 与卡片外源保持外置；F18-G1～G3 不因起草闭合。
+- **实际验证**：2026-09-30 已按 F18-V1～V7 逐条执行测试与变异，记录见 [M17／F18 实际执行](verification.md#m17f18-实际执行2026-09-30)；这是实现者自测，不是独立验收或最终接受。真实上下文/generation/attempt fence 归原宿主/runner，生产 G28 与卡片外源保持外置；F18-G2/G3 不因本记录闭合。
 
 ## 2026-09-29 模型侧 Run／失败经过／默认重试接线候选
 
@@ -46,7 +46,7 @@
 - **语义接受**：RT10、SL3、MR9、LC6、Runner5 及 D087/D100/D106/D107 对应责任已接受；本次 [v17 窄接线](v17-model-consumption-design.md) 未技术采用，不改原冻结映射。
 - **可实施**：候选明确 withRun 成组消费、同次 owned prefix 正向 Run 解释、原十三方法上的显式失败消费资源与 P-5 最小贡献。生产 Run 终结/卡片来源仍外置；缺来源具名 unavailable 不能掩盖模型消费成功面未实现。
 - **绑定证据**：新增 0；[M17-V1～V12](verification.md#m17-模型侧-run失败经过与默认重试接线候选) 为待执行真实组合义务，不重记已通过 runPass 或 U3 的证据。
-- **实际验证**：本增量没有运行验收；当前 noRun 实现、纯 retry 函数与公共 runner 已有证据分别保持，不因此称为 withRun/P-5/同 prefix 服务交付。M17-G1～G5 分列采用、外域前提与本程接线/验证。
+- **实际验证**：2026-09-30 已按 M17-V1～V12 逐条执行测试与变异，记录见 [M17／F18 实际执行](verification.md#m17f18-实际执行2026-09-30)，其中 V5／V6 只对应既有用例、V11 的真实 wrongPhase 与凭据撤销分支未在组合中产生；这是实现者自测，不是独立验收或最终接受。生产 Run 终结与卡片来源（M17-G2/G4）仍外置，不因此称 Run/Session/Loop 交付。
 
 2026-09-29：[D-107 后继采用](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md#同日后继采用-transport-v12-revision-2-与-runtime-v16) 已技术采用本节点输入校准映射；原 Anthropic B1 在设计层闭合，实际组合/上游/性能验收仍待。新增绑定0，以下候选标记按起草日期读取。
 
