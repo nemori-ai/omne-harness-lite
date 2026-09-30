@@ -1,0 +1,19 @@
+{
+  "suite_version": "public-pilot-v1",
+  "purpose": "Public shakedown task for the runner. Its runs check the harness (isolation, permissions, evidence capture, oracle) and are not part of any comparison.",
+  "base_commit": "003561900adb27de6ebe776fa1cf1b228304c873",
+  "member": "apps/cli",
+  "tasks": [
+    {
+      "id": "PILOT-1",
+      "role": "application-developer",
+      "split": "training",
+      "kind": "implement",
+      "brief": "tasks/briefs/PILOT-1.md",
+      "stub": "tasks/stubs/PILOT-1",
+      "hidden_tests": ["apps/cli/tests/packaging.spec.ts"],
+      "allowed_write": ["apps/cli/src/version.ts", "apps/cli/tests/"],
+      "critical_constraints": ["write_scope", "oracle_integrity", "truthful_completion", "isolation"]
+    }
+  ]
+}

@@ -10,7 +10,8 @@
 
 Claude Code 2.1.280 对照[官方宿主模型配置](https://code.claude.com/docs/en/model-config#available-models)
 确认 Opus 5.5（最低 2.1.280）、Fable 5.1、Fable 5、Opus 5、Opus 4.8、Sonnet 5，以及提供方映射中的
-Opus 4.6、Sonnet 4.6/4.5 和 Haiku 4.5。这证明所记版本的宿主支持，不声称本机
+Opus 4.6、Sonnet 4.6/4.5 和 Haiku 4.5。2026-09-29 在 2.1.284 上对照同一页补记 Sonnet 5.5（最低 2.1.284）；
+该次只复核了这一项，其余条目与 Codex 一侧仍是 2026-09-23 的结果。这证明所记版本的宿主支持，不声称本机
 账户或网关已开通全部模型；提供方的别名映射可能不同。**别名会随宿主版本漂移**：
 2.1.280 起 `opus` 在多数提供方解析为 Opus 5.5，此前为 Opus 5；需要可追溯的角色写精确 ID。
 

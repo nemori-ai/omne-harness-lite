@@ -26,13 +26,14 @@ migration_status: equivalent-current-requirement
 
 ## SYS-KERNEL
 
-内核层复用 Cordis 与 DSH `agent` 原语；Agent Loop、Harness 层、工具协议、治理
-和其他子系统由本项目自行定义和实现。DeepSeek Harness 不作为本项目的实现，
-本项目不称为 Cordis Harness。实际采用的版本与实现映射仍需固定。
+从 DeepSeek Harness 仅复用 Cordis，直接使用官方发布包，不复用 DSH `agent` 原语。
+Agent Runtime（Agent Loop）完全由本项目自主设计；Harness 层、工具协议、治理
+和其他子系统同样由本项目自行定义和实现。DeepSeek Harness 不作为本项目的实现，
+本项目不称为 Cordis Harness。实际采用的 Cordis 版本与实现映射仍需固定。
 
-2026-09-13，用户补充确认维护边界：Cordis 直接使用官方发布的包；其他选定复用的
-DSH 组件采用 fork，由本项目自行维护、拓展和二次开发。具体发布版本和导入范围
-仍需逐项确定；这不表示所有 DSH 包都已选定，也不要求一般第三方依赖一并 fork。
+2026-09-28，用户明确纠正复用边界：仅采用 Cordis，自主设计 Agent Runtime（Agent Loop），
+不采用 DSH `agent` 原语。本条取代此前「Cordis 与 DSH `agent` 原语」的复用范围，
+以及 2026-09-13 对其他选定 DSH 组件采用 fork 的安排；确认来源与影响见 [changes.md](changes.md)。
 
 ## SYS-SPEC
 
