@@ -613,6 +613,45 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
     }
   }, 30_000)
 
+  it('S-99⑦/S-86 (no ACK): repeating settleReply after a final recognizes the same disposition and answers alreadyEnded for another, with no write', async () => {
+    const h = await acknowledgementHost()
+    try {
+      h.grant('owner', ['read', 'wait', 'settle', 'cancel', 'ack'])
+      expect(await h.service.openCall(h.request('a22_repeat_final'))).toMatchObject({
+        callId: 'a22-call-1',
+      })
+      const ref = { session: h.host.session, callId: 'a22-call-1' }
+      const dispatched = await h.service.dispatch(ref)
+      if (!('replyPending' in dispatched)) throw new Error('ready reply')
+      const vetoed = { ...ref, disposition: { vetoed: { by: 'input-gate', reason: 'no' } } }
+      const consumed = { ...ref, disposition: { consumed: { by: 'side_query' as const } } }
+      const complete = { callId: 'a22-call-1', state: 'complete' }
+      expect(await h.service.settleReply(vetoed)).toEqual(complete)
+      const settled = (await h.entries()).length
+      // The committed final decides by itself: same disposition recognized, another refused.
+      expect(await h.service.settleReply(vetoed)).toEqual(complete)
+      expect(await h.service.settleReply(consumed)).toEqual({ alreadyEnded: true })
+      // A caller-held value adds nothing once a final exists.
+      expect(
+        await h.service.settleReply({ ...vetoed, retainedResult: dispatched.replyPending }),
+      ).toEqual(complete)
+      // The current settle authority still comes first.
+      h.grant('reader', ['read', 'wait'])
+      h.as('reader')
+      expect(await h.service.settleReply(vetoed)).toEqual({ unavailable: true })
+      h.as('owner')
+      // A restarted process answers the same from the durable final alone.
+      const restarted = h.restarted()
+      expect(await restarted.service.settleReply(vetoed)).toEqual(complete)
+      expect(await restarted.service.settleReply(consumed)).toEqual({ alreadyEnded: true })
+      expect((await h.entries()).length).toBe(settled)
+      await restarted.runtime.close()
+      await h.runtime.close()
+    } finally {
+      await h.host.close()
+    }
+  }, 30_000)
+
   it('A22-V9: the core semantic digest, not a byte hash or another role, identifies a creation', () => {
     const input = { messages: [], sourceVersions: { fixture: 'v1' }, n: 1 }
     const digest = createModelCallSemanticDigest('model-call-creation-semantic-sha256/v1', input)

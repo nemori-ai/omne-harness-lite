@@ -283,6 +283,11 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
             const key = keyOf(request)
             let entry = entries.get(key)
             if (entry === undefined) {
+              // RT12 S-99④⑦/S-86: a committed final decides by itself, after the current settle
+              // authority: the same disposition recognizes it, another is alreadyEnded. No value
+              // is needed or consulted and nothing is written.
+              if (fact.view.result?.disposition === 'final')
+                return await recognizeSettledReply(request, input, session)
               if (fact.view.result?.disposition !== 'disposition_pending')
                 return { unavailable: true } as const
               const pending = fact.view.result.pending
