@@ -15,3 +15,5 @@
 [xAI 有限贡献后继](xai-family-decision.md)采用两款共享完整组 estimated 贡献的提供者 revision 2；真实身份映射、图片计量及 X1–X6 验收保持明确缺口。
 
 [DeepSeek 可见推理后继](deepseek-visible-reasoning-decision.md)采用两款有限明文参考估算 revision 2；共用解码及直接 meter 来源守门须实施，DV1–DV5 与真实路线差分尚待，不新增 O 映射或规范版本。
+
+[Moonshot 可见推理后继](moonshot-visible-reasoning-decision.md)采用两叶有限明文参考估算 revision 2（2026-09-30）；Qwen 开源两叶候选以 QV0 为前置本次不采用；MV1–MV3 实施与 MV4 真实回放（含必做同路由对照）尚待。
