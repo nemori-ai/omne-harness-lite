@@ -37,7 +37,6 @@ import type {
   SettlementTask,
   SettlementRegistration,
   SettlementResult,
-  SettlementHandle,
   SettlementRequest,
   SettlementOwner,
   SettlementTaskKind,
@@ -403,8 +402,11 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
   let construction: ResponseConstructionInput | undefined
   let interruption: Extract<ResponseConstructionResult, { readonly response: unknown }> | undefined
   let settled = false
-  let heldSettlement:
-    { readonly handle: SettlementHandle; readonly request: SettlementRequest } | undefined
+  /**
+   * S-86/S-72: once a submission may have been written, this exact request is the only one this
+   * invocation settles again. The coordinator retains and resolves the original handle.
+   */
+  let originalSettlement: SettlementRequest | undefined
   let dispatchConfirmed = false
   let dispatchedPosition: JsonNumber | undefined
   let openedPosition: JsonNumber | undefined
@@ -620,31 +622,21 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
   ): Promise<SettlementResult> {
     recordAnchors('settlement')
     if (
-      (!construction && !interruption && heldSettlement === undefined) ||
+      (!construction && !interruption && originalSettlement === undefined) ||
       quarantined ||
       unresolved.size > 0
     )
       return { unavailable: true, reason: 'opened_unknown' }
     await drain()
-    let original = heldSettlement?.request
-    if (heldSettlement !== undefined) {
-      const recognized = await coordinator.recognizeUnknown(heldSettlement.handle)
-      if ('unavailable' in recognized) return { unavailable: true, reason: 'write_unknown' }
-      if ('settled' in recognized) {
-        heldSettlement = undefined
-        settled = true
-        return { settled: recognized.settled, origin: 'recognized' }
-      }
-      heldSettlement = undefined
-    }
-    if (original === undefined) {
+    let request = originalSettlement
+    if (request === undefined) {
       const candidate =
         interruption ??
         (construction === undefined
           ? { rejected: 'invalidInput' as const }
           : constructModelResponse(construction, disposition, withoutReply))
       if ('rejected' in candidate) return { unavailable: true, reason: 'candidate' }
-      original = {
+      request = {
         target: {
           call: dispatched.call,
           dispatch: dispatched.dispatch,
@@ -657,19 +649,30 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
         response: candidate.response,
       }
     }
-    const handle = coordinator.settle(original)
+    const handle = coordinator.settle(request)
     const result = await handle.completion
     handle.requestStop()
     try {
       await handle.stopped
     } catch {
-      heldSettlement = { handle, request: original }
+      originalSettlement = request
       return { unavailable: true, reason: 'task' }
     }
-    if ('unavailable' in result && result.reason === 'write_unknown')
-      heldSettlement = { handle, request: original }
-    if ('settled' in result) settled = true
+    if ('settled' in result) {
+      originalSettlement = undefined
+      settled = true
+    } else if (result.reason === 'write_unknown') originalSettlement = request
     return result
+  }
+  /** The coordinator rejects while an original unknown batch is still owned; keep it for retry. */
+  async function closeCoordinator(): Promise<boolean> {
+    try {
+      await coordinator.close()
+      return true
+    } catch {
+      diagnose('model_anchor.settlement_retained')
+      return false
+    }
   }
   const run = async (): Promise<AnchoredInvocationOutcome> => {
     try {
@@ -882,7 +885,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
         await drain()
         if (quarantined || unresolved.size > 0) return unavailable
         input.signal.removeEventListener('abort', stop)
-        await coordinator.close()
+        if (!(await closeCoordinator())) return unavailable
         if (!borrowedReleased) {
           await input.releaseBorrowed?.()
           borrowedReleased = true
@@ -907,11 +910,17 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
       const attempt = (async () => {
         await outcome
         await drain()
-        if (!settled && construction && !quarantined) await settleCandidate(null, true)
+        // A retained original request is settled again as itself, never replaced by close.
+        if (
+          !settled &&
+          (construction !== undefined || originalSettlement !== undefined) &&
+          !quarantined
+        )
+          await settleCandidate(null, true)
         input.signal.removeEventListener('abort', stop)
         if (quarantined || unresolved.size > 0 || (dispatchConfirmed && !settled))
           return unavailable
-        await coordinator.close()
+        if (!(await closeCoordinator())) return unavailable
         if (!borrowedReleased) {
           await input.releaseBorrowed?.()
           borrowedReleased = true

@@ -142,14 +142,18 @@ export type SettlementResult =
   | { readonly settled: SettlementComplete; readonly origin: 'appended' | 'recognized' }
   | { readonly unavailable: true; readonly reason: SettlementUnavailableReason }
 export interface SettlementHandle extends SettlementTask<SettlementResult> {}
-export type SettlementUnknownRecognition =
-  | { readonly settled: SettlementComplete }
-  | { readonly absent: true }
-  | { readonly unavailable: true }
 export interface SettlementCoordinator {
+  /**
+   * A handle that stops with an unknown append receipt keeps its registration and exact batch.
+   * A later settle for the same target resolves that original handle from a same-source full
+   * prefix and writes nothing itself: a complete batch is recognized; proven absence releases
+   * the original and returns `write_unknown`, after which another settle may submit again.
+   */
   readonly settle: (request: SettlementRequest) => SettlementHandle
-  /** The original registration remains owned until its stopped writer and full-prefix result are known. */
-  readonly recognizeUnknown: (handle: SettlementHandle) => Promise<SettlementUnknownRecognition>
-  /** Close admission/request stop. Promise completes only when actual owned tasks stop. */
+  /**
+   * Close admission, request stop and actively resolve retained unknown originals. Completes only
+   * when all owned tasks actually stopped and every registration was released; otherwise it
+   * rejects and the retained work stays owned for a later close.
+   */
   readonly close: () => Promise<void>
 }

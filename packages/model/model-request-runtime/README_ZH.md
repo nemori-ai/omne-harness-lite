@@ -737,18 +737,17 @@ export async function settleResponse(
   request: SettlementRequest,
 ) {
   const coordinator = createSettlementCoordinator(dependencies)
-  try {
-    const task = coordinator.settle(request)
-    const result = await task.completion
-    await task.stopped
-    return result
-  } finally {
-    await coordinator.close()
-  }
+  const task = coordinator.settle(request)
+  const result = await task.completion
+  await task.stopped
+  // An unknown original stays owned: keep this coordinator and settle the same request again.
+  if ('unavailable' in result && result.reason === 'write_unknown') return { result, coordinator }
+  await coordinator.close()
+  return { result }
 }
 ```
 
-`completion` 返回结算结果或不可用原因；`requestStop` 只请求取消，`stopped` 和 `close()` 等实际任务停止后才释放额度。旧任务仍在途时可认回已提交原批，但仍保留旧任务的真实 owner；unknown 后的一次缺席读取不允许重交。opened unknown 阻断普通响应。恢复后的缺席只能由原宿主在既有 S-33 时机、全部旧写方停止之后建立，本构件没有新增在线恢复 API。
+`completion` 返回结算结果或不可用原因；`requestStop` 只请求取消，`stopped` 表示该句柄的任务已实际停止。追加回执未知的句柄停止后仍保留其登记、原批和追加条件。之后同一目标的 `settle` 会从同源完整前缀解决这个原句柄，本身不写入：读到完整批返回 `recognized` 并只释放该登记；证实缺席同样释放该登记但返回 `write_unknown`，之后的 `settle` 才可重新提交。前缀不可读时继续保留。`close()` 停止在途工作并主动尝试同一认回，只要仍有登记未释放就以 `Settlement work remains owned` 拒绝；在同一协调器上重试。实际停止被拒绝时在 `stopped` 上可见，并继续保留登记。opened unknown 阻断普通响应。本构件不新增独立恢复 API。
 
 示例接收实际宿主依赖与完整 MR7 响应，不注册服务。十三方法已组合；官方模型认证、生产 G28 来源、合法宿主读权接线及全部写方来源仍需各自证据。采用依据：[D087/v4 投影](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md)、[v8 当前 codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v8-current-codec-design.md)。
 

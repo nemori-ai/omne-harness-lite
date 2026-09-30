@@ -42,27 +42,24 @@ import { controlled, deferred, noWaitScheduler, policy, request } from './settle
 import { selectionHost } from './session-selection-fixture.ts'
 import { unavailableReferencePorts } from './reference-ports-fixture.ts'
 
+/** Like the anchored handle, a repeat settles the same original request; the coordinator
+ * resolves its retained unknown handle before any new submission. */
 function originalInvocation(
-  coordinator: Pick<ReturnType<typeof createSettlementCoordinator>, 'settle' | 'recognizeUnknown'>,
+  coordinator: Pick<ReturnType<typeof createSettlementCoordinator>, 'settle'>,
 ) {
-  let held: ReturnType<typeof coordinator.settle> | undefined
+  let original: Parameters<typeof coordinator.settle>[0] | undefined
   return {
     async settleReply(disposition: SettleReplyInput['disposition']) {
-      if (held !== undefined) {
-        const recognized = await coordinator.recognizeUnknown(held)
-        if ('unavailable' in recognized) return { unavailable: true, reason: 'write_unknown' }
-        held = undefined
-        if ('settled' in recognized) return { settled: recognized.settled, origin: 'recognized' }
-      }
       const candidate = { ...pending(), replyDisposition: disposition }
-      const task = coordinator.settle({
+      const request = original ?? {
         target: { call: 'call', dispatch: candidate.dispatch, response: candidate.id },
         current: { messageId: candidate.reply.id, disposition },
         response: candidate,
-      })
+      }
+      const task = coordinator.settle(request)
       const result = await task.completion
       await task.stopped
-      if ('unavailable' in result && result.reason === 'write_unknown') held = task
+      original = 'unavailable' in result && result.reason === 'write_unknown' ? request : undefined
       return result
     },
   } as Parameters<typeof settlePendingReply>[0]['invocation']
@@ -294,6 +291,9 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
             invocation: originalInvocation(coordinator),
           }),
         ).toEqual({ unavailable: true })
+        // The original stopped writer keeps its registration until recognized.
+        expect(owner.active).toBe(1)
+        expect(owner.releases).toBe(0)
         expect(
           await settlePendingReply({
             request: vetoed,
@@ -301,6 +301,8 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
             invocation: originalInvocation(coordinator),
           }),
         ).toEqual({ callId: 'call', state: 'complete' })
+        expect(owner.active).toBe(0)
+        expect(owner.releases).toBe(1)
         expect(submissions.map(item => item.count)).toEqual([2, 1])
       } finally {
         await coordinator.close()

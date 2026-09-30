@@ -50,7 +50,7 @@ import type {
   SettlementTask,
   SettlementLogBinding,
   SettlementOwner,
-  SettlementHandle,
+  SettlementRequest,
 } from './settlement-types.ts'
 
 interface RecoveryRead {
@@ -58,12 +58,14 @@ interface RecoveryRead {
   readonly tasks: Set<SettlementTask<unknown>>
 }
 
+/** A cold ready reply whose original final batch may have been written. */
 interface DurableReplySettlement {
   readonly key: string
-  readonly request: SettleReplyInput
-  readonly pending: PendingModelResponse
+  /** The exact original request; later callers never replace it with another disposition. */
+  readonly settlement: SettlementRequest
+  readonly disposition: SettleReplyInput['disposition']
+  readonly state: 'complete' | 'interrupted'
   readonly coordinator: ReturnType<typeof createSettlementCoordinator>
-  task: SettlementHandle | undefined
   processing: boolean
 }
 
@@ -80,6 +82,11 @@ interface RecoveryEntry {
   readonly unknownControl: UnknownAppendTracker
   readonly pendingControl: Set<CallKey['callId']>
   readonly controlTasks: Set<SettlementTask<AppendResult>>
+  /**
+   * S-86: a recovery batch whose append may have been written. A later reconcile settles this
+   * exact request again instead of constructing another interruption with a new end time.
+   */
+  readonly originals: Map<string, SettlementRequest>
   entered?: Promise<Awaited<ReturnType<RuntimeRecoveryAccess['enter']>>>
   scope?: RuntimeRecoveryScope
   active: Promise<ReconcileResult> | undefined
@@ -222,79 +229,65 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
             )
               return { unavailable: true } as const
             const key = keyOf(request)
-            const held = entries.get(key)
-            if (held !== undefined) {
-              if (held.processing || held.task === undefined) return { unavailable: true } as const
-              const recognized = await held.coordinator.recognizeUnknown(held.task)
-              if ('unavailable' in recognized) return { unavailable: true } as const
+            let entry = entries.get(key)
+            if (entry === undefined) {
+              if (fact.view.result?.disposition !== 'disposition_pending')
+                return { unavailable: true } as const
+              const pending = fact.view.result.pending
+              const final = { ...pending, replyDisposition: request.disposition }
+              if ('rejected' in judgeResponseFinalization(pending, final))
+                return { unavailable: true } as const
+              entry = {
+                key,
+                settlement: {
+                  target: {
+                    call: request.callId,
+                    dispatch: pending.dispatch,
+                    response: pending.id,
+                  },
+                  current: { messageId: pending.reply.id, disposition: request.disposition },
+                  response: final,
+                },
+                disposition: request.disposition,
+                state: pending.outcome === 'interrupted' ? 'interrupted' : 'complete',
+                coordinator: createSettlementCoordinator({
+                  binding: session.log,
+                  owner: session.selection.owner,
+                  ...(input.run === undefined ? {} : { run: input.run }),
+                  settlementContention: input.contention,
+                  settlementScheduler: input.scheduler,
+                  diagnostic: input.diagnostic,
+                }),
+                processing: false,
+              }
+              entries.set(key, entry)
+            }
+            if (entry.processing) return { unavailable: true } as const
+            entry.processing = true
+            try {
+              // The same coordinator resolves a retained original before any new submission.
+              const task = entry.coordinator.settle(entry.settlement)
+              const result = await task.completion
+              task.requestStop()
               try {
-                await held.coordinator.close()
+                await task.stopped
               } catch {
                 return { unavailable: true } as const
               }
-              entries.delete(key)
-              if ('settled' in recognized) {
-                if (
-                  recognized.settled.disposition === 'firstWinner' ||
-                  !modelLogJsonEqual(held.request.disposition, request.disposition)
-                )
-                  return { alreadyEnded: true } as const
-                return {
-                  callId: request.callId,
-                  state: held.pending.outcome === 'interrupted' ? 'interrupted' : 'complete',
-                } as const
-              }
-              if (!modelLogJsonEqual(held.request.disposition, request.disposition))
-                return { unavailable: true } as const
-            }
-            if (fact.view.result?.disposition !== 'disposition_pending')
-              return { unavailable: true } as const
-            const pending = fact.view.result.pending
-            const final = { ...pending, replyDisposition: request.disposition }
-            if ('rejected' in judgeResponseFinalization(pending, final))
-              return { unavailable: true } as const
-            const coordinator = createSettlementCoordinator({
-              binding: session.log,
-              owner: session.selection.owner,
-              ...(input.run === undefined ? {} : { run: input.run }),
-              settlementContention: input.contention,
-              settlementScheduler: input.scheduler,
-              diagnostic: input.diagnostic,
-            })
-            const entry: DurableReplySettlement = {
-              key,
-              request,
-              pending,
-              coordinator,
-              task: undefined,
-              processing: true,
-            }
-            entries.set(key, entry)
-            try {
-              const task = coordinator.settle({
-                target: { call: request.callId, dispatch: pending.dispatch, response: pending.id },
-                current: { messageId: pending.reply.id, disposition: request.disposition },
-                response: final,
-              })
-              entry.task = task
-              const result = await task.completion
-              task.requestStop()
-              await task.stopped
               if (!('settled' in result)) {
-                if (result.reason !== 'write_unknown') {
-                  await coordinator.close()
+                // Keep the owner while an original batch may exist; otherwise nothing is owned.
+                if (result.reason !== 'write_unknown' && (await closeEntry(entry)))
                   entries.delete(key)
-                }
                 return { unavailable: true } as const
               }
-              await coordinator.close()
+              if (!(await closeEntry(entry))) return { unavailable: true } as const
               entries.delete(key)
-              if (result.settled.disposition === 'firstWinner')
+              if (
+                result.settled.disposition === 'firstWinner' ||
+                !modelLogJsonEqual(entry.disposition, request.disposition)
+              )
                 return { alreadyEnded: true } as const
-              return {
-                callId: request.callId,
-                state: pending.outcome === 'interrupted' ? 'interrupted' : 'complete',
-              } as const
+              return { callId: request.callId, state: entry.state } as const
             } catch {
               return { unavailable: true } as const
             } finally {
@@ -315,29 +308,28 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
     }
   }
 
+  async function closeEntry(entry: DurableReplySettlement): Promise<boolean> {
+    try {
+      await entry.coordinator.close()
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /** Actively stops and resolves each retained original; unresolved work keeps close unavailable. */
   async function close(): Promise<{ readonly released: true } | { readonly unavailable: true }> {
     closed = true
-    for (const entry of entries.values()) {
-      try {
-        entry.task?.requestStop()
-      } catch {
-        // Actual stopped and original-batch recognition remain authoritative.
-      }
-    }
-    for (const entry of [...entries.values()]) {
-      if (entry.task === undefined) continue
-      const stopped = await Promise.allSettled([entry.task.stopped])
-      if (stopped[0]?.status === 'rejected' || entry.processing) continue
-      const recognized = await entry.coordinator.recognizeUnknown(entry.task)
-      if ('unavailable' in recognized) continue
-      try {
-        await entry.coordinator.close()
+    const outcomes = await Promise.all(
+      [...entries.values()].map(async entry => {
+        if (entry.processing || !(await closeEntry(entry))) return false
         entries.delete(entry.key)
-      } catch {
-        // Keep the original owner visible for a later close attempt.
-      }
-    }
-    return entries.size === 0 ? { released: true } : { unavailable: true }
+        return true
+      }),
+    )
+    return outcomes.every(Boolean) && entries.size === 0
+      ? { released: true }
+      : { unavailable: true }
   }
 
   return Object.freeze({ settleReply, close })
@@ -518,16 +510,7 @@ export function createRuntimeReconcile(input: {
       try {
         settlement.task?.requestStop()
         if (settlement.task !== undefined) await settlement.task.stopped
-        if (settlement.task !== undefined) {
-          const result = await settlement.task.completion
-          if ('unavailable' in result && result.reason === 'write_unknown') {
-            const recognized = await settlement.coordinator.recognizeUnknown(settlement.task)
-            if ('unavailable' in recognized) {
-              safe = false
-              continue
-            }
-          }
-        }
+        // close actively resolves a retained unknown original or rejects while it stays owned.
         await settlement.coordinator.close()
       } catch {
         safe = false
@@ -606,6 +589,7 @@ export function createRuntimeReconcile(input: {
             unknownControl: new UnknownAppendTracker(),
             pendingControl: new Set(),
             controlTasks: new Set(),
+            originals: new Map(),
             active: undefined,
             releasing: undefined,
             exitAttempted: false,
@@ -944,21 +928,34 @@ async function readRecoveredCalls(
         ...(dispatchedPosition === undefined ? {} : { dispatchedPosition }),
         ...(openedPosition === undefined ? {} : { openedPosition }),
       })
-      const originalFacts =
-        observed === null
-          ? ({ observed: null, sendState: 'send_unknown' } as const)
-          : ({ observed: observed.facts } as const)
-      const candidate = constructAnchoredInterruption({
-        dispatched: last.record,
-        ...(last.dispatched.run === undefined
-          ? {}
-          : { run: last.dispatched.run, attempt: last.dispatched.attempt }),
-        ...originalFacts,
-        firstTokenAt: firstTokenAt === null ? null : firstTokenAt.firstTokenAt,
-        endedAt: input.now(),
-        initiator: history.known.intent?.initiator ?? 'runtime_lost',
-      })
-      if ('rejected' in candidate) return { unavailable: true }
+      const originalKey = JSON.stringify([
+        target.call,
+        ExactDecimal.from(target.dispatch).toString(),
+        target.response,
+      ])
+      let original = entry.originals.get(originalKey)
+      if (original === undefined) {
+        const originalFacts =
+          observed === null
+            ? ({ observed: null, sendState: 'send_unknown' } as const)
+            : ({ observed: observed.facts } as const)
+        const candidate = constructAnchoredInterruption({
+          dispatched: last.record,
+          ...(last.dispatched.run === undefined
+            ? {}
+            : { run: last.dispatched.run, attempt: last.dispatched.attempt }),
+          ...originalFacts,
+          firstTokenAt: firstTokenAt === null ? null : firstTokenAt.firstTokenAt,
+          endedAt: input.now(),
+          initiator: history.known.intent?.initiator ?? 'runtime_lost',
+        })
+        if ('rejected' in candidate) return { unavailable: true }
+        original = {
+          target,
+          current: { messageId: null, disposition: null },
+          response: candidate.response,
+        }
+      }
       const coordinator = createSettlementCoordinator({
         binding,
         owner: scope.owner,
@@ -971,15 +968,14 @@ async function readRecoveredCalls(
       entry.settlements.add(held)
       try {
         if (closed()) return { unavailable: true }
-        const task = coordinator.settle({
-          target,
-          current: { messageId: null, disposition: null },
-          response: candidate.response,
-        })
+        const task = coordinator.settle(original)
         held.task = task
         const settled = await task.completion
+        if ('unavailable' in settled && settled.reason === 'write_unknown')
+          entry.originals.set(originalKey, original)
         await task.stopped
         if (!('settled' in settled)) return { unavailable: true }
+        entry.originals.delete(originalKey)
       } catch {
         return { unavailable: true }
       }

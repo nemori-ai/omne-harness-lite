@@ -758,18 +758,17 @@ export async function settleResponse(
   request: SettlementRequest,
 ) {
   const coordinator = createSettlementCoordinator(dependencies)
-  try {
-    const task = coordinator.settle(request)
-    const result = await task.completion
-    await task.stopped
-    return result
-  } finally {
-    await coordinator.close()
-  }
+  const task = coordinator.settle(request)
+  const result = await task.completion
+  await task.stopped
+  // An unknown original stays owned: keep this coordinator and settle the same request again.
+  if ('unavailable' in result && result.reason === 'write_unknown') return { result, coordinator }
+  await coordinator.close()
+  return { result }
 }
 ```
 
-`completion` reports settlement or an unavailable reason. `requestStop` requests cancellation; `stopped` and `close()` wait for actual owned tasks and permit release. A committed batch can be recognized while an old task is still live; that task keeps its original owner. An absent read never permits resubmission after an unknown receipt. Opened unknown blocks ordinary responses. Recovered absence must be established by the original host at the existing S-33 recovery boundary, after all old writers stop; this component adds no online recovery API.
+`completion` reports settlement or an unavailable reason. `requestStop` requests cancellation; `stopped` means the handle's tasks actually stopped. A handle whose append receipt is unknown keeps its registration, exact batch and append condition after it stops. The next `settle` for the same target resolves that original handle from a same-source complete prefix and writes nothing itself: a complete batch returns `recognized` and releases exactly that registration; proven absence also releases it but returns `write_unknown`, and only a later `settle` may submit again. An unreadable prefix keeps it owned. `close()` stops live work, actively tries the same resolution, and rejects with `Settlement work remains owned` while any registration is still held; retry it on the same coordinator. A rejected actual stop is surfaced on `stopped` and keeps its registration. Opened unknown blocks ordinary responses. This adds no separate recovery API.
 
 The example takes actual host dependencies and a complete MR7 response, without installing a service. The thirteen methods are composed; official model certification, production G28 source, lawful host read wiring and all-writer provenance still require their own evidence. Adoption: [D087/v4 projection](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v4-design.md), [v8 current codec](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v8-current-codec-design.md).
 

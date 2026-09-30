@@ -553,10 +553,19 @@ describe('A1b noRun actual JSONL + SQL identity mapping + production invokeModel
       const outcome = await handle.outcome
       if (!('replyPending' in outcome)) throw new Error('reply')
       expect(await handle.settleReply('persisted')).toHaveProperty('unavailable')
-      expect(await handle.close()).toEqual({ unavailable: true })
+      // The stopped writer with an unknown receipt keeps its coordinator registration.
+      expect(h.owner.active).toBe(1)
+      // The first close resolves that original from the full prefix: proven absent, no write.
       expect(await handle.close()).toEqual({ unavailable: true })
       expect(h.writes.map(w => w.count)).toEqual([1, 1, 2])
+      expect(h.owner.active).toBe(0)
       expect(h.released()).toBe(0)
+      // RT11 S-86 / v20: only then is the same original [M,R] batch resent. Close never
+      // substitutes its own no-reply candidate for the retained persisted request.
+      expect(await handle.close()).toEqual({ released: true })
+      expect(h.writes.map(w => w.count)).toEqual([1, 1, 2, 2])
+      expect(h.writes[3]?.entries).toEqual(h.writes[2]?.entries)
+      expect(h.released()).toBe(1)
       expect(outcome.replyPending.reply.id).toBe('anchored-message')
     })
   })
@@ -1291,7 +1300,9 @@ describe('v17 conditional Run anchored invocation', () => {
       expect(wire.sends()).toBe(1)
       expect(await handle.settleReply('persisted')).toMatchObject({ unavailable: true })
       expect(await handle.close()).toEqual({ unavailable: true })
-      expect(h.owner.active).toBe(0)
+      // The stopped opened writer's receipt is unknown; only S-33 recovery may resolve it, so
+      // its registration stays owned instead of being released as if the write were settled.
+      expect(h.owner.active).toBe(1)
       expect(h.released()).toBe(0)
       const read = await h.log.readSince(h.input.settlement.binding.session, 0)
       if (!('entries' in read)) throw new Error('Run prefix unreadable')

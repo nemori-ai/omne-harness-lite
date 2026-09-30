@@ -31,44 +31,188 @@ function noReply(): JsonObject {
 }
 describe('A1a actual SQL/SL3 coordinator; controlled all-writer scope', () => {
   it.each([true, false])(
-    'retains an unknown original append until actual stop and full-prefix %s recognition',
+    'retains the original unknown append until actual stop and full-prefix %s recognition',
     async committed => {
-      await controlled(`unknown-retained-${committed}`, async ({ binding, owner, wrap }) => {
-        let unreadable = false
-        const uncertain: SessionLog = {
-          ...binding.log,
-          async readSince(...args) {
-            return unreadable ? { failure: 'unavailable' } : await binding.log.readSince(...args)
-          },
-          async append(...args) {
-            if (committed) await binding.log.append(...args)
-            return { failure: 'unavailable' }
-          },
-        }
-        const coordinator = createSettlementCoordinator({
-          binding: wrap(uncertain),
-          owner,
-          settlementContention: policy(),
-          settlementScheduler: noWaitScheduler,
-          diagnostic() {},
-        })
-        const handle = coordinator.settle(request)
-        expect(await handle.completion).toMatchObject({ reason: 'write_unknown' })
-        await handle.stopped
-        expect(owner.active).toBe(1)
-        unreadable = true
-        expect(await coordinator.recognizeUnknown(handle)).toEqual({ unavailable: true })
-        await expect(coordinator.close()).rejects.toThrow('Settlement work remains owned')
-        expect(owner.active).toBe(1)
-        unreadable = false
-        const recognized = await coordinator.recognizeUnknown(handle)
-        if (committed) expect(recognized).toHaveProperty('settled')
-        else expect(recognized).toEqual({ absent: true })
-        expect(owner.active).toBe(0)
-        await coordinator.close()
-      })
+      await controlled(
+        `unknown-retained-${committed}`,
+        async ({ binding, owner, wrap, submissions }) => {
+          let unreadable = false
+          let tries = 0
+          const uncertain: SessionLog = {
+            ...binding.log,
+            async readSince(...args) {
+              return unreadable ? { failure: 'unavailable' } : await binding.log.readSince(...args)
+            },
+            async append(...args) {
+              tries++
+              if (committed) await binding.log.append(...args)
+              return { failure: 'unavailable' }
+            },
+          }
+          const coordinator = createSettlementCoordinator({
+            binding: wrap(uncertain),
+            owner,
+            settlementContention: policy(),
+            settlementScheduler: noWaitScheduler,
+            diagnostic() {},
+          })
+          const handle = coordinator.settle(request)
+          expect(await handle.completion).toMatchObject({ reason: 'write_unknown' })
+          await handle.stopped
+          expect(owner.active).toBe(1)
+          expect(owner.releases).toBe(0)
+          // Unreadable recovery: the repeat writes nothing and the original stays owned.
+          unreadable = true
+          const blocked = coordinator.settle(request)
+          expect(await blocked.completion).toEqual({ unavailable: true, reason: 'write_unknown' })
+          await blocked.stopped
+          expect(owner.active).toBe(1)
+          await expect(coordinator.close()).rejects.toThrow('Settlement work remains owned')
+          expect(owner.active).toBe(1)
+          expect(owner.releases).toBe(0)
+          // A later close retries the same original; closed admission does not drop it.
+          unreadable = false
+          await coordinator.close()
+          expect(owner.active).toBe(0)
+          expect(owner.releases).toBe(1)
+          expect(tries).toBe(1)
+          const prefix = await binding.log.readSince(binding.session, 0)
+          if (!('entries' in prefix)) throw new Error('readback')
+          expect(prefix.entries).toHaveLength(committed ? 4 : 2)
+          expect(submissions.map(item => item.count)).toEqual(committed ? [2, 2] : [2])
+        },
+      )
     },
   )
+
+  it('actual absent receipt releases only the original, then a later settle submits once', async () => {
+    await controlled('absent-then-submit', async ({ binding, owner, wrap, submissions }) => {
+      let lose = true
+      const uncertain: SessionLog = {
+        ...binding.log,
+        async append(...args) {
+          if (lose) return { failure: 'unavailable' }
+          return await binding.log.append(...args)
+        },
+      }
+      const coordinator = createSettlementCoordinator({
+        binding: wrap(uncertain),
+        owner,
+        settlementContention: policy(),
+        settlementScheduler: noWaitScheduler,
+        diagnostic() {},
+      })
+      const first = coordinator.settle(request)
+      expect(await first.completion).toMatchObject({ reason: 'write_unknown' })
+      await first.stopped
+      // Another owner user holds its own registration throughout.
+      const other = owner.acquire(3)
+      if (!('registration' in other)) throw new Error('other registration')
+      expect(owner.active).toBe(2)
+      lose = false
+      const recognition = coordinator.settle(request)
+      expect(await recognition.completion).toEqual({ unavailable: true, reason: 'write_unknown' })
+      await recognition.stopped
+      expect(owner.active).toBe(1)
+      expect(owner.releases).toBe(1)
+      expect(submissions.map(item => item.count)).toEqual([2])
+      const resubmitted = coordinator.settle(request)
+      expect(await resubmitted.completion).toMatchObject({ origin: 'appended' })
+      await resubmitted.stopped
+      expect(submissions.map(item => item.count)).toEqual([2, 2])
+      other.registration.release()
+      expect(owner.active).toBe(0)
+      await coordinator.close()
+    })
+  })
+
+  it('a delayed actual stop keeps the original owned and close waits for it', async () => {
+    await controlled('delayed-stop', async ({ binding, owner, wrap, submissions }) => {
+      const barrier = deferred<void>()
+      const uncertain: SessionLog = {
+        ...binding.log,
+        async append(...args) {
+          await binding.log.append(...args)
+          return { failure: 'unavailable' }
+        },
+      }
+      const coordinator = createSettlementCoordinator({
+        binding: wrap(uncertain),
+        owner,
+        settlementContention: policy(),
+        settlementScheduler: noWaitScheduler,
+        diagnostic() {},
+      })
+      owner.stopBarrier = barrier.promise
+      const first = coordinator.settle(request)
+      expect(await first.completion).toMatchObject({ reason: 'write_unknown' })
+      let firstStopped = false
+      void first.stopped.then(() => {
+        firstStopped = true
+      })
+      let closed = false
+      const closing = coordinator.close().then(() => {
+        closed = true
+      })
+      for (let tick = 0; tick < 20; tick++) await Promise.resolve()
+      expect(firstStopped).toBe(false)
+      expect(closed).toBe(false)
+      expect(owner.releases).toBe(0)
+      expect(owner.active).toBe(1)
+      barrier.resolve()
+      await closing
+      expect(firstStopped).toBe(true)
+      expect(owner.active).toBe(0)
+      expect(owner.releases).toBe(1)
+      expect(submissions.map(item => item.count)).toEqual([2, 2])
+    })
+  })
+
+  it('a rejected actual stop is surfaced without unhandled rejection or an endless close', async () => {
+    await controlled('stop-rejected', async ({ binding, owner }) => {
+      const rejecting: SettlementOwner = {
+        name: owner.name,
+        admission: owner.admission,
+        opened: owner.opened,
+        unresolvedWrites: owner.unresolvedWrites,
+        acquire(limit: JsonNumber) {
+          const granted = owner.acquire(limit)
+          if ('unavailable' in granted) return granted
+          return {
+            registration: {
+              start<T>(
+                kind: Parameters<typeof granted.registration.start>[0],
+                operation: (signal: AbortSignal) => Promise<T>,
+              ): SettlementTask<T> {
+                const task = granted.registration.start(kind, operation)
+                if (kind !== 'append') return task
+                const stopped = task.stopped.then(() => {
+                  throw new Error('writer stop unconfirmed')
+                })
+                return { completion: task.completion, requestStop: task.requestStop, stopped }
+              },
+              release: granted.registration.release,
+            },
+          }
+        },
+      }
+      const coordinator = createSettlementCoordinator({
+        binding,
+        owner: rejecting,
+        settlementContention: policy(),
+        settlementScheduler: noWaitScheduler,
+        diagnostic() {},
+      })
+      const handle = coordinator.settle(request)
+      expect(await handle.completion).toHaveProperty('settled')
+      await expect(handle.stopped).rejects.toThrow('writer stop unconfirmed')
+      await expect(coordinator.close()).rejects.toThrow('Settlement work remains owned')
+      await expect(coordinator.close()).rejects.toThrow('Settlement work remains owned')
+      // The unproven writer's registration is never released.
+      expect(owner.active).toBe(1)
+      expect(owner.releases).toBe(0)
+    })
+  })
 
   it('requests actual stop after successful completion before releasing the registration', async () => {
     await controlled('completion-needs-stop', async ({ binding, owner }) => {
