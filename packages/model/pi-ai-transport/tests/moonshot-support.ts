@@ -1,4 +1,4 @@
-// Shared fixtures for the current official Moonshot bindings (definition 2 / mp4-17).
+// Shared fixtures for the current official Moonshot bindings (definition 3 / mp4-18).
 // Upstream responses built from these are controlled local TLS stand-ins only.
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import type { Message } from '@omne-harness-lite/messages'

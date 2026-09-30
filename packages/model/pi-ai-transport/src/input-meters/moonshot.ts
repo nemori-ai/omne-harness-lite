@@ -11,7 +11,9 @@ import {
 import type { ModelDefinition } from '../definitions.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { object } from '../json.ts'
+import { moonshotDefinitions } from '../official-models/moonshot.ts'
 import { countSegments, moonshotTokenizer } from './moonshot-tokenizer.ts'
+import { guardInputMeter, visibleReasoningDetailText } from './shared.ts'
 import { imageSize } from 'image-size'
 
 type Segment = { readonly text: string; readonly control: boolean }
@@ -212,7 +214,7 @@ function messages(body: JsonObject): readonly JsonObject[] | undefined {
       item.content.some(part => object(part) && part.type === 'image_url')
     )
       return undefined
-    // The public templates do not explain opaque provider reasoning details.
+    // Raw details reach here only unprojected; the public templates do not explain them.
     if (item.reasoning_details !== undefined) return undefined
     if (
       Object.keys(item).some(
@@ -523,6 +525,38 @@ export function renderMoonshotPromptSegments(
   return route === 'k3' ? renderK3(body, history, schemas) : renderK27(history, schemas)
 }
 
+// Encrypted reasoning streamed as the literal placeholder; never visible text.
+const redactedReasoning = '[REDACTED]'
+
+/**
+ * Meter-only copy of the actual body. An assistant's one visible `reasoning.text` detail
+ * (shared shape) whose text is not `[REDACTED]`, and whose parallel `reasoning` /
+ * `reasoning_content` are absent or the identical string, is placed in the template's
+ * reasoning slot exactly once: the details are removed and a missing `reasoning` becomes
+ * that text. Any other `reasoning_details` is unexplained: undefined, never a JSON-length
+ * proxy. The OpenRouter conversion of details for this route is unknown, so the result
+ * remains an estimate. The original body, serialized bytes and wire are not changed.
+ */
+export function projectMoonshotMeterBody(body: JsonObject): JsonObject | undefined {
+  if (!Array.isArray(body.messages)) return undefined
+  const projected: JsonValue[] = []
+  for (const message of body.messages) {
+    if (!object(message) || !Object.hasOwn(message, 'reasoning_details')) {
+      projected.push(message)
+      continue
+    }
+    const text = visibleReasoningDetailText(message)
+    if (text === undefined || text === redactedReasoning) return undefined
+    for (const parallel of ['reasoning', 'reasoning_content'])
+      if (Object.hasOwn(message, parallel) && message[parallel] !== text) return undefined
+    const rest = Object.fromEntries(
+      Object.entries(message).filter(([name]) => name !== 'reasoning_details'),
+    )
+    projected.push(Object.hasOwn(rest, 'reasoning') ? rest : { ...rest, reasoning: text })
+  }
+  return { ...body, messages: projected }
+}
+
 function meter(
   route: Route,
   definition: ModelDefinition,
@@ -530,22 +564,30 @@ function meter(
   source: string,
 ): InputMeter {
   const tokenizer = moonshotTokenizer(route)
-  return defineInputMeter({
+  const raw = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider,
-    algorithmRevision: route === 'k3' ? 'moonshot-k3-xtml-image-4' : 'moonshot-k27-jinja-image-3',
-    evidence: `moonshotai/${source}; tiktoken.model sha256:b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103; image processor/config ${route === 'k3' ? 'd122b30b/4be33360' : '498e2075/bd9a1f5d'}`,
+    algorithmRevision: route === 'k3' ? 'moonshot-k3-xtml-image-5' : 'moonshot-k27-jinja-image-4',
+    // Vocabulary and image processor are unchanged; only the projected domain grew.
+    tokenizerRevision:
+      route === 'k3'
+        ? 'tokenizer-basis/moonshot-k3-xtml-image-4'
+        : 'tokenizer-basis/moonshot-k27-jinja-image-3',
+    evidence: `moonshotai/${source}; tiktoken.model sha256:b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103; image processor/config ${route === 'k3' ? 'd122b30b/4be33360' : '498e2075/bd9a1f5d'}; visible reasoning.text details projected into the template reasoning slot, OpenRouter details conversion unknown, no holdout`,
     measureFull({
       body,
       serialized,
     }: Readonly<{ body: JsonObject; serialized: string }>): TokenMeasurement {
       if (body.model !== definition.modelId || writeJsonLossless(body) !== serialized)
         return unavailable
-      const rendered = renderMoonshotPromptSegments(route, body)
+      // Rendering and image counting read the same meter-only copy.
+      const projected = projectMoonshotMeterBody(body)
+      if (!projected) return unavailable
+      const rendered = renderMoonshotPromptSegments(route, projected)
       if (!rendered) return unavailable
-      const history = messages(body)
+      const history = messages(projected)
       if (!history) return unavailable
       const patches = mediaTokens(route, history)
       if (patches === undefined) return unavailable
@@ -554,14 +596,17 @@ function meter(
       return { kind: 'estimated', tokens: countSegments(tokenizer, rendered) + patches }
     },
   })
+  return guardInputMeter(raw)
 }
 
 /** The two pinned routes deliberately share a vocabulary, not a prompt template. */
 export function createMoonshotInputMeter(definition: ModelDefinition): InputMeter {
+  const current = moonshotDefinitions.find(value => value.modelId === definition.modelId)
   if (
-    definition.revision !== '2' ||
-    definition.implementation.name !== 'pi-ai:moonshot' ||
-    definition.implementation.revision !== 'mp4-17'
+    !current ||
+    definition.revision !== current.revision ||
+    definition.implementation.name !== current.implementation.name ||
+    definition.implementation.revision !== current.implementation.revision
   )
     throw new TypeError('unsupported Moonshot input-meter binding')
   if (

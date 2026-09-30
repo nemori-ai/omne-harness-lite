@@ -170,7 +170,13 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
       }
       const meter = createMoonshotInputMeter(definition)
       expect(meter.algorithmRevision).toBe(
-        index === 0 ? 'moonshot-k3-xtml-image-4' : 'moonshot-k27-jinja-image-3',
+        index === 0 ? 'moonshot-k3-xtml-image-5' : 'moonshot-k27-jinja-image-4',
+      )
+      // The vocabulary and image processor did not change with the visible-details domain.
+      expect(meter.tokenizerRevision).toBe(
+        index === 0
+          ? 'tokenizer-basis/moonshot-k3-xtml-image-4'
+          : 'tokenizer-basis/moonshot-k27-jinja-image-3',
       )
       expect(directFull(meter, { body, serialized: writeJsonLossless(body) })).toEqual({
         kind: 'estimated',
@@ -517,6 +523,14 @@ describe('Moonshot pinned public tokenizers and route templates', () => {
     const selected = moonshotDefinitions[0]
     if (!selected) throw new Error('missing Moonshot definition')
     expect(() => createMoonshotInputMeter({ ...selected, revision: '1' })).toThrow(TypeError)
+    // The immediately previous release (2 / mp4-17) has no factory any more.
+    expect(() =>
+      createMoonshotInputMeter({
+        ...selected,
+        revision: '2',
+        implementation: { ...selected.implementation, revision: 'mp4-17' },
+      }),
+    ).toThrow(TypeError)
     expect(() =>
       createMoonshotInputMeter({
         ...selected,

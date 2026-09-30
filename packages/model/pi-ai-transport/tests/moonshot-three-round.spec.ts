@@ -41,11 +41,11 @@ import {
   type MoonshotModel,
 } from './moonshot-support.ts'
 
-// Current official Moonshot bindings: definition revision 2, implementation mp4-17.
+// Current official Moonshot bindings: definition revision 3, implementation mp4-18.
 // Every upstream response is a controlled local TLS stand-in with plain `reasoning`
 // only; nothing here observes OpenRouter conversion, billing or cache retention.
 // The archived real-route shape (reasoning + reasoning_details) is covered separately
-// in moonshot-closeout-boundaries.spec.ts, where it is currently refused.
+// in moonshot-visible-reasoning-rounds.spec.ts, where it is estimated from the details.
 
 let cert: ReturnType<typeof certificate>
 let images: { png: Buffer; jpeg: Buffer; webp: Buffer }
@@ -310,7 +310,7 @@ const scenarios = moonshotModels.flatMap(model =>
   ),
 )
 
-describe('Moonshot three-round public invokeModel over local TLS (definition 2 / mp4-17)', () => {
+describe('Moonshot three-round public invokeModel over local TLS (definition 3 / mp4-18)', () => {
   it.each(scenarios)(
     '$model.modelId tools=$withTools serving=$servingProvider',
     async ({ model, withTools, servingProvider }) => {

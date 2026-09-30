@@ -47,7 +47,7 @@ import { createLocalTls } from './local-tls.ts'
 import { callDeployment, publication, rootBody, ROOT } from './model-request-support.ts'
 import { activateModelFixture, actor, ref } from './support.ts'
 
-// Official Moonshot bindings (definition 2 / mp4-17) through the actual acceptance
+// Official Moonshot bindings (definition 3 / mp4-18) through the actual acceptance
 // assembly: Cordis transport service, official model contribution, durable session log.
 // The upstream is a controlled local HTTPS stand-in; no OpenRouter fact is observed.
 const AT = '2026-09-30T00:00:00Z'
@@ -534,13 +534,34 @@ describe.each(models)('$model three rounds through the actual service assembly',
     }
   })
 
-  it('refuses replayed reasoning_details history before a second HTTP request', async () => {
-    const { meter } = tracked(createMoonshotInputMeter(definitionOf(entry)))
+  // The archived real-route stream carries each fragment as plain `reasoning` plus one
+  // identical `reasoning.text` detail; the details-only variant is counterexample 10 of
+  // the adopted visible-reasoning estimate. Both replay as details and are estimated.
+  const fragments = ['private ', 'reasoning']
+  const detail = (text: string) => [{ type: 'reasoning.text', text, format: 'unknown', index: 0 }]
+  it.each([
+    {
+      shape: 'archived real shape',
+      deltas: fragments.map(text => ({ reasoning: text, reasoning_details: detail(text) })),
+      thinking: 'private reasoning',
+    },
+    {
+      shape: 'details only',
+      deltas: fragments.map(text => ({ reasoning_details: detail(text) })),
+      thinking: '',
+    },
+  ])('$shape reasoning_details history: three rounds, full estimated', async variant => {
+    const original = createMoonshotInputMeter(definitionOf(entry))
+    const full: string[] = []
+    const meter: InputMeter = {
+      ...original,
+      measureFull(value) {
+        const result = original.measureFull(value)
+        full.push(result.kind)
+        return result
+      },
+    }
     const config = await moonshotConfig(entry, 'moonshot-service-details', meter)
-    // Entry shape of the archived real-route stream; no adopted Moonshot mapping yet.
-    const details = [
-      { type: 'reasoning.text', text: 'private reasoning', format: 'unknown', index: 0 },
-    ]
     const tls = await createLocalTls(
       join(dirname(config.databaseFile), 'tls'),
       async () => {},
@@ -548,7 +569,7 @@ describe.each(models)('$model three rounds through the actual service assembly',
       () => entry.model,
       undefined,
       SERVING,
-      details,
+      variant.deltas,
     )
     tls.setMode('reasoning')
     const app = createAcceptanceApplication(config, {
@@ -576,30 +597,41 @@ describe.each(models)('$model three rounds through the actual service assembly',
         })),
       ).toEqual({ stored: true })
       expect(await app.selectModel(who, session, entry.model)).toEqual({ selected: entry.model })
-      const first = await app.startServiceCall(who, session, {
-        user: user('moonshot-details-1'),
-        parameters: PARAMETERS,
-        host: host.host,
-      })
-      if (!('result' in first) || !('replyPending' in first.result))
-        throw new Error(JSON.stringify(first))
-      expect(await app.persistModelReply(who, session, first.result.replyPending)).toHaveProperty(
-        'settled',
-      )
-      const before = await app.readSessionLog(who, session)
-      if (!('entries' in before)) throw new Error('durable log unavailable')
-      const second = await app.startServiceCall(who, session, {
-        user: user('moonshot-details-2'),
-        parameters: PARAMETERS,
-        host: host.host,
-      })
-      expect('result' in second ? second.result : second).toMatchObject({
-        invalidInput: { reason: 'input_size_unavailable' },
-      })
-      expect(tls.requests).toHaveLength(1)
-      const after = await app.readSessionLog(who, session)
-      if (!('entries' in after)) throw new Error('durable log unavailable')
-      expect(after.entries.slice(0, before.entries.length)).toEqual(before.entries)
+      for (let round = 1; round <= 3; round++) {
+        const before = await app.readSessionLog(who, session)
+        if (!('entries' in before)) throw new Error('durable log unavailable')
+        const sent = await app.startServiceCall(who, session, {
+          user: user(`moonshot-details-${round}`),
+          parameters: PARAMETERS,
+          host: host.host,
+        })
+        if (!('result' in sent) || !('replyPending' in sent.result))
+          throw new Error(JSON.stringify(sent))
+        const thinking = sent.result.replyPending.reply.blocks.find(
+          block => block.kind === 'thinking',
+        )
+        expect(thinking).toMatchObject({ kind: 'thinking', text: variant.thinking })
+        expect(await app.persistModelReply(who, session, sent.result.replyPending)).toHaveProperty(
+          'settled',
+        )
+        // One HTTP request per round; the durable history is only appended to.
+        expect(tls.requests).toHaveLength(round)
+        const after = await app.readSessionLog(who, session)
+        if (!('entries' in after)) throw new Error('durable log unavailable')
+        expect(after.entries.slice(0, before.entries.length)).toEqual(before.entries)
+      }
+      // Two plans per round, every one a full estimate (R-A full-only).
+      expect(full).toEqual(Array(6).fill('estimated'))
+      expectRouteWire(tls, entry)
+      expectPrefixReplay(tls)
+      // The wire replays the reader-merged detail, never a meter-only `reasoning` string.
+      const merged = { reasoning_details: detail('private reasoning') }
+      expect(wireMessages(tls, 2).slice(-4)).toEqual([
+        { role: 'assistant', content: 'first second', ...merged },
+        { role: 'user', content: [{ type: 'text', text: 'Request moonshot-details-2' }] },
+        { role: 'assistant', content: 'first second', ...merged },
+        { role: 'user', content: [{ type: 'text', text: 'Request moonshot-details-3' }] },
+      ])
       expect(tls.failures).toEqual([])
     } finally {
       await host.stop()

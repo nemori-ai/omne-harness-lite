@@ -25,7 +25,8 @@ export async function createLocalTls(
   model: string | ((body: unknown) => string) = MODEL,
   finalUsageJson?: string,
   provider: string = 'DeepInfra',
-  reasoningDetails?: readonly unknown[],
+  /** Reasoning-mode deltas, one SSE frame each; default one `reasoning_content` frame. */
+  reasoningDeltas?: readonly Readonly<Record<string, unknown>>[],
 ) {
   await mkdir(directory, { mode: 0o700 })
   const key = join(directory, 'local-key.pem'),
@@ -98,9 +99,8 @@ export async function createLocalTls(
         return
       }
       if (mode === 'reasoning')
-        res.write(
-          `data: ${JSON.stringify({ choices: [{ delta: reasoningDetails === undefined ? { reasoning_content: 'private reasoning' } : { reasoning_details: reasoningDetails }, finish_reason: null }] })}\n\n`,
-        )
+        for (const delta of reasoningDeltas ?? [{ reasoning_content: 'private reasoning' }])
+          res.write(`data: ${JSON.stringify({ choices: [{ delta, finish_reason: null }] })}\n\n`)
       if (mode === 'usage_hold')
         res.write(
           `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: null }], usage: { prompt_tokens: 9, completion_tokens: 3, total_tokens: 12, prompt_tokens_details: { cached_tokens: 4, cache_write_tokens: 0 }, cost: 0.0000117 } })}\n\n`,

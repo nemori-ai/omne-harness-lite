@@ -25,7 +25,7 @@ import {
   type MoonshotModel,
 } from './moonshot-support.ts'
 
-// Current official bindings (definition 2 / mp4-17). Local fixtures only; no
+// Current official bindings (definition 3 / mp4-18). Local fixtures only; no
 // statement here is an OpenRouter or Moonshot upstream observation.
 const [k3, k27] = moonshotModels
 
@@ -221,18 +221,20 @@ describe('Moonshot inline image reference estimate', () => {
   )
 })
 
-describe('Moonshot opaque reasoning history is refused before HTTP', () => {
+describe('Moonshot replayed reasoning_details history: visible text estimated, opaque refused', () => {
   const shapes = [
     {
       label: 'encrypted reasoning_details',
       details: () => [{ type: 'reasoning.encrypted', data: 'OPAQUE', format: 'unknown', index: 0 }],
+      estimated: false,
     },
     {
       // The archived 2026-09-27 K3/K2.7 raw streams carry this exact entry shape beside
-      // every plain `reasoning` fragment. No adopted Moonshot mapping explains it yet,
-      // so the current meter refuses the replayed history (explicit gap, not a pass).
+      // every plain `reasoning` fragment. The adopted visible-reasoning estimate (revision
+      // 2) puts the merged text into the template reasoning slot: full estimated.
       label: 'archived real-route reasoning.text details',
       details: (text: string) => [{ type: 'reasoning.text', text, format: 'unknown', index: 0 }],
+      estimated: true,
     },
   ] as const
   it.each(moonshotModels.flatMap(model => shapes.map(shape => ({ model, shape }))))(
@@ -287,6 +289,7 @@ describe('Moonshot opaque reasoning history is refused before HTTP', () => {
           userTurn(2),
         ]
         const original = JSON.stringify(messages)
+        const planned = await plan({ ...first, messages }, model)
         const second = await invokeModel({
           ...first,
           messages,
@@ -295,18 +298,35 @@ describe('Moonshot opaque reasoning history is refused before HTTP', () => {
           signal: new AbortController().signal,
           policy: policy(),
         }).outcome
-        expect(second).toMatchObject({
-          rejected: 'invalidInput',
-          reason: 'input_size_unavailable',
-        })
-        expect(host.requests).toHaveLength(1)
         expect(JSON.stringify(messages)).toBe(original)
-        // The history itself is kept intact: the refused plan would replay the details.
-        const planned = await plan({ ...first, messages }, model)
-        expect(planned).toMatchObject({
-          rejected: 'invalidInput',
-          reason: 'input_size_unavailable',
+        if (!shape.estimated) {
+          expect(second).toMatchObject({
+            rejected: 'invalidInput',
+            reason: 'input_size_unavailable',
+          })
+          expect(host.requests).toHaveLength(1)
+          // The history itself is kept intact: the refused plan would replay the details.
+          expect(planned).toMatchObject({
+            rejected: 'invalidInput',
+            reason: 'input_size_unavailable',
+          })
+          return
+        }
+        if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+        expect(planned.planned.measurement).toMatchObject({
+          mode: 'full',
+          precision: 'estimated',
         })
+        if (!('outcome' in second) || second.outcome !== 'complete')
+          throw new Error(JSON.stringify(second))
+        expect(host.requests).toHaveLength(2)
+        // The wire replays the merged detail unchanged; only the meter copy used `reasoning`.
+        const sent = host.requests[1]?.body ?? ''
+        expect(sent).toBe(planned.planned.serialized)
+        expect(sent).toContain(
+          '"reasoning_details":[{"type":"reasoning.text","text":"Think 1.","format":"unknown","index":0}]',
+        )
+        expect(sent).not.toContain('"reasoning":"Think 1."')
       } finally {
         await transport.close()
         await host.close()

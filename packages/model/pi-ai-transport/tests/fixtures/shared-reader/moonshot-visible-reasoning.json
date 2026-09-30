@@ -1,0 +1,24 @@
+{
+  "moonshotai/kimi-k3": {
+    "definition": "3",
+    "implementation": {
+      "name": "pi-ai:moonshot",
+      "revision": "mp4-18"
+    },
+    "algorithm": "moonshot-k3-xtml-image-5",
+    "tokenizer": "tokenizer-basis/moonshot-k3-xtml-image-4",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  },
+  "moonshotai/kimi-k2.7-code": {
+    "definition": "3",
+    "implementation": {
+      "name": "pi-ai:moonshot",
+      "revision": "mp4-18"
+    },
+    "algorithm": "moonshot-k27-jinja-image-4",
+    "tokenizer": "tokenizer-basis/moonshot-k27-jinja-image-3",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  }
+}
