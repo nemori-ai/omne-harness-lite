@@ -319,6 +319,19 @@ UCT-V12 的官方配置不能换成禁用缓存或固定在旧位置的研究配
 
 同批对实现做了变异负控：去掉投影、放宽并行键逐字相同、去掉 `[REDACTED]` 排除、拆掉共同包装、图片计数改读原 body，各自使上述用例失败。演示装配 `examples/model-invocation-minimal-demo/tests/moonshot-three-round-service.spec.ts` 的 details 用例已改为真实形状与只发 details 两个变体（均期望估算），但在本 spoke 基线上整份演示装配因 `model-request-runtime` 要求 `callAccess`／`callPresence`／`callFacts` 而启动失败（与本改动无关，其他演示 spec 同样失败），该组合尚未实际通过。本节不关闭 MV4（真实回放与必做同路由对照，归 root 账本）、G1 上游转换、G2 真实回放或两叶 D7 认证。
 
+## 2026-09-30 xAI 身份映射本机覆盖
+
+对象：[xAI 提供者 revision 2](xai-complete-output-applicability-candidate.md) 守卫 4（[xAI 决定](../../../../record/decisions/model-input-usage-calibration-adoption/xai-family-decision.md)）在 `x-ai/grok-4.6`、`x-ai/grok-4.7` 的身份映射。映射取自[真实身份原件](../../../../../research/model-request-adaptation/vendor-continuation/xai/2026-09-30-identity-and-reasoning-format.md#2026-09-30-真实身份原件)：两款各一条真实第 1 轮原始 SSE，每帧 `provider: "xAI"`、`model` 等于对应精确模型 ID。实现只接纳这一精确对（逐字比较，不折叠大小写、不修剪、不按前缀），origin 与观测用量来源两处须一致；两者都缺席时照常接纳且不补填。共享校准的显示名例外表按同一原件加 `xai`↔`xAI` 一行，使同依据续轮复用 I 走 marginal。接纳存在身份改变计划出值（`input_size_unavailable` → estimated），按「改变家族行为升 implementation、不得同修订替函数」当前执行升为 definition 5／`pi-ai:xai@mp4-20`；algorithm、tokenizer、replay 与 definition 不变，`5/mp4-19` 只作保存来源行（full 可用其 O，I 不因实现修订不同而复用）。未发任何付费请求，原始运行输出未归档为 evidence run。
+
+| 义务 | 执行仓库用例 | 用例数 | 实际结果 |
+|---|---|---:|---|
+| 身份接纳与反例 | `tests/xai-output-history.spec.ts` | 26（新增 6） | 精确对：full 估算与无身份相同，下一轮 marginal 且回放贡献为原 O；`xai`、`XAI`、`x.ai`、首尾空格、`x-ai`、另一叶或大写/去前缀/加后缀的模型 ID、只有单个字段、origin 有而观测缺或反之，在 full 与 marginal 两种校准下均 `input_size_unavailable`；保存的 `5/mp4-19` 组为 full 且估算不变；工厂拒绝 `mp4-18`/`mp4-19` |
+| X5 两入口守卫 | `tests/xai-x5-local-replay.spec.ts`：{public，Cordis transport service} × 两叶 | 40（新增 24） | 带真实身份：第 2 轮计划 marginal、回放贡献等于原 O（37），第 2、3 轮发送字节等于计划，原 details 与密文各恰一次、工具 callId 原样配对；六种未采用身份（小写、`x.ai`、`xAI ` 带空格、另一叶模型、只带 provider、只带 model）第 2 轮 `input_size_unavailable`，零新增 HTTP；无身份与 `[REDACTED]` 原用例不变 |
+| 真实帧序三轮 | `tests/xai-identity-three-round.spec.ts`：两叶 × 有/无工具 × 两入口 | 8 | 每帧带真实身份字面值，summary 多片段、单个带 id 的 encrypted、工具片段、finish 帧、usage 帧；片段合并为 summary＋encrypted 两项；第 1 轮 full，第 2、3 轮 marginal 且回放贡献分别等于上一轮 O（104、91）；每轮恰一次 HTTP 且字节等于计划；之前各组原样重发、密文各一次 |
+| 受影响既有用例 | `official-xai-definitions`、`official-reader-bindings`（xAI 两行改 `mp4-20`）、`xai-closeout-scenarios`（研究候选计量的历史仍不可用，原因改注为算法不在来源表）；演示装配 `examples/model-invocation-minimal-demo/tests/xai-closeout-service.spec.ts` 第 2 轮改为发送并持久化 | — | 通过 |
+
+同批变异负控：去掉校准例外行使「真实身份 → marginal」用例失败（6 例）；把服务商比较改为大小写折叠使小写反例失败（6 例）；去掉 origin/观测一致性使「origin 有、观测缺」反例失败（2 例）；均已还原。演示装配用例在基线上已因共享本机 TLS 助手改为逐帧 delta 而失败（回复无 opaque），本次按同一助手改传 `reasoning_details` delta 一并修复。本节不关闭 X5 真实两入口三轮、回放是否被上游接受、续轮误差、cache 与费用、图片或 effort holdout；真实三轮认证归 root。
+
 ## H13 多个历史输出组候选
 
 对象为 [v13 revision 1](v13-output-history-design.md)，精确消费 D-107 已接受 MR9/RT10 与 runtime v19 候选唯一账本。**本节均为待执行义务，新增绑定 0**；本次文档检查不证明源码、模型或上游已兑现。

@@ -1,5 +1,7 @@
 2026-09-30：[Moonshot 可见推理采用](../../../../record/decisions/model-input-usage-calibration-adoption/moonshot-visible-reasoning-decision.md)接受有限估算 [revision 2](moonshot-visible-reasoning-estimate-design.md)；已实施两叶投影、直接 meter 守门与新发布（definition 3、`pi-ai:moonshot@mp4-18`），[MV1–MV3 本机覆盖](verification.md#2026-09-30-moonshot-可见推理-mv1mv3-本机覆盖)通过；MV4 真实回放与必做同路由对照待 root，演示装配组合未实际通过，新增 binding 0。
 
+2026-09-30：xAI 两叶守卫 4 的 `servingProvider`/`upstreamModel` 映射已按[真实身份原件](../../../../../research/model-request-adaptation/vendor-continuation/xai/2026-09-30-identity-and-reasoning-format.md#2026-09-30-真实身份原件)实现并本机验证（精确一对 `xAI`／路由模型 ID，缺席不补填）；因计划出值改变，当前执行升为 definition 5／`pi-ai:xai@mp4-20`，`mp4-19` 仅作保存来源行。[本机覆盖](verification.md#2026-09-30-xai-身份映射本机覆盖)通过；真实三轮认证待 root，新增 binding 0。
+
 2026-09-30：[DeepSeek 可见推理采用](../../../../record/decisions/model-input-usage-calibration-adoption/deepseek-visible-reasoning-decision.md)接受有限明文参考估算 revision 2；仅释放两叶共享投影及直接 meter 守门接线，DV1–DV5 未执行，新增 binding 0。
 
 2026-09-29：[xAI 有限贡献采用](../../../../record/decisions/model-input-usage-calibration-adoption/xai-family-decision.md)接受两款完整组提供者 revision 2；释放共享核上的窄实现，真实身份、图片及 X1–X6 仍待，新增 binding 0。
@@ -177,7 +179,7 @@ HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义�
 
 ## xAI 两叶完整输出贡献候选
 
-[xAI有限适用页](xai-complete-output-applicability-candidate.md)复用已采用共享输出组机制，拟两叶definition5/pi-ai:xai mp4-19，完整组O为estimated代理；[选择来源](../../../../record/proposals/model-input-usage-calibration/xai-applicability-choice.md)。当前未采用/未实施/未认证，新增bindings0；图片公式与真实差分仍独立缺口，不假称765覆盖全域。
+[xAI有限适用页](xai-complete-output-applicability-candidate.md)复用已采用共享输出组机制，拟两叶definition5/pi-ai:xai mp4-19，完整组O为estimated代理；[选择来源](../../../../record/proposals/model-input-usage-calibration/xai-applicability-choice.md)。当前未采用/未实施/未认证，新增bindings0；图片公式与真实差分仍独立缺口，不假称765覆盖全域。（起草时状态；2026-09-29 已由 xAI 决定采用，2026-09-30 身份映射实施后当前执行为 `mp4-20`，见本页开头。）
 
 ## Google 两叶推理历史完整输出组候选（2026-09-30）
 

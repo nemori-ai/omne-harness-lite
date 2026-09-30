@@ -207,7 +207,7 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `InputMeter` 是提供给函数或 transport factory 的可信可执行构件，不进 model profile JSON，也不是调用者传入的准入布尔值。定义、供应商、算法版本及证据绑定到贡献；另一计量来源签发的计划不能经本宿主发送。`createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)` 针对精确的 `deepseek/deepseek-v4-pro-0813` / `deepinfra/fp8` 路由，固定 DeepSeek V4 Pro 公开提示词编码器与 tokenizer。由于已查来源未公开 OpenRouter／DeepInfra 的字节完全一致的私有提示词装配，它返回的是**估算**。打包 tokenizer/config 的哈希及官方文本、推理、工具 golden 离线验证。余量由调用者显式选择；估算不替代上游 usage 和费用。没有计量证据的官方定义无法成功规划。上面的合成 `controlledMeter` 只演示本地协议，绝不可用于真实供应商。
 
-37 个供给型号共用拒答文本读取器。当前 OpenAI、Anthropic 定义绑定各家族 `mp4-18` 实现，DeepSeek 与 xAI 绑定 `mp4-19`，其他家族仍为 `mp4-17`。`tests/official-reader-bindings.spec.ts` 对照明确的发布样本，验证所有当前工厂、完整 profile 和实际 planner 调用；工厂拒绝旧执行绑定。这些本地检查不等于 37 型号真实 OpenRouter 认证，Pro 上下文用量仍明确未知。
+37 个供给型号共用拒答文本读取器。当前 OpenAI、Anthropic 定义绑定各家族 `mp4-18` 实现，DeepSeek 绑定 `mp4-19`、xAI 绑定 `mp4-20`，其他家族仍为 `mp4-17`。`tests/official-reader-bindings.spec.ts` 对照明确的发布样本，验证所有当前工厂、完整 profile 和实际 planner 调用；工厂拒绝旧执行绑定。这些本地检查不等于 37 型号真实 OpenRouter 认证，Pro 上下文用量仍明确未知。
 
 `createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)` 将单独的 V4.1 Flash tokenizer 和公开编码器绑定到 `deepseek/deepseek-v4.1-flash` / `deepinfra/fp8`。多轮工具与双图提示词使用固定的上游官方向量校验。`mp4-19` 实现按内联图片实际尺寸，使用固定公开图像处理器的 patch／下采样网格和 1,024-token 上限估算，并替换提示词已计入的图片占位符；实际供应商预处理并未公开。图片字节和数量仍由最终请求体的精确门检查。未知图片 URL 或不支持的内容在 HTTP 前返回计量不可得。估算包含提示词之外的序列化请求字段，不把内联 base64 当文本 token。余量由每次请求配置；估算不替代上游 usage，也不证明真实图片发送。
 
@@ -253,11 +253,11 @@ Anthropic 配置的 `last_message` 布局选择最后一个真实非空 text blo
 
 Google 只有全量计量。该计量器不提供增量 replay/new 贡献（`unsupported-marginal/1`），因此每一轮（包括多轮续接）都按全量计量，不报告任何 φ/δ 值。纯文本可见推理历史（`reasoning`）会回放并计入。带签名的 Gemini 推理历史（`reasoning_details`，例如 `google-gemini-v1` 的文本条目与签名条目）由 wire 投影原样回放，但该计量器对其返回不可计量：这类续接在发送前以 `input_size_unavailable` 拒绝，历史不会被剥离。内联图片同样由 wire 投影承载，但没有离线图片计量依据，计量器以同样方式拒绝。音频与视频仍保留为已声明输入模态，但属于本期范围外：不承载，以 `modality_not_carried` 拒绝。不支持的 effort 结构、其他不透明推理及未知控制字段仍不可计量。本机 TLS 场景以合成上游覆盖三轮 public 与 Cordis transport 调用；两款型号的真实 OpenRouter public/service 认证仍待完成。
 
-`createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6／4.7 绑定 definition 5／`mp4-19`。可见文本／工具仍按第一方 Grok Build UTF-8 字节代理估算，保留两个 fit 样本得出的偏移 141／1181；独立可见工具历史 holdout 分别对完整输入高估 35／34 token。对于来源有限且完整、原样保留的 assistant 输出组，full/new/φ 把原上游输出计数 O 作为一次与工作负载相关的 **estimated** 输入代理；O 已包含 reasoning，同组 summary、密文、文本和工具不再另计。旧 definition 3／4 只用于解释保存的来源事实，不保留旧工厂。未知格式、partial 组以及存在但尚无真实映射的上游身份字段均不可计量，原 wire 保持不变。当前 effort 或 max-token 改变会使输入锚失效；full 仍可独立解释合法原 O。它不是精确输入占用或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。可见偏移未按 effort 单独拟合；真实密文回放、身份映射、图片及完整 public/service 认证仍未完成。
+`createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6／4.7 绑定 definition 5／`mp4-20`。可见文本／工具仍按第一方 Grok Build UTF-8 字节代理估算，保留两个 fit 样本得出的偏移 141／1181；独立可见工具历史 holdout 分别对完整输入高估 35／34 token。对于来源有限且完整、原样保留的 assistant 输出组，full/new/φ 把原上游输出计数 O 作为一次与工作负载相关的 **estimated** 输入代理；O 已包含 reasoning，同组 summary、密文、文本和工具不再另计。旧 definition 3／4 及 definition 5／`mp4-19` 只用于解释保存的来源事实，不保留旧工厂。回复带上游身份时，只接纳取自两款 2026-09-30 真实原始 SSE 的精确一对：serving provider 为 `xAI`、upstream model 等于该叶路由 ID，且输出组 origin 与观测用量来源两处一致；校准步骤把 `xAI` 认作 `xai` 路由的显示名，同依据续轮因此走 marginal。身份缺席照常接纳、不补填；只有单个字段、任何其他拼写（`xai`、`x.ai`、尾随空格、另一模型 ID）或 origin 与观测不一致均不可计量。未知格式与 partial 组同样不可计量，原 wire 保持不变。当前 effort 或 max-token 改变会使输入锚失效；full 仍可独立解释合法原 O。它不是精确输入占用或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。可见偏移未按 effort 单独拟合。身份映射已按真实原件实现并本机验证；真实密文回放是否被接受、图片及真实三轮 public/service 认证仍未完成。
 
 OpenRouter 的流式加密推理数据可能是 `[REDACTED]` 占位值。它不是完整可回放输出组，不能用于按 O 估算。
 
-`tests/xai-x5-local-replay.spec.ts` 在本机 TLS 上用合成的 `xai-responses-v1` summary 与密文 detail、原工具 callId 和三轮工具场景，经公开 invoke 与 Cordis transport service 租约两条入口，钉住两款当前守卫：回复带上游身份时，后续轮在任何新 HTTP 之前返回 `input_size_unavailable`；不带身份时完整组原样重发，第二轮上游拒绝记为失败调用。这些合成用例不是真实回放证据。
+`tests/xai-x5-local-replay.spec.ts` 在本机 TLS 上用合成的 `xai-responses-v1` summary 与密文 detail、原工具 callId 和三轮工具场景，经公开 invoke 与 Cordis transport service 租约两条入口，钉住两款身份守卫：回复带真实身份对时，第二轮走 marginal、回放贡献为原 O，第 2、3 轮原样重发完整组；未采用的身份（`xai`、`x.ai`、带空格的 `xAI `、另一叶模型 ID 或只有单个字段）在任何新 HTTP 之前返回 `input_size_unavailable`；不带身份时完整组原样重发，第二轮上游拒绝记为失败调用。`tests/xai-identity-three-round.spec.ts` 让两款在有／无工具下经两条入口各跑三轮，按真实原件的帧序流式发送（summary 片段、单个 encrypted、工具片段、finish 帧、usage 帧）；第 2、3 轮均为 marginal，各计上一轮 O 一次。除身份字面值外，这些合成用例不是真实回放证据。
 
 仅含可见内容的响应复用采用共享 JSON 净增量估算：相对于空消息 framing 计算新回放的可见单元及新增输入，不重复计算稳定前缀及工具声明。空消息仅可用于内部 framing，完整请求计量仍返回不可计量。新算法／回放依据使旧输入锚失效；旧保存的完整输出组经来源核验后仍可贡献 O。无需新增用户配置。图片仍不在此计量器的支持范围内。
 
