@@ -1,3 +1,4 @@
+import { deriveCreationKey } from '../src/call-references.ts'
 import { createHash } from 'node:crypto'
 import { fork, type ChildProcess } from 'node:child_process'
 import { mkdir, mkdtemp, open, readFile, readdir, type FileHandle } from 'node:fs/promises'
@@ -76,6 +77,7 @@ async function ready(label: string, onReceive?: () => Promise<void>) {
     probePath: join(dirname(config.databaseFile), 'control-writer-probe'),
     async openCall(label: string) {
       const opened = await bound.service.openCall({
+        creationKey: deriveCreationKey({ session, userMessage: label }),
         session,
         target: effective.effectiveModel.routeName,
         basis: effective.effectiveModel,

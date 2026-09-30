@@ -1,6 +1,7 @@
 import { open } from 'node:fs/promises'
 import { join } from 'node:path'
 import { judgeMessage } from '@omne-harness-lite/messages'
+import { deriveCreationKey } from '../dist/call-references.js'
 import { openDemo } from '../dist/demo.js'
 import { createDemoCallHost } from '../dist/model-call-host.js'
 
@@ -113,6 +114,7 @@ async function original(input) {
   })
   if (!('ok' in user) || user.ok.type !== 'user') throw new Error('user fixture invalid')
   const opened = await bound.service.openCall({
+    creationKey: deriveCreationKey({ session, userMessage: 'control-cold-user' }),
     session,
     target: effective.effectiveModel.routeName,
     basis: effective.effectiveModel,

@@ -1,3 +1,4 @@
+import { deriveCreationKey } from '../src/call-references.ts'
 import { open, type FileHandle } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -81,6 +82,7 @@ async function ready(label: string, onReceive?: () => Promise<void>) {
 
 async function openCall(fixture: Awaited<ReturnType<typeof ready>>, label: string) {
   const opened = await fixture.service.openCall({
+    creationKey: deriveCreationKey({ session: fixture.session, userMessage: label }),
     session: fixture.session,
     target: fixture.basis.routeName,
     basis: fixture.basis,

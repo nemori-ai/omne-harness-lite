@@ -1,3 +1,4 @@
+import { deriveCreationKey } from '../src/call-references.ts'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -486,6 +487,10 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
         if (!('effectiveModel' in effective)) throw new Error('effective model missing')
         // Caller-provided reminder belongs to this request; all prior turns are actual durable values.
         const opened = await bound.service.openCall({
+          creationKey: deriveCreationKey({
+            session: prepared.session,
+            userMessage: 'anthropic-reminder-request',
+          }),
           session: prepared.session,
           target: MODEL,
           basis: effective.effectiveModel,

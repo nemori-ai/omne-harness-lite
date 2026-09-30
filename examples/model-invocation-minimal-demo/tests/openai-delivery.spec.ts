@@ -1,3 +1,4 @@
+import { deriveCreationKey } from '../src/call-references.ts'
 import { dirname, join } from 'node:path'
 import { readFile, readdir } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
@@ -402,6 +403,10 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
         if (!('ok' in reminder) || reminder.ok.type !== 'system_reminder')
           throw new Error('reminder invalid')
         const opened = await bound.service.openCall({
+          creationKey: deriveCreationKey({
+            session: prepared.session,
+            userMessage: 'openai-reminder-request',
+          }),
           session: prepared.session,
           target: MODEL,
           basis: effective.effectiveModel,
@@ -486,6 +491,10 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
             const originalMessages = JSON.stringify(messages)
             expect(
               await bound.service.openCall({
+                creationKey: deriveCreationKey({
+                  session: prepared.session,
+                  userMessage: 'encrypted-replay-user',
+                }),
                 session: prepared.session,
                 target: MODEL,
                 basis: effective.effectiveModel,

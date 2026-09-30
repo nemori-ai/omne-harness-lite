@@ -1,3 +1,4 @@
+import { deriveCreationKey } from '../src/call-references.ts'
 import { createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -72,6 +73,7 @@ describe('RT10 T15 real credential custodian rotation on one call', () => {
       const effective = await service.effectiveModel({ session })
       if (!('effectiveModel' in effective)) throw new Error('effective model missing')
       const opened = await service.openCall({
+        creationKey: deriveCreationKey({ session, userMessage: 't15-credential-rotation' }),
         session,
         target: effective.effectiveModel.routeName,
         basis: effective.effectiveModel,

@@ -1,3 +1,4 @@
+import { deriveCreationKey } from '../src/call-references.ts'
 import sharp from 'sharp'
 import type { Fiber } from '@deepseek-ai/cordis'
 import {
@@ -265,7 +266,9 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
       const service = bound.service
       const effective = await service.effectiveModel({ session })
       if (!('effectiveModel' in effective)) throw Error('effective unavailable')
+      const creationKey = deriveCreationKey({ session, userMessage: 'd4-waiting' })
       const opened = await service.openCall({
+        creationKey,
         session,
         target: model.modelId,
         basis: effective.effectiveModel,
@@ -488,6 +491,7 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
       })
       expect(await app.attachModelCallHost(who, session, host)).toEqual({ attached: true })
       const resume = {
+        creationKey: deriveCreationKey({ session, userMessage: 'd4-waiting' }),
         session,
         callId,
         target: model.modelId,

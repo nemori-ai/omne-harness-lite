@@ -1,3 +1,4 @@
+import { deriveCreationKey } from '../src/call-references.ts'
 import { open, type FileHandle } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -383,6 +384,7 @@ describe('S-49 settlement through the actual demo model service', () => {
       const effective = await s.service.effectiveModel({ session: s.session })
       if (!('effectiveModel' in effective)) throw new Error('effective model unavailable')
       const openedSecond = await s.service.openCall({
+        creationKey: deriveCreationKey({ session: s.session, userMessage: 'settlement-inflight' }),
         session: s.session,
         target: effective.effectiveModel.routeName,
         basis: effective.effectiveModel,
