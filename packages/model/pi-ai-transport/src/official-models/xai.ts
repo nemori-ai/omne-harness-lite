@@ -58,15 +58,15 @@ const grokCapabilities = {
 export const xaiDefinitions = ownDefinitions([
   {
     modelId: 'x-ai/grok-4.7',
-    revision: '4',
-    implementation: { name: 'pi-ai:xai', revision: 'mp4-18' },
+    revision: '5',
+    implementation: { name: 'pi-ai:xai', revision: 'mp4-19' },
     capabilities: grokCapabilities,
     routes: xaiModelRoutes['x-ai/grok-4.7'],
   },
   {
     modelId: 'x-ai/grok-4.6',
-    revision: '4',
-    implementation: { name: 'pi-ai:xai', revision: 'mp4-18' },
+    revision: '5',
+    implementation: { name: 'pi-ai:xai', revision: 'mp4-19' },
     capabilities: grokCapabilities,
     routes: xaiModelRoutes['x-ai/grok-4.6'],
   },

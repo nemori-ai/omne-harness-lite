@@ -252,10 +252,7 @@ describe('Grok limited visible text/tool estimates', () => {
         if ('rejected' in planned) throw new Error(planned.rejected)
         expect(planned.planned.inputLimitEvidence).toMatchObject({
           inputTokens: { kind: 'estimated' },
-          meterRevision:
-            definition.modelId === 'x-ai/grok-4.6'
-              ? 'grok-build-visible-text-tools-effort-offset141-2/response-calibration-1'
-              : 'grok-build-visible-text-tools-effort-offset1181-2/response-calibration-1',
+          meterRevision: 'xai-visible-json-complete-output-group-estimated/1',
         })
         expect(planned.planned.body.reasoning).toEqual({ effort })
         const evidence = planned.planned.inputLimitEvidence

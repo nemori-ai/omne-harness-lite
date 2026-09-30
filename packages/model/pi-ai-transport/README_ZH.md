@@ -207,7 +207,7 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `InputMeter` 是提供给函数或 transport factory 的可信可执行构件，不进 model profile JSON，也不是调用者传入的准入布尔值。定义、供应商、算法版本及证据绑定到贡献；另一计量来源签发的计划不能经本宿主发送。`createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)` 针对精确的 `deepseek/deepseek-v4-pro-0813` / `deepinfra/fp8` 路由，固定 DeepSeek V4 Pro 公开提示词编码器与 tokenizer。由于已查来源未公开 OpenRouter／DeepInfra 的字节完全一致的私有提示词装配，它返回的是**估算**。打包 tokenizer/config 的哈希及官方文本、推理、工具 golden 离线验证。余量由调用者显式选择；估算不替代上游 usage 和费用。没有计量证据的官方定义无法成功规划。上面的合成 `controlledMeter` 只演示本地协议，绝不可用于真实供应商。
 
-37 个供给型号共用拒答文本读取器。当前 OpenAI、Anthropic、DeepSeek 和 xAI 定义绑定各家族 `mp4-18` 实现，其他家族仍为 `mp4-17`。`tests/official-reader-bindings.spec.ts` 对照明确的发布样本，验证所有当前工厂、完整 profile 和实际 planner 调用；工厂拒绝旧执行绑定。这些本地检查不等于 37 型号真实 OpenRouter 认证，Pro 上下文用量仍明确未知。
+37 个供给型号共用拒答文本读取器。当前 OpenAI、Anthropic 和 DeepSeek 定义绑定各家族 `mp4-18` 实现，xAI 绑定 `mp4-19`，其他家族仍为 `mp4-17`。`tests/official-reader-bindings.spec.ts` 对照明确的发布样本，验证所有当前工厂、完整 profile 和实际 planner 调用；工厂拒绝旧执行绑定。这些本地检查不等于 37 型号真实 OpenRouter 认证，Pro 上下文用量仍明确未知。
 
 `createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)` 将单独的 V4.1 Flash tokenizer 和公开编码器绑定到 `deepseek/deepseek-v4.1-flash` / `deepinfra/fp8`。多轮工具与双图提示词使用固定的上游官方向量校验。`mp4-18` 实现按内联图片实际尺寸，使用固定公开图像处理器的 patch／下采样网格和 1,024-token 上限估算，并替换提示词已计入的图片占位符；实际供应商预处理并未公开。图片字节和数量仍由最终请求体的精确门检查。未知图片 URL 或不支持的内容在 HTTP 前返回计量不可得。估算包含提示词之外的序列化请求字段，不把内联 base64 当文本 token。余量由每次请求配置；估算不替代上游 usage，也不证明真实图片发送。
 
@@ -231,9 +231,9 @@ Anthropic 配置的 `last_message` 布局选择最后一个真实非空 text blo
 
 `createGoogleInputMeter(definition)` 绑定两个 Gemini 3.7／3.8 Flash AI Studio 定义 revision 3／`mp4-17`。它以固定 Gemma4 对照词表和冻结的逐型号偏置计入可见文本及工具，结果明确为粗略 `estimated`，调用方必须显式给余量。八次固定路由观测区分拟合与留出输入：样本中最多少估 10 token，最大绝对误差 60；这两个数都不是误差上界，也不是 Gemini 自身 tokenizer。已声明的请求 effort `low`／`medium`／`high` 作为生成控制被识别，不进入 messages/tools 代理计数；这是既有代理的输入域扩展，没有重拟合偏置，也不声称 effort 专属上游准确性。缺席仍不发送；其他值继续按定义原有规则丢弃。直接提交不支持的 effort 结构、媒体、不透明推理回放及未知控制字段仍不可计量，实际 effort 留出验证仍待完成。词表和许可随包提供给独立制品消费者。
 
-`createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6／4.7（definition 4／`mp4-18`）提供可见文本／工具粗估：将第一方 Grok Build 的 UTF-8 字节算法投影到最终 wire，加上各型号仅用两个 fit 样本得出的偏移（4.6 为 141、4.7 为 1181 token）；独立工具历史 holdout 分别对完整输入高估 35、34 token。它不是精确 tokenizer 或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。opaque reasoning 和媒体保持不可计量，不删除历史；完整模型认证仍未完成。已声明的 `low`／`medium`／`high` effort 进入完整 wire 估算；冻结偏置不是按 effort 单独拟合，本次扩域尚无实际 effort 留出证据。直接提交未声明或畸形 effort 仍不可计量。
+`createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6／4.7 绑定 definition 5／`mp4-19`。可见文本／工具仍按第一方 Grok Build UTF-8 字节代理估算，保留两个 fit 样本得出的偏移 141／1181；独立可见工具历史 holdout 分别对完整输入高估 35／34 token。对于来源有限且完整、原样保留的 assistant 输出组，full/new/φ 把原上游输出计数 O 作为一次与工作负载相关的 **estimated** 输入代理；O 已包含 reasoning，同组 summary、密文、文本和工具不再另计。旧 definition 3／4 只用于解释保存的来源事实，不保留旧工厂。未知格式、partial 组以及存在但尚无真实映射的上游身份字段均不可计量，原 wire 保持不变。当前 effort 或 max-token 改变会使输入锚失效；full 仍可独立解释合法原 O。它不是精确输入占用或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。可见偏移未按 effort 单独拟合；真实密文回放、身份映射、图片及完整 public/service 认证仍未完成。
 
-仅含可见内容的响应复用采用共享 JSON 净增量估算：相对于空消息 framing 计算新回放的可见单元及新增输入，不重复计算稳定前缀及其工具声明。这些贡献仍是估算，不将上游输出 token 等同于回放输入 token。空消息仅可用于内部 framing，完整请求计量仍返回不可计量。计量器发布新的回放依据，旧观察须重新完整计量；无需新增用户配置。opaque 推理和图片仍不在此计量器的支持范围内。
+仅含可见内容的响应复用采用共享 JSON 净增量估算：相对于空消息 framing 计算新回放的可见单元及新增输入，不重复计算稳定前缀及工具声明。空消息仅可用于内部 framing，完整请求计量仍返回不可计量。新算法／回放依据使旧输入锚失效；旧保存的完整输出组经来源核验后仍可贡献 O。无需新增用户配置。图片仍不在此计量器的支持范围内。
 
 ```ts
 import { createXaiInputMeter, xaiDefinitions } from '@omne-harness-lite/pi-ai-transport'
@@ -505,7 +505,7 @@ node packages/model/pi-ai-transport/tests/fixtures/zai/history-candidate-probes.
 node --test packages/model/pi-ai-transport/tests/fixtures/zai/history-candidate-probes.check.mjs
 ```
 
-`src/input-meters/xai-candidate.ts` 中未绑定的 `createXaiHistoryCandidateInputMeter` 保持原 opaque 历史不变，按固定上游一方启发式估算已知 `xai-responses-v1` encrypted 项及可选的相邻 summary。四份冻结请求已做 planner 到本地 TLS 验证；未知 wrapper 或多 encrypted 项返回不可计量。真实回放和官方绑定仍待完成；此结果是需要调用者显式余量的估算，不是误差上界。
+`src/input-meters/xai-candidate.ts` 中未绑定的研究用 `createXaiHistoryCandidateInputMeter` 保持原 opaque 历史不变，按固定上游一方启发式估算已知 `xai-responses-v1` encrypted 项及可选的相邻 summary。四份冻结请求的 planner 到本地 TLS 验证只用于历史比较；该候选不是当前官方 V5 计量器或旧执行绑定。未知 wrapper 或多 encrypted 项返回不可计量。官方完整组估算的真实回放仍未验证。研究估算要求调用者显式配置余量，不能当作误差上界。
 
 `ModelTransportService.diagnostics()` 无需取得 lease 即可读取底层实例的诊断投递 `failed`、`pending`、`dropped` 计数，关闭后仍可读取。`send` 与 `read` 可在末参接收本次请求专用 emitter，两个阶段由同一 emitter 持有；类型化事实不包含消息正文或凭据，工程身份不进入 HTTP。不同 emitter 的重绑定被拒绝。完整 runtime 调用接线与多会话验收仍须单独完成。
 

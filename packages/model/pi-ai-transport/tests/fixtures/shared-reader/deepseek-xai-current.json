@@ -22,25 +22,25 @@
     "definition": "5"
   },
   "x-ai/grok-4.7": {
-    "algorithm": "grok-build-visible-text-tools-effort-offset1181-2/response-calibration-1",
+    "algorithm": "xai-visible-json-complete-output-group-estimated/1",
     "tokenizer": "tokenizer-basis/grok-build-visible-text-tools-effort-offset1181-2",
-    "replay": "visible-final-units-json-net-estimated/1",
+    "replay": "xai-complete-output-group-workload-estimated/1",
     "transform": "openrouter-wire/2",
     "implementation": {
       "name": "pi-ai:xai",
-      "revision": "mp4-18"
+      "revision": "mp4-19"
     },
-    "definition": "4"
+    "definition": "5"
   },
   "x-ai/grok-4.6": {
-    "algorithm": "grok-build-visible-text-tools-effort-offset141-2/response-calibration-1",
+    "algorithm": "xai-visible-json-complete-output-group-estimated/1",
     "tokenizer": "tokenizer-basis/grok-build-visible-text-tools-effort-offset141-2",
-    "replay": "visible-final-units-json-net-estimated/1",
+    "replay": "xai-complete-output-group-workload-estimated/1",
     "transform": "openrouter-wire/2",
     "implementation": {
       "name": "pi-ai:xai",
-      "revision": "mp4-18"
+      "revision": "mp4-19"
     },
-    "definition": "4"
+    "definition": "5"
   }
 }

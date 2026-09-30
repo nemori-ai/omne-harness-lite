@@ -2,7 +2,7 @@ import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it } from 'vitest'
 import before from './fixtures/shared-reader/before-mp4-17.json' with { type: 'json' }
 import priorityRelease from './fixtures/shared-reader/priority-family-mp4-18.json' with { type: 'json' }
-import nextRelease from './fixtures/shared-reader/deepseek-xai-mp4-18.json' with { type: 'json' }
+import nextRelease from './fixtures/shared-reader/deepseek-xai-current.json' with { type: 'json' }
 import {
   openaiDefinitions,
   anthropicDefinitions,

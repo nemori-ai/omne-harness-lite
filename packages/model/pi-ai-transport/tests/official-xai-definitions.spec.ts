@@ -16,10 +16,10 @@ describe('xAI complete MP4 declarations', () => {
     expect(xaiDefinitions.map(definition => definition.modelId)).toEqual(expectedIds)
     for (const definition of xaiDefinitions) {
       expect(definition).toMatchObject({
-        revision: '4',
+        revision: '5',
         implementation: {
           name: 'pi-ai:xai',
-          revision: 'mp4-18',
+          revision: 'mp4-19',
         },
       })
       expect(Object.keys(definition.routes)).toEqual(['xai'])
@@ -69,7 +69,7 @@ describe('xAI complete MP4 declarations', () => {
         allowFallback: false,
         adaptation: {
           implementation: definition.implementation,
-          definition: { modelId, revision: '4' },
+          definition: { modelId, revision: '5' },
           configuration,
         },
       })

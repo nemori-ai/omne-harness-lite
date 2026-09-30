@@ -8,6 +8,7 @@ import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-ru
 import {
   createOfficialProfileContent,
   createPiAiTransport,
+  type ModelDefinition,
 } from '@omne-harness-lite/pi-ai-transport'
 import { createXaiCandidateInputMeter } from '../src/input-meters/xai-candidate.ts'
 import { xaiDefinitions } from '../src/official-models/xai.ts'
@@ -22,11 +23,21 @@ const rows: readonly Golden[] = JSON.parse(
   readFileSync(new URL('./fixtures/xai/authentication-cases.json', import.meta.url), 'utf8'),
 )
 
+// The unbound research candidate is pinned to its original V3 fixture. It is
+// never substituted for the current official V5 factory or execution binding.
+function researchDefinition(definition: ModelDefinition): ModelDefinition {
+  return {
+    ...definition,
+    revision: '3',
+    implementation: { name: 'pi-ai:xai', revision: 'mp4-17' },
+  }
+}
+
 describe('unbound Grok Build candidate', () => {
   it.each(rows)('counts the independent $modelId/$scenario final-wire golden', row => {
     const definition = xaiDefinitions.find(item => item.modelId === row.modelId)
     if (!definition) throw new Error('missing xAI definition')
-    const meter = createXaiCandidateInputMeter(definition)
+    const meter = createXaiCandidateInputMeter(researchDefinition(definition))
     expect(meter.algorithmRevision).toBe('grok-build-wire-projection-candidate-1')
     expect(directFull(meter, { body: row.body, serialized: writeJsonLossless(row.body) })).toEqual({
       kind: 'estimated',
@@ -40,7 +51,7 @@ describe('unbound Grok Build candidate', () => {
       row => row.modelId === definition?.modelId && row.scenario === 'tool_text',
     )
     if (!definition || !source) throw new Error('missing fixture')
-    const meter = createXaiCandidateInputMeter(definition)
+    const meter = createXaiCandidateInputMeter(researchDefinition(definition))
     const base = directFull(meter, {
       body: source.body,
       serialized: writeJsonLossless(source.body),
@@ -103,7 +114,8 @@ describe('unbound Grok Build candidate', () => {
 
   it.each(xaiDefinitions)(
     '$modelId plans once and sends identical candidate-measured bytes over local TLS',
-    async definition => {
+    async current => {
+      const definition = researchDefinition(current)
       const profile = createOfficialProfileContent(definition, {
         providers: ['xai'],
         allowFallback: false,

@@ -109,7 +109,7 @@ describe.each(xaiDefinitions)('$modelId credential-free closeout scenario', defi
       const replies: ModelInvocationResult[] = []
       try {
         for (let round = 1; round <= 3; round++) {
-          const planned = await research.plan(request)
+          const planned = await research.plan(request, { signal: new AbortController().signal })
           if ('rejected' in planned) throw new Error(JSON.stringify(planned))
           const response = await invokeModel({
             ...request,
@@ -149,7 +149,9 @@ describe.each(xaiDefinitions)('$modelId credential-free closeout scenario', defi
           )
           expect(request.outputHistory[round - 1]?.origin.parameters).toEqual(response.parameters)
           // Current real gap remains explicit: the official contribution cannot count this history.
-          expect(await official.plan(request)).toMatchObject({
+          expect(
+            await official.plan(request, { signal: new AbortController().signal }),
+          ).toMatchObject({
             rejected: 'invalidInput',
             reason: 'input_size_unavailable',
             metrics: ['maxInputTokens'],

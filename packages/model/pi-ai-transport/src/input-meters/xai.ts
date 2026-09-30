@@ -1,5 +1,13 @@
 import { defineInputMeter } from '../input-meter.ts'
-import { fullJsonMarginal, withEstimatedJsonMarginals } from './marginal.ts'
+import { fullOutputHistory, newOutputHistory, replayOutputHistory } from './output-history.ts'
+import {
+  XAI_HISTORY_ALGORITHM,
+  XAI_HISTORY_EVIDENCE,
+  XAI_HISTORY_IMPLEMENTATION,
+  XAI_HISTORY_REPLAY,
+  xaiOutputHistoryPolicy,
+  xaiRow,
+} from './xai-family-policy.ts'
 import {
   copyJsonValue,
   isNonNegativeJsonInteger,
@@ -129,7 +137,8 @@ function fixedCalibration(definition: ModelDefinition) {
     !('ok' in candidate) ||
     !('ok' in expected) ||
     !jsonEqual(candidate.ok, expected.ok) ||
-    definition.implementation.revision !== 'mp4-18'
+    definition.revision !== '5' ||
+    definition.implementation.revision !== XAI_HISTORY_IMPLEMENTATION
   )
     return undefined
   return calibration
@@ -153,24 +162,29 @@ export function createXaiVisibleBodyCounter(
   return calibration ? visibleBodyCounter(definition, calibration.offset) : undefined
 }
 
-/** Limited rough estimator: visible text/tools, no opaque or media history. */
+/** Visible wire surrogate plus the shared complete-output-group contribution. */
 export function createXaiInputMeter(definition: ModelDefinition): InputMeter | undefined {
   const calibration = fixedCalibration(definition)
-  if (!calibration) return undefined
+  const row = xaiRow(definition.modelId)
+  if (!calibration || !row) return undefined
   const countBody = visibleBodyCounter(definition, calibration.offset)
-  const meter = defineInputMeter({
+  const meter: InputMeter = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
     provider: 'xai',
-    algorithmRevision: `grok-build-visible-text-tools-effort-offset${calibration.offset}-2`,
-    evidence: `xai-org/grok-build f0e3be1 bytes/4; ${calibration.evidence}; complete wire surrogate includes declared low/medium/high request effort; frozen offsets are not effort-specific fits and expanded effort scope has no actual holdout; rough estimate, no error bound; visible replay/new units use shared JSON net framing, not upstream output-token equivalence`,
+    algorithmRevision: XAI_HISTORY_ALGORITHM,
+    tokenizerRevision: row.tokenizer,
+    replayRevision: XAI_HISTORY_REPLAY,
+    evidence: `${XAI_HISTORY_EVIDENCE} xai-org/grok-build f0e3be1 bytes/4; ${calibration.evidence}`,
     // First-party byte estimate projected onto final wire; fixed offset derived
     // only from two fit cases per model. No cross-model or holdout fitting.
     measureFull: input =>
       Array.isArray(input.body.messages) && input.body.messages.length > 0
-        ? countBody(input)
+        ? fullOutputHistory(input, meter, countBody, xaiOutputHistoryPolicy)
         : { kind: 'unavailable' },
+    measureNew: input => newOutputHistory(input, meter, countBody, xaiOutputHistoryPolicy),
+    measureReplay: input => replayOutputHistory(input, meter, countBody, xaiOutputHistoryPolicy),
   })
-  return withEstimatedJsonMarginals(meter, input => fullJsonMarginal(countBody, input))
+  return meter
 }
