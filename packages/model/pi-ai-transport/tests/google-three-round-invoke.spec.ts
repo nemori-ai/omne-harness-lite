@@ -530,6 +530,8 @@ describe.each(googleDefinitions)('Google public invoke boundary: $modelId', defi
       inputMeters: [official],
     })
     try {
+      // Out of scope for this delivery (text and image only): the declaration is
+      // kept, the modality is not carried.
       expect(definition.capabilities.inputModalities).toContain(
         block.kind === 'voice' ? 'audio' : 'video',
       )
