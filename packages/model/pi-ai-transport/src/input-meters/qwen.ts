@@ -1,4 +1,4 @@
-import { qwenVisibleBindings } from '../official-models/qwen.ts'
+import { qwenPublicTemplateBindings, qwenVisibleBindings } from '../official-models/qwen.ts'
 import { renderQwenVisibleInput } from './qwen-visible.ts'
 import { defineInputMeter } from '../input-meter.ts'
 // Public-template projections and commercial final-JSON surrogates share the
@@ -15,7 +15,12 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import { codePointOrder, type ModelDefinition } from '../definitions.ts'
+import {
+  codePointOrder,
+  ruleAccepts,
+  type ModelDefinition,
+  type ParameterRule,
+} from '../definitions.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { object } from '../json.ts'
 
@@ -324,20 +329,52 @@ function inlineImageTokens(body: JsonObject): number | undefined {
   return tokens
 }
 
+// Alibaba's Chat API maps Qwen3.8 `high` and `max` to `xhigh`, the pinned
+// template's default instruction. How OpenRouter forwards the effort object on
+// this route is unpublished, so admitting these values is an estimated scope
+// extension. `none` changes the thinking frame and stays unavailable.
+const xhighEfforts: ReadonlySet<string> = new Set(['high', 'max'])
+
+function withoutXhighEffort(
+  body: JsonObject,
+  rule: ParameterRule<JsonValue> | undefined,
+): JsonObject | undefined {
+  const reasoning = body.reasoning
+  if (reasoning === undefined) return body
+  if (
+    rule === undefined ||
+    !object(reasoning) ||
+    Object.keys(reasoning).some(key => key !== 'effort') ||
+    typeof reasoning.effort !== 'string' ||
+    !xhighEfforts.has(reasoning.effort) ||
+    !ruleAccepts(rule, reasoning.effort)
+  )
+    return undefined
+  const { reasoning: _effort, ...rest } = body
+  return rest
+}
+
 /** Pinned-tokenizer estimates for the eight exact Alibaba leaves. */
 export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
   const source = sourceFor(definition.modelId)
   const visible = Object.hasOwn(qwenVisibleBindings, definition.modelId)
     ? qwenVisibleBindings[definition.modelId]
     : undefined
+  const binding =
+    visible ??
+    (Object.hasOwn(qwenPublicTemplateBindings, definition.modelId)
+      ? qwenPublicTemplateBindings[definition.modelId]
+      : undefined)
   if (
     (!source && !visible) ||
-    definition.revision !== (visible?.revision ?? '2') ||
+    !binding ||
+    definition.revision !== binding.revision ||
     definition.implementation.name !== 'pi-ai:qwen' ||
-    definition.implementation.revision !== (visible?.implementationRevision ?? 'mp4-17') ||
+    definition.implementation.revision !== binding.implementationRevision ||
     !Object.hasOwn(definition.routes, 'alibaba')
   )
     throw new TypeError('unsupported Qwen definition')
+  const effortRule = definition.routes.alibaba?.parameters.reasoningEffort
   const encoder = tokenizer(source?.directory ?? 'qwen-38-24t')
   return defineInputMeter({
     modelId: definition.modelId,
@@ -347,11 +384,11 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
     algorithmRevision:
       visible?.algorithmRevision ??
       (definition.modelId === visualModelId
-        ? 'qwen-38-public-template-image-3'
-        : 'qwen-38-public-template-2'),
+        ? 'qwen-38-public-template-image-effort-4'
+        : 'qwen-38-public-template-effort-3'),
     evidence: visible
       ? `${visible.evidence}; Alibaba OpenAI-compatible Chat API (2026-09-29) defines ordered messages, tool schemas/results and visible reasoning; complete final JSON including protocol controls is the explicit surrogate; Qwen/Qwen3.8-2.4T-A95B 207bd685a7e3696cfaff12ded7c6a7ea0f88c996 tokenizer.json sha256:${tokenizerSha256}; no exactness, error bound, offset transfer, media/opaque or incremental claim; actual OpenRouter multi-turn residual/holdout pending`
-      : `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; ${definition.modelId === visualModelId ? 'Alibaba Qwen3.8 32x32 image formula, unscaled inline PNG only;' : 'text/tools subset;'} OpenRouter/Alibaba conversion remains estimated`,
+      : `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; ${definition.modelId === visualModelId ? 'Alibaba Qwen3.8 32x32 image formula, unscaled inline PNG only;' : 'text/tools subset;'} OpenRouter/Alibaba conversion remains estimated; declared high/max request effort renders the template default xhigh instruction per Alibaba's documented high/max-to-xhigh mapping, an estimated scope extension with no actual effort holdout or error bound; none, other effort shapes and opaque/encrypted history remain unavailable`,
     measureFull({ body, serialized }): TokenMeasurement {
       if (
         body.model !== definition.modelId ||
@@ -363,7 +400,10 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
         writeJsonLossless(body) !== serialized
       )
         return { kind: 'unavailable' }
-      const prompt = visible ? renderQwenVisibleInput(body, definition) : renderQwenPrompt(body)
+      const template = visible ? undefined : withoutXhighEffort(body, effortRule)
+      const prompt = visible
+        ? renderQwenVisibleInput(body, definition)
+        : template && renderQwenPrompt(template)
       if (prompt === undefined) return { kind: 'unavailable' }
       const imageTokens = definition.modelId === visualModelId ? inlineImageTokens(body) : 0
       if (imageTokens === undefined) return { kind: 'unavailable' }

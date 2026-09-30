@@ -81,11 +81,13 @@ describe('official Qwen complete declarations (offline)', () => {
       const image = (row.input as readonly string[]).includes('image')
       expect(definition).toMatchObject({
         modelId,
-        revision:
-          modelId === 'qwen/qwen3.8-2.4t-a95b' || modelId === 'qwen/qwen3.8-27b' ? '2' : '3',
+        revision: '3',
         implementation: {
           name: 'pi-ai:qwen',
-          revision: 'mp4-17',
+          revision:
+            modelId === 'qwen/qwen3.8-2.4t-a95b' || modelId === 'qwen/qwen3.8-27b'
+              ? 'mp4-18'
+              : 'mp4-17',
         },
         capabilities: {
           inputModalities: [...row.input],

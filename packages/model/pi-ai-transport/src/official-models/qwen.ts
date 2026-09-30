@@ -244,16 +244,33 @@ export const qwenVisibleBindings: Readonly<
   ),
 )
 
+/**
+ * The two open-weight leaves keep the pinned public-template estimator. Their
+ * current binding also admits the route's declared `high`/`max` request effort.
+ */
+export const qwenPublicTemplateBindings: Readonly<
+  Record<string, { readonly revision: string; readonly implementationRevision: string }>
+> = Object.freeze({
+  'qwen/qwen3.8-2.4t-a95b': Object.freeze({ revision: '3', implementationRevision: 'mp4-18' }),
+  'qwen/qwen3.8-27b': Object.freeze({ revision: '3', implementationRevision: 'mp4-18' }),
+})
+
+function bindingFor(modelId: QwenAlibabaModelId) {
+  const binding = qwenVisibleBindings[modelId] ?? qwenPublicTemplateBindings[modelId]
+  if (!binding) throw new TypeError(`unbound Qwen leaf: ${modelId}`)
+  return binding
+}
+
 /** Complete MP4 declarations. Reading and registration use the common validator. */
 export const qwenDefinitions = ownDefinitions(
   qwenAlibabaModelIds.map(
     modelId =>
       ({
         modelId,
-        revision: qwenVisibleBindings[modelId]?.revision ?? '2',
+        revision: bindingFor(modelId).revision,
         implementation: {
           name: 'pi-ai:qwen',
-          revision: qwenVisibleBindings[modelId]?.implementationRevision ?? 'mp4-17',
+          revision: bindingFor(modelId).implementationRevision,
         },
         capabilities: { ...offer[modelId], outputModalities: ['text'] },
         routes: qwenModelRoutes[modelId],

@@ -382,8 +382,15 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         implementation: selected.implementation,
         provider: 'alibaba',
         algorithmRevision:
-          modelId === ids[1] ? 'qwen-38-public-template-image-3' : 'qwen-38-public-template-2',
+          modelId === ids[1]
+            ? 'qwen-38-public-template-image-effort-4'
+            : 'qwen-38-public-template-effort-3',
       })
+      expect(selected).toMatchObject({
+        revision: '3',
+        implementation: { name: 'pi-ai:qwen', revision: 'mp4-18' },
+      })
+      expect(meter.evidence).toContain('no actual effort holdout or error bound')
       expect(meter.evidence).toContain(
         'sha256:0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3',
       )
@@ -412,6 +419,13 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         }),
       ).toEqual(result)
       expect(() => createQwenInputMeter({ ...selected, revision: 'other' })).toThrow(TypeError)
+      expect(() =>
+        createQwenInputMeter({
+          ...selected,
+          revision: '2',
+          implementation: { name: 'pi-ai:qwen', revision: 'mp4-17' },
+        }),
+      ).toThrow(TypeError)
     },
   )
 
@@ -578,15 +592,17 @@ describe('Qwen3.8 public tokenizer input meters', () => {
     expect(qwenUnscaledImageTokens(4000, 4000)).toBeUndefined()
   })
 
-  it.each(ids)('%s refuses unmapped OpenRouter high/max reasoning effort', async modelId => {
-    const meter = createQwenInputMeter(definition(modelId))
-    for (const effort of ['high', 'max'] as const) {
-      const body = { ...fixtureBody, model: modelId, reasoning: { effort } }
-      expect(directFull(meter, { body, serialized: writeJsonLossless(body) })).toEqual({
-        kind: 'unavailable',
-      })
-      expect(
-        await planRequest(
+  it.each(ids)(
+    '%s estimates declared high/max effort with the default xhigh template frame',
+    async modelId => {
+      const meter = createQwenInputMeter(definition(modelId))
+      const omitted = { ...fixtureBody, model: modelId }
+      const baseline = directFull(meter, { body: omitted, serialized: writeJsonLossless(omitted) })
+      expect(baseline).toEqual({ kind: 'estimated', tokens: 397 })
+      for (const effort of ['high', 'max'] as const) {
+        const body = { ...omitted, reasoning: { effort } }
+        expect(directFull(meter, { body, serialized: writeJsonLossless(body) })).toEqual(baseline)
+        const planned = await planRequest(
           {
             ...(await request(modelId)),
             parameters: { maxOutputTokens: 64, reasoningEffort: effort },
@@ -595,9 +611,88 @@ describe('Qwen3.8 public tokenizer input meters', () => {
           meter,
           { signal: new AbortController().signal },
           testImagePreparerFor(planRequest),
-        ),
-      ).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+        )
+        if ('rejected' in planned) throw new Error(JSON.stringify(planned))
+        expect(planned.planned.body.reasoning).toEqual({ effort })
+        expect(planned.planned.measurement).toMatchObject({
+          mode: 'full',
+          fullContribution: { precision: 'estimated' },
+        })
+        const unset = await planRequest(
+          await request(modelId),
+          [definition(modelId)],
+          meter,
+          { signal: new AbortController().signal },
+          testImagePreparerFor(planRequest),
+        )
+        if ('rejected' in unset) throw new Error(JSON.stringify(unset))
+        // Only the effort member differs on the wire; the template frame is unchanged.
+        expect(planned.planned.inputLimitEvidence.inputTokens).toEqual(
+          unset.planned.inputLimitEvidence.inputTokens,
+        )
+      }
+      for (const reasoning of [
+        { effort: 'none' },
+        { effort: 'medium' },
+        { effort: 'xhigh' },
+        { effort: 'high', summary: 'auto' },
+        { enabled: true },
+        { effort: 1 },
+        'high',
+        null,
+      ]) {
+        const body = { ...omitted, reasoning }
+        expect(directFull(meter, { body, serialized: writeJsonLossless(body) })).toEqual({
+          kind: 'unavailable',
+        })
+      }
+    },
+  )
+
+  it('keeps 27B thinking-disabled effort unavailable instead of inventing a template frame', async () => {
+    const modelId = ids[1]
+    const selected = definition(modelId)
+    const meter = createQwenInputMeter(selected)
+    const planned = await planRequest(
+      { ...(await request(modelId)), parameters: { maxOutputTokens: 64, reasoningEffort: 'none' } },
+      [selected],
+      meter,
+      { signal: new AbortController().signal },
+      testImagePreparerFor(planRequest),
+    )
+    expect(planned).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
+  })
+
+  it('does not admit an effort the exact 2.4T route never forwards', () => {
+    const selected = definition(ids[0])
+    const route = selected.routes.alibaba
+    if (!route) throw new Error('missing fixed Alibaba route')
+    const narrowed = {
+      ...selected,
+      routes: {
+        alibaba: {
+          ...route,
+          parameters: {
+            ...route.parameters,
+            reasoningEffort: {
+              kind: 'select' as const,
+              accepted: { values: ['max' as const] },
+              otherwise: { drop: true as const },
+            },
+          },
+        },
+      },
     }
+    const meter = createQwenInputMeter(narrowed)
+    const body = { ...fixtureBody, model: ids[0], reasoning: { effort: 'high' } }
+    expect(directFull(meter, { body, serialized: writeJsonLossless(body) })).toEqual({
+      kind: 'unavailable',
+    })
+    const max = { ...body, reasoning: { effort: 'max' } }
+    expect(directFull(meter, { body: max, serialized: writeJsonLossless(max) })).toEqual({
+      kind: 'estimated',
+      tokens: 397,
+    })
   })
 
   it('plans and sends the 27B inline image estimate through local TLS', async () => {
