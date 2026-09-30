@@ -198,3 +198,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 - [D-107：响应输入校准规范与纯值映射采用](model-input-usage-calibration-adoption/README.md)（2026-09-29；仅释放纯 core 实施）。
 
 [D-110：模型调用引用与独立消费者](model-runtime-reference-lifecycle-adoption/README.md)：接受四契约和五现有节点映射；十四操作、耐久引用与独立消费待实施验收，不前置完整Session/Run。
+
+[D-111：2026-09-30 模型请求运行时收口程裁决汇编](model-request-runtime-rulings-2026-09-30/README.md)：本期只交付 text/image（产品负责人）；四家 full-only；共享 reader 无 id 片段按 index 采用迟到签名（R-L 修正 R-F）；换路由 opaque 思考块拒绝不降级；`[REDACTED]` 判不可解释；GG-10／GG-11 登记。不表示契约或节点接受、真实认证完成。
