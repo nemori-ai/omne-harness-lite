@@ -4,7 +4,7 @@
 
 调用一次显式模型传输，把响应流装配为最终结果，提供取消、内容时限和异步首内容门。本包是实验性 ESM workspace 成员，尚未发布到 npm。
 
-当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及纯调用历史解释器。`createModelRuntime` 已把 RT12 的十五个类型化方法组合在同一个进程内调用 owner 下。第十五操作 `acknowledgeCall`（S-96）为每次调用固定一条耐久确认，再经保留门释放该调用的模型副本；此后各读取入口、同键 `openCall` 认回与 `reconcile` 都回 S-97 已确认小视图，控制与新工作到达其终态拒绝（S-100）。ACK 后自带 `retainedResult` 的 `settleReply` 会按 S-99 核验，但仍返回 `unavailable`：S-99⑧ 的耐久结算暂存尚未实现。属于 Run 的结算消费宿主显式提供的已授权 Run 历史读源；生产 Run 终结与恢复 owner 仍由宿主负责。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的原完整批；有 Run 的条件恢复保留响应原 attempt，并在较新 attempt 中归账。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线正按 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 集成；共享端口和队列自身不能证明真实会话接收端已接入。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)及[恢复 owner 补充](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的生产成功路径仍依赖宿主真实的 Run 终结来源与 owner。
+当前提供独立调用、纯政策函数、限定范围的耐久消费者、四项会话选择／查询操作，以及纯调用历史解释器。`createModelRuntime` 已把 RT12 的十五个类型化方法组合在同一个进程内调用 owner 下。第十五操作 `acknowledgeCall`（S-96）为每次调用固定一条耐久确认，再经保留门释放该调用的模型副本；此后各读取入口、同键 `openCall` 认回与 `reconcile` 都回 S-97 已确认小视图，控制与新工作到达其终态拒绝（S-100）。ACK 后自带 `retainedResult` 的 `settleReply` 按 S-99 核验后，经一份暂存的写责任完成结算（S-99⑧，见下文「ACK 后的结算」）。属于 Run 的结算消费宿主显式提供的已授权 Run 历史读源；生产 Run 终结与恢复 owner 仍由宿主负责。`./plugin` 通过 Cordis 暴露由应用持有的组合。回复处分使用原锚定调用句柄；本地容器消失后，通过有归属的恢复作用域认回已完成的原完整批；有 Run 的条件恢复保留响应原 attempt，并在较新 attempt 中归账。对于已耐久记录「已出门」但缺响应的调用，不属于 Run 的对账可读取实际停止的原执行事实，或经宿主确认的冷恢复缺席，追补一条中断响应且不再发模型请求。只有中断意图、没有发出记录的调用由耐久终结记录收口。显式调用宿主和有界观察接线正按 [D103](../../../.meta_harness/design/record/decisions/model-runtime-host-observer-adoption/decision.md) 集成；共享端口和队列自身不能证明真实会话接收端已接入。装配义务见[当前服务设计](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v7-current-design.md)、[D105 恢复映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-timing-design.md)及[恢复 owner 补充](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v12-recovery-owner-supplement.md)，采用和覆盖见[实现映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)；属于 Run 的生产成功路径仍依赖宿主真实的 Run 终结来源与 owner。
 
 ## 公开接口
 
@@ -28,7 +28,8 @@
 | `createRuntimeReads(construction)`                                               | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                                                                                           |
 | `createServiceCalls(construction)`、`createServiceControl(construction)`         | 面向共享 runtime 装配的独立调用与控制方法组合件                                                                                                                      |
 | `createServiceDispatch(construction)`                                            | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain                                                                   |
-| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 非持久化处分从 `callFacts` 读取不可变 ready 内容，经当前 `callAccess` 的 `settle` 准入，再由既有结算算法写最终响应；重复处分读取耐久结果。对账保留原 scope，直到实际停止并从完整前缀认回；对账必需 runtime 的 ACK `custody`，已确认调用逐调用作答 |
+| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 非持久化处分从 `callFacts` 读取不可变 ready 内容，经当前 `callAccess` 的 `settle` 准入，再由既有结算算法写最终响应；重复处分读取耐久结果。ACK 后经核验的调用方自持值通过暂存写责任结算；处分组件必需 ACK `custody` 与 `instance` 标识。对账保留原 scope，直到实际停止并从完整前缀认回；对账必需 runtime 的 ACK `custody`，已确认调用逐调用作答，给出 `settlementWork` 时收口本 runtime 不持有的写责任行 |
+| `createSettlementWork(input)`                                                    | 基于结算协调器的一份 ACK 后写责任：每次追加前完整批已耐久在写责任行中，行经 ACK custody 退役；外部 persisted 写方同样可用 |
 | `createServiceAcknowledge(construction, custody?)`、`createAcknowledgementCustody(input)` | 第十五操作，以及每个 runtime 一份的 custody：按显式 `acknowledgementCleanup` 政策与调度器先释放内存副本、再释放保留内容 |
 | `createModelRuntime(construction)`                                               | 十五方法共用一份调用 store、一份 ACK custody 与可重试收口 owner；无需 Cordis Context                                                                                 |
 
@@ -189,6 +190,28 @@ export function readNoRunCall(prefix: SettlementPrefix, session: SessionRef, cal
 MS8 `model_call_acknowledged` 记录使用独立的按调用稳定日志键；只有本前缀核实其创建键与条目壳、每项可释放载荷都属于该调用（仅当调用不拥有任何载荷时才允许空列表）、目标确为该调用真实终结记录或最后一次终结响应后，才以 `known.acknowledged`（`{ record, entry }`）暴露。仅有 ready 标记时还须带原账见证；若 final 先于 ACK 胜出，解释器把该 final 与见证逐项比较 outcome、initiator、usage、cost、provider、凭据范围与时序。创建与保留结果摘要需要内容，解释器不核。缺少或矛盾的终态来源、或出现不同值的第二条 ACK，返回原因 `history` 的 `unavailable`。`projectCallState` 仍拒绝已确认历史；服务消费者对控制与新工作使用 `acknowledgedAsTerminal`，对读取使用 S-97 小视图，不当作缺席，也不从缓存再给全文。日志只按键去重，`acknowledgeCall` 只从整值读回的耐久值认回自己的批。见 [runtime v22 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v22-acknowledgement-design.md)。
 
 响应 usage 校准遵循 [D107 采用决定](../../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/decision.md)及 [runtime v16 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md)。
+
+## ACK 后的结算
+
+`acknowledgeCall` 释放模型副本后，没有 final 的调用仍可由自持完整 `PendingModelResponse` 的调用方处分（RT12 S-99）。`settleReply` 先核当前 `settle` 资格，再把该值与 ACK 的原身份、MS8 结果摘要和账见证逐项核对。缺值为 `wrongPhase`，矛盾为 `invalidInput`。日志里已有 final 时由它自行决定：同处分认回，异处分 `alreadyEnded`。
+
+核验通过的值开始一份写责任（`createSettlementWork`）。每次追加可能生效之前，完整批先写入内容存储同一 Storage 中的私有 `model_call_settlement_work` 行。该行保存的是「最近一次尚未确知为零写的追加所用的完整批」。确证零写之后（`tailChanged`，或 `alreadyRecorded` 碰撞），重构 `late` 的批在其追加之前以下一代际原位替换。回执未知期间绝不覆盖该行。每次替换和删除都带该行的 `workId` 与代际，其他写责任或旧代际的迟到 worker 一律被拒。
+
+写责任只在它的全部写方实际停止之后才收口：
+
+- 已确认 final，或前缀中有完整批，即告完成并退役该行。若本组件仍持有同一调用的其他写方，退役要等它们实际停止。
+- 权威完整前缀确证该批缺席，则结束本次写责任：退役该行并回 `unavailable`。之后由消费者持自持值重新申请，这会开始一份新的写责任；runtime 不替消费者重送。
+- 回执未知、残批（S-70③）或来源不可读时保留该行，并回 `unavailable`。
+
+删除失败或删除回执未知时，该行留作 ACK custody 的待办，由 ACK 清理同一个 `acknowledgementCleanup` 政策与结算调度器重试。只有读到行已不存在才算已删。本 runtime 不持有的行（例如崩溃后留下的行）不由 `settleReply` 收口，而由 `reconcile` 作为恢复 owner 收口；前提是宿主恢复作用域的 `originalInvocation` 报告原执行 `absent`（接缝 R4 默认路径）。ACK 清理保持 `released`，该行也不是重新领取结果的入口。
+
+本节不覆盖：
+
+- 不提供由恢复 owner 代重送的 S-71 显式选项。
+- 启动时不扫描残留行；它们在下一次处分、对账或重试时收口。
+- persisted 回复（`[M, R]`）由各自的授权写方调用 `createSettlementWork`；普通 `settleReply` 仍是非 persisted。
+
+见 [runtime v22 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v22-acknowledgement-design.md)（revision 3）及其投影的接缝。
 
 ## 调用显式传入的请求
 
