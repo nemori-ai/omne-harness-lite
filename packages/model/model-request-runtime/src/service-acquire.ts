@@ -389,9 +389,14 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
                 consumer = createIndependentCallConsumer({
                   container,
                   revoked: evidence.revoked,
-                  valid: () =>
-                    current() &&
-                    runtime.calls.find(owned.ref)?.view().executionGeneration === original,
+                  // A replaced execution invalidates this handle; a container that was merely
+                  // released (for example by ACK cleanup, RT12 S-97) does not: the next read
+                  // answers from the durable facts, the small acknowledged view included.
+                  valid: () => {
+                    if (!current()) return false
+                    const found = runtime.calls.find(owned.ref)
+                    return found === undefined || found.view().executionGeneration === original
+                  },
                   read: async () => {
                     const read = await acquireCall({ ref: owned.ref, mode: 'read' })
                     return 'view' in read ? { view: read.view } : unavailable
