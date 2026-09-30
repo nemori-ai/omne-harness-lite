@@ -127,3 +127,10 @@ export {
   type OutputUnitClassification,
   type OutputBodyCounter,
 } from './input-meters/output-history.ts'
+export {
+  officialCatalog,
+  createOfficialCatalogProfile,
+  type OfficialCatalogEntry,
+  type OfficialFamily,
+  type OfficialInputMeterFactory,
+} from './official-catalog.ts'
