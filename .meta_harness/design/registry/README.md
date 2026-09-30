@@ -1,3 +1,5 @@
+2026-09-30：[D-110 ACK 后继](../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受 RT12/MS8/MR11/CA4，新增冻结134项，原970项保持；covers及formal任务状态不提升，实际实现另验。
+
 2026-09-29：[D-107](../record/decisions/model-input-usage-calibration-adoption/decision.md) 接受 MR9/RT10，新增冻结81资源；原冻结项保持，covers/formal任务状态不提升。规范接受不等于实现或消费者升级。
 
 # 身份、版本与关系清单

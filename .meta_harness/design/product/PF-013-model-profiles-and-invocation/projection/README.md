@@ -1,3 +1,5 @@
+2026-09-30：[D-110 ACK 后继](../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受 v9 精确快照及其四契约/节点；原快照与 provenance 的起草时状态保持，实际实现未验。
+
 # PF-013-model-profiles-and-invocation 的技术投影
 
 | 版本 | 范围与来源 |

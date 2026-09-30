@@ -1,3 +1,10 @@
+## 2026-09-30 ACK 后继精确采用
+
+- **语义接受**：[D-110 ACK 后继](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受 RT12/MS8/MR11/CA4，精确版本与摘要由 registry 和接受文件登记。
+- **可实施**：本节点对应的 ACK 后继映射已技术采用，当前实现直接迁移；下方候选与 noGC 文字保留其历史快照，不代表现行采用状态。
+- **绑定证据**：新增 0，原绑定保持原范围；有限规格模型不提升实际提供者绑定。
+- **实际验证**：ACK 实现、该节点真实组合与公开制品验收仍待，不能据采用或旧实现通过宣称完成。
+
 ## CA3 候选分层状态（2026-09-29）
 
 本次增量见 [v3-design.md](v3-design.md)，`kind: provider`，节点及既有源码路径为 `packages/core/call-accounts`；源码已存在。固定语义输入为 `3f597c18` 的 `data.call-accounts/v3` contract/Schema，catalog 状态 candidate。下文 CA2 历史接受与测试不提升本候选。

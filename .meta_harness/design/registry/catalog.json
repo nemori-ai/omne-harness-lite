@@ -14533,9 +14533,9 @@
       },
       "family": "capabilities",
       "topic": "model-request-runtime",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/capabilities/model-request-runtime/v12/contract.md",
-      "acceptance": null,
+      "acceptance": "record/decisions/model-runtime-reference-lifecycle-adoption/ack-acceptance.json",
       "resources": [
         "spec/capabilities/model-request-runtime/v12/consumer-impact.md",
         "spec/capabilities/model-request-runtime/v12/contract.md",
@@ -15011,7 +15011,7 @@
       },
       "family": "data",
       "topic": "messages",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/messages/v8/contract.md",
       "resources": [
         "spec/data/messages/v8/ack-examples.json",
@@ -15027,7 +15027,7 @@
         "spec/data/messages/v8/source-alignment.md",
         "spec/data/messages/v8/verification.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-runtime-reference-lifecycle-adoption/ack-acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -15159,7 +15159,7 @@
       },
       "family": "data",
       "topic": "model-response",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/model-response/v11/contract.md",
       "resources": [
         "spec/data/model-response/v11/ack-examples.json",
@@ -15172,7 +15172,7 @@
         "spec/data/model-response/v11/source-alignment.md",
         "spec/data/model-response/v11/verification.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-runtime-reference-lifecycle-adoption/ack-acceptance.json",
       "dependencies": [
         {
           "coordinate": {
@@ -15312,7 +15312,7 @@
       },
       "family": "data",
       "topic": "call-accounts",
-      "status": "candidate",
+      "status": "accepted",
       "contract_path": "spec/data/call-accounts/v4/contract.md",
       "resources": [
         "spec/data/call-accounts/v4/ack-examples.json",
@@ -15324,7 +15324,7 @@
         "spec/data/call-accounts/v4/source-alignment.md",
         "spec/data/call-accounts/v4/verification.md"
       ],
-      "acceptance": null,
+      "acceptance": "record/decisions/model-runtime-reference-lifecycle-adoption/ack-acceptance.json",
       "dependencies": [
         {
           "coordinate": {
