@@ -44,6 +44,9 @@ import {
 } from './google-history-support.ts'
 import { certificate, judgedMessage } from './support.ts'
 
+// The first test in a worker pays the verified tokenizer load and TLS setup.
+vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 })
+
 const signal = () => ({ signal: new AbortController().signal })
 const malformed = { rejected: 'invalidInput', reason: 'malformed' } as const
 // Second-round reply facts (synthetic, distinct from the first-round O).

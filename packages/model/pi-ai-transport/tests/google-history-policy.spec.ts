@@ -2,7 +2,7 @@
 // GS-V2 fixtures are served over local TLS and read by the production reader; no merged
 // detail entry is written by hand. Unit-level shapes the projection never produces are
 // classified directly from reader output.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { readOpaqueJson, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { projectAssistant } from '../src/assistant-projection.ts'
 import { object } from '../src/json.ts'
@@ -42,6 +42,9 @@ import {
   type GoogleHost,
 } from './google-history-support.ts'
 import { certificate } from './support.ts'
+
+// The first test in a worker pays the verified tokenizer load and TLS setup.
+vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 })
 
 const V3 = {
   algorithm: 'gemma4-visible-text-tools-effort-offset6-2',
