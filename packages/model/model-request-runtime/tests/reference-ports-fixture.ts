@@ -7,6 +7,7 @@ import {
 } from '../src/acknowledgement-custody.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
+import type { ModelCallContentStore } from '../src/reference-types.ts'
 import type { PlannedSemantics } from '../src/types.ts'
 import type { selectionHost } from './session-selection-fixture.ts'
 import { noWaitScheduler } from './settlement-fixture.ts'
@@ -21,6 +22,10 @@ type Ports<P extends PlannedSemantics, R> = Pick<
 export function referencePorts<P extends PlannedSemantics, R>(
   host: Host,
   calls: CallContainerStore<P, R>,
+  options: {
+    /** Wraps the real SQLite-backed store, e.g. to inject one failing method. */
+    readonly content?: (store: ModelCallContentStore) => ModelCallContentStore
+  } = {},
 ): Ports<P, R> {
   const callPresence: Ports<P, R>['callPresence'] = {
     async read(input, observed) {
@@ -46,11 +51,12 @@ export function referencePorts<P extends PlannedSemantics, R>(
       }
     },
   }
+  const store = createModelCallContentStore({
+    storage: host.storage,
+    policy: { maxConcurrentWrites: 2, maxContentBytes: 1_000_000 },
+  })
   const callFacts = createModelCallFacts({
-    content: createModelCallContentStore({
-      storage: host.storage,
-      policy: { maxConcurrentWrites: 2, maxContentBytes: 1_000_000 },
-    }),
+    content: options.content === undefined ? store : options.content(store),
     presence: callPresence,
     maxScopes: 4,
   })
