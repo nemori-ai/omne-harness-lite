@@ -9,6 +9,7 @@
 - [第一方字段与请求组合复核](reports/2026-09-27-first-party-and-joint.md)
 - [首两个 OpenAI 固定 route 的窄复核](reports/2026-09-27-first-two-openai-routes.md)
 - [八家输入计量来源与离线复现](reports/2026-09-28-input-meter-sources.md)
+- [DeepSeek 两叶真实推理历史与旧执行范围复核](reports/2026-09-30-deepseek-reasoning-history.md)
 - [研究演进](changelog.md)
 
 模型与路由变动、缓存文档或提供者版本变化时重新核验；不把本次结果推广到未测路由。

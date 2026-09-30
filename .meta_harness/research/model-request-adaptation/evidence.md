@@ -1,5 +1,9 @@
 # 来源与可复核观察
 
+## 2026-09-30 DeepSeek 旧原件与上游映射
+
+[本轮报告](reports/2026-09-30-deepseek-reasoning-history.md)列出 HUB 忽略目录 `tmp/model-request-runtime/` 中实际 Pro／Flash 回包、六次 public、Flash image／service、Pro service 失败日志的路径与 SHA256；它们没有归档入库，文件仍需按哈希逐件确认。报告同时定位 DeepSeek 原生 Thinking Mode 原文、固定 Flash encoder、pi 0.86.1 快照与 omne-next 固定检出。首轮两份真实回包中可见 `reasoning.text` 与 thinking block 相等；这并不解释 `format="unknown"` 的一般语义，也不构成 DeepInfra 预发 token 真值。此轮只读，无模型请求或账本修改。
+
 ## 2026-09-28 输入计量来源与离线复现
 
 [主线报告](reports/2026-09-28-input-meter-sources.md)对应[241 成员归档](input-meter-research-2026-09-28.tar.gz)，1,461,523 字节，SHA256 `59864709a9f3d48e0de38733443d0c2995cc23e8f237740536f5b812146e688a`。内含 `SHA256-manifest.json` 及 240 个逐字摘要工件；主线读回全部匹配。`anthropic/`、`closed/`、`open/` 为三路原交付，`root/` 为主线独立复现和七个关键原文重新 GET 的收据。原报告是作者输出，不因归档或摘要通过成为独立证据。

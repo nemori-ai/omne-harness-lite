@@ -1,5 +1,9 @@
 # 模型适配研究演进
 
+## 2026-09-30：补充 DeepSeek 旧推理历史
+
+新增两款 DeepSeek 固定 DeepInfra 路由的真实旧回包、可见 `reasoning.text`、旧 public/cache/image/service 执行范围与失败日志的来源复核；记录当前回放与计量的形态差异。旧成功、公开 encoder、原生指南和 pi/omne-next 回放各有不同覆盖，不升格为当前绑定认证或结构化 details 的计量等值保证。本轮零请求、零新增费用；见[报告](reports/2026-09-30-deepseek-reasoning-history.md)与[来源索引](evidence.md#2026-09-30-deepseek-旧原件与上游映射)。
+
 ## 2026-09-28：补充输入计量来源
 
 用户要求对新版 Claude 及其他估算路径开展社区／第一方调查；三路分别核对 Anthropic 与 pi/OpenCode/DSH、OpenAI/Google/xAI、DeepSeek/Qwen/Moonshot/ZAI。主线核关键原文并独立重跑作者离线探针，66 项 Claude 历史计数、五类合成文本、名称映射、公开模板与图片尺寸公式结果一致。新增[报告](reports/2026-09-28-input-meter-sources.md)与 241 成员归档；没有新的厂商请求、精度认证或设计采用。之前的缓存、路由和付费实验仍保持原范围。

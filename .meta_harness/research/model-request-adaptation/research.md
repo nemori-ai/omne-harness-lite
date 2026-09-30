@@ -1,6 +1,10 @@
 # 模型缓存与适配的实际观察
 
-最近核对：2026-09-28（输入计量）；以下目录／缓存观察仍属 2026-09-27。固定名单来自用户确认，OpenRouter 公共目录中 37 项均存在。目录存在不表示模型由产品提供。
+最近核对：2026-09-30（DeepSeek 旧原件）；以下目录／缓存观察仍属 2026-09-27。固定名单来自用户确认，OpenRouter 公共目录中 37 项均存在。目录存在不表示模型由产品提供。
+
+## DeepSeek 两叶的旧推理历史
+
+[2026-09-30 复核](reports/2026-09-30-deepseek-reasoning-history.md)重读先前固定 `deepinfra/fp8` 请求原件：Pro 与 Flash 首轮的 `reasoning_details` 均为 `reasoning.text`、`format="unknown"`，文字与同轮可见 thinking block 逐字相同；后两轮曾报告缓存暖读。当前回放代码保留该结构，DeepSeek full／marginal 参考计量在出现结构化 details 时拒绝估算。旧执行定义与当前绑定不同；无本路由的 details 到原生 `reasoning_content` 等值或误差上界证据，不把旧成功当作当前认证。来源摘要及范围见[本轮证据](evidence.md#2026-09-30-deepseek-旧原件与上游映射)。
 
 ## 输入计量的新版来源
 
