@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { jsonNumberSource, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
+import type { AcceptanceEvent } from '../src/types.ts'
 import { createDemoDiagnosticConfig, ensureDemoDiagnosticParent } from '../src/demo.ts'
 import { openDemoDiagnosticAssembly } from '../src/diagnostic-assembly.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
@@ -35,10 +36,15 @@ describe('D6 application business isolation from diagnostic sink failure', () =>
       const config = await callDeployment(`d6-completion-sink-${mode}`)
       const directory = dirname(config.databaseFile)
       const tls = await createLocalTls(join(directory, 'tls'))
+      const events: AcceptanceEvent[] = []
       const app = createAcceptanceApplication(config, {
         stage: 'modelRequest',
         developmentTransport: tls.developmentTransport,
-        diagnostics: { record() {} },
+        diagnostics: {
+          record(event) {
+            events.push(event)
+          },
+        },
       })
       const host = createDemoCallHost()
       let diagnostics: Awaited<ReturnType<typeof openDemoDiagnosticAssembly>> | undefined
@@ -106,6 +112,16 @@ describe('D6 application business isolation from diagnostic sink failure', () =>
         expect(await app.persistModelReply(who, prepared.session, pending)).toHaveProperty(
           'settled',
         )
+        // The demo's own persisted-message settlement reports through the typed acceptance port;
+        // the runtime's ready handoff is a published marker, not a runtime settlement batch.
+        expect(
+          events.some(
+            event =>
+              event.phase === 'settlement' &&
+              event.outcome === 'settlement.committed' &&
+              event.settlement?.call === pending.call.callId,
+          ),
+        ).toBe(true)
         const logged = await app.readSessionLog(who, prepared.session)
         if (!('entries' in logged)) throw new Error('durable session prefix unavailable')
         expect(writeJsonLossless(logged.entries.map(entry => entry.payload))).toContain(
@@ -126,7 +142,14 @@ describe('D6 application business isolation from diagnostic sink failure', () =>
           maxBytes: 1_048_576,
         })
         if (!('page' in rows)) throw new Error('tenant journal unavailable after sink failure')
-        expect(rows.page.records.some(row => row.stage === 'settlement')).toBe(true)
+        expect(
+          rows.page.records.some(
+            row =>
+              row.source === 'runtime' &&
+              row.stage === 'reply_handoff' &&
+              row.association?.call === pending.call.callId,
+          ),
+        ).toBe(true)
         expect(JSON.stringify(rows.page.records)).not.toContain('private diagnostic sink')
       } finally {
         await host.stop()

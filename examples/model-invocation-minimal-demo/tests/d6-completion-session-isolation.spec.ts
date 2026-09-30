@@ -225,7 +225,11 @@ describe('D6 application diagnostic closure', () => {
         if (!('callId' in result)) throw new Error('service call identity absent')
         const related = tenantRows.filter(row => row.association?.session === sessions[index])
         expect(related.length).toBeGreaterThan(0)
-        expect(related.some(row => row.stage === 'settlement')).toBe(true)
+        // A successful ready handoff is a published reference marker, not a runtime settlement
+        // batch; the runtime's durable-handoff progress rows carry this call's causal chain.
+        expect(related.some(row => row.source === 'runtime' && row.stage === 'reply_handoff')).toBe(
+          true,
+        )
         expect(related.every(row => row.association?.call === result.callId)).toBe(true)
         // Selection binding is observed before the dispatch is allocated.
         expect(

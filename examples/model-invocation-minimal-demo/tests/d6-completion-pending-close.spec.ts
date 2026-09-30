@@ -2,6 +2,7 @@ import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
+import type { AcceptanceEvent } from '../src/types.ts'
 import { createDemoDiagnosticConfig, ensureDemoDiagnosticParent } from '../src/demo.ts'
 import { openDemoDiagnosticAssembly } from '../src/diagnostic-assembly.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
@@ -40,10 +41,15 @@ describe('D6 actual application close ownership', () => {
     const config = await callDeployment('d6-completion-pending-sink')
     const directory = dirname(config.databaseFile)
     const tls = await createLocalTls(join(directory, 'tls'))
+    const events: AcceptanceEvent[] = []
     const app = createAcceptanceApplication(config, {
       stage: 'modelRequest',
       developmentTransport: tls.developmentTransport,
-      diagnostics: { record() {} },
+      diagnostics: {
+        record(event) {
+          events.push(event)
+        },
+      },
     })
     const host = createDemoCallHost()
     const entered = deferred()
@@ -95,9 +101,21 @@ describe('D6 actual application close ownership', () => {
       })
       if (!('result' in sent) || !('replyPending' in sent.result))
         throw new Error('model reply not handed off')
+      const callId = sent.result.replyPending.call.callId
       expect(
         await app.persistModelReply(who, prepared.session, sent.result.replyPending),
       ).toHaveProperty('settled')
+      // The demo is the persisted-message writer; its settlement coordinator reports through the
+      // typed acceptance port. The runtime's successful ready handoff is a published reference
+      // marker, not a settlement batch, so no runtime `settlement` stage row exists for it.
+      expect(
+        events.some(
+          event =>
+            event.phase === 'settlement' &&
+            event.outcome === 'settlement.committed' &&
+            event.settlement?.call === callId,
+        ),
+      ).toBe(true)
       const beforeClose = await app.readSessionLog(who, prepared.session)
       expect('entries' in beforeClose && beforeClose.entries.length > 0).toBe(true)
       await entered.promise
@@ -122,7 +140,14 @@ describe('D6 actual application close ownership', () => {
         maxBytes: 1_048_576,
       })
       if (!('page' in afterClose)) throw new Error('post-close journal unavailable')
-      expect(afterClose.page.records.some(row => row.stage === 'settlement')).toBe(true)
+      expect(
+        afterClose.page.records.some(
+          row =>
+            row.source === 'runtime' &&
+            row.stage === 'reply_handoff' &&
+            row.association?.call === callId,
+        ),
+      ).toBe(true)
       expect(JSON.stringify(afterClose.page.records)).not.toContain('d6-pending-private-key')
     } finally {
       release.resolve()
