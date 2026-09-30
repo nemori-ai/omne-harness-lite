@@ -31,27 +31,39 @@ export function createDemoCallHost(): DemoCallHost {
     },
   }
 
+  /**
+   * Containers of one Session share a settlement owner whose concurrency is a finite budget, so
+   * closing several at once can lose that admission and leave the loser registered ("close
+   * again"). A pass retries only the registrations that stayed; the loop ends when everything is
+   * released or a whole pass made no progress, so it needs neither a timer nor a retry count.
+   */
+  async function releaseRegistrations(): Promise<RuntimeCloseResult> {
+    let pending = [...registrations]
+    while (pending.length !== 0) {
+      const results = await Promise.allSettled(pending.map(close => Promise.resolve().then(close)))
+      const kept = pending.filter((close, index) => {
+        const result = results[index]
+        if (result?.status === 'fulfilled' && 'released' in result.value) {
+          registrations.delete(close)
+          return false
+        }
+        return true
+      })
+      if (kept.length === pending.length) break
+      pending = kept
+    }
+    released = registrations.size === 0
+    return released ? { released: true } : { unavailable: true }
+  }
+
   function stop(): Promise<RuntimeCloseResult> {
     if (!stopping) {
       stopping = true
       controller.abort()
     }
-    if (closing !== undefined) return closing
-    const callbacks = [...registrations]
-    closing = Promise.allSettled(callbacks.map(close => Promise.resolve().then(close)))
-      .then(results => {
-        for (const [index, result] of results.entries()) {
-          if (result.status === 'fulfilled' && 'released' in result.value) {
-            const close = callbacks[index]
-            if (close !== undefined) registrations.delete(close)
-          }
-        }
-        released = registrations.size === 0
-        return released ? ({ released: true } as const) : ({ unavailable: true } as const)
-      })
-      .finally(() => {
-        closing = undefined
-      })
+    closing ??= releaseRegistrations().finally(() => {
+      closing = undefined
+    })
     return closing
   }
 

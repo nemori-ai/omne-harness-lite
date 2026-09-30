@@ -3,6 +3,7 @@ import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import {
   createSettlementCoordinator,
   type SettlementContention,
+  type SettlementCoordinator,
   type SettlementDiagnostic,
   type SettlementLogBinding,
   type SettlementOwner,
@@ -20,6 +21,12 @@ export async function persistDemoModelReply(input: {
   readonly scheduler: SettlementScheduler
   readonly run?: RunHistoryReader
   readonly diagnostic: (event: SettlementDiagnostic) => void
+  /**
+   * The coordinator keeps ownership of an original write whose outcome is still unknown and its
+   * close then refuses. The host retains that coordinator and closes it again later, never
+   * dropping it.
+   */
+  readonly retain: (coordinator: Pick<SettlementCoordinator, 'close'>) => void
 }): Promise<SettlementResult> {
   if ('rejected' in judgePendingModelResponse(input.pending))
     return { unavailable: true, reason: 'candidate' }
@@ -50,6 +57,12 @@ export async function persistDemoModelReply(input: {
     await handle.stopped
     return result
   } finally {
-    await coordinator.close()
+    try {
+      await coordinator.close()
+    } catch {
+      // The settlement result above already says what became known; the coordinator still owns
+      // the unresolved original and must stay reachable for another close.
+      input.retain(coordinator)
+    }
   }
 }

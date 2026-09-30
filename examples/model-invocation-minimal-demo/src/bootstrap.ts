@@ -25,6 +25,7 @@ import {
   type SessionObserverAccess,
   type SettlementResult,
   type SettlementOwner,
+  type SettlementCoordinator,
   type SessionModelSelection,
   type SessionModelSelectionInput,
   type SettlementLogBinding,
@@ -590,6 +591,8 @@ export function createAcceptanceApplication(
   // Aborted when this application withdraws access; every access evidence carries this signal.
   const accessRevocation = new AbortController()
   // Sessions whose cold recovery scope was built under host-witnessed exit of the old worker.
+  // Settlement coordinators that still own an unresolved original write; closed again on shutdown.
+  const retainedSettlements = new Set<Pick<SettlementCoordinator, 'close'>>()
   const coldStopped = new Map<SessionRef, ReadonlyMap<string, ModelLogSettlementTarget>>()
   const runtimeBindings = new Map<SessionRef, SessionRuntimeBinding>()
   const controlledRuns = new Map<SessionRef, ControlledSingleRunSelection>()
@@ -852,11 +855,19 @@ export function createAcceptanceApplication(
       const lateObservers = await Promise.allSettled(
         [...observerGrants].map(grant => grant.revoke()),
       )
+      // An unresolved original settlement write is resolved on its own coordinator, or it stays owned.
+      await Promise.allSettled(
+        [...retainedSettlements].map(async coordinator => {
+          await coordinator.close()
+          retainedSettlements.delete(coordinator)
+        }),
+      )
       const consumerUnavailable = [...stoppedSelections, ...lateObservers].some(
         result => result.status === 'rejected' || 'unavailable' in result.value,
       )
       if (
         consumerUnavailable ||
+        retainedSettlements.size !== 0 ||
         (stoppedRuntime !== undefined && 'unavailable' in stoppedRuntime) ||
         (transportService !== undefined &&
           (transportService.inspect().references !== 0 ||
@@ -2626,6 +2637,7 @@ export function createAcceptanceApplication(
         scheduler: requestDeployment.settlement.scheduler,
         ...(options.runHistory === undefined ? {} : { run: options.runHistory }),
         diagnostic: recordSettlement,
+        retain: coordinator => retainedSettlements.add(coordinator),
       })
     }
     return isOk(parsed) ? trackSession(parsed.ok, work) : track(work)
