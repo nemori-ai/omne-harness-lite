@@ -403,9 +403,35 @@ H13-G4 不改变 MR9/RT10 的原接受状态，不将旧形式任务重绑给未
 | xAI | x-ai/grok-4.7 | 身份原件已落盘（`batch5b`）；三轮**以 grok-4.6 代认（用户裁决 R-U）** | 以 grok-4.6 代认（R-U） | 同日三次上游停滞，三条 unknown hold 已确认不释放 |
 | Moonshot | moonshotai/kimi-k3、kimi-k2.7-code | 104ce616／`batch6d` 带 tools 3/3；a2fd1e50／`batch6e` 无 tools 3/3；P2 对照 `p2-74bdd9ef` | baac88e4／`service2` 3/3 | MV4 与 P2 完成 |
 | Qwen | qwen/qwen3.8-27b、qwen3.8-2.4t-a95b | eb35677c／`batch7` 带 tools 3/3、无 tools 3/3；P2 对照 `p2-eb35677c` | 未跑 | QV4 与 P2 完成；service 路径待冻结后同批 |
-| Google | gemini-3.8-flash、gemini-3.7-flash | 104ce616／`batch6d` 第 1 轮观察（`reasoning.encrypted`，`google-gemini-v1`）；第 2 轮按当前绑定计划期拒绝 | 未跑 | GS-V7 候选未采用，不在本程范围 |
+| Google | gemini-3.8-flash、gemini-3.7-flash | 104ce616／`batch6d` 第 1 轮观察（`reasoning.encrypted`，`google-gemini-v1`）；第 2 轮按当前绑定计划期拒绝 | 未跑 | 第 1 轮即 GS-V7 最小观测（工具路径），见 [Google revision 4 义务](#google-推理历史候选-revision-4-的-gs-义务)；候选未采用 |
 | Qwen 商业六叶、ZAI 五叶 | — | 未跑 | 未跑 | G7 不作本次门；ZAI 可见推理历史 GG-12 待下一程 |
 
 ### 冻结 SHA `cb744210` 重跑（2026-09-30 12:07–12:33Z）
 
 同批以 R7 在冻结候选 `cb744210` 上重跑：public 25 份（OpenAI 12、Anthropic 三叶三轮 v3／v4＋纯图、DeepSeek 有／无 tools、Moonshot 有／无 tools、Qwen 开源两叶有／无 tools、xAI 4.6）全部 exit 0；service 22 叶中 OpenAI 12、Anthropic 3、DeepSeek 2、Moonshot 2、xAI 4.6 全部 exit 0。xAI 4.6 在该 SHA 上带工具判据的 v2／v3 场景三次于第 2 轮被模型文本作答（产品 marginal 回放均完成），改为 v4 场景（第 1 轮工具调用形成签名组，第 2、3 轮文本判据）通过；xAI 相关源在 `a2fd1e50`→`cb744210` 间无改动。Qwen 开源两叶 service 路径在 R7 `service-v3` prepare 被拒（配置档固定 automatic 缓存，Qwen 路由要求显式 5m），属认证工具限制，待 R8。证据目录：`freeze-public-cb744210{,-rerun}`、`freeze-service-cb744210{,-rerun}`。
+
+## Google 推理历史候选 revision 4 的 GS 义务
+
+对象：[Google 有限适用页 revision 4](google-reasoning-history-output-group-candidate.md#验证义务与逐叶采用矩阵)（candidate，未采用）。逐条的可失败验收与「不能冒用」以该页为准，本节只记状态与覆盖缺口。**全部为待执行义务，新增绑定 0**；本次只有文档检查，不证明源码、模型或上游已兑现。唯一已发生的是 GS-V7 的最小观测：上表 `batch6d` 两叶第 1 轮，逐帧读数入研究页 `research/model-request-adaptation/vendor-continuation/google/2026-09-30-complete-reply-originals.md`。
+
+| 义务 | 覆盖什么 | owner | 状态 |
+|---|---|---|---|
+| GS-V1 | 两叶 V3/V4 工厂坐标导出核表、旧 factory 删除、evidence 串带 09-30 两条 generation id | 实施者 | 待实施；坐标待主线钉定（K7） |
+| GS-V2 | E（单条、多条）为 `wholeGroup`；T-only 为 `uninterpretable`；TS、S、混排、E 缺 id、`[REDACTED]`、多余成员等逐一负例；夹具经真实 reader | 实施者 | 待实施 |
+| GS-V3 | full＝G4(剩余)＋ΣO，O 与 reasoning 不双加，密文与 id 不进 tokenizer，变异反控 | 实施者 | 待实施 |
+| GS-V4 | 部分选择、篡改、伪造、截断回复、独立 `measureFull` 失败不产计量 | 实施者 | 待实施 |
+| GS-V5 | basis 关系与身份对（同缺放行、单字段与一边缺 unavailable、冲突 malformed） | 实施者 | 待实施 |
+| GS-V6 | 本机 TLS 工具路径三轮，public 与 Cordis 两入口；E 逐字节回放，工具调用 id 照实断言为投影生成值；TS 用例保留为负控 | 实施者 | 待实施 |
+| GS-V7 | 真实认证：两叶 public 与 service 工具路径三轮，逐帧记录第 2 轮 E 与第 3 轮文本回复形状 | 主调度（付费） | 最小观测已完成（工具路径）；三轮待实施后 |
+| GS-V8 | 旧证据只复用于可见 counter，在 V4 构建上重跑 | 实施者 | 待实施 |
+| GS-V9 | P2 同路由对照（必做）：A 带 E、C 不带推理、条件性 D 只改工具调用 id；读 Δ_E、上游接受与 id 失配后果；A 的接受读数建议先于坐标钉定 | 主调度（付费研究请求） | 待执行，不依赖实施 |
+| GS-V10 | K2 对照：非工具路径当前绑定首轮 raw；若为 T-only，做 details／同文 `reasoning` 串／不带推理三变体 | 主调度（付费） | 待执行；非本页采用门 |
+
+### Google revision 4 覆盖缺口
+
+| 缺口 | 精确限制 | 受阻消费者 |
+|---|---|---|
+| 回放从未出网（GG-4） | 两叶第 2 轮都在计划期拒绝；E 组能否被上游原样接受、计入多少输入均无读数 | 坐标钉定；GS-V7 |
+| E 的 id 失配（GG-14） | E 的 id 等于首轮工具调用的上游 id，投影写回的工具调用 id 由 reader 生成，回放时两者不等；上游后果未知，本机用例只能照实断言、不能证明无害 | GS-V7 通过；工具续接的实际语义；owner 为 transport reader／投影 |
+| 非工具路径形状（GG-2、GG-13） | 当前绑定下非工具完整回复的推理详情未以 raw 观测；唯一样本是 09-28 的 T-only 领域结果 | 文本回复之后的下一轮；K2 映射 |
+| 签名语义（GG-3） | Google thought signature 与 E 的关系、是否绑定前缀或工具调用 id 无来源核对 | K1 置信度；`requiresSignedPrefix` 取 false 的依据 |

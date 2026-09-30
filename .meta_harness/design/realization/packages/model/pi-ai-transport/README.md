@@ -187,4 +187,4 @@ HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义�
 
 ## Google 两叶推理历史完整输出组候选（2026-09-30）
 
-[Google 有限适用页 revision 1](google-reasoning-history-output-group-candidate.md) 复用已采用的共享完整输出组机制，拟两叶 definition 4 与新 mp4 修订（编号待主线协调）：完整、同模型的 `google-gemini-v1` 组以原 O 计一次作 estimated 代理，其余可见输入仍走 Gemma4 替身，full-only。**语义接受**：RT12/MR11 已接受，本页不新增语义；**可实施**：候选，待独立评审与主线采用；**绑定证据**：新增 0；**实际验证**：尚无——真实完整签名组、工具续接形状与上游是否接受原样回放都未观测，缺口与受阻消费者见该页 GG-1～GG-10。
+[Google 有限适用页 revision 4](google-reasoning-history-output-group-candidate.md) 复用已采用的共享完整输出组机制，拟两叶 definition 4、algorithm `gemma4-visible-offset6-complete-output-group-estimated/1` 与新 mp4 修订（编号待主线协调）：主承载是 2026-09-30 真实观测到的工具路径密文组（恰一条 `reasoning.encrypted`，id 等于同回复工具调用的上游 id），完整、同模型的组以原 O 计一次作 estimated 代理，其余可见输入仍走 Gemma4 替身，full-only；只含文本条目的组仍 `input_size_unavailable`，截断帧才见的签名文本条目移出域。**语义接受**：RT12/MR11 已接受，本页不新增语义；**可实施**：候选，待独立评审与主线采用；机制接线按主调度 2026-09-30 裁决可先行，三个坐标证据上可钉，该页建议以 GS-V9 同路由对照的回放接受读数为钉定前置；**绑定证据**：新增 0；**实际验证**：尚无——09-30 两叶第 1 轮只是形状观测（第 2 轮按当前绑定计划期拒绝、零 HTTP），上游是否接受原样回放、回放的密文计入多少输入、密文 id 与投影生成的工具调用 id 不等的后果都未观测；义务 GS-V1～GS-V10 与覆盖缺口见[验证](verification.md#google-推理历史候选-revision-4-的-gs-义务)，缺口与受阻消费者见该页 GG-1～GG-14。
