@@ -313,7 +313,11 @@ export function createModelCallFacts(input: {
       !settlementGenerationCurrent(scope.binding)
     )
       return unavailable
-    const content = await input.content.read({ binding: scope.binding, ref: contentRef })
+    const content = await input.content.read({
+      binding: scope.binding,
+      call: ref.callId,
+      ref: contentRef,
+    })
     if (!('content' in content) || content.content.kind !== 'created') return unavailable
     const created = content.content.value
     if (
@@ -332,6 +336,7 @@ export function createModelCallFacts(input: {
     else if (projected.ready !== undefined) {
       const pending = await input.content.read({
         binding: scope.binding,
+        call: ref.callId,
         ref: projected.ready.payload,
       })
       if (
@@ -411,7 +416,7 @@ export function createModelCallFacts(input: {
       if (!('view' in found)) return found
       const marker = scope.calls.get(callId)?.created ?? scope.calls.get(callId)?.rejected
       if (marker === undefined) return unavailable
-      const content = await input.content.read({ binding, ref: marker.payload })
+      const content = await input.content.read({ binding, call: callId, ref: marker.payload })
       return 'content' in content && content.content.kind === 'created'
         ? { payload: content.content.value, view: found.view }
         : unavailable

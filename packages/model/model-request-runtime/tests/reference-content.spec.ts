@@ -3,7 +3,12 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { judgeModelCallCreatedPayload } from '@omne-harness-lite/messages'
+import {
+  createModelCallSemanticDigest,
+  judgeModelCallCreatedPayload,
+  type ModelCallAcknowledgedRecord,
+  type ModelCallPayloadRef,
+} from '@omne-harness-lite/messages'
 import {
   judgePendingModelResponse,
   type PendingModelResponse,
@@ -277,14 +282,13 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
         content: h.content,
       })
       if (!('ref' in first)) throw new Error('content not confirmed')
-      expect(
-        await store.put({
-          binding: h.binding,
-          locator: 'created',
-          version: 'v1',
-          content: h.content,
-        }),
-      ).toEqual(first)
+      const again = await store.put({
+        binding: h.binding,
+        locator: 'created',
+        version: 'v1',
+        content: h.content,
+      })
+      expect('ref' in again && again.ref).toEqual(first.ref)
       const changed = {
         kind: 'created' as const,
         value: {
@@ -327,8 +331,16 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       expect(await h.binding.log.readSince(h.binding.session, 0)).toHaveProperty('entries', [])
       expect(await store.close()).toEqual({ released: true })
       const recovered = createModelCallContentStore({ storage: await h.reopen(), policy })
-      const readCreated = await recovered.read({ binding: h.binding, ref: first.ref })
-      const readReady = await recovered.read({ binding: h.binding, ref: writtenReady.ref })
+      const readCreated = await recovered.read({
+        binding: h.binding,
+        call: h.content.value.ref.callId,
+        ref: first.ref,
+      })
+      const readReady = await recovered.read({
+        binding: h.binding,
+        call: ready.value.call.callId,
+        ref: writtenReady.ref,
+      })
       expect('content' in readCreated && writeJsonLossless(readCreated.content.value)).toBe(
         writeJsonLossless(h.content.value),
       )
@@ -369,7 +381,9 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       if (!('ref' in result)) throw new Error('committed original must be recognized')
       expect(result.ref.locator).toBe('original')
       expect(await closing).toEqual({ released: true })
-      expect(await store.read({ binding: h.binding, ref: result.ref })).toHaveProperty('content')
+      expect(
+        await store.read({ binding: h.binding, call: h.content.value.ref.callId, ref: result.ref }),
+      ).toHaveProperty('content')
     })
   })
   it('detects actual bytes tampering, missing rows, wrong tenant and invalid generation', async () => {
@@ -389,11 +403,12 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
           .where('locator', '=', 'tamper')
           .execute()
       })
-      expect(await store.read({ binding: h.binding, ref: written.ref })).toHaveProperty(
+      const call = h.content.value.ref.callId
+      expect(await store.read({ binding: h.binding, call, ref: written.ref })).toHaveProperty(
         'invalidInput',
       )
       expect(
-        await store.read({ binding: h.binding, ref: { ...written.ref, locator: 'missing' } }),
+        await store.read({ binding: h.binding, call, ref: { ...written.ref, locator: 'missing' } }),
       ).toEqual({ unavailable: true })
       expect(
         await store.put({
@@ -404,6 +419,252 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
         }),
       ).toEqual({ unavailable: true })
       await store.close()
+    })
+  })
+})
+
+/** A different CallKey of the same session, for isolation checks. */
+function otherCall(
+  content: Extract<ModelCallContentValue, { kind: 'created' }>,
+): Extract<ModelCallContentValue, { kind: 'created' }> {
+  const judged = judgeModelCallCreatedPayload({
+    ...content.value,
+    ref: { ...content.value.ref, callId: 'call_retention_other' },
+    creationKey: 'create_retention_other',
+  })
+  if ('rejected' in judged) throw new Error('other call fixture')
+  return { kind: 'created', value: judged.ok }
+}
+/** An MS8 S-58 ACK batch built from the exact content read under the retention lock. */
+function endedAcknowledgement(
+  contents: readonly ModelCallContentValue[],
+  payload: ModelCallPayloadRef,
+): { readonly record: ModelCallAcknowledgedRecord } {
+  const original = contents[0]
+  if (original?.kind !== 'created') throw new Error('created content under the lock')
+  const digest = createModelCallSemanticDigest(
+    'model-call-creation-semantic-sha256/v1',
+    original.value.input,
+  )
+  if (!('ok' in digest) || digest.ok.role !== 'model-call-creation-semantic-sha256/v1')
+    throw new Error('creation digest')
+  return {
+    record: {
+      kind: 'model_call_acknowledged',
+      call: original.value.ref.callId,
+      creationKey: original.value.creationKey,
+      creationInput: { role: digest.ok.role, hex: digest.ok.hex },
+      acknowledgedAt: '2026-09-30T00:00:00Z',
+      releasablePayloads: [payload],
+      target: { kind: 'ended', ending: 'released' },
+      terminalState: 'handed_up',
+    },
+  }
+}
+async function rowCount(storage: Storage, table: string, call: string): Promise<number> {
+  return await storage.read(async tx => {
+    const rows = await narrow<Record<string, { call: string }>>(tx)
+      .selectFrom(table)
+      .select('call')
+      .where('call', '=', call)
+      .execute()
+    return rows.length
+  })
+}
+
+describe('RT12 S-98 retention gate on real SQLite', () => {
+  it('holds cleanup behind a publish permit, then deletes exactly this call in one commit', async () => {
+    await host(async h => {
+      const store = createModelCallContentStore({ storage: h.storage, policy })
+      const call = h.content.value.ref.callId
+      const other = otherCall(h.content)
+      const written = await store.put({
+        binding: h.binding,
+        locator: 'retained',
+        version: 'v1',
+        content: h.content,
+      })
+      const neighbour = await store.put({
+        binding: h.binding,
+        locator: 'neighbour',
+        version: 'v1',
+        content: other,
+      })
+      if (!('ref' in written) || !('ref' in neighbour)) throw new Error('confirmed content')
+      expect(await store.retention({ binding: h.binding, call })).toEqual({
+        phase: 'retained',
+        publishers: 1,
+      })
+      let builds = 0
+      const prepared = await store.prepareAcknowledgement({
+        binding: h.binding,
+        call,
+        payloads: [written.ref],
+        build: contents => {
+          builds++
+          return endedAcknowledgement(contents, written.ref)
+        },
+      })
+      if (!('record' in prepared)) throw new Error('prepared ACK batch')
+      expect(prepared.phase).toBe('retiring')
+      // Retiring closes new reads and publications of this call only.
+      expect(await store.read({ binding: h.binding, call, ref: written.ref })).toEqual({
+        unavailable: true,
+      })
+      expect(
+        await store.put({ binding: h.binding, locator: 'late', version: 'v1', content: h.content }),
+      ).toEqual({ unavailable: true })
+      expect(
+        await store.read({
+          binding: h.binding,
+          call: other.value.ref.callId,
+          ref: neighbour.ref,
+        }),
+      ).toHaveProperty('content')
+      // The fixed batch is returned, never rebuilt.
+      const again = await store.prepareAcknowledgement({
+        binding: h.binding,
+        call,
+        payloads: [written.ref],
+        build: () => {
+          throw new Error('a fixed batch is never rebuilt')
+        },
+      })
+      expect(again).toEqual(prepared)
+      expect(builds).toBe(1)
+      expect(
+        await store.confirmAcknowledgement({ binding: h.binding, call, record: prepared.record }),
+      ).toEqual({ phase: 'acknowledged' })
+      // The original writer still holds its permit: no deletion yet.
+      expect(await store.releaseAcknowledged({ binding: h.binding, call })).toEqual({
+        cleanup: 'pending',
+        pendingReasons: ['writer_in_flight'],
+      })
+      expect(await rowCount(h.storage, 'model_call_content', call)).toBe(1)
+      expect(await written.permit.release()).toEqual({ released: true })
+      expect(await store.releaseAcknowledged({ binding: h.binding, call })).toEqual({
+        cleanup: 'released',
+      })
+      expect(await rowCount(h.storage, 'model_call_content', call)).toBe(0)
+      expect(await store.retention({ binding: h.binding, call })).toEqual({
+        phase: 'released',
+        publishers: 0,
+      })
+      // Released never retreats; a repeat recognizes it.
+      expect(await store.releaseAcknowledged({ binding: h.binding, call })).toEqual({
+        cleanup: 'released',
+      })
+      expect(
+        await store.confirmAcknowledgement({ binding: h.binding, call, record: prepared.record }),
+      ).toEqual({ phase: 'released' })
+      // The neighbour call keeps its content, permit and retained phase.
+      expect(await rowCount(h.storage, 'model_call_content', other.value.ref.callId)).toBe(1)
+      expect(await store.retention({ binding: h.binding, call: other.value.ref.callId })).toEqual({
+        phase: 'retained',
+        publishers: 1,
+      })
+      expect(await neighbour.permit.release()).toEqual({ released: true })
+      await store.close()
+    })
+  })
+  it('keeps the fixed batch across reopen and refuses a differing confirmation', async () => {
+    await host(async h => {
+      const call = h.content.value.ref.callId
+      const first = createModelCallContentStore({ storage: h.storage, policy })
+      const written = await first.put({
+        binding: h.binding,
+        locator: 'reopen',
+        version: 'v1',
+        content: h.content,
+      })
+      if (!('ref' in written)) throw new Error('confirmed content')
+      await written.permit.release()
+      const prepared = await first.prepareAcknowledgement({
+        binding: h.binding,
+        call,
+        payloads: [written.ref],
+        build: contents => endedAcknowledgement(contents, written.ref),
+      })
+      if (!('record' in prepared)) throw new Error('prepared ACK batch')
+      await first.close()
+      const storage = await h.reopen()
+      const reopened = createModelCallContentStore({ storage, policy })
+      expect(
+        await reopened.prepareAcknowledgement({
+          binding: h.binding,
+          call,
+          payloads: [written.ref],
+          build: () => {
+            throw new Error('a fixed batch is never rebuilt')
+          },
+        }),
+      ).toEqual(prepared)
+      expect(
+        await reopened.confirmAcknowledgement({
+          binding: h.binding,
+          call,
+          record: { ...prepared.record, acknowledgedAt: '2026-09-30T00:00:09Z' },
+        }),
+      ).toEqual({ unavailable: true })
+      // Not yet confirmed: cleanup cannot start.
+      expect(await reopened.releaseAcknowledged({ binding: h.binding, call })).toEqual({
+        cleanup: 'pending',
+        pendingReasons: ['storage_unavailable'],
+      })
+      expect(await rowCount(storage, 'model_call_content', call)).toBe(1)
+      await reopened.close()
+    })
+  })
+  it('recognizes a lost deletion receipt from the same row and reports real storage failure', async () => {
+    await host(async h => {
+      const call = h.content.value.ref.callId
+      const direct = createModelCallContentStore({ storage: h.storage, policy })
+      const written = await direct.put({
+        binding: h.binding,
+        locator: 'receipt',
+        version: 'v1',
+        content: h.content,
+      })
+      if (!('ref' in written)) throw new Error('confirmed content')
+      await written.permit.release()
+      const prepared = await direct.prepareAcknowledgement({
+        binding: h.binding,
+        call,
+        payloads: [written.ref],
+        build: contents => endedAcknowledgement(contents, written.ref),
+      })
+      if (!('record' in prepared)) throw new Error('prepared ACK batch')
+      await direct.confirmAcknowledgement({ binding: h.binding, call, record: prepared.record })
+      let mode: 'fail' | 'fail-and-blind' | 'lose-receipt' = 'fail'
+      const storage: Storage = {
+        read: async fn => {
+          if (mode === 'fail-and-blind') throw new Error('storage unreadable')
+          return await h.storage.read(fn)
+        },
+        write: async fn => {
+          if (mode !== 'lose-receipt') throw new Error('storage unavailable before commit')
+          await h.storage.write(fn)
+          throw new Error('receipt lost after real commit')
+        },
+      }
+      const store = createModelCallContentStore({ storage, policy })
+      expect(await store.releaseAcknowledged({ binding: h.binding, call })).toEqual({
+        cleanup: 'pending',
+        pendingReasons: ['storage_unavailable'],
+      })
+      mode = 'fail-and-blind'
+      expect(await store.releaseAcknowledged({ binding: h.binding, call })).toEqual({
+        cleanup: 'pending',
+        pendingReasons: ['receipt_unknown'],
+      })
+      expect(await rowCount(h.storage, 'model_call_content', call)).toBe(1)
+      mode = 'lose-receipt'
+      expect(await store.releaseAcknowledged({ binding: h.binding, call })).toEqual({
+        cleanup: 'released',
+      })
+      expect(await rowCount(h.storage, 'model_call_content', call)).toBe(0)
+      await store.close()
+      await direct.close()
     })
   })
 })

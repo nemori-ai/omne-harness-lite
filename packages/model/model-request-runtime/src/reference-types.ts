@@ -217,19 +217,82 @@ export interface CallPresence {
 export type ModelCallContentValue =
   | { readonly kind: 'created'; readonly value: ModelCallCreatedPayload }
   | { readonly kind: 'reply_ready'; readonly value: PendingModelResponse }
+/**
+ * RT12 S-98: a committed publish permit on the call's retention row. The publisher releases it
+ * only after its marker outcome is known and its append task actually stopped.
+ */
+export interface ModelCallPublishPermit {
+  readonly release: () => Promise<RuntimeCloseResult>
+}
+/** RT12 S-98 custody phase of one CallKey; not an execution state. */
+export type ModelCallRetentionPhase = 'retained' | 'retiring' | 'acknowledged' | 'released'
+export type ModelCallRetentionKey = {
+  readonly binding: SettlementLogBinding
+  readonly call: CallKey['callId']
+}
+/** Pure, synchronous ACK batch builder run over contents read under the retention lock. */
+export type ModelCallAcknowledgementBuilder = (
+  contents: readonly ModelCallContentValue[],
+) => { readonly record: ModelCallAcknowledgedRecord } | ServiceInvalidInput | ServiceUnavailable
+export type ModelCallCleanupResult =
+  | { readonly cleanup: 'released' }
+  | { readonly cleanup: 'pending'; readonly pendingReasons: readonly AckPendingReason[] }
 export interface ModelCallContentStore {
-  /** Confirm immutable original bytes before issuing the reference. ACK successor pending. */
+  /**
+   * Confirm immutable original bytes before issuing the reference. Content, the call's
+   * retention row and a publish permit commit together; a non-retained call admits no writer.
+   */
   readonly put: (input: {
     readonly binding: SettlementLogBinding
     readonly locator: string
     readonly version: string
     readonly content: ModelCallContentValue
-  }) => Promise<{ readonly ref: ModelCallPayloadRef } | ServiceInvalidInput | ServiceUnavailable>
-  readonly read: (input: {
-    readonly binding: SettlementLogBinding
-    readonly ref: ModelCallPayloadRef
   }) => Promise<
+    | { readonly ref: ModelCallPayloadRef; readonly permit: ModelCallPublishPermit }
+    | ServiceInvalidInput
+    | ServiceUnavailable
+  >
+  /** The phase check and the byte copy share one snapshot: only a retained call is read. */
+  readonly read: (
+    input: ModelCallRetentionKey & { readonly ref: ModelCallPayloadRef },
+  ) => Promise<
     { readonly content: ModelCallContentValue } | ServiceInvalidInput | ServiceUnavailable
+  >
+  /**
+   * RT12 S-96④: under the retention lock, read the exact original contents, build the one
+   * ACK batch and close new reads/publications (retiring). A retiring or later row returns its
+   * fixed original batch unchanged; it is never rebuilt.
+   */
+  readonly prepareAcknowledgement: (
+    input: ModelCallRetentionKey & {
+      readonly payloads: readonly ModelCallPayloadRef[]
+      readonly build: ModelCallAcknowledgementBuilder
+    },
+  ) => Promise<
+    | {
+        readonly record: ModelCallAcknowledgedRecord
+        readonly phase: Exclude<ModelCallRetentionPhase, 'retained'>
+      }
+    | ServiceInvalidInput
+    | ServiceUnavailable
+  >
+  /** Record that the log confirmed this exact batch; never retreats from a later phase. */
+  readonly confirmAcknowledgement: (
+    input: ModelCallRetentionKey & { readonly record: ModelCallAcknowledgedRecord },
+  ) => Promise<
+    { readonly phase: 'acknowledged' | 'released' } | ServiceInvalidInput | ServiceUnavailable
+  >
+  /**
+   * RT12 S-98: in one transaction, recheck confirmation and drained publishers, delete exactly
+   * the releasable contents of this call and mark released. Obstacles are reported, not waited.
+   */
+  readonly releaseAcknowledged: (input: ModelCallRetentionKey) => Promise<ModelCallCleanupResult>
+  /** Current durable custody progress; storage failure is reported by the caller as pending. */
+  readonly retention: (
+    input: ModelCallRetentionKey,
+  ) => Promise<
+    | { readonly phase: ModelCallRetentionPhase | null; readonly publishers: number }
+    | ServiceUnavailable
   >
   readonly close: () => Promise<RuntimeCloseResult>
 }

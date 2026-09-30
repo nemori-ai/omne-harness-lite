@@ -54,6 +54,7 @@ import type { CallKey } from './service-types.ts'
 import type { CurrentHistoryReaders } from './service-types.ts'
 import type { SettlementLogBinding } from './settlement-types.ts'
 import type { PlannedSemantics } from './types.ts'
+import type { ModelCallPublishPermit } from './reference-types.ts'
 
 function observeAcquireRefusal<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
@@ -423,6 +424,8 @@ interface UnknownAppend {
   readonly registration: SettlementRegistration
   readonly task: SettlementTask<AppendResult>
   readonly readTasks: Set<SettlementTask<unknown>>
+  /** RT12 S-98: a content publish permit held until this original batch is recognized. */
+  readonly permit?: ModelCallPublishPermit
 }
 
 /** Unknown append receipts retain their original writer until it stops and a full prefix is read. */
@@ -436,8 +439,17 @@ export class UnknownAppendTracker {
     owner: SettlementOwner,
     registration: SettlementRegistration,
     task: SettlementTask<AppendResult>,
+    permit?: ModelCallPublishPermit,
   ): void {
-    this.#writes.add({ key, binding, owner, registration, task, readTasks: new Set() })
+    this.#writes.add({
+      key,
+      binding,
+      owner,
+      registration,
+      task,
+      readTasks: new Set(),
+      ...(permit === undefined ? {} : { permit }),
+    })
   }
 
   close(input: {
@@ -504,6 +516,8 @@ export class UnknownAppendTracker {
         continue
       }
       if ('unavailable' in recognized) continue
+      // The original batch is now determined and its writer stopped: its content permit ends.
+      if (write.permit !== undefined && !('released' in (await write.permit.release()))) continue
       try {
         write.registration.release()
         this.#writes.delete(write)
@@ -1044,8 +1058,8 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             version: 'v1',
             at: runtime.policy.now(),
             trackTask: task => appends.track(task),
-            retainUnknown(registration, task) {
-              unknownWrites.keep(key, session.log, owner, registration, task)
+            retainUnknown(registration, task, permit) {
+              unknownWrites.keep(key, session.log, owner, registration, task, permit)
             },
           })
           if (!('published' in publication)) return { unavailable: true }

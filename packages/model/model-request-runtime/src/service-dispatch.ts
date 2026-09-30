@@ -963,8 +963,8 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
           version: 'v1',
           at: runtime.policy.now(),
           trackTask: task => appends.track(task),
-          retainUnknown(registration, task) {
-            unknownWrites.keep(key, session.log, view.owner, registration, task)
+          retainUnknown(registration, task, permit) {
+            unknownWrites.keep(key, session.log, view.owner, registration, task, permit)
           },
         })
         if (!('published' in published)) {

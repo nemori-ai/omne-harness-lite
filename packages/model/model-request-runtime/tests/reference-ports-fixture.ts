@@ -78,6 +78,13 @@ export function unavailableReferencePorts<P extends PlannedSemantics, R>(): Port
       content: {
         put: async () => unavailable,
         read: async () => unavailable,
+        prepareAcknowledgement: async () => unavailable,
+        confirmAcknowledgement: async () => unavailable,
+        releaseAcknowledged: async () => ({
+          cleanup: 'pending',
+          pendingReasons: ['storage_unavailable'],
+        }),
+        retention: async () => unavailable,
         close: async () => ({ released: true }),
       },
       lookup: async () => unavailable,

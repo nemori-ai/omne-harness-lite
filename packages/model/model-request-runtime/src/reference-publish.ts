@@ -1,13 +1,21 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
-import type { ModelCallCreatedRecord, ModelCallReplyReadyRecord } from '@omne-harness-lite/messages'
+import type {
+  ModelCallCreatedRecord,
+  ModelCallPayloadRef,
+  ModelCallReplyReadyRecord,
+} from '@omne-harness-lite/messages'
 import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
 import { captureModelLogValue, prepareModelLogEntry, modelLogJsonEqual } from './log-codec.ts'
 import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
 import { OwnedReadTracker, withOwnedReads } from './service-control.ts'
-import type { ModelCallContentStore, ModelCallContentValue } from './reference-types.ts'
+import type {
+  ModelCallContentStore,
+  ModelCallContentValue,
+  ModelCallPublishPermit,
+} from './reference-types.ts'
 import type {
   SettlementLogBinding,
   SettlementOwner,
@@ -30,6 +38,7 @@ export async function publishModelCallContent(input: {
   readonly retainUnknown: (
     registration: SettlementRegistration,
     task: SettlementTask<AppendResult>,
+    permit: ModelCallPublishPermit,
   ) => void
   readonly trackTask?: (task: SettlementTask<AppendResult>) => () => void
 }): Promise<{ readonly published: true } | { readonly unavailable: true }> {
@@ -43,6 +52,28 @@ export async function publishModelCallContent(input: {
     content,
   })
   if (!('ref' in stored)) return unavailable
+  // RT12 S-98: the permit keeps ACK cleanup away from this content until the marker outcome
+  // is known and the append task actually stopped. An unknown marker hands the permit to the
+  // retained writer's owner, which releases it only after recognizing the original batch.
+  let retained = false
+  try {
+    return await publishMarker(input, stored.ref, (registration, task) => {
+      retained = true
+      input.retainUnknown(registration, task, stored.permit)
+    })
+  } finally {
+    if (!retained) await stored.permit.release()
+  }
+}
+
+async function publishMarker(
+  input: Parameters<typeof publishModelCallContent>[0],
+  ref: ModelCallPayloadRef,
+  retainUnknown: (registration: SettlementRegistration, task: SettlementTask<AppendResult>) => void,
+): Promise<{ readonly published: true } | { readonly unavailable: true }> {
+  const unavailable = { unavailable: true } as const
+  const { binding, content, owner } = input
+  const stored = { ref }
   let record: ModelCallCreatedRecord | ModelCallReplyReadyRecord
   if (content.kind === 'created') {
     if (stored.ref.kind !== 'created' || content.value.status !== 'accepted') return unavailable
@@ -188,13 +219,13 @@ export async function publishModelCallContent(input: {
       started &&
       (receipt === null || ('failure' in receipt && receipt.failure === 'unavailable'))
     ) {
-      input.retainUnknown(registration, task)
+      retainUnknown(registration, task)
       return unavailable
     }
     try {
       await task.stopped
     } catch {
-      input.retainUnknown(registration, task)
+      retainUnknown(registration, task)
       return unavailable
     }
     registration.release()
