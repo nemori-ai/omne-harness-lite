@@ -1,0 +1,34 @@
+{
+  "name": "Ack-temporaryBatch",
+  "config": "spec/capabilities/model-request-runtime/v-next/formal/validity-check/Ack-temporaryBatch.cfg",
+  "argv_effective": [
+    "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+    "-XX:+UseParallelGC",
+    "-cp",
+    "/opt/tlaplus/tla2tools.jar",
+    "tlc2.TLC",
+    "-workers",
+    "8",
+    "-config",
+    "run.cfg",
+    "AckLifecycle.tla"
+  ],
+  "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+  "returncode": 12,
+  "states_generated": 904,
+  "states_distinct": 394,
+  "expected_violation": "RecoverableBatch",
+  "actual_violations": [
+    "RecoverableBatch"
+  ],
+  "liveness_violated": false,
+  "matched": true,
+  "finished": {
+    "duration": "01s",
+    "at_local": "2026-09-30 05:35:10"
+  },
+  "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+  "config_sha256": "5edddbf101037ce95e2c2e9ab5be9a05de8471574fc775aa3bf377057edf8f68",
+  "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+  "log_sha256": "436d259a2ab9e70a39da3b64ad3cbe731ed8d18c5e72100076a16b85c7ecb265"
+}

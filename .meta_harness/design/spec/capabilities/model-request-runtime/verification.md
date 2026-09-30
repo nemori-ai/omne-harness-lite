@@ -591,7 +591,7 @@ FinalPlan 两份正配置实际 TLC 退出 0（WithLog=true：8737 不同状态�
 
 #### 扩展模型的本次执行
 
-TLC2 2026.09.12.025210（rev 867aefb）、Temurin 21.0.12.1、`-workers 8`；输入为本 spoke [`v-next/formal/`](v-next/formal/README.md) 当前字节（`AckLifecycle.tla` SHA-256 `2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45`）。原始日志与每份配置在任务 worktree 的 `tmp/model-request-runtime/ack-seam-revision/tlc-vnext-20260930/`，未提升为 evidence，登记与否由主线决定。
+TLC2 2026.09.12.025210（rev 867aefb）、Temurin 21.0.12.1、`-workers 8`；输入为本 spoke [`v-next/formal/`](v-next/formal/README.md) 当前字节（`AckLifecycle.tla` SHA-256 `2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45`）。原始日志、每份配置、退出码与逐文件摘要已按 evidence 家族约定落盘：[2026-09-30-ack-seam-vnext-tlc](../../../record/evidence/2026-09-30-ack-seam-vnext-tlc/README.md)（v-next candidate 模型，非 v12 冻结模型重跑）。
 
 | 配置 | 本次结果 |
 |---|---|

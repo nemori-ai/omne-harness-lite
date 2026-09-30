@@ -1,5 +1,7 @@
 # 运行证据
 
+**2026-09-30 ACK 接缝 v-next 暂存行模型**：[两正配置与十份变异的 TLC 运行](2026-09-30-ack-seam-vnext-tlc/README.md)。v-next candidate 模型，不是 v12 冻结模型重跑；正配置无反例、十份变异各命中目标不变量；不登记 formal task，不构成接受。
+
 **2026-09-29 模型引用第二轮**：[新 OpenedOrder、四负控与 70 项形状案例](2026-09-29-formal-model-reference-candidate-2/README.md)。执行前输入摘要、独立日志与两份评审锁分别保留；仅有限模型/形状检查，不构成接受。
 
 **2026-09-29 模型引用候选**：[有限形式与 Schema 实际运行](2026-09-29-formal-model-reference-candidate/README.md)。3 个正配置无反例、9 个负控命中、57 个形状实例通过；运行时未采输入摘要及早期两项 Schema 失败原日志丢失的局限明确保留。不构成契约采用或实现验收。
