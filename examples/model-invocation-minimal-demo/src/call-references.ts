@@ -31,8 +31,10 @@ export const DEMO_REFERENCE_SOURCE_VERSION = 'model-invocation-minimal-demo/sing
  * MS8 S-51: the creation key is an explicit operation association scoped by tenant and Session.
  * The demo's operation is "answer this user message", so the key is a pure function of that
  * message's identity plus the explicit call and Run coordinates, never a per-attempt random value.
- * Replaying the same operation therefore recognizes the original call, and a changed request under
- * the same identity is left for openCall to report as a creation conflict.
+ * What a replay under the same key receives depends on the original call's state. Before that call
+ * is acknowledged, another openCall with the key is answered `unavailable`: its creation marker is
+ * refused from the same log prefix before anything is published. After acknowledgement, the same
+ * request value is recognized as the original call and a different value is `creationConflict`.
  */
 export function deriveCreationKey(input: {
   readonly session: SessionRef
