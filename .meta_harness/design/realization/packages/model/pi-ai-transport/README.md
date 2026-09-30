@@ -176,3 +176,7 @@ HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义�
 ## xAI 两叶完整输出贡献候选
 
 [xAI有限适用页](xai-complete-output-applicability-candidate.md)复用已采用共享输出组机制，拟两叶definition5/pi-ai:xai mp4-19，完整组O为estimated代理；[选择来源](../../../../record/proposals/model-input-usage-calibration/xai-applicability-choice.md)。当前未采用/未实施/未认证，新增bindings0；图片公式与真实差分仍独立缺口，不假称765覆盖全域。
+
+## Google 两叶推理历史完整输出组候选（2026-09-30）
+
+[Google 有限适用页 revision 1](google-reasoning-history-output-group-candidate.md) 复用已采用的共享完整输出组机制，拟两叶 definition 4 与新 mp4 修订（编号待主线协调）：完整、同模型的 `google-gemini-v1` 组以原 O 计一次作 estimated 代理，其余可见输入仍走 Gemma4 替身，full-only。**语义接受**：RT12/MR11 已接受，本页不新增语义；**可实施**：候选，待独立评审与主线采用；**绑定证据**：新增 0；**实际验证**：尚无——真实完整签名组、工具续接形状与上游是否接受原样回放都未观测，缺口与受阻消费者见该页 GG-1～GG-10。
