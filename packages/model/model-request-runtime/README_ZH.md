@@ -191,6 +191,17 @@ MS8 `model_call_acknowledged` 记录使用独立的按调用稳定日志键；�
 
 响应 usage 校准遵循 [D107 采用决定](../../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/decision.md)及 [runtime v16 映射](../../../.meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md)。
 
+## ACK 的确认、撤回与释放
+
+以下规则保证 ACK 不删除无法证明可删的内容，已释放的副本也不会回来（RT12 S-96⑧、S-97、S-98、S-86、S-101；MS8 S-58）：
+
+- **对照原字节核验。**首次确认固定 ACK 记录之前，内容存储用核心语义摘要从保留行重算创建摘要与保留结果摘要。不一致即 ACK 与保留原件矛盾：不确认，也不删除；所有读取该调用的入口（`acknowledgeCall`、读取、`reconcile`）都答 `unavailable`，不给小视图。
+- **回执未知时重发或认回，不重建。**ACK 追加的回执未知且日志中没有 ACK 时，重试从 `retiring` 保留行取出已固定的批，只重发该批，或在整值读回后认回。某批已证明零写（`tailChanged` 或 `alreadyRecorded` 碰撞）、其写者已停止、完整前缀中没有 ACK、且争用策略决定停止时，撤回这次准备。调用回到 `retained`，内容重新可读；前提是已固定的批仍等于本记录。本次答复 `unavailable`，之后的 ACK 重新准备。
+- **已释放的身份保持已释放。**释放事务在删除每一行之前，把该行的 locator 与 version 记入 `model_call_content_tombstone`。之后无论哪个调用以已记墓碑的身份 `put`，都按 malformed 拒绝。这是逐个已释放身份的记录，不是分配计数器。同一调用内重发的既有拒绝不变。
+- **回执未知的 ready 不会被关成另一个 final。**系统停止或运行时关闭遇到 `reply_pending` 的调用时，先读完整前缀。只有该响应存在耐久 ready（或其后的终态事实）时，才让原调用以 ready 收尾；否则答 `unavailable` 并保留责任。ACK 清理从不在 `reply_pending` 上发布 `ready`，因此不会触发锚定句柄的无回复中断（`close()` → `settleCandidate(null, true)`）。
+- **句柄在释放后仍然有效。**ACK 清理可能释放调用容器。已有的等待句柄仍然有效，下一次等待答复 ACK 小视图；只有执行被替换才使它失效。消费者句柄只持有自己的监听桶，不持有容器；空闲句柄和已关闭的运行时都不会让已释放的容器保持可达。
+- **先请求停止，再等待。**结算任务可以只在 `requestStop` 之后才证明实际停止。凡是等待自己拥有的任务之处（ACK 追加及其重试等待、锚定排空与发送前结束、会话选择、未知控制写的恢复）都调用 `requestStopAndWait`；后续步骤仍以 `stopped` 证明为门。
+
 ## ACK 后的结算
 
 `acknowledgeCall` 释放模型副本后，没有 final 的调用仍可由自持完整 `PendingModelResponse` 的调用方处分（RT12 S-99）。`settleReply` 先核当前 `settle` 资格，再把该值与 ACK 的原身份、MS8 结果摘要和账见证逐项核对。缺值为 `wrongPhase`，矛盾为 `invalidInput`。日志里已有 final 时由它自行决定：同处分认回，异处分 `alreadyEnded`。
