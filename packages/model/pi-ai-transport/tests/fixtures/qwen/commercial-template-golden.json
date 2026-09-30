@@ -1,0 +1,228 @@
+{
+  "chatTemplateSha256": "40ce34a5bcbc0231462740761215bc31a83882a8b3a4b6aa1c6e869b95945e4e",
+  "tokenizerSha256": "0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3",
+  "jinja2": "3.1.6",
+  "tokenizers": "0.23.2",
+  "cases": {
+    "assistant-before-last-query": {
+      "thinking=all,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "a3648492a5a54a0fe40dd08844e15f652f0c5c40dca6b217108f574eeecfd829",
+        "tokens": 411
+      },
+      "thinking=all,instruction=none,tojson=wire-order": {
+        "promptSha256": "d95ff6f077792c0fe4a4a30f4ce44122efbc40dcc97797ae961a11f8cb9150e9",
+        "tokens": 373
+      },
+      "thinking=last-turn,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "60d7d8e883d79bd882b04cab0e8ed6d8ca37a9e28ae0772ed68cf87c180dcc03",
+        "tokens": 391
+      },
+      "thinking=last-turn,instruction=none,tojson=wire-order": {
+        "promptSha256": "e27b7b04a574432d11b94f6f3961fe440fdfed67954c367a7c5a8e8dafd420c8",
+        "tokens": 353
+      },
+      "thinking=all,instruction=xhigh,tojson=sorted-keys": {
+        "promptSha256": "4164f849c0243312f50576c28529dd9755adc751593430040774914ed556e3e5",
+        "tokens": 412
+      }
+    },
+    "assistant-after-last-query": {
+      "thinking=all,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "901c120af5dd5410c36f56875bb332c74aab8c9eb52f1fd7e263b2cefba61a06",
+        "tokens": 392
+      },
+      "thinking=all,instruction=none,tojson=wire-order": {
+        "promptSha256": "9fd10fb69eda91d33656818b0360b546dd2117aed69e5c3b8d01a18e0e4d021e",
+        "tokens": 354
+      },
+      "thinking=last-turn,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "901c120af5dd5410c36f56875bb332c74aab8c9eb52f1fd7e263b2cefba61a06",
+        "tokens": 392
+      },
+      "thinking=last-turn,instruction=none,tojson=wire-order": {
+        "promptSha256": "9fd10fb69eda91d33656818b0360b546dd2117aed69e5c3b8d01a18e0e4d021e",
+        "tokens": 354
+      },
+      "thinking=all,instruction=xhigh,tojson=sorted-keys": {
+        "promptSha256": "47ac1e7c2de960fb2829ab3a84d5b3ad1b157049843daa3751f7876dea3638d7",
+        "tokens": 393
+      }
+    },
+    "consecutive-tool-results": {
+      "thinking=all,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "ec0f209dda367113f29caa464709c2185b706e2a494fa7757a86afb918a44524",
+        "tokens": 468
+      },
+      "thinking=all,instruction=none,tojson=wire-order": {
+        "promptSha256": "153ec8379b0db9e8e9e2bf2771e14afd75e407d6dd76ee43f64f8ac060a58c39",
+        "tokens": 430
+      },
+      "thinking=last-turn,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "76b7747be86f548c0f628ca9a17bc4752c581082b185f229bdafabd387988122",
+        "tokens": 448
+      },
+      "thinking=last-turn,instruction=none,tojson=wire-order": {
+        "promptSha256": "ed9141dd0b89a0c8bca501ad1fa39731ae188e336308bfa7418ba5463686e8d7",
+        "tokens": 410
+      },
+      "thinking=all,instruction=xhigh,tojson=sorted-keys": {
+        "promptSha256": "f966398164b59a49cc7c0bbb3eb74bd7cfb08f5f3d7fcfe37ac6e169048ec9f5",
+        "tokens": 469
+      }
+    },
+    "wrapped-tool-response-user": {
+      "thinking=all,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "c3aec39e817471e430837eaddf4e88cb00fe2bec7aae3ff62ceb1da0079832bd",
+        "tokens": 416
+      },
+      "thinking=all,instruction=none,tojson=wire-order": {
+        "promptSha256": "ea724a9ec2ccb966b5600b8b8d5f7dd6c80df575987a42ee0e83cfb4352c51f8",
+        "tokens": 378
+      },
+      "thinking=last-turn,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "da1087c8a48985acb9910abda8fd8367dad7f1d26547d2efc13b9e2ebad6e850",
+        "tokens": 405
+      },
+      "thinking=last-turn,instruction=none,tojson=wire-order": {
+        "promptSha256": "7f8b41b941c58f7bec4fbccadaf8b334a3f6dae36fe968e551c701d847439bdc",
+        "tokens": 367
+      },
+      "thinking=all,instruction=xhigh,tojson=sorted-keys": {
+        "promptSha256": "a8b1d88fed75c745ef0786bf23e69e29b08f99aea8d839c7c5adaa0b480ed70d",
+        "tokens": 417
+      }
+    },
+    "reminder-after-tool-result": {
+      "thinking=all,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "8bdcb86209bc5f21730ac122d7244bbe7cdceac5aa6a5858a8802073c3677c20",
+        "tokens": 425
+      },
+      "thinking=all,instruction=none,tojson=wire-order": {
+        "promptSha256": "5a0b8fa5a803c83fd3f09593bfb70c681140b66df5a6b4a81ea4cbac262b7134",
+        "tokens": 387
+      },
+      "thinking=last-turn,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "b2f7c29fefc754ff94be123f55750ad5151ab76e6e639a08476c1e39f772aa39",
+        "tokens": 413
+      },
+      "thinking=last-turn,instruction=none,tojson=wire-order": {
+        "promptSha256": "a1aeff6bafcd0f4cda6229d699ac3bf2c0ad90a1a37e2ec3f4b7d120b0633ef1",
+        "tokens": 375
+      },
+      "thinking=all,instruction=xhigh,tojson=sorted-keys": {
+        "promptSha256": "d21a8eae312ef424ebb86ef14fbd395fadbbf58a4f77c0ea9ddca71814425740",
+        "tokens": 426
+      }
+    },
+    "no-system-no-tools": {
+      "thinking=all,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "ddd035ad081365512b5fe4742e6db1cb5e0a3767de0f4ce42c176af2bafe383c",
+        "tokens": 82
+      },
+      "thinking=all,instruction=none,tojson=wire-order": {
+        "promptSha256": "cb85114a8374b932e47103e76a640f2445a8004f38a74c3153a84fce1e42a18d",
+        "tokens": 40
+      },
+      "thinking=last-turn,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "bb0c4af6409ff3b1a051823ca55568ed4fabb86a727a1972eb0d8053e0033fd7",
+        "tokens": 72
+      },
+      "thinking=last-turn,instruction=none,tojson=wire-order": {
+        "promptSha256": "517df82e93b7fb5e547f6264f8ea3e0d80d728b3850d3cf0b8b0177e60f2f888",
+        "tokens": 30
+      },
+      "thinking=all,instruction=xhigh,tojson=sorted-keys": {
+        "promptSha256": "ddd035ad081365512b5fe4742e6db1cb5e0a3767de0f4ce42c176af2bafe383c",
+        "tokens": 82
+      }
+    },
+    "empty-system-no-tools": {
+      "thinking=all,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "ddd035ad081365512b5fe4742e6db1cb5e0a3767de0f4ce42c176af2bafe383c",
+        "tokens": 82
+      },
+      "thinking=all,instruction=none,tojson=wire-order": {
+        "promptSha256": "cb85114a8374b932e47103e76a640f2445a8004f38a74c3153a84fce1e42a18d",
+        "tokens": 40
+      },
+      "thinking=last-turn,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "bb0c4af6409ff3b1a051823ca55568ed4fabb86a727a1972eb0d8053e0033fd7",
+        "tokens": 72
+      },
+      "thinking=last-turn,instruction=none,tojson=wire-order": {
+        "promptSha256": "517df82e93b7fb5e547f6264f8ea3e0d80d728b3850d3cf0b8b0177e60f2f888",
+        "tokens": 30
+      },
+      "thinking=all,instruction=xhigh,tojson=sorted-keys": {
+        "promptSha256": "ddd035ad081365512b5fe4742e6db1cb5e0a3767de0f4ce42c176af2bafe383c",
+        "tokens": 82
+      }
+    },
+    "system-no-tools": {
+      "thinking=all,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "c3e7e8d3551de63504abdc890eff70e4412da695c2bf21c81acbbe21b6516714",
+        "tokens": 88
+      },
+      "thinking=all,instruction=none,tojson=wire-order": {
+        "promptSha256": "439790bdfa3c0ddbaaf53f5fdbf922d7678c6b180284921bb6e647049dde2150",
+        "tokens": 50
+      },
+      "thinking=last-turn,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "2e21b194cf1081d0b301d44a2f24d7a8cc5ede3bfb136afeab9e995aaebc791a",
+        "tokens": 78
+      },
+      "thinking=last-turn,instruction=none,tojson=wire-order": {
+        "promptSha256": "3c7c8a9c141fe738074d72e1fc191e29c4815d6f9c9b2463b6af05231aabe0c5",
+        "tokens": 40
+      },
+      "thinking=all,instruction=xhigh,tojson=sorted-keys": {
+        "promptSha256": "c3e7e8d3551de63504abdc890eff70e4412da695c2bf21c81acbbe21b6516714",
+        "tokens": 88
+      }
+    },
+    "tools-without-system": {
+      "thinking=all,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "e6f0f9532ec692f36ad44cb202cba53f82731bc0a8f67c88eaccf40ec60e582a",
+        "tokens": 390
+      },
+      "thinking=all,instruction=none,tojson=wire-order": {
+        "promptSha256": "928da5a1d1b0be30a151f200775e4ef8e24ac796f32b45bdbba43ce5fa5aa20c",
+        "tokens": 352
+      },
+      "thinking=last-turn,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "9752250bc0a432f8f19bcbeff675a483f60cd6eda825ed599d0890fdc7921ccd",
+        "tokens": 381
+      },
+      "thinking=last-turn,instruction=none,tojson=wire-order": {
+        "promptSha256": "f4b0f582864f22e82d030c9d1319cc92099ef468d9a236433cab785f13798eb0",
+        "tokens": 343
+      },
+      "thinking=all,instruction=xhigh,tojson=sorted-keys": {
+        "promptSha256": "e42268950026684cd13a057b7e8c0f4de21078332d9bd990751f51c63700f404",
+        "tokens": 391
+      }
+    },
+    "non-ascii-history": {
+      "thinking=all,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "67a8eaa8f0765c9f3b044071db65f4cf97fca486ea69a60f2bd501894300523e",
+        "tokens": 498
+      },
+      "thinking=all,instruction=none,tojson=wire-order": {
+        "promptSha256": "2d50676978df9fe3473d6184e37ec60f294b11157d80b0eae9eaa0800a9e4f69",
+        "tokens": 460
+      },
+      "thinking=last-turn,instruction=xhigh,tojson=wire-order": {
+        "promptSha256": "3839de82f7cef7557578c0885d8d9d3b809146212e6ae0bd9c915ff03a0cba42",
+        "tokens": 479
+      },
+      "thinking=last-turn,instruction=none,tojson=wire-order": {
+        "promptSha256": "8fb720b3c500de0e04a6f137d4d12ec0e020e41508c9c74504452aa26aaf96fb",
+        "tokens": 441
+      },
+      "thinking=all,instruction=xhigh,tojson=sorted-keys": {
+        "promptSha256": "2dfdd0b81fce72f5ff0a22a5eaf3f7869e2133d727f074b5b8ae8b88c11c7578",
+        "tokens": 585
+      }
+    }
+  }
+}
