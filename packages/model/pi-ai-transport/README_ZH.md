@@ -249,7 +249,9 @@ const meter = createXaiInputMeter(definition)
 // 向 createPiAiTransport({ ..., inputMeters: [meter!] }) 显式传入计量器。
 ```
 
-`createMoonshotInputMeter(definition)` 将 Kimi K3 与 K2.7 Code 绑定到固定词表及各自 XTML／Jinja 提示词模板。文本、明文推理及配对工具历史参与估算，不再重复计入完整 JSON 外壳。K3 的 `mp4-17` 沿固定 encoder 按前一 assistant 的 call IDs 排序连续并行工具结果，仅用于提示词估算；实际发出的历史不改序，K2.7 使用 `mp4-17`。两型号按各自固定视觉处理规则估算内联 PNG/JPEG/WebP 图片，计入完整文本、工具与图片历史；远程图片、视频、加密／未知推理及未识别模型输入字段仍返回不可用。此估算不代表已认证 OpenRouter 实际用量或缓存保留期；余量由调用方显式提供。随包的 `LICENSE.K3`、`LICENSE.K27` 保留各自上游许可和归属要求。
+`createMoonshotInputMeter(definition)` 将 Kimi K3（`moonshotai/mxfp4`）与 K2.7 Code（`moonshotai/int4`）绑定到固定词表及各自 XTML／Jinja 提示词模板，两者均为定义修订 `2`、`pi-ai:moonshot@mp4-17`。文本、明文推理及配对工具历史参与估算，不再重复计入完整 JSON 外壳。K3 沿固定 encoder 按前一 assistant 的 call IDs 排序连续并行工具结果，仅用于提示词估算；实际发出的历史不改序。两型号按各自固定视觉处理规则估算内联 PNG/JPEG/WebP 图片，计入完整文本、工具与图片历史。K3 只发送 `low`、`high`、`max` 三档 effort，其他取值丢弃；K2.7 Code 丢弃任何显式 effort，不发送 `reasoning` 成员。两种丢弃都记在 `droppedParameters`。
+
+Moonshot 计量只做 full。每次请求都按完整输入计为 `estimated`，带上一轮响应观察的后续轮次也一样。本家族未采用增量的回放／新增贡献（φ/δ），二者返回 `unavailable`（`unsupported-marginal/1`），不声称任何增量估算。不透明推理无法计量：任何 `reasoning_details`（包括可见的 `reasoning.text` 条目）都使估算不可用，远程图片和未识别模型输入字段同样如此；这类请求在 HTTP 之前被拒绝。两条选定路由的已存档真实流，在每个推理片段旁都附带一条可见的 `reasoning.text` detail，因此回放这类回复目前会被拒绝，原因是尚无已采用的映射。K3 定义中保留视频输入声明；本期只承载文本和图片，视频不在本期范围内，不承载（`modality_not_carried`）。此估算不代表已认证 OpenRouter 实际用量、缓存保留期或费用；两型号的真实 public／service 认证仍待完成。余量由调用方显式提供。随包的 `LICENSE.K3`、`LICENSE.K27` 保留各自上游许可和归属要求。
 
 ## 持有传输资源
 
@@ -495,7 +497,7 @@ Anthropic 缓存探针（`tests/fixtures/anthropic/cache-public.mjs`）显式配
 
 `tests/openai-sol-calibration.spec.ts` 覆盖 Sol 全部已声明 effort 与缺省、精确十进制余量边界、本机 TLS 的真实公开 invoke、full→marginal→marginal、确认稳定前缀不进入 tokenizer 的 spy，以及前缀／依据／来源负控。`tests/openai-visible-history-candidate.spec.ts` 以保留的冻结历史输入验证正式 Sol/Luna 工厂。原 Sol 文字代理观察与新最终 JSON 估值分别保留。本机符合性不冒称新的 OpenRouter 认证。
 
-Moonshot 图片探针分别验证 PNG 完整性与生产输入限额：`node --test tests/fixtures/moonshot/repair-image.test.mjs` 和 `pnpm exec vitest run tests/fixtures/moonshot/repair-image.spec.ts`。这些本机检查不证明上游接受或缓存命中。
+Moonshot 图片探针分别验证 PNG 完整性与生产输入限额：`node --test tests/fixtures/moonshot/repair-image.test.mjs` 和 `pnpm exec vitest run tests/fixtures/moonshot/repair-image.spec.ts`。`pnpm exec vitest run tests/moonshot-three-round.spec.ts tests/moonshot-closeout-boundaries.spec.ts` 让两型号在本机 TLS 上各跑三轮，分别经公开 `invokeModel` 与挂载官方模型插件的 Cordis transport service，有工具、无工具各一套；同时覆盖 effort、图片、不透明历史与视频边界。这些本机检查不证明上游接受或缓存命中。
 
 ### ZAI 历史候选验证
 
