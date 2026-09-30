@@ -318,6 +318,58 @@ describe('durable call references through the actual demo model service', () => 
     }
   })
 
+  it('settles an acknowledged ready call from the caller-held original (RT12 S-99)', async () => {
+    const f = await ready('reference-acknowledge-settle')
+    try {
+      const sent = await f.app.startServiceCall(f.who, f.session, {
+        user: user('acknowledge-settle'),
+        parameters: { reasoningEffort: 'low', maxOutputTokens: 1024 },
+        host: f.host.host,
+      })
+      if (!('result' in sent) || !('callId' in sent) || !('replyPending' in sent.result))
+        throw new Error(`request did not hand off a reply: ${JSON.stringify(sent)}`)
+      const pending = sent.result.replyPending
+      const reference = { session: f.session, callId: sent.callId }
+      const target = { kind: 'response' as const, response: pending.id }
+      expect(
+        await f.service.acknowledgeCall({ ref: reference, expectedResult: target }),
+      ).toMatchObject({ acknowledged: { ref: reference, target, cleanup: 'released' } })
+      const vetoed = { ...reference, disposition: { vetoed: { by: 'input-gate' } } }
+      // S-99⑥: after ACK without a final the caller must return its own original.
+      expect(await f.service.settleReply(vetoed)).toMatchObject({ wrongPhase: {} })
+      expect(await f.service.settleReply({ ...vetoed, retainedResult: pending })).toEqual({
+        callId: sent.callId,
+        state: 'complete',
+      })
+      const read = await f.app.readSessionLog(f.who, f.session)
+      if (!('entries' in read)) throw new Error('durable session read unavailable')
+      const responses = read.entries.filter(entry =>
+        entry.readKeys.some(rawKey => {
+          const decoded = decodeModelLogKey(rawKey)
+          return 'ok' in decoded && decoded.ok.kind === 'response'
+        }),
+      )
+      expect(responses).toHaveLength(1)
+      expect(JSON.stringify(responses[0]?.payload)).toContain(
+        '"replyDisposition":{"vetoed":{"by":"input-gate"}}',
+      )
+      // S-99⑦: the same committed disposition is recognized without the full value again;
+      // a different one never overwrites it.
+      const consumed = { ...reference, disposition: { consumed: { by: 'side_query' as const } } }
+      expect(await f.service.settleReply(vetoed)).toEqual({
+        callId: sent.callId,
+        state: 'complete',
+      })
+      expect(await f.service.settleReply({ ...consumed, retainedResult: pending })).toEqual({
+        alreadyEnded: true,
+      })
+      expect(await f.app.readSessionLog(f.who, f.session)).toEqual(read)
+      expect(f.tls.requests).toHaveLength(1)
+    } finally {
+      await f.close()
+    }
+  })
+
   it('withdraws access when the application starts closing', async () => {
     const f = await ready('reference-close')
     const sent = await f.app.startServiceCall(f.who, f.session, {
