@@ -28,7 +28,7 @@ function parse(text: string): JsonValue {
 const readyExamples = parse(
   readFileSync(
     new URL(
-      '../../../../.meta_harness/design/spec/data/model-response/v10/ready-examples.json',
+      '../../../../.meta_harness/design/spec/data/model-response/v11/ready-examples.json',
       import.meta.url,
     ),
     'utf8',
@@ -52,7 +52,7 @@ function reorder(value: JsonValue): JsonValue {
   return value
 }
 
-describe('MR10 complete Pending and finalization relation', () => {
+describe('MR11 complete Pending and finalization relation', () => {
   for (const row of rows)
     it(`normative ready example: ${row.name}`, () => {
       if (row.definition !== 'PendingModelResponse' && row.definition !== 'ModelResponse')

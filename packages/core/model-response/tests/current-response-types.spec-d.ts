@@ -20,7 +20,7 @@ it('keeps pending facts distinct from an already persisted reply', () => {
   expectTypeOf<ModelResponse['replyDisposition']>().toEqualTypeOf<ReplyDisposition | undefined>()
 })
 
-it('MR10 exposes nullable generic timing but keeps actual sent time in ordinary and pending replies', () => {
+it('MR11 exposes nullable generic timing but keeps actual sent time in ordinary and pending replies', () => {
   expectTypeOf<Timing['sentAt']>().toEqualTypeOf<string | null>()
   expectTypeOf<
     Extract<ModelResponse, { readonly outcome: 'complete' }>['timing']['sentAt']

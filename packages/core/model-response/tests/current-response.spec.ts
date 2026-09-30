@@ -22,7 +22,7 @@ import schema from '@omne-harness-lite/model-response/schema' with { type: 'json
 
 const source = readFileSync(
   new URL(
-    '../../../../.meta_harness/design/spec/data/model-response/v10/examples.md',
+    '../../../../.meta_harness/design/spec/data/model-response/v11/examples.md',
     import.meta.url,
   ),
   'utf8',
@@ -65,18 +65,18 @@ function object(value: JsonValue): JsonObject {
   return value
 }
 
-describe('MR10 exact public resource', () => {
+describe('MR11 exact public resource', () => {
   it('matches the accepted Schema bytes and compiles all 25 public definitions', () => {
     const actual = readFileSync(new URL('../schema/model-response.schema.json', import.meta.url))
     const accepted = readFileSync(
       new URL(
-        '../../../../.meta_harness/design/spec/data/model-response/v10/model-response.schema.json',
+        '../../../../.meta_harness/design/spec/data/model-response/v11/model-response.schema.json',
         import.meta.url,
       ),
     )
     expect(actual.equals(accepted)).toBe(true)
     expect(createHash('sha256').update(actual).digest('hex')).toBe(
-      '1c074e94b5e057693c6c4aa70bf02e7c3aa9d700d4c054e3a94ea09422ee63e9',
+      '9e58f395b07169a7fe6a2095b59cf60c1fbeb040fe18bc8e847e44bf2c154b2b',
     )
     expect(schemaId).toBe(schema.$id)
     expect(SCHEMA_DEF_NAMES).toEqual(Object.keys(schema.$defs))
@@ -127,7 +127,7 @@ describe('MR10 exact public resource', () => {
 const accepted = normativeSection('## 一、合法实例', '## 二、非法实例')
 const rejected = normativeSection('## 二、非法实例', '## 三、Schema 挡不住')
 
-describe('MR10 persisted examples and ordered rejection', () => {
+describe('MR11 persisted examples and ordered rejection', () => {
   const positives = accepted.flatMap(row => row.values.filter(value => 'id' in object(value)))
   it('covers complete, truncated, interrupted, failure, and repeated dispatch examples', () => {
     expect(positives.length).toBeGreaterThanOrEqual(12)
@@ -183,7 +183,7 @@ const pendingCases: Readonly<Record<string, 'ok' | string>> = {
   'MR7-runtime_lost_reply': 'malformed',
 }
 
-describe('MR10 retained current facts and multi-value headers', () => {
+describe('MR11 retained current facts and multi-value headers', () => {
   const v3Rows = normativeSection('## v3 窄修订的规范对照', '## 六、v4 适配绑定')
   const v4Rows = normativeSection('## 六、v4 适配绑定', '## 七、v5 多值响应头')
   const headerRows = normativeSection('## 七、v5 多值响应头', '## 六、v6 待提交投影')
@@ -226,7 +226,7 @@ describe('MR10 retained current facts and multi-value headers', () => {
   })
 })
 
-describe('MR10 S-39 pending reply', () => {
+describe('MR11 S-39 pending reply', () => {
   const rows = normativeSection('## 六、v6 待提交投影与新版本边界', '## 七、MR7 与 LC6')
   const complete = rows.find(row => row.name === 'MR7-complete')?.values[0]
 

@@ -21,7 +21,7 @@ import { isObject } from '../src/json.ts'
 
 const source = readFileSync(
   new URL(
-    '../../../../.meta_harness/design/spec/data/model-response/v10/examples.md',
+    '../../../../.meta_harness/design/spec/data/model-response/v11/examples.md',
     import.meta.url,
   ),
   'utf8',
@@ -148,7 +148,7 @@ const order: readonly (readonly [string, unknown, string])[] = [
   ['opened failure needs delivered', omit(openedFailure, 'delivered'), 'first_token_inconsistent'],
 ]
 
-describe('MR10 conditional shapes and rejection order', () => {
+describe('MR11 conditional shapes and rejection order', () => {
   it('accepts all seven conditional rows and current optional fact variants', () => {
     for (const value of [
       complete,
@@ -200,7 +200,7 @@ describe('MR10 conditional shapes and rejection order', () => {
   })
 })
 
-describe('MR10 exact numbers and opaque JSON', () => {
+describe('MR11 exact numbers and opaque JSON', () => {
   it('keeps every nonzero trim counter exact and rejects a fractional count first', () => {
     const zero = {
       merged: 0,
@@ -330,7 +330,7 @@ describe('MR10 exact numbers and opaque JSON', () => {
   })
 })
 
-describe('MR10 JSON and pure boundary discipline', () => {
+describe('MR11 JSON and pure boundary discipline', () => {
   it('leaves writer-owned source and ordering facts for their actual owner', () => {
     const route = object(complete.route)
     const values = [

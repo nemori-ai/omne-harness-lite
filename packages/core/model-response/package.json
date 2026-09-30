@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.model-response v10 current response and pending-reply judgments",
+  "description": "data.model-response v11 current complete response and pending-reply judgments",
   "engines": {
     "node": ">=24.18.0 <25"
   },

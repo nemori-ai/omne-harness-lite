@@ -38,7 +38,7 @@ function compileRoots(resources: typeof normativeSchemaResources) {
     runtime.compile({ $ref: `${memberId}#/$defs/${name}` })
 }
 
-describe('RC1–RC5 / MR10 exact public and private resource closure', () => {
+describe('RC1–RC5 / MR11 exact public and private resource closure', () => {
   it('initializes all 25 public definitions and both actual private member entries', () => {
     expect(normativeSchemaResources).toHaveLength(9)
     expect(new Set(normativeSchemaResources.map(resource => resource.$id)).size).toBe(9)
