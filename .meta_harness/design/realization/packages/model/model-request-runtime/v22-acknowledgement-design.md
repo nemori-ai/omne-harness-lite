@@ -1,6 +1,6 @@
 # ACK 与模型副本的确认释放
 
-2026-09-29，revision 2，**candidate，未接受、未技术采用、未实现验收**。节点及已有源码仍是 `packages/model/model-request-runtime`。本页扩展现 P-2 `modelRuntime`、ModelCallHost、调用容器、共同 codec 和结算协调器，不建立新 provider、通用内容/GC 平台或正式 Session/Run。
+2026-09-29 起草；**revision 3，2026-09-30**：按[ACK 后新处分接缝](../../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md) revision 2 的 R1、R3、R4 与 B3（依据定点架构评审及主线裁决 R-G，评审页 `record/proposals/model-runtime-reference-lifecycle/ack-seam-review.md`）同步「ACK 后真实处分的原批责任」、存储与装卸表、迁移表、反例义务及选择表，其余正文沿 revision 2；绑定新增 0。**candidate，未接受、未技术采用、未实现验收**（revision 2 的采用范围见 [ACK 契约决定](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)，本修订差量待主调度复核）。节点及已有源码仍是 `packages/model/model-request-runtime`。本页扩展现 P-2 `modelRuntime`、ModelCallHost、调用容器、共同 codec 和结算协调器，不建立新 provider、通用内容/GC 平台或正式 Session/Run。
 
 ## 输入、状态与实现路径
 

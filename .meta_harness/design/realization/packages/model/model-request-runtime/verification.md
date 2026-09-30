@@ -379,7 +379,7 @@ G3 修订：本轮选定runtime私有无GC耐久内容行，引用与尚可能�
 
 ## A22 ACK与模型副本释放候选
 
-2026-09-29，关联 [v22 revision 1](v22-acknowledgement-design.md)。RT12/MS8/MR11/CA4 均为 candidate，SL3 不升。全部义务**未开始**，新增 binding 0；本节取代后继 ACK 路径对 v20 无 GC 的验证前提，未 ACK 仍保留原性质。形式模型不证明实际 Storage/JSONL、权限来源、物理停止、SHA 碰撞安全、语言 GC 或已发布内容释放。
+2026-09-29，关联 [v22](v22-acknowledgement-design.md)；2026-09-30 随 v22 revision 3 同步接缝 revision 2 的 R1/R3/R4 与反例 A–E 到 A22-V13/V14。RT12/MS8/MR11/CA4 均为 candidate，SL3 不升。全部义务**未开始**，新增 binding 0；本节取代后继 ACK 路径对 v20 无 GC 的验证前提，未 ACK 仍保留原性质。形式模型不证明实际 Storage/JSONL、权限来源、物理停止、SHA 碰撞安全、语言 GC 或已发布内容释放。
 
 | ID／条款 | 必须实际执行的正向、反例与观测 | owner／证据范围 |
 |---|---|---|
