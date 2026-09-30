@@ -200,6 +200,24 @@ OpenRouter 侧同[开源页](qwen-open-visible-reasoning-estimate-design.md#上�
 
 实施交付于增量集成分支（`cc8512bc`…`d11d6829` → 增量树 …`7fc0f18e`）：六叶 definition 4／`pi-ai:qwen@mp4-20`／algorithm `<叶>-public-template-1`，tokenizer 修订按 3.8／3.7 两族取 `tokenizer-basis/qwen-commercial-3{8,7}-template-wire-order-1`；逐叶设定为版本化常量 `qwenCommercialBindings`（含第三字段 `toolJson`＝wire 键序，承载 QC-V0 裁决）；开源两叶字节不变仍 `mp4-19`。18 个 batch8 请求残差全 0。登记偏离：数组索引样键的工具参数与孤代理项取 unavailable（JS 与 Python 键序不一致，宁拒不错计）。逐叶设定表「当前坐标」列记录的是起草时坐标（3／`mp4-17`），以本附注为准。QC-V6／V7 待主调度付费执行。
 
+## QC-V6 同路由对照读数（2026-09-30 17:21–17:26Z，主线付费观测，HUB `93a338ec`）
+
+| 叶 | 几何 | A | B | C | 预测 A／B／C | 读数 |
+|---|---|---|---|---|---|---|
+| 3.7-flash | next-user | 1204 | 1204 | 1204 | 1204／1204／1204 | A＝B＝C，如期 |
+| 3.7-flash | 回合内（工具结果后无提醒） | 1234 | — | 1182 | 1234／1182 | A＞C，本地与上游一致 |
+| 3.7-flash | 回合内＋`[system_reminder]` user | 1200 | — | 1200 | 1200／1200 | A＝C，本地与上游一致 |
+| 3.7-max | next-user | 1205 | 1205 | 1205 | 全等 | A＝B＝C |
+| 3.7-max | 回合内 | 1275 | — | 1183 | 1275／1183 | A＞C（+92），一致 |
+| 3.7-max | 回合内＋提醒 | 1201 | — | 1201 | 1201／1201 | A＝C，一致 |
+| 3.8-flash | next-user | 1269 | 1269 | 1246 | 1269／1269／1246 | A＝B＞C，A−C＝23＝推理 22＋1 |
+| 3.8-max-0902（缺省） | next-user | 1327 | 1327 | 1246 | 全等 | A−C＝81＝80＋1 |
+| 3.8-max-0902（`max`） | next-user | 1284 | 1284 | 1246 | 全等 | A−C＝38＝37＋1；`max` 首次观察成立 |
+| 3.8-max-prime | next-user | 1273 | 1273 | 1245 | 全等 | A−C＝28＝27＋1 |
+| 3.7-plus | next-user | — | — | — | — | 种子两次 429（阿里共享池限流），未得读数，场景暂缓 |
+
+全部 16 个已观测请求预测残差 0；3.8 三叶的 A−C 恒为 trim 后推理 token 数＋1（think 槽位包装），QC-V6 的判读规则按此修订为「A−C＝推理 token 数＋1」。评审 M2 的两个几何（回合内、带提醒）本地预测与上游逐个一致；O-3 的 max-prime 未被证伪。QC-V6 三轮真实流（含中文两组、无工具组）与 QC-V7 service 待认证工具 R9。
+
 ## 修订记录
 
 | revision | 日期 | 变更 | 基线 |
