@@ -569,6 +569,19 @@ describe.each(qwenCommercialModels)('$modelId visible details at the meter', mod
           toolMessage,
         ),
       ],
+      // A lone surrogate has no Python str/UTF-8 form for the wire-order tojson.
+      [
+        'lone surrogate in a tool schema',
+        {
+          ...body(),
+          tools: [
+            {
+              type: 'function',
+              function: { name: 'lookup__exact', description: 'x\ud800', parameters: {} },
+            },
+          ],
+        },
+      ],
       ['stream not boolean', { ...body(), stream: 'yes' }],
       ['unknown body key', { ...body(), temperature: 0 }],
     ] as const) {
