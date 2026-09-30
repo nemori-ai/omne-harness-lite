@@ -37,9 +37,13 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   const settleReply = createRuntimeSettleReply({
     calls: construction.calls,
     sessions: construction.sessions,
+    callAccess: construction.callAccess,
+    callFacts: construction.callFacts,
     contention: construction.settlementContention,
     scheduler: construction.settlementScheduler,
     reservationWaitPolicy: construction.reservationWaitPolicy,
+    ...(construction.history.run === undefined ? {} : { run: construction.history.run }),
+    diagnostic: construction.diagnostic,
   })
   let recoveryDiagnosticReportEnabled = true
   const reportRecoveryDiagnosticFailure = (): void => {
@@ -145,12 +149,10 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   const owners = [
     ['reads', reads.close],
     ['acquire', acquire.close],
-    ['facts', construction.callFacts.close],
     ['calls', calls.close],
     ['dispatch', dispatch.close],
     ['control', control.close],
     ['reconcile', reconcile.close],
-    ['store', construction.calls.close],
   ] as const
   async function closeOwners(): Promise<{ readonly released: boolean; readonly threw: boolean }> {
     const attempts = owners.map(([, close]) => {
@@ -180,14 +182,43 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     }
   }
 
+  async function closeResource(
+    component: 'store' | 'facts',
+    close: () => Promise<RuntimeCloseResult>,
+  ): Promise<RuntimeCloseResult> {
+    try {
+      return await close()
+    } catch {
+      try {
+        construction.policy.diagnostic({
+          kind: 'model_runtime.close_component_failed',
+          detail: { component },
+        })
+      } catch {
+        // Diagnostics do not settle or release the failed resource.
+      }
+      return unavailable
+    }
+  }
+
   async function closeOnce(): Promise<RuntimeCloseResult> {
     const first = await closeOwners()
     await Promise.allSettled([...inFlight])
     const second = await closeOwners()
+    // Writers and readers may still need immutable content while they drain.
+    // Close the container store and facts only after their work actually stops.
+    const store =
+      second.released && inFlight.size === 0
+        ? await closeResource('store', construction.calls.close)
+        : unavailable
+    const facts =
+      'released' in store ? await closeResource('facts', construction.callFacts.close) : unavailable
     const scopeResult = inFlight.size === 0 ? scopes.close() : unavailable
     return !first.threw &&
       !second.threw &&
       second.released &&
+      'released' in store &&
+      'released' in facts &&
       inFlight.size === 0 &&
       'released' in scopeResult
       ? { released: true }

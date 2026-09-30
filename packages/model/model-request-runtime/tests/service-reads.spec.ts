@@ -14,6 +14,7 @@ import { selectionHost, AT } from './session-selection-fixture.ts'
 import { dispatched, opened } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'
+import { unavailableReferencePorts } from './reference-ports-fixture.ts'
 
 function construction(
   binding: SessionRuntimeBinding,
@@ -22,6 +23,7 @@ function construction(
   const message = parseOpaqueIdentifier('unused-reply-message', 'MessageId')
   if (!('ok' in message)) throw new Error('reply message identity')
   return {
+    ...unavailableReferencePorts<PlannedSemantics, unknown>(),
     maxScopes: 4,
     sessions: {
       async bind(session) {
@@ -139,6 +141,7 @@ describe('RT7 service selection and reads on real SQLite/JSONL session', () => {
       return { registration }
     })
     const binding: SessionRuntimeBinding = {
+      sourceVersions: { fixture: 'service-reads-v1' },
       log: held.input.binding,
       selection: currentSelection({ ...held.input, owner }),
       tools: {
@@ -196,6 +199,7 @@ describe('RT7 service selection and reads on real SQLite/JSONL session', () => {
       },
     }
     const binding: SessionRuntimeBinding = {
+      sourceVersions: { fixture: 'service-reads-v1' },
       log: selectionBinding,
       selection: currentSelection({ ...held.input, binding: selectionBinding }),
       tools: {
@@ -247,6 +251,7 @@ describe('RT7 service selection and reads on real SQLite/JSONL session', () => {
     await held.component.close()
     const counts = { value: 0, append: 0, credential: 0, transport: 0 }
     const binding: SessionRuntimeBinding = {
+      sourceVersions: { fixture: 'service-reads-v1' },
       log: held.input.binding,
       selection: currentSelection(held.input),
       tools: {
@@ -308,6 +313,7 @@ describe('RT7 service selection and reads on real SQLite/JSONL session', () => {
     const counts = { value: 0, append: 0, credential: 0, transport: 0 }
     let unreadable = false
     const binding: SessionRuntimeBinding = {
+      sourceVersions: { fixture: 'service-reads-v1' },
       log: {
         ...held.input.binding,
         log: {
@@ -381,6 +387,7 @@ describe('RT7 service selection and reads on real SQLite/JSONL session', () => {
     let credentialReads = 0
     let transports = 0
     const binding: SessionRuntimeBinding = {
+      sourceVersions: { fixture: 'service-reads-v1' },
       log: {
         ...held.input.binding,
         log: {
@@ -485,6 +492,7 @@ describe('RT7 service selection and reads on real SQLite/JSONL session', () => {
     const held = host.create()
     await held.component.close()
     const binding: SessionRuntimeBinding = {
+      sourceVersions: { fixture: 'service-reads-v1' },
       log: held.input.binding,
       selection: currentSelection(held.input),
       tools: {

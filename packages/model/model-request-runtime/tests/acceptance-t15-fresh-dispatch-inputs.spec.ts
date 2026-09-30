@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { createServer } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
-import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type {
   ModelCallHost,
@@ -19,6 +19,7 @@ import {
 } from './settlement-fixture.ts'
 import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
 import { AT, selectionHost } from './session-selection-fixture.ts'
+import { referencePorts } from './reference-ports-fixture.ts'
 
 function isResponse(value: unknown): value is ModelResponse {
   return 'ok' in judgeModelResponse(value)
@@ -69,6 +70,7 @@ async function ready() {
   const owner = new ControlledSettlementOwner()
   const binding: SessionRuntimeBinding = {
     log: selected.input.binding,
+    sourceVersions: { fixture: 't15-fresh-v1' },
     selection: { ...selected.input, projection: async () => ({ known: [] }) },
     catalog: source.catalog,
     currentEvaluationInputs: {
@@ -94,10 +96,12 @@ async function ready() {
       },
     },
   }
+  const calls = createCallContainerStore<TestPlan, object>()
   const config: RuntimeConstruction<TestPlan, object> = {
+    ...referencePorts(source, calls),
     maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },
-    calls: createCallContainerStore(),
+    calls,
     transport: {
       clearReuseScope() {},
       acquire: () => ({
@@ -188,6 +192,7 @@ async function ready() {
   const runtime = createModelRuntime(config)
   async function openCall() {
     const opened = await runtime.service.openCall({
+      creationKey: unwrap(parseOpaqueIdentifier(`t15_fresh_${issuedCalls + 1}`, 'CreationKey')),
       session: source.session,
       target: basis.routeName,
       basis,

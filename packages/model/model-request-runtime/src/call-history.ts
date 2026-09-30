@@ -45,7 +45,7 @@ export type CallHistoryResult =
         readonly session: SessionRef
         readonly callId: ModelCallId
         /** Null means an intent exists, but no durable call phase can yet be concluded. */
-        readonly phase: Exclude<DispatchGuardPhase, 'open' | 'reply_pending'> | null
+        readonly phase: DispatchGuardPhase | null
         readonly dispatches: readonly CallHistoryDispatch[]
         readonly intent: ModelCallInterruptIntentRecord | null
         readonly ending: ModelCallEndedRecord | null
@@ -154,12 +154,6 @@ export function interpretCallHistory(input: {
     )
   )
     return unavailable('history')
-  // Until the shared facts projection reads the immutable ready content, this interpreter
-  // cannot infer a complete/interrupt terminal state from a marker alone.
-  if (
-    ready.some(item => !responses.some(response => response.response.id === item.record.response))
-  )
-    return unavailable('history')
   const dispatches: CallHistoryDispatch[] = []
   for (const [index, item] of dispatched.entries()) {
     if (ExactDecimal.from(item.record.dispatch).compare(ExactDecimal.from(index + 1)) !== 0)
@@ -245,11 +239,11 @@ export function interpretCallHistory(input: {
       ending.ending !== 'interrupted')
   )
     return unavailable('history')
-  let phase: Exclude<DispatchGuardPhase, 'open' | 'reply_pending'> | null
+  let phase: DispatchGuardPhase | null
   if (ending !== null) {
     phase = ending.ending === 'interrupted' ? 'interrupted' : 'handed_up'
   } else if (last === undefined) {
-    phase = null
+    phase = created.length === 1 && intent === null ? 'open' : null
   } else if (last?.response !== null && last?.response !== undefined) {
     const response = last.response.projection
     phase =
@@ -262,6 +256,10 @@ export function interpretCallHistory(input: {
               last.opened === null
             ? 'resumable'
             : 'interrupted'
+  } else if (ready.some(item => item.record.response === last.record.response)) {
+    // The marker proves durable content exists, but its outcome is read from the
+    // immutable content row by the facts owner rather than guessed from this log.
+    phase = 'reply_pending'
   } else {
     phase = last?.opened === null ? 'in_flight' : 'speaking'
   }

@@ -28,7 +28,7 @@
 | `createRuntimeReads(construction)`                                               | 六项选择与历史读取方法，以及负责借用提供者收口的 `close()`                                                                                                           |
 | `createServiceCalls(construction)`、`createServiceControl(construction)`         | 面向共享 runtime 装配的独立调用与控制方法组合件                                                                                                                      |
 | `createServiceDispatch(construction)`                                            | 使用固定档案、精确 transport lease、当前会话事实、耐久锚点及原调用句柄实现 dispatch／dispatchAgain                                                                   |
-| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 原句柄回复处分与有条件的 Run 对账；重复处分通过 `sessions.bind` 读取耐久结果，不停止会话。对账返回 `{ reconcile, close }`，原 scope 留到实际停止与完整前缀认回后收口 |
+| `createRuntimeSettleReply(input)`、`createRuntimeReconcile(input)`               | 非持久化处分从 `callFacts` 读取不可变 ready 内容，经当前 `callAccess` 的 `settle` 准入，再由既有结算算法写最终响应；重复处分读取耐久结果。对账保留原 scope，直到实际停止并从完整前缀认回 |
 | `createModelRuntime(construction)`                                               | 十三方法共用一份调用 store 与可重试收口 owner；无需 Cordis Context                                                                                                   |
 
 `createRuntimeReconcile(input)` 返回 `{ reconcile, close }`。事实或写入未决而返回 `unavailable` 时，组件保留原恢复作用域；下一次对账会先沿同一作用域认回，不为同会话另开一个恢复入口。`close()` 关闭新对账准入，停止有归属的任务，从原绑定读取完整前缀；仅在物理工作有确定结果后释放各作用域。收口不追加业务记录。若返回 `unavailable`，宿主须继续持有同一组件，在原任务或读取来源恢复后重试；`createModelRuntime` 已将此收口纳入自身的可重试收口。

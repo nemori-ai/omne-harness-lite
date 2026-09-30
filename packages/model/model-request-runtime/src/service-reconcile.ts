@@ -4,6 +4,7 @@ import type { RunHistoryReader } from './settlement-types.ts'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import {
   judgePendingModelResponse,
+  judgeResponseFinalization,
   validate as validateModelResponse,
 } from '@omne-harness-lite/model-response'
 import type { PendingModelResponse, ReplyDisposition } from '@omne-harness-lite/model-response'
@@ -16,11 +17,13 @@ import type {
   RuntimeRecoveryAccess,
   RuntimeRecoveryScope,
   RuntimeSessionAccess,
+  SessionRuntimeBinding,
   SettleReplyInput,
   SettleReplyResult,
   ReservationWaitPolicy,
   CallKey,
 } from './service-types.ts'
+import type { CallAccess, CallFacts } from './reference-types.ts'
 import type { AnchoredInvocationHandle } from './anchored-invocation-types.ts'
 import {
   inspectCurrentModelLogPrefix,
@@ -124,9 +127,13 @@ export async function settlePendingReply(input: {
 export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
   readonly calls: CallContainerStore<P, R>
   readonly sessions: RuntimeSessionAccess
+  readonly callAccess: CallAccess
+  readonly callFacts: CallFacts
   readonly contention: SettlementContention
   readonly scheduler: SettlementScheduler
   readonly reservationWaitPolicy: ReservationWaitPolicy
+  readonly run?: RunHistoryReader
+  readonly diagnostic: (event: SettlementDiagnostic) => void
 }): (request: SettleReplyInput) => Promise<SettleReplyResult> {
   return async request => {
     if (
@@ -146,27 +153,90 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
     const { reservation } = admitted
     try {
       const container = input.calls.find(request)
-      if (container === undefined) return await recognizeSettledReply(request, input)
-      const view = container.view()
-      if (view.operation.phase !== 'reply_pending' || view.invocation === undefined) {
-        if (view.operation.phase === 'ready') return await recognizeSettledReply(request, input)
+      const local = container?.view()
+      if (
+        container !== undefined &&
+        local?.operation.phase === 'reply_pending' &&
+        local.invocation !== undefined
+      ) {
+        reservation.publish({ phase: 'settling' })
+        const result = await settlePendingReply({
+          request,
+          pending: local.operation.pending,
+          invocation: local.invocation,
+        })
+        if ('callId' in result || 'alreadyEnded' in result) {
+          reservation.publish({ phase: 'ready' })
+          const stopped = await container.close()
+          if ('released' in stopped && stopped.released === true) input.calls.remove(reservation)
+        } else {
+          reservation.publish(local.operation)
+        }
+        return result
+      }
+      const bound = await input.sessions.bind(request.session)
+      if ('failure' in bound) return { unavailable: true }
+      const session = bound.binding
+      if (
+        session.log.session !== request.session ||
+        session.selection.binding.generation !== session.log.generation ||
+        !tenantIdEquals(session.selection.binding.tenant, session.log.tenant)
+      )
         return { unavailable: true }
+      const fact = await input.callFacts.lookup({ binding: session.log, ref: request })
+      if ('view' in fact && fact.view.result?.disposition === 'disposition_pending') {
+        const pending = fact.view.result.pending
+        const admittedSettle = await input.callAccess.check(
+          { binding: session.log, ref: request, action: 'settle', origin: fact.view.origin },
+          async evidence => {
+            if (
+              evidence.action !== 'settle' ||
+              evidence.ref.session !== request.session ||
+              evidence.ref.callId !== request.callId ||
+              evidence.source.generation !== session.log.generation ||
+              ExactDecimal.from(evidence.source.progress).compare(
+                ExactDecimal.from(fact.view.source.progress),
+              ) !== 0 ||
+              evidence.revoked.aborted
+            )
+              return { unavailable: true } as const
+            const final = { ...pending, replyDisposition: request.disposition }
+            if ('rejected' in judgeResponseFinalization(pending, final))
+              return { unavailable: true } as const
+            const coordinator = createSettlementCoordinator({
+              binding: session.log,
+              owner: session.selection.owner,
+              ...(input.run === undefined ? {} : { run: input.run }),
+              settlementContention: input.contention,
+              settlementScheduler: input.scheduler,
+              diagnostic: input.diagnostic,
+            })
+            try {
+              const task = coordinator.settle({
+                target: { call: request.callId, dispatch: pending.dispatch, response: pending.id },
+                current: { messageId: pending.reply.id, disposition: request.disposition },
+                response: final,
+              })
+              const result = await task.completion
+              await task.stopped
+              if (!('settled' in result)) return { unavailable: true } as const
+              if (result.settled.disposition === 'firstWinner')
+                return { alreadyEnded: true } as const
+              return {
+                callId: request.callId,
+                state: pending.outcome === 'interrupted' ? 'interrupted' : 'complete',
+              } as const
+            } finally {
+              await coordinator.close()
+            }
+          },
+        )
+        return 'allowed' in admittedSettle ? admittedSettle.allowed : { unavailable: true }
       }
-      reservation.publish({ phase: 'settling' })
-      const result = await settlePendingReply({
-        request,
-        pending: view.operation.pending,
-        invocation: view.invocation,
-      })
-      if ('callId' in result || 'alreadyEnded' in result) {
-        reservation.publish({ phase: 'ready' })
-        // Durable success does not depend on whether optional resource cleanup completes now.
-        const stopped = await container.close()
-        if ('released' in stopped && stopped.released === true) input.calls.remove(reservation)
-      } else {
-        reservation.publish(view.operation)
-      }
-      return result
+      if (container === undefined) return await recognizeSettledReply(request, input, session)
+      if (local?.operation.phase === 'ready')
+        return await recognizeSettledReply(request, input, session)
+      return { unavailable: true }
     } catch {
       return { unavailable: true }
     } finally {
@@ -181,13 +251,20 @@ async function recognizeSettledReply(
     readonly sessions: RuntimeSessionAccess
     readonly contention: SettlementContention
   },
+  boundSession?: SessionRuntimeBinding,
 ): Promise<SettleReplyResult> {
   try {
     // S-49 repeats only read an authoritative completed batch. They neither stop
     // the session nor acquire the S-33 authority to reconstruct missing results.
-    const bound = await input.sessions.bind(request.session)
-    if ('failure' in bound) return { unavailable: true }
-    const { log, selection } = bound.binding
+    let session: SessionRuntimeBinding
+    if (boundSession === undefined) {
+      const bound = await input.sessions.bind(request.session)
+      if ('failure' in bound) return { unavailable: true }
+      session = bound.binding
+    } else {
+      session = boundSession
+    }
+    const { log, selection } = session
     if (
       log.session !== request.session ||
       selection.binding.session !== request.session ||

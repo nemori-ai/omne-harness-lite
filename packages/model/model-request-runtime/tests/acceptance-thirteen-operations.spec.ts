@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 import { describe, expect, it } from 'vitest'
-import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type {
   ModelCallHost,
@@ -18,6 +18,7 @@ import {
 } from './settlement-fixture.ts'
 import { transport, type TestPlan } from './anchored-invocation-fixture.ts'
 import { selectionHost } from './session-selection-fixture.ts'
+import { referencePorts } from './reference-ports-fixture.ts'
 
 function isResponse(value: unknown): value is ModelResponse {
   return 'ok' in judgeModelResponse(value)
@@ -61,6 +62,7 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
       let failSend = false
       const binding: SessionRuntimeBinding = {
         log: selected.input.binding,
+        sourceVersions: { fixture: 'public-operations-v1' },
         selection: { ...selected.input, projection: async () => ({ known: [] }) },
         catalog: host.catalog,
         currentEvaluationInputs: host.reader,
@@ -82,10 +84,12 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
       let issuedResponses = 0
       const parsedMessage = parseOpaqueIdentifier('thirteen-message', 'MessageId')
       if (!('ok' in parsedMessage)) throw new Error('message id')
+      const calls = createCallContainerStore<TestPlan, object>()
       const config: RuntimeConstruction<TestPlan, object> = {
+        ...referencePorts(host, calls),
         maxScopes: 4,
         sessions: { bind: async () => ({ binding }) },
-        calls: createCallContainerStore(),
+        calls,
         transport: {
           clearReuseScope() {},
           acquire: () => ({
@@ -189,6 +193,7 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
       expect(effective.effectiveModel.routeName).toBe('example/model-a')
 
       const open = await service.openCall({
+        creationKey: unwrap(parseOpaqueIdentifier('operations_create_1', 'CreationKey')),
         session: host.session,
         target: effective.effectiveModel.routeName,
         basis: effective.effectiveModel,
@@ -196,7 +201,11 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
         tools: [],
         host: callHost,
       })
-      expect(open).toEqual({ callId: 'thirteen-call-1', state: 'open' })
+      expect(open).toEqual({
+        ref: { session: host.session, callId: 'thirteen-call-1' },
+        callId: 'thirteen-call-1',
+        state: 'open',
+      })
       const first = { session: host.session, callId: 'thirteen-call-1' }
       expect(await service.readAttempts(first)).toEqual({ state: 'open', dispatches: [] })
       const retry = { provider: 'first' }
@@ -230,8 +239,8 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
         alreadyEnded: true,
       })
       expect(httpRequests).toBe(1)
-
       const second = await service.openCall({
+        creationKey: unwrap(parseOpaqueIdentifier('operations_create_2', 'CreationKey')),
         session: host.session,
         target: effective.effectiveModel.routeName,
         basis: effective.effectiveModel,
@@ -239,7 +248,11 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
         tools: [],
         host: callHost,
       })
-      expect(second).toEqual({ callId: 'thirteen-call-2', state: 'open' })
+      expect(second).toEqual({
+        ref: { session: host.session, callId: 'thirteen-call-2' },
+        callId: 'thirteen-call-2',
+        state: 'open',
+      })
       expect(
         await service.interrupt({
           session: host.session,
@@ -252,6 +265,7 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
       })
       expect(httpRequests).toBe(1)
       const third = await service.openCall({
+        creationKey: unwrap(parseOpaqueIdentifier('operations_create_3', 'CreationKey')),
         session: host.session,
         target: effective.effectiveModel.routeName,
         basis: effective.effectiveModel,
@@ -259,7 +273,11 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
         tools: [],
         host: callHost,
       })
-      expect(third).toEqual({ callId: 'thirteen-call-3', state: 'open' })
+      expect(third).toEqual({
+        ref: { session: host.session, callId: 'thirteen-call-3' },
+        callId: 'thirteen-call-3',
+        state: 'open',
+      })
       const failedCall = { session: host.session, callId: 'thirteen-call-3' }
       failSend = true
       expect(await service.dispatch(failedCall)).toMatchObject({

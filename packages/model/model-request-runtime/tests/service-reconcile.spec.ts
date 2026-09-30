@@ -40,6 +40,7 @@ import {
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { controlled, deferred, noWaitScheduler, policy, request } from './settlement-fixture.ts'
 import { selectionHost } from './session-selection-fixture.ts'
+import { unavailableReferencePorts } from './reference-ports-fixture.ts'
 
 function originalInvocation(coordinator: {
   settle: (candidate: typeof request) => {
@@ -101,6 +102,7 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
           let released = 0
           let sessionReads = 0
           const sessionBinding: SessionRuntimeBinding = {
+            sourceVersions: { fixture: 'service-reconcile-v1' },
             log: binding,
             selection: {
               ...host.create().input,
@@ -157,6 +159,7 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
             borrowControl: () => ({ unavailable: true }),
             interrupt() {},
             observedFacts: () => ({ unavailable: true }),
+            finishReady: async () => ({ unavailable: true as const }),
           } as AnchoredInvocationHandle
           const settlement = original.settleReply
           const owned = {
@@ -170,9 +173,11 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
           opening.reservation.publish({ phase: 'reply_pending', pending: pending() })
           opening.reservation.release()
           const settleReply = createRuntimeSettleReply({
+            ...unavailableReferencePorts<PlannedSemantics, never>(),
             calls,
             contention: policy(),
             scheduler: noWaitScheduler,
+            diagnostic() {},
             reservationWaitPolicy: { maxWaitersPerCall: 1, timeoutMs: 100 },
             sessions: {
               async bind(requestedSession) {
@@ -1031,6 +1036,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
       'service-reconcile-original-facts',
       async ({ binding, owner, submissions }) => {
         const original: AnchoredInvocationHandle = {
+          finishReady: async () => ({ unavailable: true }),
           outcome: Promise.resolve({ unavailable: true }),
           snapshot: () => ({ blocks: [], position: 0 }),
           abort() {},

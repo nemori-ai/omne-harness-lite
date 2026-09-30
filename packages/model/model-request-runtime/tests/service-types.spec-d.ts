@@ -70,6 +70,7 @@ expectTypeOf<keyof ModelRuntimeService>().toEqualTypeOf<
   | 'effectiveModel'
   | 'selectModel'
   | 'openCall'
+  | 'acquireCall'
   | 'dispatch'
   | 'dispatchAgain'
   | 'interrupt'

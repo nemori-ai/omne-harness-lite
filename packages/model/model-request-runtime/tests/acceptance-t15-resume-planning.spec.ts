@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
-import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
 import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
@@ -20,6 +20,7 @@ import {
 } from './settlement-fixture.ts'
 import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
 import { AT, profile, selectionHost } from './session-selection-fixture.ts'
+import { referencePorts } from './reference-ports-fixture.ts'
 
 const CALL = 't15-recovered-call'
 const RESPONSE = 't15-lost-response'
@@ -174,6 +175,7 @@ async function ready() {
   const owner = new ControlledSettlementOwner()
   const binding: SessionRuntimeBinding = {
     log: selected.input.binding,
+    sourceVersions: { fixture: 't15-resume-v1' },
     selection: { ...selected.input, projection: async () => ({ known: [] }) },
     catalog: source.catalog,
     currentEvaluationInputs: source.reader,
@@ -191,10 +193,12 @@ async function ready() {
       },
     },
   }
+  const calls = createCallContainerStore<TestPlan, object>()
   const config: RuntimeConstruction<TestPlan, object> = {
+    ...referencePorts(source, calls),
     maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },
-    calls: createCallContainerStore(),
+    calls,
     transport: {
       clearReuseScope() {},
       acquire: () => ({
@@ -271,6 +275,7 @@ async function ready() {
   }
   function resume(messages: readonly Message[]) {
     return runtime.service.openCall({
+      creationKey: unwrap(parseOpaqueIdentifier('t15_resume_original', 'CreationKey')),
       session: source.session,
       callId: CALL,
       target: original.routeName,
@@ -327,7 +332,11 @@ describe('RT10 T15 durable resumable planning and release', () => {
       fixture.setRefusal(scenario.rejection)
       const opened = await fixture.resume([scenario.value])
       if (scenario.value === image) {
-        expect(opened).toEqual({ callId: CALL, state: 'resumable' })
+        expect(opened).toEqual({
+          ref: { session: fixture.source.session, callId: CALL },
+          callId: CALL,
+          state: 'resumable',
+        })
         const rejected = await fixture.runtime.service.dispatch({
           session: fixture.source.session,
           callId: CALL,
@@ -356,7 +365,11 @@ describe('RT10 T15 durable resumable planning and release', () => {
     // from the two real early input refusals above.
     for (const refusal of ['orphan_tool_call', 'tool_internal_in_request'] as const) {
       fixture.setRefusal(refusal)
-      expect(await fixture.resume([corrected])).toEqual({ callId: CALL, state: 'resumable' })
+      expect(await fixture.resume([corrected])).toEqual({
+        ref: { session: fixture.source.session, callId: CALL },
+        callId: CALL,
+        state: 'resumable',
+      })
       expect(
         await fixture.runtime.service.dispatch({ session: fixture.source.session, callId: CALL }),
       ).toEqual({ invalidInput: { reason: 'malformed' } })
@@ -372,7 +385,11 @@ describe('RT10 T15 durable resumable planning and release', () => {
     }
     expect(fixture.plans()).toBe(3)
     fixture.setRefusal(undefined)
-    expect(await fixture.resume([corrected])).toEqual({ callId: CALL, state: 'resumable' })
+    expect(await fixture.resume([corrected])).toEqual({
+      ref: { session: fixture.source.session, callId: CALL },
+      callId: CALL,
+      state: 'resumable',
+    })
     expect(
       await fixture.runtime.service.dispatch({ session: fixture.source.session, callId: CALL }),
     ).toHaveProperty('replyPending')

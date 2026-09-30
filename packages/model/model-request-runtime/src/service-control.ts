@@ -172,7 +172,7 @@ export async function withOwnedReads<T>(
 export interface ControlFacts {
   readonly durable:
     | {
-        readonly phase: Exclude<DispatchGuardPhase, 'open' | 'reply_pending'>
+        readonly phase: Exclude<DispatchGuardPhase, 'open'>
         readonly intentExists: boolean
       }
     | { readonly absent: true }
@@ -191,7 +191,7 @@ export function controlFactsFromHistory(
   let durable: ControlFacts['durable']
   if ('unavailable' in history) durable = { unavailable: true }
   else if ('absent' in history) durable = { absent: true }
-  else if (history.known.phase === null)
+  else if (history.known.phase === null || history.known.phase === 'open')
     durable = { noDispatch: true, intentExists: history.known.intent !== null }
   else durable = { phase: history.known.phase, intentExists: history.known.intent !== null }
   const last = 'known' in history ? history.known.dispatches.at(-1) : undefined
@@ -465,6 +465,7 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
         if (
           'known' in history &&
           history.known.phase !== null &&
+          history.known.phase !== 'open' &&
           history.known.phase !== 'awaiting_decision' &&
           history.known.phase !== 'resumable'
         )

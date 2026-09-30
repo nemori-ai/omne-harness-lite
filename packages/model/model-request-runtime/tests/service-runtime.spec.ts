@@ -3,7 +3,7 @@ import { definePlugin } from '@omne-harness-lite/kernel-basis'
 import { z } from 'zod'
 import { createModelRuntimePlugin, MODEL_RUNTIME_SERVICE } from '../src/service-plugin.ts'
 import { describe, expect, it } from 'vitest'
-import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { ModelCallHost, SessionRuntimeBinding } from '../src/service-types.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
@@ -18,6 +18,7 @@ import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
 import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
 import { selectionHost } from './session-selection-fixture.ts'
+import { referencePorts, unavailableReferencePorts } from './reference-ports-fixture.ts'
 
 const parsed = parseOpaqueIdentifier('runtime-session', 'SessionRef')
 if (!('ok' in parsed)) throw new Error('session fixture invalid')
@@ -50,6 +51,7 @@ function construction(
   } = {},
 ): RuntimeConstruction<PlannedSemantics, never> {
   return {
+    ...unavailableReferencePorts<PlannedSemantics, never>(),
     maxScopes: 4,
     sessions: { bind: input.bind ?? (async () => ({ failure: 'unavailable' })) },
     calls: input.store ?? createCallContainerStore(),
@@ -132,6 +134,7 @@ describe('D102 unified model runtime owner', () => {
         const bound = deferred<{ readonly binding: SessionRuntimeBinding }>()
         const binding: SessionRuntimeBinding = {
           log: selected.input.binding,
+          sourceVersions: { fixture: 'runtime-owner-v1' },
           selection: { ...selected.input, projection: async () => ({ known: [] }) },
           catalog: host.catalog,
           currentEvaluationInputs: host.reader,
@@ -150,6 +153,7 @@ describe('D102 unified model runtime owner', () => {
           },
         }
         const construction: RuntimeConstruction<TestPlan, object> = {
+          ...referencePorts(host, calls),
           maxScopes: 4,
           sessions: { bind: async () => (holdBind ? await bound.promise : { binding }) },
           calls,
@@ -206,6 +210,7 @@ describe('D102 unified model runtime owner', () => {
         const effective = await runtime.service.effectiveModel({ session: host.session })
         if (!('effectiveModel' in effective)) throw new Error('effective model absent')
         const opened = await runtime.service.openCall({
+          creationKey: unwrap(parseOpaqueIdentifier('runtime_create_1', 'CreationKey')),
           session: host.session,
           target: effective.effectiveModel.routeName,
           basis: effective.effectiveModel,
@@ -213,7 +218,11 @@ describe('D102 unified model runtime owner', () => {
           tools: [],
           host: callHost,
         })
-        expect(opened).toEqual({ callId: 'runtime-call-1', state: 'open' })
+        expect(opened).toEqual({
+          ref: { session: host.session, callId: 'runtime-call-1' },
+          callId: 'runtime-call-1',
+          state: 'open',
+        })
         const dispatched = await runtime.service.dispatch({
           session: host.session,
           callId: 'runtime-call-1',
@@ -235,11 +244,14 @@ describe('D102 unified model runtime owner', () => {
         if (!('entries' in log)) throw new Error('durable log unavailable')
         expect(log.entries.map(entry => payload(entry).kind).filter(Boolean)).toEqual([
           'model_selection_changed',
+          'model_call_created',
           'model_call_dispatched',
           'model_call_opened',
+          'model_call_reply_ready',
         ])
         expect(
           await runtime.service.openCall({
+            creationKey: unwrap(parseOpaqueIdentifier('runtime_create_2', 'CreationKey')),
             session: host.session,
             target: effective.effectiveModel.routeName,
             basis: effective.effectiveModel,
@@ -247,9 +259,14 @@ describe('D102 unified model runtime owner', () => {
             tools: [],
             host: callHost,
           }),
-        ).toEqual({ callId: 'runtime-call-2', state: 'open' })
+        ).toEqual({
+          ref: { session: host.session, callId: 'runtime-call-2' },
+          callId: 'runtime-call-2',
+          state: 'open',
+        })
         holdBind = true
         const lateOpen = runtime.service.openCall({
+          creationKey: unwrap(parseOpaqueIdentifier('runtime_create_3', 'CreationKey')),
           session: host.session,
           target: effective.effectiveModel.routeName,
           basis: effective.effectiveModel,
@@ -289,9 +306,9 @@ describe('D102 unified model runtime owner', () => {
     },
   )
 
-  it('composes all thirteen actual methods and closes their shared healthy owners', async () => {
+  it('composes all fourteen actual methods and closes their shared healthy owners', async () => {
     const runtime = createModelRuntime(construction())
-    expect(Object.keys(runtime.service)).toHaveLength(13)
+    expect(Object.keys(runtime.service)).toHaveLength(14)
     expect(await runtime.service.effectiveModel({ session })).toEqual({ unavailable: true })
     const first = runtime.close()
     expect(runtime.close()).toBe(first)
@@ -362,6 +379,7 @@ it.each(['open', 'dispatch'] as const)(
       const clearedScopes: object[] = []
       const active = new Set<Promise<unknown>>()
       const binding: SessionRuntimeBinding = {
+        sourceVersions: { fixture: 'runtime-preparation-v1' },
         log: selected.input.binding,
         selection: { ...selected.input, projection: async () => ({ known: [] }) },
         catalog: host.catalog,
@@ -379,11 +397,13 @@ it.each(['open', 'dispatch'] as const)(
         },
       }
       const base = construction()
+      const calls = createCallContainerStore<TestPlan, object>()
       const runtime = createModelRuntime<TestPlan, object>({
         ...base,
+        ...referencePorts(host, calls),
         maxScopes: 4,
         sessions: { bind: async () => ({ binding }) },
-        calls: createCallContainerStore(),
+        calls,
         settlementContention: settlementPolicy(),
         settlementScheduler: noWaitScheduler,
         policy: { ...invocationPolicy(), schedule: () => () => {} },
@@ -484,6 +504,7 @@ it.each(['open', 'dispatch'] as const)(
       const effective = await service.effectiveModel({ session: host.session })
       if (!('effectiveModel' in effective)) throw new Error('effective model absent')
       const opening = service.openCall({
+        creationKey: unwrap(parseOpaqueIdentifier('runtime_plugin_create', 'CreationKey')),
         session: host.session,
         target: effective.effectiveModel.routeName,
         basis: effective.effectiveModel,
@@ -540,6 +561,7 @@ function isRuntimeService(value: unknown): value is ModelRuntimeService {
     'effectiveModel',
     'selectModel',
     'openCall',
+    'acquireCall',
     'dispatch',
     'dispatchAgain',
     'interrupt',
