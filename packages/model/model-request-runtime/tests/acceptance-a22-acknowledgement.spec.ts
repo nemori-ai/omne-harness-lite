@@ -13,7 +13,7 @@ import {
 } from '@omne-harness-lite/messages'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import { narrow } from '@omne-harness-lite/storage'
-import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
@@ -47,9 +47,26 @@ interface Grant {
  * A22 acceptance on real SQLite and JSONL: one runtime, inline noRun calls, and a trusted
  * access provider whose current principal the test switches between independent consumers.
  */
-async function acknowledgementHost() {
+interface HostOptions {
+  /** Wraps the runtime's session-log append; reads and the host's own writes stay real. */
+  readonly append?: (real: SessionLog['append']) => SessionLog['append']
+}
+
+async function acknowledgementHost(options: HostOptions = {}) {
   const host = await selectionHost(true, true)
   const selected = host.create()
+  const realLog = selected.input.binding.log
+  const logBinding =
+    options.append === undefined
+      ? selected.input.binding
+      : {
+          ...selected.input.binding,
+          log: {
+            append: options.append((...args) => realLog.append(...args)),
+            readSince: (...args: Parameters<SessionLog['readSince']>) => realLog.readSince(...args),
+            readByKey: (...args: Parameters<SessionLog['readByKey']>) => realLog.readByKey(...args),
+          } satisfies SessionLog,
+        }
   const wire = transport()
   const calls = createCallContainerStore<TestPlan, object>()
   const ports = referencePorts(host, calls)
@@ -92,9 +109,9 @@ async function acknowledgementHost() {
   const bindingWith = (
     sourceVersions: Readonly<Record<string, string>>,
   ): SessionRuntimeBinding => ({
-    log: selected.input.binding,
+    log: logBinding,
     sourceVersions,
-    selection: { ...selected.input, projection: async () => ({ known: [] }) },
+    selection: { ...selected.input, binding: logBinding, projection: async () => ({ known: [] }) },
     catalog: host.catalog,
     currentEvaluationInputs: host.reader,
     credentials: {
@@ -510,6 +527,83 @@ describe('A22 acknowledgement acceptance on real SQLite/JSONL (inline, noRun)', 
       await h.host.close()
     }
   }, 30_000)
+
+  it.each([
+    ['a different value under the same key is not recognized', true],
+    ['the same value read back is recognized', false],
+  ] as const)(
+    'A22-V2 (review S1): alreadyRecorded is not recognition; %s',
+    async (_name, differ) => {
+      let injected = false
+      const h = await acknowledgementHost({
+        append: real => async (session, entries, fence, condition) => {
+          const [entry] = entries
+          const wrapper = entry?.payload
+          const value =
+            typeof wrapper === 'object' && wrapper !== null && 'value' in wrapper
+              ? wrapper.value
+              : undefined
+          if (
+            !injected &&
+            entry !== undefined &&
+            typeof wrapper === 'object' &&
+            wrapper !== null &&
+            typeof value === 'object' &&
+            value !== null &&
+            'kind' in value &&
+            value.kind === 'model_call_acknowledged'
+          ) {
+            // Another writer lands the same log key first; the log then answers alreadyRecorded.
+            injected = true
+            const other = differ
+              ? {
+                  ...entry,
+                  payload: {
+                    ...wrapper,
+                    value: { ...value, acknowledgedAt: '2026-09-29T00:00:00Z' },
+                  },
+                }
+              : entry
+            const landed = await real(
+              session,
+              [other],
+              { kind: 'unfenced' },
+              { kind: 'unconditional' },
+            )
+            if ('failure' in landed) throw new Error(`inject: ${landed.failure}`)
+          }
+          return await real(session, entries, fence, condition)
+        },
+      })
+      try {
+        h.grant('owner', ['read', 'wait', 'settle', 'cancel', 'ack'])
+        expect(await h.service.openCall(h.request('a22_create_s1'))).toMatchObject({
+          callId: 'a22-call-1',
+        })
+        const ref = { session: h.host.session, callId: 'a22-call-1' }
+        const dispatched = await h.service.dispatch(ref)
+        if (!('replyPending' in dispatched)) throw new Error('ready reply')
+        const target = { kind: 'response' as const, response: dispatched.replyPending.id }
+        expect(
+          await h.service.settleReply({ ...ref, disposition: { vetoed: { by: 'a22-gate' } } }),
+        ).toEqual({ callId: 'a22-call-1', state: 'complete' })
+        const answered = await h.service.acknowledgeCall({ ref, expectedResult: target })
+        expect(injected).toBe(true)
+        const recorded = acknowledgements(await h.entries(), 'a22-call-1')
+        expect(recorded).toHaveLength(1)
+        if (differ) {
+          expect(answered).toEqual({ unavailable: true })
+          expect(payload(recorded[0] as LogEntry).acknowledgedAt).toBe('2026-09-29T00:00:00Z')
+        } else {
+          expect(answered).toMatchObject({ acknowledged: { ref, target } })
+        }
+        expect(await h.runtime.close()).toEqual({ released: true })
+      } finally {
+        await h.host.close()
+      }
+    },
+    30_000,
+  )
 
   it('A22-V9: the core semantic digest, not a byte hash or another role, identifies a creation', () => {
     const input = { messages: [], sourceVersions: { fixture: 'v1' }, n: 1 }

@@ -499,8 +499,26 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
         const written = await append(session, ref, record, shell, prefix)
         if (written === 'conflict') return unavailable
         if (written === 'unavailable') return unavailable
+        // R-J/MS8 S-58: the log deduplicates by key only, so neither a receipt nor a key
+        // collision recognizes this batch. Read the durable value back and compare it whole.
+        const readBack = await readPrefix(session)
+        if (readBack === undefined || !current()) return unavailable
+        let after: ReturnType<typeof runtime.history.call>
+        try {
+          after = runtime.history.call(readBack, ref.callId)
+        } catch {
+          return unavailable
+        }
+        const durable = 'known' in after ? after.known.acknowledged : null
+        if (
+          durable === null ||
+          !modelLogJsonEqual(durable.record, record) ||
+          !modelLogJsonEqual(shellOf(durable.entry), shell) ||
+          durable.entry.session !== binding.session
+        )
+          return unavailable
         report('confirmed', ref, { via: written })
-        return await recognize(record)
+        return await recognize(durable.record)
       },
     )
     if ('allowed' in admitted) return admitted.allowed
@@ -551,6 +569,15 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
         : unavailable
     },
   })
+}
+
+/** The model log shell of an entry, in the same conditional form the writer builds. */
+function shellOf(entry: LogEntry): ModelLogShell {
+  return {
+    tenant: entry.tenant,
+    ...(entry.run === undefined ? {} : { run: entry.run }),
+    ...(entry.attempt === undefined ? {} : { attempt: entry.attempt }),
+  }
 }
 
 /** The original ACK record kept in this prefix, if any; two differing records are a conflict. */
