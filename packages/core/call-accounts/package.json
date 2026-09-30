@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.call-accounts v3: pure account admission and exact decimal evaluation",
+  "description": "data.call-accounts v4: pure account admission and exact decimal evaluation",
   "engines": {
     "node": ">=24.18.0 <25"
   },

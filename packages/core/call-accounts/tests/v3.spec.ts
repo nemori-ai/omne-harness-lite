@@ -6,8 +6,12 @@ import {
   writeJsonLossless,
   LosslessNumber,
 } from '@omne-harness-lite/content-blocks'
+import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 import retainedSchema from '@omne-harness-lite/call-accounts/schema/v2' with { type: 'json' }
 import schema from '@omne-harness-lite/call-accounts/schema' with { type: 'json' }
+import contentSchema from '@omne-harness-lite/content-blocks/schema/v2' with { type: 'json' }
+import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }
+import expirySchema from '@omne-harness-lite/offer-expiry/schema/v1' with { type: 'json' }
 import {
   prepareAccountGroup,
   summarize,
@@ -86,17 +90,56 @@ function evaluate(models: readonly ModelAccountInput[], withCorrection = false) 
   return summarize(admitted.ok)
 }
 
-describe('CA3 V3-1..5: pure explicit inputs, without source selection', () => {
-  it('publishes distinct exact CA3 and CA2 resources with equal definitions', () => {
+describe('CA4 A4-V1..2: pure explicit inputs, without source selection', () => {
+  it('compiles the actual 13-definition four-resource closure, and misses each required URI', () => {
+    const resources = [contentSchema, identitySchema, expirySchema, schema]
+    expect(Object.keys(schema.$defs)).toHaveLength(13)
+    const compile = (selected: typeof resources) => {
+      const runtime = createSchemaRuntime(selected)
+      for (const name of Object.keys(schema.$defs))
+        runtime.compile({ $ref: `${schema.$id}#/$defs/${name}` })
+    }
+    expect(() => compile(resources)).not.toThrow()
+    for (let index = 0; index < resources.length; index++)
+      expect(() => compile(resources.filter((_, item) => item !== index))).toThrow()
+  })
+
+  it('checks both normative ACK examples with original cost shape', () => {
+    const rows: unknown = JSON.parse(
+      readFileSync(
+        new URL(
+          '../../../../.meta_harness/design/spec/data/call-accounts/v4/ack-examples.json',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    )
+    if (!Array.isArray(rows)) throw new Error('missing ACK examples')
+    expect(rows).toHaveLength(2)
+    for (const row of rows) {
+      if (
+        row === null ||
+        typeof row !== 'object' ||
+        !('definition' in row) ||
+        !('value' in row) ||
+        !('schemaValid' in row)
+      )
+        throw new Error('invalid ACK example')
+      if (row.definition !== 'Cost' || typeof row.schemaValid !== 'boolean')
+        throw new Error('invalid ACK example')
+      expect(validate(row.definition, row.value).valid).toBe(row.schemaValid)
+    }
+  })
+  it('publishes distinct exact CA4 and CA2 resources with equal definitions', () => {
     expect(schemaId).toBe(schema.$id)
-    expect(schemaId).toContain('/call-accounts/v3/')
+    expect(schemaId).toContain('/call-accounts/v4/')
     expect(retainedSchema.$id).toContain('/call-accounts/v2/')
     expect(schema.$defs).toEqual(retainedSchema.$defs)
     for (const [path, version, hash] of [
       [
         '../schema/call-accounts.schema.json',
-        'v3',
-        '2aaecc1c7c7586f48dd94866d856351a999acb47191bed0dcc9173632504be50',
+        'v4',
+        '710a589f5692edfd4d5d474ff9fd5df6320dd98ffba7f4c711b50c8fb1dab368',
       ],
       [
         '../schema/v2/call-accounts.schema.json',
@@ -120,7 +163,7 @@ describe('CA3 V3-1..5: pure explicit inputs, without source selection', () => {
     const values = strict(
       readFileSync(
         new URL(
-          '../../../../.meta_harness/design/spec/data/call-accounts/v3/ready-examples.json',
+          '../../../../.meta_harness/design/spec/data/call-accounts/v4/ready-examples.json',
           import.meta.url,
         ),
         'utf8',
