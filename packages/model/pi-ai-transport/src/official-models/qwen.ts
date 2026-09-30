@@ -246,13 +246,14 @@ export const qwenVisibleBindings: Readonly<
 
 /**
  * The two open-weight leaves keep the pinned public-template estimator. Their
- * current binding also admits the route's declared `high`/`max` request effort.
+ * current binding also admits the route's declared `high`/`max` request effort and
+ * one visible `reasoning.text` detail per replayed assistant.
  */
 export const qwenPublicTemplateBindings: Readonly<
   Record<string, { readonly revision: string; readonly implementationRevision: string }>
 > = Object.freeze({
-  'qwen/qwen3.8-2.4t-a95b': Object.freeze({ revision: '3', implementationRevision: 'mp4-18' }),
-  'qwen/qwen3.8-27b': Object.freeze({ revision: '3', implementationRevision: 'mp4-18' }),
+  'qwen/qwen3.8-2.4t-a95b': Object.freeze({ revision: '4', implementationRevision: 'mp4-19' }),
+  'qwen/qwen3.8-27b': Object.freeze({ revision: '4', implementationRevision: 'mp4-19' }),
 })
 
 function bindingFor(modelId: QwenAlibabaModelId) {

@@ -13,7 +13,7 @@ import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { object } from '../json.ts'
 import { moonshotDefinitions } from '../official-models/moonshot.ts'
 import { countSegments, moonshotTokenizer } from './moonshot-tokenizer.ts'
-import { guardInputMeter, visibleReasoningDetailText } from './shared.ts'
+import { guardInputMeter, projectVisibleReasoningBody } from './shared.ts'
 import { imageSize } from 'image-size'
 
 type Segment = { readonly text: string; readonly control: boolean }
@@ -525,36 +525,14 @@ export function renderMoonshotPromptSegments(
   return route === 'k3' ? renderK3(body, history, schemas) : renderK27(history, schemas)
 }
 
-// Encrypted reasoning streamed as the literal placeholder; never visible text.
-const redactedReasoning = '[REDACTED]'
-
 /**
- * Meter-only copy of the actual body. An assistant's one visible `reasoning.text` detail
- * (shared shape) whose text is not `[REDACTED]`, and whose parallel `reasoning` /
- * `reasoning_content` are absent or the identical string, is placed in the template's
- * reasoning slot exactly once: the details are removed and a missing `reasoning` becomes
- * that text. Any other `reasoning_details` is unexplained: undefined, never a JSON-length
- * proxy. The OpenRouter conversion of details for this route is unknown, so the result
- * remains an estimate. The original body, serialized bytes and wire are not changed.
+ * Meter-only copy of the actual body. Moonshot accepts both parallel strings beside the
+ * shared visible detail when each is the identical text; the detail is then placed in the
+ * template's reasoning slot exactly once. The OpenRouter conversion of details for this
+ * route is unknown, so the result remains an estimate.
  */
 export function projectMoonshotMeterBody(body: JsonObject): JsonObject | undefined {
-  if (!Array.isArray(body.messages)) return undefined
-  const projected: JsonValue[] = []
-  for (const message of body.messages) {
-    if (!object(message) || !Object.hasOwn(message, 'reasoning_details')) {
-      projected.push(message)
-      continue
-    }
-    const text = visibleReasoningDetailText(message)
-    if (text === undefined || text === redactedReasoning) return undefined
-    for (const parallel of ['reasoning', 'reasoning_content'])
-      if (Object.hasOwn(message, parallel) && message[parallel] !== text) return undefined
-    const rest = Object.fromEntries(
-      Object.entries(message).filter(([name]) => name !== 'reasoning_details'),
-    )
-    projected.push(Object.hasOwn(rest, 'reasoning') ? rest : { ...rest, reasoning: text })
-  }
-  return { ...body, messages: projected }
+  return projectVisibleReasoningBody(body, ['reasoning', 'reasoning_content'])
 }
 
 function meter(

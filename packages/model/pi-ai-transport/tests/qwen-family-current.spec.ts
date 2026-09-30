@@ -630,18 +630,20 @@ describe('Qwen current-binding boundaries for all eight leaves', () => {
         replayRevision: 'unsupported-marginal/1',
         transformRevision: 'openrouter-wire/2',
       })
-      expect(definition.revision).toBe('3')
+      expect(definition.revision).toBe(openIds.includes(modelId) ? '4' : '3')
       expect(definition.implementation.revision).toBe(
-        openIds.includes(modelId) ? 'mp4-18' : 'mp4-17',
+        openIds.includes(modelId) ? 'mp4-19' : 'mp4-17',
       )
     },
   )
 
   it.each(qwenDefinitions.map(definition => definition.modelId))(
-    '%s refuses encrypted history before a second HTTP request without dropping it',
+    '%s refuses opaque history before a second HTTP request without dropping it; open leaves estimate visible text',
     async modelId => {
       const definition = definitionFor(modelId)
       const isOpen = openIds.includes(modelId)
+      // Open leaves: one visible `reasoning.text` detail is now a full estimate (Qwen
+      // visible reasoning revision 2); summary and encrypted stay refused.
       const reasoning: readonly Reasoning[] = isOpen
         ? ['encrypted', 'text', 'summary']
         : ['encrypted']
@@ -675,19 +677,42 @@ describe('Qwen current-binding boundaries for all eight leaves', () => {
           expect(thinking?.kind === 'thinking' ? thinking.opaque : undefined).toBeDefined()
           const second = appendRound(first, plan.planned, outcome, 1)
           const retained = writeJsonLossless(second.messages)
-          const rejected = await invokeModel({
+          const secondPlan = await transport.plan(second, { signal: new AbortController().signal })
+          const next = await invokeModel({
             ...second,
             transport,
             credential: 'local-qwen-closeout-only',
             signal: new AbortController().signal,
             policy: policy(),
           }).outcome
-          expect(rejected).toMatchObject({
+          expect(writeJsonLossless(second.messages)).toBe(retained)
+          if (isOpen && kind === 'text') {
+            if ('rejected' in secondPlan) throw new Error(JSON.stringify(secondPlan))
+            expect(secondPlan.planned.measurement).toMatchObject({
+              mode: 'full',
+              precision: 'estimated',
+            })
+            if (!('outcome' in next) || next.outcome !== 'complete')
+              throw new Error(JSON.stringify(next))
+            expect(host.requests).toHaveLength(2)
+            // The wire replays the detail unchanged; only the meter copy used `reasoning`.
+            const sent = host.requests[1]?.body ?? ''
+            expect(sent).toBe(secondPlan.planned.serialized)
+            expect(sent).toContain(
+              '"reasoning_details":[{"type":"reasoning.text","text":"Visible step 1.","format":"unknown","index":0}]',
+            )
+            expect(sent).not.toContain('"reasoning":"Visible step 1."')
+            continue
+          }
+          expect(secondPlan).toMatchObject({
+            rejected: 'invalidInput',
+            reason: 'input_size_unavailable',
+          })
+          expect(next).toMatchObject({
             rejected: 'invalidInput',
             reason: 'input_size_unavailable',
           })
           expect(host.requests).toHaveLength(1)
-          expect(writeJsonLossless(second.messages)).toBe(retained)
         } finally {
           await transport.close()
           await host.close()

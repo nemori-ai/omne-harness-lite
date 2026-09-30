@@ -23,6 +23,7 @@ import {
 } from '../definitions.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { object } from '../json.ts'
+import { guardInputMeter, projectVisibleReasoningBody } from './shared.ts'
 
 const sources = {
   'qwen/qwen3.8-2.4t-a95b': {
@@ -143,6 +144,7 @@ function messages(value: JsonValue | undefined, allowImages: boolean): PromptMes
           ? ['role', 'content', 'tool_call_id']
           : ['role', 'content']
     if (Object.keys(raw).some(key => !allowed.includes(key))) return undefined
+    // Raw details reach here only unprojected; `reasoning_content` stays refused.
     if (raw.reasoning_details !== undefined || raw.reasoning_content !== undefined) return undefined
     const rendered = content(raw.content, allowImages && role === 'user')
     if (rendered === undefined) return undefined
@@ -354,6 +356,18 @@ function withoutXhighEffort(
   return rest
 }
 
+/**
+ * Meter-only copy for the two public-template leaves. An assistant's one visible
+ * `reasoning.text` detail (shared shape, not `[REDACTED]`) whose parallel `reasoning` is
+ * absent or the identical string (compared before the template's trim) reaches the public
+ * template's `reasoning_content` slot exactly once, through the same plain `reasoning` path.
+ * A parallel `reasoning_content` stays refused by the renderer. How OpenRouter converts
+ * details for Alibaba is unknown, so the result remains an estimate.
+ */
+export function projectQwenMeterBody(body: JsonObject): JsonObject | undefined {
+  return projectVisibleReasoningBody(body, ['reasoning'])
+}
+
 /** Pinned-tokenizer estimates for the eight exact Alibaba leaves. */
 export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
   const source = sourceFor(definition.modelId)
@@ -376,7 +390,7 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
     throw new TypeError('unsupported Qwen definition')
   const effortRule = definition.routes.alibaba?.parameters.reasoningEffort
   const encoder = tokenizer(source?.directory ?? 'qwen-38-24t')
-  return defineInputMeter({
+  const raw = defineInputMeter({
     modelId: definition.modelId,
     definitionRevision: definition.revision,
     implementation: definition.implementation,
@@ -384,11 +398,20 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
     algorithmRevision:
       visible?.algorithmRevision ??
       (definition.modelId === visualModelId
-        ? 'qwen-38-public-template-image-effort-4'
-        : 'qwen-38-public-template-effort-3'),
+        ? 'qwen-38-public-template-image-effort-5'
+        : 'qwen-38-public-template-effort-4'),
+    // The tokenizer and template are unchanged; only the projected domain grew.
+    ...(visible
+      ? {}
+      : {
+          tokenizerRevision:
+            definition.modelId === visualModelId
+              ? 'tokenizer-basis/qwen-38-public-template-image-effort-4'
+              : 'tokenizer-basis/qwen-38-public-template-effort-3',
+        }),
     evidence: visible
       ? `${visible.evidence}; Alibaba OpenAI-compatible Chat API (2026-09-29) defines ordered messages, tool schemas/results and visible reasoning; complete final JSON including protocol controls is the explicit surrogate; Qwen/Qwen3.8-2.4T-A95B 207bd685a7e3696cfaff12ded7c6a7ea0f88c996 tokenizer.json sha256:${tokenizerSha256}; no exactness, error bound, offset transfer, media/opaque or incremental claim; actual OpenRouter multi-turn residual/holdout pending`
-      : `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; ${definition.modelId === visualModelId ? 'Alibaba Qwen3.8 32x32 image formula, unscaled inline PNG only;' : 'text/tools subset;'} OpenRouter/Alibaba conversion remains estimated; declared high/max request effort renders the template default xhigh instruction per Alibaba's documented high/max-to-xhigh mapping, an estimated scope extension with no actual effort holdout or error bound; none, other effort shapes and opaque/encrypted history remain unavailable`,
+      : `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; ${definition.modelId === visualModelId ? 'Alibaba Qwen3.8 32x32 image formula, unscaled inline PNG only;' : 'text/tools subset;'} OpenRouter/Alibaba conversion remains estimated; declared high/max request effort renders the template default xhigh instruction per Alibaba's documented high/max-to-xhigh mapping, an estimated scope extension with no actual effort holdout or error bound; one visible reasoning.text detail per assistant is projected into the public template reasoning_content slot, OpenRouter details conversion unknown, no holdout; none, other effort shapes and every other reasoning_details shape (summary, encrypted, redacted or extra keys) remain unavailable`,
     measureFull({ body, serialized }): TokenMeasurement {
       if (
         body.model !== definition.modelId ||
@@ -400,12 +423,16 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
         writeJsonLossless(body) !== serialized
       )
         return { kind: 'unavailable' }
-      const template = visible ? undefined : withoutXhighEffort(body, effortRule)
+      // Effort stripping and the details projection touch disjoint fields; rendering and
+      // image counting read the same meter-only copy.
+      const effortless = visible ? undefined : withoutXhighEffort(body, effortRule)
+      const template = effortless && projectQwenMeterBody(effortless)
       const prompt = visible
         ? renderQwenVisibleInput(body, definition)
         : template && renderQwenPrompt(template)
       if (prompt === undefined) return { kind: 'unavailable' }
-      const imageTokens = definition.modelId === visualModelId ? inlineImageTokens(body) : 0
+      const imageTokens =
+        definition.modelId === visualModelId && template ? inlineImageTokens(template) : 0
       if (imageTokens === undefined) return { kind: 'unavailable' }
       try {
         return {
@@ -417,4 +444,7 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
       }
     },
   })
+  // All eight factory methods run the shared source/basis guards; the six visible-JSON
+  // leaves only gain those checks, never a different value.
+  return guardInputMeter(raw)
 }

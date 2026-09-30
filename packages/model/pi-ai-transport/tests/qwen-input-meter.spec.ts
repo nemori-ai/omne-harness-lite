@@ -383,14 +383,22 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         provider: 'alibaba',
         algorithmRevision:
           modelId === ids[1]
-            ? 'qwen-38-public-template-image-effort-4'
-            : 'qwen-38-public-template-effort-3',
+            ? 'qwen-38-public-template-image-effort-5'
+            : 'qwen-38-public-template-effort-4',
+        // The tokenizer and template did not change with the visible-details domain.
+        tokenizerRevision:
+          modelId === ids[1]
+            ? 'tokenizer-basis/qwen-38-public-template-image-effort-4'
+            : 'tokenizer-basis/qwen-38-public-template-effort-3',
       })
       expect(selected).toMatchObject({
-        revision: '3',
-        implementation: { name: 'pi-ai:qwen', revision: 'mp4-18' },
+        revision: '4',
+        implementation: { name: 'pi-ai:qwen', revision: 'mp4-19' },
       })
       expect(meter.evidence).toContain('no actual effort holdout or error bound')
+      expect(meter.evidence).toContain(
+        'visible reasoning.text detail per assistant is projected into the public template reasoning_content slot, OpenRouter details conversion unknown, no holdout',
+      )
       expect(meter.evidence).toContain(
         'sha256:0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3',
       )
@@ -419,13 +427,20 @@ describe('Qwen3.8 public tokenizer input meters', () => {
         }),
       ).toEqual(result)
       expect(() => createQwenInputMeter({ ...selected, revision: 'other' })).toThrow(TypeError)
-      expect(() =>
-        createQwenInputMeter({
-          ...selected,
-          revision: '2',
-          implementation: { name: 'pi-ai:qwen', revision: 'mp4-17' },
-        }),
-      ).toThrow(TypeError)
+      // Neither earlier release has a factory any more: no hot replacement of old leases.
+      for (const [revision, implementation] of [
+        ['2', 'mp4-17'],
+        ['3', 'mp4-18'],
+        ['4', 'mp4-18'],
+        ['3', 'mp4-19'],
+      ] as const)
+        expect(() =>
+          createQwenInputMeter({
+            ...selected,
+            revision,
+            implementation: { name: 'pi-ai:qwen', revision: implementation },
+          }),
+        ).toThrow(TypeError)
     },
   )
 

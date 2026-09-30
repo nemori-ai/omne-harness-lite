@@ -79,15 +79,13 @@ describe('official Qwen complete declarations (offline)', () => {
       const row = expected[modelId]
       const facts = definition.capabilities.upstreamInputLimits
       const image = (row.input as readonly string[]).includes('image')
+      const open = modelId === 'qwen/qwen3.8-2.4t-a95b' || modelId === 'qwen/qwen3.8-27b'
       expect(definition).toMatchObject({
         modelId,
-        revision: '3',
+        revision: open ? '4' : '3',
         implementation: {
           name: 'pi-ai:qwen',
-          revision:
-            modelId === 'qwen/qwen3.8-2.4t-a95b' || modelId === 'qwen/qwen3.8-27b'
-              ? 'mp4-18'
-              : 'mp4-17',
+          revision: open ? 'mp4-19' : 'mp4-17',
         },
         capabilities: {
           inputModalities: [...row.input],

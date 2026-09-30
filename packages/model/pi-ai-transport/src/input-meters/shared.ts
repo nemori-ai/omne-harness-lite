@@ -1,6 +1,7 @@
-// Family-neutral pieces shared by several family input meters. Family policy (parallel
-// reasoning keys, redaction markers, target template slot) stays with each family.
-import { isJsonNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
+// Family-neutral pieces shared by several family input meters. Family policy (which
+// parallel reasoning keys may accompany a detail, and the target template slot) stays with
+// each family; the families pass it in.
+import { isJsonNumber, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { measureFull, measureNew, measureReplay, type InputMeter } from '../input-meter.ts'
 import { object } from '../json.ts'
@@ -31,6 +32,42 @@ export function visibleReasoningDetailText(message: JsonObject): string | undefi
   )
     return undefined
   return detail.text
+}
+
+// Encrypted reasoning streamed as the literal placeholder; never visible text.
+const redactedReasoning = '[REDACTED]'
+
+/**
+ * Meter-only copy of the actual body for families whose renderer reads an assistant's
+ * plain OpenRouter `reasoning` string. An assistant's one visible detail
+ * (`visibleReasoningDetailText`) whose text is not `[REDACTED]`, and whose parallel keys
+ * named by the family (`sameText`) are each absent or the identical string, is counted
+ * exactly once: the details are removed and a missing `reasoning` becomes that text.
+ * Parallel keys the family does not name are left for its renderer to judge. Any other
+ * `reasoning_details` is unexplained: undefined, never a JSON-length proxy. The original
+ * body, serialized bytes and wire are not changed.
+ */
+export function projectVisibleReasoningBody(
+  body: JsonObject,
+  sameText: readonly string[],
+): JsonObject | undefined {
+  if (!Array.isArray(body.messages)) return undefined
+  const projected: JsonValue[] = []
+  for (const message of body.messages) {
+    if (!object(message) || !Object.hasOwn(message, 'reasoning_details')) {
+      projected.push(message)
+      continue
+    }
+    const text = visibleReasoningDetailText(message)
+    if (text === undefined || text === redactedReasoning) return undefined
+    for (const parallel of sameText)
+      if (Object.hasOwn(message, parallel) && message[parallel] !== text) return undefined
+    const rest = Object.fromEntries(
+      Object.entries(message).filter(([name]) => name !== 'reasoning_details'),
+    )
+    projected.push(Object.hasOwn(rest, 'reasoning') ? rest : { ...rest, reasoning: text })
+  }
+  return { ...body, messages: projected }
 }
 
 /**
