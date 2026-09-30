@@ -1,6 +1,6 @@
 # ACK 后新处分写入的临时责任
 
-2026-09-29 起草；**revision 2，2026-09-30**：按独立定点架构评审的最小修订清单 R1–R4 及建议 B3 修订（主调度摘录在 HUB 任务区 `tmp/model-request-runtime/ack-adoption/a22-g2-seam-review-20260930.md`，裁决 `rulings-20260930-main-dispatcher.md` R-G；正式评审记录待主线提升为 record）。candidate；接受以本修订落地并经主调度复核为条件（[决定附注](../../decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)）。接续[技术选择revision2](ack-technical-choices.md)，只闭合其中已经允许的延后真实处分，不增加公开操作或产品概念。
+2026-09-29 起草；**revision 2，2026-09-30**：按独立定点架构评审的最小修订清单 R1–R4 及建议 B3 修订（[评审页](ack-seam-review.md)；主调度裁决 R-G 见该页「范围外待裁决」）。candidate；接受以本修订落地并经主调度复核为条件（[决定附注](../../decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)）。接续[技术选择revision2](ack-technical-choices.md)，只闭合其中已经允许的延后真实处分，不增加公开操作或产品概念。
 
 ## 触发反例与边界
 

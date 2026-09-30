@@ -579,7 +579,7 @@ FinalPlan 两份正配置实际 TLC 退出 0（WithLog=true：8737 不同状态�
 
 ### 接缝 revision 2 修订（2026-09-30）
 
-按独立定点架构评审的最小修订清单（主调度摘录在 HUB 任务区 `tmp/model-request-runtime/ack-adoption/a22-g2-seam-review-20260930.md`，裁决 `rulings-20260930-main-dispatcher.md` R-G；正式记录待主线提升）把[ACK 后新处分接缝](../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)修到 revision 2。v12 已接受冻结（[决定](../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)），本轮不改 v12 任何字节、不改 registry；契约侧变化以版本外勘误指引（[README](README.md#v12-ack后继候选)）与 [v-next 待并入项](v-next/README.md)承接。接受仍以修订落地后主调度复核为条件，本节不提升状态。
+按独立定点架构评审的最小修订清单（[评审页](../../../record/proposals/model-runtime-reference-lifecycle/ack-seam-review.md)，含主调度裁决 R-G）把[ACK 后新处分接缝](../../../record/proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)修到 revision 2。v12 已接受冻结（[决定](../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)），本轮不改 v12 任何字节、不改 registry；契约侧变化以版本外勘误指引（[README](README.md#v12-ack后继候选)）与 [v-next 待并入项](v-next/README.md)承接。接受仍以修订落地后主调度复核为条件，本节不提升状态。
 
 变化的影响：
 
