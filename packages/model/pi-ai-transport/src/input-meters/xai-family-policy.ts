@@ -154,6 +154,8 @@ export function classifyXaiDetail(detail: JsonValue): 'visible' | 'wholeGroup' |
   return field &&
     typeof detail[field] === 'string' &&
     detail[field].length > 0 &&
+    // OpenRouter may replace streamed ciphertext with this literal placeholder.
+    (field !== 'data' || detail.data !== '[REDACTED]') &&
     Object.keys(detail).every(key => ['type', field, 'format', 'id', 'index'].includes(key))
     ? 'wholeGroup'
     : 'uninterpretable'

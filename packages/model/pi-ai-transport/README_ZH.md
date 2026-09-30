@@ -233,6 +233,8 @@ Anthropic 配置的 `last_message` 布局选择最后一个真实非空 text blo
 
 `createXaiInputMeter(definition)` 为固定 xai 路由的 Grok 4.6／4.7 绑定 definition 5／`mp4-19`。可见文本／工具仍按第一方 Grok Build UTF-8 字节代理估算，保留两个 fit 样本得出的偏移 141／1181；独立可见工具历史 holdout 分别对完整输入高估 35／34 token。对于来源有限且完整、原样保留的 assistant 输出组，full/new/φ 把原上游输出计数 O 作为一次与工作负载相关的 **estimated** 输入代理；O 已包含 reasoning，同组 summary、密文、文本和工具不再另计。旧 definition 3／4 只用于解释保存的来源事实，不保留旧工厂。未知格式、partial 组以及存在但尚无真实映射的上游身份字段均不可计量，原 wire 保持不变。当前 effort 或 max-token 改变会使输入锚失效；full 仍可独立解释合法原 O。它不是精确输入占用或可证明上界，调用方仍配置余量。完整上下文输入包含未缓存输入及缓存读／写两项，任一分项未知时总数未知。可见偏移未按 effort 单独拟合；真实密文回放、身份映射、图片及完整 public/service 认证仍未完成。
 
+OpenRouter 的流式加密推理数据可能是 `[REDACTED]` 占位值。它不是完整可回放输出组，不能用于按 O 估算。
+
 仅含可见内容的响应复用采用共享 JSON 净增量估算：相对于空消息 framing 计算新回放的可见单元及新增输入，不重复计算稳定前缀及工具声明。空消息仅可用于内部 framing，完整请求计量仍返回不可计量。新算法／回放依据使旧输入锚失效；旧保存的完整输出组经来源核验后仍可贡献 O。无需新增用户配置。图片仍不在此计量器的支持范围内。
 
 ```ts

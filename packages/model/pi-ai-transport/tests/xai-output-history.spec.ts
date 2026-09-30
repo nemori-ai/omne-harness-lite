@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { toOpaqueJson, writeJsonLossless, type JsonValue } from '@omne-harness-lite/content-blocks'
 import type { Message } from '@omne-harness-lite/messages'
 import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { projectAssistant } from '../src/assistant-projection.ts'
@@ -31,7 +31,7 @@ const details = [
   },
 ]
 
-function response(model: string, id: string): Message {
+function response(model: string, id: string, reasoningDetails: JsonValue[] = details): Message {
   return judgedMessage({
     id,
     type: 'assistant',
@@ -43,7 +43,7 @@ function response(model: string, id: string): Message {
         id: `${id}-thinking`,
         kind: 'thinking',
         text: '',
-        opaque: toOpaqueJson({ routeName: model, reasoning_details: details }),
+        opaque: toOpaqueJson({ routeName: model, reasoning_details: reasoningDetails }),
         visibility: hidden,
       },
       { id: `${id}-text`, kind: 'text', text: 'Alpha is 42', visibility: visible },
@@ -382,11 +382,35 @@ describe.each(xaiDefinitions)('$modelId complete xAI output groups', definition 
     for (const invalid of [
       { ...details[1], format: 'unknown' },
       { ...details[1], data: '' },
+      { ...details[1], data: '[REDACTED]' },
       { ...details[1], extra: true },
     ])
       expect(
         classifyXaiUnit({ role: 'assistant', content: '', reasoning_details: [invalid] }),
       ).toBe('uninterpretable')
+  })
+
+  it('does not treat a streaming redaction placeholder as a complete replay group', async () => {
+    const { first, input } = await history()
+    const summary = details[0]
+    const encrypted = details[1]
+    if (!summary || !encrypted) throw Error('missing reasoning fixture')
+    const redacted = response(definition.modelId, 'a', [
+      summary,
+      { ...encrypted, data: '[REDACTED]' },
+    ])
+    const source = group(first, redacted, 1)
+    const result = await planRequest(
+      {
+        ...input,
+        messages: input.messages.map((item, index) => (index === 1 ? redacted : item)),
+        outputHistory: [source],
+      },
+      [definition],
+      meter,
+      { signal: new AbortController().signal },
+    )
+    expect(result).toMatchObject({ rejected: 'invalidInput', reason: 'input_size_unavailable' })
   })
 
   it('uses a complete original O when request-input evidence was not retained', async () => {
