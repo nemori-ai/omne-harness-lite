@@ -714,6 +714,56 @@ describe.each(leaves)('OpenAI current family boundaries: $modelId', leaf => {
     }
   })
 
+  it.each([false, true])(
+    'a streamed [REDACTED] ciphertext placeholder is not a complete group: second round refused, zero HTTP; tools=%s',
+    async withTools => {
+      const redacted = expectedDetails(1, '[REDACTED]')
+      const host = await fixture(
+        cert.tls,
+        res => res.end(response(modelId, 1, withTools, redacted)),
+        {},
+        undefined,
+        [definition],
+      )
+      const meter = createOpenAiInputMeter(definition)
+      const transport = createPiAiTransport({
+        ...host.options,
+        definitions: [definition],
+        inputMeters: [meter],
+      })
+      try {
+        const first = openAiThreeRoundInput(definition, withTools, png)
+        const result = await invoke(first, transport)
+        if (!('outcome' in result) || result.outcome !== 'complete')
+          throw new Error(JSON.stringify(result))
+        // The placeholder is retained as received; it is neither dropped nor upgraded.
+        const thinking = result.blocks[0]
+        if (thinking?.kind !== 'thinking' || thinking.opaque === undefined)
+          throw new Error('missing original opaque reasoning')
+        expect(readOpaqueJson(thinking.opaque)).toEqual({
+          routeName: modelId,
+          reasoning_details: redacted,
+        })
+        const second = nextRound(first, result, 2)
+        const retained = writeJsonLossless(second.messages)
+        const refused = {
+          rejected: 'invalidInput',
+          reason: 'input_size_unavailable',
+          metrics: ['maxInputTokens'],
+        }
+        expect(await transport.plan(second, { signal: new AbortController().signal })).toEqual(
+          refused,
+        )
+        expect(await invoke(second, transport)).toEqual(refused)
+        expect(host.requests).toHaveLength(1)
+        expect(writeJsonLossless(second.messages)).toBe(retained)
+      } finally {
+        await transport.close()
+        await host.close()
+      }
+    },
+  )
+
   it('visible reasoning and tool history supplied as messages plans and sends via the public factory', async () => {
     // Side evidence for the inherited openai-input-meter.spec.ts:597 failure:
     // the same visible reasoning.text/summary + unparseable tool call + tool result

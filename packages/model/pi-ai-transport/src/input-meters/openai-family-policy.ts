@@ -318,8 +318,10 @@ export function classifyOpenAiDetail(detail: unknown): OpenAiDetailClass {
     Object.keys(detail).some(name => !['type', key, 'format', 'id', 'index'].includes(name))
   )
     return 'uninterpretable'
+  // OpenRouter may stream the literal `[REDACTED]` in place of ciphertext. Like an
+  // empty value it is missing ciphertext, not a complete replayable group.
   return key === 'data'
-    ? detail.data === '' || detail.format !== 'openai-responses-v1'
+    ? detail.data === '' || detail.data === '[REDACTED]' || detail.format !== 'openai-responses-v1'
       ? 'uninterpretable'
       : 'wholeGroup'
     : 'visible'
