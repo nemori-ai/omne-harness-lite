@@ -536,6 +536,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
                   dispatches: [],
                   intent: null,
                   ending: null,
+                  acknowledged: null,
                 },
               }
             : interpretCallHistory({ prefix, callId }),

@@ -212,6 +212,179 @@ describe('S-49 reply disposition through the real JSONL settlement coordinator',
       await host.close()
     }
   })
+  it.each([true, false])(
+    'a cold ready reply keeps its unknown original owner until close resolves it (committed: %s)',
+    async committed => {
+      const host = await selectionHost()
+      try {
+        await controlled(
+          `service-settle-cold-${committed}`,
+          async ({ binding, owner, wrap, submissions }) => {
+            let unreadable = false
+            let appends = 0
+            const uncertain: SessionLog = {
+              ...binding.log,
+              async readSince(...args) {
+                return unreadable
+                  ? { failure: 'unavailable' }
+                  : await binding.log.readSince(...args)
+              },
+              async append(...args) {
+                appends++
+                if (committed) await binding.log.append(...args)
+                return { failure: 'unavailable' }
+              },
+            }
+            const log = wrap(uncertain)
+            const sessionBinding = {
+              sourceVersions: { fixture: 'service-reconcile-cold-v1' },
+              log,
+              selection: { ...host.create().input, binding: log, owner },
+            } as unknown as SessionRuntimeBinding
+            const source = { generation: log.generation, progress: 0 }
+            const reference = unavailableReferencePorts<PlannedSemantics, never>()
+            const settlementService = createRuntimeSettleReply({
+              ...reference,
+              callFacts: {
+                ...reference.callFacts,
+                async lookup() {
+                  return {
+                    view: {
+                      ref: { session, callId: 'call' },
+                      origin: { tenant: log.tenant, session },
+                      state: 'complete',
+                      source,
+                      result: { disposition: 'disposition_pending', pending: pending() },
+                    } as never,
+                  }
+                },
+              },
+              callAccess: {
+                async check(checked, admitted) {
+                  const evidence = {
+                    action: checked.action,
+                    ref: checked.ref,
+                    source,
+                    sourceVersion: 'service-reconcile-cold-v1',
+                    revoked: new AbortController().signal,
+                  }
+                  return { allowed: await admitted(evidence), evidence }
+                },
+              },
+              calls: createCallContainerStore<PlannedSemantics, never>(),
+              contention: policy(),
+              scheduler: noWaitScheduler,
+              diagnostic() {},
+              reservationWaitPolicy: { maxWaitersPerCall: 1, timeoutMs: 100 },
+              sessions: {
+                async bind() {
+                  return { binding: sessionBinding }
+                },
+              },
+            })
+            expect(await settlementService.settleReply(vetoed)).toEqual({ unavailable: true })
+            // The runtime, not a local coordinator, keeps the stopped unknown writer.
+            expect(owner.active).toBe(1)
+            unreadable = true
+            expect(await settlementService.close()).toEqual({ unavailable: true })
+            expect(owner.active).toBe(1)
+            expect(owner.releases).toBe(0)
+            unreadable = false
+            expect(await settlementService.close()).toEqual({ released: true })
+            expect(owner.active).toBe(0)
+            expect(owner.releases).toBe(1)
+            // Close resolves the original; it never resubmits a batch.
+            expect(appends).toBe(1)
+            expect(submissions.map(item => item.count)).toEqual(committed ? [2, 1] : [2])
+            expect(await settlementService.settleReply(vetoed)).toEqual({ unavailable: true })
+          },
+        )
+      } finally {
+        await host.close()
+      }
+    },
+  )
+  it('a cold ready reply resolves its original on repeat and resubmits only after proven absence', async () => {
+    const host = await selectionHost()
+    try {
+      await controlled(
+        'service-settle-cold-repeat',
+        async ({ binding, owner, wrap, submissions }) => {
+          let lose = true
+          const uncertain: SessionLog = {
+            ...binding.log,
+            async append(...args) {
+              if (lose) return { failure: 'unavailable' }
+              return await binding.log.append(...args)
+            },
+          }
+          const log = wrap(uncertain)
+          const sessionBinding = {
+            sourceVersions: { fixture: 'service-reconcile-cold-v1' },
+            log,
+            selection: { ...host.create().input, binding: log, owner },
+          } as unknown as SessionRuntimeBinding
+          const source = { generation: log.generation, progress: 0 }
+          const reference = unavailableReferencePorts<PlannedSemantics, never>()
+          const settlementService = createRuntimeSettleReply({
+            ...reference,
+            callFacts: {
+              ...reference.callFacts,
+              async lookup() {
+                return {
+                  view: {
+                    ref: { session, callId: 'call' },
+                    origin: { tenant: log.tenant, session },
+                    state: 'complete',
+                    source,
+                    result: { disposition: 'disposition_pending', pending: pending() },
+                  } as never,
+                }
+              },
+            },
+            callAccess: {
+              async check(checked, admitted) {
+                const evidence = {
+                  action: checked.action,
+                  ref: checked.ref,
+                  source,
+                  sourceVersion: 'service-reconcile-cold-v1',
+                  revoked: new AbortController().signal,
+                }
+                return { allowed: await admitted(evidence), evidence }
+              },
+            },
+            calls: createCallContainerStore<PlannedSemantics, never>(),
+            contention: policy(),
+            scheduler: noWaitScheduler,
+            diagnostic() {},
+            reservationWaitPolicy: { maxWaitersPerCall: 1, timeoutMs: 100 },
+            sessions: {
+              async bind() {
+                return { binding: sessionBinding }
+              },
+            },
+          })
+          expect(await settlementService.settleReply(vetoed)).toEqual({ unavailable: true })
+          expect(owner.active).toBe(1)
+          lose = false
+          // A different later disposition cannot replace the retained original request.
+          const consumed = { ...vetoed, disposition: { consumed: { by: 'side_query' } } } as const
+          expect(await settlementService.settleReply(consumed)).toEqual({ unavailable: true })
+          expect(owner.active).toBe(0)
+          expect(submissions.map(item => item.count)).toEqual([2])
+          expect(await settlementService.settleReply(consumed)).toEqual({ alreadyEnded: true })
+          const read = await binding.log.readSince(session, 0)
+          if (!('entries' in read)) throw new Error('readback')
+          expect(read.entries).toHaveLength(3)
+          expect(submissions.map(item => item.count)).toEqual([2, 1])
+          expect(await settlementService.close()).toEqual({ released: true })
+        },
+      )
+    } finally {
+      await host.close()
+    }
+  })
   it('writes one complete vetoed response and recognizes the original on repeat or competing disposition', async () => {
     await controlled('service-settle-veto', async ({ coordinator, submissions, binding }) => {
       expect(
