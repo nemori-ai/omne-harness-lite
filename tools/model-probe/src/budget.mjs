@@ -86,12 +86,17 @@ export function estimateReservation(pricing, inputBytes, outputTokens) {
 
 // One lock covers the complete run; a killed process leaves a visible lock and reservation.
 // Never automatically recover a stale lock: the external effect may already have occurred.
+// Approved total scope for any ledger this tool may open. Raised 100 -> 200 on 2026-09-30 by
+// the user (tmp/model-request-runtime/budget-change-authorization-20260930-200.json); the
+// per-ledger limitUsd must still equal the ledger header (see "Ledger/config mismatch").
+export const APPROVED_SCOPE_LIMIT_USD = '200'
+
 export async function openLedger(
   path,
   { limitUsd, researchLimitUsd },
   { reconciliation = false } = {},
 ) {
-  if (aboveLimit([researchLimitUsd], limitUsd) || aboveLimit([limitUsd], '100'))
+  if (aboveLimit([researchLimitUsd], limitUsd) || aboveLimit([limitUsd], APPROVED_SCOPE_LIMIT_USD))
     throw new Error('Budget exceeds approved scope')
   await mkdir(dirname(path), { recursive: true })
   const lock = await open(`${path}.lock`, 'wx', 0o600)
