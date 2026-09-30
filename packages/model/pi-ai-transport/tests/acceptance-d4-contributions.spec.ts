@@ -25,6 +25,7 @@ import {
   MODEL_TRANSPORT_SERVICE,
 } from '@omne-harness-lite/pi-ai-transport/plugin'
 import { input, message, networkPolicy, policy, content, finish, sse } from './support.ts'
+import { syntheticInputMeter } from './synthetic-input-meter.ts'
 
 const root = resolve(import.meta.dirname, '../../../..')
 const evidence = join(root, 'tmp/d4-acceptance')
@@ -106,15 +107,16 @@ function request(def: ModelDefinition, revision = 'd4-configuration'): PlanInput
   }
 }
 function observedMeter(def: ModelDefinition) {
-  const real = createAnthropicInputMeter(definition())
+  // The family meter measures against its own closed-over identity, so it cannot be relabelled for
+  // a custom definition: the official declaration keeps the real meter, a custom one gets its own.
+  const real = anthropicDefinitions.includes(def)
+    ? createAnthropicInputMeter(def)
+    : syntheticInputMeter(def, 'anthropic')
   const full = vi.fn(real.measureFull),
     phi = vi.fn(real.measureReplay),
     delta = vi.fn(real.measureNew)
   const meter: InputMeter = {
     ...real,
-    modelId: def.modelId,
-    definitionRevision: def.revision,
-    implementation: def.implementation,
     measureFull: full,
     measureReplay: phi,
     measureNew: delta,
