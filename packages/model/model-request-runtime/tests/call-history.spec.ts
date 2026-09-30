@@ -14,7 +14,7 @@ import {
   type SettlementPrefixResult,
   type SettlementTaskKind,
 } from '@omne-harness-lite/model-request-runtime'
-import { rejectAcknowledgedHistory } from '../src/call-history.ts'
+import { acknowledgedAsTerminal, rejectAcknowledgedHistory } from '../src/call-history.ts'
 import { dispatched, opened, prepare, reply, session, tenant } from './log-codec-fixture.ts'
 import { batchV2, prepareV2, responseV5 } from './log-codec-v2-fixture.ts'
 import { ControlledSettlementOwner } from './settlement-fixture.ts'
@@ -495,7 +495,14 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
         await append(record(acknowledgement))
         const history = interpretCallHistory({ prefix: await read(), callId: 'call' })
         expect(history).toMatchObject({
-          known: { phase: 'complete', acknowledged: { target: acknowledgement.target } },
+          known: {
+            phase: 'complete',
+            acknowledged: {
+              record: { target: acknowledgement.target },
+              // The ACK entry shell is the original creation shell.
+              entry: { tenant, session, position: 6 },
+            },
+          },
         })
         expect(rejectAcknowledgedHistory(history)).toEqual({
           unavailable: true,
@@ -515,7 +522,7 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
         expect(conflicting).toHaveProperty('failure')
         expect(await submit(record(acknowledgement))).toMatchObject({ failure: 'alreadyRecorded' })
         expect(interpretCallHistory({ prefix: await read(), callId: 'call' })).toMatchObject({
-          known: { acknowledged: { acknowledgedAt: acknowledgement.acknowledgedAt } },
+          known: { acknowledged: { record: { acknowledgedAt: acknowledgement.acknowledgedAt } } },
         })
         const unacknowledged = interpretCallHistory({ prefix: await read(), callId: 'other' })
         expect(rejectAcknowledgedHistory(unacknowledged)).toEqual({ absent: true })
@@ -531,11 +538,18 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
         await append(record({ ...acknowledgement, ...witness(4) }))
         const history = interpretCallHistory({ prefix: await read(), callId: 'call' })
         expect(history).toMatchObject({
-          known: { phase: 'reply_pending', acknowledged: { accountingWitness: { dispatch: 1 } } },
+          known: {
+            phase: 'reply_pending',
+            acknowledged: { record: { accountingWitness: { dispatch: 1 } } },
+          },
         })
         expect(rejectAcknowledgedHistory(history)).toEqual({
           unavailable: true,
           reason: 'acknowledged',
+        })
+        // RT12 S-100: control/new-work paths see the ACK's real terminal state.
+        expect(acknowledgedAsTerminal(history)).toMatchObject({
+          known: { phase: 'complete', acknowledged: null },
         })
       })
       await withLog('ack-ready-no-witness', async ({ append, read }) => {
@@ -630,7 +644,10 @@ describe('RT5 S-6/S-8/S-34 one no-Run history interpretation over actual JSONL',
         )
         const history = interpretCallHistory({ prefix: await read(), callId: 'call' })
         expect(history).toMatchObject({
-          known: { phase: 'interrupted', acknowledged: { terminalState: 'interrupted' } },
+          known: {
+            phase: 'interrupted',
+            acknowledged: { record: { terminalState: 'interrupted' } },
+          },
         })
       })
     })

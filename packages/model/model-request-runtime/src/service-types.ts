@@ -18,6 +18,7 @@ import type {
   SessionRef,
 } from '@omne-harness-lite/messages'
 import type {
+  AckPendingReason,
   AckTarget,
   AcknowledgedCallView,
   AcquireCallInput,
@@ -449,7 +450,17 @@ export type AcknowledgeCallResult =
   | ServiceUnavailable
   | ServiceCallNotFound
   | ServiceWrongPhase
-/** RT12 S-96: the fifteenth operation, joined to ModelRuntimeService with its implementation. */
+/**
+ * RT12 S-98: the explicit schedule of automatic retries of durable ACK cleanup. There is no
+ * default; `stop` only ends the current round and never drops the durable responsibility.
+ */
+export interface AcknowledgementCleanupPolicy {
+  readonly next: (input: {
+    readonly attempts: JsonNumber
+    readonly pendingReasons: readonly AckPendingReason[]
+  }) => { readonly waitMs: JsonNumber } | { readonly stop: true }
+}
+/** RT12 S-96: the fifteenth operation of ModelRuntimeService. */
 export type AcknowledgeCallOperation = (
   input: AcknowledgeCallInput,
 ) => Promise<AcknowledgeCallResult>
@@ -479,6 +490,8 @@ export interface ModelRuntimeService {
   readonly readAttempts: FailureConsumableOperation<CallKey, ReadAttemptsResult>
   readonly settleReply: (input: SettleReplyInput) => Promise<SettleReplyResult>
   readonly canDispatchAgain: (input: CanDispatchAgainInput) => Promise<CanDispatchAgainResult>
+  /** RT12 S-96: the fifteenth operation. */
+  readonly acknowledgeCall: AcknowledgeCallOperation
 }
 
 export interface SessionRuntimeBinding {
@@ -612,6 +625,8 @@ export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   readonly identities: ModelIdentitySource
   readonly history: CurrentHistoryReaders
   readonly reservationWaitPolicy: ReservationWaitPolicy
+  /** RT12 S-98: required; a runtime without it would publish a pseudo-available cleaner. */
+  readonly acknowledgementCleanup: AcknowledgementCleanupPolicy
   readonly recovery: RuntimeRecoveryAccess
   readonly diagnostic: (event: SettlementDiagnostic) => void
   /** Engineering diagnostics are bound per operation after verified session ownership. */

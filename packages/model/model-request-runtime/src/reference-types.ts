@@ -148,6 +148,13 @@ export interface AcknowledgedCallView {
 }
 /** Discriminated by `acknowledged`: present only on the RT12 S-97 branch. */
 export type CallReadView = RetainedCallReadView | AcknowledgedCallView
+/**
+ * Durable facts of the S-97 branch before the runtime adds its current cleanup progress. The
+ * record is the verified original ACK batch (creation digest, target, releasable payloads).
+ */
+export type AcknowledgedCallFacts = Omit<AcknowledgedCallView, 'acknowledged'> & {
+  readonly record: ModelCallAcknowledgedRecord
+}
 export interface AcquireCallInput {
   readonly ref: CallKey
   readonly mode: 'read' | 'wait'
@@ -299,10 +306,16 @@ export interface ModelCallContentStore {
 /** This node implements the port from its immutable Storage rows and authoritative SL3 keys. */
 export interface CallFacts {
   readonly content: ModelCallContentStore
+  /** An acknowledged call yields its durable S-97 facts; the runtime adds cleanup progress. */
   readonly lookup: (input: {
     readonly binding: SettlementLogBinding
     readonly ref: CallKey
-  }) => Promise<{ readonly view: CallReadView } | ServiceCallNotFound | ServiceUnavailable>
+  }) => Promise<
+    | { readonly view: RetainedCallReadView }
+    | { readonly acknowledged: AcknowledgedCallFacts }
+    | ServiceCallNotFound
+    | ServiceUnavailable
+  >
   readonly creation: (input: {
     readonly binding: SettlementLogBinding
     readonly creationKey: CreationKey
@@ -311,11 +324,8 @@ export interface CallFacts {
         readonly payload: ModelCallCreatedPayload
         readonly view: RetainedCallReadView
       }
-    /** RT12 S-101: after release, same-key recognition uses the ACK's creation digest. */
-    | {
-        readonly acknowledged: ModelCallAcknowledgedRecord
-        readonly view: AcknowledgedCallView
-      }
+    /** RT12 S-101: after ACK, same-key recognition uses the ACK's creation digest. */
+    | { readonly acknowledged: AcknowledgedCallFacts }
     | ServiceCallNotFound
     | ServiceUnavailable
   >

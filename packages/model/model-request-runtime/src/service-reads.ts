@@ -1,7 +1,9 @@
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { validate as validateLoop } from '@omne-harness-lite/loop-extension'
 import { createSessionModelSelection } from './session-selection.ts'
-import { rejectAcknowledgedHistory } from './call-history.ts'
+import { acknowledgedAsTerminal, rejectAcknowledgedHistory } from './call-history.ts'
+import { acknowledgedFactsFromHistory } from './acknowledged-view.ts'
+import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
 import { projectCallState, type LocalCallResponsibility } from './call-state.ts'
 import { dispatchGuard, type DispatchGuardFact } from './dispatch-guard.ts'
 import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
@@ -65,7 +67,10 @@ function sameSelection(a: SessionModelSelectionInput, b: SessionModelSelectionIn
 /** Owns selection writers and read registrations until their actual work stops. */
 export function createRuntimeReads<P extends PlannedSemantics, R>(
   construction: RuntimeConstruction<P, R>,
+  sharedCustody?: AcknowledgementCustody,
 ): { readonly methods: ReadMethods; readonly close: () => Promise<RuntimeCloseResult> } {
+  const ownCustody = sharedCustody === undefined ? runtimeCustody(construction) : undefined
+  const custody = sharedCustody ?? ownCustody
   const selections = new Map<string, ReadOwner>()
   const selectionLocks = new Map<string, Promise<void>>()
   const active = new Set<{
@@ -238,7 +243,18 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
       return malformed()
     let createdSource: ModelFailureSource | undefined
     const read = await withPrefix(input, (prefix, binding) => {
-      const history = rejectAcknowledgedHistory(construction.history.call(prefix, input.callId))
+      const raw = construction.history.call(prefix, input.callId)
+      if ('known' in raw && raw.known.acknowledged !== null) {
+        // RT12 S-100: the S-97 small sequence; no full dispatch record or failure subject.
+        const facts = acknowledgedFactsFromHistory(input, raw.known, {
+          generation: binding.log.generation,
+          progress: prefix.tail,
+        })
+        return facts === undefined
+          ? { result: unavailable() }
+          : { acknowledged: { facts, log: binding.log } }
+      }
+      const history = rejectAcknowledgedHistory(raw)
       const localView = construction.calls.find(input)?.view()
       const local: LocalCallResponsibility | undefined =
         localView?.operation.phase === 'ready'
@@ -298,6 +314,12 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
       }
       return { result: { state: state.phase, dispatches } }
     })
+    if ('acknowledged' in read && read.acknowledged !== undefined) {
+      const { facts, log } = read.acknowledged
+      const view = custody === undefined ? undefined : await custody.view(log, facts)
+      const result: ReadAttemptsResult = view === undefined ? unavailable() : { acknowledged: view }
+      return requested ? { result, consumption: { kind: 'notApplicable' } } : result
+    }
     if (!('result' in read)) {
       createdSource?.release()
       return requested ? { result: read, consumption: { kind: 'notApplicable' } } : read
@@ -337,7 +359,8 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     async canDispatchAgain(input) {
       if (!validateLoop('RetryPlan', input.plan).valid) return malformed()
       return await withPrefix(input, (prefix, _binding) => {
-        const history = rejectAcknowledgedHistory(construction.history.call(prefix, input.callId))
+        // RT12 S-100: an acknowledged call is its real terminal state (S-50⑥ alreadyEnded).
+        const history = acknowledgedAsTerminal(construction.history.call(prefix, input.callId))
         const localView = construction.calls.find(input)?.view()
         const local: LocalCallResponsibility | undefined =
           localView?.operation.phase === 'ready'
@@ -419,9 +442,10 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
         try {
           await Promise.all([...active].map(item => item.done))
           await Promise.all([...selectionLocks.values()])
-          const ended = await Promise.all(
-            [...selections.values()].map(item => item.selection.close()),
-          )
+          const ended = await Promise.all([
+            ...[...selections.values()].map(item => item.selection.close()),
+            ...(ownCustody === undefined ? [] : [ownCustody.close()]),
+          ])
           const result =
             ended.every(item => 'released' in item) && active.size === 0 && !readCleanupFailed
               ? ({ released: true } as const)

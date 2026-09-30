@@ -50,6 +50,7 @@ function service(): ModelRuntimeService {
     readAttempts: failureUnavailable(),
     settleReply: unavailable,
     canDispatchAgain: unavailable,
+    acknowledgeCall: unavailable,
   }
 }
 

@@ -16,7 +16,14 @@ import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model
 import type { LogEntry, ReadResult } from '@omne-harness-lite/session-log-jsonl'
 import { encodeModelLogKey, inspectModelLogEntry } from './log-codec.ts'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
+import {
+  acknowledgedAttempts,
+  attemptFromFinal,
+  originOfEntry,
+  type AcknowledgedDispatch,
+} from './acknowledged-view.ts'
 import type {
+  AcknowledgedCallFacts,
   CallFacts,
   CallPresence,
   RetainedCallReadView,
@@ -46,8 +53,13 @@ interface ProjectedCall {
   readonly ready?: ModelCallReplyReadyRecord
   readonly final?: ModelResponse
   readonly ended?: ModelCallEndedRecord
-  /** RT12 S-97: once present, this index never serves the pre-ACK full view again. */
-  readonly acknowledged?: ModelCallAcknowledgedRecord
+  /** RT12 S-97: every dispatch in order, with only the small facts of its durable final. */
+  readonly attempts?: readonly AcknowledgedDispatch[]
+  /**
+   * RT12 S-97: once present, this index never serves the pre-ACK full view again, and it no
+   * longer holds a full final value.
+   */
+  readonly acknowledged?: { readonly record: ModelCallAcknowledgedRecord; readonly entry: LogEntry }
 }
 interface Scope {
   readonly binding: SettlementLogBinding
@@ -125,14 +137,21 @@ function project(
     const call = captured.value.call.callId
     if (existing?.ready !== undefined && existing.ready.response !== captured.value.id)
       return unavailable
-    return { call, next: { ...existing, final: captured.value } }
+    const value = captured.value
+    const attempts = existing?.attempts?.map(item =>
+      item.response === value.id ? { ...item, final: attemptFromFinal(value, entry) } : item,
+    )
+    const next = { ...existing, ...(attempts === undefined ? {} : { attempts }) }
+    // After ACK a later final (RT12 S-99) only adds its small facts; no full value is kept.
+    return { call, next: existing?.acknowledged === undefined ? { ...next, final: value } : next }
   }
   const record = captured.record
   if (!relevant(record) || !('call' in record)) return undefined
   const call = record.call
   if (record.kind === 'model_call_acknowledged') {
     if (existing?.acknowledged !== undefined) return unavailable
-    return { call, next: { ...existing, acknowledged: record } }
+    const { final: _final, ...retained } = existing ?? {}
+    return { call, next: { ...retained, acknowledged: { record, entry } } }
   }
   if (record.kind === 'model_call_created') {
     if (existing?.created !== undefined || existing?.rejected !== undefined) return unavailable
@@ -159,7 +178,11 @@ function project(
   }
   if (record.kind === 'model_call_dispatched') {
     const { opened: _opened, ready: _ready, final: _final, ...remaining } = existing ?? {}
-    return { call, next: { ...remaining, dispatched: record } }
+    const attempts = [
+      ...(existing?.attempts ?? []),
+      { response: record.response, dispatch: record.dispatch, final: null },
+    ]
+    return { call, next: { ...remaining, dispatched: record, attempts } }
   }
   if (record.kind === 'model_call_opened') {
     if (
@@ -285,15 +308,56 @@ export function createModelCallFacts(input: {
       if (scope.updating === task) scope.updating = undefined
     }
   }
+  /**
+   * RT12 S-97/S-101: the durable acknowledged facts from the index alone. No payload is read:
+   * the ACK precedes any full-content requirement, and released content is not damage.
+   */
+  function acknowledgedFacts(
+    scope: Scope,
+    ref: CallKey,
+    projected: ProjectedCall,
+  ): { readonly acknowledged: AcknowledgedCallFacts } | typeof unavailable {
+    const acknowledged = projected.acknowledged
+    const marker = projected.created ?? projected.rejected
+    if (acknowledged === undefined || marker === undefined) return unavailable
+    const { record, entry } = acknowledged
+    const target = record.target
+    const last = projected.attempts?.at(-1)
+    if (
+      record.call !== ref.callId ||
+      record.creationKey !== marker.creationKey ||
+      entry.session !== scope.binding.session ||
+      !tenantIdEquals(entry.tenant, scope.binding.tenant) ||
+      (target.kind === 'ended'
+        ? projected.ended?.ending !== target.ending
+        : last?.response !== target.response)
+    )
+      return unavailable
+    const attempts = acknowledgedAttempts(record, projected.attempts ?? [])
+    if (attempts === undefined) return unavailable
+    return {
+      acknowledged: Object.freeze({
+        ref: Object.freeze({ session: ref.session, callId: ref.callId }),
+        record,
+        origin: originOfEntry(entry),
+        terminalState: record.terminalState,
+        source: Object.freeze({ generation: scope.binding.generation, progress: scope.cursor }),
+        attempts,
+      }),
+    }
+  }
   async function view(
     scope: Scope,
     ref: CallKey,
-  ): Promise<{ readonly view: RetainedCallReadView } | typeof notFound | typeof unavailable> {
+  ): Promise<
+    | { readonly view: RetainedCallReadView }
+    | { readonly acknowledged: AcknowledgedCallFacts }
+    | typeof notFound
+    | typeof unavailable
+  > {
     const projected = scope.calls.get(ref.callId)
     if (projected === undefined) return notFound
-    // RT12 S-97/S-100: the acknowledged small view is not implemented here yet. Fail closed
-    // instead of reading payloads the acknowledgement allows to be released.
-    if (projected.acknowledged !== undefined) return unavailable
+    if (projected.acknowledged !== undefined) return acknowledgedFacts(scope, ref, projected)
     const marker = projected.created ?? projected.rejected
     if (marker === undefined) return unavailable
     const contentRef = marker.payload

@@ -31,7 +31,11 @@ import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-
 import { authorizedCalibration } from './service-calibration.ts'
 import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
 import { modelLogJsonEqual } from './log-codec.ts'
-import { rejectAcknowledgedHistory, type UnacknowledgedCallHistory } from './call-history.ts'
+import {
+  acknowledgedAsTerminal,
+  rejectAcknowledgedHistory,
+  type UnacknowledgedCallHistory,
+} from './call-history.ts'
 import type {
   CallOperationState,
   CallKey,
@@ -425,9 +429,10 @@ export function createServiceDispatch<P extends PlannedSemantics, R>(
         retainedReads,
         async registration => {
           const prefix = await readSettlementPrefix({ binding: session.log, registration })
+          // RT12 S-100: an acknowledged call is its real terminal state: alreadyEnded, zero send.
           return 'unavailable' in prefix
             ? ({ unavailable: true, reason: 'prefix' } as const)
-            : rejectAcknowledgedHistory(runtime.history.call(prefix.prefix, key.callId))
+            : acknowledgedAsTerminal(runtime.history.call(prefix.prefix, key.callId))
         },
       )
       if ('unavailable' in received) return { unavailable: true }

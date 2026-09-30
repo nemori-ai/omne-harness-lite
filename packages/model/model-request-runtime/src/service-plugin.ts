@@ -33,6 +33,7 @@ const methodNames = [
   'readAttempts',
   'settleReply',
   'canDispatchAgain',
+  'acknowledgeCall',
 ] as const satisfies readonly (keyof ModelRuntimeService)[]
 
 /** P-2: the application supplies the one real A/B/C service composition per fiber run. */
@@ -126,6 +127,8 @@ export function createModelRuntimePlugin(input: {
         readAttempts: forwardFailure(original.readAttempts),
         settleReply: input => original.settleReply(input),
         canDispatchAgain: input => original.canDispatchAgain(input),
+        // RT12 S-100: host stop does not hide a durable ACK or its cleanup recognition.
+        acknowledgeCall: input => original.acknowledgeCall(input),
       }
       Object.freeze(service)
       try {

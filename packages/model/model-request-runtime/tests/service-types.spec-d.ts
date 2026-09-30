@@ -79,6 +79,7 @@ expectTypeOf<keyof ModelRuntimeService>().toEqualTypeOf<
   | 'readAttempts'
   | 'settleReply'
   | 'canDispatchAgain'
+  | 'acknowledgeCall'
 >()
 expectTypeOf(call.targetChangedBy).toEqualTypeOf<
   import('@omne-harness-lite/content-blocks').CapabilityId | undefined

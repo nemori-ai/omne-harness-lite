@@ -56,7 +56,13 @@ export interface CallHistoryKnown {
    * creation source, terminal target and ordering in this prefix. After it, released payloads
    * may be absent; a consumer without the S-97 small view must not read full content.
    */
-  readonly acknowledged: ModelCallAcknowledgedRecord | null
+  readonly acknowledged: CallHistoryAcknowledgement | null
+}
+
+/** The ACK record and its entry; the entry shell is the original creation shell (MS8 S-58). */
+export interface CallHistoryAcknowledgement {
+  readonly record: ModelCallAcknowledgedRecord
+  readonly entry: LogEntry
 }
 
 /** A complete log prefix can establish durable facts, but cannot establish an in-memory reply. */
@@ -87,15 +93,28 @@ const unavailable = (reason: CallHistoryUnavailableReason) =>
   ({ unavailable: true, reason }) as const
 
 /**
- * RT12 S-97/S-100 fail-closed gate. Until a consumer implements the acknowledged small view, a
- * durable acknowledgement makes it unavailable; it never treats the call as absent or reads
- * released full content from caches or payload stores.
+ * RT12 S-97/S-100 fail-closed gate for paths that read full pre-acknowledgement content or can
+ * only act before a terminal state. A durable acknowledgement makes them unavailable; it never
+ * treats the call as absent or reads released full content from caches or payload stores.
  */
 export function rejectAcknowledgedHistory(history: CallHistoryResult): UnacknowledgedCallHistory {
   if (!('known' in history)) return history
   const known = history.known
   if (known.acknowledged !== null) return unavailable('acknowledged')
   return { known: { ...known, acknowledged: null } }
+}
+
+/**
+ * RT12 S-100 for control and new-work entries (dispatch, dispatchAgain, canDispatchAgain,
+ * interrupt, releaseCall): an acknowledged call is its real terminal state, so these paths
+ * reach their existing terminal refusal without reading content. The phase is the ACK's
+ * `terminalState`, which a ready-only log prefix alone cannot conclude.
+ */
+export function acknowledgedAsTerminal(history: CallHistoryResult): UnacknowledgedCallHistory {
+  if (!('known' in history)) return history
+  const known = history.known
+  if (known.acknowledged === null) return { known: { ...known, acknowledged: null } }
+  return { known: { ...known, phase: known.acknowledged.record.terminalState, acknowledged: null } }
 }
 
 /**
@@ -299,7 +318,7 @@ export function interpretCallHistory(input: {
   } else {
     phase = last?.opened === null ? 'in_flight' : 'speaking'
   }
-  let acknowledged: ModelCallAcknowledgedRecord | null = null
+  let acknowledged: CallHistoryAcknowledgement | null = null
   const acknowledgement = acknowledgements[0]
   if (acknowledgement !== undefined) {
     // RT12 S-96⑦/MS8 S-58: one business fact per CallKey. The same original batch may be
@@ -321,7 +340,7 @@ export function interpretCallHistory(input: {
       })
     )
       return unavailable('history')
-    acknowledged = acknowledgement.record
+    acknowledged = { record: acknowledgement.record, entry: acknowledgement.entry }
   }
   return {
     known: {

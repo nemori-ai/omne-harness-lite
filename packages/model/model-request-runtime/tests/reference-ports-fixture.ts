@@ -54,11 +54,17 @@ export function referencePorts<P extends PlannedSemantics, R>(
       if (!('tenant' in held) || !tenantIdEquals(held.tenant, input.binding.tenant))
         return { unavailable: true }
       const found = await callFacts.lookup({ binding: input.binding, ref: input.ref })
-      if (!('view' in found)) return { unavailable: true }
+      const source =
+        'view' in found
+          ? found.view.source
+          : 'acknowledged' in found
+            ? found.acknowledged.source
+            : undefined
+      if (source === undefined) return { unavailable: true }
       const evidence = {
         action: input.action,
         ref: input.ref,
-        source: found.view.source,
+        source,
         sourceVersion: 'fixture-session-log-v1',
         revoked: new AbortController().signal,
       }

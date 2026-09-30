@@ -5,12 +5,16 @@ import { createIndependentCallConsumer } from './reference-consumer.ts'
 import { createModelObserverQueue } from './service-observer-queue.ts'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
 import type {
+  AcknowledgedCallView,
   AcquireCallInput,
   AcquireCallResult,
+  CallOrigin,
   RetainedCallReadView,
   CallConsumer,
 } from './reference-types.ts'
+import type { SettlementLogBinding } from './settlement-types.ts'
 import type {
   RuntimeConstruction,
   RuntimeCloseResult,
@@ -78,9 +82,28 @@ function ownInput(input: AcquireCallInput): AcquireCallInput | typeof malformed 
   })
 }
 
-/** All attachment is inside trusted presence admission; no model task is owned by a consumer. */
+/** The same original association: current binding owner and both origins equal. */
+function sameOrigin(first: CallOrigin, next: CallOrigin, binding: SettlementLogBinding): boolean {
+  return (
+    next.session === binding.session &&
+    tenantIdEquals(next.tenant, binding.tenant) &&
+    first.session === next.session &&
+    tenantIdEquals(first.tenant, next.tenant) &&
+    first.run === next.run &&
+    (first.attempt === undefined) === (next.attempt === undefined) &&
+    (first.attempt === undefined ||
+      next.attempt === undefined ||
+      ExactDecimal.from(first.attempt).compare(ExactDecimal.from(next.attempt)) === 0)
+  )
+}
+
+/**
+ * All attachment is inside trusted presence admission; no model task is owned by a consumer.
+ * `custody` is the runtime's shared ACK custody; a standalone component owns its own.
+ */
 export function createRuntimeAcquire<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
+  sharedCustody?: AcknowledgementCustody,
 ): {
   readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
   readonly close: () => Promise<RuntimeCloseResult>
@@ -97,6 +120,8 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
     typeof runtime.callFacts.content.close !== 'function'
   )
     throw new TypeError('trusted access, original presence and durable call facts required')
+  const ownCustody = sharedCustody === undefined ? runtimeCustody(runtime) : undefined
+  const custody = sharedCustody ?? ownCustody
   const resources = new Set<{ readonly close: () => Promise<RuntimeCloseResult> }>()
   let closed = false
   async function acquireCall(input: AcquireCallInput): Promise<AcquireCallResult> {
@@ -110,13 +135,20 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
       if (binding.session !== owned.ref.session || !settlementGenerationCurrent(binding))
         return unavailable
       const first = await runtime.callFacts.lookup({ binding, ref: owned.ref })
-      if (!('view' in first) && !('callNotFound' in first)) return unavailable
+      if (!('view' in first) && !('acknowledged' in first) && !('callNotFound' in first))
+        return unavailable
+      const firstOrigin =
+        'view' in first
+          ? first.view.origin
+          : 'acknowledged' in first
+            ? first.acknowledged.origin
+            : undefined
       const admitted = await runtime.callAccess.check(
         {
           binding,
           ref: owned.ref,
           action: owned.mode,
-          ...('view' in first ? { origin: first.view.origin } : {}),
+          ...(firstOrigin === undefined ? {} : { origin: firstOrigin }),
         },
         async evidence => {
           function current(): boolean {
@@ -133,28 +165,33 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
           }
           if (!current()) return unavailable
           const latest = await runtime.callFacts.lookup({ binding, ref: owned.ref })
+          if ('acknowledged' in latest) {
+            // RT12 S-97/S-100: the explicit small branch for read and wait alike. ACK grants no
+            // access; the current read/wait admission above still decides. No payload, presence,
+            // provider or consumer handle is taken.
+            const facts = latest.acknowledged
+            if (
+              custody === undefined ||
+              firstOrigin === undefined ||
+              facts.ref.session !== owned.ref.session ||
+              facts.ref.callId !== owned.ref.callId ||
+              facts.source.generation !== binding.generation ||
+              !sameOrigin(firstOrigin, facts.origin, binding)
+            )
+              return unavailable
+            const small = await custody.view(binding, facts)
+            const acknowledged: { readonly view: AcknowledgedCallView; readonly consumer?: never } =
+              { view: small }
+            return current() ? acknowledged : unavailable
+          }
           if (!('view' in latest)) return current() ? latest : unavailable
           if (!('view' in first)) return unavailable
           const view = latest.view
-          // The RT12 S-97 branch is not projected by lookup yet; fail closed rather than read.
-          if (view.acknowledged !== undefined || first.view.acknowledged !== undefined)
-            return unavailable
           if (
             view.ref.session !== owned.ref.session ||
             view.ref.callId !== owned.ref.callId ||
-            view.origin.session !== binding.session ||
-            !tenantIdEquals(view.origin.tenant, binding.tenant) ||
             view.source.generation !== binding.generation ||
-            ('view' in first &&
-              (first.view.origin.session !== view.origin.session ||
-                !tenantIdEquals(first.view.origin.tenant, view.origin.tenant) ||
-                first.view.origin.run !== view.origin.run ||
-                (first.view.origin.attempt === undefined) !== (view.origin.attempt === undefined) ||
-                (first.view.origin.attempt !== undefined &&
-                  view.origin.attempt !== undefined &&
-                  ExactDecimal.from(first.view.origin.attempt).compare(
-                    ExactDecimal.from(view.origin.attempt),
-                  ) !== 0)))
+            !sameOrigin(first.view.origin, view.origin, binding)
           )
             return unavailable
           const observed = await runtime.callPresence.read(
@@ -400,7 +437,10 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
     acquireCall,
     async close() {
       closed = true
-      const outcomes = await Promise.allSettled([...resources].map(resource => resource.close()))
+      const outcomes = await Promise.allSettled([
+        ...[...resources].map(resource => resource.close()),
+        ...(ownCustody === undefined ? [] : [ownCustody.close()]),
+      ])
       return resources.size === 0 &&
         outcomes.every(result => result.status === 'fulfilled' && 'released' in result.value)
         ? { released: true as const }

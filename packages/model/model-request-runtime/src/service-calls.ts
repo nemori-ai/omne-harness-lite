@@ -9,7 +9,12 @@ import {
   isNonNegativeJsonInteger,
 } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { judgeMessage, type ModelCallCreatedPayload } from '@omne-harness-lite/messages'
+import {
+  judgeMessage,
+  judgeModelCallSemanticDigest,
+  type ModelCallCreatedPayload,
+} from '@omne-harness-lite/messages'
+import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
 import {
   judgeModelProfileDocument,
   validate as profileShape,
@@ -35,7 +40,7 @@ import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
 import { publishModelCallContent } from './reference-publish.ts'
 import { authorizedCalibration } from './service-calibration.ts'
-import { rejectAcknowledgedHistory, type UnacknowledgedCallHistory } from './call-history.ts'
+import { acknowledgedAsTerminal, type UnacknowledgedCallHistory } from './call-history.ts'
 import type {
   CallPreparationOwner,
   CallObserverBinding,
@@ -529,6 +534,69 @@ export class UnknownAppendTracker {
   }
 }
 
+/** MS8 S-56: the one creation input value; its semantic digest identifies the creation. */
+function creationInputOf(
+  request: OpenCallInput,
+  session: SessionRuntimeBinding,
+): ModelCallCreatedPayload['input'] {
+  return {
+    target: request.target,
+    ...(request.parameters === undefined ? {} : { parameters: request.parameters }),
+    messages: request.messages,
+    tools: request.tools,
+    basis: request.basis,
+    sourceVersions: session.sourceVersions,
+    ...(request.targetChangedBy === undefined ? {} : { targetChangedBy: request.targetChangedBy }),
+  }
+}
+
+/**
+ * RT12 S-100/S-101: after a legal ACK the created content may be released, so the same
+ * creationKey is recognized by the ACK's creation digest and the original association alone;
+ * the latest adoption basis is never re-read. Returns undefined when the key is not
+ * acknowledged, leaving the pre-ACK path unchanged.
+ */
+async function recognizeAcknowledgedCreation<P extends PlannedSemantics, R>(
+  runtime: RuntimeConstruction<P, R>,
+  custody: AcknowledgementCustody | undefined,
+  session: SessionRuntimeBinding,
+  request: OpenCallInput,
+): Promise<OpenCallResult | undefined> {
+  let found: Awaited<ReturnType<typeof runtime.callFacts.creation>>
+  try {
+    found = await runtime.callFacts.creation({
+      binding: session.log,
+      creationKey: request.creationKey,
+    })
+  } catch {
+    // Unknown here is not a recognition. The pre-ACK path still refuses a second creation of
+    // this key from the same full log prefix before publishing anything.
+    return undefined
+  }
+  if (!('acknowledged' in found)) return undefined
+  const facts = found.acknowledged
+  const origin = facts.origin
+  const sameAssociation =
+    facts.ref.session === request.session &&
+    origin.session === session.log.session &&
+    tenantIdEquals(origin.tenant, session.log.tenant) &&
+    origin.run === request.run &&
+    (origin.attempt === undefined) === (request.attempt === undefined) &&
+    (origin.attempt === undefined ||
+      request.attempt === undefined ||
+      ExactDecimal.from(origin.attempt).compare(ExactDecimal.from(request.attempt)) === 0)
+  const digest = judgeModelCallSemanticDigest(
+    'model-call-creation-semantic-sha256/v1',
+    creationInputOf(request, session),
+    facts.record.creationInput,
+  )
+  // A differing value is a conflict and discloses nothing of the original.
+  if (!sameAssociation || !('ok' in digest)) return { creationConflict: true }
+  if (custody === undefined) return { unavailable: true }
+  const view = await custody.view(session.log, facts)
+  return { ref: facts.ref, callId: facts.ref.callId, acknowledged: view }
+}
+
 export function boundSession(session: SessionRuntimeBinding, request: OpenCallInput): boolean {
   return (
     session.log.session === request.session &&
@@ -549,7 +617,10 @@ export interface ServiceCalls {
 export function createServiceCalls<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
   borrowedScopes?: PlanReuseScopes,
+  sharedCustody?: AcknowledgementCustody,
 ): ServiceCalls {
+  const ownCustody = sharedCustody === undefined ? runtimeCustody(runtime) : undefined
+  const custody = sharedCustody ?? ownCustody
   const scopes = borrowedScopes ?? createPlanReuseScopes(runtime)
   const retainedReads = new OwnedReadTracker()
   const appends = new OwnedAppendTracker()
@@ -569,7 +640,8 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
         const prefix = await readSettlementPrefix({ binding: session.log, registration })
         return 'unavailable' in prefix
           ? ({ unavailable: true, reason: 'prefix' } as const)
-          : rejectAcknowledgedHistory(runtime.history.call(prefix.prefix, callId))
+          : // RT12 S-100: an acknowledged call is terminal, never resumable (wrongPhase).
+            acknowledgedAsTerminal(runtime.history.call(prefix.prefix, callId))
       },
     )
     return 'unavailable' in read ? { unavailable: true, reason: 'prefix' } : read.ok
@@ -643,6 +715,10 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       const session = bound.binding
       if (!boundSession(session, request)) return { unavailable: true }
       if (session.selection.owner.admission() !== 'open') return { runtimeStopped: true }
+      if (request.callId === undefined) {
+        const recognized = await recognizeAcknowledgedCreation(runtime, custody, session, request)
+        if (recognized !== undefined) return recognized
+      }
       if (preparation?.stopping() || request.host.signal.aborted || request.host.stopping())
         return { runtimeStopped: true }
       let observer: Omit<CallObserverBinding, 'queue'> | undefined
@@ -1024,17 +1100,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
               session: session.log.session,
               ...(request.run === undefined ? {} : { run: request.run, attempt: request.attempt }),
             },
-            input: {
-              target: request.target,
-              ...(request.parameters === undefined ? {} : { parameters: request.parameters }),
-              messages: request.messages,
-              tools: request.tools,
-              basis: request.basis,
-              sourceVersions: session.sourceVersions,
-              ...(request.targetChangedBy === undefined
-                ? {}
-                : { targetChangedBy: request.targetChangedBy }),
-            },
+            input: creationInputOf(request, session),
             status: 'accepted',
             adopted: {
               profile: winner.ref,
@@ -1136,9 +1202,11 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       concurrent: runtime.settlementContention.limits.concurrent,
       call: runtime.history.call,
     })
+    const custodyResult = ownCustody === undefined ? undefined : await ownCustody.close()
     return 'released' in reads &&
       'released' in appendResult &&
       'released' in writes &&
+      (custodyResult === undefined || 'released' in custodyResult) &&
       prepared.every(result => 'released' in result) &&
       preparations.size === 0 &&
       (borrowedScopes !== undefined || 'released' in scopes.close())

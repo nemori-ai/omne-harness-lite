@@ -1,5 +1,7 @@
 import { createPlanReuseScopes } from './plan-reuse-scopes.ts'
 import { createRuntimeAcquire } from './service-acquire.ts'
+import { createServiceAcknowledge } from './service-acknowledge.ts'
+import { createAcknowledgementCustody } from './acknowledgement-custody.ts'
 import { createRuntimeReads } from './service-reads.ts'
 import { createServiceCalls } from './service-calls.ts'
 import { createServiceDispatch } from './service-dispatch.ts'
@@ -27,11 +29,20 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   readonly close: () => Promise<RuntimeCloseResult>
 } {
   if (ownedStores.has(construction.calls)) throw new TypeError('call store already owned')
+  // RT12 S-98: one custody per runtime owns ACK cleanup; its explicit retry policy is required.
+  const custody = createAcknowledgementCustody({
+    calls: construction.calls,
+    content: construction.callFacts.content,
+    scheduler: construction.settlementScheduler,
+    policy: construction.acknowledgementCleanup,
+    diagnostic: event => construction.policy.diagnostic(event),
+  })
   // These constructors only create local closures; host resource acquisition precedes this factory.
   const scopes = createPlanReuseScopes(construction)
-  const reads = createRuntimeReads(construction)
-  const acquire = createRuntimeAcquire(construction)
-  const calls = createServiceCalls(construction, scopes)
+  const reads = createRuntimeReads(construction, custody)
+  const acquire = createRuntimeAcquire(construction, custody)
+  const acknowledge = createServiceAcknowledge(construction, custody)
+  const calls = createServiceCalls(construction, scopes, custody)
   const dispatch = createServiceDispatch(construction, scopes)
   const control = createServiceControl(construction)
   const settleReply = createRuntimeSettleReply({
@@ -68,6 +79,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
       ? {}
       : { diagnosticCollector: construction.diagnosticCollector }),
     onDiagnosticFailure: reportRecoveryDiagnosticFailure,
+    custody,
   })
   ownedStores.add(construction.calls)
 
@@ -144,11 +156,15 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     readAttempts: guardedFailure(reads.methods.readAttempts, unavailable),
     settleReply: guarded(settleReply.settleReply, unavailable),
     canDispatchAgain: guarded(reads.methods.canDispatchAgain, unavailable),
+    // RT12 S-100: host stop does not hide a durable ACK or its cleanup recognition.
+    acknowledgeCall: guarded(acknowledge.acknowledgeCall, unavailable, true),
   })
 
   const owners = [
     ['reads', reads.close],
     ['acquire', acquire.close],
+    ['acknowledge', acknowledge.close],
+    ['custody', custody.close],
     ['calls', calls.close],
     ['dispatch', dispatch.close],
     ['control', control.close],

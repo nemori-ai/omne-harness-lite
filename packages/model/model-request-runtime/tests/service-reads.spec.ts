@@ -83,6 +83,7 @@ function construction(
       },
     },
     reservationWaitPolicy: { maxWaitersPerCall: 1, timeoutMs: 1 },
+    acknowledgementCleanup: { next: () => ({ stop: true }) },
     recovery: {
       enter() {
         throw new Error('read operation must not enter recovery')

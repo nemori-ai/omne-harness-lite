@@ -11,6 +11,7 @@ import { settlementAppendReceipt } from './settlement-receipt.ts'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
 import { readSettlementPrefix } from './settlement-prefix.ts'
 import {
+  acknowledgedAsTerminal,
   rejectAcknowledgedHistory,
   type CallHistoryResult,
   type UnacknowledgedCallHistory,
@@ -447,9 +448,10 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
         if ('unavailable' in received.ok) {
           const durable = await runtime.callFacts.lookup({ binding: view.session.log, ref: key })
           if (
-            'view' in durable &&
-            durable.view.result !== undefined &&
-            (durable.view.state === 'complete' || durable.view.state === 'interrupted')
+            'acknowledged' in durable ||
+            ('view' in durable &&
+              durable.view.result !== undefined &&
+              (durable.view.state === 'complete' || durable.view.state === 'interrupted'))
           ) {
             control.publishStopped()
             return { released: true }
@@ -614,8 +616,8 @@ export function createServiceControl<P extends PlannedSemantics, R>(
         return { unavailable: true, reason: 'prefix' }
       first.readTasks.clear()
       if ('unavailable' in received) return { unavailable: true, reason: 'prefix' }
-      // Recognizing the stopped writers' original batch needs no acknowledged view; the
-      // returned history is gated below for callers that derive a control phase from it.
+      // Recognizing the stopped writers' original batch needs no acknowledged view; callers
+      // derive a control phase from the returned history (an ACK is its terminal state).
       let history: CallHistoryResult
       try {
         history = runtime.history.call(received.prefix, first.key.callId)
@@ -636,7 +638,8 @@ export function createServiceControl<P extends PlannedSemantics, R>(
       const remaining = unknown.get(token)?.filter(write => !write.released)
       if (remaining?.length) unknown.set(token, remaining)
       else unknown.delete(token)
-      return rejectAcknowledgedHistory(history)
+      // RT12 S-100: an acknowledged call is its real terminal state for control decisions.
+      return acknowledgedAsTerminal(history)
     })()
     first.recognizing = attempt
     try {
@@ -664,7 +667,8 @@ export function createServiceControl<P extends PlannedSemantics, R>(
     if ('unavailable' in result) return { unavailable: true, reason: 'prefix' }
     let history: UnacknowledgedCallHistory
     try {
-      history = rejectAcknowledgedHistory(runtime.history.call(result.prefix, key.callId))
+      // RT12 S-100: interrupt/releaseCall of an acknowledged call answer alreadyEnded.
+      history = acknowledgedAsTerminal(runtime.history.call(result.prefix, key.callId))
     } catch {
       return { unavailable: true, reason: 'history' }
     }

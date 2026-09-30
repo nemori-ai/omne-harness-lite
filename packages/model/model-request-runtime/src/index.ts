@@ -71,4 +71,7 @@ export { createModelCallFacts } from './reference-facts.ts'
 export type { ModelCallContentPolicy } from './reference-content.ts'
 
 export { createRuntimeAcquire } from './service-acquire.ts'
+export { createServiceAcknowledge } from './service-acknowledge.ts'
+export { createAcknowledgementCustody } from './acknowledgement-custody.ts'
+export type { AcknowledgementCustody } from './acknowledgement-custody.ts'
 export { createIndependentCallConsumer } from './reference-consumer.ts'

@@ -123,6 +123,7 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
         settlementContention: settlementPolicy(),
         settlementScheduler: noWaitScheduler,
         reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
+        acknowledgementCleanup: { next: () => ({ stop: true }) },
         tokenMargin: { multiplier: 1, reserveTokens: 0 },
         policy: { ...invocationPolicy(), schedule: () => () => {} },
         identities: {

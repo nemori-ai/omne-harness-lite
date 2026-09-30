@@ -358,6 +358,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       settlementContention: settlementPolicy(),
       settlementScheduler: noWaitScheduler,
       reservationWaitPolicy: { maxWaitersPerCall: 2, timeoutMs: 100 },
+      acknowledgementCleanup: { next: () => ({ stop: true }) },
       tokenMargin: { multiplier: 1, reserveTokens: 0 },
       policy: {
         ...invocationPolicy(),

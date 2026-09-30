@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { RunHistoryReader } from './settlement-types.ts'
-import type { JsonNumber } from '@omne-harness-lite/content-blocks'
+import { copyJsonValue, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import {
   judgePendingModelResponse,
   judgeResponseFinalization,
@@ -30,6 +30,9 @@ import {
   type ModelLogSettlementTarget,
 } from './log-codec-settlement.ts'
 import { interpretCallHistory, rejectAcknowledgedHistory } from './call-history.ts'
+import { acknowledgedFactsFromHistory } from './acknowledged-view.ts'
+import { judgeAcknowledgedSettlement } from './acknowledged-settlement.ts'
+import type { AcknowledgementCustody } from './acknowledgement-custody.ts'
 import { readSettlementPrefix } from './settlement-prefix.ts'
 import type { SettlementPrefix } from './settlement-prefix.ts'
 import { modelLogJsonEqual } from './log-codec.ts'
@@ -64,6 +67,8 @@ interface DurableReplySettlement {
   /** The exact original request; later callers never replace it with another disposition. */
   readonly settlement: SettlementRequest
   readonly disposition: SettleReplyInput['disposition']
+  /** The runtime's authoritative original; a caller's retainedResult must equal it (S-99③). */
+  readonly pending: PendingModelResponse
   readonly state: 'complete' | 'interrupted'
   readonly coordinator: ReturnType<typeof createSettlementCoordinator>
   processing: boolean
@@ -94,6 +99,10 @@ interface RecoveryEntry {
   exitAttempted: boolean
 }
 
+function isPendingResponse(value: unknown): value is PendingModelResponse {
+  return 'ok' in judgePendingModelResponse(value)
+}
+
 function isServiceDisposition(value: unknown): value is Exclude<ReplyDisposition, 'persisted'> {
   if (value === 'persisted') return false
   try {
@@ -114,7 +123,9 @@ export async function settlePendingReply(input: {
     !isServiceDisposition(request.disposition) ||
     request.session.length === 0 ||
     request.callId.length === 0 ||
-    'rejected' in judgePendingModelResponse(pending)
+    'rejected' in judgePendingModelResponse(pending) ||
+    // RT12 S-99③: before ACK a caller's value may only equal the authoritative original.
+    (request.retainedResult !== undefined && !modelLogJsonEqual(request.retainedResult, pending))
   )
     return { invalidInput: { reason: 'malformed' } }
   if (pending.call.callId !== request.callId) return { callNotFound: true }
@@ -171,6 +182,14 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
       request.callId.length === 0
     )
       return { invalidInput: { reason: 'malformed' } }
+    // RT12 S-99①⑥: an optional caller-held original, owned before the first await.
+    let retainedResult: PendingModelResponse | undefined
+    if (request.retainedResult !== undefined) {
+      const copied = copyJsonValue(request.retainedResult)
+      if (!('ok' in copied) || !isPendingResponse(copied.ok))
+        return { invalidInput: { reason: 'malformed' } }
+      retainedResult = copied.ok
+    }
     if (closed) return { unavailable: true }
     const admitted = await input.calls.waitReserve(request, {
       policy: input.reservationWaitPolicy,
@@ -213,6 +232,48 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
       )
         return { unavailable: true }
       const fact = await input.callFacts.lookup({ binding: session.log, ref: request })
+      if ('acknowledged' in fact) {
+        // RT12 S-99②: the current settle authority first; ACK grants no disposition right.
+        const facts = fact.acknowledged
+        const admittedAck = await input.callAccess.check(
+          { binding: session.log, ref: request, action: 'settle', origin: facts.origin },
+          async (evidence): Promise<SettleReplyResult> => {
+            if (
+              evidence.action !== 'settle' ||
+              evidence.ref.session !== request.session ||
+              evidence.ref.callId !== request.callId ||
+              evidence.source.generation !== session.log.generation ||
+              evidence.revoked.aborted
+            )
+              return { unavailable: true }
+            const judged = judgeAcknowledgedSettlement(request, retainedResult, facts)
+            if (!('validated' in judged)) return judged
+            // S-99⑧: a new final after release needs its durable pre-append staging
+            // (SettlementWork, A22-G2). Until that exists, no write starts: unavailable.
+            try {
+              drainDiagnosticThenable(
+                input.diagnostic({
+                  kind: 'model_ack.settle_after_release',
+                  tenant: session.log.tenant,
+                  session: request.session,
+                  call: request.callId,
+                  dispatch: judged.validated.dispatch,
+                  response: judged.validated.id,
+                  owner: 'settleReply',
+                  policy: 'staging_unavailable',
+                  submissions: 0,
+                  tailConflicts: 0,
+                }),
+              )
+            } catch {
+              // A diagnostic failure is not a settlement fact.
+            }
+            return { unavailable: true }
+          },
+        )
+        if ('allowed' in admittedAck) return admittedAck.allowed
+        return 'invalidInput' in admittedAck ? admittedAck : { unavailable: true }
+      }
       if ('view' in fact && (fact.view.result !== undefined || entries.has(keyOf(request)))) {
         const admittedSettle = await input.callAccess.check(
           { binding: session.log, ref: request, action: 'settle', origin: fact.view.origin },
@@ -234,6 +295,9 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
               if (fact.view.result?.disposition !== 'disposition_pending')
                 return { unavailable: true } as const
               const pending = fact.view.result.pending
+              // RT12 S-99③: before ACK a caller's value may only equal the authority.
+              if (retainedResult !== undefined && !modelLogJsonEqual(retainedResult, pending))
+                return { invalidInput: { reason: 'malformed' } } as const
               const final = { ...pending, replyDisposition: request.disposition }
               if ('rejected' in judgeResponseFinalization(pending, final))
                 return { unavailable: true } as const
@@ -249,6 +313,7 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
                   response: final,
                 },
                 disposition: request.disposition,
+                pending,
                 state: pending.outcome === 'interrupted' ? 'interrupted' : 'complete',
                 coordinator: createSettlementCoordinator({
                   binding: session.log,
@@ -261,7 +326,11 @@ export function createRuntimeSettleReply<P extends PlannedSemantics, R>(input: {
                 processing: false,
               }
               entries.set(key, entry)
-            }
+            } else if (
+              retainedResult !== undefined &&
+              !modelLogJsonEqual(retainedResult, entry.pending)
+            )
+              return { invalidInput: { reason: 'malformed' } } as const
             if (entry.processing) return { unavailable: true } as const
             entry.processing = true
             try {
@@ -434,6 +503,8 @@ export function createRuntimeReconcile(input: {
   readonly diagnostic: (event: SettlementDiagnostic) => void
   readonly diagnosticCollector?: Pick<DiagnosticCollector, 'emitter'>
   readonly onDiagnosticFailure?: () => void
+  /** RT12 S-100: without the runtime's ACK custody an acknowledged call is unavailable. */
+  readonly custody?: AcknowledgementCustody
 }): {
   readonly reconcile: (request: ReconcileInput) => Promise<ReconcileResult>
   readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
@@ -790,6 +861,7 @@ async function readRecoveredCalls(
     readonly now: () => string
     readonly diagnostic: (event: SettlementDiagnostic) => void
     readonly run?: RunHistoryReader
+    readonly custody?: AcknowledgementCustody
   },
   closed: () => boolean,
   onAnchor: (anchor: {
@@ -835,7 +907,19 @@ async function readRecoveredCalls(
       prefix: read.prefix,
     })
     if (!('ok' in rowInspected)) return { unavailable: true }
-    const history = rejectAcknowledgedHistory(interpretCallHistory({ prefix: read.prefix, callId }))
+    const raw = interpretCallHistory({ prefix: read.prefix, callId })
+    if ('known' in raw && raw.known.acknowledged !== null) {
+      // RT12 S-100: an acknowledged call is reported by its S-97 branch; released content never
+      // makes the whole session unavailable, and no ACK or disposition is triggered here.
+      const facts = acknowledgedFactsFromHistory({ session: request.session, callId }, raw.known, {
+        generation: binding.generation,
+        progress: read.prefix.tail,
+      })
+      if (facts === undefined || input.custody === undefined) return { unavailable: true }
+      calls.push({ callId, acknowledged: await input.custody.view(binding, facts) })
+      continue
+    }
+    const history = rejectAcknowledgedHistory(raw)
     if (!('known' in history)) return { unavailable: true }
     const previous = history.known.dispatches.slice(0, -1)
     if (previous.some(item => item.response === null)) return { unavailable: true }
