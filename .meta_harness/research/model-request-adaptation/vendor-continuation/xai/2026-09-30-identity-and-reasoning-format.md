@@ -19,3 +19,18 @@
 最小补证是两款各一条当前固定路由的原始流，保留请求/响应来源摘要与 SHA，逐帧记录 `model`/`provider` 是否存在及精确值、`reasoning_details` 每项的 `type/format/id/index` 与数据是否为 `[REDACTED]`，并把对应领域 `servingProvider/upstreamModel` 和 original binding 对齐。可脱敏保留密文字节 SHA 与长度，不能用展示名或本机模拟值填缺失的 raw 字段。该观察只验证来源形状；原样回放是否被上游接受、输入计量误差及缓存/费用仍需单独的实际调用证据。
 
 上游文档内容、模型 endpoint、流处理源码或当前 binding 改变时重核。09-28 六个结果和 09-30 官方文档是不同版本与不同观察层，不构成当前生产身份采用或两入口完整交付。
+
+## 2026-09-30 真实身份原件
+
+上节要求的最小补证已取得。主调度在执行仓库 `1d372a663e4766f4e2fcb33776c8a47c9414322e`（两份 manifest 的 `sourceCommit`，`caseKind: family_three_turn`）对两款各发一次当前固定 `xai` 路由的真实第 1 轮，保留原始 SSE 与 family 收据；原件在**主调度私有付费证据目录**，本页不复制字节，只记摘要与从中提取的字面值。两份原始流都以 HTTP/1.1 200 响应头开头，`credentialOccurrencesRedacted` 为 0；每个 JSON 帧（不含 `[DONE]`）都带 `provider` 与 `model`，同一流内值不变。
+
+| 叶 | 生成 id | 原始 SSE 字节数 / SHA-256 | 帧内 `provider` | 帧内 `model` | 领域 `servingProvider` / `upstreamModel` | opaque 子类型与形状 |
+|---|---|---|---|---|---|---|
+| `x-ai/grok-4.7` | `gen-1790759928-ziQ41FzufJSwqWS13mog` | 20380 / `064ed62291d8ad3000fbd6d502ff065f0cc7eafab652dcc2e2d5f48771987a68` | 47/47 帧 `"xAI"` | 47/47 帧 `"x-ai/grok-4.7"` | `xAI` / `x-ai/grok-4.7`（收据 SHA-256 `740cd2b0a7674cec66764a44812043c67f263af21127a7fbe675b043e7b8ee80`） | `reasoning.summary`（41 个流式片段，无 `id` 键、`index: 0`，归一化后 summary 170 UTF-8 字节）＋ `reasoning.encrypted`（单片段，非空 `rs_` 前缀字符串 id、`index: 1`，data 618 字节，非 `[REDACTED]`）；两者 `format: "xai-responses-v1"`；归一化 opaque 摘要 `f0cf1daf7df734be9f2d5ad4d36ebeb93d3e6259a6e3a82da20e9d9acc925cfc` |
+| `x-ai/grok-4.6` | `gen-1790759941-akexGaVG7WbS2xgQmRwI` | 8933 / `3acf3f24363155f190987e200901e65b2e0cb3ee55cb523aed98e114adc19efb` | 13/13 帧 `"xAI"` | 13/13 帧 `"x-ai/grok-4.6"` | `xAI` / `x-ai/grok-4.6`（收据 SHA-256 `a87f25fe6b900a26971ba9e9a0a3eb1b4ed15f517e8c8913d7fefe50cce45b25`） | 同上两类、同 format；summary 7 个片段（140 字节），encrypted 单片段（data 2114 字节，非 `[REDACTED]`）；归一化 opaque 摘要 `ada22002f1778b568055d7e62805d30a49e502075be7fda00d939a07ba9eaf46` |
+
+两流的帧序相同：summary 片段（同帧 `delta.reasoning` 携带同一段文字）→ 单个 encrypted 片段 → 3 个工具调用片段 → 一个带 `finish_reason: "tool_calls"`、`native_finish_reason: "completed"` 的帧 → 带 `usage`、`service_tier` 且再次带同一 `finish_reason` 的末帧 → `[DONE]`。两份收据的第 1 轮均为 `complete`、`requestInput: known`、`observedInput: from_usage`、`outputGroup: known`，块种类为 `thinking` 与 `tool_call`。
+
+**与上节已记形状核对，无矛盾**：`provider`/`model` 的原始拼写与 09-28 六份领域结果的 `xAI`/对应路由模型逐字相同；detail 为 summary＋encrypted、同一 `xai-responses-v1`，`id` 缺席（summary）或为字符串（encrypted）、`index` 为非负整数，均在 OpenRouter 文档已记的合法空间内；两流都未出现 `reasoning.text` 或 `[REDACTED]`。
+
+**支持范围**：两款当前 binding 下 `frame.provider`/`frame.model` 的精确原始值，即 xAI 提供者页 revision 2 守卫 4 所需的有限身份映射 `servingProvider = "xAI"`、`upstreamModel = 对应精确模型 ID`。**不支持**：大小写、空白或前缀变体；其它 OpenRouter 路由（如 `bedrock-xai-responses-v1` 一类）；原样回放是否被上游接受、续轮计量误差、缓存与费用。这些仍需真实三轮认证。
