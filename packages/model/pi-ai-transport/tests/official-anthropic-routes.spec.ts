@@ -326,8 +326,9 @@ describe('four Anthropic routes in offline synthetic profiles', () => {
       const different = await planRequest({ ...changed.input, messages: [assistant, tool] }, [
         changed.definition,
       ])
-      if ('rejected' in different) throw new Error(different.rejected)
-      expect(different.planned.serialized).not.toContain('synthetic-signature')
+      // A foreign opaque group has no supported projection on this route. It
+      // must fail admission instead of silently dropping its signed content.
+      expect(different).toEqual({ rejected: 'unavailable' })
     },
   )
 })

@@ -221,6 +221,8 @@ DeepSeek Flash／Pro 当前分别绑定 definition 修订 4／5 与 `mp4-18`，�
 
 `createAnthropicInputMeter(definition)` 以唯一有限家族策略提供四个当前 Claude 型号，definition 修订 4 / `pi-ai:anthropic/mp4-18`。可见文字与图像保留固定的旧 Claude BPE 与视觉 patch 粗估，不声称等于新的官方 tokenizer。signed `reasoning.text` 与 encrypted `reasoning.encrypted` 必须具备完整、未变的 assistant 输出组及已知上游 O；公共 full/new/φ 只将整组替换一次，贡献为 estimated O 加实验性的零净 framing。不将密文、签名或未知推理当普通 JSON 分词。Opus 5.5/Fable 5.1 另需包内持有未变原前缀证据，缺少必要依据则贡献不可用。原 `/2` 事实完整保留，不能证明 `/3` 签名前缀。
 
+不透明 Anthropic 历史块的路由与所选型号不一致时，规划返回 unavailable；不会靠丢弃签名内容让请求出门。同路由完整组保留不透明字节和工具配对。
+
 Anthropic 配置的 `last_message` 布局选择最后一个真实非空 text block。末端纯图 user 消息使用 OpenRouter 顶层 `cache_control`，TTL 来自已验证配置。空目标或不能明确证明的目标不回溯，也不补造文本。唯一公共选择函数同时核计量投影，仅移除其精确配置的缓存控制；wire 字节仍保留控制。公开函数与 Cordis 服务本地测试覆盖组合行为，上游缓存命中及当前逐型号 usage 精度仍需独立真实观测。
 
 `createQwenInputMeter(definition)` 为八个固定 Alibaba 型号提供计量。两个开源权重叶仍采用固定公开词表/Jinja 全量估算：Qwen3.8 2.4T-A95B（`mp4-17`）和 27B（`mp4-17`），27B 保留既有不缩放内联 PNG 子集。六个商业叶（Max 0902、MaxPrime、3.8 Flash、3.7 Max／Plus／Flash）统一绑定 definition 修订 3／`mp4-17`，采用完整**可见最终 JSON** 估算器。以固定 Qwen 公开 tokenizer 为代理，计入实际请求中按序的 system/user/assistant/tool 消息、提醒、schema、调用参数/结果、可见推理和协议/缓存控制；保留空白及 schema 无损数值。这是在私有 OpenRouter/Alibaba framing 未公开条件下的估算，不声称各型号词表相同或 JSON 就是原生 prompt。旧单 user 的 `+51`／`0` 拟合不迁移到新表示。正常可见多轮已具备全量计量；非空增量仍回全量。商业叶的图片/视频、加密/未知推理及未知字段仍不可计量，拒绝不会删除历史。调用方显式配置余量，实际 usage/cost 始终保留上游事实。当前精确 binding 的真实 public/service holdout 及剩余声明模态仍是完整型号交付的待验门。
