@@ -45,8 +45,14 @@ Assistant> Hello!
 Saved. {"outcome":"complete", ...}
 Cumulative: input 5, output 3, cache read 4, cache write 0 tokens; actual USD 0.0000117
 You> /models
+  anthropic/claude-fable-5.1 [official] legal
+  anthropic/claude-opus-5 [official] legal
+  ...
 * deepseek/deepseek-v4-pro-0813 [official] legal
   deepseek/deepseek-v4.1-flash [official] legal
+  google/gemini-3.7-flash [official] legal
+  ...
+  z-ai/glm-5.3-prime [official] legal
 You> /model deepseek/deepseek-v4.1-flash
 Selected: deepseek/deepseek-v4.1-flash
 Selected: deepseek/deepseek-v4.1-flash
@@ -85,7 +91,7 @@ Closed. Start again with the same --data path to resume.
 
 ### 模型
 
-示例装入两条官方档案 **`deepseek/deepseek-v4-pro-0813`** 与 **`deepseek/deepseek-v4.1-flash`**，均固定供应商 **`deepinfra/fp8`** 并禁止回退。Pro 只是首次会话的显式初选。`/models` 读取当前展示列表，`/model` 显示选中与有效路由，`/model <标识>` 耐久切换后续请求的选中路由，不重建会话，也不清空历史。上层锁可能让有效路由不同于选中路由；重启后读取耐久选择。其他已发布模型定义缺少对应档案、适配与输入计量构件，在这里不可用；程序测试会显式装入其他官方定义。
+示例装入 `@omne-harness-lite/pi-ai-transport` 发布的全部官方定义：按包的官方目录 `officialCatalog` 装入八家 37 叶（OpenAI 12、Anthropic 4、Google 2、DeepSeek 2、xAI 2、Qwen 8、Moonshot 2、ZAI 5），每叶一条官方档案、一个输入计量构件，档案固定该叶定义钉住的唯一供应商路由并禁止回退。缓存档由路由的缓存声明推导：自动缓存保持 automatic，显式缓存取声明的首个 TTL 与断点布局（如 Anthropic 为 `1h`／`last_message`）。模型、计量构件与缓存档的对应只在该包目录中维护，示例不另设映射。**`deepseek/deepseek-v4-pro-0813`** 仍只是首次会话的显式初选。**装入不等于认证**：哪些叶已真实认证，以[实现映射验证页](../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)的逐叶证据表为准；Google 两叶、Qwen 八叶、ZAI 五叶的输入校准仍在增量线上。`/models` 读取当前展示列表（按路由名排列这 37 条，上面的示例输出以 `...` 省略），`/model` 显示选中与有效路由，`/model <标识>` 耐久切换后续请求的选中路由，不重建会话，也不清空历史。上层锁可能让有效路由不同于选中路由；重启后读取耐久选择。沿用旧数据目录重启时，更高的官方清单序号把新增档案登记进目录，原两条 DeepSeek 档案按新配置修订更新。
 
 ## 装配 runtime 的公开面
 
