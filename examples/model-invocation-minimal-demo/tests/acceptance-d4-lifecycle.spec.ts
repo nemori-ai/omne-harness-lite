@@ -8,6 +8,7 @@ import {
 import {
   createDeepSeekV41FlashInputMeter,
   deepseekV41FlashDefinition,
+  officialCatalog,
   type ModelTransportService,
 } from '@omne-harness-lite/pi-ai-transport'
 import {
@@ -447,6 +448,17 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
           },
         },
       }
+      // The real demo configuration installs every official catalog leaf; process B is that
+      // configuration minus exactly A, so B's registry holds one registration per remaining leaf
+      // and none for A.
+      const installed = config.modelRequest.transport.definitions.map(d => d.modelId)
+      const withoutAIds = withoutA.modelRequest.transport.definitions.map(d => d.modelId)
+      expect(installed).toEqual(officialCatalog.map(entry => entry.definition.modelId))
+      expect(installed).toContain(model.modelId)
+      expect(withoutAIds).not.toContain(model.modelId)
+      expect(withoutAIds).toEqual(installed.filter(id => id !== model.modelId))
+      const bRegistrations = withoutAIds.length
+      expect(bRegistrations).toBe(officialCatalog.length - 1)
       let provider: Fiber | undefined, registry: ModelTransportService | undefined
       app = createAcceptanceApplication(withoutA, {
         stage: 'modelRequest',
@@ -478,13 +490,13 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
       if (!('session' in prepared)) throw Error('session preparation unavailable')
       const session = prepared.session
       if (!registry || !provider) throw Error('actual B registry missing')
-      expect(registry.inspect()).toMatchObject({ registrations: 1, references: 0 })
+      expect(registry.inspect()).toMatchObject({ registrations: bRegistrations, references: 0 })
       const recovery = await app.reconcileModelRuntime(who, session)
       if (!('calls' in recovery) || recovery.calls.length !== 1)
         throw Error(JSON.stringify(recovery))
       const recovered = recovery.calls[0]!
       expect(recovered.state).toBe('resumable')
-      expect(registry.inspect()).toMatchObject({ registrations: 1, references: 0 })
+      expect(registry.inspect()).toMatchObject({ registrations: bRegistrations, references: 0 })
       expect(tls.requests).toHaveLength(1)
       const bound = await app.bindModelRuntime(who, session)
       if (!('service' in bound)) throw Error('runtime unavailable')
@@ -510,7 +522,7 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
       const before = await app.readSessionLog(who, session)
       expect(await service.openCall(resume)).toEqual({ unavailable: true })
       expect(await app.readSessionLog(who, session)).toEqual(before)
-      expect(registry.inspect()).toMatchObject({ registrations: 1, references: 0 })
+      expect(registry.inspect()).toMatchObject({ registrations: bRegistrations, references: 0 })
       expect(tls.requests).toHaveLength(1)
       const restored = provider.ctx.plugin(
         createModelPlugin(model, originalMeter, demoRetirement()),
@@ -523,7 +535,12 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
         state: 'resumable',
       })
       expect(await service.readAttempts({ session, callId })).toMatchObject({ state: 'resumable' })
-      expect(registry.inspect()).toMatchObject({ registrations: 2, references: 1, executions: 0 })
+      // Restoring A adds exactly its one registration, and the resumable call leases it.
+      expect(registry.inspect()).toMatchObject({
+        registrations: bRegistrations + 1,
+        references: 1,
+        executions: 0,
+      })
       let retired = false
       const retirement = restored.dispose().then(() => {
         retired = true
@@ -546,8 +563,9 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
           disposition: { consumed: { by: 'side_query' } },
         }),
       ).toEqual({ callId, state: 'complete' })
+      // A's restored registration retired; only B's own leaves remain.
       expect(registry.inspect()).toMatchObject({
-        registrations: 1,
+        registrations: bRegistrations,
         references: 0,
         executions: 0,
         retiring: 0,
