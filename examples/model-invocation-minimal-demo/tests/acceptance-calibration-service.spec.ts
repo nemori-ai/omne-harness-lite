@@ -650,7 +650,9 @@ describe('independent U4 actual service and physical SL3 batches', () => {
       const pending = sent.result.replyPending
       const committed = await f.app.persistModelReply(f.who, target.session, pending)
       expect(committed).not.toHaveProperty('settled')
-      expect(f.registry().inspect()).toMatchObject({ references: 1, executions: 0 })
+      // The durable ready result already released the call's exact transport lease; only the
+      // unknown final batch stays owned, and it is the message writer's original.
+      expect(f.registry().inspect()).toMatchObject({ references: 0, executions: 0 })
       const counts = {
         full: f.calls.full.length,
         replay: f.calls.replay.length,
@@ -668,7 +670,7 @@ describe('independent U4 actual service and physical SL3 batches', () => {
         replay: f.calls.replay.length,
         fresh: f.calls.fresh.length,
       }).toEqual(counts)
-      expect(f.registry().inspect()).toMatchObject({ references: 1 })
+      expect(f.registry().inspect()).toMatchObject({ references: 0 })
       write.mockRestore()
       sync.mockRestore()
       truncate.mockRestore()
@@ -684,7 +686,7 @@ describe('independent U4 actual service and physical SL3 batches', () => {
       expect(responses[0]!.payload.value).toMatchObject({
         inputCalibration: pending.inputCalibration,
       })
-      expect(f.registry().inspect()).toMatchObject({ references: 1, executions: 0 })
+      expect(f.registry().inspect()).toMatchObject({ references: 0, executions: 0 })
       expect(f.tls.requests).toHaveLength(1)
     } finally {
       write.mockRestore()

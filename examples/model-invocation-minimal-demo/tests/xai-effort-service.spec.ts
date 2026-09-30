@@ -173,7 +173,8 @@ describe.each(cases)(
           expect(replay - prior.replay).toBe(index === 1 ? 0 : 2)
           expect(response.inputCalibration.requestInput).toMatchObject({
             kind: 'known',
-            countingBasis: { replayRevision: 'visible-final-units-json-net-estimated/1' },
+            // The xAI meter now counts each complete output group (transport X46 mapping).
+            countingBasis: { replayRevision: 'xai-complete-output-group-workload-estimated/1' },
           })
         }
         expect(tls.requests).toHaveLength(overLimit ? 0 : 3)
