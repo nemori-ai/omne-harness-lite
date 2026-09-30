@@ -1001,7 +1001,9 @@ async function readRecoveredCalls(
 
 function recoveredState(
   state: DispatchGuardPhase | null,
-): state is Extract<ReconcileResult, { readonly calls: unknown }>['calls'][number]['state'] {
+): state is NonNullable<
+  Extract<ReconcileResult, { readonly calls: unknown }>['calls'][number]['state']
+> {
   return (
     state === 'resumable' ||
     state === 'awaiting_decision' ||

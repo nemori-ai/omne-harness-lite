@@ -18,9 +18,12 @@ import type {
   SessionRef,
 } from '@omne-harness-lite/messages'
 import type {
+  AckTarget,
+  AcknowledgedCallView,
   AcquireCallInput,
   AcquireCallResult,
   CallAccess,
+  CallAcknowledgement,
   CallFacts,
   CallPresence,
   CallLifecycleState,
@@ -251,7 +254,19 @@ export type OpenCallInput = OpenCallRun & {
   readonly observer?: ModelObserverRequest
 }
 export type OpenCallResult =
-  | { readonly ref: CallKey; readonly callId: ModelCallId; readonly state: CallLifecycleState }
+  | {
+      readonly ref: CallKey
+      readonly callId: ModelCallId
+      readonly state: CallLifecycleState
+      readonly acknowledged?: never
+    }
+  /** RT12 S-100: same creationKey after a legal ACK recognizes the original by digest. */
+  | {
+      readonly ref: CallKey
+      readonly callId: ModelCallId
+      readonly acknowledged: AcknowledgedCallView
+      readonly state?: never
+    }
   | { readonly creationConflict: true }
   | {
       readonly callId: ModelCallId
@@ -325,29 +340,44 @@ export type ReleaseCallResult =
   | ServiceWrongPhase
   | ServiceUnavailable
 export type ReconcileInput = { readonly session: SessionRef; readonly attempt?: AttemptId }
-export type ReconcileResult =
+/** RT12 S-100: an acknowledged call is reported by its S-97 branch, never as notFound. */
+export type ReconciledCall =
   | {
-      readonly calls: readonly {
-        readonly callId: ModelCallId
-        readonly state: CallLifecycleState
-      }[]
+      readonly callId: ModelCallId
+      readonly state: CallLifecycleState
+      readonly acknowledged?: never
     }
-  | ServiceInvalidInput
-  | ServiceUnavailable
+  | {
+      readonly callId: ModelCallId
+      readonly acknowledged: AcknowledgedCallView
+      readonly state?: never
+    }
+export type ReconcileResult =
+  { readonly calls: readonly ReconciledCall[] } | ServiceInvalidInput | ServiceUnavailable
 export type ReadAttemptsResult =
   | {
       readonly state: 'open'
       readonly dispatches: readonly []
       readonly failureSubject?: never
+      readonly acknowledged?: never
     }
   | {
       readonly state: 'awaiting_decision'
       readonly dispatches: readonly CallHistoryDispatch[]
       readonly failureSubject: AfterModelCallFailureSubject
+      readonly acknowledged?: never
     }
   | {
       readonly state: Exclude<DispatchGuardPhase, 'open' | 'awaiting_decision'>
       readonly dispatches: readonly CallHistoryDispatch[]
+      readonly failureSubject?: never
+      readonly acknowledged?: never
+    }
+  /** RT12 S-100: the S-97 small attempt sequence; full dispatch records are not restored. */
+  | {
+      readonly acknowledged: AcknowledgedCallView
+      readonly state?: never
+      readonly dispatches?: never
       readonly failureSubject?: never
     }
   | ServiceInvalidInput
@@ -384,6 +414,11 @@ export interface FailureConsumableOperation<I, R> {
 }
 export type SettleReplyInput = CallKey & {
   readonly disposition: Exclude<ReplyDisposition, 'persisted'>
+  /**
+   * RT12 S-99: the caller-held original. Before ACK it must equal the runtime's authoritative
+   * value; after ACK without a final it is required and is checked, never trusted.
+   */
+  readonly retainedResult?: PendingModelResponse
 }
 export type SettleReplyResult =
   | { readonly callId: ModelCallId; readonly state: 'complete' | 'interrupted' }
@@ -401,6 +436,23 @@ export type CanDispatchAgainResult =
   | ServiceAlreadyEnded
   | ServiceWrongPhase
   | ServiceUnavailable
+
+/** RT12 S-96①: explicit target; caller accounts, lists or digests are never authority. */
+export interface AcknowledgeCallInput {
+  readonly ref: CallKey
+  readonly expectedResult: AckTarget
+}
+/** RT12 S-96⑥: a failed cleanup after confirmation is `acknowledged` with pending, not a failure. */
+export type AcknowledgeCallResult =
+  | { readonly acknowledged: CallAcknowledgement }
+  | ServiceInvalidInput
+  | ServiceUnavailable
+  | ServiceCallNotFound
+  | ServiceWrongPhase
+/** RT12 S-96: the fifteenth operation, joined to ModelRuntimeService with its implementation. */
+export type AcknowledgeCallOperation = (
+  input: AcknowledgeCallInput,
+) => Promise<AcknowledgeCallResult>
 
 /** One service, with each operation's own closed result rather than a catch-all failure. */
 export interface ModelRuntimeService {

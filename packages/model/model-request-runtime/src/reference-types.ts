@@ -2,10 +2,18 @@ import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type {
   CallKey,
   CreationKey,
+  ModelCallAcknowledgedRecord,
   ModelCallCreatedPayload,
   ModelCallPayloadRef,
 } from '@omne-harness-lite/messages'
-import type { ModelResponse, PendingModelResponse } from '@omne-harness-lite/model-response'
+import type {
+  ModelResponse,
+  PendingModelResponse,
+  ReplyDisposition,
+  ResponseId,
+  Route,
+  Timing,
+} from '@omne-harness-lite/model-response'
 import type { SettlementLogBinding } from './settlement-types.ts'
 import type { ModelLogSettlementTarget } from './log-codec.ts'
 import type {
@@ -53,21 +61,101 @@ export type CallPresenceFact = {
   | { readonly kind: 'unknown' }
   | { readonly kind: 'notFound' }
 )
-export interface CallReadView {
+/** A view of a call whose model-side copy is still retained (no legal acknowledgement yet). */
+export interface RetainedCallReadView {
   readonly ref: CallKey
   readonly origin: CallOrigin
   readonly state: CallLifecycleState
   readonly source: CallSource
   readonly presence: Exclude<CallPresenceFact, { readonly kind: 'notFound' }>
   readonly result?: CallResultFact
+  readonly acknowledged?: never
 }
+
+/** RT12 S-95 AckTarget: the record projection owned by MS8 S-58, never a second union. */
+export type AckTarget = ModelCallAcknowledgedRecord['target']
+/** RT12 S-96⑤: only current, real obstacles to releasing the model-side copy. */
+export type AckPendingReason =
+  | 'writer_in_flight'
+  | 'read_in_flight'
+  | 'receipt_unknown'
+  | 'storage_unavailable'
+  | 'external_retention'
+/** RT12 S-96⑤: confirmation summary plus the current cleanup progress of the same CallKey. */
+export type CallAcknowledgement = {
+  readonly ref: CallKey
+  readonly target: AckTarget
+  /** The original acknowledgement fact's time; never rewritten by a later recognition. */
+  readonly acknowledgedAt: ModelCallAcknowledgedRecord['acknowledgedAt']
+} & (
+  | {
+      readonly cleanup: 'pending'
+      /** Non-empty and without duplicates. */
+      readonly pendingReasons: readonly [AckPendingReason, ...AckPendingReason[]]
+    }
+  | { readonly cleanup: 'released'; readonly pendingReasons?: never }
+)
+/** RT12 S-97: the current final disposition of one attempt, or the reply still pending. */
+export type AcknowledgedAttemptDisposition =
+  | {
+      readonly disposition: 'final'
+      readonly replyDisposition?: ReplyDisposition
+      readonly late?: true
+    }
+  | {
+      readonly disposition: 'disposition_pending'
+      readonly replyDisposition?: never
+      readonly late?: never
+    }
+/**
+ * RT12 S-97: one original dispatch as a small accounting result. It never carries the route,
+ * profile, parameters, reply, delivered content, raw response or input calibration.
+ */
+export type AcknowledgedAttempt = {
+  readonly response: ResponseId
+  readonly dispatch: JsonNumber
+  /** The original account shell of this dispatch; may differ from the creation attempt. */
+  readonly origin: CallOrigin
+  readonly usage: ModelResponse['usage']
+  readonly cost: ModelResponse['cost']
+  readonly credentialScope: Route['credentialScope']
+  readonly provider: Route['provider']
+  readonly upstreamRequestId?: string
+  readonly timing: Timing
+} & (
+  | {
+      readonly outcome: 'interrupted'
+      readonly initiator: 'user' | 'run_cancelled' | 'runtime_lost'
+    }
+  | { readonly outcome: 'complete' | 'truncated' | 'failed'; readonly initiator?: never }
+) &
+  AcknowledgedAttemptDisposition
+/**
+ * RT12 S-97: the explicit acknowledged branch. Released content is neither callNotFound nor
+ * damage, and this branch is not another encoding of a complete response.
+ */
+export interface AcknowledgedCallView {
+  readonly ref: CallKey
+  readonly acknowledged: CallAcknowledgement
+  readonly origin: CallOrigin
+  readonly terminalState: ModelCallAcknowledgedRecord['terminalState']
+  readonly source: CallSource
+  /** Known to be empty only when no dispatch exists; an unverifiable source is unavailable. */
+  readonly attempts: readonly AcknowledgedAttempt[]
+  readonly state?: never
+  readonly presence?: never
+  readonly result?: never
+}
+/** Discriminated by `acknowledged`: present only on the RT12 S-97 branch. */
+export type CallReadView = RetainedCallReadView | AcknowledgedCallView
 export interface AcquireCallInput {
   readonly ref: CallKey
   readonly mode: 'read' | 'wait'
   readonly observer?: ModelObserverRequest
 }
 export type AcquireCallResult =
-  | { readonly view: CallReadView; readonly consumer?: CallConsumer }
+  | { readonly view: RetainedCallReadView; readonly consumer?: CallConsumer }
+  | { readonly view: AcknowledgedCallView; readonly consumer?: never }
   | ServiceInvalidInput
   | ServiceUnavailable
   | ServiceCallNotFound
@@ -84,7 +172,8 @@ export type CallWaitResult =
   | ServiceUnavailable
   | { readonly rejected: { readonly reason: 'buffer_full' | 'consumer_failed' } }
 
-export type CallAccessAction = 'read' | 'wait' | 'settle' | 'cancel'
+/** `ack` (RT12 S-95) is granted only by current succession, never by read/wait or a held ref. */
+export type CallAccessAction = 'read' | 'wait' | 'settle' | 'cancel' | 'ack'
 export interface CallAccessInput {
   readonly binding: SettlementLogBinding
   readonly ref: CallKey
@@ -157,7 +246,12 @@ export interface CallFacts {
   }) => Promise<
     | {
         readonly payload: ModelCallCreatedPayload
-        readonly view: CallReadView
+        readonly view: RetainedCallReadView
+      }
+    /** RT12 S-101: after release, same-key recognition uses the ACK's creation digest. */
+    | {
+        readonly acknowledged: ModelCallAcknowledgedRecord
+        readonly view: AcknowledgedCallView
       }
     | ServiceCallNotFound
     | ServiceUnavailable

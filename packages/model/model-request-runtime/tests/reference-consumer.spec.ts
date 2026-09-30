@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { judgeModelCallCreatedPayload } from '@omne-harness-lite/messages'
-import type { CallReadView } from '../src/reference-types.ts'
+import type { CallReadView, RetainedCallReadView } from '../src/reference-types.ts'
 import {
   createIndependentCallConsumer,
   notifyReferenceConsumers,
@@ -15,7 +15,7 @@ function deferred<T>() {
   })
   return { promise, resolve }
 }
-function view(container: object): CallReadView {
+function view(container: object): RetainedCallReadView {
   const parsed = readJsonStrict(
     readFileSync(
       new URL(

@@ -19,7 +19,7 @@ import { settlementGenerationCurrent } from './settlement-prefix.ts'
 import type {
   CallFacts,
   CallPresence,
-  CallReadView,
+  RetainedCallReadView,
   CallOrigin,
   ModelCallContentStore,
   CallResultFact,
@@ -288,7 +288,7 @@ export function createModelCallFacts(input: {
   async function view(
     scope: Scope,
     ref: CallKey,
-  ): Promise<{ readonly view: CallReadView } | typeof notFound | typeof unavailable> {
+  ): Promise<{ readonly view: RetainedCallReadView } | typeof notFound | typeof unavailable> {
     const projected = scope.calls.get(ref.callId)
     if (projected === undefined) return notFound
     // RT12 S-97/S-100: the acknowledged small view is not implemented here yet. Fail closed

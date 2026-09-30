@@ -8,7 +8,7 @@ import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import type {
   AcquireCallInput,
   AcquireCallResult,
-  CallReadView,
+  RetainedCallReadView,
   CallConsumer,
 } from './reference-types.ts'
 import type {
@@ -136,6 +136,9 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
           if (!('view' in latest)) return current() ? latest : unavailable
           if (!('view' in first)) return unavailable
           const view = latest.view
+          // The RT12 S-97 branch is not projected by lookup yet; fail closed rather than read.
+          if (view.acknowledged !== undefined || first.view.acknowledged !== undefined)
+            return unavailable
           if (
             view.ref.session !== owned.ref.session ||
             view.ref.callId !== owned.ref.callId ||
@@ -171,7 +174,7 @@ export function createRuntimeAcquire<P extends PlannedSemantics, R>(
                 ) !== 0
               )
                 return unavailable
-              const actual: CallReadView = Object.freeze({ ...view, presence })
+              const actual: RetainedCallReadView = Object.freeze({ ...view, presence })
               if (
                 owned.mode === 'read' ||
                 actual.result !== undefined ||

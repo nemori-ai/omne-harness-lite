@@ -185,7 +185,12 @@ export function createIndependentCallConsumer(input: {
             revoked()
             return { unavailable: true }
           }
-          if (result.view.result !== undefined || result.view.presence.kind !== 'live')
+          // RT12 S-86/S-97: an acknowledged view is final for this handle; never re-read content.
+          if (
+            result.view.acknowledged !== undefined ||
+            result.view.result !== undefined ||
+            result.view.presence.kind !== 'live'
+          )
             return result
           if (revision !== before) continue
           let wake = () => {}
