@@ -759,7 +759,14 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
                 openedPosition = openedReceipt.positions[0]
                 firstTokenAt = at
                 if (!usable()) {
-                  quarantined = true
+                  // The anchor is durable and its receipt known. A stop of this process (host
+                  // stop, cancel) is then a real in-flight caller stopping with complete writer
+                  // evidence: the gate fails, the stream is stopped, and `run` settles the
+                  // no-reply final (RT12 S-86) instead of isolating the call forever. Only a
+                  // closed admission or a changed settlement generation ends this writer's right
+                  // to settle in this log: that outcome is unknown to it and stays quarantined.
+                  if (originalOwner.admission() !== 'open' || !settlementGenerationCurrent(binding))
+                    quarantined = true
                   throw new Error('model_anchor.stopped')
                 }
               }).completion,
