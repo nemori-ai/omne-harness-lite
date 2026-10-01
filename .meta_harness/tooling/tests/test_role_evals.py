@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import json
 import math
 import shutil
@@ -18,7 +19,11 @@ from roleeval import calibration, claude_host, cli, grading, judge, review, stat
 from roleeval.store import RowRejected, VariantStore, check_row  # noqa: E402
 
 MODEL = "claude-test-1"
+JUDGE = "claude-judge-1"
 USAGE = {"input_tokens": 100, "output_tokens": 50, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}
+FINAL = "本次判断是**选择**，读的判据页是 `references/review/x.md`。\n\n## 阻断\n\nB-1 ……"
+READ_DOC = ("Read", {"file_path": "design/doc.md"}, "x" * 30000)
+serial = itertools.count()
 
 
 # --- 夹具 ---------------------------------------------------------------------------------------------------
@@ -33,54 +38,60 @@ def row(case: str = "m.S1", rep: int = 0, *, episode: str = "m", grade: dict[str
 
 TURNS = [{"role": "user", "content": "brief"}, {"role": "assistant", "content": "report"}]
 
-FAKE_HOST = r'''
-import json, pathlib, sys, time
-mode = sys.argv[1]
-brief = sys.stdin.read()
-def emit(event): print(json.dumps(event, ensure_ascii=False), flush=True)
-emit({"type": "system", "subtype": "init"})
-if mode == "hang":
-    time.sleep(60)
-tool = "Edit" if mode == "edit-tool" else "Read"
-emit({"type": "assistant", "message": {"content": [
-    {"type": "thinking", "thinking": "先读材料"}, {"type": "tool_use", "name": tool, "input": {"file_path": "design/doc.md"}}]}})
-emit({"type": "user", "message": {"content": [{"type": "tool_result", "content": "x" * 30000}]}})
-if mode == "write":
-    pathlib.Path("design/doc.md").write_text("改过了")
-if mode == "no-result":
-    sys.exit(3)
-final = "" if mode == "empty" else "本次判断是**选择**，读的判据页是 `references/review/x.md`。\n\n## 阻断\n\nB-1 ……"
-if mode == "no-page":
-    final = "结论：有两条阻断。\n\n判据页 references/review/x.md 在这里才提到。"
-result = {"type": "result", "subtype": "success", "is_error": False, "stop_reason": "end_turn", "result": final,
-          "usage": {"input_tokens": 100, "output_tokens": 50, "cache_read_input_tokens": 7},
-          "modelUsage": {"claude-test-1": {"outputTokens": 50}, "claude-small-1": {"outputTokens": 3}},
-          "total_cost_usd": 0.5, "duration_api_ms": 1200}
-if mode == "host-error":
-    result.update(subtype="error_during_execution", is_error=True)
-if mode == "budget":
-    result.update(subtype="error_max_budget_usd", is_error=True)
-if mode == "other-model":
-    result["modelUsage"] = {"claude-fallback-9": {"outputTokens": 50}}
-if mode == "max-tokens":
-    result["stop_reason"] = "max_tokens"
-emit({"type": "assistant", "message": {"content": [{"type": "text", "text": final}]}})
-emit(result)
-'''
+
+def transcript(path: Path, *, prompt: str, final: str = FINAL, model: str = MODEL,
+               calls: list[tuple[str, dict[str, Any], str]] | None = None, handback: bool = True,
+               stop: str = "end_turn", effort: str | None = "high", helper: str | None = None) -> Path:
+    """一份 subagent 记录，照宿主的落盘方式：一条消息按块拆成几行，共用一个 id，各行重复同一份用量。"""
+    events: list[dict[str, Any]] = [{"type": "user", "message": {"role": "user", "content": prompt}}]
+
+    def said(identity: str, block: dict[str, Any], output: int, *, by: str = model, stop_reason: str | None = None) -> None:
+        event: dict[str, Any] = {"type": "assistant", "message": {
+            "id": identity, "model": by, "content": [block], "stop_reason": stop_reason,
+            "usage": {"input_tokens": 100, "output_tokens": output, "cache_read_input_tokens": 7}}}
+        if effort:
+            event["effort"] = effort
+        events.append(event)
+
+    for index, (name, args, result) in enumerate([READ_DOC] if calls is None else calls):
+        said(f"m{index}", {"type": "thinking", "thinking": "先读材料"}, 10)
+        said(f"m{index}", {"type": "tool_use", "name": name, "input": args}, 10, stop_reason="tool_use")
+        events.append({"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": result}]}})
+    if helper:
+        said("side", {"type": "text", "text": "标题"}, 3, by=helper)
+    if handback:
+        said("final", {"type": "tool_use", "name": claude_host.HANDBACK, "input": {"message": final}}, 50, stop_reason=stop)
+        events.append({"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]}})
+    else:
+        said("final", {"type": "text", "text": final}, 50, stop_reason=stop)
+    for second, event in enumerate(events):
+        event["timestamp"] = f"2026-10-01T00:00:{second:02d}.000Z"
+    path.write_text("".join(json.dumps(event, ensure_ascii=False) + "\n" for event in events), encoding="utf-8")
+    return path
 
 
-def fake_host(tmp_path: Path, mode: str) -> list[str]:
-    script = tmp_path / "fake_host.py"
-    script.write_text(FAKE_HOST, encoding="utf-8")
-    return [sys.executable, str(script), mode]
+def read_back(tmp_path: Path, **shape: Any) -> claude_host.Episode:
+    return claude_host.parse(transcript(tmp_path / f"agent-{next(serial)}.jsonl", prompt="请评审", **shape), brief="请评审")
 
 
-def run_fake(tmp_path: Path, mode: str, *, wall: int = 20) -> claude_host.Episode:
-    cwd = tmp_path / f"cwd-{mode}"
-    (cwd / "design").mkdir(parents=True)
-    (cwd / "design" / "doc.md").write_text("原文", encoding="utf-8")
-    return claude_host.run(fake_host(tmp_path, mode), cwd=cwd, brief="请评审", wall_seconds=wall,
-                           evidence=tmp_path / f"evidence-{mode}")
+def headless(directory: Path) -> Path:
+    """早先无界面运行留下的一份记录：以一条 result 事件收尾。只用于接手旧记录。"""
+    directory.mkdir(parents=True, exist_ok=True)
+    events = [
+        {"type": "system", "subtype": "init"},
+        {"type": "assistant", "message": {"content": [
+            {"type": "thinking", "thinking": "先读材料"},
+            {"type": "tool_use", "name": "Read", "input": {"file_path": "design/doc.md"}}]}},
+        {"type": "user", "message": {"content": [{"type": "tool_result", "content": "x" * 30000}]}},
+        {"type": "assistant", "message": {"content": [{"type": "text", "text": FINAL}]}},
+        {"type": "result", "subtype": "success", "is_error": False, "stop_reason": "end_turn", "result": FINAL,
+         "usage": {"input_tokens": 100, "output_tokens": 50, "cache_read_input_tokens": 7},
+         "modelUsage": {MODEL: {"outputTokens": 50}, "claude-small-1": {"outputTokens": 3}},
+         "total_cost_usd": 0.5, "duration_api_ms": 1200}]
+    (directory / "trajectory.jsonl").write_text("".join(json.dumps(event, ensure_ascii=False) + "\n" for event in events),
+                                                encoding="utf-8")
+    (directory / "brief.md").write_text("请评审", encoding="utf-8")
+    return directory
 
 
 def git(repo: Path, *args: str) -> str:
@@ -92,9 +103,7 @@ def flow_json(base: str, **over: Any) -> dict[str, Any]:
     value = {
         "format": 1, "id": "tiny-review", "version": 1, "family": "review", "role": "tiny-reviewer",
         "judgment": "选择", "criteria_page": "references/review/x.md", "reps": 2,
-        "host": {"claude-code": {"model": MODEL, "effort": "high", "allowed": ["Read", "Glob", "Grep"],
-                                 "disallowed": ["Agent"], "permission_mode": "dontAsk", "wall_seconds": 20,
-                                 "budget_usd": 1}},
+        "host": {"claude-code": {"model": MODEL, "effort": "high", "allowed": ["Read", "Glob", "Grep"]}},
         "workspace": {"base": base, "material_paths": ["design"], "material_excludes": ["design/evidence"],
                       "subject_paths": ["skills", "NOTES.md"]},
         "metrics": [{"id": "caught", "kind": "binary", "label": "抓到种入"},
@@ -148,8 +157,7 @@ def repo(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def wired(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
-    """把命令行接到小仓库与假宿主上；mode 列表按启动次序取用，取完后一直用最后一个。"""
-    modes: list[str] = ["ok"]
+    """把命令行接到小仓库上；角色定义不真的编译。"""
     monkeypatch.setattr(cli, "REPO", repo)
     monkeypatch.setattr(cli, "META", repo / "meta")
     monkeypatch.setattr(cli, "HARNESS", repo / "harness")
@@ -160,20 +168,54 @@ def wired(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[s
         frozen.write_text(json.dumps({flow.role: {"prompt": "你只读"}}), encoding="utf-8")
         return frozen
 
-    def command(*_: Any, **__: Any) -> list[str]:
-        return fake_host(tmp_path, modes.pop(0) if len(modes) > 1 else modes[0])
-
     monkeypatch.setattr(cli, "compile_definition", compile_definition)
-    monkeypatch.setattr(claude_host, "command", command)
     return {"flow": suite.load(repo / "suites" / "tiny-review"), "out": tmp_path / "out", "work": tmp_path / "work",
-            "modes": modes, "repo": repo}
+            "repo": repo, "tmp": tmp_path}
 
 
-def run_cli(wired: dict[str, Any], **over: Any) -> int:
+def prepare(wired: dict[str, Any], rep: int = 0, **over: Any) -> Path:
+    """准备一次运行；返回它的证据目录。"""
     wired["work"].mkdir(exist_ok=True)
-    args = {"variant": "baseline", "out": wired["out"], "work": wired["work"], "reps": None, "only": None,
-            "parallel": 1, "allow_dirty": False, "keep": False}
-    return cli.run(wired["flow"], **{**args, **over})
+    args = {"variant": "baseline", "out": wired["out"], "work": wired["work"], "allow_dirty": False, "again": False}
+    args.update(over)
+    cli.prepare(wired["flow"], wired["flow"].material("doc"), rep, **args)
+    return cli.episode_dir(wired["out"], args["variant"], "doc", rep)
+
+
+def run_one(wired: dict[str, Any], rep: int = 0, *, variant: str = "baseline", dispatch: str = "registered",
+            edits_copy: bool = False, prepare_args: dict[str, Any] | None = None, **shape: Any) -> str:
+    """准备、「派发」（写一份记录）、收录，一次走完。"""
+    evidence = prepare(wired, rep, variant=variant, **(prepare_args or {}))
+    pending = json.loads((evidence / "pending.json").read_text(encoding="utf-8"))
+    prompt = (evidence / ("brief.md" if dispatch == "registered" else "dispatch.inline.md")).read_text(encoding="utf-8")
+    if dispatch == "inline" and "calls" not in shape:
+        shape["calls"] = [("Read", {"file_path": pending["role"]}, "你只读"), READ_DOC]
+    if edits_copy:
+        (Path(pending["workspace"]) / "design" / "doc.md").write_text("改过了", encoding="utf-8")
+    path = transcript(wired["tmp"] / f"agent-{next(serial)}.jsonl", prompt=prompt, **shape)
+    return cli.record(wired["flow"], wired["flow"].material("doc"), rep, variant=variant, out=wired["out"],
+                      transcript=path, dispatch=dispatch, tokens=1000)
+
+
+def numbered(text: str) -> str:
+    """宿主的 Read 工具交回文件的样子：每行前面带行号。"""
+    return "\n".join(f"{number:>6}\t{line}" for number, line in enumerate(text.splitlines(), 1))
+
+
+def judge_transcript(path: Path, brief: Path, answer: Any, *, model: str = JUDGE, **shape: Any) -> Path:
+    """判官的一份记录：提示只指向简报文件，它读那个文件，再交回答复。"""
+    text = answer if isinstance(answer, str) else json.dumps(answer, ensure_ascii=False)
+    shape.setdefault("calls", [("Read", {"file_path": str(brief)}, numbered(brief.read_text(encoding="utf-8")))])
+    shape.setdefault("prompt", judge.pointer(brief))
+    return transcript(path, final=text, model=model, **shape)
+
+
+def judge_one(wired: dict[str, Any], answer: Any, rep: int = 0, **shape: Any) -> int:
+    material = wired["flow"].material("doc")
+    cli.judge_brief(wired["flow"], material, rep, variant="baseline", out=wired["out"])
+    brief = cli.episode_dir(wired["out"], "baseline", "doc", rep) / "judge.brief.md"
+    path = judge_transcript(wired["tmp"] / f"judge-{next(serial)}.jsonl", brief, answer, **shape)
+    return cli.judge_record(wired["flow"], material, rep, variant="baseline", out=wired["out"], transcript=path)
 
 
 def labels(tmp_path: Path, episodes: dict[str, Any]) -> Path:
@@ -258,10 +300,10 @@ def test_rows_of_two_episodes_or_no_transcript_are_refused(tmp_path: Path) -> No
 def test_a_failed_attempt_goes_to_the_sidecar_and_leaves_its_slot_free(tmp_path: Path) -> None:
     store = VariantStore(tmp_path, "baseline")
     store.record_error("m", 0, "timeout", "ceiling hit", model=MODEL, usage=USAGE, cost_usd=0.4)
-    store.record_error("m", 0, "harness", "host error")
+    store.record_error("m", 0, "contaminated", "read the truth list")
     assert store.rows() == []
     assert store.done() == set()
-    assert [e["failure_class"] for e in store.error_rows()] == ["timeout", "harness"]
+    assert [e["failure_class"] for e in store.error_rows()] == ["timeout", "contaminated"]
     store.record_episode([row()], TURNS)
     assert store.done() == {("m", 0)}
     with pytest.raises(ValueError):
@@ -311,45 +353,66 @@ def test_noise_floor_shrinks_with_the_square_root_of_cases() -> None:
     assert stats.noise_floor(0) == 1.0
 
 
-# --- 宿主 ---------------------------------------------------------------------------------------------------
+# --- 宿主留下的记录 -----------------------------------------------------------------------------------------
 
-def test_a_normal_run_is_read_back_from_the_stream(tmp_path: Path) -> None:
-    episode = run_fake(tmp_path, "ok")
+def test_a_subagent_run_is_read_back_from_its_transcript(tmp_path: Path) -> None:
+    episode = read_back(tmp_path, helper="claude-small-1")
     assert episode.failure(MODEL) is None
-    assert [turn["role"] for turn in episode.turns] == ["user", "tool_call", "tool_result", "assistant"]
-    assert episode.turns[0]["content"] == "请评审"
-    assert episode.turns[1]["name"] == "Read" and episode.turns[1]["thinking"] == "先读材料"
+    assert [turn["role"] for turn in episode.turns] == ["user", "tool_call", "tool_result", "assistant", "assistant",
+                                                        "tool_result"]
+    assert episode.turns[0]["content"] == "请评审" and episode.prompt == "请评审"
+    assert episode.turns[1]["name"] == "Read" and episode.turns[1]["thinking"] == "先读材料", (
+        "思考块与它引出的工具调用落在两行里，仍要接上")
     assert "more characters in trajectory.jsonl" in episode.turns[2]["content"]
-    assert len(episode.turns[2]["content"]) < 21000
+    assert len(episode.turns[2]["content"]) < 21000 and len(episode.tool_outputs[0]) == 30000
+    assert episode.turns[4]["content"] == FINAL and episode.final == FINAL, "报告是交回来的那一份"
     assert episode.model == MODEL and episode.models_observed == ["claude-small-1", MODEL]
-    assert episode.usage == {"input_tokens": 100, "output_tokens": 50, "cache_read_input_tokens": 7,
+    # 同一条消息的两行不重复计：m0 一次、旁支一次、交回一次
+    assert episode.usage == {"input_tokens": 300, "output_tokens": 63, "cache_read_input_tokens": 21,
                              "cache_creation_input_tokens": 0}
-    assert (episode.cost_usd, episode.api_seconds, episode.tool_calls) == (0.5, 1.2, 1)
-    assert episode.tool_names == {"Read": 1} and episode.exit_code == 0 and not episode.truncated()
-    assert (tmp_path / "evidence-ok" / "brief.md").read_text(encoding="utf-8") == "请评审"
+    assert (episode.cost_usd, episode.tool_calls, episode.tool_names) == (None, 1, {"Read": 1}), "交回不算角色用的工具"
+    assert episode.efforts_observed == ["high"] and episode.wall_seconds == 6.0 and not episode.truncated()
 
 
-@pytest.mark.parametrize(("mode", "failure_class"), [
-    ("host-error", "harness"), ("budget", "budget"), ("other-model", "model-mismatch"),
-    ("empty", "harness"), ("no-result", "harness"),
+def test_a_report_left_as_the_last_message_counts_when_nothing_is_handed_back(tmp_path: Path) -> None:
+    episode = read_back(tmp_path, handback=False, effort=None)
+    assert episode.failure(MODEL) is None and episode.final == FINAL and episode.efforts_observed == []
+
+
+@pytest.mark.parametrize(("shape", "failure_class"), [
+    ({"model": "claude-fallback-9"}, "model-mismatch"),
+    ({"final": ""}, "harness"),
+    ({"final": "  \n", "handback": False}, "harness"),
 ])
-def test_a_run_that_cannot_be_scored_says_why(tmp_path: Path, mode: str, failure_class: str) -> None:
-    failure = run_fake(tmp_path, mode).failure(MODEL)
+def test_a_run_that_cannot_be_scored_says_why(tmp_path: Path, shape: dict[str, Any], failure_class: str) -> None:
+    failure = read_back(tmp_path, **shape).failure(MODEL)
     assert failure is not None and failure[0] == failure_class
 
 
-def test_the_wall_clock_ceiling_ends_a_run_that_keeps_its_stream_open(tmp_path: Path) -> None:
-    episode = run_fake(tmp_path, "hang", wall=1)
-    assert episode.timed_out and episode.failure(MODEL)[0] == "timeout"
-    assert episode.wall_seconds < 10
-
-
 def test_a_clipped_answer_is_truncated_not_wrong(tmp_path: Path) -> None:
-    episode = run_fake(tmp_path, "max-tokens")
+    episode = read_back(tmp_path, stop="max_tokens", handback=False)
     assert episode.failure(MODEL) is None and episode.truncated()
 
 
-def test_a_compiled_role_becomes_an_agents_entry(tmp_path: Path) -> None:
+def test_where_a_run_reached_is_read_off_what_it_asked_for_and_what_came_back(tmp_path: Path) -> None:
+    episode = read_back(tmp_path, calls=[
+        ("Read", {"file_path": "/repo/agents/evaluation/suites/x/flow.json"}, "真值"),
+        ("Grep", {"pattern": "caught"}, "/main/tmp/role-evals/x/results.jsonl:1:…")])
+    assert episode.touched(["evaluation/suites/", "tmp/role-evals", "calibration/cases.json"]) == [
+        "Read asked for evaluation/suites/", "a tool result mentions tmp/role-evals"]
+    assert read_back(tmp_path).touched(["evaluation/suites/"]) == []
+
+
+def test_the_stream_of_an_earlier_headless_run_is_still_read(tmp_path: Path) -> None:
+    episode = claude_host.parse(headless(tmp_path / "old") / "trajectory.jsonl", brief="请评审")
+    assert episode.failure(MODEL) is None and episode.final == FINAL
+    assert episode.turns[1]["thinking"] == "先读材料"
+    assert episode.model == MODEL and episode.models_observed == ["claude-small-1", MODEL]
+    assert (episode.cost_usd, episode.api_seconds, episode.tool_calls) == (0.5, 1.2, 1)
+    assert episode.usage["cache_read_input_tokens"] == 7
+
+
+def test_a_compiled_role_becomes_a_definition_entry(tmp_path: Path) -> None:
     generated = tmp_path / "tiny-reviewer.md"
     generated.write_text(
         "---\nname: tiny-reviewer\ndescription: Read-only review of one thing, never\n  edits files; it's 'careful'.\n"
@@ -363,14 +426,12 @@ def test_a_compiled_role_becomes_an_agents_entry(tmp_path: Path) -> None:
     assert (narrowed["model"], narrowed["tools"]) == (MODEL, ["Read"])
 
 
-def test_the_host_command_carries_the_isolation_settings(tmp_path: Path) -> None:
-    command = claude_host.command(tmp_path / "a.json", "tiny-reviewer", model=MODEL, effort="high", allowed=["Read"],
-                                  disallowed=["Agent", "WebFetch"], permission_mode="dontAsk", budget_usd=3)
-    joined = " ".join(command)
-    for part in ("--agent tiny-reviewer", f"--model {MODEL}", "--effort high", "--setting-sources project",
-                 "--max-budget-usd 3", "--no-session-persistence", "--disallowedTools Agent WebFetch",
-                 "--allowedTools Read", "--output-format stream-json"):
-        assert part in joined
+def test_nothing_in_the_runner_starts_a_model() -> None:
+    """运行器只准备与记账；起角色、起判官都是主会话派 subagent。这里守住它不再自己起宿主进程。"""
+    for name in ("claude_host.py", "judge.py", "calibration.py"):
+        assert "subprocess" not in (EVALUATION / "harness" / "roleeval" / name).read_text(encoding="utf-8"), name
+    source = (EVALUATION / "harness" / "roleeval" / "cli.py").read_text(encoding="utf-8")
+    assert '"claude"' not in source and "'claude'" not in source
 
 
 # --- 工作副本 -----------------------------------------------------------------------------------------------
@@ -534,7 +595,7 @@ def test_a_historical_material_is_taken_from_its_own_commit(repo: Path, tmp_path
     monkeypatch.setattr(cli, "REPO", repo)
     for name, expected in (("doc", "调用方可以不读，再写。\n"), ("doc-later", "后来的版本：调用方必须先读。\n")):
         dest = tmp_path / name
-        cli.prepare(flow, flow.material(name), dest)
+        cli.build_copy(flow, flow.material(name), dest)
         assert (dest / "design" / "doc.md").read_text(encoding="utf-8") == expected
         # 只有那份材料当时对着读的路径，才随它进副本
         assert (dest / "harness" / "keep.txt").exists() == (name == "doc-later")
@@ -587,16 +648,18 @@ def test_an_incomplete_verdict_is_a_grader_failure(repo: Path, tmp_path: Path, e
 def test_run_level_facts_are_read_off_the_transcript_and_the_copy(repo: Path, tmp_path: Path) -> None:
     flow = suite.load(repo / "suites" / "tiny-review")
     allowed = ["Read", "Glob", "Grep"]
-    ok = review.observe(flow, run_fake(tmp_path, "ok"), unchanged=True, allowed=allowed)
+    ok = review.observe(flow, read_back(tmp_path), unchanged=True, allowed=allowed)
     assert (ok["read_only"][0], ok["names_page"][0]) == (1, 1)
-    assert review.observe(flow, run_fake(tmp_path, "edit-tool"), unchanged=True, allowed=allowed)["read_only"][0] == 0
-    changed = review.observe(flow, run_fake(tmp_path, "write"), unchanged=False, allowed=allowed)
+    edited = read_back(tmp_path, calls=[("Edit", {"file_path": "design/doc.md"}, "ok")])
+    assert review.observe(flow, edited, unchanged=True, allowed=allowed)["read_only"][0] == 0
+    changed = review.observe(flow, read_back(tmp_path), unchanged=False, allowed=allowed)
     assert changed["read_only"][0] == 0 and "被改动" in changed["read_only"][1]
-    late = review.observe(flow, run_fake(tmp_path, "no-page"), unchanged=True, allowed=allowed)
-    assert late["names_page"][0] == 0, "naming the page after the first paragraph does not count"
+    late = read_back(tmp_path, final="结论：有两条阻断。\n\n判据页 references/review/x.md 在这里才提到。")
+    assert review.observe(flow, late, unchanged=True, allowed=allowed)["names_page"][0] == 0, (
+        "naming the page after the first paragraph does not count")
 
 
-# --- 判官 ---------------------------------------------------------------------------------------------------
+# --- 判官：答复怎样变成判定 ---------------------------------------------------------------------------------
 
 REPORT = (
     "本次判断是**选择**，读的判据页是 `references/review/x.md`。\n\n## 阻断\n\n### B-1 第一句把必须写成了可以\n\n"
@@ -618,6 +681,10 @@ def raw_answer() -> dict[str, Any]:
              "quote": "design/doc.md 第一句写「调用方可以不读」， 与契约 S-3「必须先读」冲突"},
             {"id": "S2", "caught": False, "finding": "", "quote": "", "reason": "只在未覆盖里提了一句"}],
     }
+
+
+SILENT = {"findings": [], "targets": [
+    {"id": seed, "caught": False, "finding": "", "quote": "", "reason": "报告没有提到"} for seed in ("S1", "S2")]}
 
 
 @pytest.fixture
@@ -665,6 +732,7 @@ def broken(change: Any) -> dict[str, Any]:
     (lambda raw: raw["findings"][0].update(match="E7"), "not on the list"),
     (lambda raw: raw["findings"][0].update(group="severe"), "unknown group"),
     (lambda raw: raw["findings"][0].pop("match"), "lacks"),
+    (lambda raw: raw["findings"][0].update({"summary: ": raw["findings"][0].pop("summary")}), "lacks"),
     (lambda raw: raw.pop("targets"), "lacks"),
 ])
 def test_a_judge_claim_the_report_does_not_bear_out_is_a_grader_failure(
@@ -678,16 +746,15 @@ def test_a_report_that_says_nothing_cannot_be_judged_as_catching_anything(
         doc: tuple[suite.Flow, suite.Material], report: str) -> None:
     with pytest.raises(grading.GraderError, match="not in the report"):
         judge.verdict(raw_answer(), doc[1], report, grader="judge:x")
-    silent = {"findings": [], "targets": [
-        {"id": seed, "caught": False, "finding": "", "quote": "", "reason": "报告没有提到"} for seed in ("S1", "S2")]}
-    verdict = judge.verdict(silent, doc[1], report, grader="judge:x")
+    verdict = judge.verdict(SILENT, doc[1], report, grader="judge:x")
     assert [value for value, _ in verdict.seeds.values()] == [0, 0]
     assert all(value == 0 for value, _ in verdict.run.values())
 
 
-def test_the_judge_prompt_carries_the_targets_and_not_the_material(doc: tuple[suite.Flow, suite.Material]) -> None:
+def test_the_judge_brief_carries_the_targets_and_not_the_material(doc: tuple[suite.Flow, suite.Material]) -> None:
     flow, material = doc
-    text = judge.prompt(flow, material, REPORT)
+    text = judge.brief(flow, material, REPORT)
+    assert text.startswith("你是一次评估里的判官") and "你的最终答复只有一个 JSON 对象" in text
     assert "id `S1`｜位置：第一句｜问题：把必须写成了可以" in text and "材料里的这段文字：可以不读" in text
     assert "id `K1`｜基线没有提交号" in text and "评措辞与歧义" in text
     assert text.index("<report>") < text.index("### B-1") < text.index("</report>")
@@ -699,79 +766,85 @@ def test_the_judge_prompt_carries_the_targets_and_not_the_material(doc: tuple[su
                          grader="judge:x").run["novel_blocking"][0] == 1.0
 
 
-FAKE_JUDGE = r'''
-import json, pathlib, sys
-queue = pathlib.Path(sys.argv[1])
-sys.stdin.read()
-answers = json.loads(queue.read_text())
-answer = answers.pop(0) if len(answers) > 1 else answers[0]
-queue.write_text(json.dumps(answers))
-if answer == "garbage":
-    print("not json"); sys.exit(0)
-result = {"type": "result", "subtype": "success", "is_error": False, "result": "", "structured_output": answer,
-          "total_cost_usd": 0.02, "usage": {"input_tokens": 900, "output_tokens": 120},
-          "modelUsage": {"claude-judge-1": {"outputTokens": 120}}}
-if answer == "host-error":
-    result.update(subtype="error_during_execution", is_error=True, structured_output=None)
-print(json.dumps(result, ensure_ascii=False))
-'''
+def test_an_answer_is_one_json_object_with_or_without_a_fence() -> None:
+    assert judge.parse_answer(' {"findings": [], "targets": []}\n') == {"findings": [], "targets": []}
+    assert judge.parse_answer('```json\n{"findings": []}\n```') == {"findings": []}
+    for text in ('好的，答复如下：{"findings": []}', "[]", ""):
+        with pytest.raises(grading.GraderError, match="not a JSON object"):
+            judge.parse_answer(text)
 
 
-def fake_judge(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, answers: list[Any]) -> None:
-    script, queue = tmp_path / "fake_judge.py", tmp_path / "judge-queue.json"
-    script.write_text(FAKE_JUDGE, encoding="utf-8")
-    queue.write_text(json.dumps(answers, ensure_ascii=False), encoding="utf-8")
-    monkeypatch.setattr(judge, "command", lambda *_, **__: [sys.executable, str(script), str(queue)])
+# --- 判官：一份记录是不是这个判官在答这份简报 ---------------------------------------------------------------
+
+@pytest.fixture
+def briefed(doc: tuple[suite.Flow, suite.Material], tmp_path: Path) -> Path:
+    path = tmp_path / "judge.brief.md"
+    path.write_text(judge.brief(doc[0], doc[1], REPORT), encoding="utf-8")
+    return path
 
 
-def test_the_judge_gets_a_second_attempt_and_every_attempt_is_billed(
-        doc: tuple[suite.Flow, suite.Material], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    flow, material = doc
-    bad = broken(lambda raw: raw["targets"][0].update(quote="报告里没有的一句话，足够长"))
-    fake_judge(tmp_path, monkeypatch, [bad, raw_answer()])
-    verdict, results = judge.judge(flow, material, REPORT, model="claude-judge-1", effort="high", cwd=tmp_path,
-                                   evidence=tmp_path / "ev" / "judge.json")
-    assert verdict.seeds["S1"][0] == 1 and verdict.grader.startswith("judge:claude-judge-1@high rules ")
-    spent = judge.spend(results)
-    rejected = spent.pop("judge_rejected")
-    assert len(rejected) == 1 and "not in the report" in rejected[0], "被驳回的答复留下驳回的原因"
+def judged(tmp_path: Path, brief: Path, **shape: Any) -> claude_host.Episode:
+    return claude_host.parse(judge_transcript(tmp_path / f"judge-{next(serial)}.jsonl", brief, raw_answer(), **shape),
+                             brief="判官")
+
+
+def test_a_judge_is_named_by_its_model_and_its_rules(briefed: Path, tmp_path: Path) -> None:
+    name = judge.read(judged(tmp_path, briefed), briefed, signed=None)
+    assert name == judge.identity(JUDGE) and name.startswith(f"judge:subagent:{JUDGE} rules ")
+    assert judge.identity("a") != judge.identity("b")
+    assert judge.read(judged(tmp_path, briefed), briefed, signed=name) == name
+
+
+def test_only_the_signed_off_judge_reading_the_whole_brief_and_nothing_else_is_taken(
+        briefed: Path, tmp_path: Path) -> None:
+    whole = numbered(briefed.read_text(encoding="utf-8"))
+    read = ("Read", {"file_path": str(briefed)}, whole)
+    refused = {
+        "pointed at": {"prompt": "判一下这份报告"},
+        "uses nothing else": {"calls": [read, ("Grep", {"pattern": "S1"}, "…")]},
+        "reads its brief": {"calls": [("Read", {"file_path": str(briefed.with_name("other.md"))}, whole)]},
+        "uses nothing": {"calls": []},
+        "not the whole brief": {"calls": [("Read", {"file_path": str(briefed), "limit": 20}, whole[:400])]},
+        "not on one model": {"helper": "claude-small-1"},
+    }
+    for message, shape in refused.items():
+        with pytest.raises(judge.NotThisJudge, match=message):
+            judge.read(judged(tmp_path, briefed, **shape), briefed, signed=None)
+    with pytest.raises(judge.NotThisJudge, match="sign-off is for"):
+        judge.read(judged(tmp_path, briefed, model="claude-judge-2"), briefed, signed=judge.identity(JUDGE))
+    # 分两段读完也算读全了；只读了前一段不算
+    lines = whole.splitlines()
+    paged = [("Read", {"file_path": str(briefed), "limit": 9}, "\n".join(lines[:9])),
+             ("Read", {"file_path": str(briefed), "offset": 10}, "\n".join(lines[9:]))]
+    assert judge.read(judged(tmp_path, briefed, calls=paged), briefed, signed=None) == judge.identity(JUDGE)
+    with pytest.raises(judge.NotThisJudge, match="not the whole brief"):
+        judge.read(judged(tmp_path, briefed, calls=paged[:1]), briefed, signed=None)
+
+
+def test_what_the_judge_used_is_added_up_over_its_attempts(briefed: Path, tmp_path: Path) -> None:
+    first, second = judged(tmp_path, briefed), judged(tmp_path, briefed, effort="medium")
+    spent = judge.spend([judge.attempt(first, rejected="引的句子不在报告里"), judge.attempt(second)])
     assert spent == {
-        "judge_model": "claude-judge-1", "judge_attempts": 2, "judge_cost_usd": 0.04,
-        "judge_usage": {"input_tokens": 1800, "output_tokens": 240, "cache_read_input_tokens": 0,
+        "judge_model": JUDGE, "judge_attempts": 2, "judge_efforts": ["high", "medium"],
+        "judge_rejected": ["引的句子不在报告里"],
+        "judge_usage": {"input_tokens": 400, "output_tokens": 120, "cache_read_input_tokens": 28,
                         "cache_creation_input_tokens": 0}}
-    assert (tmp_path / "ev" / "judge.attempt0.json").is_file() and (tmp_path / "ev" / "judge.attempt1.json").is_file()
 
 
-@pytest.mark.parametrize("answers", [["garbage"], ["host-error"]])
-def test_a_judge_that_never_answers_properly_fails_the_grading(
-        doc: tuple[suite.Flow, suite.Material], tmp_path: Path, monkeypatch: pytest.MonkeyPatch, answers: list[Any]) -> None:
-    fake_judge(tmp_path, monkeypatch, answers)
-    with pytest.raises(judge.JudgeFailed, match="2 judge attempts failed"):
-        judge.judge(doc[0], doc[1], REPORT, model="claude-judge-1", effort="high", cwd=tmp_path,
-                    evidence=tmp_path / "ev" / "judge.json")
+# --- 命令行：准备、收录、判定、汇总 -------------------------------------------------------------------------
 
-
-def test_the_judge_command_gives_the_judge_no_tools_and_no_project_settings() -> None:
-    command = judge.command("claude-judge-1", "high", budget_usd=2)
-    assert command[command.index("--tools") + 1] == "" and command[command.index("--setting-sources") + 1] == ""
-    assert json.loads(command[command.index("--json-schema") + 1])["required"] == ["findings", "targets"]
-    assert judge.identity("a", "high") != judge.identity("b", "high")
-
-
-# --- 命令行：从运行到汇总 -----------------------------------------------------------------------------------
-
-def test_a_paid_run_waits_for_both_sign_offs(wired: dict[str, Any]) -> None:
+def test_a_run_waits_for_both_sign_offs(wired: dict[str, Any]) -> None:
     wired["flow"] = suite.load(rewrite(wired["repo"], signoffs={"cases": {"version": 1}}))
     with pytest.raises(cli.Refused, match="no sign-off on: grading"):
-        run_cli(wired)
+        prepare(wired)
     assert not wired["out"].exists()
 
 
 def test_a_run_refuses_uncommitted_changes_in_what_is_under_test(wired: dict[str, Any]) -> None:
     (wired["repo"] / "skills" / "page.md").write_text("改了没提交\n", encoding="utf-8")
     with pytest.raises(cli.Refused, match="uncommitted"):
-        run_cli(wired)
-    assert run_cli(wired, allow_dirty=True, reps=1) == 0
+        prepare(wired)
+    run_one(wired, prepare_args={"allow_dirty": True})
     record = json.loads((cli.episode_dir(wired["out"], "baseline", "doc", 0) / "episode.json").read_text("utf-8"))
     assert record["provenance"]["dirty"] is True
 
@@ -784,31 +857,59 @@ def test_a_run_refuses_a_suite_whose_seeds_no_longer_land(wired: dict[str, Any])
     git(wired["repo"], "commit", "-qam", "break a seed")
     wired["flow"] = suite.load(root)
     with pytest.raises(cli.Refused, match="found it 0 times"):
-        run_cli(wired)
+        prepare(wired)
 
 
 def test_verify_flags_a_base_that_history_no_longer_reaches(wired: dict[str, Any]) -> None:
     wired["work"].mkdir()
     assert cli.verify(wired["flow"], wired["work"]) == []
+    assert cli.verify(wired["flow"], wired["work"], only=["nope"]) == [], "只核点到的材料"
     flow = suite.load(rewrite(wired["repo"], workspace={**wired["flow"].workspace, "base": "0" * 40}))
     assert "not an ancestor" in cli.verify(flow, wired["work"])[0]
     assert list(wired["work"].iterdir()) == [], "verify leaves no copies behind"
 
 
-def test_run_then_grade_then_summary(wired: dict[str, Any], tmp_path: Path) -> None:
-    assert run_cli(wired) == 0
+def test_preparing_leaves_a_copy_a_brief_and_what_to_dispatch(wired: dict[str, Any]) -> None:
+    wired["work"].mkdir()
+    text = cli.prepare(wired["flow"], wired["flow"].material("doc"), 0, variant="baseline", out=wired["out"],
+                       work=wired["work"], allow_dirty=False, again=False)
+    evidence = cli.episode_dir(wired["out"], "baseline", "doc", 0)
+    pending = json.loads((evidence / "pending.json").read_text(encoding="utf-8"))
+    copy = Path(pending["workspace"])
+    assert (copy / "design" / "doc.md").read_text(encoding="utf-8") == "调用方可以不读，再写。\n"
+    assert pending["tree_hash"] == workspace.tree_hash(copy)
+    assert pending["harness_commit"] == git(wired["repo"], "rev-parse", "HEAD")
+    brief = (evidence / "brief.md").read_text(encoding="utf-8")
+    assert "{WORKDIR}" not in brief and str(copy) in brief
+    role = Path(pending["role"])
+    assert role.read_text(encoding="utf-8") == "你只读\n" and copy not in role.parents, "角色定义在副本旁边，不在副本里"
+    inline = (evidence / "dispatch.inline.md").read_text(encoding="utf-8")
+    assert str(role) in inline and brief in inline and "Read、Glob、Grep" in inline
+    assert "subagent type `tiny-reviewer`" in text and f"model {MODEL}" in text and str(evidence / "brief.md") in text
+    with pytest.raises(cli.Refused, match="already prepared"):
+        prepare(wired)
+    prepare(wired, again=True)
+    assert Path(json.loads((evidence / "pending.json").read_text(encoding="utf-8"))["workspace"]).is_dir()
+
+
+def test_prepare_record_grade_summary(wired: dict[str, Any], tmp_path: Path) -> None:
     out = wired["out"]
     for rep in (0, 1):
+        assert "recorded, " in run_one(wired, rep)
         evidence = cli.episode_dir(out, "baseline", "doc", rep)
         record = json.loads((evidence / "episode.json").read_text(encoding="utf-8"))
         assert record["model"] == MODEL and record["observations"]["read_only"][0] == 1
-        assert record["provenance"]["harness_commit"] == git(wired["repo"], "rev-parse", "HEAD")
-        assert record["provenance"]["suite_sha"] == wired["flow"].digest()
-        brief = (evidence / "brief.md").read_text(encoding="utf-8")
-        assert "{WORKDIR}" not in brief and str(wired["work"]) in brief
-        assert (evidence / "final.md").read_text(encoding="utf-8").startswith("本次判断")
+        assert (record["cost_usd"], record["efforts_observed"], record["requested_model"]) == (None, ["high"], MODEL)
+        provenance = record["provenance"]
+        assert provenance["harness_commit"] == git(wired["repo"], "rev-parse", "HEAD")
+        assert provenance["suite_sha"] == wired["flow"].digest()
+        assert (provenance["dispatch"], provenance["tokens_reported"], provenance["outside_copy"]) == ("registered", 1000, [])
+        assert (evidence / "final.md").read_text(encoding="utf-8") == FINAL
+        assert (evidence / "trajectory.jsonl").is_file() and not (evidence / "pending.json").exists()
     assert list(wired["work"].iterdir()) == [], "copies are removed once their hash is taken"
     assert json.loads((out / "_state.json").read_text(encoding="utf-8"))["metrics"][0]["id"] == "caught"
+    with pytest.raises(cli.Refused, match="already recorded"):
+        prepare(wired)
 
     second = {"seeds": {"S1": [1, "报告的 B-1"], "S2": [1, "报告的 N-2"]},
               "run": {"out_of_kind": [1, "N-3 在评措辞"], "blocking": [3, "B-1、B-2、B-3"], "novel_blocking": [2, "B-2、B-3"]}}
@@ -820,44 +921,100 @@ def test_run_then_grade_then_summary(wired: dict[str, Any], tmp_path: Path) -> N
         check_row(r)
         assert (store.traces / f"{r['prompt_id']}_rep{r['rep']}.json").is_file()
     run_rows = [r for r in rows if r["meta"]["unit"] == "run"]
-    assert all(r["cost_usd"] == 0.5 for r in run_rows)
-    assert all("cost_usd" not in r for r in rows if r["meta"]["unit"] == "seed"), "spend is counted once per episode"
     assert run_rows[0]["grade"] == {"read_only": 1, "names_page": 1, "out_of_kind": 0.0, "blocking": 1.0,
                                     "novel_blocking": 0.0}
+    assert run_rows[0]["meta"]["dispatch"] == "registered"
     seed = next(r for r in rows if r["prompt_id"] == "doc.S1")
     assert "原文：" in seed["prompt"] and seed["tags"][:3] == ["doc", "seed", "judgment"]
     assert cli.grade(wired["flow"], variant="baseline", out=out, labels=labels(tmp_path, {"0": GOOD_LABEL, "1": second})) == 0
     assert len(store.rows()) == 6, "grading again adds nothing"
 
     text = cli.summary(wired["flow"], out)
-    assert "baseline: 2 episodes recorded, 2 scored, 0 truncated, 0 failed attempts" in text
-    assert "role $1.00, judge $0.00" in text
+    assert "baseline: 2 episodes recorded (registered), 2 scored, 0 truncated, 0 failed attempts" in text
+    assert "role 2000 tokens reported, 0 min; judge answers 0" in text
     assert "caught           75.0%" in text and "over 2 cases, 4 observations" in text
     assert "out_of_kind       0.50  [no interval from one case]" in text
     assert "novel_blocking    1.00  [no interval from one case]" in text
     assert "noise floor on caught: about ±69% with 2 cases" in text
 
 
-def test_a_failed_attempt_is_recorded_aside_and_run_again_on_resume(wired: dict[str, Any], tmp_path: Path) -> None:
-    wired["modes"][:] = ["host-error", "ok"]
-    assert run_cli(wired) == 0
+def test_a_transcript_of_something_else_is_not_taken(wired: dict[str, Any], tmp_path: Path) -> None:
+    material = wired["flow"].material("doc")
+    settings = {"variant": "baseline", "out": wired["out"], "dispatch": "registered", "tokens": None}
+    other = transcript(tmp_path / "other.jsonl", prompt="评审另一份文档")
+    with pytest.raises(cli.Refused, match="not prepared"):
+        cli.record(wired["flow"], material, 0, transcript=other, **settings)
+    evidence = prepare(wired)
+    with pytest.raises(cli.Refused, match="does not carry the brief"):
+        cli.record(wired["flow"], material, 0, transcript=other, **settings)
+    assert (evidence / "pending.json").exists(), "拒收不动已准备好的这一次"
+    # 派发者转抄时换行、空格有出入不算走样；字有出入才算
+    brief = (evidence / "brief.md").read_text(encoding="utf-8")
+    reflowed = transcript(tmp_path / "reflowed.jsonl", prompt="前言。\n\n" + brief.replace("\n", "\n\n").replace("。", "。 "))
+    assert "recorded" in cli.record(wired["flow"], material, 0, transcript=reflowed, **settings)
+
+
+def test_a_failed_attempt_is_recorded_aside_and_its_slot_can_be_run_again(wired: dict[str, Any], tmp_path: Path) -> None:
+    assert "harness - the transcript does not end in a report" in run_one(wired, final="")
     out, store = wired["out"], VariantStore(wired["out"], "baseline")
     errors = store.error_rows()
     assert [(e["episode"], e["rep"], e["failure_class"]) for e in errors] == [("doc", 0, "harness")]
-    assert errors[0]["cost_usd"] == 0.5 and errors[0]["model"] == MODEL
+    assert errors[0]["model"] == MODEL and errors[0]["cost_usd"] is None
     assert Path(errors[0]["evidence"]).is_dir() and ".failed-" in errors[0]["evidence"]
+    assert (Path(errors[0]["evidence"]) / "trajectory.jsonl").is_file()
     assert not cli.episode_dir(out, "baseline", "doc", 0).exists()
-    assert (cli.episode_dir(out, "baseline", "doc", 1) / "episode.json").is_file()
-    assert run_cli(wired) == 0
+    assert list(wired["work"].iterdir()) == []
+    assert "recorded" in run_one(wired)
     assert (cli.episode_dir(out, "baseline", "doc", 0) / "episode.json").is_file()
-    assert len(store.error_rows()) == 1
-    cli.grade(wired["flow"], variant="baseline", out=out, labels=labels(tmp_path, {"0": GOOD_LABEL, "1": GOOD_LABEL}))
+    cli.grade(wired["flow"], variant="baseline", out=out, labels=labels(tmp_path, {"0": GOOD_LABEL}))
     text = cli.summary(wired["flow"], out)
-    assert "2 episodes recorded, 2 scored, 0 truncated, 1 failed attempts {'harness': 1} - role $1.50" in text
+    assert "1 episodes recorded (registered), 1 scored, 0 truncated, 1 failed attempts {'harness': 1}" in text
+
+
+def test_a_run_served_by_another_model_is_not_scored(wired: dict[str, Any]) -> None:
+    assert "model-mismatch" in run_one(wired, model="claude-fallback-9")
+    assert VariantStore(wired["out"], "baseline").error_rows()[0]["failure_class"] == "model-mismatch"
+
+
+@pytest.mark.parametrize("call", [
+    ("Read", {"file_path": "/repo/.meta_harness/agents/evaluation/suites/tiny-review/flow.json"}, "真值清单"),
+    ("Grep", {"pattern": "caught", "path": "/main"}, "/main/tmp/role-evals/tiny-review/baseline/results.jsonl:3:…"),
+])
+def test_a_run_that_reached_the_truth_or_earlier_results_is_not_scored(wired: dict[str, Any], call: Any) -> None:
+    assert "contaminated" in run_one(wired, calls=[READ_DOC, call])
+    errors = VariantStore(wired["out"], "baseline").error_rows()
+    assert errors[0]["failure_class"] == "contaminated"
+    assert not cli.episode_dir(wired["out"], "baseline", "doc", 0).exists()
+
+
+def test_a_run_that_changed_its_copy_or_left_its_tools_is_scored_as_not_read_only(wired: dict[str, Any]) -> None:
+    run_one(wired, 0, edits_copy=True)
+    run_one(wired, 1, calls=[("Bash", {"command": "ls /etc/hosts"}, "…"), ("Read", {"file_path": "/etc/hosts"}, "…")])
+    records = [json.loads((cli.episode_dir(wired["out"], "baseline", "doc", rep) / "episode.json").read_text("utf-8"))
+               for rep in (0, 1)]
+    assert [record["observations"]["read_only"][0] for record in records] == [0, 0]
+    assert "被改动" in records[0]["observations"]["read_only"][1] and "Bash" in records[1]["observations"]["read_only"][1]
+    assert records[1]["provenance"]["outside_copy"] == ["/etc/hosts"], "副本之外读了什么，记下来"
+
+
+def test_an_inline_dispatch_hands_the_role_over_as_a_file_and_is_kept_apart(wired: dict[str, Any]) -> None:
+    with pytest.raises(cli.Refused, match="never read the role definition"):
+        run_one(wired, dispatch="inline", calls=[READ_DOC])
+    assert "recorded" in run_one(wired, dispatch="inline", prepare_args={"again": True})
+    record = json.loads((cli.episode_dir(wired["out"], "baseline", "doc", 0) / "episode.json").read_text("utf-8"))
+    assert record["provenance"]["dispatch"] == "inline" and record["provenance"]["outside_copy"] == []
+    assert record["observations"]["read_only"][0] == 1
+    with pytest.raises(cli.Refused, match="one way of dispatching"):
+        run_one(wired, 1)
+    evidence = prepare(wired, 0, variant="v1")
+    inline = transcript(wired["tmp"] / "inline.jsonl", prompt=(evidence / "dispatch.inline.md").read_text(encoding="utf-8"))
+    with pytest.raises(cli.Refused, match="that is an inline dispatch"):
+        cli.record(wired["flow"], wired["flow"].material("doc"), 0, variant="v1", out=wired["out"], transcript=inline,
+                   dispatch="registered", tokens=None)
 
 
 def test_a_grader_that_fails_scores_nothing(wired: dict[str, Any], tmp_path: Path) -> None:
-    run_cli(wired, reps=1)
+    run_one(wired)
     out = wired["out"]
     cli.grade(wired["flow"], variant="baseline", out=out, labels=labels(tmp_path, {"0": {"seeds": {}, "run": {}}}))
     store = VariantStore(out, "baseline")
@@ -866,43 +1023,71 @@ def test_a_grader_that_fails_scores_nothing(wired: dict[str, Any], tmp_path: Pat
     assert len(store.rows()) == 3
 
 
-def test_grading_with_the_judge_records_what_the_judge_cost(wired: dict[str, Any], tmp_path: Path,
-                                                            monkeypatch: pytest.MonkeyPatch) -> None:
-    run_cli(wired, reps=2)
-    out = wired["out"]
-    final = (cli.episode_dir(out, "baseline", "doc", 0) / "final.md").read_text(encoding="utf-8")
-    good = {"findings": [finding("B-1", "blocking", "S1")], "targets": [
-        {"id": "S1", "caught": True, "finding": "B-1", "quote": final.strip().splitlines()[0], "reason": ""},
+def good_answer() -> dict[str, Any]:
+    return {"findings": [finding("B-1", "blocking", "S1")], "targets": [
+        {"id": "S1", "caught": True, "finding": "B-1", "quote": FINAL.splitlines()[0], "reason": ""},
         {"id": "S2", "caught": False, "finding": "", "quote": "", "reason": "没有提到附件"}]}
-    fake_judge(tmp_path, monkeypatch, [good, "garbage", "garbage"])
-    with pytest.raises(cli.Refused, match="exactly one"):
-        cli.grade(wired["flow"], variant="baseline", out=out)
-    cli.grade(wired["flow"], variant="baseline", out=out, judge_model="claude-judge-1", work=tmp_path)
+
+
+def test_a_judge_answer_scores_a_recorded_run_and_says_what_the_judge_used(wired: dict[str, Any]) -> None:
+    out, material = wired["out"], wired["flow"].material("doc")
+    with pytest.raises(cli.Refused, match="no recorded run"):
+        cli.judge_brief(wired["flow"], material, 0, variant="baseline", out=out)
+    run_one(wired)
+    said = cli.judge_brief(wired["flow"], material, 0, variant="baseline", out=out)
+    brief = cli.episode_dir(out, "baseline", "doc", 0) / "judge.brief.md"
+    assert judge.pointer(brief) in said and FINAL in brief.read_text(encoding="utf-8")
+    assert judge_one(wired, good_answer()) == 0
     store = VariantStore(out, "baseline")
     run_row = next(r for r in store.rows() if r["meta"]["unit"] == "run")
-    assert (run_row["judge_cost_usd"], run_row["judge_model"], run_row["judge_attempts"]) == (0.02, "claude-judge-1", 1)
-    assert run_row["meta"]["grader"].startswith("judge:claude-judge-1@high")
-    assert [e["failure_class"] for e in store.error_rows()] == ["grader"]
-    assert "1 scored" in cli.summary(wired["flow"], out) and "role $1.00, judge $0.02" in cli.summary(wired["flow"], out)
-    assert (cli.episode_dir(out, "baseline", "doc", 0) / "judge.attempt0.json").is_file()
+    assert (run_row["judge_model"], run_row["judge_attempts"], run_row["judge_efforts"]) == (JUDGE, 1, ["high"])
+    assert run_row["judge_usage"]["output_tokens"] == 60 and run_row["judge_rejected"] == []
+    assert run_row["meta"]["grader"] == judge.identity(JUDGE)
+    assert run_row["grade"]["blocking"] == 1.0 and store.rows()[0]["grade"] == {"caught": 1}
+    assert (brief.parent / "judge.attempt0.jsonl").is_file()
+    assert "1 scored" in cli.summary(wired["flow"], out) and "judge answers 1" in cli.summary(wired["flow"], out)
+    with pytest.raises(cli.Refused, match="already scored"):
+        judge_one(wired, good_answer())
 
 
-def test_the_grading_sign_off_is_for_one_judge(wired: dict[str, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-                                               capsys: pytest.CaptureFixture[str]) -> None:
-    signed = {"cases": {"version": 1}, "grading": {"version": 1, "judge": judge.identity("claude-judge-1", "high")}}
-    root = str(rewrite(wired["repo"], signoffs=signed))
-    monkeypatch.setattr(cli, "work_root", lambda _: tmp_path)
-    args = ["grade", root, "--out", str(wired["out"]), "--variant", "baseline"]
-    assert cli.main([*args, "--judge-model", "claude-judge-2"]) == 2
-    assert cli.main([*args, "--judge-model", "claude-judge-1", "--judge-effort", "low"]) == 2
-    assert "calibrate that judge" in capsys.readouterr().err
-    (wired["out"] / "baseline" / "episodes").mkdir(parents=True)
-    assert cli.main([*args, "--judge-model", "claude-judge-1"]) == 0, "签过的那个判官放行"
+def test_a_judge_answer_that_fails_its_checks_is_asked_for_once_more(wired: dict[str, Any]) -> None:
+    run_one(wired, 0)
+    run_one(wired, 1)
+    bad = broken(lambda raw: raw["targets"][0].update(quote="报告里没有的一句话，足够长"))
+    assert judge_one(wired, bad) == cli.RETRY
+    store = VariantStore(wired["out"], "baseline")
+    assert store.rows() == [] and store.error_rows() == [], "第一次被驳回还不算失败"
+    assert judge_one(wired, good_answer()) == 0
+    run_row = next(r for r in store.rows() if r["meta"]["unit"] == "run")
+    assert run_row["judge_attempts"] == 2 and "not in the report" in run_row["judge_rejected"][0]
+    assert run_row["judge_usage"]["output_tokens"] == 120, "被驳回的那一次的用量也记"
+    # 两次都不过：这一次运行记为判定失败，不进结果表
+    assert judge_one(wired, "这份报告写得不错。", rep=1) == cli.RETRY
+    assert judge_one(wired, bad, rep=1) == 1
+    assert [(e["rep"], e["failure_class"]) for e in store.error_rows()] == [(1, "grader")]
+    assert {r["rep"] for r in store.rows()} == {0}
+    evidence = cli.episode_dir(wired["out"], "baseline", "doc", 1)
+    assert (evidence / "judge.attempt0.jsonl").is_file() and (evidence / "judge.attempt1.jsonl").is_file()
+
+
+def test_the_grading_sign_off_is_for_one_judge(wired: dict[str, Any]) -> None:
+    run_one(wired)
+    signed = {"cases": {"version": 1}, "grading": {"version": 1, "judge": judge.identity(JUDGE)}}
+    wired["flow"] = suite.load(rewrite(wired["repo"], signoffs=signed))
+    with pytest.raises(cli.Refused, match="sign-off is for"):
+        judge_one(wired, good_answer(), model="claude-judge-2")
+    with pytest.raises(cli.Refused, match="uses nothing else"):
+        judge_one(wired, good_answer(), calls=[("Bash", {"command": "cat flow.json"}, "…")])
+    assert VariantStore(wired["out"], "baseline").error_rows() == [], "不是这个判官的答复，连一次尝试都不算"
+    assert judge_one(wired, good_answer()) == 0, "签过的那个判官放行"
+    wired["flow"] = suite.load(rewrite(wired["repo"], signoffs={"cases": {"version": 1}}))
+    with pytest.raises(cli.Refused, match="no sign-off on the grading method"):
+        cli.judge_brief(wired["flow"], wired["flow"].material("doc"), 0, variant="baseline", out=wired["out"])
 
 
 def test_a_truncated_run_is_counted_and_left_out_of_the_means(wired: dict[str, Any], tmp_path: Path) -> None:
-    wired["modes"][:] = ["max-tokens", "ok"]
-    run_cli(wired)
+    run_one(wired, 0, stop="max_tokens", handback=False)
+    run_one(wired, 1)
     cli.grade(wired["flow"], variant="baseline", out=wired["out"], labels=labels(tmp_path, {"0": GOOD_LABEL, "1": GOOD_LABEL}))
     rows = VariantStore(wired["out"], "baseline").rows()
     assert [r["grade"] for r in rows if r["rep"] == 0] == [{}, {}, {}]
@@ -910,17 +1095,8 @@ def test_a_truncated_run_is_counted_and_left_out_of_the_means(wired: dict[str, A
     assert "2 scored, 1 truncated" in text and "over 2 cases, 2 observations" in text
 
 
-def test_a_changed_model_is_a_variant_of_its_own(wired: dict[str, Any]) -> None:
-    wired["modes"][:] = ["ok"]
-    with_other = run_cli(wired, variant="v1", reps=1, overrides={"model": "claude-fallback-9"})
-    assert with_other == 0
-    errors = VariantStore(wired["out"], "v1").error_rows()
-    assert errors[0]["failure_class"] == "model-mismatch", "the host served another model than the variant asked for"
-
-
 def test_an_earlier_recorded_run_is_taken_over_without_running_anything(wired: dict[str, Any], tmp_path: Path) -> None:
-    old = tmp_path / "evidence-ok"
-    run_fake(tmp_path, "ok")
+    old = headless(tmp_path / "evidence-ok")
     (old / "run.json").write_text(json.dumps({
         "model_id": MODEL, "effort": "xhigh", "wall_ms": 4200, "timed_out": False, "workspace_unchanged": True,
         "agents_definition_sha256": "abc"}), encoding="utf-8")
@@ -928,9 +1104,12 @@ def test_an_earlier_recorded_run_is_taken_over_without_running_anything(wired: d
     cli.import_run(wired["flow"], variant="baseline", out=wired["out"], material=material, rep=0, source=old)
     record = json.loads((cli.episode_dir(wired["out"], "baseline", "doc", 0) / "episode.json").read_text("utf-8"))
     assert record["provenance"]["harness_commit"] == "imported" and record["provenance"]["agent_sha"] == "abc"
-    assert (record["wall_seconds"], record["effort"]) == (4.2, "xhigh")
+    assert (record["wall_seconds"], record["effort"], record["cost_usd"]) == (4.2, "xhigh", 0.5)
+    assert record["provenance"]["dispatch"] == "headless"
     with pytest.raises(cli.Refused, match="already recorded"):
         cli.import_run(wired["flow"], variant="baseline", out=wired["out"], material=material, rep=0, source=old)
+    with pytest.raises(cli.Refused, match="one way of dispatching"):
+        run_one(wired, 1)
 
 
 def test_the_inputs_page_shows_every_case_in_full(wired: dict[str, Any]) -> None:
@@ -946,6 +1125,27 @@ def test_the_work_root_must_be_outside_any_checkout(repo: Path) -> None:
         cli.work_root(repo / "scratch")
 
 
+def test_the_command_line_runs_the_pair_around_a_dispatch(wired: dict[str, Any], tmp_path: Path,
+                                                          monkeypatch: pytest.MonkeyPatch,
+                                                          capsys: pytest.CaptureFixture[str]) -> None:
+    wired["work"].mkdir()
+    monkeypatch.setattr(cli, "work_root", lambda _: wired["work"])   # make test 的临时目录在检出里，真的工作根不许在那
+    root, out = str(wired["repo"] / "suites" / "tiny-review"), str(wired["out"])
+    episode = ["--out", out, "--variant", "baseline", "--material", "doc"]
+    assert cli.main(["prepare", root, *episode]) == 0
+    assert "Dispatch ONE subagent" in capsys.readouterr().out
+    evidence = cli.episode_dir(wired["out"], "baseline", "doc", 0)
+    ran = transcript(tmp_path / "agent.jsonl", prompt=(evidence / "brief.md").read_text(encoding="utf-8"))
+    assert cli.main(["record", root, *episode, "--transcript", str(tmp_path / "no-such.jsonl"), "--dispatch", "registered"]) == 2
+    assert cli.main(["record", root, *episode, "--transcript", str(ran), "--dispatch", "registered", "--tokens", "4321"]) == 0
+    assert cli.main(["judge-brief", root, *episode]) == 0
+    answered = judge_transcript(tmp_path / "judge.jsonl", evidence / "judge.brief.md", good_answer())
+    assert cli.main(["judge-record", root, *episode, "--transcript", str(answered)]) == 0
+    assert cli.main(["judge-record", root, *episode, "--transcript", str(answered)]) == 2, "已经判过"
+    assert cli.main(["summary", root, "--out", out]) == 0
+    assert "role 4321 tokens reported" in capsys.readouterr().out
+
+
 def test_report_without_a_builder_points_at_the_summary(repo: Path, capsys: pytest.CaptureFixture[str],
                                                         monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cli, "BUILDER", repo / "no-such-builder.mjs")
@@ -956,7 +1156,8 @@ def test_report_without_a_builder_points_at_the_summary(repo: Path, capsys: pyte
 @pytest.mark.skipif(shutil.which("node") is None, reason="报告页生成器要 node")
 def test_the_builder_kept_in_the_repository_renders_a_graded_flow(wired: dict[str, Any], tmp_path: Path) -> None:
     out = wired["out"]
-    assert run_cli(wired) == 0
+    run_one(wired, 0)
+    run_one(wired, 1)
     cli.grade(wired["flow"], variant="baseline", out=out, labels=labels(tmp_path, {"0": GOOD_LABEL, "1": GOOD_LABEL}))
     assert cli.main(["report", str(wired["repo"] / "suites" / "tiny-review"), "--out", str(out)]) == 0
     assert "baseline" in (out / "report.html").read_text(encoding="utf-8")
@@ -981,58 +1182,91 @@ def calibration_case(case_id: str, report: str, s1: int, s2: int, **over: Any) -
             "seeds": {"S1": [s1, "人工的理由一"], "S2": [s2, "人工的理由二"]}, **over}
 
 
-SILENT = {"findings": [], "targets": [
-    {"id": seed, "caught": False, "finding": "", "quote": "", "reason": "报告没有提到"} for seed in ("S1", "S2")]}
+def calibrate_one(flow: suite.Flow, case: calibration.Case, out: Path, answer: Any, **shape: Any) -> dict[str, Any]:
+    """写这份报告的判官简报、「派发」判官、收录它的答复。"""
+    brief = calibration.write_brief(flow, case, out)
+    path = judge_transcript(out.parent / f"calibrate-{next(serial)}.jsonl", brief, answer, **shape)
+    return calibration.record(flow, case, claude_host.parse(path, brief="校准"), out=out, transcript=path)
 
 
-def test_calibration_compares_the_judge_with_a_person_problem_by_problem(
-        repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_made_negative_is_a_real_report_with_stated_changes() -> None:
+    text = "## 阻断\n\n### B-1 甲\n\n正文甲\n\n### B-2 乙\n\n正文乙\n\n## 非阻断\n\n无\n"
+    cut = calibration.derive(text, [{"op": "cut", "from": "### B-1", "until": "### B-2"}])
+    assert "正文甲" not in cut and "### B-2 乙" in cut
+    moved = calibration.derive(text, [{"op": "replace", "find": "## 阻断", "replace": "## 未覆盖"}])
+    assert moved.startswith("## 未覆盖")
+    for ops, message in (([{"op": "cut", "from": "###", "until": "## 非阻断"}], "occurs 2 times"),
+                         ([{"op": "cut", "from": "### B-2", "until": "### B-3"}], "nothing after"),
+                         ([{"op": "replace", "find": "丙", "replace": "丁"}], "occurs 0 times"),
+                         ([{"op": "shuffle"}], "unknown derivation")):
+        with pytest.raises(suite.SuiteError, match=message):
+            calibration.derive(text, ops)
+
+
+def test_calibration_compares_the_judge_with_a_person_problem_by_problem(repo: Path, tmp_path: Path) -> None:
     flow = calibration_set(repo, [
         calibration_case("real", "real.md", 1, 0, run={"blocking": [1, "B-1"], "out_of_kind": [0, "没有"]}),
         calibration_case("cut", "real.md", 0, 0),          # 人工说没报出，判官会说报出了
         calibration_case("silent", "silent.md", 0, 0),
+        calibration_case("later", "silent.md", 0, 0),
     ], {"real.md": REPORT, "silent.md": "没有发现问题。"})
-    fake_judge(tmp_path, monkeypatch, [raw_answer(), raw_answer(), SILENT])
+    out = tmp_path / "out"
     grader, cases = calibration.load(flow)
-    results, left_out = calibration.run(flow, cases, model="claude-judge-1", effort="high", out=tmp_path / "out",
-                                        work=tmp_path, budget_usd=5, call_budget_usd=1)
-    assert left_out == [] and grader == "人工：测试"
+    for case, answer in zip(cases, (raw_answer(), raw_answer(), SILENT)):
+        assert calibrate_one(flow, case, out, answer)["status"] == "judged"
+    where = calibration.directory(out, JUDGE)
+    assert where.name.startswith(f"judge-subagent-{JUDGE}-rules-") and (where / "real" / "judge.attempt0.jsonl").is_file()
+    assert (where / "real" / "report.md").read_text(encoding="utf-8") == REPORT, "判官实际拿到的那一份报告留底"
+    results = calibration.recorded(where)
+    assert grader == "人工：测试" and sorted(results) == ["cut", "real", "silent"]
     outcome = calibration.compare(cases, results)
     assert outcome["cells"] == {"both_caught": 1, "both_missed": 4, "judge_only": 1, "person_only": 0}
     assert [(item["case"], item["seed"]) for item in outcome["disagreements"]] == [("cut", "S1")]
     assert [(item["metric"], item["agree"]) for item in outcome["run_checks"]] == [("blocking", True),
                                                                                    ("out_of_kind", False)]
-    assert outcome["cost_usd"] == pytest.approx(0.06) and outcome["attempts"] == 3
-    text = calibration.render(flow, grader, cases, results, model="claude-judge-1", effort="high")
+    assert (outcome["attempts"], outcome["output_tokens"], outcome["efforts"]) == (3, 180, ["high"])
+    assert outcome["pending"] == ["later"]
+    text = calibration.render(flow, grader, cases, results, model=JUDGE)
     assert "一致 5 / 6（83.3%）" in text and "`cut` 的 `S1`：人工判 0（人工的理由一）；判官判 1" in text
+    assert f"`{judge.identity(JUDGE)}`" in text and "宿主记录的档位：high" in text and "还没判的" in text
+    with pytest.raises(suite.SuiteError, match="already has a result"):
+        calibrate_one(flow, cases[0], out, raw_answer())
+    # 另一个判官的结果另放一处，互不相干
+    assert calibrate_one(flow, cases[0], out, raw_answer(), model="claude-judge-2")["status"] == "judged"
+    assert sorted(calibration.recorded(where)) == ["cut", "real", "silent"]
 
 
-def test_calibration_stops_at_the_budget_and_resumes_without_paying_twice(
-        repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    flow = calibration_set(repo, [calibration_case(name, "real.md", 1, 0) for name in ("a", "b", "c")],
-                           {"real.md": REPORT})
-    fake_judge(tmp_path, monkeypatch, [raw_answer()])
+def test_a_rejected_calibration_answer_is_asked_for_once_more_and_then_counts_as_failed(
+        repo: Path, tmp_path: Path) -> None:
+    flow = calibration_set(repo, [calibration_case("real", "real.md", 1, 0),
+                                  calibration_case("silent", "silent.md", 0, 0)],
+                           {"real.md": REPORT, "silent.md": "没有发现问题。"})
+    out = tmp_path / "out"
     _, cases = calibration.load(flow)
-    settings = {"model": "claude-judge-1", "effort": "high", "out": tmp_path / "out", "work": tmp_path}
-    # 每次调用 0.02：预算 0.05、单次上限 0.02 时，第三份开始前已记 0.04，再加一次就超
-    results, left_out = calibration.run(flow, cases, budget_usd=0.05, call_budget_usd=0.02, **settings)
-    assert sorted(results) == ["a", "b"] and left_out == ["c"]
-    assert "还没判的" in calibration.render(flow, "人工", cases, results, model="claude-judge-1", effort="high")
-    results, left_out = calibration.run(flow, cases, budget_usd=1, call_budget_usd=0.02, **settings)
-    assert sorted(results) == ["a", "b", "c"] and left_out == []
-    assert calibration.spent(results) == pytest.approx(0.06), "已判的不再调用"
+    miscopied = broken(lambda raw: raw["targets"][0].update(quote="design/doc.md 第一句写「调用方方可以不读」"))
+    with pytest.raises(grading.GraderError, match="not in the report"):
+        calibrate_one(flow, cases[0], out, miscopied)
+    assert calibrate_one(flow, cases[0], out, raw_answer())["spend"]["judge_attempts"] == 2
+    with pytest.raises(grading.GraderError):
+        calibrate_one(flow, cases[1], out, raw_answer())      # 引的句子不在这份报告里
+    assert calibrate_one(flow, cases[1], out, raw_answer())["status"] == "failed"
+    outcome = calibration.compare(cases, calibration.recorded(calibration.directory(out, JUDGE)))
+    assert outcome["judged"] == 2 and outcome["failed"][0]["case"] == "silent" and outcome["attempts"] == 4
+    assert outcome["retried"][0]["case"] == "real" and "not in the report" in outcome["retried"][0]["reasons"][0]
+    text = calibration.render(flow, "人工", cases, calibration.recorded(calibration.directory(out, JUDGE)), model=JUDGE)
+    assert "判官的答复被程序驳回、重答之后通过的" in text and "判官答复没通过核对的" in text
 
 
-def test_a_judge_answer_that_fails_its_checks_is_counted_and_still_billed(
-        repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    flow = calibration_set(repo, [calibration_case("silent", "silent.md", 0, 0)], {"silent.md": "没有发现问题。"})
-    fake_judge(tmp_path, monkeypatch, [raw_answer()])      # 引的句子不在这份报告里
+def test_a_calibration_answer_to_a_brief_that_has_since_changed_is_not_taken(repo: Path, tmp_path: Path) -> None:
+    flow = calibration_set(repo, [calibration_case("real", "real.md", 1, 0)], {"real.md": REPORT})
+    out = tmp_path / "out"
     _, cases = calibration.load(flow)
-    results, _ = calibration.run(flow, cases, model="claude-judge-1", effort="high", out=tmp_path / "out",
-                                 work=tmp_path, budget_usd=5, call_budget_usd=1)
-    outcome = calibration.compare(cases, results)
-    assert outcome["judged"] == 0 and outcome["failed"][0]["case"] == "silent"
-    assert outcome["cost_usd"] == pytest.approx(0.04) and outcome["attempts"] == 2
+    brief = calibration.write_brief(flow, cases[0], out)
+    path = judge_transcript(tmp_path / "judge.jsonl", brief, raw_answer())
+    brief.write_text(brief.read_text(encoding="utf-8") + "\n另加一句。\n", encoding="utf-8")
+    with pytest.raises(judge.NotThisJudge, match="write it again"):
+        calibration.record(flow, cases[0], claude_host.parse(path, brief="校准"), out=out, transcript=path)
+    assert not calibration.directory(out, JUDGE).exists()
 
 
 @pytest.mark.parametrize(("change", "message"), [
@@ -1042,6 +1276,7 @@ def test_a_judge_answer_that_fails_its_checks_is_counted_and_still_billed(
     (lambda case: case.update(run={"speed": [1, "x"]}), "unknown run metrics"),
     (lambda case: case["seeds"].update(S1=[2, "x"]), "0 or 1"),
     (lambda case: case.update(id="a/b"), "names a directory"),
+    (lambda case: case.update(derive=[{"op": "cut", "from": "不在报告里", "until": "## 非阻断"}]), "occurs 0 times"),
 ])
 def test_a_calibration_set_that_does_not_cover_its_material_does_not_load(repo: Path, change: Any, message: str) -> None:
     case = calibration_case("real", "real.md", 1, 0)
@@ -1051,19 +1286,28 @@ def test_a_calibration_set_that_does_not_cover_its_material_does_not_load(repo: 
         calibration.load(suite.load(repo / "suites" / "tiny-review"))
 
 
-def test_the_calibrate_command_writes_the_comparison_beside_the_results(
-        wired: dict[str, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    calibration_set(wired["repo"], [calibration_case("real", "real.md", 1, 0)], {"real.md": REPORT})
-    fake_judge(tmp_path, monkeypatch, [raw_answer()])
-    monkeypatch.setattr(cli, "work_root", lambda _: tmp_path)   # make test 的临时目录在检出里，真的工作根不许在那
-    root = str(wired["repo"] / "suites" / "tiny-review")
-    assert cli.main(["calibrate", root, "--out", str(wired["out"]), "--judge-model", "claude-judge-1",
-                     "--budget-usd", "1"]) == 0
+def test_the_calibrate_commands_write_briefs_take_answers_and_print_the_comparison(
+        wired: dict[str, Any], tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    calibration_set(wired["repo"], [calibration_case("real", "real.md", 1, 0), calibration_case("again", "real.md", 1, 0)],
+                    {"real.md": REPORT})
+    root, out = str(wired["repo"] / "suites" / "tiny-review"), wired["out"]
+    assert cli.main(["calibrate-brief", root, "--out", str(out)]) == 0
+    briefs = out / "_calibration" / "_briefs"
+    printed = capsys.readouterr().out
+    assert judge.pointer(briefs / "real.md") in printed and judge.pointer(briefs / "again.md") in printed
+    assert cli.main(["calibrate-brief", root, "--out", str(out), "--case", "nope"]) == 2
+    good = judge_transcript(tmp_path / "good.jsonl", briefs / "real.md", raw_answer())
+    assert cli.main(["calibrate-record", root, "--out", str(out), "--case", "real", "--transcript", str(good)]) == 0
+    assert cli.main(["calibrate-record", root, "--out", str(out), "--case", "again", "--transcript", str(good)]) == 2, (
+        "指向另一份简报的记录不收")
+    bad = judge_transcript(tmp_path / "bad.jsonl", briefs / "again.md", "我认为都报出了。")
+    assert cli.main(["calibrate-record", root, "--out", str(out), "--case", "again", "--transcript", str(bad)]) == cli.RETRY
+    capsys.readouterr()
+    assert cli.main(["calibrate", root, "--out", str(out), "--judge-model", JUDGE]) == 0
     assert "一致 2 / 2（100.0%）" in capsys.readouterr().out
-    written = list((wired["out"] / "_calibration").glob("*/calibration.md"))
-    assert len(written) == 1 and "judge-claude-judge-1@high-rules-" in written[0].parent.name
-    assert cli.main(["calibrate", root, "--out", str(wired["out"]), "--judge-model", "claude-judge-1",
-                     "--budget-usd", "1", "--case", "nope"]) == 2
+    written = list((out / "_calibration").glob("*/calibration.md"))
+    assert len(written) == 1 and written[0].parent == calibration.directory(out, JUDGE)
+    assert "还没判的" in written[0].read_text(encoding="utf-8")
 
 
 # --- 入库的常设用例集 ---------------------------------------------------------------------------------------

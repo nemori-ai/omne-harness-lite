@@ -6,9 +6,9 @@
 
 | 流 | 角色与判断 | 现状 |
 |---|---|---|
-| [design-review-expression](design-review-expression/README.md) | design-reviewer 判「表达」 | 两次签字已齐，还没有基线 |
-| [design-review-choice](design-review-choice/README.md) | design-reviewer 判「选择」 | 两次签字已齐，还没有基线 |
-| [design-review-plan](design-review-plan/README.md) | design-reviewer 判「计划」 | 两次签字已齐，还没有基线 |
+| [design-review-expression](design-review-expression/README.md) | design-reviewer 判「表达」 | 用例已签字；判官换成 subagent 后已重新校准，判定方法等重新签字；还没有基线 |
+| [design-review-choice](design-review-choice/README.md) | design-reviewer 判「选择」 | 同上 |
+| [design-review-plan](design-review-plan/README.md) | design-reviewer 判「计划」 | 同上 |
 
 其余角色的流还没有迁入或建立，各自的一次性评估见[评估索引](../README.md)。
 
@@ -36,9 +36,10 @@ README.md        这个流量什么、量不出什么、基线数字与噪声范
 
 ## 规矩
 
-- **两次签字之后才跑付费的评估。**用例由负责人看过并认可，判定方法由负责人看过并认可；签字记在 `flow.json` 的 `signoffs` 里，
-  带用例集的版本号。版本一变签字失效，运行器拒绝开跑。判定方法那一条另写明是给哪个判官签的（模型、档位、规则哈希），
-  换一个判官要重新校准、重新签。整轮的花费按试跑实测报给负责人，同意之后才跑。
+- **两次签字之后才跑评估。**用例由负责人看过并认可，判定方法由负责人看过并认可；签字记在 `flow.json` 的 `signoffs` 里，
+  带用例集的版本号。版本一变签字失效，运行器拒绝准备运行。判定方法那一条另写明是给哪个判官签的（模型与规则哈希），
+  换一个判官要重新校准、重新签。整轮的用量与用时按试跑实测报给负责人，同意之后才跑。
+- **模型只由主会话派 subagent 来跑**，角色与判官都是；不起无界面的宿主进程。做法见运行器说明。
 - **真值不进被测角色看得到的地方。**运行用的工作副本不含本目录。
 - **改用例升版本，不原地改。**不同版本的结果不放在一起比。
 - **材料钉在主线上够得着的提交。**本仓库按 squash 合并，分支上的提交合并后会够不着；`make test` 里那条测试在够不着时会失败，届时改钉。
@@ -46,5 +47,6 @@ README.md        这个流量什么、量不出什么、基线数字与噪声范
 ## 什么时候跑
 
 改了某个角色的正文、它内联的共享正文、它读的判据页或它依赖的工具输出；换了它的模型或档位；宿主升了版本。
-跑之前先 `make role-eval ARGS="verify <用例集目录>"`（不花钱），再按运行器说明跑一个新的变体，与基线逐用例比。
+跑之前先 `make role-eval ARGS="verify <用例集目录>"`（不调用模型），再按运行器说明跑一个新的变体，与基线逐用例比。
+改过角色的源之后要重编生成物并**开一个新会话**再派发，否则派到的还是会话开始时加载的旧定义。
 比出来的差小于该流说明里写的噪声范围时，结论是「看不出变化」，不是「没有变化」。

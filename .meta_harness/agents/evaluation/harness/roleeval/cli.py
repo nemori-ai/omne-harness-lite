@@ -1,29 +1,39 @@
 """Command line of the role evaluations.
 
-  verify SUITE                     build every material's copy, seed it, check the seeds took; no model is called
-  inputs SUITE                     every case in full, as markdown, for the cases sign-off
-  run SUITE --variant V            run the role on every (material, rep) not yet recorded; this is the paid step
-  import-run SUITE --variant V …   take over one run an earlier experiment recorded, as an episode
-  grade SUITE --variant V …        turn recorded episodes into scored rows
-  calibrate SUITE --judge-model M  run the judge on the suite's calibration reports and compare with a person; paid
-  summary SUITE                    scores with intervals, failures by class, spend
-  report SUITE                     build report.html with the report builder kept beside this package
+Nothing here starts a model. A run of the role, and an answer of the judge, is a subagent that a
+main session dispatches. The commands come in pairs around that dispatch: one writes what to hand
+to the subagent, the other takes in the transcript the host kept of it
+(``<session directory>/subagents/agent-<id>.jsonl``).
+
+  verify SUITE                                    build every material's copy, seed it, check the seeds took
+  inputs SUITE                                    every case in full, as markdown, for the cases sign-off
+  prepare SUITE --variant V --material M          build the copy and the brief for one run of the role
+  record SUITE --variant V --material M --transcript T --dispatch MODE
+                                                  take in that run: check the copy, the model, where it reached
+  judge-brief SUITE --variant V --material M      write the judge's brief for a recorded run; print the prompt that points at it
+  judge-record SUITE --variant V --material M --transcript T
+                                                  check the judge's answer against the report; score the run
+  grade SUITE --variant V --labels FILE           score recorded runs from verdicts a person wrote down
+  calibrate-brief SUITE [--case ID]               write the judge's briefs for the calibration reports
+  calibrate-record SUITE --case ID --transcript T check that answer and store it
+  calibrate SUITE --judge-model M                 compare what is stored for that judge with the person's verdicts
+  import-run SUITE --variant V …                  take over one run an earlier experiment recorded
+  summary SUITE                                   scores with intervals, failures by class
+  report SUITE                                    build report.html with the report builder kept beside this package
 
 Episodes and results go to <main checkout>/tmp/role-evals/<flow>/ unless --out says otherwise.
 """
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
-import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +48,21 @@ WORK_ENV = "ROLEEVAL_WORK"
 BUILDER = HARNESS.parent / "report" / "build-report-lite.mjs"
 KNOWN_VERDICTS = {"real": "成立", "artefact": "评估手段带来的", "unverified": "未核实", "out-of-kind": "属于另一种判断",
                   "rejected": "当时被驳回"}
+DISPATCH = ("registered", "inline")
+# What a run must not reach: the truth lists, the calibration verdicts, earlier results.
+OFF_LIMITS = ("evaluation/suites/", "calibration/cases.json", "tmp/role-evals")
+ALIASES = {"claude-opus-5-5": "opus", "claude-fable-5-1": "fable", "claude-sonnet-5-5": "sonnet"}
+INLINE = """你这一次担任的角色，完整定义在文件 {role} 里。开始之前先把它一次读完，把它当作你的系统指令照办。
+你只能使用这几样工具：{tools}。
+
+下面是派发给你的任务。
+
+{brief}"""
+RETRY = 3
+
+
+def _squash(text: str) -> str:
+    return re.sub(r"\s+", "", text)
 
 
 class Refused(RuntimeError):
@@ -72,7 +97,7 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def prepare(flow: Flow, material: Material, dest: Path) -> None:
+def build_copy(flow: Flow, material: Material, dest: Path) -> None:
     settings = flow.workspace
     workspace.build(REPO, dest, base=flow.base(material), material_paths=flow.material_paths(material),
                     material_excludes=settings["material_excludes"], subject_paths=settings["subject_paths"])
@@ -88,10 +113,12 @@ def guarded_paths(flow: Flow) -> list[str]:
 
 # --- verify -------------------------------------------------------------------------------------------------
 
-def verify(flow: Flow, work: Path) -> list[str]:
+def verify(flow: Flow, work: Path, only: list[str] | None = None) -> list[str]:
     """Problems that would make a run meaningless; empty when the suite is runnable."""
     problems = []
     for material in flow.materials:
+        if only and material.id not in only:
+            continue
         base = flow.base(material)
         if not workspace.is_ancestor(REPO, base):
             problems.append(f"{material.id}: base {base} is not an ancestor of HEAD; pin a commit that stays reachable")
@@ -188,10 +215,10 @@ def inputs(flow: Flow) -> str:
     return "\n".join(lines) + "\n"
 
 
-# --- run ----------------------------------------------------------------------------------------------------
+# --- one run of the role: prepare, then record ----------------------------------------------------------------
 
 def compile_definition(flow: Flow, out: Path, variant: str) -> Path:
-    """Compile the role from its source at this commit and freeze it as the ``--agents`` file of the variant."""
+    """Compile the role from its source at this commit and freeze it as the definition of the variant."""
     staging = out / variant / "agents" / "staging"
     shutil.rmtree(staging, ignore_errors=True)
     done = subprocess.run(
@@ -213,44 +240,65 @@ def compile_definition(flow: Flow, out: Path, variant: str) -> Path:
     return frozen
 
 
-def run_one(flow: Flow, material: Material, rep: int, *, variant: str, out: Path, work: Path, agents: Path,
-            provenance: dict[str, Any], keep: bool, store: VariantStore, lock: threading.Lock) -> str:
-    host = flow.host["claude-code"]
+def prepare(flow: Flow, material: Material, rep: int, *, variant: str, out: Path, work: Path, allow_dirty: bool,
+            again: bool) -> str:
+    """Build the copy and the brief of one run, and say how to dispatch it."""
+    unsigned = flow.unsigned()
+    if unsigned:
+        raise Refused(f"{flow.id} v{flow.version} has no sign-off on: {', '.join(unsigned)}. "
+                      f"A run waits for both; record them under 'signoffs' in flow.json.")
+    changes = workspace.dirty(REPO, guarded_paths(flow))
+    if changes and not allow_dirty:
+        raise Refused("uncommitted changes in what is under test or in the suite:\n  " + "\n  ".join(changes))
+    problems = verify(flow, work, only=[material.id])
+    if problems:
+        raise Refused("the material does not verify:\n  " + "\n  ".join(problems))
     evidence = episode_dir(out, variant, material.id, rep)
-    attempt = work / f"{flow.id}-{variant}-{material.id}-rep{rep}-{int(time.time())}"
+    if (evidence / "episode.json").exists():
+        raise Refused(f"{evidence} is already recorded")
+    pending = evidence / "pending.json"
+    if pending.exists() and not again:
+        raise Refused(f"{material.id} rep {rep} is already prepared and waits for its transcript; "
+                      f"--again throws that copy away and builds a new one")
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "_state.json").write_text(json.dumps(flow.state(), ensure_ascii=False, indent=1), encoding="utf-8")
+    agents = compile_definition(flow, out, variant)
+    attempt = work / f"{flow.id}-{variant}-{material.id}-rep{rep}"
+    shutil.rmtree(attempt, ignore_errors=True)
     dest = attempt / "workspace"
     try:
-        prepare(flow, material, dest)
-        before = workspace.tree_hash(dest)
+        build_copy(flow, material, dest)
         brief_text = review.brief(flow, material, dest, repo=REPO)
-        command = claude_host.command(agents, flow.role, model=host["model"], effort=host["effort"],
-                                      allowed=host["allowed"], disallowed=host["disallowed"],
-                                      permission_mode=host["permission_mode"], budget_usd=host["budget_usd"])
-        episode = claude_host.run(command, cwd=dest, brief=brief_text, wall_seconds=host["wall_seconds"],
-                                  evidence=evidence)
-        unchanged = workspace.tree_hash(dest) == before
     except (workspace.WorkspaceError, RuntimeError, OSError) as error:
-        with lock:
-            store.record_error(material.id, rep, "harness", str(error), evidence=str(evidence))
-        return f"{material.id} rep {rep}: harness error - {error}"
-    finally:
-        if not keep:
-            shutil.rmtree(attempt, ignore_errors=True)
-    failure = episode.failure(host["model"])
-    if failure:
-        # The attempt keeps its evidence under a name that frees the (material, rep) slot for a resume.
-        parked = evidence.with_name(f"{evidence.name}.failed-{int(time.time())}")
-        evidence.rename(parked)
-        with lock:
-            store.record_error(material.id, rep, failure[0], failure[1], model=episode.model,
-                               usage=episode.usage or None, cost_usd=episode.cost_usd, evidence=str(parked))
-        return f"{material.id} rep {rep}: {failure[0]} - {failure[1]}"
-    (evidence / "final.md").write_text(episode.final, encoding="utf-8")
-    record = episode_record(flow, material, rep, variant, episode, unchanged=unchanged, provenance={
-        **provenance, "agent_sha": sha256(agents), "brief_sha": sha256(evidence / "brief.md"),
-        "trajectory_sha": sha256(evidence / "trajectory.jsonl")})
-    (evidence / "episode.json").write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
-    return f"{material.id} rep {rep}: recorded, {episode.wall_seconds:.0f}s, ${episode.cost_usd}"
+        shutil.rmtree(attempt, ignore_errors=True)
+        raise Refused(f"could not prepare {material.id}: {error}") from error
+    host = flow.host["claude-code"]
+    # The role definition sits beside the copy, outside every checkout, for a dispatch that has to hand it over as a file.
+    role = attempt / "role.md"
+    role.write_text(json.loads(agents.read_text(encoding="utf-8"))[flow.role]["prompt"] + "\n", encoding="utf-8")
+    evidence.mkdir(parents=True, exist_ok=True)
+    (evidence / "brief.md").write_text(brief_text, encoding="utf-8")
+    (evidence / "dispatch.inline.md").write_text(
+        INLINE.format(tools="、".join(host["allowed"]), role=role, brief=brief_text), encoding="utf-8")
+    pending.write_text(json.dumps({
+        "workspace": str(dest), "role": str(role), "tree_hash": workspace.tree_hash(dest),
+        "harness_commit": workspace.head(REPO), "dirty": bool(changes), "agent_sha": sha256(agents),
+        "prepared_at": int(time.time()),
+    }, ensure_ascii=False, indent=1), encoding="utf-8")
+    alias = ALIASES.get(host["model"], host["model"])
+    return "\n".join([
+        f"{material.id} rep {rep}: prepared. Dispatch ONE subagent, then record its transcript.",
+        f"  registered: subagent type `{flow.role}` (model {alias}); the prompt is the text of {evidence / 'brief.md'}",
+        f"  inline:     a general-purpose subagent (model {alias}); the prompt is the text of "
+        f"{evidence / 'dispatch.inline.md'}",
+        f"  the role is to run on {host['model']} at {host['effort']}; the copy is {dest}",
+    ])
+
+
+def outside_copy(episode: claude_host.Episode, dest: Path, role: str | None) -> list[str]:
+    """Absolute paths the run's tool calls named that are neither inside its copy nor its role definition."""
+    named = {path for _, args in episode.tool_inputs for path in re.findall(r'"(/[^"\s]+)"', args)}
+    return sorted(path for path in named if not path.startswith(str(dest)) and path != role)
 
 
 def episode_record(flow: Flow, material: Material, rep: int, variant: str, episode: claude_host.Episode, *,
@@ -260,7 +308,8 @@ def episode_record(flow: Flow, material: Material, rep: int, variant: str, episo
     return {
         "flow": flow.id, "material": material.id, "rep": rep, "variant": variant, "role": flow.role,
         "requested_model": host["model"], "effort": host["effort"], "model": episode.model,
-        "models_observed": episode.models_observed, "usage": episode.usage, "cost_usd": episode.cost_usd,
+        "models_observed": episode.models_observed, "efforts_observed": episode.efforts_observed,
+        "usage": episode.usage, "cost_usd": episode.cost_usd,
         "stop_reason": episode.stop_reason, "truncated": episode.truncated(), "tool_calls": episode.tool_calls,
         "tool_names": episode.tool_names, "wall_seconds": episode.wall_seconds, "api_seconds": episode.api_seconds,
         "observations": {metric: list(value) for metric, value in observed.items()},
@@ -269,37 +318,55 @@ def episode_record(flow: Flow, material: Material, rep: int, variant: str, episo
     }
 
 
-def run(flow: Flow, *, variant: str, out: Path, work: Path, reps: int | None, only: list[str] | None,
-        parallel: int, allow_dirty: bool, keep: bool, overrides: dict[str, str] | None = None) -> int:
-    if overrides:
-        # A variant that changes the model or the effort says so on the command line; the suite keeps the default.
-        flow = dataclasses.replace(flow, host={**flow.host, "claude-code": {**flow.host["claude-code"], **overrides}})
-    unsigned = flow.unsigned()
-    if unsigned:
-        raise Refused(f"{flow.id} v{flow.version} has no sign-off on: {', '.join(unsigned)}. "
-                      f"A paid run waits for both; record them under 'signoffs' in flow.json.")
-    changes = workspace.dirty(REPO, guarded_paths(flow))
-    if changes and not allow_dirty:
-        raise Refused("uncommitted changes in what is under test or in the suite:\n  " + "\n  ".join(changes))
-    problems = verify(flow, work)
-    if problems:
-        raise Refused("the suite does not verify:\n  " + "\n  ".join(problems))
-    store = VariantStore(out, variant)
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "_state.json").write_text(json.dumps(flow.state(), ensure_ascii=False, indent=1), encoding="utf-8")
-    agents = compile_definition(flow, out, variant)
-    provenance = {"harness_commit": workspace.head(REPO), "dirty": bool(changes)}
-    materials = [flow.material(name) for name in only] if only else list(flow.materials)
-    todo = [(material, rep) for material in materials for rep in range(reps or flow.reps)
-            if not (episode_dir(out, variant, material.id, rep) / "episode.json").exists()]
-    print(f"{flow.id} {variant}: {len(todo)} episodes to run")
-    lock = threading.Lock()
-    with ThreadPoolExecutor(max_workers=parallel) as pool:
-        futures = [pool.submit(run_one, flow, material, rep, variant=variant, out=out, work=work, agents=agents,
-                               provenance=provenance, keep=keep, store=store, lock=lock) for material, rep in todo]
-        for future in futures:
-            print(future.result(), flush=True)
-    return 0
+def record(flow: Flow, material: Material, rep: int, *, variant: str, out: Path, transcript: Path, dispatch: str,
+           tokens: int | None, keep: bool = False) -> str:
+    """Take in the transcript of a prepared run. A run that may not be scored goes to the failure sidecar."""
+    evidence = episode_dir(out, variant, material.id, rep)
+    pending = evidence / "pending.json"
+    if not pending.exists():
+        raise Refused(f"{material.id} rep {rep} is not prepared; run 'prepare' first")
+    prepared = json.loads(pending.read_text(encoding="utf-8"))
+    brief_text = (evidence / "brief.md").read_text(encoding="utf-8")
+    episode = claude_host.parse(transcript, brief=brief_text)
+    if _squash(brief_text) not in _squash(episode.prompt):
+        raise Refused(f"{transcript.name} is not a run of this brief: its prompt does not carry the brief word for word")
+    handed = any(name == "Read" and json.loads(args).get("file_path") == prepared["role"]
+                 for name, args in episode.tool_inputs)
+    if dispatch == "inline" and not handed:
+        raise Refused(f"{transcript.name} never read the role definition at {prepared['role']}; "
+                      f"an inline dispatch hands the role over as that file")
+    if dispatch == "registered" and prepared["role"] in episode.prompt:
+        raise Refused(f"{transcript.name} was pointed at the role file; that is an inline dispatch")
+    for other in (out / variant / "episodes").glob("*/episode.json"):
+        earlier = json.loads(other.read_text(encoding="utf-8"))["provenance"].get("dispatch")
+        if earlier and earlier != dispatch:
+            raise Refused(f"this variant holds runs dispatched as '{earlier}'; a variant holds one way of "
+                          f"dispatching - record '{dispatch}' runs in another variant")
+    host = flow.host["claude-code"]
+    dest = Path(prepared["workspace"])
+    unchanged = dest.is_dir() and workspace.tree_hash(dest) == prepared["tree_hash"]
+    reached = episode.touched(list(OFF_LIMITS))
+    failure = episode.failure(host["model"]) or (("contaminated", "; ".join(reached)) if reached else None)
+    shutil.copyfile(transcript, evidence / "trajectory.jsonl")
+    pending.unlink()
+    if not keep:
+        shutil.rmtree(dest.parent, ignore_errors=True)
+    if failure:
+        # The attempt keeps its evidence under a name that frees the (material, rep) slot for another run.
+        parked = evidence.with_name(f"{evidence.name}.failed-{int(time.time())}")
+        evidence.rename(parked)
+        VariantStore(out, variant).record_error(material.id, rep, failure[0], failure[1], model=episode.model,
+                                                usage=episode.usage or None, cost_usd=None, evidence=str(parked))
+        return f"{material.id} rep {rep}: {failure[0]} - {failure[1]}"
+    (evidence / "final.md").write_text(episode.final, encoding="utf-8")
+    result = episode_record(flow, material, rep, variant, episode, unchanged=unchanged, provenance={
+        "harness_commit": prepared["harness_commit"], "dirty": prepared["dirty"], "agent_sha": prepared["agent_sha"],
+        "brief_sha": sha256(evidence / "brief.md"), "trajectory_sha": sha256(evidence / "trajectory.jsonl"),
+        "dispatch": dispatch, "tokens_reported": tokens,
+        "outside_copy": outside_copy(episode, dest, prepared["role"])})
+    (evidence / "episode.json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
+    return (f"{material.id} rep {rep}: recorded, {episode.wall_seconds or 0:.0f}s, {episode.tool_calls} tool calls, "
+            f"model {episode.model}, effort {episode.efforts_observed or 'not recorded'}")
 
 
 # --- import -------------------------------------------------------------------------------------------------
@@ -320,78 +387,148 @@ def import_run(flow: Flow, *, variant: str, out: Path, material: Material, rep: 
     if failure:
         raise Refused(f"{source} is not a scorable run: {failure}")
     (evidence / "final.md").write_text(episode.final, encoding="utf-8")
-    record = episode_record(flow, material, rep, variant, episode, unchanged=old["workspace_unchanged"], provenance={
-        "harness_commit": "imported", "dirty": False, "imported_from": str(source),
+    result = episode_record(flow, material, rep, variant, episode, unchanged=old["workspace_unchanged"], provenance={
+        "harness_commit": "imported", "dirty": False, "imported_from": str(source), "dispatch": "headless",
         "agent_sha": old["agents_definition_sha256"], "brief_sha": sha256(evidence / "brief.md"),
         "trajectory_sha": sha256(evidence / "trajectory.jsonl")})
-    record["requested_model"], record["effort"] = old["model_id"], old["effort"]
-    (evidence / "episode.json").write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
+    result["requested_model"], result["effort"] = old["model_id"], old["effort"]
+    (evidence / "episode.json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
     out.mkdir(parents=True, exist_ok=True)
     (out / "_state.json").write_text(json.dumps(flow.state(), ensure_ascii=False, indent=1), encoding="utf-8")
 
 
-# --- grade --------------------------------------------------------------------------------------------------
+# --- scoring a recorded run -----------------------------------------------------------------------------------
 
-def grade(flow: Flow, *, variant: str, out: Path, labels: Path | None = None, judge_model: str | None = None,
-          judge_effort: str = "high", work: Path | None = None) -> int:
-    """Score every recorded episode that has no rows yet, from a person's labels or with the model judge."""
-    if (labels is None) == (judge_model is None):
-        raise Refused("grade with exactly one of --labels or --judge-model")
+def _score(flow: Flow, material: Material, rep: int, *, variant: str, out: Path, verdict: grading.Verdict,
+           extra: dict[str, Any]) -> None:
+    evidence = episode_dir(out, variant, material.id, rep)
+    result = json.loads((evidence / "episode.json").read_text(encoding="utf-8"))
+    result["provenance"]["evidence"] = str(evidence.relative_to(out))
+    brief_text = (evidence / "brief.md").read_text(encoding="utf-8")
+    turns = claude_host.parse(evidence / "trajectory.jsonl", brief=brief_text).turns
+    rows = review.rows(flow, material, rep, result, verdict, brief_text=brief_text)
+    rows[-1].update(extra)
+    VariantStore(out, variant).record_episode(rows, turns)
+
+
+def grade(flow: Flow, *, variant: str, out: Path, labels: Path) -> int:
+    """Score every recorded run that has no rows yet, from verdicts a person wrote down."""
     store = VariantStore(out, variant)
     done = store.done()
     graded = 0
     for evidence in sorted((out / variant / "episodes").glob("*/episode.json")):
-        record = json.loads(evidence.read_text(encoding="utf-8"))
-        material, rep = flow.material(record["material"]), record["rep"]
+        result = json.loads(evidence.read_text(encoding="utf-8"))
+        material, rep = flow.material(result["material"]), result["rep"]
         if (material.id, rep) in done:
             continue
-        brief_text = (evidence.parent / "brief.md").read_text(encoding="utf-8")
-        extra: dict[str, Any] = {}
         try:
-            if labels is not None:
-                verdict = grading.from_labels(labels, material, rep)
-            else:
-                verdict, results = judge.judge(
-                    flow, material, (evidence.parent / "final.md").read_text(encoding="utf-8"), model=judge_model,
-                    effort=judge_effort, cwd=work, evidence=evidence.parent / "judge.json")
-                extra = judge.spend(results)
+            verdict = grading.from_labels(labels, material, rep)
         except grading.GraderError as error:
-            failed = judge.spend(getattr(error, "results", []))
-            store.record_error(material.id, rep, "grader", str(error), model=failed["judge_model"],
-                               usage=failed["judge_usage"], cost_usd=failed["judge_cost_usd"],
-                               evidence=str(evidence.parent))
+            store.record_error(material.id, rep, "grader", str(error), evidence=str(evidence.parent))
             print(f"{material.id} rep {rep}: not graded - {error}")
             continue
-        record["provenance"]["evidence"] = str(evidence.parent.relative_to(out))
-        turns = claude_host.parse(evidence.parent / "trajectory.jsonl", brief=brief_text).turns
-        rows = review.rows(flow, material, rep, record, verdict, brief_text=brief_text)
-        rows[-1].update(extra)
-        store.record_episode(rows, turns)
+        _score(flow, material, rep, variant=variant, out=out, verdict=verdict, extra={})
         graded += 1
     print(f"{flow.id} {variant}: graded {graded} episodes")
     return 0
 
 
+def judge_brief(flow: Flow, material: Material, rep: int, *, variant: str, out: Path) -> str:
+    """Write what a main session hands to the judge for one recorded run."""
+    if "grading" in flow.unsigned():
+        raise Refused(f"{flow.id} v{flow.version} has no sign-off on the grading method; the model judge waits for it")
+    evidence = episode_dir(out, variant, material.id, rep)
+    if not (evidence / "episode.json").exists():
+        raise Refused(f"{material.id} rep {rep} has no recorded run to judge")
+    path = evidence / "judge.brief.md"
+    path.write_text(judge.brief(flow, material, (evidence / "final.md").read_text(encoding="utf-8")), encoding="utf-8")
+    signed = flow.signoffs["grading"].get("judge", "any judge")
+    return (f"{material.id} rep {rep}: dispatch ONE subagent ({signed}) whose whole prompt is:\n"
+            f"{judge.pointer(path)}")
+
+
+def judge_record(flow: Flow, material: Material, rep: int, *, variant: str, out: Path, transcript: Path) -> int:
+    """Check a judge answer against the report and score the run; 3 means dispatch the judge again."""
+    if "grading" in flow.unsigned():
+        raise Refused(f"{flow.id} v{flow.version} has no sign-off on the grading method; the model judge waits for it")
+    store = VariantStore(out, variant)
+    if (material.id, rep) in store.done():
+        raise Refused(f"{material.id} rep {rep} is already scored")
+    evidence = episode_dir(out, variant, material.id, rep)
+    path = evidence / "judge.brief.md"
+    report = (evidence / "final.md").read_text(encoding="utf-8")
+    if not path.exists() or path.read_text(encoding="utf-8") != judge.brief(flow, material, report):
+        raise Refused(f"{material.id} rep {rep} has no judge brief under the rules as they now are; "
+                      f"run 'judge-brief' first")
+    answer = claude_host.parse(transcript, brief=judge.pointer(path))
+    try:
+        name = judge.read(answer, path, signed=flow.signoffs["grading"].get("judge"))
+    except judge.NotThisJudge as error:
+        raise Refused(str(error)) from error
+    log = evidence / "judge.attempts.json"
+    attempts = json.loads(log.read_text(encoding="utf-8")) if log.exists() else []
+    shutil.copyfile(transcript, evidence / f"judge.attempt{len(attempts)}.jsonl")
+    try:
+        verdict = judge.verdict(judge.parse_answer(answer.final), material, report, grader=name)
+    except grading.GraderError as error:
+        attempts.append(judge.attempt(answer, rejected=str(error)))
+        log.write_text(json.dumps(attempts, ensure_ascii=False, indent=1), encoding="utf-8")
+        if len(attempts) < judge.ATTEMPTS:
+            print(f"{material.id} rep {rep}: the answer was thrown away - {error}. Dispatch the judge again.")
+            return RETRY
+        spent = judge.spend(attempts)
+        store.record_error(material.id, rep, "grader", f"{len(attempts)} judge answers failed; last: {error}",
+                           model=spent["judge_model"], usage=spent["judge_usage"], evidence=str(evidence))
+        print(f"{material.id} rep {rep}: not graded - {len(attempts)} judge answers failed; last: {error}")
+        return 1
+    attempts.append(judge.attempt(answer))
+    log.write_text(json.dumps(attempts, ensure_ascii=False, indent=1), encoding="utf-8")
+    _score(flow, material, rep, variant=variant, out=out, verdict=verdict, extra=judge.spend(attempts))
+    print(f"{material.id} rep {rep}: scored by {name}")
+    return 0
+
+
 # --- calibrate ----------------------------------------------------------------------------------------------
 
-def calibrate(flow: Flow, *, out: Path, work: Path, model: str, effort: str, budget_usd: float,
-              call_budget_usd: float, only: list[str] | None) -> int:
-    """Run the judge on the calibration reports that have no result yet and print how it compares with a person."""
+def calibration_case(flow: Flow, case_id: str) -> tuple[str, calibration.Case]:
     grader, cases = calibration.load(flow)
-    if only:
-        unknown = sorted(set(only) - {case.id for case in cases})
-        if unknown:
-            raise Refused(f"{flow.id} has no calibration case {', '.join(unknown)}")
-        cases = [case for case in cases if case.id in only]
-    results, left_out = calibration.run(flow, cases, model=model, effort=effort, out=out, work=work,
-                                        budget_usd=budget_usd, call_budget_usd=call_budget_usd)
-    text = calibration.render(flow, grader, cases, results, model=model, effort=effort)
-    where = calibration.directory(out, model, effort)
+    for case in cases:
+        if case.id == case_id:
+            return grader, case
+    raise Refused(f"{flow.id} has no calibration case {case_id}")
+
+
+def calibrate_brief(flow: Flow, case_id: str | None, out: Path) -> str:
+    """Write the judge briefs of one case, or of all, and say what to dispatch for each."""
+    cases = [calibration_case(flow, case_id)[1]] if case_id else calibration.load(flow)[1]
+    lines = ["Dispatch ONE subagent per case; its whole prompt is the line after the case id. Then record its transcript."]
+    for case in cases:
+        lines += [f"{case.id}:", judge.pointer(calibration.write_brief(flow, case, out))]
+    return "\n".join(lines)
+
+
+def calibrate_record(flow: Flow, case_id: str, out: Path, transcript: Path) -> int:
+    _, case = calibration_case(flow, case_id)
+    answer = claude_host.parse(transcript, brief=f"calibration case {case.id}")
+    try:
+        result = calibration.record(flow, case, answer, out=out, transcript=transcript)
+    except judge.NotThisJudge as error:
+        raise Refused(str(error)) from error
+    except grading.GraderError as error:
+        print(f"{case.id}: the answer was thrown away - {error}. Dispatch the judge again.")
+        return RETRY
+    print(f"{case.id}: {result['status']} by {result['grader']}")
+    return 0 if result["status"] == "judged" else 1
+
+
+def calibrate(flow: Flow, *, out: Path, model: str) -> int:
+    """Print how the stored answers of one judge compare with the person's verdicts."""
+    grader, cases = calibration.load(flow)
+    where = calibration.directory(out, model)
+    text = calibration.render(flow, grader, cases, calibration.recorded(where), model=model)
     where.mkdir(parents=True, exist_ok=True)
     (where / "calibration.md").write_text(text, encoding="utf-8")
     print(text, end="")
-    if left_out:
-        print(f"\nbudget of ${budget_usd:g} reached; not judged: {', '.join(left_out)}", file=sys.stderr)
     return 0
 
 
@@ -412,18 +549,17 @@ def summary(flow: Flow, out: Path) -> str:
         by_class: dict[str, int] = {}
         for error in errors:
             by_class[error["failure_class"]] = by_class.get(error["failure_class"], 0) + 1
-        # Role spend comes from every recorded episode, graded or not, plus the attempts that failed;
-        # judge spend from the scored rows plus the grading attempts that failed.
         episodes = [json.loads(path.read_text(encoding="utf-8"))
                     for path in sorted((out / variant / "episodes").glob("*/episode.json"))]
-        role_spend = (sum(episode.get("cost_usd") or 0 for episode in episodes)
-                      + sum(error.get("cost_usd") or 0 for error in errors if error["failure_class"] != "grader"))
-        judge_spend = (sum(row.get("judge_cost_usd") or 0 for row in runs)
-                       + sum(error.get("cost_usd") or 0 for error in errors if error["failure_class"] == "grader"))
+        # A subagent run has no price; the host's token total, as the dispatcher reported it, stands in for one.
+        tokens = sum(episode["provenance"].get("tokens_reported") or 0 for episode in episodes)
+        minutes = sum(episode.get("wall_seconds") or 0 for episode in episodes) / 60
+        dispatched = sorted({episode["provenance"].get("dispatch", "headless") for episode in episodes})
+        judged = sum(row.get("judge_attempts") or 0 for row in runs)
         models = sorted({row["model"] for row in rows})
-        lines += ["", f"{variant}: {len(episodes)} episodes recorded, {len(runs)} scored, {truncated} truncated, "
-                      f"{len(errors)} failed attempts {by_class or ''} - role ${role_spend:.2f}, "
-                      f"judge ${judge_spend:.2f} - {', '.join(models)}"]
+        lines += ["", f"{variant}: {len(episodes)} episodes recorded ({', '.join(dispatched)}), {len(runs)} scored, "
+                      f"{truncated} truncated, {len(errors)} failed attempts {by_class or ''} - "
+                      f"role {tokens} tokens reported, {minutes:.0f} min; judge answers {judged} - {', '.join(models)}"]
         for metric in flow.metrics:
             binary = metric["kind"] == "binary"
             score = stats.score(rows, metric["id"], binary=binary)
@@ -465,39 +601,38 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument("--out", type=Path, help="flow directory for episodes and results")
         return command
 
+    def episode(name: str) -> argparse.ArgumentParser:
+        command = add(name)
+        command.add_argument("--variant", required=True)
+        command.add_argument("--material", required=True)
+        command.add_argument("--rep", type=int, default=0)
+        return command
+
     add("verify").add_argument("--work", type=Path)
     add("inputs").add_argument("--write", type=Path, help="write the markdown here instead of printing it")
-    running = add("run")
-    running.add_argument("--variant", required=True)
-    running.add_argument("--work", type=Path)
-    running.add_argument("--reps", type=int)
-    running.add_argument("--model", help="run this variant on another model than the suite's default")
-    running.add_argument("--effort", help="run this variant at another effort than the suite's default")
-    running.add_argument("--episode-budget-usd", type=float,
-                         help="ceiling the host enforces on one episode, instead of the suite's")
-    running.add_argument("--material", action="append")
-    running.add_argument("--parallel", type=int, default=1)
-    running.add_argument("--allow-dirty", action="store_true")
-    running.add_argument("--keep-workspaces", action="store_true")
-    importing = add("import-run")
-    importing.add_argument("--variant", required=True)
-    importing.add_argument("--material", required=True)
-    importing.add_argument("--rep", type=int, required=True)
+    preparing = episode("prepare")
+    preparing.add_argument("--work", type=Path)
+    preparing.add_argument("--allow-dirty", action="store_true")
+    preparing.add_argument("--again", action="store_true", help="throw away a prepared copy and build a new one")
+    recording = episode("record")
+    recording.add_argument("--transcript", type=Path, required=True, help="the subagent transcript the host kept")
+    recording.add_argument("--dispatch", choices=DISPATCH, required=True,
+                           help="'registered': the role's own subagent type; 'inline': a general-purpose subagent "
+                                "given the role definition in its prompt")
+    recording.add_argument("--tokens", type=int, help="the token total the host reported for the subagent")
+    recording.add_argument("--keep-workspace", action="store_true")
+    episode("judge-brief")
+    episode("judge-record").add_argument("--transcript", type=Path, required=True)
+    importing = episode("import-run")
     importing.add_argument("--from", dest="source", type=Path, required=True)
     grading_ = add("grade")
     grading_.add_argument("--variant", required=True)
-    grading_.add_argument("--labels", type=Path, help="verdicts a person wrote down")
-    grading_.add_argument("--judge-model", help="grade with the model judge on this model; these calls are paid")
-    grading_.add_argument("--judge-effort", default="high")
-    grading_.add_argument("--work", type=Path)
-    calibrating = add("calibrate")
-    calibrating.add_argument("--judge-model", required=True, help="the judge to calibrate; these calls are paid")
-    calibrating.add_argument("--judge-effort", default="high")
-    calibrating.add_argument("--budget-usd", type=float, required=True,
-                             help="stop starting cases once what is recorded plus one more call would pass this")
-    calibrating.add_argument("--call-budget-usd", type=float, default=1.0, help="ceiling the host enforces per call")
-    calibrating.add_argument("--case", action="append", help="only these calibration cases")
-    calibrating.add_argument("--work", type=Path)
+    grading_.add_argument("--labels", type=Path, required=True, help="verdicts a person wrote down")
+    add("calibrate-brief").add_argument("--case", help="one case; all of them when left out")
+    stored = add("calibrate-record")
+    stored.add_argument("--case", required=True)
+    stored.add_argument("--transcript", type=Path, required=True)
+    add("calibrate").add_argument("--judge-model", required=True, help="full model id, e.g. claude-sonnet-5-5")
     add("summary")
     add("report").add_argument("--builder", type=Path, help="another builder than the one kept in the repository")
     return root
@@ -508,6 +643,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         flow = load(args.suite.resolve())
         out = flow_dir(flow, args.out.resolve() if args.out else None)
+        if getattr(args, "transcript", None) and not args.transcript.is_file():
+            raise Refused(f"no transcript at {args.transcript}")
         if args.command == "verify":
             problems = verify(flow, work_root(args.work))
             print("\n".join(problems) if problems else f"{flow.id}: {len(flow.materials)} materials verify")
@@ -520,33 +657,34 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(text, end="")
             return 0
-        if args.command == "run":
-            return run(flow, variant=args.variant, out=out, work=work_root(args.work), reps=args.reps,
-                       only=args.material, parallel=args.parallel, allow_dirty=args.allow_dirty,
-                       keep=args.keep_workspaces,
-                       overrides={key: value for key, value in (("model", args.model), ("effort", args.effort),
-                                                                ("budget_usd", args.episode_budget_usd)) if value})
+        if args.command == "prepare":
+            print(prepare(flow, flow.material(args.material), args.rep, variant=args.variant, out=out,
+                          work=work_root(args.work), allow_dirty=args.allow_dirty, again=args.again))
+            return 0
+        if args.command == "record":
+            print(record(flow, flow.material(args.material), args.rep, variant=args.variant, out=out,
+                         transcript=args.transcript.resolve(), dispatch=args.dispatch, tokens=args.tokens,
+                         keep=args.keep_workspace))
+            return 0
+        if args.command == "judge-brief":
+            print(judge_brief(flow, flow.material(args.material), args.rep, variant=args.variant, out=out))
+            return 0
+        if args.command == "judge-record":
+            return judge_record(flow, flow.material(args.material), args.rep, variant=args.variant, out=out,
+                                transcript=args.transcript.resolve())
         if args.command == "import-run":
             import_run(flow, variant=args.variant, out=out, material=flow.material(args.material), rep=args.rep,
                        source=args.source.resolve())
             return 0
         if args.command == "grade":
-            if args.judge_model and "grading" in flow.unsigned():
-                raise Refused(f"{flow.id} v{flow.version} has no sign-off on the grading method; "
-                              f"the model judge waits for it")
-            signed = flow.signoffs.get("grading", {}).get("judge")
-            if args.judge_model and signed and signed != judge.identity(args.judge_model, args.judge_effort):
-                # The sign-off names the judge it was given for: another model, effort or rule text is another judge.
-                raise Refused(f"the grading sign-off of {flow.id} is for {signed}, not for "
-                              f"{judge.identity(args.judge_model, args.judge_effort)}; calibrate that judge and "
-                              f"have it signed off first")
-            return grade(flow, variant=args.variant, out=out, labels=args.labels.resolve() if args.labels else None,
-                         judge_model=args.judge_model, judge_effort=args.judge_effort,
-                         work=work_root(args.work) if args.judge_model else None)
+            return grade(flow, variant=args.variant, out=out, labels=args.labels.resolve())
+        if args.command == "calibrate-brief":
+            print(calibrate_brief(flow, args.case, out))
+            return 0
+        if args.command == "calibrate-record":
+            return calibrate_record(flow, args.case, out, args.transcript.resolve())
         if args.command == "calibrate":
-            return calibrate(flow, out=out, work=work_root(args.work), model=args.judge_model,
-                             effort=args.judge_effort, budget_usd=args.budget_usd,
-                             call_budget_usd=args.call_budget_usd, only=args.case)
+            return calibrate(flow, out=out, model=args.judge_model)
         if args.command == "summary":
             print(summary(flow, out), end="")
             return 0

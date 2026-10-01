@@ -3,7 +3,8 @@
 量的是：给 [design-reviewer](../../../roles/design-reviewer/role.md) 一份施工计划、让它判「计划」这一种，
 它能不能把计划里的已知缺陷报出来，同时保持只读、只做这一种判断。判据页是手册的 `references/review/plan.md`。
 
-状态：**用例与判定方法都已签字（2026-10-01，第 1 版；判官是 Claude Sonnet 5.5、high）；还没有基线。**
+状态：**用例已签字（2026-10-01，第 1 版）。判定方法当天签的是以无界面宿主进程调用的判官；那种调用方式同日停用，
+判官改由主会话派 subagent（规则另加了一句），已重新校准，等负责人重新签字。还没有基线。**
 
 ## 材料
 
@@ -22,8 +23,12 @@
 [calibration/cases.json](calibration/cases.json) 是 6 份报告的人工判定：对照里新旧两个角色各一份真实报告，
 加 4 份反例（删掉两条发现、把一条发现挪进「未覆盖」、结论是没有问题的报告、另一份材料的报告）。
 
-2026-10-01 用 Claude Sonnet 5.5（high）作判官跑了一次：36 处判定与人工全部一致（21 处报出、15 处没报出），
-阻断条数等运行级计数也都一致；6 次调用，0.24 美元。[比对记录](calibration/results/judge-claude-sonnet-5-5@high-rules-62bf4cac80e1.md)。
+现行判官是派成 subagent 的 Claude Sonnet 5.5（宿主记录的档位是 medium，派发者定不了档位）。2026-10-01 校准：
+36 处判定与人工全部一致（21 处报出、15 处没报出），阻断条数等 8 项运行级计数也都一致；6 次派发，没有答复被驳回。
+[比对记录](calibration/results/judge-subagent-claude-sonnet-5-5-rules-70fdea287e52.md)。
+负责人当时签的那个以无界面宿主进程调用的判官，记录在[这里](calibration/results/judge-claude-sonnet-5-5@high-rules-62bf4cac80e1.md)；
+改成 subagent 后、补「一个编号就是一条发现」那句规则之前的一次，记录在[这里](calibration/results/judge-subagent-claude-sonnet-5-5-rules-a676226b68b6.md)。
+两次都是 36 处全部一致。
 
 校准报告都是关于 `raf-plan` 的；`ccp-plan` 与对照材料上判得怎样，没有校准过。
 

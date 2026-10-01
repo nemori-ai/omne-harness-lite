@@ -12,11 +12,7 @@
     "claude-code": {
       "model": "claude-opus-5-5",
       "effort": "xhigh",
-      "allowed": ["Read", "Glob", "Grep"],
-      "disallowed": ["WebFetch", "WebSearch", "Agent"],
-      "permission_mode": "dontAsk",
-      "wall_seconds": 3000,
-      "budget_usd": 20
+      "allowed": ["Read", "Glob", "Grep"]
     }
   },
   "workspace": {

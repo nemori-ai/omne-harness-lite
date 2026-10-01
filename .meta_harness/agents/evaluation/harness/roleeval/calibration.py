@@ -3,8 +3,8 @@
 A suite keeps a calibration set under ``calibration/``: reports with a known verdict for every
 problem of the material they were written about. Some are real reports a person graded, some are
 made to be negatives (a report that says nothing, a report about something else, a real report
-with a finding cut out or moved out of the scored groups). The judge is run on each and its
-verdict compared with the person's, problem by problem.
+with a finding cut out or moved out of the scored groups). A main session hands each one to a
+judge subagent; the answer is checked here and compared with the person's, problem by problem.
 
 What this measures is agreement on these reports. It says nothing about reports of materials
 the set does not cover.
@@ -13,11 +13,13 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from . import judge
+from .claude_host import Episode
 from .grading import JUDGED_RUN_METRICS, GraderError
 from .suite import Flow, SuiteError
 
@@ -104,9 +106,9 @@ def load(flow: Flow) -> tuple[str, list[Case]]:
     return grader, cases
 
 
-def directory(out: Path, model: str, effort: str) -> Path:
+def directory(out: Path, model: str) -> Path:
     """Results of one judge under one set of rules; a changed rule is another judge."""
-    return out / "_calibration" / re.sub(r"[^A-Za-z0-9.@-]+", "-", judge.identity(model, effort))
+    return out / "_calibration" / re.sub(r"[^A-Za-z0-9.@-]+", "-", judge.identity(model))
 
 
 def recorded(where: Path) -> dict[str, dict[str, Any]]:
@@ -114,43 +116,50 @@ def recorded(where: Path) -> dict[str, dict[str, Any]]:
             for path in sorted(where.glob("*/result.json"))}
 
 
-def spent(results: dict[str, dict[str, Any]]) -> float:
-    return sum(result["spend"]["judge_cost_usd"] or 0 for result in results.values())
+def write_brief(flow: Flow, case: Case, out: Path) -> Path:
+    """Write what the judge is told for this case; a main session points a subagent at the file."""
+    path = out / "_calibration" / "_briefs" / f"{case.id}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(judge.brief(flow, flow.material(case.material), case.text), encoding="utf-8")
+    return path
 
 
-def run(flow: Flow, cases: list[Case], *, model: str, effort: str, out: Path, work: Path, budget_usd: float,
-        call_budget_usd: float) -> tuple[dict[str, dict[str, Any]], list[str]]:
-    """Judge every case that has no result yet. Returns all results and the cases the budget left out.
+def record(flow: Flow, case: Case, episode: Episode, *, out: Path, transcript: Path) -> dict[str, Any]:
+    """Take the answer a judge subagent gave for one case.
 
-    A case is not started unless one more call fits the budget. A second attempt on the same case can
-    exceed it by at most one call.
+    An answer that fails its checks is kept as a thrown-away attempt and ``GraderError`` is raised,
+    so the caller dispatches the judge again; after the last allowed attempt the case is stored as failed.
     """
-    where = directory(out, model, effort)
-    results = recorded(where)
-    left_out = []
-    for case in cases:
-        if case.id in results:
-            continue
-        if spent(results) + call_budget_usd > budget_usd:
-            left_out.append(case.id)
-            continue
-        material = flow.material(case.material)
-        target = where / case.id
-        target.mkdir(parents=True, exist_ok=True)
-        (target / "report.md").write_text(case.text, encoding="utf-8")   # what the judge was actually given
-        try:
-            verdict, calls = judge.judge(flow, material, case.text, model=model, effort=effort, cwd=work,
-                                         evidence=target / "judge.json", budget_usd=call_budget_usd)
-            result: dict[str, Any] = {"case": case.id, "status": "judged", "grader": verdict.grader,
-                                      "seeds": {seed: list(value) for seed, value in verdict.seeds.items()},
-                                      "run": {metric: list(value) for metric, value in verdict.run.items()},
-                                      "spend": judge.spend(calls)}
-        except GraderError as error:
-            result = {"case": case.id, "status": "failed", "error": str(error),
-                      "spend": judge.spend(getattr(error, "results", []))}
-        (target / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
-        results[case.id] = result
-    return results, left_out
+    path = out / "_calibration" / "_briefs" / f"{case.id}.md"
+    if not path.is_file() or path.read_text(encoding="utf-8") != judge.brief(flow, flow.material(case.material), case.text):
+        raise judge.NotThisJudge(f"{path} is not the brief of case {case.id} as the suite now has it; write it again")
+    name = judge.read(episode, path, signed=None)
+    target = directory(out, episode.models_observed[0]) / case.id
+    if (target / "result.json").exists():
+        raise SuiteError(f"calibration case {case.id} already has a result under {target.parent.name}")
+    target.mkdir(parents=True, exist_ok=True)
+    (target / "report.md").write_text(case.text, encoding="utf-8")   # what the judge was actually given
+    log = target / "attempts.json"
+    attempts = json.loads(log.read_text(encoding="utf-8")) if log.exists() else []
+    shutil.copyfile(transcript, target / f"judge.attempt{len(attempts)}.jsonl")
+    try:
+        verdict = judge.verdict(judge.parse_answer(episode.final), flow.material(case.material), case.text, grader=name)
+    except GraderError as error:
+        attempts.append(judge.attempt(episode, rejected=str(error)))
+        log.write_text(json.dumps(attempts, ensure_ascii=False, indent=1), encoding="utf-8")
+        if len(attempts) < judge.ATTEMPTS:
+            raise
+        result: dict[str, Any] = {"case": case.id, "status": "failed", "error": str(error), "grader": name,
+                                  "spend": judge.spend(attempts)}
+    else:
+        attempts.append(judge.attempt(episode))
+        log.write_text(json.dumps(attempts, ensure_ascii=False, indent=1), encoding="utf-8")
+        result = {"case": case.id, "status": "judged", "grader": verdict.grader,
+                  "seeds": {seed: list(value) for seed, value in verdict.seeds.items()},
+                  "run": {metric: list(value) for metric, value in verdict.run.items()},
+                  "spend": judge.spend(attempts)}
+    (target / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
+    return result
 
 
 def compare(cases: list[Case], results: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -166,8 +175,7 @@ def compare(cases: list[Case], results: dict[str, dict[str, Any]]) -> dict[str, 
             failed.append({"case": case.id, "error": result["error"]})
             continue
         if result["spend"]["judge_attempts"] > 1:
-            # Results recorded before the reasons were kept carry none.
-            retried.append({"case": case.id, "reasons": result["spend"].get("judge_rejected") or ["原因当时没有记下"]})
+            retried.append({"case": case.id, "reasons": result["spend"]["judge_rejected"]})
         for seed, (expected, why) in case.seeds.items():
             judged, judge_why = result["seeds"][seed]
             cell = {(1, 1): "both_caught", (0, 0): "both_missed", (0, 1): "judge_only", (1, 0): "person_only"}[
@@ -184,28 +192,29 @@ def compare(cases: list[Case], results: dict[str, dict[str, Any]]) -> dict[str, 
     return {"cells": cells, "disagreements": disagreements, "run_checks": run_checks, "failed": failed,
             "pending": pending, "retried": retried, "judged": sum(cells.values()),
             "attempts": sum(result["spend"]["judge_attempts"] for result in results.values()),
-            "cost_usd": spent(results)}
+            "efforts": sorted({effort for result in results.values() for effort in result["spend"]["judge_efforts"]}),
+            "output_tokens": sum(result["spend"]["judge_usage"]["output_tokens"] for result in results.values())}
 
 
-def render(flow: Flow, grader: str, cases: list[Case], results: dict[str, dict[str, Any]], *, model: str,
-           effort: str) -> str:
+def render(flow: Flow, grader: str, cases: list[Case], results: dict[str, dict[str, Any]], *, model: str) -> str:
     """The comparison as markdown, for the grading sign-off."""
     outcome = compare(cases, results)
     cells, judged = outcome["cells"], outcome["judged"]
     agree = cells["both_caught"] + cells["both_missed"]
     lines = [
         f"# 判官校准：{flow.id}", "",
-        f"判官：`{judge.identity(model, effort)}`", f"人工判定：{grader}", "",
+        f"判官：`{judge.identity(model)}`（以 subagent 派发；宿主记录的档位：{'、'.join(outcome['efforts']) or '未记录'}）",
+        f"人工判定：{grader}", "",
         f"{len(cases)} 份报告，已判 {len(cases) - len(outcome['pending']) - len(outcome['failed'])} 份，"
         f"判官答复没通过核对的 {len(outcome['failed'])} 份，还没判的 {len(outcome['pending'])} 份；"
-        f"共 {outcome['attempts']} 次调用，{outcome['cost_usd']:.2f} 美元。", "",
+        f"共 {outcome['attempts']} 次派发。", "",
         "## 逐处问题的一致情况", "",
         "| | 判官：报出了 | 判官：没报出 |", "|---|---|---|",
         f"| 人工：报出了 | {cells['both_caught']} | {cells['person_only']} |",
         f"| 人工：没报出 | {cells['judge_only']} | {cells['both_missed']} |", "",
         (f"一致 {agree} / {judged}（{agree / judged:.1%}）。" if judged else "还没有可比的判定。"),
     ]
-    lines += ["", "## 每份报告", "", "| 报告 | 种类 | 材料 | 人工：报出 | 判官：报出 | 不一致的问题 | 花费 |",
+    lines += ["", "## 每份报告", "", "| 报告 | 种类 | 材料 | 人工：报出 | 判官：报出 | 不一致的问题 | 派发次数 |",
               "|---|---|---|---|---|---|---|"]
     for case in cases:
         result = results.get(case.id)
@@ -213,7 +222,7 @@ def render(flow: Flow, grader: str, cases: list[Case], results: dict[str, dict[s
         if result is None:
             lines.append(f"| `{case.id}` | {case.kind} | `{case.material}` | {person} / {len(case.seeds)} | 还没判 | | |")
             continue
-        cost = f"{result['spend']['judge_cost_usd'] or 0:.2f}"
+        cost = str(result["spend"]["judge_attempts"])
         if result["status"] != "judged":
             lines.append(f"| `{case.id}` | {case.kind} | `{case.material}` | {person} / {len(case.seeds)} | "
                          f"答复没通过核对 | | {cost} |")
