@@ -3,7 +3,8 @@ import { dirname, resolve } from 'node:path'
 
 const MEMBER_ROOTS = ['packages', 'apps', 'examples'] as const
 
-function git(cwd: string, args: readonly string[]): string {
+/** 在 `cwd` 跑一条 git 命令，返回去掉尾部空白的标准输出；失败就抛出。 */
+export function git(cwd: string, args: readonly string[]): string {
   return execFileSync('git', args, {
     cwd,
     encoding: 'utf8',
