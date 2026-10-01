@@ -137,6 +137,8 @@ git commit -m "chore(docs): update blog submodule"
 | 实现类交付前后看结构与度量（本仓库的结构度量入口） | `make metrics BASE=<任务基线提交>`，秒级；要 CRAP 加 `COVERAGE=1`（会跑变更成员的测试，先构建）。它只报告、不判失败；把打印的摘要原样附进交付说明，审讯页路径在摘要末行 |
 | 交付前看各项整洁指标落在哪条带上、这次变更里有哪些红项要解释 | `make loop-status BASE=<任务基线提交>`：只报告，只有硬线（方向违规或环、验收锁不过）被破才退出 1。把「这次变更里要解释的红项」一段原样附进交付说明并逐条交代；它列出的超预算成员与清理草稿不是给实施者的任务，带位与谁动见[整洁回路](clean-loop.md#回路怎么转) |
 | 接受一份配了可执行验收的交付之前，核对验收没被实施者动过 | `make acceptance-lock BASE=<任务基线提交>`：列出基线以来碰过各成员 `acceptance/` 的提交与其来源；实施角色的提交或未提交的验收改动在其中就退出 1。它认的是提交里自己写的 `Agent-Role`，列出来的仍要人过目，见[验证与证据](verification.md#检查入口) |
+| 一张故事卡到了提出、第一次能跑或被接受的时点 | `make loop-card CARD=<卡号> EVENT=proposed\|runnable\|accepted`：往台账里记一笔时间与当时的提交；`accepted` 只在负责人说了接受之后记 |
+| 想看流程本身走得怎么样（卡的前置时间、每周接受数、债的走向） | `make loop-health`：只读、只报告，出一张离线可开的页面，末行给路径；每块怎么读见[写给负责的人](development_human.md#每周看一次体检页) |
 | 规格还没定，想先看一条主路径走不走得通 | 做探路件：放 [examples/](../examples/README_ZH.md) 或任务的 `tmp/`，不进 `packages/`、`apps/`；跑通后带回设计的是事实清单，不是代码 |
 | 存储提供者或迁移 | `pnpm --filter @omne-harness-lite/storage-sql run test`：sqlite 上跑一致性套件；pg 需设 `OMNE_TEST_PG_URL`，否则跳过 |
 | 形式工具是否可用 | `make formal-tools` |
