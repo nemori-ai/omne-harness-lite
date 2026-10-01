@@ -13,8 +13,10 @@ DRAFTERS = {"spec-drafter", "realization-drafter"}
 # Merged into `developer` or retired on 2026-10-01; a source package under one of these names
 # would bring back module-owned implementers or an agent that drafts architecture readings.
 # `tui-qa` was generalised into `qa` the same day: acceptance is not specific to terminal UIs.
+# The three design reviewers became `design-reviewer`, which makes one kind of judgment per dispatch.
 RETIRED = {"kernel-developer", "capability-developer", "infrastructure-developer",
-           "application-developer", "architecture-drafter", "tui-qa"}
+           "application-developer", "architecture-drafter", "tui-qa",
+           "architecture-reviewer", "spec-reviewer", "plan-reviewer"}
 
 
 def shared_prompts(role: Path) -> list[str]:

@@ -20,7 +20,7 @@
 | 查**谁在什么范围接受了哪个精确修订** | `decisions/<topic>/decision.md`。没有决定文件就是没接受，catalog 里的 candidate 也是这个意思 |
 | 真跑了形式任务、符合性测试或集成观察，要留下结果 | 先加载 skill 的「交付与反向核对」，再按 [evidence 入口](evidence/README.md)建 run：**配置、输入快照、原始输出一件不少**，README 写边界。命名规矩归那份入口 |
 | 有几条实质不同的路要并排比较，或对账走到回询、两种表述要分别往下推 | 先加载 skill 的「设计选择」，再从 [proposals 模板包](proposals/.templates/topic/README.md)建 topic。**不足三个实质候选就留在 research 或 `tmp/`** |
-| 评审了一份候选（spec-reviewer、architecture-reviewer 或人），意见与作者处置要落地 | 进该候选所属 `proposals/<topic>/review.md`；没有 topic 的候选（例如直接在 `spec/` 起草的 candidate 契约）**先为它建 topic 再落评审**，评审不挂在契约版本目录里 |
+| 评审了一份候选（design-reviewer 或人），意见与作者处置要落地 | 进该候选所属 `proposals/<topic>/review.md`；没有 topic 的候选（例如直接在 `spec/` 起草的 candidate 契约）**先为它建 topic 再落评审**，评审不挂在契约版本目录里 |
 | 有权者实际接受了一份修订 | 从 [decisions 模板包](decisions/.templates/topic/README.md)建 topic，然后去 [registry](../registry/README.md) 把状态翻过去并冻结资源——**两步都做，顺序是先决定后登记** |
 | 想把派工记录、进度、扫描清单、事故复盘放进来 | 不进这里。那是本次工作区 `tmp/` 的东西；值得长期记住的判断回到它的拥有者 |
 | 核实了一条上游事实、量了一个数、读了一遍源码 | 那是观察，归与 `design/` 平级的 `research/`，反复依赖且给得出 probe 的归 [basis](../basis/README.md)。**这里不设第二个 research 家** |

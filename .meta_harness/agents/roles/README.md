@@ -189,8 +189,12 @@ tui-debugger 服务于**终端界面（TUI）应用**的运行现象，与评审
 ## 模型配置与本次派发
 
 模型与档位的权威在各角色的 `codex.toml`、`claude.yaml` 与开发者的 `assembly.toml`；
-reviewer 与 product-design-drafter 固定档位；开发者、TUI 角色与技术 drafter 默认档位见上表，可按任务选 medium/high/xhigh。
-这些钉值来自有日期的支持记录，不是对当前账户或新版本宿主的重新核验。
+design-reviewer、product-design-reviewer 与 product-design-drafter 固定档位；开发者、implementation-reviewer、qa、TUI 角色与技术 drafter
+默认档位见上表，可按任务选 medium/high/xhigh。这些钉值来自有日期的支持记录，不是对当前账户或新版本宿主的重新核验。
+
+**design-reviewer 判「表达」时可以换成 Opus 5.5**：Claude Code 一端角色文件钉 Fable 5.1，派发时用 Agent 工具的 `model` 参数覆盖
+（原 spec-reviewer 钉的就是 Opus 5.5，合并对照里「表达」那一种也是在它上面跑的）；判「选择」与「计划」用钉值。
+Codex 一端钉 GPT-6 Astra，三种判断都用它。
 
 **developer 的模型按本次任务选**，不由角色固定。选法写在它的 description 里，依据是[角色合一记录](../evaluation/role-merge-2026-10-01.md)：
 
@@ -216,7 +220,7 @@ python agents/skills/design-subagents/canonical/scripts/render_pair.py \
 
 命令仅打印 JSON。Codex 派发需要显式应用返回的 effort，developer 的输出里 `model` 为空，由派发者按上表填；直接调用角色不保证采用源默认档位。
 Claude 会话覆盖需应用完整角色 JSON，不以单个 effort 字段代替整份定义；实际调用面和支持范围
-沿 `design-subagents` skill 核对。固定 reviewer 不接受此调档入口。
+沿 `design-subagents` skill 核对。固定档位的评审角色不接受此调档入口。
 
 原生文件存在不说明当前会话已加载。具名角色不可用时，可在已有授权内交接完整生成提示作普通
 agent 试用，并说明未经应用的原生沙箱与权限不能算生效；无可用独立评审能力时保留具体缺口。

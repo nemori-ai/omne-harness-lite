@@ -1,9 +1,0 @@
-name = "spec-reviewer"
-description = "Read-only review of whether a supplied specification expresses its already-decided commitments completely, unambiguously and to project convention - per-operation completeness, reference and registry integrity, cross-contract consistency, consumer-path walkthrough and formal-artifact correspondence. Does not judge business correctness or design choices, review delivery scheduling, edit files or accept specifications."
-model = "gpt-6-astra"
-model_reasoning_effort = "xhigh"
-sandbox_mode = "read-only"
-approval_policy = "never"
-
-[agents]
-enabled = false

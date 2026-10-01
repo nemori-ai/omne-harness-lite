@@ -18,7 +18,7 @@ architecture-drafter 14；同期通用 agent 被派 231 次。四个开发角色
 | 退役 | 去向 |
 |---|---|
 | kernel-developer、capability-developer、infrastructure-developer、application-developer | [developer](../roles/developer/role.md)：四段边界并成一张「按任务的性质取用边界」表；模型与档位改为按本次任务选 |
-| architecture-drafter | 不设替代角色。三段纪律（领域读数先封存、机制读数从领域对象条目起步、提案至少三个实质候选）仍在手册里，由亲写的人遵守；[architecture-reviewer](../roles/architecture-reviewer/role.md) 新增「读数」这一待审对象 |
+| architecture-drafter | 不设替代角色。三段纪律（领域读数先封存、机制读数从领域对象条目起步、提案至少三个实质候选）仍在手册里，由亲写的人遵守；architecture-reviewer 新增「读数」这一待审对象（该角色同日稍后并入 [design-reviewer](../roles/design-reviewer/role.md)，「读数」随「选择」那一种判断保留，见[合并记录](design-reviewer-merge-2026-10-01/README.md)） |
 
 verification-developer 与三个 TUI 角色不动：它们的行动边界（只写测试设施、只写证据目录、不改产品源码）
 是真实的权限差异，不是模块划分。
