@@ -174,7 +174,7 @@ async function runTriage(argv: readonly string[]): Promise<number> {
   const at = coordinates(ROOT, undefined)
   if (at.head !== recorded.meta.head || at.dirty || recorded.meta.dirty)
     console.log(
-      `注意：那次运行在提交 ${recorded.meta.head.slice(0, 9)}${recorded.meta.dirty ? '（有未提交改动）' : ''} 上，` +
+      `注意：那次运行基于提交 ${recorded.meta.head.slice(0, 9)}${recorded.meta.dirty ? '（有未提交改动）' : ''}，` +
         `现在是 ${at.shortHead}${at.dirty ? '（有未提交改动）' : ''}；两边代码不同则重跑结果不可比。`,
     )
   const config = readTestRunsConfig()
