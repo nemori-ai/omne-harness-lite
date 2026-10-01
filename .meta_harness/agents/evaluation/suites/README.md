@@ -11,7 +11,7 @@
 | [design-review-plan](design-review-plan/README.md) | design-reviewer 判「计划」 | 同上 |
 | [developer-implement](developer-implement/README.md) | developer 在整仓检出里补完一个模块，程序判定 | 两次签字都未签；还没有基线 |
 | [qa-acceptance](qa-acceptance/README.md) | qa 按十条标准验收一份构建，程序判定 | 同上 |
-| [implementation-review](implementation-review/README.md) | implementation-reviewer 评审一份交付提交，判官判定 | 同上；判官还没有在这个流上校准 |
+| [implementation-review](implementation-review/README.md) | implementation-reviewer 评审一份交付提交，判官判定 | 同上；判官已在这个流上校准 |
 
 负责人 2026-10-01 定：各流的完整基线不随用例集一起跑，统一放到研发方案的最后。在那之前，这些用例集可以用来对单次改动做有针对性的试派，
 但没有基线可比。
@@ -60,6 +60,24 @@ README.md        这个流量什么、量不出什么、基线数字与噪声范
 ## 什么时候跑
 
 改了某个角色的正文、它内联的共享正文、它读的判据页或它依赖的工具输出；换了它的模型或档位；宿主升了版本。
+
+| 改了什么 | 跑哪些流 |
+|---|---|
+| `design-reviewer` 的正文 | 三个 `design-review-*` |
+| 手册 `references/review/` 的某一页 | 那一种判断的流（`expression.md` → `design-review-expression`，另两页同理） |
+| 设计评审报告（`make design-review`）的核对项或输出格式 | `design-review-expression`——只有它把报告附进简报 |
+| `developer` 的正文、`developer-contract.md` | `developer-implement` |
+| `qa` 的正文 | `qa-acceptance` |
+| `implementation-reviewer` 的正文、`implementation-review-checklist.md` | `implementation-review` |
+| `engineering-taste.md`（四个角色都内联它） | 每个角色至少一个流；改的是 TS/JS 专节时以 `developer-implement` 与 `implementation-review` 为主 |
+| 某个角色的模型钉值或档位 | 该角色的全部流；流里写的模型与档位同步改，用例集升版本 |
+| 宿主（Claude Code）升了版本 | 每个角色至少一个流 |
+| 判官的规则文本，或换判官模型 | 不是跑流：先重新校准（`calibrate-*`），判定方法重新签字，之后的结果才可比 |
+
+**其余角色还没有常设用例集**：`tui-developer`、`verification-developer`、`tui-debugger`、`spec-drafter`、`realization-drafter`、
+`product-design-drafter`、`product-design-reviewer`。改了它们，按[角色说明](../../roles/README.md)里的办法做一次试派，
+并对照它们各自的一次性评估记录（见[评估索引](../README.md)）；别拿上表里的流代替。
+
 跑之前先 `make role-eval ARGS="verify <用例集目录>"`（不调用模型），再按运行器说明跑一个新的变体，与基线逐用例比。
 改过角色的源之后要重编生成物并**开一个新会话**再派发，否则派到的还是会话开始时加载的旧定义。
 比出来的差小于该流说明里写的噪声范围时，结论是「看不出变化」，不是「没有变化」。
