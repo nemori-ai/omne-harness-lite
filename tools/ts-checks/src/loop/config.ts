@@ -18,6 +18,18 @@ export const INDICATORS = [
 ] as const
 export type IndicatorId = (typeof INDICATORS)[number]
 
+/** 配置里带 `enabled` 开关的传感器；严格模式要求开着的每一个都有数据。 */
+export const SWITCHED_SENSORS = [
+  'stability',
+  'cochange',
+  'duplication',
+  'assertions',
+  'newEdges',
+  'topicChurn',
+  'worktrees',
+] as const
+export type SwitchedSensor = (typeof SWITCHED_SENSORS)[number]
+
 export const BUDGET_ITEMS = ['overAlert', 'risk', 'duplication', 'testsWithoutAssertions'] as const
 export type BudgetItem = (typeof BUDGET_ITEMS)[number]
 

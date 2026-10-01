@@ -27,11 +27,13 @@ import {
   hardLinesBroken,
   indicatorSnapshots,
   judgeIndicators,
+  judgeSensors,
   renderStatus,
   type Explain,
   type HardLines,
   type IndicatorInput,
   type OverBudget,
+  type SensorLine,
 } from './status.ts'
 import {
   ancestorSnapshots,
@@ -44,6 +46,7 @@ import {
   type Ancestry,
   type BaselineSnapshot,
   type Snapshot,
+  type SnapshotDecision,
 } from './trend.ts'
 
 const OFF = '配置里关了'
@@ -54,6 +57,11 @@ export interface RunOptions {
   readonly base?: string
   readonly snapshot: boolean
   readonly out?: string
+  /**
+   * 严格模式：另判「开着的传感器都有数据」；要求给基线与产物目录，草稿写进产物目录，
+   * 不写趋势快照——回路目录一个字节都不动。
+   */
+  readonly strict: boolean
 }
 
 export interface RunResult {
@@ -348,13 +356,38 @@ function baselineOf(
   return { baseline: baselineSnapshot(snapshots, mergeBase, ancestry, at.head), from }
 }
 
-function hardLinesOf(root: string, report: Report, base: string | undefined): HardLines {
-  const cycles = report.findings.filter(finding => finding.kind.endsWith('cycle'))
-  const direction = report.findings.filter(finding => !finding.kind.endsWith('cycle'))
-  if (base === undefined)
-    return { direction, cycles, acceptanceLock: { status: 'unjudged', reason: '没给基线' } }
-  const lock = inspect(root, base, readAcceptanceLockConfig())
-  return { direction, cycles, acceptanceLock: { status: 'judged', violations: lock.violations } }
+/** 方向违规与环：全仓的，与 `make metrics`、`lint:rules` 同一份策略。 */
+export function directionLines(report: Report): Pick<HardLines, 'direction' | 'cycles'> {
+  return {
+    cycles: report.findings.filter(finding => finding.kind.endsWith('cycle')),
+    direction: report.findings.filter(finding => !finding.kind.endsWith('cycle')),
+  }
+}
+
+function hardLinesOf(
+  root: string,
+  report: Report,
+  base: string | undefined,
+  sensors: SensorLine,
+): HardLines {
+  const lock: HardLines['acceptanceLock'] =
+    base === undefined
+      ? { status: 'unjudged', reason: '没给基线' }
+      : {
+          status: 'judged',
+          violations: inspect(root, base, readAcceptanceLockConfig()).violations,
+        }
+  return { ...directionLines(report), acceptanceLock: lock, sensors }
+}
+
+/** 严格模式的前提：要基线、要产物目录、不写快照。不满足按用法错处理。 */
+function checkStrict(options: RunOptions): void {
+  if (!options.strict) return
+  if (options.base === undefined)
+    throw new Error('严格模式要给基线（--base）：要解释的红项、新增依赖与验收锁都靠它')
+  if (options.out === undefined)
+    throw new Error('严格模式要给产物目录（--out）：它不往回路目录里写任何东西')
+  if (options.snapshot) throw new Error('严格模式只读趋势，不能与 --snapshot 同用')
 }
 
 /**
@@ -367,6 +400,7 @@ export async function runLoopStatus(
   config: LoopConfig = readLoopConfig(),
   metrics: MetricsConfig = readMetricsConfig(),
 ): Promise<RunResult> {
+  checkStrict(options)
   const { root } = options
   const at = coordinates(root, options.base)
   const home = loopHome(at.mainRoot, env)
@@ -414,22 +448,31 @@ export async function runLoopStatus(
     ancestorSnapshots(trend.snapshots, headAncestry),
     at.head,
   )
-  const proposalDir = join(home, 'proposals')
+  const proposalDir = join(options.strict ? outDir : home, 'proposals')
   const overBudget = writeProposals(budgets, report, sensors, config, proposalDir, at)
-  const hardLines = hardLinesOf(root, report, options.base)
+  const hardLines = hardLinesOf(
+    root,
+    report,
+    options.base,
+    options.strict
+      ? judgeSensors(sensors, config)
+      : { status: 'unjudged', reason: '只在严格模式（STRICT=1）下判' },
+  )
   const catalogue = readCatalogue(
     root,
     config.sensors.catalogue.path,
     config.sensors.catalogue.doctrinePath,
   )
 
-  const decision = snapshotDecision({
-    requested: options.snapshot,
-    dirty: at.dirty,
-    headIsPrimary: refHead(root, config.primaryBranch) === at.head,
-    primaryBranch: config.primaryBranch,
-    alreadyRecorded: trend.snapshots.some(snapshot => snapshot.commit === at.head),
-  })
+  const decision: SnapshotDecision = options.strict
+    ? { write: false, reason: '严格模式只读趋势，不写快照' }
+    : snapshotDecision({
+        requested: options.snapshot,
+        dirty: at.dirty,
+        headIsPrimary: refHead(root, config.primaryBranch) === at.head,
+        primaryBranch: config.primaryBranch,
+        alreadyRecorded: trend.snapshots.some(snapshot => snapshot.commit === at.head),
+      })
   const generatedAt = new Date().toISOString()
   if (decision.write)
     appendSnapshot(trendPath, {
