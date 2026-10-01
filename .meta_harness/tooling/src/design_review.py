@@ -454,6 +454,10 @@ class Review:
                       else "正文提到「九件事」，但" if mentioned else "")
             self.add("nine-items", "undetermined", contract.label, contract.path, 1,
                      f"{reason}没有「# | 写什么」形式的九件事定义表，不判")
+            if operations:
+                # 失败集合那一格靠定义表认；没有定义表时这一项同样没核，要明说，不能让读者以为核过了
+                self.add("open-failure-set", "undetermined", contract.label, contract.path, operations[0].line,
+                         f"{len(operations)} 张操作表的失败集合是否闭合没有核：没有定义表，认不出哪一格是失败集合")
             return
         required = definitions[0].markers
         if any(t.markers != required for t in definitions[1:]):

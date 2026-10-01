@@ -177,7 +177,7 @@ python tooling/src/design_review.py --root design --include-frozen              
 | `covers-target-missing` | covers 的 `target.clauses` 不在目标契约里；`target` 坐标不在 catalog 里；`requirement.clause` 指的产品文件或小节锚点不存在 |
 | `unregistered-file` | 已登记坐标的版本目录里有不在 `resources` 里的文件 |
 | `nine-items` | 只判 capability／composition 里有「# \| 写什么」两列定义表（首列是圈号）的契约：从定义表读出要求的项，再核每张「# \| 内容」操作表是否逐项有行、有内容（「无」「不发」算有内容，只写破折号的归未能判定）。没有定义表的契约、首列是圈号却不是这种两列格式的表，归未能判定 |
-| `open-failure-set` | 上一项认出的操作表里，定义表写着「失败」的那一格，列举（第一个句号之前）的最后一项恰是「其他／其它（错误、失败……）」「等」「等等」「etc」「…」。最后一项以「其他」开头但不止于此的（如「其他沿原失败集合」）归未能判定 |
+| `open-failure-set` | 上一项认出的操作表里，定义表写着「失败」的那一格，列举（第一个句号之前）的最后一项恰是「其他／其它（错误、失败……）」「等」「等等」「etc」「…」。最后一项以「其他」开头但不止于此的（如「其他沿原失败集合」）归未能判定。**契约有操作表却没有定义表时，这一项同样没核**，报告在「未能判定」里另列一条说明，不让读者以为核过了 |
 
 依赖图的节点是 catalog 坐标，边是当前谱系的 `dependencies`：强连通分量多于一个节点或有自环的列为环；
 不稳定度 `I = 出边数 / (入边数 + 出边数)`，边 `A → B` 上 `I(B) - I(A)` 超过 `unstableDependencyMargin` 的列出；

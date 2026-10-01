@@ -299,6 +299,14 @@ def test_capability_without_definition_table_is_undetermined(tmp_path: Path) -> 
     assert "没有「# | 写什么」" in found(result, "nine-items", "undetermined")[0]["message"]
 
 
+def test_failure_sets_left_unchecked_for_want_of_a_definition_table_are_said_so(tmp_path: Path) -> None:
+    body = clauses(1) + operation("S-2 read", failure="`invalidInput` · 其他错误")
+    result = report(single(tmp_path, body, contract_id="capability.example"))
+    assert found(result, "open-failure-set") == []
+    [skipped] = found(result, "open-failure-set", "undetermined")
+    assert "1 张操作表" in skipped["message"] and "没有核" in skipped["message"]
+
+
 def test_irregular_nine_item_table_is_undetermined(tmp_path: Path) -> None:
     wide = "| # | openCall | dispatch |\n|---|---|---|\n" + "".join(f"| {m} | 甲 | 乙 |\n" for m in "①②③④⑤⑥⑦⑧⑨")
     result = capability(tmp_path, "### S-2 增量\n\n" + wide)
