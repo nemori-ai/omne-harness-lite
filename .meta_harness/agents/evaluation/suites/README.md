@@ -6,9 +6,9 @@
 
 | 流 | 角色与判断 | 现状 |
 |---|---|---|
-| [design-review-expression](design-review-expression/README.md) | design-reviewer 判「表达」 | 用例待签字 |
-| [design-review-choice](design-review-choice/README.md) | design-reviewer 判「选择」 | 用例待签字 |
-| [design-review-plan](design-review-plan/README.md) | design-reviewer 判「计划」 | 用例待签字 |
+| [design-review-expression](design-review-expression/README.md) | design-reviewer 判「表达」 | 两次签字已齐，还没有基线 |
+| [design-review-choice](design-review-choice/README.md) | design-reviewer 判「选择」 | 两次签字已齐，还没有基线 |
+| [design-review-plan](design-review-plan/README.md) | design-reviewer 判「计划」 | 两次签字已齐，还没有基线 |
 
 其余角色的流还没有迁入或建立，各自的一次性评估见[评估索引](../README.md)。
 
@@ -37,7 +37,8 @@ README.md        这个流量什么、量不出什么、基线数字与噪声范
 ## 规矩
 
 - **两次签字之后才跑付费的评估。**用例由负责人看过并认可，判定方法由负责人看过并认可；签字记在 `flow.json` 的 `signoffs` 里，
-  带用例集的版本号。版本一变签字失效，运行器拒绝开跑。整轮的花费按试跑实测报给负责人，同意之后才跑。
+  带用例集的版本号。版本一变签字失效，运行器拒绝开跑。判定方法那一条另写明是给哪个判官签的（模型、档位、规则哈希），
+  换一个判官要重新校准、重新签。整轮的花费按试跑实测报给负责人，同意之后才跑。
 - **真值不进被测角色看得到的地方。**运行用的工作副本不含本目录。
 - **改用例升版本，不原地改。**不同版本的结果不放在一起比。
 - **材料钉在主线上够得着的提交。**本仓库按 squash 合并，分支上的提交合并后会够不着；`make test` 里那条测试在够不着时会失败，届时改钉。

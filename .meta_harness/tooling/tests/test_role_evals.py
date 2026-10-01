@@ -887,6 +887,19 @@ def test_grading_with_the_judge_records_what_the_judge_cost(wired: dict[str, Any
     assert (cli.episode_dir(out, "baseline", "doc", 0) / "judge.attempt0.json").is_file()
 
 
+def test_the_grading_sign_off_is_for_one_judge(wired: dict[str, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+                                               capsys: pytest.CaptureFixture[str]) -> None:
+    signed = {"cases": {"version": 1}, "grading": {"version": 1, "judge": judge.identity("claude-judge-1", "high")}}
+    root = str(rewrite(wired["repo"], signoffs=signed))
+    monkeypatch.setattr(cli, "work_root", lambda _: tmp_path)
+    args = ["grade", root, "--out", str(wired["out"]), "--variant", "baseline"]
+    assert cli.main([*args, "--judge-model", "claude-judge-2"]) == 2
+    assert cli.main([*args, "--judge-model", "claude-judge-1", "--judge-effort", "low"]) == 2
+    assert "calibrate that judge" in capsys.readouterr().err
+    (wired["out"] / "baseline" / "episodes").mkdir(parents=True)
+    assert cli.main([*args, "--judge-model", "claude-judge-1"]) == 0, "签过的那个判官放行"
+
+
 def test_a_truncated_run_is_counted_and_left_out_of_the_means(wired: dict[str, Any], tmp_path: Path) -> None:
     wired["modes"][:] = ["max-tokens", "ok"]
     run_cli(wired)

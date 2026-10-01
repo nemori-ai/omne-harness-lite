@@ -473,6 +473,8 @@ def parser() -> argparse.ArgumentParser:
     running.add_argument("--reps", type=int)
     running.add_argument("--model", help="run this variant on another model than the suite's default")
     running.add_argument("--effort", help="run this variant at another effort than the suite's default")
+    running.add_argument("--episode-budget-usd", type=float,
+                         help="ceiling the host enforces on one episode, instead of the suite's")
     running.add_argument("--material", action="append")
     running.add_argument("--parallel", type=int, default=1)
     running.add_argument("--allow-dirty", action="store_true")
@@ -522,7 +524,8 @@ def main(argv: list[str] | None = None) -> int:
             return run(flow, variant=args.variant, out=out, work=work_root(args.work), reps=args.reps,
                        only=args.material, parallel=args.parallel, allow_dirty=args.allow_dirty,
                        keep=args.keep_workspaces,
-                       overrides={key: value for key, value in (("model", args.model), ("effort", args.effort)) if value})
+                       overrides={key: value for key, value in (("model", args.model), ("effort", args.effort),
+                                                                ("budget_usd", args.episode_budget_usd)) if value})
         if args.command == "import-run":
             import_run(flow, variant=args.variant, out=out, material=flow.material(args.material), rep=args.rep,
                        source=args.source.resolve())
@@ -531,6 +534,12 @@ def main(argv: list[str] | None = None) -> int:
             if args.judge_model and "grading" in flow.unsigned():
                 raise Refused(f"{flow.id} v{flow.version} has no sign-off on the grading method; "
                               f"the model judge waits for it")
+            signed = flow.signoffs.get("grading", {}).get("judge")
+            if args.judge_model and signed and signed != judge.identity(args.judge_model, args.judge_effort):
+                # The sign-off names the judge it was given for: another model, effort or rule text is another judge.
+                raise Refused(f"the grading sign-off of {flow.id} is for {signed}, not for "
+                              f"{judge.identity(args.judge_model, args.judge_effort)}; calibrate that judge and "
+                              f"have it signed off first")
             return grade(flow, variant=args.variant, out=out, labels=args.labels.resolve() if args.labels else None,
                          judge_model=args.judge_model, judge_effort=args.judge_effort,
                          work=work_root(args.work) if args.judge_model else None)

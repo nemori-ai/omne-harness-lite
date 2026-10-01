@@ -3,7 +3,7 @@
 量的是：给 [design-reviewer](../../../roles/design-reviewer/role.md) 一份架构设计的待审稿、让它判「选择」这一种，
 它能不能把设计选择里的已知问题报出来，同时保持只读、只做这一种判断。判据页是手册的 `references/review/choice.md`。
 
-状态：**用例已签字（2026-10-01，第 1 版）；判定方法待签字；还没有基线。**
+状态：**用例与判定方法都已签字（2026-10-01，第 1 版；判官是 Claude Sonnet 5.5、high）；还没有基线。**
 
 模型：Claude Fable 5.1、xhigh（角色文件的钉值）。
 
