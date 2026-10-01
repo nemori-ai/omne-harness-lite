@@ -200,3 +200,5 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 [D-110：模型调用引用与独立消费者](model-runtime-reference-lifecycle-adoption/README.md)：接受四契约和五现有节点映射；十四操作、耐久引用与独立消费待实施验收，不前置完整Session/Run。
 
 [D-111：2026-09-30 模型请求运行时收口程裁决汇编](model-request-runtime-rulings-2026-09-30/README.md)：本期只交付 text/image（产品负责人）；四家 full-only；共享 reader 无 id 片段按 index 采用迟到签名（R-L 修正 R-F）；换路由 opaque 思考块拒绝不降级；`[REDACTED]` 判不可解释；GG-10／GG-11 登记。不表示契约或节点接受、真实认证完成。
+
+[D-112：Cordis 是装配时要满足的契约规范，不是建模的视角](cordis-as-assembly-contract/README.md)（2026-10-01）：领域与能力独立于 Cordis 建模，契约定下之后才装配并核对符合性；手册主线的「机制读数」改为不带内核词汇的「承载读数」，Cordis 挪到「装配与符合性核对」。不表示已有架构材料已按新定位重写，也不改变任何契约或节点的状态。
