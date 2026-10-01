@@ -26,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from . import claude_host, grading, review, stats, workspace
+from . import claude_host, grading, judge, review, stats, workspace
 from .store import VariantStore
 from .suite import Flow, Material, SuiteError, load
 
@@ -106,6 +106,11 @@ def verify(flow: Flow, work: Path) -> list[str]:
                 problems.append(f"{material.id}: preparing the material changed nothing")
             if "{WORKDIR}" not in material.brief.read_text(encoding="utf-8"):
                 problems.append(f"{material.id}: brief does not say where the copy is ({{WORKDIR}})")
+            for seed in material.seeds:
+                texts = [(dest / path).read_text(encoding="utf-8") for path in seed.files if (dest / path).is_file()]
+                for fragment in seed.fragments():
+                    if not any(fragment in text for text in texts):
+                        problems.append(f"{material.id}.{seed.id}: the material does not contain {fragment[:50]!r}")
             if flow.attach_design_review:
                 report = review.design_review_report(REPO, dest, material.contract)
                 found = report.split("## 未能判定")[0]
@@ -152,7 +157,7 @@ def inputs(flow: Flow) -> str:
         if flow.attach_design_review:
             lines += ["", "运行时在简报末尾另附设计评审报告在该副本上的原始输出。"]
         if material.prepare:
-            lines += ["", "### 种入之前对材料做的处理", ""]
+            lines += ["", "### 送审之前对材料做的处理", ""]
             for op in material.prepare:
                 lines.append(f"- `{json.dumps(op, ensure_ascii=False)}`")
                 if op["op"] == "copy":
@@ -326,7 +331,11 @@ def import_run(flow: Flow, *, variant: str, out: Path, material: Material, rep: 
 
 # --- grade --------------------------------------------------------------------------------------------------
 
-def grade(flow: Flow, *, variant: str, out: Path, labels: Path) -> int:
+def grade(flow: Flow, *, variant: str, out: Path, labels: Path | None = None, judge_model: str | None = None,
+          judge_effort: str = "high", work: Path | None = None) -> int:
+    """Score every recorded episode that has no rows yet, from a person's labels or with the model judge."""
+    if (labels is None) == (judge_model is None):
+        raise Refused("grade with exactly one of --labels or --judge-model")
     store = VariantStore(out, variant)
     done = store.done()
     graded = 0
@@ -336,15 +345,27 @@ def grade(flow: Flow, *, variant: str, out: Path, labels: Path) -> int:
         if (material.id, rep) in done:
             continue
         brief_text = (evidence.parent / "brief.md").read_text(encoding="utf-8")
+        extra: dict[str, Any] = {}
         try:
-            verdict = grading.from_labels(labels, material, rep)
+            if labels is not None:
+                verdict = grading.from_labels(labels, material, rep)
+            else:
+                verdict, results = judge.judge(
+                    flow, material, (evidence.parent / "final.md").read_text(encoding="utf-8"), model=judge_model,
+                    effort=judge_effort, cwd=work, evidence=evidence.parent / "judge.json")
+                extra = judge.spend(results)
         except grading.GraderError as error:
-            store.record_error(material.id, rep, "grader", str(error), model=record["model"], evidence=str(evidence.parent))
+            failed = judge.spend(getattr(error, "results", []))
+            store.record_error(material.id, rep, "grader", str(error), model=failed["judge_model"],
+                               usage=failed["judge_usage"], cost_usd=failed["judge_cost_usd"],
+                               evidence=str(evidence.parent))
             print(f"{material.id} rep {rep}: not graded - {error}")
             continue
         record["provenance"]["evidence"] = str(evidence.parent.relative_to(out))
         turns = claude_host.parse(evidence.parent / "trajectory.jsonl", brief=brief_text).turns
-        store.record_episode(review.rows(flow, material, rep, record, verdict, brief_text=brief_text), turns)
+        rows = review.rows(flow, material, rep, record, verdict, brief_text=brief_text)
+        rows[-1].update(extra)
+        store.record_episode(rows, turns)
         graded += 1
     print(f"{flow.id} {variant}: graded {graded} episodes")
     return 0
@@ -367,15 +388,23 @@ def summary(flow: Flow, out: Path) -> str:
         by_class: dict[str, int] = {}
         for error in errors:
             by_class[error["failure_class"]] = by_class.get(error["failure_class"], 0) + 1
-        spend = sum(row.get("cost_usd") or 0 for row in runs) + sum(error.get("cost_usd") or 0 for error in errors)
+        # Role spend comes from every recorded episode, graded or not, plus the attempts that failed;
+        # judge spend from the scored rows plus the grading attempts that failed.
+        episodes = [json.loads(path.read_text(encoding="utf-8"))
+                    for path in sorted((out / variant / "episodes").glob("*/episode.json"))]
+        role_spend = (sum(episode.get("cost_usd") or 0 for episode in episodes)
+                      + sum(error.get("cost_usd") or 0 for error in errors if error["failure_class"] != "grader"))
+        judge_spend = (sum(row.get("judge_cost_usd") or 0 for row in runs)
+                       + sum(error.get("cost_usd") or 0 for error in errors if error["failure_class"] == "grader"))
         models = sorted({row["model"] for row in rows})
-        lines += ["", f"{variant}: {len(runs)} episodes scored, {truncated} truncated, "
-                      f"{len(errors)} failed attempts {by_class or ''} - ${spend:.2f} - {', '.join(models)}"]
+        lines += ["", f"{variant}: {len(episodes)} episodes recorded, {len(runs)} scored, {truncated} truncated, "
+                      f"{len(errors)} failed attempts {by_class or ''} - role ${role_spend:.2f}, "
+                      f"judge ${judge_spend:.2f} - {', '.join(models)}"]
         for metric in flow.metrics:
             binary = metric["kind"] == "binary"
             score = stats.score(rows, metric["id"], binary=binary)
             if score is None:
-                lines.append(f"  {metric['id']:<12} not measured")
+                lines.append(f"  {metric['id']:<15} not measured")
                 continue
             if binary:
                 shown = f"{score.mean:6.1%}  [{score.lo:.1%}, {score.hi:.1%}]"
@@ -383,7 +412,7 @@ def summary(flow: Flow, out: Path) -> str:
                 shown = f"{score.mean:6.2f}  [no interval from one case]"
             else:
                 shown = f"{score.mean:6.2f}  [{score.lo:.2f}, {score.hi:.2f}]"
-            line = f"  {metric['id']:<12} {shown}  over {score.cases} cases, {score.observations} observations"
+            line = f"  {metric['id']:<15} {shown}  over {score.cases} cases, {score.observations} observations"
             if variant != variants[0]:
                 delta = stats.paired_delta(reference, rows, metric["id"])
                 if delta:
@@ -431,7 +460,10 @@ def parser() -> argparse.ArgumentParser:
     importing.add_argument("--from", dest="source", type=Path, required=True)
     grading_ = add("grade")
     grading_.add_argument("--variant", required=True)
-    grading_.add_argument("--labels", type=Path, required=True)
+    grading_.add_argument("--labels", type=Path, help="verdicts a person wrote down")
+    grading_.add_argument("--judge-model", help="grade with the model judge on this model; these calls are paid")
+    grading_.add_argument("--judge-effort", default="high")
+    grading_.add_argument("--work", type=Path)
     add("summary")
     add("report").add_argument("--builder", type=Path)
     return root
@@ -464,7 +496,12 @@ def main(argv: list[str] | None = None) -> int:
                        source=args.source.resolve())
             return 0
         if args.command == "grade":
-            return grade(flow, variant=args.variant, out=out, labels=args.labels.resolve())
+            if args.judge_model and "grading" in flow.unsigned():
+                raise Refused(f"{flow.id} v{flow.version} has no sign-off on the grading method; "
+                              f"the model judge waits for it")
+            return grade(flow, variant=args.variant, out=out, labels=args.labels.resolve() if args.labels else None,
+                         judge_model=args.judge_model, judge_effort=args.judge_effort,
+                         work=work_root(args.work) if args.judge_model else None)
         if args.command == "summary":
             print(summary(flow, out), end="")
             return 0

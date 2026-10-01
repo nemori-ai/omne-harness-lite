@@ -13,7 +13,7 @@ META = Path(__file__).resolve().parents[2]
 EVALUATION = META / "agents" / "evaluation"
 sys.path.insert(0, str(EVALUATION / "harness"))
 
-from roleeval import claude_host, cli, grading, review, stats, suite, workspace  # noqa: E402
+from roleeval import claude_host, cli, grading, judge, review, stats, suite, workspace  # noqa: E402
 from roleeval.store import RowRejected, VariantStore, check_row  # noqa: E402
 
 MODEL = "claude-test-1"
@@ -99,7 +99,9 @@ def flow_json(base: str, **over: Any) -> dict[str, Any]:
         "metrics": [{"id": "caught", "kind": "binary", "label": "抓到种入"},
                     {"id": "read_only", "kind": "binary", "label": "只读"},
                     {"id": "names_page", "kind": "binary", "label": "写明判据页"},
-                    {"id": "out_of_kind", "kind": "float", "label": "越出判断条数", "better": "lower"}],
+                    {"id": "out_of_kind", "kind": "float", "label": "越出判断条数", "better": "lower"},
+                    {"id": "blocking", "kind": "float", "label": "阻断条数"},
+                    {"id": "novel_blocking", "kind": "float", "label": "表外阻断条数", "better": "lower"}],
         "signoffs": {"cases": {"by": "t", "date": "2026-10-01", "version": 1},
                      "grading": {"by": "t", "date": "2026-10-01", "version": 1}},
         "materials": [{
@@ -179,7 +181,8 @@ def labels(tmp_path: Path, episodes: dict[str, Any]) -> Path:
     return path
 
 
-GOOD_LABEL = {"seeds": {"S1": [1, "报告的 B-1"], "S2": [0, "没有提到附件"]}, "run": {"out_of_kind": [0, "没有"]}}
+RUN_COUNTS = {"out_of_kind": [0, "没有"], "blocking": [1, "B-1"], "novel_blocking": [0, "没有"]}
+GOOD_LABEL = {"seeds": {"S1": [1, "报告的 B-1"], "S2": [0, "没有提到附件"]}, "run": RUN_COUNTS}
 
 
 # --- 结果落盘 -----------------------------------------------------------------------------------------------
@@ -522,7 +525,8 @@ def test_a_historical_material_is_taken_from_its_own_commit(repo: Path, tmp_path
     current = json.loads((root / "flow.json").read_text(encoding="utf-8"))
     real = {"id": "doc-later", "target": "design/doc.md 的后来版本", "brief": "briefs/doc.md", "base": later,
             "source": "一次真实评审", "seeds": [{"id": "R1", "kind": "real", "where": "第一句", "truth": "只说先读",
-                                             "quote": "后来的版本", "severity": "阻断"}]}
+                                             "quote": "后来的版本", "files": ["design/doc.md"],
+                                             "severity": "阻断"}]}
     flow = suite.load(rewrite(repo, materials=[*current["materials"], real]))
     assert flow.base(flow.material("doc")) == flow.workspace["base"]
     assert flow.base(flow.material("doc-later")) == later
@@ -554,17 +558,18 @@ def test_labels_become_a_verdict_that_names_its_source(repo: Path, tmp_path: Pat
     material = suite.load(repo / "suites" / "tiny-review").material("doc")
     verdict = grading.from_labels(labels(tmp_path, {"0": GOOD_LABEL}), material, 0)
     assert verdict.seeds == {"S1": (1, "报告的 B-1"), "S2": (0, "没有提到附件")}
-    assert verdict.run == {"out_of_kind": (0.0, "没有")}
+    assert verdict.run == {"out_of_kind": (0.0, "没有"), "blocking": (1.0, "B-1"), "novel_blocking": (0.0, "没有")}
     assert verdict.grader.startswith("人工 [labels.json@")
 
 
 @pytest.mark.parametrize("entry", [
-    {"seeds": {"S1": [1, "有"]}, "run": {"out_of_kind": [0, "没有"]}},
-    {"seeds": {"S1": [1, "有"], "S2": [1, "有"], "S3": [1, "多出来的"]}, "run": {"out_of_kind": [0, "没有"]}},
-    {"seeds": {"S1": [2, "有"], "S2": [0, "没有"]}, "run": {"out_of_kind": [0, "没有"]}},
-    {"seeds": {"S1": [1, " "], "S2": [0, "没有"]}, "run": {"out_of_kind": [0, "没有"]}},
+    {"seeds": {"S1": [1, "有"]}, "run": RUN_COUNTS},
+    {"seeds": {"S1": [1, "有"], "S2": [1, "有"], "S3": [1, "多出来的"]}, "run": RUN_COUNTS},
+    {"seeds": {"S1": [2, "有"], "S2": [0, "没有"]}, "run": RUN_COUNTS},
+    {"seeds": {"S1": [1, " "], "S2": [0, "没有"]}, "run": RUN_COUNTS},
     {"seeds": {"S1": [1, "有"], "S2": [0, "没有"]}, "run": {}},
-    {"seeds": {"S1": [1, "有"], "S2": [0, "没有"]}, "run": {"out_of_kind": [-1, "负数"]}},
+    {"seeds": {"S1": [1, "有"], "S2": [0, "没有"]}, "run": {"out_of_kind": [0, "没有"]}},
+    {"seeds": {"S1": [1, "有"], "S2": [0, "没有"]}, "run": {**RUN_COUNTS, "out_of_kind": [-1, "负数"]}},
 ])
 def test_an_incomplete_verdict_is_a_grader_failure(repo: Path, tmp_path: Path, entry: dict[str, Any]) -> None:
     material = suite.load(repo / "suites" / "tiny-review").material("doc")
@@ -586,6 +591,165 @@ def test_run_level_facts_are_read_off_the_transcript_and_the_copy(repo: Path, tm
     assert changed["read_only"][0] == 0 and "被改动" in changed["read_only"][1]
     late = review.observe(flow, run_fake(tmp_path, "no-page"), unchanged=True, allowed=allowed)
     assert late["names_page"][0] == 0, "naming the page after the first paragraph does not count"
+
+
+# --- 判官 ---------------------------------------------------------------------------------------------------
+
+REPORT = (
+    "本次判断是**选择**，读的判据页是 `references/review/x.md`。\n\n## 阻断\n\n### B-1 第一句把必须写成了可以\n\n"
+    "design/doc.md 第一句写「调用方可以不读」，\n与契约 S-3「必须先读」冲突，后果是越权路径不被拒绝。\n\n"
+    "## 非阻断\n\n### N-1 措辞\n\n「再写」一词有两种读法。\n\n## 未覆盖\n\n附件 tmp/extra.md 自相矛盾，转交。\n")
+
+
+def finding(label: str, group: str, match: str, *, outside: bool = False) -> dict[str, Any]:
+    return {"label": label, "group": group, "summary": f"{label} 的概括", "match": match, "out_of_kind": outside,
+            "out_of_kind_reason": "评措辞" if outside else ""}
+
+
+def raw_answer() -> dict[str, Any]:
+    return {
+        "findings": [finding("B-1", "blocking", "S1"), finding("N-1", "non_blocking", "none", outside=True),
+                     finding("未覆盖 1", "other", "S2")],
+        "targets": [
+            {"id": "S1", "caught": True, "finding": "B-1", "reason": "",
+             "quote": "design/doc.md 第一句写「调用方可以不读」， 与契约 S-3「必须先读」冲突"},
+            {"id": "S2", "caught": False, "finding": "", "quote": "", "reason": "只在未覆盖里提了一句"}],
+    }
+
+
+@pytest.fixture
+def doc(repo: Path) -> tuple[suite.Flow, suite.Material]:
+    import dataclasses
+    flow = suite.load(repo / "suites" / "tiny-review")
+    material = dataclasses.replace(flow.material("doc"), known_issues=({"id": "K1", "verdict": "real", "what": "基线没有提交号"},))
+    return flow, material
+
+
+def test_a_judge_answer_becomes_a_verdict_only_through_the_report_text(doc: tuple[suite.Flow, suite.Material]) -> None:
+    _, material = doc
+    verdict = judge.verdict(raw_answer(), material, REPORT, grader="judge:x")
+    assert verdict.seeds["S1"][0] == 1 and "B-1：「design/doc.md" in verdict.seeds["S1"][1]
+    assert verdict.seeds["S2"] == (0, "只在未覆盖里提了一句")
+    assert {metric: value for metric, (value, _) in verdict.run.items()} == {
+        "out_of_kind": 1.0, "blocking": 1.0, "novel_blocking": 0.0}
+    assert "N-1" in verdict.run["out_of_kind"][1]
+
+
+def test_blocking_findings_off_the_known_list_are_counted_apart(doc: tuple[suite.Flow, suite.Material]) -> None:
+    _, material = doc
+    raw = raw_answer()
+    raw["findings"] += [finding("B-2", "blocking", "none"), finding("B-3", "blocking", "K1"),
+                        finding("B-4", "blocking", "none", outside=True)]
+    verdict = judge.verdict(raw, material, REPORT, grader="judge:x")
+    assert {metric: value for metric, (value, _) in verdict.run.items()} == {
+        "out_of_kind": 2.0, "blocking": 4.0, "novel_blocking": 1.0}
+
+
+def broken(change: Any) -> dict[str, Any]:
+    raw = raw_answer()
+    change(raw)
+    return raw
+
+
+@pytest.mark.parametrize(("change", "message"), [
+    (lambda raw: raw["targets"][0].update(quote="报告指出第一句把必须写成了可以，违反契约"), "not in the report"),
+    (lambda raw: raw["targets"][0].update(quote="冲突"), "not in the report"),
+    (lambda raw: raw["targets"][0].update(finding="未覆盖 1"), "not a listed blocking"),
+    (lambda raw: raw["targets"][0].update(finding="B-9"), "not a listed blocking"),
+    (lambda raw: raw["targets"].pop(), "no answer for S2"),
+    (lambda raw: raw["targets"].append({"id": "S9", "caught": False, "finding": "", "quote": "", "reason": "x"}),
+     "not given"),
+    (lambda raw: raw["findings"][0].update(match="E7"), "not on the list"),
+    (lambda raw: raw["findings"][0].update(group="severe"), "unknown group"),
+    (lambda raw: raw["findings"][0].pop("match"), "lacks"),
+    (lambda raw: raw.pop("targets"), "lacks"),
+])
+def test_a_judge_claim_the_report_does_not_bear_out_is_a_grader_failure(
+        doc: tuple[suite.Flow, suite.Material], change: Any, message: str) -> None:
+    with pytest.raises(grading.GraderError, match=message):
+        judge.verdict(broken(change), doc[1], REPORT, grader="judge:x")
+
+
+@pytest.mark.parametrize("report", ["", "没有发现问题。", "今天天气不错，建议把仓库改名。"])
+def test_a_report_that_says_nothing_cannot_be_judged_as_catching_anything(
+        doc: tuple[suite.Flow, suite.Material], report: str) -> None:
+    with pytest.raises(grading.GraderError, match="not in the report"):
+        judge.verdict(raw_answer(), doc[1], report, grader="judge:x")
+    silent = {"findings": [], "targets": [
+        {"id": seed, "caught": False, "finding": "", "quote": "", "reason": "报告没有提到"} for seed in ("S1", "S2")]}
+    verdict = judge.verdict(silent, doc[1], report, grader="judge:x")
+    assert [value for value, _ in verdict.seeds.values()] == [0, 0]
+    assert all(value == 0 for value, _ in verdict.run.values())
+
+
+def test_the_judge_prompt_carries_the_targets_and_not_the_material(doc: tuple[suite.Flow, suite.Material]) -> None:
+    flow, material = doc
+    text = judge.prompt(flow, material, REPORT)
+    assert "id `S1`｜位置：第一句｜问题：把必须写成了可以" in text and "材料里的这段文字：可以不读" in text
+    assert "id `K1`｜基线没有提交号" in text and "评措辞与歧义" in text
+    assert text.index("<report>") < text.index("### B-1") < text.index("</report>")
+    assert "调用方必须先读，再写" not in text, "the judge reads the report, not the material"
+    import dataclasses
+    control = dataclasses.replace(material, seeds=())
+    assert "targets 填空数组" in judge.prompt(flow, control, REPORT)
+    assert judge.verdict({"findings": [finding("B-1", "blocking", "none")], "targets": []}, control, REPORT,
+                         grader="judge:x").run["novel_blocking"][0] == 1.0
+
+
+FAKE_JUDGE = r'''
+import json, pathlib, sys
+queue = pathlib.Path(sys.argv[1])
+sys.stdin.read()
+answers = json.loads(queue.read_text())
+answer = answers.pop(0) if len(answers) > 1 else answers[0]
+queue.write_text(json.dumps(answers))
+if answer == "garbage":
+    print("not json"); sys.exit(0)
+result = {"type": "result", "subtype": "success", "is_error": False, "result": "", "structured_output": answer,
+          "total_cost_usd": 0.02, "usage": {"input_tokens": 900, "output_tokens": 120},
+          "modelUsage": {"claude-judge-1": {"outputTokens": 120}}}
+if answer == "host-error":
+    result.update(subtype="error_during_execution", is_error=True, structured_output=None)
+print(json.dumps(result, ensure_ascii=False))
+'''
+
+
+def fake_judge(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, answers: list[Any]) -> None:
+    script, queue = tmp_path / "fake_judge.py", tmp_path / "judge-queue.json"
+    script.write_text(FAKE_JUDGE, encoding="utf-8")
+    queue.write_text(json.dumps(answers, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(judge, "command", lambda *_, **__: [sys.executable, str(script), str(queue)])
+
+
+def test_the_judge_gets_a_second_attempt_and_every_attempt_is_billed(
+        doc: tuple[suite.Flow, suite.Material], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    flow, material = doc
+    bad = broken(lambda raw: raw["targets"][0].update(quote="报告里没有的一句话，足够长"))
+    fake_judge(tmp_path, monkeypatch, [bad, raw_answer()])
+    verdict, results = judge.judge(flow, material, REPORT, model="claude-judge-1", effort="high", cwd=tmp_path,
+                                   evidence=tmp_path / "ev" / "judge.json")
+    assert verdict.seeds["S1"][0] == 1 and verdict.grader.startswith("judge:claude-judge-1@high rules ")
+    assert judge.spend(results) == {
+        "judge_model": "claude-judge-1", "judge_attempts": 2, "judge_cost_usd": 0.04,
+        "judge_usage": {"input_tokens": 1800, "output_tokens": 240, "cache_read_input_tokens": 0,
+                        "cache_creation_input_tokens": 0}}
+    assert (tmp_path / "ev" / "judge.attempt0.json").is_file() and (tmp_path / "ev" / "judge.attempt1.json").is_file()
+
+
+@pytest.mark.parametrize("answers", [["garbage"], ["host-error"]])
+def test_a_judge_that_never_answers_properly_fails_the_grading(
+        doc: tuple[suite.Flow, suite.Material], tmp_path: Path, monkeypatch: pytest.MonkeyPatch, answers: list[Any]) -> None:
+    fake_judge(tmp_path, monkeypatch, answers)
+    with pytest.raises(judge.JudgeFailed, match="2 judge attempts failed"):
+        judge.judge(doc[0], doc[1], REPORT, model="claude-judge-1", effort="high", cwd=tmp_path,
+                    evidence=tmp_path / "ev" / "judge.json")
+
+
+def test_the_judge_command_gives_the_judge_no_tools_and_no_project_settings() -> None:
+    command = judge.command("claude-judge-1", "high", budget_usd=2)
+    assert command[command.index("--tools") + 1] == "" and command[command.index("--setting-sources") + 1] == ""
+    assert json.loads(command[command.index("--json-schema") + 1])["required"] == ["findings", "targets"]
+    assert judge.identity("a", "high") != judge.identity("b", "high")
 
 
 # --- 命令行：从运行到汇总 -----------------------------------------------------------------------------------
@@ -640,7 +804,8 @@ def test_run_then_grade_then_summary(wired: dict[str, Any], tmp_path: Path) -> N
     assert list(wired["work"].iterdir()) == [], "copies are removed once their hash is taken"
     assert json.loads((out / "_state.json").read_text(encoding="utf-8"))["metrics"][0]["id"] == "caught"
 
-    second = {"seeds": {"S1": [1, "报告的 B-1"], "S2": [1, "报告的 N-2"]}, "run": {"out_of_kind": [1, "N-3 在评措辞"]}}
+    second = {"seeds": {"S1": [1, "报告的 B-1"], "S2": [1, "报告的 N-2"]},
+              "run": {"out_of_kind": [1, "N-3 在评措辞"], "blocking": [3, "B-1、B-2、B-3"], "novel_blocking": [2, "B-2、B-3"]}}
     assert cli.grade(wired["flow"], variant="baseline", out=out, labels=labels(tmp_path, {"0": GOOD_LABEL, "1": second})) == 0
     store = VariantStore(out, "baseline")
     rows = store.rows()
@@ -651,16 +816,19 @@ def test_run_then_grade_then_summary(wired: dict[str, Any], tmp_path: Path) -> N
     run_rows = [r for r in rows if r["meta"]["unit"] == "run"]
     assert all(r["cost_usd"] == 0.5 for r in run_rows)
     assert all("cost_usd" not in r for r in rows if r["meta"]["unit"] == "seed"), "spend is counted once per episode"
-    assert run_rows[0]["grade"] == {"read_only": 1, "names_page": 1, "out_of_kind": 0.0}
+    assert run_rows[0]["grade"] == {"read_only": 1, "names_page": 1, "out_of_kind": 0.0, "blocking": 1.0,
+                                    "novel_blocking": 0.0}
     seed = next(r for r in rows if r["prompt_id"] == "doc.S1")
     assert "原文：" in seed["prompt"] and seed["tags"][:3] == ["doc", "seed", "judgment"]
     assert cli.grade(wired["flow"], variant="baseline", out=out, labels=labels(tmp_path, {"0": GOOD_LABEL, "1": second})) == 0
     assert len(store.rows()) == 6, "grading again adds nothing"
 
     text = cli.summary(wired["flow"], out)
-    assert "baseline: 2 episodes scored, 0 truncated, 0 failed attempts" in text and "$1.00" in text
-    assert "caught        75.0%" in text and "over 2 cases, 4 observations" in text
-    assert "out_of_kind    0.50  [no interval from one case]" in text
+    assert "baseline: 2 episodes recorded, 2 scored, 0 truncated, 0 failed attempts" in text
+    assert "role $1.00, judge $0.00" in text
+    assert "caught           75.0%" in text and "over 2 cases, 4 observations" in text
+    assert "out_of_kind       0.50  [no interval from one case]" in text
+    assert "novel_blocking    1.00  [no interval from one case]" in text
     assert "noise floor on caught: about ±69% with 2 cases" in text
 
 
@@ -679,7 +847,7 @@ def test_a_failed_attempt_is_recorded_aside_and_run_again_on_resume(wired: dict[
     assert len(store.error_rows()) == 1
     cli.grade(wired["flow"], variant="baseline", out=out, labels=labels(tmp_path, {"0": GOOD_LABEL, "1": GOOD_LABEL}))
     text = cli.summary(wired["flow"], out)
-    assert "2 episodes scored, 0 truncated, 1 failed attempts {'harness': 1} - $1.50" in text
+    assert "2 episodes recorded, 2 scored, 0 truncated, 1 failed attempts {'harness': 1} - role $1.50" in text
 
 
 def test_a_grader_that_fails_scores_nothing(wired: dict[str, Any], tmp_path: Path) -> None:
@@ -692,6 +860,27 @@ def test_a_grader_that_fails_scores_nothing(wired: dict[str, Any], tmp_path: Pat
     assert len(store.rows()) == 3
 
 
+def test_grading_with_the_judge_records_what_the_judge_cost(wired: dict[str, Any], tmp_path: Path,
+                                                            monkeypatch: pytest.MonkeyPatch) -> None:
+    run_cli(wired, reps=2)
+    out = wired["out"]
+    final = (cli.episode_dir(out, "baseline", "doc", 0) / "final.md").read_text(encoding="utf-8")
+    good = {"findings": [finding("B-1", "blocking", "S1")], "targets": [
+        {"id": "S1", "caught": True, "finding": "B-1", "quote": final.strip().splitlines()[0], "reason": ""},
+        {"id": "S2", "caught": False, "finding": "", "quote": "", "reason": "没有提到附件"}]}
+    fake_judge(tmp_path, monkeypatch, [good, "garbage", "garbage"])
+    with pytest.raises(cli.Refused, match="exactly one"):
+        cli.grade(wired["flow"], variant="baseline", out=out)
+    cli.grade(wired["flow"], variant="baseline", out=out, judge_model="claude-judge-1", work=tmp_path)
+    store = VariantStore(out, "baseline")
+    run_row = next(r for r in store.rows() if r["meta"]["unit"] == "run")
+    assert (run_row["judge_cost_usd"], run_row["judge_model"], run_row["judge_attempts"]) == (0.02, "claude-judge-1", 1)
+    assert run_row["meta"]["grader"].startswith("judge:claude-judge-1@high")
+    assert [e["failure_class"] for e in store.error_rows()] == ["grader"]
+    assert "1 scored" in cli.summary(wired["flow"], out) and "role $1.00, judge $0.02" in cli.summary(wired["flow"], out)
+    assert (cli.episode_dir(out, "baseline", "doc", 0) / "judge.attempt0.json").is_file()
+
+
 def test_a_truncated_run_is_counted_and_left_out_of_the_means(wired: dict[str, Any], tmp_path: Path) -> None:
     wired["modes"][:] = ["max-tokens", "ok"]
     run_cli(wired)
@@ -699,7 +888,7 @@ def test_a_truncated_run_is_counted_and_left_out_of_the_means(wired: dict[str, A
     rows = VariantStore(wired["out"], "baseline").rows()
     assert [r["grade"] for r in rows if r["rep"] == 0] == [{}, {}, {}]
     text = cli.summary(wired["flow"], wired["out"])
-    assert "2 episodes scored, 1 truncated" in text and "over 2 cases, 2 observations" in text
+    assert "2 scored, 1 truncated" in text and "over 2 cases, 2 observations" in text
 
 
 def test_a_changed_model_is_a_variant_of_its_own(wired: dict[str, Any]) -> None:
@@ -768,3 +957,8 @@ def test_a_standing_suite_still_fits_the_repository(root: Path) -> None:
                 assert text.count(op["find"]) == 1, f"{flow.id}/{material.id}.{op.get('id')}: seed no longer lands once"
             elif op["op"] == "copy":
                 assert (root / op["from"]).is_file()
+        for seed in material.seeds:
+            texts = [workspace.git(repo, "show", f"{base}:{path}") for path in seed.files]
+            for fragment in seed.fragments():
+                assert any(fragment in text for text in texts), (
+                    f"{flow.id}/{material.id}.{seed.id}: the pinned material does not contain {fragment[:50]!r}")

@@ -36,7 +36,9 @@
     {"id": "caught", "kind": "binary", "label": "抓到种入"},
     {"id": "read_only", "kind": "binary", "label": "只读"},
     {"id": "names_page", "kind": "binary", "label": "写明判据页"},
-    {"id": "out_of_kind", "kind": "float", "label": "越出判断条数", "scale": 5, "better": "lower"}
+    {"id": "out_of_kind", "kind": "float", "label": "越出判断条数", "scale": 5, "better": "lower"},
+    {"id": "novel_blocking", "kind": "float", "label": "表外阻断条数", "scale": 5, "better": "lower"},
+    {"id": "blocking", "kind": "float", "label": "阻断条数", "scale": 10}
   ],
   "signoffs": {},
   "materials": [

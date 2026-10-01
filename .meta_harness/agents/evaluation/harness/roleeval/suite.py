@@ -27,7 +27,12 @@ class Seed:
     op: dict[str, Any] | None = None
     check: str | None = None
     quote: str | None = None
+    files: tuple[str, ...] = ()
     severity: str | None = None
+
+    def fragments(self) -> list[str]:
+        """The verbatim pieces of the material a real finding points at; each line of ``quote`` is one piece."""
+        return [line for line in (self.quote or "").splitlines() if line.strip()]
 
 
 @dataclass(frozen=True)
@@ -119,7 +124,7 @@ def load(root: Path) -> Flow:
 def _material(root: Path, raw: dict[str, Any]) -> Material:
     seeds = tuple(Seed(id=seed["id"], kind=seed["kind"], where=seed["where"], truth=seed["truth"],
                        op=seed.get("op"), check=seed.get("check"), quote=seed.get("quote"),
-                       severity=seed.get("severity")) for seed in raw["seeds"])
+                       files=tuple(seed.get("files", ())), severity=seed.get("severity")) for seed in raw["seeds"])
     return Material(id=raw["id"], target=raw["target"], brief=root / raw["brief"], tags=tuple(raw.get("tags", ())),
                     prepare=tuple(raw.get("prepare", ())), seeds=seeds, contract=raw.get("contract"),
                     known_issues=tuple(raw.get("known_issues", ())), base=raw.get("base"), source=raw.get("source"))
@@ -154,6 +159,9 @@ def _check(flow: Flow) -> None:
         seed_ids = [seed.id for seed in material.seeds]
         if len(set(seed_ids)) != len(seed_ids):
             raise SuiteError(f"{flow.id}/{material.id}: duplicate seed ids")
+        for seed in material.seeds:
+            if seed.quote and not seed.files:
+                raise SuiteError(f"{flow.id}/{material.id}.{seed.id}: a quoted finding names the files the quote is in")
         if flow.attach_design_review and not material.contract:
             raise SuiteError(f"{flow.id}/{material.id}: a flow that attaches the design review report "
                              f"needs the contract coordinate of each material")

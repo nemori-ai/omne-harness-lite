@@ -13,7 +13,9 @@ from typing import Any
 
 from .suite import Material
 
-JUDGED_RUN_METRICS = ("out_of_kind",)
+# Counts read off the report by a grader: findings outside the kind of judgment asked for, blocking findings,
+# and blocking findings that match neither a target nor a known issue of the material.
+JUDGED_RUN_METRICS = ("out_of_kind", "blocking", "novel_blocking")
 
 
 class GraderError(RuntimeError):
