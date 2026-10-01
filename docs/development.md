@@ -180,6 +180,10 @@ Claude Code 通过同级 `CLAUDE.md` 的 `@AGENTS.md` 读取同一份约定。
 没有交代的红项退回；配了可执行验收的跑验收锁；按[接受级别](development_human.md#接受级别)决定要不要另派评审或验收。
 回路给出的清理草稿报给负责人，批准后才按[清理任务派发说明](../.meta_harness/agents/roles/cleanup-task.md)派——主会话不替负责人批。
 
+**收工钩子替不了上面这一步。**实施类的 subagent 收工时，宿主可能已经把这次变更的红项作为事实反馈给它一次（见[整洁回路](clean-loop.md#回路怎么转)）；
+那份反馈只到 subagent、到不了派发它的会话，同一组读数也只说一次。所以派发方照旧自己跑 `make loop-status BASE=<任务基线>`，
+对着交付说明逐条核。合并前的三条硬线由 `make check` 的最后一步判。
+
 根 `.agents`、`.claude`、`.codex` 分别软链接到 `.meta_harness/` 内同名目录，
 向宿主暴露生成的 skills/subagents。**先改源与适配，再按[编译工具](../.meta_harness/tooling/README.md)生成**；
 编译器拒绝覆盖不同内容，**不要手工编辑输出修补漂移**。
