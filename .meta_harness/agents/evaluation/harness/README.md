@@ -12,11 +12,11 @@
 
 | 子命令 | 做什么 |
 |---|---|
-| `verify` | 给每份材料建副本、落种入，核对种入各恰好落一次、工具核得出的那几处在设计评审报告里确实报了 |
+| `verify` | 给每份材料建副本、落种入，核对种入各恰好落一次、工具核得出的那几处在设计评审报告里确实报了；整仓检出一类另在真的副本上证明判定器判得出已知好与已知坏，并印出看到了什么 |
 | `inputs` | 把全部用例逐字印成一份 markdown，供用例签字时看 |
 | `prepare --variant V --material M [--rep K]` | 为一次运行建副本、写简报，印出该怎样派发 |
-| `record … --transcript T --dispatch registered\|inline [--tokens N]` | 收录那次运行的记录：核对简报、模型、副本有没有被动过、有没有够到不该看的地方 |
-| `judge-brief --variant V --material M [--rep K]` | 为一次已收录的运行写判官的简报，印出指向它的那句提示 |
+| `record … --transcript T --dispatch registered\|inline [--tokens N]` | 收录那次运行的记录：核对简报、模型、副本有没有被动过、有没有够到不该看的地方；由程序判定的流在这一步、删副本之前判定并落行 |
+| `judge-brief --variant V --material M [--rep K]` | 为一次已收录的运行写判官的简报，印出指向它的那句提示（只对评审类的流） |
 | `judge-record … --transcript T` | 核对判官的答复，通过则把这次运行判定成逐条结果 |
 | `grade --variant V --labels FILE` | 用人工写下的判定给已收录的运行打分 |
 | `calibrate-brief [--case ID]`、`calibrate-record --case ID --transcript T`、`calibrate --judge-model M` | 判官校准：写简报、收录答复、印出与人工判定的比对 |
@@ -53,6 +53,45 @@
 记录里的工具调用或工具返回提到了用例集目录、校准判定或早先的评估结果，这次运行记为 `contaminated`、不计分；
 工具调用点名的、副本之外的其余绝对路径，原样记在 `episode.json` 的 `outside_copy` 里供人看。
 subagent 还会带着主会话检出的约定文件（`AGENTS.md` 等）启动，而不是副本里的那一份；两者在被测路径已提交时内容相同。
+记录里的会话工作目录（第一条事件的 `cwd`）写进 `provenance.session_cwd`。
+
+## 整仓检出一类
+
+`flow.json` 的 `workspace.kind` 缺省是 `material`（上面说的那种副本）。`checkout` 是钉住提交的**整仓**检出，装好依赖、已构建，
+给要改代码、跑检查的角色用：
+
+```json
+"workspace": {"kind": "checkout", "base": "<提交>", "excludes": [".meta_harness/agents/evaluation", "…"],
+              "setup": [["pnpm", "install", "--frozen-lockfile", "--ignore-scripts", "--prefer-offline"], ["pnpm", "run", "build"]],
+              "linked": ["node_modules"], "drop": [".claude", ".agents", ".codex"], "commit": "single"}
+```
+
+- **模板**：按（`base`、`excludes`、`setup`）建一次，放在工作根的 `_templates/<流>-<提交前 12 位>-<这三项的哈希前 8 位>/`：
+  `git archive` 解出、删掉 `excludes`、依次跑 `setup`（任一条非零即失败，带输出），在临时兄弟目录里建好、写就绪标记之后才改名到位；
+  有就绪标记的直接复用。`excludes` 至少要有评估目录。`setup` 是配置，不写在代码里。
+- **每次运行的副本**：`rsync` 拷模板的真实文件，`linked` 里的目录（每一层的 `node_modules`）用 `cp -al` 硬链接，删掉 `drop` 里的链接，
+  再由这一类流做自己的准备，`git init`、建 `main` 分支、提交 `baseline`。`commit: delivery` 的流（实现评审）先提交基线，
+  再施加种入、以 `workspace.delivery` 给的作者与提交信息提交一个交付提交，然后在成员里跑 `workspace.rebuild`。
+- 这一类没有 `material_paths`、`subject_paths`：**整个检出都来自钉住的提交**，包括副本里的 skills、检查工具与文档；只有角色定义取自当前的源。
+- 硬链接的依赖目录与模板共用文件：角色改了 `node_modules` 里的东西会连模板一起改。怀疑模板被动过时删掉它重建。
+
+**隔离前提：从仓库之外的会话派发。**这一类流里被测角色有 shell，而仓库里就有答案（原实现、隐藏测试、种入清单），模板里也有原实现与隐藏测试。
+所以派发这一类运行的主会话，工作目录必须在本仓库的任何检出之外（主检出根及其下的 `.worktrees/` 都不行）；`prepare` 的输出第一行就是这条。
+`record` 对这一类另查：会话工作目录在主检出根之内、或记录里没有会话工作目录，记为 `contaminated`；
+工具调用的**输入**里出现主检出根的路径或 `_templates`，也记为 `contaminated`（这两样只查输入，因为依赖目录的启动脚本会在输出里带出模板路径）。
+上面那组「输入与输出都查」的禁区照旧。待审材料一类的流不查会话工作目录。
+
+## 由程序判定的流
+
+除了评审类（`family: review`，判官判），还有两类流在 `record` 时由程序判定，**判定发生在删副本之前**，没有判官，`judge-brief`、`judge-record`、`grade`、校准对它们都拒绝：
+
+- `implement`（developer 补完一个模块）：判定照搬早先[角色模型对照](../role-model-sonnet55/README.md)的 `oracle_implement`——
+  存一份 `changes.patch`，查写入范围与原有测试有没有被动过，把角色写的测试挪开、放回模板里的原测试，跑测试与类型检查。一次运行落一行（`meta.unit = "run"`）。
+- `acceptance`（qa 按标准验收）：判定照搬同一对照的 `oracle_acceptance` 与它的第 3 次修订——找报告、判判决与逐条结果、漏报与误报、制品哈希、写入范围。
+  每条标准一行（`meta.unit = "criterion"`）加一行运行级。
+
+判定的命令输出、JSON 报告与 `oracle.json` 留在这次运行的证据目录 `oracle/` 下。各流的指标与规则见各自用例集的说明。
+`verify` 对这两类在真的副本上跑一遍已知坏（桩在位、错的报告）与已知好（原实现放回、按真值造的报告），判反了就列为问题。
 
 ## 留下什么
 
@@ -64,7 +103,7 @@ _calibration/_briefs/<报告>.md       判官校准用的简报
 _calibration/<判官>/                 判官校准：每份校准报告的判定与一份比对
 <变体>/agents/<角色>.json            本变体冻结的角色定义
 <变体>/episodes/<材料>_rep<k>/       一次运行：brief.md、trajectory.jsonl、final.md、episode.json，
-                                    以及判官的简报与每次答复的记录
+                                    以及判官的简报与每次答复的记录；由程序判定的流另有 oracle/（判定的输出）
 <变体>/results.jsonl                逐条结果
 <变体>/traces/<用例>_rep<k>.json     每条结果的完整轨迹
 <变体>/errors.jsonl                 没能产出可判定输出的尝试
@@ -77,7 +116,8 @@ _calibration/<判官>/                 判官校准：每份校准报告的判�
 这样管道故障不会被平均成「模型答错了」。答复被截断的照常落行，标 `truncated`，不计入均值。
 
 评审类的流里，一次运行出若干行：每处应当被报出的问题一行（`caught`），整次运行一行（是否只读、首段是否写明判据页、
-越出本次判断的意见条数）。
+越出本次判断的意见条数）。整仓检出上的实现评审不用内容哈希判只读——角色会跑检查、留下未跟踪的产物——改成 `tracked_intact`：
+没有改动受版本管理的文件、HEAD 仍是交付提交；它没有判据页，不出 `names_page`。
 
 subagent 的运行没有价格。能记下的是：宿主报的用量合计、墙钟时间、工具调用次数、宿主记录的档位。
 档位由宿主按角色定义或会话设置定，派发者管不了；流里写的档位是期望值，`episode.json` 的 `efforts_observed` 是实际值。
@@ -103,6 +143,8 @@ subagent 的运行没有价格。能记下的是：宿主报的用量合计、�
 
 判官的名字是 `judge:subagent:<模型> rules <规则哈希>`：规则一改就是另一个判官，要重新校准。
 判定方法的签字写明是给哪个判官签的，别的判官的答复 `judge-record` 不收。
+「越出本次判断」按判断种类各有一条：设计评审的「表达／选择／计划」三条在 `OUT_OF_KIND`，判官的名字只哈希它们（已签字的名字因此不变）；
+「实现」那条另放在 `OUT_OF_KIND_MORE`，它的判官名字在同样的规则之外再哈希这一条，所以是另一个判官。
 
 校准：`calibrate-brief` 为用例集 `calibration/cases.json` 里的每份报告写一份简报；主会话逐份派判官；
 `calibrate-record` 收录答复；`calibrate` 把收录的判定与那里写下的人工判定逐处比对。
@@ -115,3 +157,4 @@ subagent 的运行没有价格。能记下的是：宿主报的用量合计、�
 运行器只保证「记下来的就是跑过的、算出来的与记下来的一致」。用例像不像真实工作、判定方法判得对不对，
 归各用例集的说明与两次签字；只有 Claude Code 一端，Codex 一端目前不在范围内。
 subagent 的隔离弱于单独的宿主进程：它与主会话共用检出与文件权限，`contaminated` 的核对只认得出记录里留了痕迹的越界。
+由程序判定的流量的是测试、类型检查与报告字段能读出来的那部分；完成声明属不属实、报告里引的输出是不是真跑出来的，要人读。

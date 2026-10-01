@@ -9,6 +9,9 @@
 | [design-review-expression](design-review-expression/README.md) | design-reviewer 判「表达」 | 两次签字已齐（判定方法签的是 subagent 判官）；还没有基线 |
 | [design-review-choice](design-review-choice/README.md) | design-reviewer 判「选择」 | 同上 |
 | [design-review-plan](design-review-plan/README.md) | design-reviewer 判「计划」 | 同上 |
+| [developer-implement](developer-implement/README.md) | developer 在整仓检出里补完一个模块，程序判定 | 两次签字都未签；还没有基线 |
+| [qa-acceptance](qa-acceptance/README.md) | qa 按十条标准验收一份构建，程序判定 | 同上 |
+| [implementation-review](implementation-review/README.md) | implementation-reviewer 评审一份交付提交，判官判定 | 同上；判官还没有在这个流上校准 |
 
 负责人 2026-10-01 定：各流的完整基线不随用例集一起跑，统一放到研发方案的最后。在那之前，这些用例集可以用来对单次改动做有针对性的试派，
 但没有基线可比。
@@ -18,13 +21,19 @@
 ## 一个用例集里有什么
 
 ```text
-flow.json        流的定义：角色、判断种类、宿主设置、指标、材料清单与每份材料里应当被报出的问题
-briefs/          每份材料的派发简报，{WORKDIR} 在运行时换成副本路径
+flow.json        流的定义：角色、判断种类、宿主设置、副本怎样建、指标、材料清单与每份材料的真值
+briefs/          每份材料的派发简报，{WORKDIR} 在运行时换成副本路径；implement 一类另有简报框架 _implement.md
 materials/       整份放进副本的待审材料（如为评估写的施工计划）
+stubs/           implement 一类：盖到副本上的桩文件，路径相对检出根
+target-tests.json  implement 一类：每份材料的桩在位时失败的测试
+ground-truth.sh  acceptance 一类：在副本上逐条跑验收标准的真值脚本
 calibration/     校准判官用：cases.json（每份报告的人工判定，反例怎样从真实报告删改而来）、
                  reports/（报告原文）、results/（判官校准的比对记录）
 README.md        这个流量什么、量不出什么、基线数字与噪声范围
 ```
+
+流分三类：评审类（`review`）由判官逐条判报告；`implement` 与 `acceptance` 由程序在收录运行时判副本，没有判官，
+它们的副本是装好依赖的整仓检出（见[运行器](../harness/README.md#整仓检出一类)）。
 
 评审类的流里，一份**材料**是一次派发的待审对象，分三种：
 
@@ -43,7 +52,8 @@ README.md        这个流量什么、量不出什么、基线数字与噪声范
   带用例集的版本号。版本一变签字失效，运行器拒绝准备运行。判定方法那一条另写明是给哪个判官签的（模型与规则哈希），
   换一个判官要重新校准、重新签。整轮的用量与用时按试跑实测报给负责人，同意之后才跑。
 - **模型只由主会话派 subagent 来跑**，角色与判官都是；不起无界面的宿主进程。做法见运行器说明。
-- **真值不进被测角色看得到的地方。**运行用的工作副本不含本目录。
+- **真值不进被测角色看得到的地方。**运行用的工作副本不含本目录。整仓检出一类的角色有 shell，仓库与模板里就有答案，
+  所以要从仓库之外的会话派发，见运行器说明。
 - **改用例升版本，不原地改。**不同版本的结果不放在一起比。
 - **材料钉在主线上够得着的提交。**本仓库按 squash 合并，分支上的提交合并后会够不着；`make test` 里那条测试在够不着时会失败，届时改钉。
 
