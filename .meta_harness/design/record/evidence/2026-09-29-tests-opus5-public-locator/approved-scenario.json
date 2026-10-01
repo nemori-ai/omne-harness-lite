@@ -1,0 +1,53 @@
+{
+  "format": 1,
+  "caseKind": "failure_locator",
+  "reviewStatus": "approved",
+  "modelId": "anthropic/claude-opus-5",
+  "provider": "anthropic",
+  "definitionRevision": "2",
+  "implementation": {
+    "name": "pi-ai:anthropic",
+    "revision": "mp4-5"
+  },
+  "cache": {
+    "mode": "explicit",
+    "ttl": "1h",
+    "breakpoints": [
+      "last_message"
+    ]
+  },
+  "reasoningEffort": "low",
+  "calibrationExpectation": "from_usage",
+  "maxOutputTokens": 256,
+  "turns": [
+    "Remember CEDAR. Reply exactly OK.",
+    "What is the codeword? Reply with one word.",
+    "Repeat only the codeword."
+  ],
+  "expectedEndpointTag": "anthropic",
+  "publicWireSha256": "17d94cc478dfbed1422d5e11e90f04b089db7c4eed5a8249979be44040e11120",
+  "serviceWireSha256": [],
+  "profileSha256": "4d5503660813aae2a81434193c2429c931650226328c70f2db733249072f6265",
+  "sourceSha256": {
+    "packages/model/pi-ai-transport/src/official-models/anthropic.ts": "7a618538c7692cad21971ddc7ec0973b06358404f88ad8efc1a6bc29181acf41",
+    "packages/model/pi-ai-transport/src/input-meters/anthropic.ts": "f28c3341480e3313a288e26c6608f107fe101c5fc497ff3f245ed60a8776f1c3",
+    "packages/model/pi-ai-transport/src/calibration.ts": "9aecd0fa9fbf8a58346e5af3f90a6521d987e362c16b19c7829799fd106fe5b6",
+    "packages/model/pi-ai-transport/src/transport.ts": "cf5592af3b53ae9a165a7c5d1482672450b69294e48e46d3fe2964f8df2ee361",
+    "packages/model/model-request-runtime/src/invoke.ts": "f76674dc9abf0cd21d3428e66ce1db737a352269f9710c7e3a6e86c671c608d8",
+    "packages/model/model-request-runtime/src/service-calibration.ts": "0e58b2b0f59fd0126ab34bf0a92f9b640d2184c3328de3bce88c26bfdbc3c7ae",
+    "packages/model/model-request-runtime/src/service-calls.ts": "be74da5e7e18e450bccb1194b22d8739db468259e7aabf2f7e24a9736f6d04ca",
+    "examples/model-invocation-minimal-demo/src/bootstrap.ts": "f2f15b9e93fe50979f190fa92849798497892acaf58d2c34bc7e4919e47ecb1c",
+    "examples/model-invocation-minimal-demo/src/deployment.ts": "0a9d666e71e3593ee091e6d56da648fae20a501e2ff64cf838a1c913e9d29b21",
+    "examples/model-invocation-minimal-demo/src/model-call-host.ts": "d174efc1dd53d650e38fec5b2c741ca2d4645aee8c2916eddf55fdf6317acf82",
+    "examples/model-invocation-minimal-demo/src/model-request-text.ts": "da38b5809cb3d3251f191404c55d28598a09dfa0d41f13be7ed1dfdee19fc3a1",
+    "tools/model-probe/src/budget.mjs": "1809725dc563731f294c3aa49b14fce8f10ac73352693e24b9a1c73281ac0a21",
+    "tools/model-probe/src/production-gate.mjs": "2425845028314c196b506fff886e3a7c6a099dd48590cf289ec582eaf32f9c89",
+    "tmp/priority-certification/runner-v2/evidence.mjs": "9ac24677e41100299a338dfc47d2bad338c2bc7a1932ef70fb775642568f86ae",
+    "tmp/priority-certification/runner-v2/paid-core.mjs": "8a809ba06b35f72cf265dfa5faac4bebf4699334c99dc00ddc2e022597905cc6",
+    "tmp/priority-certification/runner-v2/service-core.mjs": "a51ca87dee8bf6fa584700f48c3ba3f728cd2e18d70387595b9490fc7ed9927e",
+    "tmp/priority-certification/runner-v2/paid.mjs": "9f998d39952d28f85dc9d152ffb52faad86b3934f33af7b133e4e6f1914a9211",
+    "tmp/priority-certification/runner-v2/review.mjs": "e175fd7a66e9cd5e3ac1107f14560be55134d2c01d62f6bc0a5e5f6b61bec341",
+    "tmp/priority-certification/runner-v2/catalog.mjs": "6929f62a970ed22eb6e652e26383786079f3f0be210de7e74561751015b8937f",
+    "tmp/priority-certification/runner-v2/dry-run.mjs": "d3cbdb27409846d9738e916c22cf51167c0d016c43fee9f8ded01775a689c42b"
+  }
+}

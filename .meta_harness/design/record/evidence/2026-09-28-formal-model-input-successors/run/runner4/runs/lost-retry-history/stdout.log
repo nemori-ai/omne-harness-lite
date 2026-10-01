@@ -1,0 +1,68 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 86 and seed 6892076780851687001 with 1 worker on 8 cores with 6955MB heap and 64MB offheap memory [pid: 22253] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-runtime6-spec/tmp/model-request-runtime/input-limit-successor/independent-formal/runner4/input/FailureHistory.tla
+Parsing file /tmp/tlc-11109489878939805808/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-11109489878939805808/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-11109489878939805808/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-11109489878939805808/_TLCTrace.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /tmp/tlc-11109489878939805808/TLC.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-11109489878939805808/TLCExt.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /tmp/tlc-11109489878939805808/Integers.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module FailureHistory
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module FailureHistory
+Starting... (2026-09-28 09:55:31)
+Computing initial states...
+Computed 2 initial states...
+Computed 4 initial states...
+Computed 8 initial states...
+Computed 16 initial states...
+Computed 32 initial states...
+Computed 64 initial states...
+Computed 128 initial states...
+Computed 256 initial states...
+Computed 512 initial states...
+Computed 1024 initial states...
+Finished computing initial states: 1460 distinct states generated at 2026-09-28 09:55:31.
+Error: Invariant LosslessHistory is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ source = <<[call |-> "C1", extension |-> "default", plan |-> "A", at |-> 0]>>
+/\ returned = FALSE
+/\ received = <<>>
+/\ crashed = FALSE
+/\ badAssociation = FALSE
+/\ badReturn = FALSE
+/\ calls = <<"C1">>
+/\ evaluations = 0
+/\ badHistory = FALSE
+/\ kind = "observed"
+/\ stage = "validate"
+/\ log = <<>>
+
+State 2: <Validate line 33, col 3 to line 41, col 89 of module FailureHistory>
+/\ source = <<[call |-> "C1", extension |-> "default", plan |-> "A", at |-> 0]>>
+/\ returned = FALSE
+/\ received = <<>>
+/\ crashed = FALSE
+/\ badAssociation = FALSE
+/\ badReturn = FALSE
+/\ calls = <<"C1">>
+/\ evaluations = 1
+/\ badHistory = TRUE
+/\ kind = "observed"
+/\ stage = "evaluated"
+/\ log = <<>>
+
+1466 states generated, 1466 distinct states found, 1459 states left on queue.
+The depth of the complete state graph search is 2.
+Finished in 00s at (2026-09-28 09:55:31)
+Trace exploration spec path: ./FailureHistory_TTrace_1790589330.tla

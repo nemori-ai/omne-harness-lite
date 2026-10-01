@@ -1,0 +1,27 @@
+{
+  "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg",
+  "negative": false,
+  "expectedProperty": "EventuallyDone",
+  "temporal": false,
+  "exit": 0,
+  "expectedResultObserved": true,
+  "seconds": 3.076,
+  "command": [
+    "java",
+    "-Xmx768m",
+    "-cp",
+    "/opt/tlaplus/tla2tools.jar",
+    "tlc2.TLC",
+    "-cleanup",
+    "-noGenerateSpecTE",
+    "-workers",
+    "1",
+    "-metadir",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-usage-calibration-spec/tmp/usage-calibration-spec-rev2/formal/UsageCalibration_Progress-states",
+    "-config",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-usage-calibration-spec/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-usage-calibration-spec/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+  ],
+  "log": "tmp/usage-calibration-spec-rev2/formal/UsageCalibration_Progress.log",
+  "configSha256": "54e69e3d3ca7a70803bc32e44c3edde9c1c8bde879e7711430a31774590026ea"
+}

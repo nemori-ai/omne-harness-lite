@@ -1,10 +1,13 @@
 export type { Modality } from '@omne-harness-lite/content-blocks'
 export type {
   ModelProfile,
+  ModelAdaptationBinding,
   RouteName,
   ProfileOrigin,
   ProviderName,
   InputConstraints,
+  InputLimitFact,
+  UpstreamInputLimits,
   Registration,
   ModelProfileRef,
   ModelRequestParameters,

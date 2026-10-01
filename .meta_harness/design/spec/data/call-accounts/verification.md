@@ -168,3 +168,22 @@ reviewer：spec-reviewer，S25 第二轮批 R1（另含批 R2b 转来的一条�
 - **定义性引用与落点的复核**（本契约引用、不登 catalog 依赖的三处）：`data.arrival-events/v2#S-23` 第 1 条改了「一帧」的单位，本契约 [S-11](v2/contract.md#s-11-toolcallaccount一次工具执行的账)、[S-15](v2/contract.md#s-15-trimreason-与-trimsummary砍了要说) 同轮复核；`capability.tool-execution-runtime/v2#S-14` 改了外部效果确定性的三值或投影，本契约 S-11 的两值含义同轮复核；`capability.stream-assembly/v2#S-14` 不再兑现「每帧至多计一次」，S-15 的不等式失去前提。
 - **`ModelResponse.late`**：`data.model-response` 的 `late` 须与 [S-39](v2/contract.md#s-39-晚到的账) 同一含义、同一写法（可选、只取 `true`、缺席 = 不晚），**锚是发出所在的尝试**（`attemptId`，M25）；那份契约改写法或改锚时本条同轮复核。
 - **接入点规范串的分隔符**：本契约与实例按 `data.asset-model/v2#S-3` 写 `<category>/<name>`；[D-060 §一 S2-e](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#s2call-accounts报回的) 原文的 `"<category>:<name>"` 已由 [D-060 §四](../../../record/decisions/mainline-self-rulings-2026-09/decision.md#四被推翻或被覆盖的项追加登记)「S2-e」那一行登记为被 asset-model S-3 取代（早期笔误）。
+
+
+## CA3 本批候选验证（2026-09-29）
+
+变化和未开始的真实义务见[v3/verification](v3/verification.md)。实际工具运行：Schema检查57/57形状实例；RT11三个新增TLC正配置均exit0（ReferenceLifecycle:2206 generated/621 distinct；Publication:147/60；OpenedOrder:254/166），九个负控均exit12且命中目标不变量。未重跑继承形式工件，不将其旧结果算成本批覆盖。原始日志位于任务worktree的`tmp/model-registry-design/spec-draft/`（schema-check.log及tlc/）；提供者/装配/真实网络/权限/存储故障与性能测量均未开始。设计检查最终结果由本批交接记录，不预写通过。
+
+本批最终登记/文档检查：`check_design.py --root .meta_harness/design --formal registered` 实际exit0，输出 `PASS: design tree ... passed gate=internal; formal=registered.`（design-check-locked.log）。本树`.venv/bin/omne-docs-check`实际exit0，`PASS: 1836 Markdown files; local links and skill mirrors.`（docs-check.log）。852份原frozen资源逐项SHA匹配，frozen.json与4edf6cdc原字节相同。未运行release gate，不声称接受。
+
+## v4 ACK后继候选
+
+[v4 contract](v4/contract.md) · [消费者影响](v4/consumer-impact.md) · [验证义务](v4/verification.md)。candidate，未接受；前驱v3接受状态不传递。ACK确认、真实处分与清理分别可见；本批证据未完成时不据目录存在宣称通过。
+
+### 本批已执行检查（2026-09-29）
+
+三个新Schema的80个显式root/defs正反实例全部符合预期；MS8的20个固定语义编码/摘要向量及4组相等、6组不等关系通过独立逐例编码核对。RT12 AckLifecycle与AckProgress各生成6688/2124状态，exit0；8个单变异负控各exit12并报告对应不变量反例。初次形式运行解析失败、第二次admission负控赋值错误及Schema检查器一处选错Pending入口，均另保留输入hash与原日志，修正后另目录运行，不声称一次通过。
+
+形式工具为TLC2 2026.09.12.025210（867aefb）、Temurin 21.0.12.1；2calls/2consumers、单Focus、一次可选crash、显式公平性范围见新版本formal/ACK-README。90份继承形式工件逐字相同，本批未重跑；不把它们算为ACK新证据。design检查internal/formal=registered已通过，该模式只核登记不执行模型。实际脚本、commands、输入SHA与日志由主线提升正式evidence；真实提供者/授权/存储/内存清理/未知写入组合验收仍未开始。
+
+本批文档检查亦实际通过：1948份Markdown；冻结清单970文件SHA均保持。文档检查不代表语义接受。

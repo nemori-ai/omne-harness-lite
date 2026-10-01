@@ -1,0 +1,15 @@
+{
+  "model": "qwen/qwen3.8-2.4t-a95b",
+  "provider": { "order": ["alibaba"], "allow_fallbacks": false, "require_parameters": true },
+  "stream": true,
+  "messages": [
+    { "role": "system", "content": [{ "type": "text", "text": "You are precise.", "cache_control": { "type": "ephemeral", "ttl": "5m" } }] },
+    { "role": "user", "content": [{ "type": "text", "text": "[system_reminder \"review\"]" }, { "type": "text", "text": "Review the exact value." }] },
+    { "role": "user", "content": [{ "type": "text", "text": "Look up alpha." }] },
+    { "role": "assistant", "content": "", "reasoning": "Need a lookup.", "tool_calls": [{ "id": "call_alpha", "type": "function", "function": { "name": "lookup__exact", "arguments": "{\"query\":\"alpha\"}" } }] },
+    { "role": "tool", "tool_call_id": "call_alpha", "content": "value=42" },
+    { "role": "user", "content": [{ "type": "text", "text": "Summarize." }] }
+  ],
+  "tools": [{ "type": "function", "function": { "name": "lookup__exact", "description": "Exact lookup", "parameters": { "type": "object", "properties": { "query": { "type": "string" } }, "required": ["query"], "additionalProperties": false } } }],
+  "max_tokens": 64
+}

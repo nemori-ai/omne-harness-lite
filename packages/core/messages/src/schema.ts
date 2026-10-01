@@ -5,6 +5,8 @@ import identitySchema from '@omne-harness-lite/identity-values/schema' with { ty
 import expirySchema from '@omne-harness-lite/offer-expiry/schema/v1' with { type: 'json' }
 import accountsSchema from '@omne-harness-lite/call-accounts/schema' with { type: 'json' }
 import profileSchema from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
+import profileV6Schema from '@omne-harness-lite/model-profile/schema/v6' with { type: 'json' }
+import toolsSchema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
 import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 import { snapshot } from './json.ts'
 
@@ -53,12 +55,24 @@ export const SCHEMA_DEF_NAMES = Object.freeze([
   'ModelSelectionChangedRecord',
   'ModelInvocationRecord',
   'Message',
+  'CreationKey',
+  'CallKey',
+  'ModelCallPayloadRef',
+  'ModelCallCreationInput',
+  'ModelCallCreatedPayload',
+  'ModelCallCreatedRecord',
+  'ModelCallReplyReadyRecord',
+  'ModelCallSemanticDigest',
+  'ModelCallOrigin',
+  'ModelCallAccountingWitness',
+  'ModelCallAcknowledgedRecord',
 ] as const)
 export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number]
 export interface SchemaValidation {
   readonly valid: boolean
 }
-// Only this fixed, owned resource graph is retained. No caller-schema cache or remote resolution.
+// Exact resource closure of the 54 public definitions; dependency definitions are not extra roots.
+// No caller-schema cache or remote resolution.
 const runtime = createSchemaRuntime([
   identitySchema,
   expirySchema,
@@ -66,6 +80,8 @@ const runtime = createSchemaRuntime([
   retainedContentSchema,
   accountsSchema,
   profileSchema,
+  profileV6Schema,
+  toolsSchema,
   schema,
 ])
 const validators = SCHEMA_DEF_NAMES.map(name =>

@@ -1,0 +1,47 @@
+[
+  {
+    "id": "ffce8bf0-f617-4249-9057-3f12db401c5b",
+    "model": "anthropic/claude-opus-5.5",
+    "provider": "anthropic",
+    "stage": "acceptance",
+    "estimateUsd": "6.981120000000000000",
+    "state": "settled",
+    "actualUsd": "0.066144"
+  },
+  {
+    "id": "7f666a60-3fc5-4eff-b416-f3d45c037a63",
+    "model": "anthropic/claude-opus-5.5",
+    "provider": "anthropic",
+    "stage": "acceptance",
+    "estimateUsd": "6.981120000000000000",
+    "state": "settled",
+    "actualUsd": "0.0017472"
+  },
+  {
+    "id": "9165c513-d860-4f70-94b0-a5dc400d0009",
+    "model": "anthropic/claude-opus-5.5",
+    "provider": "anthropic",
+    "stage": "acceptance",
+    "estimateUsd": "6.981120000000000000",
+    "state": "settled",
+    "actualUsd": "0.065872"
+  },
+  {
+    "id": "2857453c-d419-4df5-9ef0-5c21fdff46f9",
+    "model": "anthropic/claude-opus-5.5",
+    "provider": "anthropic",
+    "stage": "acceptance",
+    "estimateUsd": "6.981120000000000000",
+    "state": "settled",
+    "actualUsd": "0.0019604"
+  },
+  {
+    "id": "ab9b15fa-6572-4a5f-8b06-ad012230e2db",
+    "model": "anthropic/claude-opus-5.5",
+    "provider": "anthropic",
+    "stage": "acceptance",
+    "estimateUsd": "6.981120000000000000",
+    "state": "settled",
+    "actualUsd": "0.0019564"
+  }
+]

@@ -4,6 +4,8 @@
 
 Pure validation of arrival envelopes and reduction of one block's fills. The same data vocabulary describes model-response streams and tool execution frames; this package supplies no transport or reliable-delivery mechanism.
 
+Failure cause types come from the current `@omne-harness-lite/loop-extension` public entry.
+
 ## Workspace use
 
 This is an experimental, private workspace package, currently not published on npm. In a repository checkout, use the [development setup](../../../docs/development.md), build the workspace, and declare `"@omne-harness-lite/arrival-events": "workspace:*"` in the consuming member. Declare other packages imported by an example as direct dependencies too. Import through the public package entry; do not import sibling `src/` paths.
@@ -17,6 +19,9 @@ This is an experimental, private workspace package, currently not published on n
 | `isStandardBase64`                                     | Strict nonempty standard Base64 with canonical padding/tail bits        |
 | Arrival/event/open/reduction types                     | `open`, `fill`, `close`, `trim`, `account`, `finish` values             |
 | `validate`, `schemaId`, `SCHEMA_DEF_NAMES`; `./schema` | Shape validation and v2 Schema                                          |
+
+The schema graph uses the exact `call-accounts/schema/v2` resource required by
+arrival-events v2, independently of the current call-accounts root schema.
 
 ## Examples
 

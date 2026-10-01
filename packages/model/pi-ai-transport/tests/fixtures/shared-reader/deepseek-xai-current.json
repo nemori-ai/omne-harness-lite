@@ -1,0 +1,46 @@
+{
+  "deepseek/deepseek-v4.1-flash": {
+    "algorithm": "deepseek-v41-flash-reference-5",
+    "tokenizer": "deepseek-v41-flash-dba1be0a40aa45a94ad051997016db3960a90277",
+    "replay": "deepseek-reference-boundary/2",
+    "transform": "deepseek-flash-reference-projection/2",
+    "implementation": {
+      "name": "pi-ai:deepseek",
+      "revision": "mp4-19"
+    },
+    "definition": "5"
+  },
+  "deepseek/deepseek-v4-pro-0813": {
+    "algorithm": "deepseek-v4-pro-reference-4",
+    "tokenizer": "deepseek-v4-pro-b5968e9190ef611bbf34a7229255be88a0e937c1",
+    "replay": "deepseek-reference-boundary/2",
+    "transform": "deepseek-pro-reference-projection/2",
+    "implementation": {
+      "name": "pi-ai:deepseek",
+      "revision": "mp4-19"
+    },
+    "definition": "6"
+  },
+  "x-ai/grok-4.7": {
+    "algorithm": "xai-visible-json-complete-output-group-estimated/1",
+    "tokenizer": "tokenizer-basis/grok-build-visible-text-tools-effort-offset1181-2",
+    "replay": "xai-complete-output-group-workload-estimated/1",
+    "transform": "openrouter-wire/2",
+    "implementation": {
+      "name": "pi-ai:xai",
+      "revision": "mp4-20"
+    },
+    "definition": "5"
+  },
+  "x-ai/grok-4.6": {
+    "algorithm": "xai-visible-json-complete-output-group-estimated/1",
+    "tokenizer": "tokenizer-basis/grok-build-visible-text-tools-effort-offset141-2",
+    "replay": "xai-complete-output-group-workload-estimated/1",
+    "transform": "openrouter-wire/2",
+    "implementation": {
+      "name": "pi-ai:xai",
+      "revision": "mp4-20"
+    },
+    "definition": "5"
+  }
+}

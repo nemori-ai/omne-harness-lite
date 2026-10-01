@@ -75,3 +75,9 @@ HUB 起点 `e0b6c212` 已含产品 `3a8b2117` 日历解析修正，与 worker `5
 - **四条规范场景 S-23～S-26 一条也不在本节点跑**：它们需要真实的发出／撤回／接受路径与存储，owner 是 organization-governance（邀请、隶属请求）；资产那两类**无 owner**（[G-2／G-6](../../../../spec/data/offer-expiry/v1/contract.md#八已知缺口)）。
 - **S-17 五行装配给保证**在本节点没有可跑的证据形式，是装配设计的选型声明 + 架构评审；其中第 5 行「`now` 不后退」的承接者 [`infra/clock`](../../infra/clock/verification.md) 在同一次 run 里有包内测试通过，装配一侧见 [`apps/tenancy-host`](../../../apps/tenancy-host/verification.md)——那些是承接者的证据，不记作本节点的。
 - **「插件体抛出 ⇒ 启动失败」**：kernel-basis 的 probe `plugin-throw-fails-fiber.test.ts` 在同一次 run 里通过（4.0.4；已升格为 basis 条目 [`plugin-throw-fails-fiber`](../../../../basis/cordis/plugin-throw-fails-fiber.md)），不再是待核对主张；S-14 默认值那一路的收场由消费者节点与装配的启动失败测试承担。
+
+## 2026-09-27 W17：精确条件比较增量
+
+[D089 rev1](rfc3339-order-design.md)的TO-V1～V9 core部分已按[实际独立证据与限定签收](../../../../record/evidence/2026-09-27-tests-core-rfc3339-order/README.md)核验：150测试、两fresh闭合公开制品各9475具名oracle、12literal执行、量化/字典序两真编译行为负控。root198输入和4542归档成员零漂移核对；产品slice Pass、整体证据Pass with issues（首次oracle脚本原PID/完整stderr缺项保留）。
+
+TO-V7的runtime实际timing/原opened全值关系、TL-G1生产来源/合法历史、G28～G31和完整纵线仍未覆盖；conditional ok不认证历史公告。成本亲核作者同78字节raw，未独立重跑。新增规范bindings0，保持此前OE业务/规范场景的日期和范围，不用pure比较验收覆盖其消费者责任。

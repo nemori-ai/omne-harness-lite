@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.model-response v3: lossless response shape and ordered admission",
+  "description": "data.model-response v11 current complete response and pending-reply judgments",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -12,12 +12,13 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./schema": "./schema/model-response.schema.json",
-    "./schema/v2": "./schema/model-response.v2.schema.json"
+    "./schema": "./schema/model-response.schema.json"
   },
   "files": [
     "dist",
-    "schema"
+    "schema",
+    "README.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",

@@ -43,6 +43,36 @@ const purePackages = [
 ]
 
 describe('core-pure-imports', () => {
+  it('current exact schemas do not retain retired executable or private paths', () => {
+    for (const [consumer, dependency, subpath] of [
+      ['messages', 'model-profile', 'schema/v3'],
+      ['model-response', 'asset-model', 'schema/connector/v2'],
+      ['loop-extension', 'skill-package', 'schema/v2'],
+    ]) {
+      const path = `core/${consumer}/src/schema.ts`
+      const allowed = `@omne-harness-lite/${dependency}/${subpath}`
+      expect(corePureImports.check([file(path, `import '${allowed}'`)])).toEqual([])
+      expect(corePureImports.check([file(path, `import '${allowed}/private'`)])).toHaveLength(1)
+      expect(
+        corePureImports.check([
+          file(path, `import '@omne-harness-lite/${dependency}/src/schema.ts'`),
+        ]),
+      ).toHaveLength(1)
+    }
+    for (const [consumer, retired] of [
+      ['model-response', 'messages/v3'],
+      ['messages', 'model-profile/v2'],
+      ['asset-evaluation', 'loop-extension/v3'],
+      ['loop-extension', 'model-response/v3'],
+    ]) {
+      expect(
+        corePureImports.check([
+          file(`core/${consumer}/src/index.ts`, `import '@omne-harness-lite/${retired}'`),
+        ]),
+      ).toHaveLength(1)
+    }
+  })
+
   it('OE1 精确资源入口只授予已登记依赖，不准许版本通配或私有路径', () => {
     for (const pkg of [
       'asset-model',
@@ -349,7 +379,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
-  })
+  }, 60_000) // Two real CLI scans of the repository (~15 s each under load); budget covers both, assertions unchanged.
 })
 
 describe('SC-OE-3 no-wall-clock', () => {

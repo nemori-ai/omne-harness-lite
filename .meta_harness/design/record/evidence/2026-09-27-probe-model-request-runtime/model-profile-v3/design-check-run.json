@@ -1,0 +1,13 @@
+{
+  "checked_at": "2026-09-27T04:18:10.387279+00:00",
+  "command": [
+    ".venv/bin/python",
+    ".meta_harness/tooling/src/check_design.py",
+    "--root",
+    ".meta_harness/design",
+    "--formal",
+    "skip"
+  ],
+  "exit_code": 1,
+  "scope": "Whole concurrently edited design tree; formal tasks explicitly skipped."
+}

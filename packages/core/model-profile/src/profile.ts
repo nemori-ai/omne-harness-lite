@@ -24,6 +24,7 @@ import type {
 
 const contentMembers = [
   'routeName',
+  'adaptation',
   'origin',
   'providers',
   'allowFallback',
@@ -32,6 +33,7 @@ const contentMembers = [
   'maxInputTokens',
   'maxOutputTokens',
   'inputConstraints',
+  'upstreamInputLimits',
 ]
 const profileMembers = [...contentMembers, 'registration', 'updatedAt']
 
@@ -77,7 +79,9 @@ export function judgeModelProfileDocument(
   }
   if (
     isObject(document.inputConstraints) &&
-    Object.keys(document.inputConstraints).some(key => key !== 'maxImageBytes')
+    Object.keys(document.inputConstraints).some(
+      key => !['maxImageBytes', 'maxImages', 'maxRequestBytes'].includes(key),
+    )
   )
     return rejected('constraint_unknown')
   // This is an invariant check on the implementation, not a fallback error classifier.
@@ -102,6 +106,14 @@ function malformed(kind: ModelProfileDocumentKind, value: JsonObject): boolean {
   }
   const required = kind === 'ModelProfile' ? profileMembers : contentMembers
   if (!hasMembers(value, required, [...required, 'parameters'])) return true
+  if (!validate('ModelAdaptationBinding', value.adaptation).valid) return true
+  const binding = value.adaptation
+  if (
+    !isObject(binding) ||
+    !isObject(binding.definition) ||
+    (value.routeName !== '' && binding.definition.modelId !== value.routeName)
+  )
+    return true
   if (typeof value.allowFallback !== 'boolean') return true
   for (const name of ['providers', 'inputModalities', 'outputModalities']) {
     const items = value[name]
@@ -111,16 +123,60 @@ function malformed(kind: ModelProfileDocumentKind, value: JsonObject): boolean {
   if (!isPositiveInteger(value.maxInputTokens) || !isPositiveInteger(value.maxOutputTokens))
     return true
   if (!isObject(value.inputConstraints)) return true
-  if (
-    Object.hasOwn(value.inputConstraints, 'maxImageBytes') &&
-    !isPositiveInteger(value.inputConstraints.maxImageBytes)
-  )
-    return true
+  for (const name of ['maxImageBytes', 'maxImages', 'maxRequestBytes']) {
+    if (
+      Object.hasOwn(value.inputConstraints, name) &&
+      !isPositiveInteger(value.inputConstraints[name])
+    )
+      return true
+  }
   if (Object.hasOwn(value, 'parameters') && malformedParameters(value.parameters, true)) return true
+  if (malformedInputLimits(value)) return true
   return (
     kind === 'ModelProfile' &&
     (typeof value.registration !== 'string' || !validateExpiry('Instant', value.updatedAt).valid)
   )
+}
+
+function malformedInputLimits(value: JsonObject): boolean {
+  const limits = value.upstreamInputLimits
+  const constraints = value.inputConstraints
+  if (!isObject(limits) || !isObject(constraints)) return true
+  const image = isStringArray(value.inputModalities) && value.inputModalities.includes('image')
+  const required = image
+    ? ['maxInputTokens', 'maxRequestBytes', 'maxImageBytes', 'maxImages']
+    : ['maxInputTokens', 'maxRequestBytes']
+  if (!hasMembers(limits, required, required)) return true
+  if (image !== Object.hasOwn(constraints, 'maxImageBytes')) return true
+  if (!image && Object.hasOwn(constraints, 'maxImages')) return true
+  for (const name of required) {
+    const fact = limits[name]
+    if (!isObject(fact) || typeof fact.status !== 'string') return true
+    if (fact.status === 'limited') {
+      if (
+        !hasMembers(fact, ['status', 'value'], ['status', 'value']) ||
+        !isPositiveInteger(fact.value)
+      )
+        return true
+    } else if (
+      (fact.status !== 'unknown' && fact.status !== 'unbounded') ||
+      !hasMembers(fact, ['status'], ['status'])
+    )
+      return true
+  }
+  for (const name of required) {
+    const cap = name === 'maxInputTokens' ? value.maxInputTokens : constraints[name]
+    const fact = limits[name]
+    if (
+      isPositiveInteger(cap) &&
+      isObject(fact) &&
+      fact.status === 'limited' &&
+      isPositiveInteger(fact.value) &&
+      compareNumbers(cap, fact.value) > 0
+    )
+      return true
+  }
+  return false
 }
 
 function hasMembers(

@@ -1,0 +1,37 @@
+{
+  "purpose": "Credentialed OpenRouter certification inputs; never run by this fixture",
+  "provider": "alibaba",
+  "fixedInput": {
+    "system": "Answer precisely and use the supplied lookup tool when needed.",
+    "firstUser": "Look up the value for alpha.",
+    "tool": {
+      "name": "lookup__exact",
+      "description": "Look up an exact value",
+      "parameters": {
+        "type": "object",
+        "properties": { "query": { "type": "string" } },
+        "required": ["query"],
+        "additionalProperties": false
+      }
+    },
+    "toolResult": "value=42",
+    "secondUser": "Give the result in one sentence."
+  },
+  "observe": [
+    "request body and selected provider identity",
+    "system cache control, supplied 5m TTL, and actual cached read/write usage fields",
+    "multi-turn tool call/result order and reminder mapping",
+    "actual prompt/completion token usage and upstream refusal or limit error",
+    "reported serving provider, model, generation ID, and cost without request-derived fallback"
+  ],
+  "cases": [
+    { "modelId": "qwen/qwen3.8-max-0902", "cache": { "mode": "explicit", "ttl": "5m", "breakpoints": ["system"] }, "meterPrerequisite": "commercial_alias_unresolved" },
+    { "modelId": "qwen/qwen3.8-max-prime", "cache": { "mode": "explicit", "ttl": "5m", "breakpoints": ["system"] }, "meterPrerequisite": "commercial_alias_unresolved" },
+    { "modelId": "qwen/qwen3.8-flash", "cache": { "mode": "automatic" }, "meterPrerequisite": "commercial_alias_unresolved" },
+    { "modelId": "qwen/qwen3.8-2.4t-a95b", "cache": { "mode": "explicit", "ttl": "5m", "breakpoints": ["system"] }, "meterPrerequisite": "public_template_text_tools_only_omitted_effort" },
+    { "modelId": "qwen/qwen3.8-27b", "cache": { "mode": "explicit", "ttl": "5m", "breakpoints": ["system"] }, "meterPrerequisite": "public_template_text_tools_only_omitted_effort" },
+    { "modelId": "qwen/qwen3.7-max", "cache": { "mode": "explicit", "ttl": "5m", "breakpoints": ["system"] }, "meterPrerequisite": "commercial_alias_unresolved" },
+    { "modelId": "qwen/qwen3.7-plus", "cache": { "mode": "explicit", "ttl": "5m", "breakpoints": ["system"] }, "meterPrerequisite": "commercial_alias_unresolved" },
+    { "modelId": "qwen/qwen3.7-flash", "cache": { "mode": "automatic" }, "meterPrerequisite": "commercial_alias_unresolved" }
+  ]
+}

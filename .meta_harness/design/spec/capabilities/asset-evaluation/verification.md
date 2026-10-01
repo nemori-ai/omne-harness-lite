@@ -402,3 +402,47 @@
 ## 2026-09-26 D-068 当前 v3
 
 `capability.asset-evaluation · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，此前旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
+
+## 2026-09-27 v4 候选变化与证据
+
+**状态：candidate，未接受、未冻结。**本轮只改 v4 与版本外入口，冻结 v3 保留原字节；原运行不自动覆盖新增规则。
+
+变化的影响：输入 `root` 增加必需 `attributes`（可显式空）与 `source {asset, version}`；[S-7 C15/C16](v4/contract.md#s-7-输入的一致性条件)核三项受限声明与实际生效资产版本；[S-21](v4/contract.md#s-21-第三步投影)、[S-22](v4/contract.md#s-22-第四步设置)、[S-45](v4/contract.md#s-45-组合根的受限设置声明)让根声明参与设置求值，根仍不进 composition。根两槽位真实读法引用 `data.agent-definition/v1`，不在本契约重复定义域。两操作及 invalidInput → compositionCycle → categoryUnsupported 次序不变，新增输入不合法仍用 invalidInput、不加 reason 枚举。
+
+消费者影响：model-request-runtime/v3、asset-registry/v3、assembly-manifest/v3 必须显式采用 root 新外壳；注册表/装配生产者从同一已发布正文给引用和声明，source 与求值根生效资产版本相符。身份相符不证明内容真实性；[G-22](v4/contract.md#十一已知缺口)保留正文接受/采用和真实读取证据责任。完整 sub-agent、plugin 继续受 G-3/G-21 限制。
+
+| 证据义务 | 对应性质 | 本次状态 |
+|---|---|---|
+| 有限 Alloy 增量 + 定点变异 | C16、S-21/S-22/S-45：根不入组合但投影，根不可见不贡献、来源失配拒绝、最外锁及无锁时最内值 | 本次实际结果见本节下方；原模型保留字节，只作为层序/资产/锁函数依赖，未重跑原 18 条命令 |
+| E-9 声明 JSON 及拒绝变体 | 引用共用 schema，正有限 Duration、RouteName、声明缺失/重复/越域 | 本次纯值检查见下方；不是实现或真存储证据 |
+| 两操作既有规范场景 | 原 S-33～S-44；root 以显式空属性补齐，旧示例其余结果保持 | **未开始**生产实现符合性验收；旧模型结果不升级声明 |
+| 真实正文 → root 输入 → 求值 → runtime | PRE-9，E-9 A/D/E/F/G：不可变版本、换具体资产、换版、缺时限零出网 | **未开始**；须在窄正文与各消费者接受/采用后执行，fixture 不能替代 |
+| 独立规格评审与接受 | 新输入、失败次序、单向依赖、消费者更新 | **未开始**，归主线；本文不接受自己的草稿 |
+
+本轮 registry 由主线唯一集成者写入；起草者提供 metadata，不把交接候选称为已登记。新增 S-n 仍属本坐标局部编号，无新增编号族。`组合根引用集` 是既有无词条输入外壳，不新增领域对象。
+
+本次实际运行（2026-09-27，执行工作树 `panqiwei/model-request-runtime`；任务区原始文件交主线归档）：
+
+- `Alloy 6.2.0`，[RootSettings 规范模型](v4/formal/RootSettings.als)：`final-positive/run-c7vfp6kz/summary.json` 记录 **2 个 run 找到实例、6 个 check 无反例**；receipt 已按命令种类判读，不只看进程退出码。`final-validity/run-dbgfysrd/summary.json` 记录 **6 个定点变异均找到对应反例**。两次摘要均带原始模型/依赖/检查器 SHA-256 与实际 argv，原始 receipt 和实例同目录保存。目录前缀均为执行仓库 `tmp/model-request-runtime/evaluation-v4/`。
+- `uv run --no-sync python tmp/model-request-runtime/evaluation-v4/check.py`：E-9 正文声明与 24 个变体，共 **25 项 Schema 检查通过**；原始输出 `schema-check.log`、摘要 `schema-result.json` 保存具体输入文件 hash。**没有执行求值实现、没有核实真实正文来源、没有执行运行时零出网验收。**
+- `check_design.py --root .meta_harness/design --formal registered` 首次全树检查报告 **3 个并行材料链接错误**（transport realization 1 个锚点，runtime verification 2 个证据链接）；本包未报错。原始输出 `design-check.log`。它不是本新正模型的执行证据，也不代表 registry 已集成。
+
+`Evaluation.als` 与冻结 v3 同名文件逐字相同；本次运行将它作为新模型的导入依赖使用，不把「原字节不变」本身当原 18 条命令的重跑。Normative Schema 不由 capability 另发：本版仍只引用 data；其 JSON 例子的校验记录不赋予候选接受状态。
+
+最终检查补记：`design-check-final.log` 仍因并行 runtime verification 中 2 个证据链接尚未落盘而整体失败，本包未报错；不把全树失败记作通过。`input-hashes.json` 实际核对 v3 的 4 个冻结资源与 HEAD 完全一致、继承模型与 v3 逐字相同、v4 的 46 个 S-n 条款唯一且齐全，并记录 6 个候选资源 hash。目标 Markdown 的 Prettier check 通过（`format-check.log`）。这些是结构/冻结/格式证据，不是规格接受。
+
+### 同批补充：成功结果读取与捕获配方采用
+
+v4 仍为 candidate，新增 [S-47](v4/contract.md#s-47-成功结果的值读取)及 [E-10](v4/examples.md#e-10-成功结果的公共值读取)：五种结果 DTO、嵌套 CapabilityId 及已知 PermissionValue 的闭合成员、类型、集合键与结果内关系写全；任意设置 JSON 保持开放，文本读取采用 content-blocks/v3 S-24 的严格无损口径。合法非空 unresolved、根缺声明的成功结果仍可读，不因读取要求补项。原两个操作及失败枚举未改；`invalidInput` 不被借作结果读取的判定值。
+
+主线裁定并明确限制：只有结果自身可判的规则属于公共读取；没有声明输入便不能验证任意属性的种类、完整域、元数据应有性、未输出项及其计算正确性。真实 evaluate 生产者仍兑现这些义务。assembly-manifest/v3 消费本条并采用其既有 `unavailable{invalid_evaluation_content}` 收场；`judgeEffectiveAssembly` 的函数形状归 realization，不新增服务操作。
+
+同批来源对账补 [S-6](v4/contract.md#s-6-求值输入-evaluationinput)/C12 的采用注与 [E-11](v4/examples.md#e-11-捕获角色与当前资格分开)：通常输入当前成员事实；只有消费契约明确采用会话创建配方时才用捕获 standing 算角色。PRE-3 原文的「tenant 此刻有效、调用有权」保持不变，捕获 effective 不能证明它。组输入方须另从真实本机权威或明确有效副本核实，失效、无权或未知不能交成功输入；不借请求刷新会话身份/角色。此处仅导航 registry S-24 / runtime S-66，不反向登记规范依赖。
+
+S2-N2 修复：[formal 入口](v4/formal/README.md)页首与 S-32 明确继承 Evaluation 与新增 RootSettings 的各自范围；裸旧命令不登记，新增 receipt 检查器正配置可登记，变异不登记。两个 Alloy 模型均不覆盖 S-47 的 JSON/DTO 读取，也不覆盖 E-11 的真实资格来源。**本次没有重新运行 Alloy**，三个可执行形式输入逐字保留，旧正配置/变异证据保持原范围。
+
+证据义务：E-10 的公共结果读取实现符合性、manifest 的真实非法内容消费，以及 E-11 的真实当前权限/资格来源验收均为**未开始**。静态正文及共用 Schema 核对不能代替它们，不把场景存在记为行为通过。登记 metadata 交主线：新增直接依赖 content-blocks/v3 S-24、manifest 消费 AE4 S-47；没有新增操作、failure、cover、编号族或 formal task。
+
+本轮任务区为 `tmp/model-request-runtime/evaluation-v4/result-reading/`，原 `input-hashes.json` 的 46 条原始证据及旧运行均保留；增量产生新摘要，不覆盖旧 hash。结构脚本只检查正文、共用数据形状与精确小数读取，不是 S-47 的生产判定器。前轮 Prettier 记录补充适用范围：执行路径匹配仓库 `.prettierignore` 的 `.worktrees`，不得把工具成功退出推成目标 Markdown 已被格式验证；本轮不据此作覆盖声明。
+
+本次实际结果（2026-09-27）：`final-with-standing.log` 与 `run-0zag4b2u/summary.json` 记录 **65 项结构/共用值检查通过**，47 条 S-n 唯一，S-15/S-16 操作正文与 46 条原快照一致，冻结 v3 四资源及三个可执行形式输入字节未变；摘要含本次输入 SHA-256。中间的 60 项结果与摘要也保留，不覆盖为最终范围。`design-check.log` 记录 `check_design.py --formal registered` **退出 0，passed gate=internal; formal=registered**；只检查 formal 登记，没有请求执行。限定本 topic 的 `git diff --check` 退出 0。E-10/E-11 实现行为与来源验收仍未开始，Alloy 本轮未运行。

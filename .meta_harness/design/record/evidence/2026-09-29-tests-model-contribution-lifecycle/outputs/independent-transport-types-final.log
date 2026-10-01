@@ -1,0 +1,4 @@
+
+> @omne-harness-lite/pi-ai-transport@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-d4-acceptance/packages/model/pi-ai-transport
+> tsc -p tsconfig.test.json
+

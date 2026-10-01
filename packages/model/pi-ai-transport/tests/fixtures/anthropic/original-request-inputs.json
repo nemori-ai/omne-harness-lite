@@ -1,0 +1,684 @@
+{
+  "sourceCommit": "1c520b26",
+  "note": "Actual original built planner execution before current factory migration; no rehashed or reconstructed original projection facts.",
+  "sources": [
+    {
+      "path": "src/plan.ts",
+      "compiledSha256": "3aab4d14f5965f944634c4e78cdc9649aa4729bfb11cff69aa33d8384606be3b"
+    },
+    {
+      "path": "src/projection.ts",
+      "compiledSha256": "2c87aa4b299341fdf99a0868728b8a9c34b59fd384626c6d50f5a2b489fa9243"
+    },
+    {
+      "path": "src/input-meters/anthropic.ts",
+      "compiledSha256": "2f279351d47a401f7c1c9ad29791beb507fca28095d4909a014c973b3e3b9db8"
+    }
+  ],
+  "rows": [
+    {
+      "modelId": "anthropic/claude-opus-5.5",
+      "request": {
+        "calibration": {
+          "kind": "none",
+          "reason": "no_observation"
+        },
+        "outputHistory": [],
+        "tokenMargin": {
+          "multiplier": 1,
+          "reserveTokens": 0
+        },
+        "target": {
+          "kind": "model_call",
+          "callId": "model-call-1",
+          "dispatch": 1
+        },
+        "routeName": "anthropic/claude-opus-5.5",
+        "provider": "anthropic",
+        "parameters": {
+          "reasoningEffort": "high",
+          "maxOutputTokens": 1024
+        },
+        "tools": [],
+        "messages": [
+          {
+            "type": "user",
+            "id": "u1",
+            "createdAt": "2026-09-27T01:00:00Z",
+            "blocks": [
+              {
+                "id": "u1_text",
+                "kind": "text",
+                "text": "start",
+                "visibility": {
+                  "toHuman": true,
+                  "toModel": true
+                }
+              }
+            ]
+          }
+        ],
+        "snapshot": {
+          "inputModalities": ["image", "text"],
+          "outputModalities": ["text"],
+          "maxInputTokens": 872000,
+          "maxOutputTokens": 128000,
+          "inputConstraints": {
+            "maxImageBytes": 4194304
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          },
+          "adaptation": {
+            "implementation": {
+              "name": "pi-ai:anthropic",
+              "revision": "mp4-17"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-opus-5.5",
+              "revision": "3"
+            },
+            "configuration": {
+              "revision": "1",
+              "values": {
+                "cache": {
+                  "mode": "explicit",
+                  "ttl": "1h",
+                  "breakpoints": ["last_message"]
+                }
+              }
+            }
+          },
+          "providers": ["anthropic"],
+          "allowFallback": false,
+          "updatedAt": "2026-09-27T01:00:00Z"
+        }
+      },
+      "requestInput": {
+        "kind": "known",
+        "projectionRevision": "openrouter-input-projection/2",
+        "prefixBoundary": 1,
+        "prefixDigest": "5ca30ab2b880b9e79f978d7541d0d0aaf08492652d539b3ccf7932777da999d3",
+        "inputEnvelopeDigest": "6053f88f1bd423aa3933b9a35bf6ab4c1a5591c7b6f7b592c905a1b6cb3f3ac5",
+        "countingBasis": {
+          "binding": {
+            "implementation": {
+              "name": "pi-ai:anthropic",
+              "revision": "mp4-17"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-opus-5.5",
+              "revision": "3"
+            },
+            "configuration": {
+              "revision": "1",
+              "values": {
+                "cache": {
+                  "mode": "explicit",
+                  "ttl": "1h",
+                  "breakpoints": ["last_message"]
+                }
+              }
+            }
+          },
+          "model": "anthropic/claude-opus-5.5",
+          "provider": "anthropic",
+          "tokenizerRevision": "tokenizer-basis/anthropic-legacy-bpe-plus-vision-patches-4",
+          "meterRevision": "anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1",
+          "replayRevision": "visible-final-units-json-net-estimated/1",
+          "transformRevision": "openrouter-wire/2",
+          "projectionRevision": "openrouter-input-projection/2"
+        }
+      },
+      "body": {
+        "model": "anthropic/claude-opus-5.5",
+        "provider": {
+          "order": ["anthropic"],
+          "allow_fallbacks": false,
+          "require_parameters": true
+        },
+        "stream": true,
+        "store": false,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "start",
+                "cache_control": {
+                  "type": "ephemeral",
+                  "ttl": "1h"
+                }
+              }
+            ]
+          }
+        ],
+        "reasoning": {
+          "effort": "high"
+        },
+        "max_tokens": 1024
+      },
+      "outputGroup": {
+        "kind": "known",
+        "projectionRevision": "openrouter-input-projection/2",
+        "source": "reply",
+        "completeness": "complete",
+        "usageRef": "usage",
+        "blockDigests": [
+          "605cd681a16fb4ba320a670464051a6193092e2ec2c73a337a6e38642fb2a55d",
+          "c787f5c256828d72bde78bd5fb930ede133c46e08f75430a4f456b9571107e12"
+        ]
+      }
+    },
+    {
+      "modelId": "anthropic/claude-opus-5",
+      "request": {
+        "calibration": {
+          "kind": "none",
+          "reason": "no_observation"
+        },
+        "outputHistory": [],
+        "tokenMargin": {
+          "multiplier": 1,
+          "reserveTokens": 0
+        },
+        "target": {
+          "kind": "model_call",
+          "callId": "model-call-1",
+          "dispatch": 1
+        },
+        "routeName": "anthropic/claude-opus-5",
+        "provider": "anthropic",
+        "parameters": {
+          "reasoningEffort": "high",
+          "maxOutputTokens": 1024
+        },
+        "tools": [],
+        "messages": [
+          {
+            "type": "user",
+            "id": "u1",
+            "createdAt": "2026-09-27T01:00:00Z",
+            "blocks": [
+              {
+                "id": "u1_text",
+                "kind": "text",
+                "text": "start",
+                "visibility": {
+                  "toHuman": true,
+                  "toModel": true
+                }
+              }
+            ]
+          }
+        ],
+        "snapshot": {
+          "inputModalities": ["image", "text"],
+          "outputModalities": ["text"],
+          "maxInputTokens": 872000,
+          "maxOutputTokens": 128000,
+          "inputConstraints": {
+            "maxImageBytes": 4194304
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          },
+          "adaptation": {
+            "implementation": {
+              "name": "pi-ai:anthropic",
+              "revision": "mp4-17"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-opus-5",
+              "revision": "3"
+            },
+            "configuration": {
+              "revision": "1",
+              "values": {
+                "cache": {
+                  "mode": "explicit",
+                  "ttl": "1h",
+                  "breakpoints": ["last_message"]
+                }
+              }
+            }
+          },
+          "providers": ["anthropic"],
+          "allowFallback": false,
+          "updatedAt": "2026-09-27T01:00:00Z"
+        }
+      },
+      "requestInput": {
+        "kind": "known",
+        "projectionRevision": "openrouter-input-projection/2",
+        "prefixBoundary": 1,
+        "prefixDigest": "5ca30ab2b880b9e79f978d7541d0d0aaf08492652d539b3ccf7932777da999d3",
+        "inputEnvelopeDigest": "18791c1c7ec00a45bc6935bae1df4032ee170c51a2c69b2ea4534ae91f68ae9e",
+        "countingBasis": {
+          "binding": {
+            "implementation": {
+              "name": "pi-ai:anthropic",
+              "revision": "mp4-17"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-opus-5",
+              "revision": "3"
+            },
+            "configuration": {
+              "revision": "1",
+              "values": {
+                "cache": {
+                  "mode": "explicit",
+                  "ttl": "1h",
+                  "breakpoints": ["last_message"]
+                }
+              }
+            }
+          },
+          "model": "anthropic/claude-opus-5",
+          "provider": "anthropic",
+          "tokenizerRevision": "tokenizer-basis/anthropic-legacy-bpe-plus-vision-patches-4",
+          "meterRevision": "anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1",
+          "replayRevision": "visible-final-units-json-net-estimated/1",
+          "transformRevision": "openrouter-wire/2",
+          "projectionRevision": "openrouter-input-projection/2"
+        }
+      },
+      "body": {
+        "model": "anthropic/claude-opus-5",
+        "provider": {
+          "order": ["anthropic"],
+          "allow_fallbacks": false,
+          "require_parameters": true
+        },
+        "stream": true,
+        "store": false,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "start",
+                "cache_control": {
+                  "type": "ephemeral",
+                  "ttl": "1h"
+                }
+              }
+            ]
+          }
+        ],
+        "reasoning": {
+          "effort": "high"
+        },
+        "max_tokens": 1024
+      },
+      "outputGroup": {
+        "kind": "known",
+        "projectionRevision": "openrouter-input-projection/2",
+        "source": "reply",
+        "completeness": "complete",
+        "usageRef": "usage",
+        "blockDigests": [
+          "2527ff246d60c3ca4c8241642a27d5a8f0fd0240aa14fac92cbaf31a835baed3",
+          "c787f5c256828d72bde78bd5fb930ede133c46e08f75430a4f456b9571107e12"
+        ]
+      }
+    },
+    {
+      "modelId": "anthropic/claude-sonnet-5",
+      "request": {
+        "calibration": {
+          "kind": "none",
+          "reason": "no_observation"
+        },
+        "outputHistory": [],
+        "tokenMargin": {
+          "multiplier": 1,
+          "reserveTokens": 0
+        },
+        "target": {
+          "kind": "model_call",
+          "callId": "model-call-1",
+          "dispatch": 1
+        },
+        "routeName": "anthropic/claude-sonnet-5",
+        "provider": "anthropic",
+        "parameters": {
+          "reasoningEffort": "high",
+          "maxOutputTokens": 1024
+        },
+        "tools": [],
+        "messages": [
+          {
+            "type": "user",
+            "id": "u1",
+            "createdAt": "2026-09-27T01:00:00Z",
+            "blocks": [
+              {
+                "id": "u1_text",
+                "kind": "text",
+                "text": "start",
+                "visibility": {
+                  "toHuman": true,
+                  "toModel": true
+                }
+              }
+            ]
+          }
+        ],
+        "snapshot": {
+          "inputModalities": ["image", "text"],
+          "outputModalities": ["text"],
+          "maxInputTokens": 872000,
+          "maxOutputTokens": 128000,
+          "inputConstraints": {
+            "maxImageBytes": 4194304
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          },
+          "adaptation": {
+            "implementation": {
+              "name": "pi-ai:anthropic",
+              "revision": "mp4-17"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-5",
+              "revision": "3"
+            },
+            "configuration": {
+              "revision": "1",
+              "values": {
+                "cache": {
+                  "mode": "explicit",
+                  "ttl": "1h",
+                  "breakpoints": ["last_message"]
+                }
+              }
+            }
+          },
+          "providers": ["anthropic"],
+          "allowFallback": false,
+          "updatedAt": "2026-09-27T01:00:00Z"
+        }
+      },
+      "requestInput": {
+        "kind": "known",
+        "projectionRevision": "openrouter-input-projection/2",
+        "prefixBoundary": 1,
+        "prefixDigest": "5ca30ab2b880b9e79f978d7541d0d0aaf08492652d539b3ccf7932777da999d3",
+        "inputEnvelopeDigest": "69e1d9a5d6f29824be7c78c9628ccd5f4c790ee556d33d84a55bdd445cd820ab",
+        "countingBasis": {
+          "binding": {
+            "implementation": {
+              "name": "pi-ai:anthropic",
+              "revision": "mp4-17"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-sonnet-5",
+              "revision": "3"
+            },
+            "configuration": {
+              "revision": "1",
+              "values": {
+                "cache": {
+                  "mode": "explicit",
+                  "ttl": "1h",
+                  "breakpoints": ["last_message"]
+                }
+              }
+            }
+          },
+          "model": "anthropic/claude-sonnet-5",
+          "provider": "anthropic",
+          "tokenizerRevision": "tokenizer-basis/anthropic-legacy-bpe-plus-vision-patches-4",
+          "meterRevision": "anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1",
+          "replayRevision": "visible-final-units-json-net-estimated/1",
+          "transformRevision": "openrouter-wire/2",
+          "projectionRevision": "openrouter-input-projection/2"
+        }
+      },
+      "body": {
+        "model": "anthropic/claude-sonnet-5",
+        "provider": {
+          "order": ["anthropic"],
+          "allow_fallbacks": false,
+          "require_parameters": true
+        },
+        "stream": true,
+        "store": false,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "start",
+                "cache_control": {
+                  "type": "ephemeral",
+                  "ttl": "1h"
+                }
+              }
+            ]
+          }
+        ],
+        "reasoning": {
+          "effort": "high"
+        },
+        "max_tokens": 1024
+      },
+      "outputGroup": {
+        "kind": "known",
+        "projectionRevision": "openrouter-input-projection/2",
+        "source": "reply",
+        "completeness": "complete",
+        "usageRef": "usage",
+        "blockDigests": [
+          "f0a128def57c681e73247838ce43817f8626a0caa6d49cbfa098aff14fc076ba",
+          "c787f5c256828d72bde78bd5fb930ede133c46e08f75430a4f456b9571107e12"
+        ]
+      }
+    },
+    {
+      "modelId": "anthropic/claude-fable-5.1",
+      "request": {
+        "calibration": {
+          "kind": "none",
+          "reason": "no_observation"
+        },
+        "outputHistory": [],
+        "tokenMargin": {
+          "multiplier": 1,
+          "reserveTokens": 0
+        },
+        "target": {
+          "kind": "model_call",
+          "callId": "model-call-1",
+          "dispatch": 1
+        },
+        "routeName": "anthropic/claude-fable-5.1",
+        "provider": "anthropic",
+        "parameters": {
+          "reasoningEffort": "high",
+          "maxOutputTokens": 1024
+        },
+        "tools": [],
+        "messages": [
+          {
+            "type": "user",
+            "id": "u1",
+            "createdAt": "2026-09-27T01:00:00Z",
+            "blocks": [
+              {
+                "id": "u1_text",
+                "kind": "text",
+                "text": "start",
+                "visibility": {
+                  "toHuman": true,
+                  "toModel": true
+                }
+              }
+            ]
+          }
+        ],
+        "snapshot": {
+          "inputModalities": ["image", "text"],
+          "outputModalities": ["text"],
+          "maxInputTokens": 872000,
+          "maxOutputTokens": 128000,
+          "inputConstraints": {
+            "maxImageBytes": 4194304
+          },
+          "upstreamInputLimits": {
+            "maxInputTokens": {
+              "status": "unknown"
+            },
+            "maxRequestBytes": {
+              "status": "unknown"
+            },
+            "maxImageBytes": {
+              "status": "unknown"
+            },
+            "maxImages": {
+              "status": "unknown"
+            }
+          },
+          "adaptation": {
+            "implementation": {
+              "name": "pi-ai:anthropic",
+              "revision": "mp4-17"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-fable-5.1",
+              "revision": "3"
+            },
+            "configuration": {
+              "revision": "1",
+              "values": {
+                "cache": {
+                  "mode": "explicit",
+                  "ttl": "1h",
+                  "breakpoints": ["last_message"]
+                }
+              }
+            }
+          },
+          "providers": ["anthropic"],
+          "allowFallback": false,
+          "updatedAt": "2026-09-27T01:00:00Z"
+        }
+      },
+      "requestInput": {
+        "kind": "known",
+        "projectionRevision": "openrouter-input-projection/2",
+        "prefixBoundary": 1,
+        "prefixDigest": "5ca30ab2b880b9e79f978d7541d0d0aaf08492652d539b3ccf7932777da999d3",
+        "inputEnvelopeDigest": "023d365037e82f2289e790772719d5dd1995c61ef9d925502e1fc22bd4eac5ab",
+        "countingBasis": {
+          "binding": {
+            "implementation": {
+              "name": "pi-ai:anthropic",
+              "revision": "mp4-17"
+            },
+            "definition": {
+              "modelId": "anthropic/claude-fable-5.1",
+              "revision": "3"
+            },
+            "configuration": {
+              "revision": "1",
+              "values": {
+                "cache": {
+                  "mode": "explicit",
+                  "ttl": "1h",
+                  "breakpoints": ["last_message"]
+                }
+              }
+            }
+          },
+          "model": "anthropic/claude-fable-5.1",
+          "provider": "anthropic",
+          "tokenizerRevision": "tokenizer-basis/anthropic-legacy-bpe-plus-vision-patches-4",
+          "meterRevision": "anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1",
+          "replayRevision": "visible-final-units-json-net-estimated/1",
+          "transformRevision": "openrouter-wire/2",
+          "projectionRevision": "openrouter-input-projection/2"
+        }
+      },
+      "body": {
+        "model": "anthropic/claude-fable-5.1",
+        "provider": {
+          "order": ["anthropic"],
+          "allow_fallbacks": false,
+          "require_parameters": true
+        },
+        "stream": true,
+        "store": false,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "start",
+                "cache_control": {
+                  "type": "ephemeral",
+                  "ttl": "1h"
+                }
+              }
+            ]
+          }
+        ],
+        "reasoning": {
+          "effort": "high"
+        },
+        "max_tokens": 1024
+      },
+      "outputGroup": {
+        "kind": "known",
+        "projectionRevision": "openrouter-input-projection/2",
+        "source": "reply",
+        "completeness": "complete",
+        "usageRef": "usage",
+        "blockDigests": [
+          "0da995aeac0dbf1783a2423acd0684475b7f06616c77364d3309594b036dbb8c",
+          "c787f5c256828d72bde78bd5fb930ede133c46e08f75430a4f456b9571107e12"
+        ]
+      }
+    }
+  ]
+}

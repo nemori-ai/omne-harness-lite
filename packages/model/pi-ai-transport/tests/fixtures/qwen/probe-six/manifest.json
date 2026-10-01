@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "origin": "tmp/model-request-runtime/vendor-completion/qwen/cases-v2/manifest.json",
+  "originSha256": "4e20995038642207af3fb3b9ab6e203aaddecb3ede173165c8956781fd9ad12b",
+  "snapshotSha256": "a486e9388c0825f584a300d848a0e3afbfd71759a6e2a444d1754843b8769496",
+  "cases": [
+    {
+      "group": "commercial-calibration",
+      "label": "english",
+      "model": "qwen/qwen3.8-max-0902",
+      "provider": "alibaba",
+      "file": "08-qwen3.8-max-0902-english.json",
+      "sha256": "8cac47a03e0bded81dd33f5ffdb1f83f58154374e7c7df59e526b6fb4b5def0a",
+      "maxOutputTokens": 16
+    },
+    {
+      "group": "commercial-calibration",
+      "label": "chinese",
+      "model": "qwen/qwen3.8-max-0902",
+      "provider": "alibaba",
+      "file": "09-qwen3.8-max-0902-chinese.json",
+      "sha256": "ff5adf010714b6a2318b6d33057347008e03619b37698d9e76710bf5a793e489",
+      "maxOutputTokens": 16
+    },
+    {
+      "group": "commercial-calibration",
+      "label": "code",
+      "model": "qwen/qwen3.8-max-0902",
+      "provider": "alibaba",
+      "file": "10-qwen3.8-max-0902-code.json",
+      "sha256": "9aff87e7388744484f550db167a40418fb285d809f6154efbcc4c1b79f9bf501",
+      "maxOutputTokens": 16
+    },
+    {
+      "group": "commercial-holdout",
+      "label": "mixed-text",
+      "model": "qwen/qwen3.8-max-0902",
+      "provider": "alibaba",
+      "file": "11-qwen3.8-max-0902-mixed-text.json",
+      "sha256": "24fc70351d18f7b415c3a792bb0f0d37b4bbd25351cdbeae2dc2c672c2bee6fc",
+      "maxOutputTokens": 16
+    },
+    {
+      "group": "public-vision",
+      "label": "red-544",
+      "model": "qwen/qwen3.8-27b",
+      "provider": "alibaba",
+      "file": "38-qwen3.8-27b-red-544.json",
+      "sha256": "1c0e2d2e6a5614960e7b24ae1ceca0c00279eea5e7f906572ea9e233f7be1bf4",
+      "maxOutputTokens": 16
+    },
+    {
+      "group": "public-vision",
+      "label": "blue-1024",
+      "model": "qwen/qwen3.8-27b",
+      "provider": "alibaba",
+      "file": "39-qwen3.8-27b-blue-1024.json",
+      "sha256": "9337774be05e193ff62b79a5d01e42f3b1145c7bb65722bbe2ddc790414ef796",
+      "maxOutputTokens": 16
+    }
+  ]
+}

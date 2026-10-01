@@ -49,3 +49,20 @@ architecture-reviewer 对本节点的独立只读评审（N6，2026-09-25），�
 | B-4 | `./seed` 的对比缺第三条路：包只公开表名／列名常量与迁移片段，写函数放 `apps/cli` 测试代码 | 坚持 `./seed`：关键选择三补第三列，写明它在三处不如 `./seed`（写的语义有两个家；表形状变成跨包公开面；「零写入口」不自执行，守它的检查比 import 图规则难写）；STT-4 的结构检查列为本节点「可实施」的前置 | [关键选择三](design.md#关键选择)；缺口 STT-4；[README](README.md) 可实施范围；本页 V-1 |
 
 A-4、B-5（cli 验收装配表）与 B-1（主线）不归本节点，本节点未动。
+
+## 设计 rev 2 候选证据义务
+
+[本轮设计](v2-design.md) 仍消费 ST2。以下只追加证据义务，不将旧设计已接受或 storage/OG 测试通过算作本节点已验证。此前 V-1 中“只许 CLI 测试”的旧允许范围由 rev 2 候选替代；在新采用与守卫落地前保留 STT-4 的实施阻断。
+
+| 编号 | 条款与反例 | 当前状态及 owner |
+|---|---|---|
+| V2-1 | ST2 S-2/S-6：固定 seed import 允许集与无 UPDATE/DELETE；允许的 bootstrap/两处 tests 通过，其他 app、插件、包 tests、伪 test 文件、转导出、相对路径穿透失败；扫描根必须包含 apps | 未开始；本节点与 ts-checks owner，STT-6 可实施前置 |
+| V2-2 | ST2 S-5/S-6：真实临时文件库 seed 同值幂等，异值抛 `session_tenancy_pkey` 且旧值不变；同值/异值双调用并发检验唯一约束 | 未开始；允许范围内的验收 app 测试，不假造领域会话创建支持 |
+| V2-3 | ST2 S-7/S-8：普通独立闭包校验非法输入零查询、无记录/不可读分开、坏租户与缺表抛缺陷；重装同库答案保持；SessionRef 与冻结 messages2 公共 Schema 对齐 | 未开始；本节点实施者，沿旧 V-2～V-6 |
+| V2-4 | ST2 S-8：真实 StorageUnit 内参与读与 OG/配方串行同单元；错误实例、过期单元、重叠调用必须失败；将实现换成普通 storage.read 应被嵌套拒绝/断言捕获 | 未开始；本节点及采用参与面的 input-store owner；SQLite 范围，不代证 PG |
+| V2-5 | ST2 S-8/调用方提交义务：先暂存一项写再令参与读 StorageUnavailable，异常退出 run 后外层不能提交；缺陷不能映射 unavailable；两条竞争交错见 rev 2 存储要求 | 未开始；本节点、input-store 与独立验收者，共享实际对象，不以 mock 两次返回冒充事务 |
+| V2-6 | ST2 S-10/S-11：所有必需 fiber ACTIVE 后 guard.confirm，成功后才 seed/受理；确认失败零 seed/受理；撤除等已进事务完成后关闭 storage，映射不删除 | 未开始；`apps/model-request-acceptance` 与旧 CLI 验收 owner，继承 STT-3 前提 |
+
+STT-6～STT-8 的阻断与 owner 在 [rev 2 缺口](v2-design.md#缺口与受阻消费者)；完整会话写面仍 STT-1/STT-2。本轮绑定保持 0；实际运行只在执行后接续，不预填通过数。
+
+2026-09-27 本轮实际执行设计检查 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip`，退出 0；所有 formal 明确跳过。新稿 v2-design.md 的 Prettier 检查与本节点 `git diff --check` 通过；旧 design.md 与基线无差异。本结果仅覆盖设计链接/登记及文本检查，没有执行 seed 守卫、存储参与读或验收应用；以上实现义务仍未开始。

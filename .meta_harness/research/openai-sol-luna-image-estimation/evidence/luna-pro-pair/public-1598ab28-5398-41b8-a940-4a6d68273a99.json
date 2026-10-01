@@ -1,0 +1,87 @@
+{
+  "entryId": "1598ab28-5398-41b8-a940-4a6d68273a99",
+  "modelId": "openai/gpt-6-luna-pro",
+  "gate": "pair",
+  "wireSha256": "247c6ce17d24a95e0942df39b56228037846166275c873cc5a3f20305e3466d8",
+  "estimateUsd": "0.326500000000000000",
+  "phase": "pro-acceptance-only-after-base-pilot",
+  "upstreamModel": "openai/gpt-6-luna-pro",
+  "servingProvider": "OpenAI",
+  "observedInput": {
+    "kind": "unavailable",
+    "reason": "scope_unknown"
+  },
+  "measurementRaw": "{\"mode\":\"full\",\"fallbackReason\":\"no_observation\",\"fullContribution\":{\"tokens\":122,\"precision\":\"estimated\"},\"basis\":{\"binding\":{\"implementation\":{\"name\":\"pi-ai:openai\",\"revision\":\"image-range-pilot-2\"},\"definition\":{\"modelId\":\"openai/gpt-6-luna-pro\",\"revision\":\"image-range-pilot-2\"},\"configuration\":{\"revision\":\"image-range-pilot-2\",\"values\":{\"cache\":{\"mode\":\"automatic\"}}}},\"model\":\"openai/gpt-6-luna-pro\",\"provider\":\"openai\",\"tokenizerRevision\":\"js-tiktoken-1.0.21-o200k-base-research-surrogate/1\",\"meterRevision\":\"sol-luna-image-range-json-patches32-multiplier1.2/2\",\"replayRevision\":\"unsupported-marginal/1\",\"transformRevision\":\"openrouter-input-transform/pro-scope-1\",\"projectionRevision\":\"openrouter-input-projection/2\"},\"precision\":\"estimated\",\"predictedInput\":122,\"admissionTokens\":391}",
+  "measurement": {
+    "mode": "full",
+    "fallbackReason": "no_observation",
+    "fullContribution": {
+      "tokens": 122,
+      "precision": "estimated"
+    },
+    "basis": {
+      "binding": {
+        "implementation": {
+          "name": "pi-ai:openai",
+          "revision": "image-range-pilot-2"
+        },
+        "definition": {
+          "modelId": "openai/gpt-6-luna-pro",
+          "revision": "image-range-pilot-2"
+        },
+        "configuration": {
+          "revision": "image-range-pilot-2",
+          "values": {
+            "cache": {
+              "mode": "automatic"
+            }
+          }
+        }
+      },
+      "model": "openai/gpt-6-luna-pro",
+      "provider": "openai",
+      "tokenizerRevision": "js-tiktoken-1.0.21-o200k-base-research-surrogate/1",
+      "meterRevision": "sol-luna-image-range-json-patches32-multiplier1.2/2",
+      "replayRevision": "unsupported-marginal/1",
+      "transformRevision": "openrouter-input-transform/pro-scope-1",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    "precision": "estimated",
+    "predictedInput": 122,
+    "admissionTokens": 391
+  },
+  "outcome": "complete",
+  "rejectionReason": null,
+  "typedRejection": null,
+  "failure": null,
+  "upstreamRequestId": "gen-1790681143-M3L1l4DhE8AsQJqvfXEe",
+  "httpStatus": null,
+  "inBandStatusCode": null,
+  "requestIdHeaders": {
+    "x-generation-id": "gen-1790681143-M3L1l4DhE8AsQJqvfXEe"
+  },
+  "usageRaw": "{\"input_tokens\":1431,\"output_tokens\":25,\"cache_read_tokens\":0,\"cache_write_tokens\":0,\"source\":\"upstream\",\"reasoning_tokens\":0}",
+  "costRaw": "{\"cost_usd\":0.0001556,\"source\":\"upstream_usage\",\"upstream_inference_cost_usd\":0.0001556}",
+  "usage": {
+    "input_tokens": 1431,
+    "output_tokens": 25,
+    "cache_read_tokens": 0,
+    "cache_write_tokens": 0,
+    "source": "upstream",
+    "reasoning_tokens": 0
+  },
+  "cost": {
+    "cost_usd": 0.0001556,
+    "source": "upstream_usage",
+    "upstream_inference_cost_usd": 0.0001556
+  },
+  "blocks": [
+    {
+      "kind": "text",
+      "text": {
+        "bytes": 2,
+        "sha256": "565339bc4d33d72817b583024112eb7f5cdf3e5eef0252d6ec1b9c9a94e12bb3"
+      }
+    }
+  ]
+}

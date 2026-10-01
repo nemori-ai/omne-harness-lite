@@ -8,6 +8,7 @@ import {
   type JsonObject,
 } from './json.ts'
 import { createExactMetaValidator, exactSchema, installExactKeywords } from './exact-schema.ts'
+import { schemaPattern } from './schema-pattern.ts'
 
 export type SchemaDocument = boolean | JsonObject
 export interface SchemaRuntimeOptions {
@@ -62,8 +63,9 @@ export function createSchemaRuntime(
   const metaValidator = createExactMetaValidator()
   const factory = options?.patternFactory
   const engine: RegExpEngine = Object.assign(
-    (source: string): RegExp => {
-      const expression = factory === undefined ? new RegExp(source, 'u') : factory(source)
+    (source: string) => {
+      if (factory === undefined) return schemaPattern(source, 'u')
+      const expression = factory(source)
       if (!(expression instanceof RegExp) || expression.global || expression.sticky)
         throw new TypeError('pattern factory must return a native, non-global, non-sticky RegExp')
       return expression

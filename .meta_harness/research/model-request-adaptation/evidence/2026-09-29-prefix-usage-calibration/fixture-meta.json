@@ -1,0 +1,13 @@
+{
+  "tokenizer": "js-tiktoken 1.0.21 / o200k_base",
+  "exactLocalTokenizerTokensOfFinalSerializedBody": 1001641,
+  "messageCount": 1018,
+  "contentBlockCount": 1018,
+  "utf8RequestBytes": 3630139,
+  "utf16CodeUnits": 3190363,
+  "concatenatedTextUtf8Bytes": 3555116,
+  "serializedSha256": "3b29f639eae8f8b7a518374ff7e00426a16cd99f2b8d0b004ad15588a8e3fef8",
+  "corpus": "deterministic English prose, code-shaped records, CJK, numbers; 18 lines/message",
+  "seedRule": "count=(recordId*7919)%99991",
+  "semantics": "Local o200k_base token count, not upstream usage or proof of 1M route support"
+}

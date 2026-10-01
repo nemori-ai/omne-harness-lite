@@ -10,9 +10,12 @@ This package is an unpublished, private ESM workspace member. Use it from this r
 | ------------------------------------------------------------------ | ----------------------------------------------------------------- |
 | `judgeDefinition`, `judgeInput`, `judgeOutput`                     | Admit protocol values and obtain typed copies                     |
 | `judgeConclusion(value, inputs)`                                   | Check conclusion shape, allowed combinations and immutable fields |
+| `judgePositionedSubject`, `judgeConclusionForSubject`              | Check a pure subject and conclusion without execution handles     |
 | `POSITIONS`, `POWERS`, `POWER_CONCLUSIONS`, `POSITION_CONCLUSIONS` | Inspect legal positions and output combinations                   |
 | `loopExtensionBodyContract`                                        | Supply definition rules to the asset model                        |
 | `validate`, `judgeValue`                                           | Use the schema and generic judgment surfaces                      |
+
+The root entry adopts `data.loop-extension/v6`. A failed model-call input includes its complete, ordered `retryConclusions` and every recorded conclusion at that position carries the matching `modelCallId`. Existing `/schema/v3` and `/schema/v2` paths publish exact resources required by current schema references; they are not executable older APIs.
 
 ## Admit a definition
 
@@ -106,10 +109,52 @@ console.log(
 
 ## Failures and boundaries
 
+A pure composition can check a subject and a conclusion without claiming a Run or log exists:
+
+```ts
+import { judgePositionedSubject, judgeConclusionForSubject } from '@omne-harness-lite/loop-extension'
+
+const subject = judgePositionedSubject({ position: 'attempt_started', subject: { attempt: 1 } })
+if ('rejected' in subject) throw new Error(subject.rejected)
+const conclusion = judgeConclusionForSubject(
+  {
+    extension: 'audit',
+    position: 'attempt_started',
+    power: 'observe',
+    output: { kind: 'observed' },
+    at: '2026-09-28T10:00:00Z',
+  },
+  { positionedSubject: subject.ok, extensionName: 'audit' },
+)
+if ('rejected' in conclusion) throw new Error(conclusion.rejected)
+console.log(conclusion.ok.output) // { kind: 'observed' }
+```
+
+The pure subject accepts only `position`, its required `dimension`, and `subject`. A valid pure result checks representation and pairing; it does not prove an actual invocation, dispatch, or complete history. Consumers performing real execution still use `judgeInput` and `judgeConclusion` with actual handles and Run facts.
+
 Judgments return a typed `{ ok }` copy or `{ rejected }`. `judgeConclusion` needs an admitted `ExtensionInput` and the actual extension name, paired to the same position, dimension and action identity. Missing or invalid auxiliary configuration throws `TypeError`; protocol rejection remains a separate result. Schema-only guards and `validate` cannot compare a rewrite against the actual invocation.
 
 A valid conclusion is not dispatch authorization. The caller supplies the effective power, checks model/provider eligibility, performs admission, records conclusions, and applies them in loop order. `select_model`, `retry`, `ask` and `veto` are values here; no model selection, retry, waiting, veto effect or command execution happens in this package. Log and environment handles are opaque.
 
 Rewrites preserve the immutable members for their position. An unparseable tool call cannot be repaired into parsed arguments by an extension. Injected reminders must name the actual extension as their source. Dependencies, policy execution, persistence and recovery belong to consumers.
 
-Public JSON Schema entries are `@omne-harness-lite/loop-extension/schema` (v3) and `/schema/v2`. See [source exports](src/index.ts), [tests](tests/) and [tool definition](../tool-definition/README.md).
+Public JSON Schema entries are `@omne-harness-lite/loop-extension/schema` (v6), `/schema/v3` and `/schema/v2`. The current schema graph consumes the exact `messages/schema/v6` and `call-accounts/schema/v2` resources required by those contracts, rather than following their changing root schemas. See [source exports](src/index.ts), [tests](tests/) and [tool definition](../tool-definition/README.md).
+
+## Admit a recorded retry
+
+The retry history contains full recorded conclusions, including their call identity, author, time and plan. `judgeInput` validates the complete failure subject and checks that every dispatch and retry belongs to its one model call; the runtime must still obtain the complete log prefix.
+
+```ts
+import { judgeValue } from '@omne-harness-lite/loop-extension'
+
+const result = judgeValue('ModelRetryConclusion', {
+  extension: 'default-retry',
+  position: 'after_model_call',
+  dimension: { ending: 'failure' },
+  modelCallId: 'mc_01',
+  power: 'rewrite',
+  output: { kind: 'retry', plan: { provider: 'provider-b', after: 'PT2S' } },
+  at: '2026-09-28T10:00:00Z',
+})
+console.log('ok' in result) // true
+```

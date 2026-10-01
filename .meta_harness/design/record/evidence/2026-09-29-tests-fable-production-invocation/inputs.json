@@ -1,0 +1,81 @@
+{
+  "date": "2026-09-29",
+  "sourceCommitAtSuccessfulPaidRun": "b19d6bd3",
+  "node": "24.18.0",
+  "pnpm": "10.28.1",
+  "route": "anthropic/claude-fable-5.1",
+  "provider": "anthropic",
+  "definitionRevision": "2",
+  "implementation": "pi-ai:anthropic/mp4-5",
+  "acceptedInputs": [
+    "data.model-response/v9",
+    "capability.model-request-runtime/v10",
+    "transport/v12 revision2",
+    "runtime/v16"
+  ],
+  "paidRequests": 7,
+  "newUnknownCosts": 0,
+  "actualTotalUsd": "0.03006",
+  "approvalBudget": {
+    "totalUsd": "100",
+    "researchUsd": "50"
+  },
+  "ledger": "tmp/model-request-runtime/ledger.json",
+  "ledgerSha256After": "bbced0f2b4e2bfd084c9c88221a82345260826be1fc142549734c1136d2ecb6f",
+  "physicalBatchVerification": [
+    {
+      "responseId": "response-0b881819-487d-4af0-a9d7-b4404648103d",
+      "physicalBatchSha256": "8880257bb03b1d397d975f4f5350e4b063c66172e7adc5d20185eed847d68a90",
+      "replyText": "OK",
+      "prefixBoundary": 1
+    },
+    {
+      "responseId": "response-c5239e75-3c9c-4976-b2d9-83a144cbddfb",
+      "physicalBatchSha256": "8aa1a646702a420189e44761c6de26a1760e503a6121f716c45d5a2e1cbfc19f",
+      "replyText": "LANTERN",
+      "prefixBoundary": 3
+    },
+    {
+      "responseId": "response-ae72d228-ab7b-4bd1-8254-55cd4f3428d5",
+      "physicalBatchSha256": "9e1b07d405257d290f95b66db1970370a42998a1ed86656ea24a6af48013f7a0",
+      "replyText": "LANTERN",
+      "prefixBoundary": 5
+    }
+  ],
+  "checksums": {
+    "outputs/run1/manifest.json": "cd5b5cf9bd5c962d0d9f1a1281dfca0f76bd5d19575e8e41f1cf3f927a39154f",
+    "outputs/run1/scenario.json": "ce76f83915e86108d71776e6991b3540ac4922d5f9eb9a68f96e1a8e78e1327b",
+    "outputs/run1/public-5d05b967-7d55-48a9-b009-7f4528701935.json": "cc6cc733cb37c4c809acbc446e41e4ab9e23315eb1c334768cc1d3a5a7b41df1",
+    "outputs/run1/paid-negative.json": "456616e586610e6e8be008d6f222d30769d88724d5fbb049a4300070567ca3e4",
+    "outputs/run1/paid-dry-run.json": "1064fd9944b8e3a5f4fc9db4d508bc2026e9340f8bf97edbeaf85021df67866c",
+    "outputs/run2/manifest.json": "9a4c2ca721ab53a2a59f1df07dd52c8cd7bdfca9a364c5bbbbf79ccb704cafe5",
+    "outputs/run2/scenario.json": "85b8ef7337eb41e3279142b658cd949e3e032b547b2d4c2dc478794495a6b2c6",
+    "outputs/run2/public-df8a601a-9123-4c5e-8d57-7136d6efabf5.json": "147f32833ad77839fd30a4f6c373201463e6817800aec79c88b94df52f4acc9e",
+    "outputs/run2/service-close-81d460c1-b363-4a93-9372-5419f3628aa1.json": "4cd4f301fc3069f0789d978eeeb8e432e0b3053d8000b1debafdaaf7bd8435b3",
+    "outputs/run2/paid-negative.json": "456616e586610e6e8be008d6f222d30769d88724d5fbb049a4300070567ca3e4",
+    "outputs/run2/service-8c19ab83-e7c0-4f05-b6df-a1e79f85d388.json": "64bb31c7b57880f9ba5fee7a5f9d9ed16bc0f5e49b4deff5e4369f967a3ab267",
+    "outputs/run2/paid-dry-run.json": "1023fb8dae81464cba1b4f0464b1c4dc6cb9c422ac54fec28848a10e961144fe",
+    "outputs/run3/service-7c9ecdd2-a11d-4700-9412-0cd32c2e150c.json": "a02746d42bb6bf4cec3ae959ce51bd2d314461d191d1e12d24886adc75377338",
+    "outputs/run3/service-close-3dd301cf-e3be-400a-b65a-2941694a6d0a.json": "791debc6ac49aba857dbb42ea4d9b27259ae1798ada86b17e6cdda61f21ebfa5",
+    "outputs/run3/service-7ac88fe6-9cc7-4a14-9a58-8dd68167d788.json": "35bbd15c521350ef3d448d5bc1a2ec1589ad1dfabf5612b1ef165fd6b0f77cd5",
+    "outputs/run3/manifest.json": "e6fdccb26ec169d333b7003da802c92d9f19aec231f6264419e52cc3aac29fd1",
+    "outputs/run3/public-e83e1fc2-dee2-4b23-af09-0ff74f8af5a4.json": "228729b08264dfa90616c4f15d38d41ab42ce0486ac8938313a09aea9c654800",
+    "outputs/run3/scenario.json": "ec6a639383625d314938ca34d4cbcb271bc7cd5f4a8d342557d519be7273731c",
+    "outputs/run3/paid-negative.json": "456616e586610e6e8be008d6f222d30769d88724d5fbb049a4300070567ca3e4",
+    "outputs/run3/service-afc95836-9718-4ed3-b327-b205460a0bc5.json": "a1cf060aad1efc72871488d9775e2940cc3f993a55c02810ee4070d443036584",
+    "outputs/run3/paid-dry-run.json": "57a54c9717f13fdb4df8080e5ff9eb15603eb62e68103169277254c71820f502",
+    "inputs/paid.mjs": "72e64ef6d77b49a026988488ab803b6ec1ee17cc64abbaa277cfa2f4126a5291",
+    "inputs/paid-core.mjs": "4e5f9997dc3cc72a4df7f5a49741f5804d7ae789e1d94478d6e361c76ded5095",
+    "inputs/service-core.mjs": "1e03042aa68046b1b8af00ab5c26143b673e145787ba5f2d8b6c5e8c0058c966",
+    "inputs/catalog-fable.mjs": "b07be200eafae17c60b2435026e906fbfeb401e2d2d857d12b52aa68b8726ffa",
+    "inputs/review.mjs": "f2335ffe019202db3cff3270fa4a79742c6cae0febb355b1681e7f7caaed9a46",
+    "outputs/hub-paid-fable.log": "3b3ee0fe7f7d31a6b79d488b23f71da68364610cfc8dfd89a5f054a76bf53751",
+    "outputs/hub-paid-fable-256.log": "e50139b13e668283c858bd83878f9061f053634bf24817aca84809dee73985b3",
+    "outputs/hub-paid-fable-memory.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "outputs/hub-dry-run-memory.log": "48d335524e001a58e203a508bb6340cb3c3cc794c682261023c50670aa4b62c1",
+    "outputs/hub-preflight-negative-memory.log": "0e81a0b41728896d0d299995d3abeb0a66c37e8aa5797cd53e3c01ba01e016f1",
+    "inputs/catalog.json": "477df1efa034137e9125a3a458b995608fdc1271317334d305f561d8545e7432",
+    "inputs/endpoint.raw.json": "82decfb89ec5e6e91e14f0ed8a2eb760bb377f505b620293474f6ebbe5c91703",
+    "outputs/actual-planning.jsonl": "e23930a3e840e95b40153e8f45871b2ff393e3e1ed5631050f807b3af2ec1cab"
+  }
+}

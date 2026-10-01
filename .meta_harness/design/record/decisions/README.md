@@ -1,4 +1,16 @@
+[D-109：请求期图片准备](model-request-image-preparation-adoption/README.md)：采用 transport v15 r4/runtime v21 r3、显式 codec 与本地可配置 preset，释放实施；IP-V1～10 与模型供给尚待验。
+
 # 决定
+
+[D-108：OpenRouter refusal 文本映射](openrouter-refusal-mapping-adoption/README.md)：采用 transport v14 revision 2 及局部投影；共享规格不升版，RF-V1–V9 和实际交付待验。
+
+[D-101：有依据的token估算准入](model-token-estimate-adoption/README.md)：MP6/RT8及两份计量映射技术采用，真实实现与整体交付另验。
+
+[D-100：模型纵线当前代际直接替换](model-runtime-current-generation-adoption/README.md)：接受七后继与当前迁移映射，撤销旧实现兼容过渡；实现验收分别推进。
+
+2026-09-27：[D086：RT4结算消费](model-runtime-tail-settlement-adoption/README.md)接受73条／27资源，传播SL3与实际提交late／未知责任；旧消费者不自动升级，新版提供者与实际十三操作／IO仍待。
+
+2026-09-27：[D085：SL3恢复路径识别](session-log-recovery-projection-adoption/README.md)技术采用既有JSONL提供者的窄增补；不改变日志契约，不表示真实退出观察／恢复或P2验收完成。
 
 [D-074：接受 PF-015 rev 13 与 PF-020 rev 21](session-workspace-product-acceptance/README.md)：产品负责人于 2026-09-28 明确要求转正；保留显式未决项及技术交接，不表示契约、实现或验证完成。
 
@@ -123,6 +135,12 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 
 [D-068：core 实施反推的规格一致性修订](core-implementation-spec-reconciliation/README.md)：沿已接受 N32 补共享形状、两示例与八个 core 的显式采用；修订范围已采纳，精确新版候选待审，未接受／冻结／实现。
 
+[D-075 模型凭据来源投影](model-credential-source-projection/README.md)：目录同单元绑定比较、模型副本 sourceRef/AAD 及受限技术组件采用；完整 CCL/OAuth/MCP 不在采用交付范围。
+
+[D-076 模型请求纵线最终规格和装配投影](model-runtime-delivery-adoption/README.md)：RT3/runner3接受，runtime/transport/runner/验收app采用，真实交付待完成。
+
+[D-077 模型输入源接口补充](model-source-interfaces-adoption/README.md)：完整可信部署项与受限固定根读面采用；原装配来源认回及真实新增面验收待完成。
+
 
 [D-069：Skill YAML 键解析](skill-yaml-key-resolution/README.md)保留上游现行编号。
 
@@ -132,4 +150,53 @@ D-031 起归「资产、工具运行时与模型请求运行时一程」：两�
 
 [D-072：健康探针单进程绑定](governance-docker-health-binding/README.md)接受已有公开main的同进程调用及原期限/资源清理约束；不改变EC3/HT3，不代表新制品已验。
 
+[D-078：模型纵线历史编号消歧](model-main-integration-coordination/README.md)接续施工提交的原 D-070～D-072；上文链接至 model-adaptation-binding-acceptance、model-value-provider-adoption、agent-definition-read-adoption 的同号文字仅导航历史，本次之后无提交限定的 D-070～D-072 指远程现行记录。模型 D-073～D-077 不变；原技术接受及资源字节不改变。
+
+[D-079 原完整fill读面](model-original-fill-adoption/README.md)：MF4/AR4接受，MF4 provider采用；真实新增方法及AR4来源链待验。
+
+[D-080 注册表与历史正文提供者](model-registry-history-provider-adoption/README.md)：AR4 与 EIS history revision 1 技术采用；真实旧表/旧报告成功恢复待实现验收。
+
+[D-081 模型响应 late 提交协调方向](model-late-coordination-direction/README.md)：采用既有日志追加提交点保护读取尾的演进方向；精确新契约、提供者和消费者尚未采用，withRun 结算仍受阻。
+
+[D-082 完整模型窄定义投影](model-definition-projection-adoption/README.md)：采用 core 能力复用、逐路由规则与 Schema／解释器、明确完整 definitions 迁移；公共实现待施工，37 模型事实与认证未就绪。
+
+[D-087 RT4结算消费者投影](model-runtime-v4-projection-adoption/README.md)：采用v4增补rev2的完整写方矩阵、同次前缀条件追加、原批认回、显式争用策略与资源交接；原生产认法／codec／读权／headers等门和真实运行义务保留。
+
+[D-088 模型结算共同业务编码](model-runtime-log-codec-adoption/README.md)：采用同runtime节点的共同键、窄载荷和写前／读后成员检查rev2；真实全写方、物理来源／历史门及源码实施仍待，不新增契约版本。
+
+[D-089 模型时间关联精确比较](model-time-order-projection-adoption/README.md)：采用原offer-expiry节点的条件精确排序rev1，保留任意小数及合法闰秒／偏移顺序；旧毫秒接口不改，真实时间合法来源与完整runtime组合仍待。
+
+2026-09-27：[D-090](model-headers-v5-adoption/decision.md)精确接受 MR5／RT5 与 core v5 投影；原根与历史消费者不自动升级，源码／IO／生产验收另核。
+
+2026-09-27：[D-091](model-transport-response-resource-adoption/decision.md)部分技术采用 transport 的不透明响应句柄与私有网络资源；G-6 凭据政策及实际头出值、TLS 与写方验收仍待。
+
+2026-09-27：[D-092](model-auth-bootstrap-adoption/decision.md)精确采用真实身份验收阶段的基础六 fiber 后确认、完整八 fiber 后准入；确认后部分启动失败不整库回退。应用、AB-V1～V8与逐符号守卫未实现验证。
+
+2026-09-27：[D-093](model-credential-policy-adoption/decision.md)限定采用G-6显式配置基线及纯text/header/raw-error JSON共有构件；跨包接线、附件、必需事实碰撞与完整S-20/H未放行。
+
+
+2026-09-28：[D-094 MR5 codec显式接续](model-log-codec-v2-adoption/README.md)采用现有runtime节点纯构件投影；新入口与历史域分开，源实施和真实组合尚待，不新增规范版本。
+
+2026-09-28：[D-095 来源政策接线](model-credential-path-adoption/README.md)采用现有runtime/transport的显式完整共享配置、单次H及处理缺陷映射；源码与实际IO验证另核，无新规范版本。
+
 [D-073：接受 PF-021 rev 8 日程与日历产品设计](pf021-product-acceptance/README.md)：依据 INT-030 授权，补齐日期处理与单次取消、完成独立复核后接受；不表示架构、契约、实现或运行验证完成。
+
+2026-09-28 同步说明：本索引中模型纵线与远程产品接受记录有重复的 D-073／D-074 短号。引用以各自 topic 路径及其精确输入提交为准，不能仅用短号选择依据；本次同步不重编号或改写已冻结的技术接受。
+
+2026-09-28：[D-096 模型档案输入上限产品增量](model-profile-input-limits-product-adoption/README.md)接受 PF-013 rev 14 的上游未知与自有有限上限政策；精确后继规格、提供者与实现另行采用，不提升模型认证状态。
+
+2026-09-28：[D-097：模型档案 v4](model-profile-v4-limit-contract-adoption/README.md)接受上游三态与项目有限 cap 契约；未接受其余后继消费者或实际模型供给。
+
+2026-09-28：[D-098：输入限制提供者分段采用](model-input-limit-provider-adoption/README.md)先采用 core/model-profile v4；其余节点及实际交付分别核对。
+
+2026-09-28：[D-099：输入限制与失败交接](model-input-limit-consumer-contract-adoption/README.md)接受六份后继契约，独立复评问题闭合；不提升实现和真实计量状态。
+
+2026-09-28：[D-105：恢复时序提供者实施采用](model-recovery-timing-provider-adoption/README.md)，技术采用core v8及runtime v12，实际实现及恢复验收另核。
+
+2026-09-28：[D-106 runner当前纯构件](runner-current-pure-provider-adoption/README.md)采用精确v5 revision3的键、结论codec、效果与历史解释器；真实服务组合及实现证据另核。
+
+- [D-107：响应输入校准规范与纯值映射采用](model-input-usage-calibration-adoption/README.md)（2026-09-29；仅释放纯 core 实施）。
+
+[D-110：模型调用引用与独立消费者](model-runtime-reference-lifecycle-adoption/README.md)：接受四契约和五现有节点映射；十四操作、耐久引用与独立消费待实施验收，不前置完整Session/Run。
+
+[D-111：2026-09-30 模型请求运行时收口程裁决汇编](model-request-runtime-rulings-2026-09-30/README.md)：本期只交付 text/image（产品负责人）；四家 full-only；共享 reader 无 id 片段按 index 采用迟到签名（R-L 修正 R-F）；换路由 opaque 思考块拒绝不降级；`[REDACTED]` 判不可解释；GG-10／GG-11 登记。不表示契约或节点接受、真实认证完成。

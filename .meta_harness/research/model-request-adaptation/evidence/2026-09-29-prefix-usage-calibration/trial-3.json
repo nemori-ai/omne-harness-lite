@@ -1,0 +1,250 @@
+{
+  "trial": "3",
+  "node": "v24.18.0",
+  "v8": "13.6.233.17-node.50",
+  "cpuModel": "Intel(R) Xeon(R) Platinum 8175M CPU @ 2.50GHz",
+  "logicalCpuCount": 8,
+  "platform": "linux",
+  "arch": "x64",
+  "processImport": {
+    "wallMs": 250.07305300000002,
+    "cpuUserMs": 303.945,
+    "cpuSystemMs": 36.153
+  },
+  "coldFactory": {
+    "name": "cold_meter_factory_tokenizer_init",
+    "wallMs": 685.254712,
+    "cpuUserMs": 765.692,
+    "cpuSystemMs": 100.14,
+    "heapBeforeMiB": 18.739822387695312,
+    "heapAfterMiB": 126.05513763427734,
+    "heapDeltaMiB": 107.31531524658203,
+    "rssBeforeMiB": 93.33984375,
+    "rssAfterMiB": 235.9921875,
+    "processMaxRssMiB": 1387.23046875,
+    "procVmHwmMiB": 239.03515625
+  },
+  "meterBinding": {
+    "modelId": "openai/gpt-5.6-sol",
+    "provider": "openai",
+    "algorithmRevision": "openai-gpt-5.6-o200k-base-3",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-3"
+    }
+  },
+  "fixture": {
+    "tokenizer": "js-tiktoken 1.0.21 / o200k_base",
+    "exactLocalTokenizerTokensOfFinalSerializedBody": 1001641,
+    "messageCount": 1018,
+    "contentBlockCount": 1018,
+    "utf8RequestBytes": 3630139,
+    "utf16CodeUnits": 3190363,
+    "concatenatedTextUtf8Bytes": 3555116,
+    "serializedSha256": "3b29f639eae8f8b7a518374ff7e00426a16cd99f2b8d0b004ad15588a8e3fef8",
+    "corpus": "deterministic English prose, code-shaped records, CJK, numbers; 18 lines/message",
+    "seedRule": "count=(recordId*7919)%99991",
+    "semantics": "Local o200k_base token count, not upstream usage or proof of 1M route support"
+  },
+  "samples": [
+    {
+      "run": 0,
+      "temperature": "cold_first_measure",
+      "construction": {
+        "name": "final_body_build",
+        "wallMs": 2.127719999999954,
+        "cpuUserMs": 11.542,
+        "cpuSystemMs": 0,
+        "heapBeforeMiB": 84.42850494384766,
+        "heapAfterMiB": 84.62515258789062,
+        "heapDeltaMiB": 0.19664764404296875,
+        "rssBeforeMiB": 226.76953125,
+        "rssAfterMiB": 226.76953125,
+        "processMaxRssMiB": 1387.23046875,
+        "procVmHwmMiB": 239.03515625
+      },
+      "serialization": {
+        "name": "final_body_writeJsonLossless",
+        "wallMs": 25.017798000000084,
+        "cpuUserMs": 19.459,
+        "cpuSystemMs": 7.464,
+        "heapBeforeMiB": 84.65518951416016,
+        "heapAfterMiB": 94.73979949951172,
+        "heapDeltaMiB": 10.084609985351562,
+        "rssBeforeMiB": 226.76953125,
+        "rssAfterMiB": 232.91796875,
+        "processMaxRssMiB": 1387.23046875,
+        "procVmHwmMiB": 239.03515625
+      },
+      "meter": {
+        "name": "actual_meter_measure",
+        "wallMs": 3385.843833,
+        "cpuUserMs": 3550.306,
+        "cpuSystemMs": 43.416,
+        "heapBeforeMiB": 94.75667572021484,
+        "heapAfterMiB": 169.6646728515625,
+        "heapDeltaMiB": 74.90799713134766,
+        "rssBeforeMiB": 233.10546875,
+        "rssAfterMiB": 353.13671875,
+        "processMaxRssMiB": 1387.23046875,
+        "procVmHwmMiB": 353.13671875
+      },
+      "result": {
+        "kind": "estimated",
+        "tokens": 1001641
+      }
+    },
+    {
+      "run": 1,
+      "temperature": "warm",
+      "construction": {
+        "name": "final_body_build",
+        "wallMs": 0.23818300000039017,
+        "cpuUserMs": 0.247,
+        "cpuSystemMs": 0.011,
+        "heapBeforeMiB": 90.85629272460938,
+        "heapAfterMiB": 91.04720306396484,
+        "heapDeltaMiB": 0.19091033935546875,
+        "rssBeforeMiB": 316.55859375,
+        "rssAfterMiB": 316.55859375,
+        "processMaxRssMiB": 1387.23046875,
+        "procVmHwmMiB": 353.13671875
+      },
+      "serialization": {
+        "name": "final_body_writeJsonLossless",
+        "wallMs": 22.825071999999636,
+        "cpuUserMs": 41.175,
+        "cpuSystemMs": 3.877,
+        "heapBeforeMiB": 91.07512664794922,
+        "heapAfterMiB": 101.15584564208984,
+        "heapDeltaMiB": 10.080718994140625,
+        "rssBeforeMiB": 316.55859375,
+        "rssAfterMiB": 322.484375,
+        "processMaxRssMiB": 1387.23046875,
+        "procVmHwmMiB": 353.13671875
+      },
+      "meter": {
+        "name": "actual_meter_measure",
+        "wallMs": 3382.37262,
+        "cpuUserMs": 3564.308,
+        "cpuSystemMs": 19.843,
+        "heapBeforeMiB": 101.16027069091797,
+        "heapAfterMiB": 175.7559051513672,
+        "heapDeltaMiB": 74.59563446044922,
+        "rssBeforeMiB": 322.484375,
+        "rssAfterMiB": 359.49609375,
+        "processMaxRssMiB": 1387.23046875,
+        "procVmHwmMiB": 359.49609375
+      },
+      "result": {
+        "kind": "estimated",
+        "tokens": 1001641
+      }
+    },
+    {
+      "run": 2,
+      "temperature": "warm",
+      "construction": {
+        "name": "final_body_build",
+        "wallMs": 0.24441299999944022,
+        "cpuUserMs": 0.247,
+        "cpuSystemMs": 0.007,
+        "heapBeforeMiB": 90.858154296875,
+        "heapAfterMiB": 91.04557037353516,
+        "heapDeltaMiB": 0.18741607666015625,
+        "rssBeforeMiB": 316.87109375,
+        "rssAfterMiB": 316.87109375,
+        "processMaxRssMiB": 1387.23046875,
+        "procVmHwmMiB": 359.49609375
+      },
+      "serialization": {
+        "name": "final_body_writeJsonLossless",
+        "wallMs": 22.427865000000565,
+        "cpuUserMs": 45.297,
+        "cpuSystemMs": 0.04,
+        "heapBeforeMiB": 91.0735855102539,
+        "heapAfterMiB": 101.14604949951172,
+        "heapDeltaMiB": 10.072463989257812,
+        "rssBeforeMiB": 316.87109375,
+        "rssAfterMiB": 322.796875,
+        "processMaxRssMiB": 1387.23046875,
+        "procVmHwmMiB": 359.49609375
+      },
+      "meter": {
+        "name": "actual_meter_measure",
+        "wallMs": 3521.636256,
+        "cpuUserMs": 3722.134,
+        "cpuSystemMs": 4.455,
+        "heapBeforeMiB": 101.1562271118164,
+        "heapAfterMiB": 175.75513458251953,
+        "heapDeltaMiB": 74.59890747070312,
+        "rssBeforeMiB": 322.796875,
+        "rssAfterMiB": 359.46875,
+        "processMaxRssMiB": 1387.23046875,
+        "procVmHwmMiB": 359.49609375
+      },
+      "result": {
+        "kind": "estimated",
+        "tokens": 1001641
+      }
+    },
+    {
+      "run": 3,
+      "temperature": "warm",
+      "construction": {
+        "name": "final_body_build",
+        "wallMs": 0.3569470000002184,
+        "cpuUserMs": 0.362,
+        "cpuSystemMs": 0.007,
+        "heapBeforeMiB": 90.88284301757812,
+        "heapAfterMiB": 91.07025909423828,
+        "heapDeltaMiB": 0.18741607666015625,
+        "rssBeforeMiB": 316.91796875,
+        "rssAfterMiB": 316.91796875,
+        "processMaxRssMiB": 1387.23046875,
+        "procVmHwmMiB": 359.49609375
+      },
+      "serialization": {
+        "name": "final_body_writeJsonLossless",
+        "wallMs": 23.56454499999927,
+        "cpuUserMs": 20.857,
+        "cpuSystemMs": 4.019,
+        "heapBeforeMiB": 91.09893035888672,
+        "heapAfterMiB": 101.17951965332031,
+        "heapDeltaMiB": 10.080589294433594,
+        "rssBeforeMiB": 316.91796875,
+        "rssAfterMiB": 322.84375,
+        "processMaxRssMiB": 1387.23046875,
+        "procVmHwmMiB": 359.49609375
+      },
+      "meter": {
+        "name": "actual_meter_measure",
+        "wallMs": 3367.0560349999996,
+        "cpuUserMs": 3534.038,
+        "cpuSystemMs": 23.934,
+        "heapBeforeMiB": 101.18437194824219,
+        "heapAfterMiB": 175.790283203125,
+        "heapDeltaMiB": 74.60591125488281,
+        "rssBeforeMiB": 322.84375,
+        "rssAfterMiB": 359.58984375,
+        "processMaxRssMiB": 1387.23046875,
+        "procVmHwmMiB": 359.58984375
+      },
+      "result": {
+        "kind": "estimated",
+        "tokens": 1001641
+      }
+    }
+  ],
+  "finalHeapAfterGcMiB": 90.89920806884766,
+  "processMaxRssMiB": 1387.23046875,
+  "procVmHwmMiB": 359.58984375,
+  "measurementNotes": [
+    "Fresh process per trial; one cold first measure and three warm repeats; explicit GC only before runs, outside timing.",
+    "Construction is a synthetic final-wire producer, not the full runtime planner; texts are immutable source strings.",
+    "Actual meter includes its existing body/serialized consistency reserialization and sanitized-body tokenization.",
+    "Heap is observed before/after synchronous phases, not a sampled peak. procVmHwmMiB is /proc/self/status VmHWM.",
+    "processMaxRssMiB is inherited/contaminated by the tool launcher: bare Node reports the same 1387 MiB while VmHWM is about 41 MiB. Do not attribute resourceUsage.maxRSS to this meter.",
+    "No HTTP or model request. Full openCall/dispatch latency and extra validation/copy work are not measured."
+  ]
+}

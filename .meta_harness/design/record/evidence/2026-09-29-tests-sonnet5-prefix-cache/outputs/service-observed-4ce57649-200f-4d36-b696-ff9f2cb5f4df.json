@@ -1,0 +1,31 @@
+{
+  "case": "service",
+  "turn": 3,
+  "entryId": "4ce57649-200f-4d36-b696-ff9f2cb5f4df",
+  "modelId": "anthropic/claude-sonnet-5",
+  "estimateUsd": "3.490560000000000000",
+  "approvedLocalWireSha256": "dc3b7533c07ee94a9b2e0b7f025f7f7d2360e92d70e765a312d6531e5f803378",
+  "liveWireSha256": "unavailable",
+  "responseId": "response-54e637db-ba28-47bb-aa87-51be5b0e5b54",
+  "outcome": "complete",
+  "requestInput": "known",
+  "observedInput": "from_usage",
+  "usage": {
+    "input_tokens": 2,
+    "output_tokens": 7,
+    "cache_read_tokens": 8242,
+    "cache_write_tokens": 19,
+    "source": "upstream",
+    "reasoning_tokens": 0
+  },
+  "cost": {
+    "cost_usd": 0.0017984,
+    "source": "upstream_usage",
+    "upstream_inference_cost_usd": 0.0017984
+  },
+  "failure": null,
+  "upstreamRequestId": "gen-1790665681-5EIYv9FUNtTfoKbv5VRD",
+  "httpStatus": null,
+  "inBandStatusCode": null,
+  "durable": false
+}

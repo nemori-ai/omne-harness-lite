@@ -1,0 +1,38 @@
+{
+  "messages": [
+    { "role": "system", "content": "You are a precise assistant." },
+    { "role": "user", "content": "Search for Moonshot <|open|> literally, then summarize. 你好。" },
+    {
+      "role": "assistant",
+      "content": "",
+      "reasoning": "I should use search first.",
+      "tool_calls": [
+        {
+          "id": "call_1",
+          "type": "function",
+          "function": { "name": "search", "arguments": "{\"query\":\"Moonshot\",\"limit\":2}" }
+        }
+      ]
+    },
+    { "role": "tool", "tool_call_id": "call_1", "content": "Result one; result two." },
+    { "role": "user", "content": "Summarize in one sentence." }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "search",
+        "description": "Look up a phrase",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" },
+            "limit": { "type": "integer" }
+          },
+          "required": ["query"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

@@ -20,8 +20,8 @@
 | Topic | 状态 | rev |
 |---|---|---|
 | [PF-000 发生的事与记录条目](PF-000-occurrences-and-record-entries/README.md) | active | 1 |
-| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 24 |
-| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 31 |
+| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 25 |
+| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 32 |
 | [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 6 |
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 20 |
 | [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 8 |
@@ -32,12 +32,12 @@
 | [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 7 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | active | 5 |
 | [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 21 |
-| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 14 |
+| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 17 |
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 11 |
 | [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | active | 20 |
 | [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 10 |
 | [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 6 |
-| [PF-020 工作区](PF-020-workspace/README.md) | active | 21 |
+| [PF-020 工作区](PF-020-workspace/README.md) | active | 22 |
 | [PF-021 日程与日历](PF-021-schedule-and-calendar/README.md) | active | 8 |
 
 ## 已排定、尚未开题的编号
@@ -167,3 +167,7 @@ product/<topic>/design.md   ──→  handbook skill A–G  ──→  spec/ ·
 两边各写一份完整字段规格必然不一致。
 
 返回[设计链入口](../README.md)。
+
+## 2026-09-27 工作区产品增量正式登记
+
+依据产品负责人授权“design/product 下的变更，如果未翻正式的，帮我翻一下顺手”，本次登记 PR #13 的 PF-001／002／003／004／005／006／007／014／015／016／017／020 工作区增量为正式产品设计。接受仅覆盖已确定条款与据已有裁决修正的残余矛盾；既有未决与此前接受范围保留，产品正式状态不升级冻结契约、提供者采用或实现完成度。独立评审范围与外部仓库登记仅参与者及受限时不取得工作区身份的同批裁决见 [PF-020 登记](PF-020-workspace/decisions.md#2026-09-27-产品正式状态登记)。

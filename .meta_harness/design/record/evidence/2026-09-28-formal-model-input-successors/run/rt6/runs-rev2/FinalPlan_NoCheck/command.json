@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "tlc",
+    "-workers",
+    "1",
+    "-metadir",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-runtime6-spec/tmp/model-request-runtime/input-limit-successor/independent-formal/rt6/runs-rev2/FinalPlan_NoCheck/meta",
+    "-config",
+    "validity-check/FinalPlan_NoCheck.cfg",
+    "FinalPlan.tla"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-runtime6-spec/tmp/model-request-runtime/input-limit-successor/independent-formal/rt6/input-rev2",
+  "timeout_seconds": 120
+}

@@ -3,6 +3,8 @@ export interface SourceFile {
   /** 相对于扫描根（`packages/`）的 POSIX 路径。 */
   readonly path: string
   readonly text: string
+  /** Repository guards may attach actual TS-resolved module paths, including configured aliases. */
+  readonly resolvedModules?: Readonly<Record<string, string>>
 }
 
 export interface Violation {

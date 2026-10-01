@@ -11,10 +11,19 @@ import {
 } from '@omne-harness-lite/asset-model'
 import { parseMembershipStanding, parseTenantId } from '@omne-harness-lite/identity-values'
 import { judgeMcpValue } from '@omne-harness-lite/mcp-endpoint'
+import { judgeAgentDefinitionBody } from '@omne-harness-lite/agent-definition'
+import { isJsonNumber } from '@omne-harness-lite/content-blocks'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { assetJudge, defaultBodyContracts } from './defaults.ts'
 import { copyJson, immutable, object } from './json.ts'
-import { computeEvaluation, versionOf, type EvaluationFacts } from './compute.ts'
-import type { InputDiagnostic, NonConnectorEvaluationInput, EvaluationResult } from './types.ts'
+import { computeEvaluation, selectAssets, versionOf, type EvaluationFacts } from './compute.ts'
+import type {
+  InputDiagnostic,
+  NonConnectorEvaluationInput,
+  EvaluationResult,
+  EvaluationRootSelectionInput,
+  EvaluationRootSelectionResult,
+} from './types.ts'
 
 const own = (input: unknown, member: string): unknown => (object(input) ? input[member] : undefined)
 const layers = ['factory', 'organization', 'tenant', 'workspace'] as const
@@ -36,7 +45,9 @@ function checkAvailability(input: unknown): void {
       throw new BodyProviderUnavailableError()
   }
 }
-function shape(input: NonConnectorEvaluationInput): InputDiagnostic | undefined {
+function shape(
+  input: NonConnectorEvaluationInput | EvaluationRootSelectionInput,
+): InputDiagnostic | undefined {
   let raw: unknown
   try {
     raw = copyJson(input)
@@ -49,8 +60,8 @@ function shape(input: NonConnectorEvaluationInput): InputDiagnostic | undefined 
     !object(raw) ||
     !Array.isArray(raw.holdings) ||
     !Array.isArray(raw.definitions) ||
-    !object(raw.root) ||
-    !Array.isArray(raw.root.references)
+    (!Object.hasOwn(raw, 'rootDefinition') &&
+      (!object(raw.root) || !Array.isArray(raw.root.references)))
   )
     return { condition: 'C1', message: 'required EvaluationInput members' }
   if (
@@ -71,16 +82,40 @@ function shape(input: NonConnectorEvaluationInput): InputDiagnostic | undefined 
     const bad = reject('WorkspaceKey', raw.workspace)
     if (bad !== undefined) return bad
   }
-  const rootBad = reject('CapabilityId', raw.root.definition)
+  const root = object(raw.root) ? raw.root : undefined
+  const rootBad = reject(
+    'CapabilityId',
+    Object.hasOwn(raw, 'rootDefinition') ? raw.rootDefinition : root?.definition,
+  )
   if (rootBad !== undefined) return rootBad
-  for (const reference of raw.root.references) {
+  for (const reference of root !== undefined && Array.isArray(root.references)
+    ? root.references
+    : []) {
     if (
       !object(reference) ||
+      Object.keys(reference).some(key => key !== 'capability' && key !== 'resident') ||
       (Object.hasOwn(reference, 'resident') && typeof reference.resident !== 'boolean')
     )
       return { condition: 'C1', message: 'AssetReference' }
     const bad = reject('CapabilityId', reference.capability)
     if (bad !== undefined) return bad
+  }
+  if (root !== undefined) {
+    const source = root.source
+    if (
+      Object.keys(root).some(
+        key => !['definition', 'references', 'attributes', 'source'].includes(key),
+      ) ||
+      !object(source) ||
+      Object.keys(source).length !== 2 ||
+      reject('AssetRecordId', source.asset) !== undefined ||
+      !isJsonNumber(source.version) ||
+      !ExactDecimal.from(source.version).isInteger ||
+      ExactDecimal.from(source.version).compare(ExactDecimal.from(0)) <= 0 ||
+      !Array.isArray(root.attributes) ||
+      !('ok' in judgeAgentDefinitionBody(copyJson({ references: [], attributes: root.attributes })))
+    )
+      return { condition: 'C15', message: 'root declarations or source shape' }
   }
   for (const [name, entries] of [
     ['AssetHolding', raw.holdings],
@@ -124,7 +159,9 @@ function shape(input: NonConnectorEvaluationInput): InputDiagnostic | undefined 
 }
 
 /** Project only resolvable held versions. Invalid C5/C9 inputs are left to the shared computation, never thrown during projection. */
-function projectFacts(input: NonConnectorEvaluationInput): EvaluationFacts {
+function projectFacts(
+  input: NonConnectorEvaluationInput | EvaluationRootSelectionInput,
+): EvaluationFacts {
   const definitions = new Map(input.definitions.map(entry => [entry.id, entry]))
   const declarations = new Map<AssetHolding, readonly AttributeDeclaration[]>()
   const references = new Map<AssetVersion, readonly CapabilityId[]>()
@@ -133,7 +170,7 @@ function projectFacts(input: NonConnectorEvaluationInput): EvaluationFacts {
     if (definition === undefined) continue
     const version = versionOf(holding, definition)
     if (version === undefined) continue
-    const action = input.mcpActionSets?.find(
+    const action = ('mcpActionSets' in input ? input.mcpActionSets : undefined)?.find(
       entry =>
         capabilityCanonicalString(entry.endpoint) ===
           capabilityCanonicalString(holding.capability) && entry.scope === holding.holder.layer,
@@ -148,7 +185,13 @@ function projectFacts(input: NonConnectorEvaluationInput): EvaluationFacts {
         : attributeDeclarationsOf(version.content, defaultBodyContracts)
     declarations.set(
       holding,
-      'underivable' in derived ? [USABLE_BY_DECLARATION] : derived.declarations,
+      'root' in input &&
+        capabilityCanonicalString(holding.capability) ===
+          capabilityCanonicalString(input.root.definition)
+        ? [USABLE_BY_DECLARATION, ...input.root.attributes]
+        : 'underivable' in derived
+          ? [USABLE_BY_DECLARATION]
+          : derived.declarations,
     )
     if (!references.has(version)) {
       const derivedReferences = referencesOf(version.content, defaultBodyContracts)
@@ -163,4 +206,22 @@ export function evaluate(input: NonConnectorEvaluationInput): EvaluationResult {
   const bad = shape(input)
   if (bad !== undefined) return immutable({ invalidInput: { diagnostics: [bad] } })
   return computeEvaluation(input, projectFacts(input))
+}
+
+export function selectEvaluationRootSource(
+  input: EvaluationRootSelectionInput,
+): EvaluationRootSelectionResult {
+  try {
+    const bad = shape(input)
+    if (bad !== undefined) return immutable({ invalidInput: { diagnostics: [bad] } })
+    const selection = selectAssets(input, projectFacts(input))
+    if ('invalidInput' in selection) return selection
+    const root = selection.selected.get(capabilityCanonicalString(input.rootDefinition))
+    return root === undefined
+      ? immutable({ missing: true })
+      : immutable({ ok: { asset: root.definition.id, version: root.version.number } })
+  } catch (error) {
+    if (error instanceof BodyProviderUnavailableError) return immutable({ unavailable: true })
+    throw error
+  }
 }

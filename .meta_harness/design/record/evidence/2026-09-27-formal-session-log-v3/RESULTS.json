@@ -1,0 +1,1133 @@
+{
+  "metadata": {
+    "executor": "/root/b1_session_log_formal_verification",
+    "source_worktree": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec",
+    "branch": "panqiwei/model-request-runtime-b1-spec",
+    "source_head": "60c0652df9a396b5ef9af256809638be37b42c2a",
+    "design_root": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+    "started": "2026-09-27T14:36:16.495155+00:00",
+    "max_concurrent_processes": 3,
+    "workers_per_tlc_process": 1,
+    "timeout_seconds": 300,
+    "jar_path": "/opt/tlaplus/tla2tools.jar",
+    "jar_resolved_path": "/opt/tlaplus/tla2tools.jar",
+    "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+    "java_path": "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+    "java_binary_sha256": "999c141a6e620c71aa4230ccb62341a89162f37818753ff006d766bf935dcbe1",
+    "manifest_sha256": "6f7cfbc88e2bcc364d7e281deebd7df37bc673185382a730182f9c734e543dc2",
+    "registry_candidate_sha256": "7f6670dcff86c5b8d0c5c62eb8207f7f3d3d5db352f7dbbc8c2047661b0fa61d",
+    "runner_sha256": "dcda59ec05f387dcfe521384f34896126737cd1e7c1e295020bd530b96160f4d",
+    "java_version": {
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-version"
+      ],
+      "exit_code": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "5b4412738541184e84f6b2d7520d4f4a7c2a455f60650491464c61adcbbbdeb0"
+    },
+    "tlc_help": {
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-help"
+      ],
+      "exit_code": 1,
+      "stdout_sha256": "d890b90c1bde6c8e2b610a9ed18c41ff7bac5ac0985bf92ee6b7c38765b22467",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "argv_difference": "Only -metadir target is replaced with the explicitly authorized absolute task evidence path. Registered model, config, flags and constants are unchanged."
+  },
+  "finished": "2026-09-27T14:36:25.600207+00:00",
+  "tasks": [
+    {
+      "id": "sany-SessionLog",
+      "kind": "sany",
+      "expected_assertion": null,
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tla2sany.SANY",
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:16.748326+00:00",
+      "finished": "2026-09-27T14:36:17.151998+00:00",
+      "elapsed_seconds": 0.405,
+      "exit_code": 0,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "4afd75c1872be47b214d34c591a32a211a5bec14d003e2f9a179a11faa1d5aaf",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [],
+      "state_counts": null,
+      "complete_search_depth": null,
+      "trace_states": 0,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [],
+      "actual_sany_version": "2.2 created 08 July 2020"
+    },
+    {
+      "id": "sany-TailSettlement",
+      "kind": "sany",
+      "expected_assertion": null,
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tla2sany.SANY",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:16.748092+00:00",
+      "finished": "2026-09-27T14:36:17.152060+00:00",
+      "elapsed_seconds": 0.405,
+      "exit_code": 0,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "c947e3b68102e15394484f48dd7057f1726aad12913e592e8adf6935c16d5d6a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [],
+      "state_counts": null,
+      "complete_search_depth": null,
+      "trace_states": 0,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [],
+      "actual_sany_version": "2.2 created 08 July 2020"
+    },
+    {
+      "id": "session-log-v3-appends",
+      "kind": "positive",
+      "expected_assertion": null,
+      "registered_argv": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/session-log-v3-appends",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/SessionLog.cfg",
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla"
+      ],
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/session-log-v3-appends",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/SessionLog.cfg",
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla",
+        "spec/capabilities/session-log/v3/formal/SessionLog.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:17.159176+00:00",
+      "finished": "2026-09-27T14:36:18.962606+00:00",
+      "elapsed_seconds": 1.804,
+      "exit_code": 0,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "941f774f063fef6e5d396538fd6ff3ad45ab1e64fd843ded86617d86567b680c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [],
+      "state_counts": [
+        5846,
+        2784,
+        0
+      ],
+      "complete_search_depth": 8,
+      "trace_states": 0,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "UniqueDedupeKey",
+        "FenceHolds"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 78,
+      "actual_seed": -7015197191263437321
+    },
+    {
+      "id": "session-log-v3-tail-attempt",
+      "kind": "positive",
+      "expected_assertion": null,
+      "registered_argv": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/session-log-v3-tail-attempt",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_Attempt.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/session-log-v3-tail-attempt",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_Attempt.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_Attempt.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:17.160450+00:00",
+      "finished": "2026-09-27T14:36:19.966650+00:00",
+      "elapsed_seconds": 2.807,
+      "exit_code": 0,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "7cca6a8c0dbdebaf4a93fd9c9ed5c8f76e42fa2db29de46f4f8f110310aa4081",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [],
+      "state_counts": [
+        44385,
+        17539,
+        0
+      ],
+      "complete_search_depth": 23,
+      "trace_states": 0,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "TailGuardSound",
+        "LateCorrect",
+        "NoFalseNoWrite"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 33,
+      "actual_seed": 6856815414341922339
+    },
+    {
+      "id": "session-log-v3-tail-run-end",
+      "kind": "positive",
+      "expected_assertion": null,
+      "registered_argv": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/session-log-v3-tail-run-end",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_RunEnd.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/session-log-v3-tail-run-end",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_RunEnd.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_RunEnd.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:17.161069+00:00",
+      "finished": "2026-09-27T14:36:19.971220+00:00",
+      "elapsed_seconds": 2.811,
+      "exit_code": 0,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "d5b73c1a3100697dd486a53a1fb61f99d6afd972babbb6cbba92a4fc7298b3d2",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [],
+      "state_counts": [
+        44385,
+        17539,
+        0
+      ],
+      "complete_search_depth": 23,
+      "trace_states": 0,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "TailGuardSound",
+        "LateCorrect",
+        "NoFalseNoWrite"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 73,
+      "actual_seed": -3815591755168178526
+    },
+    {
+      "id": "SessionLog_NoSerialization_Fence",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "FenceHolds",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/SessionLog_NoSerialization_Fence",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_NoSerialization_Fence.cfg",
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_NoSerialization_Fence.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:18.968944+00:00",
+      "finished": "2026-09-27T14:36:19.974604+00:00",
+      "elapsed_seconds": 1.009,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "eedf7ebfa9b1b318d225918bbe34f5a381e1c8f2df5c44d9ed8ccd81ac3f479a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "FenceHolds"
+      ],
+      "state_counts": [
+        1397,
+        824,
+        645
+      ],
+      "complete_search_depth": 5,
+      "trace_states": 5,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "FenceHolds"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 92,
+      "actual_seed": 4931022875625866971
+    },
+    {
+      "id": "SessionLog_NoSerialization_Key",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "UniqueDedupeKey",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/SessionLog_NoSerialization_Key",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_NoSerialization_Key.cfg",
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_NoSerialization_Key.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:19.973337+00:00",
+      "finished": "2026-09-27T14:36:21.175588+00:00",
+      "elapsed_seconds": 1.203,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "004e46800d424a768d3ee9f0eacfe1b356b3b7e11920efe7417602168b816e4a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "UniqueDedupeKey"
+      ],
+      "state_counts": [
+        991,
+        563,
+        424
+      ],
+      "complete_search_depth": 5,
+      "trace_states": 5,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "UniqueDedupeKey"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 60,
+      "actual_seed": -7501756760857245209
+    },
+    {
+      "id": "SessionLog_Reach_DuplicateRejected",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "NeverDuplicateRejected",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/SessionLog_Reach_DuplicateRejected",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_Reach_DuplicateRejected.cfg",
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_Reach_DuplicateRejected.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:19.976730+00:00",
+      "finished": "2026-09-27T14:36:20.987100+00:00",
+      "elapsed_seconds": 1.011,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "d2fb77205ceb902e6df03d1d631e7ac2a8a4ddaa2d26be79dc189d907102e6bb",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "NeverDuplicateRejected"
+      ],
+      "state_counts": [
+        86,
+        62,
+        41
+      ],
+      "complete_search_depth": 4,
+      "trace_states": 4,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "NeverDuplicateRejected"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 25,
+      "actual_seed": 3434584555056484902
+    },
+    {
+      "id": "SessionLog_Reach_StaleRejected",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "NeverStaleRejected",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/SessionLog_Reach_StaleRejected",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_Reach_StaleRejected.cfg",
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_Reach_StaleRejected.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:19.977758+00:00",
+      "finished": "2026-09-27T14:36:21.180377+00:00",
+      "elapsed_seconds": 1.203,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "f0b3244e00c1c5415825d4ce8cb880f48855528b65f78f842ededcd7cb43c972",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "NeverStaleRejected"
+      ],
+      "state_counts": [
+        139,
+        115,
+        91
+      ],
+      "complete_search_depth": 4,
+      "trace_states": 4,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "NeverStaleRejected"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 12,
+      "actual_seed": -4904539670269286803
+    },
+    {
+      "id": "SessionLog_VolatileDedupe",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "UniqueDedupeKey",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/SessionLog_VolatileDedupe",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_VolatileDedupe.cfg",
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/SessionLog_VolatileDedupe.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:20.994255+00:00",
+      "finished": "2026-09-27T14:36:21.998712+00:00",
+      "elapsed_seconds": 1.009,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "212a021e6ae2935e7daf5eecd72e23633e11a4cab5853df41cb589ce958f6199",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "UniqueDedupeKey"
+      ],
+      "state_counts": [
+        889,
+        625,
+        411
+      ],
+      "complete_search_depth": 6,
+      "trace_states": 6,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "UniqueDedupeKey"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 55,
+      "actual_seed": -5178464237138853411
+    },
+    {
+      "id": "TailSettlement_NoTail_Attempt",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "TailGuardSound",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/TailSettlement_NoTail_Attempt",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_NoTail_Attempt.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_NoTail_Attempt.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:21.177884+00:00",
+      "finished": "2026-09-27T14:36:22.379983+00:00",
+      "elapsed_seconds": 1.202,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "1a580c29acd32d5342c060dda5d8c3e587903f2af366230832b3a775054cd3f2",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "TailGuardSound"
+      ],
+      "state_counts": [
+        85,
+        71,
+        47
+      ],
+      "complete_search_depth": 5,
+      "trace_states": 5,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "TailGuardSound",
+        "LateCorrect"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 109,
+      "actual_seed": -2574088713100570558
+    },
+    {
+      "id": "TailSettlement_NoTail_RunEnd",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "TailGuardSound",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/TailSettlement_NoTail_RunEnd",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_NoTail_RunEnd.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_NoTail_RunEnd.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:21.183071+00:00",
+      "finished": "2026-09-27T14:36:22.384957+00:00",
+      "elapsed_seconds": 1.202,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "170c6a0480b6c31f30610e5b01327ef8053b94f09e3440ba6549f47d9702ee6d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "TailGuardSound"
+      ],
+      "state_counts": [
+        85,
+        71,
+        47
+      ],
+      "complete_search_depth": 5,
+      "trace_states": 5,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "TailGuardSound",
+        "LateCorrect"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 96,
+      "actual_seed": 3793011546103626385
+    },
+    {
+      "id": "TailSettlement_PartialRead_Attempt",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "LateCorrect",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/TailSettlement_PartialRead_Attempt",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_PartialRead_Attempt.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_PartialRead_Attempt.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:22.003055+00:00",
+      "finished": "2026-09-27T14:36:23.206078+00:00",
+      "elapsed_seconds": 1.204,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "c7eaa6a873d436370a67234dccd6a4e90271e0f1725e5e99f6bb52ac64ae6dc6",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "LateCorrect"
+      ],
+      "state_counts": [
+        150,
+        116,
+        74
+      ],
+      "complete_search_depth": 5,
+      "trace_states": 5,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "LateCorrect"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 115,
+      "actual_seed": 8540133742663214327
+    },
+    {
+      "id": "TailSettlement_PartialRead_RunEnd",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "LateCorrect",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/TailSettlement_PartialRead_RunEnd",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_PartialRead_RunEnd.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_PartialRead_RunEnd.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:22.382429+00:00",
+      "finished": "2026-09-27T14:36:23.584514+00:00",
+      "elapsed_seconds": 1.202,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "52085628a60669876504cbfa2d31463cb4e0a4dedf54ce7dc07eab4862643b52",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "LateCorrect"
+      ],
+      "state_counts": [
+        150,
+        116,
+        74
+      ],
+      "complete_search_depth": 5,
+      "trace_states": 5,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "LateCorrect"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 87,
+      "actual_seed": -4944801941845326015
+    },
+    {
+      "id": "TailSettlement_Reach_Duplicate",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "NeverDuplicateRejected",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/TailSettlement_Reach_Duplicate",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_Reach_Duplicate.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_Reach_Duplicate.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:22.387410+00:00",
+      "finished": "2026-09-27T14:36:23.589644+00:00",
+      "elapsed_seconds": 1.203,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "3f488ec0a13177e6c0f804d59894c2c1a08ccd6e4c5c76727ec5e28632daa459",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "NeverDuplicateRejected"
+      ],
+      "state_counts": [
+        573,
+        381,
+        222
+      ],
+      "complete_search_depth": 7,
+      "trace_states": 7,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "NeverDuplicateRejected"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 16,
+      "actual_seed": -2656689555748439147
+    },
+    {
+      "id": "TailSettlement_Reach_Late",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "NeverLateSettled",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/TailSettlement_Reach_Late",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_Reach_Late.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_Reach_Late.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:23.232707+00:00",
+      "finished": "2026-09-27T14:36:24.236996+00:00",
+      "elapsed_seconds": 1.026,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "53ac7ef1aa0385a74ba33ce18a0042f4984099b8c710e9668ddc73984928c114",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "NeverLateSettled"
+      ],
+      "state_counts": [
+        150,
+        116,
+        74
+      ],
+      "complete_search_depth": 5,
+      "trace_states": 5,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "NeverLateSettled"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 127,
+      "actual_seed": 3023312045000367405
+    },
+    {
+      "id": "TailSettlement_Reach_TailChanged",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "NeverTailChanged",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/TailSettlement_Reach_TailChanged",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_Reach_TailChanged.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_Reach_TailChanged.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:23.587217+00:00",
+      "finished": "2026-09-27T14:36:24.790903+00:00",
+      "elapsed_seconds": 1.204,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "2a4708114d5f691ba46df79ca925a218616b3ff047f9c288e25c291dca1b635c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "NeverTailChanged"
+      ],
+      "state_counts": [
+        85,
+        71,
+        47
+      ],
+      "complete_search_depth": 5,
+      "trace_states": 5,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "NeverTailChanged"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 123,
+      "actual_seed": 6752630583803385687
+    },
+    {
+      "id": "TailSettlement_SplitTail_Attempt",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "TailGuardSound",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/TailSettlement_SplitTail_Attempt",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_SplitTail_Attempt.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_SplitTail_Attempt.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:23.592619+00:00",
+      "finished": "2026-09-27T14:36:24.797523+00:00",
+      "elapsed_seconds": 1.205,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "bb1d005fb19231c7d1bd38dc8c081aee7a2a309da009dbabfa2044b5ae4d78a3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "TailGuardSound"
+      ],
+      "state_counts": [
+        195,
+        148,
+        90
+      ],
+      "complete_search_depth": 6,
+      "trace_states": 6,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "TailGuardSound",
+        "LateCorrect"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 17,
+      "actual_seed": 8182747134872352270
+    },
+    {
+      "id": "TailSettlement_SplitTail_RunEnd",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "TailGuardSound",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/TailSettlement_SplitTail_RunEnd",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_SplitTail_RunEnd.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_SplitTail_RunEnd.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:24.239874+00:00",
+      "finished": "2026-09-27T14:36:25.242250+00:00",
+      "elapsed_seconds": 1.003,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "69983f852024befe727f2906584cd70937d0384d060ba42b4b25e603ac3462a5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "TailGuardSound"
+      ],
+      "state_counts": [
+        195,
+        148,
+        90
+      ],
+      "complete_search_depth": 6,
+      "trace_states": 6,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "TailGuardSound",
+        "LateCorrect"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 35,
+      "actual_seed": -4518967259289152074
+    },
+    {
+      "id": "TailSettlement_UnknownAsNoWrite",
+      "kind": "negative_or_reachability",
+      "expected_assertion": "NoFalseNoWrite",
+      "argv": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-metadir",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/b1-late-coordination/formal-v3-run-1/metadir/TailSettlement_UnknownAsNoWrite",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_UnknownAsNoWrite.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/validity-check/TailSettlement_UnknownAsNoWrite.cfg"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-b1-spec/.meta_harness/design",
+      "started": "2026-09-27T14:36:24.797145+00:00",
+      "finished": "2026-09-27T14:36:25.599062+00:00",
+      "elapsed_seconds": 0.803,
+      "exit_code": 12,
+      "termination": null,
+      "input_drift": {},
+      "stdout_sha256": "950dbad653581484b3941a8981a44b675d59c018d911718a84d79a053e3f649c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "oracle_matched": true,
+      "violated_assertions": [
+        "NoFalseNoWrite"
+      ],
+      "state_counts": [
+        65,
+        56,
+        36
+      ],
+      "complete_search_depth": 5,
+      "trace_states": 5,
+      "syntax_or_semantic_error": false,
+      "status": "matched",
+      "checked_assertions": [
+        "TypeOK",
+        "NoFalseNoWrite"
+      ],
+      "actual_tlc_version": "2026.09.12.025210 (rev: 867aefb)",
+      "actual_fingerprint_index": 28,
+      "actual_seed": -8220324801480349772
+    }
+  ],
+  "expected_task_count": 20,
+  "executed_task_count": 20,
+  "matched_task_count": 20,
+  "final_input_drift": {},
+  "candidate_accepted": false,
+  "real_implementation_verified": false,
+  "coverage": "Finite safety exploration only. No fairness, infinite contention, actual StopOld/resource isolation, real IO/unknown-opened, full-batch implementation atomicity or production Run recognition is established.",
+  "trace_inspections_path": "trace-inspections.json",
+  "all_traces_manually_read": true,
+  "final_post_inspection_input_drift": {},
+  "report_path": "REPORT.md",
+  "tool_versions": {
+    "java": "Temurin 21.0.12.1+1-LTS",
+    "sany": "2.2 (08 July 2020)",
+    "tlc": "2026.09.12.025210 (rev 867aefb)"
+  },
+  "evidence_integrity_checks": {
+    "preserved_inputs": 26,
+    "tasks": 20,
+    "raw_channel_hashes": 40,
+    "named_trace_hashes": 15,
+    "all_processes_completed": true,
+    "pass": true
+  }
+}

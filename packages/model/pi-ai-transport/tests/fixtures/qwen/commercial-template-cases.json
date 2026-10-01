@@ -1,0 +1,211 @@
+{
+  "note": "Wire-shaped request bodies for the Qwen commercial public-template oracle (QC-V2). Each case is rendered by commercial-reference-render.py through real Jinja2 under preserve_thinking in {undefined, false} x reasoning_effort in {undefined (xhigh), medium (no instruction)}, with the transformers/vLLM tojson (wire key order). `model` is replaced per leaf by the tests; the Jinja reference never reads it. Hand-written controlled inputs, not upstream observations.",
+  "tool": {
+    "type": "function",
+    "function": {
+      "name": "lookup_code",
+      "description": "Look up the codeword for one query.",
+      "parameters": {
+        "type": "object",
+        "properties": { "query": { "type": "string", "description": "The exact query." } },
+        "required": ["query"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "unicodeTool": {
+    "type": "function",
+    "function": {
+      "name": "lookup_weather",
+      "description": "查询 <地点> & 'quoted' 天气 🙂",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "城市名" },
+          "limit": { "type": "integer", "minimum": 1 },
+          "filters": { "type": "object" },
+          "note": { "type": "string" }
+        },
+        "required": ["query"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "cases": [
+    {
+      "name": "assistant-before-last-query",
+      "tools": "tool",
+      "messages": [
+        { "role": "system", "content": [{ "type": "text", "text": "Answer from the lookup result." }] },
+        { "role": "user", "content": [{ "type": "text", "text": "Look up CEDAR." }] },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [{ "id": "call_a", "type": "function", "function": { "name": "lookup_code", "arguments": "{\"query\":\"CEDAR\"}" } }],
+          "reasoning_details": [{ "type": "reasoning.text", "text": "The user wants CEDAR looked up. I will call lookup_code once.", "format": "unknown", "index": 0 }]
+        },
+        { "role": "tool", "tool_call_id": "call_a", "content": "codeword=MAPLE" },
+        { "role": "user", "content": [{ "type": "text", "text": "What did lookup_code return?" }] }
+      ]
+    },
+    {
+      "name": "assistant-after-last-query",
+      "tools": "tool",
+      "messages": [
+        { "role": "system", "content": [{ "type": "text", "text": "Answer from the lookup result." }] },
+        { "role": "user", "content": [{ "type": "text", "text": "Look up CEDAR." }] },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [{ "id": "call_a", "type": "function", "function": { "name": "lookup_code", "arguments": "{\"query\":\"CEDAR\"}" } }],
+          "reasoning_details": [{ "type": "reasoning.text", "text": "Call the tool within this turn.", "format": "unknown", "index": 0 }]
+        },
+        { "role": "tool", "tool_call_id": "call_a", "content": "codeword=MAPLE" }
+      ]
+    },
+    {
+      "name": "consecutive-tool-results",
+      "tools": "tool",
+      "messages": [
+        { "role": "system", "content": [{ "type": "text", "text": "Answer from the lookup results." }] },
+        { "role": "user", "content": [{ "type": "text", "text": "Look up CEDAR and PINE." }] },
+        {
+          "role": "assistant",
+          "content": "Checking both.",
+          "reasoning": "Two lookups are needed.",
+          "tool_calls": [
+            { "id": "call_a", "type": "function", "function": { "name": "lookup_code", "arguments": "{\"query\":\"CEDAR\"}" } },
+            { "id": "call_b", "type": "function", "function": { "name": "lookup_code", "arguments": "{\"query\":\"PINE\"}" } }
+          ]
+        },
+        { "role": "tool", "tool_call_id": "call_a", "content": "codeword=MAPLE" },
+        { "role": "tool", "tool_call_id": "call_b", "content": "codeword=BIRCH" },
+        {
+          "role": "assistant",
+          "content": "MAPLE and BIRCH.",
+          "reasoning_details": [{ "type": "reasoning.text", "text": "Both results arrived.", "format": "unknown", "index": 0 }]
+        },
+        { "role": "user", "content": [{ "type": "text", "text": "Thanks. Which came first?" }] }
+      ]
+    },
+    {
+      "name": "wrapped-tool-response-user",
+      "tools": "tool",
+      "messages": [
+        { "role": "system", "content": [{ "type": "text", "text": "Answer from the lookup result." }] },
+        { "role": "user", "content": [{ "type": "text", "text": "First question." }] },
+        {
+          "role": "assistant",
+          "content": "First answer.",
+          "reasoning_details": [{ "type": "reasoning.text", "text": "An earlier turn's reasoning.", "format": "unknown", "index": 0 }]
+        },
+        { "role": "user", "content": [{ "type": "text", "text": "Look up CEDAR." }] },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [{ "id": "call_a", "type": "function", "function": { "name": "lookup_code", "arguments": "{\"query\":\"CEDAR\"}" } }],
+          "reasoning_details": [{ "type": "reasoning.text", "text": "Call the tool.", "format": "unknown", "index": 0 }]
+        },
+        { "role": "user", "content": [{ "type": "text", "text": "  <tool_response>\ncodeword=MAPLE\n</tool_response>\n" }] }
+      ]
+    },
+    {
+      "name": "reminder-after-tool-result",
+      "tools": "tool",
+      "messages": [
+        { "role": "system", "content": [{ "type": "text", "text": "Answer from the lookup result." }] },
+        { "role": "user", "content": [{ "type": "text", "text": "[system_reminder \"review\"]" }, { "type": "text", "text": "Stay exact." }] },
+        { "role": "user", "content": [{ "type": "text", "text": "Look up CEDAR." }] },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [{ "id": "call_a", "type": "function", "function": { "name": "lookup_code", "arguments": "{\"query\":\"CEDAR\"}" } }],
+          "reasoning_details": [{ "type": "reasoning.text", "text": "Call the tool before the reminder.", "format": "unknown", "index": 0 }]
+        },
+        { "role": "tool", "tool_call_id": "call_a", "content": "codeword=MAPLE" },
+        { "role": "user", "content": [{ "type": "text", "text": "[system_reminder \"extension\"]" }, { "type": "text", "text": "The extension recorded a failure." }] }
+      ]
+    },
+    {
+      "name": "no-system-no-tools",
+      "tools": null,
+      "messages": [
+        { "role": "user", "content": [{ "type": "text", "text": "Name a tree." }] },
+        {
+          "role": "assistant",
+          "content": "Cedar.",
+          "reasoning_details": [{ "type": "reasoning.text", "text": "Any tree will do.", "format": "unknown", "index": 0 }]
+        },
+        { "role": "user", "content": [{ "type": "text", "text": "Another one." }] }
+      ]
+    },
+    {
+      "name": "empty-system-no-tools",
+      "tools": null,
+      "messages": [
+        { "role": "system", "content": [{ "type": "text", "text": "  " }] },
+        { "role": "user", "content": [{ "type": "text", "text": "Name a tree." }] },
+        {
+          "role": "assistant",
+          "content": "Cedar.",
+          "reasoning_details": [{ "type": "reasoning.text", "text": "Any tree will do.", "format": "unknown", "index": 0 }]
+        },
+        { "role": "user", "content": [{ "type": "text", "text": "Another one." }] }
+      ]
+    },
+    {
+      "name": "system-no-tools",
+      "tools": null,
+      "messages": [
+        { "role": "system", "content": "Answer with one word." },
+        { "role": "user", "content": [{ "type": "text", "text": "Name a tree." }] },
+        {
+          "role": "assistant",
+          "content": "Cedar.",
+          "reasoning": "  Any tree will do.\n"
+        },
+        { "role": "user", "content": [{ "type": "text", "text": "Another one." }] }
+      ]
+    },
+    {
+      "name": "tools-without-system",
+      "tools": "tool",
+      "messages": [
+        { "role": "user", "content": [{ "type": "text", "text": "Look up CEDAR." }] },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [{ "id": "call_a", "type": "function", "function": { "name": "lookup_code", "arguments": "{\"query\":\"CEDAR\"}" } }],
+          "reasoning_details": [{ "type": "reasoning.text", "text": "Call the tool.", "format": "unknown", "index": 0 }]
+        },
+        { "role": "tool", "tool_call_id": "call_a", "content": "codeword=MAPLE" },
+        { "role": "user", "content": [{ "type": "text", "text": "And now?" }] }
+      ]
+    },
+    {
+      "name": "non-ascii-history",
+      "tools": "unicodeTool",
+      "messages": [
+        { "role": "system", "content": [{ "type": "text", "text": "请简洁回答。" }] },
+        { "role": "user", "content": [{ "type": "text", "text": "查一下北京的天气 🙂" }] },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_a",
+              "type": "function",
+              "function": {
+                "name": "lookup_weather",
+                "arguments": "{\"query\":\"北京\",\"limit\":3,\"filters\":{\"zone\":true,\"area\":null,\"tags\":[\"雨\",\"<风>\"]},\"note\":\"第一行\\n第二行\"}"
+              }
+            }
+          ],
+          "reasoning_details": [{ "type": "reasoning.text", "text": "用户想查北京天气 — 调用工具 → 返回结果。", "format": "unknown", "index": 0 }]
+        },
+        { "role": "tool", "tool_call_id": "call_a", "content": "晴，25°C" },
+        { "role": "user", "content": [{ "type": "text", "text": "谢谢！结果是什么？" }] }
+      ]
+    }
+  ]
+}

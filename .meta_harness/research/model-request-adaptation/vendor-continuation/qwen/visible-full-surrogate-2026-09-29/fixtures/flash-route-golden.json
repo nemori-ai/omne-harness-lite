@@ -1,0 +1,46 @@
+{
+  "modelId": "qwen/qwen3.8-flash",
+  "provider": "Alibaba",
+  "upstreamModel": "qwen/qwen3.8-flash-20260826",
+  "sourceResultSha256": "32a526bb147b4fffd26de4e669d6132592190ce1100d88c6fc81b74fed8d6c11",
+  "sourceInputsSha256": "f9098cc8b8661b48839408179093881b875d71213b64b188eb4442f1fa1880b6",
+  "sourceGenerationVerificationSha256": "bbc15cae1443828472b6d026ae2894c01bc144413da00c1ded306be103952c03",
+  "rows": [
+    {
+      "phase": "fit",
+      "label": "english",
+      "file": "formal-18-qwen3.8-flash-english.json",
+      "fileSha256": "0c797a90624d4c8a3bd525daf093faac36b8b0e43f2e2ba596f06eff99b091f6",
+      "sentSha256": "e5a6cf288c797ebf93b60ff4a2162e287e1a94e0f667542f8232e979a1430efc",
+      "proxyTokens": 17,
+      "observedInputTokens": 68
+    },
+    {
+      "phase": "fit",
+      "label": "chinese",
+      "file": "formal-19-qwen3.8-flash-chinese.json",
+      "fileSha256": "daccf51c4ab648c0810bf5bdd9fc3acaf917f4bf782177d90a2803b3a0f2a238",
+      "sentSha256": "8649cbf4c2fc65ee4801420d180c22f700365527edc2f9cb33c3259e517ea637",
+      "proxyTokens": 17,
+      "observedInputTokens": 68
+    },
+    {
+      "phase": "fit",
+      "label": "code",
+      "file": "formal-20-qwen3.8-flash-code.json",
+      "fileSha256": "8aef12746f419a6f0fde30528f1ce74a570e81906683c54c4f6e048be63c86a2",
+      "sentSha256": "e7923518dc10cb0bcdb9ae3f5d9deed3aef109327c2ee2c42a13c2fe81fd3c63",
+      "proxyTokens": 26,
+      "observedInputTokens": 77
+    },
+    {
+      "phase": "untouched-holdout",
+      "label": "mixed-text",
+      "file": "formal-21-qwen3.8-flash-mixed-text.json",
+      "fileSha256": "47d1729efa620fbf145b5af6321163ad015059a23606d4001dce03e7c460becd",
+      "sentSha256": "3baf5291e9d15a11d487870aa6e242885dbe3e9436ac705e057151c74fc046d1",
+      "proxyTokens": 32,
+      "observedInputTokens": 83
+    }
+  ]
+}

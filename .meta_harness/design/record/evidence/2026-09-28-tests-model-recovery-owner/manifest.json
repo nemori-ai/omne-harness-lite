@@ -1,0 +1,77 @@
+[
+  {
+    "path": "README.md",
+    "bytes": 3852,
+    "sha256": "bd0de54163f679375dd60d6ac724eed95d2428c556e71060c93a1eee5b8474c2"
+  },
+  {
+    "path": "inputs.json",
+    "bytes": 90869,
+    "sha256": "212b423a714563d5eddd19da13f4a31e7a2417be1da56ff7212a62c63eb08bfa"
+  },
+  {
+    "path": "reconcile-final-build.log",
+    "bytes": 269,
+    "sha256": "bfc9323b989bb79f7c396120c9488ead135c9ed25a1d0162fe9c8e56363c1a03"
+  },
+  {
+    "path": "reconcile-final-negative-tests.log",
+    "bytes": 463,
+    "sha256": "ec04c3e854ae2906592cdfec6d4d8653475a852bf61837e373495366e6e59542"
+  },
+  {
+    "path": "reconcile-final-tests.log",
+    "bytes": 663,
+    "sha256": "52ef8378d2e6dd46c72ffffab28e43868286b6dd46bc57efd716ab11633fdef9"
+  },
+  {
+    "path": "reconcile-final-typecheck.log",
+    "bytes": 195,
+    "sha256": "b8c0487498111d5d482aa60107b7c68346c450b987c48a866ebd607134ab8f4c"
+  },
+  {
+    "path": "reconcile-isolation-tests.log",
+    "bytes": 464,
+    "sha256": "2600c3d3d562ec4f8856400527fc8367c7c7bbef4ab6528572a86c929b56aa76"
+  },
+  {
+    "path": "reconcile-owner-build.log",
+    "bytes": 269,
+    "sha256": "bfc9323b989bb79f7c396120c9488ead135c9ed25a1d0162fe9c8e56363c1a03"
+  },
+  {
+    "path": "reconcile-owner-demo-build.log",
+    "bytes": 202,
+    "sha256": "12f6e797d8fe4d051d5440f7ab50a1efb02ec53a03510434cc62199628c5ead7"
+  },
+  {
+    "path": "reconcile-owner-demo-tests.log",
+    "bytes": 485,
+    "sha256": "9fd17ea11a39b1dc7821949bac4c41b8a003da73e91638606acce3759afa245d"
+  },
+  {
+    "path": "reconcile-owner-demo-typecheck.log",
+    "bytes": 205,
+    "sha256": "ec241ba0298653129191b60438043f57a191c2f3f3e84105be1360e6d7c44c19"
+  },
+  {
+    "path": "reconcile-owner-tests.log",
+    "bytes": 663,
+    "sha256": "1cfd2c2813cc3836350b46fd2231694630acd009d41f2c15614073d04ffa4267"
+  },
+  {
+    "path": "reconcile-owner-typecheck.log",
+    "bytes": 195,
+    "sha256": "b8c0487498111d5d482aa60107b7c68346c450b987c48a866ebd607134ab8f4c"
+  },
+  {
+    "path": "unknown-tracker-tests-corrected.log",
+    "bytes": 464,
+    "sha256": "809045af9d2024904458370682ecdf6e2a810cd43be9f6a73a6935bd2c58c9b8"
+  },
+  {
+    "path": "unknown-tracker-tests.log",
+    "bytes": 1551,
+    "sha256": "a666a36b58461233d731fa7441dc64cbfa75e06ee1595c2d63863de52dc64353"
+  }
+]

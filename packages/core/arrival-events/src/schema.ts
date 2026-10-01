@@ -1,6 +1,6 @@
 import schema from '@omne-harness-lite/arrival-events/schema' with { type: 'json' }
 import contentSchema from '@omne-harness-lite/content-blocks/schema/v2' with { type: 'json' }
-import accountsSchema from '@omne-harness-lite/call-accounts/schema' with { type: 'json' }
+import accountsSchema from '@omne-harness-lite/call-accounts/schema/v2' with { type: 'json' }
 import loopSchema from '@omne-harness-lite/loop-extension/schema/v2' with { type: 'json' }
 import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 import { snapshot } from './json.ts'

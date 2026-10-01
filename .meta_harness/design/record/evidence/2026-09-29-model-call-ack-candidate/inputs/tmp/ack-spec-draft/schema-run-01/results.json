@@ -1,0 +1,451 @@
+[
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "serializable-original-call",
+    "definition": "CallKey",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "missing-session",
+    "definition": "CallKey",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "'session' is a required property"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "ref-cannot-be-handle",
+    "definition": "CallKey",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "Additional properties are not allowed ('release' was unexpected)"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "created-original-input",
+    "definition": "ModelCallCreatedPayload",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "rejected-has-no-fake-binding",
+    "definition": "ModelCallCreatedPayload",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "rejected-forbids-adopted",
+    "definition": "ModelCallCreatedPayload",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'created', 'status': 'rejected', 'ref': {'session': 'session-1', 'callId': 'mc_19f3'}, 'creationKey': 'create-1', 'origin': {'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}, 'session': 'session-1', 'run': 'run_7a02', 'attempt': 1}, 'input': {'target': 'anthropic/claude-sonnet-4.5', 'messages': [], 'tools': [], 'basis': {'routeName': 'anthropic/claude-sonnet-4.5', 'profile': {'origin': 'custom', 'scope': {'layer': 'organization', 'organization': 'org_7fd2c1'}, 'routeName': 'anthropic/claude-sonnet-4.5'}, 'selectedBy': 'session', 'selected': 'anthropic/claude-sonnet-4.5'}, 'sourceVersions': {'context': 'context-version-1', 'assembly': 'assembly-version-1'}}, 'cause': 'withdrawn', 'adopted': {'profile': {'origin': 'custom', 'scope': {'layer': 'organization', 'organization': 'org_7fd2c1'}, 'routeName': 'anthropic/claude-sonnet-4.5'}, 'profileSnapshot': {'adaptation': {'implementation': {'name': 'example-family', 'revision': 'impl-1'}, 'definition': {'modelId': 'anthropic/claude-sonnet-4.5', 'revision': 'model-1'}, 'configuration': {'revision': 'config-1', 'values': {}}}, 'providers': ['anthropic', 'amazon-bedrock', 'google-vertex', 'openai'], 'allowFallback': True, 'inputModalities': ['text', 'image'], 'outputModalities': ['text', 'image'], 'maxInputTokens': 200000, 'maxOutputTokens': 64000, 'updatedAt': '2026-09-20T08:00:00Z', 'inputConstraints': {'maxImageBytes': 5242880}, 'upstreamInputLimits': {'maxInputTokens': {'status': 'unknown'}, 'maxRequestBytes': {'status': 'unknown'}, 'maxImageBytes': {'status': 'unknown'}, 'maxImages': {'status': 'unknown'}}}, 'adaptation': {'implementation': {'name': 'example-family', 'revision': 'impl-1'}, 'definition': {'modelId': 'anthropic/claude-sonnet-4.5', 'revision': 'model-1'}, 'configuration': {'revision': 'config-1', 'values': {}}}, 'parameters': {'reasoningEffort': 'medium', 'temperature': 0.7}, 'selectedBy': 'session', 'messages': [], 'tools': [], 'contextSources': {}}} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "created-marker",
+    "definition": "ModelInvocationRecord",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "ready-marker",
+    "definition": "ModelInvocationRecord",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "ready-is-not-message",
+    "definition": "Message",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_reply_ready', 'call': 'mc_19f3', 'dispatch': 1, 'response': 'resp_4c1e9a', 'payload': {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}, 'readyAt': '2026-09-29T10:00:05Z'} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "wrong-payload-role",
+    "definition": "ModelCallReplyReadyRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "'reply_ready' was expected"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "ready-needs-response-id",
+    "definition": "ModelCallReplyReadyRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "'response' is a required property"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "digest-required-byte-hash",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_created', 'call': 'mc_19f3', 'creationKey': 'create-1', 'payload': {'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'mutable-url'}, 'createdAt': '2026-09-29T10:00:00Z'} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "rejected-creation-original-key",
+    "definition": "ModelInvocationRecord",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "rejected-creation-cannot-lose-key",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_ended', 'call': 'call-rejected', 'ending': 'undispatched', 'cause': 'withdrawn', 'payload': {'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "accepted-created-then-first-dispatch-rejected",
+    "definition": "ModelInvocationRecord",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "rejected-creation-cannot-lose-payload",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_ended', 'call': 'call-rejected', 'ending': 'undispatched', 'cause': 'withdrawn', 'creationKey': 'create-rejected'} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "released-cannot-carry-creation",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_ended', 'call': 'call-rejected', 'ending': 'released', 'cause': 'credential_unavailable', 'creationKey': 'create-rejected', 'payload': {'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/reference-examples.json",
+    "name": "interrupted-cannot-carry-creation",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_ended', 'call': 'call-rejected', 'ending': 'interrupted', 'creationKey': 'create-rejected', 'payload': {'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}, 'initiator': 'user'} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "ack-pending-original-witness",
+    "definition": "ModelInvocationRecord",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "ack-independent-final",
+    "definition": "ModelInvocationRecord",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "ack-ended-no-response",
+    "definition": "ModelInvocationRecord",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "digest-without-witness",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_acknowledged', 'call': 'mc_19f3', 'creationKey': 'create-1', 'creationInput': {'role': 'model-call-creation-semantic-sha256/v1', 'hex': '2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad'}, 'target': {'kind': 'response', 'response': 'resp_4c1e9a'}, 'terminalState': 'complete', 'acknowledgedAt': '2026-09-29T12:00:00Z', 'releasablePayloads': [{'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}, {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}], 'retainedResultDigest': {'role': 'model-call-retained-result-semantic-sha256/v1', 'hex': '0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9'}} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "witness-without-digest",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_acknowledged', 'call': 'mc_19f3', 'creationKey': 'create-1', 'creationInput': {'role': 'model-call-creation-semantic-sha256/v1', 'hex': '2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad'}, 'target': {'kind': 'response', 'response': 'resp_4c1e9a'}, 'terminalState': 'complete', 'acknowledgedAt': '2026-09-29T12:00:00Z', 'releasablePayloads': [{'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}, {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}], 'accountingWitness': {'response': 'resp_4c1e9a', 'dispatch': 1, 'readyPosition': 3, 'payload': {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}, 'origin': {'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}, 'session': 'session-1', 'run': 'run_7a02', 'attempt': 1}, 'outcome': 'complete', 'usage': {'input_tokens': 10, 'cache_read_tokens': 20, 'cache_write_tokens': 0, 'output_tokens': 5, 'source': 'upstream'}, 'cost': {'cost_usd': 0.0031, 'source': 'upstream_usage'}, 'credentialScope': {'layer': 'tenant', 'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}}, 'provider': 'anthropic', 'upstreamRequestId': 'gen-1758621600-a1b2c3', 'timing': {'sentAt': '2026-09-23T10:00:00Z', 'firstTokenAt': '2026-09-23T10:00:01.2Z', 'endedAt': '2026-09-23T10:00:04Z'}}} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "mixed-target",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_acknowledged', 'call': 'mc_19f3', 'creationKey': 'create-1', 'creationInput': {'role': 'model-call-creation-semantic-sha256/v1', 'hex': '2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad'}, 'target': {'kind': 'response', 'response': 'resp_4c1e9a', 'ending': 'released'}, 'terminalState': 'complete', 'acknowledgedAt': '2026-09-29T12:00:00Z', 'releasablePayloads': [{'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}, {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}], 'retainedResultDigest': {'role': 'model-call-retained-result-semantic-sha256/v1', 'hex': '0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9'}, 'accountingWitness': {'response': 'resp_4c1e9a', 'dispatch': 1, 'readyPosition': 3, 'payload': {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}, 'origin': {'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}, 'session': 'session-1', 'run': 'run_7a02', 'attempt': 1}, 'outcome': 'complete', 'usage': {'input_tokens': 10, 'cache_read_tokens': 20, 'cache_write_tokens': 0, 'output_tokens': 5, 'source': 'upstream'}, 'cost': {'cost_usd': 0.0031, 'source': 'upstream_usage'}, 'credentialScope': {'layer': 'tenant', 'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}}, 'provider': 'anthropic', 'upstreamRequestId': 'gen-1758621600-a1b2c3', 'timing': {'sentAt': '2026-09-23T10:00:00Z', 'firstTokenAt': '2026-09-23T10:00:01.2Z', 'endedAt': '2026-09-23T10:00:04Z'}}} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "wrong-role",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_acknowledged', 'call': 'mc_19f3', 'creationKey': 'create-1', 'creationInput': {'role': 'model-call-creation-semantic-sha256/v1', 'hex': '2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad'}, 'target': {'kind': 'response', 'response': 'resp_4c1e9a'}, 'terminalState': 'complete', 'acknowledgedAt': '2026-09-29T12:00:00Z', 'releasablePayloads': [{'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}, {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}], 'retainedResultDigest': {'role': 'model-call-creation-semantic-sha256/v1', 'hex': '0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9'}, 'accountingWitness': {'response': 'resp_4c1e9a', 'dispatch': 1, 'readyPosition': 3, 'payload': {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}, 'origin': {'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}, 'session': 'session-1', 'run': 'run_7a02', 'attempt': 1}, 'outcome': 'complete', 'usage': {'input_tokens': 10, 'cache_read_tokens': 20, 'cache_write_tokens': 0, 'output_tokens': 5, 'source': 'upstream'}, 'cost': {'cost_usd': 0.0031, 'source': 'upstream_usage'}, 'credentialScope': {'layer': 'tenant', 'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}}, 'provider': 'anthropic', 'upstreamRequestId': 'gen-1758621600-a1b2c3', 'timing': {'sentAt': '2026-09-23T10:00:00Z', 'firstTokenAt': '2026-09-23T10:00:01.2Z', 'endedAt': '2026-09-23T10:00:04Z'}}} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "no-ready-position",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_acknowledged', 'call': 'mc_19f3', 'creationKey': 'create-1', 'creationInput': {'role': 'model-call-creation-semantic-sha256/v1', 'hex': '2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad'}, 'target': {'kind': 'response', 'response': 'resp_4c1e9a'}, 'terminalState': 'complete', 'acknowledgedAt': '2026-09-29T12:00:00Z', 'releasablePayloads': [{'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}, {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}], 'retainedResultDigest': {'role': 'model-call-retained-result-semantic-sha256/v1', 'hex': '0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9'}, 'accountingWitness': {'response': 'resp_4c1e9a', 'dispatch': 1, 'payload': {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}, 'origin': {'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}, 'session': 'session-1', 'run': 'run_7a02', 'attempt': 1}, 'outcome': 'complete', 'usage': {'input_tokens': 10, 'cache_read_tokens': 20, 'cache_write_tokens': 0, 'output_tokens': 5, 'source': 'upstream'}, 'cost': {'cost_usd': 0.0031, 'source': 'upstream_usage'}, 'credentialScope': {'layer': 'tenant', 'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}}, 'provider': 'anthropic', 'upstreamRequestId': 'gen-1758621600-a1b2c3', 'timing': {'sentAt': '2026-09-23T10:00:00Z', 'firstTokenAt': '2026-09-23T10:00:01.2Z', 'endedAt': '2026-09-23T10:00:04Z'}}} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "big-reply-forbidden",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_acknowledged', 'call': 'mc_19f3', 'creationKey': 'create-1', 'creationInput': {'role': 'model-call-creation-semantic-sha256/v1', 'hex': '2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad'}, 'target': {'kind': 'response', 'response': 'resp_4c1e9a'}, 'terminalState': 'complete', 'acknowledgedAt': '2026-09-29T12:00:00Z', 'releasablePayloads': [{'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}, {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}], 'retainedResultDigest': {'role': 'model-call-retained-result-semantic-sha256/v1', 'hex': '0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9'}, 'accountingWitness': {'response': 'resp_4c1e9a', 'dispatch': 1, 'readyPosition': 3, 'payload': {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}, 'origin': {'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}, 'session': 'session-1', 'run': 'run_7a02', 'attempt': 1}, 'outcome': 'complete', 'usage': {'input_tokens': 10, 'cache_read_tokens': 20, 'cache_write_tokens': 0, 'output_tokens': 5, 'source': 'upstream'}, 'cost': {'cost_usd': 0.0031, 'source': 'upstream_usage'}, 'credentialScope': {'layer': 'tenant', 'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}}, 'provider': 'anthropic', 'upstreamRequestId': 'gen-1758621600-a1b2c3', 'timing': {'sentAt': '2026-09-23T10:00:00Z', 'firstTokenAt': '2026-09-23T10:00:01.2Z', 'endedAt': '2026-09-23T10:00:04Z'}, 'reply': {'id': 'msg_51', 'type': 'assistant', 'createdAt': '2026-09-23T10:00:04Z', 'response': 'resp_4c1e9a', 'ending': 'complete', 'blocks': [{'id': 'b1', 'kind': 'text', 'visibility': {'toHuman': True, 'toModel': True}, 'text': '先读一下配置文件。'}, {'id': 'b2', 'kind': 'tool_call', 'visibility': {'toHuman': True, 'toModel': True}, 'complete': True, 'callId': 'call_01', 'tool': 'read_file', 'arguments': {'path': 'config.toml'}}]}}} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "unknown-field",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_acknowledged', 'call': 'mc_19f3', 'creationKey': 'create-1', 'creationInput': {'role': 'model-call-creation-semantic-sha256/v1', 'hex': '2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad'}, 'target': {'kind': 'response', 'response': 'resp_4c1e9a'}, 'terminalState': 'complete', 'acknowledgedAt': '2026-09-29T12:00:00Z', 'releasablePayloads': [{'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}, {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}], 'retainedResultDigest': {'role': 'model-call-retained-result-semantic-sha256/v1', 'hex': '0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9'}, 'accountingWitness': {'response': 'resp_4c1e9a', 'dispatch': 1, 'readyPosition': 3, 'payload': {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}, 'origin': {'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}, 'session': 'session-1', 'run': 'run_7a02', 'attempt': 1}, 'outcome': 'complete', 'usage': {'input_tokens': 10, 'cache_read_tokens': 20, 'cache_write_tokens': 0, 'output_tokens': 5, 'source': 'upstream'}, 'cost': {'cost_usd': 0.0031, 'source': 'upstream_usage'}, 'credentialScope': {'layer': 'tenant', 'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}}, 'provider': 'anthropic', 'upstreamRequestId': 'gen-1758621600-a1b2c3', 'timing': {'sentAt': '2026-09-23T10:00:00Z', 'firstTokenAt': '2026-09-23T10:00:01.2Z', 'endedAt': '2026-09-23T10:00:04Z'}}, 'cleanup': 'released'} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "duplicate-release-ref",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_acknowledged', 'call': 'mc_19f3', 'creationKey': 'create-1', 'creationInput': {'role': 'model-call-creation-semantic-sha256/v1', 'hex': '2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad'}, 'target': {'kind': 'response', 'response': 'resp_4c1e9a'}, 'terminalState': 'complete', 'acknowledgedAt': '2026-09-29T12:00:00Z', 'releasablePayloads': [{'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}, {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}, {'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}], 'retainedResultDigest': {'role': 'model-call-retained-result-semantic-sha256/v1', 'hex': '0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9'}, 'accountingWitness': {'response': 'resp_4c1e9a', 'dispatch': 1, 'readyPosition': 3, 'payload': {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}, 'origin': {'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}, 'session': 'session-1', 'run': 'run_7a02', 'attempt': 1}, 'outcome': 'complete', 'usage': {'input_tokens': 10, 'cache_read_tokens': 20, 'cache_write_tokens': 0, 'output_tokens': 5, 'source': 'upstream'}, 'cost': {'cost_usd': 0.0031, 'source': 'upstream_usage'}, 'credentialScope': {'layer': 'tenant', 'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}}, 'provider': 'anthropic', 'upstreamRequestId': 'gen-1758621600-a1b2c3', 'timing': {'sentAt': '2026-09-23T10:00:00Z', 'firstTokenAt': '2026-09-23T10:00:01.2Z', 'endedAt': '2026-09-23T10:00:04Z'}}} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "ended-cannot-have-witness",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_acknowledged', 'call': 'mc_19f3', 'creationKey': 'create-1', 'creationInput': {'role': 'model-call-creation-semantic-sha256/v1', 'hex': '2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad'}, 'target': {'kind': 'ended', 'ending': 'undispatched'}, 'terminalState': 'handed_up', 'acknowledgedAt': '2026-09-29T12:00:00Z', 'releasablePayloads': [{'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}, {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}], 'accountingWitness': {'response': 'resp_4c1e9a', 'dispatch': 1, 'readyPosition': 3, 'payload': {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}, 'origin': {'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}, 'session': 'session-1', 'run': 'run_7a02', 'attempt': 1}, 'outcome': 'complete', 'usage': {'input_tokens': 10, 'cache_read_tokens': 20, 'cache_write_tokens': 0, 'output_tokens': 5, 'source': 'upstream'}, 'cost': {'cost_usd': 0.0031, 'source': 'upstream_usage'}, 'credentialScope': {'layer': 'tenant', 'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}}, 'provider': 'anthropic', 'upstreamRequestId': 'gen-1758621600-a1b2c3', 'timing': {'sentAt': '2026-09-23T10:00:00Z', 'firstTokenAt': '2026-09-23T10:00:01.2Z', 'endedAt': '2026-09-23T10:00:04Z'}}, 'retainedResultDigest': {'role': 'model-call-retained-result-semantic-sha256/v1', 'hex': '0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9'}} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "ended-terminal-mismatch",
+    "definition": "ModelInvocationRecord",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_acknowledged', 'call': 'mc_19f3', 'creationKey': 'create-1', 'creationInput': {'role': 'model-call-creation-semantic-sha256/v1', 'hex': '2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad'}, 'target': {'kind': 'ended', 'ending': 'undispatched'}, 'terminalState': 'complete', 'acknowledgedAt': '2026-09-29T12:00:00Z', 'releasablePayloads': [{'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}, {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}]} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "ack-excluded-from-context",
+    "definition": "Message",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'kind': 'model_call_acknowledged', 'call': 'mc_19f3', 'creationKey': 'create-1', 'creationInput': {'role': 'model-call-creation-semantic-sha256/v1', 'hex': '2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad'}, 'target': {'kind': 'response', 'response': 'resp_4c1e9a'}, 'terminalState': 'complete', 'acknowledgedAt': '2026-09-29T12:00:00Z', 'releasablePayloads': [{'kind': 'created', 'locator': 'content-1', 'version': 'v1', 'digest': 'ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5'}, {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}], 'retainedResultDigest': {'role': 'model-call-retained-result-semantic-sha256/v1', 'hex': '0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9'}, 'accountingWitness': {'response': 'resp_4c1e9a', 'dispatch': 1, 'readyPosition': 3, 'payload': {'kind': 'reply_ready', 'locator': 'content-2', 'version': 'v1', 'digest': '6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3'}, 'origin': {'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}, 'session': 'session-1', 'run': 'run_7a02', 'attempt': 1}, 'outcome': 'complete', 'usage': {'input_tokens': 10, 'cache_read_tokens': 20, 'cache_write_tokens': 0, 'output_tokens': 5, 'source': 'upstream'}, 'cost': {'cost_usd': 0.0031, 'source': 'upstream_usage'}, 'credentialScope': {'layer': 'tenant', 'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}}, 'provider': 'anthropic', 'upstreamRequestId': 'gen-1758621600-a1b2c3', 'timing': {'sentAt': '2026-09-23T10:00:00Z', 'firstTokenAt': '2026-09-23T10:00:01.2Z', 'endedAt': '2026-09-23T10:00:04Z'}}} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/messages/v8/ack-examples.json",
+    "name": "distinct-creation-dispatch-attempts",
+    "definition": "ModelInvocationRecord",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/model-response/v11/ready-examples.json",
+    "name": "ready-complete-original-facts",
+    "definition": "PendingModelResponse",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/model-response/v11/ready-examples.json",
+    "name": "pending-is-not-final",
+    "definition": "ModelResponse",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "'replyDisposition' is a required property"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/model-response/v11/ready-examples.json",
+    "name": "final-with-real-disposition",
+    "definition": "ModelResponse",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/model-response/v11/ready-examples.json",
+    "name": "pending-must-not-invent-disposition",
+    "definition": "PendingModelResponse",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "Additional properties are not allowed ('replyDisposition' was unexpected)"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/model-response/v11/ready-examples.json",
+    "name": "pending-must-not-invent-late",
+    "definition": "PendingModelResponse",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "Additional properties are not allowed ('late' was unexpected)"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/model-response/v11/ready-examples.json",
+    "name": "ready-needs-original-calibration",
+    "definition": "PendingModelResponse",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "'inputCalibration' is a required property",
+      "{'input_tokens': 10, 'cache_read_tokens': 20, 'cache_write_tokens': 0, 'output_tokens': 5, 'source': 'upstream'} is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/model-response/v11/ready-examples.json",
+    "name": "user-interruption-has-original-partial-reply",
+    "definition": "PendingModelResponse",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/model-response/v11/ready-examples.json",
+    "name": "fault-is-not-pending-reply",
+    "definition": "PendingModelResponse",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "{'id': 'resp_4c1e9a', 'call': {'runId': 'run_7a02', 'callId': 'mc_19f3'}, 'dispatch': 1, 'attemptId': 1, 'route': {'adaptation': {'implementation': {'name': 'example-family', 'revision': 'impl-1'}, 'definition': {'modelId': 'anthropic/claude-sonnet-4.5', 'revision': 'model-1'}, 'configuration': {'revision': 'config-1', 'values': {}}}, 'profile': {'origin': 'custom', 'scope': {'layer': 'organization', 'organization': 'org_7fd2c1'}, 'routeName': 'anthropic/claude-sonnet-4.5'}, 'profileSnapshot': {'adaptation': {'implementation': {'name': 'example-family', 'revision': 'impl-1'}, 'definition': {'modelId': 'anthropic/claude-sonnet-4.5', 'revision': 'model-1'}, 'configuration': {'revision': 'config-1', 'values': {}}}, 'providers': ['anthropic', 'amazon-bedrock', 'google-vertex', 'openai'], 'allowFallback': True, 'inputModalities': ['text', 'image'], 'outputModalities': ['text', 'image'], 'maxInputTokens': 200000, 'maxOutputTokens': 64000, 'updatedAt': '2026-09-20T08:00:00Z', 'inputConstraints': {'maxImageBytes': 5242880}, 'upstreamInputLimits': {'maxInputTokens': {'status': 'unknown'}, 'maxRequestBytes': {'status': 'unknown'}, 'maxImageBytes': {'status': 'unknown'}, 'maxImages': {'status': 'unknown'}}}, 'selectedBy': 'session', 'provider': 'anthropic', 'credentialScope': {'layer': 'tenant', 'tenant': {'organization': 'org_7fd2c1', 'account': 'acc_91ab40'}}, 'upstreamModel': 'anthropic/claude-4.5-sonnet-20250929', 'upstreamRequestId': 'gen-1758621600-a1b2c3', 'parameters': {'reasoningEffort': 'medium', 'temperature': 0.7}}, 'outcome': 'failed', 'stopReason': 'stop', 'reply': {'id': 'msg_51', 'type': 'assistant', 'createdAt': '2026-09-23T10:00:04Z', 'response': 'resp_4c1e9a', 'ending': 'complete', 'blocks': [{'id': 'b1', 'kind': 'text', 'visibility': {'toHuman': True, 'toModel': True}, 'text': '先读一下配置文件。'}, {'id': 'b2', 'kind': 'tool_call', 'visibility': {'toHuman': True, 'toModel': True}, 'complete': True, 'callId': 'call_01', 'tool': 'read_file', 'arguments': {'path': 'config.toml'}}]}, 'timing': {'sentAt': '2026-09-23T10:00:00Z', 'firstTokenAt': '2026-09-23T10:00:01.2Z', 'endedAt': '2026-09-23T10:00:04Z'}, 'usage': {'input_tokens': 10, 'cache_read_tokens': 20, 'cache_write_tokens': 0, 'output_tokens': 5, 'source': 'upstream'}, 'cost': {'cost_usd': 0.0031, 'source': 'upstream_usage'}, 'raw': {'headers': {'content-type': 'text/event-stream', 'x-generation-id': 'gen-1758621600-a1b2c3'}, 'body': {'storage': 'attachments', 'key': 'raw/resp_4c1e9a', 'mediaType': 'text/event-stream', 'bytes': 18234}}, 'inputCalibration': {'requestInput': {'kind': 'known', 'projectionRevision': 'projection-1', 'prefixBoundary': 2, 'prefixDigest': '1111111111111111111111111111111111111111111111111111111111111111', 'inputEnvelopeDigest': '2222222222222222222222222222222222222222222222222222222222222222', 'countingBasis': {'binding': {'implementation': {'name': 'example-family', 'revision': 'impl-1'}, 'definition': {'modelId': 'anthropic/claude-sonnet-4.5', 'revision': 'model-1'}, 'configuration': {'revision': 'config-1', 'values': {}}}, 'model': 'anthropic/claude-sonnet-4.5', 'provider': 'anthropic', 'tokenizerRevision': 'tokenizer-1', 'meterRevision': 'meter-1', 'projectionRevision': 'projection-1', 'replayRevision': 'replay-1', 'transformRevision': 'transform-1'}}, 'observedInput': {'kind': 'from_usage', 'provenance': {'adapterRevision': 'adapter-1', 'fieldPaths': ['usage.prompt_tokens']}}, 'outputGroup': {'kind': 'known', 'source': 'reply', 'blockDigests': ['3333333333333333333333333333333333333333333333333333333333333333', '3333333333333333333333333333333333333333333333333333333333333333'], 'completeness': 'complete', 'usageRef': 'usage', 'projectionRevision': 'projection-1'}}} should not be valid under {'required': ['reply']}",
+      "'failure' is a required property",
+      "'delivered' is a required property",
+      "'failed' is not one of ['complete', 'truncated', 'interrupted']"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/model-response/v11/ack-examples.json",
+    "name": "retained-original-pending",
+    "definition": "PendingModelResponse",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/model-response/v11/ack-examples.json",
+    "name": "digest-is-not-pending-field",
+    "definition": "PendingModelResponse",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "Additional properties are not allowed ('retainedResultDigest' was unexpected)"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/call-accounts/v4/ready-examples.json",
+    "name": "actual-large-exact-count",
+    "definition": "Usage",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/call-accounts/v4/ready-examples.json",
+    "name": "actual-unknown-not-zero",
+    "definition": "Cost",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/call-accounts/v4/ready-examples.json",
+    "name": "negative-cost-rejected",
+    "definition": "Cost",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "-1 is not valid under any of the given schemas"
+    ]
+  },
+  {
+    "file": ".meta_harness/design/spec/data/call-accounts/v4/ack-examples.json",
+    "name": "witness-unknown-is-original-cost",
+    "definition": "Cost",
+    "expected": true,
+    "actual": true,
+    "errors": []
+  },
+  {
+    "file": ".meta_harness/design/spec/data/call-accounts/v4/ack-examples.json",
+    "name": "witness-origin-does-not-enter-cost",
+    "definition": "Cost",
+    "expected": false,
+    "actual": false,
+    "errors": [
+      "Additional properties are not allowed ('acknowledged' was unexpected)",
+      "'unknown' was expected"
+    ]
+  }
+]

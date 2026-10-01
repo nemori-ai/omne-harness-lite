@@ -1,0 +1,45 @@
+{
+  "repository": "https://github.com/earendil-works/pi",
+  "version": "0.86.1",
+  "commit": "3390bd93630965a12a0a1a5c36ce890ec22f7e1d",
+  "source_archive_sha256": "29b35ae69e9cc7696cfdd0992e157892dfedc857c50762f49d752584358e4163",
+  "license_sha256": "0457f5bcec3b3b211605dfb5d1a49042fd638f3686a410fe099c24a25af13c48",
+  "sources": [
+    {
+      "path": "packages/ai/src/api/openai-completions.ts",
+      "sha256": "b06508ab22b6595d85d636db0737ac7c48adbf9d8d5ff61ba2bac94c9599ac51"
+    },
+    {
+      "path": "packages/ai/src/api/openai-codex-responses.ts",
+      "sha256": "ea1860ea6f78d1ed4e935e86b5dcb149ccb1f03a12669ff8550cc7243ec6ddc8"
+    }
+  ],
+  "adaptations": [
+    {
+      "file": "src/plan.ts",
+      "source": "packages/ai/src/api/openai-completions.ts",
+      "changes": "Project own messages/tools; remove transformMessages/environment/SDK retries; explicit model binding controls reminder/cache TTL."
+    },
+    {
+      "file": "src/stream.ts",
+      "source": "packages/ai/src/api/openai-completions.ts",
+      "changes": "Own ArrivalEvent producer; no intermediate tool JSON parse; preserve provider/cost/opaque; length never closes blocks. Narrower than appendOpenAIReasoningDetail: adjacent reasoning.text fragments join only with equal non-text/non-signature members and one content-block identity: the same nonempty id, or no id on both (unsigned deltas join as before; when a signature is involved both must carry the same nonnegative integer index, per dispatcher ruling R-L after the paid Sonnet 5 receipt cecc12c9-300e-43db-8389-7bb4ac859d4f showed id-less same-index text then signature-only fragments). Within one identity an absent/null signature is filled once by a later nonempty one, equal signatures continue, a text-less fragment contributes only its nonempty signature, and an unsigned fragment after a signed one starts a new entry; encrypted details stay discrete."
+    },
+    {
+      "file": "src/sse.ts",
+      "source": "packages/ai/src/api/openai-codex-responses.ts",
+      "changes": "Node IncomingMessage, strict lossless JSON, bounded UTF-8 framing, all SSE newline forms and explicit DONE."
+    },
+    {
+      "file": "src/projection.ts",
+      "source": "project-owned MR9/RT10 mapping",
+      "changes": "Version openrouter-input-projection/2: one lossless code-point-sorted canonical encoding, scoped Anthropic generated 1h cache metadata exclusion, stable nonempty assistant/tool arrays from first request; no cross-shape token equivalence claim."
+    },
+    {
+      "file": "src/read-facts.ts",
+      "source": "https://openrouter.ai/docs/guides/features/response-caching",
+      "observed_date": "2026-09-29",
+      "changes": "First-parsed usage/cost/input facts share one accumulator; X-OpenRouter-Cache-Status HIT never supplies an input-zero anchor. Rolling first-party docs; no model probe."
+    }
+  ]
+}

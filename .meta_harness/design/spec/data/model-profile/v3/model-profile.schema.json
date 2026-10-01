@@ -1,0 +1,352 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v3/model-profile.schema.json",
+  "title": "data.model-profile v3",
+  "description": "模型档案、指向它的引用、统一请求参数词表与模型适配绑定的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.model-profile/v3 内有效。",
+  "$comment": "接受、采用与冻结状态在版本外入口与 registry。模态取 data.content-blocks/v2 的 Modality（该契约 S-6），本文件不另列。Schema 只管形状：route_name_taken（撞名判定，S-3）是判定，要读别的记录，Schema 管不到；max_output_exceeds_profile 是同一文档内的跨字段比较，Draft 2020-12 表达不了，由表示层校验在 Schema 之外补上（S-18、S-24；对 ModelProfile 与 ModelProfileContent 两种）。一份被拒的文档对应哪一个拒绝值，按 contract.md S-25 的表与次序判，不按校验器报错的先后。S-31 的 definition.modelId 与 routeName 相等同样由表示层跨字段检查；S-30 的配置秘密禁入与修订不改义是写入者义务，Schema 不声明验证它们。正反实例在同目录 examples.md。",
+
+  "$defs": {
+
+    "ModelProfile": {
+      "title": "模型档案 · Model Profile",
+      "description": "S-1～S-12：关于一个可被调用的模型的全部事实（UL-model-profile）。它是数据，不是资产。身份是（所在范围, routeName）；所在范围是它被存放的那一格，不是记录的成员（S-1）。凭据、价格、「这次实际用了哪条」都不在这里（S-22）。",
+      "$comment": "inputConstraints 必填而 parameters 可缺席，是有意的：前者是对上游事实的记载，「一条都没有」要写成 {} 明说，缺席会与「没记」混读；后者是建档者的选择，缺席即「本档案不给任何一项」，因此出现时不得为空对象——同一个意思只有一种写法（S-9、S-17）。",
+      "type": "object",
+      "properties": {
+        "routeName": { "$ref": "#/$defs/RouteName" },
+        "origin": { "$ref": "#/$defs/ProfileOrigin" },
+        "providers": {
+          "description": "S-5：允许的供应商（UL-allowed-providers），有序、非空、无重复；第一个是首次发出的那一家，顺序即默认重试件逐家去试的次序。每一次发出只走其中一家。",
+          "type": "array",
+          "items": { "$ref": "#/$defs/ProviderName" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "allowFallback": {
+          "description": "S-6：供应商回退（UL-provider-fallback）——第一家不行时允不允许往后走。false 时只允许发往 providers 的第一个。",
+          "type": "boolean"
+        },
+        "inputModalities": {
+          "description": "S-7：收得下的模态，非空集合，无重复，次序无意义，必含 text（缺它即 input_text_missing）。",
+          "type": "array",
+          "items": { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json#/$defs/Modality" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": { "const": "text" }
+        },
+        "outputModalities": {
+          "description": "S-7：给得出的模态，非空集合，无重复，次序无意义。",
+          "type": "array",
+          "items": { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json#/$defs/Modality" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "maxInputTokens": {
+          "description": "S-8：一次请求的输入最多能有多少 token，按上游对这个模型的计法。只计输入。",
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxOutputTokens": {
+          "description": "S-8：一次请求最多吐多少 token，按上游对这个模型的计法。",
+          "type": "integer",
+          "minimum": 1
+        },
+        "inputConstraints": { "$ref": "#/$defs/InputConstraints" },
+        "adaptation": { "$ref": "#/$defs/ModelAdaptationBinding" },
+        "registration": { "$ref": "#/$defs/Registration" },
+        "updatedAt": {
+          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant",
+          "description": "S-11：inputModalities、outputModalities、maxInputTokens、maxOutputTokens、inputConstraints 这五项最近一次取值变化的时刻；建档时即建档时刻。其余属性的变化不动它；它不后退。形状取 data.offer-expiry/v1 的 Instant（该契约 S-22）。"
+        },
+        "parameters": {
+          "$ref": "#/$defs/ModelRequestParameters",
+          "description": "S-15～S-21：随档案带上的统一请求参数。缺席即本档案不给任何一项；出现时至少一项（S-17）。其中 maxOutputTokens 不得超过本档案的 maxOutputTokens（S-18，Schema 管不到）。",
+          "minProperties": 1
+        }
+      },
+      "required": [
+        "routeName",
+        "origin",
+        "providers",
+        "allowFallback",
+        "inputModalities",
+        "outputModalities",
+        "maxInputTokens",
+        "maxOutputTokens",
+        "inputConstraints",
+        "adaptation",
+        "registration",
+        "updatedAt"
+      ],
+      "additionalProperties": false
+    },
+
+    "ModelProfileContent": {
+      "title": "ModelProfileContent",
+      "description": "S-28：建档内容——产生一条档案时给的那一份：ModelProfile 去掉 registration 与 updatedAt，其余成员、取值域、必填与可缺席逐字相同。这两个成员由产生档案的一方在提交时写（初值 listed、建档那一刻，S-10、S-11）；建档内容里出现其中任何一个即 malformed（S-25 M12），不忽略、也不按给的值写。S-18 的跨字段比较对它同样适用（Schema 管不到）。由维护档案的能力的建档与官方清单条目收（capability.model-profile-directory v2 S-14、S-18）。规格层值名，不是统一语言词条。",
+      "$comment": "各成员以 $ref 取 ModelProfile 的同名成员，不另写一份取值域；成员集合闭合，所以 registration 与 updatedAt 由 additionalProperties 挡住——在 S-25 里它们报 M12（不是 M3），拒绝值同为 malformed。",
+      "type": "object",
+      "properties": {
+        "routeName": { "$ref": "#/$defs/ModelProfile/properties/routeName" },
+        "origin": { "$ref": "#/$defs/ModelProfile/properties/origin" },
+        "providers": { "$ref": "#/$defs/ModelProfile/properties/providers" },
+        "allowFallback": { "$ref": "#/$defs/ModelProfile/properties/allowFallback" },
+        "inputModalities": { "$ref": "#/$defs/ModelProfile/properties/inputModalities" },
+        "outputModalities": { "$ref": "#/$defs/ModelProfile/properties/outputModalities" },
+        "maxInputTokens": { "$ref": "#/$defs/ModelProfile/properties/maxInputTokens" },
+        "maxOutputTokens": { "$ref": "#/$defs/ModelProfile/properties/maxOutputTokens" },
+        "inputConstraints": { "$ref": "#/$defs/ModelProfile/properties/inputConstraints" },
+        "adaptation": { "$ref": "#/$defs/ModelProfile/properties/adaptation" },
+        "parameters": { "$ref": "#/$defs/ModelProfile/properties/parameters" }
+      },
+      "required": [
+        "routeName",
+        "origin",
+        "providers",
+        "allowFallback",
+        "inputModalities",
+        "outputModalities",
+        "maxInputTokens",
+        "maxOutputTokens",
+        "inputConstraints",
+        "adaptation"
+      ],
+      "additionalProperties": false
+    },
+
+    "ModelProfileRef": {
+      "title": "ModelProfileRef",
+      "description": "S-13、S-14：对一条模型档案的引用，只在目录内部与治理面上指认一行；一次请求的有效模型（这一次落到的那一行）与它的留痕也取这个值。「用哪个模型」那项设置与会话的选中模型记的是 RouteName，不是它；名字落到哪一行由按层覆盖定（capability.model-profile-directory v2 S-17）。按 origin 判别，恰两支：指向官方档案的是 {origin: official, routeName}；指向自建档案的是 {origin: custom, scope, routeName}，scope 是档案所在那一格的作用域层身份（data.identity-values/v1 的 ScopeLayerIdentity，该契约 S-11），没有默认值、不从环境推断（该契约 S-12、S-17）。解析只按给出的分量精确匹配，不跨层搜索、不回退到别层的同名档案。它是规格层的引用值名，不是统一语言词条，因此不给「中文 · English」那种词条式标题。",
+      "$comment": "官方那一支不带 scope：出厂默认层没有身份对象（data.identity-values/v1 S-11），本契约不为它铸一个。它能只凭 routeName 指认一条官方档案，前提是 S-3 与 S-4：官方档案全在出厂默认层这一格，同一格里路由名不重复（含已撤回）——这个前提不成立，官方引用就指不清。自建名只在所在那一格里唯一（S-3），别的格里可以同名，所以自建那一支必须带 scope；它存成带判别式的 ScopeLayerIdentity，不得压平成两个可空字段（data.identity-values/v1 S-16）。",
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "指向官方档案",
+          "properties": {
+            "origin": { "const": "official" },
+            "routeName": { "$ref": "#/$defs/RouteName" }
+          },
+          "required": ["origin", "routeName"],
+          "additionalProperties": false
+        },
+        {
+          "title": "指向自建档案",
+          "properties": {
+            "origin": { "const": "custom" },
+            "scope": {
+              "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/ScopeLayerIdentity"
+            },
+            "routeName": { "$ref": "#/$defs/RouteName" }
+          },
+          "required": ["origin", "scope", "routeName"],
+          "additionalProperties": false
+        }
+      ],
+      "examples": [
+        { "origin": "official", "routeName": "vendor-a/chat-large" },
+        {
+          "origin": "custom",
+          "scope": { "layer": "tenant", "tenant": { "organization": "org_7fd2c1", "account": "acc_91ab40" } },
+          "routeName": "vendor-b/coder-7b"
+        },
+        {
+          "origin": "custom",
+          "scope": { "layer": "organization", "organization": "org_7fd2c1" },
+          "routeName": "vendor-c/vision-mini"
+        }
+      ]
+    },
+
+    "ModelProfileSnapshot": {
+      "title": "ModelProfileSnapshot",
+      "description": "S-27：一条档案在某一刻的、发出与重试要用到的那几项属性的副本——允许的供应商及次序、允不允许回退、两组模态、两个上限、请求参数、模型适配绑定（含完整配置值），以及这份记载的 updatedAt。它是值，不是引用：档案后来被改或被撤回，快照不变；指认的是哪一条档案由与它成对交出的 ModelProfileRef 给出。不带路由名、来源、在册状态与送进去之前的限制。规格层值名，不是统一语言词条。",
+      "$comment": "各成员的取值域与 ModelProfile 同名成员逐字相同（以 $ref 取那一处）。成员集合闭合；parameters 缺席即那一刻档案不给任何一项（S-17）。S-18 的关系（parameters.maxOutputTokens 不超过 maxOutputTokens）在快照上由「照原样复制」保证，是写快照一方的义务；快照不是表示层校验的一种文档，收它的一方不重判、也没有为它设的拒绝值（S-27）。",
+      "type": "object",
+      "properties": {
+        "providers": { "$ref": "#/$defs/ModelProfile/properties/providers" },
+        "allowFallback": { "$ref": "#/$defs/ModelProfile/properties/allowFallback" },
+        "inputModalities": { "$ref": "#/$defs/ModelProfile/properties/inputModalities" },
+        "outputModalities": { "$ref": "#/$defs/ModelProfile/properties/outputModalities" },
+        "maxInputTokens": { "$ref": "#/$defs/ModelProfile/properties/maxInputTokens" },
+        "maxOutputTokens": { "$ref": "#/$defs/ModelProfile/properties/maxOutputTokens" },
+        "parameters": { "$ref": "#/$defs/ModelProfile/properties/parameters" },
+        "adaptation": { "$ref": "#/$defs/ModelProfile/properties/adaptation" },
+        "updatedAt": { "$ref": "#/$defs/ModelProfile/properties/updatedAt" }
+      },
+      "required": ["providers", "allowFallback", "inputModalities", "outputModalities", "maxInputTokens", "maxOutputTokens", "adaptation", "updatedAt"],
+      "additionalProperties": false
+    },
+
+    "RouteName": {
+      "title": "RouteName",
+      "description": "S-2：上游认的那个名字，档案身份的一个分量。非空字符串，首尾不得是空白；相等是逐码点精确相等，不做 Unicode 规范化、大小写折叠或首尾裁剪。本系统不解析它的内容（不从中读出厂商、系列或版本）。建档后不可改——改了就是另一条档案。",
+      "$comment": "空白集合与 data.identity-values/v1 S-31 逐码点同一集合（U+0009–000D、U+0020、U+0085、U+00A0、U+1680、U+2000–200A、U+2028、U+2029、U+202F、U+205F、U+3000、U+FEFF），pattern 同样不用 \\s 与 $，以 (?![\\s\\S]) 作绝对结尾；权威在那一条，该条改集合时本定义随之出新版本。刻意不 $ref 那份契约的 OpaqueIdentifier：那一项的含义是「部署内唯一、由存储生成」，路由名两样都不是。禁首尾空白是为了不让 S-3 的「同一范围内路由名唯一」被一个尾随空格绕过。大小写不同、Unicode 相似字不算同名（S-3；主线裁定，D-060 §S6 S6-b），本定义不做折叠。路由名没有自己的词条；它充当模型档案的能力标识（UL-capability-identifier）。",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+      "examples": ["vendor-a/chat-large", "vendor-b/coder-7b"]
+    },
+
+    "ProfileOrigin": {
+      "title": "ProfileOrigin",
+      "description": "S-4：档案的来源，恰两值。official 即官方档案（UL-official-model-profile）：随系统发布、位于出厂默认层；custom 即自建档案（UL-custom-model-profile）：由组织超级管理员或租户在自己那一层（组织层或租户层）建。由产生方式决定，不是建档者可选的输入；产生时定，此后不可改。不同于资产的官方件 / 自定义件——档案不是资产。「来源」这个判别式本身是规格层值名，没有词条；它的两个取值各对一条词条。",
+      "type": "string",
+      "enum": ["official", "custom"]
+    },
+
+    "ProviderName": {
+      "title": "ProviderName",
+      "description": "S-5：一家供应商在上游（OpenRouter）的标识。非空字符串，相等是逐码点精确相等；本系统不解析它。具体词法归传输适配层（缺口 G-2）。规格层值名，不是统一语言词条。",
+      "type": "string",
+      "minLength": 1,
+      "examples": ["provider-x"]
+    },
+
+    "InputConstraints": {
+      "title": "InputConstraints",
+      "description": "S-9：送进去之前的限制——上游对内容本身的额外要求。开放的一组，可以一条都没有（写 {}）；本版登记的恰一条 maxImageBytes：一张图送进去时最多多少字节。某一条缺席即档案记载上游对此没有限制。加一条是新版本；出现未登记的键即拒（constraint_unknown），不忽略。规格层值名，不是统一语言词条。",
+      "type": "object",
+      "properties": {
+        "maxImageBytes": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false,
+      "examples": [{}, { "maxImageBytes": 5242880 }]
+    },
+
+    "Registration": {
+      "title": "档案在册状态 · Profile Listing Status",
+      "description": "S-10：档案在册状态（UL-profile-listing-status），恰两值：listed 即在册，withdrawn 即已撤回。定义名 Registration 与成员名 registration 是规格层值名，正式英文名以词条为准。档案产生时为 listed；只有两条转移：撤回（listed → withdrawn）与恢复在册（withdrawn → listed），恢复的还是原来那一条（同一格、同一路由名、同一行）；转移本身只改这一个成员，恢复可与一次属性改写同提交（那是改写，不是恢复）。撤回不删行：已撤回的档案仍读得出，它的路由名在同一格里仍被占着（S-3），同一格要再用这个名字是恢复那一条，不是另建。「这个范围不允许它」不是这里的取值，是作用域求值的结果。",
+      "type": "string",
+      "enum": ["listed", "withdrawn"]
+    },
+
+    "ModelRequestParameters": {
+      "title": "模型请求参数 · Model Request Parameters",
+      "description": "S-15～S-21：系统统一命名的一组常用请求参数（UL-model-request-parameters）。每一项都可缺席；缺席即不带这一项，任何一方不得替它补值（S-17）。作为独立值时 {} 表示一项都没有；挂在档案上时不得为空（见 ModelProfile.parameters）。各家 adapter 自己翻译成上游字段；上游不认的项不静默丢、值不静默改（S-21），留痕在 data.model-response 路由留痕的 parameters（实际发出的值）、parameterAdjustments（改过的值）与 droppedParameters（没发出的项名）。词表加一项是新版本；出现未登记的成员即拒，不忽略。",
+      "$comment": "maxOutputTokens 不超过档案上限（S-18）只在档案与建档内容里判；独立值里没有档案可比。一次请求的覆盖怎样与档案参数合并归 capability.model-request-runtime v2 S-7，覆盖能否去掉一项是缺口 G-8。本词表不含任何时限（超时、退避）——那是重试件的配置（PF-013 §6.17）。",
+      "type": "object",
+      "properties": {
+        "reasoningEffort": { "$ref": "#/$defs/ReasoningEffort" },
+        "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+        "topP": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "seed": { "type": "integer" },
+        "maxOutputTokens": { "type": "integer", "minimum": 1 },
+        "stopSequences": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "frequencyPenalty": { "type": "number", "minimum": -2, "maximum": 2 },
+        "presencePenalty": { "type": "number", "minimum": -2, "maximum": 2 },
+        "extra": {
+          "description": "S-19：上游私有的透传项。键是上游自己的字段名，值是任意 JSON。出现时至少一项；键非空，且不得与统一词表的八个成员名相同。",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "minLength": 1,
+            "not": {
+              "enum": [
+                "reasoningEffort",
+                "temperature",
+                "topP",
+                "seed",
+                "maxOutputTokens",
+                "stopSequences",
+                "frequencyPenalty",
+                "presencePenalty"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false,
+      "examples": [
+        {},
+        { "reasoningEffort": "none" },
+        { "temperature": 0.2, "seed": 42, "extra": { "top_k": 40 } }
+      ]
+    },
+
+    "ModelAdaptationBinding": {
+      "title": "模型适配绑定 · Model Adaptation Binding",
+      "description": "S-29～S-31：公共与家族实现、精确模型窄定义和声明式配置的版本绑定。属性，不是独立身份对象。每个修订在自己的命名域内不可原地改义；全部字符串非空且无首尾空白。",
+      "$comment": "implementation.revision 在 name 内、definition.revision 在 modelId 内、configuration.revision 在所在档案身份（独立函数则为调用者提供的配置来源）内解释。完整保留 values，不能只用配置修订取别处配置。注册存在性、配置适用性、秘密禁入、修订不改义与调用快照冻结不是本 Schema 的保证。",
+      "type": "object",
+      "properties": {
+        "implementation": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+            }
+          },
+          "required": [
+            "name",
+            "revision"
+          ],
+          "additionalProperties": false
+        },
+        "definition": {
+          "type": "object",
+          "properties": {
+            "modelId": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+            }
+          },
+          "required": [
+            "modelId",
+            "revision"
+          ],
+          "additionalProperties": false
+        },
+        "configuration": {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+            },
+            "values": {
+              "type": "object",
+              "description": "S-30：声明式配置对象，允许明确空对象。严格 JSON、重复成员拒绝和十进制数无损沿 data.content-blocks/v2 S-24；该 Schema 没有 JsonObject 定义，本处不造引用。",
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "revision",
+            "values"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "implementation",
+        "definition",
+        "configuration"
+      ],
+      "additionalProperties": false
+    },
+
+    "ReasoningEffort": {
+      "title": "ReasoningEffort",
+      "description": "S-16：推理强度，恰五值，闭合。none 是一个取值（明说不要推理），不同于缺席（不带这一项）。各档怎样译成上游的字段归 adapter；译不出原值时按 S-21 留痕，不得静默换成相邻的一档。",
+      "type": "string",
+      "enum": ["none", "low", "medium", "high", "max"]
+    }
+  }
+}

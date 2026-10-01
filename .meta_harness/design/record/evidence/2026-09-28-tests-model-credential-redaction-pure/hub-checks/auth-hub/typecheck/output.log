@@ -1,0 +1,4 @@
+
+> @omne-harness-lite/model-request-acceptance@0.0.0 typecheck /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/apps/model-request-acceptance
+> tsc -p tsconfig.test.json
+

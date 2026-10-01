@@ -1,0 +1,45 @@
+{
+  "messages": [
+    { "role": "system", "content": "Answer from both results." },
+    { "role": "user", "content": "Compare the weather in two cities." },
+    {
+      "role": "assistant",
+      "content": "",
+      "reasoning": "I need both cities before comparing.",
+      "tool_calls": [
+        {
+          "id": "call_paris",
+          "type": "function",
+          "function": { "name": "weather", "arguments": "{\"city\":\"Paris\"}" }
+        },
+        {
+          "id": "call_tokyo",
+          "type": "function",
+          "function": { "name": "weather", "arguments": "{\"city\":\"Tokyo\"}" }
+        }
+      ]
+    },
+    { "role": "tool", "tool_call_id": "call_tokyo", "content": "Tokyo: 24 C" },
+    { "role": "tool", "tool_call_id": "call_paris", "content": "Paris: 18 C" },
+    {
+      "role": "assistant",
+      "content": "Tokyo is warmer by 6 C.",
+      "reasoning": "Compare 24 with 18."
+    },
+    { "role": "user", "content": "Thanks." }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "weather",
+        "description": "Get current weather",
+        "parameters": {
+          "type": "object",
+          "properties": { "city": { "type": "string" } },
+          "required": ["city"]
+        }
+      }
+    }
+  ]
+}

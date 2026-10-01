@@ -1,3 +1,54 @@
+## 2026-09-30 ACK 后继精确采用
+
+- **语义接受**：[D-110 ACK 后继](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受 RT12/MS8/MR11/CA4，精确版本与摘要由 registry 和接受文件登记。
+- **可实施**：本节点对应的 ACK 后继映射已技术采用，当前实现直接迁移；下方候选与 noGC 文字保留其历史快照，不代表现行采用状态。
+- **绑定证据**：新增 0，原绑定保持原范围；有限规格模型不提升实际提供者绑定。
+- **实际验证**：ACK 实现、该节点真实组合与公开制品验收仍待，不能据采用或旧实现通过宣称完成。
+
+## 2026-09-30 源码依赖对账（A1 core 集成后）
+
+`packages/core/messages/src` 现有三类跨包导入都出自已采用的增量设计，不新增语义或依赖方向；这里只汇总位置，依赖正文仍归各设计页：
+
+- `@omne-harness-lite/tool-definition` 根类型面（`ModelToolEntry`）与 `./schema`（TD3 原字节）：[v7-design.md](v7-design.md)「精确依赖、资源与绑定」的 TD3/TD2 行及「TD3 ModelToolEntry 显式静态模块依赖」行、第 75 行「类型只从其规范 owner 的公开类型面取用」；MS8 闭包仍含 TD3（[v8-acknowledgement-design.md](v8-acknowledgement-design.md)「编码与依赖」）。tool-definition 不依赖 messages，无环。
+- `@omne-harness-lite/model-profile/schema/v6`（MP6 原字节）：v7-design.md 的 MP6/MP5/MP2 行（created 精确 MP6）、[model-profile v6 资源增补](../model-profile/v6-schema-resource-design.md)发布的 `./schema/v6`；MS8 闭包同含 MP6。
+- `node:crypto`：仅供 MS8 S-56 语义摘要纯构件喂 SHA-256，依据 v8-acknowledgement-design.md「编码与依赖」中「可迭代/流式喂成熟SHA-256（提供者可用Node标准crypto）」。
+
+采用依据：v7-design 由 [D-110](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md) 采用，v8 由[ACK 后继决定](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)采用。`tools/ts-checks` 的 `core-pure-imports` 表随此登记对齐；这是静态边界检查，不是新增 binding（仍为 0）或行为证据。
+
+## v7 创建记录与回复关系候选（2026-09-29）
+
+节点为 `provider`，源码 `packages/core/messages` 已存在、当前实现 MS6；本次只起草 [v7-design.md](v7-design.md)，不修改原 v6 设计与采用。
+
+- 语义接受：**本版无**；catalog 的 `data.messages/v7` 及本批 MR10/RT11/CA3 为 candidate，旧接受不提升本版。
+- 可实施：候选明确唯一共享技术值、创建内容和 marker 的纯判定、S-9 原回复与首次 persisted 消息关系；无存储/服务/索引/授权。22 资源图、下游精确 MS6 资源、候选公开面及消费者迁移待实施与独立审阅，见 M7-G1/G2。
+- 绑定与证据：**新增 0 条**；原 `bindings.yaml` 的 v3 单条保留原适用范围，新候选不绑旧证据。
+- 实际验证：**本版尚无实现验证**；结构检查不证明运行行为。真实来源、当前写权、内容存续与原批发布仍由 runtime/日志/装配 owner 完成，受阻范围见 M7-G3。
+
+入口：[v7 候选投影与公开面](v7-design.md) · [本版义务及覆盖缺口](verification.md#v7-创建记录与回复关系候选义务)。下方历史段落按原版本和日期读取。
+
+## v6 当前格式迁移候选（2026-09-28）
+
+2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v6-design.md](v6-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
+
+- 语义接受：**本版无**；目标 MS6/MP5 尚待候选发布、catalog 登记和主线采用。D-099 已接受的是 MS5/MP4，不能替代本版接受。
+- 可实施：候选明确 root/schema 单一当前格式、完整限制快照、精确七资源闭包和当前消费者迁移；不保留旧 messages 运行入口。契约最终资源与消费者精确采用未闭合前，不提升为可正式施工。
+- 绑定证据：本版 **0 条**；`bindings.yaml` 的历史 v3 单条保持原范围。
+- 实际验证：**本版尚无实现验证**；本次只有窄迁移设计与结构检查，旧测试不重标。
+
+入口：[v6 候选设计](v6-design.md) · [六项验收与受阻消费者](verification.md#v6-当前格式迁移候选义务)。以下旧段落按各自版本和日期读取；v4 的保留旧入口方向不再是本轮候选方案。
+
+## v4 候选增量（2026-09-27）
+
+- kind：`provider`
+
+节点及源码位置仍为 `packages/core/messages`，已有 v3 源码。本次是[独立的 v4 增量设计](v4-design.md)，不覆盖已接受的 [design.md](design.md)。
+- 语义接受：**本版无**。`data.messages/v4`、`data.model-profile/v3` 已登记为 candidate；旧2/3的接受和执行保留原坐标，不提升为4。
+- 可实施：候选给出 S-37/S-39/S-49 的新固定 Schema 图、完整无损绑定比较与模型 ID 对齐；保留3纯值面及2/3 Schema的闭包要求见设计 M4-P7。接受后才能实施；旧档案2端口和实际消费者接线仍待，见 M4-G2；未来2消费者的采用责任另列 M4-G3，不新增 messages2 judge。
+- 绑定与证据：本版 **0 条绑定**；历史 v3 的 **1 条**保留原适用范围。规格探针不是本节点源码证据，Alloy 未登记为可绑定任务。
+- 实际验证：**本版实现尚无**。既有 v3 已实施；本次只形成待独立评审的节点稿。v4 验收与外部 runtime/日志演练未完成。
+
+本版入口：[实现增量](v4-design.md) · [验证义务与缺口](verification.md#v4-候选证据义务) · [绑定](bindings.yaml)。以下各段均保留其日期与精确版本，不能据旧签收判断 v4 已交付。
+
 ## 最终 core 阶段签收（2026-09-26）
 
 本节点本阶段的 17 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
@@ -53,3 +104,13 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+2026-09-29：[D-110](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)已采用本节点 T29 精确增量；原候选正文保留受审字节，新增实现与验收尚待。
+
+## 当前公开定义资源闭包后继候选（2026-09-29）
+
+[共同后继](public-definition-resource-closure-followup.md)以 MS7 50/MR10 25 公开定义及真实私有入口为编译根，各9份规范资源；RC1–RC5替代原全依赖文件defs扩张要求的范围尚待主线采用。T26固定输入的75公开编译/18因果删除反控已有，生产注册迁移、实际制品与冷构建仍待；原冻结设计/证据保持各自范围。
+
+## MS8 ACK 候选
+
+[v8 ACK 实现映射](v8-acknowledgement-design.md)消费同批MS8/RT12/MR11/CA4候选，增加ACK/原账见证表示及唯一无损语义摘要纯构件。语义接受：未采用；可实施：待成组评审/主线采用；绑定证据：新增0；实际验证：未执行。旧D110与资源闭包纠正的采用/证据范围不被本候选冒用。

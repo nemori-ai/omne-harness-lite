@@ -1,0 +1,58 @@
+{
+  "format": 1,
+  "status": "accepted",
+  "decision_path": "record/decisions/model-runtime-v4-projection-adoption/decision.md",
+  "decision_id": "D-087",
+  "authority": "root technical planner under user implementation and acceptance delegation; human overall acceptance excluded",
+  "at_utc": "2026-09-27T17:09:49.881447+00:00",
+  "user_instruction": "Implement the plan.",
+  "node": "packages/model/model-request-runtime",
+  "design_path": "realization/packages/model/model-request-runtime/v4-design.md",
+  "revision": 2,
+  "sha256": "95a0115e89404d147ef547655e06e3c8bca86a79c16b9a9fa8b13dc56518f212",
+  "contract": {
+    "baseline_id": "omne-harness-lite-design-2026-09-15",
+    "contract_id": "capability.model-request-runtime",
+    "version": 4,
+    "adoption": "record/decisions/model-runtime-tail-settlement-adoption/acceptance.json"
+  },
+  "review_archive": "record/proposals/model-request-adaptation/reviews/model-runtime-v4-projection-2026-09-27.tar.gz",
+  "review_archive_sha256": "e266650e23079f20fe816b7e9c3b831bb2e20ff9ecd84b23276b56401cb0a510",
+  "review_archive_members": 135,
+  "input_count": 119,
+  "input_manifest_sha256": "132438374c0a208d9f95a398831d9e5e88dd692e302ee623d6686b4ead9f431b",
+  "resolved_review_findings": [
+    "R4-EX1"
+  ],
+  "closed_scope": "R4-G7 exact candidate technical adoption step only",
+  "remaining": [
+    "R4-G1",
+    "R4-G2",
+    "R4-G3",
+    "R4-G4",
+    "R4-G5",
+    "R4-G6",
+    "R4-G7 inherited verification and consumer delivery"
+  ],
+  "new_bindings": 0,
+  "implemented": false,
+  "IO_verified": false,
+  "thirteen_operations_verified": false,
+  "consumer_auto_upgrade": false,
+  "official_certified_models": 0,
+  "human_overall_acceptance": false,
+  "post_adoption_checks": {
+    "archive": "checks.tar.gz",
+    "sha256": "020a5f4d391b0c0f9f67de5472f331fc5688f4543627e318413a45c06e93901a",
+    "files": 15,
+    "readback_matched": true,
+    "design_internal_exit": 0,
+    "design_internal_elapsed_seconds": 14.021321439184248,
+    "formal": "skip",
+    "diff_check_exit": 0,
+    "IO_execution": false,
+    "staged_diff_attempt1_exit": 2,
+    "staged_diff_final_exit": 0,
+    "failure_scope": "New README and decision trailing empty lines; corrected before commit; no adopted projection byte change"
+  }
+}

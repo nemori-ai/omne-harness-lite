@@ -1,0 +1,3 @@
+ERROR: spec/capabilities/model-request-runtime/v3/contract.md: missing Markdown anchor: ../verification.md#v3-候选变化与证据
+ERROR: spec/capabilities/model-request-runtime/v3/formal/README.md: missing Markdown anchor: ../../verification.md#v3-候选变化与证据
+FAIL: design validation found 2 error(s).

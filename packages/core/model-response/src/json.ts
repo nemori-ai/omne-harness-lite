@@ -1,5 +1,7 @@
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
   LosslessNumber,
+  isJsonNumber,
   readJsonStrict,
   writeJsonLossless,
   type JsonObject,
@@ -24,4 +26,29 @@ export function isObject(value: unknown): value is JsonObject {
     !Array.isArray(value) &&
     !LosslessNumber.is(value)
   )
+}
+
+export function equal(a: JsonValue, b: JsonValue): boolean {
+  if (isJsonNumber(a) && isJsonNumber(b))
+    return ExactDecimal.from(a).compare(ExactDecimal.from(b)) === 0
+  if (Array.isArray(a) && Array.isArray(b))
+    return (
+      a.length === b.length &&
+      a.every((item, i) => {
+        const other = b[i]
+        return other !== undefined && equal(item, other)
+      })
+    )
+  if (isObject(a) && isObject(b)) {
+    const keys = Object.keys(a)
+    return (
+      keys.length === Object.keys(b).length &&
+      keys.every(key => {
+        const one = a[key],
+          two = b[key]
+        return one !== undefined && two !== undefined && Object.hasOwn(b, key) && equal(one, two)
+      })
+    )
+  }
+  return a === b
 }

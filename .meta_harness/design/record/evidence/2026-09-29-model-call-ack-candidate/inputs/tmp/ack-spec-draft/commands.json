@@ -1,0 +1,32 @@
+{
+  "schema": {
+    "command": ".venv/bin/python tmp/ack-spec-draft/check-schema-03.py > tmp/ack-spec-draft/schema-03.log 2>&1",
+    "result": "80 cases, 0 mismatch; script exit path 0; shared shell later docs checker returned exit0",
+    "log": "tmp/ack-spec-draft/schema-03.log"
+  },
+  "digest": {
+    "command": ".venv/bin/python tmp/ack-spec-draft/check-vectors.py > tmp/ack-spec-draft/digest-01.log 2>&1",
+    "result": "20 canonical +4 equal+6 different PASS; exit0",
+    "log": "tmp/ack-spec-draft/digest-01.log"
+  },
+  "design": {
+    "command": ".venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal registered > tmp/ack-spec-draft/design-01.log 2>&1",
+    "exit_code": 0,
+    "log": "tmp/ack-spec-draft/design-01.log",
+    "scope": "before final self-reference-only snapshot03; no registry/shape delta thereafter"
+  },
+  "docs": {
+    "command": ".venv/bin/omne-docs-check > tmp/ack-spec-draft/docs-01.log 2>&1",
+    "exit_code": 0,
+    "log": "tmp/ack-spec-draft/docs-01.log",
+    "result": "1948 markdown PASS; final verification added only this outcome text"
+  },
+  "formal": {
+    "command": ".venv/bin/python tmp/ack-spec-draft/run-formal-03.py",
+    "exit_code": 0,
+    "details": "formal-run-03/results.json has exact java argv/exit per configuration"
+  },
+  "inheritance": {
+    "details": "inherited-model-sha256.json: 90 byte-identical; frozen-check.json:970 with no mismatch"
+  }
+}

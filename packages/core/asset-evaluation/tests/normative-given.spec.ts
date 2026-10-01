@@ -351,7 +351,12 @@ describe('original given normative sets through the actual shared kernel', () =>
         tenant: whose,
         standing: { standing: 'effective', role: 'member' },
         definitions: defs,
-        root: { definition: helper, references: [{ capability: c }] },
+        root: {
+          definition: helper,
+          references: [{ capability: c }],
+          attributes: [],
+          source: { asset: 'ast_off_helper6', version: 1 },
+        },
         holdings: [
           holding('factory', helper, 'ast_off_helper6', [], false, whose),
           ...(branch === 'C' ? [] : [holding('factory', c, 'ast_off_fmt', [], false, whose)]),
@@ -426,6 +431,8 @@ describe('original given normative sets through the actual shared kernel', () =>
           definition: helper,
           references:
             branch === 'B' ? [{ capability: c }] : [{ capability: t }, { capability: helper }],
+          attributes: [],
+          source: { asset: 'ast_t_helper7', version: 1 },
         },
         definitions: [
           definition(
@@ -486,7 +493,12 @@ describe('original given normative sets through the actual shared kernel', () =>
       t = cap('tool', 'shell')
     const input: NonConnectorEvaluationInput = {
       ...simple(),
-      root: { definition: helper, references: [{ capability: t }, { capability: plugin }] },
+      root: {
+        definition: helper,
+        references: [{ capability: t }, { capability: plugin }],
+        attributes: [],
+        source: { asset: 'ast_off_helper8', version: 1 },
+      },
       definitions: [
         definition('ast_off_helper8', helper, {
           category: 'agent_definition',

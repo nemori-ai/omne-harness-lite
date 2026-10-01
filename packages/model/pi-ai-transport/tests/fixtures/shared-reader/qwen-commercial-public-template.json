@@ -1,0 +1,68 @@
+{
+  "qwen/qwen3.8-max-0902": {
+    "definition": "4",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-20"
+    },
+    "algorithm": "qwen3.8-max-0902-public-template-1",
+    "tokenizer": "tokenizer-basis/qwen-commercial-38-template-wire-order-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  },
+  "qwen/qwen3.8-max-prime": {
+    "definition": "4",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-20"
+    },
+    "algorithm": "qwen3.8-max-prime-public-template-1",
+    "tokenizer": "tokenizer-basis/qwen-commercial-38-template-wire-order-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  },
+  "qwen/qwen3.8-flash": {
+    "definition": "4",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-20"
+    },
+    "algorithm": "qwen3.8-flash-public-template-1",
+    "tokenizer": "tokenizer-basis/qwen-commercial-38-template-wire-order-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  },
+  "qwen/qwen3.7-max": {
+    "definition": "4",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-20"
+    },
+    "algorithm": "qwen3.7-max-public-template-1",
+    "tokenizer": "tokenizer-basis/qwen-commercial-37-template-wire-order-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  },
+  "qwen/qwen3.7-plus": {
+    "definition": "4",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-20"
+    },
+    "algorithm": "qwen3.7-plus-public-template-1",
+    "tokenizer": "tokenizer-basis/qwen-commercial-37-template-wire-order-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  },
+  "qwen/qwen3.7-flash": {
+    "definition": "4",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-20"
+    },
+    "algorithm": "qwen3.7-flash-public-template-1",
+    "tokenizer": "tokenizer-basis/qwen-commercial-37-template-wire-order-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  }
+}

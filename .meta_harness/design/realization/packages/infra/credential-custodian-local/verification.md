@@ -1,5 +1,7 @@
 # credential-custodian-local 验证与证据
 
+下列原设计义务与独立评审记录保留当时范围；来源绑定候选的新增义务在末尾，不以其替代完整 CCL 六操作/OAuth 验收。
+
 契约侧的证据义务权威在 [`spec/capabilities/credential-custodian/verification.md`](../../../../spec/capabilities/credential-custodian/verification.md)：一份 TLA+ 模型（已运行）加七条规范场景（未开始）。
 本页按本节点的兑现点登记，再加**本节点自己的选择**带来的义务（锁同一绑定行与同一个过期谓词、附加认证数据、密钥现读与启动时判定、存储异常剥值）。**本节点尚未建包，一切未开始。**
 
@@ -67,3 +69,46 @@ formal task `credential-custodian-v2-sweep`（[run 2026-09-25-formal-credential-
 | D-1 `oauthPendingTtl` 双持（主线裁） | 维持双持加相等装配测试；谓词已只一份 | design CCL-3 |
 | 观察：本包依赖 `tools/mcp-bridge` 子路径的方向（主线裁） | 与契约依赖同向，接受 | design 关键选择一、CCL-10 |
 | 顺带 | CCL-7、CCL-8 的契约措辞已落（D-060 §八 N-40 ③），改「已闭合」 | design 缺口表 |
+
+
+## 模型副本来源绑定候选的验证义务
+
+对应 [v2-design.md](v2-design.md)、CCL2 S-5～S-20 与目录3 S-7/S-12/S-19/S-20/S-32；精确采用状态查 [registry catalog](../../../../registry/catalog.json)。本节点尚未建包，全部新增义务未开始、绑定仍 0；既有 Sweep 模型不含模型 sourceRef 或目录绑定轮换，不能用于本增量的实现绑定。
+
+### 旧义务保留及本次影响
+
+| 旧义务 | 保留与增量影响 |
+| --- | --- |
+| S-22/S-23/S-24 | 通用离线副本、据点隔离和登录归属清除原场景保留；model-only 的真实 bootstrap 不冒充中心送达或完整登录结束产品流程 |
+| S-25/S-28、N-1/N-10 | OAuth 真桥事务函数、真实迁移/外键、完成与清扫的交错全部保留；窄组件不执行也不关闭这些义务 |
+| S-26/S-27、N-3/N-4/N-11 | 原加密/秘密隔离/错误剥值/上游取证保留；MCR-V2/V5 增加 sourceRef AAD 与新边界哨兵 |
+| 原失败反例、N-2/N-8 | 旧六操作输入次序、tenant-only 读、按登录状态删除、纯构件全部保留；MCR-V1 验 generic 新写清标签及新格式通用读 |
+| N-5/N-7 | full 两张条目表均空才生成钥的判据和清扫配置仍原样；model-only 单独验证预置钥、无自动生成、无伪 OAuth 默认配置 |
+| N-6/N-9 | 原 full 撤除与调用点限制保留；MCR-V6/V7 增加窄闭包及技术 subpath 的 owner/消费者检查 |
+
+### 新增真实验证
+
+共同前提：真实 SQLite 临时文件库、同一 AtomicStorage 实例、目录真实 bind/unbind 与事务 helper、实际本机 keyFile；通过真实账号/登录/组织治理公开能力取得身份。秘密原值只在测试进程内持有，证据输出只记录断言与阶段。损坏 fixture、拆保护的负控与正常业务路径分别记录；跨实例竞争必须指向同一实际库，不能拿两个独立库假并发。PG 未执行单列未验，不外推 SQLite 结果。
+
+| # | 条款与动作 | 必须可失败的断言 / 范围 | owner |
+| --- | --- | --- | --- |
+| MCR-V1 | CCL2 S-5/S-12～S-15：旧格式行迁移、generic store/read、bound store 后 generic read、再 generic 重写、按登录状态清除 | 迁移只增 NULL 不猜 sourceRef；旧 read 仍交原 tenant body；bound 格式由已存 ref 重建 AAD 通用读成功；generic 重写清来源且以旧 AAD 封存，新目录读不得借旧标签成功。一个租户一整行，login/state/time/body/source 一起换；按 LoginStateId 删除不改变别的归属 | 本节点 |
+| MCR-V2 | CCL2 S-6/S-7/S-8：真实钥封存 A；仅改 source_ref、跨 tenant 移密文、复制旧 ciphertext 并贴新 ref、不同账号/据点复制行、错钥/截断；重开同文件 | 不匹配不交 body，留下裁剪后的原因；新 AAD 绑定真实来源，旧格式+新非空 ref 不可冒充有效；另一据点保持自己的钥时交不出。扫描 SQLite 主文件/WAL、所有持久证据无哨兵明文；不宣称密钥与密文一并被盗也安全 | 本节点 + storage |
+| MCR-V3 | 目录3 S-19/S-20/S-32：真实 refA/bodyA 发布→bind refB，副本尚为 A；迟到 store A；再实际 store B；unbind；custom 与 official 分支 | present 可为 true 但 value 不得交 A；迟到 A 返回技术 stored:false 且不覆盖 B/残留；B 完整提交后只交 B；无 sourceRef 同样不交。tenant 分支解不出不得回 factory；只有确无绑定且 official 才由目录选 factory，custom 不回退。取值失败对应 runtime 零 HTTP；无暗中中心查询或第二次重试 | directory + 本节点 + runtime |
+| MCR-V4 | 目录3 S-19/S-20、K-M1/K-M2：在真实锁取得处设屏障，两连接并发 bind/unbind 与 storeBoundReplica/readBoundReplicaIn；提交前中途终止进程、提交后回执丢失后重开 | 同一 model_credential_binding tenant 行排序，读只交该次完整匹配 body；来源/密文/归属无半份；漂移不写，未知提交由实际重开事实判定。分别移除锁后使用旧值、移除来源比较、在读时贴当前 ref 的负控必须失败。记录真实 StorageUnit/assertStorage；参与异常到外层终结后才映射，对外 body 不早于 atomic 成功返回 | 本节点 + directory/storage |
+| MCR-V5 | CCL2 S-7/S-8 与 SYS-OBSERVABILITY：model-only 缺钥/坏权限/坏长度/非普通文件；运行期不可读；目录读失败/存储约束失败；观测端口失败 | 缺钥启动失败且不生成，运行期 key/storage 不可用不假 absent。body/key/全部 ref/密文不进日志、trace、诊断、错误 cause、指标标签；成功 body 仅到目录取值→本次 transport。上游 Node 假设沿 N-11 取证，不凭使用 crypto 声称已通过；观测失败不能伪造业务完成 | 本节点 + app/观测 owner |
+| MCR-V6 | CCL2 S-20：独立 factory 和真实 Cordis 装配；阻塞参与读、发布，随后撤 P-1r/替换依赖/取消等待/关闭 | 准入关闭后不接受新工作；实际 unit 尚未结束时不能提前交 body、销毁 key 或关闭借来的 storage。外层 owner 等实际 Promise/事务，取消不等于停止；撤除不删钥/副本/目录绑定。P-1r 只借用唯一组件，app owns close，无多 disposer 顺序假设；无后台任务与句柄泄漏 | 本节点 + directory/app |
+| MCR-V7 | CCL2 S-11/S-19、目录3 S-12：真实 auth/accounts/logins/OG → 可信 source pair 导入 → bind → bound store → runtime 取值；制品/调用点负控 | 实际 LoginStateId 与租户账号一致，不造品牌值；真实 helper 由 createCredentialBindingReader(storage) 产生，恒值 reader 替身不算实际链。按候选逐 symbol 许可检查：bootstrap 可以导入/调用两个工厂并传递闭包、调用 store，不能执行 binding reader 或 readBoundReplicaIn；P-1r 可执行两种读，不得 close；CCL 只执行被注入 reader，不反向 import directory。合法构造链必须通过，越权导入/调用各有失败负控。model-only 不 provide 六操作键、不加载伪 MCP、不执行 OAuth 迁移；full 模式缺真实桥仍受阻，不能把窄组件断言成 full。验证关停次序与迁移/密钥 owner | app + directory + 本节点 + ts-checks |
+| MCR-V8 | 提供者技术投影的完整结果/异常表；CCL2 S-9/S-10/S-20、core/storage P-13：逐格注入非法 sourceRef/expectedRef/tenant/body、clock unavailable、close、坏钥、四型存储失败、wrong/closed/非活跃/重叠 Unit、reader 非法返回 | 写入严格复用 invalidInput/custodianWithdrawn/unavailable；漂移才 stored:false。参与读仅 body/absent 为正常结果，内部非法参数和 Unit 误用抛 StorageDefect，closed/key/storage 不可用抛 StorageUnavailable；clock unavailable 不影响读取。先在真实 atomic 暂存哨兵行，再注入参与异常并故意在 caller catch：单元仍须失败且哨兵不提交；正常 absent 可结束但不交 body。P-1r 仅在 atomic 外把 StorageUnavailable 映射 unavailable，另外三型/其它缺陷不得降格；所有异常剥值仍保持分类。重复 close 同等实际排空，提前结束或绕过 run 的变异必须失败 | 本节点 + directory/storage + app |
+
+### 覆盖缺口
+
+- **MCR-1**：候选尚未采用、无实现/制品；本机模型凭据链须待双方真实组件与 MCR-V1～V8。设计检查不是 SQL 或凭据符合性证据。
+- **MCR-2**：真实 bootstrap 只闭合本次本地输入来源。CCL G-5/G-6/G-7 的产品登录结束、中心送达、刷新与轮换传播仍由未来 owner 承接。
+- **MCR-3**：full CCL 的真桥 tx-reads/迁移/OAuth 义务仍阻断完整节点声明；model-only 只能按自身范围报告通过。
+- **MCR-4**：`apps/model-request-acceptance` 尚未成稿；真实身份、可信 source pair、keyFile、唯一组件 owner、调用点限定和退出次序须在装配节点明确并验收。
+- **MCR-5**：所有来源格式、加密/文件异常、真实并发、PG、重开、撤除和零泄漏证据尚未执行；原 CCL-11/12 待核对主张不因新增设计而关闭。
+
+### 候选文档检查
+
+2026-09-27，rev 2 补齐技术结果/异常与符号级许可后，实际执行 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal registered --gate internal`，退出 0，输出 `PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/.meta_harness/design passed gate=internal; formal=registered.`。formal 仅登记检查，均报告 `execution was not requested`。本节点 diff 空白检查通过；原已接受 design.md 与 HEAD 无差异。没有实现测试、真实 IO 或新 formal run；静态通过不代表候选已接受或提供者已验证。

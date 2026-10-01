@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
-import current from '@omne-harness-lite/loop-extension/schema' with { type: 'json' }
+import current from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
 import retained from '@omne-harness-lite/loop-extension/schema/v2' with { type: 'json' }
 
 it('D068 public default3 and retained2 are complete exact frozen resources', () => {
   for (const [version, resource, suffix] of [
-    [3, current, ''],
+    [3, current, '.v3'],
     [2, retained, '.v2'],
   ] as const) {
     const bytes = readFileSync(

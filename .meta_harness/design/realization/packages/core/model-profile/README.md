@@ -1,3 +1,54 @@
+## MP6 精确资源候选增补（2026-09-29）
+
+[窄资源设计](v6-schema-resource-design.md)仅为MS7创建内容提供MP6精确Schema；当前root/Schema仍MP5，两个版本快照值域相同，发送计量语义另归runtime。语义接受：本节点增补未采用；可实施范围：仅资源出口与消费核验候选；绑定证据：新增0；实际验证：本增补未执行。不得把D-101契约接受视为本提供者已发布。
+
+## v4 破坏性迁移增补（2026-09-28）
+
+2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v5-current-design.md](v5-current-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
+
+用户明确取消现阶段旧版兼容要求；[破坏性迁移增补](v4-breaking-migration.md)据此提出替代 D-098 的旧入口与 codec 保留路径，原 [v4-design.md](v4-design.md) 采用字节不变。root/schema 直接 MP4；不新增 v3 端口，既有 v2 端口在实际消费者同步迁移后移除。旧用户数据不改，版本不兼容明确拒绝。
+
+| 层次 | 本次增补事实 |
+| --- | --- |
+| 语义接受 | 原 MP4 提供者增量由 D-098 采用；本破坏性迁移稿尚待主线 D-100 采用，不自我接受 |
+| 可实施范围 | 新稿列清旧端口实际消费者、同步迁移、不回填及验收；纯值与 M15/M16 设计保持，不扩全系统依赖升级 |
+| 绑定与证据 | 本增补新增 0 条；原 1 条 v2 绑定仅保留历史范围 |
+| 实际验证 | 本迁移尚无产品验收；设计检查不证明旧端口已移除或新闭环已跑通 |
+
+以下为原增量起草时记录；其兼容路径由本次增补申请替代，四层状态不得混读。
+
+## v4 增量候选（2026-09-28）
+
+节点仍为 `packages/core/model-profile` 纯值 provider。[v4-design.md](v4-design.md)接续 `(omne-harness-lite-design-2026-09-15, data.model-profile, 4)`，引入明确项目 cap、上游三态及完整限制快照；无新增 Cordis 插件、服务或存储。
+
+| 层次 | 当前事实 |
+| --- | --- |
+| 语义接受 | **无本版接受**；MP4 在 catalog 为 candidate，PF-013 rev 14／D-096 的产品接受不替代契约及节点接受 |
+| 可实施范围 | MP4-1～MP4-5 已给出候选兑现点；现有源码 root 实际为 v3，v4 尚未实施。root/schema 升 v4，现有精确 v3 消费显式转到候选 v3 入口 |
+| 绑定与证据 | 既有 1 条 v2 绑定保留；v4 新增 0 条。V4-1～V4-5 是待执行义务，不是运行结果 |
+| 实际验证 | **尚无 v4 产品实现验收**；本次文档检查只支持设计信息树一致性，不支持完整模型定义、目录写入或真实发送 |
+
+阅读：[候选投影、公开面及取舍](v4-design.md)、[验证与消费者缺口](verification.md#v4-候选的证据义务)。MP4-G1～G3 分别归主线采用、本包实施、目录/runtime/transport 消费者。以下旧日期记录保持各自范围；其“v3 尚未实现”不代表当前源码。
+
+## v3 增量候选（2026-09-27）
+
+- kind：`provider`
+
+节点和源码路径均为 `packages/core/model-profile`；现有包已实现 v2，本次不是新建包。
+- 对象与设计修订：[`v3-design.md`](v3-design.md) 候选，消费 `(omne-harness-lite-design-2026-09-15, data.model-profile, 3)`；[catalog](../../../../registry/catalog.json) 当前登记 `candidate`。既有已接受 [design.md](design.md) 保持 v2 范围。
+- 共同分工：纯类型、固定 Schema、表示判断与引用匹配；目录拥有历史配置判重，runtime/transport 拥有注册可用性、调用快照冻结与在途资源。
+
+### v3 分层状态
+
+| 层次 | 当前事实 |
+| --- | --- |
+| 语义接受 | **无本版接受**。v2 的接受和 core 阶段签收不传递给 v3；本稿待主线独立评审 |
+| 可实施范围 | 候选投影 MP3-1～MP3-7 已给出，实施须以精确契约及本节点接受为前提。v3 尚未实现；root/schema 切换需与旧消费者显式采用 v2 端口同步 |
+| 绑定与证据 | 当前共 1 条绑定，仍只支持 v2 S-16；**v3 新增绑定 0 条**。本版纯值与制品义务 V3-1～V3-7、外部 owner 义务另列，不复用旧证据提升状态 |
+| 实际验证 | **尚无本版产品实现验收**。已有 v3 的 321 项 Schema 自检，仅支持候选 Schema 的列举输入；完整 judge、严格 JSON 接收、双版制品与真实调用不在其内 |
+
+本版阅读入口：[增量投影与取舍](v3-design.md)、[v3 验证义务及缺口](verification.md#v3-候选的证据义务)、[精确版本绑定](bindings.yaml)。MP3-G1～G4 的 owner 与受阻消费者见增量设计。以下 2026-09-26 的接受和运行记录仍属于 v2。
+
 ## 最终 core 阶段签收（2026-09-26）
 
 本节点本阶段的 12 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
@@ -42,3 +93,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+2026-09-28：[D-098](../../../../record/decisions/model-input-limit-provider-adoption/decision.md)在独立架构评审无阻断后技术采用 v4 增量。MP4 契约由 D-097 接受；源码与验证另行推进，旧正文的 candidate 为起草状态。
+
+2026-09-29：[D-110](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)已采用本节点 T29 精确增量；原候选正文保留受审字节，新增实现与验收尚待。

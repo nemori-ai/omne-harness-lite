@@ -17,7 +17,7 @@ PF-017 为这个应用开题时点名的就是本节点（[拍板记录](../../.
 
 本节点是 [PF-017 治理中心作为一个可部署应用](../../../product/PF-017-governance-center-as-deployable-application/README.md)（rev 6）的应用装配——
 PF-017 有意不在治理中心身上用「交付面」这个词，本节标题只沿用节点模板——并承接
-[PF-001 身份、范围与对 Agent 的约束](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)（rev 22）
+[PF-001 身份、范围与对 Agent 的约束](../../../product/PF-001-identity-scope-and-agent-constraints/README.md)（rev 25）
 的[投影 v1 第 3 步](../../../product/PF-001-identity-scope-and-agent-constraints/projection/v1/projection.md#8-实施顺序)：
 把租户领域的五个 provider、四个基础设施 provider 与入口层所在的包装进**一台机器上的一个进程**，给它们真实的存储、时钟与密钥，并让它对客户端与运维者各开一张面。
 **本程追加（设计已接受，尚未实现）**：同一进程再装资产提供者与模型档案目录的中心插件 P-1（[D-059](../../../record/decisions/assets-runtimes-split-and-rulings/decision.md#拆分领域名与装配g3)：承载已超出租户领域、现在不改名）；它们兑现的契约都是 `accepted`，本版**对外不可达**（入口契约 v1 路由表封闭），[design「本程追加」](design.md#本程追加资产治理与模型档案目录的中心侧候选尚未实现)。

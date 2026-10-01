@@ -104,3 +104,13 @@ The supplied five body contracts cover Tool, Loop Extension, Skill, MCP and Slas
 Directory normalization is lexical: it requires an absolute path and does not resolve symlinks or read the filesystem. `carrierRecordId` includes the tenant, directory and capability; it is an identifier, not a content hash. Use `contentFingerprint` when tracking body changes. The module does not persist assets, establish sharing or authorization, or enforce uniqueness and mutation rules across stored records.
 
 Public JSON Schema entries are `@omne-harness-lite/asset-model/schema` (v3) and `/schema/v2` (retained v2). See [source exports](src/index.ts), [tests](tests/) and [asset evaluation](../asset-evaluation/README.md).
+
+## Load the Connector schema resource
+
+The public `schema/connector/v2` subpath supplies the exact Connector v2 resource used by the asset schema. Consumers building a fixed schema graph can load it without accessing package internals. It provides a schema resource, not a Connector runtime.
+
+```ts
+import connectorSchema from '@omne-harness-lite/asset-model/schema/connector/v2' with { type: 'json' }
+
+console.log(connectorSchema.$id)
+```

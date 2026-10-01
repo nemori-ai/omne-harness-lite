@@ -1,0 +1,17 @@
+{
+  "source": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash",
+  "sourceRevision": "dba1be0a40aa45a94ad051997016db3960a90277",
+  "license": "MIT",
+  "files": {
+    "tokenizer.json": { "sourcePath": "tokenizer.json", "sha256": "c90dfa01249db1be4245780a052ede752e1361c612ac6d08e2bdada7d599476b" },
+    "tokenizer_config.json": { "sourcePath": "tokenizer_config.json", "sha256": "6ac8c8dc065ed118161d02dd532749ae3f52c243deac27872134fae2f50d8547" },
+    "LICENSE": { "sourcePath": "LICENSE", "sha256": "f2c6c602815669d292889e5be8c802f2ed950653b77999b1584e8e6aed25d040", "packagedSha256": "1c8f573e830ca9b3ebfeb7ace1823146e22b66f99ee223840e7637c9e745e1c7", "packaging": "CRLF normalized to LF; license text unchanged" }
+  },
+  "reference": {
+    "encoding/encoding.py": "502bdaec8a3fd88ebc24c4721a7038fbe42f2063c664638127056107920035c1",
+    "encoding/README.md": "a2f0fc3baea318c9cfbceca68cbfe50d37cf7da6605ace887f33148bcff7e3ae",
+    "inference/image_processor.py": "482759e3bcc4e9bb5ee582b244cc563f5d0e163d8b48dda91ebb7106e62f9272",
+    "inference/config.json": "2e84f45cf1dac8c7fcbb200e96667d4b913275690668ed496f24c7747207a809"
+  },
+  "scope": "Reference text/tool/image prompt encoding and model-specific vision_max_n_token=1024 support an estimated OpenRouter deepinfra/fp8 admission; no assertion of private provider prompt or preprocessing identity."
+}

@@ -1,0 +1,137 @@
+{
+  "format": 1,
+  "topic": "PF-013-model-profiles-and-invocation",
+  "version": "v4",
+  "label": "post-review-pending-adoption",
+  "generated_at": "2026-09-29",
+  "requirements_revision": 16,
+  "scope": "Only OpenRouter refusal mapping reviewed as pi-ai-transport v14 revision 2; not a full PF-013 replacement",
+  "source_commit": "af3ae908e1340e6ca4aa92fd603615987b2e6303",
+  "acceptance": null,
+  "frozen": "spec-resources-only",
+  "drift_note": "Hashes identify this reviewed snapshot. Only registry/frozen resources are immutable specification publications; all other hashes are snapshot checks, not a freeze or adoption. Recheck sources before implementation; changed inputs require a successor projection. The evidence.md source has EOF whitespace cleanup after source_commit, with its exact current bytes hashed here.",
+  "supersedes": null,
+  "superseded_by": null,
+  "sources": [
+    {
+      "resource": "product/PF-013-model-profiles-and-invocation/design.md",
+      "sha256": "5738f7ebe821fd3e873319cb964f1bff5b94b644e6c80bd04f1e8309127b18c2",
+      "frozen": false
+    },
+    {
+      "resource": "product/PF-009-context-message-types/design.md",
+      "sha256": "cc6ec2c5af469a7c1bd6c7e18a05bff3b55fcec241795682efe11db2ac073efd",
+      "frozen": false
+    },
+    {
+      "resource": "domain_objects/objects.md",
+      "sha256": "428822c140e5323abd36a6cf217a4cd5752d62150ef7454f8c59cda9efab12b7",
+      "frozen": false
+    },
+    {
+      "resource": "spec/data/content-blocks/v3/contract.md",
+      "sha256": "27ee5765f5cf96cbcfdbf14784e66c1200697d41d7fba6f728ce93ba2ca2c9bb",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/arrival-events/v2/contract.md",
+      "sha256": "dc162719256e22aabbc2d35a0a7178a450a709c1fb62276d03c33fdc45b45db5",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/stream-assembly/v3/contract.md",
+      "sha256": "3bc1e51fb4b2fa95609280e5217d7a9fd40e5770bd0211ad9dcdfd5d39f873d0",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/messages/v6/contract.md",
+      "sha256": "73736fb36e63961b88b88918c641608204863831f40c503dc96b5cecf9e84c1c",
+      "frozen": true
+    },
+    {
+      "resource": "spec/data/model-response/v9/contract.md",
+      "sha256": "fc4fe5f8092f1abff7efa6b27a228f7321575c5de8205c58de8ee8106ad3ebda",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/model-request-runtime/v10/contract.md",
+      "sha256": "add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c",
+      "frozen": true
+    },
+    {
+      "resource": "spec/capabilities/session-log/v3/contract.md",
+      "sha256": "f327f1289e1d6c539dd959e8862b382869e3d303cf984b6a773fdd6a00e4bd26",
+      "frozen": true
+    },
+    {
+      "resource": "realization/packages/model/pi-ai-transport/design.md",
+      "sha256": "2453440eac1a8327cfc898cd588a81fab5266dea32f996e1a9d65273d4a13cad",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/model/pi-ai-transport/v3-design.md",
+      "sha256": "297d42b6eb6b8841169724d3922bd9be4f1114a8432c498aa27cba4b9f75e0cd",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/model/pi-ai-transport/v6-credential-path-design.md",
+      "sha256": "1ada7f2b28edb6c8876c9860921f43249fde467fcfa0682ea002584e52480fce",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/model/pi-ai-transport/v12-usage-calibration-design.md",
+      "sha256": "8e2c62b2379ef7741ad44112421b1e6440849ec43d4b54edd7d94c2ff8e41476",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/model/pi-ai-transport/v13-output-history-design.md",
+      "sha256": "793c346fe97b4f31d970b42f2ce25df2afb168f3327f627d25270127a56a295f",
+      "frozen": false
+    },
+    {
+      "resource": "realization/packages/model/pi-ai-transport/v14-refusal-design.md",
+      "sha256": "cf687f33d8d60270a1982ce0e7bfe36819ac520695b80f3d33143215f3015a0e",
+      "frozen": false
+    },
+    {
+      "resource": "record/proposals/openrouter-refusal-mapping/design.md",
+      "sha256": "836fce381ecc0a2913105becf72e500e170ff5ed4187871a532f3284cccd9be4",
+      "frozen": false
+    },
+    {
+      "resource": "record/proposals/openrouter-refusal-mapping/alternatives.md",
+      "sha256": "13d8d448802c6c54fef28fc908e185d35bea5f7b2acfada106f0f97b9fcbc05e",
+      "frozen": false
+    },
+    {
+      "resource": "record/proposals/openrouter-refusal-mapping/review.md",
+      "sha256": "1f3519f879e87b044cffa311d941b21984de509d3e0380941be6fc3cc9affe3b",
+      "frozen": false
+    },
+    {
+      "resource": "record/proposals/openrouter-refusal-mapping/source-coordinates.json",
+      "sha256": "1910e02c328132e471852e7d7c4916298bbccb00cc74696c683fd6376a8a6d3d",
+      "frozen": false
+    },
+    {
+      "resource": "../research/openrouter-refusal-mapping/README.md",
+      "sha256": "247059b4d1fd479d0b0257c36d2ace07f340d847bd872fa0387285aaf797a0a2",
+      "frozen": false
+    },
+    {
+      "resource": "../research/openrouter-refusal-mapping/research.md",
+      "sha256": "549626d90e94e22cda88c967d33d8b3e9a0ed0f1ec007fdecb77f51833ab79c1",
+      "frozen": false
+    },
+    {
+      "resource": "../research/openrouter-refusal-mapping/evidence.md",
+      "sha256": "8e82317a53aec0cae110a50b88a757ecdf04c97064b5d6e21cac6b17a7ab33b0",
+      "frozen": false
+    },
+    {
+      "resource": "../research/openrouter-refusal-mapping/source-manifest.json",
+      "sha256": "94980c6da122c590d109b1f90190644921b01cf9eefb78c0c5a2dbf221432375",
+      "frozen": false
+    }
+  ]
+}

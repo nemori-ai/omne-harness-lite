@@ -16,3 +16,6 @@ bindings:
       - "实际HUB源a53644ad；Node24.18.0；原始运行与逐ID接受见record/evidence/2026-09-26-tests-core-final。"
       - "有限实现测试，不是任意输入证明；全仓make继承main三个失败，人的总体接受未签。"
     alignment_checked: "2026-09-26"
+
+# 2026-09-27：LC4 提供者修订尚未实施，新增绑定 0 条。
+# 上方 LC3 条目保留原版本/运行范围；新义务见 verification 的 LV4-1～LV4-6。

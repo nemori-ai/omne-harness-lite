@@ -7,9 +7,25 @@ import { syntaxImports, syntaxOf } from '../syntax.ts'
 export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>> = {
   'content-blocks': ['identity-values'],
   'asset-model': ['identity-values', 'offer-expiry', 'content-blocks'],
+  'agent-definition': [
+    'content-blocks',
+    'asset-model',
+    'tool-definition',
+    'model-profile',
+    'identity-values',
+    'offer-expiry',
+  ],
   'model-profile': ['content-blocks', 'identity-values', 'offer-expiry'],
   'call-accounts': ['content-blocks', 'asset-model', 'identity-values', 'offer-expiry'],
-  messages: ['content-blocks', 'call-accounts', 'model-profile', 'identity-values', 'offer-expiry'],
+  // MS7/MS8 精确依赖 TD3 ModelToolEntry：messages v7-design「精确依赖、资源与绑定」。
+  messages: [
+    'content-blocks',
+    'call-accounts',
+    'model-profile',
+    'tool-definition',
+    'identity-values',
+    'offer-expiry',
+  ],
   'tool-definition': ['content-blocks', 'asset-model'],
   'loop-extension': [
     'content-blocks',
@@ -20,6 +36,9 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'asset-model',
     'identity-values',
     'offer-expiry',
+    'mcp-endpoint',
+    'skill-package',
+    'slash-command',
   ],
   'skill-package': ['asset-model', 'content-blocks', 'tool-definition'],
   connector: ['asset-model', 'messages', 'content-blocks', 'offer-expiry', 'identity-values'],
@@ -39,10 +58,18 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'loop-extension',
     'offer-expiry',
     'identity-values',
+    'asset-model',
+    'tool-definition',
+    'mcp-endpoint',
+    'skill-package',
+    'slash-command',
   ],
   'slash-command': ['asset-model', 'content-blocks', 'identity-values', 'skill-package'],
   'stream-assembly': ['arrival-events', 'content-blocks', 'call-accounts'],
   'asset-evaluation': [
+    'agent-definition',
+    'call-accounts',
+    'model-profile',
     'identity-values',
     'asset-model',
     'mcp-endpoint',
@@ -61,16 +88,24 @@ const BUILTINS: Readonly<Record<string, readonly string[]>> = {
   'arrival-events': ['node:buffer'],
   'stream-assembly': ['node:buffer'],
   'asset-evaluation': ['node:crypto'],
+  // MS8 S-56 语义摘要喂 SHA-256：messages v8-acknowledgement-design「编码与依赖」。
+  messages: ['node:crypto'],
 }
 
 /** 精确子入口登记不替代上面的包依赖批准，也不准许相邻私有路径。 */
 export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
   'content-blocks': ['schema-runtime', 'schema/v2'],
-  messages: ['schema/v2'],
-  'model-response': ['schema/v2'],
-  'loop-extension': ['schema/v2'],
+  // MS6 原字节供 LC6 固定图：messages v7-design「另需保留 MS6 ./schema/v6」。
+  messages: ['schema/v2', 'schema/v3', 'schema/v6'],
+  // MP6 原字节供 MS7/MS8 created：model-profile v6-schema-resource-design。
+  'model-profile': ['schema/v2', 'schema/v3', 'schema/v6'],
+  // 根为 CA4 后 CA2 原字节供 AR2/LC6/SA3：call-accounts v3-design「本包 Schema 与元数据」。
+  'call-accounts': ['schema/v2'],
+  'model-response': [],
+  'loop-extension': ['schema/v2', 'schema/v3'],
+  'asset-evaluation': [],
   'tool-definition': ['schema/v2'],
-  'asset-model': ['schema/v2'],
+  'asset-model': ['schema/v2', 'schema/connector/v2'],
   // D-069: current AM3/AE3/Slash2 consume the exact Skill2 pure value/body boundary.
   'skill-package': ['v2', 'schema/v2'],
   // D-066 迁移后的消费者仍精确引用 OE1；完整原资源由这个入口公开。
@@ -78,6 +113,15 @@ export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
 }
 
 function allowedExternal(pkg: string, dependencies: readonly string[], specifier: string): boolean {
+  // Explicitly retained schema resources share the same owner; no private subpath is opened.
+  if (
+    ['messages', 'model-profile', 'model-response', 'loop-extension'].includes(pkg) &&
+    PUBLIC_SUBPATHS[pkg]?.some(
+      subpath =>
+        subpath.startsWith('schema/') && specifier === `@omne-harness-lite/${pkg}/${subpath}`,
+    )
+  )
+    return true
   // D-068：AM3 的固定资源图显式纳入本包完整 AM2；只批准这个公开资源入口。
   if (pkg === 'asset-model' && specifier === '@omne-harness-lite/asset-model/schema/v2') return true
   if (pkg === 'skill-package' && specifier === '@omne-harness-lite/skill-package/schema/v2')

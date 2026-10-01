@@ -16,6 +16,7 @@ import type { ScopeLayerIdentity } from '@omne-harness-lite/identity-values'
 import type { FailureCause } from '@omne-harness-lite/loop-extension'
 import type { AssistantMessage } from '@omne-harness-lite/messages'
 import type {
+  ModelAdaptationBinding,
   ModelProfileRef,
   ModelProfileSnapshot,
   ModelRequestParameters,
@@ -46,6 +47,8 @@ export interface ParameterAdjustment {
   readonly sent: JsonValue
 }
 export interface Route {
+  readonly adaptation: ModelAdaptationBinding
+  readonly servingProvider?: string
   readonly profile: ModelProfileRef
   readonly profileSnapshot: ModelProfileSnapshot
   readonly selectedBy: SelectedBy
@@ -73,14 +76,15 @@ export type Failure = {
 )
 /** RFC 3339 exchange strings, preserved without reading a clock or comparing instants. */
 export interface Timing {
-  readonly sentAt: string
+  readonly sentAt: string | null
   readonly firstTokenAt?: string
   readonly endedAt: string
 }
+export type RawHeaders = Readonly<Record<string, string | readonly string[]>>
 export type RawResponse = {
-  readonly headers?: Readonly<Record<string, string>>
+  readonly headers?: RawHeaders
   readonly body?: AttachmentRef
-} & ({ readonly headers: Readonly<Record<string, string>> } | { readonly body: AttachmentRef })
+} & ({ readonly headers: RawHeaders } | { readonly body: AttachmentRef })
 interface ResponseBase {
   readonly id: ResponseId
   readonly dispatch: JsonNumber
@@ -88,6 +92,7 @@ interface ResponseBase {
   readonly stopReason?: string
   readonly usage: Usage
   readonly cost: Cost
+  readonly inputCalibration: InputCalibration
   readonly trims?: TrimSummary
   readonly raw?: RawResponse
 }
@@ -104,6 +109,8 @@ type RunContext =
     }
 type OpenedTiming = Timing & { readonly firstTokenAt: string }
 type UnopenedTiming = Timing & { readonly firstTokenAt?: never }
+type SentOpenedTiming = OpenedTiming & { readonly sentAt: string }
+type SentUnopenedTiming = UnopenedTiming & { readonly sentAt: string }
 type Delivered = readonly [ContentBlock, ...ContentBlock[]]
 type NoReply = { readonly reply?: never; readonly replyDisposition?: never }
 type NoFailure = { readonly failure?: never }
@@ -111,7 +118,7 @@ type SuccessfulResponse = NoFailure & {
   readonly initiator?: never
   readonly delivered?: never
   readonly replyDisposition: ReplyDisposition
-  readonly timing: OpenedTiming
+  readonly timing: SentOpenedTiming
 } & (
     | {
         readonly outcome: 'complete'
@@ -145,12 +152,12 @@ type FailedResponse = NoReply & {
         readonly failure: Failure & {
           readonly cause: Exclude<FailureCause, 'interrupted_mid_reply'>
         }
-        readonly timing: UnopenedTiming
+        readonly timing: SentUnopenedTiming
         readonly delivered?: never
       }
     | {
         readonly failure: Failure & { readonly cause: 'interrupted_mid_reply' }
-        readonly timing: OpenedTiming
+        readonly timing: SentOpenedTiming
         readonly delivered: Delivered
       }
   )
@@ -158,6 +165,40 @@ type FailedResponse = NoReply & {
 export type ModelResponse = ResponseBase &
   RunContext &
   (SuccessfulResponse | InterruptedResponse | FailedResponse)
+/** S-39: complete reply facts before the writer determines disposition and lateness. */
+export type PendingModelResponse = ResponseBase &
+  (
+    | {
+        readonly call: { readonly callId: ModelCallId; readonly runId: RunId }
+        readonly attemptId: AttemptId
+      }
+    | {
+        readonly call: { readonly callId: ModelCallId; readonly runId?: never }
+        readonly attemptId?: never
+      }
+  ) &
+  NoFailure & {
+    readonly late?: never
+    readonly replyDisposition?: never
+    readonly delivered?: never
+    readonly timing: SentOpenedTiming
+  } & (
+    | {
+        readonly outcome: 'complete'
+        readonly initiator?: never
+        readonly reply: AssistantMessage & { readonly ending: 'complete' }
+      }
+    | {
+        readonly outcome: 'truncated'
+        readonly initiator?: never
+        readonly reply: AssistantMessage & { readonly ending: 'truncated_at_limit' }
+      }
+    | {
+        readonly outcome: 'interrupted'
+        readonly initiator: 'user' | 'run_cancelled'
+        readonly reply: AssistantMessage & { readonly ending: 'interrupted_by_user' }
+      }
+  )
 export type ModelResponseRejection =
   | 'outcome_unknown'
   | 'dispatch_zero'
@@ -173,3 +214,64 @@ export type ModelResponseRejection =
   | 'malformed'
 export type ModelResponseJudgment =
   { readonly ok: true } | { readonly rejected: ModelResponseRejection }
+
+/** MR11 S-41: versioned counting identity; the adapter owns actual compatibility. */
+export interface CountingBasis {
+  readonly binding: ModelAdaptationBinding
+  readonly model: string
+  readonly provider: string
+  readonly tokenizerRevision: string
+  readonly meterRevision: string
+  readonly projectionRevision: string
+  readonly replayRevision: string
+  readonly transformRevision: string
+}
+export type RequestInputEvidence =
+  | {
+      readonly kind: 'known'
+      readonly projectionRevision: string
+      readonly prefixBoundary: JsonNumber
+      readonly prefixDigest: string
+      readonly inputEnvelopeDigest: string
+      readonly countingBasis: CountingBasis
+    }
+  | { readonly kind: 'unavailable'; readonly reason: 'not_retained' | 'not_sent' | 'send_unknown' }
+export interface ObservationProvenance {
+  readonly adapterRevision: string
+  readonly fieldPaths: readonly [string, ...string[]]
+  readonly upstreamRequestId?: string
+  readonly upstreamModel?: string
+  readonly servingProvider?: string
+}
+export type ObservedInput =
+  | { readonly kind: 'from_usage'; readonly provenance: ObservationProvenance }
+  | {
+      readonly kind: 'upstream_total'
+      readonly tokens: JsonNumber
+      readonly provenance: ObservationProvenance
+    }
+  | {
+      readonly kind: 'unavailable'
+      readonly reason:
+        | 'missing_usage'
+        | 'response_cache'
+        | 'inconsistent_usage'
+        | 'scope_unknown'
+        | 'not_sent'
+        | 'send_unknown'
+    }
+export type OutputGroupEvidence =
+  | {
+      readonly kind: 'known'
+      readonly projectionRevision: string
+      readonly source: 'reply' | 'delivered' | 'none'
+      readonly blockDigests: readonly string[]
+      readonly completeness: 'complete' | 'partial'
+      readonly usageRef: 'usage'
+    }
+  | { readonly kind: 'unavailable'; readonly reason: 'not_retained' | 'not_sent' | 'send_unknown' }
+export interface InputCalibration {
+  readonly requestInput: RequestInputEvidence
+  readonly observedInput: ObservedInput
+  readonly outputGroup: OutputGroupEvidence
+}

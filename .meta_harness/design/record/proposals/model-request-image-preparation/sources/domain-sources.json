@@ -1,0 +1,227 @@
+{
+  "kind": "first-pass-domain-reading-sources",
+  "sealed": true,
+  "workspace": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-image-preparation",
+  "commit": "d136efaa6a2e7d545a818c42db85aa8192d3b79a",
+  "date": "2026-09-29",
+  "stage": "A/B only",
+  "scope_confirmation": "Parent confirmed PF-010 rev 7 / PF-013 rev 16 in this task conversation.",
+  "task_source": {
+    "kind": "conversation",
+    "author": "parent task dispatcher relaying user request",
+    "request": "请求图片超出目标模型限制时，能通过缩放/重编码变成合规图片就支持发送；不覆盖历史原件；不能扩展成完整 Session/Run/context 平台。",
+    "sha256": null,
+    "reason": "Conversation input has no repository file hash."
+  },
+  "sources": [
+    {
+      "path": "AGENTS.md",
+      "revision": null,
+      "read_scope": "项目边界与范围",
+      "sha256": "32e8a41e0f0159e079cf0bc9d407849ec06829848097392d5838197ad3055d9c",
+      "git_blob": "8dcbafe258cc55468c2b6619a58f47a22051dd8a",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/AGENTS.md",
+      "revision": null,
+      "read_scope": "工作区约定",
+      "sha256": "7ac6cba51c34681d2901e33957be384b4a6ae6f5b58ee582d9e5954c1127260d",
+      "git_blob": "354670b1e3465bffe80d5b33f2f14cedb05b74dd",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/AGENTS.md",
+      "revision": null,
+      "read_scope": "设计准入与临时任务归属",
+      "sha256": "fe7808a3e8e44694457556adc66d7acd2b0f8f2b6af5d2c58a9dea0e38f1ef00",
+      "git_blob": "795295c9935f34fab6adee273707d62e29b32e76",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/product/AGENTS.md",
+      "revision": null,
+      "read_scope": "产品只读输入规则",
+      "sha256": "e77e4d7878992022297ac07a3389478e30a7abef823fff79603ac5b890cbffea",
+      "git_blob": "d87e48fa842ef878edc25a42ef8f2bda65931977",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/domain_objects/AGENTS.md",
+      "revision": null,
+      "read_scope": "只读取输入规则",
+      "sha256": "0d26e64afb2112c74b920252ac4fb759e33db09b717399487de9a5821089df81",
+      "git_blob": "81fe92bcaf1f65b479b780c9ab98ff93c62683a0",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/domain_objects/README.md",
+      "revision": null,
+      "read_scope": "对象索引用途",
+      "sha256": "8113ee305d54df16d2b502268184deec1b4c6084ccbb55dbc71a6ce343830b68",
+      "git_blob": "25b5d1517e72c7cad1e86f1138dbecc0b46f4b21",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/domain_objects/objects.md",
+      "revision": null,
+      "read_scope": "UL-model-profile、UL-content-block、UL-message、UL-session-log、UL-model-call、UL-model-response",
+      "sha256": "428822c140e5323abd36a6cf217a4cd5752d62150ef7454f8c59cda9efab12b7",
+      "git_blob": "cce65a81de3e47fd5b22bf837ca93db69bb55238",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/domain_objects/pending.md",
+      "revision": null,
+      "read_scope": "待裁条目；本范围没有新增已登记图片对象",
+      "sha256": "d64560a4b16062c7b34b4a6e4c58c96e89d3197143a283a264851aee2707ef84",
+      "git_blob": "b7be7b8576f7e56e99f74fbd63422035022a56aa",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/ubiquitous_language/AGENTS.md",
+      "revision": null,
+      "read_scope": "查词规则",
+      "sha256": "a8b1eda14fe42d72d10125d87a0d2e4716f54de86031966d539d33f74f17488c",
+      "git_blob": "cd81843d87457a66971f64293400fdd8f7b3a62f",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/ubiquitous_language/index.md",
+      "revision": null,
+      "read_scope": "相关词条定位",
+      "sha256": "4426bef8bb3eb99e0619344c331a8393e594e1bfcf22c319b4d4535931ed863f",
+      "git_blob": "0636b7b9496823f2cc89254a6797ed1ce55deff9",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/ubiquitous_language/terms/record-and-context.md",
+      "revision": null,
+      "read_scope": "UL-derived-rendering、UL-transcript、UL-context-assembly 及相关邻接段落",
+      "sha256": "c3a4c8ceefd5bf29988d1017db4e49e2fb880f8cfc45ff82317bb34a5ecace5d",
+      "git_blob": "f8f8d0c0a08829f847027cc3e290b650ae3882c6",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md",
+      "revision": null,
+      "read_scope": "UL-model-profile、UL-effective-model 及相关邻接段落",
+      "sha256": "487a4c3903bf3dd3050f6c256ca997d0a81ff6519761cf214d3ac28a275f0a5d",
+      "git_blob": "5a7f2ef44060112d476154e4447be5cd6331a187",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/product/PF-010-context-management-and-assembly/README.md",
+      "revision": 7,
+      "read_scope": "状态及范围",
+      "sha256": "23089324fd8eab6241cca13373f9bc7577d74d10a1c71798c53b058e48e3cd6a",
+      "git_blob": "4eea81334469b42542f47d97be95ae71f2e94f10",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/product/PF-010-context-management-and-assembly/design.md",
+      "revision": 7,
+      "read_scope": "§5.4 要求五（245–271），§6.1–6.2（506–517）；抬头与必要邻接段落",
+      "sha256": "fc55a11f182b6a3195c870dda7bcb90adc4736264feae8df2f64559068b16d6e",
+      "git_blob": "e6b82685e2dd132a4f93f9cc2ef52898258c4f73",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/product/PF-010-context-management-and-assembly/decisions.md",
+      "revision": 7,
+      "read_scope": "产品确认记录及定位检索；非全篇读取",
+      "sha256": "53a97573236d3cdbe44762c8b26a52e653bbf8c2c079b08361d3aa62c5f3cb55",
+      "git_blob": "2f609b65bdc7b47b91dc07072d0287723b2c1647",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/product/PF-013-model-profiles-and-invocation/README.md",
+      "revision": 16,
+      "read_scope": "状态及范围",
+      "sha256": "81004722559428b8313be4b5b3f295878d4e636d8bb29ff0992fe73e2eb18463",
+      "git_blob": "4e9fc067f60d35a9c2a6645b0030d5c7790f278d",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/product/PF-013-model-profiles-and-invocation/design.md",
+      "revision": 16,
+      "read_scope": "§4 上游限制与档案提供的上限（149–180），§八三段责任（1494–1510）；抬头及必要邻接段落",
+      "sha256": "5738f7ebe821fd3e873319cb964f1bff5b94b644e6c80bd04f1e8309127b18c2",
+      "git_blob": "a6696c8be06c9df46870fc3c0bc2e3792855d1a8",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/product/PF-013-model-profiles-and-invocation/decisions.md",
+      "revision": 16,
+      "read_scope": "裁决 16（132–145）；2026-09-28 输入上限 PM 推导与正式修订交接（551–600）；标题与确认状态检索",
+      "sha256": "348b3b1a1fec765dba9f5517dd073f2e6e06df795db1ba1db848869739be12a8",
+      "git_blob": "ddc94841ba74a3182a52ab24d8248c92a71c2b9d",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/product/PF-013-model-profiles-and-invocation/acceptance.md",
+      "revision": 16,
+      "read_scope": "图片/限额条款检索，仅用于核对责任指向",
+      "sha256": "b9936cbee3014ff5a7718345a6d23af4d42de06b529e18b8de30270ef8b461ca",
+      "git_blob": "73d426e7e63cc4bc8b91e43a507948bd88d15c68",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/product/PF-009-context-message-types/design.md",
+      "revision": 9,
+      "read_scope": "§4 消息（75–120），内容块/标注/落盘检索；非全篇读取",
+      "sha256": "cc6ec2c5af469a7c1bd6c7e18a05bff3b55fcec241795682efe11db2ac073efd",
+      "git_blob": "a307500d4a3ad8ebd66f966febb1026bc63f50c1",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/foundation/cross-system-constraints/requirements.md",
+      "revision": null,
+      "read_scope": "元信息；SYS-TENANT、SYS-LLM、SYS-OPEN",
+      "sha256": "1264289a127805982ba6aee96fadb01512c1856356d6a167650f74f168fe9507",
+      "git_blob": "d50186d3447483449d09fededb150eb3434a8c55",
+      "matches_commit": true
+    },
+    {
+      "path": ".meta_harness/design/foundation/observability-and-logging/requirements.md",
+      "revision": null,
+      "read_scope": "SYS-OBSERVABILITY.C1–C7 与边界",
+      "sha256": "78fa38194e0420db474eaed0f403b4b7d3c5b59b78fccfba41cf6fee3cd88a0d",
+      "git_blob": "479cf337b87c195421d9bc90b3f84b954c93183d",
+      "matches_commit": true
+    }
+  ],
+  "method_sources": [
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/.meta_harness/.agents/skills/harness-design-handbook/SKILL.md",
+      "sha256": "69988a9215b1e65468d0fbc786a7c59e59aa592412ce60f95de8e21ad1248382",
+      "purpose": "方法输入，非本任务产品或机制结论",
+      "freeze_status": "observed_snapshot_not_acceptance"
+    },
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/.meta_harness/.agents/skills/harness-design-handbook/references/decompose.md",
+      "sha256": "34bb1aa48f2cfe6b2bd6a0180a95545ae356f81f51d314360c71d54d77d91670",
+      "purpose": "方法输入，非本任务产品或机制结论",
+      "freeze_status": "observed_snapshot_not_acceptance"
+    },
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/.meta_harness/.agents/skills/harness-design-handbook/references/reconciliation.md",
+      "sha256": "3f9ed4c5dbaeab5d066802cb80a27606859ff913e8eed1c36f058562d666d724",
+      "purpose": "方法输入，非本任务产品或机制结论",
+      "freeze_status": "observed_snapshot_not_acceptance"
+    }
+  ],
+  "blindness": {
+    "read_task_mechanism_material": false,
+    "read_implementation": false,
+    "read_specification_body": false,
+    "read_other_proposals": false,
+    "method_examples_read": true,
+    "directory_listing_is_not_content_read": true
+  },
+  "verification": {
+    "source_content_matches_commit": true,
+    "behavior_tests": "not run",
+    "mechanism_claims": "none"
+  }
+}

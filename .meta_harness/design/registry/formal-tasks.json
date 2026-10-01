@@ -864,6 +864,2072 @@
         "spec/capabilities/stream-assembly/v3/formal/Assembly.tla"
       ],
       "timeout_seconds": 600
+    },
+    {
+      "id": "asset-evaluation-v4-root-settings",
+      "kind": "alloy",
+      "artifacts": [
+        "spec/capabilities/asset-evaluation/v4/formal/RootSettings.als",
+        "spec/capabilities/asset-evaluation/v4/formal/Evaluation.als",
+        "spec/capabilities/asset-evaluation/v4/formal/check-root-settings.py"
+      ],
+      "command": [
+        "python3",
+        "spec/capabilities/asset-evaluation/v4/formal/check-root-settings.py",
+        "--output",
+        "tmp/alloy/asset-evaluation-v4-root-settings"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v3-content-gate",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v3/formal/ContentGate.tla",
+        "spec/capabilities/model-request-runtime/v3/formal/ContentGate.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v3-content-gate",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v3/formal/ContentGate.cfg",
+        "spec/capabilities/model-request-runtime/v3/formal/ContentGate.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v3-adaptation-binding",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v3/formal/AdaptationBinding.tla",
+        "spec/capabilities/model-request-runtime/v3/formal/AdaptationBinding.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v3-adaptation-binding",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v3/formal/AdaptationBinding.cfg",
+        "spec/capabilities/model-request-runtime/v3/formal/AdaptationBinding.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v3-adaptation-lifecycle",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v3/formal/Adaptation.tla",
+        "spec/capabilities/model-request-runtime/v3/formal/Adaptation.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v3-adaptation-lifecycle",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v3/formal/Adaptation.cfg",
+        "spec/capabilities/model-request-runtime/v3/formal/Adaptation.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "loop-extension-runner-v3-chain",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v3-chain",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.cfg",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v3-concurrent",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerConcurrent.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v3-concurrent",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerConcurrent.cfg",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v3-unfenced",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerUnfenced.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v3-unfenced",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerUnfenced.cfg",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v3-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v3-progress",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v3/formal/RunnerProgress.cfg",
+        "spec/capabilities/loop-extension-runner/v3/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "session-log-v3-appends",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla",
+        "spec/capabilities/session-log/v3/formal/SessionLog.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/session-log-v3-appends",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/SessionLog.cfg",
+        "spec/capabilities/session-log/v3/formal/SessionLog.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "session-log-v3-tail-attempt",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_Attempt.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/session-log-v3-tail-attempt",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_Attempt.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "session-log-v3-tail-run-end",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_RunEnd.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/session-log-v3-tail-run-end",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/session-log/v3/formal/TailSettlement_RunEnd.cfg",
+        "spec/capabilities/session-log/v3/formal/TailSettlement.tla"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "model-request-runtime-v4-content-gate",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v4/formal/ContentGate.tla",
+        "spec/capabilities/model-request-runtime/v4/formal/ContentGate.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v4-content-gate",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v4/formal/ContentGate.cfg",
+        "spec/capabilities/model-request-runtime/v4/formal/ContentGate.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v4-adaptation-binding",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v4/formal/AdaptationBinding.tla",
+        "spec/capabilities/model-request-runtime/v4/formal/AdaptationBinding.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v4-adaptation-binding",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v4/formal/AdaptationBinding.cfg",
+        "spec/capabilities/model-request-runtime/v4/formal/AdaptationBinding.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v4-adaptation-lifecycle",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v4/formal/Adaptation.tla",
+        "spec/capabilities/model-request-runtime/v4/formal/Adaptation.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v4-adaptation-lifecycle",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v4/formal/Adaptation.cfg",
+        "spec/capabilities/model-request-runtime/v4/formal/Adaptation.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v4-settlement",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v4/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v4/formal/Settlement.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v4-settlement",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v4/formal/Settlement.cfg",
+        "spec/capabilities/model-request-runtime/v4/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v4-settlement-ended-unknown",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v4/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v4/formal/Settlement_EndedUnknown.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v4-settlement-ended-unknown",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v4/formal/Settlement_EndedUnknown.cfg",
+        "spec/capabilities/model-request-runtime/v4/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v4-settlement-no-run",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v4/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v4/formal/Settlement_NoRun.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v4-settlement-no-run",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v4/formal/Settlement_NoRun.cfg",
+        "spec/capabilities/model-request-runtime/v4/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v5-content-gate",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v5/formal/ContentGate.tla",
+        "spec/capabilities/model-request-runtime/v5/formal/ContentGate.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v5-content-gate",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v5/formal/ContentGate.cfg",
+        "spec/capabilities/model-request-runtime/v5/formal/ContentGate.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v5-adaptation-binding",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v5/formal/AdaptationBinding.tla",
+        "spec/capabilities/model-request-runtime/v5/formal/AdaptationBinding.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v5-adaptation-binding",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v5/formal/AdaptationBinding.cfg",
+        "spec/capabilities/model-request-runtime/v5/formal/AdaptationBinding.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v5-adaptation-lifecycle",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v5/formal/Adaptation.tla",
+        "spec/capabilities/model-request-runtime/v5/formal/Adaptation.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v5-adaptation-lifecycle",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v5/formal/Adaptation.cfg",
+        "spec/capabilities/model-request-runtime/v5/formal/Adaptation.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v5-settlement",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v5/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v5/formal/Settlement.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v5-settlement",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v5/formal/Settlement.cfg",
+        "spec/capabilities/model-request-runtime/v5/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v5-settlement-ended-unknown",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v5/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v5/formal/Settlement_EndedUnknown.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v5-settlement-ended-unknown",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v5/formal/Settlement_EndedUnknown.cfg",
+        "spec/capabilities/model-request-runtime/v5/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v5-settlement-no-run",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v5/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v5/formal/Settlement_NoRun.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v5-settlement-no-run",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v5/formal/Settlement_NoRun.cfg",
+        "spec/capabilities/model-request-runtime/v5/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v6-content-gate",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v6/formal/ContentGate.tla",
+        "spec/capabilities/model-request-runtime/v6/formal/ContentGate.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v6-content-gate",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v6/formal/ContentGate.cfg",
+        "spec/capabilities/model-request-runtime/v6/formal/ContentGate.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v6-adaptation-binding",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v6/formal/AdaptationBinding.tla",
+        "spec/capabilities/model-request-runtime/v6/formal/AdaptationBinding.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v6-adaptation-binding",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v6/formal/AdaptationBinding.cfg",
+        "spec/capabilities/model-request-runtime/v6/formal/AdaptationBinding.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v6-adaptation-lifecycle",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v6/formal/Adaptation.tla",
+        "spec/capabilities/model-request-runtime/v6/formal/Adaptation.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v6-adaptation-lifecycle",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v6/formal/Adaptation.cfg",
+        "spec/capabilities/model-request-runtime/v6/formal/Adaptation.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v6-settlement",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v6/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v6/formal/Settlement.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v6-settlement",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v6/formal/Settlement.cfg",
+        "spec/capabilities/model-request-runtime/v6/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v6-settlement-ended-unknown",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v6/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v6/formal/Settlement_EndedUnknown.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v6-settlement-ended-unknown",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v6/formal/Settlement_EndedUnknown.cfg",
+        "spec/capabilities/model-request-runtime/v6/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v6-settlement-no-run",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v6/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v6/formal/Settlement_NoRun.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v6-settlement-no-run",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v6/formal/Settlement_NoRun.cfg",
+        "spec/capabilities/model-request-runtime/v6/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v6-final-plan",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v6/formal/FinalPlan.tla",
+        "spec/capabilities/model-request-runtime/v6/formal/FinalPlan.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v6-final-plan",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v6/formal/FinalPlan.cfg",
+        "spec/capabilities/model-request-runtime/v6/formal/FinalPlan.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v6-final-plan-public",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v6/formal/FinalPlan.tla",
+        "spec/capabilities/model-request-runtime/v6/formal/FinalPlan_Public.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v6-final-plan-public",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v6/formal/FinalPlan_Public.cfg",
+        "spec/capabilities/model-request-runtime/v6/formal/FinalPlan.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v6-pending-reply",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v6/formal/PendingReply.tla",
+        "spec/capabilities/model-request-runtime/v6/formal/PendingReply.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v6-pending-reply",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v6/formal/PendingReply.cfg",
+        "spec/capabilities/model-request-runtime/v6/formal/PendingReply.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v6-retry-history",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v6/formal/RetryHistory.tla",
+        "spec/capabilities/model-request-runtime/v6/formal/RetryHistory.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v6-retry-history",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v6/formal/RetryHistory.cfg",
+        "spec/capabilities/model-request-runtime/v6/formal/RetryHistory.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "loop-extension-runner-v4-chain",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v4/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v4/formal/Runner.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v4-chain",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v4/formal/Runner.cfg",
+        "spec/capabilities/loop-extension-runner/v4/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v4-concurrent",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v4/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v4/formal/RunnerConcurrent.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v4-concurrent",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v4/formal/RunnerConcurrent.cfg",
+        "spec/capabilities/loop-extension-runner/v4/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v4-unfenced",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v4/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v4/formal/RunnerUnfenced.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v4-unfenced",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v4/formal/RunnerUnfenced.cfg",
+        "spec/capabilities/loop-extension-runner/v4/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v4-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v4/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v4/formal/RunnerProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v4-progress",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v4/formal/RunnerProgress.cfg",
+        "spec/capabilities/loop-extension-runner/v4/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v4-failure-history",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v4/formal/FailureHistory.tla",
+        "spec/capabilities/loop-extension-runner/v4/formal/FailureHistory.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v4-failure-history",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v4/formal/FailureHistory.cfg",
+        "spec/capabilities/loop-extension-runner/v4/formal/FailureHistory.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v7-content-gate",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v7/formal/ContentGate.tla",
+        "spec/capabilities/model-request-runtime/v7/formal/ContentGate.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v7-content-gate",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v7/formal/ContentGate.cfg",
+        "spec/capabilities/model-request-runtime/v7/formal/ContentGate.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v7-adaptation-binding",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v7/formal/AdaptationBinding.tla",
+        "spec/capabilities/model-request-runtime/v7/formal/AdaptationBinding.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v7-adaptation-binding",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v7/formal/AdaptationBinding.cfg",
+        "spec/capabilities/model-request-runtime/v7/formal/AdaptationBinding.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v7-adaptation-lifecycle",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v7/formal/Adaptation.tla",
+        "spec/capabilities/model-request-runtime/v7/formal/Adaptation.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v7-adaptation-lifecycle",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v7/formal/Adaptation.cfg",
+        "spec/capabilities/model-request-runtime/v7/formal/Adaptation.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v7-settlement",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v7/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v7/formal/Settlement.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v7-settlement",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v7/formal/Settlement.cfg",
+        "spec/capabilities/model-request-runtime/v7/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v7-settlement-ended-unknown",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v7/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v7/formal/Settlement_EndedUnknown.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v7-settlement-ended-unknown",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v7/formal/Settlement_EndedUnknown.cfg",
+        "spec/capabilities/model-request-runtime/v7/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v7-settlement-no-run",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v7/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v7/formal/Settlement_NoRun.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v7-settlement-no-run",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v7/formal/Settlement_NoRun.cfg",
+        "spec/capabilities/model-request-runtime/v7/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v7-final-plan",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v7/formal/FinalPlan.tla",
+        "spec/capabilities/model-request-runtime/v7/formal/FinalPlan.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v7-final-plan",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v7/formal/FinalPlan.cfg",
+        "spec/capabilities/model-request-runtime/v7/formal/FinalPlan.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v7-final-plan-public",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v7/formal/FinalPlan.tla",
+        "spec/capabilities/model-request-runtime/v7/formal/FinalPlan_Public.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v7-final-plan-public",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v7/formal/FinalPlan_Public.cfg",
+        "spec/capabilities/model-request-runtime/v7/formal/FinalPlan.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v7-pending-reply",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v7/formal/PendingReply.tla",
+        "spec/capabilities/model-request-runtime/v7/formal/PendingReply.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v7-pending-reply",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v7/formal/PendingReply.cfg",
+        "spec/capabilities/model-request-runtime/v7/formal/PendingReply.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v7-retry-history",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v7/formal/RetryHistory.tla",
+        "spec/capabilities/model-request-runtime/v7/formal/RetryHistory.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v7-retry-history",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v7/formal/RetryHistory.cfg",
+        "spec/capabilities/model-request-runtime/v7/formal/RetryHistory.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "loop-extension-runner-v5-chain",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v5/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v5/formal/Runner.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v5-chain",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v5/formal/Runner.cfg",
+        "spec/capabilities/loop-extension-runner/v5/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v5-concurrent",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v5/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v5/formal/RunnerConcurrent.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v5-concurrent",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v5/formal/RunnerConcurrent.cfg",
+        "spec/capabilities/loop-extension-runner/v5/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v5-unfenced",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v5/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v5/formal/RunnerUnfenced.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v5-unfenced",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v5/formal/RunnerUnfenced.cfg",
+        "spec/capabilities/loop-extension-runner/v5/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v5-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v5/formal/Runner.tla",
+        "spec/capabilities/loop-extension-runner/v5/formal/RunnerProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v5-progress",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v5/formal/RunnerProgress.cfg",
+        "spec/capabilities/loop-extension-runner/v5/formal/Runner.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "loop-extension-runner-v5-failure-history",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/loop-extension-runner/v5/formal/FailureHistory.tla",
+        "spec/capabilities/loop-extension-runner/v5/formal/FailureHistory.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-XX:+UseParallelGC",
+        "-Xmx2g",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/loop-extension-runner-v5-failure-history",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/loop-extension-runner/v5/formal/FailureHistory.cfg",
+        "spec/capabilities/loop-extension-runner/v5/formal/FailureHistory.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v8-content-gate",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v8/formal/ContentGate.tla",
+        "spec/capabilities/model-request-runtime/v8/formal/ContentGate.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v8-content-gate",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v8/formal/ContentGate.cfg",
+        "spec/capabilities/model-request-runtime/v8/formal/ContentGate.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v8-adaptation-binding",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v8/formal/AdaptationBinding.tla",
+        "spec/capabilities/model-request-runtime/v8/formal/AdaptationBinding.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v8-adaptation-binding",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v8/formal/AdaptationBinding.cfg",
+        "spec/capabilities/model-request-runtime/v8/formal/AdaptationBinding.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v8-adaptation-lifecycle",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v8/formal/Adaptation.tla",
+        "spec/capabilities/model-request-runtime/v8/formal/Adaptation.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v8-adaptation-lifecycle",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v8/formal/Adaptation.cfg",
+        "spec/capabilities/model-request-runtime/v8/formal/Adaptation.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v8-settlement",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v8/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v8/formal/Settlement.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v8-settlement",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v8/formal/Settlement.cfg",
+        "spec/capabilities/model-request-runtime/v8/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v8-settlement-ended-unknown",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v8/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v8/formal/Settlement_EndedUnknown.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v8-settlement-ended-unknown",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v8/formal/Settlement_EndedUnknown.cfg",
+        "spec/capabilities/model-request-runtime/v8/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v8-settlement-no-run",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v8/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v8/formal/Settlement_NoRun.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v8-settlement-no-run",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v8/formal/Settlement_NoRun.cfg",
+        "spec/capabilities/model-request-runtime/v8/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v8-final-plan",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v8/formal/FinalPlan.tla",
+        "spec/capabilities/model-request-runtime/v8/formal/FinalPlan.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v8-final-plan",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v8/formal/FinalPlan.cfg",
+        "spec/capabilities/model-request-runtime/v8/formal/FinalPlan.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v8-final-plan-public",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v8/formal/FinalPlan.tla",
+        "spec/capabilities/model-request-runtime/v8/formal/FinalPlan_Public.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v8-final-plan-public",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v8/formal/FinalPlan_Public.cfg",
+        "spec/capabilities/model-request-runtime/v8/formal/FinalPlan.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v8-pending-reply",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v8/formal/PendingReply.tla",
+        "spec/capabilities/model-request-runtime/v8/formal/PendingReply.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v8-pending-reply",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v8/formal/PendingReply.cfg",
+        "spec/capabilities/model-request-runtime/v8/formal/PendingReply.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v8-retry-history",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v8/formal/RetryHistory.tla",
+        "spec/capabilities/model-request-runtime/v8/formal/RetryHistory.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v8-retry-history",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v8/formal/RetryHistory.cfg",
+        "spec/capabilities/model-request-runtime/v8/formal/RetryHistory.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v9-content-gate",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v9/formal/ContentGate.tla",
+        "spec/capabilities/model-request-runtime/v9/formal/ContentGate.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v9-content-gate",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v9/formal/ContentGate.cfg",
+        "spec/capabilities/model-request-runtime/v9/formal/ContentGate.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v9-adaptation-binding",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v9/formal/AdaptationBinding.tla",
+        "spec/capabilities/model-request-runtime/v9/formal/AdaptationBinding.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v9-adaptation-binding",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v9/formal/AdaptationBinding.cfg",
+        "spec/capabilities/model-request-runtime/v9/formal/AdaptationBinding.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v9-adaptation-lifecycle",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v9/formal/Adaptation.tla",
+        "spec/capabilities/model-request-runtime/v9/formal/Adaptation.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v9-adaptation-lifecycle",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v9/formal/Adaptation.cfg",
+        "spec/capabilities/model-request-runtime/v9/formal/Adaptation.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v9-settlement",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v9/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v9/formal/Settlement.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v9-settlement",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v9/formal/Settlement.cfg",
+        "spec/capabilities/model-request-runtime/v9/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v9-settlement-ended-unknown",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v9/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v9/formal/Settlement_EndedUnknown.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v9-settlement-ended-unknown",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v9/formal/Settlement_EndedUnknown.cfg",
+        "spec/capabilities/model-request-runtime/v9/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v9-settlement-no-run",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v9/formal/Settlement.tla",
+        "spec/capabilities/model-request-runtime/v9/formal/Settlement_NoRun.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v9-settlement-no-run",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v9/formal/Settlement_NoRun.cfg",
+        "spec/capabilities/model-request-runtime/v9/formal/Settlement.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v9-final-plan",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v9/formal/FinalPlan.tla",
+        "spec/capabilities/model-request-runtime/v9/formal/FinalPlan.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v9-final-plan",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v9/formal/FinalPlan.cfg",
+        "spec/capabilities/model-request-runtime/v9/formal/FinalPlan.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v9-final-plan-public",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v9/formal/FinalPlan.tla",
+        "spec/capabilities/model-request-runtime/v9/formal/FinalPlan_Public.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v9-final-plan-public",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v9/formal/FinalPlan_Public.cfg",
+        "spec/capabilities/model-request-runtime/v9/formal/FinalPlan.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v9-pending-reply",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v9/formal/PendingReply.tla",
+        "spec/capabilities/model-request-runtime/v9/formal/PendingReply.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v9-pending-reply",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v9/formal/PendingReply.cfg",
+        "spec/capabilities/model-request-runtime/v9/formal/PendingReply.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v9-retry-history",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v9/formal/RetryHistory.tla",
+        "spec/capabilities/model-request-runtime/v9/formal/RetryHistory.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v9-retry-history",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v9/formal/RetryHistory.cfg",
+        "spec/capabilities/model-request-runtime/v9/formal/RetryHistory.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v9-recovery-timing",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming.tla",
+        "spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v9-recovery-timing",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming.cfg",
+        "spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v10-usage-exactorbound",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ExactOrBound.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v10-usage-exactorbound",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ExactOrBound.cfg",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v10-usage-upperbound",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_UpperBound.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v10-usage-upperbound",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_UpperBound.cfg",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v10-usage-estimated",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Estimated.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v10-usage-estimated",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Estimated.cfg",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v10-usage-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v10-usage-progress",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v10-usage-threecalls",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ThreeCalls.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v10-usage-threecalls",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ThreeCalls.cfg",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v10-usage-reanchorprogress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ReanchorProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-Xmx768m",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v10-usage-reanchorprogress",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-workers",
+        "1",
+        "-config",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ReanchorProgress.cfg",
+        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "model-request-runtime-v11-referencelifecycle",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v11/formal/ReferenceLifecycle.tla",
+        "spec/capabilities/model-request-runtime/v11/formal/ReferenceLifecycle.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v11-referencelifecycle",
+        "-config",
+        "spec/capabilities/model-request-runtime/v11/formal/ReferenceLifecycle.cfg",
+        "spec/capabilities/model-request-runtime/v11/formal/ReferenceLifecycle.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v11-publication",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v11/formal/Publication.tla",
+        "spec/capabilities/model-request-runtime/v11/formal/Publication.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v11-publication",
+        "-config",
+        "spec/capabilities/model-request-runtime/v11/formal/Publication.cfg",
+        "spec/capabilities/model-request-runtime/v11/formal/Publication.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v11-openedorder",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla",
+        "spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v11-openedorder",
+        "-config",
+        "spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.cfg",
+        "spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v12-ack-lifecycle",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.tla",
+        "spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v12-ack-lifecycle",
+        "-config",
+        "spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.cfg",
+        "spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.tla"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "model-request-runtime-v12-ack-progress",
+      "kind": "tla",
+      "artifacts": [
+        "spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.tla",
+        "spec/capabilities/model-request-runtime/v12/formal/AckProgress.cfg"
+      ],
+      "command": [
+        "${JAVA_BIN}",
+        "-cp",
+        "${TLA2TOOLS_JAR}",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-cleanup",
+        "-noGenerateSpecTE",
+        "-metadir",
+        "tmp/tlc/model-request-runtime-v12-ack-progress",
+        "-config",
+        "spec/capabilities/model-request-runtime/v12/formal/AckProgress.cfg",
+        "spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.tla"
+      ],
+      "timeout_seconds": 180
     }
   ]
 }

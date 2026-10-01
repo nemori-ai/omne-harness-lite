@@ -1,0 +1,21 @@
+{
+  "repositoryCommit": "1623a0af83219e78be50b49e9aca065137754b94",
+  "node": "v24.18.0",
+  "pnpm": "10.28.1",
+  "model": "deepseek/deepseek-v4-pro-0813",
+  "provider": "deepinfra/fp8",
+  "parameters": {
+    "reasoningEffort": "low",
+    "maxOutputTokens": 1024
+  },
+  "originalCwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime",
+  "originalOutput": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/demo-multiturn-2de3eb38-67bc-4655-bf66-51b2913c2626",
+  "credential": "explicit private environment file; deliberately not archived",
+  "historicalUnknownFee": "remains unknown with separate budget allowance; not part of these actual-cost receipts",
+  "testLedger": "existing approved ledger; not reset or replaced",
+  "controlledRegression": {
+    "runtime": 535,
+    "transportBeforeFamilyWave": 222,
+    "demo": 80
+  }
+}

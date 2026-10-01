@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "make",
+    "docs-check"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime",
+  "head": "2ed2cd18551d1474132e4510460ab7cbbb28d89b",
+  "started_at": "2026-09-28T00:43:55.463075+00:00",
+  "completed_at": "2026-09-28T00:45:02.484635+00:00",
+  "exit_code": 0,
+  "output_sha256": "a31c8f00f3a72721102cf9fc1781007decc824a8d428f55a9cf54c0e0c24e079"
+}

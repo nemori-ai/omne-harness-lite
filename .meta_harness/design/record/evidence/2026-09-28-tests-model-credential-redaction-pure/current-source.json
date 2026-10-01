@@ -1,0 +1,17 @@
+{
+  "head": "4a268c91494445a056a75424ab073991d2e0f5d3",
+  "sourceCommit": "f6a5d1f2",
+  "purePaths": {
+    "packages/model/model-request-runtime/src/credential-redaction-types.ts": "bb6c91d46663ce586c6004c9438f216f4216d566b5644e1e3abe287c1d951d3d",
+    "packages/model/model-request-runtime/src/credential-redaction.ts": "e6f9183fba20feeb873b5049d785123c6343df8e1e3b3cf0e8e1576686f903ac",
+    "packages/model/model-request-runtime/tests/credential-redaction.spec-d.ts": "18bc82c5bc99b8c87ad856586e134c75337644a440d6bae72a171fd7272a55b7",
+    "packages/model/model-request-runtime/tests/credential-redaction.spec.ts": "0e92649a9c2ce37a8cdc7892d9bf114f2339aa7681d65344f166d244d9a75c32"
+  },
+  "sharedEntryAndDocs": {
+    "packages/model/model-request-runtime/README.md": "6c9b200fa2919fc9fa6fb481f4499de9100af619d81bf0a135c94d22b7089845",
+    "packages/model/model-request-runtime/README_ZH.md": "688dad58ae2a89c15379ec6b71535d68fc2d22590e288e519e8df2f171d31c12",
+    "packages/model/model-request-runtime/src/index.ts": "db4327b36f77f79bf5f6c90f4df2d8f2a013f2142348aaf2f19fc6f33cabd3ce"
+  },
+  "independentPureBytesUnchanged": true,
+  "fullServiceAccepted": false
+}

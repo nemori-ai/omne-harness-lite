@@ -260,7 +260,7 @@
 - **形态**：属性
 - **出处**：[PF-006 §6.8 工具怎么提执行环境的要求](../../product/PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求) ·
   [§5.3 其中两项声明的是设置项](../../product/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)（rev 23） ·
-  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 31）
+  [PF-002 §4 Tool](../../product/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）
 - **别混**：**它说的是「要什么」**；[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)说的是「许落在哪」；
   这次执行实际落在哪，是按两者**每次现算**出来的——执行环境权限改了，下一次执行按新值现算，不必重建任何东西
 - **注意**：**不声明就是没有特殊要求**——它是工具定义里那项「需要什么样的执行环境」声明落成的设置

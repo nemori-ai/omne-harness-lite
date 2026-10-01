@@ -1,0 +1,62 @@
+[
+  {
+    "config": ".meta_harness/design/spec/capabilities/model-request-runtime/v12/formal/AckLifecycle.cfg",
+    "command": [
+      "java",
+      "-Xmx1500m",
+      "-cp",
+      "/opt/tlaplus/tla2tools.jar",
+      "tlc2.TLC",
+      "-workers",
+      "1",
+      "-cleanup",
+      "-noGenerateSpecTE",
+      "-metadir",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/tmp/ack-spec-draft/formal-run-01/states-AckLifecycle",
+      "-config",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/tmp/ack-spec-draft/formal-run-01/inputs/AckLifecycle.cfg",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/tmp/ack-spec-draft/formal-run-01/inputs/AckLifecycle.tla"
+    ],
+    "exit_code": 150
+  },
+  {
+    "config": ".meta_harness/design/spec/capabilities/model-request-runtime/v12/formal/AckProgress.cfg",
+    "command": [
+      "java",
+      "-Xmx1500m",
+      "-cp",
+      "/opt/tlaplus/tla2tools.jar",
+      "tlc2.TLC",
+      "-workers",
+      "1",
+      "-cleanup",
+      "-noGenerateSpecTE",
+      "-metadir",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/tmp/ack-spec-draft/formal-run-01/states-AckProgress",
+      "-config",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/tmp/ack-spec-draft/formal-run-01/inputs/AckProgress.cfg",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/tmp/ack-spec-draft/formal-run-01/inputs/AckLifecycle.tla"
+    ],
+    "exit_code": 150
+  },
+  {
+    "config": ".meta_harness/design/spec/capabilities/model-request-runtime/v12/formal/validity-check/Ack-ackFirst.cfg",
+    "command": [
+      "java",
+      "-Xmx1500m",
+      "-cp",
+      "/opt/tlaplus/tla2tools.jar",
+      "tlc2.TLC",
+      "-workers",
+      "1",
+      "-cleanup",
+      "-noGenerateSpecTE",
+      "-metadir",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/tmp/ack-spec-draft/formal-run-01/states-Ack-ackFirst",
+      "-config",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/tmp/ack-spec-draft/formal-run-01/inputs/validity-check/Ack-ackFirst.cfg",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-priority-closeout-design/tmp/ack-spec-draft/formal-run-01/inputs/AckLifecycle.tla"
+    ],
+    "exit_code": 150
+  }
+]

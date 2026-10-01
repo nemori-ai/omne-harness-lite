@@ -1,0 +1,4 @@
+<|im_start|>user
+你好<|im_end|>
+<|im_start|>assistant
+<think>

@@ -3,7 +3,7 @@ import { createAssetModelJudge, SCHEMA_DEF_NAMES, schemaId } from '@omne-harness
 import modelSchema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
 import retainedModelSchema from '@omne-harness-lite/asset-model/schema/v2' with { type: 'json' }
 import toolSchema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
-import loopSchema from '@omne-harness-lite/loop-extension/schema' with { type: 'json' }
+import loopSchema from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
 import {
   judgeContentBlock,
   toOpaqueJson,
@@ -51,7 +51,12 @@ for (const [label, name, rejection] of [
       ...base,
       definitions: [base.definitions[0] ?? entry, entry],
       holdings: [holding('factory', root, 'ast_root'), holding('factory', capability, entry.id)],
-      root: { definition: root, references: [{ capability }] },
+      root: {
+        definition: root,
+        references: [{ capability }],
+        attributes: [],
+        source: { asset: 'ast_root', version: 1 },
+      },
     }
     const body = createAssetModelJudge(defaultBodyContracts).judgeAssetValue(
       'AssetDefinition',

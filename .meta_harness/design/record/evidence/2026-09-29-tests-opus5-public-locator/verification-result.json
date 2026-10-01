@@ -1,0 +1,19 @@
+{
+  "status": "pass",
+  "modelId": "anthropic/claude-opus-5",
+  "executionCommit": "703a119effafdc212286df6aadc51d147f3dea9e",
+  "requests": 1,
+  "actualUsd": "0.00409",
+  "cacheReadWrite": [
+    [
+      0,
+      0
+    ]
+  ],
+  "serviceObservedDurablePairs": 0,
+  "limits": [
+    "receipt consistency only; no physical batch verification",
+    "no full/marginal mode assertion",
+    "old Opus unknown unchanged; original cause not established"
+  ]
+}

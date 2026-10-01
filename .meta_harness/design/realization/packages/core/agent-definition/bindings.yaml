@@ -1,0 +1,7 @@
+version: 1
+node: agent-definition
+kind: provider
+
+# 候选节点尚未建包。规格检查和相邻包测试不能替代本节点实现证据。
+# 可失败证据义务及受阻消费者在 verification.md 登记。
+bindings: []

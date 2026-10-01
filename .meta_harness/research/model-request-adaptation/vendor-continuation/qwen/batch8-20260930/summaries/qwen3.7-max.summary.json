@@ -1,0 +1,493 @@
+{
+  "completed": [
+    {
+      "entryId": "0f4912da-357d-4cef-941a-0c2b0db7b8b9",
+      "round": 1,
+      "modelId": "qwen/qwen3.7-max",
+      "plannedWireSha256": "0cab065498ebd150139fa5976c125f76a3d5e02d3398f51e1ee16b10a42e1093",
+      "plannedMeasurement": {
+        "mode": "full",
+        "precision": "estimated",
+        "fallbackReason": "no_observation",
+        "predictedInput": "1013",
+        "admissionTokens": "1371",
+        "fullContribution": {
+          "tokens": "1013",
+          "precision": "estimated"
+        },
+        "replayContribution": null,
+        "newContribution": null
+      },
+      "replayAccounting": null,
+      "servingProvider": "Alibaba",
+      "upstreamModel": "qwen/qwen3.7-max",
+      "rawResponse": {
+        "file": "raw-response-0f4912da-357d-4cef-941a-0c2b0db7b8b9.sse",
+        "byteLength": 7810,
+        "sha256": "60b20615085aecdd3e20b43db4c7b69c723db11a0a6911d970faa4015cc60f3a",
+        "sockets": 1,
+        "credentialOccurrencesRedacted": 0,
+        "withheld": null,
+        "withheldOriginalByteLength": null
+      },
+      "assistantReplaySha256": null,
+      "liveWireSha256": "unavailable",
+      "estimatedReservationUsd": "1.620210800000000000",
+      "budget": {
+        "approvedLimitUsd": "200",
+        "approvedResearchLimitUsd": "60",
+        "ledgerHeaderLimitUsd": "200",
+        "ledgerHeaderResearchLimitUsd": "60",
+        "authorization": {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/budget-change-authorization-20260930-200.json",
+          "sha256": "80ba85d1f47b268f7e0b0ab8c4b1cf98906575e94a94a4a3559101dcbec15327",
+          "bytes": 505,
+          "declaredLimitUsd": "200"
+        }
+      },
+      "catalog": {
+        "sha256": "b23fa055e2c825d159abfb9d0c633e64a10496269756d5a42176bcdb2a12c826",
+        "captureSource": "openrouter-public-api",
+        "observedAt": "2026-09-30T07:16:17.897Z",
+        "directoryObservedAt": "2026-09-30T07:16:17.870Z",
+        "directoryRawSha256": "b9ba7b19962858e82470dfc9184e3718817865846c50fcc239b9118f99ca2eb5",
+        "endpointRawSha256": "53414d5e236def90662be49dda18ebe6920b6f99804f3620f2d688014f8e2ce4",
+        "collectorSha256": null
+      },
+      "outcome": "complete",
+      "typedRejection": null,
+      "failure": null,
+      "upstreamRequestId": "gen-1790772667-4xA2l2XOrf3GjvgpGnVY",
+      "httpStatus": null,
+      "inBandStatusCode": null,
+      "requestIdHeaders": {
+        "x-generation-id": "gen-1790772667-4xA2l2XOrf3GjvgpGnVY"
+      },
+      "usage": {
+        "input_tokens": 16,
+        "output_tokens": 56,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 1131,
+        "source": "upstream",
+        "reasoning_tokens": 27
+      },
+      "cost": {
+        "cost_usd": 0.00235668125,
+        "source": "upstream_usage",
+        "upstream_inference_cost_usd": 0.00235668125
+      },
+      "calibration": {
+        "requestInput": "known",
+        "observedInput": "from_usage",
+        "observedInputReason": null,
+        "outputGroup": "known"
+      },
+      "blockKinds": [
+        "thinking",
+        "tool_call"
+      ],
+      "answerOracle": null,
+      "opaque": {
+        "stage": "normalized",
+        "count": 1,
+        "kinds": [
+          "reasoning.text"
+        ],
+        "omittedKinds": 0,
+        "sha256": "4a960f74122e3c59dc74a75d99d7a65b494bf072aba1a7caf73c4fc23749833e",
+        "opaqueGroupCount": 1,
+        "omittedGroups": 0,
+        "groups": [
+          {
+            "opaqueGroupIndex": 0,
+            "sourceBlockIndex": 0,
+            "detailCount": 1,
+            "signedCount": 0,
+            "unsignedTextCount": 1,
+            "encryptedCount": 0,
+            "allTextSigned": false,
+            "laterSignatureAfterUnsigned": false,
+            "omittedDetails": 0,
+            "details": [
+              {
+                "detailIndex": 0,
+                "type": "reasoning.text",
+                "format": "unknown",
+                "isRedacted": false,
+                "redactedFields": [],
+                "index": {
+                  "present": true,
+                  "nonNegativeInteger": true,
+                  "value": 0
+                },
+                "signature": {
+                  "ownProperty": false,
+                  "valueType": "absent",
+                  "utf8Bytes": null
+                },
+                "text": {
+                  "ownProperty": true,
+                  "valueType": "string",
+                  "utf8Bytes": 105
+                },
+                "data": {
+                  "ownProperty": false,
+                  "valueType": "absent",
+                  "utf8Bytes": null
+                },
+                "summary": {
+                  "ownProperty": false,
+                  "valueType": "absent",
+                  "utf8Bytes": null
+                },
+                "adjacentText": {
+                  "sameId": null,
+                  "sameIndex": null,
+                  "sameNonSignatureHead": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "entryId": "de957f2a-d0d8-4611-8e81-ca6a5835d796",
+      "round": 2,
+      "modelId": "qwen/qwen3.7-max",
+      "plannedWireSha256": "fabd1238cc8d216779cde54639fa75028106c83d461eee19a7ec02546208cad1",
+      "plannedMeasurement": {
+        "mode": "full",
+        "precision": "estimated",
+        "fallbackReason": "basis_changed",
+        "predictedInput": "1193",
+        "admissionTokens": "1569",
+        "fullContribution": {
+          "tokens": "1193",
+          "precision": "estimated"
+        },
+        "replayContribution": null,
+        "newContribution": null
+      },
+      "replayAccounting": null,
+      "servingProvider": "Alibaba",
+      "upstreamModel": "qwen/qwen3.7-max",
+      "rawResponse": {
+        "file": "raw-response-de957f2a-d0d8-4611-8e81-ca6a5835d796.sse",
+        "byteLength": 9840,
+        "sha256": "51cc2a1109f46a88f7c78ef6161fe390a18d1dabbbb6e8686c5cab4c974474a0",
+        "sockets": 1,
+        "credentialOccurrencesRedacted": 0,
+        "withheld": null,
+        "withheldOriginalByteLength": null
+      },
+      "assistantReplaySha256": "ec3d3b61ba4f1124b075324cc0490a6d2231f62ac6ddfff0cbb6e8031605340b",
+      "liveWireSha256": "unavailable",
+      "estimatedReservationUsd": "1.620210800000000000",
+      "budget": {
+        "approvedLimitUsd": "200",
+        "approvedResearchLimitUsd": "60",
+        "ledgerHeaderLimitUsd": "200",
+        "ledgerHeaderResearchLimitUsd": "60",
+        "authorization": {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/budget-change-authorization-20260930-200.json",
+          "sha256": "80ba85d1f47b268f7e0b0ab8c4b1cf98906575e94a94a4a3559101dcbec15327",
+          "bytes": 505,
+          "declaredLimitUsd": "200"
+        }
+      },
+      "catalog": {
+        "sha256": "b23fa055e2c825d159abfb9d0c633e64a10496269756d5a42176bcdb2a12c826",
+        "captureSource": "openrouter-public-api",
+        "observedAt": "2026-09-30T07:16:17.897Z",
+        "directoryObservedAt": "2026-09-30T07:16:17.870Z",
+        "directoryRawSha256": "b9ba7b19962858e82470dfc9184e3718817865846c50fcc239b9118f99ca2eb5",
+        "endpointRawSha256": "53414d5e236def90662be49dda18ebe6920b6f99804f3620f2d688014f8e2ce4",
+        "collectorSha256": null
+      },
+      "outcome": "complete",
+      "typedRejection": null,
+      "failure": null,
+      "upstreamRequestId": "gen-1790772668-rIK5bZXGoficHZB6IjF2",
+      "httpStatus": null,
+      "inBandStatusCode": null,
+      "requestIdHeaders": {
+        "x-generation-id": "gen-1790772668-rIK5bZXGoficHZB6IjF2"
+      },
+      "usage": {
+        "input_tokens": 87,
+        "output_tokens": 71,
+        "cache_read_tokens": 1131,
+        "cache_write_tokens": 0,
+        "source": "upstream",
+        "reasoning_tokens": 42
+      },
+      "cost": {
+        "cost_usd": 0.0006093225,
+        "source": "upstream_usage",
+        "upstream_inference_cost_usd": 0.0006093225
+      },
+      "calibration": {
+        "requestInput": "known",
+        "observedInput": "from_usage",
+        "observedInputReason": null,
+        "outputGroup": "known"
+      },
+      "blockKinds": [
+        "thinking",
+        "tool_call"
+      ],
+      "answerOracle": null,
+      "opaque": {
+        "stage": "normalized",
+        "count": 1,
+        "kinds": [
+          "reasoning.text"
+        ],
+        "omittedKinds": 0,
+        "sha256": "9666e6f494bea6dad29cab2f792f53f6cdfd6da3ef9bd719f50bdfde7db392da",
+        "opaqueGroupCount": 1,
+        "omittedGroups": 0,
+        "groups": [
+          {
+            "opaqueGroupIndex": 0,
+            "sourceBlockIndex": 0,
+            "detailCount": 1,
+            "signedCount": 0,
+            "unsignedTextCount": 1,
+            "encryptedCount": 0,
+            "allTextSigned": false,
+            "laterSignatureAfterUnsigned": false,
+            "omittedDetails": 0,
+            "details": [
+              {
+                "detailIndex": 0,
+                "type": "reasoning.text",
+                "format": "unknown",
+                "isRedacted": false,
+                "redactedFields": [],
+                "index": {
+                  "present": true,
+                  "nonNegativeInteger": true,
+                  "value": 0
+                },
+                "signature": {
+                  "ownProperty": false,
+                  "valueType": "absent",
+                  "utf8Bytes": null
+                },
+                "text": {
+                  "ownProperty": true,
+                  "valueType": "string",
+                  "utf8Bytes": 168
+                },
+                "data": {
+                  "ownProperty": false,
+                  "valueType": "absent",
+                  "utf8Bytes": null
+                },
+                "summary": {
+                  "ownProperty": false,
+                  "valueType": "absent",
+                  "utf8Bytes": null
+                },
+                "adjacentText": {
+                  "sameId": null,
+                  "sameIndex": null,
+                  "sameNonSignatureHead": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "entryId": "e389ff84-5ace-43c0-93b9-3ad0492d2b7c",
+      "round": 3,
+      "modelId": "qwen/qwen3.7-max",
+      "plannedWireSha256": "242d5aa512d5ae3ba287e4fdf5727aa276edb5b93afc0aee3cef15b133609e45",
+      "plannedMeasurement": {
+        "mode": "full",
+        "precision": "estimated",
+        "fallbackReason": "basis_changed",
+        "predictedInput": "1382",
+        "admissionTokens": "1777",
+        "fullContribution": {
+          "tokens": "1382",
+          "precision": "estimated"
+        },
+        "replayContribution": null,
+        "newContribution": null
+      },
+      "replayAccounting": null,
+      "servingProvider": "Alibaba",
+      "upstreamModel": "qwen/qwen3.7-max",
+      "rawResponse": {
+        "file": "raw-response-e389ff84-5ace-43c0-93b9-3ad0492d2b7c.sse",
+        "byteLength": 10665,
+        "sha256": "f11c16d3a39231ac6e35be77fc44128bf298cb988e5d01869b962d905a5c60f5",
+        "sockets": 1,
+        "credentialOccurrencesRedacted": 0,
+        "withheld": null,
+        "withheldOriginalByteLength": null
+      },
+      "assistantReplaySha256": "d08dda61682023459bfec8ecce3316b4361f0c40d04cf6e3b5d0cf53ef9a2031",
+      "liveWireSha256": "unavailable",
+      "estimatedReservationUsd": "1.620210800000000000",
+      "budget": {
+        "approvedLimitUsd": "200",
+        "approvedResearchLimitUsd": "60",
+        "ledgerHeaderLimitUsd": "200",
+        "ledgerHeaderResearchLimitUsd": "60",
+        "authorization": {
+          "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/budget-change-authorization-20260930-200.json",
+          "sha256": "80ba85d1f47b268f7e0b0ab8c4b1cf98906575e94a94a4a3559101dcbec15327",
+          "bytes": 505,
+          "declaredLimitUsd": "200"
+        }
+      },
+      "catalog": {
+        "sha256": "b23fa055e2c825d159abfb9d0c633e64a10496269756d5a42176bcdb2a12c826",
+        "captureSource": "openrouter-public-api",
+        "observedAt": "2026-09-30T07:16:17.897Z",
+        "directoryObservedAt": "2026-09-30T07:16:17.870Z",
+        "directoryRawSha256": "b9ba7b19962858e82470dfc9184e3718817865846c50fcc239b9118f99ca2eb5",
+        "endpointRawSha256": "53414d5e236def90662be49dda18ebe6920b6f99804f3620f2d688014f8e2ce4",
+        "collectorSha256": null
+      },
+      "outcome": "complete",
+      "typedRejection": null,
+      "failure": null,
+      "upstreamRequestId": "gen-1790772670-apqp4ku7QipWtPOtcreD",
+      "httpStatus": null,
+      "inBandStatusCode": null,
+      "requestIdHeaders": {
+        "x-generation-id": "gen-1790772670-apqp4ku7QipWtPOtcreD"
+      },
+      "usage": {
+        "input_tokens": 152,
+        "output_tokens": 65,
+        "cache_read_tokens": 1131,
+        "cache_write_tokens": 0,
+        "source": "upstream",
+        "reasoning_tokens": 59
+      },
+      "cost": {
+        "cost_usd": 0.0006786475,
+        "source": "upstream_usage",
+        "upstream_inference_cost_usd": 0.0006786475
+      },
+      "calibration": {
+        "requestInput": "known",
+        "observedInput": "from_usage",
+        "observedInputReason": null,
+        "outputGroup": "known"
+      },
+      "blockKinds": [
+        "thinking",
+        "text"
+      ],
+      "answerOracle": {
+        "accepted": true,
+        "category": "accepted",
+        "strictAccepted": true,
+        "strictCategory": "accepted",
+        "acceptedOnlyAfterPresentationStrip": false,
+        "rawUtf8Bytes": 6,
+        "rawSha256": "ec5b098402734bdc6109d6485e5ad836e9e93057881a28af18432ed8a44becb6",
+        "normalizedUtf8Bytes": 6,
+        "normalizedSha256": "ec5b098402734bdc6109d6485e5ad836e9e93057881a28af18432ed8a44becb6",
+        "strippedUtf8Bytes": 6,
+        "strippedSha256": "ec5b098402734bdc6109d6485e5ad836e9e93057881a28af18432ed8a44becb6"
+      },
+      "opaque": {
+        "stage": "normalized",
+        "count": 1,
+        "kinds": [
+          "reasoning.text"
+        ],
+        "omittedKinds": 0,
+        "sha256": "e1185f1b1e18f49ac914bcb2bfe06ba547fba32f7b456db4f29f1fc996d97126",
+        "opaqueGroupCount": 1,
+        "omittedGroups": 0,
+        "groups": [
+          {
+            "opaqueGroupIndex": 0,
+            "sourceBlockIndex": 0,
+            "detailCount": 1,
+            "signedCount": 0,
+            "unsignedTextCount": 1,
+            "encryptedCount": 0,
+            "allTextSigned": false,
+            "laterSignatureAfterUnsigned": false,
+            "omittedDetails": 0,
+            "details": [
+              {
+                "detailIndex": 0,
+                "type": "reasoning.text",
+                "format": "unknown",
+                "isRedacted": false,
+                "redactedFields": [],
+                "index": {
+                  "present": true,
+                  "nonNegativeInteger": true,
+                  "value": 0
+                },
+                "signature": {
+                  "ownProperty": false,
+                  "valueType": "absent",
+                  "utf8Bytes": null
+                },
+                "text": {
+                  "ownProperty": true,
+                  "valueType": "string",
+                  "utf8Bytes": 228
+                },
+                "data": {
+                  "ownProperty": false,
+                  "valueType": "absent",
+                  "utf8Bytes": null
+                },
+                "summary": {
+                  "ownProperty": false,
+                  "valueType": "absent",
+                  "utf8Bytes": null
+                },
+                "adjacentText": {
+                  "sameId": null,
+                  "sameIndex": null,
+                  "sameNonSignatureHead": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expectedRounds": 3,
+  "stoppedByDeclaredRefusal": null,
+  "budget": {
+    "approvedLimitUsd": "200",
+    "approvedResearchLimitUsd": "60",
+    "ledgerHeaderLimitUsd": "200",
+    "ledgerHeaderResearchLimitUsd": "60",
+    "authorization": {
+      "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/budget-change-authorization-20260930-200.json",
+      "sha256": "80ba85d1f47b268f7e0b0ab8c4b1cf98906575e94a94a4a3559101dcbec15327",
+      "bytes": 505,
+      "declaredLimitUsd": "200"
+    }
+  },
+  "catalog": {
+    "sha256": "b23fa055e2c825d159abfb9d0c633e64a10496269756d5a42176bcdb2a12c826",
+    "captureSource": "openrouter-public-api",
+    "observedAt": "2026-09-30T07:16:17.897Z",
+    "directoryObservedAt": "2026-09-30T07:16:17.870Z",
+    "directoryRawSha256": "b9ba7b19962858e82470dfc9184e3718817865846c50fcc239b9118f99ca2eb5",
+    "endpointRawSha256": "53414d5e236def90662be49dda18ebe6920b6f99804f3620f2d688014f8e2ce4",
+    "collectorSha256": null
+  },
+  "ledgerCloseFollowsSummaryWrite": true
+}

@@ -1,0 +1,24 @@
+{
+  "qwen/qwen3.8-2.4t-a95b": {
+    "definition": "3",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-18"
+    },
+    "algorithm": "qwen-38-public-template-effort-3",
+    "tokenizer": "tokenizer-basis/qwen-38-public-template-effort-3",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  },
+  "qwen/qwen3.8-27b": {
+    "definition": "3",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-18"
+    },
+    "algorithm": "qwen-38-public-template-image-effort-4",
+    "tokenizer": "tokenizer-basis/qwen-38-public-template-image-effort-4",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2"
+  }
+}

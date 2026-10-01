@@ -1,0 +1,24 @@
+{
+  "format": 1,
+  "status": "accepted",
+  "decision_id": "D-109",
+  "decision_path": "record/decisions/model-request-image-preparation-adoption/scope-and-basis-decision.md",
+  "authority": "root technical integrator under explicit user implementation and acceptance delegation; human overall delivery acceptance excluded",
+  "date_utc": "2026-09-29",
+  "resources": {
+    "realization/packages/model/model-request-runtime/image-preparation-scope-cleanup-candidate.md": "2806c562cef964cdd979d2aaeb5ccba90484db7de84997ed213efb40ae8ec2a3",
+    "realization/packages/model/pi-ai-transport/image-preparation-scope-cleanup-candidate.md": "22900fa7eb39b74a6af81b6544eb0d190063d42ecc2a7bba2df0308b6a6bd8ab",
+    "realization/packages/model/pi-ai-transport/image-preparation-basis-applicability-candidate.md": "78b85967d2935ba01d5ad64687ce080cf025ffb266c287199048c78137bea781",
+    "product/PF-013-model-profiles-and-invocation/projection/v7/projection.md": "fd41aedbffcb9c24ba543c47770ee2b1662ac9b46e0f169ff825728665242b5e",
+    "product/PF-013-model-profiles-and-invocation/projection/v7/provenance.json": "ad88bcc564bfd148770d611d05d1383e2860c96e26ec02b0d97b79a8cf1e35f7"
+  },
+  "new_contract_versions": 0,
+  "new_bindings": 0,
+  "implemented": false,
+  "actual_verification": false,
+  "remaining": [
+    "SC1-SC9",
+    "BR1-BR7",
+    "IP-V1-IP-V10 actual integrated verification"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "case": "service",
+  "turn": 2,
+  "entryId": "3658de88-6354-4a5c-9b41-521bd4f49668",
+  "modelId": "openai/gpt-6-sol",
+  "estimateUsd": "4.613840000000000000",
+  "approvedLocalWireSha256": "fe9dbb11c67cd88809a9e300896971c12f6a6dc5510ce97593830e56c9d4d019",
+  "liveWireSha256": "unavailable",
+  "responseId": "response-32513e41-762c-485c-abdc-07dffff0a62e",
+  "outcome": "complete",
+  "requestInput": "known",
+  "observedInput": "from_usage",
+  "observedInputReason": null,
+  "usage": {
+    "input_tokens": 3,
+    "output_tokens": 6,
+    "cache_read_tokens": 6176,
+    "cache_write_tokens": 22,
+    "source": "upstream",
+    "reasoning_tokens": 0
+  },
+  "cost": {
+    "cost_usd": 0.0013562,
+    "source": "upstream_usage",
+    "upstream_inference_cost_usd": 0.0013562
+  },
+  "failure": null,
+  "upstreamRequestId": "gen-1790667755-i7zRlM0QMp17y5WSb9Vo",
+  "httpStatus": null,
+  "inBandStatusCode": null,
+  "durable": true
+}

@@ -1,0 +1,90 @@
+{
+  "NoCompare": {
+    "oracle": "LateCorrect",
+    "valid_target_counterexample": true,
+    "interpretation": "superseded precedes response, late false, expectedTail 1 vs actualTail 2",
+    "actions": [
+      "Prepare(1)",
+      "Boundary",
+      "Submit(1)",
+      "Process(1)"
+    ],
+    "trace_path": "runs/settlement-negative-NoCompare/trace.txt",
+    "trace_sha256": "0bf1a36bd8faeaa8f35e677c66d7570beb57f5ef773e3b5a0d9adbc41b1aef99",
+    "read_by": "/root/b1_rt4_formal_verification",
+    "human_interpretation_recorded_by_verification_agent": true
+  },
+  "PartialBatch": {
+    "oracle": "NoOrphanMessage",
+    "valid_target_counterexample": true,
+    "interpretation": "message without response; actor 2 marks done",
+    "actions": [
+      "Prepare(2)",
+      "Submit(2)",
+      "Process(2)"
+    ],
+    "trace_path": "runs/settlement-negative-PartialBatch/trace.txt",
+    "trace_sha256": "d4ab18f7f3799e653663a33e3a11aa8f2cb5805bdf16864a4865099789018db4",
+    "read_by": "/root/b1_rt4_formal_verification",
+    "human_interpretation_recorded_by_verification_agent": true
+  },
+  "PartialClaim": {
+    "oracle": "ClaimsWholeBatch",
+    "valid_target_counterexample": true,
+    "interpretation": "claim 2 while only message committed; no whole response batch",
+    "actions": [
+      "Prepare(2)",
+      "Submit(2)",
+      "Process(2)"
+    ],
+    "trace_path": "runs/settlement-negative-PartialClaim/trace.txt",
+    "trace_sha256": "d4ab18f7f3799e653663a33e3a11aa8f2cb5805bdf16864a4865099789018db4",
+    "read_by": "/root/b1_rt4_formal_verification",
+    "human_interpretation_recorded_by_verification_agent": true
+  },
+  "UnknownAsAbsent": {
+    "oracle": "UnknownNotAbsence",
+    "valid_target_counterexample": false,
+    "interpretation": "Recover successor has unsafeAbsence null; old pending writer not stopped",
+    "actions": [
+      "Prepare(1)",
+      "Submit(1)",
+      "LoseAck(1)",
+      "Recover(1)"
+    ],
+    "trace_path": "runs/settlement-negative-UnknownAsAbsent/trace.txt",
+    "trace_sha256": "0e12dda2eff003a90c68c9cb34b7b6468ab8cbc559331e0e3e71f3d7f1f28629",
+    "read_by": "/root/b1_rt4_formal_verification",
+    "human_interpretation_recorded_by_verification_agent": true
+  },
+  "DropOwner": {
+    "oracle": "PendingOwned",
+    "valid_target_counterexample": true,
+    "interpretation": "spent 1 reaches Budget 1 after attempted submit, no response, Exhaust drops owner",
+    "actions": [
+      "Prepare(1)",
+      "Boundary",
+      "Submit(1)",
+      "Process(1)",
+      "Exhaust(1)"
+    ],
+    "trace_path": "runs/settlement-negative-DropOwner/trace.txt",
+    "trace_sha256": "9f4e33f1bd5d289dc81b1a3409eea9298e88ee7cadd9ebed9bde2972ae374931",
+    "read_by": "/root/b1_rt4_formal_verification",
+    "human_interpretation_recorded_by_verification_agent": true
+  },
+  "IgnoreOpened": {
+    "oracle": "NoSettlementThroughUnknownOpened",
+    "valid_target_counterexample": true,
+    "interpretation": "response committed while anchorKnown false and anchorPending true",
+    "actions": [
+      "Prepare(1)",
+      "Submit(1)",
+      "Process(1)"
+    ],
+    "trace_path": "runs/settlement-negative-IgnoreOpened/trace.txt",
+    "trace_sha256": "d8c687d137a0ce7022e2c5475ac10cfa0a08eeffe966c5f71f902031edbc0df9",
+    "read_by": "/root/b1_rt4_formal_verification",
+    "human_interpretation_recorded_by_verification_agent": true
+  }
+}

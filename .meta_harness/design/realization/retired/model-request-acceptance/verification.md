@@ -1,0 +1,130 @@
+# model-request-acceptance 验证与证据
+
+revision 2，candidate，未接受。下面是本装配必须执行的验收方案，**没有一项应用验收已执行**。各 provider 已有测试、形式任务、研究请求或原型只作对应范围的前置输入；它们不自动成为本应用绑定，也不把跳过项计为通过。MAA-AR1/AR2 的稿件处置见 A-V13/A-V14，待独立复核与实际验证。
+
+## 机器结果与证据要求
+
+候选入口按显式配置运行指定阶段/场景，在已核本机 owner 输出上下文交付机器可读总结果及逐场景结果：runId、scenarioId、状态（pass/fail/blocked/not_applicable）、失败或不可适用原因、实际代码/契约/配置版本摘要、开始/结束与实际资源停止状态、证据位置。模型行完整携带精确 ModelProfileRef/配置来源上下文、完整 ModelAdaptationBinding（含 implementation.name 及无损 configuration.values）、固定请求 provider route 与上游实际 provider 原串，并带 public/service 路径、门编号、request/generation/response 对照引用、费用 ledger 项引用和缓存原始计数；允许以受限证据引用承载完整值，读回缺失时不得判为匹配。秘密配置仅记“已提供/校验结果”，不散列后充当公开凭据标识；它们不能混入无秘密的 adaptation values。
+
+配置快照、版本清单、运行命令说明、机器输出和保留的失败反例组成可重跑包，持久接受证据归 [record/evidence](../../../record/evidence/README.md)；实际 run 尚未形成，不提前建空证据绑定。每次归档扫描完整秘密哨兵和片段、来源引用、真实内部身份的禁止外传字段。报错、stdout/stderr、trace、metrics、请求头/体、重试诊断、证据索引都在扫描范围；发现泄漏停止归档/后续发送，交相应 owner 修复，保留受限失败证据。不能删除失败只留成功，也不能把敏感原文贴进机器总结果。
+
+模型认证的匹配值为 **精确 ModelProfileRef/配置来源上下文＋完整 ModelAdaptationBinding＋实际 provider route**，具体表示与相等规则见 [design 的认证边界](design.md#认证结果的完整匹配边界)。official ref 保留 origin/routeName；custom ref 保留 origin/完整 scope/routeName，包括所属组织或租户身份。implementation `{name, revision}`、definition `{modelId, revision}`、configuration `{revision, values}` 全部保留；五个字符串逐码点比较，values 严格无损 JSON 相等，完整命名范围不能压成裸 revision。无档案独立调用也必须保存显式配置来源上下文；本轮 official public 路径保存对应官方 ref 的真实来源快照。
+
+先记录完整 field/context 再派生索引；哈希相等仍核真实全值，碰撞、缺快照、无法解码、来源作用域/任一绑定值/实际 route 不同都不得复用旧 pass。相同输入的正常 outcome、实际线协议、耐久记录与费用对账共同构成判据；public/service 证据路径分别保留。公共家族代码改动重验所有受影响完整记录，窄适配或配置变动重验对应完整记录；无法判明影响范围时不承诺旧证据可复用。旧调用仍固定旧 binding 与新调用是否获得认证是两件事，保留旧证据只用于它原来完整上下文的历史结论，不自动为新配置背书。
+
+## 阶段、产出与放行触发点
+
+阶段名接续完整交付边界 S0～S8。本表只落实本应用消费哪些产物、何时必须执行什么验收；规格、提供者或实现接受仍由各 owner 完成。
+
+| 阶段                   | 必须交到本应用的产出                                                                                                 | 要执行的验收／下一步触发条件                                                                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S0 基线                | 精确 accepted/candidate 清单、源码/节点摘要、原失败清单、共享账本身份                                                | 核目录状态与消费者版本，已有失败不重标通过；候选依赖尚未采用则受影响实施 blocked；不得从 app 目录存在推实现                                                 |
+| S1 研究/原型           | 确认的 37 清单、逐模型路由/角色/缓存事实、原始请求、排他费用记录、生命周期正负证据                                   | 校对研究输入与计划，不签生产认证；研究 37 暖读仅解释后续案例输入。进入生产实测仍须 S4 及预算门                                                              |
+| S2a/S2b/S2c 规格与投影 | D-070/071、D-072/073/074；runtime3/runner3 最终接受与 provider 修订采用；runner3 S-35 正配置和七项相应负控的原始工件 | 逐坐标核对冻结输入；形式任务必须在实际修订与声明常量下完成，不以旧模型成功替代。缺此条件阻断 runner durable 分支，其他已接受纯组件可继续                    |
+| S3 纯组件              | profile3/messages4/response4、AD1/AE4/LC4 等公开制品与精确旧入口                                                     | 真实独立包消费者编译/运行；严格无损、契约指定 canonical ref、实际坏值、跨字段、旧 schema 闭包、当前根选择与固定根失配；A-V1。不能只测内部相同实现的镜像     |
+| S4a 生产传输构件       | pi fork 许可/来源、公开 plan/send/read、注册宿主、家族公共实现和 37 窄定义                                           | transport 原 T-1..T-20、SC-1..SC-3 全部保留；控制 HTTPS 抓线与实际停止；A-V5/7。没有隐藏重试、未知版本/非法配置零网才放代表场景                             |
+| S4b 少量生产代表       | 通过 S4a 的实际 public 函数及 Cordis 服务接线                                                                        | 用同一生产构件跑代表路径，检查规划/线协议/锚点/结果/费用一致；代表成功只允许扩展验证，不替全族或 37 行验收                                                  |
+| S5a 真实输入           | 同 SQLite 的身份/治理、tenancy、EIS 发布/capture/read                                                                | A-V2：当前核权和源同事务、旧 captured effective 但当前失效/未知、版本/配值更新无需 reload、C16 失配、缺源/缺时限零发送、重开与竞争；没有 fake current input |
+| S5b 历史与清单         | 真实 JSONL、manifest SQL、registry、LC/runner 读取公共面                                                             | A-V3/8：整批提交、fence、ResponseId/MessageId 判重、E1/E2/同固定根版本/明确排列、SQL 与 JSONL 各自故障，不能反建 EA 充输入                                  |
+| S5c 目录与窄凭据       | 目录及 CCL sourceRef 修订采用/实现，预置真 keyFile，本地可信成对来源                                                 | A-V4：refA→refB、迟到 A、并发读取/轮换、generic 清 sourceRef、跨租户/账号/钥、取值故障、所有秘密哨兵；无真实租户凭据链不得进入服务模型认证                  |
+| S5d 失败链             | runner3、实际默认重试贡献、声明/允许集合与真实守卫                                                                   | A-V6：完整失败记录、retry/observed、非法 power/空 allowed、结论先落盘、等待后再复核、重放不重执行。缺工具/卡片等分支维持 unavailable                        |
+| S6 runtime 完整纵线    | 十三个操作、耐久内容门/结算/恢复、独立 invokeModel、观察与诊断                                                       | A-V5..A-V9：取消确停、首内容/迟到门、前后断流、回复与响应同批、重启不重发、固定 binding、时限更新、诊断降级；全部必需分支通过后才允许声明 runtime 功能完成  |
+| S7 本应用              | 真实 bootstrap、结构 guard、阶段入口、唯一费用门、顺序 cleanup、机器结果                                             | A-V0/10：全 ACTIVE→confirm→seed/写事实；确认前故障恢复、确认后故障留事实；机器输出可重跑；原 ledger 合账与并发/崩溃保护；接受本应用不等于总体签收           |
+| S8 系统验收            | S7 实装、完整故障场景、37 生产矩阵、真实成本与计时、独立复核结果                                                     | A-V7..A-V14 与每模型全 G 门全部执行；未完成、费用未知、预算不足、过期证据逐项 blocked/fail；由主线组织独立验收并由用户签收，总结果不能自动通过              |
+
+## 实际场景与必须失败的反例
+
+| 编号／来源                                                                | 场景、反例与可观察判据                                                                                                                                                                                                                                                                                                                                                | owner／当前状态                                   |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| A-V0：tenancy2 S-6；storage upgrade；各节点装配前提                       | 静态 guard 仅允许 `apps/model-request-acceptance/src/bootstrap.ts`、本 app tests、cli tests import seed；一般 src/转导出/require/literal dynamic import/相对或别名绕过负控失败。启动时逐个让必需插件 PENDING/FAILED、confirm 抛错/快照未移除，断言 seed/出版/HTTP 为零；confirm 后 seed 同租户幂等、异租户拒绝且行不改；所有 ACTIVE 前不开放入口                      | app＋tenancy/storage；未开始                      |
+| A-V1：AD1 S-1..S-10；AE4 S-6/S-7/S-47；LC4 S-1..S-41                      | 真发布实际根正文和引用/attributes；unknown 字段保留，精确 JSON 大数/类型不变；缺项不补，错误 canonical ref、version/source 不一致、实际固定根与当前选择失配都能失败。公共包制品消费 root4 与 LC3/schema3 分别核版本，不能仅类型断言通过                                                                                                                               | core/读取 owner；未开始                           |
+| A-V2：runtime3 S-66；OG2 S-26/S-63；EIS-R1..R6                            | 用真实账号/登录/治理建立两租户；capture 后撤资格，旧 standing 不变但 read 拒绝；源发布/撤销与 read 两种提交次序、跨实例 unit 拒绝、异常传播外层实际回滚。配值/版本更新下一次发出看新值，已返回输入保留旧值。必需 scope 缺行不可当空；shared/workspace/MCP 来源缺席整次 unavailable，零 HTTP。量测 SQL 排队/持锁及双求值耗时                                           | EIS、OG、app；未开始                              |
+| A-V3：manifest3 S-12/S-32..S-35；registry3 S-48                           | 实际根 A1/A2→evaluate→registry→manifest→readEvaluation，核源/排列/E 三者无损一致。reuse 后读取最近 given/mint；旧/新 registry 同头竞争、跨会话 owned_ref 撞号；错误 E/C16 不补源/不换表/不追加；重开可读。将 SQL append 改成拆提交的负控必须被故障场景检出                                                                                                            | manifest/registry/app；未开始                     |
+| A-V4：directory3 S-20；CCL2 S-7/S-12..S-15 与来源修订                     | 实际 keyFile、真实目录绑定与密文副本：A/refA→bind B→value 拒 A→B/bodyB 入库才成功；迟到 A storeBoundReplica 为 false 且不覆盖；读取与轮换在共同 binding 行两种次序；generic 写清来源、旧无来源不贴 ref；跨租户搬密文/改 ref/错钥失败。缺钥启动失败；运行读钥/DB故障与 absence 分开；不越级 factory。全出口哨兵扫描                                                    | directory/CCL/app；来源候选采用与源码前置未完成   |
+| A-V5：runtime3 S-15/S-17/S-38/S-54..S-59；messages4/response4             | 公共 plan→send/read 与服务同规划一次：计划后修改原输入/配置或发布新实现，线上字节、dispatched、response binding/参数仍一致。opened 持久门前 snapshot/观察/最终块不可见；门失败、取消后迟到确认、不确认尾不泄露/不重发。首部/usage/空帧不算首内容。reply_pending 后调用者和 runtime 结算竞争，AssistantMessage＋response 同批、唯一 ResponseId，读取故障不当空         | transport/runtime/log/app；未开始                 |
+| A-V6：runner3 S-6/S-14/S-19..S-28/S-35；runtime3 S-30/S-35/S-50/S-60/S-67 | 真实 after_model_call 失败链消费完整记录、owner 固定能力标识和实际求得 power。空/非法 allowed、超声明、同 ID 异提醒、错误 retry plan 必须拒绝；真实 canDispatchAgain 拒绝不交 retry，允许后先结论确认再效果。应用等待 plan.after 后修改当前来源/资格/时限，再 dispatchAgain 必须复核且零新 HTTP。重放只认完整相同记录，不再次执行作者或补副作用。默认与替换件均同守卫 | runner/runtime/app；接受与 S2c 模型证据前置未完成 |
+| A-V7：runtime3 S-53/S-56/S-58/S-59/S-61/S-64；transport T-19/T-20         | 实际 HTTPS 延迟、不主动 EOF、首内容前后取消/断流；观察 signal、socket close、reader/callback 完成和 lease release 独立时点，只 signal.aborted 不通过。真实 Cordis register/adopt/retire 失败窗口，旧 runtime/direct 保留旧版；acquire→release→空闲→再 acquire→retire；超时 remaining_active 如实，强制取消等实际停。提供者自身撤除与依赖换代两种情况都验              | transport/runtime/kernel-basis/app；未开始        |
+| A-V8：runtime3 S-31..S-34/S-49；runner3 S-19/S-21/S-28/S-32；session-log2 | 在 call/dispatched/opened/response/结论/提醒各提交前后 kill 子进程、同目录重开；只从实际日志认回。reconcile 零网络，首内容后失联不重发；未知尾、fsync失败、fence落后、同键异内容明确失败。无旧实现也可恢复历史，显式续接拿不到精确旧版才拒绝。实际 attempt 壳较新/验收终结条目经同次读证明 facts，无内存布尔替身                                                      | log/runtime/runner/app；未开始                    |
+| A-V9：runtime3 S-20/S-37/S-51/S-62/S-63；SYS-OBSERVABILITY                | 正常/失败/取消/拒绝/恢复各路径有因果链；默认所有秘密/正文/推理/参数哨兵零泄漏。慢/抛错/满 sink、不可写文件、观察者消失、有界队列达到字节/事件双限；正常业务 outcome 与健康 sink 一致，独立退化计数可查询。不同 tenant 查询互不可见；sink 活到关闭完成                                                                                                                 | app＋各采集 owner；未开始                         |
+| A-V10：已授权费用上限、D-019 费用事实                                     | 读取同一现有 ledger，以精确十进制核研究＋生产累计；两个进程同时预留仅能在共用余额内成功；预留后未发/已发未知/结算前崩溃、重复回执、generation暂不可读、负/非法/缺费用、缓存费用组成未知、错误 ledger 路径。不得发送超过已确认预留，unknown 未决禁止新 paid send；abort 不自动退预留，无隐式 retry；受控负例验证移除预留或双 ledger 会失败                             | 主线费用 helper＋app；未开始；USD 100 不自动上调  |
+| A-V11：runtime3 S-38；profile3 S-29..S-31；response4 S-37/S-38            | 下述 37 精确模型，每个实际 provider route 用生产 public 与 service 路径跑全部适用 G 项。记录角色线协议、参数差异、工具原文/回传、支持的 reasoning replay、cold/warm/cache TTL、上游实际身份/usage/generation cost。每项含版本与请求证据；缺一项不可整行 pass                                                                                                          | transport/主线实测＋独立验收；全部未开始          |
+| A-V12：runtime3 S-21/S-55/S-63/S-66；本次交付边界                         | 真测 first-content 网络到达→opened durable→可见延迟、输入源事务申请/锁等待/持锁、两次 pure evaluate 成本与规模；当前设置变更无需 reload。正常与故障的资源计数重开核对；预算余量、未覆盖分支、残余资源/unknown明列。机器结果重跑及独立验收逐项对照，不用主线实现自测替代总体签收                                                                                       | app/性能测量/独立验收；未开始                     |
+
+### 独立评审追加的必经负例
+
+| 编号／来源                                                             | 必须执行的真实反例与判据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 阶段与 owner／当前状态                                                                                           |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| A-V13：MAA-AR1；profile3 S-13/S-29/S-30；runtime3 S-53/S-57            | ① 用真实目录/公开生产计划器建立两个合法档案，configuration.revision 均为 `c1`，分别采用不同显式 TTL/断点 values；核其实际 wire/完整证据不同，旧 pass 不可复用。另向同档案写 `c1` 异值，目录必须拒绝；将异值证据送匹配器仍独立拒绝，不以目录“不应发生”免验。② 实际登记两个不同完整 implementation.name、相同 revision 的实现，分别取得生产规划证据，匹配不得合并。③ official/custom、两个 custom profile 或不同 tenant/scope 共用同裸 revision、同模型/route，来源上下文不同仍拒旧认证复用。④ 索引注入相同 hash 而全值不同、删除完整快照、精确大数改变/数组顺序改变，均不得 pass；对象成员换序而其余全值同一则按 JSON 相等认回。⑤ 旧调用保持旧 lease/旧 binding 后发布新配置，新认证状态仍未通过，不因旧调用成功而继承。所有比较消费生产记录的完整值，不只测自造字符串 key | S3/S4a 完成匹配器及真实制品负控，S7/S8 与矩阵合并重跑；app＋directory/transport；未开始                          |
+| A-V14：MAA-AR2；runtime3 S-63；SYS-OBSERVABILITY 与既有本机 owner 政策 | ① 缺 tenant 范围查询/导出必须拒绝，不能扩成全租户。② 无已核本机管理主体、实际不同 OS 调用方或伪填 tenant/owner 字段均不得读/导出；本机 owner 的显式多租户查询另作合法正例，不误设新的单租户政策。③ 实际文件/目录改成非固定 owner、group/other 可读或无法核实，读写/查询/归档/导出拒绝；重开重核，不能仅在创建时验 umask。④ 查询被拒后导出也拒；合法查询改送其他 owner、宽 mode 或未核实目标句柄，不得产生含诊断/完整配置的输出。⑤ 机器结果、认证快照与导出均沿同一 owner-only 输出，实际验证目录 0700/文件 0600、归属、既有文件重开和目标替换；失败结果不输出租户正文或秘密。OS 访问反例用隔离进程/真实文件权限，不能以恒真/恒假授权函数替代                                                                                                                              | S7 入口放行前，S8 归档与重开重复执行；app/独立验收；未开始；环境不能施加不同 OS 主体时该负例为 blocked，不算通过 |
+
+A-V13 的所有修订字符串都只在对应完整命名范围内解释；实际官方 37 行通过须先通过该认证基础设施门。A-V14 的调用方核实来自本机权限边界，tenant 参数只是明确查询范围，不能充当授权凭证。两项新增义务不改变 bindings 的 0 条状态，也不宣称独立评审已复核关闭。
+
+## 37 个模型的生产矩阵
+
+清单固定到[已确认研究卡片](../../../record/evidence/2026-09-27-probe-model-request-runtime/model-evidence-summary.json)，不会按上游新增目录自动扩大。本表仅以 modelId 列出所需验证范围，**所有生产认证状态均为未开始**；实际机器行必须按上文完整档案/配置来源上下文、完整 binding 和实际 provider route 展开，modelId 本身不是旧证据匹配键。各行冻结完整来源、不由厂商前缀推导，同时分别关联 public/service 证据；费用上限不允许用脚本 warm-hit 为任一列补 pass。
+
+| 厂商／行数   | 必须分别出具证据的 modelId                                                                                                                                                                                                                                                                     |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OpenAI／12   | `openai/gpt-6-astra`；`openai/gpt-6-astra-pro`；`openai/gpt-6-sol`；`openai/gpt-6-sol-pro`；`openai/gpt-6-luna`；`openai/gpt-6-luna-pro`；`openai/gpt-5.6-sol`；`openai/gpt-5.6-sol-pro`；`openai/gpt-5.6-terra`；`openai/gpt-5.6-terra-pro`；`openai/gpt-5.6-luna`；`openai/gpt-5.6-luna-pro` |
+| Anthropic／4 | `anthropic/claude-opus-5.5`；`anthropic/claude-opus-5`；`anthropic/claude-sonnet-5`；`anthropic/claude-fable-5.1`                                                                                                                                                                              |
+| DeepSeek／2  | `deepseek/deepseek-v4.1-flash`；`deepseek/deepseek-v4-pro-0813`                                                                                                                                                                                                                                |
+| Google／2    | `google/gemini-3.8-flash`；`google/gemini-3.7-flash`                                                                                                                                                                                                                                           |
+| xAI／2       | `x-ai/grok-4.7`；`x-ai/grok-4.6`                                                                                                                                                                                                                                                               |
+| Qwen／8      | `qwen/qwen3.8-max-0902`；`qwen/qwen3.8-max-prime`；`qwen/qwen3.8-flash`；`qwen/qwen3.8-2.4t-a95b`；`qwen/qwen3.8-27b`；`qwen/qwen3.7-max`；`qwen/qwen3.7-plus`；`qwen/qwen3.7-flash`                                                                                                           |
+| Moonshot／2  | `moonshotai/kimi-k3`；`moonshotai/kimi-k2.7-code`                                                                                                                                                                                                                                              |
+| Z.ai／5      | `z-ai/glm-5.3`；`z-ai/glm-5.3-prime`；`z-ai/glm-5.3-flash`；`z-ai/glm-5.3-flashx`；`z-ai/glm-5.2`                                                                                                                                                                                              |
+
+### 每行的 G 门继承与增量
+
+原十五项与新增比较项的权威清单保持在 [pi-ai-transport verification](../../packages/model/pi-ai-transport/verification.md) 的 G 系列。下表分组组织证据，不删除或重新定义任何一项；运行输出须把原具体项逐个映射，不能只报整组通过。未出现的上游错误码等用受控服务验证本地映射，并明确真实上游事实仍未知，不能以负控服务器响应冒作 OpenRouter 事实。
+
+| G 组           | 每模型、每路由必须核对的实际项                                                                                                                                                             | 不能据此声称什么                                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| 路由/参数      | model/provider/order、禁回退、require_parameters、最大生成长度字段及两个名称的差异、store、reasoning、strict、transforms、reasoningEffort 支持值；planned/发送/调整/丢项/耐久响应逐值一致  | 未经许可的参数不偷偷降级；成功请求不证明另一路由                                                                             |
+| 提醒/消息      | OpenAI system reminder 实发 developer；其他家族经核对有专门类型则该类型，否则 user；system 为负控。Compaction 单列，消息原顺序/工具结果不补造                                              | 线协议证据不证明上游内部优先级；厂商名不能替每模型实际映射                                                                   |
+| 工具/推理/模态 | 原始工具参数分片与回传 ID、模型面工具名、CallId 词法、声明支持的输入模态、opaque 严格无损/同路由 replay，Anthropic chat-completions 思考回放与中途 system；生产解析器任意切分样本          | 明确不提供的能力才可附定义依据 not_applicable；预算不足/未知/未测不得 NA；不涉及真实工具执行                                 |
+| 流/身份/故障   | 内容成员闭集、非内容首帧/refusal、终态且无尾随事件、实际 provider/model/response ID 原串；重定向拒绝、错误/带内 code 与 HTTP 状态、402/403/404/413事实、首内容前后断流与 abort、无隐藏重试 | 错误未出现不能捏造含义；请求 provider 不能补响应缺失；取消信号不能证明不计费/已停止                                          |
+| 缓存/费用      | 自动缓存 omit 手工控制与显式缓存配置分验；实际 read/write token 与已知零/未知、冷暖对照、TTL/断点实际发送、usage.cost 质量/单位、prompt token 组成、BYOK含义、generation对账与精确 ledger  | 正写不等于命中；read>0 才是该请求读命中；首请求可能已有缓存，暖读不证明独占冷态或 TTL 到期；要声称保留期必须另做 expiry 实验 |
+
+当前策略输入为 transport v3 的逐模型绑定：OpenAI/DeepSeek 等自动模式不得为了演示命中加隐藏控制；Anthropic 等显式模式的 TTL/断点值必须来自完整配置。Qwen/Z.ai 的具体 route 不同可能采用不同策略，禁止按整个家族统一强制 automatic/explicit。unsupported 模态/工具/replay 的公开提供边界必须先明确，测试仅核对应拒绝；不能看到失败后临时缩小模型能力。
+
+## 实际执行
+
+| 运行                    | 输入与范围                                        | 结果                                                                                 | 证据与限制                                                        |
+| ----------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| 2026-09-27 起草输入核对 | catalog、D-072/073/074、当前共享 ledger、研究卡片 | 37 张研究卡；ledger 162 settled，合计 USD `1.057233989500000000`；app 源码目录不存在 | 只读起草核对；运行期必须重读 ledger，不硬编码余额；研究摘要见上链 |
+| 2026-09-27 设计检查     | 四件套与全设计结构，formal skip                   | exit 0；`PASS: design tree … passed gate=internal; formal=skip.`                     | 不属于应用验收；所有 formal 明确 skipped，不计模型或存储通过      |
+
+实际执行命令为工作树的 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip`；revision 2 修订后同样 exit 0，`passed gate=internal; formal=skip`。`pnpm exec prettier --check` 对本节点四文件报告 `All matched files use Prettier code style!`，`git diff --check` 对本节点 exit 0；独立清单核对报告 `PASS: four files, exact 37 model IDs, no task-directory references`。这些只说明结构、格式与清单一致，不能成为 A-V0～A-V14 的通过证据。
+
+## 覆盖缺口与接受边界
+
+- A-G1：runtime3、runner3 与本应用候选尚未接受；runner3 S-35 的正/负形式证据及生产持久实现分别是前置，任何一项缺席不以另一项替代。owner 为主线与相应 spec/provider。
+- A-G2：目录 sourceRef 与 CCL 模型窄组件需独立采用、实际制品与真实密钥/来源证据；未关闭前不认证租户凭据调用。完整 CCL OAuth/MCP/中心送达仍由各 owner 后续交付。
+- A-G3/A-G4：真实来源、SQL/JSONL、版本 lease、停止与关闭尚未组合；A-V0..A-V8 未开始。存储同实例、对外关闭时点及失败收口由各 provider 实现，本应用负责接线和故障场景。
+- A-G5：37 模型的全部 G 项尚未生产验证。上游不可诱发的事实、缺价格、预算不足和计费 unknown 如实阻断相应项，不将研究暖读转换为认证，也不以离线通过补模型行。
+- A-G6：sink 权限、保留、队列限额、secret scan、唯一 ledger 的实际保护与机器证据尚未实现，由 app/费用 helper owner 关闭。日志不是恢复真相源，有限扫描不是无条件保密证明。
+- A-G7：完整 Agent Loop、产品会话生命周期、工具执行、等待卡片、CLI/OAuth/中心及 shared/workspace/MCP 等真实源缺口不在本次成功范围。验收 runEndRecognizer 仅证明所用真实日志记录的派生，不接受产品终结记录形状。
+
+MAA-AR1/AR2 稿件处置：原不完整五元组已撤换为完整匹配规则，认证对象/机器结果/旧证据复用/失效传播统一；本机查询与导出共用既有 owner 政策并要求显式 tenant 范围。对应 A-V13/A-V14 尚未执行，A-G5/A-G6 的实现证据缺口继续存在，由 app 与相应 provider owner 关闭；本次修订本身不声称评审已闭合。
+
+本应用自己的场景结果不等于独立验收结论，更不等于用户总体签收。实际模型调用数、已花/预留/未知费用、未覆盖项、失败反例和恢复后残余资源必须随总结果一并交付。
+
+## 真实鉴权启动增量：待执行义务
+
+消费 [启动投影 revision 1](v3-auth-bootstrap-design.md)，当前 candidate，未接受。下面只补原 A-V0/A-V1/A-V6 的本机真实鉴权、目录和 model-only CCL 组合，不解除其余场景或完整生产认证门。**以下八项均未执行，绑定仍为 0。**
+
+| 编号／对应责任 | 必须取得的真实证据与失败判据 | owner／限制 |
+| --- | --- | --- |
+| AB-V1：AB-1～AB-5；AI3 S-15/S-26/S-44、OG2 S-63、MD3 S-19/S-20、CC2 S-12 | 真文件库、真 Cordis、一个真实 clock、真实 scrypt／签名组件：完整迁移→六条基础 fiber ACTIVE 与 now 可用→同 guard 确认→目录真实 loadManifest→唯一 CCL→lookup→八条 fiber ACTIVE→真实 register／issue／exchange／currentTenant／standing→可信 pair→bind→store→lookup 同源返回。用实际写入边界和调用先后记录确认后才出现首次目录业务提交，确认前没有账号／登录／成员／绑定／副本／source 回调；明确允许迁移初始元数据和 clock 租约。源码阶段没有 transport／runtime，实际模型 HTTP 为 0 | app 实施及独立验收；不预置 SQL 身份，不 stub 凭据／登录／资格，不把组件包装成完整 CCL |
+| AB-V2：AB-1/AB-4；原 A-2、MD3 S-18/S-23 | 保留一个故意恢复旧顺序的可重跑负控：新库合法正序号空清单→先装目录→后 confirm，原 oracle 必须因确认前 model_manifest_state 的业务采用提交而失败，即使没有任何 profile 行。再以非空清单重复，不能把“无外部调用”或“最终清理了”当成无写。对正常新顺序同一 oracle 通过；Config Schema 只读预检不得调用 loadManifest 或 provider 业务面 | app 验证 owner；只测计数不足，须定位实际受写对象、所属阶段与提交 |
+| AB-V3：AB-1/AB-2/AB-3；storage R-U1～R-U8 | 只读配置／密钥失败、迁移失败、基础 fiber PENDING／FAILED、clock 暂不可用截止均阻止 confirm 与目录／业务准入。含新库及已有库新增迁移两支：确认前失败撤除后依实际 snapshot／pending 核恢复；无迁移无快照不要求撤销基础租约。注入真实 confirm 删除失败、删除后落盘失败和关闭交错，入口保持关闭；报告实际确认结果、pending 和残留，不能用 pending:clear 推断恢复或成功。关闭与 confirm 重叠时不进入确认后业务步骤 | app＋storage／clock owner；已有落盘缺口须如实标明，不借本项宣称全面可回退 |
+| AB-V4：AB-2/AB-5；AI3 S-15/S-44、AR2 S-7～S-12、OG2 S-26/S-63 | 错密码、无有效登录、错误账号／tenant、来源回调拿到的作用域与实际登录不符时，不成功发布副本。真注册后在 issue、exchange、currentTenant、bind、store 各阶段诱发失败：已提交事实保留；不得隐式重跑整个注册／来源链。编译行为负控移除实际 credential-verification 或破坏 tenant/account 检查，原正负 oracle 必须击中；不只让恒假鉴权函数返回期望值 | app 实施及独立验收；显式注册重试仍沿 AR2 原幂等规则 |
+| AB-V5：AB-4/AB-6；MD3 S-18/S-23/S-34 | 确认后清单 N 已真正提交，在后续 provide 失败、CCL key/table 构造失败或 lookup 启动失败处停止：完整阶段门不开放，资源收口但不恢复旧库。重开同 N 认回，旧 N−1 留 manifestNotNewer 诊断且持久 N 不倒退，同序号异内容拒绝；公有目录查询与实际持久状态对照。模拟清单回执缺失也不能删库“重来” | app＋目录 owner；故障注入可在验收控制边界，正常路径必须是公开真实 provider |
+| AB-V6：AB-5；目录 R3-7/R3-8、CCL K-M1/K-M2/K-M4 | 真当前绑定 reader 与唯一 CCL 用同 AtomicStorage；bootstrap 不执行内部 reader／readBoundReplicaIn。来源 A 在 B 轮换后晚到得 stored:false；现读不交 A，B 正确落副本后才可取得 B；有租户绑定但无匹配副本不问 factory。拿同文件不同实例的 Unit 参与为具名缺陷，不能降为正常 absent。保留真实来源调用、锁顺序及外层单元结束证据 | app＋目录／CCL；代表性交错不代替两 provider 的全部并发、PG 或中心送达验证 |
+| AB-V7：AB-3/AB-4/AB-6；clock 原租约责任、MD3 S-23 | 用同一持久 key／库正常重开和真实子进程崩溃重开；旧 clock 租约窗口内真实 now 可答 unavailable，应用按显式截止等待或明确失败。全过程只有一个 clock，不用另造 LeaseClock／fake now 绕过。确认前崩溃按原 guard 恢复，确认后清单提交再崩溃则保留 N；重开观察到的真实清单及身份按原规则核实，不自动补发注册／store | app＋clock／storage；不把所有 ACTIVE 当成 clock 就绪，进展结论带等待策略与环境前提 |
+| AB-V8：AB-5/AB-6；CC2 S-7/S-20、SYS-OBSERVABILITY | 真实阻塞 source／store／lookup 外层 atomic 后发起两次 app.close：新准入拒绝，旧工作各自真实终结后才撤 lookup／close 唯一 CCL，借用 lookup 不能关闭组件；CCL、clock、storage 的实际静止和所有句柄／属主释放可重开验证。部分初始化失败也释放已取得部分；close 拒绝保留残留，不输出清理成功。stdout/stderr、诊断、trace、机器证据和异常动态字段扫描密码／presentation／私钥／模型 key／sourceRef／body／密文哨兵与禁止片段；sink 抛错／满仍保留业务结果并有独立退化计数 | app 实施及独立验收；有限哨兵扫描不等于无条件保密证明，源码制品／双语 README 重要操作例子仍须真实验证 |
+
+AB-G1 的确认点调整需独立评审及技术采用，owner 为主线，受阻的是依赖此顺序的应用实施；AB-G2 的真实身份／来源证据由 AB-V1/V4/V6 承担；AB-G3 的故障／重开／关闭由 AB-V2/V3/V5/V7/V8 承担。AB-G4 所列其他应用阶段、全部 runtime 操作、37 模型、PG、中心与完整 CCL 不因本页完成解除。正文结构检查只验设计树与链接，结果另列，不算上述任何一项 pass。
+
+本候选起草检查：以系统 Python 3.12 执行本检出自己的 `tooling/src/check_design.py --root design --formal skip`（从设计工作区根解析），exit 0，输出 `PASS: design tree … passed gate=internal; formal=skip.`；formal 项明确全部 skipped。`git diff --check` exit 0；原 design.md 与 bindings.yaml 字节未改。未安装依赖，当前检出无 Prettier 可执行文件，格式工具检查未运行。没有执行本应用或上述八项义务；本次不登记符合性绑定。

@@ -2,6 +2,11 @@ import type { JsonObject, JsonValue } from '@omne-harness-lite/content-blocks'
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 
 export const at = '2026-09-23T10:00:00Z'
+export const adaptation = {
+  implementation: { name: 'vendor-a.family', revision: '1' },
+  definition: { modelId: 'vendor-a/chat-large', revision: '1' },
+  configuration: { revision: '1', values: {} },
+}
 export const profile: JsonObject = {
   providers: ['provider-a', 'provider-b'],
   allowFallback: true,
@@ -9,9 +14,16 @@ export const profile: JsonObject = {
   outputModalities: ['text'],
   maxInputTokens: 200000,
   maxOutputTokens: 64000,
+  inputConstraints: {},
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+  },
+  adaptation,
   updatedAt: at,
 }
 export const dispatch: JsonObject = {
+  adaptation,
   kind: 'model_call_dispatched',
   call: 'mc_01',
   dispatch: 1,
@@ -63,6 +75,7 @@ export const variants: readonly {
   readonly dimension?: JsonObject
   readonly subject: JsonObject
   readonly callId?: string
+  readonly modelCallId?: string
   readonly mask: string
 }[] = [
   { position: 'attempt_started', subject: { attempt: 1 }, mask: '11000101' },
@@ -112,7 +125,13 @@ export const variants: readonly {
   {
     position: 'after_model_call',
     dimension: { ending: 'failure' },
-    subject: { failure: 'upstream_unavailable', profile, dispatches: [dispatch] },
+    subject: {
+      failure: 'upstream_unavailable',
+      profile,
+      dispatches: [dispatch],
+      retryConclusions: [],
+    },
+    modelCallId: 'mc_01',
     mask: '11000111',
   },
   {
@@ -180,6 +199,7 @@ export function recordAt(
     position: variant.position,
     ...(variant.dimension === undefined ? {} : { dimension: variant.dimension }),
     ...(variant.callId === undefined ? {} : { callId: variant.callId }),
+    ...(variant.modelCallId === undefined ? {} : { modelCallId: variant.modelCallId }),
     power,
     output,
     at,

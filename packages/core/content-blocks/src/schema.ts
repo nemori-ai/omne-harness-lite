@@ -1,6 +1,7 @@
 import schema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
 import { Ajv2020 } from 'ajv/dist/2020.js'
 import { copyJsonValue, isNonNegativeJsonInteger, LosslessNumber, type JsonValue } from './json.ts'
+import { schemaPattern } from './schema-pattern.ts'
 
 export const schemaId = schema.$id
 export const SCHEMA_DEF_NAMES = [
@@ -36,6 +37,7 @@ const ajv = new Ajv2020({
   strictRequired: false,
   allErrors: false,
   ownProperties: true,
+  code: { regExp: schemaPattern },
 })
 ajv.addSchema({ ...schema, $id: schemaId })
 const validators = Object.freeze(

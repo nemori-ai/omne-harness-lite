@@ -1,5 +1,9 @@
 # session-log-jsonl 验证与证据
 
+## 2026-09-27 恢复识别增补采用
+
+[D085](../../../../record/decisions/session-log-recovery-projection-adoption/decision.md) 采用 [恢复投影rev2](v3-recovery-design.md)，其RG-V1～V10全部尚未执行；RG-G4只完成技术采用，RG-G1可信物理身份／退出观察、RG-G2真实FS／进程／关闭及RG-G3全部调用者与README迁移保持未完成。原V1～V13与SLJ3-V1～V11不删；只有D084明确取代的旧V5截回失败读旧尾分支按新版三操作unavailable，成功截回和仅回执丢失的健康分支保持。当前binding0，独立设计评审、结构formal=skip及部分施工测试均不移作新恢复IO通过。
+
 契约侧的证据义务权威在 [`spec/capabilities/session-log/verification.md`](../../../../spec/capabilities/session-log/verification.md)：形式工件已跑过一次（run `2026-09-25-formal-session-log`，证的是契约的模型），六条规范场景一条都没演练。
 本页按本节点的兑现点登记，再加**本节点自己的选择**带来的义务（属主锁、一行一批、半截尾截断、派生索引、失败截回、刷盘）。**本节点尚未建包，一切未开始。**
 
@@ -64,3 +68,9 @@ architecture-reviewer 对本节点的独立只读评审（N6，2026-09-25），�
 | B-3 | `residentLogsLimit` 在常驻日志全忙、无可逐出时的行为未定 | 改：定为硬上界——触碰一本不常驻的日志答 `unavailable`（什么都没读写）、记 warn，常驻的照常 | design [策略配置项](design.md#策略配置项) `residentLogsLimit` 行；失败映射；本页 V-8 |
 
 cli 验收装配表里本批节点相关行（A-4、B-5）、TER 节点与主线的项（B-1）不归本节点，本节点未动。
+
+## 2026-09-27 SL3 提供者投影采用
+
+[D-084](../../../../record/decisions/session-log-jsonl-v3-projection-adoption/decision.md)采用[v3-design](v3-design.md) rev2；独立架构／表达两轮复核无未闭合本次问题。初稿唯一表达阻断SLJ3-ER1已修：**上述旧V-5唯独“截回失败后读旧确认尾”不再是SL3的验收预期**，由SLJ3-V8的不可信三操作unavailable、实际停止／独占重启和权威恢复替代；成功截回与所有其他注入义务保持。其他旧义务及SLJ3-V1～V11均待真实实施执行，当前bindings0，不把设计check（formal=skip）或SL3有限契约模型当实际IO证据。
+
+评审输入和两修订保存在[归档](../../../../record/proposals/model-request-adaptation/reviews/session-log-jsonl-v3-2026-09-27.tar.gz)，SHA256 `70b5b1eb70c43f35b899e0a33952874d3659a773491636bbe9161ff62c874360`。源码、跨进程锁、排空／恢复、生产Run及全写方消费者迁移尚未验证；本次不关闭withRun组合、unknown opened或完整会话产品。

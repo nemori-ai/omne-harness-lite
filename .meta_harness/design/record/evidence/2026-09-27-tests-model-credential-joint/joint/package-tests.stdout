@@ -1,0 +1,21 @@
+Scope: 2 of 46 workspace projects
+packages/model/model-profile-directory test$ vitest run
+.../infra/credential-custodian-local test$ vitest run
+.../infra/credential-custodian-local test: Testing types with tsc and vue-tsc is an experimental feature.
+.../infra/credential-custodian-local test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+.../infra/credential-custodian-local test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p3-joint-credential-verification/packages/infra/credential-custodian-local
+packages/model/model-profile-directory test: Testing types with tsc and vue-tsc is an experimental feature.
+packages/model/model-profile-directory test: Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+packages/model/model-profile-directory test:  RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p3-joint-credential-verification/packages/model/model-profile-directory
+.../infra/credential-custodian-local test:  Test Files  5 passed (5)
+.../infra/credential-custodian-local test:       Tests  31 passed (31)
+.../infra/credential-custodian-local test: Type Errors  no errors
+.../infra/credential-custodian-local test:    Start at  22:24:54
+.../infra/credential-custodian-local test:    Duration  8.77s (transform 2.46s, setup 0ms, import 7.28s, tests 4.60s, environment 1ms, typecheck 4.01s)
+.../infra/credential-custodian-local test: Done
+packages/model/model-profile-directory test:  Test Files  5 passed (5)
+packages/model/model-profile-directory test:       Tests  22 passed (22)
+packages/model/model-profile-directory test: Type Errors  no errors
+packages/model/model-profile-directory test:    Start at  22:24:54
+packages/model/model-profile-directory test:    Duration  10.28s (transform 5.65s, setup 0ms, import 13.15s, tests 4.62s, environment 1ms, typecheck 3.98s)
+packages/model/model-profile-directory test: Done

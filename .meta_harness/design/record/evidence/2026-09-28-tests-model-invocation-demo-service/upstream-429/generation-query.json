@@ -1,0 +1,11 @@
+{
+  "at": "2026-09-28T14:15:24.961Z",
+  "status": 404,
+  "generation": "gen-1790604791-xJfAz0UfyzAcHSfXtMzj",
+  "body": {
+    "error": {
+      "message": "Generation gen-1790604791-xJfAz0UfyzAcHSfXtMzj not found",
+      "code": 404
+    }
+  }
+}

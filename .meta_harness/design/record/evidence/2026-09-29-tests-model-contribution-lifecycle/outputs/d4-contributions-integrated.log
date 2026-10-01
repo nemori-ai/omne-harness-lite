@@ -1,0 +1,12 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/packages/model/pi-ai-transport
+
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+Type Errors  no errors
+   Start at  05:25:59
+   Duration  9.51s (transform 1.87s, setup 0ms, import 5.42s, tests 3.94s, environment 0ms)
+

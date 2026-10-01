@@ -1,0 +1,22 @@
+{
+  "runner.mjs.txt": "e9c033ef81d5368ec17acb5dd2fcde7e34dd3a142899442f19c44be7346e2a3e",
+  "turn-2-terminal.json": "aef04c3d1779235a1f418d83febf4b1453d1439b5180c7d2a04c5db2b48b9cb0",
+  "turn-1-durable.json": "b7775e654d5b46259642428d23a0da8b77114f70cced6bc0ff77000c7e7bb816",
+  "turn-1-result.json": "5b980f92b5a1abd5104fcb407f755dd064c237b11633beea9a24c7a97f35fcae",
+  "money.mjs.txt": "db358c1ee5c3b83c36fb52d1de8fe0c5edc0888129bcf4a91c83c035ec2f7f03",
+  "demo-current-final-build.log": "12f6e797d8fe4d051d5440f7ab50a1efb02ec53a03510434cc62199628c5ead7",
+  "price.json": "9e4192706558443a06d05a052f947f30d8ff6f8c8b6f46dbeb4bfe1a27c7825d",
+  "demo-current-typecheck-2.log": "ec241ba0298653129191b60438043f57a191c2f3f3e84105be1360e6d7c44c19",
+  "turn-3-result.json": "0ced0ec0466fcd4904297aba3d0ccfd12888112d0bb7b77645d8835c26ea6fe8",
+  "result.json": "ba0eff61df2ef59f2865ac3fb01628f7a7c6b0e396ab85c11dade5e4b78e10ef",
+  "inputs.json": "8007ccf99fe7f918ace8fefdd09aae3911a6e4be0d9212a352e0bdae14a205d4",
+  "turn-1-terminal.json": "0972d22f700d2987343d265e3bd3f1e4b16da0cecc3ec67ec2da9e7e3d39121c",
+  "turn-2-durable.json": "61fb351cb39a48e29c0df3eb28ef86fa61c778a820e085f4bc6984d4fc7c6ead",
+  "turn-2-result.json": "10ccb6745a179654dce481898a2f77902c07c409e7870bbb081cf432d0f92392",
+  "terminal-first.json": "d930c884fe71dc407fe9911951ace934bee3248aaf4bcf6ed9cf36024a9011b3",
+  "terminal-reopened.json": "f9c2b048c509dac92a1b96303a078cad3a903cf75f108d435e89d67be4125f52",
+  "demo-current-paid.log": "80f6e23820d9f2a6f3ccae62440191acdd7981fbd45848b104e62bf0b7a37144",
+  "demo-current-tests.log": "1213309fb11cf2b92c466721a737c8e600dbc363d9722419402861893bc372f9",
+  "turn-3-durable.json": "9535149e36b683c21edfebaade240f4517ead62e50d8eb654cf975564306345f",
+  "turn-3-terminal.json": "388353ea3571b702c79847843c7f8addaaa5fd765ce82c60ac5af07955745550"
+}

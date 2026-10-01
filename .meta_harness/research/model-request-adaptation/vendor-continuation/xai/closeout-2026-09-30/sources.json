@@ -1,0 +1,10 @@
+[
+  {
+    "file": "openrouter-reasoning-tokens.txt",
+    "url": "https://openrouter.ai/docs/guides/best-practices/reasoning-tokens.md",
+    "sha256": "a80ca4bcee4915cc1d1697fd620743bfbbc97f45f5a25213fcc149bad5681bc7",
+    "bytes": 49301,
+    "retrievedAt": "2026-09-30T03:46Z",
+    "method": "direct HTTP GET of official Markdown page"
+  }
+]

@@ -1,5 +1,43 @@
 # 验证覆盖与实际证据
 
+## v5 发布前破坏性演进
+
+本轮表达复评点名的版本自称、精确消费坐标与前驱执行声明已定点修订；MR7 与 runner5 当前产品依据按实际消费范围核对。字段结构、行为模型与既有操作责任保持不变。
+
+本轮从已接受且冻结的 `capability.loop-extension-runner/v4` 起草 candidate v5，基线 `11c6c5b0`。源接受依据为 D-097（MP4）或 D-099（其余六份）；本版没有接受、冻结或实现完成声明。
+
+### 变化的影响（本轮）
+
+- 只更新本批精确链 MP5 / Directory5 / MS6 / MR7 / LC6 / RT7 / runner5，并删除旧格式 codec、只读、认回与结算过渡义务；既有 IV、CB、日志、资产与 hooks 等精确依赖不升级。
+- 字段、值域、Schema 结构、操作、失败集合、发送门、数值与策略不变；RT S-34 的完整失败主体重取继续原义。data 的 `$id` / `$ref` 与注释中的对应坐标同步迁移。
+- 不原地改写、清空或回填用户旧数据；不兼容输入沿既有边界明确拒绝。当前代际已经受理的任务、不可变快照、未知结果、原批认回与释放结算责任继续成立。
+
+| 证据义务 | 可失败观察 | 状态 / owner |
+|---|---|---|
+| 精确依赖及 Schema 同构 | 除本批坐标和说明文字外出现结构差异即失败；所有 `$ref` 精确解析 | 本次检查结果见下；规格起草 / 集成 owner |
+| 冻结源与形式工件保持 | 源登记 hash 改变，或 `.tla`/`.cfg`/`.als` 任一字节改变即失败 | 本次检查结果见下；规格起草 |
+| 当前格式唯一运行路径 | 旧不兼容输入不得进入旧 codec、不得降级/回填、不得写/清空原数据 | 未开始；相应数据接收者 / 提供者 |
+| 当前代际责任不丢失 | 当前任务未知提交或已受理工作仍由原 owner 认回/恢复/结算；新格式拒绝不能抹旧事实 | 未开始；runtime / runner / 日志提供者 |
+| 公共操作与最终门不退化 | 原输入上限、Pending 回复、重试历史及 S-34 失败重取仍按原精确性质成立 | 未开始；对应消费者及验证 owner |
+
+### 本次实际检查
+
+本轮使用本树 `uv run --locked python` 执行临时审计脚本，实际输出：
+
+```text
+PASS: 584 frozen source hashes unchanged; 4 schemas structurally identical after exact $id/$ref remap; 276 refs resolved; 58 formal source/config files byte-identical; 86 explicit schema cases matched; RT S-34 unchanged except coordinates; all dependency clauses unchanged.
+NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery/settlement and actual IO.
+```
+
+`uv run --locked python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip` 的本轮检查返回 0，输出 `PASS`（gate=internal; formal=skip）；候选中央登记尚待集成，检查通过不声称已登记或接受。`git diff --check` 返回 0。
+
+本次核对本基线全部 **584** 个冻结资源，脚本与日志在本次任务区交集成 owner 保留，尚未归档为 record/evidence。本版 82 个规范资源中的 58 份形式源/配置均与各自前驱逐字节相同。**本轮形式工具未运行**，源有限结果只保留相同模型输入与断言范围，不提升为本版真实实现验证。当前格式拒绝与责任不丢失的实现场景仍为未开始；原有缺口的 owner 保留，旧格式分发缺口改为当前格式采用与拒绝证据。
+
+### v5 候选完整失败历史
+
+本版仅继承该专题性质与来源证据，实际状态统一见本节「本次实际检查」；不声明本轮重新运行模型或实现测试。
+
+
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
 
 > **当前状态（2026-09-24，第一轮独立评审处置之后；2026-09-25 修复波 1b、修复波 2、修复波 3 原地改）：没有任何证据。**
@@ -218,3 +256,106 @@ spec-reviewer，2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/assets-runti
 | **兼容件的非阻断错误固定按 `ignore`，记录与越档同形**：兼容件以来源产品语义下的非阻断错误收场（非零退出、超时、输出不合形状，归属由 `capability.hooks-import/v2#S-19` 定）时，不取有效策略、不进 `onError`，落 `skipped: errored` ＋ `output: observed` ＋ `error`（说明写三种成因之一，非零退出连同退出码）；原生件的报错与兼容件的其余报错照旧按有效策略。关闭 `capability.hooks-import` 的 G-17 | 主线补裁（2026-09-25，第二轮） | [S-13](v2/contract.md#s-13-报错处置策略的执行) 开头一句与新一条、[S-12](v2/contract.md#s-12-不可用与报错runner-怎么分) 表下「兼容件的哪些情形」一条（顺带改正「脚本路径不存在」算起不来的旧说法）、场景 [S-41](v2/contract.md#s-41-不可用报错否决三者分得开) 新一支、第十四节兼容件一行、[examples §7](v2/examples.md#7-兼容件的非阻断错误固定按-ignore记录与越档同形) | **改语义**：S-13 多了一个不取有效策略的情形（此前只有越档，而越档本就等于那一档的默认）。**不另立记录形状**：`data.loop-extension/v2#S-31`「可用却报错」那一种，`data.loop-extension` S-5 末条与 S-8 同步写明这一处例外。「原生件的同样说法不采用」「执行环境被撤下仍按有效策略」是本契约的推导，报主线。catalog 不变：本契约引 hooks-import S-19 只作定义引用（hooks-import 以坐标依赖本契约，登了成环） |
 
 **没有证据因此作废**——本契约此前没有任何执行证据。
+
+## v3 候选：精确消费演进
+
+来源为 model-request-adaptation 提案 rev 2 与本轮主线施工裁定；runner v3 状态仍是 candidate。全部 S-1～S-52、两个操作及九项结构、失败枚举保持；新细化不称为已接受。PF-013 对到当前 rev13，其余八份产品 revision 沿源版本；旧 v2 的冻结原件未改。依赖的接受与冻结以 [registry](../../../registry/README.md) 为唯一权威：本次机械核对时 LC4、messages4、response4、MF3、registry3、AE4 已 accepted，runtime3 仍 candidate；这一状态校正不改变消费坐标、条款或模型。
+
+### 变化的影响
+
+| 增量 | 实质消费与影响 |
+|---|---|
+| LC4、messages4、response4、content-blocks3、runtime3 | 完整适配绑定的失败输入、原发出记录与原绑定响应；保留未解析工具调用的 core 修正，且仍不授予其派发资格 |
+| MF3、registry3、AE4 | S-6 沿 readHead 当前 loop_extension 记录与 readHistory 的同会话表时刻读取；content 精确采用 registry3 S-48 和 AE4 S-47。当前表沿 E1 时不得改拿全局最近 E2；AE 只留 v4 一个语义版本 |
+| 权限读取 | 同 E 的 PermissionValue.allowed 按 observe < rewrite < veto 取最强合法档，空/非法/超所选正文声明为 unavailable，零件求值；不改求值输出、不修补来源 |
+| 默认重试身份 | S-7 引用 runtime3 S-67 的 omne-official:default-retry。出厂 rewrite／有效缺省 record 来自既有 S-26，未新选默认 |
+| 提醒与并发占号 | 作者 inject 供完整身份/时刻；runner 自产提醒取得本日志唯一 ID 与当前 Instant并记入结论。前置冲突按输出不合法；结论提交后同 ID 异内容为 replayInconsistent，不能改原结论或重新生成提醒 |
+| 守卫收场 | S-14/S-26 明确 refused/alreadyEnded/callNotFound/wrongPhase 走原 onError；unavailable 和调用边界 invalidInput 各同名失败，不归罪已通过表示检查的作者输出，保留历史前缀 |
+| 有限模型 | S-35 七义务及三个额外观察断言，有四份正向配置和十份反例配置；不把 TypeOK、固定耐久前提或有限结果当无界证明 |
+
+候选精确元数据在 `tmp/model-request-runtime/runner-v3/candidate-metadata.json`：18 resources、15 dependencies、40 条继承 covers（reviewed=false）、四份正向 formal tasks、无新增 id namespace。registry 由主线唯一 owner 更新，起草者没有写共享清单。正文不新增 Schema，共享数据继续由 data 拥有，操作线上表示沿原组合边界。
+
+### 已实际执行的形状与静态检查
+
+最终使用 `check.py` 与保存的 72 份输入（含 21 份 Schema），exit 0：52 条款、两操作各九项及原枚举的静态核对通过；2 个规范完整值与 9 个变异反例符合预期。跨字段拒绝由纯谓词表达，没有运行产品 runner。两个冻结 v2 文件与 baseline HEAD 字节一致。旧失效实例、修正后输入与历次 raw 分目录保留，没有覆盖失败输出。
+
+输入清单、脚本、stdout.jsonl、stderr.txt、run.json、frozen-v2.json 均在 `tmp/model-request-runtime/runner-v3/`。复跑入口相对执行仓库根：
+
+```sh
+.venv/bin/python tmp/model-request-runtime/runner-v3/check.py \
+  --inputs tmp/model-request-runtime/runner-v3/inputs \
+  --manifest tmp/model-request-runtime/runner-v3/inputs-sha256.json
+```
+
+### TLC 实际执行与范围
+
+`tmp/model-request-runtime/runner-v3/formal-run-2/` 保存实际模型/config 输入、SHA-256、JAR 哈希、Java 版本、每次 argv、退出码及逐字 stdout/stderr。TLC 为实际输出中的 `2026.09.12.025210 (rev: 867aefb)`；下面计数来自对应 raw，不是替代 raw 的凭证。
+
+| 正向配置 | 实际结果 | 不同状态数 | 范围 |
+|---|---|---:|---|
+| Runner.cfg | exit 0，无反例 | 48,016 | 两件一 worker，最多两尝试、一次崩溃，安全性质 |
+| RunnerUnfenced.cfg | exit 0，无反例 | 44,508 | 一件两 worker，无运行栅栏，耐久判重竞争 |
+| RunnerConcurrent.cfg | exit 0，无反例 | 332,712 | 一件两 worker，尝试栅栏和竞争 |
+| RunnerProgress.cfg | exit 0，无反例 | 2,930 | 一件一 worker，显式弱公平与两项进展性质 |
+
+十份 validity-check 均得到指定反例：九份不变量失败 exit 12；answered-stalls 的 AnsweredPassCompletes 进展失败 exit 13。它们是反驳能力检查，不登记为正向 formal task。首轮 formal-run-1 抓出三处布尔赋值缺括号导致 successor 不完整，已修正且完整复跑；该轮 raw 仍保留。更早两件两 worker 的探索在未完成时停止，无 verdict，不据此宣称覆盖；其输入与输出保留在 formal-initial-2。
+
+模型的稳定锚、唯一身份、时钟、可信声明、实际耐久介质与原子存储仍是外部前提。只枚举每件至多一次 ask、二值改写主体、有限尝试/crash；未证明任意链长、两件两 worker 的全部组合、重复多轮 ask、适配绑定/精确 JSON、E1/E2 读取、后置 ID 冲突、嵌套提醒 veto、整批 admit、取消或执行环境。详见 [形式范围](v3/formal/README.md)及 [S-35](v3/contract.md#s-35-形式工件回放的有限行为模型)。
+
+从保存输入复跑单项示例：
+
+```sh
+java -XX:+UseParallelGC -Xmx2g -cp /opt/tlaplus/tla2tools.jar tlc2.TLC \
+  -workers 1 -noGenerateSpecTE -metadir tmp/model-request-runtime/runner-v3/rerun-chain \
+  -config tmp/model-request-runtime/runner-v3/formal-run-2/inputs/Runner.cfg \
+  tmp/model-request-runtime/runner-v3/formal-run-2/inputs/Runner.tla
+```
+
+### 仍需真实执行的验收
+
+| 义务 | 可失败验收场景 | 状态 |
+|---|---|---|
+| 真实链读取 | E1 当前表、别类别 E2 重载、reuse 删除，原 E/原版本正文与次序不变；缺项、空 allowed、超声明不得形成空链或调用件 | 未开始；[examples §9](v3/examples.md#9-当前拓展表仍依-e1另一个类别已提交-e2) |
+| 提醒身份与存储竞争 | 前置异内容冲突、同值认回、结论后 crash、并发抢占同 ID、alreadyRecorded 后不可读；原结论与身份不可改 | 未开始；[examples §10](v3/examples.md#10-提醒身份创建时刻与并发占号) |
+| 全部 guard 收场 | 真实 canDispatchAgain、日志、attempt 栅栏；已提交前缀保留，allowed 后先落后交回，invalidInput 不归罪作者 | 未开始；[examples §11](v3/examples.md#11-candispatchagain-的全部收场映射) |
+| 装配开闸 | 全部提供者 ACTIVE、guard.confirm 完成后才受理；故障撤除和热替换不放宽门 | 未开始；归真实装配 |
+| 原其他场景 | S-36～S-52、取消、卡片、放行、句柄、跨会话隔离等仍各要实际执行 | 沿原义务；不能从新模型推断已交付 |
+
+### 全局检查与报给主线
+
+追加闭合后的 `check_design.py --root .meta_harness/design --formal registered` 实际 exit 0；原始输出及 argv/hash 在 `tmp/model-request-runtime/runner-v3/check-design-closure/`。registered 模式只检查登记；TLC 实际运行是上述保存的直接调用。初稿那次全树缺 asset-evaluation E-10 锚的 exit 1 raw 也保留，未冒充通过。
+
+G-2/G-5 本轮候选补齐；G-3 默认重试半支补齐，模态转换／循环探测仍待 owner；G-14 有限模型工件和可失败断言已给出，登记、独立评审及接受归主线。其余 G-1/6/7/8/9/10/16/17/19/20 不变。本轮遇到的提醒竞争与权限集合歧义均已向主线报告并按其明确裁定落字，没有自行新增 terminal 或失败 token。
+
+全部证据临时路径以代码文本表示，不跨 design root 建规范链接；永久归档由主线完成。candidate 不等于已接受、实现完成或真实模型纵线验收通过。
+
+## v4 候选：完整失败历史
+
+### 变化的影响
+
+2026-09-28，从 accepted v3 派生 v4 candidate，PF-013 rev14/D-096，原 S-1～S-52、两个操作各九项、失败集合和全部 Runner 模型/config 保留。新增 S-53 使 after_model_call/failure 的所有 Conclusion 在写前具有唯一 modelCallId，S-54 保留完整 retryConclusions，结论已落而 dispatch 未发生仍按原结论回放；LC5 S-42/S-43、RT6 S-76 是新实质消费。MS5/MR6 更新完整快照，v4 示例保留 image 模态与原绑定。原 v3 的实际执行记录仍只证明 v3 输入，不挪作 v4 通过。
+
+简报已裁：共享名字、modelCallId 适用条件、唯一调用取自 dispatches、完整历史不滤不去重、默认件只计自己的已生效结论。派生细化：沿既有 invalidInput/unavailable/replayInconsistent 将写前表示/跨值不符、来源不可读、已落记录不符分开，理由是保持原失败集合和不改历史原则；不新增政策。
+
+### 证据义务
+
+- S-53/S-54 完整 JSON 形状、跨字段及原值保留的规范场景见 v4/examples §8/§12。真实 runner、真实日志前缀完整性/会话归属、默认件计次与实际再发组合验收：**未开始**。
+- 原 Runner 七义务、额外三断言、四份正向与十份 validity-check 全部继承；新增 FailureHistory 四个可失败断言及四份 validity-check，前提和未覆盖范围见 v4/formal/README。
+- 能力不发布 Schema；data 定义是唯一形状权威。不新建 Alloy：新增关系由 LC5 形状约束、跨记录规范场景及有界行为模型承担，未新增独立结构对象。
+
+### 缺口与报给主线
+
+继承 G-1/3/6/7/8/9/10/16/17/19/20 及其 owner；G-14 保留有限证明范围及真实符合性证据义务。没有新产品问题或新术语。共享数据与 RT6 的冻结/接受、跨包整合检查和 registry 正式合入归主线，本包仍 candidate。
+
+### 本次实际检查与范围
+
+证据根为 `tmp/model-request-runtime/input-limit-successor/runner4-checks/`（任务区，正式保留由主线处理）。
+
+- `check.py` 的 `schema-static.json`：**36 项，0 失败**，包括八个完整 JSON 正例、六个表示反例、同值双结论历史正例、54 唯一条款/两操作各九项/失败枚举未变，以及 16 份继承模型与配置的逐字比较。Schema 输入保存于 `inputs/` 并带 SHA256；采用的 LC5 后续只改 description/comment，结构未变。这里是 Schema/静态检查，不是实际 runner 运行。
+- `formal-runs.json`：四份继承正向配置 exit 0，distinct states 分别 Runner **48,016**、RunnerConcurrent **332,712**、RunnerUnfenced **44,508**、RunnerProgress **2,930**。十份继承 validity-check 均达到指定断言，九份 invariant exit 12、一份 AnsweredPassCompletes 进展 exit 13。
+- `formal-correction/runs.json`：最终 FailureHistory 正向 exit 0，**4,306 distinct states**；mixed-model-call、lost-retry-history、return-before-conclusion、reevaluate-concluded 分别使 CallAssociation、LosslessHistory、WriteBeforeReturn、ReplayNoReevaluation 失败，均 exit 12。新模型首轮负控三处发现布尔赋值缺括号导致 successor 未完整赋值（exit 75），修正并重跑全部五份新配置；首轮输入与 raw 保留，未把该轮记作断言通过。
+- `actual-final-run.json`：本 spoke 的 `check_design.py --root .meta_harness/design --formal registered` **exit 1**，仅 6 个未合并兄弟包 LC5/RT6 的本地链接缺失；无权将兄弟包或中央 registry 写入本 spoke。`overlay-3-run.json`：任务区复制完整设计上下文和六个兄弟候选包及各 topic 导航后运行同一检查器，**exit 0 / PASS**。此为可组合的文档/Schema 检查；overlay 保留 baseline registry，不能声称五份 v4 formal task 已中央登记或正式集成。
+- `fragment-validation.json`：24 个资源路径、15 个依赖坐标的全部消费条款、40 条 covers 的本包条款可达，无缺失；5 个正向 formal task，负控不登记。四份片段在 `tmp/model-request-runtime/input-limit-successor/runner4-fragments/{catalog,covers,id-namespaces,formal-tasks}.fragment.json`；id-namespaces 明确无新增全局前缀。中央清单未改。
+- 旧 v2/v3 文件 `git diff --exit-code` 无差异。真实存储、崩溃介质、历史前缀完整性、身份授权与默认件/网络再发仍为未开始；有限模型不证明这些前提。
+
+可复跑：本 spoke `.venv/bin/python` 执行证据目录 `check.py`（共享 Schema 与全组模型）、`rerun-new.py`（最终新模型及负控）、`check-overlay.py`（独立文档上下文）。每轮配置、raw、argv、退出码与输入哈希在该目录；本版没有发布或接受声明。

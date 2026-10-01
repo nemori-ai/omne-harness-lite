@@ -4,6 +4,7 @@
 # 但它证的是契约模型：它把「清扫与完成在绑定上排序」建成每个动作的原子性、两侧共用一个 Expired（都被建模方式吸收），
 # 恰好盖不到本节点要兑现的那两件（锁同一绑定行、锁到之后取时刻；过期只经桥的 isPendingExpired 判）——不作本节点的绑定证据。
 # 真正的证据形式（契约场景 S-22～S-28、本节点的真并发演练与故障注入）逐条记在 verification.md，全部未开始。
+# 模型副本来源绑定候选仍无实证；MCR-V1～V8 只登记待执行义务，不绑定旧 Sweep 模型。
 version: 1
 node: "credential-custodian-local"
 kind: "provider"

@@ -1,0 +1,52 @@
+{
+  "modelId": "qwen/qwen3.7-flash",
+  "provider": "Alibaba",
+  "upstreamModel": "qwen/qwen3.7-flash-20260727",
+  "sourceGenerationVerificationSha256": "953e8aaa5f0bfc70a1110faa74364a3c279e4467d33686789ff8ecfd8c5000fc",
+  "rows": [
+    {
+      "phase": "fit",
+      "label": "english",
+      "file": "formal-33-qwen3.7-flash-english.json",
+      "fileSha256": "78db8857ed5b0b4f02baf27e8cec5b11587f5cac19d7d27361b2d3217af5b2e4",
+      "sentSha256": "b71cfcaf294c75ac4a458831449c3ec784b0a088367fe5f77f9dac52f1fc022e",
+      "sourceObservationSha256": "c59e5998555714ad12125bf4e0a6106ffc19b4056e86ab83ff63160d64a086e6",
+      "proxyTokens": 17,
+      "observedInputTokens": 17,
+      "actualUsd": "0.00000259"
+    },
+    {
+      "phase": "fit",
+      "label": "chinese",
+      "file": "formal-34-qwen3.7-flash-chinese.json",
+      "fileSha256": "0688a2d8e3e8ad37de12befb6a7f9fb61e5b763da3b2af05759b7237d1c0a7ff",
+      "sentSha256": "32d7b124692b4b592f8d4fb2c03bf1926d6ebb77cf8fa4c20e858359ffe19f1a",
+      "sourceObservationSha256": "8ed2d813c4dc6516a47e76357820b636384ac8edeec552b55de32187e29351a6",
+      "proxyTokens": 17,
+      "observedInputTokens": 17,
+      "actualUsd": "0.00000259"
+    },
+    {
+      "phase": "fit",
+      "label": "code",
+      "file": "formal-35-qwen3.7-flash-code.json",
+      "fileSha256": "d0251fcc237ea2abbbcbe3a514d0a2101753a4579045357585a90017fb4574de",
+      "sentSha256": "5be6888d620e8caca7712cc25d793911ede332db961563ce14093f2585e916af",
+      "sourceObservationSha256": "91728d0980386b9b6d16d327ff1a27c9d244a695e92b43b5d82f562847427d62",
+      "proxyTokens": 26,
+      "observedInputTokens": 26,
+      "actualUsd": "0.00000286"
+    },
+    {
+      "phase": "untouched-holdout",
+      "label": "mixed-text",
+      "file": "formal-36-qwen3.7-flash-mixed-text.json",
+      "fileSha256": "7f70ca22314e963f0c96efdf5116b6e48133ef2900dcb8d359b2255941a48102",
+      "sentSha256": "5f2eb4a7e0ac123de0bc733e9aa9570a52b3696b8651dde30bfb7df5f85ea53b",
+      "sourceObservationSha256": "6aae593a5739617af9957e1d94452ed92e6e8dd176fd2e2db10cd4bfa4095466",
+      "proxyTokens": 32,
+      "observedInputTokens": 32,
+      "actualUsd": "0.00000304"
+    }
+  ]
+}

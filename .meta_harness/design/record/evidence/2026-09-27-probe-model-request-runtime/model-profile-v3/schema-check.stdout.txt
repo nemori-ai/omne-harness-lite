@@ -1,0 +1,2 @@
+PASS: model-profile/v3 candidate schema and examples; checks=321; definitions=12; clauses=31; jsonschema=4.26.0
+SCOPE: Schema only. Cross-field refusal, secret exclusion, revision immutability and runtime freeze remain unexecuted implementation obligations.

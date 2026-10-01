@@ -1,0 +1,93 @@
+{
+  "format": 1,
+  "topic": "PF-013-model-profiles-and-invocation",
+  "version": "v9",
+  "label": "post-review candidate",
+  "generated_at": "2026-09-29",
+  "requirements_revision": 17,
+  "acceptance": null,
+  "scope": "Model call explicit acknowledgement and release only; product/direction accepted ce41d08d, exact four-contract/four-node adoption pending.",
+  "supersedes": null,
+  "sources": [
+    {
+      "resource": "product/PF-013-model-profiles-and-invocation/design.md",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "ff0bff86c36756f7d8ff45f7a4e1f05de2286a578a380d5ffa9b190093047662"
+    },
+    {
+      "resource": "record/decisions/model-runtime-reference-lifecycle-adoption/ack-product-and-direction-decision.md",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "a791a42199dbdd17f5cd8bbcc4142ea10c7609bf4442fe2e2b287406e13b64ed"
+    },
+    {
+      "resource": "spec/capabilities/model-request-runtime/v12/contract.md",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "238ba719e5b16fc5aa0476272207132d337b33f8ecc0d38da6b9973285e3fa52"
+    },
+    {
+      "resource": "spec/data/messages/v8/contract.md",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "b6f606bca1271121facec50dadd5fc8d9f62f40ac462d2b0dad09eb366fdf4c8"
+    },
+    {
+      "resource": "spec/data/messages/v8/messages.schema.json",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "029be66cccc02103fbe2da6241a366b112a235e9f7f7e89462a843e602c39126"
+    },
+    {
+      "resource": "spec/data/model-response/v11/contract.md",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "1e8095adfe31bed1a7ff01c2b2d865fb8f269cb36fc99e0e258397251861a46d"
+    },
+    {
+      "resource": "spec/data/model-response/v11/model-response.schema.json",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "9e58f395b07169a7fe6a2095b59cf60c1fbeb040fe18bc8e847e44bf2c154b2b"
+    },
+    {
+      "resource": "spec/data/call-accounts/v4/contract.md",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "483d2e601366fbd6bdbb0a76de29a793e94cbe960e6428a88555973bfcc64357"
+    },
+    {
+      "resource": "spec/data/call-accounts/v4/call-accounts.schema.json",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "710a589f5692edfd4d5d474ff9fd5df6320dd98ffba7f4c711b50c8fb1dab368"
+    },
+    {
+      "resource": "realization/packages/core/messages/v8-acknowledgement-design.md",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "21c6f838aad614fbf1d909ae6c7cf54f6c9ba271600978be69e3c87804c31f32"
+    },
+    {
+      "resource": "realization/packages/core/model-response/v11-acknowledgement-design.md",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "b7f8e4b8c53aa429a320d2038d662542f50cac0f63370312c0a694b5b63f5c5a"
+    },
+    {
+      "resource": "realization/packages/core/call-accounts/v4-acknowledgement-design.md",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "4ecba1b6f868ea3614d4629854f1dc62c2ccfb42dc296d1ab5e1e8fa329a2557"
+    },
+    {
+      "resource": "realization/packages/model/model-request-runtime/v22-acknowledgement-design.md",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "0952f595baafa7870526718ba6a62baede8f4db144bee544875a439812c22e8b"
+    },
+    {
+      "resource": "record/proposals/model-runtime-reference-lifecycle/ack-architecture-review.md",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "c02cbf6d1bd8ae96ca694311d6f9331fc5fb7359f642d66d59ccd15ed90800e2"
+    },
+    {
+      "resource": "record/proposals/model-runtime-reference-lifecycle/ack-spec-review.md",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "00dfdc363e88ccadbe2d6f98189aef622e2365d52bc3b05f27dc8327aa3bf409"
+    },
+    {
+      "resource": "record/evidence/2026-09-29-model-call-ack-candidate/archive-sha256.json",
+      "snapshot_commit": "77e833e0f5c2bcbf6382b3b8f852c2bcc2d14361",
+      "snapshot_sha256": "47487d491e9444000aaee125d974910c908949db3f853b56fa132bb1fb33fe08"
+    }
+  ]
+}

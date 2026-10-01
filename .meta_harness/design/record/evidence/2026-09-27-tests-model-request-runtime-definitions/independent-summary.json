@@ -1,0 +1,1440 @@
+{
+  "verdict": "Pass",
+  "scope": "D082 complete-definition public increment on explicitly nonofficial fixtures; no delivery acceptance",
+  "baseline": "976534bf17190bbfdaf9e3b87c5abbc2aa70b552",
+  "observedHead": "6f4f8c76703f8e3fbeb147dfa3bb378f7a80c788",
+  "drift": [],
+  "positiveRun": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-complete-definitions-independent/controls-1790523734324222721",
+  "negativeControls": [
+    {
+      "name": "restore-default-pilot",
+      "oracle": "ND9.no-default-or-legacy-completion",
+      "detected": true,
+      "exitCode": 1,
+      "requests": 0,
+      "terminal": null
+    },
+    {
+      "name": "old-shape-auto-completion",
+      "oracle": "ND9.no-default-or-legacy-completion",
+      "detected": true,
+      "exitCode": 1,
+      "requests": 0,
+      "terminal": null
+    },
+    {
+      "name": "schema-interpreter-mismatch",
+      "oracle": "ND4.independent-Draft2020-12-closed-equivalence-zero-http",
+      "detected": true,
+      "exitCode": 1,
+      "requests": 40,
+      "terminal": {
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 40
+      }
+    },
+    {
+      "name": "G22-output-clamp",
+      "oracle": "ND2.G22-only-pass-no-clamp",
+      "detected": true,
+      "exitCode": 1,
+      "requests": 37,
+      "terminal": {
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 37
+      }
+    },
+    {
+      "name": "unknown-extra-forwarding",
+      "oracle": "ND3.literal-extra-protection-empty-and-scalar-order",
+      "detected": true,
+      "exitCode": 1,
+      "requests": 38,
+      "terminal": {
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 38
+      }
+    },
+    {
+      "name": "new-B-takes-over-A",
+      "oracle": "ND9.real-r6-A-vs-new-B-stream-socket-callback-drain",
+      "detected": true,
+      "exitCode": 1,
+      "requests": 2,
+      "terminal": {
+        "serverListening": false,
+        "sockets": 1,
+        "socketsClosed": 1
+      }
+    },
+    {
+      "name": "same-key-changed-complete-value",
+      "oracle": "ND5.complete-key-equality-and-acquire-union",
+      "detected": true,
+      "exitCode": 1,
+      "requests": 40,
+      "terminal": {
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 40
+      }
+    },
+    {
+      "name": "owned-pool-close-omitted",
+      "oracle": "resource.actual-https-agents-closed-empty",
+      "detected": true,
+      "exitCode": 1,
+      "requests": 48,
+      "terminal": {
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 48
+      }
+    }
+  ],
+  "locations": {
+    "hub": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime",
+    "osRoot": "/tmp/omne-p2-definitions-independent-ra9o86wh",
+    "A": "/tmp/omne-p2-definitions-independent-ra9o86wh/A-original/package",
+    "B": "/tmp/omne-p2-definitions-independent-ra9o86wh/B",
+    "BRelocated": "/tmp/omne-p2-definitions-independent-ra9o86wh/relocation/B",
+    "peer": "4.0.4",
+    "transportPackSha256": "6d6e3e99f058fcc5b9b0b89848efd59f4e9e221b0bb3a490a6f5e6b39fa50f56",
+    "runtimePackSha256": "e46048027e33b55603a5b6afb009064758cfecf056b05c260eb13255d582e5dc"
+  },
+  "rawPositive": {
+    "B": {
+      "root": {
+        "namedOracles": [
+          "ND9.root-import-zero-resources",
+          "ND8.four-pure-surfaces-zero-resources",
+          "ND9.no-default-or-legacy-completion",
+          "ND9.reject-nondata-arrays-without-reading-getters",
+          "ND9.empty-factory-is-owned-resource-not-pure"
+        ],
+        "httpRequests": 0,
+        "resources": {
+          "pools": 1,
+          "requests": 0
+        },
+        "actualNodeHttpsAgents": [
+          {
+            "id": 1,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          }
+        ],
+        "terminal": null,
+        "whileHeld": null,
+        "beforeCallback": null
+      },
+      "behavior": {
+        "namedOracles": [
+          "ND1.complete-content-core-identity-and-all-fields",
+          "ND1.exact-37-target-identities-historical-source",
+          "ND2.eight-values-exact-and-absence-not-none",
+          "ND2.seven-legal-rule-drop-select-adjust-with-traces",
+          "ND2.exact-decimal-and-huge-integer-boundaries",
+          "ND2.G22-only-pass-no-clamp",
+          "ND3.literal-extra-protection-empty-and-scalar-order",
+          "ND4.independent-Draft2020-12-closed-equivalence-zero-http",
+          "ND5.complete-key-equality-and-acquire-union",
+          "ND5.fixed-full-binding-caller-mutations-and-plan-ownership",
+          "ND6.explicit-role-cache-ttl-and-reminder-identity",
+          "ND7.read-retire-acquire-and-idle-reacquire-cleanup",
+          "ND8.rejections-never-echo-config-and-throwing-diagnostics",
+          "README.invoke-en",
+          "README.invoke-zh",
+          "README.exact-modules-runtime-controlled-invoke",
+          "resource.actual-https-agents-closed-empty"
+        ],
+        "httpRequests": 48,
+        "resources": {
+          "pools": 76,
+          "requests": 48
+        },
+        "actualNodeHttpsAgents": [
+          {
+            "id": 1,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 2,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 3,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 4,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 5,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 6,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 7,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 8,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 9,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 10,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 11,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 12,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 13,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 14,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 15,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 16,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 17,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 18,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 19,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 20,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 21,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 22,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 23,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 24,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 25,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 26,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 27,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 28,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 29,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 30,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 31,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 32,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 33,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 34,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 35,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 36,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 37,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 38,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 39,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 40,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 41,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 42,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 43,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 44,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 45,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 46,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 47,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 48,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 49,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 50,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 51,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 52,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 53,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 54,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 55,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 56,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 57,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 58,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 59,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 60,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 61,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 62,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 63,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 64,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 65,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 66,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 67,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 68,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 69,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 70,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 71,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 72,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 73,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 74,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 75,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 76,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          }
+        ],
+        "terminal": {
+          "serverListening": false,
+          "sockets": 0,
+          "socketsClosed": 48
+        },
+        "whileHeld": null,
+        "beforeCallback": null
+      },
+      "migration": {
+        "namedOracles": [
+          "ND9.real-r6-A-vs-new-B-stream-socket-callback-drain",
+          "resource.actual-https-agents-closed-empty"
+        ],
+        "httpRequests": 1,
+        "resources": {
+          "pools": 3,
+          "requests": 1
+        },
+        "actualNodeHttpsAgents": [
+          {
+            "id": 1,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 2,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 3,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          }
+        ],
+        "terminal": {
+          "serverListening": false,
+          "sockets": 0,
+          "socketsClosed": 1
+        },
+        "whileHeld": {
+          "status": {
+            "accepting": false,
+            "registrations": 1,
+            "retiring": 1,
+            "references": 1,
+            "executions": 3,
+            "cleanupFailures": 0
+          },
+          "cleanup": 0,
+          "readFinished": false,
+          "sockets": 1
+        },
+        "beforeCallback": {
+          "status": {
+            "accepting": false,
+            "registrations": 1,
+            "retiring": 1,
+            "references": 1,
+            "executions": 1,
+            "cleanupFailures": 0
+          },
+          "cleanup": 0,
+          "readFinished": true,
+          "socketsClosed": 1,
+          "events": [
+            {
+              "t": "open",
+              "index": {},
+              "id": "b0",
+              "kind": "text",
+              "fill": "append",
+              "visibility": {
+                "toHuman": true,
+                "toModel": true
+              }
+            },
+            {
+              "t": "fill",
+              "index": {},
+              "payload": "A-original-kept"
+            },
+            {
+              "t": "close",
+              "index": {},
+              "block": {
+                "id": "b0",
+                "visibility": {
+                  "toHuman": true,
+                  "toModel": true
+                },
+                "kind": "text",
+                "text": "A-original-kept"
+              }
+            }
+          ]
+        }
+      },
+      "newdrain": {
+        "namedOracles": [
+          "ND7.new-complete-owner-real-stream-fixed-config-callback-late-cleanup",
+          "resource.actual-https-agents-closed-empty"
+        ],
+        "httpRequests": 1,
+        "resources": {
+          "pools": 1,
+          "requests": 1
+        },
+        "actualNodeHttpsAgents": [
+          {
+            "id": 1,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          }
+        ],
+        "terminal": {
+          "serverListening": false,
+          "sockets": 0,
+          "socketsClosed": 1
+        },
+        "whileHeld": {
+          "status": {
+            "accepting": true,
+            "registrations": 2,
+            "retiring": 1,
+            "references": 2,
+            "executions": 3,
+            "cleanupFailures": 0
+          },
+          "cleanupOld": 0,
+          "cleanupNew": 0,
+          "readDone": false,
+          "sockets": 1
+        },
+        "beforeCallback": {
+          "status": {
+            "accepting": true,
+            "registrations": 2,
+            "retiring": 1,
+            "references": 2,
+            "executions": 1,
+            "cleanupFailures": 0
+          },
+          "cleanupOld": 0,
+          "cleanupNew": 0,
+          "readDone": true,
+          "socketsClosed": 1
+        }
+      }
+    },
+    "relocated": {
+      "root": {
+        "namedOracles": [
+          "ND9.root-import-zero-resources",
+          "ND8.four-pure-surfaces-zero-resources",
+          "ND9.no-default-or-legacy-completion",
+          "ND9.reject-nondata-arrays-without-reading-getters",
+          "ND9.empty-factory-is-owned-resource-not-pure"
+        ],
+        "httpRequests": 0,
+        "resources": {
+          "pools": 1,
+          "requests": 0
+        },
+        "actualNodeHttpsAgents": [
+          {
+            "id": 1,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          }
+        ],
+        "terminal": null,
+        "whileHeld": null,
+        "beforeCallback": null
+      },
+      "behavior": {
+        "namedOracles": [
+          "ND1.complete-content-core-identity-and-all-fields",
+          "ND1.exact-37-target-identities-historical-source",
+          "ND2.eight-values-exact-and-absence-not-none",
+          "ND2.seven-legal-rule-drop-select-adjust-with-traces",
+          "ND2.exact-decimal-and-huge-integer-boundaries",
+          "ND2.G22-only-pass-no-clamp",
+          "ND3.literal-extra-protection-empty-and-scalar-order",
+          "ND4.independent-Draft2020-12-closed-equivalence-zero-http",
+          "ND5.complete-key-equality-and-acquire-union",
+          "ND5.fixed-full-binding-caller-mutations-and-plan-ownership",
+          "ND6.explicit-role-cache-ttl-and-reminder-identity",
+          "ND7.read-retire-acquire-and-idle-reacquire-cleanup",
+          "ND8.rejections-never-echo-config-and-throwing-diagnostics",
+          "README.invoke-en",
+          "README.invoke-zh",
+          "README.exact-modules-runtime-controlled-invoke",
+          "resource.actual-https-agents-closed-empty"
+        ],
+        "httpRequests": 48,
+        "resources": {
+          "pools": 76,
+          "requests": 48
+        },
+        "actualNodeHttpsAgents": [
+          {
+            "id": 1,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 2,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 3,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 4,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 5,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 6,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 7,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 8,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 9,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 10,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 11,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 12,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 13,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 14,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 15,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 16,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 17,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 18,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 19,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 20,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 21,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 22,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 23,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 24,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 25,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 26,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 27,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 28,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 29,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 30,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 31,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 32,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 33,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 34,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 35,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 36,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 37,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 38,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 39,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 40,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 41,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 42,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 43,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 44,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 45,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 46,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 47,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 48,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 49,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 50,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 51,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 52,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 53,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 54,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 55,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 56,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 57,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 58,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 59,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 60,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 61,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 62,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 63,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 64,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 65,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 66,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 67,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 68,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 69,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 70,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 71,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 72,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 73,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 74,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 75,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 76,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          }
+        ],
+        "terminal": {
+          "serverListening": false,
+          "sockets": 0,
+          "socketsClosed": 48
+        },
+        "whileHeld": null,
+        "beforeCallback": null
+      },
+      "migration": {
+        "namedOracles": [
+          "ND9.real-r6-A-vs-new-B-stream-socket-callback-drain",
+          "resource.actual-https-agents-closed-empty"
+        ],
+        "httpRequests": 1,
+        "resources": {
+          "pools": 3,
+          "requests": 1
+        },
+        "actualNodeHttpsAgents": [
+          {
+            "id": 1,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 2,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          },
+          {
+            "id": 3,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          }
+        ],
+        "terminal": {
+          "serverListening": false,
+          "sockets": 0,
+          "socketsClosed": 1
+        },
+        "whileHeld": {
+          "status": {
+            "accepting": false,
+            "registrations": 1,
+            "retiring": 1,
+            "references": 1,
+            "executions": 3,
+            "cleanupFailures": 0
+          },
+          "cleanup": 0,
+          "readFinished": false,
+          "sockets": 1
+        },
+        "beforeCallback": {
+          "status": {
+            "accepting": false,
+            "registrations": 1,
+            "retiring": 1,
+            "references": 1,
+            "executions": 1,
+            "cleanupFailures": 0
+          },
+          "cleanup": 0,
+          "readFinished": true,
+          "socketsClosed": 1,
+          "events": [
+            {
+              "t": "open",
+              "index": {},
+              "id": "b0",
+              "kind": "text",
+              "fill": "append",
+              "visibility": {
+                "toHuman": true,
+                "toModel": true
+              }
+            },
+            {
+              "t": "fill",
+              "index": {},
+              "payload": "A-original-kept"
+            },
+            {
+              "t": "close",
+              "index": {},
+              "block": {
+                "id": "b0",
+                "visibility": {
+                  "toHuman": true,
+                  "toModel": true
+                },
+                "kind": "text",
+                "text": "A-original-kept"
+              }
+            }
+          ]
+        }
+      },
+      "newdrain": {
+        "namedOracles": [
+          "ND7.new-complete-owner-real-stream-fixed-config-callback-late-cleanup",
+          "resource.actual-https-agents-closed-empty"
+        ],
+        "httpRequests": 1,
+        "resources": {
+          "pools": 1,
+          "requests": 1
+        },
+        "actualNodeHttpsAgents": [
+          {
+            "id": 1,
+            "destroyed": true,
+            "liveSockets": 0,
+            "queuedRequests": 0
+          }
+        ],
+        "terminal": {
+          "serverListening": false,
+          "sockets": 0,
+          "socketsClosed": 1
+        },
+        "whileHeld": {
+          "status": {
+            "accepting": true,
+            "registrations": 2,
+            "retiring": 1,
+            "references": 2,
+            "executions": 3,
+            "cleanupFailures": 0
+          },
+          "cleanupOld": 0,
+          "cleanupNew": 0,
+          "readDone": false,
+          "sockets": 1
+        },
+        "beforeCallback": {
+          "status": {
+            "accepting": true,
+            "registrations": 2,
+            "retiring": 1,
+            "references": 2,
+            "executions": 1,
+            "cleanupFailures": 0
+          },
+          "cleanupOld": 0,
+          "cleanupNew": 0,
+          "readDone": true,
+          "socketsClosed": 1
+        }
+      }
+    }
+  },
+  "readmeBlocks": 12,
+  "readmeCompilations": 2,
+  "readmeModuleExecutions": 24,
+  "sensitiveOutputSentinelLeaks": []
+}

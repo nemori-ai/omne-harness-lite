@@ -1,4 +1,10 @@
+## 2026-09-30 源码依赖对账（A1 core 集成后）
+
+LC6 的固定资源图精确引用 CA2 与 MS6（[v6-design.md](v6-design.md)「LC6、MP5、MS6」行、「asset-model/v3、call-accounts/v2、tool-definition/v3」行与 21 资源清单；[资源闭包后继](../messages/public-definition-resource-closure-followup.md)的 LC6 行重申二者是真实直接引用）。A1 把 call-accounts 根换为 CA4、messages 根换为 MS8 后，本包改从各 owner 保留的精确入口取原字节：`@omne-harness-lite/call-accounts/schema/v2`（[call-accounts v3-design](../call-accounts/v3-design.md)「本包 Schema 与元数据」行）与 `@omne-harness-lite/messages/schema/v6`（[messages v7-design](../messages/v7-design.md)「另需保留 MS6 `./schema/v6`」段）。包依赖边不变，LC6 不因 CA4/MS8 自动升级（[call-accounts v4 ACK 映射](../call-accounts/v4-acknowledgement-design.md)迁移段）。`core-pure-imports` 表随此对齐；新增 binding 0。
+
 ## 最终 core 阶段签收（2026-09-26）
+
+2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v6-design.md](v6-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
 
 本节点本阶段的 6 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
 Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；其他节点采用不变。
@@ -55,3 +61,29 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 LC4 提供者候选
+
+[v4-design.md](v4-design.md) 接续已存在的 LC3 纯包，规划根4与显式 `/v3` 纯面，以及独立的 `/schema/v3` 冻结资源。它只承载作者输入/输出表示、纯值判断及单条记录约束，完整批次和落盘控制留给 runner；旧 design.md 与原接受/运行记录保留。
+
+- **语义接受**：data.loop-extension/v4 已由 [D-073](../../../../record/decisions/model-current-input-contracts-adoption/decision.md) 技术接受；本提供者候选尚未接受。
+- **可实施范围**：候选映射详见新稿；现源码仍为 LC3，已显式钉 MP2/MS3 来维持旧语义，尚未提供根4与 `/v3` 双面。AE/MR 旧消费者须显式采用 LC3，ArrivalEvents 的 LC2 枚举复用须对齐，不自动升级。
+- **绑定与证据**：原 LC3 绑定 1 条保留，LC4 新增 0 条；[LV4-1～LV4-6](verification.md#lc4-提供者候选证据义务) 均待实际实施/组合证据。
+- **实际验证**：本稿没有新增 LC4 实现结果；旧 581 项及候选规格检查各属原范围，不能推成新版提供者已验证。
+
+## 2026-09-27 本轮技术采用
+
+[D-074](../../../../record/decisions/model-read-provider-adoption/decision.md)采用本轮增量设计；精确输入哈希另记，候选历史读数保留原字节。实际源码、符合性与组合证据另核，旧绑定不重标。
+
+## 2026-09-28 LC6 直接迁移候选
+
+[v6-design.md](v6-design.md) 接续当前实际 LC4 根实现，目标统一 LC6 根与 Schema，删除旧 LC3 运行实现；现行精确契约仍引用的 LC3/LC2 及传递 Schema 资源仅按其依赖用途保留。本段是新候选，不改旧采用及证据字节。
+
+- **语义接受**：LC5 已由 [D099](../../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md) 接受；LC6/MP5/MS6 后继尚待主线释放及登记，LC6 尚未接受。
+- **可实施范围**：纯值层、完整重试结论、调用关联和现有消费者直接迁移的候选映射已列出；后继精确输入与 provider 采用未闭合前不作为施工授权。不增加 Cordis 服务、runner 或工具执行。
+- **绑定证据**：原 LC3 绑定 1 条不动，本候选新增 0 条；LV6-1～LV6-7 全部待验。
+- **实际验证**：本次只起草实现映射，未修改或验证 LC6 源码。旧 581 项不得重标；同会话完整历史及真实落盘仍为 runtime/runner 的外部义务。
+
+## 2026-09-28 纯主体判断增补采用
+
+[D-106追加](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)技术采用[v7纯主体增补](v7-subject-judgment-design.md)精确SHA 53573d393e7fa61afdeb7d6d5abe3aaac93e2703626ced3214fda3835e7fd3a5。只释放两个公共纯判断及共享私有流水线的施工，LC6与Schema不变，S-14外部责任不迁移。原完整输入入口不降低前提；源码/制品/SV-1～6尚待，新增绑定0，不提升完整runner服务状态。

@@ -34,6 +34,7 @@ import { terminalOutcomeClosed } from './rules/terminal-outcome-closed.ts'
 
 export type { Rule, SourceFile, Violation } from './rule.ts'
 export { isTestPath, scanLines } from './rule.ts'
+export { modelCredentialBoundary } from './rules/model-credential-boundary.ts'
 export { CORE_PURE_DEPENDENCIES, PUBLIC_SUBPATHS } from './rules/core-pure-imports.ts'
 export {
   createBodyProjectionInputs,

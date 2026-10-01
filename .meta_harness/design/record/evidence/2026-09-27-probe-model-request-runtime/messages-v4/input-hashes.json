@@ -1,0 +1,17 @@
+{
+  ".meta_harness/design/record/evidence/2026-09-26-probe-core-schema-closure/inputs/spec/data/content-blocks/v2/content-blocks.schema.json": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+  ".meta_harness/design/record/evidence/2026-09-26-probe-core-schema-closure/inputs/spec/data/content-blocks/v3/content-blocks.schema.json": "809d2a5db29db6a91096535017cc9bf4e7f75a3b93469520173e82916fff1bb5",
+  ".meta_harness/design/record/evidence/2026-09-26-probe-core-schema-closure/inputs/spec/data/identity-values/v1/identity-values.schema.json": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+  ".meta_harness/design/record/evidence/2026-09-26-probe-core-schema-closure/inputs/spec/data/offer-expiry/v1/offer-expiry.schema.json": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+  ".meta_harness/design/spec/data/call-accounts/v2/call-accounts.schema.json": "c79cbf51ada9314d83f8bd5fcb5a10b2ebbf855a59bddbe68bb3fdfeffc19511",
+  ".meta_harness/design/spec/data/messages/v3/formal/Readable.als": "125d556e090eedb20be50a42b11270cba7c24760f8c197b12ee0dc9adec647dd",
+  ".meta_harness/design/spec/data/messages/v3/messages.schema.json": "5e832dccf0b5a88387d1b71c064331f81fe9251b5ff87bd1c6ab4151b5862005",
+  ".meta_harness/design/spec/data/messages/v4/contract.md": "a8ac82be707ae5d49ceb7ad057b42041f73f73a47e76cdfbea5cc37b9d1be89c",
+  ".meta_harness/design/spec/data/messages/v4/examples.md": "19577a4217d825ebf9c5dc0b91372916ba1ac0d10d31f63d7bcabe7feca641c4",
+  ".meta_harness/design/spec/data/messages/v4/formal/README.md": "a70d6c5793a6b09c077c466f6593f1c8416ee0dec7b4e15bb1b2463bcc894aef",
+  ".meta_harness/design/spec/data/messages/v4/formal/Readable.als": "125d556e090eedb20be50a42b11270cba7c24760f8c197b12ee0dc9adec647dd",
+  ".meta_harness/design/spec/data/messages/v4/messages.schema.json": "2d65ca8ba5a81dba4121a500825c5f99d2bc01cf32686c4660d7299797ce1821",
+  ".meta_harness/design/spec/data/model-profile/v3/model-profile.schema.json": "fe5ef98ebd0902d0353dbc2ea8885d0bba24eff18912d8db9f8e9d6291790b8d",
+  ".meta_harness/design/spec/data/model-response/v4/model-response.schema.json": "ee9952c0b7a327c15692e2622a9924e624397934649256e1fb005ddb380decad",
+  "tmp/model-request-runtime/messages-v4/check.py": "d70eda80465179edec0404377b285900e1188425e707b49e67d27a7bb9f8045e"
+}

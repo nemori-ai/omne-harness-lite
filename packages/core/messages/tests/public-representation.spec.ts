@@ -12,7 +12,7 @@ import {
   judgeMessage,
   judgeModelInvocationRecord,
   validate,
-} from '../src/index.ts'
+} from '@omne-harness-lite/messages'
 
 const at = '2026-09-23T10:00:00Z'
 const visibility = { toHuman: false, toModel: false }
@@ -90,6 +90,11 @@ describe('MSG-REP public transport restoration', () => {
   })
   it('MSG-REP-RECORD: dispatch Shape is restored without adding record business checks', () => {
     const wire = {
+      adaptation: {
+        implementation: { name: 'test', revision: '1' },
+        definition: { modelId: 'r', revision: '1' },
+        configuration: { revision: '1', values: {} },
+      },
       kind: 'model_call_dispatched',
       call: 'call',
       dispatch: 1,
@@ -103,6 +108,16 @@ describe('MSG-REP public transport restoration', () => {
         outputModalities: ['text'],
         maxInputTokens: 100,
         maxOutputTokens: 10,
+        inputConstraints: {},
+        upstreamInputLimits: {
+          maxInputTokens: { status: 'unknown' },
+          maxRequestBytes: { status: 'unknown' },
+        },
+        adaptation: {
+          implementation: { name: 'test', revision: '1' },
+          definition: { modelId: 'r', revision: '1' },
+          configuration: { revision: '1', values: {} },
+        },
         updatedAt: at,
       },
       parameters: {},

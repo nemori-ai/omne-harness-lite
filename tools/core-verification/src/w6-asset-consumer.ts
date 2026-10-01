@@ -38,6 +38,7 @@ import {
   unwrap,
 } from '@omne-harness-lite/identity-values'
 import { loopExtensionBodyContract } from '@omne-harness-lite/loop-extension'
+import loopDeclarationSchema from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
 import { mcpBodyContract, judgeMcpValue, actionEntryName } from '@omne-harness-lite/mcp-endpoint'
 import { readSkillPackage, judgeSkillPackage, schemaId } from '@omne-harness-lite/skill-package'
 import {
@@ -198,7 +199,12 @@ const input: NonConnectorEvaluationInput = {
   standing: { standing: 'effective', role: 'member' },
   definitions,
   holdings: definitions.map(definition => holding(definition)),
-  root: { definition: root, references: capabilities.map(capability => ({ capability })) },
+  root: {
+    definition: root,
+    references: capabilities.map(capability => ({ capability })),
+    attributes: [],
+    source: { asset: 'ast_root', version: 1 },
+  },
 }
 const judge = createAssetModelJudge(defaultBodyContracts)
 function isManifest(value: unknown): value is WorkspaceCarrierManifest {
@@ -249,7 +255,16 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
       ])
       assert.equal(defaultBodyContracts.tool, toolBodyContract)
       assert.equal(defaultBodyContracts.skill, skillBodyContract)
-      assert.equal(defaultBodyContracts.loop_extension, loopExtensionBodyContract)
+      const loopPort = defaultBodyContracts.loop_extension
+      assert.equal(loopPort.schema, loopDeclarationSchema)
+      assert.equal(loopPort.deriveDeclarations, loopExtensionBodyContract.deriveDeclarations)
+      assert.equal(loopPort.references, loopExtensionBodyContract.references)
+      const loopBody = bodies[2]
+      assert.ok(loopBody?.category === 'loop_extension')
+      assert.deepEqual(loopPort.judge(loopBody.extension, { capabilityName: 'guard' }), {
+        ok: true,
+      })
+      assert.throws(() => loopPort.judge({}, { definition: 'ModelRetryConclusion' }), TypeError)
       assert.equal(defaultBodyContracts.mcp, mcpBodyContract)
       assert.equal(defaultBodyContracts.slash_command, slashCommandBodyContract)
       for (const definition of definitions)
@@ -274,7 +289,12 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
         evaluationInputFingerprint(input),
         evaluationInputFingerprint({
           ...input,
-          root: { references: input.root.references, definition: input.root.definition },
+          root: {
+            source: input.root.source,
+            attributes: input.root.attributes,
+            references: input.root.references,
+            definition: input.root.definition,
+          },
         }),
       )
     },
@@ -538,7 +558,7 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
         ...input,
         definitions: [...definitions, entry],
         holdings: [...input.holdings, holding(entry)],
-        root: { definition: root, references: [{ capability: plugin }] },
+        root: { ...input.root, references: [{ capability: plugin }] },
       })
       assert.deepEqual(result, { categoryUnsupported: { category: 'plugin' } })
       const helper = { category: 'agent_definition', name: 'helper' } as const
@@ -551,7 +571,7 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
           ...input,
           definitions: [...definitions, helperDefinition],
           holdings: [...input.holdings, holding(helperDefinition)],
-          root: { definition: root, references: [{ capability: helper }] },
+          root: { ...input.root, references: [{ capability: helper }] },
         }),
         { categoryUnsupported: { category: 'agent_definition' } },
       )

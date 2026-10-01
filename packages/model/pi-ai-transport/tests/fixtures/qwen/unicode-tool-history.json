@@ -1,0 +1,19 @@
+{
+  "model": "qwen/qwen3.8-2.4t-a95b",
+  "provider": { "order": ["alibaba"], "allow_fallbacks": false },
+  "stream": true,
+  "messages": [
+    { "role": "system", "content": "Answer accurately." },
+    { "role": "user", "content": "请查询🙂。" },
+    { "role": "assistant", "content": "I will check both.", "reasoning": "先查两项。", "tool_calls": [
+      { "id": "call_one", "type": "function", "function": { "name": "lookup", "arguments": "{\"query\":\"北京🙂\",\"filters\":{\"中\":true,\"🙂\":\"yes\"}}" } },
+      { "id": "call_two", "type": "function", "function": { "name": "lookup", "arguments": "{\"query\":\"上海\",\"limit\":2}" } }
+    ] },
+    { "role": "tool", "tool_call_id": "call_one", "content": "结果一" },
+    { "role": "tool", "tool_call_id": "call_two", "content": "结果二" },
+    { "role": "assistant", "content": "I compared them.", "reasoning": "比较完成。" },
+    { "role": "user", "content": "Give me the final result." }
+  ],
+  "tools": [{ "type": "function", "function": { "name": "lookup", "description": "查询 <地点> 🙂", "parameters": { "type": "object", "properties": { "中": { "type": "boolean" }, "🙂": { "type": "string" }, "query": { "type": "string", "description": "地点" } }, "required": ["query"] } } }],
+  "max_tokens": 128
+}

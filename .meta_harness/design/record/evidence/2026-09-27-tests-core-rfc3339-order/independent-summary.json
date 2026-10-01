@@ -1,0 +1,640 @@
+{
+  "version": "W17-56d69e3-r1",
+  "role": "independent verification-developer; no final acceptance",
+  "verdict": "Pass with issues",
+  "productSliceVerdict": "Pass",
+  "issues": [
+    {
+      "id": "ISSUE-1",
+      "severity": "evidence limitation",
+      "text": "First pre-product oracle metadata failure did not retain its independent PID/full local raw stderr; no retroactive reconstruction represented as original."
+    }
+  ],
+  "sourceHead": "56d69e3647636cc13acb58d5ec0bd667fab3d191",
+  "branch": "panqiwei/model-request-runtime-p2-rfc3339-order-verification",
+  "authority": {
+    "D089": "B/R1 adopted exact rev1",
+    "designSha256": "249c68ea3239977131cc44be3d75dbd31474e0659355258c2606833eb2bfaab2",
+    "briefSha256": "1e812dc1094ab780092736fd3fb3657dc1a9104d024f1eb11436b64b3f4a2de0"
+  },
+  "coordinates": {
+    "spoke": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-rfc3339-order-verification",
+    "out": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-rfc3339-order-verification/tmp/model-request-runtime/p2-rfc3339-order-verification",
+    "osRoot": "/tmp/omne-rfc3339-independent-1svi_9gl",
+    "B": "/tmp/omne-rfc3339-independent-1svi_9gl/B",
+    "C": "/tmp/omne-rfc3339-independent-1svi_9gl/relocated/C",
+    "maintenanceInputs": 142,
+    "sourceDistInputs": 198,
+    "packs": {
+      "identity-values.tgz": "c5b910d02642ff2aa2378802988604dd31e87723f65d79a3af897773ea2041a2",
+      "offer-expiry.tgz": "111a06099d6d40a63cc62f4210c7e13c18713f6a463ae4759ffd53fe5cfd2b14"
+    },
+    "dependencies": {
+      "ajv": "8.20.0",
+      "fast-deep-equal": "3.1.3",
+      "fast-uri": "3.1.7",
+      "json-schema-traverse": "1.0.0",
+      "require-from-string": "2.0.2",
+      "typescript": "6.0.3",
+      "@types/node": "24.13.6",
+      "undici-types": "7.18.2"
+    }
+  },
+  "finalConsumersRun": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-rfc3339-order-verification/tmp/model-request-runtime/p2-rfc3339-order-verification/consumers-1790541865937360321",
+  "finalControlsRun": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-rfc3339-order-verification/tmp/model-request-runtime/p2-rfc3339-order-verification/controls-1790541951687562861",
+  "finalAuditRun": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-rfc3339-order-verification/tmp/model-request-runtime/p2-rfc3339-order-verification/audit-1790542101626310754",
+  "oracle": {
+    "generatorSha256": "3b76694acb0853e834015a5c6a1d800386d289586dd1abbf408efb7ec237f9a1",
+    "vectorsSha256": "6ec390b0dda5c2f6c125baacbe447f3733ae859a1889ba981c993ab9562a3ef1",
+    "cases": 7662,
+    "triples": 1798,
+    "oracle": "Python stdlib date/calendar 400-year lift + Fraction rational order embedding (61 labelled slots/minute, not elapsed time); no product imports or author expected vectors",
+    "seed": 20260927,
+    "bounds": {
+      "sampleCount": 1800,
+      "calendarYearIntervals": [
+        [
+          0,
+          799
+        ],
+        [
+          1600,
+          2399
+        ]
+      ],
+      "fractionDigitsMax": 12002,
+      "offsetMinutesMax": 1439,
+      "historicalLeapDates": [
+        "2015-06-30",
+        "2016-12-31"
+      ],
+      "syntheticLeapPremisesNotCertified": true
+    }
+  },
+  "consumerOraclesPerRoot": 9475,
+  "tests": {
+    "numTotalTests": 150,
+    "numPassedTests": 150,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "success": true
+  },
+  "coverage": [
+    {
+      "id": "TO-V1",
+      "verdict": "Pass",
+      "covered": "Independent .0004>.0003 public assertion in both actual packs; quantized compiled control fails exact first oracle.",
+      "notCovered": "MR4 sent/first production rejection or actual runtime composition."
+    },
+    {
+      "id": "TO-V2",
+      "verdict": "Pass",
+      "covered": "Missing fraction/tail zero equality; >nanosecond and 12001/12002-digit finite tails; before/after epoch; strings unchanged. Independent exact Fraction expectation, no millisecond conversion.",
+      "notCovered": "Captured timing/log payload preservation by runtime; unlimited-input mathematical machine proof."
+    },
+    {
+      "id": "TO-V3",
+      "verdict": "Pass",
+      "covered": "Entire string/calendar/field/offset checks, both sides and both invalid; 10 nonstring classes, throwing and revoked Proxy; no getter/toJSON/coercion accesses; fixed redacted diagnostic. Pattern-only schema accepts illegal calendar that compare rejects.",
+      "notCovered": "External leap announcement authentication or negative leap label existence."
+    },
+    {
+      "id": "TO-V4",
+      "verdict": "Pass",
+      "covered": "T/t,Z/z, +/-00:00, generated +/-1439 minute aliases, reverse-lex offset, local0000/9999 UTC-bound crossings, exact fraction. Lexical compiled control fails designated oracle.",
+      "notCovered": "Locale/IANA/RFC9557 domains outside adopted four-digit grammar."
+    },
+    {
+      "id": "TO-V5",
+      "verdict": "Pass within R1 premise",
+      "covered": "IERS-qualified 2015/2016 59.x<60<60.x<next0, offset aliases and trailing zeros. Impossible UTC month-end-minute60 rejected. Other-month synthetic Jan2030 and UTC boundary conditional fixtures prevent a June/December-only implementation.",
+      "notCovered": "TL-G1 actual producers/hosts/announcements; negative leap occurrence; future synthetic fixtures are not certified historical instants."
+    },
+    {
+      "id": "TO-V6",
+      "verdict": "Pass in finite instrumented scope",
+      "covered": "Public Parsed<-1|0|1> strict consumer types; kernel/Cordis truly absent. 41 active port probes (40 distinct names), all 7662 vectors/1798 triples repeated under deny; business effects/async resources zero, resources=[] and FD21->21 in both. Cross-call result stability and varied facts; source module uses local state/no retained input cache. Normal import separated from business interval.",
+      "notCovered": "Unconditional proof of every hypothetical port, heap non-retention under arbitrary inputs, runtime lifecycle/Clock provenance."
+    },
+    {
+      "id": "TO-V7 core",
+      "verdict": "Pass",
+      "covered": "Fresh pack from own locked build; two independent relocated closed consumers each878 regular/0links,63 product members byte identical. Six exact literal TS blocks per root, strict NodeNext/skipLibCheck:false compile and12 actual node executions.",
+      "notCovered": "Runtime three/two timing, opened full-value equality, actual producer/legal history/physical batch. README_ZH is maintained-source literal, not published by existing package files policy."
+    },
+    {
+      "id": "TO-V8",
+      "verdict": "Pass",
+      "covered": "Own actual150 tests=85 old+64 new behavior+1 new type, no skip/failure. Protected old source/test/schema/package bytes unchanged from90fafe89; old time.ts exact adopted hash. Public original millisecond quantization/formatter preserved; no old API rewrite.",
+      "notCovered": "No full monorepo acceptance or unrelated consumer upgrade."
+    },
+    {
+      "id": "TO-V9",
+      "verdict": "Pass in finite scope",
+      "covered": "Independent stdlib Gregorian date/calendar 400-year lift+Fraction ordered61-label-minute embedding; seed20260927,1800 samples,7662 cases,1798 triples, two full400-year interval pairs,300 offset aliases, fractional12002 max. Own public executions. Author cost raw personally checked under explicit brief allowance, same78 source/dist and normal archived modules;20 calls at1001/10001/100001/1000001 digits.",
+      "notCovered": "Cost is author measurement, not independent rerun. No proof of arbitrary constant time/memory, elapsed time/TAI model or machine/formal theorem."
+    },
+    {
+      "id": "compiled behavior controls",
+      "verdict": "Pass",
+      "covered": "Two distinct strict TS compiled replacements, sole public product-member delta dist/rfc3339-order.js. compile0/syntax0/same positive oracle AssertionError1 at named numeric assertion.",
+      "notCovered": "Additional runtime/announcement/all individual parser mutation controls."
+    }
+  ],
+  "failuresAndRevisions": [
+    {
+      "id": "MEAS-1",
+      "kind": "measurement command scope",
+      "run": "prepare-1790540916055748285",
+      "label": "format-check",
+      "pid": 117552,
+      "exit": 2,
+      "originalBytes": "prepare.py and command.json/stdout/stderr retained",
+      "reason": "The maintained formatter rejects README.md, which is outside its TS/JS scope. Product source untouched. Continuation formats the four adopted TS members and runs the remaining source gates before packing.",
+      "productDefect": false
+    },
+    {
+      "id": "MEAS-2",
+      "kind": "oracle metadata tooling",
+      "originalSource": "oracle-first.py",
+      "generatedOriginalVectors": "vectors-first.json",
+      "toolChunk": "868f21",
+      "exit": 1,
+      "pid": null,
+      "localRawStderrComplete": false,
+      "preservedToolSummary": "oracle-first-failure-tool.txt",
+      "reason": "Path was not imported for final generator metadata hashing after full vectors were written. First direct exec did not retain an independent PID/full local stderr. This cannot be repaired retroactively. r2 only added Path and produced identical vectors; r3 removes an unsupported exact diagnostic wording assumption before any product execution. Numerical expectations unchanged.",
+      "productDefect": false,
+      "evidenceIssue": "ISSUE-1"
+    },
+    {
+      "id": "MEAS-3",
+      "kind": "active port instrument setup",
+      "run": "consumers-1790541496881119753",
+      "pid": 120715,
+      "exit": 1,
+      "originalScript": "public-first.mjs",
+      "reason": "crypto.getRandomValues is a non-configurable getter. No intended business call in the final active-instrument block had run. Every earlier finite oracle passed. Revised measurement intercepts the actual configurable WebCrypto prototype delegate, then self-tests all installed ports including the exposed crypto wrapper. All vectors and triples rechecked under denial. Product and numerical oracle unchanged.",
+      "productDefect": false
+    },
+    {
+      "id": "ORACLE-POLICY",
+      "kind": "pre-product oracle refinement",
+      "originals": [
+        "oracle-first.py",
+        "oracle-r2.py",
+        "vectors-first.json",
+        "vectors-r2.json"
+      ],
+      "reason": "Adopted design specifies fixed redacted diagnostic, not author literal wording. Before product execution, invalid expected values became a private boolean marker; the actual result still must have exactly invalidInput:string, be nonempty and fixed across invalid values, and not echo the marked secret. No numerical expectations changed.",
+      "productDefect": false
+    }
+  ],
+  "negativeControls": [
+    {
+      "name": "quantized",
+      "directory": "/tmp/omne-rfc3339-independent-1svi_9gl/negative-quantized",
+      "oracle": "TO-V1.submillisecond",
+      "actual": {
+        "ok": 0
+      },
+      "expected": {
+        "ok": 1
+      },
+      "failure": {
+        "name": "TO-V1.submillisecond",
+        "result": "fail",
+        "error": "AssertionError [ERR_ASSERTION]: TO-V1.submillisecond\n+ actual - expected\n\n  {\n+   ok: 0\n-   ok: 1\n  }\n",
+        "stack": "AssertionError [ERR_ASSERTION]: TO-V1.submillisecond\n+ actual - expected\n\n  {\n+   ok: 0\n-   ok: 1\n  }\n\n    at file:///tmp/omne-rfc3339-independent-1svi_9gl/negative-quantized/public.mjs:97:36\n    at check (file:///tmp/omne-rfc3339-independent-1svi_9gl/negative-quantized/public.mjs:68:20)\n    at file:///tmp/omne-rfc3339-independent-1svi_9gl/negative-quantized/public.mjs:87:3",
+        "actual": {
+          "ok": 0
+        },
+        "expected": {
+          "ok": 1
+        }
+      },
+      "compiledSourceSha256": "42f8f0cc807028496ba0bda70f29d35a9a8c51d3af84be0bd3500366f9818b55",
+      "compiledModuleSha256": "8f16b62eaf4f7e3ff70f5380ecd2f8cb98be2e020e88b968b7b2366108088eab",
+      "originalModuleSha256": "5200cc67df3ff98e175b3763918d9966216c5b70bd4a1457e47c837575f85015",
+      "onlyProductDelta": [
+        "offer-expiry/dist/rfc3339-order.js"
+      ],
+      "symlinks": 0,
+      "compileExit": 0,
+      "syntaxExit": 0,
+      "behaviorExit": 1,
+      "pid": 123027,
+      "finalResources": {
+        "resources": [],
+        "fds": 21,
+        "memory": {
+          "rss": 90963968,
+          "heapTotal": 35127296,
+          "heapUsed": 22635184,
+          "external": 3894491,
+          "arrayBuffers": 146595
+        }
+      }
+    },
+    {
+      "name": "lexical",
+      "directory": "/tmp/omne-rfc3339-independent-1svi_9gl/negative-lexical",
+      "oracle": "TO-V4.reverse-lex-offset",
+      "actual": {
+        "ok": 1
+      },
+      "expected": {
+        "ok": -1
+      },
+      "failure": {
+        "name": "TO-V4.reverse-lex-offset",
+        "result": "fail",
+        "error": "AssertionError [ERR_ASSERTION]: TO-V4.reverse-lex-offset\n+ actual - expected\n\n  {\n+   ok: 1\n-   ok: -1\n  }\n",
+        "stack": "AssertionError [ERR_ASSERTION]: TO-V4.reverse-lex-offset\n+ actual - expected\n\n  {\n+   ok: 1\n-   ok: -1\n  }\n\n    at file:///tmp/omne-rfc3339-independent-1svi_9gl/negative-lexical/public.mjs:97:36\n    at check (file:///tmp/omne-rfc3339-independent-1svi_9gl/negative-lexical/public.mjs:68:20)\n    at file:///tmp/omne-rfc3339-independent-1svi_9gl/negative-lexical/public.mjs:87:3",
+        "actual": {
+          "ok": 1
+        },
+        "expected": {
+          "ok": -1
+        }
+      },
+      "compiledSourceSha256": "a40319f572a1f346d08dae17695fff0e75602f761b525cab0eec5a97bfabcaa8",
+      "compiledModuleSha256": "cc5003fbb5c7cceb17acbe801bfbc24546f5961cae18e8ba091a6f447aa73437",
+      "originalModuleSha256": "5200cc67df3ff98e175b3763918d9966216c5b70bd4a1457e47c837575f85015",
+      "onlyProductDelta": [
+        "offer-expiry/dist/rfc3339-order.js"
+      ],
+      "symlinks": 0,
+      "compileExit": 0,
+      "syntaxExit": 0,
+      "behaviorExit": 1,
+      "pid": 123063,
+      "finalResources": {
+        "resources": [],
+        "fds": 21,
+        "memory": {
+          "rss": 91340800,
+          "heapTotal": 34603008,
+          "heapUsed": 22623936,
+          "external": 3894491,
+          "arrayBuffers": 146595
+        }
+      }
+    }
+  ],
+  "resources": {
+    "B": {
+      "pid": 122446,
+      "oraclesPassed": 9475,
+      "normalModuleLoad": {
+        "before": [],
+        "after": [],
+        "fds": 21,
+        "note": "module/static schema loading happens before the business denial interval"
+      },
+      "initial": {
+        "resources": [],
+        "fds": 21,
+        "memory": {
+          "rss": 90775552,
+          "heapTotal": 35127296,
+          "heapUsed": 22743072,
+          "external": 3861170,
+          "arrayBuffers": 146595
+        }
+      },
+      "final": {
+        "resources": [],
+        "fds": 21,
+        "memory": {
+          "rss": 104316928,
+          "heapTotal": 38891520,
+          "heapUsed": 21030656,
+          "external": 3894491,
+          "arrayBuffers": 146595
+        }
+      },
+      "businessEffects": [],
+      "businessAsyncResources": [],
+      "selfTestInvocations": 41,
+      "distinctPortNames": 40,
+      "activeCases": 7662,
+      "activeTriples": 1798
+    },
+    "C": {
+      "pid": 122523,
+      "oraclesPassed": 9475,
+      "normalModuleLoad": {
+        "before": [],
+        "after": [],
+        "fds": 21,
+        "note": "module/static schema loading happens before the business denial interval"
+      },
+      "initial": {
+        "resources": [],
+        "fds": 21,
+        "memory": {
+          "rss": 90951680,
+          "heapTotal": 35127296,
+          "heapUsed": 23329144,
+          "external": 3861170,
+          "arrayBuffers": 146595
+        }
+      },
+      "final": {
+        "resources": [],
+        "fds": 21,
+        "memory": {
+          "rss": 105730048,
+          "heapTotal": 39440384,
+          "heapUsed": 21316920,
+          "external": 3894491,
+          "arrayBuffers": 146595
+        }
+      },
+      "businessEffects": [],
+      "businessAsyncResources": [],
+      "selfTestInvocations": 41,
+      "distinctPortNames": 40,
+      "activeCases": 7662,
+      "activeTriples": 1798
+    }
+  },
+  "freeze": {
+    "inputs": 198,
+    "maintenance": 142,
+    "dist": 56,
+    "drift": [],
+    "provided": 36,
+    "authorFinalSame": 78,
+    "oldProtectedSame": 72,
+    "oldAdoptedChanged": 3
+  },
+  "publicationAudit": {
+    "B": {
+      "directory": "/tmp/omne-rfc3339-independent-1svi_9gl/B",
+      "files": 878,
+      "symlinks": 0,
+      "packMembers": 63,
+      "packs": {
+        "identity-values.tgz": {
+          "sha256": "c5b910d02642ff2aa2378802988604dd31e87723f65d79a3af897773ea2041a2",
+          "members": 35,
+          "mismatch": 0
+        },
+        "offer-expiry.tgz": {
+          "sha256": "111a06099d6d40a63cc62f4210c7e13c18713f6a463ae4759ffd53fe5cfd2b14",
+          "members": 28,
+          "mismatch": 0
+        }
+      },
+      "dependencyFileComparisons": 798,
+      "packageManifests": {
+        "package.json": {
+          "name": "independent-rfc3339-consumer",
+          "version": null,
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/require-from-string/package.json": {
+          "name": "require-from-string",
+          "version": "2.0.2",
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/undici-types/package.json": {
+          "name": "undici-types",
+          "version": "7.18.2",
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/ajv/package.json": {
+          "name": "ajv",
+          "version": "8.20.0",
+          "dependencies": {
+            "fast-deep-equal": "^3.1.3",
+            "fast-uri": "^3.0.1",
+            "json-schema-traverse": "^1.0.0",
+            "require-from-string": "^2.0.2"
+          },
+          "exports": null
+        },
+        "node_modules/fast-uri/package.json": {
+          "name": "fast-uri",
+          "version": "3.1.7",
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/fast-uri/benchmark/package.json": {
+          "name": "benchmark",
+          "version": "1.0.0",
+          "dependencies": {
+            "tinybench": "^5.0.0",
+            "uri-js": "^4.4.1"
+          },
+          "exports": null
+        },
+        "node_modules/fast-deep-equal/package.json": {
+          "name": "fast-deep-equal",
+          "version": "3.1.3",
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/typescript/package.json": {
+          "name": "typescript",
+          "version": "6.0.3",
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/json-schema-traverse/package.json": {
+          "name": "json-schema-traverse",
+          "version": "1.0.0",
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/@types/node/package.json": {
+          "name": "@types/node",
+          "version": "24.13.6",
+          "dependencies": {
+            "undici-types": "~7.18.0"
+          },
+          "exports": null
+        },
+        "node_modules/@omne-harness-lite/identity-values/package.json": {
+          "name": "@omne-harness-lite/identity-values",
+          "version": "0.0.0",
+          "dependencies": {
+            "ajv": "8.20.0"
+          },
+          "exports": {
+            ".": {
+              "types": "./dist/index.d.ts",
+              "import": "./dist/index.js"
+            },
+            "./schema": "./schema/identity-values.schema.json"
+          }
+        },
+        "node_modules/@omne-harness-lite/offer-expiry/package.json": {
+          "name": "@omne-harness-lite/offer-expiry",
+          "version": "0.0.0",
+          "dependencies": {
+            "ajv": "8.20.0",
+            "@omne-harness-lite/identity-values": "0.0.0"
+          },
+          "exports": {
+            ".": {
+              "types": "./dist/index.d.ts",
+              "import": "./dist/index.js"
+            },
+            "./schema": "./schema/offer-expiry.schema.json",
+            "./testing": {
+              "types": "./dist/testing/index.d.ts",
+              "import": "./dist/testing/index.js"
+            },
+            "./schema/v1": "./schema/offer-expiry.v1.schema.json"
+          }
+        }
+      }
+    },
+    "C": {
+      "directory": "/tmp/omne-rfc3339-independent-1svi_9gl/relocated/C",
+      "files": 878,
+      "symlinks": 0,
+      "packMembers": 63,
+      "packs": {
+        "identity-values.tgz": {
+          "sha256": "c5b910d02642ff2aa2378802988604dd31e87723f65d79a3af897773ea2041a2",
+          "members": 35,
+          "mismatch": 0
+        },
+        "offer-expiry.tgz": {
+          "sha256": "111a06099d6d40a63cc62f4210c7e13c18713f6a463ae4759ffd53fe5cfd2b14",
+          "members": 28,
+          "mismatch": 0
+        }
+      },
+      "dependencyFileComparisons": 798,
+      "packageManifests": {
+        "package.json": {
+          "name": "independent-rfc3339-consumer",
+          "version": null,
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/require-from-string/package.json": {
+          "name": "require-from-string",
+          "version": "2.0.2",
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/undici-types/package.json": {
+          "name": "undici-types",
+          "version": "7.18.2",
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/ajv/package.json": {
+          "name": "ajv",
+          "version": "8.20.0",
+          "dependencies": {
+            "fast-deep-equal": "^3.1.3",
+            "fast-uri": "^3.0.1",
+            "json-schema-traverse": "^1.0.0",
+            "require-from-string": "^2.0.2"
+          },
+          "exports": null
+        },
+        "node_modules/fast-uri/package.json": {
+          "name": "fast-uri",
+          "version": "3.1.7",
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/fast-uri/benchmark/package.json": {
+          "name": "benchmark",
+          "version": "1.0.0",
+          "dependencies": {
+            "tinybench": "^5.0.0",
+            "uri-js": "^4.4.1"
+          },
+          "exports": null
+        },
+        "node_modules/fast-deep-equal/package.json": {
+          "name": "fast-deep-equal",
+          "version": "3.1.3",
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/typescript/package.json": {
+          "name": "typescript",
+          "version": "6.0.3",
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/json-schema-traverse/package.json": {
+          "name": "json-schema-traverse",
+          "version": "1.0.0",
+          "dependencies": {},
+          "exports": null
+        },
+        "node_modules/@types/node/package.json": {
+          "name": "@types/node",
+          "version": "24.13.6",
+          "dependencies": {
+            "undici-types": "~7.18.0"
+          },
+          "exports": null
+        },
+        "node_modules/@omne-harness-lite/identity-values/package.json": {
+          "name": "@omne-harness-lite/identity-values",
+          "version": "0.0.0",
+          "dependencies": {
+            "ajv": "8.20.0"
+          },
+          "exports": {
+            ".": {
+              "types": "./dist/index.d.ts",
+              "import": "./dist/index.js"
+            },
+            "./schema": "./schema/identity-values.schema.json"
+          }
+        },
+        "node_modules/@omne-harness-lite/offer-expiry/package.json": {
+          "name": "@omne-harness-lite/offer-expiry",
+          "version": "0.0.0",
+          "dependencies": {
+            "ajv": "8.20.0",
+            "@omne-harness-lite/identity-values": "0.0.0"
+          },
+          "exports": {
+            ".": {
+              "types": "./dist/index.d.ts",
+              "import": "./dist/index.js"
+            },
+            "./schema": "./schema/offer-expiry.schema.json",
+            "./testing": {
+              "types": "./dist/testing/index.d.ts",
+              "import": "./dist/testing/index.js"
+            },
+            "./schema/v1": "./schema/offer-expiry.v1.schema.json"
+          }
+        }
+      }
+    }
+  },
+  "resourcesChildrenWaited": true,
+  "cost": "Personally reviewed byte-identical author cost raw; not independent cost execution",
+  "outOfScopeUnclosed": [
+    "TL-G1 actual time producer/host/legal history/announcements",
+    "runtime actual three/two timing and opened original value/source relation",
+    "G28",
+    "G29-P/H and physical same batch",
+    "G30",
+    "G31",
+    "thirteen operations/five settlements/37 official certification",
+    "complete P2-P6"
+  ],
+  "productChanges": 0,
+  "acceptanceAuthority": "root",
+  "archive": "closed-evidence.tar.gz and archive.json generated separately; hash/count/readback in archive.json"
+}

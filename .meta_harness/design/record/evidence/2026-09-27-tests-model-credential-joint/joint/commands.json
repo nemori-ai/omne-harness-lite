@@ -1,0 +1,80 @@
+{
+  "worktree": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p3-joint-credential-verification",
+  "branch": "panqiwei/model-request-runtime-p3-joint-credential-verification",
+  "head": "553222412f56facad3cc0bb0c69a7e31e3d4fbbc",
+  "node": "v24.18.0",
+  "pnpm": "10.28.1",
+  "setup": [
+    {
+      "argv": "pnpm install --offline --frozen-lockfile",
+      "exit": 0,
+      "observation": "80 reused, 0 downloaded; direct tool output, not a copied log file"
+    },
+    {
+      "argv": "pnpm -r --filter '@omne-harness-lite/model-profile-directory...' --filter '@omne-harness-lite/credential-custodian-local...' run build",
+      "exit": 0,
+      "observation": "14 selected projects; direct tool output, not a copied log file"
+    }
+  ],
+  "concurrent_attempts": [
+    {
+      "argv": "node tmp/model-request-runtime/p3-joint-credential-verification/verify.mjs",
+      "pid": null,
+      "wait_exit": 1,
+      "stdout": "run1.stdout",
+      "stderr": "run1.stderr",
+      "exit_file": "run1.exit",
+      "stderr_mtime_utc": "2026-09-27T22:21:16.659227169Z"
+    },
+    {
+      "argv": "node tmp/model-request-runtime/p3-joint-credential-verification/verify.mjs",
+      "pid": null,
+      "wait_exit": 1,
+      "stdout": "run2.stdout",
+      "stderr": "run2.stderr",
+      "exit_file": "run2.exit",
+      "stderr_mtime_utc": "2026-09-27T22:22:17.185011813Z"
+    },
+    {
+      "argv": "node tmp/model-request-runtime/p3-joint-credential-verification/verify.mjs",
+      "pid": null,
+      "wait_exit": 1,
+      "stdout": "run3.stdout",
+      "stderr": "run3.stderr",
+      "exit_file": "run3.exit",
+      "stderr_mtime_utc": "2026-09-27T22:22:37.965624553Z"
+    }
+  ],
+  "independent_final": {
+    "argv": "node tmp/model-request-runtime/p3-joint-credential-verification/verify-independent.mjs",
+    "pid": 167067,
+    "wait_exit": 0,
+    "stdout": "independent4.stdout",
+    "stderr": "independent4.stderr",
+    "pid_file": "independent4.pid",
+    "exit_file": "independent4.exit",
+    "runner_sha256": "b6881c4f45c6ae6b8a5f96a5732257e38b992140bafe9d0f3f6968813a23af39"
+  },
+  "owner_package_checks": [
+    {
+      "argv": "pnpm --filter @omne-harness-lite/model-profile-directory --filter @omne-harness-lite/credential-custodian-local run test",
+      "wait_exit": 0,
+      "stdout": "package-tests.stdout",
+      "stderr": "package-tests.stderr",
+      "exit_file": "package-tests.exit"
+    },
+    {
+      "argv": "pnpm --filter @omne-harness-lite/model-profile-directory --filter @omne-harness-lite/credential-custodian-local run typecheck",
+      "wait_exit": 0,
+      "stdout": "package-typecheck.stdout",
+      "stderr": "package-typecheck.stderr",
+      "exit_file": "package-typecheck.exit"
+    }
+  ],
+  "other_checks": [
+    "node --check on both runners: exit 0",
+    "pnpm exec prettier --check on both runners: exit 0",
+    "sha256sum -c inputs.sha256: exit 0 after final runner",
+    "git status --porcelain: empty before and after"
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "format": 1,
+  "topic": "PF-013-model-profiles-and-invocation",
+  "version": "v7",
+  "label": "post-review candidate",
+  "generated_at": "2026-09-29",
+  "requirements_revision": 16,
+  "acceptance": null,
+  "proposed_adoption": "D-109 successor; not yet accepted",
+  "scope": "Only scope-cleanup capability and original-basis applicability seam; excludes T29, new business contracts and complete Session/Run.",
+  "supersedes": null,
+  "adopted_predecessor_commit": "716400a362c76b23b0e77f5ec23d16d43af99410",
+  "sources": [
+    {
+      "resource": "product/PF-013-model-profiles-and-invocation/design.md",
+      "sha256": null,
+      "snapshot_sha256": "5738f7ebe821fd3e873319cb964f1bff5b94b644e6c80bd04f1e8309127b18c2",
+      "frozen": false,
+      "snapshot_commit": "4ebcd9c05a969554999802b0d6ab24ab69bbaa01"
+    },
+    {
+      "resource": "spec/capabilities/model-request-runtime/v10/contract.md",
+      "sha256": "add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c",
+      "snapshot_sha256": "add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c",
+      "frozen": true,
+      "snapshot_commit": "4ebcd9c05a969554999802b0d6ab24ab69bbaa01"
+    },
+    {
+      "resource": "spec/data/model-response/v9/contract.md",
+      "sha256": "fc4fe5f8092f1abff7efa6b27a228f7321575c5de8205c58de8ee8106ad3ebda",
+      "snapshot_sha256": "fc4fe5f8092f1abff7efa6b27a228f7321575c5de8205c58de8ee8106ad3ebda",
+      "frozen": true,
+      "snapshot_commit": "4ebcd9c05a969554999802b0d6ab24ab69bbaa01"
+    },
+    {
+      "resource": "realization/packages/model/pi-ai-transport/v15-image-preparation-design.md",
+      "sha256": null,
+      "snapshot_sha256": "3cf764f6218c2286a93381a5969368085efdd4e9992014ec6c7edd3f8518e26a",
+      "frozen": false,
+      "snapshot_commit": "4ebcd9c05a969554999802b0d6ab24ab69bbaa01"
+    },
+    {
+      "resource": "realization/packages/model/model-request-runtime/v21-image-preparation-design.md",
+      "sha256": null,
+      "snapshot_sha256": "767a636ff35833b28c5ecb159c477b4a76ca1515f4646566f7f05c47ba0e82bf",
+      "frozen": false,
+      "snapshot_commit": "4ebcd9c05a969554999802b0d6ab24ab69bbaa01"
+    },
+    {
+      "resource": "realization/packages/model/model-request-runtime/image-preparation-scope-cleanup-candidate.md",
+      "sha256": null,
+      "snapshot_sha256": "2806c562cef964cdd979d2aaeb5ccba90484db7de84997ed213efb40ae8ec2a3",
+      "frozen": false,
+      "snapshot_commit": "4ebcd9c05a969554999802b0d6ab24ab69bbaa01"
+    },
+    {
+      "resource": "realization/packages/model/pi-ai-transport/image-preparation-scope-cleanup-candidate.md",
+      "sha256": null,
+      "snapshot_sha256": "22900fa7eb39b74a6af81b6544eb0d190063d42ecc2a7bba2df0308b6a6bd8ab",
+      "frozen": false,
+      "snapshot_commit": "4ebcd9c05a969554999802b0d6ab24ab69bbaa01"
+    },
+    {
+      "resource": "realization/packages/model/pi-ai-transport/image-preparation-basis-applicability-candidate.md",
+      "sha256": null,
+      "snapshot_sha256": "78b85967d2935ba01d5ad64687ce080cf025ffb266c287199048c78137bea781",
+      "frozen": false,
+      "snapshot_commit": "4ebcd9c05a969554999802b0d6ab24ab69bbaa01"
+    },
+    {
+      "resource": "record/proposals/model-request-image-preparation/scope-and-basis-followup-review.md",
+      "sha256": null,
+      "snapshot_sha256": "c94352146667037fc169531c6741a497b92e308463560780c2fa385951904076",
+      "frozen": false,
+      "snapshot_commit": "4ebcd9c05a969554999802b0d6ab24ab69bbaa01"
+    }
+  ],
+  "code_snapshots": [
+    {
+      "repository_path": "packages/model/model-request-runtime/src/service-types.ts",
+      "snapshot_commit": "716400a362c76b23b0e77f5ec23d16d43af99410",
+      "snapshot_sha256": "d0be103a7f286d40756c2815c440f71e16cdd0fa342ece8b35d39a7966900a8d",
+      "role": "implementation gap evidence, not normative authority"
+    },
+    {
+      "repository_path": "packages/model/model-request-runtime/src/service-runtime.ts",
+      "snapshot_commit": "716400a362c76b23b0e77f5ec23d16d43af99410",
+      "snapshot_sha256": "d89fa44ca400bdb67105101871fa6fe1e11d21e767d7094bd128a625b494ee27",
+      "role": "implementation gap evidence, not normative authority"
+    },
+    {
+      "repository_path": "packages/model/pi-ai-transport/src/registry.ts",
+      "snapshot_commit": "716400a362c76b23b0e77f5ec23d16d43af99410",
+      "snapshot_sha256": "08a6e40ec927d57ad53112210bd843ad420a346a2b61462dbe5e1616c69ca8da",
+      "role": "implementation gap evidence, not normative authority"
+    },
+    {
+      "repository_path": "packages/model/pi-ai-transport/src/input-meters/openai-replay.ts",
+      "snapshot_commit": "8125e085adfdb78bd9fa06381fb5127124f659bb",
+      "snapshot_sha256": "fba491af4f7b44a51f84a7874ee1e6ddf8e71f306a087575fc35a8e7e0f6e1c7",
+      "role": "implementation gap evidence, not normative authority"
+    },
+    {
+      "repository_path": "packages/model/pi-ai-transport/src/input-meters/openai-output-history.ts",
+      "snapshot_commit": "8125e085adfdb78bd9fa06381fb5127124f659bb",
+      "snapshot_sha256": "eb67471db26b4fe43e3ebc1dd5da36c2e0fa3eec569fb1810c212638f1e1f8b0",
+      "role": "implementation gap evidence, not normative authority"
+    },
+    {
+      "repository_path": "packages/model/pi-ai-transport/src/calibration.ts",
+      "snapshot_commit": "8125e085adfdb78bd9fa06381fb5127124f659bb",
+      "snapshot_sha256": "5c113087dc319ba391828ab86a37554fa9cc3c08dd6d7e69163a2c957018d06d",
+      "role": "implementation gap evidence, not normative authority"
+    }
+  ]
+}

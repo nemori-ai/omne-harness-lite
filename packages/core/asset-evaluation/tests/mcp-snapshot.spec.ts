@@ -22,7 +22,12 @@ const common: NonConnectorEvaluationInput = {
   ...simple(),
   definitions: [...simple().definitions, definition('ast_mcp', github, mcp())],
   holdings: [...simple().holdings, holding('factory', github, 'ast_mcp')],
-  root: { definition: root, references: [{ capability: github }] },
+  root: {
+    definition: root,
+    references: [{ capability: github }],
+    attributes: [],
+    source: { asset: 'ast_root', version: 1 },
+  },
 }
 
 describe('MCP action snapshot knowledge and holder scope', () => {

@@ -31,3 +31,4 @@ export {
   validate,
   schemaId,
 } from './validate.ts'
+export { compareRfc3339Instants } from './rfc3339-order.ts'

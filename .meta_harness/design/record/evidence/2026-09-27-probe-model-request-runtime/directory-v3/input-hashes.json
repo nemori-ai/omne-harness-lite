@@ -1,0 +1,14 @@
+{
+  "baseline": "d4eaf7673bc161bf22f6682385151e080d3323ae",
+  "sha256": {
+    ".meta_harness/design/spec/capabilities/model-profile-directory/v3/contract.md": "a38d111a1e071300bc7297f533998922213dc2e47e4671be621b8dd21cf94e45",
+    ".meta_harness/design/spec/capabilities/model-profile-directory/v3/examples.md": "0695236343540a2742d03b0fe7bd4cf08909f0f9eb53d5677b52e4b2f903885e",
+    ".meta_harness/design/spec/capabilities/model-profile-directory/README.md": "2bd06dba5a9574602a03cca6008ddca4a780782aba3207bf2ef293662f891f0e",
+    ".meta_harness/design/spec/capabilities/model-profile-directory/verification.md": "e2c7cf768b0761fc899f1a5b8f434948eee466a46cafbae3ebab502632a51282",
+    "tmp/model-request-runtime/directory-v3/registry-candidate.json": "75abd13baf192b6dea3fbc83c572498e940a3373bcb1cff5eb7edf0f0ae4a26a",
+    "tmp/model-request-runtime/directory-v3/check.py": "cda41494fb4480a0b9ee5d91a7cc3fb6840a13290ce26c84d74debc29d5bfb8a",
+    ".meta_harness/design/spec/data/model-profile/v3/contract.md": "ed8463fbb7d60faf029bcda547fb39dd69f49f38eea99e091a040e9fed4b782f",
+    ".meta_harness/design/spec/data/model-profile/v3/model-profile.schema.json": "fe5ef98ebd0902d0353dbc2ea8885d0bba24eff18912d8db9f8e9d6291790b8d",
+    ".meta_harness/design/record/proposals/model-request-adaptation/design.md": "43deaba01f3b295f9738286a3226ff2bd76922af2d12ee3e48957d2e05e430cf"
+  }
+}

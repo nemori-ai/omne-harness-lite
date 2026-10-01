@@ -1,0 +1,117 @@
+{
+  "observedDate": "2026-09-29",
+  "sdkCommit": "0116f28486baeeef5125e82dc85799090798ec62",
+  "files": [
+    {
+      "file": "pi-openai.ts",
+      "url": "https://raw.githubusercontent.com/earendil-works/pi/3390bd93630965a12a0a1a5c36ce890ec22f7e1d/packages/ai/src/api/openai-completions.ts",
+      "sha256": "b06508ab22b6595d85d636db0737ac7c48adbf9d8d5ff61ba2bac94c9599ac51"
+    },
+    {
+      "file": "pi-anthropic.ts",
+      "url": "https://raw.githubusercontent.com/earendil-works/pi/3390bd93630965a12a0a1a5c36ce890ec22f7e1d/packages/ai/src/api/anthropic-messages.ts",
+      "sha256": "d1316907eaeac7d547b75e3c5ec1eb92c7b6af515b74917d068f3e262cde6209"
+    },
+    {
+      "file": "pi-LICENSE",
+      "url": "https://raw.githubusercontent.com/earendil-works/pi/3390bd93630965a12a0a1a5c36ce890ec22f7e1d/LICENSE",
+      "sha256": "0457f5bcec3b3b211605dfb5d1a49042fd638f3686a410fe099c24a25af13c48"
+    },
+    {
+      "file": "sdk-convert.ts",
+      "url": "https://raw.githubusercontent.com/vercel/ai/0116f28486baeeef5125e82dc85799090798ec62/packages/anthropic/src/convert-to-anthropic-messages-prompt.ts",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "file": "sdk-LICENSE",
+      "url": "https://raw.githubusercontent.com/vercel/ai/0116f28486baeeef5125e82dc85799090798ec62/LICENSE",
+      "sha256": "b4f9adb7c568904834d0dd6cc98d16c390d21ca32fc17ae7a267715269bd5529"
+    },
+    {
+      "file": "sdk-package.json",
+      "url": "https://raw.githubusercontent.com/vercel/ai/0116f28486baeeef5125e82dc85799090798ec62/packages/anthropic/package.json",
+      "sha256": "db5fc69960406fbec947cd0216d82276cda2048a02a638fa1d997945646d95fe"
+    },
+    {
+      "file": "openrouter-openapi.json",
+      "url": "https://openrouter.ai/openapi.json",
+      "error": "HTTP Error 403: Forbidden"
+    },
+    {
+      "file": "sdk-convert.ts",
+      "url": "https://raw.githubusercontent.com/vercel/ai/0116f28486baeeef5125e82dc85799090798ec62/packages/anthropic/src/convert-to-anthropic-prompt.ts",
+      "sha256": "91cd9be983a1ef9e1abd5bc5367d79f8bacb6c55a6d361105a400b2722fd9477"
+    },
+    {
+      "file": "sdk-cache.ts",
+      "url": "https://raw.githubusercontent.com/vercel/ai/0116f28486baeeef5125e82dc85799090798ec62/packages/anthropic/src/get-cache-control.ts",
+      "sha256": "726cc63fe19741eaf78582b561b61774640ab21b7812f231fd1204465f0874bc"
+    },
+    {
+      "file": "sdk-usage.ts",
+      "url": "https://raw.githubusercontent.com/vercel/ai/0116f28486baeeef5125e82dc85799090798ec62/packages/anthropic/src/convert-anthropic-usage.ts",
+      "sha256": "1b95a518ba472ceeb0e26ddd149ce804d77b8d1c7cfec05ed4e666a5a43a6fb3"
+    }
+  ],
+  "localSources": [
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/tmp/sources/extracted/dsh/packages/llm/llm-pi-ai/src/stream.ts",
+      "sha256": "2c21104091fc0a1d15e712a0dfce7b7e569c017aeae828eda30aa18394273dd4",
+      "method": "read fixed local source; prior archive provenance reused"
+    },
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/tmp/sources/extracted/dsh/LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "method": "read fixed local source; prior archive provenance reused"
+    },
+    {
+      "path": "/data/qiwei/repos/omne-next/omne_harness/libs/omne_harness_agentic/omne_harness_agentic/middlewares/prompt_caching.py",
+      "sha256": "859b1df5ec87f57b3b4606bb0777e0d5a585f754227033c10589c5ceef92d7a9",
+      "method": "read fixed local source; prior archive provenance reused"
+    }
+  ],
+  "webSources": [
+    {
+      "url": "https://openrouter.ai/openapi.json",
+      "method": "web.run direct first-party open/find",
+      "observedDate": "2026-09-29",
+      "version": "rolling",
+      "rawHttpArchived": false
+    },
+    {
+      "url": "https://openrouter.ai/docs/guides/best-practices/prompt-caching",
+      "method": "web.run direct first-party open/find",
+      "observedDate": "2026-09-29",
+      "version": "rolling",
+      "rawHttpArchived": false
+    },
+    {
+      "url": "https://openrouter.ai/docs/guides/best-practices/reasoning-tokens",
+      "method": "web.run direct first-party open/find",
+      "observedDate": "2026-09-29",
+      "version": "rolling",
+      "rawHttpArchived": false
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/thinking",
+      "method": "web.run direct first-party open/find",
+      "observedDate": "2026-09-29",
+      "version": "rolling",
+      "rawHttpArchived": false
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/preserved-thinking",
+      "method": "web.run direct first-party open/find",
+      "observedDate": "2026-09-29",
+      "version": "rolling",
+      "rawHttpArchived": false
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/models/opus-5-5/migration-guide",
+      "method": "web.run direct first-party open/find",
+      "observedDate": "2026-09-29",
+      "version": "rolling",
+      "rawHttpArchived": false
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+{
+  "sourceCommit": "658cd244",
+  "underlyingSourceCommit": "81a40561",
+  "acquisition": "executed current built factories before family refactor; model requests 0",
+  "rows": [
+    {
+      "modelId": "openai/gpt-6-astra",
+      "definitionRevision": "4",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      },
+      "provider": "openai",
+      "algorithmRevision": "openai-gpt-6-astra-final-visible-json-o200k-patches-1/response-calibration-1",
+      "tokenizerRevision": "js-tiktoken-1.0.21/o200k-base-gpt-6-astra-surrogate/1",
+      "replayRevision": "openai-gpt-6-astra-visible-image-units-json-net-estimated/1",
+      "transformRevision": "openrouter-wire/2",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "openai/gpt-6-astra-pro",
+      "definitionRevision": "5",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      },
+      "provider": "openai",
+      "algorithmRevision": "openai-gpt-6-astra-pro-final-visible-json-o200k-image-proxy-1/response-calibration-1",
+      "tokenizerRevision": "js-tiktoken-1.0.21/o200k-base-gpt-6-astra-pro-surrogate/1",
+      "replayRevision": "visible-final-units-json-net-estimated/1",
+      "transformRevision": "openrouter-input-transform/pro-scope-1",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "openai/gpt-6-sol",
+      "definitionRevision": "5",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      },
+      "provider": "openai",
+      "algorithmRevision": "openai-gpt-6-sol-final-visible-json-image-proxy-2/response-calibration-1",
+      "tokenizerRevision": "js-tiktoken-1.0.21/o200k-base-gpt-6-sol-surrogate/1",
+      "replayRevision": "visible-final-units-json-net-estimated/1",
+      "transformRevision": "openrouter-wire/2",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "openai/gpt-6-sol-pro",
+      "definitionRevision": "5",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      },
+      "provider": "openai",
+      "algorithmRevision": "openai-gpt-6-sol-pro-final-visible-json-image-proxy-2/response-calibration-1",
+      "tokenizerRevision": "js-tiktoken-1.0.21/o200k-base-gpt-6-sol-pro-surrogate/1",
+      "replayRevision": "visible-final-units-json-net-estimated/1",
+      "transformRevision": "openrouter-input-transform/pro-scope-1",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "openai/gpt-6-luna",
+      "definitionRevision": "6",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      },
+      "provider": "openai",
+      "algorithmRevision": "openai-gpt-6-luna-final-visible-json-image-proxy-2/response-calibration-1",
+      "tokenizerRevision": "js-tiktoken-1.0.21/o200k-base-gpt-6-luna-surrogate/1",
+      "replayRevision": "visible-final-units-json-net-estimated/1",
+      "transformRevision": "openrouter-wire/2",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "openai/gpt-6-luna-pro",
+      "definitionRevision": "5",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      },
+      "provider": "openai",
+      "algorithmRevision": "openai-gpt-6-luna-pro-final-visible-json-image-proxy-2/response-calibration-1",
+      "tokenizerRevision": "js-tiktoken-1.0.21/o200k-base-gpt-6-luna-pro-surrogate/1",
+      "replayRevision": "visible-final-units-json-net-estimated/1",
+      "transformRevision": "openrouter-input-transform/pro-scope-1",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "openai/gpt-5.6-sol",
+      "definitionRevision": "8",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      },
+      "provider": "openai",
+      "algorithmRevision": "openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1",
+      "tokenizerRevision": "tokenizer-basis/openai-gpt-5.6-o200k-base-complete-output-6",
+      "replayRevision": "openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2",
+      "transformRevision": "openrouter-wire/2",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "openai/gpt-5.6-sol-pro",
+      "definitionRevision": "7",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      },
+      "provider": "openai",
+      "algorithmRevision": "openai-gpt-5.6-pro-base-image-proxy-1/response-calibration-1",
+      "tokenizerRevision": "tokenizer-basis/openai-gpt-5.6-pro-base-image-proxy-1",
+      "replayRevision": "visible-final-units-json-net-estimated/1",
+      "transformRevision": "openrouter-input-transform/pro-scope-1",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "openai/gpt-5.6-terra",
+      "definitionRevision": "8",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      },
+      "provider": "openai",
+      "algorithmRevision": "openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1",
+      "tokenizerRevision": "tokenizer-basis/openai-gpt-5.6-o200k-base-complete-output-6",
+      "replayRevision": "openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2",
+      "transformRevision": "openrouter-wire/2",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "openai/gpt-5.6-terra-pro",
+      "definitionRevision": "7",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      },
+      "provider": "openai",
+      "algorithmRevision": "openai-gpt-5.6-pro-base-image-proxy-1/response-calibration-1",
+      "tokenizerRevision": "tokenizer-basis/openai-gpt-5.6-pro-base-image-proxy-1",
+      "replayRevision": "visible-final-units-json-net-estimated/1",
+      "transformRevision": "openrouter-input-transform/pro-scope-1",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "openai/gpt-5.6-luna",
+      "definitionRevision": "8",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      },
+      "provider": "openai",
+      "algorithmRevision": "openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1",
+      "tokenizerRevision": "tokenizer-basis/openai-gpt-5.6-o200k-base-complete-output-6",
+      "replayRevision": "openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2",
+      "transformRevision": "openrouter-wire/2",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "openai/gpt-5.6-luna-pro",
+      "definitionRevision": "7",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      },
+      "provider": "openai",
+      "algorithmRevision": "openai-gpt-5.6-pro-base-image-proxy-1/response-calibration-1",
+      "tokenizerRevision": "tokenizer-basis/openai-gpt-5.6-pro-base-image-proxy-1",
+      "replayRevision": "visible-final-units-json-net-estimated/1",
+      "transformRevision": "openrouter-input-transform/pro-scope-1",
+      "projectionRevision": "openrouter-input-projection/2"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+
+> @omne-harness-lite/model-invocation-minimal-demo@0.0.0 build /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/examples/model-invocation-minimal-demo
+> tsc -p tsconfig.build.json
+

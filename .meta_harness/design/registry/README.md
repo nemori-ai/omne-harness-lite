@@ -1,4 +1,10 @@
+2026-09-30：[D-110 ACK 后继](../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受 RT12/MS8/MR11/CA4，新增冻结134项，原970项保持；covers及formal任务状态不提升，实际实现另验。
+
+2026-09-29：[D-107](../record/decisions/model-input-usage-calibration-adoption/decision.md) 接受 MR9/RT10，新增冻结81资源；原冻结项保持，covers/formal任务状态不提升。规范接受不等于实现或消费者升级。
+
 # 身份、版本与关系清单
+
+2026-09-27：[D086](../record/decisions/model-runtime-tail-settlement-adoption/decision.md)登记RT4 accepted，新增27冻结资源／17精确依赖／55项reviewed=false covers／6形式任务，原记录及445冻结hash保持；当前catalog79、frozen472、covers2015、formal tasks54。旧推荐不自动升级消费者，后文较早计数按当时事件读取。
 
 这里是设计链全部**坐标与关系**的唯一权威。任何会被机器 join 的事实住在这里，
 其余目录只引用坐标，不复制一份同义登记。
@@ -165,3 +171,22 @@ covers 补登 PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2（含
 ## D-069 Skill3（2026-09-26）
 
 按[独立复审后的技术接受](../record/decisions/skill-yaml-key-resolution/acceptance.json)新增Skill3：catalog当前64 accepted、318精确依赖、1518覆盖、354冻结资源。351旧冻结hash与37形式任务不变；新3只补未知YAML键最终无法排重时M16，ordinaryunknown仍忽略。其它消费者继续精确Skill2，不自动升级。接受不表明实现／证据／人的总体签字。
+
+## D-070 模型绑定首批（2026-09-27）
+
+[技术接受](../record/decisions/model-adaptation-binding-acceptance/acceptance.json)新增4 accepted、13 frozen资源；354原冻结hash原样保留。其它5候选仍未接受。提供者增量采用另归[D-071](../record/decisions/model-value-provider-adoption/acceptance.json)，不声称真实生产路径已验证。
+
+2026-09-27：[D-072](../record/decisions/agent-definition-read-adoption/decision.md)技术接受 AD1 及纯提供者；新增三份冻结资源，真实源与总体交付状态另核。
+
+2026-09-27：[D-073](../record/decisions/model-current-input-contracts-adoption/decision.md)技术接受 AE4/MF3/AR3/LC4，纯 AE4 投影同步采用；runtime/runner 及 IO 交付另核。
+
+[D-076](../record/decisions/model-runtime-delivery-adoption/decision.md)：RT3/runner3最终精确技术接受，17项RT依赖对齐；四个提供者/装配投影采用，真实交付与认证另核。
+
+2026-09-27，按 [D-078](../record/decisions/model-main-integration-coordination/decision.md)接续模型施工提交的历史 D-070～D-072：五个既有 accepted 坐标只切换 acceptance 路径，资源 hash、版本、依赖、覆盖与任务不变。采用不因主分支同步提升实现验收状态。
+
+按 [D-079](../record/decisions/model-original-fill-adoption/decision.md)接受 MF4/AR4，冻结四资源；旧版本/依赖保持精确采用，不自动升级其它消费者。
+2026-09-27：[D083](../record/decisions/session-log-tail-condition-adoption/decision.md)在独立两轮复评后技术接受session-log v3：新增1accepted、5精确依赖、24冻结资源、11覆盖（reviewed:false）和3正形式任务。有限run1及其旧正文输入／未变模型范围另读，登记不成为真实实现验收；旧SL2及全部旧规范消费关系保持，不自动升级RT3。
+
+2026-09-27：[D-090](../record/decisions/model-headers-v5-adoption/decision.md)新增 MR5／RT5 accepted，30资源冻结；当前81登记／502冻结／2098 covers／60形式任务，本批83 covers一律reviewed:false。原79登记、472冻结、2015 covers、54任务保持；新增形式任务未执行，不覆盖新增头事实。
+
+2026-09-29：[D-110](../record/decisions/model-runtime-reference-lifecycle-adoption/README.md)接受 RT11/MR10/MS7/CA3，新增冻结118资源，原852项保持；五现有节点映射技术采用，不表示实现与实际验收完成。

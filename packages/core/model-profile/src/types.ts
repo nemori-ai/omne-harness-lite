@@ -10,6 +10,20 @@ export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'max'
 /** Counts have no safe-integer ceiling in v1. Validation checks their exact value. */
 export interface InputConstraints {
   readonly maxImageBytes?: JsonNumber
+  readonly maxImages?: JsonNumber
+  readonly maxRequestBytes?: JsonNumber
+}
+
+export type InputLimitFact =
+  | { readonly status: 'unknown' }
+  | { readonly status: 'unbounded' }
+  | { readonly status: 'limited'; readonly value: JsonNumber }
+
+export interface UpstreamInputLimits {
+  readonly maxInputTokens: InputLimitFact
+  readonly maxRequestBytes: InputLimitFact
+  readonly maxImageBytes?: InputLimitFact
+  readonly maxImages?: InputLimitFact
 }
 
 export interface ModelRequestParameters {
@@ -24,7 +38,15 @@ export interface ModelRequestParameters {
   readonly extra?: JsonObject
 }
 
+/** Exact selected implementation, definition and immutable configuration revision. */
+export interface ModelAdaptationBinding {
+  readonly implementation: { readonly name: string; readonly revision: string }
+  readonly definition: { readonly modelId: RouteName; readonly revision: string }
+  readonly configuration: { readonly revision: string; readonly values: JsonObject }
+}
+
 export interface ModelProfileContent {
+  readonly adaptation: ModelAdaptationBinding
   readonly routeName: RouteName
   readonly origin: ProfileOrigin
   readonly providers: readonly ProviderName[]
@@ -34,6 +56,7 @@ export interface ModelProfileContent {
   readonly maxInputTokens: JsonNumber
   readonly maxOutputTokens: JsonNumber
   readonly inputConstraints: InputConstraints
+  readonly upstreamInputLimits: UpstreamInputLimits
   readonly parameters?: ModelRequestParameters
 }
 
@@ -54,12 +77,15 @@ export type ModelProfileRef =
 /** S-27: copying and preserving this value is the model-request runtime's duty. */
 export type ModelProfileSnapshot = Pick<
   ModelProfile,
+  | 'adaptation'
   | 'providers'
   | 'allowFallback'
   | 'inputModalities'
   | 'outputModalities'
   | 'maxInputTokens'
   | 'maxOutputTokens'
+  | 'inputConstraints'
+  | 'upstreamInputLimits'
   | 'parameters'
   | 'updatedAt'
 >

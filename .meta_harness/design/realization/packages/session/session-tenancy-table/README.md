@@ -1,5 +1,8 @@
 # session-tenancy-table
 
+> 历史路径提示：本页所称 `apps/model-request-acceptance`／`model-request-acceptance` 是 D-076 采用时的技术验收装配坐标；当前已退出 `apps/` 映射。现行归属与剩余责任以[实现映射入口](../../../README.md)为准。
+
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.session-tenancy · v2`（[契约](../../../../spec/capabilities/session-tenancy/v2/contract.md)，状态 `accepted`，已接受、已冻结）的**全部条款**（S-5～S-11，一个读），作为它第十一节说的「本版的最小提供者」（[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）
 - 源码位置：`packages/session/session-tenancy-table`——**尚未建包**。第一层 `session` 已由产品负责人接受（[D-064 ⑱](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
@@ -32,3 +35,18 @@
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 模型请求验收增量候选
+
+[设计 rev 2](v2-design.md) 保留上方旧接受事实，只候选扩展 seed 的精确消费路径到 `apps/model-request-acceptance` 开发验收装配，并给公开 reader 设计 `participate(unit).holdingTenant` 技术组件；Cordis 服务仍只有 `holdingTenant`。它不是 capability.session-tenancy 的新版本或产品会话创建面。
+
+- **语义接受**：ST2 既有接受保持；新增 provider 修订未接受，待独立评审与主线技术采用。
+- **可实施范围**：候选接线已写明；尚未建包。旧 STT-4 前置由新精确路径守卫义务接续，检查和反例自测落地前，不声称本新增 seed 范围可实施。
+- **绑定与证据**：新增 0 条，现有 bindings 仍为空；旧 V-1～V-6 与 [本轮 V2-1～V2-6](verification.md#设计-rev-2-候选证据义务) 均待真实执行。
+- **实际验证**：尚无源码或新验收组合结果。公共 StorageUnit/OG 已存在，只说明选定实现路径可表达，不等于本 reader 已提供参与出口。
+
+正常产品 app/插件不可消费 seed；产品会话创建、STT-3 存储持久性边界以及原有完整会话缺口不因验收程序可执行而关闭。
+
+## 2026-09-27 本轮技术采用
+
+[D-074](../../../../record/decisions/model-read-provider-adoption/decision.md)采用本轮增量设计；精确输入哈希另记，候选历史读数保留原字节。实际源码、符合性与组合证据另核，旧绑定不重标。

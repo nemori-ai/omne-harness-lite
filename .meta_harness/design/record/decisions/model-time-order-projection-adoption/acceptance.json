@@ -1,0 +1,58 @@
+{
+  "format": 1,
+  "status": "accepted",
+  "decision_path": "record/decisions/model-time-order-projection-adoption/decision.md",
+  "decision_id": "D-089",
+  "authority": "root technical planner under user implementation and acceptance delegation; human overall acceptance excluded",
+  "at_utc": "2026-09-27T19:31:11.525532+00:00",
+  "user_instruction": "Implement the plan.",
+  "node": "packages/core/offer-expiry",
+  "design_path": "realization/packages/core/offer-expiry/rfc3339-order-design.md",
+  "revision": 1,
+  "sha256": "249c68ea3239977131cc44be3d75dbd31474e0659355258c2606833eb2bfaab2",
+  "contract": {
+    "baseline_id": "omne-harness-lite-design-2026-09-15",
+    "contract_id": "data.offer-expiry",
+    "version": 2,
+    "adoption": "record/decisions/governance-identity-offer-contracts/acceptance.json"
+  },
+  "preserved_direct_consumer": {
+    "contract_id": "data.model-response",
+    "version": 4,
+    "time_dependency": "data.offer-expiry/v1#S-22"
+  },
+  "chosen": "B/R1 conditional exact ordering of legal RFC3339 instants",
+  "review_archive": "record/proposals/model-request-adaptation/reviews/model-runtime-rfc3339-order-2026-09-27.tar.gz",
+  "review_archive_sha256": "8329a9c9b79549904c730cfe3df702dade98dff10c4ec8cfad60be950fb53807",
+  "review_archive_members": 107,
+  "input_count": 77,
+  "input_manifest_sha256": "a501cf6acf822f9c71adff43b55ed27d9faf76ec115d6e33ad9c8ea112f27a8d",
+  "closed_scope": "TL-G2 exact technical adoption step only",
+  "remaining": [
+    "TL-G1 actual time producer/host/lawful history evidence",
+    "TL-G2 implementation",
+    "TL-G3 TO-V1 through TO-V9 and actual public consumers",
+    "G28",
+    "G29-P/H",
+    "G30",
+    "G31",
+    "runtime thirteen operations",
+    "37 official certifications"
+  ],
+  "new_bindings": 0,
+  "implemented": false,
+  "IO_verified": false,
+  "consumer_auto_upgrade": false,
+  "official_certified_models": 0,
+  "human_overall_acceptance": false,
+  "post_adoption_checks": {
+    "archive": "record/decisions/model-time-order-projection-adoption/checks.tar.gz",
+    "sha256": "eb91a23b927fbdd8780d70674c6e5f643186b24b1dc76c1f41c855bab16c2cf6",
+    "members": 7,
+    "internal_design_exit": 0,
+    "internal_design_seconds": 17.24942966317758,
+    "formal": "skip",
+    "diff_exit": 0,
+    "measurement_issue": "First pre-check erroneously required nine frozen private spoke inputs in HUB; FileNotFoundError preserved, checker not started. Original 77 inputs all verified in source spoke and review archive. Correct HUB comparison excludes only private tmp paths; sole maintained difference is intentional adoption note in offer-expiry node README."
+  }
+}

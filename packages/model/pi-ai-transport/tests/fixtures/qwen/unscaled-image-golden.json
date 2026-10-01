@@ -1,0 +1,21 @@
+{
+  "source": "Alibaba Qwen3.8 image formula; PNG IHDR decoded by Python struct; no resize",
+  "images": [
+    {
+      "file": "public-red-544.png",
+      "sha256": "25d49a363289e427414a8cc4ede861499569431630135063c3c4e09ba192b5ce",
+      "width": 544,
+      "height": 544,
+      "imageTokens": 291,
+      "templateSupplement": 288
+    },
+    {
+      "file": "public-blue-1024.png",
+      "sha256": "cd282082985dd7623f38d4bf0d082314c7b0f519da0891dee14930247b4cf9f2",
+      "width": 1024,
+      "height": 1024,
+      "imageTokens": 1026,
+      "templateSupplement": 1023
+    }
+  ]
+}

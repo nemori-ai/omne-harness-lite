@@ -1,0 +1,33 @@
+{
+  "mode": "production",
+  "evidenceScope": "finite actual holdout; neither error bound nor official algorithm",
+  "rows": [
+    {
+      "modelId": "openai/gpt-6-sol-pro",
+      "gate": "pair",
+      "wireSha256": "574341427f67d905e13736ee12139619c00ab29b57883735c1a9aa5c1505daad",
+      "predictedInput": "121",
+      "admissionTokens": "390",
+      "actualContextInput": null,
+      "residualPredictedMinusActual": null,
+      "admissionExceeded": null,
+      "outputTokens": 47,
+      "costRaw": "{\"cost_usd\":0.003332,\"source\":\"upstream_usage\",\"upstream_inference_cost_usd\":0.003332}",
+      "contextScope": "unknown; no accuracy conclusion"
+    },
+    {
+      "modelId": "openai/gpt-6-luna-pro",
+      "gate": "pair",
+      "wireSha256": "247c6ce17d24a95e0942df39b56228037846166275c873cc5a3f20305e3466d8",
+      "predictedInput": "122",
+      "admissionTokens": "391",
+      "actualContextInput": null,
+      "residualPredictedMinusActual": null,
+      "admissionExceeded": null,
+      "outputTokens": 25,
+      "costRaw": "{\"cost_usd\":0.0001556,\"source\":\"upstream_usage\",\"upstream_inference_cost_usd\":0.0001556}",
+      "contextScope": "unknown; no accuracy conclusion"
+    }
+  ],
+  "interpretation": "Counts include whole-request framing, not isolated image blocks. No old baseline is silently mixed across source states. No fitted offset. Pro usage scope remains unknown. Any admission excess is a failed candidate sample requiring review; passing these samples does not establish a general upper bound or authorize official binding."
+}

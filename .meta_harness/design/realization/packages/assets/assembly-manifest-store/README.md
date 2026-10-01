@@ -1,5 +1,25 @@
 # assembly-manifest-store
 
+> 历史路径提示：本页所称 `apps/model-request-acceptance`／`model-request-acceptance` 是 D-076 采用时的技术验收装配坐标；当前已退出 `apps/` 映射。现行归属与剩余责任以[实现映射入口](../../../README.md)为准。
+
+
+## v3 候选增量（2026-09-27）
+
+- **语义接受：无。** 本节点 v3 增量仍为候选；精确消费 [`capability.assembly-manifest/v3`](../../../../spec/capabilities/assembly-manifest/v3/contract.md)、`capability.asset-evaluation/v4` S-47 与生产者 `capability.asset-registry/v3`。依赖接受状态及采用记录以 [registry catalog](../../../../registry/catalog.json) 为准；下列 v2 接受事实不延伸到新读面。
+- **可实施范围：候选。** [v3 设计](v3-design.md)保留原四操作和两张 SQL 表，增加公开闭包与 Cordis 服务的 `readEvaluation`：同一 ReadTx 固定当前 head，选择本会话 `seq ≤ head` 最近 given/mint 的完整求值；reuse 旧表不令已提交根设置回退。追加仍收任意合法 JSON，新读面单独校验两个投影槽位。源码路径 `packages/assets/assembly-manifest-store` **尚未建包**；共享 AE4 公共 `judgeEffectiveAssembly` 的设计表达已对齐：全量判定五类闭合 DTO 与开放 JSON 槽，完整原值交回；不证明来源或权限。实现与制品消费、生产链及装配仍见 AMS3-1～AMS3-5。
+- **绑定与证据：0 条。** [`bindings.yaml`](bindings.yaml)保持空；旧义务全部保留，新增 ME-1～ME-8 尚待实现后执行。其他 core 节点的既有证据不覆盖本 SQL 读取链。
+- **实际验证：尚无。** 文档检查不代表源代码、真实存储、Cordis 换代或模型纵线通过。独立评审、采用和实际验收由主线另记。
+
+本次技术验收消费者为 `apps/model-request-acceptance`；迁移、同库单属主、升级确认、入口身份与观测接线归该装配。会话 JSONL 仍由其节点承担模型锚点和响应/回复落盘，不与清单建立跨存储原子承诺。新读面只读已提交求值；runtime/v3 S-66 当前输入归 `packages/assets/evaluation-input-store`，本历史读面不能替代其新鲜读取与重求责任。
+
+| 当前问题 | 入口 |
+| --- | --- |
+| 五操作投影、最新已提交求值与旧表来源怎样区分 | [v3 候选设计](v3-design.md) |
+| 原义务保留范围、新增真 IO 与组合验收 | [v3 候选验证义务](verification.md#v3-候选增量的证据义务) |
+| 旧 v2 的设计和接受范围 | [原设计](design.md)及下列历史状态 |
+
+## 既有 v2 设计与接受范围
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.assembly-manifest · v2`（[契约](../../../../spec/capabilities/assembly-manifest/v2/contract.md)，状态 `accepted`，已接受、已冻结）的**全部条款**（四个操作：`readHead`、`append`、`readHistory`、`dependencyPresence`），作为它第十一节说的「本版的最小提供者」（[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）
 - 源码位置：`packages/assets/assembly-manifest-store`——**尚未建包**。第一层 `assets` 由 [D-059](../../../../record/decisions/assets-runtimes-split-and-rulings/README.md) 拍板；本节点放在这里是本批的划分，真承接者 PF-004 那一程到来时若归别的领域，搬动是「实现换方案」（缺口 AMS-9）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
@@ -31,3 +51,26 @@
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 本轮技术采用
+
+[D-074](../../../../record/decisions/model-read-provider-adoption/decision.md)采用本轮增量设计；精确输入哈希另记，候选历史读数保留原字节。实际源码、符合性与组合证据另核，旧绑定不重标。
+
+## v4 候选增量（2026-09-27）
+
+本节是当前 v4 状态入口，上方的 v2/v3 历史状态及其采用范围保持原记录。
+
+| 分层状态 | 当前范围 |
+| --- | --- |
+| 语义接受 | **无。** 精确输入为同一基线的 [capability.assembly-manifest/v4](../../../../spec/capabilities/assembly-manifest/v4/contract.md) 全部 S-1～S-37；[asset-registry/v4](../../../../spec/capabilities/asset-registry/v4/contract.md) S-51/S-52 为消费者交接。两坐标已在 [catalog](../../../../registry/catalog.json) 登记 candidate，本稿亦未采用；D-074 不延伸到 v4 |
+| 可实施范围 | [v4-design.md](v4-design.md) 给出六操作候选投影：新增公共 readGiven(session,H)，同 ReadTx 实读已提交头并选 H 内最后 given，完整原值交回；精确请求整数与实际序号容量分开；仅首条 parent INSERT 唯一冲突可同事务重判，table 失败必须整次回滚。MF3 五操作源码已存在且正在施工，不能据此称 v4 已实现；精确规格与本稿采用后才能实施第六操作 |
+| 绑定与证据 | **0 新绑定。** [bindings.yaml](bindings.yaml) 不改；[MG-V1～12](verification.md#v4-候选增量的证据义务) 是可失败的待执行义务，旧证据不提升版本 |
+| 实际验证 | **无本版产品验收。** 本次只形成候选设计及文档检查结果；真实 SQLite 六操作、公开制品、Cordis 装卸、registry/EIS 生产链与 PostgreSQL 均须分别取证 |
+
+实施与归装配边界见 v4 设计 MG-1～8、R-AMS4-1～5、MG-G1～5。`apps/model-request-acceptance` 拥有同库与升级确认、入口身份、有界诊断端口及真实组合验证；storage 被借用，闭包停止准入后等在途操作真实结束。MF 只返回源记录，不解释 filledBy，也不替 AR4 接受原完整 fill 或替 EIS 证明权限。缺口与受阻消费者沿 v4 设计及验证追加段登记，不由本文接受。
+
+[D-079](../../../../record/decisions/model-original-fill-adoption/decision.md)精确采用 v4 增量。新增 readGiven 与全来源组合尚待实现验收；旧候选输入字节保留，绑定0。
+
+## 2026-09-27 六操作实际组件检查
+
+源码已建于 `packages/assets/assembly-manifest-store`，本次 MF4 组件测试 76 项通过，含真实 SQLite/重开/并发/唯一约束回滚/SIGKILL/Cordis 排空。公开打包导出在仓库外目录通过声明编译和实际运行；全仓 build/typecheck 与实际规则扫描通过。记录及限度见[组件证据](../../../../record/evidence/2026-09-27-probe-model-request-runtime/mf-component-checks.md)。这不补证 AR/EIS 的完整生产来源链、装配退化查询、PostgreSQL 或生产模型认证；bindings 仍 0。上方候选与未实现字句保留其原事件状态，由本段接续。

@@ -1,0 +1,16 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: {"failure":"unavailable"}
+    at file:///data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p3-joint-credential-verification/tmp/model-request-runtime/p3-joint-credential-verification/verify.mjs:277:12
+    at async file:///data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p3-joint-credential-verification/tmp/model-request-runtime/p3-joint-credential-verification/verify.mjs:283:3 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

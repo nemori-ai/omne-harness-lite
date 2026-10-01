@@ -1,0 +1,94 @@
+{
+  "format": 1,
+  "topic": "PF-013-model-profiles-and-invocation",
+  "version": "v6",
+  "label": "post-review candidate",
+  "generated_at": "2026-09-29",
+  "requirements_revision": 16,
+  "acceptance": null,
+  "candidate_adoption_id_reserved": "D-109",
+  "scope": "Request-time same-modality image preparation only; excludes T29 and complete Session/Run/context assembly.",
+  "supersedes": null,
+  "sources": [
+    {
+      "resource": "product/PF-013-model-profiles-and-invocation/design.md",
+      "sha256": null,
+      "snapshot_sha256": "5738f7ebe821fd3e873319cb964f1bff5b94b644e6c80bd04f1e8309127b18c2",
+      "frozen": false,
+      "snapshot_commit": "e73ae0ef5dec1032f0fc5855041b5f00d3caac7f",
+      "note": "Mutable source path; snapshot commit/hash identifies reviewed bytes, not acceptance. Recheck before implementation."
+    },
+    {
+      "resource": "product/PF-010-context-management-and-assembly/design.md",
+      "sha256": null,
+      "snapshot_sha256": "fc55a11f182b6a3195c870dda7bcb90adc4736264feae8df2f64559068b16d6e",
+      "frozen": false,
+      "snapshot_commit": "e73ae0ef5dec1032f0fc5855041b5f00d3caac7f",
+      "note": "Mutable source path; snapshot commit/hash identifies reviewed bytes, not acceptance. Recheck before implementation."
+    },
+    {
+      "resource": "spec/capabilities/model-request-runtime/v10/contract.md",
+      "sha256": "add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c",
+      "snapshot_sha256": "add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c",
+      "frozen": true,
+      "snapshot_commit": "e73ae0ef5dec1032f0fc5855041b5f00d3caac7f",
+      "note": null
+    },
+    {
+      "resource": "spec/data/model-response/v9/contract.md",
+      "sha256": "fc4fe5f8092f1abff7efa6b27a228f7321575c5de8205c58de8ee8106ad3ebda",
+      "snapshot_sha256": "fc4fe5f8092f1abff7efa6b27a228f7321575c5de8205c58de8ee8106ad3ebda",
+      "frozen": true,
+      "snapshot_commit": "e73ae0ef5dec1032f0fc5855041b5f00d3caac7f",
+      "note": null
+    },
+    {
+      "resource": "record/decisions/model-input-usage-calibration-adoption/decision.md",
+      "sha256": null,
+      "snapshot_sha256": "2a2b4c317a31bc3b83f87e2f3f00bdfade3c6fc0272aff6b82fe45bdde6cee08",
+      "frozen": false,
+      "snapshot_commit": "e73ae0ef5dec1032f0fc5855041b5f00d3caac7f",
+      "note": "Mutable source path; snapshot commit/hash identifies reviewed bytes, not acceptance. Recheck before implementation."
+    },
+    {
+      "resource": "record/proposals/model-request-image-preparation/design.md",
+      "sha256": null,
+      "snapshot_sha256": "21a0415696abef441c45f599a203fb085ba333b8876c26c2b7614b1a4f1a5272",
+      "frozen": false,
+      "snapshot_commit": "e73ae0ef5dec1032f0fc5855041b5f00d3caac7f",
+      "note": "Mutable source path; snapshot commit/hash identifies reviewed bytes, not acceptance. Recheck before implementation."
+    },
+    {
+      "resource": "record/proposals/model-request-image-preparation/sources/domain-reading.md",
+      "sha256": null,
+      "snapshot_sha256": "27edad8381bb22a461fca39b1ef94b6dbfe60594a82f8da2c498c0b0b0d50427",
+      "frozen": false,
+      "snapshot_commit": "e73ae0ef5dec1032f0fc5855041b5f00d3caac7f",
+      "note": "Mutable source path; snapshot commit/hash identifies reviewed bytes, not acceptance. Recheck before implementation."
+    },
+    {
+      "resource": "record/proposals/model-request-image-preparation/review.md",
+      "sha256": null,
+      "snapshot_sha256": "6d266a1b44a3d724764b552e875cc8e7ef47487900ddfec81a89dbbd0264c396",
+      "frozen": false,
+      "snapshot_commit": "e73ae0ef5dec1032f0fc5855041b5f00d3caac7f",
+      "note": "Mutable source path; snapshot commit/hash identifies reviewed bytes, not acceptance. Recheck before implementation."
+    },
+    {
+      "resource": "realization/packages/model/pi-ai-transport/v15-image-preparation-design.md",
+      "sha256": null,
+      "snapshot_sha256": "3cf764f6218c2286a93381a5969368085efdd4e9992014ec6c7edd3f8518e26a",
+      "frozen": false,
+      "snapshot_commit": "e73ae0ef5dec1032f0fc5855041b5f00d3caac7f",
+      "note": "Mutable source path; snapshot commit/hash identifies reviewed bytes, not acceptance. Recheck before implementation."
+    },
+    {
+      "resource": "realization/packages/model/model-request-runtime/v21-image-preparation-design.md",
+      "sha256": null,
+      "snapshot_sha256": "767a636ff35833b28c5ecb159c477b4a76ca1515f4646566f7f05c47ba0e82bf",
+      "frozen": false,
+      "snapshot_commit": "e73ae0ef5dec1032f0fc5855041b5f00d3caac7f",
+      "note": "Mutable source path; snapshot commit/hash identifies reviewed bytes, not acceptance. Recheck before implementation."
+    }
+  ]
+}

@@ -1,5 +1,9 @@
 # 实现映射
 
+2026-09-27：[D085](../record/decisions/session-log-recovery-projection-adoption/decision.md)采用[SL3恢复识别增补rev2](packages/session/session-log-jsonl/v3-recovery-design.md)。补可靠active／clean标记和可信物理退出输入；真实观察、FS和调用者迁移仍未验收，bindings0，不提升日志或runtime交付状态。
+
+2026-09-27：model/pi-ai-transport revision7公共完整定义增量已[有限实施签收](../record/evidence/2026-09-27-tests-model-request-runtime-definitions/README.md)，旧默认删除，HUB175／6、独立制品／文档／真实排空及8行为负控保全；两model节点当前层次沿各自入口。不是完整P2、耐久十三操作或37模型认证。
+
 这里保存契约由谁兑现：插件提供者的设计、应用装配的选择，以及把承诺绑到实际证据上的绑定表。
 
 失效事件：实现换方案。需求没变、契约没变，但换了一个库、改了一处装配、
@@ -31,6 +35,8 @@ realization/
 
 `packages/` 与 `apps/` 对应实际源码归属，不是又一层分类。节点名与它实现的包或应用同名，
 使「读设计」和「读源码」用同一个词。
+
+2026-09-28，原 `apps/model-request-acceptance` 的实现已迁到开发示例 `examples/model-invocation-minimal-demo`；同名产品 app 不再是当前交付节点。D-076、D-092 所采用的原技术投影移至[退出现行映射的历史节点](retired/model-request-acceptance/README.md)，保留原路径与 SHA 的采用时证据。现行 `apps/` 目录仅列产品应用；历史设计里仍出现的旧装配 owner 是当时读数，不表示现有示例已经承接完整十三操作、37 模型认证或相关生产责任。后续完整纵线必须逐个重新落实这些未承接责任。
 
 ## packages 的两层布局
 
@@ -261,3 +267,5 @@ D045扩展[协议客户端](packages/frontend/governance-center-client/README.md
 ## 2026-09-26 core 最终签收与发布授权
 
 18 core与两util的本阶段责任已完成：当前221/221、U1另13项，由主调度技术签收；产品负责人给出的Skill完成后总体发布授权条件已满足。22包44份双语README、57个TS例子已验证。原217/221、SP3和人的总体门待签描述属于前一输入事件，由[当前运行与签收](../record/evidence/2026-09-26-tests-core-skill-v3/README.md)接续。Connector仅自身纵线延期，90外部义务及未来运行时未签；全仓make继承main三个失败，不是全仓绿灯。
+
+2026-09-27：[D-084](../record/decisions/session-log-jsonl-v3-projection-adoption/decision.md)采用[session-log-jsonl的SL3增量](packages/session/session-log-jsonl/v3-design.md)。四参数条件在同一entries.jsonl比较／整批确认，不可信态正常三操作拒绝；旧首稿V5该分支替代范围明确。当前尚未实现、bindings0，runtime精确版本和全部实际写方迁移／生产Run／真实恢复仍须原owner交付。

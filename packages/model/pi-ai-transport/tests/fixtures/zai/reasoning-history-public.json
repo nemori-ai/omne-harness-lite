@@ -1,0 +1,53 @@
+{
+  "id": "zai-fp8-reasoning-history-public-v1",
+  "scope": "Bounded public invoke/plan/send/read case for the root-owned paid runner after the selected-route reasoning mapping is evidenced and implemented",
+  "models": [
+    {
+      "modelId": "z-ai/glm-5.2",
+      "provider": "z-ai/fp8",
+      "definitionRevision": "1",
+      "implementation": { "name": "pi-ai:zai", "revision": "mp4-1" },
+      "meterAlgorithmBeforeRelease": "glm-5.2-public-template-1"
+    },
+    {
+      "modelId": "z-ai/glm-5.3",
+      "provider": "z-ai/fp8",
+      "definitionRevision": "1",
+      "implementation": { "name": "pi-ai:zai", "revision": "mp4-1" },
+      "meterAlgorithmBeforeRelease": "glm-5.3-public-template-1"
+    },
+    {
+      "modelId": "z-ai/glm-5.3-flash",
+      "provider": "z-ai/fp8",
+      "definitionRevision": "1",
+      "implementation": { "name": "pi-ai:zai", "revision": "mp4-1" },
+      "meterAlgorithmBeforeRelease": "glm-5.3-flash-public-template-1"
+    }
+  ],
+  "profile": {
+    "providers": ["z-ai/fp8"],
+    "allowFallback": false,
+    "configuration": { "revision": "1", "values": { "cache": { "mode": "automatic" } } }
+  },
+  "tokenMargin": { "multiplier": 1.2, "reserveTokens": 32 },
+  "tools": [],
+  "callBudget": { "maximumPerModel": 2, "maximumAllModels": 6, "automaticRetry": false },
+  "turn1": {
+    "messages": [
+      { "role": "system", "content": "Reply in one short sentence. Show reasoning only if your normal response includes it." },
+      { "role": "user", "content": "Compute 17 times 19, then state the result." }
+    ],
+    "maxOutputTokens": 96,
+    "oracle": "Capture actual response message, streaming chunks, reasoning_details including empty array if present, reasoning text if present, usage, route, and actual cost. Do not fabricate a reasoning item when none is returned."
+  },
+  "turn2": {
+    "construction": "Use the complete actual assistant reply from turn1 as a historical assistant message, preserving every reasoning_details member in order and every supported content/tool member. Append a user message: What arithmetic result did you give? Keep the same exact model/provider/config and tools. Use the production message judges, final planner and real route meter.",
+    "preflightOracle": "If turn1 carried visible reasoning or reasoning_details and plan rejects input_size_unavailable, record the unchanged release blocker and perform zero second HTTP sends. If it plans, verify final serialized wire retains the same reasoning_details JSON values in order or the same reasoning text, and no field is silently stripped.",
+    "responseOracle": "Only after preflight succeeds, send at most one follow-up request. Require a real streamed response or record the exact upstream rejection, actual route, input usage, cache read, and cost facts. Compare the estimate plus configured margin with reported input usage without treating sample agreement as an upper-bound proof."
+  },
+  "verdicts": {
+    "blocked": "Final wire mapping or meter unavailable: no turn2 send and exact blocker recorded.",
+    "inconclusive": "Turn1 produces no retained reasoning or selected provider/route changes: this run cannot establish historical reasoning mapping.",
+    "candidate": "Final wire retains all history and turn2 has a real provider result; source mapping and model-specific error evidence still require review before any algorithm revision is accepted."
+  }
+}

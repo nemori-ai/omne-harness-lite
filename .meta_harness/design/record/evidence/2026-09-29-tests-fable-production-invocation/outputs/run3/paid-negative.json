@@ -1,0 +1,10 @@
+{
+  "rejected": [
+    "stale_catalog",
+    "missing_endpoint_price",
+    "changed_scenario",
+    "scenario_sha_mismatch",
+    "nonproduction_mode",
+    "alternate_ledger"
+  ]
+}

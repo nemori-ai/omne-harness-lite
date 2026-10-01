@@ -1,0 +1,97 @@
+{
+  "entryId": "c847d4eb-826e-4aec-837c-48c367ae50df",
+  "modelId": "openai/gpt-6-sol",
+  "gate": "large",
+  "wireSha256": "29998491243f53d44081b6521c613efb13519ebc43773a6952b4f3b804e0302f",
+  "estimateUsd": "6.530000000000000000",
+  "phase": "base-finite-size-range",
+  "upstreamModel": "openai/gpt-6-sol",
+  "servingProvider": "OpenAI",
+  "observedInput": {
+    "kind": "from_usage",
+    "provenance": {
+      "adapterRevision": "openrouter-usage-reader/2",
+      "fieldPaths": [
+        "usage.prompt_tokens",
+        "usage.prompt_tokens_details.cached_tokens",
+        "usage.prompt_tokens_details.cache_write_tokens"
+      ],
+      "upstreamRequestId": "gen-1790682536-uqUXDH7oALhibXmoNTfr",
+      "upstreamModel": "openai/gpt-6-sol",
+      "servingProvider": "OpenAI"
+    }
+  },
+  "measurementRaw": "{\"mode\":\"full\",\"fallbackReason\":\"no_observation\",\"fullContribution\":{\"tokens\":7188,\"precision\":\"estimated\"},\"basis\":{\"binding\":{\"implementation\":{\"name\":\"pi-ai:openai\",\"revision\":\"image-range-pilot-2\"},\"definition\":{\"modelId\":\"openai/gpt-6-sol\",\"revision\":\"image-range-pilot-2\"},\"configuration\":{\"revision\":\"image-range-pilot-2\",\"values\":{\"cache\":{\"mode\":\"automatic\"}}}},\"model\":\"openai/gpt-6-sol\",\"provider\":\"openai\",\"tokenizerRevision\":\"js-tiktoken-1.0.21-o200k-base-research-surrogate/1\",\"meterRevision\":\"sol-luna-image-range-json-patches32-multiplier1.2/2\",\"replayRevision\":\"unsupported-marginal/1\",\"transformRevision\":\"openrouter-wire/2\",\"projectionRevision\":\"openrouter-input-projection/2\"},\"precision\":\"estimated\",\"predictedInput\":7188,\"admissionTokens\":8163}",
+  "measurement": {
+    "mode": "full",
+    "fallbackReason": "no_observation",
+    "fullContribution": {
+      "tokens": 7188,
+      "precision": "estimated"
+    },
+    "basis": {
+      "binding": {
+        "implementation": {
+          "name": "pi-ai:openai",
+          "revision": "image-range-pilot-2"
+        },
+        "definition": {
+          "modelId": "openai/gpt-6-sol",
+          "revision": "image-range-pilot-2"
+        },
+        "configuration": {
+          "revision": "image-range-pilot-2",
+          "values": {
+            "cache": {
+              "mode": "automatic"
+            }
+          }
+        }
+      },
+      "model": "openai/gpt-6-sol",
+      "provider": "openai",
+      "tokenizerRevision": "js-tiktoken-1.0.21-o200k-base-research-surrogate/1",
+      "meterRevision": "sol-luna-image-range-json-patches32-multiplier1.2/2",
+      "replayRevision": "unsupported-marginal/1",
+      "transformRevision": "openrouter-wire/2",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    "precision": "estimated",
+    "predictedInput": 7188,
+    "admissionTokens": 8163
+  },
+  "outcome": "complete",
+  "rejectionReason": null,
+  "typedRejection": null,
+  "failure": null,
+  "upstreamRequestId": "gen-1790682536-uqUXDH7oALhibXmoNTfr",
+  "httpStatus": null,
+  "inBandStatusCode": null,
+  "requestIdHeaders": {
+    "x-generation-id": "gen-1790682536-uqUXDH7oALhibXmoNTfr"
+  },
+  "usageRaw": "{\"input_tokens\":3,\"output_tokens\":5,\"cache_read_tokens\":0,\"cache_write_tokens\":7106,\"source\":\"upstream\",\"reasoning_tokens\":0}",
+  "costRaw": "{\"cost_usd\":0.017821,\"source\":\"upstream_usage\",\"upstream_inference_cost_usd\":0.017821}",
+  "usage": {
+    "input_tokens": 3,
+    "output_tokens": 5,
+    "cache_read_tokens": 0,
+    "cache_write_tokens": 7106,
+    "source": "upstream",
+    "reasoning_tokens": 0
+  },
+  "cost": {
+    "cost_usd": 0.017821,
+    "source": "upstream_usage",
+    "upstream_inference_cost_usd": 0.017821
+  },
+  "blocks": [
+    {
+      "kind": "text",
+      "text": {
+        "bytes": 2,
+        "sha256": "565339bc4d33d72817b583024112eb7f5cdf3e5eef0252d6ec1b9c9a94e12bb3"
+      }
+    }
+  ]
+}

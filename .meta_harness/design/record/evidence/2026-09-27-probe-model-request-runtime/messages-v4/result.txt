@@ -1,0 +1,7 @@
+jsonschema 4.26.0 referencing 0.37.0
+{"core_regressions": 2, "scenario_messages": 5, "table_schema": 152, "v4_cross_field": 11}
+Schema outcomes: 159 matched; cross-field pure-value outcomes: 11 matched
+Inherited Message definitions unchanged; Readable.als byte-identical to v3
+Shared shape constraints aligned with model-response/v4 (annotations excluded)
+Schema closure resources: 7 ; hashed inputs: 15
+PASS candidate shape/value checks; production boundaries, durability, logs and Alloy NOT RUN

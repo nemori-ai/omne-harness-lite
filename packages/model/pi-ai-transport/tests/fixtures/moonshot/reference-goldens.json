@@ -1,0 +1,22 @@
+{
+  "k3": {
+    "tokens": 329,
+    "idsSha256": "6b1fdce6d18a752f39b9395aa91c4573dea677bd08593490d214153c5c106074"
+  },
+  "k27": {
+    "tokens": 147,
+    "idsSha256": "0a60e5dce0866435ca7eb9f892e0f4b5a980dec68865b8cfa11112df1b371fe0"
+  },
+  "k3Split": {
+    "tokens": 24,
+    "idsSha256": "2030a249c26f4246583c16a72ba4e581b9ec4fd45099f422de59ce2be5200d31"
+  },
+  "parallelK3": {
+    "tokens": 381,
+    "idsSha256": "3185c8fc964f3b6caa331b622e63b4450f510883fe0de9175e38f7444f47f038"
+  },
+  "parallelK27": {
+    "tokens": 169,
+    "idsSha256": "e63b8bc6a00c373ef6707e34a56238cf26c363ca547052a7c47fb6948fb4f4dc"
+  }
+}

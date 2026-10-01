@@ -1,0 +1,82 @@
+[
+  {
+    "path": "inputs.json",
+    "sha256": "d9346441e79f1aba90877066329e438cdc60752ee2f0d3b8fc69dfec1ec1c366",
+    "bytes": 896
+  },
+  {
+    "path": "money.mjs.txt",
+    "sha256": "db358c1ee5c3b83c36fb52d1de8fe0c5edc0888129bcf4a91c83c035ec2f7f03",
+    "bytes": 1012
+  },
+  {
+    "path": "price.json",
+    "sha256": "148d692b2a8d126a2d6f336b5d0737adcd9b43ed8937e77a1a0b7c7285b16f0c",
+    "bytes": 296
+  },
+  {
+    "path": "result.json",
+    "sha256": "cb94e80a86b1d7e782748b7a1df7b5926a06822f728d059636f7e3f70c905ae1",
+    "bytes": 1481
+  },
+  {
+    "path": "runner.mjs.txt",
+    "sha256": "215afa521ca928f43c6ae9fd7765cfc3e0333ba6a2cf605254d304c6aeb62fa2",
+    "bytes": 7791
+  },
+  {
+    "path": "terminal-first.json",
+    "sha256": "4af469db75c2b2ea2e5fae46d2825f5f211c01f59b3e6810784c75da551b3872",
+    "bytes": 7277
+  },
+  {
+    "path": "terminal-reopened.json",
+    "sha256": "a68b68db070bcfb11b47bf09ee2c579fa330da34fd0ae5c060c548be69ee9ded",
+    "bytes": 4477
+  },
+  {
+    "path": "turn-1-durable.json",
+    "sha256": "a53c047a3ddf0be23da084f31f1437dee999876be49a5858aa74b62934e0973c",
+    "bytes": 18331
+  },
+  {
+    "path": "turn-1-result.json",
+    "sha256": "9295ae53577572abacc1553df2999c00a68f26e67b531c35281715918dcf94ed",
+    "bytes": 328
+  },
+  {
+    "path": "turn-1-terminal.json",
+    "sha256": "60fb6806d3f0fafda2b47b75b515edc8607711f215f30a15ce5eef4020a4868f",
+    "bytes": 3807
+  },
+  {
+    "path": "turn-2-durable.json",
+    "sha256": "4a48c7cc17f0ec854d5be0d2b4eeafac8fab0e2d574c5ef1494d38ff32d93ffd",
+    "bytes": 37734
+  },
+  {
+    "path": "turn-2-result.json",
+    "sha256": "ba93fa0fc9421753eb602aec2b4c446ab008b3df92ca5145ae1e4fabb3673a82",
+    "bytes": 329
+  },
+  {
+    "path": "turn-2-terminal.json",
+    "sha256": "ced4c77505201c5eeadcd1e34fc8eee566a645c33ced236fab28ef94a34b54e9",
+    "bytes": 6891
+  },
+  {
+    "path": "turn-3-durable.json",
+    "sha256": "d8b9bf968bbd8647d9cad77bc228e463c7637ca8371c85e6895f693ba7ce50bd",
+    "bytes": 59695
+  },
+  {
+    "path": "turn-3-result.json",
+    "sha256": "b1b65987b78d1495454adae88ad2785d20c712ec4719fc9832e64d37f68c4430",
+    "bytes": 331
+  },
+  {
+    "path": "turn-3-terminal.json",
+    "sha256": "efd8c25e23310b5d4d6d76176a2a6f8d8c961c44e2ce5d78c2a9d55f9f4587d3",
+    "bytes": 3811
+  }
+]

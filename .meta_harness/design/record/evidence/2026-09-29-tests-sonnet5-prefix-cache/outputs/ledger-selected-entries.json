@@ -1,0 +1,47 @@
+[
+  {
+    "id": "c4b3a6d2-89c4-4ee8-8a78-835e056ba2fe",
+    "model": "anthropic/claude-sonnet-5",
+    "provider": "anthropic",
+    "stage": "acceptance",
+    "estimateUsd": "3.490560000000000000",
+    "state": "settled",
+    "actualUsd": "0.033068"
+  },
+  {
+    "id": "5b63ed5e-19b9-4d07-b2c4-f0f26183b024",
+    "model": "anthropic/claude-sonnet-5",
+    "provider": "anthropic",
+    "stage": "acceptance",
+    "estimateUsd": "3.490560000000000000",
+    "state": "settled",
+    "actualUsd": "0.0016952"
+  },
+  {
+    "id": "1b7f0735-4c90-4f6a-88ff-252fddcdb308",
+    "model": "anthropic/claude-sonnet-5",
+    "provider": "anthropic",
+    "stage": "acceptance",
+    "estimateUsd": "3.490560000000000000",
+    "state": "settled",
+    "actualUsd": "0.032932"
+  },
+  {
+    "id": "993da54d-7e8c-4e85-83a9-aaf85f13f66b",
+    "model": "anthropic/claude-sonnet-5",
+    "provider": "anthropic",
+    "stage": "acceptance",
+    "estimateUsd": "3.490560000000000000",
+    "state": "settled",
+    "actualUsd": "0.0017984"
+  },
+  {
+    "id": "4ce57649-200f-4d36-b696-ff9f2cb5f4df",
+    "model": "anthropic/claude-sonnet-5",
+    "provider": "anthropic",
+    "stage": "acceptance",
+    "estimateUsd": "3.490560000000000000",
+    "state": "settled",
+    "actualUsd": "0.0017984"
+  }
+]

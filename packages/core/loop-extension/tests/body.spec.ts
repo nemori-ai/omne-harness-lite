@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { BodyContract } from '@omne-harness-lite/asset-model'
 import assetSchema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
-import loopSchema from '@omne-harness-lite/loop-extension/schema' with { type: 'json' }
+import loopSchema from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
 import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 import {
   loopExtensionBodyContract,

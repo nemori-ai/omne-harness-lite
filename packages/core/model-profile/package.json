@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "data.model-profile v2 的纯类型、表示校验与精确引用匹配",
+  "description": "data.model-profile v5 的当前纯值判定与精确依赖 Schema",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -12,11 +12,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./schema": "./schema/model-profile.schema.json"
+    "./schema": "./schema/model-profile.schema.json",
+    "./schema/v2": "./schema/v2/model-profile.schema.json",
+    "./schema/v3": "./schema/v3/model-profile.schema.json",
+    "./schema/v6": "./schema/v6/model-profile.schema.json"
   },
   "files": [
     "dist",
-    "schema"
+    "schema",
+    "README.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",

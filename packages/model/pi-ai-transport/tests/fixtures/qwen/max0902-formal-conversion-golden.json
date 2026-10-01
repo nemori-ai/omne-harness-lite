@@ -1,0 +1,31 @@
+{
+  "scope": "qwen/qwen3.8-max-0902 alibaba single-user plain-text input conversion only",
+  "original": {
+    "wireSha256": "8cac47a03e0bded81dd33f5ffdb1f83f58154374e7c7df59e526b6fb4b5def0a",
+    "promptTokens": 68
+  },
+  "textArrayBridge": {
+    "wireSha256": "14fa3e510ce17797079c751c818c1e3cfca3300cc10073a8ce98fec87f7f8d78",
+    "observationsSha256": "b5a7e82d23327b557c8aa63d1dc2da00e7927c8ab8866b9e7f7b2b4688eafe30",
+    "receiptSha256": "5918670a6329db2156061a7492e571829ab45353f4617f7aeca0b400a5825aee",
+    "promptTokens": 68,
+    "providerEcho": "Alibaba",
+    "actualUsd": "0.000232"
+  },
+  "formalInvocation": {
+    "wireSha256": "05980a21733b774d261ec231e71a94671d9372f07051ce2ee473cf5120f56c26",
+    "beforeSha256": "db98df6adc6c7bb27b2bb07e07c4687e989363b7b6fe3b3e7e612126acb7a790",
+    "observedSha256": "7de22893e52f53960add9d40bcebbc41519939b5c0d6e40c81ddad5e1fa124fe",
+    "settledSha256": "569a4c8e92c7a231eb244db44c10821f94c48a3ab856e72efde814ac63219f35",
+    "sendAttempts": 1,
+    "promptTokens": 68,
+    "usageSource": "upstream",
+    "providerEcho": "Alibaba",
+    "actualUsd": "0.000232",
+    "outcome": "truncated",
+    "ending": "truncated_at_limit",
+    "outputTokens": 16,
+    "reasoningTokens": 16,
+    "rawSseCaptured": false
+  }
+}
