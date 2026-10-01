@@ -150,6 +150,48 @@ python tooling/src/realization_nodes.py --root design --stale warn   # 交付面
 测试用一棵含一个产品 topic、一个 catalog、一个 assembly 与一个 provider 节点的小型设计树，
 逐条覆盖每条规则的通过与失败，外加空目录通过、缺 `realization/`、缺 catalog、YAML 读不出来。
 
+## 设计评审报告
+
+`design_review.py` 对契约做确定性的机械核对，并给出 catalog 依赖图的结构读数，供派发者附进设计评审简报：
+评审者不再用眼睛重做这些核对，只对报出的每一条判断成立与否。
+
+```sh
+python tooling/src/design_review.py --root design                                  # 全部坐标
+python tooling/src/design_review.py --root design --contract data.messages/v8 --format json
+python tooling/src/design_review.py --root design --include-frozen                 # 已接受契约的产品依据 rev 也看
+```
+
+**它不是门禁**：报出问题时退出码仍为 0，只有用法错误（如 `--contract` 的坐标不在 catalog 里）、
+清单或配置读不了才非零。它只读设计根，不写任何文件，也不接进 `check_design.py` 的判定。
+给了 `--contract` 时，逐份核对项只看这些坐标，登记类核对项只看涉及它们的 catalog 依赖与 covers 条目，依赖图始终算全图。
+
+输出四节，次序固定：「成立的问题」「未能判定」「依赖图」「未覆盖」。每条一行
+`[<核对项>] <相对设计根的路径>:<行号>  <坐标>  <说明>`。**写法认不准的一律归「未能判定」并写明原因，不猜。**
+
+| 核对项 | 判据 |
+|---|---|
+| `bare-clause-ref` | 「本契约定义了哪些条款」= 代码块外以 `S-n` 开头的标题（现有契约全部这样写；一条也没有的契约归未能判定）。正文里本契约没有的 `S-n`，若同一句（句号、问号、叹号之间，段落可折行；表格一行算一句）里写出了别的契约——契约身份或 catalog 里的 topic 名、`topic/vN`、指向别的契约正文的链接——就不报；`#S-n` 前文同一段写出过别的契约的也不报。紧跟在简称后的（`EC S-34`、`runtime7 S-67/S-76`）、句中有这类简称的、所在小节标题写的是别的契约的，归未能判定；写着「本契约」或链接到本文件锚点的照报 |
+| `analysis-id-in-contract` | 正文里出现 `INV-n`、`SAF-n`、`LIV-n`；代码块与引用块里的归未能判定 |
+| `stale-product-rev` | 「产品依据」那一句（到第一个句号为止，去掉全角与半角括号里的补充说明）里的 `PF-nnn rev k` 与该 topic README front-matter 的 `revision` 不同。默认只看 `candidate`；`--include-frozen` 全看，冻结了的在说明里注明。找不到「产品依据」或写的是 rev 区间的归未能判定 |
+| `dependency-clause-missing` | catalog 依赖消费的 `S-n` 不在目标契约的条款里；目标不在当前 catalog 或认不出条款的归未能判定 |
+| `covers-target-missing` | covers 的 `target.clauses` 不在目标契约里；`target` 坐标不在 catalog 里；`requirement.clause` 指的产品文件或小节锚点不存在 |
+| `unregistered-file` | 已登记坐标的版本目录里有不在 `resources` 里的文件 |
+| `nine-items` | 只判 capability／composition 里有「# \| 写什么」两列定义表（首列是圈号）的契约：从定义表读出要求的项，再核每张「# \| 内容」操作表是否逐项有行、有内容（「无」「不发」算有内容，只写破折号的归未能判定）。没有定义表的契约、首列是圈号却不是这种两列格式的表，归未能判定 |
+| `open-failure-set` | 上一项认出的操作表里，定义表写着「失败」的那一格，列举（第一个句号之前）的最后一项恰是「其他／其它（错误、失败……）」「等」「等等」「etc」「…」。最后一项以「其他」开头但不止于此的（如「其他沿原失败集合」）归未能判定 |
+
+依赖图的节点是 catalog 坐标，边是当前谱系的 `dependencies`：强连通分量多于一个节点或有自环的列为环；
+不稳定度 `I = 出边数 / (入边数 + 出边数)`，边 `A → B` 上 `I(B) - I(A)` 超过 `unstableDependencyMargin` 的列出；
+按 `入 + 出` 取前 `fanTop` 个列出扇入扇出。两个阈值在 [`design-review.config.json`](design-review.config.json)，
+代码里不写死，配置缺失或不合法时明确报错退出。
+
+**报出问题不等于契约有错**，没报出也不等于没有这类问题。它不判断：一句话有没有两种读法、同名不同义、
+用词是不是统一语言的词条、状态词有没有混用、业务选择对不对、Schema 与正文在语义上是否一致；
+也不核带坐标的条款引用在目标契约里是否存在，不解析简称指向哪份契约。这些在输出的「未覆盖」一节原样列出。
+
+测试用现造的小设计树逐项覆盖每个核对项与依赖图每种读数的报与不报（含同一句里先写坐标、段落折行、
+外层链接包着指向别处的内层链接、简称串、否定句里的「其他」、阈值恰好相等），配置的各种非法写法，
+命令行四节次序与 JSON 形状，以及跑完之后设计树逐文件哈希不变。
+
 ## Agent 编译
 
 本轮实现从一个 `agents/` 源根按宿主策略编译四处目录，并提供独立的相对软链接工具。
