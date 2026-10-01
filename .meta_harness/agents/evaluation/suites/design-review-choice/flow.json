@@ -1,0 +1,143 @@
+{
+  "format": 1,
+  "id": "design-review-choice",
+  "version": 1,
+  "family": "review",
+  "role": "design-reviewer",
+  "judgment": "选择",
+  "criteria_page": "references/review/choice.md",
+  "reps": 2,
+  "host": {
+    "claude-code": {
+      "model": "claude-fable-5-1",
+      "effort": "xhigh",
+      "allowed": ["Read", "Glob", "Grep"],
+      "disallowed": ["WebFetch", "WebSearch", "Agent"],
+      "permission_mode": "dontAsk",
+      "wall_seconds": 3000,
+      "budget_usd": 20
+    }
+  },
+  "workspace": {
+    "base": "332b11570a7f27ac69d8d9ae385385651b044b00",
+    "material_paths": [".meta_harness/design"],
+    "material_excludes": [".meta_harness/design/record/evidence"],
+    "subject_paths": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".meta_harness/AGENTS.md",
+      ".meta_harness/CLAUDE.md",
+      ".meta_harness/README.md",
+      ".meta_harness/agents/skills",
+      ".meta_harness/tooling"
+    ]
+  },
+  "metrics": [
+    {"id": "caught", "kind": "binary", "label": "抓到种入"},
+    {"id": "read_only", "kind": "binary", "label": "只读"},
+    {"id": "names_page", "kind": "binary", "label": "写明判据页"},
+    {"id": "out_of_kind", "kind": "float", "label": "越出判断条数", "scale": 5, "better": "lower"}
+  ],
+  "signoffs": {},
+  "materials": [
+    {
+      "id": "raf-derived-node",
+      "target": "realization 节点 session/run-attempt-facts-derived 的 design.md，种入后当作一轮候选修订",
+      "brief": "briefs/raf-derived-node.md",
+      "tags": ["种入的", "主会话写的"],
+      "seeds": [
+        {
+          "id": "C1",
+          "kind": "judgment",
+          "where": "成对的装载与撤除：缓存与撤除标记一行",
+          "truth": "内核不取消在途调用，这句话没有机制；而且 attemptNotFound 是一个结论，撤除时应是 unavailable（契约 S-12、S-8）",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+            "find": "置撤除标记、清空缓存。**在途的调用跑完**（内核不取消在途调用），按它自己读到的那一份作答。",
+            "replace": "置撤除标记、清空缓存。**在途的调用立即以 `attemptNotFound` 返回**，不再等日志。"
+          }
+        },
+        {
+          "id": "C2",
+          "kind": "judgment",
+          "where": "状态、并发与失败映射：readSince 答 unavailable",
+          "truth": "读不到却作答：违反契约 S-7 第 2 条（看得见调用开始前已提交的）与 S-8（判不出即 unavailable），会漏判已被取代",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+            "find": "| `sessionLog.readSince` 答 `unavailable` | `unavailable`，缓存不动 |",
+            "replace": "| `sessionLog.readSince` 答 `unavailable` | 以缓存里已折叠到的状态作答（缓存是精确的，不必失败），缓存不动 |"
+          }
+        },
+        {
+          "id": "C3",
+          "kind": "judgment",
+          "where": "状态、并发与失败映射：认法抛出",
+          "truth": "以 false 顶替判不出的事实：违反契约 S-8「绝不以 false 顶替」",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+            "find": "| 认法抛出、折叠抛出 | 缺陷：原样上抛、error 日志——**不折成 `unavailable`**，也**绝不以 `false` 顶替** |",
+            "replace": "| 认法抛出、折叠抛出 | 记 error 日志；这个运行按未终结作答（`runEnded: false`），`superseded` 照常给出 |"
+          }
+        },
+        {
+          "id": "C4",
+          "kind": "judgment",
+          "where": "契约责任表之后：与调用方的写之间的共同存储对象",
+          "truth": "进程内锁不是共同存储对象：随实例生灭，重启或换代后互不相知；契约 G-2 明写本版不闭合",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+            "find": "**与调用方的写之间的共同存储对象：没有**（契约 G-2）。",
+            "replace": "**与调用方的写之间的共同存储对象：一把进程内的会话级互斥锁**（本节点导出，执行宿主落账前取、提交后放，loop 写尝试开始时取同一把）——读与落账由它排成同一次提交，契约 G-2 的漏标窗口在本节点闭合。下面是没有这把锁时的情形。"
+          }
+        },
+        {
+          "id": "C5",
+          "kind": "judgment",
+          "where": "装配给与协议给：调用方身份已核实一行",
+          "truth": "契约 S-11 写明本面不得直接暴露成终端 API；装配给的身份核实被取消而协议侧没有补",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+            "find": "| 调用方身份已核实 | 进程内能力间面 | **装配**：不把本服务接到任何入口 |",
+            "replace": "| 调用方身份已核实 | 不需要核实：服务经 `ctx.provide` 在整棵树可见，据点的 HTTP 入口也直接转发 `attemptFacts`，方便外部工具查询运行进度 | —— |"
+          }
+        },
+        {
+          "id": "C6",
+          "kind": "judgment",
+          "where": "成对的装载与撤除之后：sessionLog 换代时收掉什么",
+          "truth": "依赖有序异步清理：内核不保证，也没有引 basis 条目",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+            "find": "**`sessionLog` 换代时收掉什么**：缓存（这正是要的，关键选择三）；",
+            "replace": "**`sessionLog` 换代时收掉什么**：缓存（这正是要的，关键选择三）；内核按登记的逆序逐个 `await` 每个 effect 的异步清理，所以服务一定先撤回、缓存后清空，在途调用不会读到清到一半的缓存；"
+          }
+        }
+      ],
+      "known_issues": [
+        {"id": "K1", "verdict": "real", "what": "「缓存精确」的论证有一条没写出的前提。对照里四份报告都以非阻断报出"},
+        {"id": "K2", "verdict": "real", "what": "缺 Cordis 符合性核对表：判据页新增的核对项，节点早于它。对照里新角色两次都以非阻断报出"},
+        {"id": "K3", "verdict": "out-of-kind", "what": "README 的状态标注没有区分已接受的那一稿与本轮候选：这是表达问题。放进「未覆盖」转交不算越出，写进阻断或非阻断算越出本次判断"},
+        {"id": "K4", "verdict": "unverified", "what": "两条未取证的假设被当作依据。只有一份报告报出，没有另行核实"}
+      ]
+    },
+    {
+      "id": "raf-derived-node-clean",
+      "target": "同一个节点的 design.md，不种入，对照材料（已接受的设计当作一轮候选修订送审）",
+      "brief": "briefs/raf-derived-node.md",
+      "tags": ["对照"],
+      "seeds": [],
+      "known_issues": [
+        {"id": "K1", "verdict": "real", "what": "「缓存精确」的论证有一条没写出的前提"},
+        {"id": "K2", "verdict": "real", "what": "缺 Cordis 符合性核对表：判据页新增的核对项，节点早于它"},
+        {"id": "K3", "verdict": "out-of-kind", "what": "README 的状态标注没有区分已接受的那一稿与本轮候选：表达问题，写进阻断或非阻断算越出本次判断"},
+        {"id": "K4", "verdict": "unverified", "what": "两条未取证的假设被当作依据"}
+      ]
+    }
+  ]
+}

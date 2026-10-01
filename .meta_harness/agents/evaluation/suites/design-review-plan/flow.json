@@ -1,0 +1,98 @@
+{
+  "format": 1,
+  "id": "design-review-plan",
+  "version": 1,
+  "family": "review",
+  "role": "design-reviewer",
+  "judgment": "计划",
+  "criteria_page": "references/review/plan.md",
+  "reps": 2,
+  "host": {
+    "claude-code": {
+      "model": "claude-fable-5-1",
+      "effort": "xhigh",
+      "allowed": ["Read", "Glob", "Grep"],
+      "disallowed": ["WebFetch", "WebSearch", "Agent"],
+      "permission_mode": "dontAsk",
+      "wall_seconds": 3000,
+      "budget_usd": 20
+    }
+  },
+  "workspace": {
+    "base": "332b11570a7f27ac69d8d9ae385385651b044b00",
+    "material_paths": [".meta_harness/design"],
+    "material_excludes": [".meta_harness/design/record/evidence"],
+    "subject_paths": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".meta_harness/AGENTS.md",
+      ".meta_harness/CLAUDE.md",
+      ".meta_harness/README.md",
+      ".meta_harness/agents/skills",
+      ".meta_harness/tooling"
+    ]
+  },
+  "metrics": [
+    {"id": "caught", "kind": "binary", "label": "抓到种入"},
+    {"id": "read_only", "kind": "binary", "label": "只读"},
+    {"id": "names_page", "kind": "binary", "label": "写明判据页"},
+    {"id": "out_of_kind", "kind": "float", "label": "越出判断条数", "scale": 5, "better": "lower"}
+  ],
+  "signoffs": {},
+  "materials": [
+    {
+      "id": "raf-plan",
+      "target": "一份为评估写的施工计划（materials/raf-plan.md），放在副本的 tmp/plan-under-review/plan.md",
+      "brief": "briefs/raf-plan.md",
+      "tags": ["种入的", "主会话写的"],
+      "prepare": [
+        {"op": "copy", "from": "materials/raf-plan.md", "to": "tmp/plan-under-review/plan.md"}
+      ],
+      "seeds": [
+        {"id": "P1", "kind": "judgment", "where": "T4", "truth": "提前消费：T4 在 T3 的服务面定型之前开工，按自己对接口的理解写"},
+        {"id": "P2", "kind": "judgment", "where": "T5", "truth": "重叠写权：据点装配清单由两名实施者各自修改，没有单一写入负责人"},
+        {"id": "P3", "kind": "judgment", "where": "交付判据", "truth": "把各包单元测试全绿当成功能交付，没有真实组合的运行证据；契约场景 S-14～S-18 要求每条真跑"},
+        {"id": "P4", "kind": "judgment", "where": "T7", "truth": "故障注入（契约 S-17）无负责人、无完成判据，写成「时间允许最后统一补」"},
+        {"id": "P5", "kind": "judgment", "where": "前提", "truth": "把未决事项写成既定前提：契约 G-3 与节点 AFD-1 写明终结记录的形状未定"},
+        {"id": "P6", "kind": "judgment", "where": "T6", "truth": "实施者自验被记为独立验收"}
+      ],
+      "known_issues": [
+        {"id": "K1", "verdict": "real", "what": "第一份可运行结果出现得太晚、全部做完之后才一次合并（「并行与合并」一节）：判据页「增量与节奏」的问法，不是种入的。对照里新角色报为非阻断 N-2"},
+        {"id": "K2", "verdict": "real", "what": "T4、T5 消费的输入无人生产：执行宿主尚未建包、带替身的据点验收装配还不存在（实现映射记载），前提 1 与基线也没有落到可核对的修订。对照里新旧两个角色各自独立报出（新 B-1、N-1，旧 B7）"},
+        {"id": "K3", "verdict": "real", "what": "验收边界列了 V-1～V-9，多数没有任务、负责者或完成判据。它与 P3、P4 相邻但不是同一件事。对照里新旧两个角色各自独立报出（新 B-6，旧 B1 的后半）"},
+        {"id": "K4", "verdict": "unverified", "what": "T4 的交付物没有读不到时收场路径的测试。对照里只有新角色报出（N-3），没有另行核实"}
+      ]
+    },
+    {
+      "id": "raf-plan-clean",
+      "target": "同一份施工计划改掉六处种入与原有问题之后的版本（materials/raf-plan-clean.md），对照材料",
+      "brief": "briefs/raf-plan.md",
+      "tags": ["对照", "主会话写的"],
+      "prepare": [
+        {"op": "copy", "from": "materials/raf-plan-clean.md", "to": "tmp/plan-under-review/plan.md"}
+      ],
+      "seeds": []
+    },
+    {
+      "id": "ccp-plan",
+      "target": "一份为评估写的施工计划（materials/ccp-plan.md），对象是节点 infra/center-connection-probe，放在副本的 tmp/plan-under-review/plan.md",
+      "brief": "briefs/ccp-plan.md",
+      "tags": ["种入的", "主会话写的"],
+      "prepare": [
+        {"op": "copy", "from": "materials/ccp-plan.md", "to": "tmp/plan-under-review/plan.md"}
+      ],
+      "seeds": [
+        {"id": "Q1", "kind": "judgment", "where": "前提 2", "truth": "把待取证的上游语义写成既定前提并取消了取证：节点设计写明这五条是假设、须按 source-check 取证（CNP-8），verification 的 N-11 是证据义务，S-14、S-15 另外受阻于它；依赖这些事实的 T3、T4 被提前放行"},
+        {"id": "Q2", "kind": "judgment", "where": "T7", "truth": "用 replay 插件的回放充当 S-14、S-15 与 examples §2、§3 的证据：节点 verification 写明这两条只能由 probe 插件对脚本化 TLS 对端证，replay 插件证不了"},
+        {"id": "Q3", "kind": "judgment", "where": "T6", "truth": "计划把 center-connection-probe 装进产品据点清单，改了已接受的装配选择（节点 CNP-6、cli 关键选择 5：产品清单本版不装），没有回到拥有者；装上之后 P-1r 读到 reachable 也仍问不了中心"},
+        {"id": "Q4", "kind": "judgment", "where": "T5 的排序", "truth": "第一份可运行的结果排到最后：replay 插件与验收装配上的 S-13 不依赖 TLS，却排在 probeOnce 与 probe 插件之后；可以提前到 T2 之后"},
+        {"id": "Q5", "kind": "judgment", "where": "T7 的负责一栏", "truth": "验收脚本由实施者在实现任务里顺手写，且演练结果与实现不一致时以实现为准改脚本的期望：T8 的独立验收照这份脚本跑，失去独立性"},
+        {"id": "Q6", "kind": "judgment", "where": "T3 的开工条件与「资源」一节", "truth": "T3 依赖的脚本化 TLS 对端与测试证书没有任何任务生产、没有负责人（无人生产的输入）"}
+      ],
+      "known_issues": [
+        {"id": "K1", "verdict": "real", "what": "T6 要改的据点验收装配与产品据点清单还不存在（实现映射记载 apps/cli 现有源码是治理 CLI/TUI），T6～T8 的输入无人生产。写材料时已知，没有改掉，因为 Q3 要落在这张清单上"},
+        {"id": "K2", "verdict": "real", "what": "交付判据只列 N-1～N-10 与 T8 的判决，没有要求 S-14、S-15 在真实 TLS 上的证据。它是 Q2 的后果，报出它而没有指到 T7 用 replay 充当证据的，不算抓到 Q2"}
+      ]
+    }
+  ]
+}

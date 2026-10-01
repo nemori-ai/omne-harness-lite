@@ -1,0 +1,215 @@
+{
+  "format": 1,
+  "id": "design-review-expression",
+  "version": 1,
+  "family": "review",
+  "role": "design-reviewer",
+  "judgment": "表达",
+  "criteria_page": "references/review/expression.md",
+  "attach_design_review": true,
+  "reps": 2,
+  "host": {
+    "claude-code": {
+      "model": "claude-opus-5-5",
+      "effort": "xhigh",
+      "allowed": ["Read", "Glob", "Grep"],
+      "disallowed": ["WebFetch", "WebSearch", "Agent"],
+      "permission_mode": "dontAsk",
+      "wall_seconds": 3000,
+      "budget_usd": 20
+    }
+  },
+  "workspace": {
+    "base": "332b11570a7f27ac69d8d9ae385385651b044b00",
+    "material_paths": [".meta_harness/design"],
+    "material_excludes": [".meta_harness/design/record/evidence"],
+    "subject_paths": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".meta_harness/AGENTS.md",
+      ".meta_harness/CLAUDE.md",
+      ".meta_harness/README.md",
+      ".meta_harness/agents/skills",
+      ".meta_harness/tooling"
+    ]
+  },
+  "metrics": [
+    {"id": "caught", "kind": "binary", "label": "抓到种入"},
+    {"id": "read_only", "kind": "binary", "label": "只读"},
+    {"id": "names_page", "kind": "binary", "label": "写明判据页"},
+    {"id": "out_of_kind", "kind": "float", "label": "越出判断条数", "scale": 5, "better": "lower"}
+  ],
+  "signoffs": {},
+  "materials": [
+    {
+      "id": "raf-contract",
+      "target": "capability.run-attempt-facts v2 的契约，改成 candidate 后种入",
+      "contract": "capability.run-attempt-facts/v2",
+      "brief": "briefs/raf-contract.md",
+      "tags": ["种入的", "主会话写的"],
+      "prepare": [
+        {
+          "op": "catalog-candidate",
+          "registry": ".meta_harness/design/registry",
+          "contract_id": "capability.run-attempt-facts",
+          "version": 2
+        }
+      ],
+      "seeds": [
+        {
+          "id": "E1",
+          "kind": "tool",
+          "check": "bare-clause-ref",
+          "where": "S-6 第 4 条",
+          "truth": "跨契约引用丢了坐标：本契约没有 S-39",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "**所以依它写下的 `late` 只可能漏标、不会误标**（`data.call-accounts/v2#S-39`）",
+            "replace": "**所以依它写下的 `late` 只可能漏标、不会误标**（见 S-39）"
+          }
+        },
+        {
+          "id": "E2",
+          "kind": "tool",
+          "check": "dependency-clause-missing",
+          "where": "registry/catalog.json 对 data.messages v2 的依赖",
+          "truth": "catalog 登记消费 data.messages/v2#S-97，目标契约没有这一条，正文 S-4 也没有列它",
+          "op": {
+            "op": "catalog-add-clause",
+            "registry": ".meta_harness/design/registry",
+            "contract_id": "capability.run-attempt-facts",
+            "version": 2,
+            "dependency": {"contract_id": "data.messages", "version": 2},
+            "clause": "S-97"
+          }
+        },
+        {
+          "id": "E3",
+          "kind": "judgment",
+          "where": "S-9 ⑥",
+          "truth": "失败集合开放式收尾，与 S-8「失败值总表是全部失败值」及 ⑥「闭合枚举」冲突",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "| ⑥ | `invalidInput`（任一参数缺席或不合形状）→ `attemptNotFound`；读不到、认不出终结记录 ⇒ `unavailable` |",
+            "replace": "| ⑥ | `invalidInput`（任一参数缺席或不合形状）→ `attemptNotFound`；读不到、认不出终结记录 ⇒ `unavailable`；其他错误由提供者自定 |"
+          }
+        },
+        {
+          "id": "E4",
+          "kind": "judgment",
+          "where": "S-9 ①",
+          "truth": "身份参数有了默认值，与 S-8「会话、运行、尝试缺一即 invalidInput，不从进程上下文补」冲突",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "| ① | `session`（`SessionRef`）、`run`（`RunId`）、",
+            "replace": "| ① | `session`（`SessionRef`；缺省时取调用方当前所在的会话）、`run`（`RunId`）、"
+          }
+        },
+        {
+          "id": "E5",
+          "kind": "judgment",
+          "where": "S-12 撤除时在途的读",
+          "truth": "缺席时放行：与 S-8、S-9 ⑧「判不出不答未取代、未终结」冲突",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "- **撤除时在途的读**：调用方可能等不到回答，按 `unavailable` 处置。",
+            "replace": "- **撤除时在途的读**：调用方可能等不到回答，按「仍是当前、尚未终结」处置，以免挡住落账。"
+          }
+        },
+        {
+          "id": "E6",
+          "kind": "judgment",
+          "where": "S-9 ⑤",
+          "truth": "半截答复：与 S-8「两件事实要么一起答出，要么一起不答」冲突",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "| ⑤ | `superseded`、`runEnded`：两个都给出的真值（[S-5](#s-5-两件事实)） |",
+            "replace": "| ⑤ | `superseded`、`runEnded`（[S-5](#s-5-两件事实)）；`runEnded` 认不出时可以省略，只给 `superseded` |"
+          }
+        },
+        {
+          "id": "E7",
+          "kind": "judgment",
+          "where": "S-7 第 2 条",
+          "truth": "机制进了契约：inject、serial 与服务键属于提供者设计，不属于语言无关的契约",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "这一次读都看得见（`capability.session-log/v2#S-13` 第 4 条）。",
+            "replace": "这一次读都看得见（`capability.session-log/v2#S-13` 第 4 条）；提供者以 `ctx.inject(['sessionLog'])` 取得日志服务，并在每次调用里先 `await ctx.serial('session-log/flush')` 再读。"
+          }
+        },
+        {
+          "id": "E8",
+          "kind": "judgment",
+          "where": "进展性质表第一行",
+          "truth": "声明超过证据：S-13 写明不建形式模型，registry 里也没有对应的 formal task",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "| 新尝试的第一条条目提交之后开始的读，都答「已被取代」 | 那一次提交返回之后的第一次读 |",
+            "replace": "| 新尝试的第一条条目提交之后开始的读，都答「已被取代」（已由 TLC 在本契约的行为模型上检查） | 那一次提交返回之后的第一次读 |"
+          }
+        },
+        {
+          "id": "E9",
+          "kind": "tool",
+          "check": "analysis-id-in-contract",
+          "where": "不变量表第一行",
+          "truth": "分析阶段的编号进了契约",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "| **两件事实只从假变真** | [S-6](#s-6-只从假变真) |",
+            "replace": "| **两件事实只从假变真**（INV-2） | [S-6](#s-6-只从假变真) |"
+          }
+        }
+      ],
+      "known_issues": [
+        {"id": "K1", "verdict": "artefact", "what": "状态与版本血缘互相矛盾：一个已接受、已冻结的 v2 被登记成 candidate 并原地修订。这是为了让契约可以受审而做的处理，不是契约的问题；对照里四份报告都把它报成阻断"},
+        {"id": "K2", "verdict": "real", "what": "「设计依据」写的 PF-012 rev 14 落后于 topic 当前 rev。对照里四份报告都报出"},
+        {"id": "K3", "verdict": "real", "what": "页首把 data.messages v2、data.call-accounts v2、capability.session-log v2 标成 candidate，catalog 里它们已是 accepted。对照里三份报告报出"},
+        {"id": "K4", "verdict": "real", "what": "产品装配下的判定次序有两种读法：S-9 ⑥ 写的次序与第十一节对产品装配的说法对不上。对照里四份报告都报出"},
+        {"id": "K5", "verdict": "real", "what": "S-13 说 session-log 的模型「未运行」，而 D-060 §八 N-37 ⑪ 记的是已跑。对照里三份报告报出"},
+        {"id": "K6", "verdict": "real", "what": "examples.md 引用 data.identity-values/v1#S-31，S-4 与 catalog 的依赖条款里都没有它。对照里三份报告报出"},
+        {"id": "K7", "verdict": "unverified", "what": "几处引用只写简称没写坐标（「那份契约的 S-2」「它的 S-15」等）。只有一份报告报出，没有另行核实"},
+        {"id": "K8", "verdict": "unverified", "what": "第十一、十二节与验证入口里关于提供者与主线的说法过时。两份报告报出，没有另行核实"},
+        {"id": "K9", "verdict": "unverified", "what": "账本外名字（superseded、runEnded、attemptNotFound）的接受依据 D-060 N-37 ① 证据不足。两份报告以「未证实」报出"},
+        {"id": "K10", "verdict": "unverified", "what": "「验收装配里由测试种子答」有两种读法；进展性质与规范场景漏写前提。各一份报告报出，没有另行核实"}
+      ]
+    },
+    {
+      "id": "raf-contract-clean",
+      "target": "同一份契约 capability.run-attempt-facts v2，只改成 candidate、不种入，对照材料",
+      "contract": "capability.run-attempt-facts/v2",
+      "brief": "briefs/raf-contract.md",
+      "tags": ["对照"],
+      "prepare": [
+        {
+          "op": "catalog-candidate",
+          "registry": ".meta_harness/design/registry",
+          "contract_id": "capability.run-attempt-facts",
+          "version": 2
+        }
+      ],
+      "seeds": [],
+      "known_issues": [
+        {"id": "K1", "verdict": "artefact", "what": "状态与版本血缘互相矛盾：一个已接受、已冻结的 v2 被登记成 candidate。这是为了让契约可以受审而做的处理"},
+        {"id": "K2", "verdict": "real", "what": "「设计依据」写的 PF-012 rev 14 落后于 topic 当前 rev"},
+        {"id": "K3", "verdict": "real", "what": "页首把三份依赖契约标成 candidate，catalog 里它们已是 accepted"},
+        {"id": "K4", "verdict": "real", "what": "产品装配下的判定次序有两种读法：S-9 ⑥ 与第十一节对不上"},
+        {"id": "K5", "verdict": "real", "what": "S-13 说 session-log 的模型「未运行」，而 D-060 §八 N-37 ⑪ 记的是已跑"},
+        {"id": "K6", "verdict": "real", "what": "examples.md 引用 data.identity-values/v1#S-31，S-4 与 catalog 的依赖条款里都没有它"},
+        {"id": "K7", "verdict": "unverified", "what": "几处引用只写简称没写坐标"},
+        {"id": "K8", "verdict": "unverified", "what": "第十一、十二节与验证入口里关于提供者与主线的说法过时"},
+        {"id": "K9", "verdict": "unverified", "what": "账本外名字的接受依据 D-060 N-37 ① 证据不足"},
+        {"id": "K10", "verdict": "unverified", "what": "「验收装配里由测试种子答」有两种读法；进展性质与规范场景漏写前提"}
+      ]
+    }
+  ]
+}
