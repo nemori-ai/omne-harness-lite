@@ -1,0 +1,25 @@
+{
+  "parallel": {
+    "memberConcurrency": 2,
+    "vitestMaxWorkers": 4
+  },
+  "affected": {
+    "excludeRoots": ["examples"],
+    "globalPaths": [
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "tsconfig*.json",
+      ".meta_harness/design/spec/**",
+      "tools/ts-checks/test-runs.config.json"
+    ]
+  },
+  "ledger": {
+    "slowFileSeconds": 10,
+    "slowTestSeconds": 2.5,
+    "top": 5
+  },
+  "triage": {
+    "repeats": 3
+  }
+}
