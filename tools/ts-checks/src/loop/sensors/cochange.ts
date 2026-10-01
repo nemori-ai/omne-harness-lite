@@ -44,40 +44,36 @@ export function parseCommitMembers(log: string): string[][] {
 
 const groupOf = (member: string) => memberOf(`${member}/`)?.group ?? member
 
+/** 一个提交里分属不同组的成员对，键为 `a\0b`（a、b 按提交里的顺序）。 */
+function crossGroupPairs(members: readonly string[]): string[] {
+  const keys: string[] = []
+  members.forEach((a, i) => {
+    for (const b of members.slice(i + 1)) if (groupOf(a) !== groupOf(b)) keys.push(`${a}\u0000${b}`)
+  })
+  return keys
+}
+
 export function cochange(
   commits: readonly (readonly string[])[],
   options: CochangeOptions,
 ): CochangeResult {
   const touched = new Map<string, number>()
   const together = new Map<string, number>()
-  let counted = 0
-  let skipped = 0
-  for (const members of commits) {
-    if (members.length === 0) continue
-    if (members.length > options.maxMembersPerCommit) {
-      skipped += 1
-      continue
-    }
-    counted += 1
+  const counting = commits.filter(members => members.length > 0)
+  const kept = counting.filter(members => members.length <= options.maxMembersPerCommit)
+  for (const members of kept) {
     for (const member of members) touched.set(member, (touched.get(member) ?? 0) + 1)
-    for (let i = 0; i < members.length; i += 1)
-      for (let j = i + 1; j < members.length; j += 1) {
-        const a = members[i]
-        const b = members[j]
-        if (a === undefined || b === undefined || groupOf(a) === groupOf(b)) continue
-        const key = `${a}\u0000${b}`
-        together.set(key, (together.get(key) ?? 0) + 1)
-      }
+    for (const key of crossGroupPairs(members)) together.set(key, (together.get(key) ?? 0) + 1)
   }
-  const pairs: CochangePair[] = []
-  for (const [key, count] of together) {
-    const [a = '', b = ''] = key.split('\u0000')
-    const ratio = count / Math.min(touched.get(a) ?? count, touched.get(b) ?? count)
-    if (count >= options.minTogether && ratio >= options.minRatio)
-      pairs.push({ a, b, together: count, ratio })
-  }
-  pairs.sort((x, y) => y.together - x.together || y.ratio - x.ratio || x.a.localeCompare(y.a))
-  return { counted, skipped, pairs }
+  const pairs = [...together]
+    .map(([key, count]): CochangePair => {
+      const [a = '', b = ''] = key.split('\u0000')
+      const ratio = count / Math.min(touched.get(a) ?? count, touched.get(b) ?? count)
+      return { a, b, together: count, ratio }
+    })
+    .filter(pair => pair.together >= options.minTogether && pair.ratio >= options.minRatio)
+    .sort((x, y) => y.together - x.together || y.ratio - x.ratio || x.a.localeCompare(y.a))
+  return { counted: kept.length, skipped: counting.length - kept.length, pairs }
 }
 
 /** HEAD 上最近 `window` 个非合并提交各自碰过的成员。 */
