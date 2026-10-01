@@ -13,8 +13,9 @@
 | `run --variant baseline` | 对还没记录的（材料、次数）各起一次角色 | **是，付费** |
 | `import-run` | 把早先实验留下的一次运行接收成一个运行记录 | 否 |
 | `grade --variant … --labels …` | 把运行记录判定成逐条结果 | 人工标注不调用；判官调用 |
+| `calibrate --judge-model … --budget-usd …` | 让判官判用例集的校准报告，与人工判定逐处比对 | **是，付费** |
 | `summary` | 每个指标的均值与区间、失败按类计数、花费 | 否 |
-| `report --builder …` | 用 `claude-api` skill 自带的生成器出 `report.html` | 否 |
+| `report` | 用仓库里的[报告页生成器](report/README.md)出 `report.html` | 否 |
 
 ## 一次运行怎么跑
 
@@ -35,6 +36,7 @@
 
 ```text
 _state.json                         指标定义，报告生成器读它
+_calibration/<判官>/                 判官校准：每份校准报告的判定与一份比对
 <变体>/agents/<角色>.json            本变体冻结的角色定义
 <变体>/episodes/<材料>_rep<k>/       一次运行：brief.md、trajectory.jsonl、final.md、episode.json
 <变体>/results.jsonl                逐条结果
@@ -58,8 +60,22 @@ _state.json                         指标定义，报告生成器读它
 `summary` 末尾给出首要指标的噪声范围；比它小的变化，这个评估分辨不出来。
 同一份材料里的几处问题出自同一份报告，也不独立——材料少的时候，实际的不确定性比印出来的区间更大。
 
-报告页只画首要指标；其余指标看 `summary`。生成器从 skill 的目录里取，不抄进仓库：
-`--builder <skill 目录>/shared/evals/report/build-report-lite.mjs`，或设 `ROLEEVAL_REPORT_BUILDER`。
+报告页只画首要指标；其余指标看 `summary`。生成器在 [report/](report/README.md)，随仓库维护，需要 `node`。
+
+## 判官与它的校准
+
+评审类的流用一个模型判官判「这处问题有没有被报出」。判官只读报告与问题清单，不读材料；它判一处「报出了」，
+必须逐字引出报告里的原句、并指明那句话属于报告的哪一条阻断或非阻断发现，程序核对这两样都对得上才采信，
+对不上就重答一次，再不过记为判定器失败、不计分。规则原文在 `roleeval/judge.py` 的 `SYSTEM` 与 `OUT_OF_KIND`；
+判官的名字里带着规则的哈希，规则一改就是另一个判官，要重新校准。
+
+`calibrate` 让判官去判用例集 `calibration/cases.json` 里的每份报告，再与那里写下的人工判定逐处比对。
+报告有两种：真实运行留下的，和为了得到「没报出」的例子而做的反例——一份真实报告删掉或挪走几条发现，
+删改写在清单的 `derive` 里，运行时现场派生，送给判官的那一份留在结果目录里。已判过的报告不重复调用；
+`--budget-usd` 是这个流在这个判官下累计花费的上限，再开一份会超时就停下。
+
+结果落在 `<流的结果目录>/_calibration/<判官>/`：每份报告一个目录（送判的报告、宿主的原始返回、判定），
+外加一份 `calibration.md`。校准量的是判官与人工在这些报告上是否一致，说明不了没有校准报告的材料上判得怎样。
 
 ## 这套东西不能声称什么
 

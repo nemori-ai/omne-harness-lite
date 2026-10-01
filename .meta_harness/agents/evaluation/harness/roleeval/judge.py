@@ -211,6 +211,7 @@ def judge(flow: Flow, material: Material, report: str, *, model: str, effort: st
     results: list[dict[str, Any]] = []
     failure: GraderError | None = None
     for attempt in range(attempts):
+        answered = len(results)
         try:
             result = run(command(model, effort, budget_usd=budget_usd), text, cwd=cwd, wall_seconds=wall_seconds,
                          evidence=evidence.with_name(f"{evidence.stem}.attempt{attempt}{evidence.suffix}"))
@@ -218,13 +219,16 @@ def judge(flow: Flow, material: Material, report: str, *, model: str, effort: st
             return verdict(answer(result), material, report, grader=identity(model, effort)), results
         except GraderError as error:
             failure = error
+            if len(results) > answered:
+                results[-1]["rejected"] = str(error)    # the host answered; the answer failed its checks
     raise JudgeFailed(f"{attempts} judge attempts failed; last: {failure}", results)
 
 
 def spend(results: list[dict[str, Any]]) -> dict[str, Any]:
-    """What the judge calls of one episode cost, as the host reported it."""
+    """What the judge calls of one episode cost, as the host reported it, and why answers were thrown away."""
     models = sorted({name for result in results for name in (result.get("modelUsage") or {})})
     usage = {key: sum(int((result.get("usage") or {}).get(key, 0)) for result in results)
              for key in ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")}
     return {"judge_model": ", ".join(models) or None, "judge_usage": usage, "judge_attempts": len(results),
-            "judge_cost_usd": sum(result.get("total_cost_usd") or 0 for result in results)}
+            "judge_cost_usd": sum(result.get("total_cost_usd") or 0 for result in results),
+            "judge_rejected": [result["rejected"] for result in results if result.get("rejected")]}

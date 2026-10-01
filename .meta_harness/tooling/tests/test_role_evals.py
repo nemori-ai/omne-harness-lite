@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -13,7 +14,7 @@ META = Path(__file__).resolve().parents[2]
 EVALUATION = META / "agents" / "evaluation"
 sys.path.insert(0, str(EVALUATION / "harness"))
 
-from roleeval import claude_host, cli, grading, judge, review, stats, suite, workspace  # noqa: E402
+from roleeval import calibration, claude_host, cli, grading, judge, review, stats, suite, workspace  # noqa: E402
 from roleeval.store import RowRejected, VariantStore, check_row  # noqa: E402
 
 MODEL = "claude-test-1"
@@ -731,7 +732,10 @@ def test_the_judge_gets_a_second_attempt_and_every_attempt_is_billed(
     verdict, results = judge.judge(flow, material, REPORT, model="claude-judge-1", effort="high", cwd=tmp_path,
                                    evidence=tmp_path / "ev" / "judge.json")
     assert verdict.seeds["S1"][0] == 1 and verdict.grader.startswith("judge:claude-judge-1@high rules ")
-    assert judge.spend(results) == {
+    spent = judge.spend(results)
+    rejected = spent.pop("judge_rejected")
+    assert len(rejected) == 1 and "not in the report" in rejected[0], "被驳回的答复留下驳回的原因"
+    assert spent == {
         "judge_model": "claude-judge-1", "judge_attempts": 2, "judge_cost_usd": 0.04,
         "judge_usage": {"input_tokens": 1800, "output_tokens": 240, "cache_read_input_tokens": 0,
                         "cache_creation_input_tokens": 0}}
@@ -929,11 +933,124 @@ def test_the_work_root_must_be_outside_any_checkout(repo: Path) -> None:
         cli.work_root(repo / "scratch")
 
 
-def test_report_without_the_builder_says_where_it_comes_from(repo: Path, capsys: pytest.CaptureFixture[str],
-                                                           monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv(cli.BUILDER_ENV, raising=False)
+def test_report_without_a_builder_points_at_the_summary(repo: Path, capsys: pytest.CaptureFixture[str],
+                                                        monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli, "BUILDER", repo / "no-such-builder.mjs")
     assert cli.main(["report", str(repo / "suites" / "tiny-review"), "--out", str(repo / "out")]) == 2
-    assert "claude-api skill" in capsys.readouterr().err
+    assert "'summary' prints the same scores" in capsys.readouterr().err
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="报告页生成器要 node")
+def test_the_builder_kept_in_the_repository_renders_a_graded_flow(wired: dict[str, Any], tmp_path: Path) -> None:
+    out = wired["out"]
+    assert run_cli(wired) == 0
+    cli.grade(wired["flow"], variant="baseline", out=out, labels=labels(tmp_path, {"0": GOOD_LABEL, "1": GOOD_LABEL}))
+    assert cli.main(["report", str(wired["repo"] / "suites" / "tiny-review"), "--out", str(out)]) == 0
+    assert "baseline" in (out / "report.html").read_text(encoding="utf-8")
+    scores = (out / "trajectory" / "scores.tsv").read_text(encoding="utf-8")
+    assert scores.splitlines()[:3] == ["id\tsplit\tbaseline", "doc.S1\tall\t1.000", "doc.S2\tall\t0.000"]
+
+
+# --- 判官校准 -----------------------------------------------------------------------------------------------
+
+def calibration_set(repo: Path, cases: list[dict[str, Any]], reports: dict[str, str]) -> suite.Flow:
+    root = repo / "suites" / "tiny-review" / "calibration"
+    (root / "reports").mkdir(parents=True, exist_ok=True)
+    for name, text in reports.items():
+        (root / "reports" / name).write_text(text, encoding="utf-8")
+    (root / "cases.json").write_text(json.dumps({"format": 1, "grader": "人工：测试", "cases": cases},
+                                                ensure_ascii=False), encoding="utf-8")
+    return suite.load(repo / "suites" / "tiny-review")
+
+
+def calibration_case(case_id: str, report: str, s1: int, s2: int, **over: Any) -> dict[str, Any]:
+    return {"id": case_id, "material": "doc", "report": f"reports/{report}", "kind": "真实报告", "origin": "测试",
+            "seeds": {"S1": [s1, "人工的理由一"], "S2": [s2, "人工的理由二"]}, **over}
+
+
+SILENT = {"findings": [], "targets": [
+    {"id": seed, "caught": False, "finding": "", "quote": "", "reason": "报告没有提到"} for seed in ("S1", "S2")]}
+
+
+def test_calibration_compares_the_judge_with_a_person_problem_by_problem(
+        repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    flow = calibration_set(repo, [
+        calibration_case("real", "real.md", 1, 0, run={"blocking": [1, "B-1"], "out_of_kind": [0, "没有"]}),
+        calibration_case("cut", "real.md", 0, 0),          # 人工说没报出，判官会说报出了
+        calibration_case("silent", "silent.md", 0, 0),
+    ], {"real.md": REPORT, "silent.md": "没有发现问题。"})
+    fake_judge(tmp_path, monkeypatch, [raw_answer(), raw_answer(), SILENT])
+    grader, cases = calibration.load(flow)
+    results, left_out = calibration.run(flow, cases, model="claude-judge-1", effort="high", out=tmp_path / "out",
+                                        work=tmp_path, budget_usd=5, call_budget_usd=1)
+    assert left_out == [] and grader == "人工：测试"
+    outcome = calibration.compare(cases, results)
+    assert outcome["cells"] == {"both_caught": 1, "both_missed": 4, "judge_only": 1, "person_only": 0}
+    assert [(item["case"], item["seed"]) for item in outcome["disagreements"]] == [("cut", "S1")]
+    assert [(item["metric"], item["agree"]) for item in outcome["run_checks"]] == [("blocking", True),
+                                                                                   ("out_of_kind", False)]
+    assert outcome["cost_usd"] == pytest.approx(0.06) and outcome["attempts"] == 3
+    text = calibration.render(flow, grader, cases, results, model="claude-judge-1", effort="high")
+    assert "一致 5 / 6（83.3%）" in text and "`cut` 的 `S1`：人工判 0（人工的理由一）；判官判 1" in text
+
+
+def test_calibration_stops_at_the_budget_and_resumes_without_paying_twice(
+        repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    flow = calibration_set(repo, [calibration_case(name, "real.md", 1, 0) for name in ("a", "b", "c")],
+                           {"real.md": REPORT})
+    fake_judge(tmp_path, monkeypatch, [raw_answer()])
+    _, cases = calibration.load(flow)
+    settings = {"model": "claude-judge-1", "effort": "high", "out": tmp_path / "out", "work": tmp_path}
+    # 每次调用 0.02：预算 0.05、单次上限 0.02 时，第三份开始前已记 0.04，再加一次就超
+    results, left_out = calibration.run(flow, cases, budget_usd=0.05, call_budget_usd=0.02, **settings)
+    assert sorted(results) == ["a", "b"] and left_out == ["c"]
+    assert "还没判的" in calibration.render(flow, "人工", cases, results, model="claude-judge-1", effort="high")
+    results, left_out = calibration.run(flow, cases, budget_usd=1, call_budget_usd=0.02, **settings)
+    assert sorted(results) == ["a", "b", "c"] and left_out == []
+    assert calibration.spent(results) == pytest.approx(0.06), "已判的不再调用"
+
+
+def test_a_judge_answer_that_fails_its_checks_is_counted_and_still_billed(
+        repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    flow = calibration_set(repo, [calibration_case("silent", "silent.md", 0, 0)], {"silent.md": "没有发现问题。"})
+    fake_judge(tmp_path, monkeypatch, [raw_answer()])      # 引的句子不在这份报告里
+    _, cases = calibration.load(flow)
+    results, _ = calibration.run(flow, cases, model="claude-judge-1", effort="high", out=tmp_path / "out",
+                                 work=tmp_path, budget_usd=5, call_budget_usd=1)
+    outcome = calibration.compare(cases, results)
+    assert outcome["judged"] == 0 and outcome["failed"][0]["case"] == "silent"
+    assert outcome["cost_usd"] == pytest.approx(0.04) and outcome["attempts"] == 2
+
+
+@pytest.mark.parametrize(("change", "message"), [
+    (lambda case: case["seeds"].pop("S2"), "covers"),
+    (lambda case: case.update(report="reports/missing.md"), "does not exist"),
+    (lambda case: case.update(material="nope"), "no material"),
+    (lambda case: case.update(run={"speed": [1, "x"]}), "unknown run metrics"),
+    (lambda case: case["seeds"].update(S1=[2, "x"]), "0 or 1"),
+    (lambda case: case.update(id="a/b"), "names a directory"),
+])
+def test_a_calibration_set_that_does_not_cover_its_material_does_not_load(repo: Path, change: Any, message: str) -> None:
+    case = calibration_case("real", "real.md", 1, 0)
+    change(case)
+    with pytest.raises(suite.SuiteError, match=message):
+        calibration_set(repo, [case], {"real.md": REPORT})
+        calibration.load(suite.load(repo / "suites" / "tiny-review"))
+
+
+def test_the_calibrate_command_writes_the_comparison_beside_the_results(
+        wired: dict[str, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    calibration_set(wired["repo"], [calibration_case("real", "real.md", 1, 0)], {"real.md": REPORT})
+    fake_judge(tmp_path, monkeypatch, [raw_answer()])
+    monkeypatch.setattr(cli, "work_root", lambda _: tmp_path)   # make test 的临时目录在检出里，真的工作根不许在那
+    root = str(wired["repo"] / "suites" / "tiny-review")
+    assert cli.main(["calibrate", root, "--out", str(wired["out"]), "--judge-model", "claude-judge-1",
+                     "--budget-usd", "1"]) == 0
+    assert "一致 2 / 2（100.0%）" in capsys.readouterr().out
+    written = list((wired["out"] / "_calibration").glob("*/calibration.md"))
+    assert len(written) == 1 and "judge-claude-judge-1@high-rules-" in written[0].parent.name
+    assert cli.main(["calibrate", root, "--out", str(wired["out"]), "--judge-model", "claude-judge-1",
+                     "--budget-usd", "1", "--case", "nope"]) == 2
 
 
 # --- 入库的常设用例集 ---------------------------------------------------------------------------------------
@@ -964,3 +1081,6 @@ def test_a_standing_suite_still_fits_the_repository(root: Path) -> None:
             for fragment in seed.fragments():
                 assert any(fragment in text for text in texts), (
                     f"{flow.id}/{material.id}.{seed.id}: the pinned material does not contain {fragment[:50]!r}")
+    if (root / "calibration" / "cases.json").exists():
+        # 校准集跟着用例走：种入清单变了而人工判定没跟上，这里会失败
+        assert calibration.load(flow)[1], f"{flow.id}: the calibration set is empty"

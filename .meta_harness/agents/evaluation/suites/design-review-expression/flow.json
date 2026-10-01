@@ -41,7 +41,7 @@
     {"id": "novel_blocking", "kind": "float", "label": "表外阻断条数", "scale": 5, "better": "lower"},
     {"id": "blocking", "kind": "float", "label": "阻断条数", "scale": 10}
   ],
-  "signoffs": {},
+  "signoffs": {"cases": {"by": "panqiwei", "date": "2026-10-01", "version": 1}},
   "materials": [
     {
       "id": "raf-contract",

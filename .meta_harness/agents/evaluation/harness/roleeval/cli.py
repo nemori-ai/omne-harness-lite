@@ -5,8 +5,9 @@
   run SUITE --variant V            run the role on every (material, rep) not yet recorded; this is the paid step
   import-run SUITE --variant V …   take over one run an earlier experiment recorded, as an episode
   grade SUITE --variant V …        turn recorded episodes into scored rows
+  calibrate SUITE --judge-model M  run the judge on the suite's calibration reports and compare with a person; paid
   summary SUITE                    scores with intervals, failures by class, spend
-  report SUITE --builder PATH      build report.html with the report builder of the claude-api skill
+  report SUITE                     build report.html with the report builder kept beside this package
 
 Episodes and results go to <main checkout>/tmp/role-evals/<flow>/ unless --out says otherwise.
 """
@@ -26,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from . import claude_host, grading, judge, review, stats, workspace
+from . import calibration, claude_host, grading, judge, review, stats, workspace
 from .store import VariantStore
 from .suite import Flow, Material, SuiteError, load
 
@@ -34,7 +35,7 @@ HARNESS = Path(__file__).resolve().parent
 META = HARNESS.parents[3]
 REPO = META.parent
 WORK_ENV = "ROLEEVAL_WORK"
-BUILDER_ENV = "ROLEEVAL_REPORT_BUILDER"
+BUILDER = HARNESS.parent / "report" / "build-report-lite.mjs"
 KNOWN_VERDICTS = {"real": "成立", "artefact": "评估手段带来的", "unverified": "未核实", "out-of-kind": "属于另一种判断",
                   "rejected": "当时被驳回"}
 
@@ -371,6 +372,29 @@ def grade(flow: Flow, *, variant: str, out: Path, labels: Path | None = None, ju
     return 0
 
 
+# --- calibrate ----------------------------------------------------------------------------------------------
+
+def calibrate(flow: Flow, *, out: Path, work: Path, model: str, effort: str, budget_usd: float,
+              call_budget_usd: float, only: list[str] | None) -> int:
+    """Run the judge on the calibration reports that have no result yet and print how it compares with a person."""
+    grader, cases = calibration.load(flow)
+    if only:
+        unknown = sorted(set(only) - {case.id for case in cases})
+        if unknown:
+            raise Refused(f"{flow.id} has no calibration case {', '.join(unknown)}")
+        cases = [case for case in cases if case.id in only]
+    results, left_out = calibration.run(flow, cases, model=model, effort=effort, out=out, work=work,
+                                        budget_usd=budget_usd, call_budget_usd=call_budget_usd)
+    text = calibration.render(flow, grader, cases, results, model=model, effort=effort)
+    where = calibration.directory(out, model, effort)
+    where.mkdir(parents=True, exist_ok=True)
+    (where / "calibration.md").write_text(text, encoding="utf-8")
+    print(text, end="")
+    if left_out:
+        print(f"\nbudget of ${budget_usd:g} reached; not judged: {', '.join(left_out)}", file=sys.stderr)
+    return 0
+
+
 # --- summary ------------------------------------------------------------------------------------------------
 
 def summary(flow: Flow, out: Path) -> str:
@@ -464,8 +488,16 @@ def parser() -> argparse.ArgumentParser:
     grading_.add_argument("--judge-model", help="grade with the model judge on this model; these calls are paid")
     grading_.add_argument("--judge-effort", default="high")
     grading_.add_argument("--work", type=Path)
+    calibrating = add("calibrate")
+    calibrating.add_argument("--judge-model", required=True, help="the judge to calibrate; these calls are paid")
+    calibrating.add_argument("--judge-effort", default="high")
+    calibrating.add_argument("--budget-usd", type=float, required=True,
+                             help="stop starting cases once what is recorded plus one more call would pass this")
+    calibrating.add_argument("--call-budget-usd", type=float, default=1.0, help="ceiling the host enforces per call")
+    calibrating.add_argument("--case", action="append", help="only these calibration cases")
+    calibrating.add_argument("--work", type=Path)
     add("summary")
-    add("report").add_argument("--builder", type=Path)
+    add("report").add_argument("--builder", type=Path, help="another builder than the one kept in the repository")
     return root
 
 
@@ -502,14 +534,18 @@ def main(argv: list[str] | None = None) -> int:
             return grade(flow, variant=args.variant, out=out, labels=args.labels.resolve() if args.labels else None,
                          judge_model=args.judge_model, judge_effort=args.judge_effort,
                          work=work_root(args.work) if args.judge_model else None)
+        if args.command == "calibrate":
+            return calibrate(flow, out=out, work=work_root(args.work), model=args.judge_model,
+                             effort=args.judge_effort, budget_usd=args.budget_usd,
+                             call_budget_usd=args.call_budget_usd, only=args.case)
         if args.command == "summary":
             print(summary(flow, out), end="")
             return 0
-        builder = args.builder or (Path(os.environ[BUILDER_ENV]) if os.environ.get(BUILDER_ENV) else None)
-        if not builder or not builder.is_file():
-            raise Refused(f"give the report builder of the claude-api skill with --builder or {BUILDER_ENV} "
-                          f"(<skill directory>/shared/evals/report/build-report-lite.mjs); "
-                          f"'summary' prints the same scores without it")
+        builder = args.builder or BUILDER
+        if not builder.is_file():
+            raise Refused(f"no report builder at {builder}; 'summary' prints the same scores without it")
+        if not shutil.which("node"):
+            raise Refused("the report builder needs node on PATH; 'summary' prints the same scores without it")
         return subprocess.run(["node", str(builder), str(out)]).returncode
     except (Refused, SuiteError) as error:
         print(f"roleeval: {error}", file=sys.stderr)
