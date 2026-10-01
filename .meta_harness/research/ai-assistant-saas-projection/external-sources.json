@@ -1,0 +1,240 @@
+{
+  "format": "saas-source-register/v1",
+  "status": "candidate-reviewed-source-register",
+  "accessed_on": "2026-09-30",
+  "privacy": "Only generic public technical URLs were browsed. User documents were read locally; no file contents or private search queries sent to external sources.",
+  "hash_semantics": "Local SHA256 values record observed bytes only; do not declare the source frozen. Recheck before integration.",
+  "local": [
+    {
+      "id": "REQ-01",
+      "observed_sha256": "0e9af1991abbbaaa8d2fb88c84561da8951cc0aeb9c1fc86941bf1fd849f423e",
+      "scope": "讨论稿1.0；M01-M18、§8-10；需求不是实现证据",
+      "accessed_on": "2026-09-30",
+      "path_at_observation": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md"
+    },
+    {
+      "id": "REQ-02",
+      "observed_sha256": "e7250ac5a949aaa59bf287c5d49ad965e8e3c44dafb20895f6664b7c4cff166f",
+      "scope": "讨论稿1.0；S01-S23；建议补充条目仍待产品评审",
+      "accessed_on": "2026-09-30",
+      "path_at_observation": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md"
+    },
+    {
+      "id": "BASE-01",
+      "observed_sha256": "9ea58bca26d2af867e09888293b8ccfdeb73b5986cf5197c7971b302536e9eb9",
+      "scope": "主线框架基线；FC02/03/04/07/08/12/13/14/20/21/22/26/29/30",
+      "accessed_on": "2026-09-30",
+      "archived_report_path": "framework-baseline.md",
+      "path_at_observation": "/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/ai-assistant-projection-20260930/framework/baseline.md"
+    },
+    {
+      "id": "BASE-02",
+      "observed_sha256": "9564032eafd50cb92cd0ddf377b777252a2818dcae27724fa527ecf11734d3f5",
+      "scope": "精确来源、能力状态及限制；依赖主线封存前可能变化",
+      "accessed_on": "2026-09-30",
+      "archived_report_path": "framework-capabilities.json",
+      "path_at_observation": "/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/tmp/ai-assistant-projection-20260930/framework/framework-capabilities.json"
+    },
+    {
+      "id": "METHOD-01",
+      "observed_sha256": "69988a9215b1e65468d0fbc786a7c59e59aa592412ce60f95de8e21ad1248382",
+      "scope": "投影分析方法；不据此新增框架契约或声明接受",
+      "accessed_on": "2026-09-30",
+      "path_at_observation": "/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/.meta_harness/.agents/skills/harness-design-handbook/SKILL.md"
+    }
+  ],
+  "external": [
+    {
+      "id": "EXT-01",
+      "title": "OpenID Connect Core 1.0 errata set 2",
+      "url": "https://openid.net/specs/openid-connect-core-1_0.html",
+      "version_observation": "1.0 errata set 2",
+      "fact_used": "OIDC在OAuth之上验证终端用户身份，并定义ID Token与claim校验。",
+      "applicability_limit": "不定义产品成员、租户、动作授权或账号合并政策。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-02",
+      "title": "RFC 9700 OAuth 2.0 Security Best Current Practice",
+      "url": "https://www.rfc-editor.org/rfc/rfc9700.html",
+      "version_observation": "RFC 9700",
+      "fact_used": "规定OAuth安全最佳实践，包括PKCE及其降级防护、重定向与令牌保护。",
+      "applicability_limit": "登录实现仍需按选定IdP及客户端平台核验；不是内部授权方案。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-03",
+      "title": "RFC 8693 OAuth 2.0 Token Exchange",
+      "url": "https://www.rfc-editor.org/rfc/rfc8693.html",
+      "version_observation": "RFC 8693",
+      "fact_used": "token exchange有subject与actor表达及委派相关语义。",
+      "applicability_limit": "采用候选；不保证外部供应商支持，不自动定义本产品可委派权限。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-04",
+      "title": "SPIFFE Concepts",
+      "url": "https://spiffe.io/docs/latest/spiffe-about/spiffe-concepts/",
+      "version_observation": "latest page observed 2026-09-30",
+      "fact_used": "SPIFFE将工作负载身份与可验证身份文档区分。",
+      "applicability_limit": "候选技术概念；没有因此授予用户数据与动作权限，不强制引入SPIRE。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-05",
+      "title": "Kubernetes StatefulSets",
+      "url": "https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/",
+      "version_observation": "current page observed 2026-09-30",
+      "fact_used": "StatefulSet提供稳定pod身份、网络标识及持久存储关联。",
+      "applicability_limit": "不由此推导harness单写围栏、业务事务或外部动作恰好一次。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-06",
+      "title": "Kubernetes Multi-tenancy",
+      "url": "https://kubernetes.io/docs/concepts/security/multi-tenancy/",
+      "version_observation": "current page observed 2026-09-30",
+      "fact_used": "容器共享宿主内核；沙箱和节点隔离分别降低部分隔离风险且有局限。",
+      "applicability_limit": "不是任一具体集群已安全或经过认证的证据。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-07",
+      "title": "AWS Prescriptive Guidance: Transactional outbox",
+      "url": "https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html",
+      "version_observation": "current page observed 2026-09-30",
+      "fact_used": "业务写入与outbox同事务可避免数据库与消息双写窗口，消费者仍需幂等处理重复。",
+      "applicability_limit": "仅采用模式原理；不采用页面中将队列exactly-once扩张成外部效果保证的解读，不指定AWS。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-08",
+      "title": "PostgreSQL Continuous Archiving and PITR",
+      "url": "https://www.postgresql.org/docs/current/continuous-archiving.html",
+      "version_observation": "observed PostgreSQL 18 documentation",
+      "fact_used": "PITR依赖基础备份与连续WAL；配置文件变更不由WAL恢复。",
+      "applicability_limit": "只说明PostgreSQL范围，不保证跨库/对象存储/外部效应一致回滚，不指定托管SKU。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-09",
+      "title": "OpenTelemetry Handling sensitive data",
+      "url": "https://opentelemetry.io/docs/security/handling-sensitive-data/",
+      "version_observation": "page last modified 2026-01-14, observed 2026-09-30",
+      "fact_used": "Collector提供删除、过滤、裁剪等处理；采集者负责最小化，哈希不自动匿名。",
+      "applicability_limit": "处理器存在不代表本系统已经无泄漏；需在采集源及导出路径验证。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-10",
+      "title": "SLSA specification",
+      "url": "https://slsa.dev/spec/v1.2/",
+      "version_observation": "v1.2",
+      "fact_used": "SLSA定义供应链来源与保证的规范框架。",
+      "applicability_limit": "设计使用不等于获得某等级保证或认证。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-11",
+      "title": "Firebase Cloud Messaging message lifespan",
+      "url": "https://firebase.google.com/docs/cloud-messaging/customize-messages/setting-message-lifespan",
+      "version_observation": "current page observed 2026-09-30",
+      "fact_used": "返回message ID是接受投递而非设备送达；TTL、离线与折叠影响交付。",
+      "applicability_limit": "不作为重要决定唯一存储，也不代表APNs完全相同。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-12",
+      "title": "Cloud Run instance autoscaling",
+      "url": "https://docs.cloud.google.com/run/docs/about-instance-autoscaling",
+      "version_observation": "current page observed 2026-09-30",
+      "fact_used": "从零扩容由请求触发，后台处理要考虑最小实例或唤醒请求等配置。",
+      "applicability_limit": "只作为高度托管候选约束示例；不泛化至所有平台，不核验价格/SLA。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-13",
+      "title": "Stripe Webhooks",
+      "url": "https://docs.stripe.com/webhooks",
+      "version_observation": "current page observed 2026-09-30",
+      "fact_used": "webhook可能重复且不保证事件生成顺序；需验证签名并按事件身份处理。",
+      "applicability_limit": "作为支付接入事实示例，不已选定Stripe，不据此假设其他支付商完全相同。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-14",
+      "title": "OpenRouter BYOK",
+      "url": "https://openrouter.ai/docs/guides/overview/auth/byok",
+      "version_observation": "current page observed 2026-09-30",
+      "fact_used": "BYOK面向已支持提供商；页面明确共享容量fallback与控制设置。",
+      "applicability_limit": "兼容任意端点与具体账户多租户隔离仍需验证。本文不采用价格/免费额度，用户来源限制不能继承平台默认fallback。",
+      "accessed_on": "2026-09-30",
+      "source_type": "primary_official",
+      "price_or_sla_adopted": false
+    },
+    {
+      "id": "EXT-15",
+      "title": "Amazon S3 consistency model",
+      "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+      "fact_used": "对象GET/PUT/DELETE/HEAD强一致；标准多可用区与单区存储须区别。",
+      "applicability_limit": "仅支持独立恢复锚点的候选基础原语；不代表已选AWS、已验证完整恢复协议、采用价格或SLA。",
+      "accessed_on": "2026-10-01",
+      "source_type": "primary_official"
+    },
+    {
+      "id": "EXT-16",
+      "title": "Amazon S3 conditional writes",
+      "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html",
+      "fact_used": "If-Match和If-None-Match可用于比较当前对象版本及防重复创建。",
+      "applicability_limit": "仅支持独立恢复锚点的候选基础原语；不代表已选AWS、已验证完整恢复协议、采用价格或SLA。",
+      "accessed_on": "2026-10-01",
+      "source_type": "primary_official"
+    },
+    {
+      "id": "EXT-17",
+      "title": "Enforce conditional writes with bucket policies",
+      "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes-enforce.html",
+      "fact_used": "存储桶策略可要求条件写，防止调用者绕过条件。",
+      "applicability_limit": "仅支持独立恢复锚点的候选基础原语；不代表已选AWS、已验证完整恢复协议、采用价格或SLA。",
+      "accessed_on": "2026-10-01",
+      "source_type": "primary_official"
+    }
+  ],
+  "excluded": [
+    {
+      "url": "https://docs.aws.amazon.com/whitepapers/latest/transactional-outbox-pattern/transactional-outbox-pattern.html",
+      "result": "internal error; replaced by prescriptive guidance source EXT-07"
+    },
+    {
+      "url": "https://developer.apple.com/documentation/usernotifications/setting-up-a-remote-notification-server",
+      "result": "only directory/title content retrieved; no delivery guarantee inferred"
+    }
+  ],
+  "additional_accessed_on": "2026-10-01"
+}

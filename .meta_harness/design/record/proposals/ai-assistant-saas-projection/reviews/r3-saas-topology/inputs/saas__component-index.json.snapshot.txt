@@ -1,0 +1,394 @@
+{
+  "status": "candidate-pre-review",
+  "note": "SP IDs are report responsibility nodes, not mandatory independently deployed microservices. All are product SaaS periphery, not new harness contracts.",
+  "components": [
+    {
+      "id": "SP-01",
+      "name": "Identity and tenant provisioning",
+      "responsibility": "IdP verification and external-subject binding to framework-owned person/account/member; provisioning orchestration, recovery entry and device session integration",
+      "storage": "IdP binding and provisioning receipts; framework FC-02/03 remains sole account/member authority",
+      "owner": "SaaS identity",
+      "inputs": [
+        "verified IdP claims",
+        "registration intent"
+      ],
+      "outputs": [
+        "person/member binding",
+        "tenant provisioning receipt",
+        "session"
+      ],
+      "work_packages": [
+        "SWP-01"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-06",
+        "EP-10"
+      ],
+      "framework_authority": [
+        "FC-02",
+        "FC-03"
+      ]
+    },
+    {
+      "id": "SP-02",
+      "name": "Authorization and delegation enforcement",
+      "responsibility": "Product policy restrictions and authorization bridge; framework tool admission and HITL remain mandatory; product allow never overrides framework deny",
+      "storage": "control authorization records and revocation generations; durable decisions",
+      "owner": "SaaS security",
+      "inputs": [
+        "principal",
+        "resource",
+        "action",
+        "purpose",
+        "grant chain"
+      ],
+      "outputs": [
+        "allow/deny/wait decision",
+        "scoped delegation",
+        "revocation receipt"
+      ],
+      "work_packages": [
+        "SWP-02"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-03",
+        "EP-04",
+        "EP-05",
+        "EP-06",
+        "EP-07",
+        "EP-10",
+        "EP-12"
+      ],
+      "framework_authority": [
+        "FC-04",
+        "FC-07",
+        "FC-12"
+      ]
+    },
+    {
+      "id": "SP-03",
+      "name": "Client API and synchronization",
+      "responsibility": "Authenticated ingress, durable request receipts, upload coordination, versioned read projections, stream resume",
+      "storage": "request receipts and client sync cursors in data DB; user drafts remain client local until submitted",
+      "owner": "SaaS application",
+      "inputs": [
+        "client commands",
+        "resume cursor"
+      ],
+      "outputs": [
+        "accepted receipt",
+        "authoritative status projections",
+        "resumable updates"
+      ],
+      "work_packages": [
+        "SWP-03"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-02",
+        "EP-03",
+        "EP-08",
+        "EP-11"
+      ]
+    },
+    {
+      "id": "SP-04",
+      "name": "Content and artifact data",
+      "responsibility": "Originals, versions, derived artifacts, external snapshots, scoped downloads, lifecycle manifests",
+      "storage": "object store plus data metadata DB; separate indexes",
+      "owner": "SaaS data",
+      "inputs": [
+        "authorized upload",
+        "artifact result",
+        "version compare-and-set"
+      ],
+      "outputs": [
+        "immutable version reference",
+        "readability result",
+        "authorized download"
+      ],
+      "work_packages": [
+        "SWP-04"
+      ],
+      "execution_paths": [
+        "EP-02",
+        "EP-03",
+        "EP-07",
+        "EP-10",
+        "EP-11",
+        "EP-12"
+      ],
+      "framework_authority": [
+        "FC-20"
+      ]
+    },
+    {
+      "id": "SP-05",
+      "name": "Harness cell fleet and binding",
+      "responsibility": "Single-writer deployment cell, operational route and generation fencing, drain/upgrade/restore orchestration; references framework-owned tenant/site/session facts without a second domain master",
+      "storage": "control placement registry; per-cell harness-owned durable store",
+      "owner": "SaaS runtime platform",
+      "inputs": [
+        "tenant placement",
+        "accepted work",
+        "harness version manifest"
+      ],
+      "outputs": [
+        "cell route and generation",
+        "lifecycle receipt",
+        "harness capability adapter"
+      ],
+      "work_packages": [
+        "SWP-05"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-03",
+        "EP-04",
+        "EP-08",
+        "EP-11"
+      ],
+      "framework_authority": [
+        "FC-13",
+        "FC-14",
+        "FC-26",
+        "FC-29"
+      ]
+    },
+    {
+      "id": "SP-06",
+      "name": "User node onboarding and orchestration adapter",
+      "responsibility": "User enrollment UX, transport relay, identity bridge, locality enforcement and dispatch/result adapter; reuse framework node/workspace/work authority instead of redefining it",
+      "storage": "pairing and transport receipts; references to framework-owned node/work/attempt and workspace facts; local transport journal",
+      "owner": "SaaS execution platform",
+      "inputs": [
+        "enrollment approval",
+        "capability offer",
+        "authorized bounded work"
+      ],
+      "outputs": [
+        "placement evidence",
+        "dispatch receipt",
+        "result/unknown/cancel receipt"
+      ],
+      "work_packages": [
+        "SWP-06"
+      ],
+      "execution_paths": [
+        "EP-03",
+        "EP-05",
+        "EP-06",
+        "EP-08"
+      ],
+      "framework_authority": [
+        "FC-20",
+        "FC-26",
+        "FC-29"
+      ]
+    },
+    {
+      "id": "SP-07",
+      "name": "External connections and effect gateway",
+      "responsibility": "OAuth token custody, channel-specific read/write adapters, inbound change normalization, external effect reconciliation",
+      "storage": "encrypted token vault; connection and callback/effect journals",
+      "owner": "SaaS integrations",
+      "inputs": [
+        "user OAuth consent",
+        "scoped effect request",
+        "signed external webhook"
+      ],
+      "outputs": [
+        "capability receipt",
+        "scoped event",
+        "external effect evidence"
+      ],
+      "work_packages": [
+        "SWP-07"
+      ],
+      "execution_paths": [
+        "EP-04",
+        "EP-06",
+        "EP-12"
+      ]
+    },
+    {
+      "id": "SP-08",
+      "name": "Notification and decision delivery",
+      "responsibility": "Durable inbox, preference-aware delivery, push/email adapters, decision convergence",
+      "storage": "inbox and delivery attempts; device push token references",
+      "owner": "SaaS application",
+      "inputs": [
+        "durable result or decision-needed event",
+        "notification preference"
+      ],
+      "outputs": [
+        "inbox item",
+        "delivery receipt",
+        "decision submission to authority"
+      ],
+      "work_packages": [
+        "SWP-08"
+      ],
+      "execution_paths": [
+        "EP-03",
+        "EP-04",
+        "EP-06",
+        "EP-08",
+        "EP-12"
+      ],
+      "framework_authority": [
+        "FC-21",
+        "FC-22"
+      ]
+    },
+    {
+      "id": "SP-09",
+      "name": "Interactive artifact hosting and sharing",
+      "responsibility": "Immutable deployment versions, separated generated-code origin/runtime, per-artifact data, sharing and unpublish lifecycle",
+      "storage": "artifact deployments in object store; per-artifact application data; grants",
+      "owner": "SaaS artifact platform",
+      "inputs": [
+        "validated build",
+        "publish intent",
+        "share selection"
+      ],
+      "outputs": [
+        "usable URL/version",
+        "scoped participant access",
+        "unpublish/export receipt"
+      ],
+      "work_packages": [
+        "SWP-09"
+      ],
+      "execution_paths": [
+        "EP-07",
+        "EP-10"
+      ],
+      "framework_authority": [
+        "FC-20"
+      ]
+    },
+    {
+      "id": "SP-10",
+      "name": "Budget, usage and commercial service",
+      "responsibility": "Entitlements, authorized source routing, budget reservations, usage reconciliation, payment integration, cancel-renewal",
+      "storage": "usage and money ledgers; reservations; provider receipts",
+      "owner": "SaaS commerce",
+      "inputs": [
+        "consumption authorization",
+        "metered facts",
+        "payment webhook"
+      ],
+      "outputs": [
+        "reservation",
+        "settled/estimated/unknown cost",
+        "service entitlement"
+      ],
+      "work_packages": [
+        "SWP-10"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-03",
+        "EP-04",
+        "EP-05",
+        "EP-09",
+        "EP-10"
+      ]
+    },
+    {
+      "id": "SP-11",
+      "name": "Cloud operations and observability",
+      "responsibility": "IaC, environments, network/key isolation, telemetry, audit transport, SLOs, backup/restore, supply chain and incident operations",
+      "storage": "redacted telemetry store; protected audit store; encrypted backup inventory",
+      "owner": "SaaS platform/SRE",
+      "inputs": [
+        "deployment manifests",
+        "structured runtime events",
+        "backup manifests"
+      ],
+      "outputs": [
+        "provenance",
+        "operational evidence",
+        "restore results",
+        "incident status"
+      ],
+      "work_packages": [
+        "SWP-11"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-02",
+        "EP-03",
+        "EP-04",
+        "EP-05",
+        "EP-06",
+        "EP-07",
+        "EP-08",
+        "EP-09",
+        "EP-10",
+        "EP-11",
+        "EP-12"
+      ]
+    },
+    {
+      "id": "SP-12",
+      "name": "Privacy, export and support operations",
+      "responsibility": "Data inventory, scoped export/delete workflows, account exit, support diagnostics and privileged access review",
+      "storage": "lifecycle jobs and manifests; deletion tombstones; support access records",
+      "owner": "SaaS trust and operations",
+      "inputs": [
+        "verified lifecycle request",
+        "selected diagnostic scope",
+        "support case"
+      ],
+      "outputs": [
+        "export bundle",
+        "deletion/retention report",
+        "audited time-limited support action"
+      ],
+      "work_packages": [
+        "SWP-12"
+      ],
+      "execution_paths": [
+        "EP-06",
+        "EP-08",
+        "EP-10"
+      ]
+    },
+    {
+      "id": "SP-13",
+      "name": "Desktop and mobile delivery shell",
+      "responsibility": "Native login, device key custody, local drafts and clipboard preview, resumable uploads, update signing, accessibility and offline honesty",
+      "storage": "OS secure credential store; account-scoped encrypted local drafts/cache",
+      "owner": "SaaS clients",
+      "inputs": [
+        "user local gesture",
+        "notification/deep link",
+        "signed update"
+      ],
+      "outputs": [
+        "explicit submitted input",
+        "resumed view",
+        "device presence"
+      ],
+      "work_packages": [
+        "SWP-13"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-02",
+        "EP-03",
+        "EP-05",
+        "EP-06",
+        "EP-07",
+        "EP-08",
+        "EP-10",
+        "EP-11",
+        "EP-12"
+      ]
+    }
+  ]
+}

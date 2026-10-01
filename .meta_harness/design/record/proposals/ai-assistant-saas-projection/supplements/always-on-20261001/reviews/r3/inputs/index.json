@@ -1,0 +1,17 @@
+[
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/issue-compaction-attribution.md",
+    "snapshot": "issue-compaction-attribution.md.snapshot.txt",
+    "sha256": "2c84b7428e7c390f519a134bbc89bf7931488e149e1cf5c04156087c4b6e42c3"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/analysis.md",
+    "snapshot": "analysis.md.snapshot.txt",
+    "sha256": "bc4064f5466f101c03a9b093374c3405ffe468b76a9480712726e5cf1ae2dd1b"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/review.md",
+    "snapshot": "review.md.snapshot.txt",
+    "sha256": "fbd7515ea6ed25a650bcb224e4ea1896a240fdf650017a136cd7f5a12a4eab71"
+  }
+]

@@ -1,0 +1,41 @@
+## Zoom-out 判断
+
+**结论：无阻断。报告足以支撑可行性、规模、责任与顺序判断，可作为候选报告交付，但需先做几处修订，其中两处涉及结论稳定性。**
+
+从产品目标看，合并后的正文是连续的：18 个模块到 12 条执行路径到 5 个接缝再到 58 节点工作图，每一层都能回指到原稿功能与故事，且框架、产品层、外围三方在主线正文里各有唯一 owner，没有发现双主。R4 三组与 R5 两组的修订在 design.md、execution-topology.md、peripheral-design.md、alternatives.md、components.json 五份文件中彼此一致。用户点名的七个关注面里，③④⑤⑥ 在正文中有明确且互相一致的表述。估算明确自称未校准量级，没有夸大；阅读顺序清楚。
+
+真正影响结论的稳定发现有三个。第一，报告把"每次模型调用前的 SaaS 预算准入"列为最重要的成本控制接缝，但在唯一依赖权威 work-plan.json 里，这个接缝只登记在 SaaS 拥有的 IF-05 里，框架侧没有任何里程碑或包产出承接它。R5 刚把框架轨道与 SaaS 解耦，这意味着框架轨道可以在不提供该装配点的情况下完成验收。第二，review.md 声称 R5 架构修订已镜像到逐项 JSON，实际 JSON 与三章渲染仍停在 R4 措辞，这是一处完成状态夸大。第三，产品最核心的承诺"没有新指令也主动改善"在执行路径里缺少唤醒来源的明确说明，且负责该策略的 PWP-03 在图上不依赖负责 Schedule 装配的 PWP-10。
+
+这三项都可以用一段规则加几条边闭合，不需要重开框架可行性或候选空间。
+
+## 编号发现
+
+### 可交付但修订
+
+| 编号 | 严重性 | 具体位置 | 影响 | 最小修订 |
+|---|---|---|---|---|
+| F1 | 中高 | `data/work-plan.json` IF-05 output（L1423）写"每次平台计费模型发出前的预算准入是必需可替换调用装配接缝"；IF-02 output（L1362）、FW-01 output（L1695）、HWP-03 scope（L108）均未提及该装配点；`peripheral-design.md` §2.2、§3.3 说"HWP-01/03 + SWP-10 须明确"却无对应图节点 | 框架轨道按 FW-01/IF-02 独立推进后，HWP-03 可以不提供"调用创建前"的可替换准入点就验收。SL-COST 到时只能在传输层包一层，那正是 R5-A01 排除的"借凭据取值点"做法。P07 不超发的保护点在图上仍是"有前提地能" | IF-02 output 或 FW-01 output 加一句：模型请求创建前的可替换准入装配点，FC-19 Loop 拓展点或可替换发出闭包，供 IF-05 消费。HWP-03 或 HWP-04 scope 点名该装配点归属。不要求现在写接口内容 |
+| F2 | 中 | `review.md` L44 称 R5 架构修订"镜像到执行拓扑、主报告、组件和逐项JSON"。`data/feature-projections.json` 仍为 revision 2，L1892 及另 17 处 control_restore 写"控制库PITR恢复须新鲜restore epoch"；`features/m01-m06.md` 同 18 处。JSON 与三章中 0 处出现"任一权威""调用创建前""credential_unavailable"。`features/m13-m18.md` M16.6/M16.7（L949 起）预算链未区分调用前等待与已建 MRR 终态 | 正文与 JSON 不矛盾，但精度不同。读者按 review.md 相信 JSON 已同步会误判；verification.json 的机械核对不覆盖这类语义漂移。R4 处置已声明 revision 2 冻结，后续镜像应出 revision 3 | 二选一：review.md 改为"R5 架构修订镜像到执行拓扑、主报告、外围、候选与组件；逐项 JSON 与三章保留 R4 措辞，恢复门与预算准入以 design.md §5.3/§5.4 及 EP-06/08/09 为准"；或按 R4 流程出 revision 3，更新 control_restore 与 M16.6/M16.7/M16.10 并重渲染三章 |
+| F3 | 中 | `execution-topology.md` EP-04 步骤 1 说事件可来自"对已有经验的新判断"，步骤 2 说"真正用户选择的定期简报/检查才使用周期日程"；`features/m01-m06.md` M03.1 L543 "无新命令/待办时现实观察或经验新判断触发"；`data/work-plan.json` PWP-03 depends_on 为 PWP-01/02/06、SWP-10，start_milestones 为 IF-02/05/07，无 IF-04，图上不依赖 PWP-10；IV-MEMORY 只依赖 PWP-01/03 | "经验新判断"需要 agent 先运行，而 S04 场景既无外部事件也无用户安排。唤醒来源在正文中缺位，只能靠周期 Job，却被限定为用户简报类。PWP-03 与 IV-MEMORY 可在不消费 PWP-10 Schedule 装配的情况下"验收"。§11 算例的 W·e·q 只覆盖事件驱动后台活动，未含自省类周期 Job | EP-04 步骤 1 明确：S04 类唤醒属于"经用户同意的定期自省 Schedule"，归用户明确安排一类，由 PWP-10 装配，频率默认值待产品选定（D03）。work-plan 为 PWP-03 加 PWP-10 acceptance-prerequisite 或为 IV-MEMORY 加 PWP-10，PWP-03 start 加 IF-04。§11 加一项自省 Job 或注明未计入 |
+| F4 | 中低 | `research/ai-assistant-saas-projection/framework-baseline.md` L600-601 "可复核材料"链接指向 `../../../tmp/ai-assistant-projection-20260930/framework/…`；`report.html` L9626-9627 同。研究目录内已有 framework-capabilities.json 与 framework-dependencies.md | tmp 被 Git 忽略，报告第 9 步阅读入口断链；`.meta_harness` 迁出后不可复现。feature-projections.json 的 origin_snapshots 带 sha，属来源记录，可保留 | 两处链接改为研究目录内同名文件；重生成 report.html |
+| F5 | 低 | `execution-topology.md` L31-33 总体拓扑 mermaid：P 到 B[预算与服务来源 SP-10] 到 H，HR 直连 OR；`peripheral-design.md` §2.1 图与 `assets/runtime-topology.dot` L20 已改为每调用准入 | 读图者会把预算门理解为进 cell 前检查一次。R5 架构评审已转 spec-reviewer，未处理 | mermaid 在 HR 与 OR 之间加"每调用预算准入 IF-05/IF-02"节点，或删 B 节点改为注释 |
+| F6 | 低 | `delivery-plan.md` L48-53 mermaid：D[PWP05] 与 A[PWP12] 直接到 G3；L63 表定义 G2 含"节点、成果可并行形成证据"；IV-NODE/IV-ARTIFACT 均是 IWP-02 前置 | R5-07 第二条未处理，图与表对 G2 范围说法不一 | D、A 改为指向 G2 |
+| F7 | 低 | `review.md` 只有 R1/R2/R3 逐项处置节；R5-计划 R5-01 到 R5-07 仅在 zoom-out 段一句概括；无 r5-plan-disposition 快照 | 读者无法逐条核对 R5 中等发现去向；F5/F6 这类未处理项没有登记位置 | review.md 加"R5 逐项处置"节，列 R5-01 到 07 与 R5-A01 到 04 各自状态，含未处理项 |
+| F8 | 低 | `data/work-plan.json` IWP-01 depends_on（L1131-1148）含 SWP-02、SWP-05、SWP-11 整包；SWP-02 done_when 含分享、客服提升；SWP-05 含 cell 迁移取证；SWP-11 含恢复演练与 fresh epoch 全套 | 与 SL-COST/SL-THING 切片思路不一致，G1"尽早校准"时点被非首闭环范围拖后。不改变可行性结论 | 可选：仿 SL-COST 切授权与运维切片，或在 delivery-plan 注明 G1 有意等待这三包整包及理由 |
+| F9 | 低 | `README.md` 标题与全文无 Relay 命名说明，`design.md` 标题为 Relay；design.md §3 表"Relay仍需建设的主体"列混用 SP-xx 责任节点与 PWP/HWP 工作包 ID | 轻微。SP 与 SWP 一比一已在 components.json 明确 | README 首段一句说明品牌命名来源；§3 表头注"SP 为责任节点，对应同号 SWP 包" |
+
+### 已闭合（本轮核实）
+
+- **R2 P01 到 P11、R3 A01 到 A20**：按 R5 两份复审逐项对照，本轮抽核 work-plan、peripheral、EP 三处一致。Run 日志效果键、独立恢复 epoch、注册查回、共享 cell 前提、治理 SQLite、围栏取证 owner（SP-11 执行、SP-05 消费）在 peripheral §5.1、alternatives A、components SP-05/SP-11 三处说法相同。
+- **R5-01**：FW-01 与 IF-02 无 SaaS 前置；HWP 链 start 仅 FW-01/IF-02/03/04。**R5-02**：IF-03/04 producer 改 HWP-01。**R5-03**：SL-COST 成立。**R5-04**：IV 各自声明 start，IWP-02 明示不继承。**R5-05**：IF-08 依赖 IF-04，PWP-04/09 加 HWP-06。**R5-06**：SL done_when 改为可观察属性。**R5-07**：PR-04 加 phase，PR-01/02 reviewer 对齐；残留见 F6/F9。
+- **R5-A01 到 A04**：调用前等待与 MRR 终态、任一权威回滚、独立恢复域强一致指针与条件激活、失根全关重建、callId 寿命，在 design.md §5.2 到 §5.4、EP-04/06/08/09、peripheral §3.3/§4.4/§5.1/§6.3/§8、alternatives、components 一致。JSON 侧见 F2。
+- **R4 三组**：决定分型、事件机械接收、中心 Run 远端工具、删除与送达边界、连接凭据单 owner 在 EP 与 JSON 中一致；R4-C 称 60 项系笔误，实际 57。
+- **数字**：165 等于 4+24+10+127，按定位表逐条数对；18 模块功能数与 verification.json 一致；人周 108/187/302 按 37 包三档逐包加和无误；140 等于 187 减 47；58 节点等于 37 加 21；64 accepted 与 50 节点与框架基线一致；30 细化、224 行、5 全局、6 待定一致。
+
+## 实际核对范围
+
+**全文读过**：design.md、execution-topology.md、peripheral-design.md（407 行）、delivery-plan.md、review.md、README.md、alternatives.md、journey-acceptance.md、feature-projection.md 定位表、data/work-plan.json 全文（37 包、21 里程碑、259 边、拓扑序）、data/components.json、data/verification.json、data/README.md、R5 两份 review.md、R4 三份 result.json、R4 与 R5 架构处置快照、research README、framework-baseline.md。
+
+**抽查**：features/*.md 与 feature-projections.json 只按关键词抽查 M03.1、M16.6、M16.7、M18.2 四项，以及 control_restore、callId、reply-to-card、epoch、IF-05 等出现次数。未逐条读 165 项，不声称复审 R4 全量。
+
+**未做**：未运行脚本或检查器；未重算 259 边无环，信 verification.json 与 R5-计划的逐位核对；未计算文件哈希；未访问外部 URL；未读 PF 原文，沿用框架基线读数；未读 design_legacy；未评价品牌视频任务；未修改任何文件。

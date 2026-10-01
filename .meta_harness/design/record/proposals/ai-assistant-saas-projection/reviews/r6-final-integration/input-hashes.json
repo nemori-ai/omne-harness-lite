@@ -1,0 +1,92 @@
+[
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/README.md",
+    "sha256": "29bb46eff20ee46aafbb09b30921ddaa9748304a4b20825a2653902d620f4b94",
+    "snapshot": "inputs/README.md.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/alternatives.md",
+    "sha256": "1be29ac9b5f488df9302fdb684671b55c5f2551917eb56b505568830139bcecc",
+    "snapshot": "inputs/alternatives.md.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/data/README.md",
+    "sha256": "a336b175dafca75aeaff3ab5274c9cfab40f732585735b761a933e891dc9cb27",
+    "snapshot": "inputs/data__README.md.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/data/components.json",
+    "sha256": "55f5059eb319643dd54c7849f1ee2bbba12fa43a0cd8f01c837c70da8f6b6def",
+    "snapshot": "inputs/data__components.json.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/data/feature-projections.json",
+    "sha256": "29820a8690a13364fef8d9026801ffbb4238a759f20928240ebdaef6e8bdbae1",
+    "snapshot": "inputs/data__feature-projections.json.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/data/journey-acceptance.json",
+    "sha256": "4eff56a3f8362f10ae4b5a385bf06286b16ec5ef967fa4b9f228af92e007487f",
+    "snapshot": "inputs/data__journey-acceptance.json.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/data/verification.json",
+    "sha256": "56e822cab7864bb3a3b0a104c8379a2bee89e8405af0fc0a61cec35431ea22e0",
+    "snapshot": "inputs/data__verification.json.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/data/work-plan.json",
+    "sha256": "ad7a58e69c7ed80fb7f1199cfe73deafab76682c84cb9c096f6c6f4eabffd56f",
+    "snapshot": "inputs/data__work-plan.json.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/delivery-plan.md",
+    "sha256": "06509ef75f97f530520a7ac775246bb59a44fea97c8a2b45193be60380c4526d",
+    "snapshot": "inputs/delivery-plan.md.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/design.md",
+    "sha256": "402363474d8fec8ccc474bfad2ad8c741e83999fddde5f25ad5ee27a688f2784",
+    "snapshot": "inputs/design.md.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/execution-topology.md",
+    "sha256": "08365f6bd9ce8105a06af066ce8589af0280033aef006d78e76ce85dcda00b19",
+    "snapshot": "inputs/execution-topology.md.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/feature-projection.md",
+    "sha256": "8d0a8a03c67b09caa04b500fa47665d071bfc70c9a0451206cf3e972b3535977",
+    "snapshot": "inputs/feature-projection.md.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/features/m01-m06.md",
+    "sha256": "72c723045b990b226c910c71b990a2377411f4db4c9de7125e9e5c7243df3961",
+    "snapshot": "inputs/features__m01-m06.md.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/features/m07-m12.md",
+    "sha256": "5b96123110abd778a77e36a7107c49b3aed99e287323ad4214f283f30be50203",
+    "snapshot": "inputs/features__m07-m12.md.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/features/m13-m18.md",
+    "sha256": "6ce7c0e4b525a50e780c97fa150390aaf46daf065aab5f0199cf8770b196568e",
+    "snapshot": "inputs/features__m13-m18.md.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/journey-acceptance.md",
+    "sha256": "9ac53597932ad29e8f55efb05f65a7d7798700c818cd32822b8f55d3deebe77b",
+    "snapshot": "inputs/journey-acceptance.md.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/peripheral-design.md",
+    "sha256": "8ce4de8efd0138262bfedbcbf3937557987526f8a076c7526500c21d9997f443",
+    "snapshot": "inputs/peripheral-design.md.snapshot.txt"
+  },
+  {
+    "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/review.md",
+    "sha256": "a7d48d3fa10cad710a000f67647920a9e44e5e6525b2bd1d25f52d22f463ad7c",
+    "snapshot": "inputs/review.md.snapshot.txt"
+  }
+]

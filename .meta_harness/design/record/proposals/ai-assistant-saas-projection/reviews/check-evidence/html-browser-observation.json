@@ -1,0 +1,21 @@
+{
+  "tool": "Chrome DevTools MCP",
+  "page": "report.html",
+  "observed_date": "2026-10-01",
+  "desktop": {
+    "viewport": 1376,
+    "document_scroll_width": 1376,
+    "feature_details": 165,
+    "loaded_images": 2,
+    "broken_in_page_anchors": 0,
+    "updated_58_node_text_present": true,
+    "updated_21_milestone_text_present": true
+  },
+  "limits": "Final desktop and mobile rechecked after R4/R5 wording revisions. Screenshot visually inspected in tool response, not archived as a local image. Presentation QA only, not product acceptance.",
+  "final_mobile": {
+    "viewport": 390,
+    "document_scroll_width": 390,
+    "expand_all": 165,
+    "collapse_all": 0
+  }
+}

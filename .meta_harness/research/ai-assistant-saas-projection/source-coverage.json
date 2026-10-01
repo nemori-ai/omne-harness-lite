@@ -1,0 +1,4826 @@
+{
+  "scope": "假设性产品需求投影输入的独立领域读数；无实现、无正式接受、无对既有框架承诺的挑战。",
+  "workspace_proof": {
+    "cwd": "/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish",
+    "branch": "pandazki/frontend-upstream-sync-20260930"
+  },
+  "inputs": {
+    "product": {
+      "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+      "sha256": "0e9af1991abbbaaa8d2fb88c84561da8951cc0aeb9c1fc86941bf1fd849f423e",
+      "lines": 587
+    },
+    "stories": {
+      "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+      "sha256": "e7250ac5a949aaa59bf287c5d49ad965e8e3c44dafb20895f6664b7c4cff166f",
+      "lines": 512
+    },
+    "reading": {
+      "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/阅读说明.md",
+      "sha256": "a6eeba518b9e71cc8268e33959d6b81da6733cebb5bded75a5241d416804d8d7",
+      "lines": 33
+    }
+  },
+  "sealed": true,
+  "seal_rule": "本次读数未读取框架设计或机制。后续只能按明确补漏版本重新封存。",
+  "classification_note": "confirmed是来源内部分类；mixed按status_parts分开，禁止整项提升为confirmed。",
+  "counts": {
+    "features": 165,
+    "stories": 23,
+    "modules": 18,
+    "feature_statuses": {
+      "confirmed": 159,
+      "mixed": 1,
+      "suggested": 5
+    },
+    "story_narrative_units": 224,
+    "story_supplements": 27,
+    "cross_module_requirements": 5,
+    "deferred_commitments": 6,
+    "features_without_direct_story_evidence": 10
+  },
+  "checks": {
+    "feature_count_is_165": true,
+    "story_count_is_23": true,
+    "feature_ids_match_source": true,
+    "feature_ids_unique": true,
+    "story_ids_match_source": true,
+    "story_ids_unique": true,
+    "all_story_body_requirement_lines_retained": true,
+    "no_dangling_feature_refs": true,
+    "all_supplements_linked_to_source_units": true,
+    "source_rows_exact": true
+  },
+  "feature_ids": [
+    "M01.1",
+    "M01.2",
+    "M01.3",
+    "M01.4",
+    "M01.5",
+    "M01.6",
+    "M01.7",
+    "M01.8",
+    "M02.1",
+    "M02.2",
+    "M02.3",
+    "M02.4",
+    "M02.5",
+    "M02.6",
+    "M02.7",
+    "M02.8",
+    "M03.1",
+    "M03.2",
+    "M03.3",
+    "M03.4",
+    "M03.5",
+    "M03.6",
+    "M03.7",
+    "M03.8",
+    "M03.9",
+    "M04.1",
+    "M04.2",
+    "M04.3",
+    "M04.4",
+    "M04.5",
+    "M04.6",
+    "M04.7",
+    "M04.8",
+    "M04.9",
+    "M04.10",
+    "M04.11",
+    "M04.12",
+    "M05.1",
+    "M05.2",
+    "M05.3",
+    "M05.4",
+    "M05.5",
+    "M05.6",
+    "M05.7",
+    "M05.8",
+    "M05.9",
+    "M05.10",
+    "M05.11",
+    "M05.12",
+    "M06.1",
+    "M06.2",
+    "M06.3",
+    "M06.4",
+    "M06.5",
+    "M06.6",
+    "M06.7",
+    "M06.8",
+    "M07.1",
+    "M07.2",
+    "M07.3",
+    "M07.4",
+    "M07.5",
+    "M07.6",
+    "M07.7",
+    "M07.8",
+    "M07.9",
+    "M07.10",
+    "M08.1",
+    "M08.2",
+    "M08.3",
+    "M08.4",
+    "M08.5",
+    "M08.6",
+    "M08.7",
+    "M08.8",
+    "M08.9",
+    "M09.1",
+    "M09.2",
+    "M09.3",
+    "M09.4",
+    "M09.5",
+    "M09.6",
+    "M09.7",
+    "M09.8",
+    "M09.9",
+    "M10.1",
+    "M10.2",
+    "M10.3",
+    "M10.4",
+    "M10.5",
+    "M10.6",
+    "M10.7",
+    "M10.8",
+    "M11.1",
+    "M11.2",
+    "M11.3",
+    "M11.4",
+    "M11.5",
+    "M11.6",
+    "M11.7",
+    "M11.8",
+    "M12.1",
+    "M12.2",
+    "M12.3",
+    "M12.4",
+    "M12.5",
+    "M12.6",
+    "M12.7",
+    "M13.1",
+    "M13.2",
+    "M13.3",
+    "M13.4",
+    "M13.5",
+    "M13.6",
+    "M13.7",
+    "M13.8",
+    "M13.9",
+    "M13.10",
+    "M14.1",
+    "M14.2",
+    "M14.3",
+    "M14.4",
+    "M14.5",
+    "M14.6",
+    "M14.7",
+    "M14.8",
+    "M14.9",
+    "M15.1",
+    "M15.2",
+    "M15.3",
+    "M15.4",
+    "M15.5",
+    "M15.6",
+    "M15.7",
+    "M15.8",
+    "M16.1",
+    "M16.2",
+    "M16.3",
+    "M16.4",
+    "M16.5",
+    "M16.6",
+    "M16.7",
+    "M16.8",
+    "M16.9",
+    "M16.10",
+    "M17.1",
+    "M17.2",
+    "M17.3",
+    "M17.4",
+    "M17.5",
+    "M17.6",
+    "M17.7",
+    "M17.8",
+    "M17.9",
+    "M17.10",
+    "M18.1",
+    "M18.2",
+    "M18.3",
+    "M18.4",
+    "M18.5",
+    "M18.6",
+    "M18.7",
+    "M18.8",
+    "M18.9",
+    "M18.10"
+  ],
+  "story_ids": [
+    "S01",
+    "S02",
+    "S03",
+    "S04",
+    "S05",
+    "S06",
+    "S07",
+    "S08",
+    "S09",
+    "S10",
+    "S11",
+    "S12",
+    "S13",
+    "S14",
+    "S15",
+    "S16",
+    "S17",
+    "S18",
+    "S19",
+    "S20",
+    "S21",
+    "S22",
+    "S23"
+  ],
+  "modules": {
+    "M01": {
+      "title": "持续目标对齐与记忆",
+      "section": "四 核心能力的功能拆解",
+      "heading_line": 140,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 142,
+        "line_end": 142,
+        "text": "**用户结果**。相处越久，助理越能理解用户的方向、背景与取舍。用户无需每次从头解释，也可以知道助理为何这样理解自己。来源：既有目标＋本轮确认。"
+      }
+    },
+    "M02": {
+      "title": "时间感与现实感知",
+      "section": "四 核心能力的功能拆解",
+      "heading_line": 161,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 163,
+        "line_end": 163,
+        "text": "**用户结果**。助理理解用户所处的时间、环境与信息状况，能区分“当时如此”与“现在如此”，以及“没有变化”与“尚不知道”。来源：既有目标＋本轮确认。"
+      }
+    },
+    "M03": {
+      "title": "主动行动与资源权衡",
+      "section": "四 核心能力的功能拆解",
+      "heading_line": 182,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 184,
+        "line_end": 184,
+        "text": "**用户结果**。助理能够自主形成行动理由，在用户连续目标下投入资源、获得进展，并随现实变化调整。来源：本轮确认；用量与暂停能力延续既有目标。"
+      }
+    },
+    "M04": {
+      "title": "协同资源",
+      "section": "四 核心能力的功能拆解",
+      "heading_line": 204,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 206,
+        "line_end": 206,
+        "text": "**用户结果**。用户与助理能用共同的快捷方式和视觉心智，将外部往来、材料、其他助理和能力接入具体事情，并管理它们的使命。来源：延续＋本轮确认。"
+      }
+    },
+    "M05": {
+      "title": "多节点分布式协作",
+      "section": "四 核心能力的功能拆解",
+      "heading_line": 225,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 227,
+        "line_end": 227,
+        "text": "**用户结果**。用户从任意客户端与自己的助理交流，助理能够利用其他已接入设备和云端节点的算力、生产资料与特定能力完成工作。来源：既有多机目标＋本轮明确确认。这是核心产品能力。"
+      }
+    },
+    "M06": {
+      "title": "事情与长期推进",
+      "section": "五 工作与交付的功能拆解",
+      "heading_line": 256,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 258,
+        "line_end": 258,
+        "text": "**用户结果**。用户可以把跨度长、步骤不确定、需要多方配合的一件事交给助理共同推进，随时了解现实进展。来源：延续＋既有目标＋本轮确认。"
+      }
+    },
+    "M07": {
+      "title": "对话与多模态交付",
+      "section": "五 工作与交付的功能拆解",
+      "heading_line": 277,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 279,
+        "line_end": 279,
+        "text": "**用户结果**。用户可以自然表达目标、提供材料和干预工作，助理准确理解这次交付的内容与行为语境。来源：延续＋既有目标。"
+      }
+    },
+    "M08": {
+      "title": "资料与个人内容",
+      "section": "五 工作与交付的功能拆解",
+      "heading_line": 300,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 302,
+        "line_end": 302,
+        "text": "**用户结果**。资料属于用户，可以独立收纳、编辑与使用，同时为助理的理解和行动提供可靠依据。来源：延续＋既有目标。"
+      }
+    },
+    "M09": {
+      "title": "人、往来与外部协作",
+      "section": "五 工作与交付的功能拆解",
+      "heading_line": 322,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 324,
+        "line_end": 324,
+        "text": "**用户结果**。助理理解人与事情的关系，能在获准范围内参与真实往来，持续承接反馈。来源：延续＋本轮确认；完整跨方旅程为目标。"
+      }
+    },
+    "M10": {
+      "title": "日历、日程与持续关注",
+      "section": "五 工作与交付的功能拆解",
+      "heading_line": 344,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 346,
+        "line_end": 346,
+        "text": "**用户结果**。用户的约定、需要本人行动的提醒、助理将做的工作和持续的信息关注，都有清楚的时间语义。来源：延续＋既有目标。"
+      }
+    },
+    "M11": {
+      "title": "调查、委派与成果",
+      "section": "五 工作与交付的功能拆解",
+      "heading_line": 365,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 367,
+        "line_end": 367,
+        "text": "**用户结果**。助理可以组织多种能力共同完成工作，交付有依据、可实际使用的成果。来源：延续＋既有目标＋本轮确认。"
+      }
+    },
+    "M12": {
+      "title": "交互式成果",
+      "section": "五 工作与交付的功能拆解",
+      "heading_line": 386,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 388,
+        "line_end": 388,
+        "text": "**用户结果**。用户可以把结果变成之后仍能打开、操作和协作使用的页面或小工具。来源：延续需求＋既有目标；完整发布与分享体验仍需完善。"
+      }
+    },
+    "M13": {
+      "title": "视角、关注与通知批阅",
+      "section": "六 用户掌握与参与的功能拆解",
+      "heading_line": 408,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 410,
+        "line_end": 410,
+        "text": "**用户结果**。用户能够理解当前值得关注的事情，迅速进入需要自己参与的部分，同时保有安静工作与生活的空间。来源：延续＋既有目标。"
+      }
+    },
+    "M14": {
+      "title": "跨平台客户端与桌面助理",
+      "section": "六 用户掌握与参与的功能拆解",
+      "heading_line": 431,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 433,
+        "line_end": 433,
+        "text": "**用户结果**。用户通过适合当下的入口与同一个助理相处，轻量入口与完整工作体验保持连续。来源：延续＋本轮确认。"
+      }
+    },
+    "M15": {
+      "title": "账号与即用服务",
+      "section": "七 商业服务基础的功能拆解",
+      "heading_line": 451,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 453,
+        "line_end": 453,
+        "text": "**用户结果**。用户只需注册登录即可获得一套可用服务，接入客户端、设备和私人账户的过程都由产品引导。来源：本轮确认；找回、退出等为建议补充。"
+      }
+    },
+    "M16": {
+      "title": "模型、算力与用量",
+      "section": "七 商业服务基础的功能拆解",
+      "heading_line": 468,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 470,
+        "line_end": 470,
+        "text": "**用户结果**。用户可以使用自己的 API 或平台服务，清楚了解可用能力、投入、费用与限制，助理能够据此安排工作。来源：本轮确认＋既有预算目标；具体计价为待定事项。"
+      }
+    },
+    "M17": {
+      "title": "授权、隐私与行动控制",
+      "section": "七 商业服务基础的功能拆解",
+      "heading_line": 491,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 493,
+        "line_end": 493,
+        "text": "**用户结果**。用户知道助理能使用什么、已经做了什么，并能有效收回权限和干预工作。来源：延续＋既有目标＋本轮确认。"
+      }
+    },
+    "M18": {
+      "title": "可靠性、数据与支持",
+      "section": "七 商业服务基础的功能拆解",
+      "heading_line": 510,
+      "source_statement": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 512,
+        "line_end": 512,
+        "text": "**用户结果**。用户能够长期托付工作，知道服务出了什么问题、哪些结果可信，以及怎样恢复或求助。来源：延续＋既有目标；面向正式服务的细化条目含建议补充。"
+      }
+    }
+  },
+  "narrative_units": [
+    {
+      "id": "S01:L19",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 19,
+        "line_end": 19,
+        "text": "**起因与目标**。用户希望助理帮自己整理活动材料，但没有部署经验，也不想为了试用先研究服务器与连接配置。"
+      },
+      "feature_ids": [
+        "M15.1",
+        "M15.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S01:L23",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 23,
+        "line_end": 23,
+        "text": "1. 用户注册账号，下载受支持的客户端并登录，看到自己的助理与可开始工作的入口，不需要先选择个人或团队版本。"
+      },
+      "feature_ids": [
+        "M15.1",
+        "M14.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S01:L24",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 24,
+        "line_end": 24,
+        "text": "2. 用户选择平台提供的 AI 与算力服务；已有服务的用户也可以填写兼容的 API。两条路径分别说明可用能力、计费来源和限制。"
+      },
+      "feature_ids": [
+        "M16.1",
+        "M16.3",
+        "M16.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S01:L25",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 25,
+        "line_end": 25,
+        "text": "3. 用户交入一份活动需求书：“先帮我理一下要准备什么。”不必先建项目、分类或填写个人画像。"
+      },
+      "feature_ids": [
+        "M07.1",
+        "M01.1"
+      ],
+      "supplement_ids": [
+        "X01"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S01:L26",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 26,
+        "line_end": 26,
+        "text": "4. 助理读取材料并整理目标、交付物与缺口。文件里已经写明的日期和用途不再追问；真正影响下一步的事实缺失时才询问。"
+      },
+      "feature_ids": [
+        "M07.6",
+        "M08.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S01:L27",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 27,
+        "line_end": 27,
+        "text": "5. 用户看到原件、整理结果与真实处理状态，能继续修改要求。原件不会被摘要覆盖。"
+      },
+      "feature_ids": [
+        "M08.2",
+        "M07.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S01:L28",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 28,
+        "line_end": 28,
+        "text": "6. 工作需要私人邮箱或本机文件时，产品提供连接或范围选择入口；基础服务不要求用户自己部署。"
+      },
+      "feature_ids": [
+        "M15.4",
+        "M15.3",
+        "M15.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S01:L29",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 29,
+        "line_end": 29,
+        "text": "7. 用户关闭电脑，随后在手机登录，能够找到同一件事、材料和成果，继续交流。"
+      },
+      "feature_ids": [
+        "M14.1",
+        "M06.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S01:L31",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 31,
+        "line_end": 31,
+        "text": "**异常与控制**。API 无效或额度不足时保留草稿与材料，说明怎样继续；首次注册中断后不要求重复建立身份。新设备登录不默认授权读取其中所有文件。"
+      },
+      "feature_ids": [
+        "M16.2",
+        "M16.8",
+        "M18.2",
+        "M15.1",
+        "M15.3"
+      ],
+      "supplement_ids": [
+        "X02"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S01:L33",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 33,
+        "line_end": 33,
+        "text": "**完成标准**。一个普通用户可以从注册走到第一次真实交付，没有自行部署基础服务的步骤。关联模块：M07、M14、M15、M16。"
+      },
+      "feature_ids": [
+        "M15.1",
+        "M15.2",
+        "M11.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S02:L37",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 37,
+        "line_end": 37,
+        "text": "**起因与目标**。用户在几次项目中表达过自己更重视稳定交付、偏好简洁表达。下一次讨论时，他希望这些背景仍然有用，也希望能够纠正助理的误解。"
+      },
+      "feature_ids": [
+        "M01.1",
+        "M01.3",
+        "M01.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S02:L45",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 45,
+        "line_end": 45,
+        "text": "1. 用户正常交流与工作，不必专门填写“记忆表”。助理逐渐形成对相关偏好和背景的理解。"
+      },
+      "feature_ids": [
+        "M01.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S02:L46",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 46,
+        "line_end": 46,
+        "text": "2. 用户开启一段新的项目对话，助理结合之前的取舍组织方案，并说明哪些建议用了既往背景。"
+      },
+      "feature_ids": [
+        "M01.3",
+        "M01.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S02:L47",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 47,
+        "line_end": 47,
+        "text": "3. 用户问“你为什么觉得我不喜欢探索性的设计？”助理指出当时表达的范围与来源，而不是编造一段解释。"
+      },
+      "feature_ids": [
+        "M01.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S02:L48",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 48,
+        "line_end": 48,
+        "text": "4. 用户纠正：“那次是因为客户赶时间，这次可以尝试。”助理区分那次项目的限制与长期偏好。"
+      },
+      "feature_ids": [
+        "M01.7",
+        "M01.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S02:L49",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 49,
+        "line_end": 49,
+        "text": "5. 后续建议随之调整，正在做的相关工作也重新考虑，重要变化对用户可见。"
+      },
+      "feature_ids": [
+        "M01.4",
+        "M03.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S02:L50",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 50,
+        "line_end": 50,
+        "text": "6. 用户可以打开对自己的理解，查找某个主题、展开依据，辨认哪些是自己说过的、哪些是助理推断的。"
+      },
+      "feature_ids": [
+        "M01.5",
+        "M01.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S02:L52",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 52,
+        "line_end": 52,
+        "text": "**异常与控制**。证据不足或来源不可达时明示；修正未成功不能显示已生效。用户的工作偏好不能自动覆盖生活场景，外部资料中的观点也不能变成用户立场。"
+      },
+      "feature_ids": [
+        "M01.6",
+        "M01.7",
+        "M01.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S02:L54",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 54,
+        "line_end": 54,
+        "text": "**完成标准**。用户感到“它记得我，也听得进我的纠正”，新的相处能改变助理之后的判断。关联模块：M01、M02、M17。"
+      },
+      "feature_ids": [
+        "M01.3",
+        "M01.7",
+        "M03.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S03:L58",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 58,
+        "line_end": 58,
+        "text": "**起因与目标**。用户七个月前答应参加家人的毕业活动。现在收到一项出差邀约，没有主动要求助理检查冲突。"
+      },
+      "feature_ids": [
+        "M13.4",
+        "M03.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S03:L66",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 66,
+        "line_end": 66,
+        "text": "1. 助理通过获准查看的日历与往来，发现出差日期可能影响那个旧承诺。"
+      },
+      "feature_ids": [
+        "M02.3",
+        "M03.1",
+        "M13.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S03:L67",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 67,
+        "line_end": 67,
+        "text": "2. 它先核实相关日期、时区、地点与行程限制，不因为记录久远就忽略，也不把旧日期当作未来安排。"
+      },
+      "feature_ids": [
+        "M02.1",
+        "M02.2",
+        "M02.8",
+        "M10.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S03:L68",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 68,
+        "line_end": 68,
+        "text": "3. 在已有授权内，它整理可以调整的行程、需要协调的人以及还不确定的条件。"
+      },
+      "feature_ids": [
+        "M03.3",
+        "M17.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S03:L69",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 69,
+        "line_end": 69,
+        "text": "4. 助理向用户说明冲突及实际可行的选择，并展示依据。它不需要等待用户先创建“检查冲突”任务。"
+      },
+      "feature_ids": [
+        "M03.1",
+        "M03.2",
+        "M13.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S03:L70",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 70,
+        "line_end": 70,
+        "text": "5. 用户告诉助理此次取舍，助理据此完成获准的调整，并把需要外部确认的部分继续跟进。"
+      },
+      "feature_ids": [
+        "M01.4",
+        "M10.8",
+        "M09.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S03:L71",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 71,
+        "line_end": 71,
+        "text": "6. 原承诺、新行程和最后的决定保持清楚关联，用户之后不用重新回忆为何改过安排。"
+      },
+      "feature_ids": [
+        "M06.1",
+        "M09.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S03:L73",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 73,
+        "line_end": 73,
+        "text": "**异常与控制**。不能仅因“亲属活动”这一类别替用户预先决定轻重；只看到部分日历时说明覆盖范围。行程已对外确认的内容不能无声改动。"
+      },
+      "feature_ids": [
+        "M03.4",
+        "M02.3",
+        "M09.8",
+        "M17.3"
+      ],
+      "supplement_ids": [
+        "X03"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S03:L75",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 75,
+        "line_end": 75,
+        "text": "**完成标准**。长期理解与当下现实共同影响行动，用户得到可采取的结果，而不是一条缺乏背景的冲突提醒。关联模块：M01、M02、M03、M10、M13。"
+      },
+      "feature_ids": [
+        "M01.3",
+        "M02.7",
+        "M03.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S04:L79",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 79,
+        "line_end": 79,
+        "text": "**起因与目标**。用户长期希望提高内容交付质量。几次项目里，品牌需求与印刷规格对不上，导致反复返工；用户尚未提出专门改进任务。"
+      },
+      "feature_ids": [
+        "M01.1",
+        "M03.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S04:L87",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 87,
+        "line_end": 87,
+        "text": "1. 助理在参与这些工作时发现重复现象，形成一个初步判断：问题可能集中在需求与生产条件的衔接。"
+      },
+      "feature_ids": [
+        "M03.1",
+        "M01.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S04:L88",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 88,
+        "line_end": 88,
+        "text": "2. 它结合用户持续表达的目标，判断这件事值得调查，而不是仅把它记成一条观察。"
+      },
+      "feature_ids": [
+        "M03.1",
+        "M03.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S04:L89",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 89,
+        "line_end": 89,
+        "text": "3. 在已有资料权限和投入边界内，助理比较相关返工记录，区分已证实原因与仍待核实的解释。"
+      },
+      "feature_ids": [
+        "M11.1",
+        "M03.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S04:L90",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 90,
+        "line_end": 90,
+        "text": "4. 助理准备一份可修改的交付检查表，并用已有案例检查它是否能帮助减少遗漏。"
+      },
+      "feature_ids": [
+        "M11.7",
+        "M03.3"
+      ],
+      "supplement_ids": [
+        "X04"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S04:L91",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 91,
+        "line_end": 91,
+        "text": "5. 它在合适的时候向用户展示已经完成的调查和材料，说明为何开始、用了哪些依据、还不确定什么。"
+      },
+      "feature_ids": [
+        "M03.2",
+        "M11.8",
+        "M13.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S04:L92",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 92,
+        "line_end": 92,
+        "text": "6. 用户指出一种特殊项目不适用，助理调整检查表及使用条件。"
+      },
+      "feature_ids": [
+        "M01.7",
+        "M01.8",
+        "M03.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S04:L93",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 93,
+        "line_end": 93,
+        "text": "7. 下一次类似项目，助理主动采用适合的部分，并观察是否减少返工；无效时继续修正或停止沿用。"
+      },
+      "feature_ids": [
+        "M03.9",
+        "M03.6"
+      ],
+      "supplement_ids": [
+        "X05"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S04:L95",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 95,
+        "line_end": 95,
+        "text": "**异常与控制**。不能为显得主动不断制造文档和通知；调查收益不足时应收敛。新增外部沟通或扩大资料范围仍须符合原授权。"
+      },
+      "feature_ids": [
+        "M03.4",
+        "M03.6",
+        "M03.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S04:L97",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 97,
+        "line_end": 97,
+        "text": "**完成标准**。没有新命令、也没有预先存在的待办，助理仍从连续目标中形成行动理由，做出可验证的改进。关联模块：M01、M02、M03、M08、M11。"
+      },
+      "feature_ids": [
+        "M03.1",
+        "M03.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S05:L101",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 101,
+        "line_end": 101,
+        "text": "**起因与目标**。用户想逐步拓展某类内容业务。助理了解其能力、近期安排和可投入预算，在获准关注的信息中发现一个可能适合的机会。"
+      },
+      "feature_ids": [
+        "M01.1",
+        "M02.6",
+        "M03.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S05:L105",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 105,
+        "line_end": 105,
+        "text": "1. 助理把新信息与用户的方向、已有作品和时间余量联系起来，形成值得进一步调查的判断。"
+      },
+      "feature_ids": [
+        "M03.1",
+        "M03.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S05:L106",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 106,
+        "line_end": 106,
+        "text": "2. 它检查机会是否仍有效、要求是否匹配、信息是否可靠，并估计进一步投入是否值得。"
+      },
+      "feature_ids": [
+        "M02.2",
+        "M11.1",
+        "M03.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S05:L107",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 107,
+        "line_end": 107,
+        "text": "3. 在预算与授权范围内，助理整理相关作品、准备初步材料，必要时委派其他能力做有限调查。"
+      },
+      "feature_ids": [
+        "M03.3",
+        "M11.2",
+        "M03.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S05:L108",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 108,
+        "line_end": 108,
+        "text": "4. 如果用户已经授权某类明确范围内的接洽，助理可以按该范围开展；没有此授权时先完成能够独立推进的准备。"
+      },
+      "feature_ids": [
+        "M17.2",
+        "M17.3",
+        "M03.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S05:L109",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 109,
+        "line_end": 109,
+        "text": "5. 它带着实际进展来找用户，说明适合之处、代价、截止窗口和需要用户决定的内容。"
+      },
+      "feature_ids": [
+        "M13.7",
+        "M02.2",
+        "M03.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S05:L110",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 110,
+        "line_end": 110,
+        "text": "6. 用户表示近期改变了方向，助理更新理解并结束不再合适的后续投入；已获得材料仍可回看。"
+      },
+      "feature_ids": [
+        "M01.4",
+        "M03.6",
+        "M06.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S05:L112",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 112,
+        "line_end": 112,
+        "text": "**异常与控制**。机会已过期、来源不足或预算不合适时，不包装成必须抓住的好消息；用户未回应不能视为同意扩大投入。"
+      },
+      "feature_ids": [
+        "M02.2",
+        "M11.8",
+        "M16.6",
+        "M13.10"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S05:L114",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 114,
+        "line_end": 114,
+        "text": "**完成标准**。助理能够主动发现、调查和准备，也能够有理由地不做或结束，让用户的注意力用在有价值的选择上。关联模块：M01、M02、M03、M11、M16。"
+      },
+      "feature_ids": [
+        "M03.1",
+        "M03.3",
+        "M03.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S06:L120",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 120,
+        "line_end": 120,
+        "text": "**起因与目标**。用户承接品牌活动，上游是品牌方，下游有设计师、印刷商和现场执行人员。他希望把需求、设计、打样、修改与交付串起来，减少自己逐条转发和追问。"
+      },
+      "feature_ids": [
+        "M06.1",
+        "M09.3",
+        "M04.11"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S06:L128",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 128,
+        "line_end": 128,
+        "text": "1. 用户交入品牌邮件、需求书和参考图，说明目标、时间及预算，助理整理已确定条件与尚未确定部分。"
+      },
+      "feature_ids": [
+        "M06.1",
+        "M07.1",
+        "M07.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S06:L129",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 129,
+        "line_end": 129,
+        "text": "2. 用户指定品牌联系人、一个设计助理和印刷商往来，或者让助理从已可用资源中找到合适对象。"
+      },
+      "feature_ids": [
+        "M04.1",
+        "M04.2",
+        "M07.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S06:L130",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 130,
+        "line_end": 130,
+        "text": "3. 每个协同资源在这件事里有清楚用途：确认口径、产出稿件、确认生产规格。用户看到具体名称、内容与状态。"
+      },
+      "feature_ids": [
+        "M04.4",
+        "M04.5",
+        "M09.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S06:L131",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 131,
+        "line_end": 131,
+        "text": "4. 助理向设计助理交付获准材料，同时向印刷商询问必要的规格与档期；各方只获得完成此次协作所需的内容。"
+      },
+      "feature_ids": [
+        "M11.3",
+        "M09.7",
+        "M04.11"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S06:L132",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 132,
+        "line_end": 132,
+        "text": "5. 等设计结果时，助理继续整理物料清单。印刷商回复后，所需修改回到原事情，再进入相关设计工作。"
+      },
+      "feature_ids": [
+        "M11.5",
+        "M09.6",
+        "M04.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S06:L133",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 133,
+        "line_end": 133,
+        "text": "6. 品牌方改变口径，助理识别受影响的稿件、成本和时间，完成可恢复调整，将重要的新承诺带给用户决定。"
+      },
+      "feature_ids": [
+        "M06.5",
+        "M13.8",
+        "M17.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S06:L134",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 134,
+        "line_end": 134,
+        "text": "7. 用户随时问“现在等谁”，可以得到基于真实往来与结果的回答，不用分别打开每个工具重新拼装进度。"
+      },
+      "feature_ids": [
+        "M06.3",
+        "M11.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S06:L135",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 135,
+        "line_end": 135,
+        "text": "8. 稿件、物料表和交付记录汇总为可使用成果；“已完成”“已发出”和“对方已确认”分别表达。"
+      },
+      "feature_ids": [
+        "M11.7",
+        "M09.5",
+        "M11.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S06:L136",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 136,
+        "line_end": 136,
+        "text": "9. 活动结束，相关资源完成使命，不再持续监听或催促。历史、成果与整个邮箱账户继续保留，其他项目不受影响。"
+      },
+      "feature_ids": [
+        "M04.9",
+        "M04.10",
+        "M09.9"
+      ],
+      "supplement_ids": [
+        "X06"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S06:L138",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 138,
+        "line_end": 138,
+        "text": "**异常与控制**。供应商没有回复时明确等待与跟进安排；某个设计任务失败不吞掉其他成果；外发结果不明先核实，不能盲目重发。"
+      },
+      "feature_ids": [
+        "M06.3",
+        "M11.8",
+        "M18.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S06:L140",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 140,
+        "line_end": 140,
+        "text": "**完成标准**。邮件、其他助理和物料通过统一协同心智进入同一件事，变化能推动工作，使命可以结束。关联模块：M03、M04、M06、M09、M11、M17。"
+      },
+      "feature_ids": [
+        "M04.4",
+        "M04.7",
+        "M04.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S07:L144",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 144,
+        "line_end": 144,
+        "text": "**起因与目标**。用户负责一个跨部门项目，同时对接外部顾问与客户。他希望助理处理自己负责的工作，不要求其他人先迁移到新平台。"
+      },
+      "feature_ids": [
+        "M09.4",
+        "M06.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S07:L152",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 152,
+        "line_end": 152,
+        "text": "1. 用户交入会议纪要，说明自己负责客户反馈，同事负责合同。助理理解职责与依赖。"
+      },
+      "feature_ids": [
+        "M06.1",
+        "M06.2",
+        "M09.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S07:L153",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 153,
+        "line_end": 153,
+        "text": "2. 用户连接获准共享的材料与往来，同事或其助理也可以在需要时参与具体协作。"
+      },
+      "feature_ids": [
+        "M04.1",
+        "M09.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S07:L154",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 154,
+        "line_end": 154,
+        "text": "3. 外部顾问继续使用受支持的邮箱沟通，没有本产品账号仍能参与。"
+      },
+      "feature_ids": [
+        "M09.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S07:L155",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 155,
+        "line_end": 155,
+        "text": "4. 助理在授权范围内准备材料、追踪反馈，发现客户与同事意见冲突后保留双方原意和来源。"
+      },
+      "feature_ids": [
+        "M09.8",
+        "M11.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S07:L156",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 156,
+        "line_end": 156,
+        "text": "5. 用户决定自己的处理方式，助理推进可以代表用户完成的动作；不能代其他人许下承诺。"
+      },
+      "feature_ids": [
+        "M17.9",
+        "M09.8",
+        "M17.4"
+      ],
+      "supplement_ids": [
+        "X07"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S07:L157",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 157,
+        "line_end": 157,
+        "text": "6. 退出项目时，用户结束相关关注和权限，助理不继续追踪退出后的变化。"
+      },
+      "feature_ids": [
+        "M04.9",
+        "M17.7",
+        "M09.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S07:L159",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 159,
+        "line_end": 159,
+        "text": "**异常与控制**。能读团队资料不意味着能转发给客户；用户的私人注解不会自动成为共享内容；参与项目不等于获得其他成员所有数据。"
+      },
+      "feature_ids": [
+        "M09.7",
+        "M17.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S07:L161",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 161,
+        "line_end": 161,
+        "text": "**完成标准**。团队与外部关系作为现实语境被理解，用户无需创建企业版账户结构才能让助理协同。关联模块：M04、M06、M09、M17。"
+      },
+      "feature_ids": [
+        "M09.4",
+        "M15.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S08:L165",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 165,
+        "line_end": 165,
+        "text": "**起因与目标**。用户需要研究一种新的内容制作方法，希望查清依据并得到可尝试的方案。他既关心质量，也希望投入适度。"
+      },
+      "feature_ids": [
+        "M11.1",
+        "M11.7",
+        "M03.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S08:L173",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 173,
+        "line_end": 173,
+        "text": "1. 用户提出目标，交入文章链接、截图和一份现有方案，说明希望得到什么，以及可接受的投入。"
+      },
+      "feature_ids": [
+        "M07.1",
+        "M07.2",
+        "M16.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S08:L174",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 174,
+        "line_end": 174,
+        "text": "2. 助理确认实际能读取哪些材料。原网页无法取得时，明确已看到的范围，再使用获准的其他信息渠道。"
+      },
+      "feature_ids": [
+        "M11.1",
+        "M08.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S08:L175",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 175,
+        "line_end": 175,
+        "text": "3. 助理判断是否需要其他助理参与，给不同参与者清楚的研究问题、材料范围和交付要求。"
+      },
+      "feature_ids": [
+        "M11.2",
+        "M11.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S08:L176",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 176,
+        "line_end": 176,
+        "text": "4. 用户能看见真实的协作进展；主助理在等待某项结果时，可以继续完成独立部分。"
+      },
+      "feature_ids": [
+        "M11.4",
+        "M11.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S08:L177",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 177,
+        "line_end": 177,
+        "text": "5. 参与者返回结果后，主助理比较依据与分歧，识别哪些只是推测、哪些有可核实支持。"
+      },
+      "feature_ids": [
+        "M11.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S08:L178",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 178,
+        "line_end": 178,
+        "text": "6. 最终交付可阅读的结论、来源与可实际使用的试验材料。用户可以追问，也可以据此继续创作。"
+      },
+      "feature_ids": [
+        "M11.7",
+        "M11.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S08:L179",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 179,
+        "line_end": 179,
+        "text": "7. 委派结束后，相关资源完成使命，主界面和桌面助理都不再停在处理中。"
+      },
+      "feature_ids": [
+        "M04.9",
+        "M07.9",
+        "M14.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S08:L181",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 181,
+        "line_end": 181,
+        "text": "**异常与控制**。没有真实委派就不能声称调用了其他助理；一项失败要交代剩余覆盖范围。增加参与者不自动获得更多权限或突破预算。"
+      },
+      "feature_ids": [
+        "M11.4",
+        "M11.8",
+        "M11.3",
+        "M03.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S08:L183",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 183,
+        "line_end": 183,
+        "text": "**完成标准**。用户取得有依据的成果，并能辨认协作带来了什么，而不是只看到参与者数量增加。关联模块：M04、M07、M11、M16。"
+      },
+      "feature_ids": [
+        "M11.7",
+        "M11.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S09:L187",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 187,
+        "line_end": 187,
+        "text": "**起因与目标**。用户准备办理证件，知道大致步骤，但后续何时受理、何时领取并不完全确定，希望助理共同管理这段过程。"
+      },
+      "feature_ids": [
+        "M06.1",
+        "M06.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S09:L195",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 195,
+        "line_end": 195,
+        "text": "1. 用户说明目标与已完成的部分，交入所需材料。助理区分已知日期、待核实条件和大致时间窗口。"
+      },
+      "feature_ids": [
+        "M06.1",
+        "M02.4",
+        "M06.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S09:L196",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 196,
+        "line_end": 196,
+        "text": "2. 助理组织准备、提交、等待与领取等阶段，指出需要用户本人完成的动作。"
+      },
+      "feature_ids": [
+        "M06.2",
+        "M06.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S09:L197",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 197,
+        "line_end": 197,
+        "text": "3. 有确定时间的约定进入可见安排；不确定阶段由助理根据实际情况安排适度检查，用户不必指定每次查询间隔。"
+      },
+      "feature_ids": [
+        "M10.4",
+        "M06.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S09:L198",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 198,
+        "line_end": 198,
+        "text": "4. 用户提交后补充回执，助理把它纳入同一件事，继续关注获准查询的进展。"
+      },
+      "feature_ids": [
+        "M06.1",
+        "M04.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S09:L199",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 199,
+        "line_end": 199,
+        "text": "5. 有变化时，助理调整后续安排；需要本人到场时提前准备地点、时间与材料提醒，并注意实际开放时间。"
+      },
+      "feature_ids": [
+        "M06.5",
+        "M06.7",
+        "M10.3"
+      ],
+      "supplement_ids": [
+        "X08"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S09:L200",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 200,
+        "line_end": 200,
+        "text": "6. 用户换设备或数天未打开应用，再问“办到哪了”，仍能得到上次查到什么、目前等什么和下一步的真实回答。"
+      },
+      "feature_ids": [
+        "M06.3",
+        "M06.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S09:L201",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 201,
+        "line_end": 201,
+        "text": "7. 事项完成后停止后续检查，保留全程记录和最终材料。"
+      },
+      "feature_ids": [
+        "M06.8",
+        "M04.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S09:L203",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 203,
+        "line_end": 203,
+        "text": "**异常与控制**。外部查不到状态不能说成“没有进展”；窗口已过仍无结果时主动告知并调整，不无限重复检查。付款、提交等具体后果遵循已有授权与确认范围。"
+      },
+      "feature_ids": [
+        "M02.4",
+        "M06.4",
+        "M03.6",
+        "M17.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S09:L205",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 205,
+        "line_end": 205,
+        "text": "**完成标准**。事情跨越时间与会话仍连续，助理能跟随现实节奏推进，也能清楚结束。关联模块：M02、M03、M06、M10、M13。"
+      },
+      "feature_ids": [
+        "M06.6",
+        "M06.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S10:L209",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 209,
+        "line_end": 209,
+        "text": "**起因与目标**。用户希望完成一个高质量方案。开始时有两周时间和充足算力，后来客户将截止提前；用户本人也没有余力逐项审阅大量新方案。"
+      },
+      "feature_ids": [
+        "M03.4",
+        "M03.5",
+        "M02.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S10:L217",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 217,
+        "line_end": 217,
+        "text": "1. 助理理解目标与取舍，最初投入适度调查和多个方向的探索，用空闲算力完成可并行的准备。"
+      },
+      "feature_ids": [
+        "M03.4",
+        "M03.5",
+        "M11.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S10:L218",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 218,
+        "line_end": 218,
+        "text": "2. 客户提前截止后，助理核实变化，识别剩余时间、已有成果、等待对象和必须完成的环节。"
+      },
+      "feature_ids": [
+        "M02.7",
+        "M06.3",
+        "M06.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S10:L219",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 219,
+        "line_end": 219,
+        "text": "3. 即使算力仍然充足，它也意识到用户的审核时间和协作方档期变得稀缺。"
+      },
+      "feature_ids": [
+        "M02.5",
+        "M02.6",
+        "M03.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S10:L220",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 220,
+        "line_end": 220,
+        "text": "4. 助理收敛方向，停止收益较低的扩展，把资源投入已有方案的检查、补缺和可交付准备。"
+      },
+      "feature_ids": [
+        "M03.5",
+        "M03.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S10:L221",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 221,
+        "line_end": 221,
+        "text": "5. 它向用户说明显著取舍：“现有方案可以按时交付，新增方向需要另一个窗口。”已经明确的目标内动作直接推进。"
+      },
+      "feature_ids": [
+        "M06.5",
+        "M17.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S10:L222",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 222,
+        "line_end": 222,
+        "text": "6. 用户决定保留哪部分探索，助理调整剩余工作，并妥善停止不再需要的委派与关注。"
+      },
+      "feature_ids": [
+        "M03.8",
+        "M04.9",
+        "M10.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S10:L223",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 223,
+        "line_end": 223,
+        "text": "7. 交付后记录此次变化及结果，为之后理解类似情境提供依据。"
+      },
+      "feature_ids": [
+        "M06.1",
+        "M03.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S10:L225",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 225,
+        "line_end": 225,
+        "text": "**异常与控制**。不能为节省费用而悄悄降低已承诺质量，也不能因为资源还有余额就无意义地继续生成。已产生的费用和已发生动作如实保留。"
+      },
+      "feature_ids": [
+        "M03.4",
+        "M03.5",
+        "M16.5",
+        "M17.6"
+      ],
+      "supplement_ids": [
+        "X09"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S10:L227",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 227,
+        "line_end": 227,
+        "text": "**完成标准**。时间、注意力、材料与算力共同影响行动，用户能感受到助理理解当下的轻重。关联模块：M02、M03、M06、M11、M16。"
+      },
+      "feature_ids": [
+        "M03.4",
+        "M03.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S11:L231",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 231,
+        "line_end": 231,
+        "text": "**起因与目标**。用户希望了解某些行业动态，每天看一份简报，同时让助理留意与自己长期方向有关的变化。"
+      },
+      "feature_ids": [
+        "M10.5",
+        "M10.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S11:L239",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 239,
+        "line_end": 239,
+        "text": "1. 用户说明关注目的、来源与希望被打扰的方式，助理从已可用资源中组织相关关注。"
+      },
+      "feature_ids": [
+        "M10.5",
+        "M04.2",
+        "M13.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S11:L240",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 240,
+        "line_end": 240,
+        "text": "2. 按约定时间形成简报，每项信息能回到实际来源和取得时间；无新增与来源失败分别说明。"
+      },
+      "feature_ids": [
+        "M10.5",
+        "M10.7",
+        "M02.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S11:L241",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 241,
+        "line_end": 241,
+        "text": "3. 某次变化与用户正在考虑的方向紧密相关，助理判断值得进一步核实，而不只把它列为一条新闻。"
+      },
+      "feature_ids": [
+        "M03.1",
+        "M10.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S11:L242",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 242,
+        "line_end": 242,
+        "text": "4. 在已有自主工作范围内，助理调查相关资料、比较用户现有条件，形成可以采取的下一步和必要准备。"
+      },
+      "feature_ids": [
+        "M03.3",
+        "M03.7",
+        "M11.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S11:L243",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 243,
+        "line_end": 243,
+        "text": "5. 用户在合适的入口收到带着进展的消息，可以阅读、纠正、继续或结束这项工作。"
+      },
+      "feature_ids": [
+        "M13.3",
+        "M03.8",
+        "M03.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S11:L244",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 244,
+        "line_end": 244,
+        "text": "6. 用户要求“最近少打扰我”，助理调整通知方式；持续工作是否暂停由用户表达的实际意图决定。"
+      },
+      "feature_ids": [
+        "M13.6",
+        "M03.8"
+      ],
+      "supplement_ids": [
+        "X10"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S11:L246",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 246,
+        "line_end": 246,
+        "text": "**异常与控制**。没有新内容时不编造简报；资料不足的判断标明限制。一次通知投递失败不让结果消失，重复的同一变化不反复制造新的待办。"
+      },
+      "feature_ids": [
+        "M10.7",
+        "M11.8",
+        "M13.5",
+        "M10.8"
+      ],
+      "supplement_ids": [
+        "X11"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S11:L248",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 248,
+        "line_end": 248,
+        "text": "**完成标准**。定期信息供给、变化后的继续工作和自主发现各自成立，并共同服务用户目标。关联模块：M02、M03、M04、M10、M13。"
+      },
+      "feature_ids": [
+        "M10.6",
+        "M03.1",
+        "M03.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S12:L254",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 254,
+        "line_end": 254,
+        "text": "**起因与目标**。用户在手机上与助理聊天，名下另有三台云服务器运行着同样的助理能力。甲的计算能力较强，乙保存着项目所需文档，丙当前较空闲。用户希望获得一份基于这些资料的分析结果。"
+      },
+      "feature_ids": [
+        "M05.3",
+        "M05.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S12:L262",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 262,
+        "line_end": 262,
+        "text": "1. 用户通过产品引导将手机与三台服务器接入自己的账号，不需要自行建立注册中心或配置节点间连接。"
+      },
+      "feature_ids": [
+        "M05.1",
+        "M15.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S12:L263",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 263,
+        "line_end": 263,
+        "text": "2. 助理了解当前可用节点的实际状态、可提供能力和获准访问的材料范围，保留状态的取得时间。"
+      },
+      "feature_ids": [
+        "M05.2",
+        "M05.3",
+        "M02.4"
+      ],
+      "supplement_ids": [
+        "X12"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S12:L264",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 264,
+        "line_end": 264,
+        "text": "3. 用户在手机提出目标。助理发现需要乙上的文档，选择在那里完成获准的读取与初步整理。"
+      },
+      "feature_ids": [
+        "M05.3",
+        "M05.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S12:L265",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 265,
+        "line_end": 265,
+        "text": "4. 若后续计算适合甲，且必要材料或中间结果允许传递，助理可以交给甲执行；也可能因为丙的可用程度和成本更合适而选择丙。"
+      },
+      "feature_ids": [
+        "M05.4",
+        "M05.6",
+        "M05.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S12:L266",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 266,
+        "line_end": 266,
+        "text": "5. 用户能看到工作实际在哪里进行，并可以追问选择理由。结果尚未到达时，助理不把分派成功说成分析完成。"
+      },
+      "feature_ids": [
+        "M05.7",
+        "M11.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S12:L267",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 267,
+        "line_end": 267,
+        "text": "6. 用户锁屏离开，远程节点上能够继续的工作仍继续。需要本人判断时，问题与足够背景回到手机；否则结果完成后再通知。"
+      },
+      "feature_ids": [
+        "M05.9",
+        "M13.7",
+        "M13.6"
+      ],
+      "supplement_ids": [
+        "X13"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S12:L268",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 268,
+        "line_end": 268,
+        "text": "7. 用户在手机查看成果，也可回到电脑继续修改，沿用同一件事与原始材料关系。"
+      },
+      "feature_ids": [
+        "M14.1",
+        "M05.6",
+        "M08.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S12:L270",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 270,
+        "line_end": 270,
+        "text": "**异常与控制**。节点登记在账号下不等于全部资料已授权。甲算力强但拿不到必需材料时，不能仅因速度就绕过访问限制；节点状态不明时不得假装在线。"
+      },
+      "feature_ids": [
+        "M05.3",
+        "M05.8",
+        "M05.2",
+        "M02.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S12:L272",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 272,
+        "line_end": 272,
+        "text": "**完成标准**。跨端聊天之外，确实发生基于算力或资料所在位置的远程分派与执行，成果回到用户当前入口。关联模块：M02、M04、M05、M14、M16、M17。"
+      },
+      "feature_ids": [
+        "M05.4",
+        "M05.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S13:L276",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 276,
+        "line_end": 276,
+        "text": "**起因与目标**。用户需要分析一份只能留在指定机器上的生产文档。另一台服务器算力更强，但用户明确要求原始文档不能离开指定机器。"
+      },
+      "feature_ids": [
+        "M05.5",
+        "M05.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S13:L280",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 280,
+        "line_end": 280,
+        "text": "1. 用户指定资料范围和限制，助理记录这次工作可以读取什么、在哪里处理、什么结果可以带回。"
+      },
+      "feature_ids": [
+        "M05.5",
+        "M05.8",
+        "M17.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S13:L281",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 281,
+        "line_end": 281,
+        "text": "2. 助理检查指定节点是否具备完成任务的能力；如果可行，就把相应工作放在那里进行。"
+      },
+      "feature_ids": [
+        "M05.3",
+        "M05.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S13:L282",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 282,
+        "line_end": 282,
+        "text": "3. 如果还需要其他能力，先判断能否只传递获准的中间结果，而非默认复制全部文档。"
+      },
+      "feature_ids": [
+        "M05.5",
+        "M05.6",
+        "M17.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S13:L283",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 283,
+        "line_end": 283,
+        "text": "4. 原始材料的限制持续适用，不因换模型、换节点或委派其他助理失效。"
+      },
+      "feature_ids": [
+        "M05.8",
+        "M17.4",
+        "M11.3"
+      ],
+      "supplement_ids": [
+        "X14"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S13:L284",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 284,
+        "line_end": 284,
+        "text": "5. 助理带回获准返回的摘要、结论或成果，说明实际处理的材料范围和未覆盖内容。"
+      },
+      "feature_ids": [
+        "M05.5",
+        "M11.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S13:L285",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 285,
+        "line_end": 285,
+        "text": "6. 用户可以追问用了哪台机器、哪些资料以及返回内容的范围，并结束后续使用。"
+      },
+      "feature_ids": [
+        "M05.7",
+        "M17.6",
+        "M05.11"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S13:L287",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 287,
+        "line_end": 287,
+        "text": "**异常与控制**。若现有条件无法完成，说明具体缺口并让用户决定下一步；不能假称本地处理。摘要也可能包含敏感内容，不能天然视为可以自由外传。"
+      },
+      "feature_ids": [
+        "M05.5",
+        "M11.8",
+        "M17.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S13:L289",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 289,
+        "line_end": 289,
+        "text": "**完成标准**。资料所在位置和使用边界成为真实行动条件，用户无需自己搬运文件以配合助理。关联模块：M04、M05、M08、M17。"
+      },
+      "feature_ids": [
+        "M05.5",
+        "M05.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S14:L293",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 293,
+        "line_end": 293,
+        "text": "**起因与目标**。助理正在多个节点上完成工作，其中一台保存独有材料的机器突然离线，用户希望知道哪些部分受影响、能否继续。"
+      },
+      "feature_ids": [
+        "M05.10",
+        "M18.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S14:L297",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 297,
+        "line_end": 297,
+        "text": "1. 产品标明节点的最后已知状态，指出哪些工作依赖它，而不把所有任务统一显示为失败。"
+      },
+      "feature_ids": [
+        "M05.10",
+        "M02.4",
+        "M18.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S14:L298",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 298,
+        "line_end": 298,
+        "text": "2. 助理保留其他节点已经完成的成果，继续处理真正独立且有价值的部分。"
+      },
+      "feature_ids": [
+        "M11.8",
+        "M11.5",
+        "M18.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S14:L299",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 299,
+        "line_end": 299,
+        "text": "3. 对受影响部分，助理判断是否存在拥有同样获准材料与能力的替代节点；没有时明确等待条件。"
+      },
+      "feature_ids": [
+        "M05.10",
+        "M06.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S14:L300",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 300,
+        "line_end": 300,
+        "text": "4. 如果替代需要改变资料范围或成本约束，助理先取得必要决定；已有规则允许的替代可以直接进行。"
+      },
+      "feature_ids": [
+        "M05.10",
+        "M16.7",
+        "M17.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S14:L301",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 301,
+        "line_end": 301,
+        "text": "5. 原节点恢复后，先核对先前工作的实际结局，再继续。不能因为没有及时收到回执就重复发送外部消息或再做一遍修改。"
+      },
+      "feature_ids": [
+        "M05.12",
+        "M18.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S14:L302",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 302,
+        "line_end": 302,
+        "text": "6. 用户收回该节点时，产品停止新分派，并说明尚在进行的动作和可保留成果。"
+      },
+      "feature_ids": [
+        "M05.11",
+        "M17.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S14:L304",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 304,
+        "line_end": 304,
+        "text": "**异常与控制**。“手机断开”“执行节点离线”“远程任务已停止”是不同事实；不能相互替代。结果无法确认时，清楚标明并提供后续核对路径。"
+      },
+      "feature_ids": [
+        "M05.9",
+        "M05.10",
+        "M18.1"
+      ],
+      "supplement_ids": [
+        "X15"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S14:L306",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 306,
+        "line_end": 306,
+        "text": "**完成标准**。用户始终理解事情处于何种状态，故障不会把协作变成无声停滞或重复行动。关联模块：M05、M06、M17、M18。"
+      },
+      "feature_ids": [
+        "M05.10",
+        "M05.12"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S15:L312",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 312,
+        "line_end": 312,
+        "text": "**起因与目标**。用户正在聊天软件、浏览器或文档工具里工作，希望顺手交付图片、PDF 或任务文字，不想为了每次交付切换到完整聊天窗口。"
+      },
+      "feature_ids": [
+        "M14.3",
+        "M14.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S15:L320",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 320,
+        "line_end": 320,
+        "text": "1. 用户启用桌面助理，把猫咪放在右下方竖屏并锁定。重新打开后位置保留，换屏幕布局时仍然可见。"
+      },
+      "feature_ids": [
+        "M14.3",
+        "M14.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S15:L321",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 321,
+        "line_end": 321,
+        "text": "2. 用户拖入 PDF，靠近猫咪的位置提示可直接交付，较远的位置提示可以先放下并补充说明。"
+      },
+      "feature_ids": [
+        "M14.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S15:L322",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 322,
+        "line_end": 322,
+        "text": "3. 用户暂放文件，写“翻译成中文并保留表格”后交付。助理收到原件、用途和实际拖放动作；暂放时不提前发送。"
+      },
+      "feature_ids": [
+        "M14.5",
+        "M07.3",
+        "M07.4",
+        "M17.10"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S15:L323",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 323,
+        "line_end": 323,
+        "text": "4. 另一回，用户交入已经写清任务的 `task.md`，直接开始。产品不强制复述，也不把文字默认解释成“记下来”。"
+      },
+      "feature_ids": [
+        "M07.1",
+        "M07.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S15:L324",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 324,
+        "line_end": 324,
+        "text": "5. 用户复制一张截图，桌边出现半透明虚线预览并显示真实缩略图。点击就交付；按住拖向说明区域，就先补充用途。"
+      },
+      "feature_ids": [
+        "M14.6",
+        "M14.7",
+        "M14.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S15:L325",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 325,
+        "line_end": 325,
+        "text": "6. 预览约 30 秒无操作后消失；用户正在悬停、聚焦或拖动时，不突然把它收走。预览出现本身不触发上传或任务。"
+      },
+      "feature_ids": [
+        "M14.6",
+        "M17.10"
+      ],
+      "supplement_ids": [
+        "X16"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S15:L326",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 326,
+        "line_end": 326,
+        "text": "7. 完整原文或原件进入助理，缩略内容只用于预览。收到结果或追问时，用户可以打开同一段完整会话。"
+      },
+      "feature_ids": [
+        "M14.7",
+        "M07.3",
+        "M14.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S15:L327",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 327,
+        "line_end": 327,
+        "text": "8. 助理真正完成后桌宠回到相应状态，交付的图片或文件可以实际保存。"
+      },
+      "feature_ids": [
+        "M14.8",
+        "M11.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S15:L329",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 329,
+        "line_end": 329,
+        "text": "**异常与控制**。未知来源不猜成某个应用；文件类型不支持时说明限制。有未发送草稿时不绕过说明直接发送。取消暂放、移除文件或关闭便签后，迟到的读取不能重新打开并偷偷交付。"
+      },
+      "feature_ids": [
+        "M07.3",
+        "M18.6",
+        "M17.10",
+        "M14.5"
+      ],
+      "supplement_ids": [
+        "X17"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S15:L331",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 331,
+        "line_end": 331,
+        "text": "**完成标准**。空间动作表达交付方式，原件、用途与行为语境完整保留，轻量入口不干扰用户工作。关联模块：M07、M08、M14、M17。"
+      },
+      "feature_ids": [
+        "M07.3",
+        "M07.4",
+        "M14.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S16:L335",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 335,
+        "line_end": 335,
+        "text": "**起因与目标**。用户陆续收到资料、截图和文件，有些暂时没有任务。他希望原件可靠保存，等需要时从不同事情和视角使用。"
+      },
+      "feature_ids": [
+        "M08.1",
+        "M08.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S16:L343",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 343,
+        "line_end": 343,
+        "text": "1. 用户直接保存一段无标题原文或导入一批文件，不需要先开启对话或配置模型。"
+      },
+      "feature_ids": [
+        "M08.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S16:L344",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 344,
+        "line_end": 344,
+        "text": "2. 产品逐项显示保存和可读取情况，图片有真实预览；不能提取的文件仍保留原件及清楚的限制。"
+      },
+      "feature_ids": [
+        "M08.3",
+        "M08.5",
+        "M14.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S16:L345",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 345,
+        "line_end": 345,
+        "text": "3. 用户修改一份资料，能查看历史和改动来源；助理之后整理的摘要或译文保留与原件的关系。"
+      },
+      "feature_ids": [
+        "M08.4",
+        "M08.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S16:L346",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 346,
+        "line_end": 346,
+        "text": "4. 用户把资料关联到一次活动、一个联系人和一项日程，在不同视角看到的是同一份内容。"
+      },
+      "feature_ids": [
+        "M08.8",
+        "M13.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S16:L347",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 347,
+        "line_end": 347,
+        "text": "5. 用户从资料中唤起助理，看到这次实际附带的范围，询问“比较这两版的差异”。"
+      },
+      "feature_ids": [
+        "M08.7",
+        "M08.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S16:L348",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 348,
+        "line_end": 348,
+        "text": "6. 切换到另一份资料又返回时，原来的未发送文字和附件仍然属于原来的语境。"
+      },
+      "feature_ids": [
+        "M08.7",
+        "M07.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S16:L349",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 349,
+        "line_end": 349,
+        "text": "7. 资料被撤回读取或远程来源不可达后，旧引用仍说明取得时间与当前限制；助理不能宣称已经重新读到最新原文。"
+      },
+      "feature_ids": [
+        "M08.6",
+        "M17.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S16:L351",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 351,
+        "line_end": 351,
+        "text": "**异常与控制**。批量导入局部失败不吞掉成功项；同时编辑发生冲突时保留用户草稿。助理暂时不可用时，可用的资料管理仍能使用。"
+      },
+      "feature_ids": [
+        "M08.5",
+        "M08.4",
+        "M18.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S16:L353",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 353,
+        "line_end": 353,
+        "text": "**完成标准**。原件、版本和关系可靠存在，资料收纳、助理读取与形成长期记忆是可区分的结果。关联模块：M01、M07、M08、M13、M18。"
+      },
+      "feature_ids": [
+        "M08.2",
+        "M08.3",
+        "M08.8",
+        "M01.5"
+      ],
+      "supplement_ids": [
+        "X18"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S17:L357",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 357,
+        "line_end": 357,
+        "text": "**起因与目标**。朋友发邮件约用户下午见面，用户希望助理查看安排、回复并建立相关日程，不想在多个工具之间重复录入。"
+      },
+      "feature_ids": [
+        "M09.6",
+        "M10.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S17:L361",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 361,
+        "line_end": 361,
+        "text": "1. 用户把邮件或准确的联系人引用交给助理，询问“看看我今天下午是否有空”。"
+      },
+      "feature_ids": [
+        "M07.5",
+        "M09.2",
+        "M10.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S17:L362",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 362,
+        "line_end": 362,
+        "text": "2. 日历已经授权，助理直接查询；不再追问一次是否允许本次会话连接。"
+      },
+      "feature_ids": [
+        "M17.2",
+        "M04.12",
+        "M10.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S17:L363",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 363,
+        "line_end": 363,
+        "text": "3. 邮件没有说明具体时刻，助理核实可得信息后，仅询问必要的开始时间或具体选择。"
+      },
+      "feature_ids": [
+        "M07.6",
+        "M10.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S17:L364",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 364,
+        "line_end": 364,
+        "text": "4. 用户明确所需回复及安排，助理在授权范围内执行，保留邮件往来、联系人、地点与时间之间的关系。"
+      },
+      "feature_ids": [
+        "M09.5",
+        "M08.8",
+        "M06.1",
+        "M10.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S17:L365",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 365,
+        "line_end": 365,
+        "text": "5. 用户要求提前提醒自己，再建立相应提醒；只建立日历约定时，产品不声称提醒已经生效。"
+      },
+      "feature_ids": [
+        "M10.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S17:L366",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 366,
+        "line_end": 366,
+        "text": "6. 对方改期，助理通过相关协同资源收到变化，检查冲突并按已有授权处理，重要取舍再与用户协商。"
+      },
+      "feature_ids": [
+        "M04.7",
+        "M09.6",
+        "M10.8",
+        "M17.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S17:L367",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 367,
+        "line_end": 367,
+        "text": "7. 约定结束后，必要记录保留，该次往来的持续关注可以结束。"
+      },
+      "feature_ids": [
+        "M04.9",
+        "M06.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S17:L369",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 369,
+        "line_end": 369,
+        "text": "**异常与控制**。同名联系人不能选错；用户已明确确认的同一条回复不反复询问。发送和外部确认不同，时间缺失不能自行猜测成一个确定预约。"
+      },
+      "feature_ids": [
+        "M09.2",
+        "M17.3",
+        "M09.5",
+        "M07.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S17:L371",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 371,
+        "line_end": 371,
+        "text": "**完成标准**。外部往来能进入用户的现实安排，授权与信息不会在每一步被重复索取。关联模块：M04、M06、M09、M10、M17。"
+      },
+      "feature_ids": [
+        "M09.6",
+        "M10.1",
+        "M04.12"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S18:L375",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 375,
+        "line_end": 375,
+        "text": "**起因与目标**。用户准备一段短途行程，希望在手机上查看、打卡和随时调整；也可能希望给朋友一个能共同参与的小工具。"
+      },
+      "feature_ids": [
+        "M12.1",
+        "M12.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S18:L383",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 383,
+        "line_end": 383,
+        "text": "1. 用户说明目的、时间和使用情境，交入已有材料。助理查明还缺哪些必要条件。"
+      },
+      "feature_ids": [
+        "M07.1",
+        "M07.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S18:L384",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 384,
+        "line_end": 384,
+        "text": "2. 用户说“做成手机上可用的打卡页面”，助理据此建立实际可打开的成果，而非只在聊天里贴代码。"
+      },
+      "feature_ids": [
+        "M12.1",
+        "M12.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S18:L385",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 385,
+        "line_end": 385,
+        "text": "3. 用户在手机打开页面，看到内容来源、当前版本和支持的操作，记录已完成的行程。"
+      },
+      "feature_ids": [
+        "M12.2",
+        "M12.6",
+        "M12.3"
+      ],
+      "supplement_ids": [
+        "X20"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S18:L386",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 386,
+        "line_end": 386,
+        "text": "4. 用户继续说“把这一站移到明天”，助理修改对应成果，保留已有记录，不误建一个互不相关的新页面。"
+      },
+      "feature_ids": [
+        "M12.3"
+      ],
+      "supplement_ids": [
+        "X19"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S18:L387",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 387,
+        "line_end": 387,
+        "text": "5. 页面成为这件事的协同资源，可以在原会话引用、查看和继续调整。"
+      },
+      "feature_ids": [
+        "M12.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S18:L388",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 388,
+        "line_end": 388,
+        "text": "6. 用户选择分享时，清楚知道给谁、能看什么或操作什么；对方的参与只在支持的范围内成立。"
+      },
+      "feature_ids": [
+        "M12.5",
+        "M17.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S18:L389",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 389,
+        "line_end": 389,
+        "text": "7. 使用结束后，用户能够按产品支持的方式留存或导出成果，并了解停止分享或到期的影响。"
+      },
+      "feature_ids": [
+        "M12.7",
+        "M12.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S18:L391",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 391,
+        "line_end": 391,
+        "text": "**异常与控制**。页面中的外部数据不可用时标明；页面有外观不代表背后的动作已完成。临时预览与长期可用成果区别清楚，不暗示无限期运行。"
+      },
+      "feature_ids": [
+        "M12.6",
+        "M12.2",
+        "M12.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S18:L393",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 393,
+        "line_end": 393,
+        "text": "**完成标准**。交付可以继续被使用和协同，而不止于一条回答；版本、数据、分享与结束均有清楚边界。关联模块：M04、M08、M11、M12、M17。"
+      },
+      "feature_ids": [
+        "M12.2",
+        "M12.3",
+        "M12.5",
+        "M12.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S19:L399",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 399,
+        "line_end": 399,
+        "text": "**起因与目标**。用户正在忙，助理还需要整理多份稿件与资料。用户希望工作继续，同时保留重要判断和纠正空间。"
+      },
+      "feature_ids": [
+        "M13.8",
+        "M13.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S19:L407",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 407,
+        "line_end": 407,
+        "text": "1. 助理在既有授权范围内完成读取、整理和可恢复修改，不为每一步都发送“是否继续”。"
+      },
+      "feature_ids": [
+        "M17.2",
+        "M13.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S19:L408",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 408,
+        "line_end": 408,
+        "text": "2. 确实需要事后审阅的结果以清楚的暂行状态呈现，助理继续独立的工作；普通已完成修改不被强行变成审批事项。"
+      },
+      "feature_ids": [
+        "M13.8",
+        "M11.5",
+        "M13.9"
+      ],
+      "supplement_ids": [
+        "X21"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S19:L409",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 409,
+        "line_end": 409,
+        "text": "3. 用户没有及时查看时，待审内容进入集中入口，仍保留来源、改动和实际产物。"
+      },
+      "feature_ids": [
+        "M13.5",
+        "M13.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S19:L410",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 410,
+        "line_end": 410,
+        "text": "4. 用户集中接受部分结果、修改一项、撤回另一项；产品解释受影响的后续成果并反馈实际结局。"
+      },
+      "feature_ids": [
+        "M13.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S19:L411",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 411,
+        "line_end": 411,
+        "text": "5. 一项工作要作出尚未确认的不可恢复承诺，助理单独提出具体问题，其他无依赖部分继续推进。"
+      },
+      "feature_ids": [
+        "M17.3",
+        "M13.7",
+        "M11.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S19:L412",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 412,
+        "line_end": 412,
+        "text": "6. 用户从手机作答后，桌面入口反映同一个决定；关闭卡片或未回应不被解释成同意。"
+      },
+      "feature_ids": [
+        "M13.10"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S19:L414",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 414,
+        "line_end": 414,
+        "text": "**异常与控制**。已发出的消息或不可恢复的外部动作，不能伪装成随时可撤回的草稿。撤回未成功或仍在处理时如实说明。"
+      },
+      "feature_ids": [
+        "M13.9",
+        "M17.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S19:L416",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 416,
+        "line_end": 416,
+        "text": "**完成标准**。用户不用持续盯着助理，也不会失去对关键后果的掌握；工作推进与用户参与相互协调。关联模块：M03、M07、M13、M17。"
+      },
+      "feature_ids": [
+        "M13.8",
+        "M13.7",
+        "M13.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S20:L420",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 420,
+        "line_end": 420,
+        "text": "**起因与目标**。用户不再希望助理读取某个邮箱、使用某个目录，或继续关注某位供应商的往来。"
+      },
+      "feature_ids": [
+        "M17.7",
+        "M04.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S20:L424",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 424,
+        "line_end": 424,
+        "text": "1. 用户在相关资源或权限入口查看当前授予的范围、用途和正在依赖它的事情。"
+      },
+      "feature_ids": [
+        "M17.1",
+        "M04.5",
+        "M04.11"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S20:L425",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 425,
+        "line_end": 425,
+        "text": "2. 如果只想结束一次合作，可以结束那段协同资源；如果希望停止整个邮箱使用，则撤回账户范围的授权。"
+      },
+      "feature_ids": [
+        "M04.10",
+        "M04.9",
+        "M17.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S20:L426",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 426,
+        "line_end": 426,
+        "text": "3. 产品明确两种选择的不同后果，用户完成实际需要的操作。"
+      },
+      "feature_ids": [
+        "M04.10",
+        "M17.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S20:L427",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 427,
+        "line_end": 427,
+        "text": "4. 助理不再开始未获准的新读取或动作，受影响的工作说明缺少什么；其他资源继续可用。"
+      },
+      "feature_ids": [
+        "M17.7",
+        "M18.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S20:L428",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 428,
+        "line_end": 428,
+        "text": "5. 正在进行的外部动作是否可以停止、已经读取或发出什么，按实际情况交代。"
+      },
+      "feature_ids": [
+        "M17.7",
+        "M17.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S20:L429",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 429,
+        "line_end": 429,
+        "text": "6. 用户之后重新授权时，需要重新确定当前用途；不能无声恢复所有过去的监听与待办。"
+      },
+      "feature_ids": [
+        "M04.8",
+        "M17.1",
+        "M17.4"
+      ],
+      "supplement_ids": [
+        "X22"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S20:L431",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 431,
+        "line_end": 431,
+        "text": "**异常与控制**。撤权失败不能显示成功；旧引用不应变成伪造的可读结果。已经给外部参与者或模型的内容不能声称因此被追回。"
+      },
+      "feature_ids": [
+        "M17.7",
+        "M08.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S20:L433",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 433,
+        "line_end": 433,
+        "text": "**完成标准**。用户可以理解并控制协同的范围和生命周期，停止确实有作用，也不误伤其他事情。关联模块：M04、M05、M09、M17。"
+      },
+      "feature_ids": [
+        "M04.9",
+        "M04.10",
+        "M17.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S21:L437",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 437,
+        "line_end": 437,
+        "text": "**起因与目标**。用户最初使用平台服务，后来希望用自己的模型 API；执行工作仍可能使用平台算力或自己的远程节点。他希望费用与切换规则清楚。"
+      },
+      "feature_ids": [
+        "M16.1",
+        "M16.5",
+        "M16.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S21:L445",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 445,
+        "line_end": 445,
+        "text": "1. 用户查看当前服务来源、可用能力、用量和预算，理解哪些费用由平台收取、哪些由自己的供应商收取。"
+      },
+      "feature_ids": [
+        "M16.4",
+        "M16.5",
+        "M16.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S21:L446",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 446,
+        "line_end": 446,
+        "text": "2. 用户添加自己的 API，产品验证实际可用能力并提示必要修正；不要求把密钥发给聊天中的助理。"
+      },
+      "feature_ids": [
+        "M16.2",
+        "M17.5"
+      ],
+      "supplement_ids": [
+        "X23"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S21:L447",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 447,
+        "line_end": 447,
+        "text": "3. 用户选择相关任务使用自带模型服务，计算任务按允许的方式使用平台或已接入节点。"
+      },
+      "feature_ids": [
+        "M16.1",
+        "M16.4",
+        "M05.4"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S21:L448",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 448,
+        "line_end": 448,
+        "text": "4. 助理考虑质量、耗时与资源余量，在预算和既有选择中安排工作；不需要每次调用都打断用户确认。"
+      },
+      "feature_ids": [
+        "M03.4",
+        "M16.6",
+        "M16.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S21:L449",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 449,
+        "line_end": 449,
+        "text": "5. 接近预算限制时，助理收敛低价值探索并说明影响。需要扩大预算或切换未授权的付费来源时，由用户决定。"
+      },
+      "feature_ids": [
+        "M16.6",
+        "M16.7",
+        "M03.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S21:L450",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 450,
+        "line_end": 450,
+        "text": "6. 用户按事情查看实际投入；外部供应商不能提供准确费用时，产品明确标为估计或未知。"
+      },
+      "feature_ids": [
+        "M16.5",
+        "M16.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S21:L451",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 451,
+        "line_end": 451,
+        "text": "7. 用户撤回某个 API 或停止持续工作后，不再产生未经允许的新消耗。"
+      },
+      "feature_ids": [
+        "M16.2",
+        "M16.10",
+        "M17.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S21:L453",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 453,
+        "line_end": 453,
+        "text": "**异常与控制**。自带 API 失效不能静默改用平台余额；平台余额不足不能悄悄使用另一个密钥。“模型费用自付”不意味着存储或执行算力必然免费。"
+      },
+      "feature_ids": [
+        "M16.8",
+        "M16.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S21:L455",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 455,
+        "line_end": 455,
+        "text": "**完成标准**。两种服务来源均可用，用户知道付出了什么，助理的主动性始终考虑资源约束。关联模块：M03、M05、M15、M16。"
+      },
+      "feature_ids": [
+        "M16.1",
+        "M16.5",
+        "M16.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S22:L459",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 459,
+        "line_end": 459,
+        "text": "**起因与目标**。用户交付材料后网络中断，不确定是否送达；另一次工作耗时很长，界面一直没有进展。他希望保留内容并知道发生了什么。"
+      },
+      "feature_ids": [
+        "M18.1",
+        "M18.2"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S22:L467",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 467,
+        "line_end": 467,
+        "text": "1. 产品区分尚未送达、已接受、正在执行、等待外部和结果不明，不用一个“连接中”覆盖所有情况。"
+      },
+      "feature_ids": [
+        "M18.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S22:L468",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 468,
+        "line_end": 468,
+        "text": "2. 发送前失败保留草稿与附件；已接受后的断线保留原委托，等待后续核对。"
+      },
+      "feature_ids": [
+        "M18.2",
+        "M07.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S22:L469",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 469,
+        "line_end": 469,
+        "text": "3. 重新联网或登录后，产品恢复能确认的真实状态及结果，不把用户带回一个没有历史的新任务。"
+      },
+      "feature_ids": [
+        "M18.2",
+        "M06.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S22:L470",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 470,
+        "line_end": 470,
+        "text": "4. 助理说明已完成部分、受影响部分与可继续方式；用户不需要重新上传所有已经保留的材料。"
+      },
+      "feature_ids": [
+        "M11.8",
+        "M18.2",
+        "M08.5"
+      ],
+      "supplement_ids": [
+        "X24"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S22:L471",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 471,
+        "line_end": 471,
+        "text": "5. 对可能产生外部效果的操作，先检查是否已经发生，再决定重试；不自动制造第二次发送或修改。"
+      },
+      "feature_ids": [
+        "M18.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S22:L472",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 472,
+        "line_end": 472,
+        "text": "6. 长时间没有进展时给出可理解状态和适用的控制入口；不支持的取消不能假称已完成。"
+      },
+      "feature_ids": [
+        "M18.1",
+        "M17.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S22:L473",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 473,
+        "line_end": 473,
+        "text": "7. 故障解决后，主客户端、手机与桌面助理收敛到同一结局，结果文件仍可取得。"
+      },
+      "feature_ids": [
+        "M07.9",
+        "M14.8",
+        "M11.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S22:L475",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 475,
+        "line_end": 475,
+        "text": "**异常与控制**。单个模型或来源失败不阻断仍可用的资料服务；过去错过的工作不得补造已执行记录。帮助与诊断入口不暴露密钥或无关私人内容。"
+      },
+      "feature_ids": [
+        "M18.4",
+        "M10.7",
+        "M18.8"
+      ],
+      "supplement_ids": [
+        "X25"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S22:L477",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 477,
+        "line_end": 477,
+        "text": "**完成标准**。用户能够恢复工作和信任，失败不会吞掉输入，也不会无声重复产生后果。关联模块：M07、M08、M14、M18。"
+      },
+      "feature_ids": [
+        "M18.2",
+        "M18.3"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S23:L481",
+      "kind": "origin",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 481,
+        "line_end": 481,
+        "text": "**起因与目标**。用户换了电脑，或者准备暂停服务。他希望保留自己的材料、理解正在运行的工作，并能有序退出。"
+      },
+      "feature_ids": [
+        "M15.7",
+        "M15.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S23:L485",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 485,
+        "line_end": 485,
+        "text": "1. 用户在新设备登录后找到自己的事情与资料，可以检查旧设备的在线和授权状态。"
+      },
+      "feature_ids": [
+        "M14.1",
+        "M15.7",
+        "M05.2",
+        "M17.1"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S23:L486",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 486,
+        "line_end": 486,
+        "text": "2. 如果旧设备丢失或不再使用，用户从可信入口收回相应访问与新工作资格。"
+      },
+      "feature_ids": [
+        "M05.11",
+        "M17.7",
+        "M15.6"
+      ],
+      "supplement_ids": [
+        "X26"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S23:L487",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 487,
+        "line_end": 487,
+        "text": "3. 用户暂停主动活动，查看尚在执行、等待外部或需要自己决定的事情，再逐项收尾。"
+      },
+      "feature_ids": [
+        "M03.8",
+        "M06.3",
+        "M06.8"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S23:L488",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 488,
+        "line_end": 488,
+        "text": "4. 用户按产品支持范围导出资料与成果，知道哪些内容、历史或交互数据被包含，哪些没有。"
+      },
+      "feature_ids": [
+        "M18.5",
+        "M08.9",
+        "M12.7"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S23:L489",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 489,
+        "line_end": 489,
+        "text": "5. 用户可以退出一个客户端而保留远程服务，也可以明确停止相关持续工作；两种后果分别说明。"
+      },
+      "feature_ids": [
+        "M15.7",
+        "M16.10",
+        "M05.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S23:L490",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 490,
+        "line_end": 490,
+        "text": "6. 如果选择取消付费或关闭账户，产品说明后续用量、保存期限、分享成果和仍未完成的动作如何处理。"
+      },
+      "feature_ids": [
+        "M15.8",
+        "M16.10",
+        "M12.7",
+        "M18.9"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S23:L491",
+      "kind": "flow",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 491,
+        "line_end": 491,
+        "text": "7. 删除等不可恢复后果在具体对象和范围明确后确认，实际完成情况可查。"
+      },
+      "feature_ids": [
+        "M17.3",
+        "M18.5",
+        "M17.6"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S23:L493",
+      "kind": "exceptions",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 493,
+        "line_end": 493,
+        "text": "**异常与控制**。重装客户端不等于删除账户资料；停止续费不应让尚未披露的持续费用继续产生。账号恢复、注销和数据保留细节属于正式服务前需要确定的产品承诺。"
+      },
+      "feature_ids": [
+        "M08.9",
+        "M15.8",
+        "M16.10",
+        "M15.6",
+        "M18.9"
+      ],
+      "supplement_ids": [
+        "X27"
+      ],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    },
+    {
+      "id": "S23:L495",
+      "kind": "completion",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 495,
+        "line_end": 495,
+        "text": "**完成标准**。用户能开始使用，也能更换入口、收回设备和有序离开，重要内容与未完成责任有清楚去向。账号退出与商业服务细节为建议补充。关联模块：M05、M14、M15、M16、M17、M18。"
+      },
+      "feature_ids": [
+        "M15.7",
+        "M15.8",
+        "M18.5"
+      ],
+      "supplement_ids": [],
+      "coverage_claim": "原文整句保留；feature_ids为已核实的相关条目，不声称条目独自覆盖整句全部细节。"
+    }
+  ],
+  "story_supplements": [
+    {
+      "id": "X01",
+      "story_id": "S01",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 25,
+        "line_end": 25,
+        "text": "3. 用户交入一份活动需求书：“先帮我理一下要准备什么。”不必先建项目、分类或填写个人画像。"
+      },
+      "requirement": "首次委托无需先建项目、分类或填写个人画像。",
+      "feature_anchors": [
+        "M07.1",
+        "M01.1"
+      ],
+      "relation": "细化既有功能",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X02",
+      "story_id": "S01",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 31,
+        "line_end": 31,
+        "text": "**异常与控制**。API 无效或额度不足时保留草稿与材料，说明怎样继续；首次注册中断后不要求重复建立身份。新设备登录不默认授权读取其中所有文件。"
+      },
+      "requirement": "API 无效或额度不足也须保留草稿与材料；首次注册中断不重复建立身份。",
+      "feature_anchors": [
+        "M16.2",
+        "M18.2",
+        "M15.1"
+      ],
+      "relation": "跨功能场景细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X03",
+      "story_id": "S03",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 73,
+        "line_end": 73,
+        "text": "**异常与控制**。不能仅因“亲属活动”这一类别替用户预先决定轻重；只看到部分日历时说明覆盖范围。行程已对外确认的内容不能无声改动。"
+      },
+      "requirement": "不能仅因亲属活动类别预先替用户决定轻重；已对外确认的行程不能无声改动。",
+      "feature_anchors": [
+        "M03.4",
+        "M09.8",
+        "M17.3"
+      ],
+      "relation": "新增具体禁止结果",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X04",
+      "story_id": "S04",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 90,
+        "line_end": 90,
+        "text": "4. 助理准备一份可修改的交付检查表，并用已有案例检查它是否能帮助减少遗漏。"
+      },
+      "requirement": "用已有案例检查改进检查表是否帮助减少遗漏。",
+      "feature_anchors": [
+        "M03.3",
+        "M11.7"
+      ],
+      "relation": "场景验证细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X05",
+      "story_id": "S04",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 93,
+        "line_end": 93,
+        "text": "7. 下一次类似项目，助理主动采用适合的部分，并观察是否减少返工；无效时继续修正或停止沿用。"
+      },
+      "requirement": "下一次类似项目主动采用适用部分并观察是否减少返工，无效则修正或停用。",
+      "feature_anchors": [
+        "M03.9"
+      ],
+      "relation": "成效反馈细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X06",
+      "story_id": "S06",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 136,
+        "line_end": 136,
+        "text": "9. 活动结束，相关资源完成使命，不再持续监听或催促。历史、成果与整个邮箱账户继续保留，其他项目不受影响。"
+      },
+      "requirement": "一次活动的资源结束不影响其他项目。",
+      "feature_anchors": [
+        "M04.9",
+        "M04.10"
+      ],
+      "relation": "隔离后果细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X07",
+      "story_id": "S07",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 156,
+        "line_end": 156,
+        "text": "5. 用户决定自己的处理方式，助理推进可以代表用户完成的动作；不能代其他人许下承诺。"
+      },
+      "requirement": "只能代表用户推进获准动作，不能代其他人许下承诺。",
+      "feature_anchors": [
+        "M09.8",
+        "M17.9"
+      ],
+      "relation": "新增具体禁止结果",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X08",
+      "story_id": "S09",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 199,
+        "line_end": 199,
+        "text": "5. 有变化时，助理调整后续安排；需要本人到场时提前准备地点、时间与材料提醒，并注意实际开放时间。"
+      },
+      "requirement": "本人到场提醒需要注意实际开放时间。",
+      "feature_anchors": [
+        "M06.7",
+        "M10.3"
+      ],
+      "relation": "现实限制细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X09",
+      "story_id": "S10",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 225,
+        "line_end": 225,
+        "text": "**异常与控制**。不能为节省费用而悄悄降低已承诺质量，也不能因为资源还有余额就无意义地继续生成。已产生的费用和已发生动作如实保留。"
+      },
+      "requirement": "不能为节省费用悄悄降低已承诺质量；已产生费用与动作如实保留。",
+      "feature_anchors": [
+        "M03.4",
+        "M03.5",
+        "M16.5"
+      ],
+      "relation": "承诺边界细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X10",
+      "story_id": "S11",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 244,
+        "line_end": 244,
+        "text": "6. 用户要求“最近少打扰我”，助理调整通知方式；持续工作是否暂停由用户表达的实际意图决定。"
+      },
+      "requirement": "少打扰只改变通知方式；持续工作是否暂停取决于用户实际意图。",
+      "feature_anchors": [
+        "M13.6",
+        "M03.8"
+      ],
+      "relation": "新增决定边界",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X11",
+      "story_id": "S11",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 246,
+        "line_end": 246,
+        "text": "**异常与控制**。没有新内容时不编造简报；资料不足的判断标明限制。一次通知投递失败不让结果消失，重复的同一变化不反复制造新的待办。"
+      },
+      "requirement": "重复的同一变化不反复制造新的待办。",
+      "feature_anchors": [
+        "M10.8"
+      ],
+      "relation": "去重对象细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X12",
+      "story_id": "S12",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 263,
+        "line_end": 263,
+        "text": "2. 助理了解当前可用节点的实际状态、可提供能力和获准访问的材料范围，保留状态的取得时间。"
+      },
+      "requirement": "节点能力与获准材料状态须保留取得时间。",
+      "feature_anchors": [
+        "M05.2",
+        "M02.4"
+      ],
+      "relation": "跨功能场景细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X13",
+      "story_id": "S12",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 267,
+        "line_end": 267,
+        "text": "6. 用户锁屏离开，远程节点上能够继续的工作仍继续。需要本人判断时，问题与足够背景回到手机；否则结果完成后再通知。"
+      },
+      "requirement": "远程工作可继续时锁屏不阻断；需要本人判断才携足够背景返回，否则完成后通知。",
+      "feature_anchors": [
+        "M05.9",
+        "M13.7",
+        "M13.6"
+      ],
+      "relation": "通知时机细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X14",
+      "story_id": "S13",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 283,
+        "line_end": 283,
+        "text": "4. 原始材料的限制持续适用，不因换模型、换节点或委派其他助理失效。"
+      },
+      "requirement": "原材料限制不因换模型、换节点或委派助理失效。",
+      "feature_anchors": [
+        "M05.8",
+        "M17.4",
+        "M11.3"
+      ],
+      "relation": "限制延续细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X15",
+      "story_id": "S14",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 304,
+        "line_end": 304,
+        "text": "**异常与控制**。“手机断开”“执行节点离线”“远程任务已停止”是不同事实；不能相互替代。结果无法确认时，清楚标明并提供后续核对路径。"
+      },
+      "requirement": "手机断开、执行节点离线、远程任务已停止是三种不同事实；未知结果提供核对路径。",
+      "feature_anchors": [
+        "M05.9",
+        "M05.10",
+        "M18.1"
+      ],
+      "relation": "状态区分细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X16",
+      "story_id": "S15",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 325,
+        "line_end": 325,
+        "text": "6. 预览约 30 秒无操作后消失；用户正在悬停、聚焦或拖动时，不突然把它收走。预览出现本身不触发上传或任务。"
+      },
+      "requirement": "用户悬停、聚焦或拖动候选预览时，不突然收走约30秒预览。",
+      "feature_anchors": [
+        "M14.6"
+      ],
+      "relation": "功能表未明写的交互约束",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X17",
+      "story_id": "S15",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 329,
+        "line_end": 329,
+        "text": "**异常与控制**。未知来源不猜成某个应用；文件类型不支持时说明限制。有未发送草稿时不绕过说明直接发送。取消暂放、移除文件或关闭便签后，迟到的读取不能重新打开并偷偷交付。"
+      },
+      "requirement": "有未发送草稿时不绕过说明直接发送；取消暂放、移除文件或关闭便签后，迟到的读取不得重开并偷偷交付。",
+      "feature_anchors": [
+        "M17.10",
+        "M14.5"
+      ],
+      "relation": "功能表未明写的禁止结果",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X18",
+      "story_id": "S16",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 353,
+        "line_end": 353,
+        "text": "**完成标准**。原件、版本和关系可靠存在，资料收纳、助理读取与形成长期记忆是可区分的结果。关联模块：M01、M07、M08、M13、M18。"
+      },
+      "requirement": "资料收纳、助理读取、形成长期记忆是三个可区分结果。",
+      "feature_anchors": [
+        "M08.3",
+        "M01.5"
+      ],
+      "relation": "产品概念细化，产品定义第80行亦明确材料与记忆区别",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X19",
+      "story_id": "S18",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 386,
+        "line_end": 386,
+        "text": "4. 用户继续说“把这一站移到明天”，助理修改对应成果，保留已有记录，不误建一个互不相关的新页面。"
+      },
+      "requirement": "修改同一页面保留已有使用记录。",
+      "feature_anchors": [
+        "M12.3"
+      ],
+      "relation": "功能表未明写，产品定义第404行验收亦明确",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X20",
+      "story_id": "S18",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 385,
+        "line_end": 385,
+        "text": "3. 用户在手机打开页面，看到内容来源、当前版本和支持的操作，记录已完成的行程。"
+      },
+      "requirement": "使用成果时可以看到当前版本和内容来源。",
+      "feature_anchors": [
+        "M12.3",
+        "M12.6"
+      ],
+      "relation": "成果可读信息细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X21",
+      "story_id": "S19",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 408,
+        "line_end": 408,
+        "text": "2. 确实需要事后审阅的结果以清楚的暂行状态呈现，助理继续独立的工作；普通已完成修改不被强行变成审批事项。"
+      },
+      "requirement": "普通已完成修改不强行变成审批事项；独立工作继续。",
+      "feature_anchors": [
+        "M13.8",
+        "M11.5"
+      ],
+      "relation": "状态与独立进展细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X22",
+      "story_id": "S20",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 429,
+        "line_end": 429,
+        "text": "6. 用户之后重新授权时，需要重新确定当前用途；不能无声恢复所有过去的监听与待办。"
+      },
+      "requirement": "重新授权时重新确定当前用途，不无声恢复所有旧监听与待办。",
+      "feature_anchors": [
+        "M04.8",
+        "M17.1"
+      ],
+      "relation": "功能表未明写，产品定义第101行亦明确旧监听不默默复活",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X23",
+      "story_id": "S21",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 446,
+        "line_end": 446,
+        "text": "2. 用户添加自己的 API，产品验证实际可用能力并提示必要修正；不要求把密钥发给聊天中的助理。"
+      },
+      "requirement": "不要求用户把 API 密钥发给聊天中的助理。",
+      "feature_anchors": [
+        "M16.2",
+        "M17.5"
+      ],
+      "relation": "秘密输入路径细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X24",
+      "story_id": "S22",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 470,
+        "line_end": 470,
+        "text": "4. 助理说明已完成部分、受影响部分与可继续方式；用户不需要重新上传所有已经保留的材料。"
+      },
+      "requirement": "恢复工作不要求重新上传所有已经保留的材料。",
+      "feature_anchors": [
+        "M18.2",
+        "M08.5"
+      ],
+      "relation": "恢复体验细化",
+      "status": "source_requirement",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X25",
+      "story_id": "S22",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 475,
+        "line_end": 475,
+        "text": "**异常与控制**。单个模型或来源失败不阻断仍可用的资料服务；过去错过的工作不得补造已执行记录。帮助与诊断入口不暴露密钥或无关私人内容。"
+      },
+      "requirement": "诊断既不暴露密钥，也不暴露无关私人内容。",
+      "feature_anchors": [
+        "M18.8"
+      ],
+      "relation": "建议项的隐私细化",
+      "status": "suggested_or_deferred",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X26",
+      "story_id": "S23",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 486,
+        "line_end": 486,
+        "text": "2. 如果旧设备丢失或不再使用，用户从可信入口收回相应访问与新工作资格。"
+      },
+      "requirement": "设备丢失或弃用时从可信入口收回访问及新工作资格。",
+      "feature_anchors": [
+        "M05.11",
+        "M17.7",
+        "M15.6"
+      ],
+      "relation": "设备恢复情境细化",
+      "status": "suggested_or_deferred",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    },
+    {
+      "id": "X27",
+      "story_id": "S23",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+        "line_start": 493,
+        "line_end": 493,
+        "text": "**异常与控制**。重装客户端不等于删除账户资料；停止续费不应让尚未披露的持续费用继续产生。账号恢复、注销和数据保留细节属于正式服务前需要确定的产品承诺。"
+      },
+      "requirement": "停止续费不让尚未披露的持续费用继续产生；账号恢复、注销与保留细节留待正式服务前决定。",
+      "feature_anchors": [
+        "M15.8",
+        "M16.10",
+        "M18.9"
+      ],
+      "relation": "建议与发布待定边界",
+      "status": "suggested_or_deferred",
+      "scope_note": "超出feature表的明写粒度；不是新增正式框架承诺，也不必然是全套需求文档独有。"
+    }
+  ],
+  "cross_module_requirements": [
+    {
+      "id": "G01",
+      "name": "所有入口状态一致",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 535,
+        "line_end": 537,
+        "text": "### 8.1 一件事的状态在所有入口一致\n\n对话、事情列表、资源预览、手机通知和桌面助理可以呈现不同层次的信息，但应指向同一份现实结果。结束的工作不应在另一个入口持续显示处理中；已作出的决定不能再次变成待答；等待外部回复不能假装助理正在持续计算。"
+      }
+    },
+    {
+      "id": "G02",
+      "name": "共同行为与实际能力分开",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 539,
+        "line_end": 541,
+        "text": "### 8.2 共同行为可理解，实际能力不混同\n\n协同资源共享识别、引用、查看和使命管理方式。具体动作取决于真实能力：文件夹可以有版本变化，邮件可以有往来，其他助理可以交付结果；一个静态图片不需要凭空出现“等待回复”。选择某个资源本身不增加权限，也不证明助理已经读取过它。"
+      }
+    },
+    {
+      "id": "G03",
+      "name": "价值高于活动数量",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 543,
+        "line_end": 545,
+        "text": "### 8.3 结果的价值高于活动数量\n\n产品应帮助用户辨认事情是否取得实际进展、是否减少负担、是否作出更合适的取舍。更多消息、工具调用、子任务或通知不自动表示更多价值。助理应能结束没有收益的活动，也能在必要时投入较多资源完成真正重要的工作。"
+      }
+    },
+    {
+      "id": "G04",
+      "name": "低成本参与及同一决定",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 547,
+        "line_end": 549,
+        "text": "### 8.4 需要用户参与时，参与成本应低\n\n用户不需要从完整历史里重新搜集问题背景。助理应携带必要对象、材料、已有选择和真实后果来协商；允许用户用自然语言修正。相同、未改变的决定不被重复询问，一次决定的结果在所有入口一致。"
+      }
+    },
+    {
+      "id": "G05",
+      "name": "离开屏幕责任连续",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 551,
+        "line_end": 553,
+        "text": "### 8.5 用户离开屏幕后，责任仍然连续\n\n云端能够继续的工作、依赖某台设备在线的工作、尚未发出的工作应分别说明。用户可以关掉手机而让远程工作继续，也能明确暂停后续行动。不能承诺断电设备还在工作，更不能因为用户没有打开应用就把已经发生的事情忘掉。"
+      }
+    }
+  ],
+  "deferred_commitments": [
+    {
+      "id": "D01",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 580,
+        "line_end": 580,
+        "text": "1. **首发完整旅程与渠道范围**。哪些生活或工作场景先达到可反复依赖的程度，首发接入哪些通信、资料和生产能力；完整资源心智保留，但支持列表必须真实。"
+      },
+      "status": "发布前待定"
+    },
+    {
+      "id": "D02",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 581,
+        "line_end": 581,
+        "text": "2. **客户端与节点支持范围**。首发桌面、手机和远程节点覆盖的平台及差异；具体操作系统和最低版本另行确定。"
+      },
+      "status": "发布前待定"
+    },
+    {
+      "id": "D03",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 582,
+        "line_end": 582,
+        "text": "3. **自主工作默认边界**。默认可进行的探索、投入范围与通知方式，如何让用户在首次使用时以较低成本理解并调整。"
+      },
+      "status": "发布前待定"
+    },
+    {
+      "id": "D04",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 583,
+        "line_end": 583,
+        "text": "4. **服务与用量计价**。平台用量、自带 API、执行算力和其他服务分别如何收费，余额不足和预算耗尽时怎样处理；不预定套餐价格。"
+      },
+      "status": "发布前待定"
+    },
+    {
+      "id": "D05",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 584,
+        "line_end": 584,
+        "text": "5. **数据与交互成果的长期承诺**。资料、历史、记忆、已发布成果及分享内容的保留、导出和删除范围；账号退出后的影响需向用户说明。"
+      },
+      "status": "发布前待定"
+    },
+    {
+      "id": "D06",
+      "source": {
+        "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+        "line_start": 585,
+        "line_end": 585,
+        "text": "6. **可靠性与支持承诺**。正式服务的可用性、恢复能力、支持响应及用户反馈渠道；需要以可兑现的服务结果确定。"
+      },
+      "status": "发布前待定"
+    }
+  ],
+  "features_without_direct_story_evidence": [
+    "M04.3",
+    "M04.6",
+    "M07.7",
+    "M07.10",
+    "M13.2",
+    "M14.2",
+    "M14.9",
+    "M15.5",
+    "M18.7",
+    "M18.10"
+  ],
+  "coverage_limit": "机械检查证明所有源feature与story正文需求行均被保留且ID无缺漏。是否一条故事含未单独标出的语义细节依靠原文逐行复核；保留整句不等于已经证明所有未来验收条件。"
+}

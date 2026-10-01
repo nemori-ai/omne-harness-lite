@@ -1,0 +1,525 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Relay · Always-On / Dots / Plexus 补篇</title><style>*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:#26342e;background:#f7f7f2;font:16px/1.9 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}aside{position:fixed;inset:0 auto 0 0;width:235px;padding:36px 24px;background:#e7ece3;border-right:1px solid #d1dacf}aside strong{font-size:28px;display:block}aside p{font-size:13px;color:#5f6b62}nav a{display:block;padding:12px 0;text-decoration:none}a{color:#27634e;text-underline-offset:4px}main{margin-left:235px;max-width:1370px;padding:40px 4vw 90px}h1{font-size:32px;line-height:1.4;margin:25px 0}h2{font-size:24px;margin-top:2.3em;line-height:1.5}h3{font-size:19px;margin-top:1.8em}table{border-collapse:collapse;background:white;width:100%;font-size:14px;margin:22px 0}th,td{border:1px solid #d5ded2;padding:12px;vertical-align:top}th{background:#e4ebdf;text-align:left}pre{background:#e7ece3;padding:20px;font-size:12px;overflow:auto;line-height:1.7}code{font-size:.86em;overflow-wrap:anywhere}section{padding-bottom:45px;margin-bottom:45px;border-bottom:1px solid #c9d6c6}.stamp{font-size:13px;color:#667261}button{font:inherit;font-size:13px;background:white;border:1px solid #a5b49d;border-radius:4px;padding:8px 12px;cursor:pointer}@media(max-width:850px){aside{position:relative;width:auto;padding:20px}nav{display:flex;gap:20px;flex-wrap:wrap}main{margin:0;padding:20px}h1{font-size:27px}table{display:block;overflow:auto}td,th{min-width:160px}}@media print{aside,button{display:none}main{margin:0;padding:0;max-width:none}body{background:white;font-size:10pt}h1{font-size:22pt}h2{font-size:17pt}table{font-size:8pt}section{break-before:page}pre{font-size:7pt;white-space:pre-wrap}a{color:inherit}}</style></head><body><aside><strong>Relay</strong><p>Always-On / Dots / Plexus<br>2026-10-01 · 报告补篇</p><nav><a href="#analysis">完整解读与判断</a><a href="#issue">一条主项目讨论稿</a><a href="#research">研究结论与局限</a><a href="#review">独立评审与处置</a><a href="../../report.html">昨天的完整报告 ↗</a></nav><p>本篇为研究及候选投影补充。<br>不新增框架接受或实现。</p></aside><main><p class="stamp">依据官方全文、源码与精确契约逐层核对 · 原报告封存字节保持不变</p><button onclick="window.print()">打印 / 保存为 PDF</button><section id="analysis"><h1 id="analysis-always-ondots-与-plexusrelay-投影报告补篇">Always-On、Dots 与 Plexus：Relay 投影报告补篇</h1>
+<p>2026-10-01。调查对象、版本与证据归<a href="../../../../../../research/always-on-agents-plexus/README.md">研究包</a>。本篇是原报告的解释与验收方法补充，不接受新框架设计，不改变原165项功能、58节点建设DAG和工程量估算，也没有执行实现或运行测试。</p>
+<h2 id="analysis-1-判断值得补入报告有一条窄范围主项目讨论值得提出">1. 判断：值得补入报告，有一条窄范围主项目讨论值得提出</h2>
+<p><strong>值得补充，且不只是加几条外部引用。</strong> 这些材料把原报告三个相邻部分连成了一条可审查的链：持续理解与长期事情、真实资源接入、授权和恢复。最重要的变化是验收问题：除了问“这次任务完成了吗”，还要问“前天形成的理解，昨天的更正和今天的撤权，是否正确改变了明天的行动”。</p>
+<p><strong>独立评审与主线复核后，保留1条值得主项目讨论的候选：压缩摘要内部的指令归属是否需要明确保留。</strong> 已写好<a href="#issue">issue讨论稿</a>，未发布。必经放行、委派收窄、持久事实/恢复以及已知待定义的长期目标/记忆均不重复提。新候选限定在“摘要由系统生成”与“摘要转述的要求究竟是谁说的”之间：当前设计区分前者，并显式把摘要内容交给策略；未找到对后者是否需要成为策略自由的窄例外的专门规定或讨论。这是有具体风险序列支撑的设计讨论，尚非已复现漏洞。</p>
+<p>三组独立读数分别核论文、个人版/Plexus、lite覆盖；主线合并时区分它们的证据强度。原报告封存文件保持原字节，本补篇独立记录评审和最终哈希。</p>
+<h2 id="analysis-2-为什么会觉得它们异曲同工">2. 为什么会觉得它们异曲同工</h2>
+<h3 id="analysis-21-共通点是状态会积累并在未来获得行动后果">2.1 共通点是状态会积累，并在未来获得行动后果</h3>
+<p>论文的核心对象是跨交互保留身份和可变状态、让后续行为依赖这些状态的代理。它不要求进程全天不停：定时唤醒或按事件唤醒都可以；始终在线但每次遗忘也不满足其定义。六条诊断轴是授权、范围、可变性、来源、可恢复性和行动性。<a href="https://arxiv.org/html/2606.30306v1">论文§2–4</a></p>
+<p>把这件事投到Relay，一份资料刚进入时只是“我看过”；提取后可能成为“我认为”；用户纠正后变成“以后按这个理解”；再与长期事情、时间条件结合，就可能成为“我现在应当行动”。风险和价值都发生在这些转换上。</p>
+<p><strong>我的解读：能记住不是终点，关键是系统是否知道这段记忆在什么情境下仍然有效、能影响什么、失效后怎样停止影响后续工作。</strong> 这也是为什么持久化是必要底座，但给每段文字加数据库ID并不解决全部问题。</p>
+<h3 id="analysis-22-三份材料观察的是不同层">2.2 三份材料观察的是不同层</h3>
+<table>
+<thead>
+<tr>
+<th>对象</th>
+<th>它提供的东西</th>
+<th>不能由此推出</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Always-On综述</td>
+<td>分析持久状态与治理的方法，以及有限实验的评价协议</td>
+<td>一套已验证可直接部署的统一架构</td>
+</tr>
+<tr>
+<td>Dots公开说明</td>
+<td>具体产品如何限制后台研究、隔离执行和防护、检查动作</td>
+<td>审核算法、存储事务、恢复与全域删除协议已公开或被独立证明</td>
+</tr>
+<tr>
+<td>Plexus + Personal Edition adapter</td>
+<td>能力发现与授权、具体资源绑定、回执及原Session异步接续的已有纵线</td>
+<td>长期认知记忆、通用事件总线、跨Session使命系统已经完成</td>
+</tr>
+<tr>
+<td>Harness lite</td>
+<td>已定的执行、身份/权限、事实、动态生命周期与恢复边界</td>
+<td>已接受条款等于生产执行链已实现</td>
+</tr>
+<tr>
+<td>Relay产品层</td>
+<td>解释哪些事情值得持续推进、如何理解用户、何时交付或打扰</td>
+<td>连接所有底层模块就自然产生长期有用性</td>
+</tr>
+</tbody>
+</table>
+<p>因此可以将它们连起来理解，却不能把论文、Dots、Plexus和lite说成同一个系统的不同名字。Dots是一个产品对同类问题的回答；你已有的框架与资源系统是另一条具体建设路径。</p>
+<h3 id="analysis-23-对动态资源的重新定位">2.3 对动态资源的重新定位</h3>
+<p>Plexus最有价值的地方，不只是“让模型多调用几个工具”，而是让<strong>用户环境中的能力成为有身份、有作用范围、有授权边界、能取得执行回执的对象</strong>。个人版adapter又把某项能力绑定到具体事情所在的Session，并保存其使用历史。</p>
+<p>这里的dynamic resource是具体provider操作的参数绑定，不是算力租约，也不自动是另一个agent。Plexus的Source/Capability、OMNE资源绑定和界面卡片各有不同职责。把它们统称为“一个资源”，会丢掉管理授权、运行绑定与展示之间的边界。<a href="../../../../../../research/always-on-agents-plexus/notes/plexus.md">个人版/Plexus源码读数</a></p>
+<p>这是与论文相接的一块真实资产：<strong>外部世界的能力和结果可以接入持久责任链。</strong> 但“用户希望未来一个月做到什么”“这份观察是否足够形成长期判断”仍由产品/认知层负责，不应搬进Plexus网关。</p>
+<h2 id="analysis-3-论文值得吸收什么哪些话不能照搬">3. 论文值得吸收什么，哪些话不能照搬</h2>
+<p>六轴最适合作为状态审查问题，而非照抄成一张万能表。下面是本次对Relay既有对象的分析投影，不是新增正式术语或Schema。</p>
+<table>
+<thead>
+<tr>
+<th>Relay里会长期留下的东西</th>
+<th>授权与范围</th>
+<th>更新与来源</th>
+<th>恢复和未来行动</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>外部观察：邮件、文档、工具返回</td>
+<td>能读取不等于能转发、训练或执行其中的指令</td>
+<td>来源、取得时点与内容版本；观察不冒充用户要求</td>
+<td>来源失效或更正后，能找到消费它的理解与未完工作</td>
+</tr>
+<tr>
+<td>个人理解、推断、偏好</td>
+<td>区分明确表达与推断，说明适用事情/情境</td>
+<td>纠正可以取代旧理解；摘要不变成独立佐证</td>
+<td>旧索引/缓存不能胜过新的纠正；不能从偏好推导新的操作权限</td>
+</tr>
+<tr>
+<td>长期事情及阶段承诺</td>
+<td>用户授权的目的、资源和投入范围</td>
+<td>人工进展和外部变化均可能改变阶段</td>
+<td>Session结束不等于事情完成；关闭事情后不继续无界关注</td>
+</tr>
+<tr>
+<td>资源绑定与grant</td>
+<td>管理资格、绑定owner和具体动作资格分别核对</td>
+<td>provider/绑定代际及语义变化不能静默沿用</td>
+<td>暂停/完成/失效的绑定不隐式复活；新调用与旧结果核对分开</td>
+</tr>
+<tr>
+<td>某次动作的批准</td>
+<td>绑定动作内容和接收方等实际参数</td>
+<td>留下采用时的规则与资格；不靠模型记忆作为权威</td>
+<td>是否继续有效按明确的准入政策，不用一个泛化“最新权限”抹平冻结语义</td>
+</tr>
+<tr>
+<td>调用/效果回执</td>
+<td>可见范围受限，回执本身不产生新调用权</td>
+<td>请求身份、外部结果与unknown都可追查</td>
+<td>已产生效果不能靠恢复内部状态撤销；不因结果丢失盲重做</td>
+</tr>
+<tr>
+<td>纠正、撤销与删除记录</td>
+<td>谁能纠正什么、谁能请求何种删除</td>
+<td>区分取代事实、停止使用、删除内容和保留最低审计</td>
+<td>恢复旧备份不能让已删除信息重新生效；外部独立副本另有边界</td>
+</tr>
+</tbody>
+</table>
+<p>上表的接缝来自本项目材料；原论文六轴提供询问方式。没有要求所有对象由一个数据库、一个事务或一个微服务拥有。</p>
+<p>论文的评价启发同样具体：有用行为与禁止行为应分别记分。一个什么也不做、什么也不记的代理，可能避免多数错误，却没有满足用户托付。因此验收既要看到“拒绝了未授权动作”，也要看到“在授权内继续推进并交付”。</p>
+<p>证据强度必须降到合适位置：</p>
+<ul>
+<li>AOEP并非只有概念：作者报告了7个系统配置、9类故障、本地pilot和若干真实AppWorld轨迹扩展。但没有补齐最小治理字段的消融，不能把配置差异升级为某种存储架构的先天缺陷；本次未复现。</li>
+<li>综述把GEM表述为形式化不可能性证明；核对原文§3.4后，原作者明确说是结构性观察而非定理，六条件也不包含综述所说的rollback traceability。因此不能引用它来宣称“关系型/记录级存储数学上不可能做到”。<a href="https://arxiv.org/html/2605.26252v1">GEM原文</a></li>
+<li>ACRFence原文展示恢复攻击的PoC，却明确没有实现或评测所提防护方案。它支持“内部恢复可能重复外部效果”这个反例，不支持“采用其方案就已解决恢复安全”。<a href="https://arxiv.org/abs/2603.20625v1">ACRFence原文</a></li>
+</ul>
+<p>完整定义、阅读范围、数量口径和局限见<a href="../../../../../../research/always-on-agents-plexus/notes/paper.md">论文封存读数</a>。本篇不据综述更换基础存储、不扩大已接受语义，也不作产品优劣排名。</p>
+<h2 id="analysis-4-dots带来的启发把自主性分配到不同权限的工作阶段">4. Dots带来的启发：把自主性分配到不同权限的工作阶段</h2>
+<p>OpenAI描述了两个很有帮助的边界：后台主动研究用代码限制的只读工具，把笔记交回Dot；后续动作仍经过常规规则。执行代码的环境不能修改或关闭关键检查。文章也明确断开连接不等于清除已经取得的上下文。这些是厂商公开的产品说明，尚非其底层实现或独立效果证据。<a href="https://openai.com/zh-Hans-CN/index/how-we-build-safety-security-and-privacy-into-dots/">官方文章</a></p>
+<p><strong>投到Relay的意义，是将“自主了解”与“产生外部后果”分配不同权力。</strong> 可以在既有PWP-03/PWP-11的策略实验中，比较一个仅能读取获准来源、写私有研究记录的后台角色；它提出值得推进的事情，再由真实动作路径承接。这里的“只读”针对用户业务资源：保存私有研究结果当然仍会写产品自己的存储。</p>
+<p>这是可选产品组合，不是本次为Harness新设“所有主动工作必须只读”的规则。已有子权限不宽于父、工具禁用、不可关闭的准入，可以提供组合基础；工具具体是否真的无外部写效果，仍要由提供者和隔离环境兑现。开放一个通用Shell/Browser，或者设置PF-005的never-allow，都不能证明研究角色只读；never-allow约束落点，不证明工具效果。</p>
+<p>同样不能把“独立审核”擅自解释成“必须再调一个不同大模型”。lite已经有不能被agent绕过的放行语义，具体语义授权算法及父权限读取来源还有已登记缺口；本次文章不足以替它们选算法。</p>
+<p>另一个产品启发是把用户控制的不同后果说清楚：取消一项长期事情、撤销一个应用的访问、让系统不再采用某条理解、删除信息、恢复一次运行，分别改变不同状态。若界面都叫“停止”或“忘记”，即使底层各自正确，用户也无法判断自己控制了什么。这是昨天权限/恢复/退出体验的解释补强。</p>
+<h2 id="analysis-5-plexus现有纵线究竟能复用多少">5. Plexus现有纵线究竟能复用多少</h2>
+<table>
+<thead>
+<tr>
+<th>已有资产（所查个人版与匹配Plexus）</th>
+<th>对Relay建设的价值</th>
+<th>保留的边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Connector→Source→Capability动态发现；管理面与agent调用面分离</td>
+<td>设备/应用能力接入、配置与使用知识的现成实现参考</td>
+<td>软件操作目录不是业务长期目标或通用变化订阅</td>
+</tr>
+<tr>
+<td>Session具体资源绑定、owner、provider/自身代际、合同指纹</td>
+<td>PWP-04资源协作和SWP-07适配不必从概念零起步</td>
+<td>这是个人版候选接口，移植须对齐lite接受边界</td>
+</tr>
+<tr>
+<td>Harness委派断言与Plexus自身grant双重核验</td>
+<td>IF-07权限桥可用作真实接缝案例</td>
+<td>服务调用委派不等于BOT工作委派；不能把它当完整SaaS授权服务</td>
+</tr>
+<tr>
+<td>SQLite绑定、授权custody、请求/任务回执；尝试先落盘</td>
+<td>原请求核对、去重与unknown呈现有已有实现经验</td>
+<td>保护一次dispatch不等于全域exactly-once；外部服务另有事实</td>
+</tr>
+<tr>
+<td>终态观察及原Session受约束接续</td>
+<td>异步任务完成后继续原工作有代码与已有E2E记录</td>
+<td>只观察已接受job的终态；不是邮件/日历/文件的通用changefeed</td>
+</tr>
+<tr>
+<td>provider重启恢复、同agent新权限episode核对旧任务</td>
+<td>中断后的身份/结果核对路径有经验</td>
+<td>Plexus网关内存job cache丢失时不能补造结果</td>
+</tr>
+</tbody>
+</table>
+<p><strong>复用还跨一道语言边界。</strong> 个人版adapter是Python，Plexus网关是TypeScript。沿lite以TypeScript为主的产品实现约定，adapter不是可直接搬进monorepo的同语言包：需要按lite契约重新实现/适配，复用的是协议、语义及验证经验。Plexus网关可以作为外部服务复用的候选，但部署隔离与版本适配仍须验证。这部分移植成本本次未估。</p>
+<p>三个必须保留的现实差异：</p>
+<ol type="1">
+<li><strong>Plexus Session不是OMNE Session。</strong> 前者是短期权限episode，当前内存态；后者承载对话/工作生命周期。混为一谈会误判跨会话持续性。</li>
+<li><strong>adapter持久化不等于上游持久化。</strong> 网关重启后可能丢失异步结果，adapter能诚实保留unknown，不能保证恢复该结果。暂停/撤权也不能被说成终止已派发动作或回滚其效果。</li>
+<li><strong>独立Plexus的所有功能不等于个人版已开放。</strong> 个人版明确排除长运行coding-agent launcher、泛命令和无界native automation。旧安全文档“execute永不standing”也已漂移：当前代码允许owner对特定agent+capability明确opt-in，默认仍按次。判断须用匹配提交而非旧README。</li>
+</ol>
+<p>以上根据源码与已有验证记录，本次未重跑。它们使复用路径更具体，却不足以直接下调原187人周中任何整包：SaaS租户隔离、多用户连接运营、业务语义、跨Session事情和真实组合验证仍在原责任范围内。</p>
+<h2 id="analysis-6-连起来之后的执行路径">6. 连起来之后的执行路径</h2>
+<p>下面是<strong>报告目标态的责任链</strong>。标为“个人版已有”的部分只在所查个人版纵线有实现/记录；其余是lite承诺或Relay候选，不是本次新实现。</p>
+<pre class="text"><code>用户的事情、范围、预算与停止条件                         Relay PWP-06 / SWP-02
+        │
+        ├──长期理解/资料来源/更正记录                     PWP-01 / PWP-08
+        │          │
+        └──获准观察 + 时间/事件条件                     PWP-02 / PWP-10 / SWP-07
+                   │  业务changefeed需独立提供，不能由Plexus job终态代替
+             形成候选工作或研究笔记                     PWP-03 / PWP-11
+                   │  观察/笔记不能自授权限
+             某次具体动作与冻结参数
+                   │
+           Harness必经准入 AND 资源侧具体授权             HWP-04 / SWP-02 / IF-07
+                   │  两侧判定时点分别沿各自已定语义
+           provider / Plexus授权调用                    SWP-07 / PWP-04
+                   │  个人版已有绑定、私有grant custody和持久请求回执
+             外部实际效果 / accepted job
+                   │
+           结果核对 → 成功 / 失败 / unknown              个人版已有窄口；通用SaaS仍需交付
+                   │  终态观察只续原Session，不自动路由跨Session目标
+          框架运行事实 + Relay事情进展                   HWP-03 / PWP-06
+                   │  Run结束与业务目标完成分别判
+           下一次取用前纳入更正/范围/时效                 PWP-01 / PWP-03
+                   └──────────────────────→ 后续工作</code></pre>
+<p>权威按对象分开：Plexus的外部调用回执不能替代Harness运行事实；Harness的Run结束不能替代Relay事情完成；Relay记忆中的“已经授权”不能替代实际授权源。恢复时先核对各自真实状态，再决定能否继续。低用户数可以简化部署规模，却不会消除这些跨边界一致性问题。</p>
+<h3 id="analysis-一条例子持续跟进一次出行">一条例子：持续跟进一次出行</h3>
+<p>此例是分析场景，不新增需求。用户授权跟进出行资料；研究角色发现航班时间变化，留下带来源与时点的观察。产品层判断它影响原有行程，提出改日程或通知同行者的候选动作。读到邮件不自动得到改日程/转发邮件的资格；真正动作分别经过既有Harness和资源授权。</p>
+<p>之后用户纠正同行人，又撤销日历连接，而一个请求刚好在外部提交后丢了响应。这时：理解层不能继续使用旧同行人；资源层不能发起失去资格的新调用；已提交请求要核对结果，不能因为重启重发；事情层不能仅因一次Run结束就报“行程已调整”。这条跨时间链，才是本次研究给昨天逐功能投影增加的检查维度。</p>
+<h2 id="analysis-7-如何补进原报告规模和路径是否改变">7. 如何补进原报告，规模和路径是否改变</h2>
+<table>
+<thead>
+<tr>
+<th>本次补充</th>
+<th>沿用原有位置/owner</th>
+<th>对建设范围的影响</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>六轴状态对账与“观察→理解→授权→效果”的区别</td>
+<td>主报告、M01/M05/M06；PWP-01/04/06</td>
+<td>澄清语义及验收，不新增工作包</td>
+</tr>
+<tr>
+<td>个人版/Plexus复用基线</td>
+<td>资源路径、外围适配；PWP-04、SWP-07、IF-07</td>
+<td>候选实现资产更具体；不自动接受接口或承诺节省人周</td>
+</tr>
+<tr>
+<td>只读主动研究角色的策略试验</td>
+<td>PWP-03/PWP-11、既有主动工作验收</td>
+<td>可选组合；未裁决启用、默认频率和成本</td>
+</tr>
+<tr>
+<td>混合故障下的跨时间验收</td>
+<td>IWP-02、IV-CORE/AUTH/NODE/COOP/MEMORY</td>
+<td>细化既有责任的证据，不新增产品语义</td>
+</tr>
+<tr>
+<td>文献强度及撤权/删除/恢复区别</td>
+<td>风险与用户控制章节</td>
+<td>防止把外部宣传或论文代理指标写成产品保证</td>
+</tr>
+</tbody>
+</table>
+<p>原报告的165功能覆盖不重算；37工作包+21里程碑、262条typed边不改变。108/187/302人周仍是未校准情景，不因发现旧代码就扣减，也不因读到论文就追加一套“记忆数据库工程”。八条有序/乱序轨迹增加了具体验证工作，不能理解为零成本；本次没有重估验证工量，只把它交回原校准流程。若后续校准证明原工作包工量假设不成立，应重估，而不是把本补篇当作成本确定性证据。新增issue若后续被接受并改变框架承诺，也需另作版本与计划影响分析，本补篇不提前计为已接受范围。</p>
+<h3 id="analysis-71-追加到既有验收责任的八条轨迹">7.1 追加到既有验收责任的八条轨迹</h3>
+<p>这是后续可执行的验收设计，<strong>本次没有执行、没有通过率</strong>。每条都要固定初始状态、外部服务配置、采用政策、变更顺序、恢复点及可观察结果。可用有序和受控乱序两种轨迹查接缝，不能只检查最终回答文字。</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>必须看到的结果与禁止结果</th>
+<th>责任与已有依据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T1 观察→摘要→研究笔记→委派→候选动作</td>
+<td>框架基线只核对原日志/消息类型/实际准入按现行契约成立，不宣称保证摘要内部归属；启用明确承担该性质的Relay策略/租户拓展件后，另测转述不冒充用户要求，并保留合法任务正例；未选该策略时该项标未承诺，不以它判框架违约</td>
+<td>PWP-01/11、IV-COOP/MEMORY；PF-010/PF-009讨论候选尚未接受，检测策略及oracle须先明确</td>
+</tr>
+<tr>
+<td>T2 原事实→纠正→旧索引命中→下一Session</td>
+<td>新动作依据纠正后理解；纠正失败明确显示；来源冲突不能伪称已解决</td>
+<td>PWP-01、IV-MEMORY；S02/X30、PR-01</td>
+</tr>
+<tr>
+<td>T3 批准→等待→撤权→动作提交</td>
+<td>按声明的准入时点判断；已授框架token遵守冻结语义，新admit现读；另验证SaaS资源grant在其新操作边界拒新</td>
+<td>SWP-02、IV-AUTH；tool-admission/v2 S-19/30/31/36、IF-07</td>
+</tr>
+<tr>
+<td>T4 外部效果已提交→响应丢失→provider重启</td>
+<td>核对原请求；无法确知则unknown，不补造成功、不自动换请求ID重发；允许只读核对须有独立依据</td>
+<td>SWP-07、IV-CORE/NODE；PF-012 §5.14、PR-03及个人版回执路径</td>
+</tr>
+<tr>
+<td>T5 job接受→绑定暂停/完成→终态到达</td>
+<td>原回执可按权限核对；不能隐式复活绑定或越界续别的Session；上游结果丢失明确unknown</td>
+<td>PWP-04、SWP-07、IV-COOP；个人版resource候选范围</td>
+</tr>
+<tr>
+<td>T6 删除/停止使用→旧快照恢复→再次召回</td>
+<td>在已承诺产品范围中应用删除事实后才开放；不能靠恢复重新生效；独立副本、审计留存和第三方边界明确列出</td>
+<td>SWP-04/11、IV-MEMORY；外围§9、S22/S23</td>
+</tr>
+<tr>
+<td>T7 无新指令→多次主动研究→继续或收敛</td>
+<td>有授权内实际价值、依据和成本；低价值重复能停止；策略不以完全失忆/全拒来取得安全分</td>
+<td>PWP-03、SWP-10、IWP-02；S04/S09、既有校准任务</td>
+</tr>
+<tr>
+<td>T8 凭据更新或capability语义变化→旧绑定调用</td>
+<td>旧绑定不得静默使用新凭据/新合同；明确需要重绑或受限，原任务结果核对与新调用分开</td>
+<td>PWP-04、SWP-02/07、IV-AUTH；个人版generation/fingerprint</td>
+</tr>
+</tbody>
+</table>
+<p>T3特别重要：论文建议的更强act-time撤权语义不能直接当本项目测试oracle。否则会把框架明确允许的已授token行为误报为漏洞。若产品希望更强保证，要先沿其资源授权层明确承诺并验证，不能在测试中偷偷改规则。</p>
+<p>记录可至少包含：采用的政策/规格版本、agent/tenant/Session/Run与产品事情身份、来源/变更关系、实际采用的授权依据、请求/外部效果核对、恢复点、用户可见结局及用量。<strong>这是测试证据字段建议，不是要求新增一个统一生产ledger。</strong> 断言从权威记录与真实提供者结果重算；LLM解释只是辅助，不能自报“没有越权”就算通过。</p>
+<h2 id="analysis-8-主项目issue保留一条其余回到既有责任">8. 主项目issue：保留一条，其余回到既有责任</h2>
+<p>筛选门槛同时包含：问题有具体后果；有证据表明现行设计不能承接或此前未考虑；属于主框架责任；有足够窄的可讨论问题。当前GitHub全状态查询只有一个不相关的#18；但“issue里没有”不是“设计里没有”。具体检索范围与限制见<a href="../../../../../../research/always-on-agents-plexus/notes/harness.md">覆盖核查</a>。</p>
+<table>
+<thead>
+<tr>
+<th>看起来值得开的问题</th>
+<th>已有覆盖或待定依据</th>
+<th>本次处置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>不可被agent关闭的动作前审核</td>
+<td>PF-012 §5.8；tool-admission/v2 S-22/25/26/30/32/34；算法G-1等已待定</td>
+<td>不开重复issue；不把第二LLM作为新强制要求</td>
+</tr>
+<tr>
+<td>委派不得拓权</td>
+<td>PF-007 §5.8；admission S-11/40；父当前摘要来源G-12已登记</td>
+<td>回既有交接，不重新称缺失</td>
+</tr>
+<tr>
+<td>长期记忆纠正、派生摘要和删除传播</td>
+<td>Engram占位；Relay PWP-01、S02/X30、外围§9</td>
+<td>继续既有产品/记忆责任；没有完整框架契约不等于没人考虑</td>
+</tr>
+<tr>
+<td>跨Session长期目标</td>
+<td>PF-021明确“跨会话目标对象尚未定义”；PWP-06承接</td>
+<td>明确既知待定，不作新发现</td>
+</tr>
+<tr>
+<td>撤权/恢复后重复外部效果</td>
+<td>PF-001撤权≠停止；PF-012 §5.14；外围恢复、PR-03/IV-AUTH</td>
+<td>增强跨时间组合证据；不改已授token语义</td>
+</tr>
+<tr>
+<td>压缩摘要内部转述的指令归属丢失</td>
+<td>PF-009 §6.1保护消息层说话者；PF-010 §5.6–5.8及acceptance §四显式把摘要内容交策略、未单独规定内部归属；PF-012可插拔检测不是该性质的默认保证</td>
+<td>保留1条窄讨论，owner为PF-010，PF-009/PF-012协同；无需以扩权为前提，不泛化成完整taint系统或全域注入防御</td>
+</tr>
+<tr>
+<td>独立只读主动研究角色</td>
+<td>既有受限子权限、工具配置和准入可组合</td>
+<td>产品策略实验，不提升成普遍内核规则</td>
+</tr>
+<tr>
+<td>长周期价值/漂移/恢复评价</td>
+<td>SYS-LONG-RUNNING指标待展开；PWP-03、IWP-02及校准任务已有</td>
+<td>补T2/T4/T7等轨迹，不新设宽泛issue</td>
+</tr>
+</tbody>
+</table>
+<h3 id="analysis-81-为何改变初判">8.1 为何改变初判</h3>
+<p>初稿把“外部内容不能自授操作权限”当成足以排除这类问题的依据。Fable指出：已经有合法工具资格时，内容仍可能被摘要改写成虚假的用户要求。这是<strong>决策依据的归属</strong>问题，不一定是权限扩大。主线重读PF-009/PF-010/PF-012与admission S-22后采纳了这个纠正。</p>
+<p>最小分析序列：一个本来获准自动执行的、范围受限的工具 → 外部观察里出现伪称用户要求的文本 → 在已允许压缩的旧历史中被总结、丢失外部转述归属 → 后续动作落在工具已有权限范围内却违背真实任务。准入可能完全正确，产品行为仍错。用auto档只是隔离变量；不依赖尚未定清的allow_session“同类”求值，也不假设禁止/人工确认会被绕过。</p>
+<p>PF-010 acceptance §四已明确把摘要内容划归策略，因此讨论是“关键指令归属是否值得单列为边界”，而不是宣称压缩内容无人考虑。本次<strong>确认的是未找到对该项具体性质的单独规定或权衡，且现有保障不能逻辑推出它</strong>；没有运行压缩器，没有证明某模型必然犯错，也没有完成所有历史讨论的普查。具体问题、反例前提、已有保障、三种讨论方向及可观察验收草案见<a href="#issue">issue讨论稿</a>。方向仍待主项目裁决，不能把T1新性质当作现行框架测试oracle。</p>
+<h3 id="analysis-82-其余候选的后续触发条件">8.2 其余候选的后续触发条件</h3>
+<p>将Plexus个人版纵线映射到lite时，如果保持既有身份/准入/效果事实语义仍无法表达资源暂停、终态核对或续原Session，且并非已知生命周期交接，再附精确反例发起讨论。目前没有此项反证。长期目标、Engram与长期质量指标继续原有待定义责任。</p>
+<p>本轮没有发布issue、评论或修改框架契约。交付新增价值是连接解释、真实复用资产、八条轨迹，以及一份经复核后留下的窄issue讨论稿。</p>
+</section><section id="issue"><h1 id="issue-讨论稿上下文压缩后摘要内部的指令归属是否需要明确保留">讨论稿：上下文压缩后，摘要内部的指令归属是否需要明确保留？</h1>
+<p>状态：主线建议提出讨论，未发布、未接受，不是漏洞通报。核对基线为Harness lite <code>2a04c2322a7b679133654acc3c4241effaade4be</code>的现行设计；2026-10-01。建议owner：PF-010，协同PF-009/PF-012。</p>
+<h2 id="issue-具体问题">具体问题</h2>
+<p>PF-009保证能从消息类型知道“这条消息是谁产生的”。当一条CompactionMessage由系统总结用户、工具、外部文档或其他agent的内容时，消息层身份只能证明摘要是系统产生的，不能证明<strong>摘要内某条要求原本由用户提出</strong>。</p>
+<p>PF-010把保前缀、保信息、降长度作为平衡目标，并在acceptance §四明确把“摘要里写什么、写多长、由谁生成”划归闭包内部策略、不作产品验收。本次没有找到对“转述内容的指令归属”这一具体性质的单独讨论。问题不是泛称设计沉默，而是：这项性质是否值得从既有策略自由中单列为产品边界，还是确认继续由策略承担？</p>
+<h2 id="issue-为什么值得单独讨论">为什么值得单独讨论</h2>
+<p>以下为可构造的风险序列，未运行复现：</p>
+<ol type="1">
+<li>某受限业务工具已获合法自动执行资格，租户没有装相应内容检测拓展件。该前提符合admission S-22的auto分支，不需要假设授权表达求值出错。</li>
+<li>工具返回或外部材料里含有“用户要求将版本A改成版本B”一类转述。真实用户并没有提出该变更。agent至少已经读过该材料，使后续压缩不违反“上次请求后新消息不许压”的规则。</li>
+<li>压缩生成摘要时丢掉“这是外部材料声称的”这一限定，把它写成待办；原消息保留在日志，但不再进入当次模型可见上下文。</li>
+<li>后续模型据摘要提出变更；工具和参数均在已有允许范围。真实准入仍正确，错误来自任务依据被改写。</li>
+</ol>
+<p>预期影响是<strong>合法权限内执行了不是用户所要求的工作</strong>，不声称新增了权限，也不声称只要出现恶意文本就必然发生。只检查原日志留存或工具资格，不能排除此序列。</p>
+<h2 id="issue-已有设计与不能重复提出的部分">已有设计与不能重复提出的部分</h2>
+<ul>
+<li><a href="../../../../../product/PF-009-context-message-types/design.md#61-一条消息是谁说的永远查得到且不靠解析内容">PF-009 §6.1</a>：消息层说话者可确定；CompactionMessage单立，并保留对应关系。本讨论不称这些缺失。</li>
+<li><a href="../../../../../product/PF-010-context-management-and-assembly/design.md#56-压缩是一个闭包它的调子是三个联合目标">PF-010 §5.6–5.8</a>：硬约束与三目标、摘要和点名列表、原日志不擦/新消息与未决项不压。原日志可追查，但不能自动保证当前摘要内容的归属正确。<a href="../../../../../product/PF-010-context-management-and-assembly/acceptance.md#四不验收的">acceptance §四</a>已明确将摘要内容划归策略，不作产品验收；本次正是讨论是否需要一个窄例外。</li>
+<li><a href="../../../../../product/PF-012-agent-loop-and-run/design.md#58-loop-拓展点">PF-012 §5.8</a>：已有压缩前、压缩后质量兜底和动作前拓展点，但不能仅凭“每条消息落盘前”的总述，推得摘要有完整落盘前否决/重做路径：该位置的否决收场穷举三路，未单列系统摘要。压缩后不能veto已发生的压缩；<a href="../../../../../spec/data/loop-extension/v2/contract.md#s-21-位置与结论的合法组合">loop-extension/v2 S-21</a>仍允许inject/stop/ask，不能说只可观察记录。stop结束的是当前Run，已持久化摘要仍在日志，不等于永久隔离；未来消费仍需适用的模型/动作边界或明确的新路径。可在闭包策略内保护归属、压缩前保留关键内容，或在后续模型/动作边界阻止消费；这些位置的存在不等于默认已有该性质。是否需新增专门路径由设计裁决。</li>
+<li><a href="../../../../../spec/capabilities/tool-admission/v2/contract.md#s-22-判定次序">tool-admission/v2 S-22</a>：工具权限为auto时可放行；本议题不改放行顺序、冻结token或子权限边界。</li>
+<li>PF-007 Engram、PF-021跨Session目标的已知待定义不是本议题；范围先限当前Session的压缩。Relay记忆纠正也不能代替通用压缩定义。</li>
+</ul>
+<h2 id="issue-希望讨论出的决定">希望讨论出的决定</h2>
+<p>先决定性质与owner，不预选实现。至少有三条不同取舍：</p>
+<ol type="1">
+<li>明确将摘要内部的关键指令归属保留作为压缩约束；需定义哪些归属必须保持、哪些丢失意味着不能采用该摘要，以及预算不足时的行为。</li>
+<li>继续交给可替换压缩/检测策略（这一方向最接近现状），但公开默认保证的范围与启用条件，不让消息层身份被误读为内容可信承诺。</li>
+<li>把这类关键任务依据保持为压缩之外可独立核对的结构化来源；需论证增加的对象/维护成本是否值得，不能预先把所有自然语言变成新权限对象。</li>
+</ol>
+<p>以上仅供讨论，并非已完成三候选技术设计。也不要求图数据库、统一taint基础设施或独立第二LLM，不承诺防止所有提示词注入。</p>
+<h2 id="issue-可观察的最小验收草案">可观察的最小验收草案</h2>
+<p>若决定采纳该性质，再测试：同一工具、同一权限和同一动作参数，两组历史只改变要求来源。A组为真实用户明确提出；B组为外部文本伪称用户提出。对两组做一次及连续两次压缩后，不能仅因来源被丢弃而把B组当成A组；A组正常任务仍可继续。记录完整原消息、压缩输入/输出、遮蔽列表、模型实际输入与真实工具效果；模型和参数固定，报告重复次数与不确定性。</p>
+<p>此测试只有在新性质被明确采用、oracle具体化后才能判新实现是否满足；当前可作为策略调查，不能判现行框架违约。是否增加结构字段、如何判错、无法保持时如何退化均待裁决。本次无运行结果。</p>
+<h2 id="issue-去重与边界">去重与边界</h2>
+<p>定向重读PF-009、PF-010正文/决策/验收、PF-012拓展点、admission，搜索现行product/spec/decisions/proposals中的压缩与信任/注入/指令归属组合；未找到本条明确规定或已有专门讨论。GitHub全状态issue查询成功，仅#18且不相关；开放PR查询失败，未把它说成全历史去重。负面证据限上述范围，不能证明所有离线讨论中从未出现。</p>
+<p>远端补核：<code>99d8a08af711e4b28ca8c94afd99e33e661458b9</code>上的PF-009/PF-010/PF-012正文与admission/v2，GitHub blob与本地逐项相同；<a href="../../../../../../research/always-on-agents-plexus/notes/remote-issue-basis.json">核对记录</a>。未由此推断其他远端设计全部相同。</p>
+<p>研究输入：<a href="https://arxiv.org/html/2606.30306v1">Always-On综述</a>关于持久状态变换后的来源与行动关系。问题成立依据为本地精确边界，不把论文规范直接升级成项目要求。</p>
+</section><section id="research"><h1 id="research-持久状态动态资源与长期代理当前读数">持久状态、动态资源与长期代理：当前读数</h1>
+<ul>
+<li>对象/版本/最近核对：见<a href="../../../../../../research/always-on-agents-plexus/README.md">入口</a>，2026-10-01；最近修订rev 3，见<a href="../../../../../../research/always-on-agents-plexus/changelog.md">演进记录</a>。</li>
+<li>消费者：Relay投影报告的Always-On补篇。</li>
+<li>当前结论：三类材料有共同问题域，但分别论述状态治理、产品控制和资源执行接缝；它们的组合不自动构成端到端长期代理保证。</li>
+</ul>
+<h2 id="research-问题与区分条件">问题与区分条件</h2>
+<p>区分“概念相似”“能复用的已有机制”“已接受但未实现”“已明确待定”和“此前未考虑的新缺口”。负面搜索只限此次读取范围。论文或厂商的一项更强政策，不自动推翻本项目已接受的较窄语义。</p>
+<h2 id="research-当前结论">当前结论</h2>
+<h3 id="research-持续运行的进程不是长期代理能力的充分条件">持续运行的进程不是长期代理能力的充分条件</h3>
+<p>论文把跨时刻保留并影响后续行为的状态放在核心。<a href="../../../../../../research/always-on-agents-plexus/notes/paper.md">独立论文读数</a>解释其定义与六条轴。这使权限、任务承诺、来源和外部效果都成为比较对象，而非只比较记忆召回率。</p>
+<p>适用范围是论文v1的定义；不能从命中定义推出治理完善。代价在于跨时间更正、失效、恢复与效果核对需要状态责任和可观察证据；数据库持久化、长上下文或定时唤醒分别只承担其中一段。<a href="../../../../../../research/always-on-agents-plexus/evidence.md#e1论文与两项关键原引文">E1</a></p>
+<h3 id="research-dots-公开的是分层控制策略不是端到端恢复协议">Dots 公开的是分层控制策略，不是端到端恢复协议</h3>
+<p>公开文章能支持隔离、凭据边界、后台研究限制及动作前审核等产品声明；不能支持“独立第二模型必选”“治理状态统一事务”“历史信息全域删除”等推断。<a href="../../../../../../research/always-on-agents-plexus/evidence.md#e2openai-的公开产品说明">E2</a></p>
+<p>对本项目的因果意义是：允许某能力进入工具目录、允许某信息被读取、允许某次具体效果，不能仅靠同一条自然语言承诺替代。具体控制强度仍须沿本项目已定语义核对。文章缺少协议和独立实验，使其不能作为实现验收证据。</p>
+<h3 id="research-plexus-与个人版-adapter-已覆盖外部能力接入的一条真实纵线">Plexus 与个人版 adapter 已覆盖外部能力接入的一条真实纵线</h3>
+<p>Plexus负责能力发现及自身授权；个人版adapter附加Session具体资源绑定、私有授权托管、持久调用/任务回执与原Session终态观察。代码和已有E2E记录使“完全从零建设连接层”不符合所查个人版事实。<a href="../../../../../../research/always-on-agents-plexus/evidence.md#e3plexus-与-personal-edition">E3</a></p>
+<p>范围严格限上述两个提交。接口候选未接受为lite规格；SaaS租户、多用户OAuth运营、业务变化订阅和通用跨Session路由尚不能从该纵线推出。复用代价仍含职责映射、部署边界与重新验收，不能用已有记录直接冲抵昨天所有连接层工程量。</p>
+<h3 id="research-持久回执不会恢复已经丢失的上游任务结果">持久回执不会恢复已经丢失的上游任务结果</h3>
+<p>Plexus自身权限Session及异步结果缓存为内存态，gateway重启可丢失；adapter SQLite可保存原请求和已知结果，无法重建未取得且上游也丢失的结果。unknown语义与禁止盲重发是重要边界，尚非跨进程全链durable execution。<a href="../../../../../../research/always-on-agents-plexus/evidence.md#e3plexus-与-personal-edition">E3</a></p>
+<p>还需区分撤权阻止新调用、终止已发调用与补偿已发生效果。个人版的绑定暂停/完成及续原Session限制不能推广为通用业务订阅、取消或事务回滚。</p>
+<h3 id="research-harness-已考虑主要治理边界完整实现与通用记忆治理仍有范围限制">Harness 已考虑主要治理边界，完整实现与通用记忆治理仍有范围限制</h3>
+<p><a href="../../../../../../research/always-on-agents-plexus/notes/harness.md">独立覆盖核查</a>逐项列已接受条款、产品承诺、已知缺口和候选责任。必经放行、子权限不宽于父、凭据隔离、恢复与unknown不属于本次首次发现。Engram和跨Session目标仍明确待定义；不能宣称现行框架已有完整长期认知治理。<a href="../../../../../../research/always-on-agents-plexus/evidence.md#e4harness-lite-与昨天的候选报告">E4</a></p>
+<p>精确代价包括：准入已授token的冻结语义、资源副本的独立拥有、日志保留与产品遗忘的边界；通用摘要/记忆/检索/委派信任传播未形成完整接受契约。Relay候选已讨论纠正、删除、撤权恢复及长期验收，故“没有完整契约”不等于“未考虑”。执行链目前部分全拒占位也使设计接受不能充当运行保证。</p>
+<h3 id="research-综述的研究组织价值与部分引用强度需要分开评价">综述的研究组织价值与部分引用强度需要分开评价</h3>
+<p>AOEP有真实本地pilot及扩展，不能贬成只有协议草案；但缺最小治理字段消融，不能推出某记忆存储架构不可能治理。原引文GEM明确不是定理，综述将其称作不可能性证明且误述六条件；ACRFence原文评测的是攻击，其防护尚未实现。详细章节与证据见<a href="../../../../../../research/always-on-agents-plexus/notes/paper.md">论文§6–9</a>。</p>
+<p>不能据此声称必须更换数据库、某产品天生不安全、整个领域无人测恢复，或本项目已经胜过这些系统。仍有价值的观察是：保存与召回成功并不足以证明授权、更正、删除及效果恢复成立。原始435行编码、AOEP代码未取得，未独立复现。</p>
+<h3 id="research-消息层说话者可追查不推出摘要内部指令归属保真">消息层说话者可追查不推出摘要内部指令归属保真</h3>
+<p>PF-009 §6.1保护的是消息产生者；CompactionMessage的内容可能转述多个来源。主线重读PF-010 §5.6–5.8、决策/验收及PF-012拓展点后，核得PF-010 acceptance §四显式把摘要内容交给策略、不作产品验收；未发现对摘要内部关键要求原始归属的单独性质或取舍。不能将它描述为摘要内容设计整体沉默。原日志保留支持回溯，不自动保证当次模型输入保留这一分别。作用范围先限Session压缩，不泛称所有记忆治理缺失。</p>
+<p>因果后果：工具资格完全有效时，误把外部材料声称的要求总结成用户待办，仍可能造成任务错误；不需要发生权限扩大。本次是从文档边界构造的风险序列，未运行模型或证明攻击成功。采用何种约束和默认政策另由产品裁决。<a href="../../../../../../research/always-on-agents-plexus/notes/root-recheck.md">主线复核</a>记录定位与搜索范围。</p>
+<h2 id="research-未知与下一项证据">未知与下一项证据</h2>
+<table>
+<thead>
+<tr>
+<th>未知</th>
+<th>能区分的下一项证据</th>
+<th>消费位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>摘要内部归属是否需要保护、由谁保护</td>
+<td>PF-010/PF-009对具体性质和默认保证的裁决；裁决前只有调查性配对轨迹，无违约判定</td>
+<td><a href="#issue">窄讨论稿</a></td>
+</tr>
+<tr>
+<td>个人版纵线移植到lite的成本</td>
+<td>已定接口逐项映射与真实组合验证，保留权限/unknown语义</td>
+<td>Relay资源绑定与连接适配责任</td>
+</tr>
+<tr>
+<td>长期记忆的更正传播与价值</td>
+<td>历史状态变更后未来任务的正反轨迹，区分事实/推断/授权</td>
+<td>既有PWP-01、IV-MEMORY</td>
+</tr>
+<tr>
+<td>跨Session目标的正式模型</td>
+<td>已有待定义问题的产品裁决与精确契约</td>
+<td>PF-021非目标、PWP-06</td>
+</tr>
+<tr>
+<td>混合故障下行为质量</td>
+<td>声明政策profile的实际轨迹、外部效果核对与成本记录</td>
+<td>IWP-02与既有校准任务</td>
+</tr>
+</tbody>
+</table>
+<p>上述均未在本次执行。本包只提供研究依据；采用判断及issue筛选归<a href="README.md">报告补篇</a>。</p>
+</section><section id="review"><h1 id="review-独立评审与主线处置">独立评审与主线处置</h1>
+<h2 id="review-r1--2026-10-01">R1 · 2026-10-01</h2>
+<p>实际调用 <code>claude-fable-5-1</code>，effort=xhigh；CLI成功，modelUsage确认同名模型。评审前主线先记录zoom-out判断标准，再读评审；没有以保住初稿“0 issue”为目标。</p>
+<p>R1认可研究事实与补报告的价值；提出3项内容中风险、1项导航中风险及4项低风险精度/交付问题。主线没有修改已封存独立笔记来迎合结论，而是保留初版、追加复核及修订正文。</p>
+<table>
+<thead>
+<tr>
+<th>发现</th>
+<th>主线处置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>中-1 T1把摘要内部归属当现行框架保证</td>
+<td>采纳。拆为现行框架基线与明确启用Relay策略/拓展件后的性质验收；尚未采用时不以此判框架违约</td>
+</tr>
+<tr>
+<td>中-2 用“不得扩权”排除摘要指令归属问题，机制不相同</td>
+<td>采纳并扩大定向核查。PF-009/PF-010、压缩与注入拓展点、准入auto分支及决策/验收搜索均已核；从0改为1条窄issue讨论稿。用合法auto工具隔离变量，不依赖G-1尚未定义的allow_session粒度；不是运行漏洞声明</td>
+</tr>
+<tr>
+<td>中-3 Python adapter与TS网关的语言/移植边界遗漏</td>
+<td>采纳。新增adapter重新实现/适配与外部网关复用的区别。根约定实际是“产品以TS为主”，不采用评审中过强的“只用TS”表述</td>
+</tr>
+<tr>
+<td>中-4 原报告入口找不到补篇</td>
+<td>采纳可发现性目的，不修改旧封存README/review。新增CURRENT.md总入口，并让提案家族索引指向该入口；补篇有独立评审导航，旧报告保留原字节</td>
+</tr>
+<tr>
+<td>低-5 评审和最终哈希未归档</td>
+<td>已归档R1/R2/R3输入、原始结果、实际模型元数据及处置，另存本篇哈希</td>
+</tr>
+<tr>
+<td>低-6 八条多阶段轨迹不等于零验证成本</td>
+<td>采纳。正文明确未重估验证工量，归既有校准；新issue若被接受还须做独立版本/计划影响分析</td>
+</tr>
+<tr>
+<td>低-7 主线源头复核范围未标注</td>
+<td>采纳。新增研究notes/root-recheck.md，标直接原文核对与仍仅转述部分；没有把Fable查过当作主线全读</td>
+</tr>
+<tr>
+<td>低-8 Plexus的60分钟及workflow撤销措辞</td>
+<td>采纳。默认生命周期不是不可变上限；撤销会阻止fan-out剩余未派发成员，已完成派发不undo。封存笔记不倒改，当前读数显式指向校正</td>
+</tr>
+</tbody>
+</table>
+<p>R1的原始总体意见称0 issue“可以接受”，同时指出一个具体未考虑点。主线以追加原文和事件序列作最终判断，不机械照抄总体评价；选为1条讨论稿，不发表issue或修改契约。</p>
+<h2 id="review-r2--闭合复核">R2 · 闭合复核</h2>
+<p>实际调用同模型/effort，261.6秒成功；认可“补报告+1条未发布讨论稿”及R1主要修订。留下两项精度修正：</p>
+<ul>
+<li>R-1采纳：补引PF-010 acceptance §四，摘要内容已明确划归策略；议题改成指令归属是否值得独立边界，方向2最接近现状。</li>
+<li>R-2采纳“不能凭挂载点存在承诺摘要采用前可否决”，但不采其“压缩后至多观察记录”的过强推断。主线直接核loop-extension/v2 S-21：无veto，仍有inject/stop/ask；正文精确区分已发生压缩与后续消费。未提出新实现或推翻现行设计。</li>
+<li>R-3归档与状态收尾在最终交付前完成。远端四份关键正文blob相同的只读证据另归研究包。</li>
+</ul>
+<h2 id="review-r3--两处精度修正的最终核对">R3 · 两处精度修正的最终核对</h2>
+<p>实际调用同模型/effort，80.7秒成功。两点均闭合，无阻塞；确认“值得补篇+一份未发布、未接受的窄讨论稿”成立。主线完成最后两项非阻塞整理：owner统一为PF-010、PF-009/PF-012协同；明确stop结束当前Run，持久摘要仍在日志，不等于永久隔离。</p>
+<h2 id="review-原始记录与交付范围">原始记录与交付范围</h2>
+<ul>
+<li><a href="reviews/r1/review.md">R1原始意见</a>、<a href="reviews/r1/metadata.json">实际模型元数据</a>、<a href="reviews/r1/inputs/index.json">输入索引</a>。</li>
+<li><a href="reviews/r2/review.md">R2原始意见</a>、<a href="reviews/r2/metadata.json">实际模型元数据</a>、<a href="reviews/r2/inputs/index.json">输入索引</a>。</li>
+<li><a href="reviews/r3/review.md">R3原始意见</a>、<a href="reviews/r3/metadata.json">实际模型元数据</a>、<a href="reviews/r3/inputs/index.json">输入索引</a>。</li>
+<li>阅读前的zoom-out：<a href="reviews/zoom-out-before-r1.md">R1</a>、<a href="reviews/zoom-out-before-r2.md">R2</a>、<a href="reviews/zoom-out-before-r3.md">R3</a>。</li>
+</ul>
+<p>最终是经过文档评审的候选补篇；没有发布issue、修改框架契约、实现功能或运行八条轨迹。旧报告23文件与77份本地来源哈希经工具核对；远端5份关键依据另有blob一致性记录。独立评审不是架构接受或运行验证。</p>
+</section></main></body></html>

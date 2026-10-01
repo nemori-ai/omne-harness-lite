@@ -1,0 +1,32 @@
+[
+  {
+    "original_locator": "saas/saas-design.md",
+    "sha256": "2d4cb2279fdde234293599389124265e5f6b3868744ae48d536ddf0d9ab27e3e",
+    "snapshot_file": "saas__saas-design.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "saas/alternatives.md",
+    "sha256": "b54f4c865890e6220800a68a9ea0cf8c77c41b7af53a733c9db75db398dd3c06",
+    "snapshot_file": "saas__alternatives.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "saas/component-index.json",
+    "sha256": "7ab10c581f0ae51fee33edbbba85c340f03f67916b6d203e043d2d7dc73fe26d",
+    "snapshot_file": "saas__component-index.json.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "saas/sources.json",
+    "sha256": "42aa49115aa57cd77c2705edf1f4ae8cbba62c3e2518e75fcd18631c3a7e511f",
+    "snapshot_file": "saas__sources.json.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "execution-topology.md",
+    "sha256": "1cf4c15fa86ed07e1488cdc7e6d143518b6e4cb9ca3d58fd64b7b2b7db62d532",
+    "snapshot_file": "execution-topology.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  }
+]

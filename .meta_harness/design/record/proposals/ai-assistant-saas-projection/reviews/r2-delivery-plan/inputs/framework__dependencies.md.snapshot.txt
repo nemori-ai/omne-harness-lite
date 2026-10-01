@@ -1,0 +1,57 @@
+# 已有施工次序与工程依赖
+
+这是当前承诺与既有计划的只读投影，不重新接受设计，也不要求改变框架能力。早期一万注册用户仅作外部产品规模输入；当前工程重点是模型请求并发、正确的持久化及跨进程一致性。没有据此新增高吞吐、集群调度、分片或多区域工程要求。
+
+## 既有次序
+
+权威输入为 [PF-002 projection/v3 §8](/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/.meta_harness/design/product/PF-002-assets-settings-and-permissions/projection/v3/projection.md:1761)；PF-006、PF-013 的同版投影给出相同六步。投影是固定历史快照：开始任何实施前仍须核对当前产品、契约及节点，不能用它覆盖较新的产品规则。
+
+| 原步骤 | 已承诺施工内容 | 当前证据与未完成范围 |
+|---|---|---|
+| 0 | 核对 provenance、来源、规格冻结摘要与每条可实施路径 | 这是必须先做的版本核对。2026-09-28 SYS-KERNEL、PF-020工作区、2026-09-29 runtime归属及Connector搁置均晚于原投影；受影响部分要先完成相应规格演进，不能默用旧宿主或旧DSH采用前提。 |
+| 1 | 按 catalog 依赖建立 core 数据与纯计算模块 | 限定core阶段221/221义务签收；Connector16项与90项外部义务未签。数据形状和纯函数通过，不代表领域runtime、持久存储宿主或传输完成。 |
+| 2 | 实现所需存储、时钟与窄口最小提供者 | 现有storage-sql/clock服务治理纵线；七个Agent相关最小提供者已接受设计但未建包，且原设计仅进验收装配，不自动进产品清单。 |
+| 3 | 实现领域能力与贡献者登记 | tools/model/assets/agent-loop领域的多个节点仍未建包；依赖、授权、撤除、取消、恢复以及真实/替身证据必须分开。 |
+| 4 | 按apps节点装配当前可运行子集 | 治理CLI/TUI和tenancy-host已有独立制品证据；完整Agent工作会话/据点装配的C系列缺口仍未完成。 |
+| 5 | 回到产品验收、登记真实证据 | PF-020/021的产品接受不是运行验收；只有真实依赖与前提满足的场景才可签收，不以测试种子代替产品写入方。 |
+
+租户领域原九步施工及有限完成范围见 [PF-001 projection/v3 §8](/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/.meta_harness/design/product/PF-001-identity-scope-and-agent-constraints/projection/v3/projection.md:314)。后续治理AI3/OE2/OG2、入口EC3/HT3、CLI CQ2沿各自接受事件和实际证据接续；OG3是资产时刻分支，不能替代OG2，也没有因为版本数字更大而完成。
+
+## 在当前产品下接续的依赖
+
+下表将现有 [apps/cli design 的实施缺口](/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/.meta_harness/design/realization/apps/cli/design.md:540) 与最新产品承诺对应。C编号属于旧完整Agent装配，不否定已交付的治理CLI/TUI。表中的“需先”是已有依赖的读数，不是新接受的总排期；旧文中的v1简称应按D-066映射为当前精确坐标。
+
+| 接续对象 | 已有依赖/缺口 | 正确性责任与完成证据 | 报告定位 |
+|---|---|---|---|
+| Session、Run、Agent runtime及入站主链 | C-1日志、C-8 Loop/受理契约、C-13会话租户写入方、C-16终结识别/共同存储对象 | `session-log/v2`等是窄口，不替代完整会话契约。需按PF-015 rev20、PF-012 rev21定义持久身份、事实推进、归档、去重、调用关联和尝试栅栏；不能用测试seed作为产品创建事实。 | FC-13/14/15/29 |
+| Agent装配和动态替换 | C-2装配内容读法、AM G-4；C-14依赖在场事实来源；MRR G-20初始模型选择来源 | 已采用清单、reload意图与当前生效版本须可恢复；普通恢复重建当前实际采用，不直接拿最新来源；已发起调用保留原输入，未发起动作按新绑定核对。 | FC-04/06/14/16 |
+| 模型独立执行与并发 | MRR依赖日志、租户身份、档案目录、传输及凭据；旧节点模型调用挂Agent runtime的前提已过时 | 先按当前Session/Run治理模型/工具runtime的产品规则演进冻结契约；取消是显式业务动作，句柄归零不终止执行；记录实际调用输入、采用模型、成本及结果承接关联。并发首先围绕这些正确性要求，不由用户数推导新集群平台。 | FC-14/16/30 |
+| 工具独立执行和外部效果 | TER出站项、日志幂等键、late读面、落盘前处理及观察推送；工具资产版本→代码仍有受阻消费 | 明确首胜、一次落账、重复投递、未知外部效果及停机不重来；“模型返回工具建议”与“工具实际发起”分开。数据定义通过不能代替执行者版本绑定。 | FC-07/14/29 |
+| 据点读面与中心资产边 | C-3资产/配值/资格副本读面，C-4未来资产/据点协议未立 | 中心可达性观察不是协议客户端；既有治理路由未开放资产、模型、凭据同步；需要精确授权、版本/新鲜度、失败与离线边界。不能用apps胶水暗中补领域责任。 | FC-04/08/16/26 |
+| 凭据 | C-5 credential-custodian；中心边未承接，静态MCP凭据/续期写回/副本来源仍有缺口 | OAuth绑定行与凭据行的共同提交、登录归属、密文落地与恢复必须由对应提供者兑现；界面不得读秘密值。 | FC-03/08/16 |
+| 附件和成果字节 | C-6附件字节存储未定义；PF-020工作区Git托管路线待具体契约 | 内容块引用不等于实际字节可读。区分附件字节保存与工作区持续资源，操作须指明写到local还是remote，失败保留本地原件；传输排队不等于同步完成。 | FC-17/20 |
+| 执行环境与hooks | C-7环境真承接者，EE G-3允许读面接线，HI G-15工作目录/变量名单 | 显式允许宿主机已产品裁决，但未接线仍拒绝；沙箱隔离和数据寿命另承接。SYS-KERNEL更新后不延用DSH非Cordis fork安排；兼容协议形状与采用代码来源分开。 | FC-10/19 |
+| 工作区产品增量 | PF-020 rev21接受；身份/实例/地址/租户关系、资源托管、发现/附着及reload需技术契约 | 已有AM/AE/HI契约的工作区来源与“导入租户资产”表示须演进；Git资源并发/同步/冲突以具体协议承接。组织参与限制不覆盖普通未登记目录的既有产品缺口须原样保留。 | FC-04/19/20 |
+| 日程、通知与日历 | PF-021 rev8 D-073，仅产品接受；技术交接见该PF §10 | 分别承接日历版本/覆盖、到期Job产生、单次工作采用快照、重叠/补跑声明、显式取消和独立通知送达事实。每个agent Job新建会话，需通用会话创建和成果工具接线；不能把Job完成当长期目标完成。 | FC-21/22/23 |
+| Web SaaS呈现、长期记忆、关注策略 | PF018/019未开题；Engram占位；无完整关注/长期目标对象 | 外部产品可用框架承诺组合，自己的交互、偏好、监测策略和记忆方案需明确归属，不写回框架成既有能力。不自行恢复已搁置Connector。 | FC-09/24/25/31 |
+
+## 持久化与一致性必须细分的几条线
+
+这些是现有保证的承接范围，不是规模化工程清单。
+
+1. **事实与派生状态。** PF-012日志为事实权威；PF-015 §6.19允许持久化投影以便读取，须记录来源进度并与相同输入重建一致。旧“完全不另存”不能继续限制新产品，但也不能形成第二事实权威。
+2. **所有权与执行寿命。** 模型和工具执行的归属、工作归因、Agent runtime使用句柄不同。取消先记录再传递；Run已结束的迟到结果仍可落历史与账目，但不得复活运行。重装配不能把已在途调用变成新调用。
+3. **共同提交。** 跨owner需要同一提交的约束要点名共同存储对象，Cordis插件边界不是事务保证。现有治理共享SQLite证据只覆盖精确采用的治理协议；Agent日志、OAuth、工具送达、Run事实需自己的绑定。
+4. **跨进程的授权与一致性。** SYS-DEPLOY当前完整单机，不要求先上集群；但移动到独立进程/节点时，原由同一storage/clock/进程提供的保证必须由协议重新兑现。可达、有效、不可确定不能合并；不得拿旧本地副本放行要求现读的操作。
+5. **工作区资源同步。** PF-020明确允许local、remote和其他实例异步，不要求即时一致；这不放松租户授权、参与限制和资产权限。资源到达不自动重装资产。具体并发合并、冲突、离线恢复及交付版本仍属于工作区技术设计。
+6. **时间与定时。** 日历供应版本和Job采用快照分开；既有Job事实不回写，漏跑/重叠按Schedule声明。等待/取消/完成竞争需可重建记录。现有clock的单机边界不直接成为未来分布式时钟证明。
+
+## 证据口径与源漂移
+
+- [core最终阶段](/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/.meta_harness/design/record/evidence/2026-09-26-tests-core-skill-v3/README.md)给出限定验收与未提升范围；本报告没有重新运行这些测试。
+- [治理最终制品](/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/.meta_harness/design/record/evidence/2026-09-26-tests-governance-review-fixes/README.md)和[CLI当前节点](/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/.meta_harness/design/realization/apps/cli/README.md)保留限定终端、隔离恢复与实际部署边界。
+- [SYS-KERNEL变更](/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/.meta_harness/design/foundation/cross-system-constraints/changes.md)明确后续应复核旧CLI/上游原语引用。[PF-015当前裁决账本](/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/.meta_harness/design/product/PF-015-session-lifecycle-and-ownership/decisions.md)明确runtime归属的新输入不自动改冻结MRR等版本。
+- [D-066](/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish/.meta_harness/design/record/decisions/pr9-pr10-coordinate-reconciliation/decision.md)是行政坐标映射，旧记录按原提交/快照解释。`lineage.json`当前空数组不是允许复活`design_legacy`的依据；已退休设计不作为当前承诺。
+- `registry/README.md`仍写63份；本基线直接数`catalog.json`为64个accepted坐标。报告采用机器权威清单，未修改源文件。
+
+契约间的精确有向依赖保留在`framework-capabilities.json`的`contracts[*].dependencies`；每个PF/节点/决定源的SHA-256保存在`sources`。这些源摘要是调查快照，不是新的冻结声明。

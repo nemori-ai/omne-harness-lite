@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "historical_snapshots": 25,
+  "feature_projection_unchanged": true,
+  "stories": 23,
+  "graph_nodes": 58,
+  "graph_edges": 262,
+  "effort_unchanged": {
+    "optimistic": 108,
+    "planning": 187,
+    "conservative": 302
+  },
+  "reader_chapters": 10,
+  "feature_details": 165,
+  "errors": [],
+  "runtime_tests_executed": false,
+  "docs_check": {
+    "command": "make docs-check",
+    "status": "PASS",
+    "markdown_files": 1761
+  },
+  "browser": {
+    "desktop_width": 1400,
+    "desktop_scroll_width": 1400,
+    "narrow_width": 500,
+    "narrow_scroll_width": 500,
+    "missing_fragments": [],
+    "chapters": 10,
+    "feature_details": 165
+  }
+}

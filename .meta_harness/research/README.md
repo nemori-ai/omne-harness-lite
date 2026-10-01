@@ -139,3 +139,7 @@
 [Docker 停止与重启](governance-docker-runtime/README.md)：Engine29.1.3/Compose2.40.3的有限机制观察，原始脚本与正负对照归档；不是部署采用或产品验收。
 
 [2026-09-26 core 规格实施一致性观察](core-spec-conformance-2026-09-26/README.md)：固定CB2/SA2的两个反例与静态消费者影响；不接受新版本或实现。
+
+- [AI助理产品投影的输入与框架事实](ai-assistant-saas-projection/README.md)：需求讨论稿1.0 / harness `2a04c232`，165功能、23故事、来源修正与框架承诺/兑现边界；消费者为Relay SaaS投影提案。
+
+- [Always-On Agents、Dots与Plexus的对照读数](always-on-agents-plexus/README.md)：论文v1与两项原引文、OpenAI公开产品边界、个人版Plexus纵线和lite已覆盖/已知待定项；2026-10-01，消费者为Relay产品到实现投影报告。

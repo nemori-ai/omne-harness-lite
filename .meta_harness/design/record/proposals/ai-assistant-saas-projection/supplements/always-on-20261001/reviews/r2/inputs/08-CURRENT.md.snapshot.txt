@@ -1,0 +1,10 @@
+# Relay 投影报告：当前阅读入口
+
+原报告与新增补篇分开封存，不覆盖旧评审的输入。
+
+1. [2026-09-30 完整产品到实现报告](report.html)：165功能、执行拓扑与建设规模。
+2. [2026-10-01 Always-On / Dots / Plexus 补篇](supplements/always-on-20261001/report.html)：新研究、复用边界及跨时间验收。
+3. [主项目issue讨论稿](supplements/always-on-20261001/issue-compaction-attribution.md)：压缩摘要内部的指令归属；未发布、未接受。
+4. [补篇入口与评审](supplements/always-on-20261001/README.md)。
+
+原README、report.html及其23文件哈希仍对应原交付。之后的读者由本入口取最新附件。

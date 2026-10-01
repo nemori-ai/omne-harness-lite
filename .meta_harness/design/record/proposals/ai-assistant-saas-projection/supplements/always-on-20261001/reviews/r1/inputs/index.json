@@ -1,0 +1,62 @@
+[
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/evidence.md",
+    "snapshot": "00-evidence.md.snapshot.txt",
+    "sha256": "5abfa216cb93b3aed37923f39cd3d3ba4e4a3c8dcee7064b19c83cb71ec7167d"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/README.md",
+    "snapshot": "01-README.md.snapshot.txt",
+    "sha256": "7373c0fa8b8cd0f6e02a326ebab439d6179a214782e93c7e81993da49e9cb035"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/research.md",
+    "snapshot": "02-research.md.snapshot.txt",
+    "sha256": "55cd19e719b3d00ef26fa33b276b4ae76eea80f7e1d2a0ae741a7f3e3e04d853"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/notes/plexus.md",
+    "snapshot": "03-plexus.md.snapshot.txt",
+    "sha256": "00156c688322f4f5577bff8451a07d132d46191b84dd9a80690f549bab88fed9"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/notes/harness.md",
+    "snapshot": "04-harness.md.snapshot.txt",
+    "sha256": "b07be990f7bf31dd006bc2496fe3a196aece0814735f1aac13e02b9bdbfa4b12"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/notes/paper.md",
+    "snapshot": "05-paper.md.snapshot.txt",
+    "sha256": "d2bf165a0f26eeae259245dea6501aaac990ca025c8522a54d87f9c26fc33a59"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/notes/harness-sources.json",
+    "snapshot": "06-harness-sources.json.snapshot.txt",
+    "sha256": "81aa8c705901b17f37f304013f2b4497cba67c82706c39a910c950c43511db83"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/notes/issue-inventory.json",
+    "snapshot": "07-issue-inventory.json.snapshot.txt",
+    "sha256": "0940547407a91196b872b29758e104324855699d5fca455746de6b55fe055b1e"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/notes/paper-sources.json",
+    "snapshot": "08-paper-sources.json.snapshot.txt",
+    "sha256": "9feb04a8ed7987fe802e74cbe3e7cf61b6af759399eb33c871ccdbe0db38bc31"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/notes/plexus-sources.json",
+    "snapshot": "09-plexus-sources.json.snapshot.txt",
+    "sha256": "10060959e93f8462d749519451ec6038c22822e658443d40a9b66b5c903ad718"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/analysis.md",
+    "snapshot": "10-analysis.md.snapshot.txt",
+    "sha256": "d1dc84da7198a86700656af5501b6512ad4108e2357ee082c699a864ebd086f4"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/README.md",
+    "snapshot": "11-README.md.snapshot.txt",
+    "sha256": "08268ed46fc6cbed337067d8c34b9f5fb4bd6bd65092cc9378fed9242b1ffec5"
+  }
+]

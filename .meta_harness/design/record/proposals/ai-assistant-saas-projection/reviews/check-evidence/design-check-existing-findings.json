@@ -1,0 +1,14 @@
+[
+  {
+    "path": ".meta_harness/design/realization/apps/tenancy-host/README.md",
+    "matches_HEAD": true,
+    "sha256": "86bb4e24613250e8d249202df3a91d96288273369969dccbb6b2397713f2a9f6",
+    "finding": "PF-001 rev22 declaration; current product rev24; existing baseline staleness, outside report scope"
+  },
+  {
+    "path": ".meta_harness/design/realization/apps/tenancy-host/architecture.md",
+    "matches_HEAD": true,
+    "sha256": "85b894125833dba25430789b5082c5c842c01b2c055efbccbe989a71c64410b3",
+    "finding": "PF-001 rev22 declaration; current product rev24; existing baseline staleness, outside report scope"
+  }
+]

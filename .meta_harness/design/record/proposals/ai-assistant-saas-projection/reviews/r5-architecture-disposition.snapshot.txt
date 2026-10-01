@@ -1,0 +1,38 @@
+# R5外围精化与跨组统一处置
+
+日期：2026-10-01。状态：作者修订完成，等待主线复核；不声明接受或运行验证。
+
+写入范围仅最终候选包 `peripheral-design.md`、`alternatives.md`、`data/components.json`。原tmp/saas、mapping-c及本轮其他执行者负责的topology/计划/功能映射未改。
+
+| 项目 | 已落实 | 位置与后续边界 |
+|---|---|---|
+| R5-A01 每调用预算/失败状态 | IF-05/IF-02登记为必需装配接缝：SaaS在可替换模型发出实现之前预算准入，未放行不创建/发出新计费调用；“等待”是调用创建前产品/调度工作等待。已创建MRR取不到凭据仍`released{cause: credential_unavailable}`终态，不能假装悬挂；后续既有失败处理+可见接续 | peripheral §2.1/2.2/3.3/5.1a/8/10，alternatives验证5，components SP-10及assembly。HWP-01/03+SWP-10接缝未明确/验证前不声称硬预算已实现 |
+| R5-A02 任一权威恢复 | 安全门触发扩为所有影响平台准入的权威输入恢复，尤其治理SQLite、授权/凭据库及预算/路由。fresh epoch、旧资格可疑与可信当前依据齐备前拒新受控效果 | peripheral §5.1/6.3/6.4/10，alternatives共同门与A，components assembly/SP-11。PF-017 §6.18及未决治理事实归原owner，不由SaaS裁决；自有据点离线会话寿命不变 |
+| R5-A03 控制点具体介质 | 选择物理恢复域分离的托管强一致对象存储：不可变候选记录+当前指针，条件切指针是唯一激活提交；策略限制无条件修改。同PostgreSQL集群另库不算独立 | peripheral §6.3、alternatives共同门、components assembly/SP-11。地域内托管多AZ能力为待验证采用前提，无自建共识集群、零宕机或已选厂商声明 |
+| R5-A03 同步代价/自身丢失 | 每个受控入口强一致现读，不可达拒该新增效果；明确同步可用性/请求/延迟费用，不以1万普通负载引入陈旧缓存。控制点丢失先全关，人工以受保护身份恢复新信任根、轮换/实际失效旧平台资格，隔离旧根入口并逐入口验证后再开 | peripheral §6.3、alternatives共同门、components assembly/SP-11。用户自持未知BYOK密钥不会被epoch或新信任根追回 |
+| R5-A04 callId寿命 | 只有原后台runtime仍存活才允许原callId回传；停机/迁移后按PF-006 §6.12失败收场，不补成功回传；后到事件留产品意图改走Schedule | peripheral §4.4/10，components SP-07/assembly |
+| 跨组事件路线 | SP-07接收/验真/限定轮询/去重机械无模型；有待处理意图且策略值得唤醒才由PWP-10经IF-04以真实tenant和获准用户/agent身份建一次性Schedule。同事情未到期安排归并，补跑/重叠/通知显式配置；无事件不建空agent轮询 | peripheral §4.4/10，components assembly/SP-07。首输入和scheduled_trigger由IF-04定形，未称已冻结；不造system/user/Connector来源 |
+| 决定分类型owner | PF-008卡片池提交权威结论，SaaS转发后等待池回执；产品业务决定才归产品owner。自然语言答卡片明确reply-to-card，不伪装普通插队 | peripheral §2.2/3.3a/4.1/10，components SP-02/03/08及assembly |
+| M05默认执行形状 | 中心cell持久Session/Run + 远端受限工具适配；远端只记录回执/观察/出站证据，不建立竞争Run，不迁中心Run到节点 | peripheral §5.2/10，components SP-05/06及assembly。IF-03精化协议，cell宿主迁移与业务多节点分派分开 |
+| 文件权威 | SP-04资料的workspace副本为工作拷贝，带SP-04基准版CAS发布；框架原生workspace资源仅由SP-04快照引用 | peripheral §2.3/4.1，components SP-04及assembly；IF-06接线 |
+| 连接撤权与凭据 | SP-02 grant+outbox同事务禁新；FC-08停分发及供应商撤销各自回执。首版产品邮箱/日历token只SP-07消费，不开放MCP bridge直取绕SP-02 | peripheral §3.1/3.3/10，components SP-02/07及assembly；custodian仍唯一逻辑owner |
+| IF命名 | 三文件所有IF01改成IF-01；新预算/事件/节点/文件接缝用IF-02/03/04/05/06/07/08标准编号 | 未另铸接口身份或修改正式框架契约 |
+| 围栏取证owner | SP-11实际调用云API并保管stop/detach/revoke证据；SP-05核验消费证据后切路由 | peripheral §5.1/6.3/10，alternatives A/验证2，components SP-05/11及assembly |
+| 来源真实性 | 引主线已取证的S3强一致、条件写、策略强制三页作为EXT-15/16/17能力例证；不选定AWS、不泛化任意S3兼容、不以文档证明完整epoch协议 | peripheral §6.3三条官方URL；研究清单由主线维护，本执行者未改研究文件 |
+
+## 剩余与验收义务
+
+- IF-05/IF-02创建调用前准入、IF-04一次性Schedule首输入、IF-03中心Run/远端工具协议、IF-06工作拷贝CAS和IF-07类型化决定仍需精确接缝与实现验证，本候选不代替正式规格。
+- PF-017恢复治理事实未决、不可擦历史/删除范围、BYOK自持未知窗口、地域、价格、SLO、恢复体验和保留政策保持原owner及待定状态。
+- 控制点物理恢复域、多AZ、条件写访问策略、强一致现读、丢根全门关闭/逐入口恢复均须在选定供应商实际验证。
+- 正文、候选、组件结构的局部检查不等于运行测试或独立接受；本轮未操作供应商、实现代码或修改其他执行者文件。
+
+## 最终核对与哈希
+
+本轮结束后附三文件观察哈希；复核JSON结构/13稳定ID、IF命名、局部链接、R5关键规则和冻结输入未变。
+
+- `peripheral-design.md`：`8ce4de8efd0138262bfedbcbf3937557987526f8a076c7526500c21d9997f443`
+- `alternatives.md`：`1be29ac9b5f488df9302fdb684671b55c5f2551917eb56b505568830139bcecc`
+- `data/components.json`：`55f5059eb319643dd54c7849f1ee2bbba12fa43a0cd8f01c837c70da8f6b6def`
+
+13组件ID/IF命名/本地链接/三候选/关键边界文本检查通过；7份冻结输入哈希未变。未运行产品测试。

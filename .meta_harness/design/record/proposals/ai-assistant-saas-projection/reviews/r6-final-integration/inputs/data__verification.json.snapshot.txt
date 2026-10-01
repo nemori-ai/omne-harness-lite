@@ -1,0 +1,59 @@
+{
+  "checks": {
+    "features": {
+      "total": 165,
+      "unique": 165,
+      "module_counts": {
+        "M01": 8,
+        "M02": 8,
+        "M03": 9,
+        "M04": 12,
+        "M05": 12,
+        "M06": 8,
+        "M07": 10,
+        "M08": 9,
+        "M09": 9,
+        "M10": 8,
+        "M11": 8,
+        "M12": 7,
+        "M13": 10,
+        "M14": 9,
+        "M15": 8,
+        "M16": 10,
+        "M17": 10,
+        "M18": 10
+      },
+      "confirmation_counts": {
+        "non_suggested": 159,
+        "mixed": 1,
+        "suggested": 5
+      },
+      "normal_acceptances": 165,
+      "negative_acceptances": 180
+    },
+    "journeys": {
+      "stories": 23,
+      "units": 224,
+      "supplements": 30,
+      "globals": 5,
+      "deferred": 6
+    },
+    "plan": {
+      "packages": 37,
+      "milestones": 21,
+      "nodes": 58,
+      "typed_edges": 259,
+      "acyclic": true,
+      "effort": {
+        "optimistic": 108,
+        "planning": 187,
+        "conservative": 302
+      }
+    },
+    "framework_sources_hash_checked": 386,
+    "status": "document-consistency-check-only; no runtime or model-quality testing"
+  },
+  "errors": [],
+  "warnings": [],
+  "passed": true
+}

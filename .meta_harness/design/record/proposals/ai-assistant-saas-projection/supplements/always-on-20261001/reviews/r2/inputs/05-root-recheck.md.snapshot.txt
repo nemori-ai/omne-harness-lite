@@ -1,0 +1,35 @@
+# 主线复核与R1之后的精度修正
+
+2026-10-01，主线亲自读取下列关键来源；其余独立笔记的细节仍为subagent原文取证的转述，未全部逐行二次核验。Fable另有独立只读核查，不替代这里的主线标注。
+
+## 论文及官方文章
+
+主线本轮直接读官方arXiv元数据、论文PDF提取p16定义、§9.6消融与局限、GEM §3.3–3.4、ACRFence结尾的未实现声明。此前官方HTML读数也支持GEM原文校正。AOEP全表与更多扩展的精细数字依独立论文笔记和Fable复核，本次主线没有重新复现或审计全表每格。OpenAI中英文页面由主线web工具取得，直接核对隔离/安全登录/只读研究/断开连接/动作前审核段落，Fable未独立取得网页。文献和厂商结果不是本次运行结果。
+
+## Plexus 与个人版
+
+主线直接核对匹配提交下：
+
+- `sessions.ts:12–19`：内存态、60分钟为**默认生命周期**。封存笔记“最长60分钟”措辞过强，以此修正。
+- `invoke-runs.ts:8–24,35–48`：runId不是凭据；相同agent的新权限episode可核对旧结果；网关进程重启丢内存run；完成后保留1小时、每agent最多8个running。
+- `grant-service.ts:459–490`：execute默认按次，但owner可对明确agent+capability选入standing；没有agent自行升级。
+- `PLEXUS-PROTOCOL.md:503–523`：workflow每个成员dispatch前重查撤销，撤销会停止尚未派发成员；已完成派发不undo。封存笔记“不终止已dispatch工作”不是“整个workflow都继续”的承诺。
+- 个人版 `provider.py:464–501,551–589`：dispatch前durable claim，已有回执收敛，响应丢失unknown不再派发；旧job核对失效/不可得时明确unknown。
+- `omne_plexus/docs/index.md:68–89`：SQLite custody、原Session续接、只观察已接受job终态及明确排除项。
+- 资源接口头部 `Draft / implementation-ahead-candidate`，ADR-C027头部 `Proposed`；`VERIFICATION.md`真实模型、重启/重绑和撤销条目确实存在。本轮没有跑其中命令，未把作者记录升为独立通过。
+
+Python adapter和TypeScript网关从实际源文件可见；lite根约定是产品以TypeScript为主，不是禁止所有外部Python服务。补篇按其默认实现路径明确adapter需重新实现/适配，网关可作外部服务候选；未虚构移植估时。
+
+完整路径由[来源JSON](plexus-sources.json)定位。未亲自重读的storage/auth全部细节、其他验收项，保持“独立笔记据源码/已有记录整理，主线未逐行重核”的强度。
+
+## 归属问题的定向追加核对
+
+主线直接读取PF-010 §5.6–5.8、PF-009的CompactionMessage及§6.1、PF-012 §5.8全部消息落盘前/压缩前后位置、tool-admission/v2 S-19/22/30/31/36及G-1/G-12。关键区别：系统生成摘要这条消息，与摘要内部引用的要求由谁提出，不能视为同一身份保证。PF-010保信息是联合目标，不是明文的关键指令归属不变量。
+
+追加搜索现行product/spec/decisions/proposals（排除本次Relay包），组合“摘要/压缩”与“来源/指令/归属/信任/注入”、英文compaction与trust/taint/inject/provenance，及PF-010 decisions/acceptance。结果包括压缩拓展点与一般来源描述，没有找到对摘要内部指令归属的独立约束或明确已知缺口。这是定向负面读数，非所有历史讨论不存在的证明。
+
+2026-10-01主线再次执行GitHub全状态issue查询成功，仅#18且不相关；open PR查询GraphQL EOF，未补造结果。故新讨论稿有明确本地设计基线与去重边界，未声称远端全部材料均排除重复。
+
+## 对初版的影响
+
+[初版harness笔记](harness.md)中“没有满足门槛的新issue”是当时独立读数的判断，不再是主线最终结论。其相邻保障事实仍保留；细化到摘要内部归属后，主线在补篇留下1条窄讨论稿。未将其作为现行强制规则，更未声称运行时漏洞已复现。详见[演进记录](../changelog.md)。

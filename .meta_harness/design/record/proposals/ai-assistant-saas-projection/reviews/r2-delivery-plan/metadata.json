@@ -1,0 +1,51 @@
+{
+  "model_requested": "claude-fable-5-1",
+  "effort": "xhigh",
+  "brief_sha256": "06ba395257ba01e61f77c0e40fa910c4bfaabe7f82208636af9bbafbf08fa611",
+  "command": [
+    "claude",
+    "-p",
+    "--model",
+    "claude-fable-5-1",
+    "--effort",
+    "xhigh",
+    "--permission-mode",
+    "dontAsk",
+    "--tools",
+    "Read,Glob,Grep",
+    "--allowedTools",
+    "Read,Glob,Grep",
+    "--strict-mcp-config",
+    "--setting-sources",
+    "project",
+    "--no-session-persistence",
+    "--output-format",
+    "json",
+    "--add-dir",
+    "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30",
+    "--agent",
+    "plan-reviewer"
+  ],
+  "started_at_epoch": 1790782104.600048,
+  "base_commit": "2a04c2322a7b679133654acc3c4241effaade4be",
+  "exit_code": 0,
+  "elapsed_seconds": 420.3,
+  "model_usage": {
+    "claude-fable-5-1": {
+      "inputTokens": 98,
+      "outputTokens": 27593,
+      "cacheReadInputTokens": 237205,
+      "cacheCreationInputTokens": 169165,
+      "webSearchRequests": 0,
+      "costUSD": 4.82323125,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "thinkingTokens": 16908,
+      "canonicalModel": "claude-fable-5-1",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "is_error": false,
+  "total_cost_usd": 4.82323125
+}

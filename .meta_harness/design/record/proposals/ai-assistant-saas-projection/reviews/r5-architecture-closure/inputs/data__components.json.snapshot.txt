@@ -1,0 +1,433 @@
+{
+  "status": "candidate-pre-review",
+  "note": "SP IDs are report responsibility nodes, not mandatory independently deployed microservices. All are product SaaS periphery, not new harness contracts.",
+  "components": [
+    {
+      "id": "SP-01",
+      "name": "Identity and tenant provisioning",
+      "responsibility": "IdP verification and external-subject binding to framework-owned account/member; persist provisioning intent before framework registration; IF01 idempotent registration reference or unique lookup seam is required to reconcile a lost receipt without creating another account.",
+      "storage": "Peripheral provisioning intent and binding-candidate/receipt records; framework FC-02/03/28 remains sole identity authority in its independent SQLite governance center.",
+      "owner": "SaaS identity",
+      "inputs": [
+        "verified IdP claims",
+        "registration intent",
+        "IF01 external registration reference / uniquely queryable framework receipt"
+      ],
+      "outputs": [
+        "person/member binding",
+        "tenant provisioning receipt",
+        "session",
+        "pending-reconciliation if IF01 cannot establish whether registration committed"
+      ],
+      "work_packages": [
+        "SWP-01"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-06",
+        "EP-10"
+      ],
+      "framework_authority": [
+        "FC-02",
+        "FC-03",
+        "FC-28"
+      ]
+    },
+    {
+      "id": "SP-02",
+      "name": "Authorization and delegation enforcement",
+      "responsibility": "Product policy restrictions and authorization bridge; framework tool admission and HITL remain mandatory; product allow never overrides framework deny; controlled resource/effect gates reject old restore epochs; unavailable epoch/grant authority blocks new controlled effects but does not expire a framework offline session.",
+      "storage": "Product scope grants/revocations and outbox; references to framework decisions; all restored platform grants start unavailable until independently current epoch and scope re-authorization are established.",
+      "owner": "SaaS security",
+      "inputs": [
+        "principal",
+        "resource",
+        "action",
+        "purpose",
+        "grant chain",
+        "independent current restore epoch and freshly verified product grant"
+      ],
+      "outputs": [
+        "allow/deny/wait decision",
+        "scoped delegation",
+        "revocation receipt"
+      ],
+      "work_packages": [
+        "SWP-02"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-03",
+        "EP-04",
+        "EP-05",
+        "EP-06",
+        "EP-07",
+        "EP-10",
+        "EP-12"
+      ],
+      "framework_authority": [
+        "FC-04",
+        "FC-07",
+        "FC-12"
+      ]
+    },
+    {
+      "id": "SP-03",
+      "name": "Client API and synchronization",
+      "responsibility": "Authenticated ingress, durable receipt for each explicit user submission, upload coordination, versioned projections and stream resume. New user sends are not content-deduplicated; transport retry queries original acceptance, never assumes framework generic idempotent input.",
+      "storage": "request receipts and client sync cursors in data DB; user drafts remain client local until submitted",
+      "owner": "SaaS application",
+      "inputs": [
+        "client commands",
+        "resume cursor"
+      ],
+      "outputs": [
+        "accepted receipt",
+        "authoritative status projections",
+        "resumable updates",
+        "accepted-at-product-only / framework-acceptance-query / pending-reconciliation distinction"
+      ],
+      "work_packages": [
+        "SWP-03"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-02",
+        "EP-03",
+        "EP-08",
+        "EP-11"
+      ]
+    },
+    {
+      "id": "SP-04",
+      "name": "Content and artifact data",
+      "responsibility": "Originals, versions, derived artifacts, external snapshots, scoped downloads, lifecycle manifests",
+      "storage": "object store plus data metadata DB; separate indexes",
+      "owner": "SaaS data",
+      "inputs": [
+        "authorized upload",
+        "artifact result",
+        "version compare-and-set"
+      ],
+      "outputs": [
+        "immutable version reference",
+        "readability result",
+        "authorized download"
+      ],
+      "work_packages": [
+        "SWP-04"
+      ],
+      "execution_paths": [
+        "EP-02",
+        "EP-03",
+        "EP-07",
+        "EP-10",
+        "EP-11",
+        "EP-12"
+      ],
+      "framework_authority": [
+        "FC-20"
+      ]
+    },
+    {
+      "id": "SP-05",
+      "name": "Harness cell fleet and binding",
+      "responsibility": "Single-writer cell deployment and operational route under independent restore epoch; cloud stop/detach/revoke fencing, drain/upgrade/restore; references framework tenant/site/session facts without a second master; FC-28 governance center remains separately deployed.",
+      "storage": "Peripheral placement registry with restore epoch + generation; per-cell detachable persistent volume for harness-owned state; separate FC-28 SQLite governance store and backup; no shared multi-writer harness DB.",
+      "owner": "SaaS runtime platform",
+      "inputs": [
+        "tenant placement",
+        "accepted work",
+        "harness version manifest",
+        "independently activated restore epoch",
+        "cloud stop + volume detach + workload/effect revocation evidence"
+      ],
+      "outputs": [
+        "cell route with current restore epoch and generation",
+        "lifecycle receipts and unresolved external/model-cost windows",
+        "harness capability adapter"
+      ],
+      "work_packages": [
+        "SWP-05"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-03",
+        "EP-04",
+        "EP-08",
+        "EP-11"
+      ],
+      "framework_authority": [
+        "FC-13",
+        "FC-14",
+        "FC-26",
+        "FC-28",
+        "FC-29"
+      ]
+    },
+    {
+      "id": "SP-06",
+      "name": "User node onboarding and orchestration adapter",
+      "responsibility": "User-node onboarding, transport relay and framework identity/workspace bridge; preserve framework session/Run/step idempotency key across attempts; node-side outbound authorization before results enter cloud immutable history; return evidence to framework Run log.",
+      "storage": "Pairing/transport receipts and node-side release-check evidence only; framework Run log remains authoritative for framework-initiated external-effect outcomes.",
+      "owner": "SaaS execution platform",
+      "inputs": [
+        "enrollment approval",
+        "capability offer",
+        "authorized bounded work",
+        "framework-issued session/Run/step idempotency key",
+        "current restore epoch where platform-controlled resources are used"
+      ],
+      "outputs": [
+        "placement evidence",
+        "node acceptance receipt",
+        "external identifiers / unknown / cancellation evidence for framework Run-log reconciliation"
+      ],
+      "work_packages": [
+        "SWP-06"
+      ],
+      "execution_paths": [
+        "EP-03",
+        "EP-05",
+        "EP-06",
+        "EP-08"
+      ],
+      "framework_authority": [
+        "FC-20",
+        "FC-26",
+        "FC-29"
+      ]
+    },
+    {
+      "id": "SP-07",
+      "name": "External connections and effect gateway",
+      "responsibility": "Product channel/OAuth adapters, verified inbound pending-event intents and external-effect evidence. Framework credential-custodian is the default single logical credential owner (HWP-04 dependency); adapter does not independently refresh the same token or own framework effect outcomes.",
+      "storage": "Custodian-owned encrypted storage implementation or secret references only; callback/transport evidence journals and product pending-event intents; no second token-refresh master.",
+      "owner": "SaaS integrations",
+      "inputs": [
+        "user OAuth consent",
+        "scoped effect request",
+        "signed external webhook",
+        "framework-issued session/Run/step idempotency key",
+        "custodian credential reference",
+        "real Schedule Job or existing background callId for event consumption"
+      ],
+      "outputs": [
+        "current capability evidence",
+        "pending event intent with authentic origin",
+        "external evidence to append to framework Run log"
+      ],
+      "work_packages": [
+        "SWP-07"
+      ],
+      "execution_paths": [
+        "EP-04",
+        "EP-06",
+        "EP-12"
+      ],
+      "framework_authority": [
+        "FC-07",
+        "FC-08",
+        "FC-12",
+        "FC-29"
+      ]
+    },
+    {
+      "id": "SP-08",
+      "name": "Notification and decision delivery",
+      "responsibility": "Durable inbox, preference-aware delivery, push/email adapters, decision convergence",
+      "storage": "inbox and delivery attempts; device push token references",
+      "owner": "SaaS application",
+      "inputs": [
+        "durable result or decision-needed event",
+        "notification preference"
+      ],
+      "outputs": [
+        "inbox item",
+        "delivery receipt",
+        "decision submission to authority"
+      ],
+      "work_packages": [
+        "SWP-08"
+      ],
+      "execution_paths": [
+        "EP-03",
+        "EP-04",
+        "EP-06",
+        "EP-08",
+        "EP-12"
+      ],
+      "framework_authority": [
+        "FC-21",
+        "FC-22"
+      ]
+    },
+    {
+      "id": "SP-09",
+      "name": "Interactive artifact hosting and sharing",
+      "responsibility": "Immutable deployment versions, separated generated-code origin/runtime, per-artifact data, sharing and unpublish lifecycle; access checks include current independent restore epoch; old shares/tickets are unavailable after restore until scope re-authorization and bypass-capable tickets are actually invalidated.",
+      "storage": "artifact deployments in object store; per-artifact application data; grants",
+      "owner": "SaaS artifact platform",
+      "inputs": [
+        "validated build",
+        "publish intent",
+        "share selection"
+      ],
+      "outputs": [
+        "usable URL/version",
+        "scoped participant access",
+        "unpublish/export receipt"
+      ],
+      "work_packages": [
+        "SWP-09"
+      ],
+      "execution_paths": [
+        "EP-07",
+        "EP-10"
+      ],
+      "framework_authority": [
+        "FC-20"
+      ]
+    },
+    {
+      "id": "SP-10",
+      "name": "Budget, usage and commercial service",
+      "responsibility": "Commercial entitlements, explicit source/data-policy constraints, per-new-platform-model-call budget reservation and trusted credential eligibility, usage reconciliation, payment and cancel-renewal. Detect anomalous spending and support recoverable source/global circuit breaking; no implication that governance-center outage equals budget-service outage.",
+      "storage": "usage and money ledgers; reservations; provider receipts",
+      "owner": "SaaS commerce",
+      "inputs": [
+        "consumption authorization",
+        "metered facts",
+        "payment webhook",
+        "per-call current restore epoch and budget permit",
+        "trusted request implementation credential-availability fact",
+        "provider retention/training/location policy verification"
+      ],
+      "outputs": [
+        "reservation",
+        "settled/estimated/unknown cost",
+        "service entitlement",
+        "new-platform-call waiting when budget or credential unavailable; in-flight settlement continues",
+        "anomalous-spend alert / recoverable circuit-break receipt",
+        "BYOK unfenced unknown-spend window; no blind migration continuation"
+      ],
+      "work_packages": [
+        "SWP-10"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-03",
+        "EP-04",
+        "EP-05",
+        "EP-09",
+        "EP-10"
+      ]
+    },
+    {
+      "id": "SP-11",
+      "name": "Cloud operations and observability",
+      "responsibility": "IaC, environments, network/key isolation, telemetry, audit transport, SLOs, backup/restore, supply chain and incident operations; independent restore-epoch authority, separate governance-SQLite/cell-volume/peripheral-DB restore, fail-closed handling of lost revocations, and anomalous platform-spend observability.",
+      "storage": "Redacted telemetry, protected audit and backup inventory; separate durable restore-epoch activation record not rolled back with peripheral control DB. Presence of old logs alone never restores permissions.",
+      "owner": "SaaS platform/SRE",
+      "inputs": [
+        "deployment manifests",
+        "structured runtime events",
+        "backup manifests"
+      ],
+      "outputs": [
+        "provenance",
+        "operational evidence",
+        "restore results",
+        "incident status",
+        "uniquely activated fresh restore epoch",
+        "evidence that old gates/credentials/shares remain unavailable until re-authorized",
+        "cloud fencing and actual provider-credential revocation evidence or honest unknown"
+      ],
+      "work_packages": [
+        "SWP-11"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-02",
+        "EP-03",
+        "EP-04",
+        "EP-05",
+        "EP-06",
+        "EP-07",
+        "EP-08",
+        "EP-09",
+        "EP-10",
+        "EP-11",
+        "EP-12"
+      ]
+    },
+    {
+      "id": "SP-12",
+      "name": "Privacy, export and support operations",
+      "responsibility": "Data inventory, scoped export/delete workflows, account exit, support diagnostics and privileged access review; restored data with uncertain deletion/retention authority remains inaccessible pending owner resolution; account re-login alone does not restore old shares or effect grants.",
+      "storage": "lifecycle jobs and manifests; deletion tombstones; support access records",
+      "owner": "SaaS trust and operations",
+      "inputs": [
+        "verified lifecycle request",
+        "selected diagnostic scope",
+        "support case"
+      ],
+      "outputs": [
+        "export bundle",
+        "deletion/retention report",
+        "audited time-limited support action"
+      ],
+      "work_packages": [
+        "SWP-12"
+      ],
+      "execution_paths": [
+        "EP-06",
+        "EP-08",
+        "EP-10"
+      ]
+    },
+    {
+      "id": "SP-13",
+      "name": "Desktop and mobile delivery shell",
+      "responsibility": "Native login, device key custody, local drafts and clipboard preview, resumable uploads, update signing, accessibility and offline honesty",
+      "storage": "OS secure credential store; account-scoped encrypted local drafts/cache",
+      "owner": "SaaS clients",
+      "inputs": [
+        "user local gesture",
+        "notification/deep link",
+        "signed update"
+      ],
+      "outputs": [
+        "explicit submitted input",
+        "resumed view",
+        "device presence"
+      ],
+      "work_packages": [
+        "SWP-13"
+      ],
+      "execution_paths": [
+        "EP-01",
+        "EP-02",
+        "EP-03",
+        "EP-05",
+        "EP-06",
+        "EP-07",
+        "EP-08",
+        "EP-10",
+        "EP-11",
+        "EP-12"
+      ]
+    }
+  ],
+  "review_revision": "R3 local remediation; candidate awaiting independent re-review, not accepted or implemented",
+  "assembly_assumptions": {
+    "governance_center": "FC-28 remains an independent single-instance governance application with SQLite and its own backup/isolated restore; peripheral PostgreSQL does not replace its provider.",
+    "restore_control": "SP-11 owns an independent durable restore control point outside peripheral control-DB rollback. It uniquely activates a never-reused restore epoch. All controlled access/effect/model credential gates check the current epoch and fail closed if unavailable.",
+    "restored_permissions": "All old platform authorization, shares, access tickets, credential eligibility and budget permits start suspicious/unavailable after control DB restore. Missing revocation facts cannot be guessed; re-verification and re-authorization are required per scope before new epoch grants.",
+    "cell_storage": "Candidate A uses per-cell detachable persistent volumes. Cloud stop, detach and workload/effect-eligibility revocation receipts are required before activating a replacement; inability to fence keeps work waiting.",
+    "shared_cell": "Only conditional: tenant host execution never-allow, untrusted tools isolated, identity/policy/credentials/logs inaccessible to tenant tools. No assumption of one VM per tenant or known density.",
+    "framework_effects": "PF-012 5.14 Run log owns external-effect outcomes. Framework key is determined only by session, Run and step; SP-06/07 preserve it across attempts and supply evidence, not independent outcomes.",
+    "input_semantics": "New user sends are never content-deduplicated. Network retries query SaaS handoff and framework acceptance facts; no generic framework request-id deduplication is assumed.",
+    "external_event_ingress": "Persist product pending event intent with actual origin. Consume through a real declared Schedule/Job new session and authorized tool read, or return through an existing background tool callId. No generic system, forged user, forged Job/callId or deferred Connector source."
+  }
+}

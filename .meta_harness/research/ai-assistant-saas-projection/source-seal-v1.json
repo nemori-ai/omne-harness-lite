@@ -1,0 +1,29 @@
+{
+  "version": "v1",
+  "mechanism_blind": true,
+  "inputs": {
+    "product": {
+      "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/产品定义/产品定义与功能需求.md",
+      "sha256": "0e9af1991abbbaaa8d2fb88c84561da8951cc0aeb9c1fc86941bf1fd849f423e",
+      "lines": 587
+    },
+    "stories": {
+      "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/用户故事/用户故事.md",
+      "sha256": "e7250ac5a949aaa59bf287c5d49ad965e8e3c44dafb20895f6664b7c4cff166f",
+      "lines": 512
+    },
+    "reading": {
+      "path": "/Users/pandazki/Downloads/AI助理产品需求-2026-09-30/阅读说明.md",
+      "sha256": "a6eeba518b9e71cc8268e33959d6b81da6733cebb5bded75a5241d416804d8d7",
+      "lines": 33
+    }
+  },
+  "outputs": {
+    "features.json": "33d7edc11d1d5f15203039967fddf09c616ce0340a77cf77199f4c3e21d542ff",
+    "stories.json": "b24e03234e645cc4c4824ae3ddb9663d0a6fbdb4575f06a08a6a518be57c5063",
+    "domain-reading.md": "0b24ddd90b840c7a7bc9a5442f0adb4f23bb81f734a6965f20901701f25f5bee",
+    "source-coverage.json": "87da5651242172ddd7ec0d00bf05d7260f99bca2f0d209faaaab9e1c4559cb28",
+    "build_inventory.py": "ee6070c79a8b592dc950bf67c0bf84c631476b1105c940c11c13f3d8e4f9e0c1",
+    "compact-inventory.md": "412abe581096bc1586070311d0727c6a8bf7d110902de438b08aae240a6bc10d"
+  }
+}

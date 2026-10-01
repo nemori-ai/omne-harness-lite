@@ -1,0 +1,124 @@
+{
+  "status": "document-reviewed-candidate",
+  "source_baseline": "2a04c2322a7b679133654acc3c4241effaade4be",
+  "source_product_date": "2026-09-30",
+  "sealed_on": "2026-10-01",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2171,
+      "sha256": "47700cf29f70dbca2268f401b8527ec1ab25c4620ba3b3ac103cf6e475d13e72"
+    },
+    {
+      "path": "alternatives.md",
+      "bytes": 13260,
+      "sha256": "1be29ac9b5f488df9302fdb684671b55c5f2551917eb56b505568830139bcecc"
+    },
+    {
+      "path": "assets/construction-topology.dot",
+      "bytes": 10860,
+      "sha256": "4e411b8aba2c880f1c5d0c4c872014cd675b8dfe6f95e7892a7156e3cb317431"
+    },
+    {
+      "path": "assets/construction-topology.svg",
+      "bytes": 156965,
+      "sha256": "ca527c9d390d2a830e1dfcd97b769b22ab23d26d8fabe3302fcee41693a4f49c"
+    },
+    {
+      "path": "assets/runtime-topology.dot",
+      "bytes": 2192,
+      "sha256": "27e7bafea9bddc6bf44e806a77952f94df845e020f5a0bd7c4c729526f048b19"
+    },
+    {
+      "path": "assets/runtime-topology.svg",
+      "bytes": 18531,
+      "sha256": "1f4ca4c5c7db249542305b94b2c1d61efd2b705ba1e06369ece0963b9f0348ca"
+    },
+    {
+      "path": "data/README.md",
+      "bytes": 1092,
+      "sha256": "d1b677e65ed5af26919cc0b3400be7e23864aebceb41d342ca22f168a8b0d704"
+    },
+    {
+      "path": "data/components.json",
+      "bytes": 23415,
+      "sha256": "0919e09fc54efb1b640289e32b1277fece57aadfeef6d6d26555cd428824bb66"
+    },
+    {
+      "path": "data/feature-projections.json",
+      "bytes": 3070174,
+      "sha256": "ec21be4a1d63b30c7c0781b49826ab8c8e9854b72b7a8105eeed5111c753eb2d"
+    },
+    {
+      "path": "data/journey-acceptance.json",
+      "bytes": 221414,
+      "sha256": "4eff56a3f8362f10ae4b5a385bf06286b16ec5ef967fa4b9f228af92e007487f"
+    },
+    {
+      "path": "data/verification.json",
+      "bytes": 1184,
+      "sha256": "f46ea24acc57a29b3c01b24353cb22f2eab662fc2f98f772ee6babf37c7b0d21"
+    },
+    {
+      "path": "data/work-plan.json",
+      "bytes": 120913,
+      "sha256": "c25363fb7e50376f3a3c8d3929d08b6148cc50248640f5c3c162a930d083f61a"
+    },
+    {
+      "path": "delivery-plan.md",
+      "bytes": 30301,
+      "sha256": "804d3335acb510a105447f4298229eeff6c381952b35d9a44cc2d7302344dc1e"
+    },
+    {
+      "path": "design.md",
+      "bytes": 17418,
+      "sha256": "e3e2904e77203f80a8ee1edea7fd8e9387401acabe95edabafbaffe5a3699670"
+    },
+    {
+      "path": "execution-topology.md",
+      "bytes": 28950,
+      "sha256": "dbaad8bd62bba23cac458a6de554666436add841d7e39d830fed8ac760822b22"
+    },
+    {
+      "path": "feature-projection.md",
+      "bytes": 17074,
+      "sha256": "8d0a8a03c67b09caa04b500fa47665d071bfc70c9a0451206cf3e972b3535977"
+    },
+    {
+      "path": "features/m01-m06.md",
+      "bytes": 235367,
+      "sha256": "d40666026d05e72dfbdb105c581391ffb920cf395ea1b9e1a86e44aaec195e88"
+    },
+    {
+      "path": "features/m07-m12.md",
+      "bytes": 269511,
+      "sha256": "0a57537318c90e4d0e79f4b35e7e5bd9fa8f66526ebb2b8c8f956d12a7d61c61"
+    },
+    {
+      "path": "features/m13-m18.md",
+      "bytes": 204824,
+      "sha256": "c380065ccaf965037947b9c2828cb4e2db1efd1bca8180d0af8c0a0d19fa5dbc"
+    },
+    {
+      "path": "journey-acceptance.md",
+      "bytes": 43622,
+      "sha256": "9ac53597932ad29e8f55efb05f65a7d7798700c818cd32822b8f55d3deebe77b"
+    },
+    {
+      "path": "peripheral-design.md",
+      "bytes": 72363,
+      "sha256": "c7bc8d467576a1419be447b6e4f0686a0e17cff4f012b9639b689cd85354d152"
+    },
+    {
+      "path": "report.html",
+      "bytes": 1322773,
+      "sha256": "ce0858637e4b002ec43cf4470acdb4bf1c59a8cd67ff9d53c6f3c436781d3d4d"
+    },
+    {
+      "path": "review.md",
+      "bytes": 10624,
+      "sha256": "f8b1acccc384fa17b2739bd78353724c1512d8a2fa89e91f266d9d1e88bb602b"
+    }
+  ],
+  "meaning": "Observed final delivery bytes; excludes this self-referential manifest and historical review artifacts. No production acceptance or runtime proof."
+}

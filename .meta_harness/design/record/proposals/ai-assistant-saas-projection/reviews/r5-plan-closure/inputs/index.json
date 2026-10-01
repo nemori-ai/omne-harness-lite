@@ -1,0 +1,20 @@
+[
+  {
+    "original_locator": "delivery-plan.md",
+    "sha256": "7990590988b62b9c1ded4a77f220b405f3be757f2add5fc6ed6bdc96035a8c12",
+    "snapshot_file": "delivery-plan.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "data/work-plan.json",
+    "sha256": "b1063d04a02676e5741c6293df17a908695de895adfb4bf43de877d13a79b9d2",
+    "snapshot_file": "data__work-plan.json.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "design.md",
+    "sha256": "cdc0206bed1ba934338c211126b48f51849b2a033e85e0dafa1cd8eaf878ce9c",
+    "snapshot_file": "design.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  }
+]

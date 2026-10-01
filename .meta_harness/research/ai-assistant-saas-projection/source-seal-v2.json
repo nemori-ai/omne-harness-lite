@@ -1,0 +1,12 @@
+{
+  "revision": 2,
+  "parent": "source-seal-v1.json",
+  "source_unchanged": true,
+  "review": "R1-F01..F04/F07/F08",
+  "files": {
+    "features-source-v2.json": "40ac7483df0de0ebc78e27f814596272c9fbca907e93a10ae881cbf7ea1797f4",
+    "stories-source-v2.json": "89235b3dc8011d0e253c67c0de1ebf0829b65c183ade8b142093e5400e7f40e6",
+    "source-coverage-v2.json": "0ac6ae5936c45acda2159269bdaeb275d33101cc26dde3c0866c464a9321fe5d",
+    "source-inventory-v2.md": "cfcf4aa0000c1a66b377c004b7b5c621d6d41f82a99f06fecf58d88af10c23be"
+  }
+}

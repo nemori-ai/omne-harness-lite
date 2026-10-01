@@ -1,0 +1,130 @@
+{
+  "status": "document-reviewed-candidate",
+  "document_revision": "integrated-2026-10-01",
+  "source_baseline": "2a04c2322a7b679133654acc3c4241effaade4be",
+  "source_product_date": "2026-09-30",
+  "sealed_on": "2026-10-01",
+  "previous_manifest_snapshot": "reviews/before-report-integration/inputs/data__final-artifacts.json.snapshot.txt",
+  "files": [
+    {
+      "path": "CURRENT.md",
+      "bytes": 99,
+      "sha256": "3c47a2d21a558c260f122f23a6374e38a29d1260e3155ac3db28677698e9c461"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1355,
+      "sha256": "54e2d9603749997b7524e534d2aa244b713467dea94346664d130a190979c345"
+    },
+    {
+      "path": "alternatives.md",
+      "bytes": 13260,
+      "sha256": "1be29ac9b5f488df9302fdb684671b55c5f2551917eb56b505568830139bcecc"
+    },
+    {
+      "path": "assets/construction-topology.dot",
+      "bytes": 10860,
+      "sha256": "4e411b8aba2c880f1c5d0c4c872014cd675b8dfe6f95e7892a7156e3cb317431"
+    },
+    {
+      "path": "assets/construction-topology.svg",
+      "bytes": 156965,
+      "sha256": "ca527c9d390d2a830e1dfcd97b769b22ab23d26d8fabe3302fcee41693a4f49c"
+    },
+    {
+      "path": "assets/runtime-topology.dot",
+      "bytes": 2192,
+      "sha256": "27e7bafea9bddc6bf44e806a77952f94df845e020f5a0bd7c4c729526f048b19"
+    },
+    {
+      "path": "assets/runtime-topology.svg",
+      "bytes": 18531,
+      "sha256": "1f4ca4c5c7db249542305b94b2c1d61efd2b705ba1e06369ece0963b9f0348ca"
+    },
+    {
+      "path": "data/README.md",
+      "bytes": 1092,
+      "sha256": "d1b677e65ed5af26919cc0b3400be7e23864aebceb41d342ca22f168a8b0d704"
+    },
+    {
+      "path": "data/components.json",
+      "bytes": 23415,
+      "sha256": "0919e09fc54efb1b640289e32b1277fece57aadfeef6d6d26555cd428824bb66"
+    },
+    {
+      "path": "data/feature-projections.json",
+      "bytes": 3070174,
+      "sha256": "ec21be4a1d63b30c7c0781b49826ab8c8e9854b72b7a8105eeed5111c753eb2d"
+    },
+    {
+      "path": "data/journey-acceptance.json",
+      "bytes": 222494,
+      "sha256": "6f19fd44c389c142c3c35d59542e5da7868177ddcab9392168dfdbe60a50c69a"
+    },
+    {
+      "path": "data/verification.json",
+      "bytes": 1941,
+      "sha256": "cb56aa88afec920e1f0ab72f216f0bb12f8c788b88cf3e575f64eb8c6cc1db3c"
+    },
+    {
+      "path": "data/work-plan.json",
+      "bytes": 121538,
+      "sha256": "c45de3a1558d4574ca7c479ea8eb2e56d45d39c6bf52f79943b78e12ab79b1b7"
+    },
+    {
+      "path": "delivery-plan.md",
+      "bytes": 31116,
+      "sha256": "8d29a8aaf141a4a54d7d333818b452f73672e4f33d1e0c8d876f053415ef91be"
+    },
+    {
+      "path": "design.md",
+      "bytes": 18428,
+      "sha256": "faaa835331122276b65fb790b7078432b32773f8cb79ef5fd3f5b9ff02560743"
+    },
+    {
+      "path": "execution-topology.md",
+      "bytes": 30546,
+      "sha256": "e9b5ce14ce205f2c48c21c053c9569e954cf882b6f51382bfd40fdd050347d72"
+    },
+    {
+      "path": "feature-projection.md",
+      "bytes": 17074,
+      "sha256": "8d0a8a03c67b09caa04b500fa47665d071bfc70c9a0451206cf3e972b3535977"
+    },
+    {
+      "path": "features/m01-m06.md",
+      "bytes": 235367,
+      "sha256": "d40666026d05e72dfbdb105c581391ffb920cf395ea1b9e1a86e44aaec195e88"
+    },
+    {
+      "path": "features/m07-m12.md",
+      "bytes": 269511,
+      "sha256": "0a57537318c90e4d0e79f4b35e7e5bd9fa8f66526ebb2b8c8f956d12a7d61c61"
+    },
+    {
+      "path": "features/m13-m18.md",
+      "bytes": 204824,
+      "sha256": "c380065ccaf965037947b9c2828cb4e2db1efd1bca8180d0af8c0a0d19fa5dbc"
+    },
+    {
+      "path": "journey-acceptance.md",
+      "bytes": 45605,
+      "sha256": "8605acff207d9fbe32cab30e3cef9ca5de30656e51eb9bc05eb6ce9343acd5c5"
+    },
+    {
+      "path": "peripheral-design.md",
+      "bytes": 74704,
+      "sha256": "eb152c54efed19f747e6e41098a209e2c4b6da13ac68371e72464a2663ed20ac"
+    },
+    {
+      "path": "report.html",
+      "bytes": 1289797,
+      "sha256": "5930e1c7e366fafbcc88d9d90855d754e0ce89415b667a846e5715caf1598094"
+    },
+    {
+      "path": "review.md",
+      "bytes": 11957,
+      "sha256": "00a83a76c72464ff930f2765beabfffcb5be2fba8f0a39f8e1aefc3869f3d51c"
+    }
+  ]
+}

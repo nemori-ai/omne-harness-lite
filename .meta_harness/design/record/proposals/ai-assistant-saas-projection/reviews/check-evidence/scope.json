@@ -1,0 +1,15 @@
+{
+  "report_mechanical_check": "passed; 165 features, 23 stories, 58 graph nodes, 386 source hashes",
+  "docs_check": "passed; 1736 Markdown files after final review archival and navigation/status updates",
+  "design_check": "not fully passed: two existing tenancy-host PF-001 revision22/current24 mismatches; matching HEAD bytes; no changes made to those files",
+  "formal_execution": "not requested; registrations checked only",
+  "runtime_acceptance": "not executed; analysis task only",
+  "html_final_browser_check": {
+    "features": 165,
+    "broken_anchors": 0,
+    "images_loaded": true,
+    "horizontal_overflow": false,
+    "R7_closure_visible": true,
+    "old_tmp_links": 0
+  }
+}

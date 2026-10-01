@@ -1,0 +1,149 @@
+{
+  "observed_at": "2026-10-01",
+  "mode": "read-only code and documentation inspection; no tests executed",
+  "sources": [
+    {
+      "id": "PE-ROOT",
+      "path": "/Users/pandazki/orca/workspaces/omne-next/personal_edition/AGENTS.md",
+      "repository": "/Users/pandazki/orca/workspaces/omne-next/personal_edition",
+      "commit": "d1f4e5342abe2526bc0ac1e147e340558f7de618",
+      "note": "现有 OMNE-NEXT 和外围职责；记忆/认知由 Engram/Cognition 拥有"
+    },
+    {
+      "id": "PE-INTEGRATION",
+      "path": "/Users/pandazki/orca/workspaces/omne-next/personal_edition/omne_plexus/docs/index.md",
+      "repository": "/Users/pandazki/orca/workspaces/omne-next/personal_edition",
+      "commit": "d1f4e5342abe2526bc0ac1e147e340558f7de618",
+      "note": "当前 adapter 范围、双权限面、持久性与明确排除"
+    },
+    {
+      "id": "PE-EVIDENCE",
+      "path": "/Users/pandazki/orca/workspaces/omne-next/personal_edition/omne_plexus/VERIFICATION.md",
+      "repository": "/Users/pandazki/orca/workspaces/omne-next/personal_edition",
+      "commit": "d1f4e5342abe2526bc0ac1e147e340558f7de618",
+      "note": "2026-09-29/30 已记录的本地测试和实机证据；本次未重跑"
+    },
+    {
+      "id": "PE-RESOURCE",
+      "path": "/Users/pandazki/orca/workspaces/omne-next/personal_edition/omne_harness/design_docs/interfaces/session-resource-access-contract.md",
+      "repository": "/Users/pandazki/orca/workspaces/omne-next/personal_edition",
+      "commit": "d1f4e5342abe2526bc0ac1e147e340558f7de618",
+      "note": "Draft / implementation-ahead-candidate；绑定、观察、续原Session"
+    },
+    {
+      "id": "PE-ADR",
+      "path": "/Users/pandazki/orca/workspaces/omne-next/personal_edition/adrs/ADR-C027-session-bound-accessible-resource-provider-boundary.md",
+      "repository": "/Users/pandazki/orca/workspaces/omne-next/personal_edition",
+      "commit": "d1f4e5342abe2526bc0ac1e147e340558f7de618",
+      "note": "Proposed，非架构接受"
+    },
+    {
+      "id": "PE-PRODUCT",
+      "path": "/Users/pandazki/orca/workspaces/omne-next/personal_edition/omne_harness_product_personal_edition/design_docs/experience/plexus-capability-setup.md",
+      "repository": "/Users/pandazki/orca/workspaces/omne-next/personal_edition",
+      "commit": "d1f4e5342abe2526bc0ac1e147e340558f7de618",
+      "note": "安装授权、管理隔离、OMNE不暴露coding-agent launchers"
+    },
+    {
+      "id": "PE-CARD",
+      "path": "/Users/pandazki/orca/workspaces/omne-next/personal_edition/omne_harness_product_personal_edition/design_docs/experience/resource-collaboration.md",
+      "repository": "/Users/pandazki/orca/workspaces/omne-next/personal_edition",
+      "commit": "d1f4e5342abe2526bc0ac1e147e340558f7de618",
+      "note": "Draft；BOT复用展示但不改其委派语义"
+    },
+    {
+      "id": "PE-STORAGE",
+      "path": "/Users/pandazki/orca/workspaces/omne-next/personal_edition/omne_plexus/libs/omne_plexus/omne_plexus/storage.py",
+      "repository": "/Users/pandazki/orca/workspaces/omne-next/personal_edition",
+      "commit": "d1f4e5342abe2526bc0ac1e147e340558f7de618",
+      "note": "Owner:36 Binding:58 GrantCustody:118 JobReceipt:141；SQL receipt"
+    },
+    {
+      "id": "PE-PROVIDER",
+      "path": "/Users/pandazki/orca/workspaces/omne-next/personal_edition/omne_plexus/libs/omne_plexus/omne_plexus/provider.py",
+      "repository": "/Users/pandazki/orca/workspaces/omne-next/personal_edition",
+      "commit": "d1f4e5342abe2526bc0ac1e147e340558f7de618",
+      "note": "bind:323 call:464 collection:514 collect_job:551 changes:588"
+    },
+    {
+      "id": "PE-AUTH",
+      "path": "/Users/pandazki/orca/workspaces/omne-next/personal_edition/omne_plexus/libs/omne_plexus/omne_plexus/auth.py",
+      "repository": "/Users/pandazki/orca/workspaces/omne-next/personal_edition",
+      "commit": "d1f4e5342abe2526bc0ac1e147e340558f7de618",
+      "note": "authorize 验证 audience/scope/tenant/session/actor/live State owner"
+    },
+    {
+      "id": "PE-WIRE",
+      "path": "/Users/pandazki/orca/workspaces/omne-next/personal_edition/omne_harness/contracts/schemas/rest/state/session_resource_binding.schema.json",
+      "repository": "/Users/pandazki/orca/workspaces/omne-next/personal_edition",
+      "commit": "d1f4e5342abe2526bc0ac1e147e340558f7de618",
+      "note": "State绑定公开形状及standing"
+    },
+    {
+      "id": "PX-README",
+      "path": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration/README.md",
+      "repository": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration",
+      "commit": "d84421fcf981b0c7d3f624ba95a62d81523f6402",
+      "note": "local capability gateway；Connector→Source→Capability，自描述、授权、审计"
+    },
+    {
+      "id": "PX-VERSION",
+      "path": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration/packages/protocol/src/types.ts",
+      "repository": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration",
+      "commit": "d84421fcf981b0c7d3f624ba95a62d81523f6402",
+      "note": "line 83 protocol 0.1.4；package.json软件0.9.1"
+    },
+    {
+      "id": "PX-SESSIONS",
+      "path": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration/packages/runtime/src/core/sessions.ts",
+      "repository": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration",
+      "commit": "d84421fcf981b0c7d3f624ba95a62d81523f6402",
+      "note": "60min内存Session，进程重启不保留"
+    },
+    {
+      "id": "PX-RUNS",
+      "path": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration/packages/runtime/src/core/invoke-runs.ts",
+      "repository": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration",
+      "commit": "d84421fcf981b0c7d3f624ba95a62d81523f6402",
+      "note": "内存run；同agent跨episode取结果；完成后1h保留；上限8"
+    },
+    {
+      "id": "PX-GRANTS",
+      "path": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration/packages/runtime/src/core/grant-service.ts",
+      "repository": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration",
+      "commit": "d84421fcf981b0c7d3f624ba95a62d81523f6402",
+      "note": "line 460-520 owner明确opt-in可提升execute为standing；line 882+ persistence"
+    },
+    {
+      "id": "PX-SOURCES",
+      "path": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration/packages/runtime/src/sources/config/store.ts",
+      "repository": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration",
+      "commit": "d84421fcf981b0c7d3f624ba95a62d81523f6402",
+      "note": "sources.json原子持久化；运行时registry为权威"
+    },
+    {
+      "id": "PX-SECURITY",
+      "path": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration/docs/design/security-model.md",
+      "repository": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration",
+      "commit": "d84421fcf981b0c7d3f624ba95a62d81523f6402",
+      "note": "部分execute-never-standing表述已与源码/README矛盾，不能无条件引用"
+    },
+    {
+      "id": "PX-PROTOCOL",
+      "path": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration/docs/protocol/PLEXUS-PROTOCOL.md",
+      "repository": "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration",
+      "commit": "d84421fcf981b0c7d3f624ba95a62d81523f6402",
+      "note": "async scoped invoke、结果生命周期与撤销语义"
+    }
+  ],
+  "web": [
+    {
+      "url": "https://plexus.vibecoding.icu/",
+      "status": "web.open inaccessible; parent fetched homepage with curl and reported official repository link"
+    },
+    {
+      "url": "https://github.com/nemori-ai/plexus",
+      "status": "official repository identified from homepage and local source; no remote HEAD claim"
+    }
+  ]
+}

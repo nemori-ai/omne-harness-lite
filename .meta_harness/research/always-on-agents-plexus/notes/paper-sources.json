@@ -1,0 +1,107 @@
+{
+  "accessed_at": "2026-10-01",
+  "independent_reading": true,
+  "repository_mechanism_reading_performed": false,
+  "status": "sealed paper reading; not an accepted product or architecture decision",
+  "sources": [
+    {
+      "id": "always-on-v1",
+      "title": "Always-On Agents: A Survey of Persistent Memory, State, and Governance in LLM Agents",
+      "authors": [
+        "Tianyu Ding",
+        "Aditya Nannapaneni",
+        "Bingfan Liu",
+        "Ling Zhang"
+      ],
+      "arxiv_id": "2606.30306v1",
+      "submitted_at": "2026-06-29T13:47:42Z",
+      "urls": {
+        "abstract": "https://arxiv.org/abs/2606.30306v1",
+        "html": "https://arxiv.org/html/2606.30306v1",
+        "pdf": "https://arxiv.org/pdf/2606.30306v1"
+      },
+      "retrieval": "web official abstract/HTML, urllib official HTML/PDF/abstract, pdftotext -layout",
+      "local_files": [
+        "paper-abs.html",
+        "paper.html",
+        "paper.pdf",
+        "paper-layout.txt",
+        "paper.txt"
+      ],
+      "pdf_pages": 136,
+      "read_scope": "Sections 1-6, 7.1 and 7.5-7.7, 8-9, 11-12, Appendix A; Section 10 and individual descriptions in 7.2-7.4 not fully audited",
+      "reproduced": false,
+      "limitations": [
+        "435-work corpus coding table and AOEP code/schema artifacts not located in downloaded paper",
+        "Survey counts and pilot results are author-reported",
+        "Two primary citations independently checked; not all cited sources checked"
+      ],
+      "sha256": {
+        "paper-abs.html": "935d36eda78fe7a867359a6dd66895fd123bc63f0e0a6b5757262e5608ff7a55",
+        "paper.html": "baefd780dde92cb401d954cfccf66a6f373a2d82739c8985356d3865a3e4c00e",
+        "paper.pdf": "d4f1c08fd999f508ef610fe9779588ae9f3ce2c95c65eab359924b25b567f116",
+        "paper-layout.txt": "d878a408bbbe7a4b7f6b15fbc9b26870c8b6330487bbc37e798d60af6357ca0b",
+        "paper.txt": "5537e7fbc81a95614c58c9f2ea30a8a3aac1f2c3be1698273b4fcf0cfc31b942"
+      }
+    },
+    {
+      "id": "gem-v1",
+      "title": "Is Agent Memory a Database? Rethinking Data Foundations for Long-Term AI Agent Memory",
+      "authors": [
+        "Abdelghny Orogat",
+        "Essam Mansour"
+      ],
+      "arxiv_id": "2605.26252v1",
+      "submitted_date": "2026-05-25",
+      "urls": {
+        "abstract": "https://arxiv.org/abs/2605.26252v1",
+        "html": "https://arxiv.org/html/2605.26252v1",
+        "pdf": "https://arxiv.org/pdf/2605.26252v1"
+      },
+      "retrieval": "web search/official HTML, urllib official PDF/abstract, pdftotext -layout",
+      "local_files": [
+        "gem-abs.html",
+        "gem.pdf",
+        "gem.txt"
+      ],
+      "read_scope": "Sections 3.1-3.4 and 4-5, especially p3 structural claims and six conditions",
+      "finding": "Survey overstates structural observations as impossibility proof and incorrectly includes rollback traceability in six conditions; original explicitly says not theorems; feasibility prototype exists.",
+      "reproduced": false,
+      "sha256": {
+        "gem-abs.html": "9405a2fff55a03440821415380ae162e4fc6dd47c8855af434db00f4cad03068",
+        "gem.pdf": "7eaee6297d1b5fb84d67e11b4354a4d99f67c02d9df2021fed445741c76b0cf0",
+        "gem.txt": "93fe6ba353c8b063458880d07cd6c0cd08d0e75d4b495ba9513aefc96b17e29e"
+      }
+    },
+    {
+      "id": "acrfence-v1",
+      "title": "ACRFence: Preventing Semantic Rollback Attacks in Agent Checkpoint-Restore",
+      "authors": [
+        "Yusheng Zheng",
+        "Yiwei Yang",
+        "Wei Zhang",
+        "Andi Quinn"
+      ],
+      "arxiv_id": "2603.20625v1",
+      "submitted_date": "2026-03-21",
+      "urls": {
+        "abstract": "https://arxiv.org/abs/2603.20625v1",
+        "pdf": "https://arxiv.org/pdf/2603.20625v1"
+      },
+      "retrieval": "web primary search, urllib official PDF/abstract, pdftotext -layout",
+      "local_files": [
+        "acrfence-abs.html",
+        "acrfence.pdf",
+        "acrfence.txt"
+      ],
+      "read_scope": "Sections 1-6, pp1-3; references not independently audited",
+      "finding": "Attack PoC demonstrated on specified local testbed; ACRFence mitigation explicitly not implemented/evaluated in v1.",
+      "reproduced": false,
+      "sha256": {
+        "acrfence-abs.html": "c633e8b66c7dc45bb58b67db22897dbd12115616c16016fbfdfb8d76b9e3d7fd",
+        "acrfence.pdf": "5b88ebb1f9dc1cb136c2e8b282a5b9d31122dc172ecd9c1893f4a5b578e86263",
+        "acrfence.txt": "a2e9c71558c3c681a62072d36e9750e3e332add8ab8879e24ea34907ba3e23a6"
+      }
+    }
+  ]
+}

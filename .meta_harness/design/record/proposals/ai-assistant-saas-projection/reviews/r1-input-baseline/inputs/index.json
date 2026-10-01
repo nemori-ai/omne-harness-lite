@@ -1,0 +1,32 @@
+[
+  {
+    "original_locator": "requirements/domain-reading.md",
+    "sha256": "0b24ddd90b840c7a7bc9a5442f0adb4f23bb81f734a6965f20901701f25f5bee",
+    "snapshot_file": "requirements__domain-reading.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "requirements/source-coverage.json",
+    "sha256": "87da5651242172ddd7ec0d00bf05d7260f99bca2f0d209faaaab9e1c4559cb28",
+    "snapshot_file": "requirements__source-coverage.json.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "requirements/compact-inventory.md",
+    "sha256": "412abe581096bc1586070311d0727c6a8bf7d110902de438b08aae240a6bc10d",
+    "snapshot_file": "requirements__compact-inventory.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "framework/baseline.md",
+    "sha256": "9ea58bca26d2af867e09888293b8ccfdeb73b5986cf5197c7971b302536e9eb9",
+    "snapshot_file": "framework__baseline.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "framework/framework-capabilities.json",
+    "sha256": "9564032eafd50cb92cd0ddf377b777252a2818dcae27724fa527ecf11734d3f5",
+    "snapshot_file": "framework__framework-capabilities.json.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "requirements/domain-reading.md": "0b24ddd90b840c7a7bc9a5442f0adb4f23bb81f734a6965f20901701f25f5bee",
+  "requirements/source-coverage.json": "87da5651242172ddd7ec0d00bf05d7260f99bca2f0d209faaaab9e1c4559cb28",
+  "requirements/compact-inventory.md": "412abe581096bc1586070311d0727c6a8bf7d110902de438b08aae240a6bc10d",
+  "framework/baseline.md": "9ea58bca26d2af867e09888293b8ccfdeb73b5986cf5197c7971b302536e9eb9",
+  "framework/framework-capabilities.json": "9564032eafd50cb92cd0ddf377b777252a2818dcae27724fa527ecf11734d3f5"
+}

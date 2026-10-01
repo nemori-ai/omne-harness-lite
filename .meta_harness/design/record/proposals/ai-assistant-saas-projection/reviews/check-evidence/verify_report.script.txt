@@ -1,0 +1,61 @@
+from pathlib import Path
+from collections import Counter
+import json,re,hashlib,sys
+root=Path('/Users/pandazki/orca/workspaces/omne-harness-lite/flyingfish');p=root/'.meta_harness/design/record/proposals/ai-assistant-saas-projection';r=root/'.meta_harness/research/ai-assistant-saas-projection';errors=[];warnings=[];checks={}
+def need(x,m):
+ if not x:errors.append(m)
+features=json.loads((p/'data/feature-projections.json').read_text())['features'];source=json.loads((r/'features-source-v2.json').read_text())['features'];original=(r/'sources/product-definition.source.txt').read_text().splitlines();sourceby={f['id']:f for f in source}
+need(len(features)==165,'feature count');need(set(x['feature_id'] for x in features)==set(sourceby),'feature IDs mismatch');need(len(set(x['feature_id'] for x in features))==165,'duplicate feature IDs')
+fcs=json.loads((r/'framework-capabilities.json').read_text());fcids={x['id'] for x in fcs['capabilities']};comp=json.loads((p/'data/components.json').read_text());sp={x['id']:x for x in comp['components']};plan=json.loads((p/'data/work-plan.json').read_text());work={x['id']:x for x in plan['work_packages']};milestones={x['id']:x for x in plan['milestones']};ep={f'EP-{i:02d}' for i in range(1,13)}
+for x in features:
+ id=x['feature_id'];s=sourceby[id]
+ need(x['requirement_text']==s['source_text'],id+' source mismatch');need(id in original[x['source_line']-1],id+' source line mismatch');need(x['confirmation']['classification']==s['confirmed_or_suggested'],id+' confirmation mismatch')
+ need(len(x['execution'])>=3,id+' chain too short');kinds={q['kind'] for q in x['acceptance']};need({'normal','negative'}<=kinds,id+' missing acceptance')
+ for key in ['product_work','durability_and_consistency','failure_and_recovery','dependencies','framework_refs']:need(bool(x[key]),id+' missing '+key)
+ for ref in x['framework_refs']:
+  need(ref['fc_id'] in fcids,id+' bad FC')
+  for path in ref['paths']:need((root/path).exists(),id+' broken source '+path)
+ for id2 in x['periphery']:need(id2 in sp,id+' bad SP '+id2)
+ for id2 in x['execution_paths']:need(id2 in ep,id+' bad EP '+id2)
+ for id2 in x['dependencies']:need(id2 in work or id2 in fcids or id2 in milestones,id+' bad dependency '+id2)
+ declared={s for a in x['periphery'] for s in sp[a].get('work_packages',[])}
+ missing=declared-set(x['dependencies'])
+ if missing:warnings.append({'feature':id,'missing_explicit_sp_work_package':sorted(missing)})
+ for name in ['m01-m06.md','m07-m12.md','m13-m18.md']:
+  pass
+chapters='\n'.join(x.read_text() for x in (p/'features').glob('*.md'));found=re.findall(r'^## (M\d{2}\.\d+) ',chapters,re.M);need(Counter(found)==Counter(x['feature_id'] for x in features),'human chapter feature mismatch')
+checks['features']={'total':len(features),'unique':len(set(found)),'module_counts':dict(Counter(x['feature_id'][:3] for x in features)),'confirmation_counts':dict(Counter(x['confirmation']['classification'] for x in features)),'normal_acceptances':sum(q['kind']=='normal' for x in features for q in x['acceptance']),'negative_acceptances':sum(q['kind']=='negative' for x in features for q in x['acceptance'])}
+journey=json.loads((p/'data/journey-acceptance.json').read_text());ss=json.loads((r/'stories-source-v2.json').read_text())['stories'];need({x['story_id'] for x in journey['stories']}=={x['id'] for x in ss},'story IDs');nu=[u for st in journey['stories'] for u in st['narrative_units']];need(len(nu)==224 and len({u['id'] for u in nu})==224,'narrative coverage')
+for x in journey['stories']+journey['story_supplements']:
+ for e in x['execution_paths']:need(e in ep,'bad journey EP '+e)
+for x in journey['story_supplements']:
+ for f in x['feature_anchors']:need(f in sourceby,x['id']+' bad feature anchor')
+need(len(journey['story_supplements'])==30,'supplement count');need(len(journey['cross_module_requirements'])==5,'global count');need(len(journey['deferred_commitments'])==6,'deferred count');checks['journeys']={'stories':len(journey['stories']),'units':len(nu),'supplements':len(journey['story_supplements']),'globals':5,'deferred':6}
+allnodes={**work,**milestones};edges=plan['graph_edges']
+for e in edges:need(e['from'] in allnodes and e['to'] in allnodes,'bad graph edge '+str(e))
+remaining=set(allnodes);order=[]
+while remaining:
+ ready=sorted(x for x in remaining if all(e['from'] in order for e in edges if e['to']==x))
+ if not ready:errors.append('cycle or missing graph dependency '+str(remaining));break
+ order+=ready;remaining-=set(ready)
+need(len(allnodes)==58,'graph node count');need(len(work)==37,'work package count');need(len(milestones)==21,'milestone count')
+for w in work.values():
+ for i in w['start_milestones']:need(i in milestones,w['id']+' start milestone')
+ for i in w['depends_on']:need(i in allnodes,w['id']+' dependency')
+ for i in w['framework_capabilities']:need(i in fcids,w['id']+' FC')
+totals={k:sum(w['effort_engineer_weeks'][k] for w in work.values()) for k in ['optimistic','planning','conservative']};need(totals==plan['totals_engineer_weeks'],'effort mismatch');checks['plan']={'packages':37,'milestones':21,'nodes':58,'typed_edges':len(edges),'acyclic':not remaining,'effort':totals}
+# Verify observed framework sources without promoting observation hashes into contract acceptance.
+checked=0
+for s in (fcs['sources'].values() if isinstance(fcs['sources'],dict) else fcs['sources']):
+ if isinstance(s,str):continue
+ path=s.get('path',s.get('source_path'));h=s.get('sha256',s.get('observed_sha256'))
+ if path and h:
+  fp=Path(path) if Path(path).is_absolute() else root/path
+  need(fp.is_file(),'missing baseline source '+str(path))
+  if fp.is_file():need(hashlib.sha256(fp.read_bytes()).hexdigest()==h,'source drift '+str(path));checked+=1
+need(checked==386,'framework source hash count');checks['framework_sources_hash_checked']=checked
+checks['status']='document-consistency-check-only; no runtime or model-quality testing'
+result={'checks':checks,'errors':errors,'warnings':warnings,'passed':not errors}
+(p/'data/verification.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+print(json.dumps({'checks':checks,'errors':errors,'warnings_count':len(warnings),'warnings_sample':warnings[:12]},ensure_ascii=False,indent=2))
+sys.exit(bool(errors))

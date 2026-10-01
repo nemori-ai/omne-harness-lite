@@ -1,0 +1,34 @@
+[
+  {
+    "path": ".meta_harness/design/product/PF-009-context-message-types/design.md",
+    "remote_ref": "99d8a08af711e4b28ca8c94afd99e33e661458b9",
+    "local_blob": "a307500d4a3ad8ebd66f966febb1026bc63f50c1",
+    "remote_blob": "a307500d4a3ad8ebd66f966febb1026bc63f50c1",
+    "same": true,
+    "error": null
+  },
+  {
+    "path": ".meta_harness/design/product/PF-010-context-management-and-assembly/design.md",
+    "remote_ref": "99d8a08af711e4b28ca8c94afd99e33e661458b9",
+    "local_blob": "e6b82685e2dd132a4f93f9cc2ef52898258c4f73",
+    "remote_blob": "e6b82685e2dd132a4f93f9cc2ef52898258c4f73",
+    "same": true,
+    "error": null
+  },
+  {
+    "path": ".meta_harness/design/product/PF-012-agent-loop-and-run/design.md",
+    "remote_ref": "99d8a08af711e4b28ca8c94afd99e33e661458b9",
+    "local_blob": "62eb67828b64013d7a3b8db62b9481be7e6bab7d",
+    "remote_blob": "62eb67828b64013d7a3b8db62b9481be7e6bab7d",
+    "same": true,
+    "error": null
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/tool-admission/v2/contract.md",
+    "remote_ref": "99d8a08af711e4b28ca8c94afd99e33e661458b9",
+    "local_blob": "ae24b0948e7f13d3867b4cfd332851f8d957e6f1",
+    "remote_blob": "ae24b0948e7f13d3867b4cfd332851f8d957e6f1",
+    "same": true,
+    "error": null
+  }
+]

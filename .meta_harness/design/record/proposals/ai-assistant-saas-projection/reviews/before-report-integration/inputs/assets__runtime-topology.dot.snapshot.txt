@@ -1,0 +1,26 @@
+digraph runtime {
+ graph [rankdir=TB, bgcolor="transparent", nodesep=0.45, ranksep=0.65, pad=0.3];
+ node [shape=box, style="rounded,filled", fontname="PingFang SC", fontsize=13, margin="0.2,0.15", color="#bbc9c2", fillcolor="#f2f5ef"];
+ edge [fontname="PingFang SC", fontsize=10, color="#74897f", arrowsize=0.7];
+ client [label="Relay 客户端\n桌面 / 移动 / Web · SP-13"];
+ api [label="登录、入口与同步\nSP-01 / SP-03"];
+ governance [label="框架治理中心 FC-28\n独立单实例 / SQLite / 自身备份", fillcolor="#dfeaf5"];
+ product [label="Relay 业务状态与策略\n目标、事情、资源、理解与用户决定", fillcolor="#e7efdd"];
+ policy [label="外部权限与预算\nSP-02 / SP-10", fillcolor="#f3e8d2"];
+ cell [label="单写 harness 实例 · SP-05\nSession / Run / 模型与工具调用权威", fillcolor="#dfeaf5"];
+ openrouter [label="统一模型路由\nOpenRouter", fillcolor="#f5e3d8"];
+ execution [label="获准执行与适配\n隔离工具 / 自有节点 / 第三方 · SP-06/07"];
+ content [label="材料与成果版本\n对象字节 + 元数据 · SP-04"];
+ hosting [label="交互成果托管\n独立身份/来源/应用数据 · SP-09"];
+ notify [label="通知与多入口读面\n持久事实 + 投递尝试 · SP-08"];
+ events [label="外部变化 / 已获准定期自省\n产品意图或时间触发 → 日程Job → 获准读取"];
+ ops [label="遥测 / 审计 / 备份恢复 / 支持\n独立restore epoch · SP-11/12", fillcolor="#e8dff0"];
+ client -> api; api -> governance [label="调用框架治理接口"]; api -> product;
+ product -> policy; policy -> cell; governance -> cell [label="规定的现读边界",style=dashed];
+ cell -> openrouter [label="每调用创建前按来源/预算"]; cell -> execution [label="原效果键透传"];
+ execution -> cell [label="观察回执回Run日志"]; execution -> content [label="获准结果"];
+ cell -> product [label="真实进展与结局"]; content -> hosting;
+ product -> notify; notify -> client; content -> product;
+ events -> product; product -> cell [label="真实来源受理",style=dashed];
+ ops -> cell [style=dashed]; ops -> api [style=dashed]; ops -> content [style=dashed];
+}

@@ -1,0 +1,19 @@
+{
+  "checked_at": "2026-10-01T05:01:29.270624+00:00",
+  "repository": "nemori-ai/omne-harness-lite",
+  "command": "gh issue list --repo nemori-ai/omne-harness-lite --state all --limit 300 --json number,title,state,url,updatedAt",
+  "acquisition": "transcribed exact metadata from successful exec result 757070; initial full-body read also succeeded. Later persistence re-queries failed GraphQL EOF; no invented refresh.",
+  "count": 1,
+  "truncated_by_limit": false,
+  "mutations": false,
+  "topic_duplicates_found": [],
+  "issues": [
+    {
+      "number": 18,
+      "state": "OPEN",
+      "title": "跨模型切换：历史 thinking 的旧路由 opaque 导致发送前 unavailable",
+      "updatedAt": "2026-10-01T03:11:18Z",
+      "url": "https://github.com/nemori-ai/omne-harness-lite/issues/18"
+    }
+  ]
+}

@@ -1,0 +1,127 @@
+[
+  {
+    "source": "README.md",
+    "snapshot": "README.md.snapshot.txt",
+    "sha256": "47700cf29f70dbca2268f401b8527ec1ab25c4620ba3b3ac103cf6e475d13e72"
+  },
+  {
+    "source": "alternatives.md",
+    "snapshot": "alternatives.md.snapshot.txt",
+    "sha256": "1be29ac9b5f488df9302fdb684671b55c5f2551917eb56b505568830139bcecc"
+  },
+  {
+    "source": "assets/construction-topology.dot",
+    "snapshot": "assets__construction-topology.dot.snapshot.txt",
+    "sha256": "4e411b8aba2c880f1c5d0c4c872014cd675b8dfe6f95e7892a7156e3cb317431"
+  },
+  {
+    "source": "assets/construction-topology.svg",
+    "snapshot": "assets__construction-topology.svg.snapshot.txt",
+    "sha256": "ca527c9d390d2a830e1dfcd97b769b22ab23d26d8fabe3302fcee41693a4f49c"
+  },
+  {
+    "source": "assets/runtime-topology.dot",
+    "snapshot": "assets__runtime-topology.dot.snapshot.txt",
+    "sha256": "27e7bafea9bddc6bf44e806a77952f94df845e020f5a0bd7c4c729526f048b19"
+  },
+  {
+    "source": "assets/runtime-topology.svg",
+    "snapshot": "assets__runtime-topology.svg.snapshot.txt",
+    "sha256": "1f4ca4c5c7db249542305b94b2c1d61efd2b705ba1e06369ece0963b9f0348ca"
+  },
+  {
+    "source": "data/README.md",
+    "snapshot": "data__README.md.snapshot.txt",
+    "sha256": "d1b677e65ed5af26919cc0b3400be7e23864aebceb41d342ca22f168a8b0d704"
+  },
+  {
+    "source": "data/components.json",
+    "snapshot": "data__components.json.snapshot.txt",
+    "sha256": "0919e09fc54efb1b640289e32b1277fece57aadfeef6d6d26555cd428824bb66"
+  },
+  {
+    "source": "data/feature-projections.json",
+    "snapshot": "data__feature-projections.json.snapshot.txt",
+    "sha256": "ec21be4a1d63b30c7c0781b49826ab8c8e9854b72b7a8105eeed5111c753eb2d"
+  },
+  {
+    "source": "data/journey-acceptance.json",
+    "snapshot": "data__journey-acceptance.json.snapshot.txt",
+    "sha256": "4eff56a3f8362f10ae4b5a385bf06286b16ec5ef967fa4b9f228af92e007487f"
+  },
+  {
+    "source": "data/verification.json",
+    "snapshot": "data__verification.json.snapshot.txt",
+    "sha256": "f46ea24acc57a29b3c01b24353cb22f2eab662fc2f98f772ee6babf37c7b0d21"
+  },
+  {
+    "source": "data/work-plan.json",
+    "snapshot": "data__work-plan.json.snapshot.txt",
+    "sha256": "c25363fb7e50376f3a3c8d3929d08b6148cc50248640f5c3c162a930d083f61a"
+  },
+  {
+    "source": "delivery-plan.md",
+    "snapshot": "delivery-plan.md.snapshot.txt",
+    "sha256": "804d3335acb510a105447f4298229eeff6c381952b35d9a44cc2d7302344dc1e"
+  },
+  {
+    "source": "design.md",
+    "snapshot": "design.md.snapshot.txt",
+    "sha256": "e3e2904e77203f80a8ee1edea7fd8e9387401acabe95edabafbaffe5a3699670"
+  },
+  {
+    "source": "execution-topology.md",
+    "snapshot": "execution-topology.md.snapshot.txt",
+    "sha256": "dbaad8bd62bba23cac458a6de554666436add841d7e39d830fed8ac760822b22"
+  },
+  {
+    "source": "feature-projection.md",
+    "snapshot": "feature-projection.md.snapshot.txt",
+    "sha256": "8d0a8a03c67b09caa04b500fa47665d071bfc70c9a0451206cf3e972b3535977"
+  },
+  {
+    "source": "features/m01-m06.md",
+    "snapshot": "features__m01-m06.md.snapshot.txt",
+    "sha256": "d40666026d05e72dfbdb105c581391ffb920cf395ea1b9e1a86e44aaec195e88"
+  },
+  {
+    "source": "features/m07-m12.md",
+    "snapshot": "features__m07-m12.md.snapshot.txt",
+    "sha256": "0a57537318c90e4d0e79f4b35e7e5bd9fa8f66526ebb2b8c8f956d12a7d61c61"
+  },
+  {
+    "source": "features/m13-m18.md",
+    "snapshot": "features__m13-m18.md.snapshot.txt",
+    "sha256": "c380065ccaf965037947b9c2828cb4e2db1efd1bca8180d0af8c0a0d19fa5dbc"
+  },
+  {
+    "source": "journey-acceptance.md",
+    "snapshot": "journey-acceptance.md.snapshot.txt",
+    "sha256": "9ac53597932ad29e8f55efb05f65a7d7798700c818cd32822b8f55d3deebe77b"
+  },
+  {
+    "source": "peripheral-design.md",
+    "snapshot": "peripheral-design.md.snapshot.txt",
+    "sha256": "c7bc8d467576a1419be447b6e4f0686a0e17cff4f012b9639b689cd85354d152"
+  },
+  {
+    "source": "report.html",
+    "snapshot": "report.html.snapshot.txt",
+    "sha256": "ce0858637e4b002ec43cf4470acdb4bf1c59a8cd67ff9d53c6f3c436781d3d4d"
+  },
+  {
+    "source": "review.md",
+    "snapshot": "review.md.snapshot.txt",
+    "sha256": "f8b1acccc384fa17b2739bd78353724c1512d8a2fa89e91f266d9d1e88bb602b"
+  },
+  {
+    "source": "CURRENT.md",
+    "snapshot": "CURRENT.md.snapshot.txt",
+    "sha256": "e28862e482a38aa1054847177aff5ad12c39288409414959bad9c392189096f9"
+  },
+  {
+    "source": "data/final-artifacts.json",
+    "snapshot": "data__final-artifacts.json.snapshot.txt",
+    "sha256": "dc9943cb98173b27149a0325026ddb90ec2d5ec72008059dd09d0490336892af"
+  }
+]

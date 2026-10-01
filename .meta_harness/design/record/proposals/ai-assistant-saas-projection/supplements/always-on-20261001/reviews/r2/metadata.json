@@ -1,0 +1,51 @@
+{
+  "model_requested": "claude-fable-5-1",
+  "effort": "xhigh",
+  "brief_sha256": "d0b47642765d3ae1814c99792ad97f7dd043d5bc69ebf0fe2ed62cb748df31be",
+  "command": [
+    "claude",
+    "-p",
+    "--model",
+    "claude-fable-5-1",
+    "--effort",
+    "xhigh",
+    "--permission-mode",
+    "dontAsk",
+    "--tools",
+    "Read,Glob,Grep",
+    "--allowedTools",
+    "Read,Glob,Grep",
+    "--strict-mcp-config",
+    "--setting-sources",
+    "project",
+    "--no-session-persistence",
+    "--output-format",
+    "json",
+    "--add-dir",
+    "/Users/pandazki/orca/workspaces/omne-next/personal_edition",
+    "--add-dir",
+    "/Users/pandazki/Codes/plexus/.claude/worktrees/omne-desktop-integration"
+  ],
+  "started_at_epoch": 1790832368.959177,
+  "base_commit": "2a04c2322a7b679133654acc3c4241effaade4be",
+  "exit_code": 0,
+  "elapsed_seconds": 261.6,
+  "model_usage": {
+    "claude-fable-5-1": {
+      "inputTokens": 258,
+      "outputTokens": 17292,
+      "cacheReadInputTokens": 526731,
+      "cacheCreationInputTokens": 101762,
+      "webSearchRequests": 0,
+      "costUSD": 3.03410275,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "thinkingTokens": 8184,
+      "canonicalModel": "claude-fable-5-1",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "is_error": false,
+  "total_cost_usd": 3.03410275
+}

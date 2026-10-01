@@ -1,0 +1,2873 @@
+{
+  "status": "planning-estimate-not-commitment",
+  "baseline_users": 10000,
+  "capacity_focus": "model concurrency/cost; persistence and distributed correctness; no generic throughput programme",
+  "assumptions": [
+    "既有core与治理限定交付不重做",
+    "采用成熟IdP/对象存储/数据库/遥测与支付服务，不自建同类基础设施",
+    "首批1桌面OS+1移动OS+Web，2类首批第三方渠道",
+    "包括剩余framework目标态兑现，不把仅有设计当已完成",
+    "全量165范围，明确建议项仍作为待接受工作保留，不为缩小估算删除",
+    "人周包含每包必要规格/实现/组件验证；跨边界总体验收只在IWP，避免重复",
+    "未用团队实测速率校准；模型辅助提高速度不被量化为保证",
+    "外部OAuth验证/应用商店审核/商业账户审批为另计日历等待，未伪装为工程人周",
+    "PWP与SWP按业务体验/平台机制分工；HWP含框架本体，不在SaaS重新计实现"
+  ],
+  "work_packages": [
+    {
+      "id": "HWP-01",
+      "name": "按当前产品承诺完成本批所需规格演进",
+      "owner": "框架规格负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [],
+      "framework_capabilities": [
+        "FC-01",
+        "FC-04",
+        "FC-06",
+        "FC-13",
+        "FC-14",
+        "FC-15",
+        "FC-19",
+        "FC-16",
+        "FC-20",
+        "FC-21",
+        "FC-22",
+        "FC-23"
+      ],
+      "scope_and_nonduplication": "消费最新PF和已有接受，不重新设计承诺；补运行归属、当前来源和正式消费坐标；分批产出IF-01..08的框架侧输入和接受，不等所有未来接口一次完成才释放各条纵线",
+      "done_when": "下游只消费明确版本；产品→契约→提供者对应齐全且独立审阅完成",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 已有版本化输入/独立云基础要求；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "HWP-02",
+      "name": "身份、资产与配置剩余提供者",
+      "owner": "框架能力负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "HWP-01"
+      ],
+      "framework_capabilities": [
+        "FC-02",
+        "FC-03",
+        "FC-04",
+        "FC-05"
+      ],
+      "scope_and_nonduplication": "复用已交付治理；只计资产/配置/时刻与实际副本读面增量",
+      "done_when": "资产授权和生效版本可核对；跨owner提交/撤除的真实组合通过",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-01, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-01",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "HWP-03",
+      "name": "会话、Loop、模型与输入输出真实主链",
+      "owner": "框架运行时负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 6,
+        "planning": 10,
+        "conservative": 16
+      },
+      "depends_on": [
+        "HWP-01",
+        "HWP-02"
+      ],
+      "framework_capabilities": [
+        "FC-06",
+        "FC-13",
+        "FC-14",
+        "FC-15",
+        "FC-16",
+        "FC-17",
+        "FC-18",
+        "FC-29"
+      ],
+      "scope_and_nonduplication": "Session/Run持久事实、调用所有权、受理/流/压缩与模型传输；OpenRouter模型并发/排队/限流与错误分类采用可配置策略，实际调用量和费用由PR-04代表会话校准",
+      "done_when": "重装配不重发调用；断流重接读同一结果；取消与迟到结果不复活Run",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02, IF-05；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-02",
+        "IF-05"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "HWP-04",
+      "name": "工具、凭据、沙箱与授权组合",
+      "owner": "框架执行负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 4,
+        "planning": 7,
+        "conservative": 12
+      },
+      "depends_on": [
+        "HWP-01",
+        "HWP-02"
+      ],
+      "framework_capabilities": [
+        "FC-07",
+        "FC-08",
+        "FC-10",
+        "FC-12",
+        "FC-19"
+      ],
+      "scope_and_nonduplication": "已有core类型复用；实际执行/凭据保管/准入/环境接线",
+      "done_when": "真实工具正反授权、秘密隔离、取消不明、异常恢复满足精确契约",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-02",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "HWP-05",
+      "name": "工作区、据点与跨节点目标态承接",
+      "owner": "框架分布式负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 5,
+        "planning": 9,
+        "conservative": 15
+      },
+      "depends_on": [
+        "HWP-03",
+        "HWP-04"
+      ],
+      "framework_capabilities": [
+        "FC-20",
+        "FC-26",
+        "FC-29"
+      ],
+      "scope_and_nonduplication": "按已承诺多节点/工作区补协议及提供者；单机多副本不自动完成此包",
+      "done_when": "工作区local/remote区别、租户范围、离线继续、冲突与执行回执可核对",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-03；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-03"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "HWP-06",
+      "name": "日程、日历与通知框架兑现",
+      "owner": "框架时间能力负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 6,
+        "conservative": 10
+      },
+      "depends_on": [
+        "HWP-03",
+        "HWP-04"
+      ],
+      "framework_capabilities": [
+        "FC-21",
+        "FC-22",
+        "FC-23"
+      ],
+      "scope_and_nonduplication": "消费D-073产品目标，完成合同、提供者和实际装配",
+      "done_when": "采用快照/重叠/补跑/取消/新会话Job及独立通知事实通过",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-04；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-04"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "HWP-07",
+      "name": "真实框架装配与交付证据",
+      "owner": "框架装配/验证负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "HWP-03",
+        "HWP-04",
+        "HWP-05",
+        "HWP-06"
+      ],
+      "framework_capabilities": [
+        "FC-01",
+        "FC-29",
+        "FC-30"
+      ],
+      "scope_and_nonduplication": "不同阶段分别放行相应子集；最终全量受支持组合的恢复与制品",
+      "done_when": "真实依赖替代fixture；每个消费的保证都有同版本环境证据",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "outputs": [
+        "SL-CORE：首闭环单机harness cell制品、公开受理/查询入口、持久恢复配置和版本manifest",
+        "全量框架装配制品、升级/恢复说明与同版本组合证据"
+      ],
+      "start_milestones": [
+        "IF-02"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-01",
+      "name": "连续目标、理解依据和记忆纠正",
+      "owner": "产品后端/记忆负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 4,
+        "planning": 7,
+        "conservative": 11
+      },
+      "depends_on": [
+        "HWP-03",
+        "SWP-04"
+      ],
+      "framework_capabilities": [
+        "FC-18",
+        "FC-24",
+        "FC-25"
+      ],
+      "scope_and_nonduplication": "外部产品记忆与情境语义，不把Engram占位当交付",
+      "done_when": "跨会话取用/来源解释/纠正后实际生效，旧索引不胜过新理解",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02, IF-06；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "PR-01若修正不能稳定影响后续检索/行为，暂停PWP-03对长期理解的消费；记忆owner调召回/版本策略并用同场景复测，仍失败则由外部产品owner选择明确支持范围，不改变harness承诺；资料/普通委托继续。",
+      "start_milestones": [
+        "IF-02",
+        "IF-06"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-02",
+      "name": "时间语境与现实感知",
+      "owner": "产品策略负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 2,
+        "planning": 4,
+        "conservative": 7
+      },
+      "depends_on": [
+        "HWP-06",
+        "SWP-07"
+      ],
+      "framework_capabilities": [
+        "FC-21",
+        "FC-23",
+        "FC-25"
+      ],
+      "scope_and_nonduplication": "来源时点/可见性/机会窗口/资源状态的产品组合",
+      "done_when": "过时与无更新区分，跨时区窗口影响动作，感知缺口可解释",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-04, IF-08；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-04",
+        "IF-08"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-03",
+      "name": "有界主动工作与资源取舍",
+      "owner": "产品策略/评估负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 4,
+        "planning": 7,
+        "conservative": 12
+      },
+      "depends_on": [
+        "PWP-01",
+        "PWP-02",
+        "PWP-06",
+        "SWP-10"
+      ],
+      "framework_capabilities": [
+        "FC-11",
+        "FC-14",
+        "FC-25"
+      ],
+      "scope_and_nonduplication": "发现新意图/投入/等待/反馈策略，核心模型质量评估在此",
+      "done_when": "S04/S05无新命令且无待办时真交付；低价值循环能收敛",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02, IF-05, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "PR-02若自主动作无收益或重复扰民，暂停主动功能对种子用户开放；产品策略owner调整触发/投入/反馈，独立评估同批任务；仍未达阈值则重估PWP03/IWP02工作量或让产品owner明确阶段范围，不能把提醒冒充主动执行；直接委托继续。",
+      "start_milestones": [
+        "IF-02",
+        "IF-05",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-04",
+      "name": "协同资源绑定与使命管理",
+      "owner": "产品协作负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "PWP-06",
+        "SWP-07",
+        "SWP-04"
+      ],
+      "framework_capabilities": [
+        "FC-05",
+        "FC-08",
+        "FC-11",
+        "FC-20"
+      ],
+      "scope_and_nonduplication": "按具体事情引用资源，统一操作心智不抹平真实能力",
+      "done_when": "关闭使命不删账户连接；变化回原事情，分享范围不扩大",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-06, IF-08；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-06",
+        "IF-08"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-05",
+      "name": "多节点产品工作与解释体验",
+      "owner": "产品执行负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "HWP-05",
+        "SWP-06",
+        "PWP-06",
+        "SWP-11"
+      ],
+      "framework_capabilities": [
+        "FC-20",
+        "FC-26"
+      ],
+      "scope_and_nonduplication": "产品落点约束/理由/三台机器协作；底层协议在HWP05",
+      "done_when": "S12-S14真实执行、受限材料检查、离线不盲重做",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-03, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "PR-03若某任务只能通过外传禁止原文完成，该任务拒绝/待用户调整范围；执行/数据owner找本地确定性可行路径并复验。暂停该任务模式的PWP05/SWP06验收，不阻断允许材料的远端计算或篡改SYS-LLM。",
+      "start_milestones": [
+        "IF-03",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-06",
+      "name": "事情、阶段、依赖与长期推进",
+      "owner": "产品后端负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "HWP-03",
+        "SWP-03"
+      ],
+      "framework_capabilities": [
+        "FC-13",
+        "FC-14",
+        "FC-21",
+        "FC-29"
+      ],
+      "scope_and_nonduplication": "跨会话产品事情事实与阶段，引用框架事实不复制其权威",
+      "done_when": "跨周阶段可恢复，用户手动进展也能纳入，完成关闭后续关注",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-02"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-07",
+      "name": "对话、多模态、意图与草稿体验",
+      "owner": "产品客户端负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "HWP-03",
+        "SWP-03",
+        "SWP-04",
+        "SWP-13"
+      ],
+      "framework_capabilities": [
+        "FC-15",
+        "FC-17",
+        "FC-18"
+      ],
+      "scope_and_nonduplication": "发送/存下/引用/新建意图区分及多模态可读性",
+      "done_when": "附件失败不吃草稿；缩略预览与实际原件一致，缺能力不伪称已读",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02, IF-06；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-02",
+        "IF-06"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-08",
+      "name": "个人资料、版本与使用关系",
+      "owner": "产品数据负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 2,
+        "planning": 4,
+        "conservative": 7
+      },
+      "depends_on": [
+        "SWP-04",
+        "HWP-02"
+      ],
+      "framework_capabilities": [
+        "FC-05",
+        "FC-17",
+        "FC-20"
+      ],
+      "scope_and_nonduplication": "资料库/重要版本/来源/关系与可见范围",
+      "done_when": "原件不被摘要覆盖，冲突与受限版本可解释，关系引用不提权",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-06；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-06"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-09",
+      "name": "联系人、往来与外部协作",
+      "owner": "产品集成负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "PWP-04",
+        "SWP-07"
+      ],
+      "framework_capabilities": [
+        "FC-08",
+        "FC-11",
+        "FC-20"
+      ],
+      "scope_and_nonduplication": "人与联系渠道、角色与事项关系，邮件等首批渠道业务适配",
+      "done_when": "同名人不误发、私人注解不外传、已发送与确认区分",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-07, IF-08；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-07",
+        "IF-08"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-10",
+      "name": "日程与持续关注的产品装配",
+      "owner": "产品时间能力负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 2,
+        "planning": 4,
+        "conservative": 7
+      },
+      "depends_on": [
+        "HWP-06",
+        "PWP-06",
+        "SWP-07",
+        "SWP-08"
+      ],
+      "framework_capabilities": [
+        "FC-21",
+        "FC-22",
+        "FC-23"
+      ],
+      "scope_and_nonduplication": "约定/执行时机/关注范围/简报的产品体验",
+      "done_when": "事件修改与提醒分开；错过窗口按当前事实继续/结束",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-04, IF-08；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-04",
+        "IF-08"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-11",
+      "name": "调查、委派与交付核对",
+      "owner": "产品研究协作负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "HWP-04",
+        "PWP-06",
+        "SWP-04",
+        "SWP-10"
+      ],
+      "framework_capabilities": [
+        "FC-07",
+        "FC-11",
+        "FC-17"
+      ],
+      "scope_and_nonduplication": "受限委派/真实材料可读/证据差异/成果验收",
+      "done_when": "不能把参与者建议当用户授权；结果可打开、来源与不足可查",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02, IF-05, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-02",
+        "IF-05",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-12",
+      "name": "交互成果生成、修改与使用",
+      "owner": "产品成果负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "PWP-11",
+        "SWP-09"
+      ],
+      "framework_capabilities": [
+        "FC-07",
+        "FC-17",
+        "FC-20"
+      ],
+      "scope_and_nonduplication": "用户生成与持续修改体验；隔离运行/发布基础在SWP09",
+      "done_when": "实际可操作页面且可持续修改；数据迁移与旧版本回退有区别",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-06, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-06",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-13",
+      "name": "视角、关注与通知批阅",
+      "owner": "产品客户端/后端负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "PWP-06",
+        "SWP-08",
+        "SWP-02"
+      ],
+      "framework_capabilities": [
+        "FC-12",
+        "FC-22",
+        "FC-29"
+      ],
+      "scope_and_nonduplication": "个性视角/值得关注/暂行结果批阅和后果",
+      "done_when": "会话/通知一次决定；原工作与批阅回退范围可查",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02, IF-04, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-02",
+        "IF-04",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "PWP-14",
+      "name": "跨端与桌宠交互体验",
+      "owner": "产品客户端负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "SWP-13",
+        "PWP-07",
+        "PWP-13"
+      ],
+      "framework_capabilities": [
+        "FC-31"
+      ],
+      "scope_and_nonduplication": "拖放/锁定/多屏/30秒剪贴板候选/无障碍交互",
+      "done_when": "拔屏可找回；未发送候选不上传；状态来自真实任务",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02, IF-06；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-02",
+        "IF-06"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-01",
+      "name": "统一登录与个人使用供应",
+      "owner": "身份平台负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 2,
+        "planning": 4,
+        "conservative": 6
+      },
+      "depends_on": [
+        "HWP-02"
+      ],
+      "framework_capabilities": [
+        "FC-02",
+        "FC-03"
+      ],
+      "scope_and_nonduplication": "IdP适配、绑定、恢复与供应；不重建框架身份权威",
+      "done_when": "重复注册回调只建一次；失败可续接，不要求用户创建组织",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-01；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-01"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-02",
+      "name": "SaaS权限、外部委派与撤权",
+      "owner": "安全/身份负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "SWP-01"
+      ],
+      "framework_capabilities": [
+        "FC-02",
+        "FC-04",
+        "FC-12"
+      ],
+      "scope_and_nonduplication": "资源侧权限/分享/客服提升；桥接harness检查，不替代它",
+      "done_when": "本包作者证据覆盖资源侧授权、分享、有限客服提升、撤权权威写入/拒新与传播回执接口；在途/离线真实状态的独立组合证据由IV-AUTH、IV-NODE和IWP-02建立，不在无运行时条件下提前声称已验证",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-03",
+      "name": "客户端入口、持久接收与同步",
+      "owner": "应用平台负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 2,
+        "planning": 4,
+        "conservative": 6
+      },
+      "depends_on": [
+        "SWP-01",
+        "HWP-03"
+      ],
+      "framework_capabilities": [
+        "FC-13",
+        "FC-15",
+        "FC-17",
+        "FC-29"
+      ],
+      "scope_and_nonduplication": "外部API/BFF、回执/游标/快照，harness日志另有权威",
+      "done_when": "重连可核对旧请求，同id异内容拒绝，流丢失不丢成果",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-02"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-04",
+      "name": "材料与成果持久化基础",
+      "owner": "数据平台负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 2,
+        "planning": 4,
+        "conservative": 6
+      },
+      "depends_on": [
+        "SWP-02"
+      ],
+      "framework_capabilities": [
+        "FC-17",
+        "FC-20"
+      ],
+      "scope_and_nonduplication": "对象存储与元数据/版本/下载授权/索引生命周期",
+      "done_when": "字节完整后发布引用；孤立上传清扫不删已发布版本",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-06；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-06"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-05",
+      "name": "单写实例供应、路由与升级",
+      "owner": "运行平台负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 2,
+        "planning": 4,
+        "conservative": 6
+      },
+      "depends_on": [
+        "HWP-03",
+        "SWP-01",
+        "SWP-11",
+        "SL-CORE"
+      ],
+      "framework_capabilities": [
+        "FC-26",
+        "FC-28",
+        "FC-29"
+      ],
+      "scope_and_nonduplication": "简洁实例装配，不引入高吞吐调度平台",
+      "done_when": "停接单/排空/围栏或停顿再恢复；旧实例不能继续产生新平台效果；治理中心独立SQLite及自身备份；cell卷可detach，cloud stop/detach/revoke取证，失败停等待",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-02"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-06",
+      "name": "设备/节点接入与平台适配",
+      "owner": "执行平台负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "HWP-05",
+        "SWP-02",
+        "SWP-05"
+      ],
+      "framework_capabilities": [
+        "FC-20",
+        "FC-26"
+      ],
+      "scope_and_nonduplication": "节点登录引导/出站连接/可见状态/平台回执适配",
+      "done_when": "不限制既有离线会话寿命；平台能力不越权、未知任务先核对",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-03, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-03",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-07",
+      "name": "第三方OAuth与首批连接适配",
+      "owner": "集成平台负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "HWP-04",
+        "SWP-02"
+      ],
+      "framework_capabilities": [
+        "FC-07",
+        "FC-08",
+        "FC-12",
+        "FC-29"
+      ],
+      "scope_and_nonduplication": "首批邮箱+日历渠道；OAuth回调/令牌保管/变化/效果核对；FC-09只作明确排除，不是本包的交付依赖；收到变化由产品判断后调用可辨来源的正常受理入口",
+      "done_when": "用户不用自建OAuth应用，回调重复/续期竞争/撤权/游标失效可处理",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-08, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-08",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-08",
+      "name": "持久收件箱与通知投递",
+      "owner": "应用平台负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 2,
+        "planning": 3,
+        "conservative": 5
+      },
+      "depends_on": [
+        "HWP-06",
+        "SWP-03"
+      ],
+      "framework_capabilities": [
+        "FC-12",
+        "FC-22"
+      ],
+      "scope_and_nonduplication": "消息入口、推送/邮件及安静时段基础；优先级体验归PWP13",
+      "done_when": "推送失败不丢事项，同决定多入口一致，无读即同意",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-04, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-04",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-09",
+      "name": "交互成果托管隔离与分享",
+      "owner": "成果平台负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "SWP-04",
+        "SWP-02",
+        "SWP-11"
+      ],
+      "framework_capabilities": [
+        "FC-10",
+        "FC-20"
+      ],
+      "scope_and_nonduplication": "构建/运行隔离、版本路由、分享和应用数据备份",
+      "done_when": "真实URL/交互可用，生成代码不能访问主应用秘密，停止分享生效",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-06, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-06",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-10",
+      "name": "来源、额度、预算与商业账本",
+      "owner": "商业平台负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "HWP-03",
+        "HWP-04",
+        "SWP-01"
+      ],
+      "framework_capabilities": [
+        "FC-16",
+        "FC-30"
+      ],
+      "scope_and_nonduplication": "模型/算力计量、预留核对、支付续费与明示来源；与HWP-03共同约束模型预算与可付费并发，限流不是新的授权/计费来源选择",
+      "done_when": "重复事件只计一次、未知消费不释放为免费、自带来源失效不偷换收费；异常消耗告警与平台付费熔断有可恢复流程，阈值待定",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-05；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-05"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-11",
+      "name": "云部署、遥测、备份与供应链",
+      "owner": "平台/SRE负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [],
+      "framework_capabilities": [
+        "FC-28",
+        "FC-29",
+        "FC-30"
+      ],
+      "scope_and_nonduplication": "少量VM/容器与托管基础设施、CI、密钥、审计、告警、恢复",
+      "done_when": "关联id查一条真实旅程；恢复演练含密钥与外部事实，不采秘密；从旧备份恢复用独立恢复控制点fresh epoch拒旧平台凭证，无法核对丢失撤权时旧授权全部可疑并逐项重新核实",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 已有版本化输入/独立云基础要求；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-12",
+      "name": "导出删除、客服与运营收尾",
+      "owner": "数据/运营负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 2,
+        "planning": 4,
+        "conservative": 6
+      },
+      "depends_on": [
+        "SWP-02",
+        "SWP-04",
+        "SWP-10",
+        "SWP-11"
+      ],
+      "framework_capabilities": [
+        "FC-02",
+        "FC-29"
+      ],
+      "scope_and_nonduplication": "覆盖数据清单、生命周期任务、支持与有限诊断",
+      "done_when": "导出可打开；旧备份不复活已删/撤权事实；客服不默认全租户读权",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-01, IF-06, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-01",
+        "IF-06",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "SWP-13",
+      "name": "客户端壳、登录密钥、分发与更新",
+      "owner": "客户端平台负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "SWP-01",
+        "SWP-03",
+        "SWP-04",
+        "SWP-08"
+      ],
+      "framework_capabilities": [
+        "FC-31"
+      ],
+      "scope_and_nonduplication": "首批一个桌面OS+一个移动OS+Web，签名/密钥/升级/离线草稿",
+      "done_when": "本地秘密安全保管、升级不丢输入、账号切换不串草稿",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-01, IF-02, IF-06；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-01",
+        "IF-02",
+        "IF-06"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "IWP-01",
+      "name": "首个闭环真实组合与发布包",
+      "owner": "总装配/QA负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 2,
+        "planning": 3,
+        "conservative": 5
+      },
+      "depends_on": [
+        "HWP-03",
+        "HWP-04",
+        "SWP-01",
+        "SWP-02",
+        "SWP-03",
+        "SWP-04",
+        "SWP-05",
+        "SWP-10",
+        "SWP-11",
+        "PWP-06",
+        "SL-CORE",
+        "SL-WEB",
+        "SL-INPUT",
+        "IV-CORE",
+        "IV-AUTH",
+        "IV-COST"
+      ],
+      "framework_capabilities": [
+        "FC-13",
+        "FC-14",
+        "FC-15",
+        "FC-16"
+      ],
+      "scope_and_nonduplication": "先打通注册→材料→委托→真实成果→断线核对",
+      "done_when": "S01首次委托子路径、S16保存/读取原件子路径、S22断线后核对原请求子路径在真实提供者通过；PR-04取得代表会话模型调用数/真实或未知费用/限流结果；不验S15桌宠、不冒充S16/S22整条故事完成",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-01, IF-02, IF-05, IF-06, IF-07；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-01",
+        "IF-02",
+        "IF-05",
+        "IF-06",
+        "IF-07"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "IWP-02",
+      "name": "23旅程与跨边界故障验收",
+      "owner": "独立验证负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 3,
+        "planning": 5,
+        "conservative": 8
+      },
+      "depends_on": [
+        "IWP-01",
+        "HWP-07",
+        "PWP-01",
+        "PWP-02",
+        "PWP-03",
+        "PWP-04",
+        "PWP-05",
+        "PWP-06",
+        "PWP-07",
+        "PWP-08",
+        "PWP-09",
+        "PWP-10",
+        "PWP-11",
+        "PWP-12",
+        "PWP-13",
+        "PWP-14",
+        "SWP-12",
+        "IV-CORE",
+        "IV-AUTH",
+        "IV-COST",
+        "IV-NODE",
+        "IV-COOP",
+        "IV-ARTIFACT",
+        "IV-MEMORY"
+      ],
+      "framework_capabilities": [
+        "FC-01",
+        "FC-29"
+      ],
+      "scope_and_nonduplication": "165feature+23stories+细化要求回到真实跨端/多节点组合",
+      "done_when": "正常/拒绝/断网/重复/撤权/重启/删除恢复全部有可核对证据",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-02, IF-03, IF-04, IF-05, IF-06, IF-07, IF-08；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-02",
+        "IF-03",
+        "IF-04",
+        "IF-05",
+        "IF-06",
+        "IF-07",
+        "IF-08"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    },
+    {
+      "id": "IWP-03",
+      "name": "种子运营与商业发布准备",
+      "owner": "产品/运营/SRE负责人",
+      "effort_engineer_weeks": {
+        "optimistic": 2,
+        "planning": 3,
+        "conservative": 5
+      },
+      "depends_on": [
+        "IWP-02",
+        "SWP-07",
+        "SWP-09",
+        "SWP-10",
+        "SWP-12",
+        "SWP-13"
+      ],
+      "framework_capabilities": [
+        "FC-28",
+        "FC-30"
+      ],
+      "scope_and_nonduplication": "支持目录/收费/保留/SLO选定、渠道上架及支持演练",
+      "done_when": "所有发布前承诺有负责人和可兑现证据；不拿候选数值直接对外宣传",
+      "status": "planned-not-executed",
+      "dependency_semantics": "depends_on是整包验收所需前置；实现可在双方接口与拒绝/恢复语义稳定后并行，不能拿替身结果提前签收",
+      "start_requirements": "进入实现前消费 IF-01, IF-05, IF-06；本包若产出这些接口里程碑，先开展该包的接口阶段，再由独立review与有权owner接受后释放实现，不能等待自身整包结束。",
+      "write_ownership": "HWP归framework仓库已指定成员；PWP/SWP/IWP归未来外部SaaS仓库，实际目录与共享接口写入人须在施工派发时明确，不在本实验新建实现包",
+      "input_baseline": "2a04c2322a7b679133654acc3c4241effaade4be + requirements1.0/source-seal-v2.json",
+      "failure_handling": "若完成判据不成立，只暂停消费该保证的后续工作；保留实际失败与仍可用成果，不降低需求或隐式接受替代政策。",
+      "start_milestones": [
+        "IF-01",
+        "IF-05",
+        "IF-06"
+      ],
+      "author_evidence_boundary": "包内done_when先由作者建立证据；真实跨边界独立验收归相应IV节点及IWP，不以自验代替总验收。"
+    }
+  ],
+  "topological_order": [
+    "HWP-01",
+    "IF-01",
+    "SWP-11",
+    "IF-02",
+    "IF-07",
+    "HWP-02",
+    "IF-03",
+    "IF-04",
+    "IF-05",
+    "IF-06",
+    "IF-08",
+    "HWP-03",
+    "HWP-04",
+    "SWP-01",
+    "HWP-05",
+    "HWP-06",
+    "SL-CORE",
+    "SWP-02",
+    "SWP-03",
+    "SWP-10",
+    "HWP-07",
+    "IV-AUTH",
+    "IV-CORE",
+    "IV-COST",
+    "PWP-06",
+    "SWP-04",
+    "SWP-05",
+    "SWP-07",
+    "SWP-08",
+    "PWP-01",
+    "PWP-02",
+    "PWP-04",
+    "PWP-08",
+    "PWP-10",
+    "PWP-11",
+    "PWP-13",
+    "SL-WEB",
+    "SWP-06",
+    "SWP-09",
+    "SWP-12",
+    "SWP-13",
+    "PWP-03",
+    "PWP-05",
+    "PWP-07",
+    "PWP-09",
+    "PWP-12",
+    "SL-INPUT",
+    "IV-ARTIFACT",
+    "IV-COOP",
+    "IV-MEMORY",
+    "IV-NODE",
+    "IWP-01",
+    "PWP-14",
+    "IWP-02",
+    "IWP-03"
+  ],
+  "totals_engineer_weeks": {
+    "optimistic": 108,
+    "planning": 187,
+    "conservative": 302
+  },
+  "revision": 2,
+  "authority": "work-plan.json is the sole package/dependency/effort authority; saas work-packages is archived drafting input only and must not be used as a second schedule.",
+  "milestones": [
+    {
+      "id": "IF-01",
+      "kind": "interface-acceptance",
+      "name": "身份与注册供应桥",
+      "producer_package": "HWP-01",
+      "owner": "框架身份契约owner + SaaS身份owner（桥接文档唯一写入：SaaS身份owner）",
+      "depends_on": [],
+      "framework_capabilities": [
+        "FC-02",
+        "FC-03"
+      ],
+      "output": "IdP issuer/subject映射、框架账号/成员建立与恢复回执，登录和后台授权区别；框架注册幂等引用/按外部供应意图查回的精确能力必需；若未承接，提交结果未知时不得再注册",
+      "done_when": "双方消费者逐步走查正向、拒绝、并发、断线与恢复；精确接口/Schema版本和来源hash固定；若新增或演进框架语义，先由框架有权者接受，独立spec/architecture review闭合。这里只命名未来产物，不声称已完成。",
+      "version_record": "实施时形成interface-manifest：双方精确坐标/源hash/决定或范围接受/适用消费者；当前状态planned",
+      "independent_reviewer": "框架接口由spec-reviewer/architecture-reviewer；SaaS桥接由独立安全/应用评审",
+      "effort_accounting": "包含在producer_package估算，不另计"
+    },
+    {
+      "id": "IF-02",
+      "kind": "interface-acceptance",
+      "name": "受理、状态、调用与恢复接口",
+      "producer_package": "HWP-01",
+      "owner": "框架Session/Run契约owner（公开接口唯一写入）",
+      "depends_on": [
+        "IF-01"
+      ],
+      "framework_capabilities": [
+        "FC-13",
+        "FC-14",
+        "FC-15",
+        "FC-16",
+        "FC-17",
+        "FC-29"
+      ],
+      "output": "来源可辨的输入、幂等内容、接受/终态/未知、模型/工具归属与重连游标；PF012§5.14框架(会话,Run,步)效果键向适配器透传；PF014用户真实新发送不按内容去重，同网络提交靠可查受理关联",
+      "done_when": "双方消费者逐步走查正向、拒绝、并发、断线与恢复；精确接口/Schema版本和来源hash固定；若新增或演进框架语义，先由框架有权者接受，独立spec/architecture review闭合。这里只命名未来产物，不声称已完成。",
+      "version_record": "实施时形成interface-manifest：双方精确坐标/源hash/决定或范围接受/适用消费者；当前状态planned",
+      "independent_reviewer": "框架接口由spec-reviewer/architecture-reviewer；SaaS桥接由独立安全/应用评审",
+      "effort_accounting": "包含在producer_package估算，不另计"
+    },
+    {
+      "id": "IF-03",
+      "kind": "interface-acceptance",
+      "name": "工作区与节点交接协议",
+      "producer_package": "HWP-05",
+      "owner": "框架工作区/据点契约owner（唯一写入）",
+      "depends_on": [
+        "IF-02"
+      ],
+      "framework_capabilities": [
+        "FC-20",
+        "FC-26"
+      ],
+      "output": "local/remote/实例身份、范围、能力观察、离线规则、工作接收与不明核对",
+      "done_when": "双方消费者逐步走查正向、拒绝、并发、断线与恢复；精确接口/Schema版本和来源hash固定；若新增或演进框架语义，先由框架有权者接受，独立spec/architecture review闭合。这里只命名未来产物，不声称已完成。",
+      "version_record": "实施时形成interface-manifest：双方精确坐标/源hash/决定或范围接受/适用消费者；当前状态planned",
+      "independent_reviewer": "框架接口由spec-reviewer/architecture-reviewer；SaaS桥接由独立安全/应用评审",
+      "effort_accounting": "包含在producer_package估算，不另计"
+    },
+    {
+      "id": "IF-04",
+      "kind": "interface-acceptance",
+      "name": "日程、日历和通知接口",
+      "producer_package": "HWP-06",
+      "owner": "框架时间能力契约owner（唯一写入）",
+      "depends_on": [
+        "IF-02"
+      ],
+      "framework_capabilities": [
+        "FC-21",
+        "FC-22",
+        "FC-23"
+      ],
+      "output": "采用快照、时区/日历覆盖、重叠补跑、Job新会话、通知事实与投递状态",
+      "done_when": "双方消费者逐步走查正向、拒绝、并发、断线与恢复；精确接口/Schema版本和来源hash固定；若新增或演进框架语义，先由框架有权者接受，独立spec/architecture review闭合。这里只命名未来产物，不声称已完成。",
+      "version_record": "实施时形成interface-manifest：双方精确坐标/源hash/决定或范围接受/适用消费者；当前状态planned",
+      "independent_reviewer": "框架接口由spec-reviewer/architecture-reviewer；SaaS桥接由独立安全/应用评审",
+      "effort_accounting": "包含在producer_package估算，不另计"
+    },
+    {
+      "id": "IF-05",
+      "kind": "interface-acceptance",
+      "name": "用量事件与商业预算桥",
+      "producer_package": "SWP-10",
+      "owner": "SaaS商业账本owner（桥接唯一写入，框架调用owner确认事实字段）",
+      "depends_on": [
+        "IF-02"
+      ],
+      "framework_capabilities": [
+        "FC-16",
+        "FC-30"
+      ],
+      "output": "调用/尝试/消费身份、来源、预留上限、实际估计未知、取消与迟到结算",
+      "done_when": "双方消费者逐步走查正向、拒绝、并发、断线与恢复；精确接口/Schema版本和来源hash固定；若新增或演进框架语义，先由框架有权者接受，独立spec/architecture review闭合。这里只命名未来产物，不声称已完成。",
+      "version_record": "实施时形成interface-manifest：双方精确坐标/源hash/决定或范围接受/适用消费者；当前状态planned",
+      "independent_reviewer": "框架接口由spec-reviewer/architecture-reviewer；SaaS桥接由独立安全/应用评审",
+      "effort_accounting": "包含在producer_package估算，不另计"
+    },
+    {
+      "id": "IF-06",
+      "kind": "interface-acceptance",
+      "name": "材料、成果与生命周期桥",
+      "producer_package": "SWP-04",
+      "owner": "SaaS数据owner（桥接唯一写入，框架工作区owner确认范围）",
+      "depends_on": [
+        "IF-02"
+      ],
+      "framework_capabilities": [
+        "FC-17",
+        "FC-20"
+      ],
+      "output": "原件/元数据提交、版本与可见范围、工作区引用、成果app数据、导出删除限制",
+      "done_when": "双方消费者逐步走查正向、拒绝、并发、断线与恢复；精确接口/Schema版本和来源hash固定；若新增或演进框架语义，先由框架有权者接受，独立spec/architecture review闭合。这里只命名未来产物，不声称已完成。",
+      "version_record": "实施时形成interface-manifest：双方精确坐标/源hash/决定或范围接受/适用消费者；当前状态planned",
+      "independent_reviewer": "框架接口由spec-reviewer/architecture-reviewer；SaaS桥接由独立安全/应用评审",
+      "effort_accounting": "包含在producer_package估算，不另计"
+    },
+    {
+      "id": "IF-07",
+      "kind": "interface-acceptance",
+      "name": "动作权限、决定与撤权桥",
+      "producer_package": "SWP-02",
+      "owner": "SaaS安全owner（桥接唯一写入，框架准入owner确认AND关系）",
+      "depends_on": [
+        "IF-01"
+      ],
+      "framework_capabilities": [
+        "FC-04",
+        "FC-07",
+        "FC-12"
+      ],
+      "output": "动作范围/版本、用户决定消费、撤权提交/传播/在途边界、离线会话不租约化",
+      "done_when": "双方消费者逐步走查正向、拒绝、并发、断线与恢复；精确接口/Schema版本和来源hash固定；若新增或演进框架语义，先由框架有权者接受，独立spec/architecture review闭合。这里只命名未来产物，不声称已完成。",
+      "version_record": "实施时形成interface-manifest：双方精确坐标/源hash/决定或范围接受/适用消费者；当前状态planned",
+      "independent_reviewer": "框架接口由spec-reviewer/architecture-reviewer；SaaS桥接由独立安全/应用评审",
+      "effort_accounting": "包含在producer_package估算，不另计"
+    },
+    {
+      "id": "IF-08",
+      "kind": "interface-acceptance",
+      "name": "外部事件到产品工作的接入桥",
+      "producer_package": "SWP-07",
+      "owner": "SaaS集成owner（桥接唯一写入，框架受理owner确认来源）",
+      "depends_on": [
+        "IF-02"
+      ],
+      "framework_capabilities": [
+        "FC-07",
+        "FC-08",
+        "FC-15"
+      ],
+      "output": "验签/去重/范围/事情关联、产品判断后提交受理、外部动作回执；不实现Connector；基础路线为真实Schedule Job新会话用工具读取已存产品事件，或真实后台callId完成回传；不私加data.messages/v3 S18 source kind。直接异步注入任意会话不是首版覆盖前提",
+      "done_when": "双方消费者逐步走查正向、拒绝、并发、断线与恢复；精确接口/Schema版本和来源hash固定；若新增或演进框架语义，先由框架有权者接受，独立spec/architecture review闭合。这里只命名未来产物，不声称已完成。",
+      "version_record": "实施时形成interface-manifest：双方精确坐标/源hash/决定或范围接受/适用消费者；当前状态planned",
+      "independent_reviewer": "框架接口由spec-reviewer/architecture-reviewer；SaaS桥接由独立安全/应用评审",
+      "effort_accounting": "包含在producer_package估算，不另计"
+    },
+    {
+      "id": "SL-CORE",
+      "kind": "partial-deliverable",
+      "name": "首闭环可部署cell与入口",
+      "producer_package": "HWP-07",
+      "owner": "框架装配负责人",
+      "depends_on": [
+        "HWP-03",
+        "HWP-04",
+        "IF-02"
+      ],
+      "output": "带公开受理/查询、身份注入、持久存储及恢复配置的单机制品+版本manifest；由SaaS消费公开入口，不直接修改内部状态",
+      "done_when": "实际制品及接口可被IWP-01使用；独立IV-CORE或IWP-01记录明确子范围证据",
+      "effort_accounting": "producer_package内部阶段产物，不新增人周"
+    },
+    {
+      "id": "SL-WEB",
+      "kind": "partial-deliverable",
+      "name": "首闭环Web客户端切片",
+      "producer_package": "SWP-13",
+      "owner": "客户端平台负责人",
+      "depends_on": [
+        "SWP-01",
+        "SWP-03",
+        "SWP-04"
+      ],
+      "output": "仅登录/材料上传/发送/查看真实状态/断线重连，不含桌宠或推送桥；SWP13剩余完整平台交付另验",
+      "done_when": "实际制品及接口可被IWP-01使用；独立IV-CORE或IWP-01记录明确子范围证据",
+      "effort_accounting": "producer_package内部阶段产物，不新增人周"
+    },
+    {
+      "id": "SL-INPUT",
+      "kind": "partial-deliverable",
+      "name": "首闭环产品输入切片",
+      "producer_package": "PWP-07",
+      "owner": "产品客户端负责人",
+      "depends_on": [
+        "SL-WEB",
+        "PWP-06",
+        "IF-02",
+        "IF-06"
+      ],
+      "output": "一次明确委托、原件引用和草稿恢复；不宣称多模态/跨平台/桌宠全部完成",
+      "done_when": "实际制品及接口可被IWP-01使用；独立IV-CORE或IWP-01记录明确子范围证据",
+      "effort_accounting": "producer_package内部阶段产物，不新增人周"
+    },
+    {
+      "id": "IV-CORE",
+      "kind": "independent-integration-evidence",
+      "name": "会话/工具/模型真实恢复",
+      "producer_package": "IWP-02",
+      "owner": "独立验证负责人（不同于该实现作者）",
+      "depends_on": [
+        "SL-CORE"
+      ],
+      "output": "真实依赖、精确版本、正常/异常/恢复的逐条证据与遗留边界",
+      "done_when": "独立验证结果按本纵线范围为pass且总负责人确认；不是等所有PWP完成才开始",
+      "effort_accounting": "IWP-02分批投入，同一证据在最终核对未漂移时复用，不重复计人周"
+    },
+    {
+      "id": "IV-AUTH",
+      "kind": "independent-integration-evidence",
+      "name": "资源权限与撤权准入组合",
+      "producer_package": "IWP-02",
+      "owner": "独立验证负责人（不同于该实现作者）",
+      "depends_on": [
+        "SWP-02",
+        "SL-CORE"
+      ],
+      "output": "真实依赖、精确版本、正常/异常/恢复的逐条证据与遗留边界",
+      "done_when": "独立验证结果按本纵线范围为pass且总负责人确认；不是等所有PWP完成才开始",
+      "effort_accounting": "IWP-02分批投入，同一证据在最终核对未漂移时复用，不重复计人周"
+    },
+    {
+      "id": "IV-COST",
+      "kind": "independent-integration-evidence",
+      "name": "预算/限流/来源与真实计量",
+      "producer_package": "IWP-02",
+      "owner": "独立验证负责人（不同于该实现作者）",
+      "depends_on": [
+        "SWP-10",
+        "SL-CORE"
+      ],
+      "output": "真实依赖、精确版本、正常/异常/恢复的逐条证据与遗留边界",
+      "done_when": "独立验证结果按本纵线范围为pass且总负责人确认；不是等所有PWP完成才开始",
+      "effort_accounting": "IWP-02分批投入，同一证据在最终核对未漂移时复用，不重复计人周"
+    },
+    {
+      "id": "IV-NODE",
+      "kind": "independent-integration-evidence",
+      "name": "跨节点和数据地点",
+      "producer_package": "IWP-02",
+      "owner": "独立验证负责人（不同于该实现作者）",
+      "depends_on": [
+        "HWP-05",
+        "SWP-06",
+        "PWP-05",
+        "SWP-11"
+      ],
+      "output": "真实依赖、精确版本、正常/异常/恢复的逐条证据与遗留边界",
+      "done_when": "独立验证结果按本纵线范围为pass且总负责人确认；不是等所有PWP完成才开始",
+      "effort_accounting": "IWP-02分批投入，同一证据在最终核对未漂移时复用，不重复计人周"
+    },
+    {
+      "id": "IV-COOP",
+      "kind": "independent-integration-evidence",
+      "name": "外部协作与日程",
+      "producer_package": "IWP-02",
+      "owner": "独立验证负责人（不同于该实现作者）",
+      "depends_on": [
+        "PWP-09",
+        "PWP-10"
+      ],
+      "output": "真实依赖、精确版本、正常/异常/恢复的逐条证据与遗留边界",
+      "done_when": "独立验证结果按本纵线范围为pass且总负责人确认；不是等所有PWP完成才开始",
+      "effort_accounting": "IWP-02分批投入，同一证据在最终核对未漂移时复用，不重复计人周"
+    },
+    {
+      "id": "IV-ARTIFACT",
+      "kind": "independent-integration-evidence",
+      "name": "可运行成果与隔离",
+      "producer_package": "IWP-02",
+      "owner": "独立验证负责人（不同于该实现作者）",
+      "depends_on": [
+        "PWP-12"
+      ],
+      "output": "真实依赖、精确版本、正常/异常/恢复的逐条证据与遗留边界",
+      "done_when": "独立验证结果按本纵线范围为pass且总负责人确认；不是等所有PWP完成才开始",
+      "effort_accounting": "IWP-02分批投入，同一证据在最终核对未漂移时复用，不重复计人周"
+    },
+    {
+      "id": "IV-MEMORY",
+      "kind": "independent-integration-evidence",
+      "name": "记忆纠正与主动工作",
+      "producer_package": "IWP-02",
+      "owner": "独立验证负责人（不同于该实现作者）",
+      "depends_on": [
+        "PWP-01",
+        "PWP-03"
+      ],
+      "output": "真实依赖、精确版本、正常/异常/恢复的逐条证据与遗留边界",
+      "done_when": "独立验证结果按本纵线范围为pass且总负责人确认；不是等所有PWP完成才开始",
+      "effort_accounting": "IWP-02分批投入，同一证据在最终核对未漂移时复用，不重复计人周"
+    }
+  ],
+  "probe_tasks": [
+    {
+      "id": "PR-01",
+      "owner_package": "PWP-01",
+      "question": "来源/情境可追溯的理解被纠正后是否稳定影响后续行为",
+      "input": "S02/S03固定历史、误解、明确纠正和跨对话检索样本",
+      "environment": "真实记忆存储/索引/框架上下文，模型仍经OpenRouter",
+      "reviewer": "独立产品质量验证者",
+      "done_when": "正常修正、存储失败、索引滞后分别达到X30与M01.7；效果指标/样本量由产品owner先接受再执行",
+      "consumed_before": [
+        "PWP-03",
+        "IV-MEMORY"
+      ],
+      "effort_included": true
+    },
+    {
+      "id": "PR-02",
+      "owner_package": "PWP-03",
+      "question": "无新命令无待办时是否形成有依据且有价值的实际工作，并能收敛",
+      "input": "S04重复返工/S05机会场景+过期/无收益/纠正反例；产品owner先确认价值判据",
+      "environment": "受限测试账户、真实资料和可恢复产物，禁止未获准外发",
+      "reviewer": "独立产品质量验证者",
+      "done_when": "有实际可用成果、理由来源和投入；负向样本不造任务/不循环；未达到则执行本包重评规则",
+      "consumed_before": [
+        "IV-MEMORY",
+        "IWP-02"
+      ],
+      "effort_included": true
+    },
+    {
+      "id": "PR-03",
+      "owner_package": "PWP-05",
+      "question": "三节点按算力/资料位置选择并保持数据出站限制",
+      "input": "S12/S13/S14；甲算力、乙受限文档、丙空闲；允许输出与禁止原文的支持矩阵",
+      "environment": "真实三节点、网络分区注入、模型/工具stdout/遥测抓取受控核对",
+      "reviewer": "独立执行/隐私验证者",
+      "done_when": "本地确定性任务可完成且结果获准；必须外传原文的任务明确拒绝/待授权；无越界/重复效果",
+      "consumed_before": [
+        "IV-NODE",
+        "IWP-02"
+      ],
+      "effort_included": true
+    },
+    {
+      "id": "PR-04",
+      "owner_package": "IWP-01",
+      "question": "代表会话的真实模型调用量、费用、并发等待与限流表现",
+      "input": "一条普通委托+一条有工具往返的固定场景，声明模型/最大token/来源/预算",
+      "environment": "OpenRouter实际请求与测试额度，非通用高吞吐压测",
+      "reviewer": "独立验证负责人",
+      "done_when": "记录实际模型请求数/输入输出用量/总时延/并发峰值/费用确知或未知；限流与取消不切错来源，用数据重估余量",
+      "consumed_before": [
+        "IWP-01",
+        "IWP-03"
+      ],
+      "effort_included": true
+    }
+  ],
+  "early_external_actions": [
+    {
+      "action": "第三方OAuth应用与客户端分发前置核对/提交",
+      "owner": "SWP-07/SWP-13",
+      "start_after": "IF-01/IF-07确定身份回调与最小权限范围后即可启动，无须等待产品全量实现",
+      "blocked_output": "正式渠道/商店可分发资格",
+      "duration": "外部日历等待未知，逐渠道记录；不计成工程人周"
+    }
+  ],
+  "graph_node_count": 55,
+  "schedule_interpretation": "不再输出未分配各里程碑工时的路径周数。187人周总额是未校准预算；6人70%约45周只给资源量级，不是同时满足依赖/技能/外部等待的排期。实际施工先锁接口，里程碑工时分摊后再算关键路径。",
+  "graph_edges": [
+    {
+      "from": "HWP-01",
+      "to": "HWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-01",
+      "to": "HWP-02",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "HWP-02",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-01",
+      "to": "HWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-02",
+      "to": "HWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "HWP-03",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-05",
+      "to": "HWP-03",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-01",
+      "to": "HWP-04",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-02",
+      "to": "HWP-04",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "HWP-04",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "HWP-04",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-03",
+      "to": "HWP-05",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-04",
+      "to": "HWP-05",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-03",
+      "to": "HWP-05",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-03",
+      "to": "HWP-06",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-04",
+      "to": "HWP-06",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-04",
+      "to": "HWP-06",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-03",
+      "to": "HWP-07",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-04",
+      "to": "HWP-07",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-05",
+      "to": "HWP-07",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-06",
+      "to": "HWP-07",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "HWP-07",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-03",
+      "to": "PWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-04",
+      "to": "PWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "PWP-01",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-06",
+      "to": "PWP-01",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-06",
+      "to": "PWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-07",
+      "to": "PWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-04",
+      "to": "PWP-02",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-08",
+      "to": "PWP-02",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "PWP-01",
+      "to": "PWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-02",
+      "to": "PWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-06",
+      "to": "PWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-10",
+      "to": "PWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "PWP-03",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-05",
+      "to": "PWP-03",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "PWP-03",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "PWP-06",
+      "to": "PWP-04",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-07",
+      "to": "PWP-04",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-04",
+      "to": "PWP-04",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-06",
+      "to": "PWP-04",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-08",
+      "to": "PWP-04",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-05",
+      "to": "PWP-05",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-06",
+      "to": "PWP-05",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-06",
+      "to": "PWP-05",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-11",
+      "to": "PWP-05",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-03",
+      "to": "PWP-05",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "PWP-05",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-03",
+      "to": "PWP-06",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-03",
+      "to": "PWP-06",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "PWP-06",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-03",
+      "to": "PWP-07",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-03",
+      "to": "PWP-07",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-04",
+      "to": "PWP-07",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-13",
+      "to": "PWP-07",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "PWP-07",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-06",
+      "to": "PWP-07",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "SWP-04",
+      "to": "PWP-08",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-02",
+      "to": "PWP-08",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-06",
+      "to": "PWP-08",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "PWP-04",
+      "to": "PWP-09",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-07",
+      "to": "PWP-09",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-07",
+      "to": "PWP-09",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-08",
+      "to": "PWP-09",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-06",
+      "to": "PWP-10",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-06",
+      "to": "PWP-10",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-07",
+      "to": "PWP-10",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-08",
+      "to": "PWP-10",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-04",
+      "to": "PWP-10",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-08",
+      "to": "PWP-10",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-04",
+      "to": "PWP-11",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-06",
+      "to": "PWP-11",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-04",
+      "to": "PWP-11",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-10",
+      "to": "PWP-11",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "PWP-11",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-05",
+      "to": "PWP-11",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "PWP-11",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "PWP-11",
+      "to": "PWP-12",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-09",
+      "to": "PWP-12",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-06",
+      "to": "PWP-12",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "PWP-12",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "PWP-06",
+      "to": "PWP-13",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-08",
+      "to": "PWP-13",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-02",
+      "to": "PWP-13",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "PWP-13",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-04",
+      "to": "PWP-13",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "PWP-13",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "SWP-13",
+      "to": "PWP-14",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-07",
+      "to": "PWP-14",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-13",
+      "to": "PWP-14",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "PWP-14",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-06",
+      "to": "PWP-14",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-02",
+      "to": "SWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-01",
+      "to": "SWP-01",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "SWP-01",
+      "to": "SWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-07",
+      "to": "SWP-02",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "SWP-01",
+      "to": "SWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-03",
+      "to": "SWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "SWP-03",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "SWP-02",
+      "to": "SWP-04",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-06",
+      "to": "SWP-04",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-03",
+      "to": "SWP-05",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-01",
+      "to": "SWP-05",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-11",
+      "to": "SWP-05",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SL-CORE",
+      "to": "SWP-05",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "SWP-05",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-05",
+      "to": "SWP-06",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-02",
+      "to": "SWP-06",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-05",
+      "to": "SWP-06",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-03",
+      "to": "SWP-06",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "SWP-06",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-04",
+      "to": "SWP-07",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-02",
+      "to": "SWP-07",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-08",
+      "to": "SWP-07",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "SWP-07",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-06",
+      "to": "SWP-08",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-03",
+      "to": "SWP-08",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-04",
+      "to": "SWP-08",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "SWP-08",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "SWP-04",
+      "to": "SWP-09",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-02",
+      "to": "SWP-09",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-11",
+      "to": "SWP-09",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-06",
+      "to": "SWP-09",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "SWP-09",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-03",
+      "to": "SWP-10",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-04",
+      "to": "SWP-10",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-01",
+      "to": "SWP-10",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-05",
+      "to": "SWP-10",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "SWP-02",
+      "to": "SWP-12",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-04",
+      "to": "SWP-12",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-10",
+      "to": "SWP-12",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-11",
+      "to": "SWP-12",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-01",
+      "to": "SWP-12",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-06",
+      "to": "SWP-12",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "SWP-12",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "SWP-01",
+      "to": "SWP-13",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-03",
+      "to": "SWP-13",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-04",
+      "to": "SWP-13",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-08",
+      "to": "SWP-13",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-01",
+      "to": "SWP-13",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-02",
+      "to": "SWP-13",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-06",
+      "to": "SWP-13",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "HWP-03",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-04",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-01",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-02",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-03",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-04",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-05",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-10",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-11",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-06",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SL-CORE",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SL-WEB",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SL-INPUT",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IV-CORE",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IV-AUTH",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IV-COST",
+      "to": "IWP-01",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-01",
+      "to": "IWP-01",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-02",
+      "to": "IWP-01",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-05",
+      "to": "IWP-01",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-06",
+      "to": "IWP-01",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "IWP-01",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IWP-01",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-07",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-01",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-02",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-03",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-04",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-05",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-06",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-07",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-08",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-09",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-10",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-11",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-12",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-13",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-14",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-12",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IV-CORE",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IV-AUTH",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IV-COST",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IV-NODE",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IV-COOP",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IV-ARTIFACT",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IV-MEMORY",
+      "to": "IWP-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "IWP-02",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-03",
+      "to": "IWP-02",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-04",
+      "to": "IWP-02",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-05",
+      "to": "IWP-02",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-06",
+      "to": "IWP-02",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-07",
+      "to": "IWP-02",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-08",
+      "to": "IWP-02",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IWP-02",
+      "to": "IWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-07",
+      "to": "IWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-09",
+      "to": "IWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-10",
+      "to": "IWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-12",
+      "to": "IWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-13",
+      "to": "IWP-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-01",
+      "to": "IWP-03",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-05",
+      "to": "IWP-03",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-06",
+      "to": "IWP-03",
+      "kind": "implementation-start-interface"
+    },
+    {
+      "from": "IF-01",
+      "to": "IF-02",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "IF-03",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "IF-04",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "IF-05",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "IF-06",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-01",
+      "to": "IF-07",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "IF-08",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-03",
+      "to": "SL-CORE",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-04",
+      "to": "SL-CORE",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "SL-CORE",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-01",
+      "to": "SL-WEB",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-03",
+      "to": "SL-WEB",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-04",
+      "to": "SL-WEB",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SL-WEB",
+      "to": "SL-INPUT",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-06",
+      "to": "SL-INPUT",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-02",
+      "to": "SL-INPUT",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "IF-06",
+      "to": "SL-INPUT",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SL-CORE",
+      "to": "IV-CORE",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-02",
+      "to": "IV-AUTH",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SL-CORE",
+      "to": "IV-AUTH",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-10",
+      "to": "IV-COST",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SL-CORE",
+      "to": "IV-COST",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "HWP-05",
+      "to": "IV-NODE",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-06",
+      "to": "IV-NODE",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-05",
+      "to": "IV-NODE",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "SWP-11",
+      "to": "IV-NODE",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-09",
+      "to": "IV-COOP",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-10",
+      "to": "IV-COOP",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-12",
+      "to": "IV-ARTIFACT",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-01",
+      "to": "IV-MEMORY",
+      "kind": "acceptance-prerequisite"
+    },
+    {
+      "from": "PWP-03",
+      "to": "IV-MEMORY",
+      "kind": "acceptance-prerequisite"
+    }
+  ]
+}

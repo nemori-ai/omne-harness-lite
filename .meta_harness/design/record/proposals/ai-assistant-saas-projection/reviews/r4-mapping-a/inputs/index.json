@@ -1,0 +1,20 @@
+[
+  {
+    "original_locator": "features/m01-m06.md",
+    "sha256": "94b10a278f1dc5a08631705c44023b72b04f64516b6dc8f951fd2e9279ddd145",
+    "snapshot_file": "features__m01-m06.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "data/feature-projections.json",
+    "sha256": "702d1759478fb9705d125fba03431f2ab0eb18650a03cbd7be145c9ecfdfd122",
+    "snapshot_file": "data__feature-projections.json.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "execution-topology.md",
+    "sha256": "f2a037d361b6a5986e38afe477efd2df68b276cb137aaa31c41fa7604c8df6c7",
+    "snapshot_file": "execution-topology.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  }
+]

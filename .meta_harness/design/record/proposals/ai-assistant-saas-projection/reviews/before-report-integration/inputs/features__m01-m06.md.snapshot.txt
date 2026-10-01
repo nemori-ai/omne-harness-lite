@@ -1,0 +1,1874 @@
+# M01–M06 逐功能投影
+
+本章每个功能均有独立实现路径。采用框架目标态承诺为前提；“可承接”不表示已经实现或运行验证。非建议/建议/混合沿用户原稿，30个故事细化另见[旅程验收](../journey-acceptance.md)。
+
+共同提交、恢复和授权规则见[执行拓扑](../execution-topology.md)。框架发起外部效果的权威结局归Run日志，SP台账仅观察并透传原(会话,Run,步)效果键；SaaS自有运营动作有自己的owner。跨库不假设原子，未知先查；真实用户新发送不去重。来源kind不私加；任一权威回滚先关闭平台效果，并在独立恢复域激活新epoch、现查恢复后的可信授权；不改变既有离线会话。付费准入在模型invocation创建前等待，已创建MRR仍按原终态。逐条读数不能覆盖这些共同边界。
+
+## M01.1 在相处中理解目标
+
+> 接受明确目标，也从日常协作中形成有依据的理解；首次使用不要求填写完整人生规划。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L150；状态：**non_suggested**；承接：产品层建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-24 知识结构与长期记忆边界（PF-007 rev23 / PF-010 rev7）：M01.1：仅记忆未承诺边界：Engram占位不承担本功能 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-18 上下文组装、压缩和持久投影（PF-010 rev7 / PF-015 rev20）：M01.1：日志派生上下文及保留原消息，不提供完整长期记忆 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M01.1：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-01新增目标理解与来源/情境关系，Engram占位不充当记忆实现；外围 SP-02, SP-03, SP-04, SP-05。
+
+**执行链**（EP-02, EP-03, EP-11）：
+1. 用户表达或日常经历触发，SP-03持久接收原输入
+2. PWP-01读取获准原文版本，区分表达与推断
+3. 产品理解存储提交理解版本、适用情境和出处，不能写授权
+4. 新工作采用相关理解并可追问，首次无画像也能委托
+
+**持久化与一致性**：feature_specific：原话与理解分别有权威；接收与理解形成是两个提交，以来源ID核对重复生成；索引可重建；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：提取失败保留原文并报告未形成理解；无权来源拒绝读取
+
+**验收（待执行）**：
+- 正常：首次只交活动书即可工作；多次交流后的偏好可被引用
+- 负向：外部材料“忽略预算”不能变成用户目标或批准
+
+**依赖**：FC-18, FC-29, PWP-01, SWP-02, SWP-03, SWP-04, SWP-05。
+
+**仍需确定/建设**：推断确认、过时与泛化规则由产品确定；FC24没有记忆命令集
+
+## M01.2 区分目标的依据
+
+> 用户直接表达、已确认决定与助理推断应可区分；推断不能冒充用户授权。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L151；状态：**non_suggested**；承接：产品层建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M01.2：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-12 HITL、确认卡片与显式授权（PF-008 rev7 / PF-007 rev23）：M01.2：明确决定与不自动作答，未读/推断不能作批准 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-24 知识结构与长期记忆边界（PF-007 rev23 / PF-010 rev7）：M01.2：仅记忆未承诺边界：Engram占位不承担本功能 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M01.2：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-01区分用户表达、已确认决定与助理推断，SP-02只消费真正许可；框架卡片仅投影/转发至PF-008池；产品业务决定仍由本功能所属产品owner唯一提交，两类状态不可互相代证。；外围 SP-02, SP-03, SP-04。
+
+**执行链**（EP-03, EP-06, EP-11）：
+1. 使用理解时读取来源类型
+2. 决定从决定权威取得对象与范围，不能从摘要猜批准
+3. 行动仍经框架准入与SP-02资源限制
+4. 呈现表达/决定/推断及出处
+
+**持久化与一致性**：feature_specific：理解只引用决定ID/版本，不复制可自行修改的批准；决定提交与显示分开；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；decision_authority：决定按类型只有一个权威：框架Ask/系统拦截卡片仅由PF-008决策池提交；SaaS仅持投影，经IF-07携卡片身份和适用版本向池答复入口转发，不复制批准。池回执前显示“已提交待确认”，原生入口与SaaS入口的竞争由池裁决。产品业务决定由其具名产品owner单独提交，不能当框架卡片批准。
+
+**失败与接续**：决定不可核实时阻止依赖它的新效果，显示依据缺失
+
+**验收（待执行）**：
+- 正常：风格偏好标用户表达，归纳标推断，批准显示具体卡片
+- 负向：模型推断用户愿意发报价，不能据此通过发送准入
+
+**依赖**：FC-04, FC-12, FC-29, PWP-01, SWP-02, SWP-03, SWP-04, IF-07。
+
+**仍需确定/建设**：理解和产品/框架决定的引用契约需明确
+
+## M01.3 跨对话延续
+
+> 新对话与其他客户端可以沿用相关背景、偏好和既往取舍；调用失败不伪装成遗忘。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L152；状态：**non_suggested**；承接：产品层建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-13 持久会话、归档和运行模式（PF-015 rev20）：M01.3：会话身份、恢复和归档，不能代替产品长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-18 上下文组装、压缩和持久投影（PF-010 rev7 / PF-015 rev20）：M01.3：日志派生上下文及保留原消息，不提供完整长期记忆 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-24 知识结构与长期记忆边界（PF-007 rev23 / PF-010 rev7）：M01.3：仅记忆未承诺边界：Engram占位不承担本功能 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M01.3：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-01建设跨会话理解取用；上下文压缩不等于长期记忆；外围 SP-02, SP-03, SP-04, SP-05, SP-13。
+
+**执行链**（EP-03, EP-08, EP-11）：
+1. 新对话/换端由SP-03核实身份与事情
+2. PWP-01读取有权限且适用的理解版本
+3. 作为合法运行输入交接，记录本次实际采用版本
+4. 各端显示同一理解，检索失败明示不可用
+
+**持久化与一致性**：feature_specific：一个理解只有产品主本；索引版本不可覆盖权威；采用版本进入运行依据；断线查询原请求；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：检索故障显示暂不可取，保留原事情，不伪装遗忘
+
+**验收（待执行）**：
+- 正常：电脑偏好在手机新对话可引用并展开出处
+- 负向：检索服务关停不能删除理解或跨租户寻找相似资料
+
+**依赖**：FC-13, FC-18, FC-29, PWP-01, SWP-02, SWP-03, SWP-04, SWP-05, SWP-13。
+
+**仍需确定/建设**：相关性、注入范围及降级体验需产品明确；完整接线待技术承接
+
+## M01.4 目标变化与重新对齐
+
+> 用户改变方向、优先事项或现实限制后，助理能说明哪些后续工作受到影响，并调整或结束不再合适的工作。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L153；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M01.4：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M01.4：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M01.4：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-24 知识结构与长期记忆边界（PF-007 rev23 / PF-010 rev7）：M01.4：仅记忆未承诺边界：Engram占位不承担本功能 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M01.4：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-01目标修订与PWP-06工作影响/PWP-03重判；外围 SP-02, SP-03, SP-05, SP-08。
+
+**执行链**（EP-04, EP-06, EP-11）：
+1. 用户改变目标，产品按期望版本提交
+2. 读出引用旧目标的未完事项、安排与在途动作
+3. 标记重新判断，分别更新安排/停止新派发/请求取消
+4. 展示受影响清单和已发生不能追回的部分
+
+**持久化与一致性**：feature_specific：目标修订与待重判标记同产品事务；框架取消/日程另存回执，不能假装跨库原子；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。
+
+**失败与接续**：取消失败留未决尾项，独立调整继续；旧结果迟到不复活旧目标
+
+**验收（待执行）**：
+- 正常：探索优先后新任务采用新方向，旧稳定方案保留
+- 负向：目标提交后崩溃，恢复仍能查到尚未调整的旧催促
+
+**依赖**：FC-14, FC-15, FC-21, FC-29, PWP-01, PWP-03, PWP-06, SWP-02, SWP-03, SWP-05, SWP-08。
+
+**仍需确定/建设**：目标依赖和不可取消动作的调整政策待定
+
+## M01.5 记忆可见可检索
+
+> 用户能查看、按主题寻找助理对自己和相关事情的理解。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L154；状态：**non_suggested**；承接：产品层建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-24 知识结构与长期记忆边界（PF-007 rev23 / PF-010 rev7）：M01.5：仅记忆未承诺边界：Engram占位不承担本功能 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-18 上下文组装、压缩和持久投影（PF-010 rev7 / PF-015 rev20）：M01.5：日志派生上下文及保留原消息，不提供完整长期记忆 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-01新增主题检索与范围过滤，不由Engram提供；外围 SP-02, SP-03, SP-04。
+
+**执行链**（EP-11）：
+1. 用户查看/检索，SP-03核实范围
+2. 从理解权威取版本，索引定位候选
+3. 校验候选范围/版本，旧索引不得盖过新理解
+4. 显示主题理解与出处，空集和故障分开
+
+**持久化与一致性**：feature_specific：权威理解与可重建索引分开；索引异步追平须版本核对或显示滞后；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：索引失败显示不可搜索，可按权威记录浏览；授权缺席不回标题片段
+
+**验收（待执行）**：
+- 正常：检索交付偏好取得具体理解及原话
+- 负向：旧索引命中已纠正或撤权条目，不能当最新展示
+
+**依赖**：FC-18, PWP-01, SWP-02, SWP-03, SWP-04。
+
+**仍需确定/建设**：排序、语种和索引滞后体验待产品定
+
+## M01.6 依据可追问
+
+> 每项重要理解可回到具体来源与时间，注明不确定、过时或不足的部分；不展示或编造模型内部思维过程。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L155；状态：**non_suggested**；承接：产品层建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-18 上下文组装、压缩和持久投影（PF-010 rev7 / PF-015 rev20）：M01.6：日志派生上下文及保留原消息，不提供完整长期记忆 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-24 知识结构与长期记忆边界（PF-007 rev23 / PF-010 rev7）：M01.6：仅记忆未承诺边界：Engram占位不承担本功能 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M01.6：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M01.6：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-01证据追问、来源时间与不确定说明，不展示内部思维链；外围 SP-02, SP-03, SP-04。
+
+**执行链**（EP-11）：
+1. 用户追问某理解，读取采用来源引用
+2. SP-04/日志权威按权限取实际原文版本
+3. 分别判断可读、过时、不足或不可取得
+4. 给原件定位与简短依据，明示推断
+
+**持久化与一致性**：feature_specific：来源与理解版本关联保留；删除后保留不可取得事实，不虚构摘录；不擅自承诺无限保留；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：来源不可达显示旧快照时点或缺依据，不声称重读最新内容
+
+**验收（待执行）**：
+- 正常：追问不喜欢探索，能定位当时赶时间的原话
+- 负向：来源已删除时不编引文、不生成模型内部思考记录
+
+**依赖**：FC-18, FC-29, FC-30, PWP-01, SWP-02, SWP-03, SWP-04。
+
+**仍需确定/建设**：重要理解范围及保留/删除规则待产品定
+
+## M01.7 纠正与生效反馈
+
+> 用户可以指出误解；产品说明修正是否成功及后续如何使用。历史上的原话与当前理解各自保持真实。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L156；状态：**non_suggested**；承接：产品层建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M01.7：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-18 上下文组装、压缩和持久投影（PF-010 rev7 / PF-015 rev20）：M01.7：日志派生上下文及保留原消息，不提供完整长期记忆 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-24 知识结构与长期记忆边界（PF-007 rev23 / PF-010 rev7）：M01.7：仅记忆未承诺边界：Engram占位不承担本功能 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M01.7：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-01纠正权威提交、情境和后续版本采用；外围 SP-02, SP-03, SP-04, SP-05。
+
+**执行链**（EP-03, EP-11）：
+1. 用户纠正由SP-03保存请求ID及旧版本
+2. PWP-01以期望版本提交新理解与范围
+3. 索引异步追平，后续相关动作不得低于已确认纠正版本
+4. 仅权威提交成功后显示生效并列影响工作
+
+**持久化与一致性**：feature_specific：纠正记录与理解版本同事务；重复请求复用结果；已开始模型请求保留实际旧版本，不改历史；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：提交失败明确未生效并留输入；旧索引不可胜出
+
+**验收（待执行）**：
+- 正常：局部纠正后跨端下一次建议采用新范围，历史原话不改
+- 负向：纠正写入失败不得显示已生效；提交后索引故障不得继续用旧误解
+
+**依赖**：FC-15, FC-18, FC-29, PWP-01, SWP-02, SWP-03, SWP-04, SWP-05。
+
+**仍需确定/建设**：纠正对已开始外部动作的调整需产品政策
+
+## M01.8 情境有边界
+
+> 工作项目中的局部偏好不自动成为所有生活场景的规则；外部材料中的观点不自动变成用户立场。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L157；状态：**non_suggested**；承接：产品层建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M01.8：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-18 上下文组装、压缩和持久投影（PF-010 rev7 / PF-015 rev20）：M01.8：日志派生上下文及保留原消息，不提供完整长期记忆 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-24 知识结构与长期记忆边界（PF-007 rev23 / PF-010 rev7）：M01.8：仅记忆未承诺边界：Engram占位不承担本功能 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-01定义情境和外部观点归属；外围 SP-02, SP-03, SP-04, SP-05。
+
+**执行链**（EP-03, EP-11）：
+1. 新事情取背景时读主体/情境/用途
+2. 只选择适用理解，外部观点保留外部主体
+3. 合法运行输入带边界，权限独立求值
+4. 用户可见本次采用依据并纠正
+
+**持久化与一致性**：feature_specific：范围随理解版本同存；检索键带身份/情境，不按相似度跨项目复用；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：边界不明不宣称全局偏好，必要时澄清；无权限不取他项目资料
+
+**验收（待执行）**：
+- 正常：工作极简偏好不自动支配家庭行程
+- 负向：供应商文档自称用户接受涨价不变用户立场/批准
+
+**依赖**：FC-04, FC-18, PWP-01, SWP-02, SWP-03, SWP-04, SWP-05。
+
+**仍需确定/建设**：跨情境泛化条件待产品确定
+
+## M02.1 共同时间语境
+
+> 理解当前日期、时区、已经等待的时间和剩余窗口；跨时区约定保留双方可理解的时间。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L171；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-23 日历计算与数据供应（PF-021 rev8）：M02.1：日历版本、时区与缺依据失败；私人日历另接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M02.1：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M02.1：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-02统一当前时刻/等待/时区语境；私人日历SP-07另接；PWP-10（日程与持续关注的产品装配）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-03, SP-05, SP-07。
+
+**执行链**（EP-03, EP-04, EP-12）：
+1. 问题或约定触发，读取可信时钟和明确时区
+2. 日历能力取得覆盖版本和原当地时间
+3. 计算经过/剩余，保存时固定相对时间解释
+4. 显示双方可理解时间和等待窗口
+
+**持久化与一致性**：feature_specific：约定保存时区、解释与日历版本；显示时长可派生，重启不重置开始等待事实；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：缺时区/日历依据明示并澄清，不用宿主默认值代替
+
+**验收（待执行）**：
+- 正常：两地看到同一会面的各自时间，重启后等待时长连续
+- 负向：时间歧义未解决时不生成猜测预约
+
+**依赖**：FC-21, FC-23, FC-29, PWP-02, PWP-10, SWP-03, SWP-05, SWP-07。
+
+**仍需确定/建设**：用户时区来源、歧义体验及个人日历支持待定
+
+## M02.2 截止与机会窗口
+
+> 截止临近、报价有效期、生产档期或窗口结束，应改变工作判断；不用过期机会驱动后续行动。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L172；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M02.2：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-23 日历计算与数据供应（PF-021 rev8）：M02.2：日历版本、时区与缺依据失败；私人日历另接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-25 长期待机、主动推进与关注边界（PF-007 rev23 / PF-021 rev8）：M02.2：长期待机原子基础，不证明主动发现/目标管理已具备 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M02.2：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M02.2：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：来源闭合集约束，不准新增任意system来源；后台收场必须真实且位于合法占位之后 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-02业务窗口及PWP-03过期判断，不由Schedule自动理解报价；PWP-10持有同一事情待处理意图与未到期一次性Schedule的归并关系；SP-07机械接收/轮询不启动模型，获准用户/agent的Schedule创建通过IF-04完成。；PWP-06（事情、阶段、依赖与长期推进）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-03, SP-07, SP-08, SP-05。
+
+**执行链**（EP-04, EP-12）：
+1. 截止或恢复触发，读取窗口来源与现在
+2. 必要时SP-07获准核实报价/档期
+3. PWP-06提交窗口版本及影响，策略调整投入
+4. 显示失效、待核实或新窗口
+5. 本候选选定路径，尚待实施：SP-07机械接收/轮询外部源并持久登记待处理意图，不为此启动模型。仅已有待处理意图且获准产品策略判定值得唤醒时，PWP-10经IF-04以真实租户归属和获准用户/agent创建一次性Schedule；同一事情已有未到期处理Schedule时归并意图，不新建另一份。外部事件无变化时不建立空轮询Job；另在用户已授权的主动工作范围内，由PWP-10以合法创建者装配定期自省Schedule，以现有经验发现新工作，不要求用户每次新发指令。默认启用、频率与投入额度沿D03待定；真正简报/检查另按用户选择。到期Job新建专属会话，经普通获准工具读取当前意图与事情。补跑、重叠、通知声明必须显式配置，具体值待产品决定。Job首条是否采用scheduled_trigger由IF-04/HWP-06定形；若采用，只记录真实日程触发，原事件来源/时点另存。 后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**持久化与一致性**：feature_specific：窗口版本与已处理唤醒关联；恢复按当前窗口判断，不重放过期机会；计划更新另查回执；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；event_schedule_commit：PWP-10在产品存储内提交事情—待处理意图—未到期Schedule的归并关系及创建意图，框架Schedule接受是另一提交，经IF-04查回原接收回执后关联，不假设跨库原子。到期重新核当前授权和使命。竞争导致的空Job，工作目标可明确为“查验后确认无待处理事项”，需实际核查和完成依据，如实写日志，不编造产物。；background_lifetime：后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。；schedule_declarations：窗口/检查Schedule按PF-021 §6.9/§6.11/§6.12显式声明补跑、重叠和通知政策；取值待产品决定，不能靠“恢复不重放”隐含不补跑或N=1。
+
+**失败与接续**：供应商不可查显示旧报价过期且未知，无权不接洽
+
+**验收（待执行）**：
+- 正常：报价到期重新核实后才安排新工作
+- 负向：停机跨过报名截止不能补跑过期报名
+
+**依赖**：FC-15, FC-17, FC-21, FC-23, FC-25, FC-29, PWP-02, PWP-03, PWP-06, SWP-03, SWP-05, SWP-07, SWP-08, PWP-10, IF-04, HWP-06。
+
+**仍需确定/建设**：业务失效条件和核实/替代策略由产品定；IF-04/HWP-06须定形代租户创建的操作发起者、接收查回和Job首条输入；scheduled_trigger若被采用只记录真实触发，不声称该衔接已有接受契约。；补跑、重叠、通知声明及延迟/归并值显式配置但数值待产品决定；周期agent Job只用于用户明确安排。IF-08任意异步会话注入不在本候选基础路径。
+
+## M02.3 现实环境可见性
+
+> 在许可范围内感知相关材料、往来、设备及外部进展；用户能知道哪些来源可见、哪些不可见。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L173；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M02.3：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-08 MCP接入与外部服务凭据（PF-002 rev31 / PF-006 rev23）：M02.3：MCP动作/凭据边界，具体第三方适配另建 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M02.3：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M02.3：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M02.3：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M02.3：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M02.3：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：来源闭合集约束，不准新增任意system来源；后台收场必须真实且位于合法占位之后 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-02现实覆盖视图；SP-07建设外部变化接入，不借搁置Connector；PWP-10持有同一事情待处理意图与未到期一次性Schedule的归并关系；SP-07机械接收/轮询不启动模型，获准用户/agent的Schedule创建通过IF-04完成。；PWP-04（协同资源绑定与使命管理）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；PWP-05（多节点产品工作与解释体验）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-02, SP-03, SP-06, SP-07, SP-05。
+
+**执行链**（EP-04, EP-05, EP-12）：
+1. 事情需感知时读当前授权/来源
+2. 适配器仅取得获准线程、资料和节点观察
+3. 产品保存观察与覆盖范围
+4. 显示可见/未授权/离线/不支持
+5. 本候选选定路径，尚待实施：SP-07机械接收/轮询外部源并持久登记待处理意图，不为此启动模型。仅已有待处理意图且获准产品策略判定值得唤醒时，PWP-10经IF-04以真实租户归属和获准用户/agent创建一次性Schedule；同一事情已有未到期处理Schedule时归并意图，不新建另一份。外部事件无变化时不建立空轮询Job；另在用户已授权的主动工作范围内，由PWP-10以合法创建者装配定期自省Schedule，以现有经验发现新工作，不要求用户每次新发指令。默认启用、频率与投入额度沿D03待定；真正简报/检查另按用户选择。到期Job新建专属会话，经普通获准工具读取当前意图与事情。补跑、重叠、通知声明必须显式配置，具体值待产品决定。Job首条是否采用scheduled_trigger由IF-04/HWP-06定形；若采用，只记录真实日程触发，原事件来源/时点另存。 后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**持久化与一致性**：feature_specific：观察快照和授权权威分开，带范围与时点；旧快照不充最新事实；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；event_schedule_commit：PWP-10在产品存储内提交事情—待处理意图—未到期Schedule的归并关系及创建意图，框架Schedule接受是另一提交，经IF-04查回原接收回执后关联，不假设跨库原子。到期重新核当前授权和使命。竞争导致的空Job，工作目标可明确为“查验后确认无待处理事项”，需实际核查和完成依据，如实写日志，不编造产物。；background_lifetime：后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**失败与接续**：单源失败局部说明；授权缺席拒读，其他来源仍可用
+
+**验收（待执行）**：
+- 正常：展示具体邮件线程/目录及取得时间
+- 负向：单线程授权不能被扩大为遍历整箱
+
+**依赖**：FC-04, FC-08, FC-15, FC-17, FC-20, FC-21, FC-26, FC-29, PWP-02, PWP-04, PWP-05, SWP-02, SWP-03, SWP-05, SWP-06, SWP-07, PWP-10, IF-04, HWP-06。
+
+**仍需确定/建设**：感知来源、刷新频率和本机采集范围待产品定；IF-04/HWP-06须定形代租户创建的操作发起者、接收查回和Job首条输入；scheduled_trigger若被采用只记录真实触发，不声称该衔接已有接受契约。；补跑、重叠、通知声明及延迟/归并值显式配置但数值待产品决定；周期agent Job只用于用户明确安排。IF-08任意异步会话注入不在本候选基础路径。
+
+## M02.4 新鲜度与不确定性
+
+> 状态附有可判断的时点；过时、断连、无更新、读取失败分别表达。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L174；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M02.4：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M02.4：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M02.4：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M02.4：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M02.4：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：来源闭合集约束，不准新增任意system来源；后台收场必须真实且位于合法占位之后 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-02统一读取结果和新鲜度，未知不等于无变化；PWP-10持有同一事情待处理意图与未到期一次性Schedule的归并关系；SP-07机械接收/轮询不启动模型，获准用户/agent的Schedule创建通过IF-04完成。；外围 SP-03, SP-06, SP-07, SP-05。
+
+**执行链**（EP-04, EP-05, EP-08）：
+1. 检查结果到达，适配器提交来源/观察时间
+2. 分别判定无变化、失败、断连和过时
+3. 保留最后成功快照与本次失败两种记录
+4. 按同一事实显示时点与局限
+5. 本候选选定路径，尚待实施：SP-07机械接收/轮询外部源并持久登记待处理意图，不为此启动模型。仅已有待处理意图且获准产品策略判定值得唤醒时，PWP-10经IF-04以真实租户归属和获准用户/agent创建一次性Schedule；同一事情已有未到期处理Schedule时归并意图，不新建另一份。外部事件无变化时不建立空轮询Job；另在用户已授权的主动工作范围内，由PWP-10以合法创建者装配定期自省Schedule，以现有经验发现新工作，不要求用户每次新发指令。默认启用、频率与投入额度沿D03待定；真正简报/检查另按用户选择。到期Job新建专属会话，经普通获准工具读取当前意图与事情。补跑、重叠、通知声明必须显式配置，具体值待产品决定。Job首条是否采用scheduled_trigger由IF-04/HWP-06定形；若采用，只记录真实日程触发，原事件来源/时点另存。 后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**持久化与一致性**：feature_specific：成功版本与尝试结果分列；迟到回执核对来源版本/请求关联，不能覆盖更新事实；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；event_schedule_commit：PWP-10在产品存储内提交事情—待处理意图—未到期Schedule的归并关系及创建意图，框架Schedule接受是另一提交，经IF-04查回原接收回执后关联，不假设跨库原子。到期重新核当前授权和使命。竞争导致的空Job，工作目标可明确为“查验后确认无待处理事项”，需实际核查和完成依据，如实写日志，不编造产物。；background_lifetime：后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**失败与接续**：未知新鲜度明示未知，断连期间不补写无新增
+
+**验收（待执行）**：
+- 正常：今天源失败仍可见昨天快照但标当前不可读
+- 负向：超时不能显示供应商没回复，旧成功不伪装新鲜
+
+**依赖**：FC-15, FC-17, FC-20, FC-21, FC-29, FC-30, PWP-02, SWP-03, SWP-05, SWP-06, SWP-07, PWP-10, IF-04, HWP-06。
+
+**仍需确定/建设**：各来源新鲜度阈值与可比版本需明确；IF-04/HWP-06须定形代租户创建的操作发起者、接收查回和Job首条输入；scheduled_trigger若被采用只记录真实触发，不声称该衔接已有接受契约。；补跑、重叠、通知声明及延迟/归并值显式配置但数值待产品决定；周期agent Job只用于用户明确安排。IF-08任意异步会话注入不在本候选基础路径。
+
+## M02.5 人的可参与程度
+
+> 结合用户表达与获准使用的日程理解忙碌、休息、在途等处境；不能把未经证实的心理或身体状态当事实。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L175；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-12 HITL、确认卡片与显式授权（PF-008 rev7 / PF-007 rev23）：M02.5：明确决定与不自动作答，未读/推断不能作批准 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-23 日历计算与数据供应（PF-021 rev8）：M02.5：日历版本、时区与缺依据失败；私人日历另接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-25 长期待机、主动推进与关注边界（PF-007 rev23 / PF-021 rev8）：M02.5：长期待机原子基础，不证明主动发现/目标管理已具备 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-02已表达处境与PWP-13低打扰，不推测身心作事实；框架卡片仅投影/转发至PF-008池；产品业务决定仍由本功能所属产品owner唯一提交，两类状态不可互相代证。；外围 SP-02, SP-03, SP-07, SP-08。
+
+**执行链**（EP-04, EP-12）：
+1. 将求用户参与时读取明确表达/获准日程
+2. 区分已知安排与推断
+3. SP-08按既有偏好呈现，必要决定留持久入口
+4. 解释时机依据并允许纠正
+
+**持久化与一致性**：feature_specific：明确限制及日程引用持久存，当前可参与判断带时点；延后通知不撤决定；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；decision_authority：决定按类型只有一个权威：框架Ask/系统拦截卡片仅由PF-008决策池提交；SaaS仅持投影，经IF-07携卡片身份和适用版本向池答复入口转发，不复制批准。池回执前显示“已提交待确认”，原生入口与SaaS入口的竞争由池裁决。产品业务决定由其具名产品owner单独提交，不能当框架卡片批准。
+
+**失败与接续**：日历失败说明覆盖不足，不生成心理/健康结论
+
+**验收（待执行）**：
+- 正常：用户说下午开会，普通审阅合并到适当入口
+- 负向：空日历不能推断空闲，更不能替用户批准
+
+**依赖**：FC-12, FC-23, FC-25, PWP-02, PWP-13, SWP-02, SWP-03, SWP-07, SWP-08, IF-07。
+
+**仍需确定/建设**：可推断程度、紧急例外及通知政策需产品定
+
+## M02.6 资源余量感知
+
+> 知道可用预算、算力、节点负载与材料所在位置，以及相关人和生产条件的已知限制。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L176；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M02.6：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M02.6：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M02.6：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-02资源事实聚合；预算SP-10、节点SP-06、人档期取获准来源；PWP-03（有界主动工作与资源取舍）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；PWP-05（多节点产品工作与解释体验）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-03, SP-06, SP-07, SP-10。
+
+**执行链**（EP-04, EP-05, EP-09）：
+1. 投入/派发前读取余额预留、节点能力与资料位置
+2. 添加有证据的人与生产限制并保留未知
+3. PWP-03/05比较条件，消费前复核关键预算
+4. 解释实际短板是材料/算力/审核时间/档期
+
+**持久化与一致性**：feature_specific：各权威分别供事实，聚合不成新主本；快照余额不等于预留成功，无跨库共同原子预算；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：未知费用/状态不能被当免费/在线/已保证档期
+
+**验收（待执行）**：
+- 正常：甲快但乙有资料时同时解释两类约束
+- 负向：并发已占预算时旧余额不能放行超额消耗
+
+**依赖**：FC-20, FC-26, FC-30, PWP-02, PWP-03, PWP-05, SWP-03, SWP-06, SWP-07, SWP-10。
+
+**仍需确定/建设**：负载指标、档期对接和预算精度待定
+
+## M02.7 变化影响判断
+
+> 新回复、资料更新或环境变化到达后，能指出影响哪些目标、事情和已有决定。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L177；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M02.7：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M02.7：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M02.7：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M02.7：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：来源闭合集约束，不准新增任意system来源；后台收场必须真实且位于合法占位之后 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-02变化影响与PWP-04使命/PWP-06事情关联；PWP-10持有同一事情待处理意图与未到期一次性Schedule的归并关系；SP-07机械接收/轮询不启动模型，获准用户/agent的Schedule创建通过IF-04完成。；外围 SP-02, SP-03, SP-07, SP-05。
+
+**执行链**（EP-04, EP-12）：
+1. 回复/版本到达，SP-07核源并按来源身份去重
+2. 产品写观察，关联正确资源和事情
+3. 读目标/决定版本，列受影响后续工作
+4. 呈现原文、影响和实际动作
+5. 本候选选定路径，尚待实施：SP-07机械接收/轮询外部源并持久登记待处理意图，不为此启动模型。仅已有待处理意图且获准产品策略判定值得唤醒时，PWP-10经IF-04以真实租户归属和获准用户/agent创建一次性Schedule；同一事情已有未到期处理Schedule时归并意图，不新建另一份。外部事件无变化时不建立空轮询Job；另在用户已授权的主动工作范围内，由PWP-10以合法创建者装配定期自省Schedule，以现有经验发现新工作，不要求用户每次新发指令。默认启用、频率与投入额度沿D03待定；真正简报/检查另按用户选择。到期Job新建专属会话，经普通获准工具读取当前意图与事情。补跑、重叠、通知声明必须显式配置，具体值待产品决定。Job首条是否采用scheduled_trigger由IF-04/HWP-06定形；若采用，只记录真实日程触发，原事件来源/时点另存。 后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**持久化与一致性**：feature_specific：接收、影响分析、框架输入分别回执；产品影响清单同事情事务，重复事件不造多件事；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；event_schedule_commit：PWP-10在产品存储内提交事情—待处理意图—未到期Schedule的归并关系及创建意图，框架Schedule接受是另一提交，经IF-04查回原接收回执后关联，不假设跨库原子。到期重新核当前授权和使命。竞争导致的空Job，工作目标可明确为“查验后确认无待处理事项”，需实际核查和完成依据，如实写日志，不编造产物。；background_lifetime：后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**失败与接续**：无法唯一定位时待定位，不猜同名项目；无权不展开
+
+**验收（待执行）**：
+- 正常：新尺寸回复影响原活动设计稿和待定成本
+- 负向：重复回复不重复委派，旧版本不能覆盖新决定
+
+**依赖**：FC-15, FC-17, FC-20, FC-21, FC-29, PWP-02, PWP-04, PWP-06, SWP-02, SWP-03, SWP-05, SWP-07, PWP-10, IF-04, HWP-06。
+
+**仍需确定/建设**：影响关系与决定需否重确认由产品定；IF-04/HWP-06须定形代租户创建的操作发起者、接收查回和Job首条输入；scheduled_trigger若被采用只记录真实触发，不声称该衔接已有接受契约。；补跑、重叠、通知声明及延迟/归并值显式配置但数值待产品决定；周期agent Job只用于用户明确安排。IF-08任意异步会话注入不在本候选基础路径。
+
+## M02.8 感知缺口处理
+
+> 重要判断所需信息缺失时，先进行获准查证，无法取得再说明限制；不宣称感知用户全部世界。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L178；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M02.8：真实工具执行、后台状态和停止；停止不回滚外部效果 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-11 行动入口与多Agent协作（PF-007 rev23 / PF-015 rev20）：M02.8：有界行动/委派，子权限不宽于父；TodoItems不是长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-12 HITL、确认卡片与显式授权（PF-008 rev7 / PF-007 rev23）：M02.8：明确决定与不自动作答，未读/推断不能作批准 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M02.8：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-02识别必要缺口，PWP-11做获准查证；外围 SP-02, SP-03, SP-07, SP-10。
+
+**执行链**（EP-03, EP-04, EP-12）：
+1. 下一步缺信息，列缺失及影响
+2. 按既有范围/预算选可核实渠道
+3. 框架工具/SP-07留真实读取回执
+4. 可得则继续，否则说明限制只问必要事实
+
+**持久化与一致性**：feature_specific：查证身份绑定原事情；外部联系结果不明先核对；不因每次查不到创造无限任务；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：无权/失败由实际边界拒绝，产品说清缺口而非宣称全知
+
+**验收（待执行）**：
+- 正常：先查获准往来仍缺开始时间才问用户
+- 负向：撤权后不能猜最新报价继续采购
+
+**依赖**：FC-07, FC-11, FC-12, FC-30, PWP-02, PWP-11, SWP-02, SWP-03, SWP-07, SWP-10。
+
+**仍需确定/建设**：查证优先级、投入上限与停止规则属于产品
+
+## M03.1 自主发现值得做的事情
+
+> 从已知目标、现实变化、重复问题或新机会中形成工作意图，不以用户刚发指令或已有未完成任务为前提。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L192；状态：**non_suggested**；承接：产品层建设；范围：XL（非人周）。
+
+**框架依据与边界**：
+- FC-19 Loop拓展件与hooks兼容（PF-012 rev21 / PF-005 rev8）：M03.1：可替换策略接入与干预留痕，不替产品决定主动性 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M03.1：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-25 长期待机、主动推进与关注边界（PF-007 rev23 / PF-021 rev8）：M03.1：长期待机原子基础，不证明主动发现/目标管理已具备 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M03.1：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M03.1：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：来源闭合集约束，不准新增任意system来源；后台收场必须真实且位于合法占位之后 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-03新增连续目标/经验/变化形成意图的策略；长期待机不等于已有主动发现；PWP-10持有同一事情待处理意图与未到期一次性Schedule的归并关系；SP-07机械接收/轮询不启动模型，获准用户/agent的Schedule创建通过IF-04完成。；PWP-01（连续目标、理解依据和记忆纠正）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；PWP-02（时间语境与现实感知）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-02, SP-03, SP-05, SP-07, SP-10。
+
+**执行链**（EP-04）：
+1. 无新命令/待办时，可由现实变化唤醒；没有外部变化时，由已获准的定期自省Schedule唤醒后检验既有经验，发现值得推进的新工作。
+2. 读取当前目标、证据和投入边界，判断值得做
+3. 产品提交理由/来源版本/工作意图，正常准入交框架
+4. 交实际调查或材料并解释为何开始
+5. 本候选选定路径，尚待实施：SP-07机械接收/轮询外部源并持久登记待处理意图，不为此启动模型。仅已有待处理意图且获准产品策略判定值得唤醒时，PWP-10经IF-04以真实租户归属和获准用户/agent创建一次性Schedule；同一事情已有未到期处理Schedule时归并意图，不新建另一份。外部事件无变化时不建立空轮询Job；另在用户已授权的主动工作范围内，由PWP-10以合法创建者装配定期自省Schedule，以现有经验发现新工作，不要求用户每次新发指令。默认启用、频率与投入额度沿D03待定；真正简报/检查另按用户选择。到期Job新建专属会话，经普通获准工具读取当前意图与事情。补跑、重叠、通知声明必须显式配置，具体值待产品决定。Job首条是否采用scheduled_trigger由IF-04/HWP-06定形；若采用，只记录真实日程触发，原事件来源/时点另存。 后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**持久化与一致性**：feature_specific：判断与工作回执持久关联；重复触发核对同一工作，不能靠易失计时器独撑跨周责任；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；event_schedule_commit：PWP-10在产品存储内提交事情—待处理意图—未到期Schedule的归并关系及创建意图，框架Schedule接受是另一提交，经IF-04查回原接收回执后关联，不假设跨库原子。到期重新核当前授权和使命。竞争导致的空Job，工作目标可明确为“查验后确认无待处理事项”，需实际核查和完成依据，如实写日志，不编造产物。；background_lifetime：后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**失败与接续**：无价值/权限/预算时等或不做；接受失败不伪造已执行 自省本身有预算与停止边界，无收益时策略收敛；暂停主动工作后关闭该日程未来触发。
+
+**验收（待执行）**：
+- 正常：从重复返工记录自主创建有限调查并交检查表
+- 负向：同一现象反复到达不能无限造同类任务
+
+**依赖**：FC-15, FC-17, FC-19, FC-21, FC-25, FC-29, PWP-01, PWP-02, PWP-03, SWP-02, SWP-03, SWP-05, SWP-07, SWP-10, PWP-10, IF-04, HWP-06。
+
+**仍需确定/建设**：发现频率、默认投入及收益评价由产品定，不借PF021非线性规则冒充；IF-04/HWP-06须定形代租户创建的操作发起者、接收查回和Job首条输入；scheduled_trigger若被采用只记录真实触发，不声称该衔接已有接受契约。；补跑、重叠、通知声明及延迟/归并值显式配置但数值待产品决定；周期agent Job只用于用户明确安排。IF-08任意异步会话注入不在本候选基础路径。
+
+## M03.2 行动理由可解释
+
+> 用户可以追问“为何做这件事”；回答指向相关目标与可观察依据，说明推断部分。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L193；状态：**non_suggested**；承接：产品层建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M03.2：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M03.2：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-18 上下文组装、压缩和持久投影（PF-010 rev7 / PF-015 rev20）：M03.2：日志派生上下文及保留原消息，不提供完整长期记忆 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-03保管可解释依据和推断状态；外围 SP-03, SP-04。
+
+**执行链**（EP-04, EP-11）：
+1. 用户追问时定位当初工作意图/目标版本
+2. 按权限读取当时证据及显式判断结论
+3. 区分已知原因和不确定，不倒编依据
+4. 给目标-证据-动作-结果关系及原件入口
+
+**持久化与一致性**：feature_specific：理由与行动意图同时可定位，后续纠正留版本；不存造内部思维链；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：来源失联只给合法旧快照或缺口，不拿模型自述当证据
+
+**验收（待执行）**：
+- 正常：为何做检查表可追到返工记录与质量目标
+- 负向：删除依据后不宣称重读过或展示虚构推理
+
+**依赖**：FC-18, FC-29, FC-30, PWP-03, SWP-03, SWP-04。
+
+**仍需确定/建设**：解释粒度和他方隐私展示待产品定
+
+## M03.3 实质性主动工作
+
+> 在授权范围内完成调查、整理、试做、改进、委派和协同，不把每次发现都退回成需要用户再次启动的建议。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L194；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M03.3：真实工具执行、后台状态和停止；停止不回滚外部效果 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-11 行动入口与多Agent协作（PF-007 rev23 / PF-015 rev20）：M03.3：有界行动/委派，子权限不宽于父；TodoItems不是长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M03.3：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-25 长期待机、主动推进与关注边界（PF-007 rev23 / PF-021 rev8）：M03.3：长期待机原子基础，不证明主动发现/目标管理已具备 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M03.3：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M03.3：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M03.3：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：来源闭合集约束，不准新增任意system来源；后台收场必须真实且位于合法占位之后 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-03主动工作接PWP-11真实调查/委派和成果；PWP-10持有同一事情待处理意图与未到期一次性Schedule的归并关系；SP-07机械接收/轮询不启动模型，获准用户/agent的Schedule创建通过IF-04完成。；PWP-04（协同资源绑定与使命管理）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-02, SP-03, SP-04, SP-05, SP-07, SP-10。
+
+**执行链**（EP-03, EP-04, EP-12）：
+1. 发现明确目的时提交有界成果目标
+2. 框架准入、预算和外部范围通过后启动
+3. 真实工具或被委派者执行，保存产物与覆盖
+4. 先交独立准备，仅必要信息/未确认后果才问用户
+5. 本候选选定路径，尚待实施：SP-07机械接收/轮询外部源并持久登记待处理意图，不为此启动模型。仅已有待处理意图且获准产品策略判定值得唤醒时，PWP-10经IF-04以真实租户归属和获准用户/agent创建一次性Schedule；同一事情已有未到期处理Schedule时归并意图，不新建另一份。外部事件无变化时不建立空轮询Job；另在用户已授权的主动工作范围内，由PWP-10以合法创建者装配定期自省Schedule，以现有经验发现新工作，不要求用户每次新发指令。默认启用、频率与投入额度沿D03待定；真正简报/检查另按用户选择。到期Job新建专属会话，经普通获准工具读取当前意图与事情。补跑、重叠、通知声明必须显式配置，具体值待产品决定。Job首条是否采用scheduled_trigger由IF-04/HWP-06定形；若采用，只记录真实日程触发，原事件来源/时点另存。 后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**持久化与一致性**：feature_specific：产品意图、框架接收、成果版本各有权威；接收超时先查同工作，外发不明先对账；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；event_schedule_commit：PWP-10在产品存储内提交事情—待处理意图—未到期Schedule的归并关系及创建意图，框架Schedule接受是另一提交，经IF-04查回原接收回执后关联，不假设跨库原子。到期重新核当前授权和使命。竞争导致的空Job，工作目标可明确为“查验后确认无待处理事项”，需实际核查和完成依据，如实写日志，不编造产物。；background_lifetime：后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**失败与接续**：单项失败保留其他成果；未授权接洽不执行但独立整理继续
+
+**验收（待执行）**：
+- 正常：发现机会后已完成作品整理和有限调查再找用户
+- 负向：缺外发权限不能发信，也不阻断已授权准备
+
+**依赖**：FC-07, FC-11, FC-14, FC-15, FC-17, FC-21, FC-25, FC-29, PWP-03, PWP-04, PWP-11, SWP-02, SWP-03, SWP-04, SWP-05, SWP-07, SWP-10, PWP-10, IF-04, HWP-06。
+
+**仍需确定/建设**：直接推进动作/成果类型和委派提供者需支持目录；IF-04/HWP-06须定形代租户创建的操作发起者、接收查回和Job首条输入；scheduled_trigger若被采用只记录真实触发，不声称该衔接已有接受契约。；补跑、重叠、通知声明及延迟/归并值显式配置但数值待产品决定；周期agent Job只用于用户明确安排。IF-08任意异步会话注入不在本候选基础路径。
+
+## M03.4 投入与收益权衡
+
+> 综合质量、时效、金钱、用户注意力及其他机会，决定投入程度；不用单一省钱或产出数量替代用户取舍。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L195；状态：**non_suggested**；承接：产品层建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-16 模型档案、调用、切换与重试（PF-013 rev14）：M03.4：模型来源/调用边界，统一OpenRouter 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M03.4：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-25 长期待机、主动推进与关注边界（PF-007 rev23 / PF-021 rev8）：M03.4：长期待机原子基础，不证明主动发现/目标管理已具备 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M03.4：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-03质量/时效/钱/注意力/机会权衡；SP-10商业预算；PWP-02（时间语境与现实感知）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-03, SP-06, SP-07, SP-10。
+
+**执行链**（EP-04, EP-05, EP-09）：
+1. 开始/继续前读用户取舍与资源事实
+2. 比较允许路径，不强制统一人生分数
+3. 保存选择依据，SP-10独立提交消费预留
+4. 交代显著取舍并把真实消耗带回判断
+
+**持久化与一致性**：feature_specific：决策引用快照，花费以账本预留为准；并发不能各用旧余额，未知费用不改写为零；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：预算失败收敛/等待，不能换付费来源或暗降承诺质量
+
+**验收（待执行）**：
+- 正常：算力足但审核时间少时选少量完整方案
+- 负向：有余额不等于无限生成；省钱不能偷偷削质
+
+**依赖**：FC-16, FC-21, FC-25, FC-30, PWP-02, PWP-03, SWP-03, SWP-06, SWP-07, SWP-10。
+
+**仍需确定/建设**：权衡政策、偏好范围和费用估计需产品定
+
+## M03.5 动态改变工作方式
+
+> 资源充裕时适度探索或并行；截止临近时收敛、保留可交付结果，并说明显著的质量或范围变化。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L196；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M03.5：真实工具执行、后台状态和停止；停止不回滚外部效果 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-11 行动入口与多Agent协作（PF-007 rev23 / PF-015 rev20）：M03.5：有界行动/委派，子权限不宽于父；TodoItems不是长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M03.5：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M03.5：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M03.5：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-03探索/收敛策略与PWP-06计划变更；外围 SP-02, SP-03, SP-05, SP-08, SP-10。
+
+**执行链**（EP-04, EP-06, EP-09）：
+1. 截止/资源变化触发，读现有成果与在途任务
+2. 区分必要验证和可停探索，形成计划新版本
+3. 分别停新委派、申请取消，把允许投入转检查补缺
+4. 保留交付版本并说明质量/范围变化
+
+**持久化与一致性**：feature_specific：计划与交接清单同产品事务；取消/新派发各查回执，旧成果不随收敛删除；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：不能取消则仍列在途；预算不足不悄悄降低已承诺质量
+
+**验收（待执行）**：
+- 正常：两周探索、两小时转已有稿验收
+- 负向：无法取消的委派不能显示已取消，已成稿不丢
+
+**依赖**：FC-07, FC-11, FC-14, FC-21, FC-30, PWP-03, PWP-06, SWP-02, SWP-03, SWP-05, SWP-08, SWP-10。
+
+**仍需确定/建设**：显著变更阈值和收敛策略待定
+
+## M03.6 主动等待与停止
+
+> 等待有价值的信息、收益已不足或目标已改变时，能够降低投入、暂停或结束，避免无意义循环。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L197；状态：**non_suggested**；承接：产品层建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M03.6：真实工具执行、后台状态和停止；停止不回滚外部效果 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M03.6：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M03.6：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-25 长期待机、主动推进与关注边界（PF-007 rev23 / PF-021 rev8）：M03.6：长期待机原子基础，不证明主动发现/目标管理已具备 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M03.6：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M03.6：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：来源闭合集约束，不准新增任意system来源；后台收场必须真实且位于合法占位之后 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-03等待价值、结束与再判断条件；PWP-10持有同一事情待处理意图与未到期一次性Schedule的归并关系；SP-07机械接收/轮询不启动模型，获准用户/agent的Schedule创建通过IF-04完成。；PWP-04（协同资源绑定与使命管理）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；PWP-06（事情、阶段、依赖与长期推进）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-03, SP-05, SP-07, SP-08, SP-10。
+
+**执行链**（EP-04, EP-06）：
+1. 等待回复/收益不足/目标变触发
+2. 读真实进展后选降投入、等、暂停或结束
+3. 保存后续触发状态，分别更新日程/关注并核在途
+4. 展示等谁或为何结束，保留成果历史
+5. 本候选选定路径，尚待实施：SP-07机械接收/轮询外部源并持久登记待处理意图，不为此启动模型。仅已有待处理意图且获准产品策略判定值得唤醒时，PWP-10经IF-04以真实租户归属和获准用户/agent创建一次性Schedule；同一事情已有未到期处理Schedule时归并意图，不新建另一份。外部事件无变化时不建立空轮询Job；另在用户已授权的主动工作范围内，由PWP-10以合法创建者装配定期自省Schedule，以现有经验发现新工作，不要求用户每次新发指令。默认启用、频率与投入额度沿D03待定；真正简报/检查另按用户选择。到期Job新建专属会话，经普通获准工具读取当前意图与事情。补跑、重叠、通知声明必须显式配置，具体值待产品决定。Job首条是否采用scheduled_trigger由IF-04/HWP-06定形；若采用，只记录真实日程触发，原事件来源/时点另存。 后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**持久化与一致性**：feature_specific：等待/关闭条件持久，不仅停计时器；迟到事件读当前使命，不能复活已结束工作；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；event_schedule_commit：PWP-10在产品存储内提交事情—待处理意图—未到期Schedule的归并关系及创建意图，框架Schedule接受是另一提交，经IF-04查回原接收回执后关联，不假设跨库原子。到期重新核当前授权和使命。竞争导致的空Job，工作目标可明确为“查验后确认无待处理事项”，需实际核查和完成依据，如实写日志，不编造产物。；background_lifetime：后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**失败与接续**：关闭关注失败留回执未决，但产品拒新任务；已发信息不称追回
+
+**验收（待执行）**：
+- 正常：等有价值回复期间不反复耗模型
+- 负向：窗口过期不无限查询，停后迟到消息不自动询价
+- 负向：没有待处理事件时SP-07机械观察不反复创建agent Job；同事情事件突发归并已有未到期一次性Schedule；空竞争Job只能凭实际查验记录达成明确的无待处理目标。
+
+**依赖**：FC-07, FC-14, FC-15, FC-17, FC-21, FC-25, FC-29, PWP-03, PWP-04, PWP-06, SWP-03, SWP-05, SWP-07, SWP-08, SWP-10, PWP-10, IF-04, HWP-06。
+
+**仍需确定/建设**：重新启动条件、等待期限、收益判据待产品定；IF-04/HWP-06须定形代租户创建的操作发起者、接收查回和Job首条输入；scheduled_trigger若被采用只记录真实触发，不声称该衔接已有接受契约。；补跑、重叠、通知声明及延迟/归并值显式配置但数值待产品决定；周期agent Job只用于用户明确安排。IF-08任意异步会话注入不在本候选基础路径。
+
+## M03.7 有界自主性
+
+> 自主行动遵循与直接委托相同的授权、预算和风险规则；缺少能力时不能自己扩大管理权限。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L198；状态：**non_suggested**；承接：既有承诺组合；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M03.7：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M03.7：真实工具执行、后台状态和停止；停止不回滚外部效果 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-11 行动入口与多Agent协作（PF-007 rev23 / PF-015 rev20）：M03.7：有界行动/委派，子权限不宽于父；TodoItems不是长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-12 HITL、确认卡片与显式授权（PF-008 rev7 / PF-007 rev23）：M03.7：明确决定与不自动作答，未读/推断不能作批准 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-03复用直接委托准入；SP-02/10附加资源/预算；框架卡片仅投影/转发至PF-008池；产品业务决定仍由本功能所属产品owner唯一提交，两类状态不可互相代证。；外围 SP-02, SP-05, SP-07, SP-10。
+
+**执行链**（EP-03, EP-04, EP-06, EP-09）：
+1. 自主动作携目标/范围/预算进入
+2. 框架准入及父子权限交集，外部范围另核
+3. 全部满足才接收，有缺口转决定/拒绝
+4. 显示真实执行或能力缺席，助理只引导配置
+
+**持久化与一致性**：feature_specific：批准绑定具体对象/动作，引用真实权威；外部效果不与意图同事务，委派不造可扩权许可；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；decision_authority：决定按类型只有一个权威：框架Ask/系统拦截卡片仅由PF-008决策池提交；SaaS仅持投影，经IF-07携卡片身份和适用版本向池答复入口转发，不复制批准。池回执前显示“已提交待确认”，原生入口与SaaS入口的竞争由池裁决。产品业务决定由其具名产品owner单独提交，不能当框架卡片批准。
+
+**失败与接续**：产品allow不盖框架deny；缺密钥不借别账号，缺预算不换来源
+
+**验收（待执行）**：
+- 正常：已授权读取主动和直接两路同样顺畅
+- 负向：子助理请求父范围外目录/预算必须拒绝
+
+**依赖**：FC-04, FC-07, FC-11, FC-12, PWP-03, SWP-02, SWP-05, SWP-07, SWP-10, IF-07。
+
+**仍需确定/建设**：资源级许可与框架权限的逐提供者映射待承接
+
+## M03.8 用户调整自主程度
+
+> 用户能针对一件事或整体暂停新的主动行动，改变投入约束；产品交代正在进行的动作及其实际结局。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L199；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M03.8：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M03.8：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M03.8：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M03.8：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-03事情级/全局自主程度，暂停新动作不等于在途全停；PWP-04（协同资源绑定与使命管理）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；PWP-06（事情、阶段、依赖与长期推进）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-02, SP-03, SP-05, SP-06, SP-07, SP-10。
+
+**执行链**（EP-04, EP-06）：
+1. 用户暂停/改投入，产品按版本提交范围
+2. 后续意图与派发检查该控制版本
+3. 对在途动作按能力发停止并核对
+4. 显示新工作停用、各在途结局和实际费用
+
+**持久化与一致性**：feature_specific：控制版本与新工作接受在同产品事务判定；跨节点取消有独立回执，不造原子停机；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。
+
+**失败与接续**：离线未确认仍显示未确认；不能误停范围外直接委托
+
+**验收（待执行）**：
+- 正常：暂停活动探索后不造新任务，旧上传完成如实显示
+- 负向：暂停提交后的新接收拒绝；已发邮件不称收回
+
+**依赖**：FC-14, FC-15, FC-21, FC-29, PWP-03, PWP-04, PWP-06, SWP-02, SWP-03, SWP-05, SWP-06, SWP-07, SWP-10。
+
+**仍需确定/建设**：暂停是否涵盖简报/关注按真实用户意图，不能填默认
+
+## M03.9 反馈进入后续判断
+
+> 行动有效、无效或被用户纠正后，助理能调整后续策略，避免反复制造同一种低价值工作。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L200；状态：**non_suggested**；承接：产品层建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-18 上下文组装、压缩和持久投影（PF-010 rev7 / PF-015 rev20）：M03.9：日志派生上下文及保留原消息，不提供完整长期记忆 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-24 知识结构与长期记忆边界（PF-007 rev23 / PF-010 rev7）：M03.9：仅记忆未承诺边界：Engram占位不承担本功能 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-25 长期待机、主动推进与关注边界（PF-007 rev23 / PF-021 rev8）：M03.9：长期待机原子基础，不证明主动发现/目标管理已具备 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M03.9：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M03.9：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M03.9：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：来源闭合集约束，不准新增任意system来源；后台收场必须真实且位于合法占位之后 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-03成效与适用反馈，PWP-01纠正理解；PWP-10持有同一事情待处理意图与未到期一次性Schedule的归并关系；SP-07机械接收/轮询不启动模型，获准用户/agent的Schedule创建通过IF-04完成。；外围 SP-03, SP-04, SP-05, SP-07。
+
+**执行链**（EP-04, EP-11）：
+1. 完成/纠正/后续案例触发，读原目标与真实成果
+2. 分成已证成效、用户意见、未知
+3. 提交策略条件/理解新版本，不改历史结果
+4. 下次适用工作采用新规则并能解释
+5. 本候选选定路径，尚待实施：SP-07机械接收/轮询外部源并持久登记待处理意图，不为此启动模型。仅已有待处理意图且获准产品策略判定值得唤醒时，PWP-10经IF-04以真实租户归属和获准用户/agent创建一次性Schedule；同一事情已有未到期处理Schedule时归并意图，不新建另一份。外部事件无变化时不建立空轮询Job；另在用户已授权的主动工作范围内，由PWP-10以合法创建者装配定期自省Schedule，以现有经验发现新工作，不要求用户每次新发指令。默认启用、频率与投入额度沿D03待定；真正简报/检查另按用户选择。到期Job新建专属会话，经普通获准工具读取当前意图与事情。补跑、重叠、通知声明必须显式配置，具体值待产品决定。Job首条是否采用scheduled_trigger由IF-04/HWP-06定形；若采用，只记录真实日程触发，原事件来源/时点另存。 后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**持久化与一致性**：feature_specific：反馈ID去重；策略版本写入新工作依据，旧索引不盖已停用条件；历史消费保留；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；event_schedule_commit：PWP-10在产品存储内提交事情—待处理意图—未到期Schedule的归并关系及创建意图，框架Schedule接受是另一提交，经IF-04查回原接收回执后关联，不假设跨库原子。到期重新核当前授权和使命。竞争导致的空Job，工作目标可明确为“查验后确认无待处理事项”，需实际核查和完成依据，如实写日志，不编造产物。；background_lifetime：后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**失败与接续**：无证据不自报有效，纠正失败不称已改
+
+**验收（待执行）**：
+- 正常：检查表特殊项目无效后调整适用条件
+- 负向：重复差评不重复造任务，也不删原外部效果
+
+**依赖**：FC-15, FC-17, FC-18, FC-21, FC-25, FC-29, PWP-01, PWP-03, SWP-03, SWP-04, SWP-05, SWP-07, PWP-10, IF-04, HWP-06。
+
+**仍需确定/建设**：成效窗口、更新政策与试验范围由产品定；IF-04/HWP-06须定形代租户创建的操作发起者、接收查回和Job首条输入；scheduled_trigger若被采用只记录真实触发，不声称该衔接已有接受契约。；补跑、重叠、通知声明及延迟/归并值显式配置但数值待产品决定；周期agent Job只用于用户明确安排。IF-08任意异步会话注入不在本候选基础路径。
+
+## M04.1 从意图建立资源
+
+> 自然语言与显式添加入口都可建立资源。已有语境足够时由助理补全用途和对象，避免手填技术参数。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L210；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M04.1：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-08 MCP接入与外部服务凭据（PF-002 rev31 / PF-006 rev23）：M04.1：MCP动作/凭据边界，具体第三方适配另建 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-11 行动入口与多Agent协作（PF-007 rev23 / PF-015 rev20）：M04.1：有界行动/委派，子权限不宽于父；TodoItems不是长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M04.1：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-04事情与往来/材料/能力的使命绑定，不等同框架资产；PWP-06（事情、阶段、依赖与长期推进）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-02, SP-03, SP-06, SP-07。
+
+**执行链**（EP-03, EP-12）：
+1. 表达接入意图时读已有目的/对象
+2. 在可见范围定位，必要事实缺才澄清
+3. 产品提交绑定ID/用途/范围，连接另核真实状态
+4. 交可引用名称、内容与实际动作
+
+**持久化与一致性**：feature_specific：绑定产品唯一写，框架/连接身份仅引用；请求重放复用绑定，连接未成不显示可用；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：缺权限给授权入口；同名不唯一则问，不猜技术参数
+
+**验收（待执行）**：
+- 正常：自然语言接入印刷商打样往来得到具体线程
+- 负向：未连接邮箱不能声称已读，意图不能扩大账户范围
+
+**依赖**：FC-04, FC-08, FC-11, FC-20, PWP-04, PWP-06, SWP-02, SWP-03, SWP-06, SWP-07。
+
+**仍需确定/建设**：类型、必须信息与建立流程待产品定
+
+## M04.2 发现当前可用能力
+
+> 用户与助理能了解平台及已连接服务当前提供什么，哪些已授权、哪些还需连接或暂不支持。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L211；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M04.2：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-06 Agent定义、装配与重装配（PF-004 rev20 / PF-012 rev21）：M04.2：区分定义、装配、实际实现可用性 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-08 MCP接入与外部服务凭据（PF-002 rev31 / PF-006 rev23）：M04.2：MCP动作/凭据边界，具体第三方适配另建 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-11 行动入口与多Agent协作（PF-007 rev23 / PF-015 rev20）：M04.2：有界行动/委派，子权限不宽于父；TodoItems不是长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-04能力发现目录，定义/授权/实际就绪分开；外围 SP-02, SP-03, SP-05, SP-07。
+
+**执行链**（EP-01, EP-03, EP-12）：
+1. 查可用能力时读框架资产及实际装配
+2. SP-07补第三方连接/动作状态
+3. 区分可见、授权、实现就绪、不支持
+4. 给连接/问题入口，动作仍按当前准入
+
+**持久化与一致性**：feature_specific：目录派生，带来源版本；缓存不授权，提供者换代更新真实依据；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：提供者缺席显示定义在但不可执行，不泄露无权能力
+
+**验收（待执行）**：
+- 正常：邮箱可读、日历需连接、某源不支持发信分别显示
+- 负向：只有工具定义没有实现不得显示调用成功
+
+**依赖**：FC-04, FC-06, FC-08, FC-11, PWP-04, SWP-02, SWP-03, SWP-05, SWP-07。
+
+**仍需确定/建设**：平台能力与第三方支持目录待定，FC08不代证集成
+
+## M04.3 引用与创建可区分
+
+> 引用已存在的资源不重复新建；用户明确要求新建时，不擅自复用不合适的旧对象。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L212；状态：**non_suggested**；承接：产品层建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-13 持久会话、归档和运行模式（PF-015 rev20）：M04.3：会话身份、恢复和归档，不能代替产品长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M04.3：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M04.3：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-04引用/创建意图及精确身份；外围 SP-02, SP-03, SP-07。
+
+**执行链**（EP-03, EP-12）：
+1. 保留所选ID与明确新建意图
+2. 读现有绑定及有效范围
+3. 引用只复用，明确新建才提交新绑定
+4. 显示复用/新建谁，历史固定当时对象
+
+**持久化与一致性**：feature_specific：引用不写新对象；同创建请求去重，明确另一次新建不按名称吞并；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：旧对象无权不能悄换同名对象；新建缺条件则澄清
+
+**验收（待执行）**：
+- 正常：重复引用只一绑定，另轮询价有新身份
+- 负向：两个同名线程不能因名称相同误复用
+
+**依赖**：FC-13, FC-20, FC-29, PWP-04, SWP-02, SWP-03, SWP-07。
+
+**仍需确定/建设**：各资源身份和新使命边界待定
+
+## M04.4 统一标识与真实预览
+
+> 每种资源有可识别的名称、类型、用途、状态和适合其内容的预览；可以从对话与事情中直达。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L213；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：M04.4：来源、块与先记录后可见，预览不等已读取 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M04.4：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-27 CLI/TUI交付（PF-016 rev10）：M04.4：交付面不拥领域事实、关闭不丢工作，不等于Web/Desktop已交付 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-04共同行为和类型化真实预览；外围 SP-02, SP-03, SP-04, SP-07, SP-13。
+
+**执行链**（EP-02, EP-03, EP-12）：
+1. 查看资源读绑定/类型/用途/状态版本
+2. 按权限取得真实缩略图、往来或委派结果
+3. 按类型呈现，不用通用处理动画抹平
+4. 直达同一资源/原事情，预览不当已读
+
+**持久化与一致性**：feature_specific：预览可重建，关联内容版本；状态归真实执行权威，跨端同资源ID；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：预览失败不删原件；无权不回敏感缩略图
+
+**验收（待执行）**：
+- 正常：图片是真缩略图，邮件有联系人/消息，助理有交付
+- 负向：静态图不显示等待回复，点击不证明模型已读
+
+**依赖**：FC-17, FC-20, FC-27, PWP-04, SWP-02, SWP-03, SWP-04, SWP-07, SWP-13。
+
+**仍需确定/建设**：字段、遮蔽和客户端范围待产品定
+
+## M04.5 具体范围可读
+
+> 邮件往来明确参与对象和主题，资料范围明确文件或目录，其他助理明确委托内容；同名对象不混淆。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L214；状态：**non_suggested**；承接：产品层建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M04.5：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-08 MCP接入与外部服务凭据（PF-002 rev31 / PF-006 rev23）：M04.5：MCP动作/凭据边界，具体第三方适配另建 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M04.5：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-04按线程/目录/委托显示范围，名称不作身份；外围 SP-02, SP-03, SP-07。
+
+**执行链**（EP-03, EP-12）：
+1. 读资源真实对象引用
+2. 适配器核当前身份/范围，账户不等于整箱
+3. 同名用可辨信息，扩大范围转决定
+4. 展示包含对象和未覆盖内容
+
+**持久化与一致性**：feature_specific：用途/范围随绑定版本，历史固定选择；外部重命名不换身份；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：对象删除/不明不按名字找替身，无权不展开
+
+**验收（待执行）**：
+- 正常：打样显示参与者与线程，物料显示具体目录
+- 负向：同名不同归属目录不得误读
+
+**依赖**：FC-04, FC-08, FC-20, PWP-04, SWP-02, SWP-03, SWP-07。
+
+**仍需确定/建设**：稳定身份与范围解释依提供者承接
+
+## M04.6 按能力提供动作
+
+> 只展示实际可用的阅读、修改、发送、委派、关注等动作；只读内容不暗示可以编辑。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L215；状态：**non_suggested**；承接：既有承诺组合；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M04.6：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M04.6：真实工具执行、后台状态和停止；停止不回滚外部效果 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-08 MCP接入与外部服务凭据（PF-002 rev31 / PF-006 rev23）：M04.6：MCP动作/凭据边界，具体第三方适配另建 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-10 执行环境与沙箱（PF-005 rev8）：M04.6：获准环境及落点不可用拒绝，不静默降级 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-04实际动作菜单，前端隐藏不代替后端拒绝；外围 SP-02, SP-03, SP-05, SP-07。
+
+**执行链**（EP-03, EP-12）：
+1. 读资源支持动作和当前提供者
+2. 框架准入及资源权限决定可用/询问/不支持
+3. 执行时资源边界再核，保真实回执
+4. 只读不暗示编辑，邮件/助理各显示支持动作
+
+**持久化与一致性**：feature_specific：菜单是派生视图，执行记录采用范围；旧菜单不是许可；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：撤实现或权限后拒并解释，不静默改用其他账号
+
+**验收（待执行）**：
+- 正常：只读资料只有阅读，获准邮件可真实发送
+- 负向：开菜单后撤写权，再点修改必须拒
+
+**依赖**：FC-04, FC-07, FC-08, FC-10, PWP-04, SWP-02, SWP-03, SWP-05, SWP-07。
+
+**仍需确定/建设**：每种动作可恢复性和能力检测待明确
+
+## M04.7 持续关注相关变化
+
+> 对支持持续关注的资源，能够围绕当前目的接住新消息、版本或结果，并继续原事情。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L216；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-09 连接件：当前明确搁置（PF-002 rev31 / PF-015 rev20）：M04.7：仅证明当前Connector搁置，不列作可用订阅 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M04.7：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M04.7：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-25 长期待机、主动推进与关注边界（PF-007 rev23 / PF-021 rev8）：M04.7：长期待机原子基础，不证明主动发现/目标管理已具备 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M04.7：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：来源闭合集约束，不准新增任意system来源；后台收场必须真实且位于合法占位之后 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-04持续关注，SP-07回调/限定查询；FC09搁置不作现成基础；PWP-10持有同一事情待处理意图与未到期一次性Schedule的归并关系；SP-07机械接收/轮询不启动模型，获准用户/agent的Schedule创建通过IF-04完成。；PWP-06（事情、阶段、依赖与长期推进）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-02, SP-03, SP-05, SP-07, SP-08。
+
+**执行链**（EP-04, EP-12）：
+1. 资源变化到达核源并持久接受
+2. 读当前使命/范围，按来源事件去重
+3. 变化留原事情的待处理意图；PWP-10按本候选一次性Schedule组合接续，核对IF-04接收及Job处理回执，不直接异步注入任意会话。
+4. 交代变化与真实后续工作
+5. 本候选选定路径，尚待实施：SP-07机械接收/轮询外部源并持久登记待处理意图，不为此启动模型。仅已有待处理意图且获准产品策略判定值得唤醒时，PWP-10经IF-04以真实租户归属和获准用户/agent创建一次性Schedule；同一事情已有未到期处理Schedule时归并意图，不新建另一份。外部事件无变化时不建立空轮询Job；另在用户已授权的主动工作范围内，由PWP-10以合法创建者装配定期自省Schedule，以现有经验发现新工作，不要求用户每次新发指令。默认启用、频率与投入额度沿D03待定；真正简报/检查另按用户选择。到期Job新建专属会话，经普通获准工具读取当前意图与事情。补跑、重叠、通知声明必须显式配置，具体值待产品决定。Job首条是否采用scheduled_trigger由IF-04/HWP-06定形；若采用，只记录真实日程触发，原事件来源/时点另存。 后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**持久化与一致性**：feature_specific：订阅位置/事件ID/交接回执持久；外部接收和框架接受不一事务，重复不重派；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；event_schedule_commit：PWP-10在产品存储内提交事情—待处理意图—未到期Schedule的归并关系及创建意图，框架Schedule接受是另一提交，经IF-04查回原接收回执后关联，不假设跨库原子。到期重新核当前授权和使命。竞争导致的空Job，工作目标可明确为“查验后确认无待处理事项”，需实际核查和完成依据，如实写日志，不编造产物。；background_lifetime：后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**失败与接续**：游标过期限原范围补查并说缺口；使命结束/无权不发新工作
+
+**验收（待执行）**：
+- 正常：印刷商回复回原活动推动设计
+- 负向：结束使命的迟到邮件不复活催促，其他项目正常
+
+**依赖**：FC-15, FC-17, FC-21, FC-25, FC-29, PWP-04, PWP-06, PWP-10, SWP-02, SWP-03, SWP-05, SWP-07, SWP-08, IF-04, HWP-06。
+
+**仍需确定/建设**：支持资源/事件保证/补查范围需明确，不复活Connector承诺；IF-04/HWP-06须定形代租户创建的操作发起者、接收查回和Job首条输入；scheduled_trigger若被采用只记录真实触发，不声称该衔接已有接受契约。；补跑、重叠、通知声明及延迟/归并值显式配置但数值待产品决定；周期agent Job只用于用户明确安排。IF-08任意异步会话注入不在本候选基础路径。
+
+## M04.8 关注范围与频度有目的
+
+> 关注与目标、时效和资源代价相联系；不能默认遍历整个邮箱、目录或所有会话。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L217；状态：**non_suggested**；承接：产品层建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M04.8：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-25 长期待机、主动推进与关注边界（PF-007 rev23 / PF-021 rev8）：M04.8：长期待机原子基础，不证明主动发现/目标管理已具备 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M04.8：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M04.8：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M04.8：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：来源闭合集约束，不准新增任意system来源；后台收场必须真实且位于合法占位之后 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-04/PWP-03按目的/时效/成本选关注范围频度；PWP-10持有同一事情待处理意图与未到期一次性Schedule的归并关系；SP-07机械接收/轮询不启动模型，获准用户/agent的Schedule创建通过IF-04完成。；外围 SP-02, SP-03, SP-07, SP-10, SP-05。
+
+**执行链**（EP-04, EP-09, EP-12）：
+1. 读当前使命、授权对象和预算
+2. 选择支持的观察方式，必要选择才问
+3. 存配置版本并核Schedule/订阅采用回执
+4. 展示关注范围、可能检查时间和代价
+5. 本候选选定路径，尚待实施：SP-07机械接收/轮询外部源并持久登记待处理意图，不为此启动模型。仅已有待处理意图且获准产品策略判定值得唤醒时，PWP-10经IF-04以真实租户归属和获准用户/agent创建一次性Schedule；同一事情已有未到期处理Schedule时归并意图，不新建另一份。外部事件无变化时不建立空轮询Job；另在用户已授权的主动工作范围内，由PWP-10以合法创建者装配定期自省Schedule，以现有经验发现新工作，不要求用户每次新发指令。默认启用、频率与投入额度沿D03待定；真正简报/检查另按用户选择。到期Job新建专属会话，经普通获准工具读取当前意图与事情。补跑、重叠、通知声明必须显式配置，具体值待产品决定。Job首条是否采用scheduled_trigger由IF-04/HWP-06定形；若采用，只记录真实日程触发，原事件来源/时点另存。 后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**持久化与一致性**：feature_specific：配置和更新意图同产品事务；日程/订阅分步回执，重复更新不能留两套收费轮询；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；event_schedule_commit：PWP-10在产品存储内提交事情—待处理意图—未到期Schedule的归并关系及创建意图，框架Schedule接受是另一提交，经IF-04查回原接收回执后关联，不假设跨库原子。到期重新核当前授权和使命。竞争导致的空Job，工作目标可明确为“查验后确认无待处理事项”，需实际核查和完成依据，如实写日志，不编造产物。；background_lifetime：后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**失败与接续**：范围或预算不明不默认扩大，频度达不到说明
+
+**验收（待执行）**：
+- 正常：只关注打样线程并按窗口调整检查
+- 负向：游标丢失不得恢复成遍历整箱
+- 负向：没有待处理事件时SP-07机械观察不反复创建agent Job；同事情事件突发归并已有未到期一次性Schedule；空竞争Job只能凭实际查验记录达成明确的无待处理目标。
+
+**依赖**：FC-15, FC-17, FC-21, FC-25, FC-29, FC-30, PWP-03, PWP-04, PWP-10, SWP-02, SWP-03, SWP-05, SWP-07, SWP-10, IF-04, HWP-06。
+
+**仍需确定/建设**：默认频度/间隔/投入/首次引导待产品决策；IF-04/HWP-06须定形代租户创建的操作发起者、接收查回和Job首条输入；scheduled_trigger若被采用只记录真实触发，不声称该衔接已有接受契约。；补跑、重叠、通知声明及延迟/归并值显式配置但数值待产品决定；周期agent Job只用于用户明确安排。IF-08任意异步会话注入不在本候选基础路径。
+
+## M04.9 暂停与结束使命
+
+> 用户与助理可以在适当范围内暂停、结束资源的后续协作；已发生动作和成果仍可追溯。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L218；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M04.9：真实工具执行、后台状态和停止；停止不回滚外部效果 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M04.9：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M04.9：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M04.9：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-04使命暂停/结束，后续关注与在途结果分开；外围 SP-02, SP-03, SP-05, SP-07。
+
+**执行链**（EP-04, EP-06, EP-12）：
+1. 按期望版本提交使命状态
+2. 拒新工作，关闭计划/订阅并核回执
+3. 查询在途能否停并记录迟到真实结果
+4. 保历史成果，展示停/不可取消/未确认
+
+**持久化与一致性**：feature_specific：使命与新工作接收同产品事务判定；外部停止另核，卸载不回滚，旧Run不复活；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。
+
+**失败与接续**：关订阅失败仍拒新派发并留适配器核对责任
+
+**验收（待执行）**：
+- 正常：活动完成停止关注但历史可读
+- 负向：结束后迟到回复不得新建设计委派，已发询价留真记录
+
+**依赖**：FC-07, FC-14, FC-21, FC-29, PWP-04, SWP-02, SWP-03, SWP-05, SWP-07。
+
+**仍需确定/建设**：自动完成与暂停恢复规则待定
+
+## M04.10 连接与资源各自管理
+
+> 结束一段供应商往来不切断整个邮箱；撤销邮箱授权则如实影响依赖它的资源。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L219；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-08 MCP接入与外部服务凭据（PF-002 rev31 / PF-006 rev23）：M04.10：MCP动作/凭据边界，具体第三方适配另建 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M04.10：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M04.10：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-04使命与长期连接分管，撤连接再传播依赖；外围 SP-02, SP-03, SP-07。
+
+**执行链**（EP-06, EP-12）：
+1. 先说明结束往来/撤邮箱两种范围
+2. 前者写使命，后者连接权威写失效/收紧
+3. 查询依赖资源分别显示失去能力与在途状态
+4. 单项目结束不影响别项目，整箱撤权留历史
+
+**持久化与一致性**：feature_specific：凭据、使命、外部往来各自权威，不级联删除；收紧先提交再逐绑定回执；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。
+
+**失败与接续**：撤权失败不能显成功；已外发内容不称追回
+
+**验收（待执行）**：
+- 正常：结束打样保其他项目，撤邮箱后依赖读取被拒
+- 负向：旧缓存密钥不能给新资源绕过已撤权
+
+**依赖**：FC-04, FC-08, FC-29, PWP-04, SWP-02, SWP-03, SWP-07。
+
+**仍需确定/建设**：服务撤权确认、缓存内容保留和传播边界待明确
+
+## M04.11 多资源关系可理解
+
+> 设计结果可以成为印刷沟通的输入；用户能看懂依赖，信息流转遵守各自的可见与分享范围。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L220；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M04.11：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-11 行动入口与多Agent协作（PF-007 rev23 / PF-015 rev20）：M04.11：有界行动/委派，子权限不宽于父；TodoItems不是长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M04.11：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M04.11：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-04资源成果依赖及获准交付，不等于通用共享；PWP-09（联系人、往来与外部协作）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；PWP-11（调查、委派与交付核对）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-02, SP-03, SP-04, SP-07。
+
+**执行链**（EP-03, EP-12）：
+1. 设计结果作印刷输入时读确切版本
+2. 核接收者范围与父子边界，只交获准子集
+3. 外部适配/框架委派实际接受并记材料去向
+4. 用户可沿依赖看实际输入/输出/确认
+
+**持久化与一致性**：feature_specific：依赖引用持久版本；先发布可引用成果再交付，跨资源动作ID/回执核对无原子外发；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：输入无权则下游等待，独立工作继续；发信不明先核对
+
+**验收（待执行）**：
+- 正常：尺寸给印刷商而私人注解留私有
+- 负向：能读团队资料不等于能发客户，不能借子助理绕过
+
+**依赖**：FC-04, FC-11, FC-20, FC-29, PWP-04, PWP-09, PWP-11, SWP-02, SWP-03, SWP-04, SWP-07。
+
+**仍需确定/建设**：流转类型、版本授权与外部追溯能力待定
+
+## M04.12 授权一次，范围内顺畅使用
+
+> 已授权的读取与可恢复操作不因新建会话资源而重复询问；超出原范围时提供清楚的授权入口。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L221；状态：**non_suggested**；承接：既有承诺组合；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M04.12：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M04.12：真实工具执行、后台状态和停止；停止不回滚外部效果 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-08 MCP接入与外部服务凭据（PF-002 rev31 / PF-006 rev23）：M04.12：MCP动作/凭据边界，具体第三方适配另建 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-12 HITL、确认卡片与显式授权（PF-008 rev7 / PF-007 rev23）：M04.12：明确决定与不自动作答，未读/推断不能作批准 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-04复用有效许可，不能吞掉框架工作区工具每次询问；框架卡片仅投影/转发至PF-008池；产品业务决定仍由本功能所属产品owner唯一提交，两类状态不可互相代证。；外围 SP-02, SP-03, SP-07。
+
+**执行链**（EP-03, EP-06, EP-12）：
+1. 新会话资源读已有授权与明确决定
+2. 框架准入独立，SP-02只去同义连接确认
+3. 范围内顺畅动作，扩大对象/后果转新决定
+4. 解释复用或超范围，各端同一决定
+
+**持久化与一致性**：feature_specific：批准绑定对象/动作/材料版本，只有决定权威写；新绑定不复制新批准；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；decision_authority：决定按类型只有一个权威：框架Ask/系统拦截卡片仅由PF-008决策池提交；SaaS仅持投影，经IF-07携卡片身份和适用版本向池答复入口转发，不复制批准。池回执前显示“已提交待确认”，原生入口与SaaS入口的竞争由池裁决。产品业务决定由其具名产品owner单独提交，不能当框架卡片批准。
+
+**失败与接续**：无权拒新效果；PF002§5.7每次问不能由一次邮箱连接覆盖
+
+**验收（待执行）**：
+- 正常：已授权日历查询不再重复问本会话是否连接
+- 负向：另一邮箱或工作区自带每次问工具不能凭旧许可执行
+
+**依赖**：FC-04, FC-07, FC-08, FC-12, PWP-04, SWP-02, SWP-03, SWP-07, IF-07。
+
+**仍需确定/建设**：首批顺畅动作选合法资产来源/配置，必要框架询问仍显式
+
+## M05.1 登录接入自己的设备
+
+> 通过产品提供的登录和引导接入设备或远程节点，无需用户部署注册中心、指定主节点或手动配置节点间连接。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L237；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-02 身份、租户与组织治理（PF-001 rev24）：M05.1：身份/租户权威，产品不重建主本 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-03 账号注册、登录及凭据（PF-001 rev24）：M05.1：账号与登录权威，SaaS补认证映射与引导 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M05.1：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-05设备引导，SP-06配对/身份桥/传输；不另造框架节点主本；本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；PWP-14（跨端与桌宠交互体验）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-01, SP-02, SP-03, SP-05, SP-06, SP-13。
+
+**执行链**（EP-01, EP-05）：
+1. SP-01核实账号并拥有设备登记，SP-06通过IF-03配对远端工具执行节点，保存接入观察/回执。
+2. SP-06登记真实能力和节点可提供的资料范围；登录不授予整盘读取。
+3. 中心cell的会话/Run通过远端工具适配调用获准能力，节点不另建权威Run。
+4. 同账号可见手机与三服务器并查询接入结果，不要求用户配置节点间连接。
+
+**持久化与一致性**：feature_specific：设备登记归SP-01；SP-06拥有配对/传输观察，原框架主体/工作区身份仍各自权威。IF-03接收回执不等于中心Run执行完成。；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。；node_execution_boundary：本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。
+
+**失败与接续**：中断续原流程；身份拒绝/资料未授权明示
+
+**验收（待执行）**：
+- 正常：手机三服务器通过产品引导接入，无手工主节点地址
+- 负向：中断重试不造两节点，登录不默认读整盘
+
+**依赖**：FC-02, FC-03, FC-26, PWP-05, PWP-14, SWP-01, SWP-02, SWP-03, SWP-05, SWP-06, SWP-13, IF-03。
+
+**仍需确定/建设**：目标态接入/身份技术契约、首批OS和安装方式待承接；IF-03须承接中心Run→远端受限工具的接收查回、停止、观察回传与效果原键协议；节点据点会话不在本候选路径，需未来另行设计。
+
+## M05.2 设备与节点概览
+
+> 能查看自己的手机、电脑、云服务器及平台工作环境的在线情况、可提供能力和当前可用状态。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L238；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M05.2：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M05.2：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M05.2：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-05节点概览，SP-06真实能力及最近观察；本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；外围 SP-03, SP-05, SP-06, SP-13。
+
+**执行链**（EP-05, EP-08）：
+1. 查设备/选落点时读框架节点和回执
+2. 区分在线、最后已知、离线、未知并带时点
+3. 关联实际工作和允许能力
+4. 同视图列手机/电脑/云端/平台，登记不等可执行
+
+**持久化与一致性**：feature_specific：状态为观察投影，来源代际/时点阻止旧上报覆盖新事实；派发前再核接受条件；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。；node_execution_boundary：本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。
+
+**失败与接续**：查询失败显示最后已知/未知，不把所有任务标失败
+
+**验收（待执行）**：
+- 正常：三台节点显示能力和时点，乙离线仅相关部分受阻
+- 负向：迟到在线回执不能掩盖新离线，列表存在不代表可派发
+
+**依赖**：FC-20, FC-26, FC-30, PWP-05, SWP-03, SWP-05, SWP-06, SWP-13, IF-03。
+
+**仍需确定/建设**：在线判据、频度、能力版本协议待明确，不预填超时；IF-03须承接中心Run→远端受限工具的接收查回、停止、观察回传与效果原键协议；节点据点会话不在本候选路径，需未来另行设计。
+
+## M05.3 感知算力与资料分布
+
+> 助理了解哪些节点拥有合适的算力、软件或生产资料；节点可见不等于其中所有文件都被授权读取。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L239；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M05.3：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M05.3：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M05.3：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M05.3：中心cell的Session/Run及日志保权威，远端节点没有第二权威Run。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M05.3：IF-03将中心会话绑定的工具执行适配到远端节点；节点接收/执行/回执不改变工具runtime归属。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-05条件发现，材料位置可见不等有读取权；本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；外围 SP-02, SP-03, SP-06。
+
+**执行链**（EP-05）：
+1. 中心读取获准节点能力、软件及工作区实例/材料位置观察。
+2. 分别核节点可见、框架工作区关系、资料可读和工具可执行，不将共用实例固定归单租户。
+3. PWP-05选择可承担中心Run工具调用的候选，受限原文仍留当地。
+4. 解释甲算力、乙独有材料、丙空闲与缺口；实际读取由IF-03远端工具回执交回中心Run。
+
+**持久化与一致性**：feature_specific：工作区/实例引用框架权威，不固定归单租户；会话按关系/组织参与装配，产品存发现回执；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。；node_execution_boundary：本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。
+
+**失败与接续**：过时声明或无权材料明确拒绝，不暗复制或猜内容
+
+**验收（待执行）**：
+- 正常：发现乙独有资料和甲强算力两种事实
+- 负向：共用实例其他租户文件不能因节点可见而读
+
+**依赖**：FC-04, FC-20, FC-26, PWP-05, SWP-02, SWP-03, SWP-06, IF-03, FC-14, FC-07。
+
+**仍需确定/建设**：能力发现、索引可见与软件清单需技术承接；IF-03须承接中心Run→远端受限工具的接收查回、停止、观察回传与效果原键协议；节点据点会话不在本候选路径，需未来另行设计。
+
+## M05.4 按任务需要分派
+
+> 可以因算力更适合、材料就在当地、所需工具只在那里或成本与时效更合适，把工作交给相应节点。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L240；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：XL（非人周）。
+
+**框架依据与边界**：
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M05.4：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M05.4：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M05.4：真实工具执行、后台状态和停止；停止不回滚外部效果 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M05.4：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M05.4：中心cell的Session/Run及日志保权威，远端节点没有第二权威Run。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-05落点产品策略；SP-06适配中心Run的远端工具请求及节点观察/回执，不在节点建立权威Run。；本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；PWP-03（有界主动工作与资源取舍）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-02, SP-03, SP-05, SP-06, SP-10。
+
+**执行链**（EP-05, EP-09）：
+1. 中心cell读取任务资料、工具、地点和预算，PWP-05保存选点理由。
+2. 中心Run发起有界远端工具调用，IF-03透传原调用身份、范围与框架效果幂等键。
+3. 用户节点只持久接收、执行并返回观察/回执；中心核对后把真实结果落原Run日志，不迁Run、不另开节点Run。
+4. 产品从中心权威投影落点和成果；节点只接受不得显示已运行或已完成。
+
+**持久化与一致性**：feature_specific：中心Run持派发与效果权威，节点接收/执行日志仅作适配回执和对账输入。每个中心cell维持其单可写拥有者；这不是把同一Run移动到用户节点。；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。；node_execution_boundary：本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。
+
+**失败与接续**：拒绝/缺条件后才选允许候选；旧执行不明先核，不换节点重做外部效果
+
+**验收（待执行）**：
+- 正常：算力需求选甲、独有资料选乙，真实当地执行可查
+- 负向：甲快但无材料许可，不得绕限制送甲
+
+**依赖**：FC-07, FC-20, FC-26, FC-30, PWP-03, PWP-05, SWP-02, SWP-03, SWP-05, SWP-06, SWP-10, IF-03, FC-14。
+
+**仍需确定/建设**：跨节点接受/执行/核对技术契约待承接，成本策略产品决定；IF-03须承接中心Run→远端受限工具的接收查回、停止、观察回传与效果原键协议；节点据点会话不在本候选路径，需未来另行设计。
+
+## M05.5 让工作靠近受限材料
+
+> 材料不能离开原节点时，能够在允许的节点上处理并带回获准返回的结果；先说明结果是否仍可能包含敏感内容。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L241；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：XL（非人周）。
+
+**框架依据与边界**：
+- FC-16 模型档案、调用、切换与重试（PF-013 rev14）：M05.5：模型来源/调用边界，统一OpenRouter 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M05.5：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M05.5：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-10 执行环境与沙箱（PF-005 rev8）：M05.5：获准环境及落点不可用拒绝，不静默降级 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M05.5：中心cell的Session/Run及日志保权威，远端节点没有第二权威Run。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M05.5：IF-03将中心会话绑定的工具执行适配到远端节点；节点接收/执行/回执不改变工具runtime归属。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-18 上下文组装、压缩和持久投影（PF-010 rev7 / PF-015 rev20）：生命周期边界：PF-010 §6.12既有会话内联记录不可擦除；本项不借删除/泄漏处置承诺回滚日志。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-05/SP-06受限材料范围涵盖提示/摘要/stdout/日志/结果；本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；外围 SP-02, SP-03, SP-04, SP-06, SP-11。
+
+**执行链**（EP-05）：
+1. 记录原文不可出指定节点以及可执行/可返回范围；中心只接触获准元信息。
+2. 中心Run经IF-03让当地获准确定性工具处理；所有模型仍统一OpenRouter，受限原文不能进远端模型。
+3. 节点在任何字节进入cell日志、stdout/trace上传或成果返回前做出站核查；原文/敏感派生内容无许可不外发。
+4. 中心Run仅接收获准结果并结算；确需远端模型读原文的子任务等待范围调整或停止，不能用local LLM绕路。
+
+**持久化与一致性**：feature_specific：限制版本与采用依据持久；原字节留授权节点，输出获准后另发布版本；遥测只含许可内容，恢复不自动上传缓存；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。；node_execution_boundary：本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；locality_precondition_and_incident：受限原文及可泄漏的摘要/stdout/trace/结果必须在节点出站、进入cell日志之前核查；这是保持原文不出节点的前提。内容一旦进入框架追加日志，不能承诺擦除或回滚（PF-010 §6.12）；发现泄漏须标记、隔离调查并停止该来源后续外发及受污染上下文的模型使用，不能虚称已追回。
+
+**失败与接续**：不允许模型输入/日志/摘要/结果由边界拒绝；不能local LLM绕统一路由。受限内容意外进入云端追加日志：节点出口与中心运行控制owner负责；明确泄漏和不可擦除事实，停止该来源后续外发及受污染上下文模型使用；隔离调查并纠正出口；不承诺删除日志、补偿回滚或追回已外发内容
+
+**验收（待执行）**：
+- 正常：当地工具产获准统计，原文未进模型/日志/返回内容
+- 负向：必须远端模型读保密全文时明示受阻，不假称本地处理后上传提示或trace
+
+**依赖**：FC-10, FC-16, FC-20, FC-26, PWP-05, SWP-02, SWP-03, SWP-04, SWP-06, SWP-11, IF-03, FC-14, FC-07。
+
+**仍需确定/建设**：限制判断、返回类型、节点信任与输出审查需明确，摘要不默认可外传；IF-03须承接中心Run→远端受限工具的接收查回、停止、观察回传与效果原键协议；节点据点会话不在本候选路径，需未来另行设计。
+
+## M05.6 跨节点协同完成一件事
+
+> 可以在一个节点整理材料、在另一个节点执行允许的计算，再将成果汇回同一件事；中间交接不要求用户手动搬运。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L242；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：XL（非人周）。
+
+**框架依据与边界**：
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M05.6：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M05.6：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-11 行动入口与多Agent协作（PF-007 rev23 / PF-015 rev20）：仅参照有界委托和权限不放大的原则；本M05路径是远端工具适配，不在节点spawn/delegate权威会话，也不使用peer_session_note。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M05.6：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M05.6：中心cell的Session/Run及日志保权威，远端节点没有第二权威Run。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M05.6：IF-03将中心会话绑定的工具执行适配到远端节点；节点接收/执行/回执不改变工具runtime归属。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-05/PWP-06同事情多节点工作与中间成果权限；本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；外围 SP-02, SP-03, SP-04, SP-05, SP-06, SP-10。
+
+**执行链**（EP-05）：
+1. 中心Run取得乙远端工具的实际处理观察和获准中间版本。
+2. 节点出站确认后才可把获准中间内容供甲，中心核能力/权限并发起下一远端工具调用。
+3. 乙接收/执行回执、成果发布、甲接受均分别核对；两节点只有适配记录，权威工作结局落中心Run。
+4. 手机在原事情取得中心确认的组合结果，无须手工搬运。
+
+**持久化与一致性**：feature_specific：乙工具观察返回、中心认可获准成果、甲工具接受分别提交；跨节点无原子事务。所有调用关联中心Run，各节点不拥有第二份业务终态。；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。；node_execution_boundary：本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。
+
+**失败与接续**：甲故障留乙成果/待交接；收紧范围后不传原件兜底
+
+**验收（待执行）**：
+- 正常：允许中间统计时乙整理甲计算，手机同事情收成果
+- 负向：乙回执丢失不重做已发效果；禁止中间内容外传则不交甲
+
+**依赖**：FC-20, FC-26, FC-29, PWP-05, PWP-06, SWP-02, SWP-03, SWP-04, SWP-05, SWP-06, SWP-10, IF-03, FC-14, FC-07。
+
+**仍需确定/建设**：中间格式、接收与授权交接协议待技术承接；IF-03须承接中心Run→远端受限工具的接收查回、停止、观察回传与效果原键协议；节点据点会话不在本候选路径，需未来另行设计。
+
+## M05.7 落点与理由可追问
+
+> 用户能知道工作实际在哪里运行、为何选它、是否在等待节点；选择未确定时不提前显示为已执行。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L243；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M05.7：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M05.7：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M05.7：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M05.7：中心cell的Session/Run及日志保权威，远端节点没有第二权威Run。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M05.7：IF-03将中心会话绑定的工具执行适配到远端节点；节点接收/执行/回执不改变工具runtime归属。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-05落点理由与执行证据查询，选择/接受/运行/完成分开；本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；外围 SP-03, SP-06。
+
+**执行链**（EP-05, EP-08）：
+1. 查询中心Run的派发意图、实际日志及IF-03节点观察回执。
+2. 读取选点时采用的资料位置、能力及成本/时效依据。
+3. 按最强已证事实区分选定、节点接受、执行观察和中心结算，不能以接受代替完成。
+4. 给出真实执行地点、选择理由、等待条件和原事情成果入口。
+
+**持久化与一致性**：feature_specific：选择意图与执行结局由中心Run日志核对；节点只提供实际观察/回执。产品按原工作关联投影，动画不构成执行证据。；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。；node_execution_boundary：本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。
+
+**失败与接续**：失联显示最后观察/待核对；缺回执不等没运行
+
+**验收（待执行）**：
+- 正常：手机解释选乙因资料仅乙可读并有读取记录
+- 负向：分派成功不得显示分析完成；未接受不得显示已执行
+
+**依赖**：FC-26, FC-29, FC-30, PWP-05, SWP-03, SWP-06, IF-03, FC-14, FC-07。
+
+**仍需确定/建设**：节点执行证据粒度和状态协议待承接；IF-03须承接中心Run→远端受限工具的接收查回、停止、观察回传与效果原键协议；节点据点会话不在本候选路径，需未来另行设计。
+
+## M05.8 用户约束与指定
+
+> 用户可以要求“只在这台机器处理”“不要搬出这些文件”“暂时不用这台服务器”，助理据此重新判断。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L244；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M05.8：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-10 执行环境与沙箱（PF-005 rev8）：M05.8：获准环境及落点不可用拒绝，不静默降级 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-16 模型档案、调用、切换与重试（PF-013 rev14）：M05.8：模型来源/调用边界，统一OpenRouter 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M05.8：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M05.8：中心cell的Session/Run及日志保权威，远端节点没有第二权威Run。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M05.8：IF-03将中心会话绑定的工具执行适配到远端节点；节点接收/执行/回执不改变工具runtime归属。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-18 上下文组装、压缩和持久投影（PF-010 rev7 / PF-015 rev20）：生命周期边界：PF-010 §6.12既有会话内联记录不可擦除；本项不借删除/泄漏处置承诺回滚日志。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-05用户地点/数据/节点限制进入派发及输出校验；本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；外围 SP-02, SP-03, SP-06, SP-10。
+
+**执行链**（EP-05, EP-06）：
+1. 用户只许某机/禁外传/停某机，提交约束版本
+2. 读受影响未发/在途及已有效果
+3. 新工作满足新限制，在途按能力请求停并核输出
+4. 说明重选、受阻和未确认
+
+**持久化与一致性**：feature_specific：产品约束与新派发接受在同一产品事务核对；节点适配仅保原调用依据和控制回执，实际执行结局回中心Run日志，产品不能新增框架授权。；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。；node_execution_boundary：本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；locality_precondition_and_incident：受限原文及可泄漏的摘要/stdout/trace/结果必须在节点出站、进入cell日志之前核查；这是保持原文不出节点的前提。内容一旦进入框架追加日志，不能承诺擦除或回滚（PF-010 §6.12）；发现泄漏须标记、隔离调查并停止该来源后续外发及受污染上下文的模型使用，不能虚称已追回。
+
+**失败与接续**：无合规候选说明缺口，不能降级地点；控制未达不称停止
+
+**验收（待执行）**：
+- 正常：暂不用甲后新计算选允许丙，独有文档仍留乙
+- 负向：换模型/助理不能洗掉禁止外传，OpenRouter与日志同受约束
+
+**依赖**：FC-04, FC-10, FC-16, FC-26, PWP-05, SWP-02, SWP-03, SWP-06, SWP-10, IF-03, FC-14, FC-07。
+
+**仍需确定/建设**：在途对新限制的生效与结果交付政策依能力明确；IF-03须承接中心Run→远端受限工具的接收查回、停止、观察回传与效果原键协议；节点据点会话不在本候选路径，需未来另行设计。
+
+## M05.9 交互入口独立于执行地点
+
+> 手机锁屏或关闭客户端不应被解释成远程工作停止；仍在运行、受阻或完成的实际情况返回原事情。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L245；状态：**non_suggested**；承接：既有承诺组合；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-13 持久会话、归档和运行模式（PF-015 rev20）：M05.9：会话身份、恢复和归档，不能代替产品长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M05.9：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M05.9：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-27 CLI/TUI交付（PF-016 rev10）：M05.9：交付面不拥领域事实、关闭不丢工作，不等于Web/Desktop已交付 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M05.9：IF-03将中心会话绑定的工具执行适配到远端节点；节点接收/执行/回执不改变工具runtime归属。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-05/PWP-14交互连接与执行寿命分离；本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；外围 SP-03, SP-05, SP-06, SP-08, SP-13。
+
+**执行链**（EP-05, EP-08）：
+1. 手机锁屏只结束交互订阅，不取消中心cell的持久会话/Run。
+2. 中心Run及其已发出的远端工具按真实能力继续，节点回执交回中心。
+3. 结果由中心日志及产品事情投影保留；必要框架卡片仍以池为权威。
+4. 重登查询原Run/事情，若依赖关闭本机则报受阻，不承诺断电设备继续。
+
+**持久化与一致性**：feature_specific：中心cell留持久会话、日志、输入回执与结果；节点保适配观察供核对。客户端游标不承载Run寿命，断流不新建Run、不重派。；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。；node_execution_boundary：本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。
+
+**失败与接续**：真实依赖已关闭本机则报受阻，不承诺断电工作
+
+**验收（待执行）**：
+- 正常：手机锁屏后甲计算，回来取同一成果
+- 负向：只有手机工具的步骤离线受阻，不虚构云端完成
+
+**依赖**：FC-13, FC-14, FC-26, FC-27, PWP-05, PWP-14, SWP-03, SWP-05, SWP-06, SWP-08, SWP-13, IF-03, FC-07。
+
+**仍需确定/建设**：客户端离线能力/本机远端提示待支持表，不改框架离线承诺；IF-03须承接中心Run→远端受限工具的接收查回、停止、观察回传与效果原键协议；节点据点会话不在本候选路径，需未来另行设计。
+
+## M05.10 节点离线与替代
+
+> 节点离线时说明受影响部分；只有材料、能力与授权允许时才换到其他节点，不能把本地资料可用性凭空带走。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L246；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：XL（非人周）。
+
+**框架依据与边界**：
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M05.10：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M05.10：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M05.10：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M05.10：中心cell的Session/Run及日志保权威，远端节点没有第二权威Run。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M05.10：IF-03将中心会话绑定的工具执行适配到远端节点；节点接收/执行/回执不改变工具runtime归属。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-05替代条件，未知效果不自动故障转移；本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；外围 SP-02, SP-03, SP-05, SP-06, SP-10。
+
+**执行链**（EP-05, EP-08）：
+1. 节点失联时中心保留原Run和调用身份，SP-06提供最后观察及受影响依赖。
+2. 先核节点/效果提供者回执，已成结果回原Run，未知仍未知。
+3. 用户自有节点没有平台停机取证；只对无副作用、可证未发生或同原幂等键可证安全的步骤考虑替代。
+4. 合规替代仍是中心Run调用其他节点的工具；资料只在离线乙时等待，不另开节点权威Run。
+
+**持久化与一致性**：feature_specific：中心保原Run和原效果键，替代仅是另一允许远端工具落点，不迁移Run。用户节点无平台停止取证；不能用平台VM/磁盘围栏假设证明用户节点已停止。；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。；node_execution_boundary：本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。
+
+**失败与接续**：乙独有材料不在甲凭空出现；未知发送由原执行/外部适配核对。用户自有节点不具备平台侧停机取证；替代仅限无副作用计算、可查询证实原效果未发生，或同一原幂等键在实际效果提供者明确保证下可安全重试的步骤。否则保留未知/等待核对，不因分区、租约到期或路由切换认定旧执行停止。
+
+**验收（待执行）**：
+- 正常：原步骤可证未做且丙同样具备允许条件，可接续
+- 负向：乙离线且发送未知，不复制虚构资料或重发
+
+**依赖**：FC-20, FC-26, FC-29, PWP-05, SWP-02, SWP-03, SWP-05, SWP-06, SWP-10, IF-03, FC-14, FC-07。
+
+**仍需确定/建设**：IF-03须承接中心Run→远端受限工具的接收查回、停止、观察回传与效果原键协议；节点据点会话不在本候选路径，需未来另行设计。
+
+## M05.11 收回与退出
+
+> 用户能停止节点承接新工作、撤回相应权限；正在执行的任务是否可以停止及已发生结果分别交代。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L247；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-04 资产、设置、权限与范围求值（PF-002 rev31）：M05.11：资产/权限求值；工作区不参与授权，不让产品许可盖过框架拒绝 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M05.11：真实工具执行、后台状态和停止；停止不回滚外部效果 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M05.11：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M05.11：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M05.11：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-05/SP-06控制SaaS新派发及其效果网关，不改PF016离线会话和三类现读；本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；外围 SP-02, SP-03, SP-05, SP-06。
+
+**执行链**（EP-05, EP-06）：
+1. SP-01设备登记或SP-02具名派发grant提交相应资格收紧，SaaS入口拒绝后续新派发。
+2. 中心Run通过IF-03请求远端工具停止并收回执，产品grant提交不等于节点执行已停。
+3. 在线节点返回实际停止/完成/不可取消，离线节点留待核对；本候选节点不是另一个权威据点Run。
+4. 既有框架离线会话承诺保持不变；未来节点据点会话另设计，不能借本产品控制把框架会话租约化。
+
+**持久化与一致性**：feature_specific：产品资格与新接收同事务；框架治理/会话仍各自权威，撤权提交/通知/停止不原子；断连副本待重连核实；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。；node_execution_boundary：本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。
+
+**失败与接续**：离线未确认必须明示；撤权实际提交失败不能显成功；已发内容不能追回，网关fail-closed不将框架会话租约化
+
+**验收（待执行）**：
+- 正常：撤甲资格后新派发拒，在线甲真实回执工具已停
+- 负向：离线甲仍有已许可本地执行，中心不得显示全停或重写PF016§6.17
+
+**依赖**：FC-04, FC-07, FC-14, FC-26, FC-29, PWP-05, SWP-02, SWP-03, SWP-05, SWP-06, IF-03。
+
+**仍需确定/建设**：IF-03须承接中心Run→远端受限工具的接收查回、停止、观察回传与效果原键协议；节点据点会话不在本候选路径，需未来另行设计。
+
+## M05.12 防止重复与分裂体验
+
+> 网络恢复或节点切换后，同一委托仍能核对进展与结果；不能把不明执行自动重做为两个独立的外部动作。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L248；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：XL（非人周）。
+
+**框架依据与边界**：
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M05.12：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M05.12：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-26 据点、节点与未来分布式边界（PF-016 rev10 / PF-020 rev21）：M05.12：中心/据点/节点及交互独立于工作；跨节点技术接缝待承接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M05.12：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M05.12：IF-03将中心会话绑定的工具执行适配到远端节点；节点接收/执行/回执不改变工具runtime归属。 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-05同委托恢复与效果对账，身份不随重试改；本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。；外围 SP-03, SP-05, SP-06, SP-07, SP-10。
+
+**执行链**（EP-05, EP-08）：
+1. 中心恢复原会话/Run和调用记录，SP-06/07按原键查节点/外部回执。
+2. 节点适配观察交回中心Run权威结算，不把新attempt/request变成新业务效果键。
+3. 用户节点失联且效果不明时等待；只对无副作用、可证未发生或同幂等安全的步骤接续。
+4. 产品各入口回同一事情与中心Run结果；Run不迁移到节点，不暗用peer_session_note。
+
+**持久化与一致性**：feature_specific：中心会话/Run/步产生稳定效果键；节点/适配器透传，attempt仅追溯。中心确认真实结局后落原Run日志；未知不生成第二业务动作。；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。；node_execution_boundary：本候选选定M05路径，尚待实施：中心cell持久拥有Session/Run及权威日志，调用IF-03的远端受限工具执行适配。用户节点只持接收/执行观察/回执，不承接同Run迁移、不另开权威Run；中心Run结算并持有原效果幂等键。未来节点据点会话另行设计，本路径不暗用peer_session_note。
+
+**失败与接续**：邮件可能已发由SP-07核外部引用，查不明留未知/处理者，不自动重发重费。用户自有节点不具备平台侧停机取证；替代仅限无副作用计算、可查询证实原效果未发生，或同一原幂等键在实际效果提供者明确保证下可安全重试的步骤。否则保留未知/等待核对，不因分区、租约到期或路由切换认定旧执行停止。
+
+**验收（待执行）**：
+- 正常：文件写成但回执丢失，恢复取原版本交一次
+- 负向：分区两端不能同发送动作产生两封邮件，重试不能换幂等键
+
+**依赖**：FC-14, FC-15, FC-26, FC-29, PWP-05, SWP-03, SWP-05, SWP-06, SWP-07, SWP-10, IF-03, FC-07。
+
+**仍需确定/建设**：跨节点对账/提供者幂等/不可查询效果人工处理待明确；IF-03须承接中心Run→远端受限工具的接收查回、停止、观察回传与效果原键协议；节点据点会话不在本候选路径，需未来另行设计。
+
+## M06.1 事情的整体语境
+
+> 记录目标、材料、人物、承诺、约束、参与资源与结果；用户自己完成的动作和外部进展也能进入记录。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L266；状态：**non_suggested**；承接：产品层建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-13 持久会话、归档和运行模式（PF-015 rev20）：M06.1：会话身份、恢复和归档，不能代替产品长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-20 工作区、资源与持续成果（PF-020 rev21）：M06.1：工作区/实例/资源位置及异步同步；不等同全部协同资源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M06.1：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-06跨会话事情语境，用户完成与助理执行各有出处；外围 SP-02, SP-03, SP-04, SP-07。
+
+**执行链**（EP-02, EP-03, EP-04, EP-12）：
+1. 创建/更新时接目标/人物/承诺/资料引用
+2. 框架日志、外部往来和原件保各自权威
+3. 产品提交事情语境和来源类型
+4. 任意会话可读同事情，关会话不结束事务
+
+**持久化与一致性**：feature_specific：事情产品唯一写，日志仍会话事实权威；用户补回执稳定ID去重，不把自述变工具证据；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：来源缺说明；关联失败保输入待定位，不静默造第二件事
+
+**验收（待执行）**：
+- 正常：用户自己提交的证件回执进入原事，和查询记录并存
+- 负向：用户说已提交不生成助理过去执行提交的虚假日志
+
+**依赖**：FC-13, FC-20, FC-29, PWP-06, SWP-02, SWP-03, SWP-04, SWP-07。
+
+**仍需确定/建设**：事情身份/状态/跨会话关联需产品定义，TodoItems不代替
+
+## M06.2 阶段与依赖
+
+> 把长事务组织成可理解的阶段，区分确定步骤、待观察窗口和必须等前一步完成的工作。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L267；状态：**non_suggested**；承接：产品层建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-11 行动入口与多Agent协作（PF-007 rev23 / PF-015 rev20）：M06.2：有界行动/委派，子权限不宽于父；TodoItems不是长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M06.2：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-25 长期待机、主动推进与关注边界（PF-007 rev23 / PF-021 rev8）：M06.2：长期待机原子基础，不证明主动发现/目标管理已具备 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M06.2：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-06阶段/依赖/窗口，不把非线性日程当DAG；外围 SP-03, SP-05。
+
+**执行链**（EP-03, EP-04）：
+1. 读已知目标、事实和必要先后
+2. 分确定步骤、依赖与大致窗口，不填假日期
+3. 产品存计划版本，前提有证据才接受下一工作
+4. 展示当前阶段/等待条件/独立部分
+
+**持久化与一致性**：feature_specific：依赖产品保存，前置引用真实回执；阶段提交和下游意图可同产品事务，实际接受另核；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：前置未知则依赖等待，独立继续；Run结束不等阶段达成
+
+**验收（待执行）**：
+- 正常：准备/提交/等待/领取分明，领取依赖实际可领取证据
+- 负向：提交仅受理未确认成功时不触发后续缴费/领取
+
+**依赖**：FC-11, FC-21, FC-25, FC-29, PWP-06, SWP-03, SWP-05。
+
+**仍需确定/建设**：阶段可变、证据和依赖撤销规则需产品定
+
+## M06.3 现实进展可追问
+
+> 回答已经完成什么、正在做什么、等谁、缺什么和下一步；每项重要状态有实际依据。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L268；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M06.3：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M06.3：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M06.3：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-06真实进展聚合，看板不作第二执行主本；外围 SP-03, SP-05, SP-06, SP-07。
+
+**执行链**（EP-03, EP-04, EP-05, EP-08, EP-12）：
+1. 问进展时读事情和执行/往来/成果回执
+2. 分完成、做中、等外部、等人、未知并带依据
+3. 交下一步/缺口及源记录
+4. 单源失联保最后状态并标局部影响
+
+**持久化与一致性**：feature_specific：进展可重建，事情目标与执行事实各有权威；通知送达不能推导工作完成；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。
+
+**失败与接续**：对方没回显示等对方，不伪装持续计算；未知由实际适配核对
+
+**验收（待执行）**：
+- 正常：现在等谁能给真实设计交稿/供应商确认状态
+- 负向：过期观察不能报实时完成，也不把所有任务改失败
+
+**依赖**：FC-14, FC-29, FC-30, PWP-06, SWP-03, SWP-05, SWP-06, SWP-07。
+
+**仍需确定/建设**：状态命名和允许陈旧显示范围待定
+
+## M06.4 在不确定窗口中判断
+
+> 只知道“大概那几周”的事情，可以根据实际结果调整检查与行动节奏，不要求用户替助理规定每一次唤醒。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L269；状态：**non_suggested**；承接：产品层建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M06.4：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-23 日历计算与数据供应（PF-021 rev8）：M06.4：日历版本、时区与缺依据失败；私人日历另接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-25 长期待机、主动推进与关注边界（PF-007 rev23 / PF-021 rev8）：M06.4：长期待机原子基础，不证明主动发现/目标管理已具备 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M06.4：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M06.4：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：来源闭合集约束，不准新增任意system来源；后台收场必须真实且位于合法占位之后 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-06/PWP-03自适应检查，FC21只执行明确安排；PWP-10持有同一事情待处理意图与未到期一次性Schedule的归并关系；SP-07机械接收/轮询不启动模型，获准用户/agent的Schedule创建通过IF-04完成。；外围 SP-02, SP-03, SP-05, SP-07, SP-10。
+
+**执行链**（EP-04）：
+1. 大致窗口或一次查询结果触发
+2. 策略读最后观察/窗口/权限/成本选下一次
+3. 存判断与计划意图，核Schedule回执；每agent Job新专属会话
+4. 用户见查到什么与下次预计，无需定每次唤醒
+5. 本候选选定路径，尚待实施：SP-07机械接收/轮询外部源并持久登记待处理意图，不为此启动模型。仅已有待处理意图且获准产品策略判定值得唤醒时，PWP-10经IF-04以真实租户归属和获准用户/agent创建一次性Schedule；同一事情已有未到期处理Schedule时归并意图，不新建另一份。外部事件无变化时不建立空轮询Job；另在用户已授权的主动工作范围内，由PWP-10以合法创建者装配定期自省Schedule，以现有经验发现新工作，不要求用户每次新发指令。默认启用、频率与投入额度沿D03待定；真正简报/检查另按用户选择。到期Job新建专属会话，经普通获准工具读取当前意图与事情。补跑、重叠、通知声明必须显式配置，具体值待产品决定。Job首条是否采用scheduled_trigger由IF-04/HWP-06定形；若采用，只记录真实日程触发，原事件来源/时点另存。 后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**持久化与一致性**：feature_specific：策略和安排身份持久，重复创建核原Schedule免双轮询；Job会话通过产品关联原事情不要求复用旧会话；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；event_schedule_commit：PWP-10在产品存储内提交事情—待处理意图—未到期Schedule的归并关系及创建意图，框架Schedule接受是另一提交，经IF-04查回原接收回执后关联，不假设跨库原子。到期重新核当前授权和使命。竞争导致的空Job，工作目标可明确为“查验后确认无待处理事项”，需实际核查和完成依据，如实写日志，不编造产物。；background_lifetime：后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。；schedule_declarations：窗口/检查Schedule按PF-021 §6.9/§6.11/§6.12显式声明补跑、重叠和通知政策；取值待产品决定，不能靠“恢复不重放”隐含不补跑或N=1。
+
+**失败与接续**：查不到不当没进展，过窗口未知要调整/停不无限查
+
+**验收（待执行）**：
+- 正常：跨月证件按受理结果调整检查，用户不用填查询间隔
+- 负向：停机过窗口不机械补跑全部查询，新Job不投旧固定会话
+
+**依赖**：FC-15, FC-17, FC-21, FC-23, FC-25, FC-29, PWP-03, PWP-06, PWP-10, SWP-02, SWP-03, SWP-05, SWP-07, SWP-10, IF-04, HWP-06。
+
+**仍需确定/建设**：间隔、投入、窗口结束升级由产品定；IF-04/HWP-06须定形代租户创建的操作发起者、接收查回和Job首条输入；scheduled_trigger若被采用只记录真实触发，不声称该衔接已有接受契约。；补跑、重叠、通知声明及延迟/归并值显式配置但数值待产品决定；周期agent Job只用于用户明确安排。IF-08任意异步会话注入不在本候选基础路径。
+
+## M06.5 计划随现实调整
+
+> 延期、回复、资源不足或目标改变后调整后续工作；显著改变范围、承诺和成本时向用户说明。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L270；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M06.5：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M06.5：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M06.5：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-30 可观测性与成本（PF-012 rev21 / PF-011 rev5）：M06.5：因果/状态/调用成本事实，不等于SaaS商业预算 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M06.5：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-17 多模态消息、流与输出（PF-009 rev9 / PF-013 rev14）：来源闭合集约束，不准新增任意system来源；后台收场必须真实且位于合法占位之后 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-06随现实改计划，显著范围/承诺/成本需用户参与；PWP-10持有同一事情待处理意图与未到期一次性Schedule的归并关系；SP-07机械接收/轮询不启动模型，获准用户/agent的Schedule创建通过IF-04完成。；外围 SP-02, SP-03, SP-05, SP-07, SP-08, SP-10。
+
+**执行链**（EP-04, EP-06, EP-09, EP-12）：
+1. 延期/回复/资源/目标变化带来源接收
+2. 读现计划找影响，区分可直接调和需决定
+3. 产品存新计划/意图，分别改日程/委派/预算并核回执
+4. 说明影响和未确认，其余独立继续
+5. 本候选选定路径，尚待实施：SP-07机械接收/轮询外部源并持久登记待处理意图，不为此启动模型。仅已有待处理意图且获准产品策略判定值得唤醒时，PWP-10经IF-04以真实租户归属和获准用户/agent创建一次性Schedule；同一事情已有未到期处理Schedule时归并意图，不新建另一份。外部事件无变化时不建立空轮询Job；另在用户已授权的主动工作范围内，由PWP-10以合法创建者装配定期自省Schedule，以现有经验发现新工作，不要求用户每次新发指令。默认启用、频率与投入额度沿D03待定；真正简报/检查另按用户选择。到期Job新建专属会话，经普通获准工具读取当前意图与事情。补跑、重叠、通知声明必须显式配置，具体值待产品决定。Job首条是否采用scheduled_trigger由IF-04/HWP-06定形；若采用，只记录真实日程触发，原事件来源/时点另存。 后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**持久化与一致性**：feature_specific：计划与变更清单同产品事务，跨能力提交分别核；并发期望版本不静默覆盖；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；event_schedule_commit：PWP-10在产品存储内提交事情—待处理意图—未到期Schedule的归并关系及创建意图，框架Schedule接受是另一提交，经IF-04查回原接收回执后关联，不假设跨库原子。到期重新核当前授权和使命。竞争导致的空Job，工作目标可明确为“查验后确认无待处理事项”，需实际核查和完成依据，如实写日志，不编造产物。；background_lifetime：后台callId只用于原真实工具执行runtime存活期内已启动、已有合法backgrounded占位的执行；停机/撤下按data.messages/v3 S-19与PF-006 §6.12记录失败/异常中断，已收场callId不复活、不伪造第二次完成。跨重启等待的事件仍保留产品意图，按上述一次性Schedule路径推进。
+
+**失败与接续**：对方新档期只提议不写双方确认；单项改失败明确影响
+
+**验收（待执行）**：
+- 正常：供应商延期更新准备并说明交付影响，旧版可查
+- 负向：客户涨价不能自动用户接受，两端改期不产生两提醒
+
+**依赖**：FC-14, FC-15, FC-17, FC-21, FC-29, FC-30, PWP-06, SWP-02, SWP-03, SWP-05, SWP-07, SWP-08, SWP-10, PWP-10, IF-04, HWP-06。
+
+**仍需确定/建设**：显著阈值/重确认与补偿责任产品定；IF-04/HWP-06须定形代租户创建的操作发起者、接收查回和Job首条输入；scheduled_trigger若被采用只记录真实触发，不声称该衔接已有接受契约。；补跑、重叠、通知声明及延迟/归并值显式配置但数值待产品决定；周期agent Job只用于用户明确安排。IF-08任意异步会话注入不在本候选基础路径。
+
+## M06.6 连续性与恢复
+
+> 跨天、跨周、跨客户端仍保留事情的背景与进展；中断后先核对状态，不重复启动已发生的动作。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L271；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-13 持久会话、归档和运行模式（PF-015 rev20）：M06.6：会话身份、恢复和归档，不能代替产品长期事情 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M06.6：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-15 输入受理、排队和控制（PF-014 rev11）：M06.6：合法输入受理与来源去重，不扩展闭集消息来源 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M06.6：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-06接回原事情，归档会话/终态Run/长期事务寿命不同；外围 SP-03, SP-04, SP-05, SP-06, SP-07, SP-13。
+
+**执行链**（EP-03, EP-04, EP-08）：
+1. 换端/重启读原事情和输入回执
+2. 按框架原身份恢复事实并查未知外部效果
+3. 已成复用，未做且允许再准入，旧终态不复活
+4. 给连续背景和下一步，不重交已保留材料
+
+**持久化与一致性**：feature_specific：事情/输入/会话/运行各唯一ID，依据寿命不少于恢复对象；归档后新合法工作可关联原事而非改旧Run终态；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。
+
+**失败与接续**：未知先核，未核不重发/重费；缓存丢失不删事情
+
+**验收（待执行）**：
+- 正常：一周后换手机仍见回执和查询结果继续领取
+- 负向：付款已成但本地未记就重启，不能付第二次；迟到结果不复活归档Run
+
+**依赖**：FC-13, FC-14, FC-15, FC-29, PWP-06, SWP-03, SWP-04, SWP-05, SWP-06, SWP-07, SWP-13。
+
+**仍需确定/建设**：长期事情与自动归档接续契约待承接，旧Loop契约不代证最新
+
+## M06.7 需要本人参与的步骤
+
+> 提前提醒用户到场、签字或作出关键决定，保留地点、时间、材料和真实限制。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L272；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：M（非人周）。
+
+**框架依据与边界**：
+- FC-12 HITL、确认卡片与显式授权（PF-008 rev7 / PF-007 rev23）：M06.7：明确决定与不自动作答，未读/推断不能作批准 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M06.7：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-22 主动通知与目标租户送达（PF-021 rev8 / PF-016 rev10）：M06.7：独立通知与执行/送达区别，手机渠道外围建设 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-23 日历计算与数据供应（PF-021 rev8）：M06.7：日历版本、时区与缺依据失败；私人日历另接 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-06本人参与与PWP-13通知完整语境；框架卡片仅投影/转发至PF-008池；产品业务决定仍由本功能所属产品owner唯一提交，两类状态不可互相代证。；PWP-10（日程与持续关注的产品装配）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-03, SP-07, SP-08, SP-13。
+
+**执行链**（EP-04, EP-06, EP-12）：
+1. 到场/签字/决定需参与，读地点/时间/材料/开放条件
+2. 缺必需先获准查证，再必要澄清
+3. 明确创建提醒/安排并核受理，决定进入持久池
+4. 用户收足背景，投递失败仍可找回
+
+**持久化与一致性**：feature_specific：参与要求和安排ID产品持久；通知执行/投递/作答回执分开，同事归并不丢责任；control_restore：本项恢复以各权威事实和当前有效权限为准，不由派生视图恢复批准。；decision_authority：决定按类型只有一个权威：框架Ask/系统拦截卡片仅由PF-008决策池提交；SaaS仅持投影，经IF-07携卡片身份和适用版本向池答复入口转发，不复制批准。池回执前显示“已提交待确认”，原生入口与SaaS入口的竞争由池裁决。产品业务决定由其具名产品owner单独提交，不能当框架卡片批准。
+
+**失败与接续**：条件未知明说；未回应不能代签或猜到场
+
+**验收（待执行）**：
+- 正常：领取提醒带真实开放时间、地点和材料
+- 负向：只有日历约定不显提醒已生效，推送失败不删待参与项
+
+**依赖**：FC-12, FC-21, FC-22, FC-23, PWP-06, PWP-10, PWP-13, SWP-03, SWP-07, SWP-08, SWP-13, IF-07。
+
+**仍需确定/建设**：提前量、渠道、开放时间来源由产品/用户选择
+
+## M06.8 完成与停止
+
+> 完成标准可表达；用户可以暂停或放弃事情，相关后续关注随之妥善处理，历史与成果仍可回看。
+
+来源：[产品原稿](../../../../../research/ai-assistant-saas-projection/sources/product-definition.source.txt) L273；状态：**non_suggested**；承接：框架组合＋产品/外围建设；范围：L（非人周）。
+
+**框架依据与边界**：
+- FC-07 工具、技能与调用执行（PF-006 rev23）：M06.8：真实工具执行、后台状态和停止；停止不回滚外部效果 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-14 Agent Loop、Run与独立执行接续（PF-012 rev21 / PF-015 rev20）：M06.8：Run/执行事实及控制接续，运行结束不等业务目标完成 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-21 跨时间日程与长期工作的基础（PF-021 rev8）：M06.8：明确日程与Job完成；自适应目标和事情由产品补齐 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+- FC-29 持久事实、恢复和审计（PF-000 rev1 / PF-012 rev21 / PF-011 rev5）：M06.8：持久依据、真实日志、稳定效果键和未知核对 状态与不承诺范围见[框架基线](../../../../../research/ai-assistant-saas-projection/framework-baseline.md)；精确条款/路径在[逐项JSON](../data/feature-projections.json)。
+
+**产品/外围建设**：PWP-06完成标准/暂停放弃/使命收尾，Run/Job终结不自动等于事情完成；PWP-04（协同资源绑定与使命管理）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；PWP-10（日程与持续关注的产品装配）：本项消费该包范围内的产品职责，按下列动作链衔接；共用建设只计一次。；外围 SP-02, SP-03, SP-04, SP-05, SP-07, SP-08。
+
+**执行链**（EP-04, EP-06, EP-10）：
+1. 候选完成或用户暂停放弃触发，读成果与未决责任
+2. 对标准核实或记录控制范围
+3. 写事情状态/收尾清单，逐日程/资源关闭并核在途
+4. 保历史成果，列不可取消/待外部/未知尾项
+
+**持久化与一致性**：feature_specific：状态与收尾清单同产品事务，跨能力另回执；不删连接原件；迟到结果可补事实不复活使命；control_restore：任一权威回滚（包括治理SQLite、凭据权威与控制库PITR）先关闭平台新效果；独立恢复域激活全新restore epoch，各受控入口强读current指针，失败关闭。无法补齐撤权时旧授权标可疑；锚点丢失先全关并重建可信根，不改变自有节点既有离线会话寿命。
+
+**失败与接续**：关闭失败owner继续核对且产品不新发；未知不能称全取消
+
+**验收（待执行）**：
+- 正常：领取确认后停后续查询，全程材料仍取到
+- 负向：放弃时在途付款未可取消，必须显已付/未知而非全部撤回
+
+**依赖**：FC-07, FC-14, FC-21, FC-29, PWP-04, PWP-06, PWP-10, SWP-02, SWP-03, SWP-04, SWP-05, SWP-07, SWP-08。
+
+**仍需确定/建设**：事情标准、暂停恢复和保留政策需产品定
+

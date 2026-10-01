@@ -1,0 +1,348 @@
+{
+  "status": "document-reviewed-candidate",
+  "sealed_on": "2026-10-01",
+  "path_base": "repository-root",
+  "excluded": "this artifacts.json itself; task tmp raw downloads; previous report retained under its own original seal",
+  "files": [
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/CURRENT.md",
+      "bytes": 696,
+      "sha256": "e28862e482a38aa1054847177aff5ad12c39288409414959bad9c392189096f9"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/README.md",
+      "bytes": 1233,
+      "sha256": "114ba2fbeb3e17c55373728b8a0b8c10084f7e6c0e297e6f2404a26942a233eb"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/analysis.md",
+      "bytes": 25280,
+      "sha256": "b0af9f47915dd51f2540c7fa842d7123d6bb2cfa7ae21975eab2d623001351d4"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/issue-compaction-attribution.md",
+      "bytes": 6839,
+      "sha256": "7a3312a390cab56a8a22d8b681782faa0097988959c051f35cc964a228c5d17c"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/report.html",
+      "bytes": 52518,
+      "sha256": "5f0c8e035cf3116442e614fb063d20124980ef100827ce426459ca3f21a9c6c0"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/review.md",
+      "bytes": 4485,
+      "sha256": "56078b94d34acfaac586cb46a0585187ce197186b1eacb42e14740bd7cba6461"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/brief.md",
+      "bytes": 2643,
+      "sha256": "8fc4589b0aef8381e3d269ca76e1465a32be101a4976b168f18c3421297771f5"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/00-evidence.md.snapshot.txt",
+      "bytes": 3382,
+      "sha256": "5abfa216cb93b3aed37923f39cd3d3ba4e4a3c8dcee7064b19c83cb71ec7167d"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/01-README.md.snapshot.txt",
+      "bytes": 1413,
+      "sha256": "7373c0fa8b8cd0f6e02a326ebab439d6179a214782e93c7e81993da49e9cb035"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/02-research.md.snapshot.txt",
+      "bytes": 5713,
+      "sha256": "55cd19e719b3d00ef26fa33b276b4ae76eea80f7e1d2a0ae741a7f3e3e04d853"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/03-plexus.md.snapshot.txt",
+      "bytes": 9893,
+      "sha256": "00156c688322f4f5577bff8451a07d132d46191b84dd9a80690f549bab88fed9"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/04-harness.md.snapshot.txt",
+      "bytes": 16400,
+      "sha256": "b07be990f7bf31dd006bc2496fe3a196aece0814735f1aac13e02b9bdbfa4b12"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/05-paper.md.snapshot.txt",
+      "bytes": 23121,
+      "sha256": "d2bf165a0f26eeae259245dea6501aaac990ca025c8522a54d87f9c26fc33a59"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/06-harness-sources.json.snapshot.txt",
+      "bytes": 269561,
+      "sha256": "81aa8c705901b17f37f304013f2b4497cba67c82706c39a910c950c43511db83"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/07-issue-inventory.json.snapshot.txt",
+      "bytes": 811,
+      "sha256": "0940547407a91196b872b29758e104324855699d5fca455746de6b55fe055b1e"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/08-paper-sources.json.snapshot.txt",
+      "bytes": 4488,
+      "sha256": "9feb04a8ed7987fe802e74cbe3e7cf61b6af759399eb33c871ccdbe0db38bc31"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/09-plexus-sources.json.snapshot.txt",
+      "bytes": 7940,
+      "sha256": "10060959e93f8462d749519451ec6038c22822e658443d40a9b66b5c903ad718"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/10-analysis.md.snapshot.txt",
+      "bytes": 22930,
+      "sha256": "d1dc84da7198a86700656af5501b6512ad4108e2357ee082c699a864ebd086f4"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/11-README.md.snapshot.txt",
+      "bytes": 851,
+      "sha256": "08268ed46fc6cbed337067d8c34b9f5fb4bd6bd65092cc9378fed9242b1ffec5"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/inputs/index.json",
+      "bytes": 2749,
+      "sha256": "d50c00471c8e8b289130279e84112167078331c7dad3a54cec4eadf14c0c9871"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/metadata.json",
+      "bytes": 1361,
+      "sha256": "baa6c2c9e8d6993d76737f636ec1c74d762f6d6933ef302b069f0592dd3836b0"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/result.json",
+      "bytes": 9583,
+      "sha256": "4c00b68f1c65fe8005844b426af8f215ea7768d72926fc10f6990658d316d28a"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/review.md",
+      "bytes": 7699,
+      "sha256": "43a5c4003d852e1d96546fdc1d05ae538c626bf3885da20014a24af64b73c120"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r1/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/brief.md",
+      "bytes": 1828,
+      "sha256": "d0b47642765d3ae1814c99792ad97f7dd043d5bc69ebf0fe2ed62cb748df31be"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/inputs/00-analysis.md.snapshot.txt",
+      "bytes": 25004,
+      "sha256": "ee44208b8e59c97782c6e1f84674b84e55794410c897941f7edb92ed6c9db382"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/inputs/01-README.md.snapshot.txt",
+      "bytes": 1091,
+      "sha256": "88062047449414c2f9a2bb4588575445ad048b39b7bb9717072f27dcf6f08c9e"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/inputs/02-review.md.snapshot.txt",
+      "bytes": 2625,
+      "sha256": "40d460a1c6f9d5d906a8d5d0a20b130c50159ddbe37d3e8a682f015b86114e66"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/inputs/03-issue-compaction-attribution.md.snapshot.txt",
+      "bytes": 5545,
+      "sha256": "6d84a6d59af1a0d74d353a43f492f842eac9134f7c09f62cbfa3683c5bb39287"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/inputs/04-research.md.snapshot.txt",
+      "bytes": 6918,
+      "sha256": "ca515fba76e68b6c6c226f502286030d4eb27faa5ae7e4dc27d1104ef56238de"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/inputs/05-root-recheck.md.snapshot.txt",
+      "bytes": 4074,
+      "sha256": "44224ce84b1de1f34f2cce2f946f299d3ed6fc89561f20f85c7f5505e895ddee"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/inputs/06-evidence.md.snapshot.txt",
+      "bytes": 3761,
+      "sha256": "cbc4745ec27ed6cc4aff1ab797d69c55e4a1487a240b0c01ead462e29472047f"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/inputs/07-changelog.md.snapshot.txt",
+      "bytes": 616,
+      "sha256": "917b9923cd94775079d4818c588b096457030c0ddc5f22238de1da4833efc9d3"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/inputs/08-CURRENT.md.snapshot.txt",
+      "bytes": 696,
+      "sha256": "e28862e482a38aa1054847177aff5ad12c39288409414959bad9c392189096f9"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/inputs/index.json",
+      "bytes": 2190,
+      "sha256": "50f401b89998160f6f9865fa654614fcc4a37025f435fa4dbd90ed6fb71bd99a"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/metadata.json",
+      "bytes": 1343,
+      "sha256": "6659d5b78f81b7113f4c9410316719407d79bcff10f9155f60c0097d6c7a30a3"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/result.json",
+      "bytes": 6217,
+      "sha256": "b4e2d80b5c69021bd3348227316319390b13b2a82736acb192aa0ca8914e499f"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/review.md",
+      "bytes": 4362,
+      "sha256": "8b76d303804e66c1dd932f50c3a8232dd7d3c8e26bd27d9c812d78d20e9b9af1"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r2/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r3/brief.md",
+      "bytes": 1477,
+      "sha256": "74e74fc117290604cd2ff09a7897c278809cac2e77a73e1ef7d0cddb4d81bc60"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r3/inputs/analysis.md.snapshot.txt",
+      "bytes": 25280,
+      "sha256": "bc4064f5466f101c03a9b093374c3405ffe468b76a9480712726e5cf1ae2dd1b"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r3/inputs/index.json",
+      "bytes": 822,
+      "sha256": "99affa1fa4202846ced4252f4af02e68d826d7ef4575e1e682f06c922b141f79"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r3/inputs/issue-compaction-attribution.md.snapshot.txt",
+      "bytes": 6684,
+      "sha256": "2c84b7428e7c390f519a134bbc89bf7931488e149e1cf5c04156087c4b6e42c3"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r3/inputs/review.md.snapshot.txt",
+      "bytes": 3435,
+      "sha256": "fbd7515ea6ed25a650bcb224e4ea1896a240fdf650017a136cd7f5a12a4eab71"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r3/metadata.json",
+      "bytes": 1336,
+      "sha256": "d348c4eaa573e3c463f29379c3a54f11e9eea66aca0af094b62622adf6437670"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r3/result.json",
+      "bytes": 3853,
+      "sha256": "16d3654cd8a9c460cc941f56f8ff4c3167aa6cbac36d53440ea83ca9ee7e7673"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r3/review.md",
+      "bytes": 2014,
+      "sha256": "d687efa0a075fb69d1e18114e2e60f85212fc44f541816a2989fc2911892b77c"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/r3/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/zoom-out-before-r1.md",
+      "bytes": 1011,
+      "sha256": "fc14e3d4d84cab10ed96afba6b5934b5064c0e035599b6177bd2f331f4393833"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/zoom-out-before-r2.md",
+      "bytes": 432,
+      "sha256": "28a6971f4d0161378bb1a6375ec0824d38a55f23cb9f00a59fa606c9ed39e9b4"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/reviews/zoom-out-before-r3.md",
+      "bytes": 399,
+      "sha256": "e3481e3518dd4e5a1cdca0a11e849b4b0100e6e30537835eae10a299de0d1f7c"
+    },
+    {
+      "path": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/verification.json",
+      "bytes": 2375,
+      "sha256": "fcdd45bc2777824870962d797bbf33662a7e0257d6f83d5ae98f47ae8dfe8299"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/README.md",
+      "bytes": 1625,
+      "sha256": "f957dbced3137ae7f84df18946662f99db0870e0402cd224385e232fe2be48d8"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/changelog.md",
+      "bytes": 1093,
+      "sha256": "9fed52a9b359fb044ca18047fa24cb4a6159c0c1d2574968f8379d7624d5de1f"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/evidence.md",
+      "bytes": 3761,
+      "sha256": "42623ec535e4d6c5b16f4dfda476923663a3b9991382dcd1999416385f473ea6"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/notes/harness-sources.json",
+      "bytes": 269561,
+      "sha256": "81aa8c705901b17f37f304013f2b4497cba67c82706c39a910c950c43511db83"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/notes/harness.md",
+      "bytes": 16400,
+      "sha256": "b07be990f7bf31dd006bc2496fe3a196aece0814735f1aac13e02b9bdbfa4b12"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/notes/issue-inventory.json",
+      "bytes": 811,
+      "sha256": "0940547407a91196b872b29758e104324855699d5fca455746de6b55fe055b1e"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/notes/paper-sources.json",
+      "bytes": 4488,
+      "sha256": "9feb04a8ed7987fe802e74cbe3e7cf61b6af759399eb33c871ccdbe0db38bc31"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/notes/paper.md",
+      "bytes": 23121,
+      "sha256": "d2bf165a0f26eeae259245dea6501aaac990ca025c8522a54d87f9c26fc33a59"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/notes/plexus-sources.json",
+      "bytes": 7940,
+      "sha256": "10060959e93f8462d749519451ec6038c22822e658443d40a9b66b5c903ad718"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/notes/plexus.md",
+      "bytes": 9893,
+      "sha256": "00156c688322f4f5577bff8451a07d132d46191b84dd9a80690f549bab88fed9"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/notes/remote-acceptance-basis.json",
+      "bytes": 312,
+      "sha256": "1688464d2307251be83a5fa80c51ddb4bf71b87edac187676b4cc700db71ad5f"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/notes/remote-issue-basis.json",
+      "bytes": 1271,
+      "sha256": "af7bcc7fe0e7d699b59065a6b6990ef3ae8612f9fe9a57ce07692868d63f452f"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/notes/root-recheck.md",
+      "bytes": 5427,
+      "sha256": "985078fa9288628fcbe20941cb83e3365e34ae167b30f145f8c5ec746e9a9dc8"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/reports/2026-10-01-after-r1.snapshot.txt",
+      "bytes": 6918,
+      "sha256": "ca515fba76e68b6c6c226f502286030d4eb27faa5ae7e4dc27d1104ef56238de"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/reports/2026-10-01-before-fable.snapshot.txt",
+      "bytes": 5713,
+      "sha256": "55cd19e719b3d00ef26fa33b276b4ae76eea80f7e1d2a0ae741a7f3e3e04d853"
+    },
+    {
+      "path": ".meta_harness/research/always-on-agents-plexus/research.md",
+      "bytes": 7055,
+      "sha256": "ebcf964f0a74fe18e9492dfe04e07262662b205ca1ba803561f9f80f2a02d90b"
+    }
+  ]
+}

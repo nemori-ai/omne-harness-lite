@@ -1,0 +1,47 @@
+[
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/analysis.md",
+    "snapshot": "00-analysis.md.snapshot.txt",
+    "sha256": "ee44208b8e59c97782c6e1f84674b84e55794410c897941f7edb92ed6c9db382"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/README.md",
+    "snapshot": "01-README.md.snapshot.txt",
+    "sha256": "88062047449414c2f9a2bb4588575445ad048b39b7bb9717072f27dcf6f08c9e"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/review.md",
+    "snapshot": "02-review.md.snapshot.txt",
+    "sha256": "40d460a1c6f9d5d906a8d5d0a20b130c50159ddbe37d3e8a682f015b86114e66"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/supplements/always-on-20261001/issue-compaction-attribution.md",
+    "snapshot": "03-issue-compaction-attribution.md.snapshot.txt",
+    "sha256": "6d84a6d59af1a0d74d353a43f492f842eac9134f7c09f62cbfa3683c5bb39287"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/research.md",
+    "snapshot": "04-research.md.snapshot.txt",
+    "sha256": "ca515fba76e68b6c6c226f502286030d4eb27faa5ae7e4dc27d1104ef56238de"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/notes/root-recheck.md",
+    "snapshot": "05-root-recheck.md.snapshot.txt",
+    "sha256": "44224ce84b1de1f34f2cce2f946f299d3ed6fc89561f20f85c7f5505e895ddee"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/evidence.md",
+    "snapshot": "06-evidence.md.snapshot.txt",
+    "sha256": "cbc4745ec27ed6cc4aff1ab797d69c55e4a1487a240b0c01ead462e29472047f"
+  },
+  {
+    "source": ".meta_harness/research/always-on-agents-plexus/changelog.md",
+    "snapshot": "07-changelog.md.snapshot.txt",
+    "sha256": "917b9923cd94775079d4818c588b096457030c0ddc5f22238de1da4833efc9d3"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/CURRENT.md",
+    "snapshot": "08-CURRENT.md.snapshot.txt",
+    "sha256": "e28862e482a38aa1054847177aff5ad12c39288409414959bad9c392189096f9"
+  }
+]

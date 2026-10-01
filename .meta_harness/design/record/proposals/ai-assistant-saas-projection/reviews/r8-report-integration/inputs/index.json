@@ -1,0 +1,47 @@
+[
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/README.md",
+    "snapshot": "README.md.snapshot.txt",
+    "sha256": "54e2d9603749997b7524e534d2aa244b713467dea94346664d130a190979c345"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/CURRENT.md",
+    "snapshot": "CURRENT.md.snapshot.txt",
+    "sha256": "3c47a2d21a558c260f122f23a6374e38a29d1260e3155ac3db28677698e9c461"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/design.md",
+    "snapshot": "design.md.snapshot.txt",
+    "sha256": "87ec2a53262af0f2f503e965a6665d8d5d89a9f11721f39a8f6ea3646881fcf1"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/peripheral-design.md",
+    "snapshot": "peripheral-design.md.snapshot.txt",
+    "sha256": "44a94fa09e3e5a12d4006ec94e989f625bc9529e910171fc51eadcfc2466baed"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/execution-topology.md",
+    "snapshot": "execution-topology.md.snapshot.txt",
+    "sha256": "e9b5ce14ce205f2c48c21c053c9569e954cf882b6f51382bfd40fdd050347d72"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/journey-acceptance.md",
+    "snapshot": "journey-acceptance.md.snapshot.txt",
+    "sha256": "35ab6db6bbfe1dfab4773ebd14f030a7d67624c55a04580842c0c178825340f0"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/delivery-plan.md",
+    "snapshot": "delivery-plan.md.snapshot.txt",
+    "sha256": "8d29a8aaf141a4a54d7d333818b452f73672e4f33d1e0c8d876f053415ef91be"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/data/journey-acceptance.json",
+    "snapshot": "data__journey-acceptance.json.snapshot.txt",
+    "sha256": "b69e545fd2fb15071086ee9b4f9173654045ae2b3b32741aff8398c59f973204"
+  },
+  {
+    "source": ".meta_harness/design/record/proposals/ai-assistant-saas-projection/data/work-plan.json",
+    "snapshot": "data__work-plan.json.snapshot.txt",
+    "sha256": "c45de3a1558d4574ca7c479ea8eb2e56d45d39c6bf52f79943b78e12ab79b1b7"
+  }
+]

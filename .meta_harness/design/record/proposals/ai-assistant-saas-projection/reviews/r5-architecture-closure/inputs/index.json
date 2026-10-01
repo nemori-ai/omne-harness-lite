@@ -1,0 +1,32 @@
+[
+  {
+    "original_locator": "peripheral-design.md",
+    "sha256": "a9aa8314781103c226f9210933f6d9add59bc41de6886d44a1b5334a76236cea",
+    "snapshot_file": "peripheral-design.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "alternatives.md",
+    "sha256": "08a50351a8926e5d2408e34e1c4a069bb906abd98012bc4713280d3e33ccbadd",
+    "snapshot_file": "alternatives.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "execution-topology.md",
+    "sha256": "f2a037d361b6a5986e38afe477efd2df68b276cb137aaa31c41fa7604c8df6c7",
+    "snapshot_file": "execution-topology.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "data/components.json",
+    "sha256": "aa92ddc8b6322b419e30cad3a95166b4fadf1699b38d70cde02bbd788592cd58",
+    "snapshot_file": "data__components.json.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  },
+  {
+    "original_locator": "design.md",
+    "sha256": "cdc0206bed1ba934338c211126b48f51849b2a033e85e0dafa1cd8eaf878ce9c",
+    "snapshot_file": "design.md.snapshot.txt",
+    "state": "exact-bytes-preserved"
+  }
+]

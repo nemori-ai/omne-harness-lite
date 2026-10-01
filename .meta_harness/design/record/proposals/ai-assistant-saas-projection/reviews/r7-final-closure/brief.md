@@ -1,0 +1,4 @@
+独立只读R6闭合复核，先zoom out：目标是个人助理在用户已授权范围内跨时间推进，不要求每次新命令；1万种子规模，不重开框架可行性，不把文档分析当运行验证。不要重做已完成全稿审阅或无限寻找表达偏好。
+上一轮 tmp/ai-assistant-projection-20260930/reviews/r6-final-integration/review.md，报告 .meta_harness/design/record/proposals/ai-assistant-saas-projection。
+只检查R6-F1到F9的具体处置是否成立，重点F1/F2/F3：work-plan revision4，58节点262边，IF-02/HWP-03点名模型invocation创建前可替换准入装配点，框架通用钩子不依赖SaaS预算政策；feature revision3，control_restore和M16.6/.7/.10加创建前等待/既有MRR released，重渲染3章节；PWP-03依赖PWP-10并start IF-04，IV-MEMORY含S04无外部事件触发，周期自省在用户已授权主动工作范围内（不是每次先要求用户新任务），默认启用/频率/投入仍D03待定，费用公式补J*f*k_r，原36000明确只算前两项；F4两导航改research同包；F5图每调用准入；F6节点/成果到G2；F7review.md逐项表；F8保留G1授权供应运维整包并明确发布闭环理由，更早调通不冒称G1；F9README品牌和SP/SWP说明。
+请实际核对关键字段及正文同义处，不要求读全165，并明确本轮范围。只报告稳定实质缺口，按F1..F9给闭合/未闭及依据；若无阻断且可交付直接说明。不得写文件，不评价品牌视频。修订之前精确输入字节保存在同目录inputs与input-hashes.json。
