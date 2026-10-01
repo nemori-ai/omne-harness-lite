@@ -1,21 +1,16 @@
 // 结构度量入口：只读源码与 git，产出摘要、数据与审讯页。度量只报告，不判失败——
 // 方向规则的失败由 `lint:rules` 承担；这里退出码非零只表示工具自己出错。
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { GROUP_DIRECTION_POLICY } from '../rules/group-direction.ts'
+import { readMetricsConfig } from './config.ts'
 import { measureCoverage } from './coverage.ts'
-import { changedLines, commitShape, coordinates, fileAt } from './git.ts'
+import { changedLines, commitShape, coordinates } from './git.ts'
 import { memberOf } from './graph.ts'
 import { renderPage } from './render.ts'
-import {
-  buildReport,
-  summaryLines,
-  type Bands,
-  type CoverageInput,
-  type Thresholds,
-} from './report.ts'
-import { collectMemberSources } from './sources.ts'
+import { buildReport, summaryLines, type CoverageInput } from './report.ts'
+import { baseTextsOf, collectMemberSources } from './sources.ts'
 
 interface Options {
   readonly base?: string
@@ -48,61 +43,9 @@ function parseArgs(argv: readonly string[]): Options {
   }
 }
 
-interface Config {
-  readonly thresholds: Thresholds
-  readonly bands: Bands
-  readonly summary: { readonly top: number }
-  readonly page: { readonly changedEdgeLimit: number }
-  readonly coverage: { readonly roots: readonly string[] }
-}
-
-function readConfig(): Config {
-  const path = fileURLToPath(new URL('../../metrics.config.json', import.meta.url))
-  const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
-  const config = parsed as Partial<Config>
-  const warn = config.thresholds?.warn
-  const alert = config.thresholds?.alert
-  const green = config.bands?.green
-  const yellow = config.bands?.yellow
-  const red = config.bands?.red
-  const top = config.summary?.top
-  if (typeof warn !== 'number' || typeof alert !== 'number' || !(warn <= alert))
-    throw new Error(`${path}: thresholds.warn 与 thresholds.alert 须为数字且 warn ≤ alert`)
-  if (
-    typeof green !== 'number' ||
-    typeof yellow !== 'number' ||
-    typeof red !== 'number' ||
-    !(green <= yellow && yellow <= red)
-  )
-    throw new Error(`${path}: bands 的 green、yellow、red 须为数字且依次不减`)
-  if (typeof top !== 'number' || !Number.isInteger(top) || top < 1 || top > 5)
-    throw new Error(`${path}: summary.top 须为 1 到 5 的整数（摘要不超过 12 行）`)
-  const changedEdgeLimit = config.page?.changedEdgeLimit
-  if (
-    typeof changedEdgeLimit !== 'number' ||
-    !Number.isInteger(changedEdgeLimit) ||
-    changedEdgeLimit < 0
-  )
-    throw new Error(`${path}: page.changedEdgeLimit 须为非负整数`)
-  const roots = config.coverage?.roots
-  if (
-    !Array.isArray(roots) ||
-    roots.length === 0 ||
-    !roots.every((item): item is string => typeof item === 'string' && /^[\w.-]+$/u.test(item))
-  )
-    throw new Error(`${path}: coverage.roots 须为非空的顶层目录名数组`)
-  return {
-    thresholds: { warn, alert },
-    bands: { green, yellow, red },
-    summary: { top },
-    page: { changedEdgeLimit },
-    coverage: { roots },
-  }
-}
-
 function main(): void {
   const options = parseArgs(process.argv.slice(2))
-  const config = readConfig()
+  const config = readMetricsConfig()
   const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
   const at = coordinates(root, options.base)
   const outDir = resolve(
@@ -133,12 +76,10 @@ function main(): void {
     coverageSeconds = measured.seconds
   }
 
-  // 改动过的产品源码在基线上的文本，用来按函数文本判断哪些函数真的变了。
-  const baseTexts = new Map<string, string | undefined>()
-  if (changed !== undefined && at.base !== undefined)
-    for (const path of changed.keys())
-      if (memberOf(path) !== undefined && /\.[cm]?tsx?$/u.test(path))
-        baseTexts.set(path, fileAt(root, at.base.mergeBase, path))
+  const baseTexts =
+    changed !== undefined && at.base !== undefined
+      ? baseTextsOf(root, at.base.mergeBase, changed.keys())
+      : new Map<string, string | undefined>()
 
   const report = buildReport({
     files,
