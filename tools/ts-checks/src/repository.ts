@@ -9,6 +9,7 @@ import { manifestImmutable } from './rules/manifest-immutable.ts'
 import { registryHistoryBoundary } from './rules/registry-history-boundary.ts'
 import { syntaxImports, syntaxOf } from './syntax.ts'
 import { modelCredentialBoundary } from './rules/model-credential-boundary.ts'
+import { groupDirection } from './rules/group-direction.ts'
 
 export const REPOSITORY_RULES = [
   sessionSeedBoundary,
@@ -18,6 +19,7 @@ export const REPOSITORY_RULES = [
   manifestImmutable,
   registryHistoryBoundary,
   modelCredentialBoundary,
+  groupDirection,
 ] as const
 export function collectRepositorySources(root: string): SourceFile[] {
   root = resolve(root)
