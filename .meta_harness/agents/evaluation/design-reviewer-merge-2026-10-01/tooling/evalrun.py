@@ -35,8 +35,10 @@ EFFORT = 'xhigh'
 WALL_SECONDS = 50 * 60
 BUDGET_USD = '20'
 READ_ONLY_TOOLS = ['Read', 'Glob', 'Grep']
+# Only the skills are copied from agents/: the evaluation directory holds the seed list with its ground truth,
+# and the role sources are not something a reviewer under test should be reading.
 COPY = ['AGENTS.md', 'CLAUDE.md', '.meta_harness/AGENTS.md', '.meta_harness/CLAUDE.md', '.meta_harness/README.md',
-        '.meta_harness/agents', '.meta_harness/design', '.meta_harness/tooling']
+        '.meta_harness/agents/skills', '.meta_harness/design', '.meta_harness/tooling']
 
 
 def sha256(path):
@@ -114,12 +116,12 @@ def prepare(mode, dest):
     dest.mkdir(parents=True)
     for rel in COPY:
         src = REPO / rel
+        (dest / rel).parent.mkdir(parents=True, exist_ok=True)
         if src.is_dir():
             # Raw execution evidence is 378 MB and no review needs it; both arms get the same copy without it.
             subprocess.run(['rsync', '-a', '--exclude', '__pycache__', '--exclude', '/record/evidence/',
                             str(src) + '/', str(dest / rel) + '/'], check=True)
         else:
-            (dest / rel).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(str(src), str(dest / rel))
     target = dest / spec['file']
     if mode == 'plan':
