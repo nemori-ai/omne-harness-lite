@@ -133,6 +133,8 @@
 
 - [TypeScript 里「可配置重试策略」的现成库：cockatiel、p-retry 与同类](ts-retry-policy-libraries/README.md) — `cockatiel@4.0.0` / `p-retry@8.0.1` / `retry@0.13.1` / `exponential-backoff@3.1.3` / `async-retry@1.3.3` / `ts-retry-promise@0.8.1` / `@lifeomic/attempt@3.1.0` / `promise-retry@2.0.1`，参照 `tenacity@9.1.4` 与 `effect@3.22.2`；tarball 源码钉字节、Node `v24.18.0` 探针实测，取证 2026-09-25，消费者为 D-063 R-6 的落点（MRR 节点 P-5、契约 G-8、W-10b，待出现）
 
+- [收工钩子：Claude Code 与 Codex CLI 在 agent 收工点能做什么、不能做什么](host-stop-hooks/README.md) — Claude Code `2.1.287` 与 Codex CLI `0.159.0` 的钩子文档（原文钉字节，主会话逐句核对了入正文的引文）/ Codex 源码 `rust-v0.159.0`（仅转述）；没有实际注册并触发过钩子，取证 2026-10-01，消费者为[宿主钩子的源](../agents/hooks/README.md)
+
 迁入前的历史索引见 [`legacy_backup/`](legacy_backup/README.md)，那里是存底，不按本页规则接续。
 
 每个 topic 入口标明调查对象、版本与范围；先沿当前判断进入对应 topic，再按其阅读地图取得证据与局限。

@@ -20,8 +20,9 @@ tui-developer 子代理收工（`SubagentStop`）时跑执行仓库的收工钩�
 - Claude Code：交互会话里要先接受该目录的工作区信任；设置文件改了由宿主自动重载。
   会话从主检出启动再进工作树时，读的是哪一份设置，宿主文档没有说明。
 - Codex：项目要受信任，且每条非托管钩子都要在 `/hooks` 里按定义逐条信任；定义一改就要重新信任。
-- 字段与行为的出处：主检出 `tmp/clean-loop/hooks-research.md`（Claude Code 2.1.287、Codex CLI 0.159.0，
-  2026-10-01 取证）与 Codex 文档 Hooks 页「Config shape」一节。
+- 字段与行为的出处：研究[收工钩子：两个宿主在收工点能做什么、不能做什么](../../research/host-stop-hooks/README.md)
+  （Claude Code 2.1.287、Codex CLI 0.159.0，2026-10-01 取证，没有实际触发过钩子）与 Codex 文档 Hooks 页「Config shape」一节。
+  宿主升级后先回那里重新核对，再改这里。
 
 ## 怎么关
 
