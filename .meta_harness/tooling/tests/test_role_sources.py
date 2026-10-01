@@ -7,6 +7,9 @@ TASTE = "../engineering-taste.md"
 # Product roles take the product-manager viewpoint and must not judge engineering choices.
 EXEMPT = {"product-design-drafter", "product-design-reviewer"}
 DEVELOPERS = {"developer", "verification-developer", "tui-developer"}
+# The two technical drafters stay separate roles (contracts state properties, providers state bindings)
+# and share one drafting discipline instead of each carrying its own copy.
+DRAFTERS = {"spec-drafter", "realization-drafter"}
 # Merged into `developer` or retired on 2026-10-01; a source package under one of these names
 # would bring back module-owned implementers or an agent that drafts architecture readings.
 RETIRED = {"kernel-developer", "capability-developer", "infrastructure-developer",
@@ -36,6 +39,17 @@ def test_all_developer_roles_inline_the_same_implementation_contract():
         prompts = shared_prompts(ROLES / name)
         assert prompts.count("../developer-contract.md") == 1, name
         assert prompts.index(TASTE) < prompts.index("../developer-contract.md"), name
+
+
+def test_both_drafters_inline_the_same_drafting_discipline():
+    """A drafter that loses the shared discipline loses its stop, report-back and close-out rules."""
+    for name in DRAFTERS:
+        prompts = shared_prompts(ROLES / name)
+        assert prompts.count("../drafter-contract.md") == 1, name
+        assert prompts.index(TASTE) < prompts.index("../drafter-contract.md"), name
+    others = [role.name for role in ROLES.iterdir()
+              if role.is_dir() and role.name not in DRAFTERS and "../drafter-contract.md" in shared_prompts(role)]
+    assert not others, f"only the technical drafters inline the drafting discipline: {others}"
 
 
 def test_retired_roles_do_not_come_back():

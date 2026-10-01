@@ -23,6 +23,7 @@
 角色正文拥有职责与边界，`codex.toml`、`claude.yaml` 和可选模型适配段拥有宿主差异。
 共享正文由各角色 `assembly.toml` 的 `shared_prompts` 按序内联：开发者（developer、verification-developer、tui-developer）在品味之后内联[共同契约](developer-contract.md)，
 固定提示已经包含必要输入、行动授权和停止条件；[派发模板](developer-task.md)提供本次事实，不进入固定提示。
+两个技术起草角色（spec-drafter、realization-drafter）在品味之后内联[起草者的共同纪律](drafter-contract.md)。
 生成说明见[工具入口](../../tooling/README.md)，生成物归工作区内
 `.codex/agents/` 与 `.claude/agents/`；这些目录由工具生成，未生成时不作为文档链接目标。
 
@@ -73,6 +74,12 @@ agent 在这里的位置是评审与反驳——派 architecture-reviewer，它�
 规格与实现映射仍有 drafter，服务于 `harness-design-handbook` 主线里**能独立成稿的那几段**；哪几段归主线、哪几段派角色，
 权威表在手册的[工作区上下文](../skills/harness-design-handbook/canonical/references/workspace-context.md#实现设计与交付)，
 这里只写派发时要给什么。两者都不做对账、不选产品政策、不接受，也都不派评审。
+
+**这两个角色不合并**（2026-10-01 定）：一个写「契约承诺什么性质」，一个写「用 Cordis 怎么兑现」，这条分界正是领域建模独立于 Cordis 的落点；
+合成一个，写契约时脑子里已经有 fiber 和 service，机制会渗进契约。它们共同的那部分——开工前核对、报回不自行改判、缺口显式、
+收尾与交回——抽成[起草者的共同纪律](drafter-contract.md)一份，两边内联。
+realization-drafter 另有一项必交产出：节点 `design.md` 里的 **Cordis 符合性核对表**（模板在 `design/realization/.templates/node/`）。
+「架构整洁、实现敏捷」不写成起草者的自我要求：产物交回后由设计评审报告与独立评审来量。
 
 | 角色 | 派发时给齐 | 一次派发做什么 |
 |---|---|---|
