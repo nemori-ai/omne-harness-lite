@@ -168,8 +168,8 @@ reviewer 与 product-design-drafter 固定档位；开发者、TUI 角色与技�
 
 | 任务 | Claude Code | Codex | 档位 |
 |---|---|---|---|
-| 能力与组合的行为、具体提供者（默认） | Opus 5.5 | GPT-6 Sol | high |
-| 单个模块、规格完整的应用切片 | Sonnet 5.5 | GPT-6 Sol | high |
+| 能力与组合的行为、具体提供者（默认） | Opus 5.5 | GPT-6.1 Sol | high |
+| 单个模块、规格完整的应用切片 | Sonnet 5.5 | GPT-6.1 Sol | high |
 | 内核原语与生命周期机制 | Fable 5.1 | GPT-6 Astra | xhigh |
 | 安全敏感、跨多个包或整个装配、契约把失败／诊断／顺序留给判断 | Fable 5.1 | GPT-6 Astra | high 起 |
 

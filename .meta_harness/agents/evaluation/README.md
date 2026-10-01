@@ -17,6 +17,7 @@
 - [共享研发品味单源化](shared-engineering-taste/README.md)：品味从根 AGENTS.md 迁为角色共享正文后的去向、分发覆盖与两端加载验证。
 - [Developer 输入契约强化](developer-input-contract-2026-09-26/README.md)：明确规格与 realization 输入、实施自主范围及五项只读行为试用的有界观察。
 - [角色合一与架构起草角色退役](role-merge-2026-10-01.md)：四个开发角色并成 developer、architecture-drafter 退役的依据、模型选法的出处与验证范围；未重跑任务对照。
+- [Codex 一端 GPT-6 Sol 升为 GPT-6.1 Sol](codex-sol-6.1-upgrade-2026-10-01.md)：四个角色的钉值替换、宿主支持证据与未验证项；未跑任务质量对照。
 
 角色迁移试用与开发模型采用评估是不同证据面。需要采用评估时明确基线、判据与接受权限；
 需要评估 handbook 或角色修改时只建立覆盖本次变化的任务，不把公开样例称作留出集。

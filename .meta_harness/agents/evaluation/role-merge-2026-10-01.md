@@ -30,8 +30,8 @@ verification-developer 与三个 TUI 角色不动：它们的行动边界（只�
 
 | 任务 | Claude Code | Codex | 档位 | 依据 |
 |---|---|---|---|---|
-| 能力与组合的行为、具体提供者 | Opus 5.5 | GPT-6 Sol | high | 原 capability-developer、infrastructure-developer 的钉值（[2026-09-23 换代记录](role-model-reeval/README.md)） |
-| 单个模块、规格完整的应用切片 | Sonnet 5.5 | GPT-6 Sol | high | 原 application-developer 的钉值；[Sonnet 5.5 对照](role-model-sonnet55/README.md)里它在这类切片上与 Opus 5.5 相当，跨多个包或契约留白时两者的解法不同 |
+| 能力与组合的行为、具体提供者 | Opus 5.5 | GPT-6.1 Sol | high | 原 capability-developer、infrastructure-developer 的钉值（[2026-09-23 换代记录](role-model-reeval/README.md)）；Codex 一列当日由 GPT-6 Sol 升为 GPT-6.1 Sol（[升级记录](codex-sol-6.1-upgrade-2026-10-01.md)） |
+| 单个模块、规格完整的应用切片 | Sonnet 5.5 | GPT-6.1 Sol | high | 原 application-developer 的钉值；[Sonnet 5.5 对照](role-model-sonnet55/README.md)里它在这类切片上与 Opus 5.5 相当，跨多个包或契约留白时两者的解法不同 |
 | 内核原语与生命周期机制 | Fable 5.1 | GPT-6 Astra | xhigh | 原 kernel-developer 的钉值 |
 | 安全敏感、跨多个包或整个装配、契约把失败／诊断／顺序留给判断 | Fable 5.1 | GPT-6 Astra | high 起 | 原 application-developer 的 description 里「改派顶档」的条件；同一份对照 |
 
@@ -47,7 +47,7 @@ Codex 的规则是角色文件钉的模型优先于派发值（[Codex 适配说�
 | 派发参数入口对 developer 两端都能出参数；Codex 一端 `model` 为空 | 已核（`render_pair.py --dispatch`） |
 | Claude Code 新进程里 developer 能被派发，并能引出合并后的边界表 | 已核：`claude -p` 新进程派发，子代理不读文件即逐字引出四类任务与「不由你补」的原话 |
 | Claude Code 派发时用 `model` 参数换档确实生效 | 已核：派发时给 `sonnet`，该次运行的 `modelUsage` 里出现 `claude-sonnet-5-5`（角色文件钉的是 Opus 5.5） |
-| Codex 新进程里 developer 能被派发、显式给的模型确实生效 | 已核一次：`codex exec`（codex-cli 0.159.0）派发并显式给 `gpt-6-sol`、high；子会话的 rollout 日志里 `agent_role` 为 `developer`、模型 `gpt-6-sol`、档位 `high`，且含新正文独有的句子；父会话报告 kernel-developer、architecture-drafter 不在可用类型里 |
+| Codex 新进程里 developer 能被派发、显式给的模型确实生效 | 已核一次：`codex exec`（codex-cli 0.159.0）派发并显式给 `gpt-6-sol`、high；子会话的 rollout 日志里 `agent_role` 为 `developer`、模型 `gpt-6-sol`、档位 `high`，且含新正文独有的句子；父会话报告 kernel-developer、architecture-drafter 不在可用类型里。这次探针在升到 GPT-6.1 Sol 之前做，验证的是「显式给的模型生效」这个机制，没有用 `gpt-6.1-sol` 重做 |
 | Codex 派发时**不给**模型会用哪个 | **未验证**；按官方规则应继承父会话的模型 |
 | 合并后的正文在实现任务上的效果不比原四个角色差 | **未验证**：没有重跑留出任务。正文从四份各约 25 行变成一份约 35 行，共同契约不变 |
 
