@@ -8,9 +8,11 @@ from pathlib import Path
 from typing import Any
 
 FORMAT = 1
-# review: a role reports on a material and a judge reads the report. implement and acceptance:
-# the role changes or runs a checkout and a program reads the result when the run is recorded.
-FAMILIES = ("review", "implement", "acceptance")
+# review: a role reports on a material and a judge reads the report. implement, acceptance and
+# write-tests: the role changes or runs a checkout and a program reads the result when the run is recorded.
+FAMILIES = ("review", "implement", "acceptance", "write-tests")
+FRAMED = ("implement", "write-tests")
+MUTANT_KEYS = ("id", "find", "replace")
 JUDGED = ("review",)
 WORKSPACE_KINDS = ("material", "checkout")
 COMMIT_MODES = ("single", "delivery")
@@ -260,13 +262,17 @@ def _check_family(flow: Flow) -> None:
     elif flow.family != "review":
         raise SuiteError(f"{where}: a {flow.family} flow works on a checkout")
     needs = {"implement": ("member", "tests_dir", "test", "typecheck", "format", "target_tests"),
-             "acceptance": ("member", "tests_dir", "report_glob", "artefact", "ground_truth")}.get(flow.family, ())
+             "acceptance": ("member", "tests_dir", "report_glob", "artefact", "ground_truth"),
+             "write-tests": ("member", "tests_dir", "test", "typecheck")}.get(flow.family, ())
     for key in needs:
         if key not in flow.oracle:
             raise SuiteError(f"{where}: oracle lacks {key!r}")
+    if flow.family in FRAMED and (flow.brief_frame is None or not flow.brief_frame.is_file()):
+        raise SuiteError(f"{where}: a flow of the {flow.family} family fills its task briefs into a brief_frame")
+    if flow.family == "write-tests":
+        for material in flow.materials:
+            _check_mutants(f"{where}/{material.id}", material.task or {})
     if flow.family == "implement":
-        if flow.brief_frame is None or not flow.brief_frame.is_file():
-            raise SuiteError(f"{where}: an implement flow fills its task briefs into a brief_frame")
         for material in flow.materials:
             task = material.task or {}
             for key in ("stub", "hidden_tests", "allowed_write"):
@@ -293,3 +299,22 @@ def _check_family(flow: Flow) -> None:
     for material in flow.materials:
         if material.delivery_note is not None and not material.delivery_note.is_file():
             raise SuiteError(f"{where}/{material.id}: delivery note {material.delivery_note.name} does not exist")
+
+
+def _check_mutants(where: str, task: dict[str, Any]) -> None:
+    """A write-tests task names the module, the tests taken away, the write scope and mutants that each change it."""
+    for key in ("target", "hidden_tests", "allowed_write", "mutants"):
+        if key not in task:
+            raise SuiteError(f"{where}: task lacks {key!r}")
+    if not task["mutants"]:
+        raise SuiteError(f"{where}: a write-tests task holds the tests against at least one mutant")
+    ids = []
+    for mutant in task["mutants"]:
+        missing = [key for key in MUTANT_KEYS if key not in mutant]
+        if missing:
+            raise SuiteError(f"{where}: a mutant lacks {missing}")
+        if not mutant["find"] or mutant["find"] == mutant["replace"]:
+            raise SuiteError(f"{where}.{mutant['id']}: a mutant replaces some text of the module with other text")
+        ids.append(mutant["id"])
+    if len(set(ids)) != len(ids):
+        raise SuiteError(f"{where}: duplicate mutant ids")

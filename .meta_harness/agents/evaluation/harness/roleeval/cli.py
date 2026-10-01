@@ -39,9 +39,12 @@ import time
 from pathlib import Path
 from typing import Any
 
-from . import acceptance, calibration, checkout, claude_host, grading, implement, judge, review, stats, workspace
+from . import acceptance, calibration, checkout, claude_host, grading, implement, judge, review, stats, workspace, write_tests
 from .store import VariantStore
 from .suite import Flow, Material, SuiteError, load
+
+# The families a program judges when a run is recorded; each module has prepare, verify, judge, scored and rows.
+PROGRAM_JUDGED = {"implement": implement, "acceptance": acceptance, "write-tests": write_tests}
 
 HARNESS = Path(__file__).resolve().parent
 META = HARNESS.parents[3]
@@ -109,14 +112,13 @@ def build_copy(flow: Flow, material: Material, dest: Path) -> None:
 
 def build_checkout(flow: Flow, material: Material, dest: Path, source: Path) -> dict[str, str]:
     """A checkout copy made into the material by its family; returns the commits and hashes the run refers to."""
-    families = {"implement": implement.prepare, "acceptance": acceptance.prepare}
-    prepare_family = families.get(flow.family)
+    family = PROGRAM_JUDGED.get(flow.family)
     return checkout.build(flow, material, dest, source=source,
-                          before_baseline=(lambda copy: prepare_family(flow, material, copy)) if prepare_family else None)
+                          before_baseline=(lambda copy: family.prepare(flow, material, copy)) if family else None)
 
 
 def checkout_brief(flow: Flow, material: Material, dest: Path, rep: int, facts: dict[str, str]) -> str:
-    if flow.family == "implement":
+    if flow.family in ("implement", "write-tests"):
         return checkout.framed_brief(flow, material, workdir=str(dest), rep=rep)
     if flow.family == "acceptance":
         return acceptance.brief(flow, material, workdir=str(dest), rep=rep)
@@ -178,7 +180,7 @@ def verify(flow: Flow, work: Path, only: list[str] | None = None, notes: list[st
 
 def verify_checkout(flow: Flow, work: Path, only: list[str] | None, notes: list[str]) -> list[str]:
     """On real copies: the material builds, its seeds land, and a program judgment tells known good from bad."""
-    family = {"implement": implement.verify, "acceptance": acceptance.verify}.get(flow.family, review.verify_delivery)
+    family = PROGRAM_JUDGED[flow.family].verify if flow.family in PROGRAM_JUDGED else review.verify_delivery
     problems = []
     for material in flow.materials:
         if only and material.id not in only:
@@ -213,7 +215,9 @@ def inputs(flow: Flow) -> str:
         return inputs_implement(flow)
     if flow.family == "acceptance":
         return inputs_acceptance(flow)
-    seeds = sum(len(material.seeds) for material in flow.materials)
+    if flow.family == "write-tests":
+        return inputs_write_tests(flow)
+    seeds =sum(len(material.seeds) for material in flow.materials)
     host = flow.host["claude-code"]
     lines = [
         f"# 用例一览：{flow.id}（第 {flow.version} 版）", "",
@@ -339,6 +343,31 @@ def inputs_acceptance(flow: Flow) -> str:
             lines += ["- 不种缺陷（对照材料）"]
         lines += ["", f"- 然后在 `{flow.member()}` 里重新构建：`{' '.join(flow.workspace['rebuild'])}`",
                   "", "### 写入范围", "", *[f"- `{entry}`" for entry in material.allowed_write]]
+    return "\n".join(lines) + "\n"
+
+
+def inputs_write_tests(flow: Flow) -> str:
+    lines = _checkout_header(flow, "为一个拿走了原有测试的模块写测试")
+    lines += ["", "| 材料 | 取自提交 | 被测模块 | 拿走的原有测试 | 写入范围 | 变异体 |", "|---|---|---|---|---|---|"]
+    for material in flow.materials:
+        task = material.task or {}
+        lines.append(f"| `{material.id}` | `{flow.base(material)[:9]}` | `{task['target']}` | {len(task['hidden_tests'])} | "
+                     f"{len(task['allowed_write'])} 项 | {len(task['mutants'])} 个 |")
+    for material in flow.materials:
+        task = material.task or {}
+        lines += ["", f"## `{material.id}`", "", f"任务：{material.target}", "",
+                  "### 简报（任务简报填进框架之后的样子，逐字）", "",
+                  fenced(checkout.framed_brief(flow, material, workdir="{WORKDIR}", rep=0, keep=SHOWN)), "",
+                  "### 送审之前对副本做的处理", "",
+                  f"- 删掉成员的构建产物 `{flow.oracle['member']}/dist/`",
+                  *[f"- 删掉原有测试 `{path}`（判定器在 `verify` 里拿它当已知好的答案）" for path in task["hidden_tests"]],
+                  "", "### 写入范围", "", *[f"- `{entry}`" for entry in task["allowed_write"]],
+                  "", f"### 变异体（{len(task['mutants'])} 个，判定时逐个盖到 `{task['target']}` 上）"]
+        for mutant in task["mutants"]:
+            lines += ["", f"#### `{mutant['id']}`", "", "原文：", "", fenced(mutant["find"]), "", "变异后：", "",
+                      fenced(mutant["replace"]) if mutant["replace"] else "（替换为空：删去这段原文）", "",
+                      "逐字（JSON，含首尾空白与换行）：", "",
+                      fenced(json.dumps({"find": mutant["find"], "replace": mutant["replace"]}, ensure_ascii=False))]
     return "\n".join(lines) + "\n"
 
 
@@ -524,8 +553,7 @@ def record(flow: Flow, material: Material, rep: int, *, variant: str, out: Path,
             f"model {episode.model}, effort {episode.efforts_observed or 'not recorded'}")
     if not flow.judged:
         result["provenance"]["evidence"] = str(evidence.relative_to(out))
-        family = implement if flow.family == "implement" else acceptance
-        rows = family.rows(flow, material, rep, result, brief_text=brief_text)
+        rows = PROGRAM_JUDGED[flow.family].rows(flow, material, rep, result, brief_text=brief_text)
         VariantStore(out, variant).record_episode(rows, episode.turns)
         said += f"; scored by the program: success {result['observations']['success'][0]}"
     return said
@@ -542,6 +570,9 @@ def observe_run(flow: Flow, material: Material, episode: claude_host.Episode, de
         result = acceptance.judge(flow, material, dest, evidence=evidence / "oracle",
                                   artefact=prepared["facts"]["artefact"])
         return acceptance.scored(result, episode, allowed), result
+    if flow.family == "write-tests":
+        result = write_tests.judge(flow, material, dest, source=Path(prepared["template"]), evidence=evidence / "oracle")
+        return write_tests.scored(result, episode, allowed), result
     if flow.kind == "checkout":
         return review.observe_delivery(episode, dest, prepared["facts"]["head"], allowed=allowed), None
     unchanged = dest.is_dir() and workspace.tree_hash(dest) == prepared["tree_hash"]
@@ -777,10 +808,12 @@ def summary(flow: Flow, out: Path) -> str:
             lines.append(line)
     primary = next((metric for metric in flow.metrics if metric["kind"] == "binary"), flow.metrics[0])
     cases = len(stats.case_means(reference, primary["id"]))
+    together = ("the mutants of one material are judged with the same tests of the same run"
+                if flow.family == "write-tests" else "seeds of one material are judged on the same report")
     lines += ["", f"noise floor on {primary['id']}: about ±{stats.noise_floor(cases):.0%} with {cases} cases; "
                   f"a smaller change cannot be told from run-to-run variation",
-              "seeds of one material are judged on the same report, so they are not independent: "
-              "the intervals above are narrower than the truth when materials are few"]
+              f"{together}, so they are not independent: the intervals above are narrower than the truth when "
+              f"materials are few"]
     return "\n".join(lines) + "\n"
 
 

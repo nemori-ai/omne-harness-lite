@@ -1,6 +1,6 @@
 """What the flows a program judges have in common: the write scope, the tools used, the shape of a row.
 
-In these flows (implement, acceptance) the role changes or runs a checkout, and a program reads the
+In these flows (implement, acceptance, write-tests) the role changes or runs a checkout, and a program reads the
 result off the copy when the run is recorded, before the copy is removed. There is no judge.
 """
 from __future__ import annotations

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,7 @@ import pytest
 from test_role_evals import EVALUATION, META, MODEL, git, repo, serial, transcript, wired  # noqa: F401  (fixtures)
 from test_role_evals import prepare as prepare_material
 
-from roleeval import acceptance, checkout, claude_host, cli, implement, judge, review, suite, workspace  # noqa: E402
+from roleeval import acceptance, checkout, claude_host, cli, implement, judge, review, suite, workspace, write_tests  # noqa: E402
 from roleeval.store import VariantStore, check_row  # noqa: E402
 
 PY = sys.executable
@@ -707,7 +708,7 @@ def test_the_inputs_page_of_each_new_family(tiny: dict[str, Any]) -> None:
 
 
 def test_nothing_new_in_the_runner_starts_a_model() -> None:
-    for name in ("checkout.py", "implement.py", "acceptance.py", "program.py", "workspace.py", "review.py"):
+    for name in ("checkout.py", "implement.py", "acceptance.py", "program.py", "workspace.py", "review.py", "write_tests.py"):
         source = (EVALUATION / "harness" / "roleeval" / name).read_text(encoding="utf-8")
         assert '"claude"' not in source and "'claude'" not in source and "claude -p" not in source, name
 
@@ -744,9 +745,16 @@ def test_a_checkout_suite_still_fits_its_pinned_commit(root: Path) -> None:
                 assert text.count(op["find"]) == 1, f"{flow.id}/{material.id}.{op.get('id')}: no longer lands once"
             else:
                 workspace.git(repo, "show", f"{base}:{op['file']}")
-        if material.task:
+        if flow.family == "implement":
             for path in [*material.task["hidden_tests"], *implement.stub_files(flow, material)]:
                 workspace.git(repo, "show", f"{base}:{path}")
+            checkout.framed_brief(flow, material, workdir="/w", rep=0)
+        if flow.family == "write-tests":
+            for path in material.task["hidden_tests"]:
+                workspace.git(repo, "show", f"{base}:{path}")
+            module = subprocess.run(["git", "-C", str(repo), "show", f"{base}:{material.task['target']}"],
+                                    capture_output=True, text=True, check=True).stdout
+            assert write_tests.landing(material, module) == [], f"{flow.id}/{material.id}: mutants no longer land once"
             checkout.framed_brief(flow, material, workdir="/w", rep=0)
         if flow.family == "acceptance":
             acceptance.brief(flow, material, workdir="/w", rep=0)
