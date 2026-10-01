@@ -39,8 +39,8 @@ definition revision 为 1；configuration 的完整 values 及 implementation re
 
 ## 可恢复输入与重跑
 
-- [源码、配置、原始输出归档](source-config-and-runs.tar.gz)：`input/source/` 为当前 17 包、开发工具与规范输入；`input/current-inputs/` 为 44 个精确施工输入；其余为实际日志、文档消费者、paid 录制与唯一账本最终观察。恢复代码时在上述 HEAD 的干净检出上叠加 `source/` 及 `current-inputs/`，不要把 ledger 观察复制成新的 live 账本。
-- [r1 生产制品](public-artifact-r1.tar.gz)、[r2 生产制品](public-artifact-r2.tar.gz)：保持实际运行的字节及内部依赖闭包，解压到仓库外后 `node artifact/interface.mjs` 只加载公开接口。r2 之后的变化只有 README 说明/末尾空行和 runtime 包 files 列表去除三个不存在的 pi 文件；这些当前文档在源码快照里，未冒充 paid 制品当时的字节。
+- [源码、配置、原始输出归档（已外置）](../2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)：`input/source/` 为当前 17 包、开发工具与规范输入；`input/current-inputs/` 为 44 个精确施工输入；其余为实际日志、文档消费者、paid 录制与唯一账本最终观察。恢复代码时在上述 HEAD 的干净检出上叠加 `source/` 及 `current-inputs/`，不要把 ledger 观察复制成新的 live 账本。
+- [r1 生产制品（已外置）](../2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)、[r2 生产制品（已外置）](../2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)：保持实际运行的字节及内部依赖闭包，解压到仓库外后 `node artifact/interface.mjs` 只加载公开接口。r2 之后的变化只有 README 说明/末尾空行和 runtime 包 files 列表去除三个不存在的 pi 文件；这些当前文档在源码快照里，未冒充 paid 制品当时的字节。
 - [输入与输出 SHA-256](input-and-output-hashes.json)、[施工输入观察对照](input-observations.json)、[工具环境](environment.json)提供定位，不代替结果。
 
 控制检查在上述检出叠加快照后执行：`pnpm install --frozen-lockfile`；先构建实际 workspace 依赖，再执行 `pnpm --filter @omne-harness-lite/model-request-runtime build`/`typecheck`/`test`，以及 pi-ai-transport 同三项。预算检查命令为 `node --test tools/model-probe/tests/*.test.mjs`，扫描为 `pnpm --filter @omne-harness-lite/ts-checks scan`。每个 package 的脚本在归档 package.json 中。文档消费者使用 44 个实际代码块及 tsconfig，显式链接对应已构建 workspace 包后用其 TypeScript 编译器检查/执行；该文档检查不是 44 个独立安装制品的证明。
@@ -54,3 +54,7 @@ Paid 重跑不是上述无费用复验的一部分：`construction/p1-paid-publi
 所有保存的建设失败日志保留，包括错误 AttemptId fixture、TypeScript 输入投影不匹配、格式命令传目录被拒、旧竞争 reader 断言与已接受 typed rejection 不一致，以及 Node Agent 中排队 destroy 不及时停止的真实反例。最终实现改用可取消的显式 admission 队列，对相应实际 socket/零第二 HTTP 做了复验。中间每一失败版本的完整源码并未保存，因此这些旧失败仅按历史日志读取；r1/r2 paid 制品及最终源码快照完整，不将最终源码说成每次旧运行的输入。
 
 追加实际对账：[全体 realization 原始结果](p1-realization-check.txt)退出 1，有 7 个其他节点的 8 处 kind/源码位置格式错误；[HEAD 字段对照](p1-realization-baseline.json)确认这些字段与当前 HEAD 相同，本次没有修改它们。本次两个 model 节点经同一个 Checker 的 entry/architecture/bindings/links 检查均通过，[精确范围和结果](p1-realization-scoped-check.json)可复核；这不是全仓 design-check 通过。最后一次差异空白检查通过。当前映射、checker 与运行脚本补充保存在 [对账快照](realization-and-final-checks.tar.gz)，SHA-256 沿补充文件哈希表读取。
+
+## 2026-10-01 归档位置变更
+
+原运行结论和原始摘要保持。成批源码、制品及依赖归档已按用户选择移出 Git，原文件逐 SHA-256 保全；取回位置、字节摘要及历史提交映射见[归档迁移记录](../2026-10-01-checks-model-runtime-repository-cleanup/README.md)。原清单中的路径是运行时地址，读取外置文件时按迁移清单恢复，不能把本机保全称为远程备份。

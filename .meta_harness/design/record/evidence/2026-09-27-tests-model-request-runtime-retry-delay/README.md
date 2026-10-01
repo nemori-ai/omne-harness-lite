@@ -20,7 +20,7 @@ HUB原合入后120/120测试、六个literal及13最终集成检查的原始记�
 
 ## 原件与证据记账限制
 
-[完整原件归档](closed-public-artifacts-and-runs.tar.gz)132652935bytes，SHA256 `934e639cd3174959aa41ce4d4e581a1f8a9fc3a08eb4e9efedda91b36dffac07`；[逐成员清单](archive-manifest.json)SHA `e09f9bba2f2d5662391df21bd5330966bc6457c77b9c51c8dec081c8883a37f4`。原[报告字节快照](independent-REPORT.txt)、[机器摘要](independent-summary.json)、[封存元数据](independent-archive.json)、[冻结hash](input-hashes.json)、[root核对](root-verification.json)、[限定接受](acceptance-summary.json)、[root测量脚本与原输出](root-verification-runs.tar.gz)和[file-hashes](file-hashes.json)可读。报告作为txt保留原字节/绝对路径；解开归档后的 `evidence/`/`os/` 布局不修改。
+[完整原件归档（已外置）](../2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)132652935bytes，SHA256 `934e639cd3174959aa41ce4d4e581a1f8a9fc3a08eb4e9efedda91b36dffac07`；[逐成员清单](archive-manifest.json)SHA `e09f9bba2f2d5662391df21bd5330966bc6457c77b9c51c8dec081c8883a37f4`。原[报告字节快照](independent-REPORT.txt)、[机器摘要](independent-summary.json)、[封存元数据](independent-archive.json)、[冻结hash](input-hashes.json)、[root核对](root-verification.json)、[限定接受](acceptance-summary.json)、[root测量脚本与原输出](root-verification-runs.tar.gz)和[file-hashes](file-hashes.json)可读。报告作为txt保留原字节/绝对路径；解开归档后的 `evidence/`/`os/` 布局不修改。
 
 早期所有实际业务子进程argv/PID/raw/wait保留，但setup/numeric/docs/nooptional及首次controls的外层driver PID未单存；首次formatter仅有明确归因tool transcript，后次带PID复现不冒充首次原件。最终driver/命令/负控已完整记录。原generator/类型fixture/formatter/隐藏metadata/首次socket Set1失败与修正全保留，不把fixture非零算产品反例，也不靠修改源码放宽oracle。
 
@@ -31,3 +31,7 @@ HUB原合入后120/120测试、六个literal及13最终集成检查的原始记�
 未执行decideRetry/default retry plugin/P5调度、R3-G7大时长等待与实际停止、生产observer、G28/G29真实写方/历史/G30/G31、五共同结算构件、十三服务/租户访问、完整P2～P6或37模型生产认证。本函数只计算明确提供事实下的精确延迟，不建策略默认、不读随机、不安排第二次send。官方认证 **0/37**，费用新增0；旧W15/804 Fail原件及其范围保持。
 
 本记录注册检查原件见[检查归档](post-registration-checks.tar.gz)：首次因root尚未创建file-hashes链接目标退出1，真实原输出保留；补齐hash索引后internal checker formal=skip实际退出0，不改变产品。归档另含独立封存后外置completion的4份原件及hash核对，未假称它们已包含在原tar。
+
+## 2026-10-01 归档位置变更
+
+原运行结论和原始摘要保持。成批源码、制品及依赖归档已按用户选择移出 Git，原文件逐 SHA-256 保全；取回位置、字节摘要及历史提交映射见[归档迁移记录](../2026-10-01-checks-model-runtime-repository-cleanup/README.md)。原清单中的路径是运行时地址，读取外置文件时按迁移清单恢复，不能把本机保全称为远程备份。

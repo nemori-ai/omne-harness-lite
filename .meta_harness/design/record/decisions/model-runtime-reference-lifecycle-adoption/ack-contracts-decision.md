@@ -12,7 +12,7 @@
 
 ## 采用依据与精确复核
 
-来源为[最终候选交接](../../proposals/model-runtime-reference-lifecycle/ack-final-handoff.md)、[技术选择](../../proposals/model-runtime-reference-lifecycle/ack-technical-choices.md)、[四表对账](../../proposals/model-runtime-reference-lifecycle/ack-reconciliation.md)及[ACK 后真实处分接续](../../proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)。[独立架构评审](../../proposals/model-runtime-reference-lifecycle/ack-architecture-review.md)覆盖最终节点及原账来源，末次基线 `7b0871ab7c53f7f0184e7a0a16298504810290b8`，无阻断；[独立规格评审](../../proposals/model-runtime-reference-lifecycle/ack-spec-review.md)末次基线 `3c78263ac4b1cc275009ea31a1f68a37228bc87b`，现行版本坐标的 N1 已关闭，无表达阻断。
+来源为[最终候选交接（已外置）](../../evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)、[技术选择](../../proposals/model-runtime-reference-lifecycle/ack-technical-choices.md)、[四表对账](../../proposals/model-runtime-reference-lifecycle/ack-reconciliation.md)及[ACK 后真实处分接续](../../proposals/model-runtime-reference-lifecycle/ack-post-confirmation-settlement.md)。[独立架构评审](../../proposals/model-runtime-reference-lifecycle/ack-architecture-review.md)覆盖最终节点及原账来源，末次基线 `7b0871ab7c53f7f0184e7a0a16298504810290b8`，无阻断；[独立规格评审](../../proposals/model-runtime-reference-lifecycle/ack-spec-review.md)末次基线 `3c78263ac4b1cc275009ea31a1f68a37228bc87b`，现行版本坐标的 N1 已关闭，无表达阻断。
 
 主线在 HUB `1c365791` 回读全部新增 ACK 条款、四节点、评审与实际结果：315 项交接摘要全部吻合，原 970 项冻结资源未变，144 项归档原件逐字节摘要吻合。归档中的 Schema 最终结果为 80/80，摘要为 20 个向量与 4 等价/6 不等价对；两个有限模型各 6688 个生成状态、2124 个不同状态、exit 0，八个单项破坏配置各 exit 12 并命中具名不变量。具体输入、输出及早期失败保持在[原证据](../../evidence/2026-09-29-model-call-ack-candidate/README.md)。这是原运行的独立复核，不冒作本次重跑，也不证明真实 SQL/JSONL、授权、跨进程停止或内存释放。
 

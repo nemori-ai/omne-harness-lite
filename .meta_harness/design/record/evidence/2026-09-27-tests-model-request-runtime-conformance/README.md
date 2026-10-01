@@ -85,3 +85,7 @@ design checker 在 `formal=skip` 下 exit 0，实际形式任务 0。原始输�
 检查入口追加于 `final-mapping-check.tar.gz`，精确输入与归档哈希见
 [final-mapping-check.json](final-mapping-check.json)。这是同步 origin/main 之前的实际状态；
 不表示全体其他 realization 节点通过，不关闭 B1 的组合缺口。两份主归档保持原字节。
+
+## 2026-10-01 归档位置变更
+
+原运行结论和原始摘要保持。成批源码、制品及依赖归档已按用户选择移出 Git，原文件逐 SHA-256 保全；取回位置、字节摘要及历史提交映射见[归档迁移记录](../2026-10-01-checks-model-runtime-repository-cleanup/README.md)。原清单中的路径是运行时地址，读取外置文件时按迁移清单恢复，不能把本机保全称为远程备份。

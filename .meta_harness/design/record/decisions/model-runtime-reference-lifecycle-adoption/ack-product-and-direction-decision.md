@@ -24,6 +24,6 @@ ACK 表示有权消费方已经处理结果或自行保管后续所需内容；�
 
 ## 后继放行条件
 
-[施工 brief](../../proposals/model-runtime-reference-lifecycle/ack-spec-construction-brief.md) 的 RT12、MS8、MR11、CA4 候选必须完成精确字段、操作和来源关系、形式反例与运行证据，以及独立规格／架构评审。ACK 后新合法处分产生未知写入时的暂存与收束责任须在后继明确，不能永久复活已释放副本。runtime、messages、accounts 的映射和受影响消费者随之更新。冻结 RT11/MS7/MR10/CA3 不原改，不提供旧执行兼容分支。
+[施工 brief（已外置）](../../evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件) 的 RT12、MS8、MR11、CA4 候选必须完成精确字段、操作和来源关系、形式反例与运行证据，以及独立规格／架构评审。ACK 后新合法处分产生未知写入时的暂存与收束责任须在后继明确，不能永久复活已释放副本。runtime、messages、accounts 的映射和受影响消费者随之更新。冻结 RT11/MS7/MR10/CA3 不原改，不提供旧执行兼容分支。
 
 完成上述精确采用后才实施 ACK 删除；此前可继续既有契约下无冲突的存取、幂等、模型适配及认证工作。本次采用不证明 SQL/JSONL 耐久、TLA 模型性质、SHA 碰撞安全或端到端回收已经实现。

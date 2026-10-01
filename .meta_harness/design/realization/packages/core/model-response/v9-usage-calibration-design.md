@@ -4,7 +4,7 @@
 
 ## 输入与采用门
 
-已核 [catalog](../../../../registry/catalog.json)：baseline `omne-harness-lite-design-2026-09-15` 的 `data.model-response/9`（MR9）和 `capability.model-request-runtime/10`（RT10）均为 candidate、acceptance 为 null。本节点只拥有 MR9 的表示及单响应关系判定，RT10 只定位消费者责任，不反向成为 core 的运行依赖。施工方向为 [U0 C](../../../../record/proposals/model-input-usage-calibration/design.md) 与[施工简报](../../../../record/proposals/model-input-usage-calibration/spec-construction-brief.md)。下列 SHA 识别本次读入快照，不表示接受或冻结发布。
+已核 [catalog](../../../../registry/catalog.json)：baseline `omne-harness-lite-design-2026-09-15` 的 `data.model-response/9`（MR9）和 `capability.model-request-runtime/10`（RT10）均为 candidate、acceptance 为 null。本节点只拥有 MR9 的表示及单响应关系判定，RT10 只定位消费者责任，不反向成为 core 的运行依赖。施工方向为 [U0 C](../../../../record/proposals/model-input-usage-calibration/design.md) 与[施工简报（已外置）](../../../../record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)。下列 SHA 识别本次读入快照，不表示接受或冻结发布。
 
 | 输入 | SHA-256 |
 |---|---|

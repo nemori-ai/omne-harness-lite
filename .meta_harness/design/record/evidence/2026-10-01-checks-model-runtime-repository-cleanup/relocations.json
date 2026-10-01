@@ -1,0 +1,534 @@
+{
+  "external_root_from_main_checkout": "tmp/model-request-runtime/evidence-archives",
+  "external_files": [
+    {
+      "original_path": ".meta_harness/design/record/decisions/core-implementation-spec-reconciliation/candidate-diff.json",
+      "sha256": "7a7548104bd2d058505fcce25a3903dccdd02cc956ac6159710f519de4f5782d",
+      "git_blob": "1de95d407abeaa2b513d192f4f3f15398e59495e",
+      "bytes": 619588,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/decisions/core-implementation-spec-reconciliation/candidate-diff.json",
+      "history_filter": false
+    },
+    {
+      "original_path": ".meta_harness/design/record/decisions/core-implementation-spec-reconciliation/candidate-registry-patch.json",
+      "sha256": "e87c0c689f2dac729eed4430e7a9cd0d24e1312af6ca3903f4e0f8f619092f58",
+      "git_blob": "1a164f551331cf6e205421796d1e1904414e6b2e",
+      "bytes": 238698,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/decisions/core-implementation-spec-reconciliation/candidate-registry-patch.json",
+      "history_filter": false
+    },
+    {
+      "original_path": ".meta_harness/design/record/decisions/core-implementation-spec-reconciliation/construction-brief.md",
+      "sha256": "1f2c0a88ad8f8811949522343718193d5385ecadd49fd42c8e72f448a53f17e0",
+      "git_blob": "9874da2d482bbe60839fd5ee8d2a96d2e3067175",
+      "bytes": 5196,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/decisions/core-implementation-spec-reconciliation/construction-brief.md",
+      "history_filter": false
+    },
+    {
+      "original_path": ".meta_harness/design/record/decisions/core-implementation-spec-reconciliation/consumer-impact.json",
+      "sha256": "418ba74d9aaa57af600a4d1fb0dfb8e9f7abcf690342522181b925a459175a58",
+      "git_blob": "02a552900ea04c0f99c0784d6da4c3c722cd9a79",
+      "bytes": 67960,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/decisions/core-implementation-spec-reconciliation/consumer-impact.json",
+      "history_filter": false
+    },
+    {
+      "original_path": ".meta_harness/design/record/decisions/core-implementation-spec-reconciliation/draft-report.md",
+      "sha256": "c5735194b927da04937ec00f30bfba94b23d48eba4a44ae2fad8a3863e52a621",
+      "git_blob": "7818f85dac48efe17f5c980a042c4b3c9cab27f1",
+      "bytes": 15324,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/decisions/core-implementation-spec-reconciliation/draft-report.md",
+      "history_filter": false
+    },
+    {
+      "original_path": ".meta_harness/design/record/decisions/skill-yaml-key-resolution/candidate-diff.json",
+      "sha256": "31a80e31f0f44a9a9fddc6be608ff23a0a5d6fae732553843fc98f3774881cf3",
+      "git_blob": "06712ef8a189c5a913ee6543ecf8f7e789002215",
+      "bytes": 40462,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/decisions/skill-yaml-key-resolution/candidate-diff.json",
+      "history_filter": false
+    },
+    {
+      "original_path": ".meta_harness/design/record/decisions/skill-yaml-key-resolution/candidate-registry-patch.json",
+      "sha256": "49d93eb9d2beed92b446c221b90db7a3ee59fd175445a053e8af8e1e4d57720c",
+      "git_blob": "93cbb6be26d31501d7173c523f238ff91a6269cc",
+      "bytes": 16570,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/decisions/skill-yaml-key-resolution/candidate-registry-patch.json",
+      "history_filter": false
+    },
+    {
+      "original_path": ".meta_harness/design/record/decisions/skill-yaml-key-resolution/construction-brief.md",
+      "sha256": "aa45bb79aac8448a3e40d1bb646024cc9f990a778783eef8c37aa27e569ae295",
+      "git_blob": "e9a8c42dd46d7354218a807b56ceb231717b7cfb",
+      "bytes": 3349,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/decisions/skill-yaml-key-resolution/construction-brief.md",
+      "history_filter": false
+    },
+    {
+      "original_path": ".meta_harness/design/record/decisions/skill-yaml-key-resolution/consumer-impact.json",
+      "sha256": "c5612b4a0ec0b094cfa99144ebfed66c8bb6109a8f0a57710d7fc3b9f4dd9322",
+      "git_blob": "a135e9c67f162e4a32b033c987cce49e6de5603e",
+      "bytes": 70517,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/decisions/skill-yaml-key-resolution/consumer-impact.json",
+      "history_filter": false
+    },
+    {
+      "original_path": ".meta_harness/design/record/decisions/skill-yaml-key-resolution/draft-report.md",
+      "sha256": "2eab9075c9164bbc088450716f14375f02b619cec9e8828c1c55b404c9bb433e",
+      "git_blob": "c48b588de0a935d06f30453c20aab7428e6566ca",
+      "bytes": 11873,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/decisions/skill-yaml-key-resolution/draft-report.md",
+      "history_filter": false
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-core-rfc3339-order/closed-public-artifacts-and-runs.tar.gz",
+      "sha256": "8cd8e512c714f10383ac6a4ab94636c92d6b90146efb825ae8563a0f8e0ed53a",
+      "git_blob": "3e13328f12943fa90a0b44341aebb0505c31e978",
+      "bytes": 36336882,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-core-rfc3339-order/closed-public-artifacts-and-runs.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-boundaries/public-artifact-r6.tar.gz",
+      "sha256": "9b0c60a7bd9887b57757b64e79d196267047c414517b39d03cf98eeb5ebd74c6",
+      "git_blob": "a2c9bfebbcb2ab349f4de1e360f17db6ea7b3932",
+      "bytes": 2106854,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-boundaries/public-artifact-r6.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-boundaries/source-config-and-runs.tar.gz",
+      "sha256": "ebc7b826538bd0856cedc7cedf72401e8f351b3c4651c111e4f8c26349cfd472",
+      "git_blob": "233e9a85a488777ef2c9afeb311e4707e9d498d9",
+      "bytes": 18665870,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-boundaries/source-config-and-runs.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-conformance/public-artifact-r4.tar.gz",
+      "sha256": "a629a2028649e44b7d822c14867b72aeefe828a8e078d146711d8fd52486f5fb",
+      "git_blob": "80772a051466645314983defb7f37a6b7897d8e2",
+      "bytes": 2095660,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-conformance/public-artifact-r4.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-conformance/source-config-and-runs.tar.gz",
+      "sha256": "1c3767bb8207e8c93aba05085aec7bb08dc7ef0cfb2fff0495d4b8b83bb3111c",
+      "git_blob": "8a83f166dab512eab9395b9925cf6d9d245b2619",
+      "bytes": 7587010,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-conformance/source-config-and-runs.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-definitions/closed-public-artifacts-r7.tar.gz",
+      "sha256": "f9da1622b6b04854bc824e10e03701bc36541ef73f668a7d9aeec50462720eea",
+      "git_blob": "df41a94c1c8b464508db7f38035ee98fa926bf28",
+      "bytes": 68668315,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-definitions/closed-public-artifacts-r7.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-definitions/source-config-and-runs.tar.gz",
+      "sha256": "c15bd4563f11bc173cf4ab34ddce0dbc00bb347592f5cb05d8888093cbb89d8a",
+      "git_blob": "bebe5faa8a5a9e2987790acc018ae98ddcbaf6c3",
+      "bytes": 12909663,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-definitions/source-config-and-runs.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-guard-log/closed-public-artifacts-and-runs.tar.gz",
+      "sha256": "b69b10ecd2a890f339c3cb84006a577bb11ec35987c8478473f62713f3f6b090",
+      "git_blob": "f72a2dafbccd61e4f6b087ad731575e971c524b9",
+      "bytes": 86405265,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-guard-log/closed-public-artifacts-and-runs.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-p1/public-artifact-r1.tar.gz",
+      "sha256": "b01635eb7535ab0cd95155afe4946803ae84b3abc9e18aed1240ab2da661a499",
+      "git_blob": "ce4db4cec5bddaacaeac76aa2e4d5a27028db9a2",
+      "bytes": 930923,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-p1/public-artifact-r1.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-p1/public-artifact-r2.tar.gz",
+      "sha256": "3ee9d2486f7af1bb8217cad7e3b66c60cfc2a1f49497455b40856a1fda1cd908",
+      "git_blob": "ed7e7a479e3299b31ce43a6b1c503a83bd14bff6",
+      "bytes": 930906,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-p1/public-artifact-r2.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-p1/source-config-and-runs.tar.gz",
+      "sha256": "daf8dbefd7d7d74d892fcc11266a8fcc5024b79843554178bf23651bb900d50a",
+      "git_blob": "017008fe3dbd7c885ee1f75d1075799a9cba9637",
+      "bytes": 6534351,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-p1/source-config-and-runs.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-p2/public-artifact-r1.tar.gz",
+      "sha256": "8d795e31f6b74a9f1be2ad4cd0d11b49bfac56454a7dd34ebc933a7b638a73a1",
+      "git_blob": "755cd3e3833d48f736fb2656ef4af3c1e1451bfb",
+      "bytes": 2109396,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-p2/public-artifact-r1.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-p2/public-artifact-r2.tar.gz",
+      "sha256": "f8033ca5980035ac23316e57700f750410aea29e09547c7d7630182bf1526653",
+      "git_blob": "cf7fbe47f32e34efa36168e621a9279dbe03074f",
+      "bytes": 2109679,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-p2/public-artifact-r2.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-p2/source-config-and-runs.tar.gz",
+      "sha256": "7de712f17fe85bb21503f2eb06c5c6aa5d51edcdfa4f38aac497ffa598569e9f",
+      "git_blob": "37835da8555d15b36b79c567c2a99b961fba7228",
+      "bytes": 6751484,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-p2/source-config-and-runs.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-parameters/public-artifact-r5.tar.gz",
+      "sha256": "991c68e18cdd6aaf7266a18762e79e5a76a84ef5a9458ef1c3ea9ba6c5d478bf",
+      "git_blob": "8ec1eabbc05cfa04d4f707e0b09cdb46aa1f1bd7",
+      "bytes": 2097099,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-parameters/public-artifact-r5.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-parameters/source-config-and-runs.tar.gz",
+      "sha256": "93aa1f62452c54dc71f3076a909e84c3dfb3a8d10f219476dee3502ae0042159",
+      "git_blob": "cd91f0441419d8730ca0d67b6ce7c4056b17a50f",
+      "bytes": 9076608,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-parameters/source-config-and-runs.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-retry-delay/closed-public-artifacts-and-runs.tar.gz",
+      "sha256": "934e639cd3174959aa41ce4d4e581a1f8a9fc3a08eb4e9efedda91b36dffac07",
+      "git_blob": "7f12ee43c9d17a7fce7d9f99c1ed4ac40e79c769",
+      "bytes": 132652935,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-request-runtime-retry-delay/closed-public-artifacts-and-runs.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-response-v5-core/evidence.tar.gz",
+      "sha256": "1a0d7f35fa84b6aa79447ae8ee3e467731560b094e1caba87eb776f42cdb81cc",
+      "git_blob": "4dab5255355807b0dda3cf4332f9a87d9f34743c",
+      "bytes": 1166743,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-response-v5-core/evidence.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-27-tests-model-transport-opaque-response/evidence.tar.gz",
+      "sha256": "051341e2600787b910d21b20665ab2f18478fd056e4c832fad5ad767c1a69c5b",
+      "git_blob": "d89fab6c3377e26c9923750384629d906a6a9990",
+      "bytes": 743118,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-27-tests-model-transport-opaque-response/evidence.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-28-tests-model-credential-redaction-pure/author-evidence.tar.gz",
+      "sha256": "7c751b2d07873919add75c7e68363338da67b9bacf58cde277eec73ed0793697",
+      "git_blob": "864bc3fbb1ef871bffc8e0b10a38420ad20aee42",
+      "bytes": 2980040,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-28-tests-model-credential-redaction-pure/author-evidence.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-28-tests-model-credential-redaction-pure/independent-evidence.tar.gz",
+      "sha256": "69976a31562400a5c2626b29e8714c0a87f8ad12fb65bc5916fc6ef8617a4dc2",
+      "git_blob": "9972c7be06bd2c8bb08bd905f84c345bb6cbd7f6",
+      "bytes": 1125509,
+      "reason": "externalized-bulk-evidence",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-28-tests-model-credential-redaction-pure/independent-evidence.tar.gz",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/align.py",
+      "sha256": "6a505b81c6e6e4ce8bdea8318e56abd7812566d2f462c4f186e1a49bf598783a",
+      "git_blob": "38bce8ae79ed4dca3ba7134528bacd0d5e66f305",
+      "bytes": 4212,
+      "reason": "task-specification-generator-or-handoff",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/align.py",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/clauses.py",
+      "sha256": "815351977d9d872f023cbe34821aca1d77ade546aaa34626a751c0c5c185e924",
+      "git_blob": "40679da8ef126aec10d58e6eff64048394b3df64",
+      "bytes": 11534,
+      "reason": "task-specification-generator-or-handoff",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/clauses.py",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/data.py",
+      "sha256": "a5fb01854ad34bd5db62f999c4c560e4684e9a4c78ef3984a44af19f4b409975",
+      "git_blob": "d39444b87cf0865889380de4cc224f497e843a36",
+      "bytes": 5387,
+      "reason": "task-specification-generator-or-handoff",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/data.py",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/docs.py",
+      "sha256": "7075acc4b15416ef4e8cc996c30289ba34f3ec7fa27fc47f4fafcc2fcf2c6908",
+      "git_blob": "44408933f604caaa8e6fab1d90c33d11ba759b5d",
+      "bytes": 10636,
+      "reason": "task-specification-generator-or-handoff",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/docs.py",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/examples.py",
+      "sha256": "693e86023eb8b0e18808f818e40f1f47105ab94d7f3cc6b20e1e3a8a121f22fc",
+      "git_blob": "1672bcd12b192b83caab7f9e45bd611626ca19a9",
+      "bytes": 6424,
+      "reason": "task-specification-generator-or-handoff",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/examples.py",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/finish-registry.py",
+      "sha256": "74143fc056bea3931c60cb185224621415883a34d9648c6166503bc71808b713",
+      "git_blob": "07497e31243f09c7f29d0178e9c13322aa32620e",
+      "bytes": 2244,
+      "reason": "task-specification-generator-or-handoff",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/finish-registry.py",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/handoff.md",
+      "sha256": "6160b81e3c159b652feff933f7fffbad3dc7eed84c9652bad2d48ca24514d0cd",
+      "git_blob": "763520feafbde3ba45eca2b195112c1cdd976d8b",
+      "bytes": 3371,
+      "reason": "task-specification-generator-or-handoff",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/handoff.md",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/model.py",
+      "sha256": "71ef9e76474b4606d3c131771e157f4e1aae2ba38c4076027186b08f9ac817f0",
+      "git_blob": "617b547a51539a2c2f2fe42ddeb04858c2c21dc7",
+      "bytes": 9085,
+      "reason": "task-specification-generator-or-handoff",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/model.py",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/refine.py",
+      "sha256": "aca39ff3273d35b6c933e9c58b3b0ead148a2c20699021ca8c9e2ba966d9e0d3",
+      "git_blob": "48e757b7338a24127a24fc2cdc2c04aa64f8a609",
+      "bytes": 3843,
+      "reason": "task-specification-generator-or-handoff",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/refine.py",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/register.py",
+      "sha256": "f2f382ad418e167165eed46ee01955cd47d259d7fde8476e8269efdcaba10600",
+      "git_blob": "dedbb87e8c8747cd7e87057e17e4688d94f1e7ae",
+      "bytes": 1499,
+      "reason": "task-specification-generator-or-handoff",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/register.py",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/runtime.py",
+      "sha256": "75e0d15698c0bb684f61d73662ae9c91811c084c5ba1eeb8829f1508f8418a1b",
+      "git_blob": "7dac92b6e16454399ab61ea80a7c09a9eeccbfac",
+      "bytes": 18698,
+      "reason": "task-specification-generator-or-handoff",
+      "external_relative_path": "files/.meta_harness/design/record/evidence/2026-09-29-model-call-ack-candidate/inputs/tmp/ack-spec-draft/runtime.py",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/proposals/model-input-usage-calibration/spec-construction-brief.md",
+      "sha256": "1d77fce04c93e40f51f2e7dbab0630b6a439bd68160128e6102e7471766a1350",
+      "git_blob": "a643e30ddfa40fd913a1f1ff3e0acdfa80cb444a",
+      "bytes": 16861,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/proposals/model-input-usage-calibration/spec-construction-brief.md",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/proposals/model-runtime-reference-lifecycle/ack-final-handoff-manifest.json",
+      "sha256": "e36c4a4e5ce96b1def55a14f8fe5f5d4df7a2fb4b3f1f71f440089e45ac1f40c",
+      "git_blob": "10a793adfa3ec2ef9852fdc1ba3c2fb3df0b00ce",
+      "bytes": 59830,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/proposals/model-runtime-reference-lifecycle/ack-final-handoff-manifest.json",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/proposals/model-runtime-reference-lifecycle/ack-final-handoff.md",
+      "sha256": "4c73e6c409bdf21ff2806f1f20322a09caa1647feef8a06ad79fdb5e771069c8",
+      "git_blob": "f29eb02672e3a50ec3aa8315d61d91cbb8642e6a",
+      "bytes": 3165,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/proposals/model-runtime-reference-lifecycle/ack-final-handoff.md",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/proposals/model-runtime-reference-lifecycle/ack-spec-construction-brief.md",
+      "sha256": "13da626145f6716e5e601567f09eb64085cc10c7d95e6fa8c78b0310f15b1109",
+      "git_blob": "a22bd886c8ca0af28aa3406688f865fcd218d241",
+      "bytes": 7821,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/proposals/model-runtime-reference-lifecycle/ack-spec-construction-brief.md",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/record/proposals/model-runtime-reference-lifecycle/handoff-manifest.json",
+      "sha256": "c869c397726cd71c087fff442a34d5c93c82389d85b5ff0b12a8811a31e8fb2d",
+      "git_blob": "6d389a0918fbec8c52a3e226d547da2a723bc43b",
+      "bytes": 71951,
+      "reason": "task-construction-and-integration-material",
+      "external_relative_path": "files/.meta_harness/design/record/proposals/model-runtime-reference-lifecycle/handoff-manifest.json",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming_TTrace_1790600912.bin",
+      "sha256": "f24e69f6334ffc401c965c34dfed2370b3745fc580ff4abc27e9798b5e27bd1e",
+      "git_blob": "c9085f75d9d2038f8c8125d0ee9564f1f3657ba8",
+      "bytes": 538,
+      "reason": "generated-tlc-trace-outside-evidence-owner",
+      "external_relative_path": "files/.meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming_TTrace_1790600912.bin",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming_TTrace_1790600912.tla",
+      "sha256": "564906f55760d42e19831876c5a40ac1a447466382f3041e37fd3db72930ab22",
+      "git_blob": "cdd4217e7a21b7a3a9e41f753824660257326526",
+      "bytes": 6464,
+      "reason": "generated-tlc-trace-outside-evidence-owner",
+      "external_relative_path": "files/.meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming_TTrace_1790600912.tla",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming_TTrace_1790600913.bin",
+      "sha256": "ec6e7fef2ba10b0468e0eb666c4030bb8c4f8be267db277d008c35102a0252f2",
+      "git_blob": "147b4afdc41b6690c55e7d35a1d10c268e0aef0a",
+      "bytes": 574,
+      "reason": "generated-tlc-trace-outside-evidence-owner",
+      "external_relative_path": "files/.meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming_TTrace_1790600913.bin",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming_TTrace_1790600913.tla",
+      "sha256": "cf611a464f4eced2952826c701b6a8ed8036fc635be52f287e7cf38eb3279f34",
+      "git_blob": "b70dd65a435f80d1f1fe7dc8f65280df553a4aac",
+      "bytes": 6649,
+      "reason": "generated-tlc-trace-outside-evidence-owner",
+      "external_relative_path": "files/.meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming_TTrace_1790600913.tla",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming_TTrace_1790600914.bin",
+      "sha256": "183d59b224e8a5da7b0486ce183393ba90248d1764acaaafa991109512a50bdd",
+      "git_blob": "5c73530719b5fa77258563612167476d5591f70e",
+      "bytes": 539,
+      "reason": "generated-tlc-trace-outside-evidence-owner",
+      "external_relative_path": "files/.meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming_TTrace_1790600914.bin",
+      "history_filter": true
+    },
+    {
+      "original_path": ".meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming_TTrace_1790600914.tla",
+      "sha256": "e40a75cb78e99847dbf102262812e9e6a60e8b111aa9e678667449ac72c50a47",
+      "git_blob": "0620659cc39a1cd63ab7344c1b3eab534016e5e5",
+      "bytes": 6464,
+      "reason": "generated-tlc-trace-outside-evidence-owner",
+      "external_relative_path": "files/.meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming_TTrace_1790600914.tla",
+      "history_filter": true
+    }
+  ],
+  "legacy_address_aliases": [
+    {
+      "path": ".meta_harness/design/record/decisions/core-implementation-spec-reconciliation/candidate-diff.json",
+      "canonical_path": ".meta_harness/design/record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/relocated/core-implementation-spec-reconciliation__candidate-diff.json.txt",
+      "sha256": "7a7548104bd2d058505fcce25a3903dccdd02cc956ac6159710f519de4f5782d"
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/core-implementation-spec-reconciliation/candidate-registry-patch.json",
+      "canonical_path": ".meta_harness/design/record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/relocated/core-implementation-spec-reconciliation__candidate-registry-patch.json.txt",
+      "sha256": "e87c0c689f2dac729eed4430e7a9cd0d24e1312af6ca3903f4e0f8f619092f58"
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/core-implementation-spec-reconciliation/construction-brief.md",
+      "canonical_path": ".meta_harness/design/record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/relocated/core-implementation-spec-reconciliation__construction-brief.md.txt",
+      "sha256": "1f2c0a88ad8f8811949522343718193d5385ecadd49fd42c8e72f448a53f17e0"
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/core-implementation-spec-reconciliation/consumer-impact.json",
+      "canonical_path": ".meta_harness/design/record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/relocated/core-implementation-spec-reconciliation__consumer-impact.json.txt",
+      "sha256": "418ba74d9aaa57af600a4d1fb0dfb8e9f7abcf690342522181b925a459175a58"
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/core-implementation-spec-reconciliation/draft-report.md",
+      "canonical_path": ".meta_harness/design/record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/relocated/core-implementation-spec-reconciliation__draft-report.md.txt",
+      "sha256": "c5735194b927da04937ec00f30bfba94b23d48eba4a44ae2fad8a3863e52a621"
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/skill-yaml-key-resolution/candidate-diff.json",
+      "canonical_path": ".meta_harness/design/record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/relocated/skill-yaml-key-resolution__candidate-diff.json.txt",
+      "sha256": "31a80e31f0f44a9a9fddc6be608ff23a0a5d6fae732553843fc98f3774881cf3"
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/skill-yaml-key-resolution/candidate-registry-patch.json",
+      "canonical_path": ".meta_harness/design/record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/relocated/skill-yaml-key-resolution__candidate-registry-patch.json.txt",
+      "sha256": "49d93eb9d2beed92b446c221b90db7a3ee59fd175445a053e8af8e1e4d57720c"
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/skill-yaml-key-resolution/construction-brief.md",
+      "canonical_path": ".meta_harness/design/record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/relocated/skill-yaml-key-resolution__construction-brief.md.txt",
+      "sha256": "aa45bb79aac8448a3e40d1bb646024cc9f990a778783eef8c37aa27e569ae295"
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/skill-yaml-key-resolution/consumer-impact.json",
+      "canonical_path": ".meta_harness/design/record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/relocated/skill-yaml-key-resolution__consumer-impact.json.txt",
+      "sha256": "c5612b4a0ec0b094cfa99144ebfed66c8bb6109a8f0a57710d7fc3b9f4dd9322"
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/skill-yaml-key-resolution/draft-report.md",
+      "canonical_path": ".meta_harness/design/record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/relocated/skill-yaml-key-resolution__draft-report.md.txt",
+      "sha256": "2eab9075c9164bbc088450716f14375f02b619cec9e8828c1c55b404c9bb433e"
+    }
+  ]
+}

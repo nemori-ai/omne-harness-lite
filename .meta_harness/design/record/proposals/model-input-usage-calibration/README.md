@@ -18,7 +18,7 @@
 |---|---|
 | 迭代函数、性质、来源、提交、公开面、Cordis 与影响 | [design.md](design.md) |
 | 三种承载方案及改票条件 | [alternatives.md](alternatives.md) |
-| 专门规格作者的输入与停止条件 | [spec-construction-brief.md](spec-construction-brief.md) |
+| 专门规格作者的输入与停止条件 | [spec-construction-brief.md（已外置）](../../evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件) |
 | 实际评审及处置状态 | [review.md](review.md) |
 | 第一方事实、百万 token 离线结果与局限 | [研究报告](../../../../research/model-request-adaptation/reports/2026-09-29-prefix-usage-calibration.md) |
 

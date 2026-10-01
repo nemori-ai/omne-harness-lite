@@ -1,6 +1,6 @@
 # 模型调用引用、执行与消费者生命周期
 
-最终来源清单、规范/Schema/五节点/形式证据摘要、原始提交顺序及HUB导航合并提示见[交接manifest](handoff-manifest.json)；PF-013的[v5派生快照](../../../product/PF-013-model-profiles-and-invocation/projection/v5/projection.md)只映射已审范围，不改变接受状态。
+最终来源清单、规范/Schema/五节点/形式证据摘要、原始提交顺序及HUB导航合并提示见[交接manifest（已外置）](../../evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)；PF-013的[v5派生快照](../../../product/PF-013-model-profiles-and-invocation/projection/v5/projection.md)只映射已审范围，不改变接受状态。
 
 当前设计增量已完成[无GC最小映射定点复评](node-review-r2.md)：架构与规格表达均无阻断，基本ref路径不需要新内容平台或transport版本。精确受审提交97f04eed；最终采用/实施仍由主线裁定，真实验证未完成。
 
@@ -60,8 +60,8 @@ RT11/MR10/MS7/CA3 candidate 提交 `3f597c18` 已成稿，SL3 保持。两位独
 
 用户新增要求取代原默认无GC永久副本前提，限定模型自己的内容/引用/消费者；既有D110采用事实保留为前驱。PF013 rev17产品候选见[产品独立评审](ack-product-review.md)，[差分领域读数](ack-domain-reading.md)明确本次双盲限制，[机制读数](ack-mechanism-reading.md)、[技术选择 revision 2](ack-technical-choices.md)及[四表](ack-reconciliation.md)补精确边界。[独立架构复评](ack-architecture-review.md)在`cc1e354d`范围无阻断；ACK与真实处分独立，不以假consumed换删除，不等待全部历史消费者。
 
-[后继施工边界](ack-spec-construction-brief.md)给RT12/MS8/MR11/CA4候选方向及形式/实现验收义务。产品和技术采用仍归主线；候选通过评审不等于规范已冻结、实现已完成或真实删除已验证。模型自身副本释放不扩成Session日志清除或通用GC。
+[后继施工边界（已外置）](../../evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)给RT12/MS8/MR11/CA4候选方向及形式/实现验收义务。产品和技术采用仍归主线；候选通过评审不等于规范已冻结、实现已完成或真实删除已验证。模型自身副本释放不扩成Session日志清除或通用GC。
 
 ACK 四契约最终[表达评审](ack-spec-review.md)、[架构复评](ack-architecture-review.md)及[实际验证归档](../../evidence/2026-09-29-model-call-ack-candidate/README.md)已交主线；仍待精确后继采用。
 
-ACK 最终可审增量、逐项采用坐标、提交顺序和剩余验收见[交接](ack-final-handoff.md)及[文件摘要](ack-final-handoff-manifest.json)。
+ACK 最终可审增量、逐项采用坐标、提交顺序和剩余验收见[交接（已外置）](../../evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)及[文件摘要（已外置）](../../evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)。

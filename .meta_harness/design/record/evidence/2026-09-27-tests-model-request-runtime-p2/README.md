@@ -78,3 +78,7 @@ design checker 在 `formal=skip` 下 exit 0，实际执行形式任务 **0**。�
 `final-mapping-check.tar.gz`，摘要和 SHA256 见 [final-mapping-check.json](final-mapping-check.json)。
 这个结果只覆盖两节点及该工具模式，不表示其他节点的全体 realization 形状检查已通过，
 也不关闭日志候选后续评审发现的组合缺口。既有三个制品／源码归档没有覆盖或换版本。
+
+## 2026-10-01 归档位置变更
+
+原运行结论和原始摘要保持。成批源码、制品及依赖归档已按用户选择移出 Git，原文件逐 SHA-256 保全；取回位置、字节摘要及历史提交映射见[归档迁移记录](../2026-10-01-checks-model-runtime-repository-cleanup/README.md)。原清单中的路径是运行时地址，读取外置文件时按迁移清单恢复，不能把本机保全称为远程备份。

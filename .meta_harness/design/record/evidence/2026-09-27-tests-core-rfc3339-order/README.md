@@ -19,7 +19,7 @@
 
 ## 保全与限制
 
-[完整归档](closed-public-artifacts-and-runs.tar.gz)36336882bytes，SHA256 `8cd8e512c714f10383ac6a4ab94636c92d6b90146efb825ae8563a0f8e0ed53a`；[成员清单](archive-manifest.json)SHA `4e37be7881a195e6eab66a0b51a6015479e1eae2c2941151903fd17e6a034ab3`。[独立外置封存回执](independent-archive.json)保持原绝对路径和实际archiver wait。报告以txt原字节保存，解出归档的evidence/consumers可独立回跑；不改原报告或旧失败。
+[完整归档（已外置）](../2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)36336882bytes，SHA256 `8cd8e512c714f10383ac6a4ab94636c92d6b90146efb825ae8563a0f8e0ed53a`；[成员清单](archive-manifest.json)SHA `4e37be7881a195e6eab66a0b51a6015479e1eae2c2941151903fd17e6a034ab3`。[独立外置封存回执](independent-archive.json)保持原绝对路径和实际archiver wait。报告以txt原字节保存，解出归档的evidence/consumers可独立回跑；不改原报告或旧失败。
 
 首轮formatter误纳README、oracle缺Path和诊断期望修订、crypto非configurable拦截安装错误分开保留。ISSUE-1原首次raw/PID缺项不能补回，后续产品/编译/控制/最终测量命令记录完整。作者成本按brief允许亲核相同78源/dist的已有raw，未独立重跑成本，不作无限精度性能承诺。
 
@@ -28,3 +28,7 @@
 **未闭**：TL-G1实际生产时间/宿主/合法历史/公告、runtime timing和opened原值/来源、G28/G29-P/H/G30/G31、五结算构件、十三服务操作、37完整官方定义与认证、整体P2–P6及人的总体接受。没有模型请求/付费/发布，official仍0/37。
 
 [逐文件校验](file-hashes.json)覆盖本记录封存工件；同一受测产品字节上的有限结果不证明完整monorepo或所有消费者。登记后 internal/formal=skip 结构检查实际退出0（PID127008），原命令、实际wait和raw保全于post-registration-checks.tar.gz；未运行形式工具。
+
+## 2026-10-01 归档位置变更
+
+原运行结论和原始摘要保持。成批源码、制品及依赖归档已按用户选择移出 Git，原文件逐 SHA-256 保全；取回位置、字节摘要及历史提交映射见[归档迁移记录](../2026-10-01-checks-model-runtime-repository-cleanup/README.md)。原清单中的路径是运行时地址，读取外置文件时按迁移清单恢复，不能把本机保全称为远程备份。

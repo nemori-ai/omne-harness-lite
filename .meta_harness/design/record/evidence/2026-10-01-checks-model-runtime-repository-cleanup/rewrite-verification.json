@@ -1,0 +1,12 @@
+{
+  "old_head": "46e615dbb8ad4aa93f592de68fcafc0eaca17fc4",
+  "rewritten_head": "4bf054f82f3845337404fa025dcfdea93916afe6",
+  "unchanged_upstream_main": "68c509293f9e232a85320fafdfe0165cfb8d3254",
+  "commits_mapped": 2079,
+  "commits_changed": 1160,
+  "removed_history_paths": 43,
+  "remaining_blobs_and_modes_unchanged": true,
+  "all_parent_edges_mapped_exactly": true,
+  "old_certified_head": "cfc410eeeefeec1d5be999b56e221b3ab03fafa1",
+  "rewritten_certified_head": "6a61e63e198aebd89c42ecdf5e1ea09519a92c51"
+}

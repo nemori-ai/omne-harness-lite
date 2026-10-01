@@ -8,6 +8,10 @@
 
 独立两个完整隔离 transport 源码副本分别恢复 stream 和表达式 stop，真实编译 exit 0；同一公开 JS/TLS oracle 分别 exit 1，命中 `OPAQUE_OWN_KEYS` 与 `STOP_RETURNS_UNDEFINED`。第一次正向测量 PID192555 的 cleanup 时点错误保留；仅增加已注册的实际 close 等待，原零连接断言不变，唯一修正运行 PID192776 exit 0。原失败、测量差异、负控编译与执行的全部原始输出保全，未修改产品以适应测量。
 
-[证据归档](evidence.tar.gz)保全 294 成员：作者原关闭归档和清单，以及独立真实制品、精确源码/设计输入、oracle、两个编译变异、配置、原始 PID/命令/stdout/stderr/退出码和报告。主调度已逐成员回读核对 [成员清单](members.json)与 [归档哈希](archive.sha256)。独立 `SHA256.json` 原 SHA 为 `3b1e65bd895dd01910ef85fea10207a8c573ef23eaee9794c9ac48ab1794d9dd`。报告里的原绝对路径用于追溯，恢复时使用归档 `author/` 和 `independent/` 路径；本机证书/密钥仅为合成 TLS 夹具。
+[证据归档（已外置）](../2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)保全 294 成员：作者原关闭归档和清单，以及独立真实制品、精确源码/设计输入、oracle、两个编译变异、配置、原始 PID/命令/stdout/stderr/退出码和报告。主调度已逐成员回读核对 [成员清单](members.json)与 [归档哈希](archive.sha256)。独立 `SHA256.json` 原 SHA 为 `3b1e65bd895dd01910ef85fea10207a8c573ef23eaee9794c9ac48ab1794d9dd`。报告里的原绝对路径用于追溯，恢复时使用归档 `author/` 和 `independent/` 路径；本机证书/密钥仅为合成 TLS 夹具。
 
 制品范围是一个实际 transport tarball 加明确构建的工作树公开依赖，不称独立传递制品闭包。成功响应仍不公开 rawHeaders；旧失败 headers 沿用已有范围。本次不签收 G6/S-20 完整政策、H 交接、完整 PH-V9、附件留存、append/reopen、租户认证、十三操作、真实 OpenRouter/vendor/cache 或 37 认证；新增付费 0，形式执行 0。
+
+## 2026-10-01 归档位置变更
+
+原运行结论和原始摘要保持。成批源码、制品及依赖归档已按用户选择移出 Git，原文件逐 SHA-256 保全；取回位置、字节摘要及历史提交映射见[归档迁移记录](../2026-10-01-checks-model-runtime-repository-cleanup/README.md)。原清单中的路径是运行时地址，读取外置文件时按迁移清单恢复，不能把本机保全称为远程备份。

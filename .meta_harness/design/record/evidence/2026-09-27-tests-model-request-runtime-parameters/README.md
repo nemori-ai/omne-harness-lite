@@ -33,3 +33,7 @@
 完整 T／SC／G、全部 offer／配置 Schema、实际 provider 对应、缓存命中与 TTL 到期、目录耐久采用、十三操作租户 service、耐久／恢复及整体独立验收仍待。官方生产认证仍 **0／37**，没有付费或形式任务执行。本 run 付费请求0；独占账本共有170 settled／0 unsettled，USD1.139960389500000000，历史费用不移作本修订认证。[旧 revision4 run](../2026-09-27-tests-model-request-runtime-conformance/README.md) 保留原输入、失败和范围。
 
 映射补验：两个 model 节点的入口、投影、绑定与链接检查0错误；完整设计结构检查exit0，formal=skip（执行形式任务0）。最终映射快照 `final-mapping-check.tar.gz` SHA256：`1b337d7848be2241657236171181f80beaeb063d6ce20e9a9ef1db9c8aa5ae61`，不声称全仓realization或make通过。
+
+## 2026-10-01 归档位置变更
+
+原运行结论和原始摘要保持。成批源码、制品及依赖归档已按用户选择移出 Git，原文件逐 SHA-256 保全；取回位置、字节摘要及历史提交映射见[归档迁移记录](../2026-10-01-checks-model-runtime-repository-cleanup/README.md)。原清单中的路径是运行时地址，读取外置文件时按迁移清单恢复，不能把本机保全称为远程备份。

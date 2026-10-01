@@ -21,7 +21,7 @@
 
 [独立报告字节快照](independent-REPORT.txt)、[机器摘要](independent-summary.json)、[原归档元数据](independent-archive.json)、[完整归档清单](archive-manifest.json)、[冻结hash](input-hashes.json)、[主线逐项核对](root-verification.json)及[限定签收结果](acceptance-summary.json)均保留。原Markdown作为txt保存，以保持原文和原相对路径；解开归档后报告仍位于原 `evidence/` 布局，不能把搬移后的摘要链接当原件。
 
-主线亲核1204个输入／dist hash（含1个执行者自有ignored brief）、零漂移，并完整读回归档28893个常规文件，1140个符号链接全部在归档图内闭合；3029个目录＋1个内嵌manifest，共33063成员。[归档](closed-public-artifacts-and-runs.tar.gz) 86405265字节，SHA256 `b69b10ecd2a890f339c3cb84006a577bb11ec35987c8478473f62713f3f6b090`；manifest SHA256 `9d1862321911a72c8b2508be60c3f6ea1c5302049c41e1d44f3f1404296f2480`。主线另核root集成归档83个文件逐字相同；文件摘要见 [file-hashes.json](file-hashes.json)。
+主线亲核1204个输入／dist hash（含1个执行者自有ignored brief）、零漂移，并完整读回归档28893个常规文件，1140个符号链接全部在归档图内闭合；3029个目录＋1个内嵌manifest，共33063成员。[归档（已外置）](../2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件) 86405265字节，SHA256 `b69b10ecd2a890f339c3cb84006a577bb11ec35987c8478473f62713f3f6b090`；manifest SHA256 `9d1862321911a72c8b2508be60c3f6ea1c5302049c41e1d44f3f1404296f2480`。主线另核root集成归档83个文件逐字相同；文件摘要见 [file-hashes.json](file-hashes.json)。
 
 独立初次setup用了本机Git不支持的选项，原common-dir stdout被测量重试覆盖，wrapper PID未另存；实际tool transcript文本、child argv／PID／exit已在归档中明确归因保留。所有业务首次失败／fixture修订／原stdout／stderr／实际wait完整保留。主线核对也保留一次把执行者private brief误要求出现在HUB的测量失败；修正仅比较范围，没有改产品或oracle。
 
@@ -32,3 +32,7 @@
 ## 未覆盖
 
 生产RG-G1退出观察、PID复用／supervisor恢复、宿主C5健康监控及async sink完成、旧SL2全部写方迁移、D088完整codec及G29真实同批／来源／停止、G28／G30／G31、十三服务操作、五共同结算构件、P3～P6与整体P2仍未完成。纯guard的事实不构成当前权限或生产状态权威。Linux本地FS、实际进程与同步／锁测试不能证明机器掉电持久性，未运行形式工具，不声称无条件证明或全仓绿灯。37官方生产认证仍 **0／37**，本次付费0。
+
+## 2026-10-01 归档位置变更
+
+原运行结论和原始摘要保持。成批源码、制品及依赖归档已按用户选择移出 Git，原文件逐 SHA-256 保全；取回位置、字节摘要及历史提交映射见[归档迁移记录](../2026-10-01-checks-model-runtime-repository-cleanup/README.md)。原清单中的路径是运行时地址，读取外置文件时按迁移清单恢复，不能把本机保全称为远程备份。

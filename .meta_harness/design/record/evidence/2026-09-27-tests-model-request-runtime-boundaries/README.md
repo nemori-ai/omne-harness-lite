@@ -38,3 +38,7 @@
 本次付费 0；唯一账本 170 settled／0 unsettled，累计 USD1.139960389500000000，预算 USD100 不重置。[environment.json](environment.json) 保存实际环境及预算观察。
 
 映射补验：两个 model 节点的入口／投影／绑定／链接检查0错误，设计结构 internal／formal=skip通过；执行形式任务0。首次临时 Python loader 缺 tooling src 搜索路径而 exit1，尚未执行 checker；失败原文及修正后的可重跑脚本保留。`final-mapping-check.tar.gz` SHA256 `182893b9cd755146f3a5f9dbc16b269e2f161718aff0d4bcb9be9bbd6e3a9ac1` 已逐字读回，原快照 README 不含此事后补记。未重跑或宣称全仓 realization／make 通过。
+
+## 2026-10-01 归档位置变更
+
+原运行结论和原始摘要保持。成批源码、制品及依赖归档已按用户选择移出 Git，原文件逐 SHA-256 保全；取回位置、字节摘要及历史提交映射见[归档迁移记录](../2026-10-01-checks-model-runtime-repository-cleanup/README.md)。原清单中的路径是运行时地址，读取外置文件时按迁移清单恢复，不能把本机保全称为远程备份。

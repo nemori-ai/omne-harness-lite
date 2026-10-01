@@ -34,3 +34,7 @@
 当前37正式完整能力／配置冻结、输入窗口与单图计量、跨参数约束、真实模态来源、G22当前上限、上游TTL冷暖／到期及production认证仍未完成；认证 **0／37**。目录durable adopt/history、租户服务、十三操作、耐久结算／恢复、全观测、所有T／SC／G和整体交付不在本次通过范围。没有运行形式工具或付费请求，不声称无条件证明或全仓绿灯。唯一预算账本仍170 settled／0 unsettled、USD1.139960389500000000，USD100不重置。
 
 主线登记后检查的原命令／输出与映射快照另见 [post-registration-checks.tar.gz](post-registration-checks.tar.gz)。初次 internal 检查发现搬移后的原 Markdown 相对链接18项失效；原报告逐字保存为 .txt 快照，原目录及链接材料仍完整封存在源码归档，维护入口指向快照。修正后的 internal design／formal=skip 退出0（13.887秒）、diff check退出0。没有因此改报告、产品或原始运行结论。
+
+## 2026-10-01 归档位置变更
+
+原运行结论和原始摘要保持。成批源码、制品及依赖归档已按用户选择移出 Git，原文件逐 SHA-256 保全；取回位置、字节摘要及历史提交映射见[归档迁移记录](../2026-10-01-checks-model-runtime-repository-cleanup/README.md)。原清单中的路径是运行时地址，读取外置文件时按迁移清单恢复，不能把本机保全称为远程备份。

@@ -4,7 +4,7 @@
 
 ## 输入与边界
 
-[catalog](../../../../registry/catalog.json) 中 MR9、RT10 均为 candidate，不能把独立评审或有限模型通过当接受。依据是 [U0 revision3](../../../../record/proposals/model-input-usage-calibration/design.md) 及其[施工简报](../../../../record/proposals/model-input-usage-calibration/spec-construction-brief.md)。候选精确字节如下；正式接受后须由主线核对采用范围，不能自动跟随同名文件改动。
+[catalog](../../../../registry/catalog.json) 中 MR9、RT10 均为 candidate，不能把独立评审或有限模型通过当接受。依据是 [U0 revision3](../../../../record/proposals/model-input-usage-calibration/design.md) 及其[施工简报（已外置）](../../../../record/evidence/2026-10-01-checks-model-runtime-repository-cleanup/README.md#外置原件)。候选精确字节如下；正式接受后须由主线核对采用范围，不能自动跟随同名文件改动。
 
 | 输入 | SHA-256 |
 |---|---|
