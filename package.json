@@ -8,13 +8,14 @@
   "scripts": {
     "build": "pnpm -r --filter './packages/**' --filter './apps/**' --filter './examples/**' --filter './tools/ts-checks' --filter './tools/core-verification' --filter './tools/artifact-builder' run build",
     "typecheck": "pnpm -r run typecheck",
-    "test": "pnpm run build && pnpm -r --filter './packages/**' --filter './apps/**' --filter './tools/**' run test",
+    "test": "pnpm run build && pnpm run test:members",
+    "test:members": "./scripts/with-test-slot.sh node --experimental-strip-types tools/ts-checks/src/testing/cli.ts run --all",
     "format:write": "./scripts/format.sh write",
     "format:check": "./scripts/format.sh check",
     "format:staged": "./scripts/format.sh staged",
     "format:hook:install": "./scripts/install-format-hook.sh",
     "test:format": "./scripts/test-formatting.sh",
-    "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run typecheck && pnpm -r --filter './packages/**' --filter './apps/**' --filter './tools/**' run test && pnpm run lint:rules",
+    "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run typecheck && pnpm run test:members && pnpm run lint:rules",
     "lint:rules": "pnpm --filter @omne-harness-lite/ts-checks run scan"
   },
   "devDependencies": {

@@ -47,11 +47,14 @@ jobs:
         run: uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness
         env:
           PYTHONDONTWRITEBYTECODE: '1'
-      # 主机与别的任务共用：包间并行度过高时，本来一两秒的用例会被挤过时限。
+      # 并行度的初值在 tools/ts-checks/test-runs.config.json；这两个仓库变量留空即用初值，
+      # runner 主机核数不同时再设。make check 自己会占一个运行名额，与主机上别的全量检查排队。
       - name: make check
         run: nice -n 10 make check
         env:
-          npm_config_workspace_concurrency: ${{ vars.OMNE_CHECK_CONCURRENCY || '2' }}
+          OMNE_TEST_MEMBER_CONCURRENCY: ${{ vars.OMNE_TEST_MEMBER_CONCURRENCY }}
+          VITEST_MAX_WORKERS: ${{ vars.OMNE_VITEST_MAX_WORKERS }}
+          OMNE_TEST_LEDGER_HOME: ${{ vars.OMNE_TEST_LEDGER_HOME }}
       # 度量只报告：它失败不改变检查结论，也不因检查失败而跳过。
       - name: Structure metrics
         if: ${{ !cancelled() }}
@@ -91,8 +94,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # 一部分成员的测试经包名导入自己，执行的是 dist；先构建，覆盖率才映射得回 src。
       - run: nice -n 10 pnpm run build
-        env:
-          npm_config_workspace_concurrency: ${{ vars.OMNE_CHECK_CONCURRENCY || '2' }}
       - name: Structure metrics with coverage
         run: |
           home="${OMNE_METRICS_HOME:-$HOME/omne-metrics}"
