@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
 import sys
 from pathlib import Path
@@ -14,6 +15,13 @@ IGNORED = {"__pycache__", ".pytest_cache", ".git", ".venv"}
 SKILL_TARGETS = {"codex": Path(".agents/skills"), "claude-code": Path(".claude/skills")}
 ROLE_TARGETS = (Path(".codex/agents"), Path(".claude/agents"))
 RUNTIME_EXCLUDES = {"AGENTS.md", "CLAUDE.md", ".design", "evals"}
+# Host-neutral hooks become each host's project hook file. Both hosts read the same
+# `{"hooks": {<event>: [{"matcher"?, "hooks": [handler]}]}}` shape for these two events.
+HOOK_TARGETS = {"claude-code": Path(".claude/settings.json"), "codex": Path(".codex/hooks.json")}
+HOOK_EVENTS = ("Stop", "SubagentStop")
+HOOK_FIELDS = {"id", "events", "subagent_types", "command", "timeout"}
+# Matchers made only of these characters are exact names on both hosts, never a regex.
+AGENT_TYPE = re.compile(r"[A-Za-z0-9_-]+")
 SLOT = re.compile(r"\{\{[A-Z][A-Z0-9_]*\}\}")
 DEFAULT_RENDERER = (
     Path(__file__).resolve().parents[2]
@@ -165,6 +173,62 @@ def load_renderer(path: Path):
     return module.render
 
 
+def hook_groups(entry, roles: set[str]) -> tuple[list[str], dict]:
+    """Validate one hook declaration; return its events and its command handler."""
+    hook_id = entry.get("id") if isinstance(entry, dict) else None
+    if not isinstance(hook_id, str) or not hook_id.strip():
+        raise ValueError(f"every hook needs a non-empty string id: {entry!r}")
+    unknown = entry.keys() - HOOK_FIELDS
+    if unknown:
+        raise ValueError(f"unknown hook fields {sorted(unknown)}: {hook_id}")
+    events = entry.get("events")
+    if (not isinstance(events, list) or not events or len(set(events)) != len(events)
+            or any(event not in HOOK_EVENTS for event in events)):
+        raise ValueError(f"hook events must be distinct names from {list(HOOK_EVENTS)}, "
+                         f"got {events!r}: {hook_id}")
+    command = entry.get("command")
+    if not isinstance(command, str) or not command.strip():
+        raise ValueError(f"hook command must be a non-empty string: {hook_id}")
+    timeout = entry.get("timeout")
+    if type(timeout) is not int or timeout <= 0:
+        raise ValueError(f"hook timeout must be a positive integer of seconds: {hook_id}")
+    types = entry.get("subagent_types")
+    if types is not None and (not isinstance(types, list) or not types or any(
+            not isinstance(name, str) or not AGENT_TYPE.fullmatch(name) or name not in roles
+            for name in types)):
+        raise ValueError(f"subagent_types must name existing roles, got {types!r}: {hook_id}")
+    handler = {"type": "command", "command": command, "timeout": timeout}
+    return events, {"matcher": "|".join(types), "hooks": [handler]} if types else {"hooks": [handler]}
+
+
+def project_hooks(directory: Path, hosts: tuple[str, ...], roles: set[str]) -> dict[Path, Artifact]:
+    """Render `hooks/hooks.yaml` into each selected host's project hook file.
+
+    No `hooks.yaml`, or an empty list, produces nothing. `Stop` takes no matcher on either
+    host, so `subagent_types` only narrows `SubagentStop`.
+    """
+    source = directory / "hooks.yaml"
+    if not source.is_file():
+        return {}
+    data = yaml.load(source.read_text(encoding="utf-8"), Loader=UniqueLoader)
+    if not isinstance(data, dict) or set(data) != {"hooks"} or not isinstance(data["hooks"], list):
+        raise ValueError(f"hooks source must be a mapping with exactly one list `hooks`: {source}")
+    by_event: dict[str, list[dict]] = {}
+    seen = set()
+    for entry in data["hooks"]:
+        events, group = hook_groups(entry, roles)
+        if entry["id"] in seen:
+            raise ValueError(f"duplicate hook id: {entry['id']}")
+        seen.add(entry["id"])
+        for event in events:
+            by_event.setdefault(event, []).append(
+                {"hooks": group["hooks"]} if event == "Stop" else group)
+    if not by_event:
+        return {}
+    text = json.dumps({"hooks": by_event}, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    return {HOOK_TARGETS[host]: Artifact(text.encode("utf-8"), 0o644) for host in hosts}
+
+
 def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
                     hosts: tuple[str, ...] = ("claude-code", "codex")) -> dict[Path, Artifact]:
     no_symlinks(source.absolute())
@@ -201,4 +265,11 @@ def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
             host = "codex" if relative.parent == Path(".codex/agents") else "claude-code"
             if host in hosts:
                 add(relative, Artifact(text.encode("utf-8"), 0o644))
+
+    hooks = source / "hooks"
+    if hooks.exists() and not hooks.is_dir():
+        raise ValueError(f"hooks source must be a directory: {hooks}")
+    if hooks.is_dir():
+        for relative, artifact in project_hooks(hooks, hosts, {role.name for role in role_sources}).items():
+            add(relative, artifact)
     return outputs
