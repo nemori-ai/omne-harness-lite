@@ -1,4 +1,4 @@
-.PHONY: check agents-check docs-check design-check design-review formal-tools test product-check metrics test-affected test-triage role-eval acceptance-lock loop-status loop-card
+.PHONY: check agents-check docs-check design-check design-review formal-tools test product-check metrics test-affected test-triage role-eval acceptance-lock loop-status loop-card loop-health
 
 TEST_RUNS := node --experimental-strip-types tools/ts-checks/src/testing/cli.ts
 
@@ -49,6 +49,10 @@ loop-status:
 # 卡片台账：给一张故事卡记一个时间点。EVENT 是 proposed（提出）、runnable（第一次能跑）或 accepted（接受）；AT 补记时给 ISO 时间。
 loop-card:
 	node --experimental-strip-types tools/ts-checks/src/loop/cards-cli.ts --card "$(CARD)" --event "$(EVENT)" $(if $(AT),--at "$(AT)")
+
+# 流程体检页：卡的前置时间、每周接受数、剩余卡数、提交大小、测试耗时与债的走向。只报告。
+loop-health:
+	node --experimental-strip-types tools/ts-checks/src/loop/health-cli.ts $(if $(OUT),--out "$(OUT)")
 
 # 只跑受这次改动影响的成员的测试（先构建它们及其依赖），并写耗时账本。
 # BASE 给基线提交或分支（缺省 main）；PLAN=1 只列出受影响范围，不构建也不运行。

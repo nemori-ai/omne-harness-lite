@@ -68,7 +68,13 @@ export interface LoopConfig {
     readonly worktrees: { readonly enabled: boolean }
     readonly catalogue: { readonly path: string; readonly doctrinePath: string }
   }
+  /** 流程体检页的窗口与条数。 */
+  readonly health: Readonly<Record<HealthWindow, number>>
 }
+
+/** weeks：每周接受数看最近几周；commits：主线最近几个提交；runs：最近几次全量测试运行。 */
+export const HEALTH_WINDOWS = ['weeks', 'commits', 'runs'] as const
+export type HealthWindow = (typeof HEALTH_WINDOWS)[number]
 
 export const LOOP_CONFIG_PATH = fileURLToPath(new URL('../../loop.config.json', import.meta.url))
 
@@ -226,6 +232,7 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
         doctrinePath: text(catalogue['doctrinePath'], 'sensors.catalogue.doctrinePath'),
       },
     },
+    health: exactly(raw['health'], HEALTH_WINDOWS, 'health', integer),
   }
 }
 
