@@ -562,7 +562,7 @@ test('root configured aliases have collector and actual built CLI parity', () =>
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
-})
+}, 30_000) // Two runs of the built CLI (~2 s alone, over 5 s under workspace-wide load); assertions unchanged.
 
 test('retired app and unrelated example cannot own model credential factories', () => {
   for (const path of [

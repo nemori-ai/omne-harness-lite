@@ -129,7 +129,7 @@ describe('INPUT frozen adoption and language-neutral source artifacts', () => {
       for (const name of Object.keys(resource.$defs))
         expect(() => runtime.compile({ $ref: `${resource.$id}#/$defs/${name}` })).not.toThrow()
     }
-  })
+  }, 30_000) // Compiles every definition of the frozen graph (~1 s alone, over 5 s under workspace-wide load); assertions unchanged.
   it.each(artifactFile.artifacts)(
     'INPUT-03 exact source location $path:$line ($kind)',
     artifact => {
