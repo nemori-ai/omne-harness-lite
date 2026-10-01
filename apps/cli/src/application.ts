@@ -44,15 +44,16 @@ export function providers(): Pick<
     secrets: readSecrets,
   }
 }
+/** What a diagnostic may say about the entry: its mode and, if recognized, the table's command. */
+function diagnosticEntry(invocation: Invocation): Parameters<typeof diagnosticText>[1] {
+  if (invocation.kind === 'help' || invocation.kind === 'version' || !invocation.command)
+    return { machine: invocation.machine }
+  return { machine: invocation.machine, command: invocation.command.command }
+}
 export async function runCli(args: readonly string[], runtime: CliRuntime): Promise<number> {
   const invocation = parseInvocation(args)
   let applicationFailed = false
-  const entry = {
-    machine: invocation.machine,
-    ...(invocation.kind === 'help' || invocation.kind === 'version' || !invocation.command
-      ? {}
-      : { command: invocation.command.command }),
-  }
+  const entry = diagnosticEntry(invocation)
   const diagnose = async (code: Diagnostic) => {
     try {
       await runtime.stderr(diagnosticText(code, entry))
