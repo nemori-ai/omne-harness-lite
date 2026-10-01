@@ -6,8 +6,11 @@ ROLES = Path(__file__).parents[2] / "agents/roles"
 TASTE = "../engineering-taste.md"
 # Product roles take the product-manager viewpoint and must not judge engineering choices.
 EXEMPT = {"product-design-drafter", "product-design-reviewer"}
-DEVELOPERS = {"kernel-developer", "capability-developer", "infrastructure-developer",
-              "application-developer", "verification-developer"}
+DEVELOPERS = {"developer", "verification-developer", "tui-developer"}
+# Merged into `developer` or retired on 2026-10-01; a source package under one of these names
+# would bring back module-owned implementers or an agent that drafts architecture readings.
+RETIRED = {"kernel-developer", "capability-developer", "infrastructure-developer",
+           "application-developer", "architecture-drafter"}
 
 
 def shared_prompts(role: Path) -> list[str]:
@@ -33,3 +36,14 @@ def test_all_developer_roles_inline_the_same_implementation_contract():
         prompts = shared_prompts(ROLES / name)
         assert prompts.count("../developer-contract.md") == 1, name
         assert prompts.index(TASTE) < prompts.index("../developer-contract.md"), name
+
+
+def test_retired_roles_do_not_come_back():
+    present = sorted(name for name in RETIRED if (ROLES / name).exists())
+    assert not present, f"retired role source packages are back: {present}"
+
+
+def test_developer_leaves_the_codex_model_to_the_dispatcher():
+    """Codex lets a role-file model override the dispatch value, so the merged role must not pin one."""
+    codex = tomllib.loads((ROLES / "developer/codex.toml").read_text(encoding="utf-8"))
+    assert "model" not in codex
