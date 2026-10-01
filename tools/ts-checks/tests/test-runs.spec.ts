@@ -6,6 +6,7 @@ import {
   describePlan,
   listTestMembers,
   planAffected,
+  workspacePatterns,
   type TestMember,
 } from '../src/testing/affected.ts'
 import {
@@ -92,6 +93,26 @@ describe('受影响范围', () => {
     const plan = planAffected(['packages/a/x/src/a.ts'], cyclic, [])
     expect(plan.changed).toEqual(['packages/a/x'])
     expect(plan.dependents).toEqual(['packages/a/y'])
+  })
+
+  it('成员模式取自 pnpm-workspace.yaml 的 packages 列表，到下一个顶层键为止', () => {
+    const yaml = [
+      'packages:',
+      '  - packages/*/*',
+      "  - 'apps/*'",
+      '  # 注释',
+      '  - tools/ts-checks # 行尾注释',
+      '',
+      'catalog:',
+      '  - not/a/member',
+    ].join('\n')
+    expect(workspacePatterns(yaml)).toEqual(['packages/*/*', 'apps/*', 'tools/ts-checks'])
+  })
+
+  it('认不出的成员模式报错，不悄悄漏掉成员', () => {
+    expect(() => workspacePatterns('packages:\n  - packages/**\n')).toThrow('不支持的写法')
+    expect(() => workspacePatterns("packages:\n  - '!packages/x'\n")).toThrow('不支持的写法')
+    expect(() => workspacePatterns('catalog:\n  a: 1\n')).toThrow('没有 packages')
   })
 
   it('本仓库：成员清单不含示例，且认得测试依赖', () => {

@@ -16,8 +16,33 @@ export interface TestMember {
   readonly dependencies: readonly string[]
 }
 
-/** 成员所在的目录模式；与 `pnpm-workspace.yaml` 的 `packages` 一致，深度以 `*` 的个数表示。 */
-const MEMBER_PATTERNS = ['packages/*/*', 'apps/*', 'examples/*', 'tools/*'] as const
+/**
+ * `pnpm-workspace.yaml` 里 `packages:` 下列出的成员目录模式。成员清单只有那一份权威，这里不另写一份；
+ * 只认它现在用到的写法：一行一个、`*` 代表一级目录。认不出的写法直接报错，不悄悄漏掉成员。
+ */
+export function workspacePatterns(yaml: string): string[] {
+  const lines = yaml.split('\n')
+  const start = lines.findIndex(line => /^packages:\s*$/u.test(line))
+  if (start === -1) throw new Error('pnpm-workspace.yaml 里没有 packages: 列表')
+  const patterns: string[] = []
+  for (const line of lines.slice(start + 1)) {
+    if (/^\s*(#.*)?$/u.test(line)) continue
+    const item = /^\s+-\s+(['"]?)([^'"#\s]+)\1\s*(#.*)?$/u.exec(line)
+    if (item === null) {
+      if (/^\S/u.test(line)) break
+      throw new Error(`pnpm-workspace.yaml 的 packages 列表里有认不出的一行：${line.trim()}`)
+    }
+    const pattern = item[2] ?? ''
+    if (
+      pattern.startsWith('!') ||
+      pattern.split('/').some(part => part.includes('*') && part !== '*')
+    )
+      throw new Error(`pnpm-workspace.yaml 的成员模式 ${pattern} 用了这里不支持的写法`)
+    patterns.push(pattern)
+  }
+  if (patterns.length === 0) throw new Error('pnpm-workspace.yaml 的 packages 列表是空的')
+  return patterns
+}
 
 function directories(path: string): string[] {
   if (!existsSync(path)) return []
@@ -41,7 +66,7 @@ function expand(root: string, pattern: string): string[] {
 /** 仓库里带测试脚本的 workspace 成员，不含被排除根目录下的。 */
 export function listTestMembers(root: string, excludeRoots: readonly string[]): TestMember[] {
   const members: TestMember[] = []
-  for (const pattern of MEMBER_PATTERNS)
+  for (const pattern of workspacePatterns(readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8')))
     for (const path of expand(root, pattern)) {
       if (excludeRoots.some(base => path === base || path.startsWith(`${base}/`))) continue
       const manifestPath = join(root, path, 'package.json')
