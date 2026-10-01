@@ -23,6 +23,8 @@ export interface Clone {
   readonly b: CloneEnd
   readonly lines: number
   readonly crossMember: boolean
+  /** B 端止行是按 A 端行数推算的（库给的不可信），见 `plausibleEnd`。 */
+  readonly bEndEstimated: boolean
 }
 
 export interface MemberDuplication {
@@ -61,6 +63,20 @@ function endOf(side: IClone['duplicationA']): CloneEnd {
   return { path: side.sourceId, member, start: side.start.line, end: side.end.line }
 }
 
+/**
+ * B 端的止行。jscpd 4.0.1 把克隆往后扩时，B 端止行取自存储里同一哈希最先存下的那一帧，那一帧可能在别处
+ * （同文件的另一段，甚至另一个文件），于是 B 端止行偶尔早于起行、或远超 A 端的长度、或超出文件末尾。
+ * A 端是逐帧连续扫过来的，可信。B 端止行早于起行、或跨度超过 A 端的两倍加两行时，按 A 端行数从 B 端起行推算。
+ */
+export function plausibleEnd(
+  a: { readonly start: number; readonly end: number },
+  b: { readonly start: number; readonly end: number },
+): { readonly end: number; readonly estimated: boolean } {
+  const span = a.end - a.start
+  if (b.end >= b.start && b.end - b.start <= 2 * span + 2) return { end: b.end, estimated: false }
+  return { end: b.start + span, estimated: true }
+}
+
 /** 文件路径须相对于仓库根、落在成员里；调用方负责只给要量的那些（与度量同一口径）。 */
 export async function detectDuplication(
   files: readonly SourceFile[],
@@ -89,10 +105,18 @@ export async function detectDuplication(
   }
   const clones = found.map((clone): Clone => {
     const a = endOf(clone.duplicationA)
-    const b = endOf(clone.duplicationB)
+    const reported = endOf(clone.duplicationB)
+    const { end, estimated } = plausibleEnd(a, reported)
+    const b = { ...reported, end }
     cover(a)
     cover(b)
-    return { a, b, lines: a.end - a.start + 1, crossMember: a.member !== b.member }
+    return {
+      a,
+      b,
+      lines: a.end - a.start + 1,
+      crossMember: a.member !== b.member,
+      bEndEstimated: estimated,
+    }
   })
   clones.sort(
     (x, y) =>

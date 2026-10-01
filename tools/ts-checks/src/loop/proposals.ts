@@ -24,7 +24,10 @@ const BAND_WORD = { normal: '正常', warn: '提醒', act: '处置' } as const
 export const fixed = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(1))
 
 export function describeClone(clone: Clone): string {
-  return `${clone.a.path}:${clone.a.start}-${clone.a.end} ↔ ${clone.b.path}:${clone.b.start}-${clone.b.end}（${clone.lines} 行）`
+  return (
+    `${clone.a.path}:${clone.a.start}-${clone.a.end} ↔ ${clone.b.path}:${clone.b.start}-${clone.b.end}（${clone.lines} 行` +
+    `${clone.bEndEstimated ? '；后一端止行按前一端行数推算' : ''}）`
+  )
 }
 
 export interface ProposalInput {

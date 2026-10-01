@@ -1,6 +1,6 @@
 // 重复代码传感器走真实的 jscpd 核心库：同时是「经 createRequire 加载 4.0.1 的做法在当前 Node 下还活着」的探针。
 import { describe, expect, it } from 'vitest'
-import { detectDuplication } from '../src/loop/sensors/duplication.ts'
+import { detectDuplication, plausibleEnd } from '../src/loop/sensors/duplication.ts'
 
 const BODY = Array.from(
   { length: 12 },
@@ -70,5 +70,31 @@ describe('重复代码', () => {
       { minTokens: 5, minLines: 5 },
     )
     expect(result.clones).toEqual([])
+  })
+
+  it('B 端止行早于起行或远超 A 端长度：按 A 端行数推算并标出；合理的照用', () => {
+    // 实测例：A 12-31，库给的 B 11-112，而 B 所在文件只有 66 行。
+    expect(plausibleEnd({ start: 12, end: 31 }, { start: 11, end: 112 })).toEqual({
+      end: 30,
+      estimated: true,
+    })
+    expect(plausibleEnd({ start: 384, end: 404 }, { start: 807, end: 746 })).toEqual({
+      end: 827,
+      estimated: true,
+    })
+    // 版式不同，B 端多几行或少几行是正常的。
+    expect(plausibleEnd({ start: 7, end: 26 }, { start: 6, end: 21 })).toEqual({
+      end: 21,
+      estimated: false,
+    })
+    // 跨度上限是 A 端跨度的两倍加两行：A 跨 9 行，B 跨 20 行照用，跨 21 行就推算。
+    expect(plausibleEnd({ start: 1, end: 10 }, { start: 1, end: 21 })).toEqual({
+      end: 21,
+      estimated: false,
+    })
+    expect(plausibleEnd({ start: 1, end: 10 }, { start: 1, end: 22 })).toEqual({
+      end: 10,
+      estimated: true,
+    })
   })
 })

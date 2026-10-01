@@ -121,6 +121,7 @@ describe('清理草稿', () => {
           b: { path: 'packages/core/b/src/b.ts', member: 'packages/core/b', start: 1, end: 7 },
           lines: 7,
           crossMember: true,
+          bEndEstimated: false,
         },
       ],
       casesWithoutAssertions: [{ path: `${MEMBER}/tests/a.spec.ts`, line: 4, name: '只调用' }],
