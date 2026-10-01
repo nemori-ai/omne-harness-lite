@@ -2,7 +2,7 @@
 
 一个**流**是一个角色做一种事。流的用例与判定方法放在[常设用例集](../suites/README.md)里，这里只有跑它们的那一套：
 建一次性的工作副本、写派发用的简报、收录宿主留下的记录、把判定结果落成统一形状、算带区间的汇总。
-代码在 [roleeval/](roleeval/)，测试在 `tooling/tests/test_role_evals.py`，随 `make test` 跑。
+代码在 [roleeval/](roleeval/)，测试在 `tooling/tests/test_role_evals*.py`，随 `make test` 跑。
 
 **运行器自己不起任何模型。**角色的一次运行、判官的一次答复，都是主会话用 Agent 工具派出去的一个 subagent。
 运行器的子命令成对围着那一次派发：前一个写出该交给 subagent 的东西，后一个把宿主留下的那份记录收进来核对、记账。
@@ -87,15 +87,20 @@ subagent 还会带着主会话检出的约定文件（`AGENTS.md` 等）启动�
 
 ## 由程序判定的流
 
-除了评审类（`family: review`，判官判），还有两类流在 `record` 时由程序判定，**判定发生在删副本之前**，没有判官，`judge-brief`、`judge-record`、`grade`、校准对它们都拒绝：
+除了评审类（`family: review`，判官判），还有三类流在 `record` 时由程序判定，**判定发生在删副本之前**，没有判官，`judge-brief`、`judge-record`、`grade`、校准对它们都拒绝：
 
-- `implement`（developer 补完一个模块）：判定照搬早先[角色模型对照](../role-model-sonnet55/README.md)的 `oracle_implement`——
+- `implement`（developer、tui-developer 补完一个模块）：判定照搬早先[角色模型对照](../role-model-sonnet55/README.md)的 `oracle_implement`——
   存一份 `changes.patch`，查写入范围与原有测试有没有被动过，把角色写的测试挪开、放回模板里的原测试，跑测试与类型检查。一次运行落一行（`meta.unit = "run"`）。
 - `acceptance`（qa 按标准验收）：判定照搬同一对照的 `oracle_acceptance` 与它的第 3 次修订——找报告、判判决与逐条结果、漏报与误报、制品哈希、写入范围。
   每条标准一行（`meta.unit = "criterion"`）加一行运行级。
+- `write-tests`（verification-developer 为拿走了原有测试的模块写测试）：判定移植同一对照的 `oracle_write_tests`——
+  存一份 `changes.patch`，找角色在成员测试目录下新增或改动的 `*.spec.ts`，在当前实现上只跑它们（全过且至少一条才算有效）、跑类型检查（只记录），
+  再逐个把预置变异体的 `find` 换成 `replace`（必须恰好命中一次）盖到模板里那份目标文件上、跑同一批文件，退出码不为 0 即杀死；每个变异体之后都把目标文件写回原样。
+  有效且没有存活的变异体才算成功。每个变异体一行（`meta.unit = "mutant"`）加一行运行级。跑超时不是结论，记为判定器失败。
 
 判定的命令输出、JSON 报告与 `oracle.json` 留在这次运行的证据目录 `oracle/` 下。各流的指标与规则见各自用例集的说明。
-`verify` 对这两类在真的副本上跑一遍已知坏（桩在位、错的报告）与已知好（原实现放回、按真值造的报告），判反了就列为问题。
+`verify` 对这三类在真的副本上跑一遍已知坏（桩在位、错的报告、一个测试都不写或只写一条恒真的测试）与已知好（原实现放回、按真值造的报告、原有测试放回），
+判反了就列为问题；`write-tests` 另核对每个变异体的 `find` 在钉住提交的目标文件里恰好出现一次。
 
 ## 留下什么
 
