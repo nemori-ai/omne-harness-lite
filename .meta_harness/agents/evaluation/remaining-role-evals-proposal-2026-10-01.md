@@ -5,7 +5,8 @@
 
 范围是研发方案里排在最后的那一步：`spec-drafter`、`realization-drafter`、`product-design-drafter`、`product-design-reviewer`、`tui-debugger` 五个角色的流；
 全部角色的加载探针；Codex 一端；以及整仓检出一类的流怎样派发。
-`tui-developer` 与 `verification-developer` 有现成的留出任务，直接迁，不在这份提案里。
+`tui-developer` 与 `verification-developer` 有现成的留出任务，已直接迁成常设用例集
+（[tui-developer-implement](suites/tui-developer-implement/README.md)、[verification-write-tests](suites/verification-write-tests/README.md)），不在这份提案里。
 
 ## 共同的规矩（沿用，不新立）
 

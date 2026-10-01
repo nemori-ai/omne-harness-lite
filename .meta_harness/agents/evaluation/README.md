@@ -6,7 +6,8 @@
 **常设的**——改了角色、换了模型之后拿来重跑的：
 
 - [常设用例集](suites/README.md)：按流（一个角色做一种事）组织的用例、判定依据与基线；每个流的用例与判定方法各经负责人签字。
-  现有 design-reviewer 的三种判断，以及 developer 补完模块、qa 独立验收、implementation-reviewer 评审交付（后三个尚未签字）。
+  现有 design-reviewer 的三种判断，以及 developer 与 tui-developer 补完模块、qa 独立验收、implementation-reviewer 评审交付、
+  verification-developer 为模块写测试（后五个尚未签字）。
 - [运行器](harness/README.md)：跑用例集的那一套——一次性工作副本（待审材料，或装好依赖的整仓检出）、统一的结果形状、失败另记、带区间的汇总。
   它自己不起模型：角色与判官都由主会话派 subagent，运行器只在派发前写简报、派发后收录记录；要程序判定的流在收录时判定。
 
