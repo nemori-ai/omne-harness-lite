@@ -56,7 +56,8 @@ Cordis 直接使用官方发布包。维护边界归 [SYS-KERNEL](.meta_harness/
 在 `design/` 的对应区接续或创建 topic；方法本身不从承载仓库猜测产品事实。
 
 **实现只从已接受的规格长出来。**`packages/` 与 `apps/` 里有什么、各到了哪一层，以[实现映射](.meta_harness/design/realization/README.md)为准，
-不从目录存在与否推断；**不要凭一份产品设计就去开包**。
+不从目录存在与否推断；**不要凭一份产品设计就去开包**。要先把一条主路径跑通再做设计时，写探路件：
+放 [examples/](examples/README_ZH.md) 或任务的 `tmp/`，不进 `packages/`、`apps/`，带回设计的只有事实清单。
 
 skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness/agents/roles/`；
 根 `.agents/`、`.claude/`、`.codex/` 是工作区内生成产物的软链接。
