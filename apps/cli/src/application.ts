@@ -11,7 +11,7 @@ import {
   type GovernanceClientOperations,
   type ActionReport,
 } from '@omne-harness-lite/governance-client-operations'
-import { InputFailure, type Diagnostic } from './diagnostic.ts'
+import { diagnosticText, InputFailure, type Diagnostic } from './diagnostic.ts'
 import { buildIntent, readSecrets } from './input.ts'
 import { commands, parseInvocation, type Invocation } from './parser.ts'
 import { previewText, reportText, unopened } from './presentation.ts'
@@ -47,9 +47,15 @@ export function providers(): Pick<
 export async function runCli(args: readonly string[], runtime: CliRuntime): Promise<number> {
   const invocation = parseInvocation(args)
   let applicationFailed = false
+  const entry = {
+    machine: invocation.machine,
+    ...(invocation.kind === 'help' || invocation.kind === 'version' || !invocation.command
+      ? {}
+      : { command: invocation.command.command }),
+  }
   const diagnose = async (code: Diagnostic) => {
     try {
-      await runtime.stderr(`omne: ${code}\n`)
+      await runtime.stderr(diagnosticText(code, entry))
     } catch {
       applicationFailed = true
     }

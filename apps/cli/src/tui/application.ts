@@ -12,7 +12,7 @@ import {
   type Origin,
 } from '@omne-harness-lite/governance-client-operations'
 import { providers, type CliRuntime } from '../application.ts'
-import { InputFailure, type Diagnostic } from '../diagnostic.ts'
+import { diagnosticText, InputFailure, type Diagnostic } from '../diagnostic.ts'
 import { commands } from '../parser.ts'
 import { reportText } from '../presentation.ts'
 import { validReport } from '../validation.ts'
@@ -411,7 +411,7 @@ export async function runTui(args: readonly string[], runtime: TuiRuntime): Prom
     }
     if (failed) status = 70
     try {
-      for (const code of diagnostics) await runtime.stderr(`omne: ${code}\n`)
+      for (const code of diagnostics) await runtime.stderr(diagnosticText(code, { machine: false }))
       if (terminal && !dialog?.outputFailed) {
         if (lastReport && !lastShown) await runtime.stdout(reportText(lastReport, false))
         await runtime.stdout(`\r\nGovernance TUI ended. Exit status: ${status}.\n`)
