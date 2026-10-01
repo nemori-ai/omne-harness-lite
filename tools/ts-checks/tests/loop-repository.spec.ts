@@ -187,6 +187,26 @@ describe('入口', () => {
     expect(readFileSync(draft, 'utf8')).toContain('## 要清理的条目')
   })
 
+  it('配置里排除的成员组（初值 examples）不判预算、不生成草稿；全仓指标照样计入', () => {
+    const { root, home } = members()
+    const branches = Array.from({ length: 14 }, (_, i) => `  if (x === ${i}) return ${i}`).join(
+      '\n',
+    )
+    const tangled = Array.from(
+      { length: 8 },
+      (_, n) => `export function tangled${n}(x: number) {\n${branches}\n  return -1\n}\n`,
+    ).join('\n')
+    write(root, 'examples/demo/src/tangled.ts', tangled)
+    write(root, 'packages/core/a/src/tangled.ts', tangled.replaceAll('return', 'return 1 +'))
+    const result = run(root, home)
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('超 alert 的函数数 16')
+    expect(result.stdout).toContain('packages/core/a：超 alert 的函数数 8')
+    expect(result.stdout).not.toContain('examples/demo：')
+    expect(existsSync(join(home, 'proposals', 'packages-core-a.md'))).toBe(true)
+    expect(existsSync(join(home, 'proposals', 'examples-demo.md'))).toBe(false)
+  })
+
   it('给了基线：有要解释的红项一段与验收锁一行；锁被破退出 1', () => {
     const { root, home } = members()
     const base = git(root, 'rev-parse', 'HEAD')

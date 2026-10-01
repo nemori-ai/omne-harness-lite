@@ -37,6 +37,8 @@ export interface LoopConfig {
   readonly explainTop: number
   readonly indicators: Readonly<Record<IndicatorId, IndicatorConfig>>
   readonly memberBudget: Readonly<Record<BudgetItem, Lines>>
+  /** 不判预算、不生成草稿的成员组（`memberOf` 的 group，如 `examples`）。全仓指标不受它影响。 */
+  readonly budgetExcludeGroups: readonly string[]
   readonly sensors: {
     readonly stability: { readonly enabled: boolean; readonly margin: number }
     readonly cochange: {
@@ -153,8 +155,16 @@ function indicator(value: unknown, name: string): IndicatorConfig {
   }
 }
 
+function groups(value: unknown, name: string): string[] {
+  if (!Array.isArray(value) || !value.every(item => typeof item === 'string' && item !== ''))
+    throw new Error(`${name} 须为成员组名的数组（可以为空）`)
+  return value
+}
+
 export function parseLoopConfig(parsed: unknown): LoopConfig {
   const raw = object(parsed, '配置')
+  // memberBudget 里除四项预算的线之外，还有一项 excludeGroups。
+  const { excludeGroups, ...budgetLines } = object(raw['memberBudget'], 'memberBudget')
   const sensors = object(raw['sensors'], 'sensors')
   const stability = object(sensors['stability'], 'sensors.stability')
   const cochange = object(sensors['cochange'], 'sensors.cochange')
@@ -171,7 +181,8 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
     relapseLimit: integer(raw['relapseLimit'], 'relapseLimit'),
     explainTop: integer(raw['explainTop'], 'explainTop'),
     indicators: exactly(raw['indicators'], INDICATORS, 'indicators', indicator),
-    memberBudget: exactly(raw['memberBudget'], BUDGET_ITEMS, 'memberBudget', lines),
+    memberBudget: exactly(budgetLines, BUDGET_ITEMS, 'memberBudget', lines),
+    budgetExcludeGroups: groups(excludeGroups, 'memberBudget.excludeGroups'),
     sensors: {
       stability: {
         enabled: bool(stability['enabled'], 'sensors.stability.enabled'),

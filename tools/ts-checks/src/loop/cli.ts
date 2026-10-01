@@ -251,22 +251,25 @@ function memberBudgets(
       const member = memberOf(found.path)?.path
       if (member !== undefined) untested.set(member, (untested.get(member) ?? 0) + 1)
     }
-  return report.members.map(member =>
-    judgeMember({
-      member: member.path,
-      values: {
-        overAlert: member.overAlert,
-        risk: member.risk,
-        duplication: duplication === undefined ? undefined : (duplication.get(member.path) ?? 0),
-        testsWithoutAssertions:
-          sensors.assertions.status === 'data' ? (untested.get(member.path) ?? 0) : undefined,
-      },
-      budget: config.memberBudget,
-      history,
-      head,
-      relapseLimit: config.relapseLimit,
-    }),
-  )
+  const excluded = new Set(config.budgetExcludeGroups)
+  return report.members
+    .filter(member => !excluded.has(member.group))
+    .map(member =>
+      judgeMember({
+        member: member.path,
+        values: {
+          overAlert: member.overAlert,
+          risk: member.risk,
+          duplication: duplication === undefined ? undefined : (duplication.get(member.path) ?? 0),
+          testsWithoutAssertions:
+            sensors.assertions.status === 'data' ? (untested.get(member.path) ?? 0) : undefined,
+        },
+        budget: config.memberBudget,
+        history,
+        head,
+        relapseLimit: config.relapseLimit,
+      }),
+    )
 }
 
 function explainOf(report: Report, sensors: Sensors, change: Change): Explain {

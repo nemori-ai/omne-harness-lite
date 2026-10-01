@@ -15,6 +15,7 @@
     "worktreeSharedMembers": { "lines": { "warn": 1, "act": 2, "release": 0 }, "baseline": false }
   },
   "memberBudget": {
+    "excludeGroups": ["examples"],
     "overAlert": { "warn": 3, "act": 6, "release": 2 },
     "risk": { "warn": 12, "act": 20, "release": 10 },
     "duplication": { "warn": 5, "act": 10, "release": 4 },

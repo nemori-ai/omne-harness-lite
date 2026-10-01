@@ -19,6 +19,7 @@ describe('回路配置', () => {
     expect(config.indicators.newEdges).toEqual({ lines: null, baseline: false })
     expect(config.indicators.duplicationPercent.lines).toEqual({ warn: 3, act: 6, release: 2 })
     expect(config.memberBudget.risk).toEqual({ warn: 12, act: 20, release: 10 })
+    expect(config.budgetExcludeGroups).toEqual(['examples'])
     expect(config.sensors.cochange).toEqual({
       enabled: true,
       window: 300,
@@ -55,6 +56,11 @@ describe('回路配置', () => {
         delete (value['memberBudget'] as Record<string, unknown>)['risk']
       }),
     ).toThrow('memberBudget 缺 risk')
+    expect(
+      without(value => {
+        delete (value['memberBudget'] as Record<string, unknown>)['excludeGroups']
+      }),
+    ).toThrow('memberBudget.excludeGroups')
     expect(
       without(value => {
         const sensors = value['sensors'] as Record<string, Record<string, unknown>>
