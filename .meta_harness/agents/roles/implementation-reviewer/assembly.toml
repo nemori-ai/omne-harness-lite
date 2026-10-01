@@ -1,0 +1,2 @@
+shared_prompts = ["../engineering-taste.md", "../implementation-review-checklist.md"]
+default_effort = "high"
