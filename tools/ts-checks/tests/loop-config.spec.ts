@@ -30,6 +30,13 @@ describe('回路配置', () => {
     expect(config.sensors.assertions.assertionPattern.test('expectTypeOf')).toBe(true)
     expect(config.sensors.assertions.helperPattern).toBeUndefined()
     expect(config.health).toEqual({ weeks: 8, commits: 50, runs: 10 })
+    expect(config.hook).toEqual({
+      enabled: true,
+      maxItems: 12,
+      maxChars: 4000,
+      timeoutSeconds: 40,
+      stateLimit: 200,
+    })
   })
 
   it('缺项、类型不对、线的次序不对、多出认不出的项：报错并点名', () => {
@@ -85,5 +92,21 @@ describe('回路配置', () => {
         ;(value['health'] as Record<string, unknown>)['week'] = 8
       }),
     ).toThrow('health 里有认不出的项：week')
+    expect(without(value => delete value['hook'])).toThrow('hook 须为对象')
+    expect(
+      without(value => {
+        ;(value['hook'] as Record<string, unknown>)['timeoutSecond'] = 40
+      }),
+    ).toThrow('hook 里有认不出的项：timeoutSecond')
+    expect(
+      without(value => {
+        ;(value['hook'] as Record<string, unknown>)['maxChars'] = 0
+      }),
+    ).toThrow('hook.maxChars 须为正整数')
+    expect(
+      without(value => {
+        ;(value['hook'] as Record<string, unknown>)['enabled'] = 'off'
+      }),
+    ).toThrow('hook.enabled 须为 true 或 false')
   })
 })
