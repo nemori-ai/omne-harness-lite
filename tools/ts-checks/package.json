@@ -18,6 +18,8 @@
     "metrics": "node --experimental-strip-types src/metrics/cli.ts"
   },
   "devDependencies": {
+    "@jscpd/core": "catalog:",
+    "@jscpd/tokenizer": "catalog:",
     "@omne-harness-lite/identity-values": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
