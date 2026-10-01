@@ -1,4 +1,4 @@
-.PHONY: check agents-check docs-check design-check formal-tools test product-check metrics test-affected test-triage
+.PHONY: check agents-check docs-check design-check design-review formal-tools test product-check metrics test-affected test-triage
 
 TEST_RUNS := node --experimental-strip-types tools/ts-checks/src/testing/cli.ts
 
@@ -16,6 +16,10 @@ design-check:
 	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal $(or $(FORMAL),registered) $(if $(GATE),--gate "$(GATE)") $(if $(PREVIOUS_FROZEN),--previous-frozen "$(PREVIOUS_FROZEN)")
 	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design $(if $(STALE),--stale "$(STALE)")
 	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/realization_nodes.py --root .meta_harness/design $(if $(STALE),--stale "$(STALE)")
+
+# 设计评审报告：只读、只报告，不判失败。CONTRACT 给一个或几个 <contract_id>/v<N>，FROZEN=1 连已接受契约的产品依据 rev 一起看，FORMAT=json 输出 JSON。
+design-review:
+	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/design_review.py --root .meta_harness/design $(foreach c,$(CONTRACT),--contract "$(c)") $(if $(FROZEN),--include-frozen) $(if $(FORMAT),--format "$(FORMAT)")
 
 formal-tools:
 	uv run --locked omne-spec-tools-check
