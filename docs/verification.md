@@ -23,9 +23,10 @@
 | `make formal-tools` | Java 与 `TLA2TOOLS_JAR`、`ALLOY_ANALYZER_JAR` 指向的实际 JAR 可用 | 任何模型已经跑过 |
 | `make metrics` | **只报告，不判失败，不在 `make check` 里。**全部成员产品源码的每函数圈复杂度、成员间依赖边与分层方向（与 `lint:rules` 的 `group-direction` 同一份策略）、环；给 `BASE` 时标出基线以来变更的成员、函数、导入与提交形状；`COVERAGE=1` 时对 `packages/` 与 `apps/` 下的变更成员逐个跑测试取语句行覆盖并合成 CRAP（`examples/` 不跑）。产出摘要、数据与离线可开的审讯页，见 [tools/ts-checks](../tools/ts-checks/README_ZH.md#结构度量) | 覆盖率高或 CRAP 低等于行为正确——没有变异测试，断言强度未知；未见方向违规等于架构合理——层位是人定的策略，工具只核对方向；超阈值等于失败——它是抽查线索。覆盖率只计成员自己测试经 `src/` 或自己 `dist/` 执行到的源码，别的成员的测试与子进程里的执行不计；dist 早于源码时行号可能对不上；工作树不干净的产物不是任何提交的度量 |
 
-CI 在自托管 runner 的全新检出上跑同一个 `make check`，随后跑 `make metrics`，
-触发条件与产物位置见[自动化入口](../scripts/README.md#ci)。**CI 通过的含义不超过上表**：
-它不带付费模型凭据，也不跑 `FORMAL=run`；度量步骤的成败不计入检查结论。
+**检查结论以本地跑的 `make check` 为准；远程 CI 目前关闭。**合并前在待合并的那个提交、干净的工作树上
+跑一轮完整的 `make check`，交付说明写明提交、用时与结果。仓库里保留着一份只能手动触发的工作流，
+恢复条件与做法见[自动化入口](../scripts/README.md#ci)；恢复之后它在全新检出上跑同一个 `make check` 再跑 `make metrics`，
+**通过的含义同样不超过上表**：不带付费模型凭据，也不跑 `FORMAL=run`，度量步骤的成败不计入检查结论。
 
 `make design-check` 的三个形式模式含义不同：`FORMAL=registered`（默认）只确认任务与工件已登记，
 `FORMAL=skip` 记录本次明确跳过，**`FORMAL=run` 才真正调用 runner** 并传播缺工具、超时和非零退出。
