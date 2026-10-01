@@ -45,9 +45,10 @@ Codex 的规则是角色文件钉的模型优先于派发值（[Codex 适配说�
 |---|---|
 | 生成器接受新源包，两端输出的 description 一致、共享正文逐字相同 | 已核（`make agents-check`） |
 | 派发参数入口对 developer 两端都能出参数；Codex 一端 `model` 为空 | 已核（`render_pair.py --dispatch`） |
-| Claude Code 新进程里 developer 能被派发，并能引出合并后的边界表 | 见交付说明里的探针结果 |
-| Claude Code 派发时用 `model` 参数换档确实生效 | 见交付说明里的探针结果 |
-| Codex 新进程里 developer 能被派发、显式给的模型确实生效 | **未验证** |
+| Claude Code 新进程里 developer 能被派发，并能引出合并后的边界表 | 已核：`claude -p` 新进程派发，子代理不读文件即逐字引出四类任务与「不由你补」的原话 |
+| Claude Code 派发时用 `model` 参数换档确实生效 | 已核：派发时给 `sonnet`，该次运行的 `modelUsage` 里出现 `claude-sonnet-5-5`（角色文件钉的是 Opus 5.5） |
+| Codex 新进程里 developer 能被派发、显式给的模型确实生效 | 已核一次：`codex exec`（codex-cli 0.159.0）派发并显式给 `gpt-6-sol`、high；子会话的 rollout 日志里 `agent_role` 为 `developer`、模型 `gpt-6-sol`、档位 `high`，且含新正文独有的句子；父会话报告 kernel-developer、architecture-drafter 不在可用类型里 |
+| Codex 派发时**不给**模型会用哪个 | **未验证**；按官方规则应继承父会话的模型 |
 | 合并后的正文在实现任务上的效果不比原四个角色差 | **未验证**：没有重跑留出任务。正文从四份各约 25 行变成一份约 35 行，共同契约不变 |
 
 出现下面任一情形时回头看这次合并：developer 在某一类任务上反复越过那一类的「不由你补」；
