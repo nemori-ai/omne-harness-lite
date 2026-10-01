@@ -129,14 +129,21 @@ git commit -m "chore(docs): update blog submodule"
 | 统一语言词条、领域对象条目，或某个产品 topic 的 rev | `make design-check`；本地迭代用 `STALE=report` 看待复核队列 |
 | 检查器或生成器行为 | `make test` |
 | TS/JS 格式 | `pnpm format:check`；局部写入 `pnpm format:write -- <文件...>` |
-| 某个产品包的源码或测试 | `pnpm --filter @omne-harness-lite/<包名> run test`（含 `*.spec-d.ts` 类型测试）；改了公开入口再跑 `pnpm run build && pnpm run typecheck` |
+| 某个产品包的源码或测试，迭代中 | `pnpm --filter @omne-harness-lite/<包名> run test`（含 `*.spec-d.ts` 类型测试），或在包目录里 `pnpm exec vitest run <文件>` 只跑一个文件 |
+| 产品源码或测试改完，要知道波及了谁 | `make test-affected BASE=<任务基线提交>`：只构建并测试变更成员与依赖它们的成员，不必跑全量；`PLAN=1` 先看范围。改了公开入口再跑 `pnpm run build && pnpm run typecheck` |
+| 测试红了，想知道是不是「单独跑能过」 | `make test-triage RUN=<那次运行打印的运行目录>`：逐条单独重跑并归类。**把红灯归因于并行或机器负载，要附它的输出**；「隔离稳定通过」的含义与边界见[验证与证据](verification.md#检查入口) |
+| 想知道测试时间花在哪 | 每次 `test-affected`、`pnpm run test` 与 `make check` 都写耗时账本（成员、文件、用例三级，路径在运行末尾打印），摘要里列出最慢的成员、超线的文件与用例 |
 | 产品源码的结构约束（墙钟、`bail`、受限调用点、跨组依赖方向） | `pnpm run lint:rules`；规则与自测见 [tools/ts-checks](../tools/ts-checks/README.md) |
 | 实现类交付前后看结构与度量（本仓库的结构度量入口） | `make metrics BASE=<任务基线提交>`，秒级；要 CRAP 加 `COVERAGE=1`（会跑变更成员的测试，先构建）。它只报告、不判失败；把打印的摘要原样附进交付说明，审讯页路径在摘要末行 |
 | 存储提供者或迁移 | `pnpm --filter @omne-harness-lite/storage-sql run test`：sqlite 上跑一致性套件；pg 需设 `OMNE_TEST_PG_URL`，否则跳过 |
 | 形式工具是否可用 | `make formal-tools` |
-| 跨入口改动 | `make check` |
+| 跨入口改动、合并前 | `make check`。它占一个机器级的[运行名额](../scripts/README.md#运行名额)：别的检出正在跑时会排队，不要为了绕开排队而手工并行起多套 |
 
 覆盖与退出含义归[验证与证据](verification.md)——**那里写明了每个入口不能声称什么**。
+
+全量测试在本机约十几分钟，是合并前的门，不是迭代中的反馈手段：迭代时跑一个文件或一个包，
+改完跑受影响范围，合并前才跑 `make check`。并行度的初值在
+[test-runs.config.json](../tools/ts-checks/test-runs.config.json)，临时调整用环境变量，见[测试运行](../tools/ts-checks/README_ZH.md#测试运行)。
 
 对检查器做局部迭代时，可从仓库根运行一组测试：
 
@@ -147,7 +154,7 @@ PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest tools/spec-tools/tests/
 检查器 CLI 默认从当前工作目录定位受检仓库；检查另一个检出时传 `--root PATH`。
 
 保留失败的实际输出与影响判断，修正后重跑受影响的检查。
-交付时说明检查针对哪个源码状态与范围。临时日志放 `tmp/`，测试组合用 `tmp/test-runs/`；
+交付时说明检查针对哪个源码状态与范围。临时日志放 `tmp/`，测试组合用 `tmp/test-runs/`，测试运行器的账本在主检出的 `tmp/test-ledger/`；
 **临时目录不承担长期证据归档**。
 
 ## 使用 coding agents
