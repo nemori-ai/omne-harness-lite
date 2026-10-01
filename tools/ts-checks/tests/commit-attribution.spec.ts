@@ -69,7 +69,7 @@ describe('commit-attribution', () => {
     expect(
       attributionViolations([
         commit('tools: add runner\n\nHarness: claude-code\nAgent-Role: main\n'),
-        commit('agents: tune role\n\nHarness: codex\nAgent-Role: capability-developer\n'),
+        commit('agents: tune role\n\nHarness: codex\nAgent-Role: developer\n'),
       ]),
     ).toEqual([])
   })

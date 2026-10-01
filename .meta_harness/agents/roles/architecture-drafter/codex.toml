@@ -1,8 +1,0 @@
-name = "architecture-drafter"
-description = "Draft one of three independent architecture-design stages from the harness-design-handbook mainline, as the dispatch names it: a domain reading (properties before any mechanism view, sealed), a mechanism reading (object decomposition, placement, six questions, assembly sketch), or a capability-split proposal package with at least three substantive candidates. Writes only the assigned paths; does not reconcile, write contracts or provider designs, edit product text or terms, or accept anything. Default reasoning effort: xhigh; the dispatcher may adjust it to medium, high or xhigh for the actual task size and complexity. Use the role dispatch settings to apply the chosen effort."
-model = "gpt-6-astra"
-sandbox_mode = "workspace-write"
-approval_policy = "never"
-
-[agents]
-enabled = false

@@ -1,6 +1,6 @@
 # OpenAI 模型提示指导的选择
 
-以下条目先经 Codex 可见模型目录确认（GPT-6 Sol/Luna 为 2026-09-23 的 0.156.1，其余为 2026-09-12 的 0.154.0），再核对官方提示指导。
+以下条目先经 Codex 可见模型目录确认（GPT-6.1 Sol 为 2026-10-01 的 0.159.0，GPT-6 Sol/Luna 为 2026-09-23 的 0.156.1，其余为 2026-09-12 的 0.154.0），再核对官方提示指导。
 完整已确认范围和证据见[宿主支持记录](model-support.json)。目标不在记录中时先
 确认宿主支持，再查精确模型指导；不能选“最接近”的条目冒充支持或适配。
 
@@ -9,6 +9,7 @@
 | 官方指导的范围 | 官方建议摘要 | 本技能如何据此提出候选调整 |
 |---|---|---|
 | [GPT-6 Astra](https://developers.openai.com/api/docs/guides/latest-model/gpt-6-astra.md#prompting-best-practices) | 可能更主动澄清，更敏感于 skills 等指令，验证也可能超过小任务所需 | 将关键歧义与例行选择分开；解释暂停依据；保留必要验收而避免无条件反复自检 |
+| GPT-6.1 Sol（无独立指南，按 [Using GPT-6](https://developers.openai.com/api/docs/guides/latest-model.md#gpt-6.1-sol) 的家族级内容） | 2026-10-01 未查到专属提示指南（`latest-model/gpt-6.1-sol.md` 不存在）；家族页说其提示建议「针对 Astra 上观察到的行为，换模型要在自己的任务上评估」，并注明 6.1 Sol 与 Astra 一样不支持 `none`、`minimal` 推理档，这一点与 GPT-6 Sol 不同 | 只用家族级指导，不写 6.1 Sol 专属适配段；从 GPT-6 Sol 换过来不改提示正文；两者的行为差异未在本项目实测 |
 | GPT-6 Sol / Luna（无独立指南，按 [GPT-6 Astra 指南](https://developers.openai.com/api/docs/guides/latest-model/gpt-6-astra.md#prompting-best-practices)的家族级内容） | 2026-09-23 未查到 Sol、Luna 的专属提示指南；Astra 指南把二者列为同家族，并注明二者支持 `none` 推理档而 Astra 不支持 | 只用家族级指导，不写 Sol／Luna 专属适配段；它们与 Astra 的行为差异待本项目实测 |
 | [GPT-5.6 家族](https://developers.openai.com/api/docs/guides/latest-model/gpt-5.6#prompting-best-practices) | 建议精简重复提示和工具描述，明确自治边界，并用任务评估验证精简效果 | 每项角色边界只设一个权威位置；表达简短仍保留必需材料、未知和停止条件；Sol/Terra/Luna 等精确目标另核对 |
 | [GPT-5.5](https://developers.openai.com/api/docs/guides/latest-model/gpt-5.5#prompting-best-practices) | 以结果、成功条件和停止条件为中心，减少旧提示中的过程脚手架 | 明确哪些缺口必须澄清，允许范围内自主选择方法；保留真实不变量，避免把偏好全写成硬性流程 |
@@ -18,7 +19,7 @@
 
 ## 可维护的使用方式
 
-目录中有、但没有专属提示指南的模型（如 GPT-6 Sol／Luna）不提供专属适配模板；
+目录中有、但没有专属提示指南的模型（如 GPT-6.1 Sol、GPT-6 Sol／Luna）不提供专属适配模板；
 使用前先查其官方指导，无法确认则保留中性基线及未知。
 
 精确目标已给定时读对应页；“最新模型”尚未确定时，先从目标宿主目录选出支持对象，

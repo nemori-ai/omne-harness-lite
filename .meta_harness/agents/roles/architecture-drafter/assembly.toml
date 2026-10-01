@@ -1,2 +1,0 @@
-shared_prompts = ["../engineering-taste.md"]
-default_effort = "xhigh"
