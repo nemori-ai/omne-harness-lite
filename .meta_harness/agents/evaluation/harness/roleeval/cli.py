@@ -73,7 +73,7 @@ def sha256(path: Path) -> str:
 
 def prepare(flow: Flow, material: Material, dest: Path) -> None:
     settings = flow.workspace
-    workspace.build(REPO, dest, base=flow.base(material), material_paths=settings["material_paths"],
+    workspace.build(REPO, dest, base=flow.base(material), material_paths=flow.material_paths(material),
                     material_excludes=settings["material_excludes"], subject_paths=settings["subject_paths"])
     workspace.apply(dest, material.ops(), suite=flow.root)
     workspace.commit(dest)
@@ -97,7 +97,7 @@ def verify(flow: Flow, work: Path) -> list[str]:
             continue
         dest = work / f"verify-{flow.id}-{material.id}-{os.getpid()}"
         try:
-            workspace.build(REPO, dest, base=base, material_paths=flow.workspace["material_paths"],
+            workspace.build(REPO, dest, base=base, material_paths=flow.material_paths(material),
                             material_excludes=flow.workspace["material_excludes"],
                             subject_paths=flow.workspace["subject_paths"])
             clean = workspace.tree_hash(dest)

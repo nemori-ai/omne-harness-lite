@@ -21,7 +21,7 @@
   "workspace": {
     "base": "332b11570a7f27ac69d8d9ae385385651b044b00",
     "material_paths": [".meta_harness/design"],
-    "material_excludes": [".meta_harness/design/record/evidence"],
+    "material_excludes": [".meta_harness/design/record/evidence", ".meta_harness/research/legacy_backup"],
     "subject_paths": [
       "AGENTS.md",
       "CLAUDE.md",
@@ -139,6 +139,215 @@
         {"id": "K2", "verdict": "real", "what": "缺 Cordis 符合性核对表：判据页新增的核对项，节点早于它"},
         {"id": "K3", "verdict": "out-of-kind", "what": "README 的状态标注没有区分已接受的那一稿与本轮候选：表达问题，写进阻断或非阻断算越出本次判断"},
         {"id": "K4", "verdict": "unverified", "what": "两条未取证的假设被当作依据"}
+      ]
+    },
+    {
+      "id": "entry-landing-r1",
+      "target": "治理中心入口层与运维面的落点选择（提案）、建立在它上面的组合契约 v1 候选稿与三个实现映射节点，第一次架构评审之前的快照",
+      "source": "真实评审。材料是提交 3af1c489f 时的设计树与研究；应当被报出的是 2026-09-23 第一次架构评审（architecture-reviewer，1 阻断、7 非阻断）提出、作者接受并处置的 8 条发现，登记在提交 88f1e657a 的提案评审记录里。评审报告原文没有留存，每条的缺陷说明由那份记录的摘要与当时的正文改写；记录只写评审对着「工作树状态」，钉的提交是推断的：它是 PF-017 被接受之前的最后一个提交，各条发现指到的正文在评审前后那段时间里没有变。七条非阻断的严重度按记录里的 N- 前缀定。N-2 的发现被接受，评审给的修法（运维面自读标识行）被起草者以反例驳回——只判有没有报出这个问题，不判修法",
+      "base": "3af1c489f86aba7f2da9ca57338ceaeb87b47203",
+      "material_paths": [".meta_harness/research"],
+      "brief": "briefs/entry-landing-r1.md",
+      "tags": ["真实的"],
+      "seeds": [
+        {
+          "id": "B1", "kind": "real", "severity": "阻断",
+          "where": "契约 §六 S-28；入口节点 design.md「中心标识：迁移片段与读或铸」",
+          "truth": "契约 S-28 规定首铸的条件是「没有标识且治理事实为空」，并要求「有治理事实却没有标识 ⇒ 启动失败」。兑现它的入口层却只碰 governance_center 一张表，读或铸里没有这一支；在落点 A 的边界下入口层读不了治理事实所在的表，这条判定在结构上无人能兑现。结果是恢复不全的数据（库还在、标识行丢了）会静默铸出另一个中心，「中心标识一生不变」失去保护点",
+          "quote": "**有治理事实却没有标识 ⇒ 启动失败**——这份数据不是一个中心从零立起来之后的样子（搬错了、截断了或恢复不全），铸一个新的只会给一份已有账号与组织的数据换一个身份",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "N1", "kind": "real", "severity": "非阻断",
+          "where": "tenancy-host design.md 归装配事项的承接表 account-identity 一行；cli 节点跨应用边表",
+          "truth": "装配节点仍按 account-identity v1 承接账号能力，而入口契约与入口层已经钉 v2。v2 S-30 新增的几条装配给保证（只有 S-44 认出示物、存储与备份里没有出示物、出示物只交到调用方手里、LoginStateId 部署内唯一）在装配一侧没有承接者，整条链上落空。只说「版本坐标写错了」而不指出装配给的保证无人承接，不算",
+          "quote": "| `capability.account-identity/v1`（`accepted`）——八个操作、两个服务面 `accounts`／`logins` |",
+          "files": [".meta_harness/design/realization/apps/tenancy-host/design.md"]
+        },
+        {
+          "id": "N2", "kind": "real", "severity": "非阻断",
+          "where": "契约 §九 S-34「面缺席只有三种时候」与 §十一 S-36；入口节点 design.md「换代与重跑」",
+          "truth": "契约把存储、时钟提供者的换代算作合法的面缺席，并要求换代之后两张面同起同停、恢复应答。但入口层与运维面都注入存储与时钟，换代时各自重跑，先后由内核决定；运维面靠入口层的通知拿中心标识，入口层若先重跑完，运维面就再也收不到通知，可能永不应答。同起同停在这一交错下没有保护点，节点只把它记成实现限制",
+          "quote": "- **「面缺席」只有三种时候**：启动（还没起来）、停机、某个参与方的提供者**换代**。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "N3", "kind": "real", "severity": "非阻断",
+          "where": "入口节点 design.md「本节点约束（存储要求之外）」第 5 条；verification.md 契约 SC-2 一行",
+          "truth": "「运维者没有任何一扇门」靠运维面目录的导入白名单来守。但 Cordis 事件可以按字符串名订阅，不经任何 import；导入白名单挡不住运维面通过事件触达治理事实，这条检查在性质被违反时不会失败",
+          "quote": "| 5 | 运维面目录只按白名单导入（`kernel-basis`、`storage` 协议、`offer-expiry`、Node 内置、本包的事件声明模块），事件声明模块本身不导入任何 `tenancy/*` 包 | S-25、契约 SC-2 |",
+          "files": [".meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md"]
+        },
+        {
+          "id": "N4", "kind": "real", "severity": "非阻断",
+          "where": "入口节点 design.md「就绪与开门为什么分两步」末段；「依赖的上游机制语义」表",
+          "truth": "两步开门靠 config 里的 openSignal（一个运行时对象）：内核要把它原样交给插件体，重跑时还得是同一个对象。这是对 Cordis 怎样传递 config 的推导，没有 basis 条目，也没有列为待取证的假设；内核若拷贝或重建 config，兑现就到不了入口层，门永远不开",
+          "quote": "`openSignal` 是运行时对象，不是配置文件里的数据：它只能由装配在装载时构造并传入；config 校验只核「在场且是 thenable」。",
+          "files": [".meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md"]
+        },
+        {
+          "id": "N5", "kind": "real", "severity": "非阻断",
+          "where": "提案 design.md「为什么不拆、为什么不并」第 8 条；alternatives.md 可计数代价表",
+          "truth": "提案的代价按入口层 6 条注入边计价，节点落成了 8 条（多了 credentials 与 clock），代价没有回写，而每条注入边都意味着「任一换代就关门再开」。第 8 条还把「换代或不可用」都写成会让入口层卸载重跑，夸大了注入的机制语义：服务答不可用只是返回值，不会让插件体重跑、门不会关。指出其中任一半即算",
+          "quote": "运行中任一被消费的服务换代或不可用，入口层卸载重跑，门随之关上",
+          "files": [".meta_harness/design/record/proposals/governance-center-entry/design.md"]
+        },
+        {
+          "id": "N6", "kind": "real", "severity": "非阻断",
+          "where": "契约 §九 S-34 与已知缺口（当时没有对应条款）；入口节点 design.md「归装配的事项」；tenancy-host design.md「升级的整体性」",
+          "truth": "PF-017 §6.9「升级要么整体成、要么整体不成」与 §6.10「启动前只读核对」没有任何契约条款承载，只活在装配节点的设计里；它们的残余（例如迁移之后不可撤回）在契约层与 registry 上都看不见。性质只活在流程产物里，没有契约条款，也没有登记成缺口",
+          "quote": "的实现要求；本节点的片段只保证幂等",
+          "files": [".meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md"]
+        },
+        {
+          "id": "N7", "kind": "real", "severity": "非阻断",
+          "where": "入口节点 design.md「成对的装载与撤除」表 openSignal 兑现后读钟一行；tenancy-host design.md 两步开闸与给运维者的提示",
+          "truth": "开门的续延在等钟时按间隔轮询，没有写每一拍都重核入口层是否仍在、闸是否已退役：等待中入口层若已被撤除，续延仍可能开门并发出通知，撤除之后的在途工作无人收拾。另外，给运维者的提示「钟读不到，重启即可」在钟回拨时不成立——照原样重启会在只读核对上再次失败。指出其中任一半即算",
+          "quote": "| **入口** `openSignal` 兑现 ⇒ 读钟（读不到按同一间隔轮询，上界 `clockReadyTimeoutMs`）→ `emit(",
+          "files": [".meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md"]
+        }
+      ],
+      "known_issues": [
+        {"id": "K1", "verdict": "real", "what": "跨 OS 崩溃或断电时「时钟不后退」不成立（sqlite 的落盘方式会丢已提交的续约），契约 S-32 的 P3 与 S-36 没有写这条例外。当时另一次评审把它列为范围外待裁，后来落进了契约"},
+        {"id": "K2", "verdict": "real", "what": "传输上的分歧：cli 提案用 bearer 头，入口契约把信封放在请求体里。当时列为范围外，后来由传输绑定契约定"},
+        {"id": "K3", "verdict": "out-of-kind", "what": "契约文本的表达问题（同时在做的规格评审第二轮提出的十余条：失败集合之外的缺陷支、Schema 说明、矛盾清单计数等）。放进「未覆盖」转交不算越出，写进阻断或非阻断算越出本次判断"},
+        {"id": "K4", "verdict": "unverified", "what": "后来黑盒验收核出的三处产品正文与契约不一致（再撤同一目标时线上答复分不出、注册规则不满足时线上只有一种拒绝、重发解除隶属的判定先后）。推断当时已存在，没有逐条核实；属于产品正文与契约的一致性"},
+        {"id": "K5", "verdict": "real", "what": "account-identity、storage-sql、clock 三个提供者节点上的问题（另一次评审的九条，见材料 entry-providers-r1）。它们不在本次范围；报出不算抓到，也不算新的阻断"}
+      ]
+    },
+    {
+      "id": "entry-providers-r1",
+      "target": "入口落点选定后牵连改动的三个提供者节点（account-identity 按 v2 修订、storage-sql 的升级守卫、clock 的现读墙钟），第二次架构评审之前的快照",
+      "source": "真实评审。材料与 entry-landing-r1 取自同一个提交 3af1c489f；应当被报出的是 2026-09-23 第二次架构评审（architecture-reviewer，无阻断、9 条非阻断）提出、作者接受并处置的发现，登记在提交 88f1e657a 的同一份评审记录里。评审报告原文没有留存，钉的提交同样是推断的。N-2 落在 organization-governance 节点上，它不在送审的三个对象之内，当时的评审者是顺着契约要求追过去的；N-6 的处置是写成运维约定并登记为实施缺口，不是加机制",
+      "base": "3af1c489f86aba7f2da9ca57338ceaeb87b47203",
+      "material_paths": [".meta_harness/research"],
+      "brief": "briefs/entry-providers-r1.md",
+      "tags": ["真实的"],
+      "seeds": [
+        {
+          "id": "N1", "kind": "real", "severity": "非阻断",
+          "where": "account-identity design.md「能力到 Cordis 的投影」S-13、S-15 两行；storage-sql design.md 持锁时长的前提；clock design.md 续约的前提",
+          "truth": "account-identity 节点把 CPU 密集的凭据计算（scrypt 的校验与派生）放进了一次 storage.write 的写事务里。sqlite 下库级写锁在整个凭据计算期间一直持有，这让另两个节点写明的前提失真：storage-sql 的「写事务里不等外部工作、持锁以毫秒计」，clock 的「续约间隔加写锁等待上限小于租约」。登录负载会拖住时钟续约，认证压力于是耦合到时钟可用性，进而影响整个中心的应答",
+          "quote": "**一次 `storage.write`** 内：按标识读记录 → 不存在／`credentials.verify` 为 `mismatch`／未激活 ⇒ **同一个** `identifier-or-credential-rejected`",
+          "files": [".meta_harness/design/realization/packages/tenancy/account-identity/design.md"]
+        },
+        {
+          "id": "N2", "kind": "real", "severity": "非阻断",
+          "where": "organization-governance design.md 操作表 S-36、S-37 两行（不在送审的三个节点之内）",
+          "truth": "account-identity v2 S-30 要求「只有 S-44 认出示物」，LoginStateId 只能来自本契约的结果。但 organization-governance 的两个操作把登录状态参数收成任意值、自己解析后再交给 logins.verify；入口层可以把线上收到的串直接交进来，account-identity 的品牌参数就被合法地满足了。这条装配给的保证没有任何一处会失败的检查",
+          "quote": "`memberships.currentTenant(loginStateId)`／`switchCurrentTenant(loginStateId, tenantId)`。先表示层；",
+          "files": [".meta_harness/design/realization/packages/tenancy/organization-governance/design.md"]
+        },
+        {
+          "id": "N3", "kind": "real", "severity": "非阻断",
+          "where": "account-identity design.md「公开入口：导出与类型」不导出一行；verification.md S-46 一行",
+          "truth": "设计把「不导出出示物的生成与派生函数」写成挡住绕开 S-44 的机制。但派生式在契约 S-45 里公开，任何人都能自己算，不导出算不上防线。另外「出示物不进诊断输出」只有运行时翻查一支证据，源码层没有会失败的检查。指出其中任一半即算",
+          "quote": "生成与派生出包就能绕开 S-44；实现类只给测试装配构造（随机源注入）",
+          "files": [".meta_harness/design/realization/packages/tenancy/account-identity/design.md"]
+        },
+        {
+          "id": "N4", "kind": "real", "severity": "非阻断",
+          "where": "storage-sql design.md R-U6 一行与 tenancy-host 互指一行",
+          "truth": "确认升级与查询待确认升级这两个入口以 config 派生出的快照位置为键，没有绑定到实际取得排他、建了快照的那个实例。实例交错时（例如重跑时新旧实例并存），确认可能删错快照或什么都没删却照样返回成功；随后的撤除会恢复快照，已经答复过的写静默丢失",
+          "quote": "`confirmUpgrade(config)`（候选）：删快照或标记，**目录落盘之后才返回**",
+          "files": [".meta_harness/design/realization/packages/infra/storage-sql/design.md"]
+        },
+        {
+          "id": "N5", "kind": "real", "severity": "非阻断",
+          "where": "storage-sql design.md「方言配置形状」upgrade 的说明；「守卫为什么显式开启」对比表",
+          "truth": "带迁移却没有给 upgrade 配置时，守卫静默不开，升级退回「只有幂等」，PF-017 §6.9 不成立而没有任何信号。设计自己承认了这个弱点，却把唯一的防线放在装配自己的测试上：性质的保护点在缺省配置下无声消失",
+          "quote": "部署可能忘了开——那时升级退回「只有幂等」，§6.9 不成立而无声",
+          "files": [".meta_harness/design/realization/packages/infra/storage-sql/design.md"]
+        },
+        {
+          "id": "N6", "kind": "real", "severity": "非阻断",
+          "where": "storage-sql design.md「排他为什么是随进程死亡释放的锁」末段",
+          "truth": "排他只在开了守卫的属主实例之间成立；不开守卫的实例不看锁，也不看快照。这样的实例若打开生产库，属主未确认时它写进去的一切会随恢复消失，它带迁移时还会在属主脚下迁移。「单属主」的前提落在谁身上没有写，这条边界没有任何一方认领",
+          "quote": "它只在属主之间成立——不开守卫的实例不看锁（装配只装一个开了守卫的实例，tenancy-host `assembly.manifest-shape`）。",
+          "files": [".meta_harness/design/realization/packages/infra/storage-sql/design.md"]
+        },
+        {
+          "id": "N7", "kind": "real", "severity": "非阻断",
+          "where": "clock design.md「对存储提供者的要求清单」R-C2 一行",
+          "truth": "R-C2 把 sqlite 当前落盘方式下 OS 崩溃的丢失窗口写成「最近一次续约」。实际丢的是自上一次检查点以来、尚未回写的整段已提交事务：窗口被低估，「不后退」跨 OS 崩溃的真实后果没有标价",
+          "quote": "OS 崩溃／断电可丢最后一段已提交事务（含最近一次续约）",
+          "files": [".meta_harness/design/realization/packages/infra/clock/design.md"]
+        },
+        {
+          "id": "N8", "kind": "real", "severity": "非阻断",
+          "where": "clock design.md「运行中回拨：每次现读墙钟，比对用过的最晚时刻」代价表",
+          "truth": "选中的做法（每次现读墙钟、与用过的最晚时刻比对）在「墙钟先往前跳、后被校正回来」时会停摆，时长等于跳幅，重启也绕不过，没有运维出口。这是选中方相对落选方多付的一项代价，代价表里没有",
+          "quote": "| 运行中墙钟向前跳过租约界 ⇒ 答不可用，直到下一次续约 | ≤ L/3（候选 ≈ 3.3 s） |",
+          "files": [".meta_harness/design/realization/packages/infra/clock/design.md"]
+        },
+        {
+          "id": "N9", "kind": "real", "severity": "非阻断",
+          "where": "storage-sql design.md R-U3、R-U5 两行；「成对的装载与撤除」表升级快照一行",
+          "truth": "快照先写到临时名再改名。进程若在改名之前崩溃，临时名上的半成品没有任何一步去清理：下一次启动只看快照位置、不看临时名。资源在崩溃路径上没有释放者",
+          "quote": "写到临时名 → 文件落盘 → 原子改名成快照名 → 目录落盘；**改名之后才算有快照**",
+          "files": [".meta_harness/design/realization/packages/infra/storage-sql/design.md"]
+        }
+      ],
+      "known_issues": [
+        {"id": "K1", "verdict": "real", "what": "登记里出现本版本不认识的迁移名时，storage-sql 自己没有最低防线：判定交给装配的核对，没给那条核对时只能指望迁移器在建快照之后的一致性检查。当时这次评审没有提出，后来另一次评审提出并修掉"},
+        {"id": "K2", "verdict": "real", "what": "clock 的租约表把毫秒列声明成 INTEGER，换到 pg 上是 4 字节、会溢出。实现阶段才发现；介于投影与实现细节之间"},
+        {"id": "K3", "verdict": "real", "what": "当时列为范围外待裁的两项：启动窄带内不报原因；跨 OS 崩溃的「时钟不后退」例外没有回写产品正文与入口契约"},
+        {"id": "K4", "verdict": "real", "what": "入口提案、入口契约与入口、tenancy-host、cli 三个节点上的问题（另一次评审的八条，见材料 entry-landing-r1）。它们不在本次范围；报出不算抓到，也不算新的阻断"}
+      ]
+    },
+    {
+      "id": "message-stream-baseline",
+      "target": "提案 message-and-stream-baseline 首稿：消息的数据契约、到达语法与流装配器三层各以谁为起点（四个候选，推荐 D 逐层混合），独立架构评审之前的快照",
+      "source": "真实评审，报告原件留存。材料是提交 b12d92717 时的设计树与研究，评审记录明写对着这个提交；应当被报出的取自 2026-09-23 的独立架构评审，原件在提交 9ab1e369d 入库（提案目录的 reviews/ 下），作者的逐条处置在同一提交的 review.md。当时的评审者是 Codex GPT-6 Astra（不是 Claude），派发方式是强制二选一并要求亲手做两项纸面走查，还读了仓库之外的 DSH 与 pi 一手源码；这里的简报按现行角色的常规派发写，副本里没有上游源码。登记了处置的 8 条里取 5 条计分：只凭仓库内的研究笔记就能推出的。另 3 条列为已知问题：一条要读仓库外的源码才看得出，一条与提案自己列出的事项大半重叠，一条当时归到下游阶段。8 条都是非阻断，只有 1 条当轮改了正文，其余登记为交接缺口或下游义务",
+      "base": "b12d92717bc360968d9b0e0520079e2b3324b3f6",
+      "material_paths": [".meta_harness/research"],
+      "brief": "briefs/message-stream-baseline.md",
+      "tags": ["真实的", "报告原件留存"],
+      "seeds": [
+        {
+          "id": "C1", "kind": "real", "severity": "非阻断",
+          "where": "design.md「剩余责任与能力演化」表里 pi-ai 事件翻译成到达语法一行；「证据义务与受阻消费」表第 1 行",
+          "truth": "推荐方把「参数收齐才解析、只解析一次」（PF-009 §6.10）的兑现放在传输适配上：从增量拼回原串、丢弃 partial 快照，并写下不必改动 pi。但 pi 在给出每个参数增量之后自己就做一次中间解析，封口时再解析一次（研究笔记记有「每一次 delta 都解析」）；外层丢弃解析结果消除不了这次中间解析。这条性质在选定路径上没有保护点，禁止中间解析的责任必须由 fork 承担",
+          "quote": "要做：原始参数串从增量拼（或 fork 保留原串）、丢弃 `partial` 快照",
+          "files": [".meta_harness/design/record/proposals/message-and-stream-baseline/design.md"]
+        },
+        {
+          "id": "C3", "kind": "real", "severity": "非阻断",
+          "where": "alternatives.md 候选表 D 一行与「D：逐层混合」到达语法一行；design.md 剩余责任表「账只一次」一行",
+          "truth": "推荐方把 DSH 的不变量伴件当成可以逐条升格为语法条款的检查集。它不是完整的、也不是可以照抄的检查集：例如用量只查「至多一次」而不查必须出现；带着未关的块结束只允许出错或中止，与截断收场要保留半截调用的要求不合。照抄升格，「终结、一次记账、装配一致」这组性质就缺保护点；须逐项筛选补全。指出伴件检查集与要兑现的性质不重合、因而不能照抄，即算",
+          "quote": "伴件的检查**逐条升格为语法条款**",
+          "files": [".meta_harness/design/record/proposals/message-and-stream-baseline/alternatives.md"]
+        },
+        {
+          "id": "C5", "kind": "real", "severity": "非阻断",
+          "where": "design.md「交接缺口」首 token 耐久记录一行；剩余责任表「已交付的内容」一行",
+          "truth": "持久化与崩溃恢复这一项命中了，却没有写由谁兑现。提案只要求「已开口」能作为一条事实被识别；但内容已经送到用户眼前、成品尚未提交时崩溃，用户看到过的前缀照样会丢（PF-009 §6.9）。由谁、在何时持久保存已交付的内容，没有落到任何契约或负责方身上",
+          "quote": "两者相容的前提是「已开口」是**一条事实**而不是增量本身",
+          "files": [".meta_harness/design/record/proposals/message-and-stream-baseline/design.md"]
+        },
+        {
+          "id": "C6", "kind": "real", "severity": "非阻断",
+          "where": "design.md 剩余责任表「任意切分不变与相邻合并不变」一行",
+          "truth": "「合并不变，因此节流只能放在装配之后」不能从前件推出：只要保住语法检查与首 token 的观察，装配之前做等价合并同样可行。提案把投递位置写成性质的推论，等于在共用基线里钉死了一个需求没有要求的拓扑",
+          "quote": "**因此节流只能发生在装配之后的实时投递那一路，装配器要见到每一个增量**",
+          "files": [".meta_harness/design/record/proposals/message-and-stream-baseline/design.md"]
+        },
+        {
+          "id": "C7", "kind": "real", "severity": "非阻断",
+          "where": "design.md「交接缺口」块身份与嵌套块寻址一行；必须兑现的性质里语言无关、可跨进程表示一条",
+          "truth": "跨进程身份与租户边界这一项命中了，却没有写由谁兑现。流内的索引只是单条流里的关联键，不能独自把一条流绑定到租户、会话、尝试或工具执行；迟到的旧一代增量与跨进程校验的责任在提案里没有归属（PF-000 §5.5、SYS-TENANT）。提案里只有「块身份与嵌套块寻址」这一条缺口，没有覆盖这件事",
+          "quote": "| **块身份与嵌套块寻址** | 数据契约起草 | PF-010 压缩名单能否落地 |",
+          "files": [".meta_harness/design/record/proposals/message-and-stream-baseline/design.md"]
+        }
+      ],
+      "known_issues": [
+        {"id": "K1", "verdict": "real", "what": "「增量原样」只在 pi 的普通 function 分支成立，另一条分支会自己构造增量；提案的原始参数探针若只喂一条分支，结论会被推广过头。要读仓库之外的 pi 源码才看得出，副本里的研究笔记没有记这一点"},
+        {"id": "K2", "verdict": "real", "what": "骨架里的模型专属假设（工具调用身份、用量形状、回放状态、可扩展的结束原因）不能因骨架被选中就自动成为两个运行时共用的协议。提案自己已经列出其中大半要「逐项判去留」，当时的评审只补了用量形状一项"},
+        {"id": "K3", "verdict": "real", "what": "反向核对的四问（撤除时在途增量由谁结算、依赖消失时卸载范围、事件派发是否跨边界泄漏、装配给与协议给分表）在提案里都没有答案。当时评审自己注明这是下游责任缺口、不是观察到的泄漏，作者归到后续阶段"},
+        {"id": "K4", "verdict": "unverified", "what": "背压与流控（缓冲边界、超载后果、失败隔离没有写）与时序和进展（来源永不返回时由谁收场、上界归谁没有写）。评审原件提了，作者的处置记录里没有这两行，既没有认也没有驳"},
+        {"id": "K5", "verdict": "out-of-kind", "what": "六处表达问题（「账只一次」是至多还是恰好、「封口块等于所有填的结果」按追加与替换怎样分别定义、「任意切分与合并」的允许操作域、「初判不触发」是否被写成免除行为规格义务、「供应商中立」有没有权威出处、PF-009 §7 与 §5.5 的三样与四样不一致）。当时评审把它们转交规格评审；放进「未覆盖」转交不算越出，写进阻断或非阻断算越出本次判断"},
+        {"id": "K6", "verdict": "real", "what": "当时列为范围外待裁的事项：PF-009 rev 5 与 PF-013 rev 5、rev 6 尚未确认；语音增量与整交的块算不算首 token；工具流记账的对象与次数；非法帧与过程消息在落盘之前被否决后各自怎样收场；稳定块身份、嵌套寻址与供应商回放数据怎样表达"},
+        {"id": "K7", "verdict": "real", "what": "截断收场时「封口交出了完整的块值」不等于「这串参数构成一次完整的调用」，语法要写明这条区别。当时评审作为纸面走查的一处限定提出"}
       ]
     }
   ]

@@ -524,7 +524,7 @@ def test_a_historical_material_is_taken_from_its_own_commit(repo: Path, tmp_path
     root = repo / "suites" / "tiny-review"
     current = json.loads((root / "flow.json").read_text(encoding="utf-8"))
     real = {"id": "doc-later", "target": "design/doc.md 的后来版本", "brief": "briefs/doc.md", "base": later,
-            "source": "一次真实评审", "seeds": [{"id": "R1", "kind": "real", "where": "第一句", "truth": "只说先读",
+            "material_paths": ["harness"], "source": "一次真实评审", "seeds": [{"id": "R1", "kind": "real", "where": "第一句", "truth": "只说先读",
                                              "quote": "后来的版本", "files": ["design/doc.md"],
                                              "severity": "阻断"}]}
     flow = suite.load(rewrite(repo, materials=[*current["materials"], real]))
@@ -535,6 +535,8 @@ def test_a_historical_material_is_taken_from_its_own_commit(repo: Path, tmp_path
         dest = tmp_path / name
         cli.prepare(flow, flow.material(name), dest)
         assert (dest / "design" / "doc.md").read_text(encoding="utf-8") == expected
+        # 只有那份材料当时对着读的路径，才随它进副本
+        assert (dest / "harness" / "keep.txt").exists() == (name == "doc-later")
     text = cli.inputs(flow)
     assert "来源：一次真实评审" in text and "当时定的严重度：阻断" in text and f"`{later[:9]}`" in text
 

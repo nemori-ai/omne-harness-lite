@@ -47,6 +47,7 @@ class Material:
     known_issues: tuple[dict[str, str], ...] = ()
     base: str | None = None
     source: str | None = None
+    paths: tuple[str, ...] = ()
 
     def ops(self) -> list[dict[str, Any]]:
         return [*self.prepare, *[dict(seed.op, id=seed.id) for seed in self.seeds if seed.op]]
@@ -78,6 +79,10 @@ class Flow:
     def base(self, material: Material) -> str:
         """The commit a material is taken from: its own when it is a historical snapshot, else the suite's."""
         return material.base or self.workspace["base"]
+
+    def material_paths(self, material: Material) -> list[str]:
+        """What a copy takes from that commit: the suite's paths, and those only this material was reviewed against."""
+        return [*self.workspace["material_paths"], *material.paths]
 
     def unsigned(self) -> list[str]:
         """Sign-offs still owed for this version of the suite."""
@@ -127,7 +132,8 @@ def _material(root: Path, raw: dict[str, Any]) -> Material:
                        files=tuple(seed.get("files", ())), severity=seed.get("severity")) for seed in raw["seeds"])
     return Material(id=raw["id"], target=raw["target"], brief=root / raw["brief"], tags=tuple(raw.get("tags", ())),
                     prepare=tuple(raw.get("prepare", ())), seeds=seeds, contract=raw.get("contract"),
-                    known_issues=tuple(raw.get("known_issues", ())), base=raw.get("base"), source=raw.get("source"))
+                    known_issues=tuple(raw.get("known_issues", ())), base=raw.get("base"), source=raw.get("source"),
+                    paths=tuple(raw.get("material_paths", ())))
 
 
 def _check(flow: Flow) -> None:
