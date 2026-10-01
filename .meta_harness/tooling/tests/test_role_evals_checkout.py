@@ -721,7 +721,7 @@ CHECKOUT_SUITES = sorted(path.parent for path in (EVALUATION / "suites").glob("*
 
 def test_the_checkout_suites_are_standing_and_unsigned() -> None:
     assert [root.name for root in CHECKOUT_SUITES] == ["developer-implement", "implementation-review", "qa-acceptance",
-                                                       "tui-developer-implement"]
+                                                       "tui-developer-implement", "verification-write-tests"]
     for root in CHECKOUT_SUITES:
         flow = suite.load(root)
         assert flow.unsigned() == ["cases", "grading"] and flow.version == 1
