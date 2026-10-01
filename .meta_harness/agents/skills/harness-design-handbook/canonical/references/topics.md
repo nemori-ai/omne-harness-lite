@@ -10,7 +10,7 @@
 | 不了解能力体系怎样承载需求并动态演化   | [总体范式](architecture/foundations/paradigm.md)            | 能力增长、合法结构与合法变迁       |
 | 能力维度/能力基/服务/实例等词含义冲突  | [基础概念](architecture/foundations/concepts.md)            | 本次设计采用的统一词汇             |
 | 不知道现有能力能否承载，或是否需要新增 | [覆盖与演化](decompose.md)                                  | 覆盖依据、剩余责任及所选变化       |
-| 不确定维度是否正交、怎样划插件边界     | [能力边界](architecture/modeling/capabilities.md)           | 责任与变化隔离、显式依赖和独立插件 |
+| 不确定维度是否正交、能力边界怎样划     | [能力边界](architecture/modeling/capabilities.md)           | 责任与变化隔离、显式依赖和独立契约边界 |
 | 持久身份、运行代际、租户权限混在一起   | [身份与作用域](architecture/modeling/identity-and-scope.md) | 身份传递、可见范围和实际授权门     |
 | 不知道什么是权威、什么可重建或该持久化 | [状态与存储](architecture/modeling/state-and-storage.md)    | 写入权、事实/投影与耐久边界        |
 
