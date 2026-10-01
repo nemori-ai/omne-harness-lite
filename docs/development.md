@@ -135,6 +135,7 @@ git commit -m "chore(docs): update blog submodule"
 | 想知道测试时间花在哪 | 每次 `test-affected`、`pnpm run test` 与 `make check` 都写耗时账本（成员、文件、用例三级，路径在运行末尾打印），摘要里列出最慢的成员、超线的文件与用例 |
 | 产品源码的结构约束（墙钟、`bail`、受限调用点、跨组依赖方向） | `pnpm run lint:rules`；规则与自测见 [tools/ts-checks](../tools/ts-checks/README.md) |
 | 实现类交付前后看结构与度量（本仓库的结构度量入口） | `make metrics BASE=<任务基线提交>`，秒级；要 CRAP 加 `COVERAGE=1`（会跑变更成员的测试，先构建）。它只报告、不判失败；把打印的摘要原样附进交付说明，审讯页路径在摘要末行 |
+| 交付前看各项整洁指标落在哪条带上、这次变更里有哪些红项要解释 | `make loop-status BASE=<任务基线提交>`：只报告，只有硬线（方向违规或环、验收锁不过）被破才退出 1。把「这次变更里要解释的红项」一段原样附进交付说明并逐条交代；它列出的超预算成员与清理草稿不是给实施者的任务，带位与谁动见[整洁回路](clean-loop.md#回路怎么转) |
 | 接受一份配了可执行验收的交付之前，核对验收没被实施者动过 | `make acceptance-lock BASE=<任务基线提交>`：列出基线以来碰过各成员 `acceptance/` 的提交与其来源；实施角色的提交或未提交的验收改动在其中就退出 1。它认的是提交里自己写的 `Agent-Role`，列出来的仍要人过目，见[验证与证据](verification.md#检查入口) |
 | 规格还没定，想先看一条主路径走不走得通 | 做探路件：放 [examples/](../examples/README_ZH.md) 或任务的 `tmp/`，不进 `packages/`、`apps/`；跑通后带回设计的是事实清单，不是代码 |
 | 存储提供者或迁移 | `pnpm --filter @omne-harness-lite/storage-sql run test`：sqlite 上跑一致性套件；pg 需设 `OMNE_TEST_PG_URL`，否则跳过 |
@@ -172,6 +173,10 @@ Claude Code 通过同级 `CLAUDE.md` 的 `@AGENTS.md` 读取同一份约定。
 | 创建或修改 role、宿主配置 | `design-subagents` skill；源在 `.meta_harness/agents/roles/<role>/` |
 | 编写或调整 AGENTS.md | `write-agents-md` skill；改实际作用域的源文件 |
 | 创建、使用或清理隔离检出 | `worktree-discipline` skill |
+
+**派发的一方在 agent 交回之后做什么**：核对提交确实落在它说的分支上、写入范围没越界；读交付说明里附的度量摘要与回路状态，
+没有交代的红项退回；配了可执行验收的跑验收锁；按[接受级别](development_human.md#接受级别)决定要不要另派评审或验收。
+回路给出的清理草稿报给负责人，批准后才按[清理任务派发说明](../.meta_harness/agents/roles/cleanup-task.md)派——主会话不替负责人批。
 
 根 `.agents`、`.claude`、`.codex` 分别软链接到 `.meta_harness/` 内同名目录，
 向宿主暴露生成的 skills/subagents。**先改源与适配，再按[编译工具](../.meta_harness/tooling/README.md)生成**；

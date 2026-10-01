@@ -13,6 +13,7 @@
 | 源码该放进哪个成员、workspace 怎么组织 | [源码布局](workspace.md) |
 | 改完该跑什么检查，结果能说明什么 | [验证与证据](verification.md) |
 | 写代码时要防住的十类风险 | [防御性研发模式](defensive-patterns.md) |
+| 整洁靠什么守住：哪些量、哪些评审时问、哪些归人，偏了之后谁动 | [整洁回路](clean-loop.md) |
 | 阅读个人工程复盘与开发者技术专题 | [技术博客仓库](https://github.com/PanQiWei/omne-harness-blogs)，在本地接入为 `docs/blogs/` |
 | 初始化、编辑或更新博客子模块 | [博客子模块](development.md#博客子模块) |
 
