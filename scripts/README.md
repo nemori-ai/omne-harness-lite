@@ -53,12 +53,17 @@
 
 ## CI
 
-[check.yml](../.github/workflows/check.yml) 只选择触发条件和环境，随后调用与本地相同的入口：
+**远程 CI 目前关闭，检查结论以本地跑的 `make check` 为准**（2026-10-01 定）。
+[check.yml](../.github/workflows/check.yml) 只留了手动触发，仓库设置里这份工作流也已停用：
+没有注册 runner 时，自动触发的任务只会排队、不会执行。合并前的门是本地在待合并提交上跑的完整 `make check`。
+
+恢复自动触发要三步，缺一步都不算恢复：按下文注册自托管 runner；在仓库设置里启用这份工作流
+（`gh workflow enable Check`）；把工作流文件开头注释掉的三种触发放回 `on:` 之下。恢复之后的行为如下。
 
 | 触发 | 做什么 |
 |---|---|
-| PR、推送到 `main`、手动触发 | 全新检出 → 安装依赖 → 编译 agent 生成物 → `make check` → `make metrics`（以 PR 基线或推送前的提交为 `BASE`）。度量步骤失败不改变检查结论 |
-| 每天 03:00（Asia/Shanghai）、手动触发并勾选 coverage | 构建后对全部成员跑 `make metrics COVERAGE=1` |
+| 手动触发（现在仅此一种）；恢复后另有 PR、推送到 `main` | 全新检出 → 安装依赖 → 编译 agent 生成物 → `make check` → `make metrics`（以 PR 基线或推送前的提交为 `BASE`）。度量步骤失败不改变检查结论 |
+| 手动触发并勾选 coverage；恢复后另有每天 03:00（Asia/Shanghai） | 构建后对全部成员跑 `make metrics COVERAGE=1` |
 
 任务跑在**自托管 runner** 上（标签 `self-hosted`、`linux`）。工作流自己安装 Node、pnpm 与 uv，
 不依赖 runner 用户的登录环境；它不读任何 `.env`，需要付费模型凭据的测试因此照常跳过。

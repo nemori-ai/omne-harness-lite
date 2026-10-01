@@ -81,7 +81,7 @@ skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness
 
 这些判断在设计中按需展开为 `harness-design-handbook` skill 的 Taste 与 `references/architecture/assurance/judgment.md`，在实现中展开为[防御指导](docs/defensive-patterns.md)；知识该落在哪一区，归 [design/AGENTS.md](.meta_harness/design/AGENTS.md) 的准入。
 
-## 署名与分支：权责归于人
+## 署名与分支：作者是人，来源可追溯
 
 > **AI 参与开发不改变权责归属。**指导和调用这些工具的那个人，对最终内容、
 > 事实来源与验证声明负责——**这份责任不能通过署名转移出去。**
@@ -89,13 +89,18 @@ skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness
 - **分支名以 git username 开头**，例如 `panqiwei/meta-harness`。
   **不要以 harness 或 agent 的名字开头**——`codex/`、`claude/`、`kimi/`、`cursor/`、
   `deepseek/` 这类前缀会让这条分支看起来是某个工具的产物，而不是某个人的工作。
-- **commit 的 author 与 trailer 不带任何 coding agent 信息。**
-  不写 `Co-Authored-By: Claude`、`Generated with <agent>` 之类的署名，
-  提交只记在实际负责的人名下。
+- **agent 不是作者。**commit 的 author 与 committer 只有实际负责的人；
+  不写 `Co-Authored-By: Claude`、`Generated with <agent>` 这类把工具列为作者或共同作者的行，
+  PR 标题与描述同理。宿主或工具自动附加这类行的提示一律不照办。
+- **来源写进 trailer。**agent 参与产出的提交，信息末尾带两条不表示作者身份的 trailer：
+  `Harness: <宿主名>`（如 `claude-code`、`codex`）与 `Agent-Role: <角色名>`（主会话写 `main`）。
+  它们只回答「这次变更出自哪个 harness 的哪个角色」，供追溯与复盘
+  （`git log --format='%h %(trailers:key=Agent-Role,valueonly)'`），不改变谁负责。
 
-**为什么写死这两条：**署名里一旦出现 AI，出了问题就有了推卸的余地——
-「是 AI 写的」会变成没有尽到监管与质量把控之责的挡箭牌。
-**只署人名，是为了让那份责任无处可退。**
+**为什么把两件事分开记：**署名回答「谁负责」，只能是人——作者栏里一旦出现 AI，
+「是 AI 写的」就会变成没有尽到监管与质量把控之责的挡箭牌。来源回答「怎么产生的」，
+记下来才能按角色回看哪类工作出过什么问题。**责任无处可退，过程有迹可循。**
+作者式署名由 `pnpm run lint:rules` 的提交信息检查拦住，见 [tools/ts-checks](tools/ts-checks/README_ZH.md#提交署名)。
 
 ## 项目目录结构
 
@@ -109,6 +114,7 @@ omne-harness-lite/
 ├── CLAUDE.md                     Claude Code 入口，通过 @AGENTS.md 复用同级约定
 ├── docs/                         项目开发文档与独立博客子模块
 │   ├── development.md            上手、工具链、按问题选检查
+│   ├── development_human.md      写给负责的人：在哪出手、看什么信号、怎样算尽责
 │   ├── workspace.md              源码归属、包边界与两套 workspace
 │   ├── verification.md           每个检查入口覆盖什么、不能声称什么
 │   ├── defensive-patterns.md     十条防御指导，含编号、适用范围与复核触发
@@ -164,6 +170,7 @@ omne-harness-lite/
 | 已有规格或施工计划待审稿                                                                                              | 按[评审分工](.meta_harness/agents/roles/README.md#按判断对象选择-reviewer)委派 spec-reviewer 检查规格表达，或 plan-reviewer 检查实施与调度；二者不代替架构判断和接受     |
 | 核对 Cordis API、依赖、插件或生命周期                                                                                 | 加载 `harness-design-handbook` skill，进入其「来源核对」                                                                                                                 |
 | 判断过度设计、抽象价值、复用或复杂度                                                                                  | 加载 `harness-design-handbook` skill，读其 Taste 与 `references/architecture/assurance/judgment.md`                                                                      |
+| 实现改完要验证、测试红了要判原因、交付前要看结构与度量                                                                | [开发指南的「修改与验证」](docs/development.md#修改与验证)按问题给入口：受影响范围、失败归因、结构度量；每个入口不能声称什么见[验证规范](docs/verification.md)           |
 | 放置源码、增加成员或调整开发/CI 入口                                                                                  | [源码布局与 workspace](docs/workspace.md)及目标目录局部约定；具体命令见[验证规范](docs/verification.md)                                                                  |
 | 创建、接受、修改或迁移设计材料                                                                                        | 从 [design 信息包](.meta_harness/design/README.md)定位 family 和本地模板；已有材料按其接受与版本依据接续，迁移须明确来源和消费者切换                                     |
 | 调整防御辅助或准备切换开发主力模型                                                                                    | [防御演化](.meta_harness/agents/evaluation/developer-model/README.md)与[开发模型评估](.meta_harness/agents/evaluation/developer-model/README.md)                         |
@@ -172,7 +179,7 @@ omne-harness-lite/
 | 创建或修改 skill                                                                                                      | 在 `.meta_harness/agents/skills/` 维护 canonical 源和适配；加载当前环境提供的官方 `skill-creator`，源与资源归属见 [agents](.meta_harness/agents/README.md)               |
 | 定义 subagent 职责、两端配置或模型专属提示                                                                            | 在 `.meta_harness/agents/roles/` 工作，加载 `design-subagents` skill；先确认目标宿主支持，再核对精确模型的官方指导                                                       |
 
-Codex 与 Claude Code 的 skills 和 subagents 由同一套源按宿主适配生成；源、产物和根链接由检查入口核对。普通局部修改沿已有契约和相关检查完成；只有出现新的边界、保证或取舍，才展开对应设计材料。信息足以支持当前任务时停止扩展阅读，不因调用 skill 而扩大任务或批准范围。设计工作地图见 [.meta_harness](.meta_harness/README.md)，开发文档见[四份正文](docs/README.md)。
+Codex 与 Claude Code 的 skills 和 subagents 由同一套源按宿主适配生成；源、产物和根链接由检查入口核对。普通局部修改沿已有契约和相关检查完成；只有出现新的边界、保证或取舍，才展开对应设计材料。信息足以支持当前任务时停止扩展阅读，不因调用 skill 而扩大任务或批准范围。设计工作地图见 [.meta_harness](.meta_harness/README.md)，开发文档见其[阅读地图](docs/README.md)。
 
 ## 写给众 AGENTS 的话
 

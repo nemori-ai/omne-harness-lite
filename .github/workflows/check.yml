@@ -1,13 +1,15 @@
 name: Check
 
-# 在自托管 runner 上跑与本地相同的入口。runner 的安装、隔离与产物目录见 scripts/README.md。
+# 远程 CI 目前关闭：检查结论以本地跑的 make check 为准（2026-10-01 定）。
+# 这份工作流只留手动触发，仓库设置里也已停用；没有注册 runner 时任务只会排队。
+# 要恢复自动触发：注册自托管 runner（见 scripts/README.md），在仓库设置里启用本工作流，
+# 再把下面注释掉的三种触发放回 on: 之下。
+#   pull_request:
+#   push:
+#     branches: [main]
+#   schedule:
+#     - cron: '0 19 * * *'   # 每天 03:00（Asia/Shanghai）跑一次全量覆盖率度量
 on:
-  pull_request:
-  push:
-    branches: [main]
-  schedule:
-    # 每天 03:00（Asia/Shanghai）跑一次全量覆盖率度量。
-    - cron: '0 19 * * *'
   workflow_dispatch:
     inputs:
       coverage:

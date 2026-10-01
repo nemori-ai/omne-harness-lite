@@ -78,9 +78,10 @@ skills/roles 变更一并交付 canonical/角色源、宿主适配与生成产�
 
 使用 AI 辅助时，**对最终内容、事实来源和验证声明负责**；生成成功不等于已验证。
 分支名以自己的 git username 开头，**不用 `codex/`、`claude/` 这类 harness 或 agent 名**；
-commit 的 author 与 trailer **不带任何 coding agent 信息**。
-理由见[根 AGENTS.md 的「署名与分支」](AGENTS.md#署名与分支权责归于人)——
-**署名只写人，责任才无处可退。**
+commit 的 author 与 committer **只有人**，不写 `Co-Authored-By`、`Generated with` 这类把 agent 列为作者的行；
+agent 参与产出的提交另带 `Harness:` 与 `Agent-Role:` 两条来源 trailer，只记来源、不表示作者身份。
+理由与写法见[根 AGENTS.md 的「署名与分支」](AGENTS.md#署名与分支作者是人来源可追溯)——
+**署名只写人，责任才无处可退；来源记下来，过程才有迹可循。**
 
 ## 评审与接受
 
