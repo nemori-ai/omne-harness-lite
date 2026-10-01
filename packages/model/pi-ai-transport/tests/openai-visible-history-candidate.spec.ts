@@ -274,6 +274,8 @@ describe('OpenAI official Sol and Luna visible-history meters', () => {
         admissionTokens: Math.ceil((expectedTokens(c) * 11) / 10) + 64,
       })
     },
+    // Plans each frozen request twice with full tokenization (~3 s alone, over 5 s under workspace-wide load); assertions unchanged.
+    30_000,
   )
 
   it('sends all six frozen plans over local TLS, retaining tool and reminder payloads', async () => {
