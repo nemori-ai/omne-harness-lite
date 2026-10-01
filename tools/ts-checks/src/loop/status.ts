@@ -279,7 +279,7 @@ export function catalogueLine(path: string, catalogue: CatalogueStatus): string 
   const check =
     crossCheck.status === 'no-data'
       ? `对回全表：没数据，${crossCheck.reason}`
-      : `对回全表：全表有而对照表没有 ${crossCheck.data.missing.length}、对照表有而全表没有 ${crossCheck.data.unknown.length}、对照表里出现多次 ${crossCheck.data.repeated.length}`
+      : `对回全表：全表有而对照表缺 ${crossCheck.data.missing.length}、对照表有而全表没有 ${crossCheck.data.unknown.length}、对照表比全表多出 ${crossCheck.data.repeated.length}`
   return `对照表（${path}）：${counts}；不合约定 ${categories.data.invalid.length} 行；${check}`
 }
 

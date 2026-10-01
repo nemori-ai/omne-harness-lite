@@ -90,20 +90,33 @@ export function entryNames(text: string): string[] {
 }
 
 export interface CrossCheck {
+  /** 全表有、对照表里没有或出现次数少于全表。 */
   readonly missing: readonly string[]
+  /** 对照表有而全表没有。 */
   readonly unknown: readonly string[]
+  /** 两边都有，对照表里出现次数多于全表。 */
   readonly repeated: readonly string[]
 }
 
-/** 全表有而对照表没有、对照表有而全表没有、对照表里出现多次。 */
+function occurrences(names: readonly string[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1)
+  return counts
+}
+
+/**
+ * 按条目名的出现次数对：全表里同名的条目可以有几行（例如分在两节），对照表照着有同样几行就对得上。
+ * 对照表次数少于全表算缺，多于全表算多出，全表没有的名字单列。
+ */
 export function crossCheck(doctrine: readonly string[], catalogue: readonly string[]): CrossCheck {
-  const inDoctrine = new Set(doctrine)
-  const seen = new Map<string, number>()
-  for (const name of catalogue) seen.set(name, (seen.get(name) ?? 0) + 1)
+  const expected = occurrences(doctrine)
+  const seen = occurrences(catalogue)
   return {
-    missing: [...inDoctrine].filter(name => !seen.has(name)),
-    unknown: [...seen.keys()].filter(name => !inDoctrine.has(name)),
-    repeated: [...seen].filter(([, count]) => count > 1).map(([name]) => name),
+    missing: [...expected].filter(([name, count]) => (seen.get(name) ?? 0) < count).map(([n]) => n),
+    unknown: [...seen.keys()].filter(name => !expected.has(name)),
+    repeated: [...seen]
+      .filter(([name, count]) => expected.has(name) && count > (expected.get(name) ?? 0))
+      .map(([name]) => name),
   }
 }
 

@@ -57,6 +57,23 @@ describe('对照表', () => {
     expect(invalid).toEqual([{ path: 'docs/x.md', line: 11, cell: '归 人' }])
   })
 
+  it('对回全表按出现次数比：全表里同名两行、对照表也两行不报；对照表少了算缺，多了算多出', () => {
+    const doctrine = ['对 agent', '对 agent', '命名']
+    expect(crossCheck(doctrine, ['对 agent', '对 agent', '命名'])).toEqual({
+      missing: [],
+      unknown: [],
+      repeated: [],
+    })
+    expect(crossCheck(doctrine, ['对 agent', '命名'])).toEqual({
+      missing: ['对 agent'],
+      unknown: [],
+      repeated: [],
+    })
+    expect(crossCheck(doctrine, ['对 agent', '对 agent', '对 agent', '命名']).repeated).toEqual([
+      '对 agent',
+    ])
+  })
+
   it('对回全表：缺的、多的、重复的分别列出', () => {
     expect(crossCheck(['小函数', '结对', '命名'], ['小函数', '结对', '结对', '估算'])).toEqual({
       missing: ['命名'],
