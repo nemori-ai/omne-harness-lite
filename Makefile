@@ -1,4 +1,4 @@
-.PHONY: check agents-check docs-check design-check design-review formal-tools test product-check metrics test-affected test-triage role-eval acceptance-lock
+.PHONY: check agents-check docs-check design-check design-review formal-tools test product-check metrics test-affected test-triage role-eval acceptance-lock loop-status
 
 TEST_RUNS := node --experimental-strip-types tools/ts-checks/src/testing/cli.ts
 
@@ -40,6 +40,11 @@ product-check:
 # 结构度量：只报告，不判失败。BASE 给基线提交或分支，COVERAGE=1 对变更成员跑覆盖率，OUT 改产物目录。
 metrics:
 	$(if $(COVERAGE),./scripts/with-test-slot.sh) node --experimental-strip-types tools/ts-checks/src/metrics/cli.ts $(if $(BASE),--base "$(BASE)") $(if $(COVERAGE),--coverage) $(if $(OUT),--out "$(OUT)")
+
+# 回路状态：各项整洁指标的带位、这次变更里要解释的红项、超预算的成员与清理草稿。只在硬线被破时退出 1。
+# BASE 给任务基线（缺省不给：只报全仓现状）；SNAPSHOT=1 在干净的提交上追加一条趋势快照；OUT 改产物目录。
+loop-status:
+	node --experimental-strip-types tools/ts-checks/src/loop/cli.ts $(if $(BASE),--base "$(BASE)") $(if $(SNAPSHOT),--snapshot) $(if $(OUT),--out "$(OUT)")
 
 # 只跑受这次改动影响的成员的测试（先构建它们及其依赖），并写耗时账本。
 # BASE 给基线提交或分支（缺省 main）；PLAN=1 只列出受影响范围，不构建也不运行。
