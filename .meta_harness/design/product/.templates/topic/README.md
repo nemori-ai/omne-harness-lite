@@ -65,7 +65,7 @@ relations:
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决       ← 必须
 ├── changelog.md      产品设计本身的演进                ← 必须
 ├── interviews/       设计交流笔记（原始材料）
-└── projection/       向 Cordis 的技术设计投影，按版本固化
+└── projection/       技术设计的投影，按版本固化
 ```
 
 **静态与动态分开看**：`design.md` 说产品是什么，`flows.md` 说它怎么动。

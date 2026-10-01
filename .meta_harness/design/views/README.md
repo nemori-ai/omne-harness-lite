@@ -19,14 +19,14 @@
 | 视图 | 从哪里 join | 回答什么 |
 |---|---|---|
 | [`domain-object-map`](domain-object-map.md) | 统一语言词条的形态与变体的父 + [领域对象条目](../domain_objects/README.md) + 各 topic 的 rev 与指向词条的链接 | 系统里有哪些**领域对象**（键是词条 ID）：各自的宿主、变体、依据在哪个 topic、还有谁在讲、哪些还悬着 |
-| `object-index` | covers + catalog + bindings | 某个**装配对象**（键是契约条款）牵涉哪些条款与契约 |
+| `object-index` | covers + catalog + bindings | 某个**已有对象**（设计里分解出来、已经有契约条款承载的对象；键是契约条款）牵涉哪些条款与契约 |
 | `subject-page` | covers + catalog + bindings + record | 某个契约「现在是什么样」的一页导航 |
 | `system-map` | catalog + lineage + realization（含应用节点 `architecture.md` 各自声明的进程与边） | 当前有哪些能力、怎样组合、谁实现；有哪些应用、各起什么进程、彼此靠哪份契约相连 |
 | `coverage-report` | covers + bindings + verification | 哪些需求条款没有承载者，哪些承诺没有证据 |
 
 ## 为什么这几样必须派生
 
-**object-index**：装配对象是会被重新分解的那一层。以它为键手写一份索引，
+**object-index**：分解出来的对象是会被重新分解的那一层。以它为键手写一份索引，
 每次重分解整份作废。派生的索引以契约条款为键做 join，契约拆分后按
 [lineage](../registry/README.md#lineage) 的条款级 mapping 自动仍然正确。
 

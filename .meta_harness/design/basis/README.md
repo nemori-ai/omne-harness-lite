@@ -70,7 +70,7 @@ probe 断言什么。
 
 ## 怎样被消费
 
-设计分析的机制读数从这里取，不在每次分析里重推。
+提供者设计与装配核对要用的上游机制读数从这里取，不在每次分析里重推；领域读数与承载读数不拿它当论据。
 [realization/](../realization/README.md) 的绑定表按 `id` 引用条目，
 并记录 `alignment_checked`；当条目的 `checked` 晚于某条绑定的 `alignment_checked`，
 该绑定进入待复核——这是上游变动传播到设计的唯一通路。
