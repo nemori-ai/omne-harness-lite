@@ -8,7 +8,8 @@ description: >
 
 Use isolated checkouts to keep task changes, integration and evidence attached to
 the right repository and branch. This skill preserves two operating modes: **Solo**
-(one task, one worktree) and **Fan-out** (a HUB integration worktree with spokes).
+(one task, one worktree; the default) and **Fan-out** (a short-lived HUB integration
+worktree with spokes, for parallel units that write disjoint members).
 First resolve the [execution context](references/execution-context.md); the skill's
 installation directory does not identify the repository whose code you may change.
 
@@ -47,6 +48,25 @@ The generic rule "already in a worktree → skip creation" is **wrong in fan-out
 campaigns**: it reads the HUB as the destination when it is the hub of the wheel.
 Position determines topology; topology comes from the plan.
 
+## Choose the Mode — Solo Is the Default
+
+Implementation proceeds one deliverable unit at a time (one story card, one plan
+increment): a single writer, one worktree, and integration into the primary branch
+before the next unit starts. At any moment a workspace member has at most one writer.
+Parallel writers on shared ground cost more in merge and re-verification than they
+save, and they hide which change broke what.
+
+Choose Mode B only when the plan shows that the parallel units write disjoint members
+and share no interface that is still being decided. Independent read-only work —
+review, research, acceptance runs on an already delivered state — may always run
+alongside. A unit that depends on a not-yet-integrated predecessor stacks its branch on
+that predecessor in the same worktree and rebases once the predecessor lands; it does
+not open a HUB.
+
+When Mode B is used, keep the HUB short-lived: deliver it to the primary branch at each
+wave barrier instead of carrying it to the end of a campaign. A HUB that has outlived
+its wave is a signal to integrate, not to keep synchronizing.
+
 ## Mode A — Solo
 
 One well-bounded task, one worktree:
@@ -68,7 +88,7 @@ Prepare the local tool environment when the selected checks require it.
 In this walkthrough, `main` denotes the explicitly selected primary branch; substitute
 its actual name. The execution repository and container remain the ones selected above.
 
-The project's signature topology for parallel campaigns. **Prerequisite: a
+The topology for the cases that pass the test above. **Prerequisite: a
 task plan with an explicit wave structure**. Fan-out without a wave plan is flying blind — the topology mirrors the
 plan, never improvises it.
 
@@ -112,7 +132,7 @@ require the affected checks.
    not once at the end. Then apply **Retirement Before Removal** below: retire the
    spoke once its work and necessary evidence are preserved and its consumers have
    released it. Record any deferred retirement and its release condition.
-5. **Campaign closure** — when all waves are merged and the HUB's final verification
+5. **Wave delivery and closure** — when a wave is merged and the HUB's verification
    is green, prepare the delivery under the [declared delivery policy](references/execution-context.md#evidence-and-delivery). Two shapes, chosen by coupling:
    **one consolidated PR from the HUB** when spokes share foundations or only make
    sense together; **per-spoke PRs** when spokes are genuinely independent and
