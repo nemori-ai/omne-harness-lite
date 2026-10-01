@@ -9,7 +9,8 @@
 | [package-tenancy-host.sh](package-tenancy-host.sh) | 构建治理中心全新本地.tar.gz归档；不安装、不启动、不上传，见[中心开发入口](../apps/tenancy-host/README.md) |
 | [build-tenancy-image.sh](build-tenancy-image.sh) | 从已解压且核完整清单的治理中心app构建指定Linux架构镜像与独占新Docker save归档；不安装、不推送，见[Docker部署入口](../apps/tenancy-host/deploy/docker/README.md) |
 | [package-cli.sh](package-cli.sh) | 将现有CLI构建为指定的全新本地.tar.gz归档；不安装、不上传，使用与前提见[CLI开发入口](../apps/cli/README.md) |
-| [check.sh](check.sh) | 定位仓库根，依次运行 agent 产物与根链接、文档、规格、Python 工具测试及产品包检查；任一步失败即停止并返回非零 |
+| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再依次运行 agent 产物与根链接、文档、规格、Python 工具测试及产品包检查；任一步失败即停止并返回非零 |
+| [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
 | [format.sh](format.sh) | 用根配置和本地锁定 Prettier 检查或写入受维护文件；`staged` 模式只检查 Git index blob |
 | [test-formatting.sh](test-formatting.sh) | 在临时独立 Git 仓库验证格式范围、幂等、部分暂存和 hook 安装边界 |
 | [install-format-hook.sh](install-format-hook.sh) | 显式安装格式化 pre-commit hook；发现已有 hook 时拒绝覆盖 |
@@ -28,6 +29,28 @@
 远程发布或部署入口新增时按真实目标明确输入、产物和外部副作用。
 形式工具环境单独使用 `make formal-tools` 检查；检查覆盖与未覆盖的含义以验证规范为准。
 
+## 运行名额
+
+多棵工作树、多个 agent 各自起全量检查时，CPU 被压满，本来能过的用例会越过时限。
+[with-test-slot.sh](with-test-slot.sh) 用文件锁把这些重负载的命令排成队：
+`scripts/with-test-slot.sh <命令> [参数…]` 拿到名额才执行命令，并原样返回它的退出码。
+
+经它执行的入口：`make check`（整套占一个名额）、根 `pnpm run test` 与 `pnpm run check` 的测试一步、
+`make test-affected`、`make test-triage`、`make metrics COVERAGE=1`。已经持有名额的进程再调用它
+（例如 `make check` 里嵌着的测试一步）直接放行，不重复排队。名额随持有它的进程退出而释放，
+进程被杀也不会留下卡死的锁。
+
+| 环境变量 | 初值 | 含义 |
+|---|---|---|
+| `OMNE_TEST_SLOTS` | 1 | 同时允许几套在跑 |
+| `OMNE_TEST_SLOT_DIR` | `/tmp/omne-test-slots-<uid>` | 锁文件目录；同一用户的全部检出共用。要跨用户排队，把它指到一个共享可写的目录 |
+| `OMNE_TEST_SLOT_POLL_SECONDS` | 5 | 没有空名额时隔多久再看一次 |
+| `OMNE_TEST_SLOT_MAX_WAIT_SECONDS` | 7200 | 最多等多久；超过即以 **75** 退出，命令**没有执行** |
+
+排队与拿到名额各在标准错误打一行。75 表示「没轮到」，既不是检查失败也不是通过；
+要么稍后再跑，要么先看是谁占着（`ls` 锁目录，`fuser <锁文件>`）。脚本的行为由
+`tools/ts-checks/tests/test-slot.spec.ts` 核对。
+
 ## CI
 
 [check.yml](../.github/workflows/check.yml) 只选择触发条件和环境，随后调用与本地相同的入口：
@@ -43,9 +66,14 @@
 （仓库变量，缺省为 runner 用户的 `~/omne-metrics`）下：PR 在 `pr-<编号>/<提交>/`，
 `main` 在 `<提交>/`，夜间在 `nightly/<日期>-<提交>/`。这个目录没有自动清理。
 
-runner 与别的任务共用主机，包间并行度过高时本来一两秒的用例会被挤过时限。
-工作流把 pnpm 的包间并行度设为仓库变量 `OMNE_CHECK_CONCURRENCY`（缺省 2）；
-本地要同样调低，在命令前加 `npm_config_workspace_concurrency=<n>`。
+runner 与别的任务共用主机，并行度过高时本来一两秒的用例会被挤过时限。
+测试并行度的初值在 [test-runs.config.json](../tools/ts-checks/test-runs.config.json)，本地与 CI 同用一份；
+runner 主机核数不同时，设仓库变量 `OMNE_TEST_MEMBER_CONCURRENCY`（同时跑几个成员）与
+`OMNE_VITEST_MAX_WORKERS`（每个成员几个工作进程），留空即用初值。本地临时调整用环境变量
+`OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS`。`make check` 自带运行名额，
+runner 上的任务与同一用户在主机上手工起的全量检查会互相排队。
+耗时账本留在 runner 主机的 `$OMNE_TEST_LEDGER_HOME`（仓库变量；留空则落在检出目录的 `tmp/test-ledger/`，
+随下一次全新检出被清掉）。
 
 runner 的注册是主机上的一次性操作，不由仓库脚本代办：
 

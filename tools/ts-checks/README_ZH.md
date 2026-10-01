@@ -185,6 +185,62 @@ make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，�
 
 读数时的边界见[验证规范](../../docs/verification.md#检查入口)那一行的「不能声称」。自测：`tests/metrics-complexity.spec.ts`、`tests/metrics-report.spec.ts`、`tests/group-direction.spec.ts`。
 
+## 测试运行
+
+`src/testing/` 是本包的第三入口：决定跑哪些成员的测试、以多大的并行度跑、把时间花在哪记成账本、
+失败之后单独重跑归类。它替代了根脚本里原先的 `pnpm -r run test`。
+
+```sh
+make test-affected BASE=<基线提交或分支>   # 只构建并测试受这次改动影响的成员；BASE 缺省 main
+make test-affected BASE=<基线> PLAN=1     # 只列受影响范围，不构建也不运行
+make test-triage RUN=<运行目录>            # 把那次运行里的失败逐条单独重跑并归类
+pnpm run test                              # 全量：先构建，再跑全部成员（make check 的测试一步同此）
+```
+
+**受影响范围怎么算。**改动文件取基线合并点到当前工作树的全部差异，含未提交与未跟踪的文件。
+成员清单读 `pnpm-workspace.yaml`，去掉 `affected.excludeRoots` 下的（现为 `examples`）。
+一个成员「受影响」指它自己有文件改动，或它直接、间接依赖的成员有改动；依赖取各 `package.json`
+里写成 `workspace:` 的 `dependencies`、`devDependencies` 与 `peerDependencies`——按声明算而不是按源码导入算，
+因为测试可能导入生产代码不导入的包。改动命中 `affected.globalPaths` 的任一模式（根清单、锁文件、
+共享 tsconfig、`.meta_harness/design/spec/**`、本配置文件）即判为全部受影响：不少成员的测试会直接读规格文件。
+pnpm 自带的 `--filter "...[<基线>]"` 做的是同一件事，但它在 git 工作树里选不中任何包，所以这里自己算；
+算出来的集合与 `pnpm ls --filter '...<包名>'` 对照过一致。
+
+**怎么跑。**先 `pnpm --filter '<成员>...' run build` 把目标成员连同它们的依赖构建一遍（测试执行的是依赖的 `dist/`），
+再同时跑 `parallel.memberConcurrency` 个成员，每个成员的 vitest 至多起 `parallel.vitestMaxWorkers` 个工作进程。
+一个成员失败不拦其余的，结束时列全失败；退出码只反映测试是否全过。两个并行度可用环境变量
+`OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时覆盖——后者是 vitest 自己认的变量，
+会盖过成员配置里的 `maxWorkers`。初值 2 × 4 是在 8 核主机上量出来的：pnpm 默认的 4 个成员并行、
+每个成员最多 7 个工作进程时，全量要 18 到 22 分钟且有十几条用例被挤过时限；2 × 4 约 13 分钟。
+
+**耗时账本。**每次运行在**主检出**的 `tmp/test-ledger/<提交短号>[-dirty]/<时间>/`（`OMNE_TEST_LEDGER_HOME` 可改根目录，
+`--out` 可直接指定）留下：
+
+| 文件 | 内容 |
+|---|---|
+| `summary.md` | 同时打印到标准输出：总数与墙钟、逐条失败、最慢的成员、超过 `ledger.slowFileSeconds` 的文件、超过 `ledger.slowTestSeconds` 的用例 |
+| `ledger.json` | 运行坐标（提交、是否干净、基线、并行度、核数、受影响计划）与成员、文件、用例三级的耗时和失败清单 |
+| `<成员>.log`、`<成员>.json` | 各成员的原始输出与 vitest 的 JSON 报告 |
+| `build.log` | 受影响范围运行时的构建输出 |
+
+`ledger.slowTestSeconds` 的初值取 vitest 默认时限的一半：空闲时就占掉一半时限的用例，机器一忙就会越线，
+它们是「偶发超时」的候选名单。成员的 `fileSeconds` 是各文件耗时之和，与墙钟的差是进程启动、类型检查与并行重叠。
+
+**失败归因。**`triage` 读那次运行的账本，把每处失败单独重跑 `triage.repeats` 次（一次只起一个工作进程、
+旁边不跑别的），用例名转义并加锚后交给 vitest 的 `-t`，再从 JSON 报告里核对这条用例确实跑了：
+
+| 归类 | 重跑看到了什么 |
+|---|---|
+| 隔离仍失败 | 每次单独跑都不过。与同时运行的其他负载无关 |
+| 隔离时过时不过 | 单独跑就不稳定 |
+| 隔离稳定通过 | 每次单独跑都过；此时再把它所在的文件整个单独跑一次，一并报告。它只说明这不是该用例单独的逻辑错误——原失败可能来自并行负载，也可能来自用例之间的相互影响或执行顺序，工具不区分 |
+| 未能单独重跑 | 名字没选中、没有报告，或失败不在任何测试文件里（例如类型检查），要看日志 |
+
+归因只报告，不改变那次运行的结论。重跑的日志与报告在运行目录的 `triage/` 下。
+
+策略都在 [test-runs.config.json](test-runs.config.json)，不写死在代码里。自测：`tests/test-runs.spec.ts`；
+运行名额脚本的行为核对在 `tests/test-slot.spec.ts`，脚本本身见[自动化入口](../../scripts/README.md#运行名额)。
+
 ## 后续 core 静态义务的兑现方式
 
 下表是开发者选择检查形式的导航，语义和责任仍归各节点 design「静态检查义务怎么承载」。

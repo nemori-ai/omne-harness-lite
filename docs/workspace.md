@@ -95,8 +95,9 @@ CI 配置（`.github/workflows/`）只负责触发条件、执行环境和调用
 
 TS workspace 由 pnpm 管理，[`pnpm-workspace.yaml`](../pnpm-workspace.yaml) 声明
 `packages/*/*`、`apps/*`、`examples/*`、`tools/ts-checks`、`tools/artifact-builder` 与 `tools/core-verification`，并用 `catalog` 把第三方依赖的版本钉一次
-（成员写 `catalog:`）。每个成员自带 `build`／`typecheck`／`test` 脚本，根命令用 `pnpm -r` 聚合；
-测试运行器是 vitest（`*.spec.ts` 运行时、`*.spec-d.ts` 类型测试）。
+（成员写 `catalog:`）。每个成员自带 `build`／`typecheck`／`test` 脚本；根命令的构建与类型检查用 `pnpm -r` 聚合，
+测试由 [tools/ts-checks 的测试运行入口](../tools/ts-checks/README_ZH.md#测试运行)逐成员调用各自的 `test` 脚本
+（成员清单仍读 `pnpm-workspace.yaml`）。测试框架是 vitest（`*.spec.ts` 运行时、`*.spec-d.ts` 类型测试）。
 Node 与 pnpm 的精确版本由根 `package.json` 的
 `engines` 和 `packageManager` 声明，**以那里为准**；uv 管理的 Python 环境与之独立并存。
 

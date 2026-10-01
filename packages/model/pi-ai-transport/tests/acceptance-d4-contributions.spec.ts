@@ -256,7 +256,7 @@ describe('D4 independent production contributions', () => {
       { cwd: resolve(import.meta.dirname, '..'), encoding: 'utf8' },
     )
     expect(output.trim()).toBe('imports: network=0')
-  })
+  }, 30_000) // Starts a Node child that imports the whole package (~3.4 s alone, over 5 s under workspace-wide load); assertions unchanged.
 
   it('D4-C old A phi and reader stay on A after B publication; B rejects the A calibration basis', async () => {
     const endpoint = await host(res => res.end(response()))

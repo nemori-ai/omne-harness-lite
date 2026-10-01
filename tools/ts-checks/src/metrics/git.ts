@@ -81,6 +81,13 @@ export function changedLines(root: string, mergeBase: string): ChangedLines {
   return changed
 }
 
+/** 基线合并点到当前工作树改动过的全部仓库相对路径（含删除、未提交与未跟踪），不限目录。 */
+export function changedFiles(root: string, mergeBase: string): string[] {
+  const tracked = git(root, ['diff', '--no-renames', '--name-only', mergeBase])
+  const untracked = git(root, ['ls-files', '--others', '--exclude-standard'])
+  return [...new Set(`${tracked}\n${untracked}`.split('\n').filter(path => path !== ''))].sort()
+}
+
 /** 某个提交上该路径的文本；那时还没有这个文件则为 undefined。 */
 export function fileAt(root: string, revision: string, path: string): string | undefined {
   try {
