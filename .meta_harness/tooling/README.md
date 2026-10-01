@@ -220,6 +220,35 @@ python tooling/src/design_review.py --root design --include-frozen              
 外层链接包着指向别处的内层链接、简称串、否定句里的「其他」、阈值恰好相等），配置的各种非法写法，
 命令行四节次序与 JSON 形状，以及跑完之后设计树逐文件哈希不变。
 
+## 旧版规格的消费者盘点
+
+`spec_retention.py` 回答一个问题：**每个旧版规格目录还被谁消费，删掉它之前要先迁走什么。**
+依据是[规格只留最新一版](../design/record/decisions/spec-single-revision/README.md)的过渡规矩：旧版目录是一笔要还的债，消费者迁完才删。
+
+```sh
+python tooling/src/spec_retention.py --root design                         # 全部契约
+python tooling/src/spec_retention.py --root design --contract data.messages --format json
+```
+
+**它只读、只报告，不是门禁**：数到多少引用退出码都是 0，只有清单读不了或 `--contract` 的身份不在 catalog 里才非零；不写任何文件，也不接进 `check_design.py`。
+
+对每份契约，数字最大的版本算「最新」，其余都算旧版。每个旧版目录各数：
+
+| 列 | 数的是什么 |
+|---|---|
+| 最新版依赖它 / 旧版依赖它 | catalog 里别的契约的 `dependencies` 指向这个坐标的条数，按发起方是不是它自己契约的最新版分开 |
+| 覆盖登记 | covers 里 `target` 是这个坐标的条目数 |
+| 形式任务 | formal-tasks 里工件路径落在这个版本目录下的任务数 |
+| 绑定行 | 各实现节点 `bindings.yaml` 里 `clause` 写着这个坐标的行数 |
+| 链接（三列） | Markdown 里指进这个版本目录的链接数，按出处分：各契约最新版的规格文件、别的规格文件、其余设计文档 |
+
+行按「登记里的引用」（前五列之和）从少到多排，最容易迁走的在前；五列与三列链接全为零的列为「可以先删」。
+另列出**最新版里没有任何形式任务引用的模型文件**（`.tla`、`.als`）——形式化的正版要持续维护，模型没有任务就没有人在跑它。
+
+**不能声称**：数到零就可以删——它不数正文里没做成链接的路径与简称（`RT12`、`OG2`）、`packages/`／`apps/`／`tools/` 里按版本路径读规格的代码与随包的 Schema 副本、
+设计根以外的 Markdown；引用可以直接改指最新版——旧条款与最新版同号条款是否等价它不判；数字最大的就是唯一现行的一条线——并列的两条线会被算成一新一旧。
+这些在输出末尾「没有数的」一节原样列出。
+
 ## Agent 编译
 
 本轮实现从一个 `agents/` 源根按宿主策略编译四处目录，并提供独立的相对软链接工具。
