@@ -41,7 +41,7 @@ from typing import Any
 
 from . import acceptance, calibration, checkout, claude_host, grading, implement, judge, review, stats, workspace, write_tests
 from .store import VariantStore
-from .suite import Flow, Material, SuiteError, load
+from .suite import FRAMED, Flow, Material, SuiteError, load
 
 # The families a program judges when a run is recorded; each module has prepare, verify, judge, scored and rows.
 PROGRAM_JUDGED = {"implement": implement, "acceptance": acceptance, "write-tests": write_tests}
@@ -118,7 +118,7 @@ def build_checkout(flow: Flow, material: Material, dest: Path, source: Path) -> 
 
 
 def checkout_brief(flow: Flow, material: Material, dest: Path, rep: int, facts: dict[str, str]) -> str:
-    if flow.family in ("implement", "write-tests"):
+    if flow.family in FRAMED:
         return checkout.framed_brief(flow, material, workdir=str(dest), rep=rep)
     if flow.family == "acceptance":
         return acceptance.brief(flow, material, workdir=str(dest), rep=rep)
@@ -217,7 +217,7 @@ def inputs(flow: Flow) -> str:
         return inputs_acceptance(flow)
     if flow.family == "write-tests":
         return inputs_write_tests(flow)
-    seeds =sum(len(material.seeds) for material in flow.materials)
+    seeds = sum(len(material.seeds) for material in flow.materials)
     host = flow.host["claude-code"]
     lines = [
         f"# 用例一览：{flow.id}（第 {flow.version} 版）", "",
