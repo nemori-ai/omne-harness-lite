@@ -1,0 +1,16 @@
+// 重复代码：与另一个成员的 copy.ts 逐字相同。
+export function summarize(values: readonly number[]): {
+  total: number
+  largest: number
+  smallest: number
+} {
+  let total = 0
+  let largest = Number.NEGATIVE_INFINITY
+  let smallest = Number.POSITIVE_INFINITY
+  for (const value of values) {
+    total += value
+    if (value > largest) largest = value
+    if (value < smallest) smallest = value
+  }
+  return { total, largest, smallest }
+}

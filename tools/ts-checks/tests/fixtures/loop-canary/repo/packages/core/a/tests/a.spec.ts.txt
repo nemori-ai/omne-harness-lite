@@ -1,0 +1,12 @@
+import { expect, it } from 'vitest'
+
+// 没有断言的测试：只调用、不断言。
+it('不断言', () => {
+  run()
+})
+
+it('断言了', () => {
+  expect(1).toBe(1)
+})
+
+function run(): void {}
