@@ -121,13 +121,27 @@ export function renderReason(
   return render(0).slice(0, limits.maxChars)
 }
 
-/** 反馈过的读数：分支与指纹，按时间先后；超过上限丢最旧的。 */
+/** 反馈过的一组读数。 */
+export interface Reported {
+  readonly branch: string
+  readonly fingerprint: string
+  readonly at: string
+}
+
+/** 反馈过的读数，按时间先后；超过上限丢最旧的。 */
 export interface HookState {
-  readonly reported: readonly {
-    readonly branch: string
-    readonly fingerprint: string
-    readonly at: string
-  }[]
+  readonly reported: readonly Reported[]
+}
+
+const textField = (value: object, key: string): boolean =>
+  typeof (value as Readonly<Record<string, unknown>>)[key] === 'string'
+
+function isReported(entry: unknown): entry is Reported {
+  return (
+    typeof entry === 'object' &&
+    entry !== null &&
+    ['branch', 'fingerprint', 'at'].every(key => textField(entry, key))
+  )
 }
 
 /** 文件不存在时传 undefined；内容不合约定就抛出（由调用方记日志、不反馈）。 */
@@ -136,33 +150,16 @@ export function parseState(text: string | undefined): HookState {
   const value: unknown = JSON.parse(text)
   const reported =
     typeof value === 'object' && value !== null && 'reported' in value ? value.reported : undefined
-  const valid =
-    Array.isArray(reported) &&
-    reported.every(
-      (entry: unknown) =>
-        typeof entry === 'object' &&
-        entry !== null &&
-        'branch' in entry &&
-        typeof entry.branch === 'string' &&
-        'fingerprint' in entry &&
-        typeof entry.fingerprint === 'string' &&
-        'at' in entry &&
-        typeof entry.at === 'string',
-    )
-  if (!valid)
+  if (!Array.isArray(reported) || !reported.every(isReported))
     throw new Error('hook-state.json 不合约定：须为 {"reported": [{branch, fingerprint, at}]}')
-  return { reported: reported as HookState['reported'] }
+  return { reported }
 }
 
 export function alreadyReported(state: HookState, branch: string, fingerprint: string): boolean {
   return state.reported.some(entry => entry.branch === branch && entry.fingerprint === fingerprint)
 }
 
-export function remember(
-  state: HookState,
-  entry: HookState['reported'][number],
-  limit: number,
-): HookState {
+export function remember(state: HookState, entry: Reported, limit: number): HookState {
   return { reported: [...state.reported, entry].slice(-limit) }
 }
 
@@ -188,19 +185,30 @@ export interface HookDeps {
   readonly log: (home: string, line: string) => void
 }
 
+type Repository = NonNullable<ReturnType<HookDeps['repository']>>
+
 /** 要反馈时返回标准输出的全文（恰好一个 JSON 对象），否则 undefined。从不抛出。 */
 export async function stopHook(stdin: string, deps: HookDeps): Promise<string | undefined> {
   if (deps.env['OMNE_LOOP_HOOK'] === 'off') return undefined
   const input = parseHookInput(stdin)
   if (input === undefined || input.stopHookActive) return undefined
-  let repository: ReturnType<HookDeps['repository']>
+  let repository: Repository | undefined
   try {
     repository = deps.repository(input.cwd ?? deps.cwd)
   } catch {
     return undefined
   }
-  if (repository === undefined) return undefined
-  const { root, branch, home } = repository
+  return repository === undefined ? undefined : feedback(repository, deps)
+}
+
+/**
+ * 找到了仓库之后：量、去重、记状态、出文字。这里的任何错误都只记进回路目录的日志，不反馈——
+ * 钩子自己出错从不影响 agent 收工。
+ */
+async function feedback(
+  { root, branch, home }: Repository,
+  deps: HookDeps,
+): Promise<string | undefined> {
   try {
     const config = deps.config()
     if (!config.enabled) return undefined
