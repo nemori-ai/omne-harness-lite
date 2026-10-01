@@ -46,7 +46,8 @@ function repository(): string {
   return root
 }
 
-describe('读 git 的传感器', () => {
+// 这两组每条用例都要起若干次 git 或 node 子进程；全量检查满载时单条会超过默认的 5 秒，所以写明时限。
+describe('读 git 的传感器', { timeout: 30_000 }, () => {
   it('一起改：最近若干个非合并提交各自碰过的成员，新的在前', () => {
     const root = repository()
     write(root, 'packages/core/a/src/x.ts', '1\n')
@@ -125,7 +126,7 @@ describe('读 git 的传感器', () => {
   })
 })
 
-describe('入口', () => {
+describe('入口', { timeout: 60_000 }, () => {
   const cli = fileURLToPath(new URL('../src/loop/cli.ts', import.meta.url))
   const run = (root: string, home: string, ...args: string[]) =>
     spawnSync(process.execPath, ['--experimental-strip-types', cli, '--root', root, ...args], {
