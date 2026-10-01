@@ -62,6 +62,13 @@ export interface TuiRuntime extends Pick<
 export function tuiProviders() {
   return { ...providers(), terminal: openTerminal }
 }
+/** Both screen codes mean this terminal cannot carry the full-screen interface: point to machine. */
+function tuiDiagnosticText(code: Diagnostic): string {
+  return diagnosticText(
+    code,
+    code === 'tty-required' || code === 'tty-unsupported' ? {} : undefined,
+  )
+}
 function pretty(value: unknown): string[] {
   return JSON.stringify(value, null, 2).split('\n')
 }
@@ -411,7 +418,7 @@ export async function runTui(args: readonly string[], runtime: TuiRuntime): Prom
     }
     if (failed) status = 70
     try {
-      for (const code of diagnostics) await runtime.stderr(diagnosticText(code, { machine: false }))
+      for (const code of diagnostics) await runtime.stderr(tuiDiagnosticText(code))
       if (terminal && !dialog?.outputFailed) {
         if (lastReport && !lastShown) await runtime.stdout(reportText(lastReport, false))
         await runtime.stdout(`\r\nGovernance TUI ended. Exit status: ${status}.\n`)

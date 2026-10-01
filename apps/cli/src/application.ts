@@ -44,19 +44,17 @@ export function providers(): Pick<
     secrets: readSecrets,
   }
 }
-/** What a diagnostic may say about the entry: its mode and, if recognized, the table's command. */
-function diagnosticEntry(invocation: Invocation): Parameters<typeof diagnosticText>[1] {
-  if (invocation.kind === 'help' || invocation.kind === 'version' || !invocation.command)
-    return { machine: invocation.machine }
-  return { machine: invocation.machine, command: invocation.command.command }
+/** What the no-screen signpost may name: the table's command, if the invocation recognized one. */
+function signpostFor(invocation: Invocation): { readonly command?: readonly string[] } {
+  if (invocation.kind === 'help' || invocation.kind === 'version' || !invocation.command) return {}
+  return { command: invocation.command.command }
 }
 export async function runCli(args: readonly string[], runtime: CliRuntime): Promise<number> {
   const invocation = parseInvocation(args)
   let applicationFailed = false
-  const entry = diagnosticEntry(invocation)
-  const diagnose = async (code: Diagnostic) => {
+  const diagnose = async (code: Diagnostic, signpost?: ReturnType<typeof signpostFor>) => {
     try {
-      await runtime.stderr(diagnosticText(code, entry))
+      await runtime.stderr(diagnosticText(code, signpost))
     } catch {
       applicationFailed = true
     }
@@ -97,7 +95,7 @@ export async function runCli(args: readonly string[], runtime: CliRuntime): Prom
     }
   }
   if (!invocation.machine && !runtime.stdoutIsTTY) {
-    await diagnose('tty-required')
+    await diagnose('tty-required', signpostFor(invocation))
     return applicationFailed ? 70 : 2
   }
   if (invocation.kind === 'error') {

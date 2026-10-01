@@ -24,23 +24,22 @@ export class InputFailure extends Error {
   }
 }
 
-/** The two codes that mean "this human entry cannot run here"; they point at the machine entry. */
-const machineRedirected: ReadonlySet<Diagnostic> = new Set(['tty-required', 'tty-unsupported'])
-
 /**
- * The full text written to stderr for one diagnostic: the closed code line, unchanged, and for
- * the codes above (human entries only) one fixed signpost line after it. The signpost never
- * echoes user input; `command` must be a name from the validated command table.
+ * The full text written to stderr for one diagnostic: the closed code line, unchanged, and, only
+ * when the caller passes `signpost`, one fixed line after it that points a human entry refused
+ * for lack of a screen at the machine entry. The caller decides whether this refusal is that
+ * case; the code alone does not say. The signpost never echoes user input; `command` must be a
+ * name from the validated command table.
  */
 export function diagnosticText(
   code: Diagnostic,
-  entry: { readonly machine: boolean; readonly command?: readonly string[] },
+  signpost?: { readonly command?: readonly string[] },
 ): string {
   const line = `omne: ${code}\n`
-  if (entry.machine || !machineRedirected.has(code)) return line
+  if (signpost === undefined) return line
   const hint =
-    entry.command === undefined
+    signpost.command === undefined
       ? 'omne machine (see omne --help)'
-      : `omne machine ${entry.command.join(' ')}`
+      : `omne machine ${signpost.command.join(' ')}`
   return `${line}For scripts or redirected output, use ${hint}\n`
 }

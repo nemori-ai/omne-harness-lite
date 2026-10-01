@@ -143,9 +143,16 @@ describe('CLI owns process resources and preserves governance facts', () => {
       'omne: tty-required\nFor scripts or redirected output, use omne machine (see omne --help)\n',
     ])
   })
-  it('the machine entry is never signposted to itself, and other diagnostics stay one line', () => {
-    expect(diagnosticText('tty-unsupported', { machine: true })).toBe('omne: tty-unsupported\n')
-    expect(diagnosticText('invalid-options', { machine: false })).toBe('omne: invalid-options\n')
+  it('a code line alone stays one line; the signpost appears only when the caller asks for it', () => {
+    expect(diagnosticText('tty-unsupported')).toBe('omne: tty-unsupported\n')
+    expect(diagnosticText('tty-unsupported', {})).toBe(
+      'omne: tty-unsupported\nFor scripts or redirected output, use omne machine (see omne --help)\n',
+    )
+  })
+  it('a missing credential file on a real terminal is not a no-screen refusal and gets no signpost', async () => {
+    const f = fixture({ stdoutIsTTY: true })
+    await runCli(['register', '--login-identifier', 'alice'], f.runtime)
+    expect(f.stderr).toEqual(['omne: tty-unsupported\n'])
   })
   it('a failing stderr write on the rejected human entry is the same failure as before', async () => {
     const f = fixture({
