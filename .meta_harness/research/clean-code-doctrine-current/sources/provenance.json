@@ -19,7 +19,8 @@
   "xdlkc-*.md": "github.com/xdlkc/uncle-bob-harness 第三方研究笔记（interview-core、twitter-raw、twitter-year、adversarial-review、operating-principles）",
   "alexrusin.*, explainx.html, startupfortune.html, axol-2e.html, akita.html, mvark-april.html, github-unclebob-repos.html, oreilly-ai-agents-clean-code.html, x-2098432570887217520.html": "第三方页面原样字节",
   "critics/*": "主会话抽核批评线来源的原页面（arXiv 摘要页、qntm、martinfowler.com、METR、Just 2014 PDF）",
-  "subagent-raw/": "三路子代理的原始抓取（tw_ 为 fx 推文 JSON 99 条；tl/ 为 profile 时间线翻页 846 条；v_ 为视频转写；kent_ 为播客官方逐字稿；cc_ 为 Clean Coders 页面；art_/informit/agile 为出版社样章；xdlkc_/gh_/yt_ 为其他）；模型输出不在其中，只有抓取原件"
+  "subagent-raw/": "三路子代理的原始抓取（tw_ 为 fx 推文 JSON 99 条；tl/ 为 profile 时间线翻页 846 条；v_ 为视频转写；kent_ 为播客官方逐字稿；cc_ 为 Clean Coders 页面；art_/informit/agile 为出版社样章；xdlkc_/gh_/yt_ 为其他）；模型输出不在其中，只有抓取原件",
+  "tooling/*": "2026-10-01 第二轮，主会话经 GitHub API 按提交取回并读过的三份工具源码：uml-viewer@017168235d4ec37aab460366f2c88e9805d92c32 src/uml_viewer/domain/config.clj；crapper@4909ad241ba0531f697900f2945a40edddcf1df9 src/crapper/languages/typescript.py 与 treesitter.py。两个仓库都没有 LICENSE 文件，副本只作复核依据"
  },
  "not_included": [
   "两段 mp4 视频原件（210 MB）",
