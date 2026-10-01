@@ -82,10 +82,43 @@ interface Sensors {
   readonly worktrees: Reading<readonly WorktreeChanges[]>
 }
 
-interface Change {
+/** 基线合并点到当前工作树的改动：全部改动路径，与改动过的成员源码在合并点的文本。 */
+export interface Change {
   readonly mergeBase: string
   readonly paths: ReadonlySet<string>
   readonly baseTexts: ReadonlyMap<string, string | undefined>
+}
+
+export function changeSince(root: string, mergeBase: string): Change {
+  const paths = new Set(changedFiles(root, mergeBase))
+  return { mergeBase, paths, baseTexts: baseTextsOf(root, mergeBase, paths) }
+}
+
+/** 度量报告（不跑覆盖率）；给了改动就标出变更的函数与导入。 */
+export function measuredReport(
+  root: string,
+  files: readonly SourceFile[],
+  metrics: MetricsConfig,
+  change: Change | undefined,
+): Report {
+  return buildReport({
+    files,
+    policy: GROUP_DIRECTION_POLICY,
+    thresholds: metrics.thresholds,
+    bands: metrics.bands,
+    ...(change === undefined
+      ? {}
+      : { changed: changedLines(root, change.mergeBase), baseTexts: change.baseTexts }),
+  })
+}
+
+export function readStability(
+  report: Report,
+  config: LoopConfig['sensors']['stability'],
+): Reading<readonly StabilityEdge[]> {
+  return config.enabled
+    ? data(stableOnUnstable(report.members, report.edges, config.margin))
+    : noData(OFF)
 }
 
 function readCochange(root: string, config: LoopConfig['sensors']['cochange']) {
@@ -106,7 +139,7 @@ async function readDuplication(
   return data(await detectDuplication(measured, config))
 }
 
-function readAssertions(
+export function readAssertions(
   files: readonly SourceFile[],
   config: LoopConfig['sensors']['assertions'],
 ): Reading<readonly CaseWithoutAssertion[]> {
@@ -116,7 +149,7 @@ function readAssertions(
   return data(tests.flatMap(file => casesWithoutAssertions(file, config)))
 }
 
-function readNewEdges(
+export function readNewEdges(
   files: readonly SourceFile[],
   change: Change | undefined,
   enabled: boolean,
@@ -152,9 +185,7 @@ async function readSensors(
   const { sensors } = config
   const windowStart = new Date(Date.now() - sensors.topicChurn.windowDays * 24 * 60 * 60 * 1000)
   return {
-    stability: sensors.stability.enabled
-      ? data(stableOnUnstable(report.members, report.edges, sensors.stability.margin))
-      : noData(OFF),
+    stability: readStability(report, sensors.stability),
     cochange: readCochange(root, sensors.cochange),
     duplication: await readDuplication(files, sensors.duplication),
     assertions: readAssertions(files, sensors.assertions),
@@ -262,7 +293,12 @@ function memberBudgets(
     )
 }
 
-function explainOf(report: Report, sensors: Sensors, change: Change): Explain {
+/** 这次变更里要解释的红项；只用到四个传感器，收工钩子不跑重复代码时给它一个没数据的读数。 */
+export function explainOf(
+  report: Report,
+  sensors: Pick<Sensors, 'newEdges' | 'stability' | 'assertions' | 'duplication'>,
+  change: Change,
+): Explain {
   const touched = (path: string) => change.paths.has(path)
   const added = map(sensors.newEdges, delta => delta.added)
   const unstable =
@@ -409,24 +445,8 @@ export async function runLoopStatus(
   )
 
   const files = collectMemberSources(root)
-  let change: Change | undefined
-  if (at.base !== undefined) {
-    const paths = new Set(changedFiles(root, at.base.mergeBase))
-    change = {
-      mergeBase: at.base.mergeBase,
-      paths,
-      baseTexts: baseTextsOf(root, at.base.mergeBase, paths),
-    }
-  }
-  const report = buildReport({
-    files,
-    policy: GROUP_DIRECTION_POLICY,
-    thresholds: metrics.thresholds,
-    bands: metrics.bands,
-    ...(at.base === undefined || change === undefined
-      ? {}
-      : { changed: changedLines(root, at.base.mergeBase), baseTexts: change.baseTexts }),
-  })
+  const change = at.base === undefined ? undefined : changeSince(root, at.base.mergeBase)
+  const report = measuredReport(root, files, metrics, change)
   const sensors = await readSensors(root, config, files, report, change)
 
   const trendPath = join(home, 'trend.jsonl')
