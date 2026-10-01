@@ -718,8 +718,9 @@ CHECKOUT_SUITES = sorted(path.parent for path in (EVALUATION / "suites").glob("*
                          if json.loads(path.read_text(encoding="utf-8"))["workspace"].get("kind") == "checkout")
 
 
-def test_the_three_new_suites_are_standing_and_unsigned() -> None:
-    assert [root.name for root in CHECKOUT_SUITES] == ["developer-implement", "implementation-review", "qa-acceptance"]
+def test_the_checkout_suites_are_standing_and_unsigned() -> None:
+    assert [root.name for root in CHECKOUT_SUITES] == ["developer-implement", "implementation-review", "qa-acceptance",
+                                                       "tui-developer-implement"]
     for root in CHECKOUT_SUITES:
         flow = suite.load(root)
         assert flow.unsigned() == ["cases", "grading"] and flow.version == 1
