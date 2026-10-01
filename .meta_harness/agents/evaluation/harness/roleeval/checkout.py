@@ -13,6 +13,7 @@ or the templates.
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 from typing import Callable
 
@@ -20,6 +21,7 @@ from . import workspace
 from .suite import Flow, Material
 
 PLACEHOLDER = re.compile(r"\{[A-Z_]+\}")
+SECTION = re.compile(r"^@@([A-Z_]+)\n", flags=re.M)
 TEMPLATE_NEEDLE = workspace.TEMPLATES
 
 
@@ -39,6 +41,37 @@ def fill(text: str, values: dict[str, str], *, keep: tuple[str, ...] = ()) -> st
     if left:
         raise BriefError(f"unfilled placeholders: {left}")
     return text
+
+
+def run_id(material: Material, rep: int) -> str:
+    return f"{material.id.lower()}-r{rep}"
+
+
+def framed_brief(flow: Flow, material: Material, *, workdir: str, rep: int, keep: tuple[str, ...] = ()) -> str:
+    """The flow's frame with the task's ``@@SECTION``s filled in, then the run's own values; nothing may be left
+    unfilled except what ``keep`` names."""
+    parts = SECTION.split(material.brief.read_text(encoding="utf-8"))
+    values = {name: body.strip() for name, body in zip(parts[1::2], parts[2::2])}
+    values.update({"TASK_ID": material.id, "RUN_ID": run_id(material, rep), "ROLE": flow.role, "WORKDIR": workdir})
+    if flow.brief_frame is None:
+        raise BriefError(f"{flow.id} has no brief_frame to fill the task into")
+    return fill(flow.brief_frame.read_text(encoding="utf-8"), values, keep=keep)
+
+
+def remove_answers(flow: Flow, material: Material, dest: Path) -> None:
+    """Take away what gives a module's tests or its implementation away: the member's build output, the hidden tests."""
+    shutil.rmtree(dest / flow.oracle["member"] / "dist", ignore_errors=True)
+    for relative in material.task["hidden_tests"]:
+        (dest / relative).unlink()
+
+
+def answers_left(flow: Flow, material: Material, dest: Path) -> list[str]:
+    """What ``remove_answers`` should have taken away and is still in the copy."""
+    left = [f"{material.id}: hidden test {relative} is in the copy"
+            for relative in material.task["hidden_tests"] if (dest / relative).exists()]
+    if (dest / flow.oracle["member"] / "dist").exists():
+        left.append(f"{material.id}: {flow.oracle['member']}/dist is in the copy")
+    return left
 
 
 def template(flow: Flow, material: Material, *, repo: Path, work: Path) -> Path:

@@ -9,7 +9,6 @@ judgment of the earlier role-model comparison (``role-model-sonnet55/tooling/eva
 from __future__ import annotations
 
 import json
-import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -18,23 +17,7 @@ from . import checkout, program, workspace
 from .claude_host import Episode
 from .suite import Flow, Material
 
-SECTION = re.compile(r"^@@([A-Z_]+)\n", flags=re.M)
 AGENT_TESTS = "tests.agent"
-
-
-def run_id(material: Material, rep: int) -> str:
-    return f"{material.id.lower()}-r{rep}"
-
-
-def brief(flow: Flow, material: Material, *, workdir: str, rep: int, keep: tuple[str, ...] = ()) -> str:
-    """The frame with the task's sections filled in, then the run's own values; nothing may be left unfilled
-    except what ``keep`` names."""
-    parts = SECTION.split(material.brief.read_text(encoding="utf-8"))
-    values = {name: body.strip() for name, body in zip(parts[1::2], parts[2::2])}
-    values.update({"TASK_ID": material.id, "RUN_ID": run_id(material, rep), "ROLE": flow.role, "WORKDIR": workdir})
-    if flow.brief_frame is None:
-        raise checkout.BriefError(f"{flow.id} has no brief_frame to fill the task into")
-    return checkout.fill(flow.brief_frame.read_text(encoding="utf-8"), values, keep=keep)
 
 
 def stub_files(flow: Flow, material: Material) -> list[str]:
@@ -45,32 +28,11 @@ def stub_files(flow: Flow, material: Material) -> list[str]:
 
 def prepare(flow: Flow, material: Material, dest: Path) -> dict[str, str]:
     """Take away what would give the answer: the member's build output and the hidden tests; put the stub in."""
-    shutil.rmtree(dest / flow.oracle["member"] / "dist", ignore_errors=True)
-    for relative in material.task["hidden_tests"]:
-        (dest / relative).unlink()
+    checkout.remove_answers(flow, material, dest)
     stub = flow.root / material.task["stub"]
     for relative in stub_files(flow, material):
         shutil.copyfile(stub / relative, dest / relative)
     return {}
-
-
-def tally(doc: dict[str, Any] | None, only: list[str] | None = None) -> tuple[int, int, list[str]]:
-    """(passed, total, failed names) from a vitest JSON report; a file that failed to load counts as one failure."""
-    passed = total = 0
-    failed = []
-    for result in (doc or {}).get("testResults", []):
-        name = Path(result["name"]).name
-        if only is not None and name not in only:
-            continue
-        for assertion in result["assertionResults"]:
-            total += 1
-            if assertion["status"] == "passed":
-                passed += 1
-            else:
-                failed.append(f"{name} :: {assertion['fullName'] if 'fullName' in assertion else assertion['title']}")
-        if not result["assertionResults"] and result.get("status") == "failed":
-            failed.append(f"{name} :: (file failed to load)")
-    return passed, total, failed
 
 
 def judge(flow: Flow, material: Material, dest: Path, *, source: Path, evidence: Path) -> dict[str, Any]:
@@ -93,8 +55,8 @@ def judge(flow: Flow, material: Material, dest: Path, *, source: Path, evidence:
                   timeout=timeouts.get("test"), log=evidence / "oracle-vitest.log")
     doc = json.loads(report.read_text(encoding="utf-8")) if report.exists() else None
     hidden = [Path(path).name for path in task["hidden_tests"]]
-    hidden_passed, hidden_total, hidden_failed = tally(doc, hidden)
-    all_passed, all_total, all_failed = tally(doc)
+    hidden_passed, hidden_total, hidden_failed = program.tally(doc, hidden)
+    all_passed, all_total, all_failed = program.tally(doc)
     wanted = task["target_tests"]
     target_failed = [name for name in wanted if name in all_failed]
     typecheck = workspace.run(oracle["typecheck"], member, timeout=timeouts.get("typecheck"),
@@ -152,13 +114,9 @@ def verify(flow: Flow, material: Material, *, source: Path, work: Path, tag: str
     try:
         checkout.build(flow, material, dest, source=source, before_baseline=lambda copy: prepare(flow, material, copy))
         member = dest / flow.oracle["member"]
-        for relative in material.task["hidden_tests"]:
-            if (dest / relative).exists():
-                problems.append(f"{material.id}: hidden test {relative} is in the copy")
-        if (member / "dist").exists():
-            problems.append(f"{material.id}: {flow.oracle['member']}/dist is in the copy")
+        problems += checkout.answers_left(flow, material, dest)
         try:
-            brief(flow, material, workdir=str(dest), rep=0)
+            checkout.framed_brief(flow, material, workdir=str(dest), rep=0)
         except checkout.BriefError as error:
             problems.append(f"{material.id}: brief - {error}")
         bad = judge(flow, material, dest, source=source, evidence=where / "known-bad")

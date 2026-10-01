@@ -117,7 +117,7 @@ def build_checkout(flow: Flow, material: Material, dest: Path, source: Path) -> 
 
 def checkout_brief(flow: Flow, material: Material, dest: Path, rep: int, facts: dict[str, str]) -> str:
     if flow.family == "implement":
-        return implement.brief(flow, material, workdir=str(dest), rep=rep)
+        return checkout.framed_brief(flow, material, workdir=str(dest), rep=rep)
     if flow.family == "acceptance":
         return acceptance.brief(flow, material, workdir=str(dest), rep=rep)
     return review.delivery_brief(material, dest, facts)
@@ -307,7 +307,7 @@ def inputs_implement(flow: Flow) -> str:
         task = material.task or {}
         lines += ["", f"## `{material.id}`", "", f"任务：{material.target}", "",
                   "### 简报（任务简报填进框架之后的样子，逐字）", "",
-                  fenced(implement.brief(flow, material, workdir="{WORKDIR}", rep=0, keep=SHOWN)), "",
+                  fenced(checkout.framed_brief(flow, material, workdir="{WORKDIR}", rep=0, keep=SHOWN)), "",
                   "### 送审之前对副本做的处理", "",
                   f"- 删掉成员的构建产物 `{flow.oracle['member']}/dist/`",
                   *[f"- 删掉隐藏测试 `{path}`" for path in task["hidden_tests"]],

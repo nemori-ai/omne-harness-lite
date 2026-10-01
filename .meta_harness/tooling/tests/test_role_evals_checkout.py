@@ -311,9 +311,10 @@ def test_editing_an_existing_test_and_writing_outside_the_scope_are_seen(impleme
 
 def test_the_brief_is_the_frame_with_the_task_filled_in(tiny: dict[str, Any]) -> None:
     flow = tiny["flows"]["tiny-implement"]
-    text = implement.brief(flow, flow.materials[0], workdir="/w/x", rep=1)
+    text = checkout.framed_brief(flow, flow.materials[0], workdir="/w/x", rep=1)
     assert text == "任务 T1（run t1-r1），角色 tiny-developer，检出 `/w/x`。\n\n把 member/src/mod.ts 补完。\n"
-    assert "{WORKDIR}" in implement.brief(flow, flow.materials[0], workdir="{WORKDIR}", rep=0, keep=("WORKDIR", "RUN_ID"))
+    assert "{WORKDIR}" in checkout.framed_brief(flow, flow.materials[0], workdir="{WORKDIR}", rep=0,
+                                                keep=("WORKDIR", "RUN_ID"))
     with pytest.raises(checkout.BriefError, match="GOAL"):
         checkout.fill("{GOAL} 与 {WORKDIR}", {"WORKDIR": "/w"})
 
@@ -745,7 +746,7 @@ def test_a_checkout_suite_still_fits_its_pinned_commit(root: Path) -> None:
         if material.task:
             for path in [*material.task["hidden_tests"], *implement.stub_files(flow, material)]:
                 workspace.git(repo, "show", f"{base}:{path}")
-            implement.brief(flow, material, workdir="/w", rep=0)
+            checkout.framed_brief(flow, material, workdir="/w", rep=0)
         if flow.family == "acceptance":
             acceptance.brief(flow, material, workdir="/w", rep=0)
         if material.delivery_note:
