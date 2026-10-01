@@ -1,0 +1,20 @@
+{
+  "thresholds": {
+    "warn": 10,
+    "alert": 12
+  },
+  "bands": {
+    "green": 8,
+    "yellow": 12,
+    "red": 20
+  },
+  "summary": {
+    "top": 5
+  },
+  "page": {
+    "changedEdgeLimit": 24
+  },
+  "coverage": {
+    "roots": ["packages", "apps"]
+  }
+}

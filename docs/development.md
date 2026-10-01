@@ -130,7 +130,8 @@ git commit -m "chore(docs): update blog submodule"
 | 检查器或生成器行为 | `make test` |
 | TS/JS 格式 | `pnpm format:check`；局部写入 `pnpm format:write -- <文件...>` |
 | 某个产品包的源码或测试 | `pnpm --filter @omne-harness-lite/<包名> run test`（含 `*.spec-d.ts` 类型测试）；改了公开入口再跑 `pnpm run build && pnpm run typecheck` |
-| 产品源码的结构约束（墙钟、`bail`、受限调用点） | `pnpm run lint:rules`；规则与自测见 [tools/ts-checks](../tools/ts-checks/README.md) |
+| 产品源码的结构约束（墙钟、`bail`、受限调用点、跨组依赖方向） | `pnpm run lint:rules`；规则与自测见 [tools/ts-checks](../tools/ts-checks/README.md) |
+| 实现类交付前后看结构与度量（本仓库的结构度量入口） | `make metrics BASE=<任务基线提交>`，秒级；要 CRAP 加 `COVERAGE=1`（会跑变更成员的测试，先构建）。它只报告、不判失败；把打印的摘要原样附进交付说明，审讯页路径在摘要末行 |
 | 存储提供者或迁移 | `pnpm --filter @omne-harness-lite/storage-sql run test`：sqlite 上跑一致性套件；pg 需设 `OMNE_TEST_PG_URL`，否则跳过 |
 | 形式工具是否可用 | `make formal-tools` |
 | 跨入口改动 | `make check` |

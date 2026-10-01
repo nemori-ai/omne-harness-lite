@@ -115,6 +115,76 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 `tests/core-rules.spec.ts` 包含十五包逐一禁止依赖、允许公开入口、字面量解码、真实 CLI 退出值、
 身份规则正反例与真实 AccountRow 的内存变异。变异不修改产品源码。
 
+## 跨组依赖方向
+
+`group-direction` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，随 `pnpm run lint:rules` 执行，有违反即退出 1。
+
+| 规则 | 来源 | 查什么 | 不覆盖 |
+|---|---|---|---|
+| `group-direction` | [realization「packages 的两层布局」](../../.meta_harness/design/realization/README.md#packages-的两层布局)；[workspace 规范](../../docs/workspace.md)「装配负责选择提供者」 | 成员产品源码（不含测试）经 `@omne-harness-lite/*` 字面导入形成的成员间边：只能指向同层或更内层；`packages/infra` 只由最外层与它自己依赖；成员之间、组之间不成环；出现没登记层位的新组即报出 | 测试里的导入；非字面说明符；相对路径越出包边界（由包公开入口约定承担）；**层位本身对不对**——那是设计正文定的，这里只核对方向 |
+
+层位与例外在 `src/rules/group-direction.ts` 的 `GROUP_DIRECTION_POLICY`，每条带 `source` 指回设计正文；它是机检投影，不是第二份权威：
+改层位先改 realization 的布局正文，再改这张表。现存例外只有一条（`frontend/client-local-state` 直接打开本机 SQLite），登记了理由。
+
+## 结构度量
+
+`make metrics` 是本包的第二入口（`src/metrics/`）。它**只报告、不判失败**，不在 `make check` 里；能让检查失败的只有上面的方向规则。
+
+```sh
+make metrics                          # 全仓，秒级：圈复杂度、依赖图、方向与环
+make metrics BASE=<基线提交或分支>      # 另标出基线以来变更的成员、函数、导入与提交形状
+make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，取覆盖率并合成 CRAP（先构建）
+```
+
+产物默认落**主检出**的 `tmp/metrics/<提交短号>[-dirty]/`（在工作树里跑也落主检出，工作树退役不带走；`OUT=` 或环境变量 `OMNE_METRICS_OUT` 可改）：
+
+| 文件 | 内容 |
+|---|---|
+| `summary.md` | 不超过 12 行，同时打印到标准输出；交付说明原样附它 |
+| `metrics.json` | 每个成员与每个函数的圈复杂度、覆盖率、CRAP、是否变更 |
+| `graph.json` | 成员间的边与导入处、方向发现、环、已登记例外 |
+| `review.html` | 自包含、离线可开的审讯页：按层的结构图、度量着色、点成员看依赖与函数表 |
+| `coverage/` | 开了覆盖率时各成员的原始 `<成员>/coverage-final.json` 与测试输出 `<成员>.vitest.log`；每个成员的耗时与退出码另记在 `metrics.json` 的 `meta` 里，运行时逐个打到标准错误 |
+
+审讯页的网址后带成员路径可直接定位，例如 `review.html#packages/model/model-request-runtime`。
+
+怎么算的：
+
+- **计分单元**是有名字的函数：函数声明、类与对象字面量的方法、赋给名字的箭头函数与函数表达式；匿名回调并入它所在的单元，类与具名对象只提供限定名。
+- **圈复杂度** = 1 + `if`、各类循环、`catch`、`?:`、`case`、`default`、`&&`、`||` 的个数；`??`、`?.` 与逻辑赋值不计。
+- **覆盖率**取函数行范围内、且不落在更内层有名函数里的语句行的命中比例。测试经包名导入自己时执行的是 `dist/`，所以连同 `dist/**` 一起收集并由 sourcemap 映射回 `src/`。
+- **跑谁的测试**：只跑 `metrics.config.json` 的 `coverage.roots` 列出的根目录（现为 `packages`、`apps`）下的变更成员。`examples/` 是阶段性的演示，不长期维护，不为它跑测试；它照常参加圈复杂度与依赖方向的静态度量，覆盖率记为「这次没跑」。
+- **CRAP** = 圈复杂度² × (1 − 覆盖率)³ + 圈复杂度。没有覆盖率数据的函数只按圈复杂度评级。
+- **成员风险值** = 成员内函数评级分的均值加一个总体标准差，单个最差函数不至于把整个成员染红；它在色带点上分段线性地换成 1 到 10 的评分再取色。组框左边线取组内最差成员。
+- **函数是否变更**比对函数自身文本的摘要，不看 diff 行号：挪位置、上方插入代码都不算变。
+- **行内排序**用重心法：按相邻成员位置的平均值排五轮，让相连的成员靠近。
+- **扇入、扇出与不稳定度**：依赖它的成员数、它依赖的成员数、出 ÷（入 + 出）。
+- 阈值与色带在 `metrics.config.json`，不写死在代码里：`thresholds`（函数级的「要解释」线）、`bands`（成员着色）与 `page.changedEdgeLimit`（见下）。
+- **审讯页画哪些线**：选中一个成员时只画它自己的线（指向它的用虚线），别处只留违规。未选中时违规与已登记例外始终画出；本次变更触及的边不超过 `page.changedEdgeLimit` 条才逐条画，超过就只留蓝色三角并在图上方注明——大变更下逐条画只会糊成一团。
+
+**超阈值怎么处置**：看职责不看数字。回答同一个问题的单个分派（一个 `switch`、一张判定表）可以留在阈值之上；嵌套或混了几件事的才拆，拆出的函数拥有自己的输入，不接收调用方本来就知道的布尔值。把函数拆碎只会换来覆盖率数字，换不来设计。
+
+### 出处与有意的差异
+
+这些算法按 Robert C. Martin 的工具的逻辑用 TypeScript 重写——他的仓库没有许可证，所以不搬原文，只照做法；每处在源码注释里标了仓库、提交与文件。逐条事实与他提交历史里改过的主意见研究主题的[工具算法报告](../../.meta_harness/research/clean-code-doctrine-current/reports/2026-10-01-tooling-algorithms/report.md)；其中只有色带评分与判定点集合是对着原文字节核过的，其余是子代理转述。
+
+| 做法 | 出处 | 与原实现的差异及理由 |
+|---|---|---|
+| 判定点集合 | crapper `languages/typescript.py` | 逐项一致。阈值是按这套计数校出来的 |
+| 计分单元 | 同上 | 原实现只认顶层函数、类方法、顶层箭头常量，嵌套函数并入外层。本仓库大量是「工厂函数返回一组方法」，照那样一个工厂只算一个单元；这里让有名字的内层函数各自成单元 |
+| 每函数覆盖率 | crapper `coverage.py` | 原实现按整个行区间求比例，区间内没有行记 0%。这里内层单元的行从外层扣掉，外层只剩声明时不给数 |
+| CRAP 公式、风险值、评分与色带 | crapper `crap.py`；uml-viewer `domain/config.clj`、`application/overlay.clj` | 一致。原实现「缺数据一律算最差」；这里没跑覆盖率的成员按圈复杂度评级，跑了却没数据的成员单独标出 |
+| 父节点取最差子节点 | uml-viewer `application/hierarchy.clj` | 一致 |
+| 方向违规 = 内层依赖外层，同层合法 | uml-viewer `domain/policy.clj` | 另加三条它没有的：没登记层位的组报出（原实现会把它静默放进最底行且永不违规）、`infra` 只由装配层选用、成员与组的环 |
+| 环检测 | dependency-checker `core/graph.clj`（Tarjan 强连通分量） | 一致 |
+| 扇入、扇出、不稳定度 | dependency-checker `core/stats.clj` | 没有移植抽象度与主序列距离：那套判法会把稳定而没有抽象的叶子一律判进「痛苦区」，对纯数据契约包不成立 |
+| 行内重心法排序、最内层在底 | uml-viewer `engine/layout.clj` | 布局交给浏览器的流式排版，只移植了分行与行内顺序 |
+| 默认只画三角标记与悬停清单 | uml-viewer `application/hit.clj`；arch-view 删掉箭头走线的那次提交 | 没有移植走线。原作者在这上面反复返工，最后的结论就是标记加清单；这里只在选中成员时画它自己的线 |
+| 函数文本摘要判变更 | mutator `functions.py`、`engine.py` | 内层单元的行不算在外层头上 |
+| 超阈值的处置判据 | swarm-forge six-pack 分支 `roles/cleaner.prompt` | 措辞改写，判据一致 |
+
+读数时的边界见[验证规范](../../docs/verification.md#检查入口)那一行的「不能声称」。自测：`tests/metrics-complexity.spec.ts`、`tests/metrics-report.spec.ts`、`tests/group-direction.spec.ts`。
+
 ## 后续 core 静态义务的兑现方式
 
 下表是开发者选择检查形式的导航，语义和责任仍归各节点 design「静态检查义务怎么承载」。

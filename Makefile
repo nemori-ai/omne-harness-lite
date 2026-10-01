@@ -1,4 +1,4 @@
-.PHONY: check agents-check docs-check design-check formal-tools test product-check
+.PHONY: check agents-check docs-check design-check formal-tools test product-check metrics
 
 check:
 	./scripts/check.sh
@@ -24,3 +24,7 @@ test:
 
 product-check:
 	pnpm run check
+
+# 结构度量：只报告，不判失败。BASE 给基线提交或分支，COVERAGE=1 对变更成员跑覆盖率，OUT 改产物目录。
+metrics:
+	node --experimental-strip-types tools/ts-checks/src/metrics/cli.ts $(if $(BASE),--base "$(BASE)") $(if $(COVERAGE),--coverage) $(if $(OUT),--out "$(OUT)")
