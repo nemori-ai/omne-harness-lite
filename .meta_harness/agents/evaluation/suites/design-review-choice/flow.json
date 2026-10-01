@@ -39,7 +39,7 @@
   "signoffs": {
     "cases": {"by": "panqiwei", "date": "2026-10-01", "version": 1},
     "grading": {"by": "panqiwei", "date": "2026-10-01", "version": 1,
-                "judge": "judge:claude-sonnet-5-5@high rules 62bf4cac80e1"}
+                "judge": "judge:subagent:claude-sonnet-5-5 rules 70fdea287e52"}
   },
   "materials": [
     {

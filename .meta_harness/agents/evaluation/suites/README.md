@@ -6,9 +6,12 @@
 
 | 流 | 角色与判断 | 现状 |
 |---|---|---|
-| [design-review-expression](design-review-expression/README.md) | design-reviewer 判「表达」 | 用例已签字；判官换成 subagent 后已重新校准，判定方法等重新签字；还没有基线 |
+| [design-review-expression](design-review-expression/README.md) | design-reviewer 判「表达」 | 两次签字已齐（判定方法签的是 subagent 判官）；还没有基线 |
 | [design-review-choice](design-review-choice/README.md) | design-reviewer 判「选择」 | 同上 |
 | [design-review-plan](design-review-plan/README.md) | design-reviewer 判「计划」 | 同上 |
+
+负责人 2026-10-01 定：各流的完整基线不随用例集一起跑，统一放到研发方案的最后。在那之前，这些用例集可以用来对单次改动做有针对性的试派，
+但没有基线可比。
 
 其余角色的流还没有迁入或建立，各自的一次性评估见[评估索引](../README.md)。
 
