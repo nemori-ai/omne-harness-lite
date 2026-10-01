@@ -340,4 +340,4 @@ process.exit(result.length > 0 ? 1 : 0)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
-})
+}, 30_000) // Two child processes each load the TypeScript compiler (~2 s alone, over 5 s under workspace-wide load); assertions unchanged.

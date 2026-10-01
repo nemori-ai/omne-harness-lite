@@ -21,6 +21,7 @@ catalog:
   '@types/pg': 8.15.6
   typescript: 6.0.3
   vitest: 4.1.11
+  '@vitest/coverage-v8': 4.1.11
   zod: 4.6.5
   '@standard-schema/spec': 1.1.0
   yaml: 2.9.1

@@ -25,9 +25,36 @@
 `pnpm format:staged` 供 pre-commit hook 使用，`pnpm format:hook:install` 由开发者按需
 显式安装本地 hook。安装命令不会覆盖已有 hook，也不应由共享自动化代替用户执行。
 
-CI 配置将负责选择触发条件和环境，随后调用同一入口。当前尚未接入 CI 平台，
-已有本地CLI制品脚本；远程发布或部署入口新增时按真实目标明确输入、产物和外部副作用。
-形式工具环境单独使用 `make spec-tools` 检查；检查覆盖与未覆盖的含义以验证规范为准。
+远程发布或部署入口新增时按真实目标明确输入、产物和外部副作用。
+形式工具环境单独使用 `make formal-tools` 检查；检查覆盖与未覆盖的含义以验证规范为准。
+
+## CI
+
+[check.yml](../.github/workflows/check.yml) 只选择触发条件和环境，随后调用与本地相同的入口：
+
+| 触发 | 做什么 |
+|---|---|
+| PR、推送到 `main`、手动触发 | 全新检出 → 安装依赖 → 编译 agent 生成物 → `make check` → `make metrics`（以 PR 基线或推送前的提交为 `BASE`）。度量步骤失败不改变检查结论 |
+| 每天 03:00（Asia/Shanghai）、手动触发并勾选 coverage | 构建后对全部成员跑 `make metrics COVERAGE=1` |
+
+任务跑在**自托管 runner** 上（标签 `self-hosted`、`linux`）。工作流自己安装 Node、pnpm 与 uv，
+不依赖 runner 用户的登录环境；它不读任何 `.env`，需要付费模型凭据的测试因此照常跳过。
+度量摘要写进任务摘要，四件产物留在 runner 主机的 `$OMNE_METRICS_HOME`
+（仓库变量，缺省为 runner 用户的 `~/omne-metrics`）下：PR 在 `pr-<编号>/<提交>/`，
+`main` 在 `<提交>/`，夜间在 `nightly/<日期>-<提交>/`。这个目录没有自动清理。
+
+runner 与别的任务共用主机，包间并行度过高时本来一两秒的用例会被挤过时限。
+工作流把 pnpm 的包间并行度设为仓库变量 `OMNE_CHECK_CONCURRENCY`（缺省 2）；
+本地要同样调低，在命令前加 `npm_config_workspace_concurrency=<n>`。
+
+runner 的注册是主机上的一次性操作，不由仓库脚本代办：
+
+1. 在仓库 Settings → Actions → Runners 取注册令牌，按页面给出的命令把 runner 装在
+   **独立目录**（不放进任何检出），以普通用户运行并注册为服务。
+2. 只注册一个 runner 实例，同一时刻只跑一个任务；工作流已用 `nice` 降低优先级。
+   要进一步限制 CPU，在该服务的 systemd unit 上设 `CPUQuota`。
+3. 自托管 runner 会在本机执行 PR 里的代码：仓库保持私有，
+   不对外部贡献者的 PR 开放工作流运行。
 
 包专属的构建脚本和 skill 自带脚本随其所有者维护，不统一搬到这里。
 源码位置与 workspace 分工见[workspace 规范](../docs/workspace.md)。

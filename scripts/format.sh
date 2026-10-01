@@ -25,7 +25,7 @@ is_format_target() {
         */node_modules/*|*/dist/*|*/tmp/*|*/.worktrees/*|*/generated/*|*/upstream/*|spec/*|*.jsonl)
             return 1
             ;;
-        .prettierrc.json|.vscode/settings.json|.vscode/extensions.json|.github/workflows/format.yml)
+        .prettierrc.json|.vscode/settings.json|.vscode/extensions.json|.github/workflows/check.yml)
             return 0
             ;;
         packages/*|apps/*|examples/*|tools/*|scripts/*)

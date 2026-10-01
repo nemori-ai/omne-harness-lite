@@ -82,7 +82,8 @@ scripts/format.sh                      TS/JS 格式化与暂存区检查
 ```
 
 根 Makefile 提供短命令，`scripts/check.sh` 顺序组合现有检查，工具包拥有检查算法。
-未来 CI 平台配置负责触发条件、执行环境和调用这些入口；构建、发布、部署脚本
+CI 配置（`.github/workflows/`）只负责触发条件、执行环境和调用这些入口，
+见[自动化入口](../scripts/README.md#ci)；构建、发布、部署脚本
 有实际交付对象后再增加，**不能因目录存在就声称流水线或部署能力已经完成**。
 
 ## Workspace 与依赖

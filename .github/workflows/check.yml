@@ -1,0 +1,109 @@
+name: Check
+
+# 在自托管 runner 上跑与本地相同的入口。runner 的安装、隔离与产物目录见 scripts/README.md。
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # 每天 03:00（Asia/Shanghai）跑一次全量覆盖率度量。
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+    inputs:
+      coverage:
+        description: 对全部成员跑覆盖率度量（耗时长）
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # 度量产物留在 runner 主机上，不走 GitHub 产物存储。
+  OMNE_METRICS_HOME: ${{ vars.OMNE_METRICS_HOME }}
+
+jobs:
+  check:
+    if: github.event_name != 'schedule'
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: astral-sh/setup-uv@v10
+      - run: uv sync --locked
+      - run: pnpm install --frozen-lockfile
+      # 生成物被 Git 忽略，全新检出要先编译一次，agents-check 才有东西可比。
+      - name: Compile agent outputs
+        run: uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+      # 主机与别的任务共用：包间并行度过高时，本来一两秒的用例会被挤过时限。
+      - name: make check
+        run: nice -n 10 make check
+        env:
+          npm_config_workspace_concurrency: ${{ vars.OMNE_CHECK_CONCURRENCY || '2' }}
+      # 度量只报告：它失败不改变检查结论，也不因检查失败而跳过。
+      - name: Structure metrics
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          EVENT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          home="${OMNE_METRICS_HOME:-$HOME/omne-metrics}"
+          short="$(git rev-parse --short=9 HEAD)"
+          out="$home/${PR_NUMBER:+pr-$PR_NUMBER/}$short"
+          base=""
+          if [[ -n "$EVENT_BASE" ]] && git cat-file -e "$EVENT_BASE^{commit}" 2>/dev/null; then
+            base="$EVENT_BASE"
+          fi
+          make --no-print-directory metrics BASE="$base" OUT="$out" | tee "$RUNNER_TEMP/metrics-summary.txt"
+          {
+            echo '### 结构度量'
+            echo
+            echo '```text'
+            cat "$RUNNER_TEMP/metrics-summary.txt"
+            echo '```'
+            echo
+            echo "产物在 runner 主机：\`$out\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  coverage:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.coverage)
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      # 一部分成员的测试经包名导入自己，执行的是 dist；先构建，覆盖率才映射得回 src。
+      - run: nice -n 10 pnpm run build
+        env:
+          npm_config_workspace_concurrency: ${{ vars.OMNE_CHECK_CONCURRENCY || '2' }}
+      - name: Structure metrics with coverage
+        run: |
+          home="${OMNE_METRICS_HOME:-$HOME/omne-metrics}"
+          out="$home/nightly/$(date -u +%F)-$(git rev-parse --short=9 HEAD)"
+          nice -n 10 make --no-print-directory metrics COVERAGE=1 OUT="$out" | tee "$RUNNER_TEMP/metrics-summary.txt"
+          {
+            echo '### 结构度量（全量覆盖率）'
+            echo
+            echo '```text'
+            cat "$RUNNER_TEMP/metrics-summary.txt"
+            echo '```'
+            echo
+            echo "产物在 runner 主机：\`$out\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -66,6 +66,13 @@ git -C "$WT/<campaign>-<spoke>" status --short       # nothing stranded unstaged
 git -C /path/to/main-checkout log --oneline -3     # main did NOT move
 ```
 
+When the execution repository declares a structure-metrics entrypoint, the dispatcher
+also runs it against the reported commit, or confirms that the worker's metrics output
+names that exact commit and a clean working tree. Output produced from a dirty tree is
+not evidence for any commit; regenerate it rather than accept it. Before asking the
+accepter to accept the work, give them the metrics summary and the absolute path of the
+review page.
+
 These checks do not show unique ignored assets or prove that consumers have finished.
 Before any removal, apply SKILL.md's **Retirement Before Removal**: inspect the task's
 ignored assets, preserve needed unique evidence outside the tree and verify it is

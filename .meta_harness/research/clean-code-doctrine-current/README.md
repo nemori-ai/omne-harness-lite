@@ -36,6 +36,7 @@
 | 他本人的原帖、仓库、实验、视频逐条是什么 | [作者一手来源笔记](notes/author-primary.md) |
 | 独立批评与实证逐条是什么 | [独立来源笔记](notes/critics.md) |
 | 首轮完整论证与三路子代理报告原貌（模型输出，不是证据） | [首轮报告](reports/2026-09-30-first-round/report.md) |
+| 他的度量与审讯工具具体怎么算、怎么画，提交历史里改过哪些主意（模型输出，三份源码主会话已复核） | [工具算法报告](reports/2026-10-01-tooling-algorithms/report.md) |
 | 原样字节与校验 | [sources/](sources/)（`provenance.json`、`SHA256SUMS`） |
 
 只读研究正文就知道当前该信什么；要追某条引文是原帖还是转述，才展开证据记录与笔记。
