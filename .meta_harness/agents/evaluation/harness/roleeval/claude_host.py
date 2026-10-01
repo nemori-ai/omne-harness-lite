@@ -39,6 +39,7 @@ class Episode:
     exit_code: int | None = None
     prompt: str = ""
     efforts_observed: list[str] = field(default_factory=list)
+    cwd: str | None = None             # the session's working directory, as the first event of the transcript gives it
 
     def failure(self, requested_model: str) -> tuple[str, str] | None:
         """(failure class, detail) when this run produced nothing that may be scored."""
@@ -62,6 +63,10 @@ class Episode:
         got = [f"a tool result mentions {needle}" for needle in needles
                if any(needle in text for text in self.tool_outputs)]
         return asked + got
+
+    def asked(self, needles: list[str]) -> list[str]:
+        """Which of ``needles`` the run's tool calls asked for; what came back is not looked at."""
+        return [f"{name} asked for {needle}" for name, args in self.tool_inputs for needle in needles if needle in args]
 
     def truncated(self) -> bool:
         return self.stop_reason == "max_tokens"
@@ -110,6 +115,8 @@ def parse(trajectory: Path, *, brief: str) -> Episode:
         except ValueError:
             continue
         kind, message = event.get("type"), event.get("message") or {}
+        if episode.cwd is None and event.get("cwd"):
+            episode.cwd = str(event["cwd"])
         if event.get("timestamp"):
             stamps.append(event["timestamp"])
         if kind == "assistant":

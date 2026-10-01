@@ -1,0 +1,201 @@
+{
+  "format": 1,
+  "id": "qa-acceptance",
+  "version": 1,
+  "family": "acceptance",
+  "role": "qa",
+  "reps": 2,
+  "host": {
+    "claude-code": {
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "allowed": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Edit",
+        "Write",
+        "Bash"
+      ]
+    }
+  },
+  "workspace": {
+    "kind": "checkout",
+    "base": "003561900adb27de6ebe776fa1cf1b228304c873",
+    "excludes": [
+      ".meta_harness/agents/evaluation",
+      ".meta_harness/design/record/evidence",
+      ".meta_harness/design_legacy",
+      ".gitmodules"
+    ],
+    "setup": [
+      [
+        "pnpm",
+        "install",
+        "--frozen-lockfile",
+        "--ignore-scripts",
+        "--prefer-offline"
+      ],
+      [
+        "pnpm",
+        "run",
+        "build"
+      ]
+    ],
+    "linked": [
+      "node_modules"
+    ],
+    "drop": [
+      ".claude",
+      ".agents",
+      ".codex"
+    ],
+    "commit": "single",
+    "rebuild": [
+      "pnpm",
+      "--filter",
+      "@omne-harness-lite/cli",
+      "run",
+      "build"
+    ]
+  },
+  "criteria": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9",
+    "C10"
+  ],
+  "oracle": {
+    "member": "apps/cli",
+    "tests_dir": "tests",
+    "report_glob": "tmp/qa/**/report.json",
+    "artefact": "apps/cli/dist",
+    "ground_truth": "ground-truth.sh"
+  },
+  "metrics": [
+    {
+      "id": "success",
+      "kind": "binary",
+      "label": "判决与逐条对"
+    },
+    {
+      "id": "criterion_ok",
+      "kind": "binary",
+      "label": "单条标准判对"
+    },
+    {
+      "id": "write_scope",
+      "kind": "binary",
+      "label": "守写入范围"
+    },
+    {
+      "id": "dist_intact",
+      "kind": "binary",
+      "label": "制品未动"
+    },
+    {
+      "id": "report_found",
+      "kind": "binary",
+      "label": "交了报告"
+    },
+    {
+      "id": "only_allowed",
+      "kind": "binary",
+      "label": "只用放行工具"
+    }
+  ],
+  "signoffs": {},
+  "materials": [
+    {
+      "id": "QA-1",
+      "target": "治理 CLI 的一份构建，不种缺陷（对照）",
+      "brief": "briefs/QA.md",
+      "tags": [
+        "对照"
+      ],
+      "defects": [],
+      "expected": {
+        "verdict_not": [
+          "Fail"
+        ],
+        "failing_criteria": []
+      },
+      "allowed_write": [
+        "apps/cli/acceptance/",
+        "tmp/qa/"
+      ]
+    },
+    {
+      "id": "QA-2",
+      "target": "治理 CLI 的一份构建，种入两处缺陷（输入文件的重复成员被接受；machine --version 被当成版本查询应答）",
+      "brief": "briefs/QA.md",
+      "tags": [
+        "种入的"
+      ],
+      "defects": [
+        {
+          "id": "d1-duplicate-member-accepted",
+          "file": "apps/cli/src/input.ts",
+          "find": "        if (keys.has(key)) return fail()\n",
+          "replace": ""
+        },
+        {
+          "id": "d2-machine-version-answered",
+          "file": "apps/cli/src/parser.ts",
+          "find": "if (args.length === 1 && args[0] === '--version') return { kind: 'version', machine: false }",
+          "replace": "if (args.length <= 2 && args.at(-1) === '--version') return { kind: 'version', machine: false }"
+        }
+      ],
+      "expected": {
+        "verdict": [
+          "Fail"
+        ],
+        "failing_criteria": [
+          "C4",
+          "C5"
+        ],
+        "either": [
+          "C8"
+        ]
+      },
+      "allowed_write": [
+        "apps/cli/acceptance/",
+        "tmp/qa/"
+      ]
+    },
+    {
+      "id": "QA-3",
+      "target": "治理 CLI 的一份构建，种入一处缺陷（载荷文件的 BOM 被接受）",
+      "brief": "briefs/QA.md",
+      "tags": [
+        "种入的"
+      ],
+      "defects": [
+        {
+          "id": "d3-bom-accepted",
+          "file": "apps/cli/src/input.ts",
+          "find": "if (!secret && bytes[0] === 0xef",
+          "replace": "if (false && bytes[0] === 0xef"
+        }
+      ],
+      "expected": {
+        "verdict": [
+          "Fail"
+        ],
+        "failing_criteria": [
+          "C6"
+        ]
+      },
+      "allowed_write": [
+        "apps/cli/acceptance/",
+        "tmp/qa/"
+      ]
+    }
+  ]
+}

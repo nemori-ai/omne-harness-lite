@@ -78,7 +78,7 @@ caught 为 false 时：finding 与 quote 填空字符串，reason 说明报告�
 
 
 def prompt(flow: Flow, material: Material, report: str) -> str:
-    lines = [f"## 本次评审的判断种类：{flow.judgment}", "", "## 越出本次判断", "", OUT_OF_KIND[flow.judgment], "",
+    lines = [f"## 本次评审的判断种类：{flow.judgment}", "", "## 越出本次判断", "", out_of_kind(flow.judgment), "",
              "## 应当被报出的问题", ""]
     for seed in material.seeds:
         lines.append(f"- id `{seed.id}`｜位置：{seed.where}｜问题：{seed.truth}")
@@ -87,6 +87,11 @@ def prompt(flow: Flow, material: Material, report: str) -> str:
             lines.append(f"  材料里的这段文字：{op['replace']}")
         elif seed.quote:
             lines.append(f"  材料里的这段文字：{seed.quote}")
+        for edit in seed.edits:
+            # A seed with several edits: what each one left in the material.
+            text = edit.get("replace") if edit["op"] == "replace" else edit.get("text")
+            if text and text.strip():
+                lines.append(f"  材料里的这段文字（{edit['file']}）：{text.strip()}")
     if not material.seeds:
         lines.append("（这份材料没有种入的问题；targets 填空数组，只列发现。）")
     lines += ["", "## 这份材料已知的其他问题（不计入上面的判断，只用于 match）", ""]
@@ -101,6 +106,19 @@ OUT_OF_KIND = {
     "计划": "本次判的是施工计划。逐条审规格文本的完整性与规范性，或重新判断业务与架构选择（能力边界该不该这样画）的发现，属于越出。"
           "把上游未决或输入冲突作为本计划的依赖条件指出来，不算越出。",
 }
+
+# The judgments of the design reviewer are signed off under the rules above, and their judge's name
+# hashes exactly those rules. A judgment of another kind keeps its rule here, so adding it leaves that
+# name as it was; its own judge's name hashes this rule as well.
+OUT_OF_KIND_MORE = {
+    "实现": "本次评审的是一份实现类交付。不指到工具输出、差异或具体反例的品味意见（命名、风格偏好、『可以更优雅』之类）属于越出。"
+          "把写入范围外的改动、被改弱的测试、与交付说明不符之处指出来，不算越出。",
+}
+
+
+def out_of_kind(judgment: str) -> str:
+    """The rule for what lies outside this kind of judgment."""
+    return OUT_OF_KIND[judgment] if judgment in OUT_OF_KIND else OUT_OF_KIND_MORE[judgment]
 
 
 ANSWER_FORMAT = """## 怎样作答
@@ -132,15 +150,19 @@ def pointer(path: Path) -> str:
     return POINTER.format(path=path)
 
 
-def identity(model: str) -> str:
+def identity(model: str, judgment: str | None = None) -> str:
     """Names the judge together with the exact rules it ran under, so a row says how it was graded.
 
     The judge is a subagent, so the only setting the dispatcher controls is the model; the effort
-    it ran at is recorded with each answer but is not part of the name.
+    it ran at is recorded with each answer but is not part of the name. For the design reviewer's
+    judgments (and when no judgment is given) the rules are the ones those flows were signed off
+    under; a judgment kept in ``OUT_OF_KIND_MORE`` adds its own rule to them.
     """
-    rules = hashlib.sha256((SYSTEM + ANSWER_FORMAT + POINTER + json.dumps(SCHEMA, sort_keys=True)
-                            + json.dumps(OUT_OF_KIND, sort_keys=True, ensure_ascii=False)).encode())
-    return f"judge:subagent:{model} rules {rules.hexdigest()[:12]}"
+    text = (SYSTEM + ANSWER_FORMAT + POINTER + json.dumps(SCHEMA, sort_keys=True)
+            + json.dumps(OUT_OF_KIND, sort_keys=True, ensure_ascii=False))
+    if judgment in OUT_OF_KIND_MORE:
+        text += json.dumps({judgment: OUT_OF_KIND_MORE[judgment]}, ensure_ascii=False)
+    return f"judge:subagent:{model} rules {hashlib.sha256(text.encode()).hexdigest()[:12]}"
 
 
 def parse_answer(text: str) -> dict[str, Any]:
@@ -224,10 +246,11 @@ def _unnumbered(text: str) -> str:
     return re.sub(r"(?m)^\s*\d+(?:\t|→)", "", text)
 
 
-def read(episode: Episode, path: Path, *, signed: str | None) -> str:
+def read(episode: Episode, path: Path, *, signed: str | None, judgment: str | None = None) -> str:
     """Check that a transcript is this judge answering the brief at ``path``; return the judge's name.
 
     ``signed`` is the judge the grading sign-off names; an answer from any other judge is refused.
+    ``judgment`` is the flow's kind of judgment, which picks the rules the name hashes.
     """
     if str(path) not in episode.prompt:
         raise NotThisJudge(f"the transcript is not a judge pointed at {path}")
@@ -239,7 +262,7 @@ def read(episode: Episode, path: Path, *, signed: str | None) -> str:
         raise NotThisJudge("what the judge read back is not the whole brief as it is on disk")
     if len(episode.models_observed) != 1:
         raise NotThisJudge(f"the judge ran on {episode.models_observed or 'no model'}, not on one model")
-    name = identity(episode.models_observed[0])
+    name = identity(episode.models_observed[0], judgment)
     if signed and signed != name:
         raise NotThisJudge(f"the grading sign-off is for {signed}; this answer is from {name}")
     return name

@@ -1,0 +1,174 @@
+{
+  "format": 1,
+  "id": "developer-implement",
+  "version": 1,
+  "family": "implement",
+  "role": "developer",
+  "reps": 2,
+  "host": {
+    "claude-code": {
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "allowed": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Edit",
+        "Write",
+        "Bash"
+      ]
+    }
+  },
+  "workspace": {
+    "kind": "checkout",
+    "base": "003561900adb27de6ebe776fa1cf1b228304c873",
+    "excludes": [
+      ".meta_harness/agents/evaluation",
+      ".meta_harness/design/record/evidence",
+      ".meta_harness/design_legacy",
+      ".gitmodules"
+    ],
+    "setup": [
+      [
+        "pnpm",
+        "install",
+        "--frozen-lockfile",
+        "--ignore-scripts",
+        "--prefer-offline"
+      ],
+      [
+        "pnpm",
+        "run",
+        "build"
+      ]
+    ],
+    "linked": [
+      "node_modules"
+    ],
+    "drop": [
+      ".claude",
+      ".agents",
+      ".codex"
+    ],
+    "commit": "single"
+  },
+  "brief_frame": "briefs/_implement.md",
+  "oracle": {
+    "member": "apps/cli",
+    "tests_dir": "tests",
+    "test": [
+      "pnpm",
+      "exec",
+      "vitest",
+      "run",
+      "--reporter=json",
+      "--outputFile={OUT}"
+    ],
+    "typecheck": [
+      "pnpm",
+      "run",
+      "typecheck"
+    ],
+    "format": [
+      "pnpm",
+      "exec",
+      "prettier",
+      "--check"
+    ],
+    "target_tests": "target-tests.json",
+    "timeout_s": {
+      "test": 600,
+      "typecheck": 900,
+      "format": 900
+    }
+  },
+  "metrics": [
+    {
+      "id": "success",
+      "kind": "binary",
+      "label": "成功"
+    },
+    {
+      "id": "target_pass",
+      "kind": "float",
+      "label": "目标测试通过率",
+      "scale": 1
+    },
+    {
+      "id": "write_scope",
+      "kind": "binary",
+      "label": "守写入范围"
+    },
+    {
+      "id": "tests_intact",
+      "kind": "binary",
+      "label": "原有测试未动"
+    },
+    {
+      "id": "only_allowed",
+      "kind": "binary",
+      "label": "只用放行工具"
+    }
+  ],
+  "signoffs": {},
+  "materials": [
+    {
+      "id": "AD-1",
+      "target": "apps/cli/src/input.ts：单次治理命令的输入取得（四个公开函数的实现体）",
+      "brief": "briefs/AD-1.md",
+      "tags": [
+        "应用切片",
+        "单模块"
+      ],
+      "task": {
+        "stub": "stubs/AD-1",
+        "hidden_tests": [
+          "apps/cli/tests/input.spec.ts"
+        ],
+        "allowed_write": [
+          "apps/cli/src/input.ts",
+          "apps/cli/tests/"
+        ]
+      }
+    },
+    {
+      "id": "AD-2",
+      "target": "apps/cli/src/parser.ts：治理命令行的解析",
+      "brief": "briefs/AD-2.md",
+      "tags": [
+        "应用切片",
+        "单模块"
+      ],
+      "task": {
+        "stub": "stubs/AD-2",
+        "hidden_tests": [
+          "apps/cli/tests/input.spec.ts",
+          "apps/cli/tests/application.spec.ts"
+        ],
+        "allowed_write": [
+          "apps/cli/src/parser.ts",
+          "apps/cli/tests/"
+        ]
+      }
+    },
+    {
+      "id": "AD-3",
+      "target": "apps/cli/src/application.ts：治理 CLI 的进程资源与收场",
+      "brief": "briefs/AD-3.md",
+      "tags": [
+        "应用切片",
+        "单模块"
+      ],
+      "task": {
+        "stub": "stubs/AD-3",
+        "hidden_tests": [
+          "apps/cli/tests/application.spec.ts"
+        ],
+        "allowed_write": [
+          "apps/cli/src/application.ts",
+          "apps/cli/tests/"
+        ]
+      }
+    }
+  ]
+}

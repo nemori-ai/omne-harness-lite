@@ -106,9 +106,9 @@ def load(flow: Flow) -> tuple[str, list[Case]]:
     return grader, cases
 
 
-def directory(out: Path, model: str) -> Path:
+def directory(out: Path, model: str, judgment: str | None = None) -> Path:
     """Results of one judge under one set of rules; a changed rule is another judge."""
-    return out / "_calibration" / re.sub(r"[^A-Za-z0-9.@-]+", "-", judge.identity(model))
+    return out / "_calibration" / re.sub(r"[^A-Za-z0-9.@-]+", "-", judge.identity(model, judgment))
 
 
 def recorded(where: Path) -> dict[str, dict[str, Any]]:
@@ -133,8 +133,8 @@ def record(flow: Flow, case: Case, episode: Episode, *, out: Path, transcript: P
     path = out / "_calibration" / "_briefs" / f"{case.id}.md"
     if not path.is_file() or path.read_text(encoding="utf-8") != judge.brief(flow, flow.material(case.material), case.text):
         raise judge.NotThisJudge(f"{path} is not the brief of case {case.id} as the suite now has it; write it again")
-    name = judge.read(episode, path, signed=None)
-    target = directory(out, episode.models_observed[0]) / case.id
+    name = judge.read(episode, path, signed=None, judgment=flow.judgment)
+    target = directory(out, episode.models_observed[0], flow.judgment) / case.id
     if (target / "result.json").exists():
         raise SuiteError(f"calibration case {case.id} already has a result under {target.parent.name}")
     target.mkdir(parents=True, exist_ok=True)
@@ -203,7 +203,7 @@ def render(flow: Flow, grader: str, cases: list[Case], results: dict[str, dict[s
     agree = cells["both_caught"] + cells["both_missed"]
     lines = [
         f"# 判官校准：{flow.id}", "",
-        f"判官：`{judge.identity(model)}`（以 subagent 派发；宿主记录的档位：{'、'.join(outcome['efforts']) or '未记录'}）",
+        f"判官：`{judge.identity(model, flow.judgment)}`（以 subagent 派发；宿主记录的档位：{'、'.join(outcome['efforts']) or '未记录'}）",
         f"人工判定：{grader}", "",
         f"{len(cases)} 份报告，已判 {len(cases) - len(outcome['pending']) - len(outcome['failed'])} 份，"
         f"判官答复没通过核对的 {len(outcome['failed'])} 份，还没判的 {len(outcome['pending'])} 份；"

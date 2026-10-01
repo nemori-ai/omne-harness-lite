@@ -5,11 +5,13 @@ main session dispatches. The commands come in pairs around that dispatch: one wr
 to the subagent, the other takes in the transcript the host kept of it
 (``<session directory>/subagents/agent-<id>.jsonl``).
 
-  verify SUITE                                    build every material's copy, seed it, check the seeds took
+  verify SUITE                                    build every material's copy, seed it, check the seeds took;
+                                                  for a program-judged flow, show the judgment tells known good from bad
   inputs SUITE                                    every case in full, as markdown, for the cases sign-off
   prepare SUITE --variant V --material M          build the copy and the brief for one run of the role
   record SUITE --variant V --material M --transcript T --dispatch MODE
-                                                  take in that run: check the copy, the model, where it reached
+                                                  take in that run: check the copy, the model, where it reached;
+                                                  a program-judged flow is scored here, before the copy goes
   judge-brief SUITE --variant V --material M      write the judge's brief for a recorded run; print the prompt that points at it
   judge-record SUITE --variant V --material M --transcript T
                                                   check the judge's answer against the report; score the run
@@ -37,7 +39,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from . import calibration, claude_host, grading, judge, review, stats, workspace
+from . import acceptance, calibration, checkout, claude_host, grading, implement, judge, review, stats, workspace
 from .store import VariantStore
 from .suite import Flow, Material, SuiteError, load
 
@@ -105,16 +107,37 @@ def build_copy(flow: Flow, material: Material, dest: Path) -> None:
     workspace.commit(dest)
 
 
+def build_checkout(flow: Flow, material: Material, dest: Path, source: Path) -> dict[str, str]:
+    """A checkout copy made into the material by its family; returns the commits and hashes the run refers to."""
+    families = {"implement": implement.prepare, "acceptance": acceptance.prepare}
+    prepare_family = families.get(flow.family)
+    return checkout.build(flow, material, dest, source=source,
+                          before_baseline=(lambda copy: prepare_family(flow, material, copy)) if prepare_family else None)
+
+
+def checkout_brief(flow: Flow, material: Material, dest: Path, rep: int, facts: dict[str, str]) -> str:
+    if flow.family == "implement":
+        return implement.brief(flow, material, workdir=str(dest), rep=rep)
+    if flow.family == "acceptance":
+        return acceptance.brief(flow, material, workdir=str(dest), rep=rep)
+    return review.delivery_brief(material, dest, facts)
+
+
 def guarded_paths(flow: Flow) -> list[str]:
     """What has to be committed for the recorded commit to say what ran."""
     relative = [str(path.relative_to(REPO)) for path in (flow.root, HARNESS, META / "agents" / "roles")]
-    return [*flow.workspace["subject_paths"], *relative]
+    return [*flow.subject_paths(), *relative]
 
 
 # --- verify -------------------------------------------------------------------------------------------------
 
-def verify(flow: Flow, work: Path, only: list[str] | None = None) -> list[str]:
-    """Problems that would make a run meaningless; empty when the suite is runnable."""
+def verify(flow: Flow, work: Path, only: list[str] | None = None, notes: list[str] | None = None) -> list[str]:
+    """Problems that would make a run meaningless; empty when the suite is runnable.
+
+    For a checkout flow, what the checks observed on the real copies is added to ``notes``.
+    """
+    if flow.kind == "checkout":
+        return verify_checkout(flow, work, only, [] if notes is None else notes)
     problems = []
     for material in flow.materials:
         if only and material.id not in only:
@@ -153,6 +176,27 @@ def verify(flow: Flow, work: Path, only: list[str] | None = None) -> list[str]:
     return problems
 
 
+def verify_checkout(flow: Flow, work: Path, only: list[str] | None, notes: list[str]) -> list[str]:
+    """On real copies: the material builds, its seeds land, and a program judgment tells known good from bad."""
+    family = {"implement": implement.verify, "acceptance": acceptance.verify}.get(flow.family, review.verify_delivery)
+    problems = []
+    for material in flow.materials:
+        if only and material.id not in only:
+            continue
+        base = flow.base(material)
+        if not workspace.is_ancestor(REPO, base):
+            problems.append(f"{material.id}: base {base} is not an ancestor of HEAD; pin a commit that stays reachable")
+            continue
+        try:
+            source = checkout.template(flow, material, repo=REPO, work=work)
+        except workspace.WorkspaceError as error:
+            problems.append(f"{material.id}: {error}")
+            continue
+        notes.append(f"{material.id}: template {source}")
+        problems += family(flow, material, source=source, work=work, tag=str(os.getpid()), notes=notes)
+    return problems
+
+
 # --- inputs -------------------------------------------------------------------------------------------------
 
 def fenced(text: str) -> str:
@@ -165,6 +209,10 @@ def fenced(text: str) -> str:
 
 
 def inputs(flow: Flow) -> str:
+    if flow.family == "implement":
+        return inputs_implement(flow)
+    if flow.family == "acceptance":
+        return inputs_acceptance(flow)
     seeds = sum(len(material.seeds) for material in flow.materials)
     host = flow.host["claude-code"]
     lines = [
@@ -184,6 +232,16 @@ def inputs(flow: Flow) -> str:
         lines += ["", "### 简报（逐字）", "", fenced(material.brief.read_text(encoding="utf-8"))]
         if flow.attach_design_review:
             lines += ["", "运行时在简报末尾另附设计评审报告在该副本上的原始输出。"]
+        if material.delivery_note:
+            lines += ["", "运行时 `{BASE}` 换成副本里基线提交的哈希、`{HEAD}` 换成交付提交的哈希，"
+                          "`{DELIVERY_NOTE}` 换成下面这份交付说明的全文。", "",
+                      f"### 交付说明（{material.delivery_note.name}，逐字）", "",
+                      fenced(material.delivery_note.read_text(encoding="utf-8"))]
+        if flow.kind == "checkout":
+            lines += ["", f"副本：提交 `{flow.base(material)}` 的整仓检出，去掉 "
+                          f"{'、'.join(f'`{path}`' for path in flow.workspace['excludes'])}，装好依赖并构建；"
+                          f"先提交基线，再把下面的种入作为一个交付提交（作者 `{flow.workspace['delivery']['author']}`，"
+                          f"标题 `{flow.workspace['delivery']['subject']}`），然后在 `{flow.member()}` 里重新构建。"]
         if material.prepare:
             lines += ["", "### 送审之前对材料做的处理", ""]
             for op in material.prepare:
@@ -202,6 +260,15 @@ def inputs(flow: Flow) -> str:
                           fenced(op["replace"])]
             elif op:
                 lines += ["", f"种入操作：`{json.dumps(op, ensure_ascii=False)}`"]
+            elif seed.edits:
+                for edit in seed.edits:
+                    if edit["op"] == "replace":
+                        lines += ["", f"文件 `{edit['file']}`，原文：", "", fenced(edit["find"]), "", "种入后：", "",
+                                  fenced(edit["replace"])]
+                    else:
+                        lines += ["", f"文件 `{edit['file']}` 末尾追加：", "", fenced(edit["text"])]
+            elif seed.inside:
+                lines += ["", f"种在派发材料 `{seed.inside}` 里（见上面的全文），不改副本里的文件。"]
             else:
                 lines += ["", "材料里本来就有（不是种入的）。"]
                 if seed.quote:
@@ -212,6 +279,66 @@ def inputs(flow: Flow) -> str:
             lines += ["", "### 已知的原有问题（不计抓到率；报出来不算新的阻断）", ""]
             lines += [f"- `{issue['id']}`（{KNOWN_VERDICTS.get(issue.get('verdict'), '未分类')}）{issue['what']}"
                       for issue in material.known_issues]
+    return "\n".join(lines) + "\n"
+
+
+SHOWN = ("WORKDIR", "RUN_ID")      # placeholders a cases page leaves for the run to fill
+
+
+def _checkout_header(flow: Flow, what: str) -> list[str]:
+    host = flow.host["claude-code"]
+    excludes = "、".join(f"`{path}`" for path in flow.workspace["excludes"])
+    setup = "；".join("`" + " ".join(command) + "`" for command in flow.workspace["setup"])
+    return [f"# 用例一览：{flow.id}（第 {flow.version} 版）", "",
+            f"角色 `{flow.role}` {what}；{host['model']}，{host['effort']}；放行的工具 {'、'.join(host['allowed'])}；"
+            f"每份材料跑 {flow.reps} 次。判定由程序在收录运行时做，没有判官。", "",
+            f"副本：钉住的提交的整仓检出，去掉 {excludes}，依次跑 {setup}。"
+            f"简报里 `{{WORKDIR}}` 换成副本路径，`{{RUN_ID}}` 换成「材料 id 小写-r次数」。"]
+
+
+def inputs_implement(flow: Flow) -> str:
+    lines = _checkout_header(flow, "在一份装好依赖的检出里补完一个模块")
+    lines += ["", "| 材料 | 取自提交 | 桩文件 | 隐藏测试 | 写入范围 | 目标测试 |", "|---|---|---|---|---|---|"]
+    for material in flow.materials:
+        task = material.task or {}
+        lines.append(f"| `{material.id}` | `{flow.base(material)[:9]}` | {len(implement.stub_files(flow, material))} | "
+                     f"{len(task['hidden_tests'])} | {len(task['allowed_write'])} 项 | {len(task['target_tests'])} 条 |")
+    for material in flow.materials:
+        task = material.task or {}
+        lines += ["", f"## `{material.id}`", "", f"任务：{material.target}", "",
+                  "### 简报（任务简报填进框架之后的样子，逐字）", "",
+                  fenced(implement.brief(flow, material, workdir="{WORKDIR}", rep=0, keep=SHOWN)), "",
+                  "### 送审之前对副本做的处理", "",
+                  f"- 删掉成员的构建产物 `{flow.oracle['member']}/dist/`",
+                  *[f"- 删掉隐藏测试 `{path}`" for path in task["hidden_tests"]],
+                  *[f"- 用桩 `{task['stub']}/{path}` 盖掉 `{path}`" for path in implement.stub_files(flow, material)],
+                  "", "### 写入范围", "", *[f"- `{entry}`" for entry in task["allowed_write"]],
+                  "", f"### 目标测试（桩在位时失败的 {len(task['target_tests'])} 条）", "",
+                  *[f"- {name}" for name in task["target_tests"]]]
+    return "\n".join(lines) + "\n"
+
+
+def inputs_acceptance(flow: Flow) -> str:
+    lines = _checkout_header(flow, "按给定的验收标准验一份构建好的交付")
+    lines += ["", f"标准：{'、'.join(flow.criteria)}。真值脚本 `{flow.oracle['ground_truth']}`。", "",
+              "| 材料 | 取自提交 | 缺陷 | 期望判决 | 应 fail 的标准 | 判 pass 或 fail 都算对 |", "|---|---|---|---|---|---|"]
+    for material in flow.materials:
+        expected = material.expected or {}
+        verdict = (" 或 ".join(expected["verdict"]) if "verdict" in expected
+                   else "不是 " + " 或 ".join(expected["verdict_not"]))
+        lines.append(f"| `{material.id}` | `{flow.base(material)[:9]}` | {len(material.defects)} | {verdict} | "
+                     f"{'、'.join(expected['failing_criteria']) or '无'} | {'、'.join(expected.get('either', ())) or '—'} |")
+    for material in flow.materials:
+        lines += ["", f"## `{material.id}`", "", f"材料：{material.target}", "", "### 简报（逐字）", "",
+                  fenced(acceptance.brief(flow, material, workdir="{WORKDIR}", rep=0, keep=SHOWN)), "",
+                  "### 送审之前对副本做的处理", "", f"- 删掉成员的测试 `{flow.oracle['member']}/{flow.oracle['tests_dir']}/`"]
+        for defect in material.defects:
+            lines += ["", f"#### 缺陷 `{defect['id']}`", "", f"文件 `{defect['file']}`，原文：", "", fenced(defect["find"]),
+                      "", "改后：", "", fenced(defect["replace"])]
+        if not material.defects:
+            lines += ["- 不种缺陷（对照材料）"]
+        lines += ["", f"- 然后在 `{flow.member()}` 里重新构建：`{' '.join(flow.workspace['rebuild'])}`",
+                  "", "### 写入范围", "", *[f"- `{entry}`" for entry in material.allowed_write]]
     return "\n".join(lines) + "\n"
 
 
@@ -266,10 +393,18 @@ def prepare(flow: Flow, material: Material, rep: int, *, variant: str, out: Path
     attempt = work / f"{flow.id}-{variant}-{material.id}-rep{rep}"
     shutil.rmtree(attempt, ignore_errors=True)
     dest = attempt / "workspace"
+    copy: dict[str, Any] = {}
     try:
-        build_copy(flow, material, dest)
-        brief_text = review.brief(flow, material, dest, repo=REPO)
-    except (workspace.WorkspaceError, RuntimeError, OSError) as error:
+        if flow.kind == "checkout":
+            source = checkout.template(flow, material, repo=REPO, work=work)
+            facts = build_checkout(flow, material, dest, source)
+            brief_text = checkout_brief(flow, material, dest, rep, facts)
+            copy = {"template": str(source), "facts": facts}
+        else:
+            build_copy(flow, material, dest)
+            brief_text = review.brief(flow, material, dest, repo=REPO)
+            copy = {"tree_hash": workspace.tree_hash(dest)}
+    except (workspace.WorkspaceError, checkout.BriefError, RuntimeError, OSError) as error:
         shutil.rmtree(attempt, ignore_errors=True)
         raise Refused(f"could not prepare {material.id}: {error}") from error
     host = flow.host["claude-code"]
@@ -281,12 +416,18 @@ def prepare(flow: Flow, material: Material, rep: int, *, variant: str, out: Path
     (evidence / "dispatch.inline.md").write_text(
         INLINE.format(tools="、".join(host["allowed"]), role=role, brief=brief_text), encoding="utf-8")
     pending.write_text(json.dumps({
-        "workspace": str(dest), "role": str(role), "tree_hash": workspace.tree_hash(dest),
+        "workspace": str(dest), "role": str(role), **copy,
         "harness_commit": workspace.head(REPO), "dirty": bool(changes), "agent_sha": sha256(agents),
         "prepared_at": int(time.time()),
     }, ensure_ascii=False, indent=1), encoding="utf-8")
     alias = ALIASES.get(host["model"], host["model"])
+    precondition = [] if flow.kind != "checkout" else [
+        f"PRECONDITION: dispatch from a session whose working directory is outside every checkout of this repository "
+        f"(not under {main_checkout(REPO)}). The role has a shell and the answers are in the repository; a run whose "
+        f"session started inside it, or whose tool calls name it or {checkout.TEMPLATE_NEEDLE}, is recorded as "
+        f"contaminated and not scored."]
     return "\n".join([
+        *precondition,
         f"{material.id} rep {rep}: prepared. Dispatch ONE subagent, then record its transcript.",
         f"  registered: subagent type `{flow.role}` (model {alias}); the prompt is the text of {evidence / 'brief.md'}",
         f"  inline:     a general-purpose subagent (model {alias}); the prompt is the text of "
@@ -302,9 +443,8 @@ def outside_copy(episode: claude_host.Episode, dest: Path, role: str | None) -> 
 
 
 def episode_record(flow: Flow, material: Material, rep: int, variant: str, episode: claude_host.Episode, *,
-                   unchanged: bool, provenance: dict[str, Any]) -> dict[str, Any]:
+                   observed: dict[str, tuple[float, str]], provenance: dict[str, Any]) -> dict[str, Any]:
     host = flow.host["claude-code"]
-    observed = review.observe(flow, episode, unchanged=unchanged, allowed=host["allowed"])
     return {
         "flow": flow.id, "material": material.id, "rep": rep, "variant": variant, "role": flow.role,
         "requested_model": host["model"], "effort": host["effort"], "model": episode.model,
@@ -344,9 +484,22 @@ def record(flow: Flow, material: Material, rep: int, *, variant: str, out: Path,
                           f"dispatching - record '{dispatch}' runs in another variant")
     host = flow.host["claude-code"]
     dest = Path(prepared["workspace"])
-    unchanged = dest.is_dir() and workspace.tree_hash(dest) == prepared["tree_hash"]
     reached = episode.touched(list(OFF_LIMITS))
+    if flow.kind == "checkout":
+        main = main_checkout(REPO)
+        reached += episode.asked(checkout.forbidden(main))
+        inside = checkout.dispatched_inside(episode.cwd, main)
+        if inside:
+            reached.append(inside)
     failure = episode.failure(host["model"]) or (("contaminated", "; ".join(reached)) if reached else None)
+    observed: dict[str, tuple[float, str]] = {}
+    oracle: dict[str, Any] | None = None
+    if not failure:
+        # A program-judged flow is judged here, on the copy, before the copy is removed.
+        try:
+            observed, oracle = observe_run(flow, material, episode, dest, prepared, evidence)
+        except (workspace.WorkspaceError, subprocess.CalledProcessError, OSError) as error:
+            failure = ("grader", f"the program could not judge the copy: {error}")
     shutil.copyfile(transcript, evidence / "trajectory.jsonl")
     pending.unlink()
     if not keep:
@@ -359,20 +512,48 @@ def record(flow: Flow, material: Material, rep: int, *, variant: str, out: Path,
                                                 usage=episode.usage or None, cost_usd=None, evidence=str(parked))
         return f"{material.id} rep {rep}: {failure[0]} - {failure[1]}"
     (evidence / "final.md").write_text(episode.final, encoding="utf-8")
-    result = episode_record(flow, material, rep, variant, episode, unchanged=unchanged, provenance={
+    result = episode_record(flow, material, rep, variant, episode, observed=observed, provenance={
         "harness_commit": prepared["harness_commit"], "dirty": prepared["dirty"], "agent_sha": prepared["agent_sha"],
         "brief_sha": sha256(evidence / "brief.md"), "trajectory_sha": sha256(evidence / "trajectory.jsonl"),
-        "dispatch": dispatch, "tokens_reported": tokens,
+        "dispatch": dispatch, "tokens_reported": tokens, "session_cwd": episode.cwd,
         "outside_copy": outside_copy(episode, dest, prepared["role"])})
+    if oracle is not None:
+        result["oracle"] = oracle
     (evidence / "episode.json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
-    return (f"{material.id} rep {rep}: recorded, {episode.wall_seconds or 0:.0f}s, {episode.tool_calls} tool calls, "
+    said = (f"{material.id} rep {rep}: recorded, {episode.wall_seconds or 0:.0f}s, {episode.tool_calls} tool calls, "
             f"model {episode.model}, effort {episode.efforts_observed or 'not recorded'}")
+    if not flow.judged:
+        result["provenance"]["evidence"] = str(evidence.relative_to(out))
+        family = implement if flow.family == "implement" else acceptance
+        rows = family.rows(flow, material, rep, result, brief_text=brief_text)
+        VariantStore(out, variant).record_episode(rows, episode.turns)
+        said += f"; scored by the program: success {result['observations']['success'][0]}"
+    return said
+
+
+def observe_run(flow: Flow, material: Material, episode: claude_host.Episode, dest: Path, prepared: dict[str, Any],
+                evidence: Path) -> tuple[dict[str, tuple[float, str]], dict[str, Any] | None]:
+    """Run-level facts read off the copy, and for a program-judged flow the judgment itself."""
+    allowed = flow.host["claude-code"]["allowed"]
+    if flow.family == "implement":
+        result = implement.judge(flow, material, dest, source=Path(prepared["template"]), evidence=evidence / "oracle")
+        return implement.scored(result, episode, allowed), result
+    if flow.family == "acceptance":
+        result = acceptance.judge(flow, material, dest, evidence=evidence / "oracle",
+                                  artefact=prepared["facts"]["artefact"])
+        return acceptance.scored(result, episode, allowed), result
+    if flow.kind == "checkout":
+        return review.observe_delivery(episode, dest, prepared["facts"]["head"], allowed=allowed), None
+    unchanged = dest.is_dir() and workspace.tree_hash(dest) == prepared["tree_hash"]
+    return review.observe(flow, episode, unchanged=unchanged, allowed=allowed), None
 
 
 # --- import -------------------------------------------------------------------------------------------------
 
 def import_run(flow: Flow, *, variant: str, out: Path, material: Material, rep: int, source: Path) -> None:
     """Take over a run an earlier experiment recorded. Nothing is run; the old record says what it was."""
+    if not flow.judged or flow.kind != "material":
+        raise Refused(f"{flow.id}: only runs of a review on material copies can be taken over")
     evidence = episode_dir(out, variant, material.id, rep)
     if (evidence / "episode.json").exists():
         raise Refused(f"{evidence} is already recorded")
@@ -387,7 +568,9 @@ def import_run(flow: Flow, *, variant: str, out: Path, material: Material, rep: 
     if failure:
         raise Refused(f"{source} is not a scorable run: {failure}")
     (evidence / "final.md").write_text(episode.final, encoding="utf-8")
-    result = episode_record(flow, material, rep, variant, episode, unchanged=old["workspace_unchanged"], provenance={
+    observed = review.observe(flow, episode, unchanged=old["workspace_unchanged"],
+                              allowed=flow.host["claude-code"]["allowed"])
+    result = episode_record(flow, material, rep, variant, episode, observed=observed, provenance={
         "harness_commit": "imported", "dirty": False, "imported_from": str(source), "dispatch": "headless",
         "agent_sha": old["agents_definition_sha256"], "brief_sha": sha256(evidence / "brief.md"),
         "trajectory_sha": sha256(evidence / "trajectory.jsonl")})
@@ -411,8 +594,16 @@ def _score(flow: Flow, material: Material, rep: int, *, variant: str, out: Path,
     VariantStore(out, variant).record_episode(rows, turns)
 
 
+def judged_only(flow: Flow) -> None:
+    """A flow scored by a program has nothing for a judge or a person's labels to do."""
+    if not flow.judged:
+        raise Refused(f"{flow.id} is a {flow.family} flow: a program judges each run when 'record' takes it in, "
+                      f"before its copy is removed; there is no judge to brief and nothing to grade by hand")
+
+
 def grade(flow: Flow, *, variant: str, out: Path, labels: Path) -> int:
     """Score every recorded run that has no rows yet, from verdicts a person wrote down."""
+    judged_only(flow)
     store = VariantStore(out, variant)
     done = store.done()
     graded = 0
@@ -435,6 +626,7 @@ def grade(flow: Flow, *, variant: str, out: Path, labels: Path) -> int:
 
 def judge_brief(flow: Flow, material: Material, rep: int, *, variant: str, out: Path) -> str:
     """Write what a main session hands to the judge for one recorded run."""
+    judged_only(flow)
     if "grading" in flow.unsigned():
         raise Refused(f"{flow.id} v{flow.version} has no sign-off on the grading method; the model judge waits for it")
     evidence = episode_dir(out, variant, material.id, rep)
@@ -449,6 +641,7 @@ def judge_brief(flow: Flow, material: Material, rep: int, *, variant: str, out: 
 
 def judge_record(flow: Flow, material: Material, rep: int, *, variant: str, out: Path, transcript: Path) -> int:
     """Check a judge answer against the report and score the run; 3 means dispatch the judge again."""
+    judged_only(flow)
     if "grading" in flow.unsigned():
         raise Refused(f"{flow.id} v{flow.version} has no sign-off on the grading method; the model judge waits for it")
     store = VariantStore(out, variant)
@@ -462,7 +655,7 @@ def judge_record(flow: Flow, material: Material, rep: int, *, variant: str, out:
                       f"run 'judge-brief' first")
     answer = claude_host.parse(transcript, brief=judge.pointer(path))
     try:
-        name = judge.read(answer, path, signed=flow.signoffs["grading"].get("judge"))
+        name = judge.read(answer, path, signed=flow.signoffs["grading"].get("judge"), judgment=flow.judgment)
     except judge.NotThisJudge as error:
         raise Refused(str(error)) from error
     log = evidence / "judge.attempts.json"
@@ -491,6 +684,7 @@ def judge_record(flow: Flow, material: Material, rep: int, *, variant: str, out:
 # --- calibrate ----------------------------------------------------------------------------------------------
 
 def calibration_case(flow: Flow, case_id: str) -> tuple[str, calibration.Case]:
+    judged_only(flow)
     grader, cases = calibration.load(flow)
     for case in cases:
         if case.id == case_id:
@@ -500,7 +694,8 @@ def calibration_case(flow: Flow, case_id: str) -> tuple[str, calibration.Case]:
 
 def calibrate_brief(flow: Flow, case_id: str | None, out: Path) -> str:
     """Write the judge briefs of one case, or of all, and say what to dispatch for each."""
-    cases = [calibration_case(flow, case_id)[1]] if case_id else calibration.load(flow)[1]
+    judged_only(flow)
+    cases =[calibration_case(flow, case_id)[1]] if case_id else calibration.load(flow)[1]
     lines = ["Dispatch ONE subagent per case; its whole prompt is the line after the case id. Then record its transcript."]
     for case in cases:
         lines += [f"{case.id}:", judge.pointer(calibration.write_brief(flow, case, out))]
@@ -523,8 +718,9 @@ def calibrate_record(flow: Flow, case_id: str, out: Path, transcript: Path) -> i
 
 def calibrate(flow: Flow, *, out: Path, model: str) -> int:
     """Print how the stored answers of one judge compare with the person's verdicts."""
+    judged_only(flow)
     grader, cases = calibration.load(flow)
-    where = calibration.directory(out, model)
+    where = calibration.directory(out, model, flow.judgment)
     text = calibration.render(flow, grader, cases, calibration.recorded(where), model=model)
     where.mkdir(parents=True, exist_ok=True)
     (where / "calibration.md").write_text(text, encoding="utf-8")
@@ -646,8 +842,10 @@ def main(argv: list[str] | None = None) -> int:
         if getattr(args, "transcript", None) and not args.transcript.is_file():
             raise Refused(f"no transcript at {args.transcript}")
         if args.command == "verify":
-            problems = verify(flow, work_root(args.work))
-            print("\n".join(problems) if problems else f"{flow.id}: {len(flow.materials)} materials verify")
+            notes: list[str] = []
+            problems = verify(flow, work_root(args.work), notes=notes)
+            print("\n".join([*notes, *problems] if problems else
+                            [*notes, f"{flow.id}: {len(flow.materials)} materials verify"]))
             return 1 if problems else 0
         if args.command == "inputs":
             text = inputs(flow)

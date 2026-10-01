@@ -1312,7 +1312,9 @@ def test_the_calibrate_commands_write_briefs_take_answers_and_print_the_comparis
 
 # --- 入库的常设用例集 ---------------------------------------------------------------------------------------
 
-STANDING = sorted(path.parent for path in (EVALUATION / "suites").glob("*/flow.json"))
+# 整仓检出一类的用例集另有一条测试（test_role_evals_checkout.py），这里只收待审材料一类。
+STANDING = sorted(path.parent for path in (EVALUATION / "suites").glob("*/flow.json")
+                  if json.loads(path.read_text(encoding="utf-8"))["workspace"].get("kind", "material") == "material")
 
 
 @pytest.mark.parametrize("root", STANDING, ids=lambda path: path.name)
