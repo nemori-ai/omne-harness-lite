@@ -11,6 +11,12 @@ export interface Lines {
 
 export type Band = 'normal' | 'warn' | 'act'
 
+export const BAND_WORDS: Readonly<Record<Band, string>> = {
+  normal: '正常',
+  warn: '提醒',
+  act: '处置',
+}
+
 /** 与基线比：好了、一样、差了；`unjudged` 是该比却没有基线上的值，不当作没变差。 */
 export type Comparison = 'better' | 'same' | 'worse' | 'unjudged'
 
