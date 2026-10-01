@@ -111,7 +111,7 @@ git commit -m "chore(docs): update blog submodule"
 | 设计链检查、agent 编译与根链接工具 | [.meta_harness/tooling/](../.meta_harness/tooling/README.md) |
 | 本地与 CI 共用的自动化调用 | [scripts/](../scripts/README.md)；复杂检查行为回到工具包 |
 | Skill、subagent 或宿主适配 | [.meta_harness/agents/](../.meta_harness/agents/README.md) 的**源**，不改生成物 |
-| 环境、布局、检查含义、编码防御 | 本目录[四份正文](README.md) |
+| 环境、布局、检查含义、编码防御 | 本目录各份正文，见[阅读地图](README.md) |
 | **产品设计、架构与规格、research** | **[.meta_harness/](../.meta_harness/AGENTS.md)，不是这里** |
 
 各目录局部 `AGENTS.md` 补充其工作边界；完整布局归[源码布局](workspace.md)。
