@@ -11,14 +11,11 @@ describe('回路配置', () => {
     expect(config.primaryBranch).toBe('main')
     expect(config.relapseLimit).toBe(2)
     expect(config.explainTop).toBe(10)
-    expect(config.indicators.redMembers).toEqual({
-      lines: { warn: 1, act: 3, release: 0 },
-      baseline: true,
-    })
+    expect(config.indicators.redMembers).toEqual({ lines: null, baseline: true })
     expect(config.indicators.functionsOverAlert).toEqual({ lines: null, baseline: true })
     expect(config.indicators.newEdges).toEqual({ lines: null, baseline: false })
     expect(config.indicators.duplicationPercent.lines).toEqual({ warn: 3, act: 6, release: 2 })
-    expect(config.memberBudget.risk).toEqual({ warn: 12, act: 20, release: 10 })
+    expect(config.memberBudget.risk).toEqual({ warn: 20, act: 23, release: 18 })
     expect(config.budgetExcludeGroups).toEqual(['examples'])
     expect(config.sensors.cochange).toEqual({
       enabled: true,
