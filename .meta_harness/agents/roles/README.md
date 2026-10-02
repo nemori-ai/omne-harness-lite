@@ -7,8 +7,8 @@
 
 | 角色 | 当前职责 | 正文 |
 |---|---|---|
-| product-design-drafter | 把一个产品需求做成完整、可被评审的产品设计；配备联网**产品调研**能力，学同类产品的边界与取舍，不做技术调研；固定 xhigh | [产品设计起草](product-design-drafter/role.md) |
-| product-design-reviewer | 评审起草交付的文档本身：逻辑、完整性、明显漏洞，叠加一层可实施性；**不评判品味与方向**；只读，固定 xhigh | [产品设计评审](product-design-reviewer/role.md) |
+| product-design-drafter | 把一个产品需求做成完整、可被评审的产品设计；配备联网**产品调研**能力，学同类产品的边界与取舍，不做技术调研；把验收场景切成故事卡并交第一张卡的演示脚本；固定 xhigh | [产品设计起草](product-design-drafter/role.md) |
+| product-design-reviewer | 评审起草交付的文档本身：逻辑、完整性、明显漏洞，叠加一层可实施性；带故事卡的稿子另核卡与场景对不对得上，不评卡切得好不好；**不评判品味与方向**；只读，固定 xhigh | [产品设计评审](product-design-reviewer/role.md) |
 | spec-drafter | 按施工简报写一份候选契约包（九件事、Schema、examples、verification、触发的形式工件）并登记 registry；或对整批草稿做独立评审前的对齐；不选政策、不写机制；默认 xhigh，可调 | [规格起草](spec-drafter/role.md) |
 | realization-drafter | 按节点划分写一个 provider／assembly 节点四件套；跨 owner「同一提交」必须点名共同存储对象，绑定只绑会失败的证据，正文不指认任务区；不改契约；默认 xhigh，可调 | [实现映射起草](realization-drafter/role.md) |
 | design-reviewer | 设计材料的独立只读评审，**一次派发只做一种判断**：选择（读数、能力边界、契约批次的语义整体、realization 节点）、表达（规格文本）或计划（施工计划）；只读本次那一页判据，不混报、不修复、不接受；固定 xhigh | [设计评审](design-reviewer/role.md) |
