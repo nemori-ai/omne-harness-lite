@@ -141,9 +141,13 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 它**不核对**来源 trailer 有没有写、写得对不对——哪些提交有 agent 参与，工具看不出来。
 浅克隆时只查克隆下来的那些提交；不在 git 检出里运行时通过提示会写明「未检查」。自测：`tests/commit-attribution.spec.ts`。
 
+同一入口还跑 `card-trailer`：删卡的两条 trailer（`Accepted-Card:`、`Voided-Card:`，键不分大小写）的值必须恰好是一个合乎写法的卡号
+`ST-<三位>-<两位>`——一张卡一条，不许一条里写几张。trailer 按 git 自己的认法读（`%(trailers:only,unfold)`，只认信息末段的 trailer 块），
+正文里写着同样字样的行不算。它只看写法；点到的卡是不是真在那个提交里删掉，归[删卡记录](#删卡记录)。
+
 ## 验收锁
 
-故事卡的可执行验收放在成员的 `acceptance/` 目录，归负责的人、主会话与独立验收角色；实施的 agent 只运行、不修改
+可执行验收放在成员的 `acceptance/` 目录，归负责的人、主会话与独立验收角色；实施的 agent 只运行、不修改
 （约定见[源码布局](../../docs/workspace.md#目录与内容归属)）。`src/acceptance/` 核对这一条有没有被破：
 
 ```sh
@@ -167,6 +171,72 @@ make acceptance-lock BASE=<任务基线提交或分支>
 它**不能声称**的：角色取自提交信息里的来源 trailer，那是提交的人自己写的——一个把 `Agent-Role` 写成 `main` 的实施提交它认不出来，
 所以碰过验收的提交一律列出，由接受的人过目。先改后改回的提交照样列出、照样判破，哪怕净变化为零。
 它不看验收的内容对不对、有没有被运行、过没过；文件名是否带卡号也不查。自测：`tests/acceptance-lock.spec.ts`。
+
+## 验收的覆盖声明
+
+`src/acceptance/coverage.ts` 随 `pnpm run lint:rules` 执行（`make check` 的 `product-check` 一步里），有违反即退出 1。
+规矩正文在[源码布局「可执行验收」](../../docs/workspace.md#目录与内容归属)：一条场景交付了没有，就看有没有验收声明覆盖它，
+所以声明本身要能被核对。它找出 `acceptance-lock.config.json` 的成员根下每个 `acceptance/**/*.acceptance.ts`（`node_modules`、`dist` 不进），逐份查：
+
+| 报出（规则 `acceptance-covers`） | 说明 |
+|---|---|
+| 开头的注释块里没有、或不止一行 `// covers: …` | 开头注释块是文件开头连续的 `//` 行（中间可有空行）；写在代码之后的 `// covers:` 另报「要写在开头」 |
+| 某一项不是 `PF-<三位> <场景编号>`、是空的、写了两次 | 多项用逗号隔开，半角全角都认；场景编号的写法与设计区对账器同一条 |
+| 声明的场景在 `<产品区>/PF-<三位>-*/acceptance.md` 里没有带这个编号的行，或出现不止一次，或那个 topic 没有目录、对应了几个目录 | 场景行怎么认在 `src/product/scenarios.ts`，与 `.meta_harness/tooling/src/stories.py` 同一条规则；`tests/product-scenarios.spec.ts` 对着那份源码核两边的正则没有分叉 |
+| 文件名不以 `PF-<三位>.` 开头，或这个 topic 不在它声明覆盖的 topic 里 | |
+| 成员有验收文件，`package.json` 里却没有 `acceptance` 脚本 | 没有它，这些验收不会被任何入口运行 |
+
+产品区的位置沿用 `loop.config.json` 的 `sensors.topicChurn.productRoot`。**为什么接在 `lint:rules`**：它与提交署名一样是对整个仓库的静态核对，
+不需要构建产物，放在已有的仓库规则入口里，`make check` 不必多一步，`pnpm run check` 单跑时也查得到。
+
+**不能声称**：声明的场景存在，不等于验收真的断言了那条场景要的东西——那归写验收的人与评审；验收过没过归下面的 `make acceptance`。
+它只认 `.acceptance.ts` 结尾的文件，放在 `acceptance/` 里却不按这个名字取的验收它看不见。自测：`tests/acceptance-coverage.spec.ts`。
+
+## 场景状态
+
+```sh
+make scenario-status
+```
+
+按 topic 列出每条带编号的验收场景处于哪一种（`src/acceptance/scenario-status.ts`），只读、只报告、退出 0（产品区不存在等工具错误退出 2）：
+
+| 状态 | 有卡（还在某个 `stories.md` 里，经「覆盖场景」链接指到它） | 有验收（某份验收的覆盖声明里有它） |
+|---|---|---|
+| 已交付 | 否 | 是 |
+| 交付中 | 是 | 是 |
+| 已立卡 | 是 | 否 |
+| 还没切到 | 否 | 否 |
+
+**它是推导出来的**：每次从 `acceptance.md`、`stories.md` 与覆盖声明现算，不落盘，不是第二份权威。覆盖声明有错时只在抬头提一句并给出前三处
+（判失败的是 `lint:rules`），不合写法的项不计入。**不能声称**：「已交付」只看声明，主线的检查绿不绿这里看不到；
+跨 topic 引用的卡算在场景所在的 topic。没有编号的场景行它看不见。自测：`tests/acceptance-scenario-status.spec.ts`。
+
+## 删卡记录
+
+```sh
+make card-retire BASE=<任务基线提交或分支>   # BASE 缺省 main
+```
+
+规矩正文在[故事卡的格式契约「卡的一生」「卡号」](../../.meta_harness/design/product/conventions.md#卡的一生)：卡接受或作废就从 `stories.md` 删掉，
+删卡的提交带 `Accepted-Card: <卡号>` 或 `Voided-Card: <卡号>`；「已发到」只增不减。设计区的对账器只看得到眼前这一版，
+这两条要对一段提交看，由 `src/product/retire.ts` 来查。做法与验收锁同类：取 `BASE` 与 HEAD 的合并点，逐个看这段范围里**碰过 `<产品区>/PF-*/stories.md`
+或带删卡 trailer** 的提交，与它的父提交比：
+
+| 报出（退出 1） | 说明 |
+|---|---|
+| 一张卡在这个提交里从 `stories.md` 消失了，提交里没有 trailer 点到它 | 卡按标题里的卡号认，全区一起算（卡号全区唯一）；整份 `stories.md` 删掉时其中的卡都算消失 |
+| trailer 点到的卡这个提交之后还在、或父提交里就没有 | 没碰 `stories.md` 却带了删卡 trailer 的提交也查 |
+| 同一张卡点了两次（含一条 Accepted 一条 Voided）、trailer 的值不是卡号 | |
+| 某个 topic 的「已发到」比父提交小、没了、认不出，或 `stories.md` 整份被删 | 父提交里读不出的「已发到」（例如还没有这一行）不比 |
+
+**合并提交**只为「每个父提交里都还在、合并之后不见了」的卡负责：只在一边被删的卡，删它的是那一边的提交，那个提交在范围里就在那里查。
+「已发到」与每个父提交各比一次。产品区的位置沿用 `sensors.topicChurn.productRoot`。用法或 Git 出错退出 2。
+
+`make check` 的最后一步（回路状态的严格模式）以同一个基线把它作为硬线判，与验收锁并列，见[回路状态](#回路状态)。
+
+**管不到的**：以 squash 合入主线时，主线上那一条提交的说明是合并的人写的，这里看不到——规矩要求合并说明里留着这些 trailer，
+主线上查得到的才算数（`git log --format='%h %(trailers:key=Accepted-Card,valueonly)'`）。它也不判断 `Accepted-Card` 是不是在产品负责人说了接受之后才写的。
+范围之外（`BASE` 之前）的提交不看。自测：`tests/product-retire.spec.ts`（临时仓库造提交，含合并）。
 
 ## 结构度量
 
@@ -234,15 +304,16 @@ make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，�
 
 ```sh
 make loop-status                       # 全仓现状
-make loop-status BASE=<任务基线>         # 另列这次变更里要解释的红项，并核验收锁
+make loop-status BASE=<任务基线>         # 另列这次变更里要解释的红项，并核验收锁与删卡记录
 make loop-status SNAPSHOT=1            # 干净的工作树上追加一条趋势快照
 make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make check 的最后一步
 ```
 
 **除硬线外一切只报告。**退出码 1 只在硬线被破时：方向违规或环（与 `make metrics`、`lint:rules` 的 `group-direction` 同一份策略），
-或给了 `BASE` 且[验收锁](#验收锁)被破，或严格模式下有开着的传感器没数据；2 是工具自己出错（参数、配置、git）；其余报告项再多也是 0。
+或给了 `BASE` 且[验收锁](#验收锁)被破或[删卡缺记录](#删卡记录)（两条用同一个基线），或严格模式下有开着的传感器没数据；
+2 是工具自己出错（参数、配置、git）；其余报告项再多也是 0。
 
-**严格模式**（`STRICT=1`，即 `--strict`）另判一条硬线：配置里开着的传感器（`sensors` 下带 `enabled` 的七个）每一个都要有数据。
+**严格模式**（`STRICT=1`，即 `--strict`）另判一条硬线：配置里开着的传感器（`sensors` 下带 `enabled` 的八个）每一个都要有数据。
 有哪个报「没数据」，「硬线」一段列出是哪几个、原因是什么，退出 1；配置里关掉的不算，照旧写明是关掉的。
 对照表那一项没有开关、也不进指标，不在此列。「没有基线快照，与基线比未判」是趋势的事，不算传感器没数据。
 它要求给 `BASE` 与 `OUT`（缺了按用法错退出 2），草稿写进 `OUT/proposals/`，不写趋势快照（与 `SNAPSHOT=1` 同用也是用法错）——
@@ -251,6 +322,8 @@ make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make che
 **传感器金丝雀**：`tests/fixtures/loop-canary/` 是一个最小的假仓库，每个传感器各种了一处已知违规（清单在它的 README）。
 `tests/loop-canary.spec.ts` 把它建成临时 git 仓库、造出要历史的那几项，走与严格模式相同的入口（`run.ts` 的 `runLoopStatus`），
 逐项断言每个传感器都报出了种下的那一处（具体到文件、成员或 topic），再断言严格模式判失败；另一条拿掉 `PF-*` 目录，断言报「没数据」并判失败。
+验收耗时传感器读的是账本而不是跑验收，所以它的那一处种在账本里：测试给假仓库的 `apps/cli` 一个 `acceptance` 脚本，
+在当前提交那一格写一份「整次 130 秒、最慢一份 50 秒」的验收账本（形状就是运行器写的 `LedgerFile` 类型），断言两项指标都落在处置带。
 它随本包的测试每次都跑：哪个传感器悄悄失灵——读错目录、范围漏了、算法改坏——它会指名变红。它只证明种下的那几处查得出，不证明查得全。
 
 落点：`回路目录` = `$OMNE_METRICS_HOME`，没设就是**主检出**的 `tmp/clean-loop/`（在工作树里跑也落主检出）。
@@ -283,6 +356,22 @@ make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make che
 | 全仓重复行占比（%） | 见下「重复代码」 |
 | 单个 topic 窗口内 rev 翻动次数 | `productRoot` 下每个 `PF-*/README.md` 最近 `windowDays` 天里改动过 `revision:` 那一行的提交数，取最大；达到提醒线的 topic 全部列出 |
 | 并行工作树数、被多棵工作树同时改的成员数 | `git worktree list` 里主检出以外、带分支的工作树；各自相对 `primaryBranch` 合并点改过的成员（含未提交） |
+| 验收总耗时（秒）、最慢一份验收的耗时（秒） | 见下「验收耗时」；份数跟在行尾 |
+
+### 验收耗时
+
+`src/loop/sensors/acceptance.ts` 不跑验收，只读[测试运行](#测试运行)以 `--script acceptance` 写下的账本（`make acceptance`；`make check` 在构建之后跑它）：
+账本根是主检出的 `tmp/acceptance-ledger/`（`OMNE_ACCEPTANCE_LEDGER_HOME` 可改），取**当前提交那一格**（工作树不干净时是带 `-dirty` 的那一格）里最新的一次
+全量验收运行，且这次运行跑全了现在有 `acceptance` 脚本的每一个成员。读数三样：整次运行的墙钟、最慢一份验收文件的耗时（没出 vitest 报告的成员按一份、用成员的墙钟计）、份数。
+
+- **没有任何成员有 `acceptance` 脚本**（或检出里没有 `pnpm-workspace.yaml`）：读数是「0 份」，这算有数据。
+- **有验收、却找不到这样一次运行**：没数据，原因指到 `make acceptance`；严格模式因此判失败。所以单独跑 `make loop-status STRICT=1` 之前要先在这个提交上跑过一次验收。
+- 两条带在 `loop.config.json` 的 `indicators.acceptanceSeconds`、`acceptanceSlowestSeconds`，不与基线比。**初值是施工简报的提议**
+  （总耗时 提醒 60／处置 120／解除 45 秒，单份 提醒 20／处置 40／解除 15 秒），归负责人定，配置的 `note` 里照实写着，还没有校准。
+- **升级路径**：现在合并前跑全部验收；总耗时进了处置带，再考虑合并前只跑受影响成员的验收（分层），那一步现在不做。
+
+**不能声称**：耗时受机器负载影响，几次之间的差不能直接归因于代码；读数出自哪一次运行写在行尾与 `status.json` 里，
+同一提交、工作树不干净时的「-dirty」格可能是更早一版未提交改动跑出来的。
 
 **成员预算**：每个成员四项——超 alert 的函数数、风险值（度量报告的 `risk`）、重复行占比、没有断言的测试数——任一项处于处置即超预算。
 `memberBudget.excludeGroups`（初值 `["examples"]`：`examples/` 是阶段性的演示，不长期维护）里的成员组不判预算、不生成草稿，也不写进趋势快照的成员一栏；
@@ -377,7 +466,8 @@ make loop-health                                                     # 体检页
 
 - **拒绝登记，退出 1**：同一张卡同一个事件已有一条（报出已有那条的时间）；`runnable`、`accepted` 早于这张卡的 `proposed`，或这张卡还没有 `proposed`。
 - **退出 2**：卡号不合 `ST-<三位 topic 编号>-<两位序号>`、事件不是三者之一、`AT` 不是合法的时间（含 2 月 30 日这类不存在的日子）、缺参数，以及读不了的文件或 git。
-- 卡号不在这个检出的任何 `PF-*/stories.md` 里：**只提醒，照记**——卡可能还没合入这条分支。
+- 卡号不在这个检出的任何 `PF-*/stories.md` 里：**只提醒，照记**——卡可能还没合入这条分支。`accepted` 不做这条核对
+  （接受了的卡会从 `stories.md` 删掉），改为提醒一句：**接受以删卡提交上的 `Accepted-Card` trailer 为准，台账只供度量**（见[删卡记录](#删卡记录)）。
 - **要更正只能手工改文件**：入口只追加，不提供删改。读的时候坏行跳过并报出行号。
 
 **体检页** `make loop-health` 把四样东西汇成一张页面：卡片台账、趋势快照 `trend.jsonl`、测试耗时账本、git 历史。
@@ -399,6 +489,7 @@ make loop-health                                                     # 体检页
 窗口与条数在 [`loop.config.json`](loop.config.json) 的 `health` 一段（`weeks` 初值 8、`commits` 50、`runs` 10）；产品区的位置沿用 `sensors.topicChurn.productRoot`。
 
 **不能声称**：前置时间只和登记一样准——忘了登记、补记时写错的时间都原样进图；「已接受」只看台账，不核对卡是否真的交付。
+卡接受后就从 `stories.md` 删掉，所以「台账里接受过却不在任何 `stories.md` 里」那一列眼下列的就是正常退场的卡，不是异常；「剩余」仍是还在队列里的卡数。
 中位数在偶数个时取中间两个里较小的那个（与结构度量的提交形状同一取法）。提交大小只数文件个数，不看改了多少行。
 测试耗时受机器负载影响，几次之间的差不能直接归因于代码。债的走向把不同分支上的快照按提交时间排在一条线上，分支来回切换时折线会跳。
 自测：`tests/loop-cards.spec.ts`、`tests/loop-health.spec.ts`（入口用临时仓库）。
@@ -406,14 +497,22 @@ make loop-health                                                     # 体检页
 ## 测试运行
 
 `src/testing/` 是本包的第三入口：决定跑哪些成员的测试、以多大的并行度跑、把时间花在哪记成账本、
-失败之后单独重跑归类。它替代了根脚本里原先的 `pnpm -r run test`。
+失败之后单独重跑归类。它替代了根脚本里原先的 `pnpm -r run test`。同一个运行器也跑成员的可执行验收（`--script acceptance`）。
 
 ```sh
 make test-affected BASE=<基线提交或分支>   # 只构建并测试受这次改动影响的成员；BASE 缺省 main
 make test-affected BASE=<基线> PLAN=1     # 只列受影响范围，不构建也不运行
-make test-triage RUN=<运行目录>            # 把那次运行里的失败逐条单独重跑并归类
+make test-triage RUN=<运行目录>            # 把那次运行里的失败逐条单独重跑并归类（测试或验收的运行都行）
 pnpm run test                              # 全量：先构建，再跑全部成员（make check 的测试一步同此）
+make acceptance                            # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；NO_BUILD=1 不构建
 ```
+
+**验收**（`run --all --script acceptance`）：选的是 `package.json` 里有 `acceptance` 脚本的成员（同样去掉 `affected.excludeRoots`），
+逐个跑 `pnpm run acceptance`，并行度、vitest 报告、账本格式都与测试相同；账本根另放在主检出的 `tmp/acceptance-ledger/`
+（`OMNE_ACCEPTANCE_LEDGER_HOME` 可改），不混进体检页读的测试账本。每份 `ledger.json` 的 `meta.script` 写着跑的是哪一种，
+`triage` 照它经同一个脚本重跑（`pnpm run <脚本> <文件> -t …`，验收的那份带着自己的 vitest 配置）。`--all` 缺省不构建（由调用方先构建），
+给 `--build` 才构建；`--base` 缺省构建，`--no-build` 跳过。`make check` 在 `product-check` 全量构建之后以 `NO_BUILD=1` 跑它，任何一份不过整套检查就失败。
+「合并前只跑受影响成员的验收」现在**不做**——等[验收耗时](#验收耗时)的读数超了预算再说。
 
 **受影响范围怎么算。**改动文件取基线合并点到当前工作树的全部差异，含未提交与未跟踪的文件。
 成员清单读 `pnpm-workspace.yaml`，去掉 `affected.excludeRoots` 下的（现为 `examples`）。
