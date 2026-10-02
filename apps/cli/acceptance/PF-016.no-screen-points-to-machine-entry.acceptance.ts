@@ -1,4 +1,5 @@
-// 故事卡 ST-016-01 的可执行验收：在没有屏的地方用了人读入口，当场被告知并指到机读入口。
+// covers: PF-016 S5
+// 可执行验收：在没有屏的地方用了人读入口，当场被告知并指到机读入口。
 // 对着 PF-016 验收「给脚本用」的 S5 写，驱动的是构建出来的 dist/main.js，不是源码里的函数。
 // 这份文件归负责的人、主会话与独立验收角色；实施者只运行它，不改它。
 import { spawn } from 'node:child_process'
@@ -9,8 +10,10 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const entry = fileURLToPath(new URL('../dist/main.js', import.meta.url))
-// 立卡时从当时的构建录下的帮助全文
-const helpBefore = fileURLToPath(new URL('./ST-016-01.help.txt', import.meta.url))
+// 写这份验收时从当时的构建录下的帮助全文
+const helpBefore = fileURLToPath(
+  new URL('./PF-016.no-screen-points-to-machine-entry.help.txt', import.meta.url),
+)
 // 固定的诊断码那一行长这样；指路的那一行不许长成它，脚本才分得清
 const diagnosticLine = /^omne: [a-z-]+$/
 
@@ -37,7 +40,7 @@ function lines(text: string): string[] {
   return text.split('\n').filter(line => line !== '')
 }
 
-describe('ST-016-01 在没有屏的地方用了人读入口，当场被告知并指到机读入口', () => {
+describe('PF-016 S5 在没有屏的地方用了人读入口，当场被告知并指到机读入口', () => {
   let scratch: string, stateDir: string
 
   beforeEach(() => {
@@ -111,6 +114,8 @@ describe('ST-016-01 在没有屏的地方用了人读入口，当场被告知并
     expect(result.code).toBe(2)
   })
 
+  // 只在这张卡交付的那一刻有意义（它证明的是「这次没有顺手改帮助」，不是 S5 的内容）：
+  // 卡接受时删掉这一条和那份帮助快照，否则以后任何一次正当的帮助改动都会在这里变红。
   it('演示 5：帮助与做这张卡之前一字不差', async () => {
     const result = await omne(['--help'])
 
