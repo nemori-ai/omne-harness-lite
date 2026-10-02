@@ -144,7 +144,7 @@ python tooling/src/realization_nodes.py --root design --stale warn   # 交付面
 
 它**不判断任何节点的内容对不对**：查不出一条绑定的证据是否真能支持那条条款、
 `assumptions` 写得对不对、某条应用间的边是否只写了一侧；表列改名之后对应的检查会静默跳过。
-`bindings.yaml` 只读 `node`、`kind`、`bindings` 三个顶层键，其余字段无人校验。
+`bindings.yaml` 读 `node`、`kind`、`bindings` 三个顶层键做对账，另核装配声明 `assembly`／`composition` 的形状（顶层键只认六个、派发模式五种、同节点服务键不重复、`defines` 的 `contract`／`owner` 恰写其一、`source` 锚点存在、装配节点挂的插件在被引用节点的声明里——被引用节点还没声明时只打 `NOTE:` 提示）；绑定条目里的其余字段无人校验，声明与代码是否一致由开发工具核。
 工具只读 `--root` 指向的设计根，不从承载仓库发现 `apps/` 或 `packages/` 源码。
 
 测试用一棵含一个产品 topic、一个 catalog、一个 assembly 与一个 provider 节点的小型设计树，

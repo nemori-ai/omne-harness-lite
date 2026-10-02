@@ -34,6 +34,7 @@
 查**实现路径、插件边界、服务面、依赖、状态与失败映射、装卸配对** → `design.md`；
 查**本项目做出来的东西怎样接进 Cordis**（服务定义放哪、键怎么写、依赖与事件怎么声明、登记怎么撤、配置怎么校验、插件树怎么写）→ [Cordis 集成约定](cordis-integration-conventions.md)，对所有节点成立；
 查**哪条条款靠哪份证据、前提是什么、上次对着 basis 核是哪天** → `bindings.yaml`；
+查**这个节点在装配上打算提供、注入、发出什么**（机读）→ `bindings.yaml` 的 `assembly`／`composition`，字段含义见 README「装配声明」；
 查**实际跑过什么、覆盖到哪、还缺什么** → `verification.md`，原始结果在它链接的 evidence run；
 查**契约到底承诺什么** → 它引用的 `spec/` 坐标。**这里到「由谁、靠什么原语兑现」为止。**
 

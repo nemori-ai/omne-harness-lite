@@ -115,6 +115,50 @@ bindings:
 属于可解释的假成功。正确做法是退回把性质改写成有界形式；真退不回去，
 由需求方裁决改写还是撤销。
 
+### 装配声明：`assembly` 与 `composition`
+
+`bindings.yaml` 另有两个顶层键，写**这个节点在装配上打算怎样接进 Cordis**——意图对实现对照的「意图」那一侧，
+供检查器与开发工具机读。它们照节点正文写，**不从代码抄**；规则本身归 [Cordis 集成约定](cordis-integration-conventions.md)。
+
+```yaml
+# 示意：三段分别出自定义包、提供者、装配节点，合在一处只为看全字段
+assembly:                      # 本节点的 Cordis 插件与服务定义
+  defines:                     # 只有 core 里的定义包写：本包定义了哪些服务键
+    - key: sessionLog
+      contract: capability.session-log      # 只写 contract_id，不写版本
+      source: design.md#插件边界与服务面
+  plugins:
+    - name: session-tenancy-table           # 插件名，即 fiber 名
+      source: design.md#插件边界与服务面     # 指回正文里给出这条意图的小节
+      provides: [sessionTenancy]            # 提供的服务键
+      injects: [storage]                    # 必需依赖（写进 inject 的）
+      optional: []                          # 调用时取用的可选依赖
+      emits: []                             # 发的事件：{ event: <名>, mode: emit|parallel|serial|bail|waterfall }
+      listens: []                           # 监听的事件名
+      contributes: []                       # 向哪些注册表服务登记（写注册表的服务键）
+composition:                   # 只有装配节点写：Cordis 插件树挂哪些插件
+  plugins:
+    - id: storage                           # 插件树的行 id
+      node: packages/infra/storage-sql      # 提供这个插件的节点
+      plugin: storage-sql                   # 那个节点 assembly.plugins 里的名字
+      layer: distribution                   # distribution（发行层）或 operator（运维者层）
+      source: design.md#选择与动作链
+```
+
+| 字段 | 必填 | 含义 |
+|---|---|---|
+| `assembly.plugins[].name`、`source` | 是 | 插件名与它在正文里的出处；其余列表缺省为空 |
+| `assembly.defines[]` | 定义包才有 | 每项 `key`、`source`，外加 `contract`（契约 ID）或 `owner`（接缝出自协议形状、没有契约时，写拥有它的节点路径，如 `packages/core/storage`），二者恰有其一，与代码里的 `@contract`／`@owner` 对应（IC-3） |
+| `emits[].mode` | 是 | 五种派发之一，与代码里该事件 JSDoc 的 `@mode` 一致（IC-11） |
+| `composition.plugins[]` | 装配节点才有 | 每项 `id`、`node`、`plugin`、`layer`、`source` |
+
+- **`source` 是硬的**：`<节点内文件>.md#<锚点>`，文件与锚点都要在。字段与正文冲突时**以字段为准**，正文改成只写理由。
+- **契约不另记**：本节点兑现哪些契约，从 `bindings` 的条款坐标推出；`defines` 里只写 `contract_id`。
+- **实施者不改它来消红**：对照报出的偏离由实施者交代；改这里是改设计，过设计评审（负责人 2026-10-02）。
+- **加这两个键算修订绑定**：碰到的节点同时按 [D-113](../record/decisions/spec-single-revision/README.md) 的过渡规矩把旧版条款行改绑到最新版（负责人 2026-10-02：「算」，记在 [D-114](../record/decisions/cordis-integration-conventions/decision.md#一裁定原话)）。
+- **过渡**：节点全过完成之前，这两个键可以缺——检查器不判失败，对照工具把那个节点报成「未声明」；全过的最后一批把有包节点的 `assembly` 翻成必填。
+- **检查器核什么**：顶层键只认 `version`、`node`、`kind`、`bindings`、`assembly`、`composition`；派发模式只认五种；同节点服务键不重复；`source` 锚点存在；装配节点挂的插件在被引用节点的 `assembly.plugins` 里——被引用节点还没声明时只提示。**它不核声明与代码是否一致**，那归开发工具。
+
 ### 两条可以机器判的检查
 
 - **事件派发一致**：绑定声明了异步控制语义，而源码里用的是 `ctx.bail(`，直接失败。

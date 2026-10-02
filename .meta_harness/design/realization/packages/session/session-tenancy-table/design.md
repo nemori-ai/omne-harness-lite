@@ -63,7 +63,9 @@
 
 ### 插件边界与服务面
 
-**一个插件 `session-tenancy-table`（候选名），一条 fiber，必需 inject `storage`。**它 provide 一个服务 `sessionTenancy`，方法取契约名 `holdingTenant`。插件体只做两件事：以注入的 `storage` 造闭包、`ctx.provide`。**它没有任何进程内状态**。
+**一个插件、一条 fiber**；插件名、提供与必需注入的服务键以 [`bindings.yaml`](bindings.yaml) 的 `assembly` 为准。
+只要一个，是因为契约唯一的操作是一个读、没有活状态要分开管；必需 inject `storage`，是因为没有存储它答不出任何问题——
+缺席即 `PENDING`，正对消费者「读面缺席」的收场。方法取契约名 `holdingTenant`。插件体只做两件事：以注入的 `storage` 造闭包、`ctx.provide`。**它没有任何进程内状态**。
 
 **表**（逻辑名，候选）：
 
