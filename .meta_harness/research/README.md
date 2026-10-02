@@ -135,6 +135,11 @@
 
 - [收工钩子：Claude Code 与 Codex CLI 在 agent 收工点能做什么、不能做什么](host-stop-hooks/README.md) — Claude Code `2.1.287` 与 Codex CLI `0.159.0` 的钩子文档（原文钉字节，主会话逐句核对了入正文的引文）/ Codex 源码 `rust-v0.159.0`（仅转述）；没有实际注册并触发过钩子，取证 2026-10-01，消费者为[宿主钩子的源](../agents/hooks/README.md)
 
+### 架构判断辅助与 Cordis 集成约定（2026-10-02）
+
+- [哪些方法与工具能辅助架构判断](architecture-judgment-aids/README.md) — 方法文献 97 条（主线抽核 2 篇原文）/ dependency-cruiser 18.5.0、LikeC4 1.59.4 等工具本机试用 / 本仓库主线 `6f3cefa39` 读数（装配边 32 对中 14 对同时是 import 边，更正原始调研稿），取证 2026-10-02，消费者为 #53／#46 合并方案
+- [DeepSeek Harness 在 Cordis 之上的集成约定](dsh-cordis-integration-conventions/README.md) — DSH `639ed015`（归档钉字节，约定表 17 行逐行核出处）；本仓库所装 Cordis 4.0.4 即 DSH vendor 的 fork，取证 2026-10-02，消费者为 #53／#46 合并方案的集成约定
+
 迁入前的历史索引见 [`legacy_backup/`](legacy_backup/README.md)，那里是存底，不按本页规则接续。
 
 每个 topic 入口标明调查对象、版本与范围；先沿当前判断进入对应 topic，再按其阅读地图取得证据与局限。
