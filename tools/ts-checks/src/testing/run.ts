@@ -1,11 +1,15 @@
 // 运行器：按给定的并行度逐成员跑它自己的 `test`（或 `acceptance`）脚本，一个失败不拦其余的；
-// 每个成员的输出落到运行目录里的日志，vitest 的 JSON 报告落在旁边，供账本与失败归因读取。
+// 每个成员的输出落到运行目录里的日志，vitest 的 JSON 报告与计时报告落在旁边，供账本与失败归因读取。
 import { spawn, type ChildProcess } from 'node:child_process'
 import { closeSync, existsSync, openSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { TestMember } from './affected.ts'
 import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunScript } from './config.ts'
 import type { MemberRun, VitestJsonReport } from './ledger.ts'
+import { TIMING_FILE_ENV, type TimingReport } from './timing-reporter.ts'
+
+const TIMING_REPORTER = fileURLToPath(new URL('./timing-reporter.ts', import.meta.url))
 
 export const slugOf = (member: string) => member.replaceAll('/', '__')
 
@@ -65,6 +69,17 @@ export function readReport(path: string): VitestJsonReport | undefined {
   }
 }
 
+/** 计时报告；没写出来或写了一半都当作没有，账本退回只用 JSON 报告。 */
+export function readTiming(path: string): TimingReport | undefined {
+  if (!existsSync(path)) return undefined
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as Partial<TimingReport>
+    return Array.isArray(parsed.files) ? (parsed as TimingReport) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 async function runMember(
   root: string,
   member: TestMember,
@@ -74,17 +89,33 @@ async function runMember(
 ): Promise<MemberRun> {
   const slug = slugOf(member.path)
   const reportPath = join(runDir, `${slug}.json`)
+  const timingPath = join(runDir, `${slug}.timing.json`)
   // 只有 vitest 的脚本才认这几个参数；别的脚本原样跑，账本里只有成员一级的耗时。
   const reporters = /\bvitest\b/u.test(member.script)
-    ? ['--reporter=default', '--reporter=json', `--outputFile.json=${reportPath}`]
+    ? [
+        '--reporter=default',
+        '--reporter=json',
+        `--outputFile.json=${reportPath}`,
+        `--reporter=${TIMING_REPORTER}`,
+      ]
     : []
   const result = await spawnLogged('pnpm', ['run', script, ...reporters], {
     cwd: join(root, member.path),
-    env: { ...process.env, [VITEST_MAX_WORKERS_ENV]: String(vitestMaxWorkers) },
+    env: {
+      ...process.env,
+      [VITEST_MAX_WORKERS_ENV]: String(vitestMaxWorkers),
+      [TIMING_FILE_ENV]: timingPath,
+    },
     logPath: join(runDir, `${slug}.log`),
   })
   const report = readReport(reportPath)
-  return { member: member.path, ...result, ...(report === undefined ? {} : { report }) }
+  const timing = readTiming(timingPath)
+  return {
+    member: member.path,
+    ...result,
+    ...(report === undefined ? {} : { report }),
+    ...(timing === undefined ? {} : { timing }),
+  }
 }
 
 /** 同时最多跑 `memberConcurrency` 个成员，各跑它的 `script` 脚本；返回顺序与传入顺序一致。 */

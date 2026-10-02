@@ -1,5 +1,8 @@
-// 测试运行工具的已知值核对：受影响范围、并行度覆盖、耗时账本、失败归因的分类。
-import { resolve } from 'node:path'
+// 测试运行工具的已知值核对：受影响范围、并行度覆盖、耗时账本、计时报告器、失败归因的分类。
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
@@ -16,9 +19,12 @@ import {
   readTestRunsConfig,
 } from '../src/testing/config.ts'
 import { buildLedger, ledgerSummary, type MemberRun } from '../src/testing/ledger.ts'
+import { TIMING_FILE_ENV, type TimingReport } from '../src/testing/timing-reporter.ts'
 import { classify, namePattern, outcomeOf, triageSummary } from '../src/testing/triage.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
+const VITEST = fileURLToPath(new URL('../node_modules/.bin/vitest', import.meta.url))
+const TIMING_REPORTER = fileURLToPath(new URL('../src/testing/timing-reporter.ts', import.meta.url))
 
 const member = (path: string, name: string, dependencies: string[] = []): TestMember => ({
   path,
@@ -155,7 +161,7 @@ describe('并行度', () => {
   const config = parseTestRunsConfig({
     parallel: { memberConcurrency: 2, vitestMaxWorkers: 4 },
     affected: { excludeRoots: [], globalPaths: [] },
-    ledger: { slowFileSeconds: 10, slowTestSeconds: 2.5, top: 5 },
+    ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
     triage: { repeats: 3 },
   })
 
@@ -181,7 +187,7 @@ describe('并行度', () => {
       parseTestRunsConfig({
         parallel: { memberConcurrency: 0, vitestMaxWorkers: 4 },
         affected: { excludeRoots: [], globalPaths: [] },
-        ledger: { slowFileSeconds: 10, slowTestSeconds: 2.5, top: 5 },
+        ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
       }),
     ).toThrow('parallel.memberConcurrency')
@@ -237,7 +243,23 @@ const RUNS: MemberRun[] = [
           status: 'passed',
           startTime: 0,
           endTime: 2000,
-          assertionResults: [{ fullName: 'c', status: 'passed', duration: 1500 }],
+          assertionResults: [
+            { fullName: 'c', status: 'passed', duration: 1500 },
+            { fullName: 'c 不设时限', status: 'passed', duration: 9000 },
+          ],
+        },
+      ],
+    },
+    timing: {
+      files: [
+        {
+          file: '/repo/packages/core/mid/tests/c.spec.ts',
+          collectSeconds: 0.8,
+          tests: [
+            { fullName: 'c', timeoutSeconds: 2, tags: [] },
+            { fullName: 'c', timeoutSeconds: 60, tags: [] },
+            { fullName: 'c 不设时限', timeoutSeconds: 0, tags: ['slow'] },
+          ],
         },
       ],
     },
@@ -246,9 +268,9 @@ const RUNS: MemberRun[] = [
 ]
 
 describe('耗时账本', () => {
-  const ledger = buildLedger(RUNS, '/repo', 1.5)
+  const ledger = buildLedger(RUNS, '/repo', 0.5)
 
-  it('成员一级：文件数、用例数、失败数、文件耗时之和', () => {
+  it('成员一级：文件数、用例数、失败数、文件耗时之和；有计时报告的另记导入耗时之和', () => {
     expect(ledger.members[0]).toEqual({
       member: 'packages/core/leaf',
       exitCode: 1,
@@ -258,20 +280,28 @@ describe('耗时账本', () => {
       failed: 1,
       fileSeconds: 12.5,
     })
+    expect(ledger.members[1]?.collectSeconds).toBe(0.8)
   })
 
-  it('文件按耗时从大到小，路径相对仓库根', () => {
-    expect(ledger.files.map(item => [item.file, item.seconds])).toEqual([
-      ['packages/core/leaf/tests/a.spec.ts', 12],
-      ['packages/core/mid/tests/c.spec.ts', 2],
-      ['packages/core/leaf/tests/b.spec.ts', 0.5],
+  it('文件按耗时从大到小，路径相对仓库根；有计时报告的文件带导入耗时', () => {
+    expect(ledger.files.map(item => [item.file, item.seconds, item.collectSeconds])).toEqual([
+      ['packages/core/leaf/tests/a.spec.ts', 12, undefined],
+      ['packages/core/mid/tests/c.spec.ts', 2, 0.8],
+      ['packages/core/leaf/tests/b.spec.ts', 0.5, undefined],
     ])
   })
 
-  it('耗时到线的用例列入账本，从慢到快；没到线的不列', () => {
-    expect(ledger.slowTests.map(item => [item.test, item.seconds])).toEqual([
-      ['a 慢而且红', 11],
-      ['c', 1.5],
+  it('耗时达到自身时限一半的用例列入账本，按占时限的比例排；同名取第一条的时限；时限 0 不列；拿不到时限按 5 秒并标明', () => {
+    expect(
+      ledger.nearTimeout.map(item => [
+        item.test,
+        item.seconds,
+        item.timeoutSeconds,
+        item.timeoutAssumed,
+      ]),
+    ).toEqual([
+      ['a 慢而且红', 11, 5, true],
+      ['c', 1.5, 2, false],
     ])
   })
 
@@ -293,37 +323,83 @@ describe('耗时账本', () => {
   })
 
   it('有报告、退出码非零、却没有失败的用例或文件：单列一条，不当作通过', () => {
-    const typecheckOnly = buildLedger([{ ...RUNS[1]!, exitCode: 1 }], '/repo', 1.5)
+    const typecheckOnly = buildLedger([{ ...RUNS[1]!, exitCode: 1 }], '/repo', 0.5)
     expect(typecheckOnly.failures).toHaveLength(1)
     expect(typecheckOnly.failures[0]?.message).toContain('报告里没有失败的用例或文件')
   })
 
-  it('摘要说清总数、失败、最慢的成员与超时线以上的文件', () => {
+  it('摘要说清总数、失败、最慢的成员、超线的文件、导入最多的成员与贴着时限的用例', () => {
     const summary = ledgerSummary(ledger, {
       wallSeconds: 31.2,
       slowFileSeconds: 10,
-      slowTestSeconds: 1.5,
+      nearTimeoutRatio: 0.5,
       top: 2,
       runDir: '/out',
     }).join('\n')
-    expect(summary).toContain('3 个成员、3 个文件、3 条用例，墙钟 31 秒；2 个成员未通过，失败 3 处')
+    expect(summary).toContain('3 个成员、3 个文件、4 条用例，墙钟 31 秒；2 个成员未通过，失败 3 处')
     expect(summary).toContain('✗ packages/core/leaf/tests/a.spec.ts › a 慢而且红')
     expect(summary).toContain('最慢的成员：packages/core/leaf 30 秒、packages/core/mid 4 秒')
     expect(summary).toContain('超过 10 秒的文件 1 个：packages/core/leaf/tests/a.spec.ts 12 秒')
-    expect(summary).toContain('超过 1.5 秒的用例 2 条：')
+    expect(summary).toContain('导入耗时（各文件累计）最多的成员：packages/core/mid 1 秒')
+    expect(summary).toContain(
+      '贴着时限（耗时 ≥ 自身时限 × 0.5）的用例 2 条（其中 1 条没拿到时限，按 vitest 默认 5 秒算）：' +
+        'packages/core/leaf/tests/a.spec.ts › a 慢而且红 11／5 秒；packages/core/mid/tests/c.spec.ts › c 1.5／2 秒',
+    )
   })
 
-  it('全过时摘要写「全部通过」', () => {
-    const green = buildLedger([RUNS[1]!], '/repo', 2.5)
+  it('全过时摘要写「全部通过」；没有计时报告时不写导入一行', () => {
+    const { timing: _timing, ...withoutTiming } = RUNS[1]!
+    const green = buildLedger([withoutTiming], '/repo', 0.9)
     const summary = ledgerSummary(green, {
       wallSeconds: 4,
       slowFileSeconds: 10,
-      slowTestSeconds: 2.5,
+      nearTimeoutRatio: 0.9,
       top: 2,
       runDir: '/out',
     })
     expect(summary[0]).toContain('全部通过')
-    expect(summary).toContain('超过 2.5 秒的用例 0 条')
+    expect(summary).toContain(
+      '贴着时限（耗时 ≥ 自身时限 × 0.9）的用例 1 条（其中 1 条没拿到时限，按 vitest 默认 5 秒算）：packages/core/mid/tests/c.spec.ts › c 不设时限 9／5 秒',
+    )
+    expect(summary.some(line => line.startsWith('导入耗时'))).toBe(false)
+  })
+})
+
+describe('计时报告器（真起一次 vitest）', { timeout: 60_000 }, () => {
+  it('每个文件写导入耗时；每条用例写与 JSON 报告同一拼法的全名、解析后的时限与标签', () => {
+    const project = mkdtempSync(join(tmpdir(), 'timing-reporter-'))
+    try {
+      writeFileSync(
+        join(project, 'x.spec.ts'),
+        [
+          "describe('外层', () => {",
+          "  describe('里层', () => {",
+          "    test('带时限', { timeout: 1234 }, () => {})",
+          '  })',
+          "  test('默认时限', () => {})",
+          '})',
+          "test('顶层', () => {})",
+        ].join('\n'),
+      )
+      const timingPath = join(project, 'timing.json')
+      const ran = spawnSync(
+        VITEST,
+        ['run', '--root', project, '--globals', `--reporter=${TIMING_REPORTER}`],
+        { cwd: project, encoding: 'utf8', env: { ...process.env, [TIMING_FILE_ENV]: timingPath } },
+      )
+      expect(ran.status, `${ran.stdout}${ran.stderr}`).toBe(0)
+      const timing = JSON.parse(readFileSync(timingPath, 'utf8')) as TimingReport
+      expect(timing.files).toHaveLength(1)
+      expect(timing.files[0]?.file).toBe(join(project, 'x.spec.ts'))
+      expect(timing.files[0]?.collectSeconds).toBeGreaterThanOrEqual(0)
+      expect(timing.files[0]?.tests).toEqual([
+        { fullName: '外层 里层 带时限', timeoutSeconds: 1.234, tags: [] },
+        { fullName: '外层 默认时限', timeoutSeconds: 5, tags: [] },
+        { fullName: '顶层', timeoutSeconds: 5, tags: [] },
+      ])
+    } finally {
+      rmSync(project, { recursive: true, force: true })
+    }
   })
 })
 
