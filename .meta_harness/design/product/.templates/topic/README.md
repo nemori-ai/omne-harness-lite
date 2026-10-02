@@ -35,7 +35,7 @@ relations:
 | 这块产品是什么：概念、模型、规则、取舍 | [产品设计](design.md) |
 | 用户怎么走、对象怎么流转、谁能做什么 | [流程与状态](flows.md) |
 | 做成什么样算做对了 | [验收标准](acceptance.md) |
-| 先交付哪一块、交付了怎么演示 | [故事卡](stories.md) |
+| 还有哪几块没交付、先做哪块、交付了怎么演示 | [故事卡](stories.md) |
 | 哪些是拍板定的，哪些是推导的，还有什么没定 | [决策与来源](decisions.md) |
 | 这块设计是怎么演变到今天的 | [变更历史](changelog.md) |
 | 当时是怎么谈的 | [设计交流笔记](interviews/README.md) |
@@ -61,7 +61,7 @@ relations:
 ├── design.md         概念、模型、规则、取舍、边界      ← 必须
 ├── flows.md          旅程、异常分支、状态流转、角色矩阵
 ├── acceptance.md     产品视角的验收标准
-├── stories.md        故事卡：先交付哪一块、怎么演示
+├── stories.md        故事卡：还没交付的那几块，先做哪块、怎么演示
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决       ← 必须
 ├── changelog.md      产品设计本身的演进                ← 必须
 ├── interviews/       设计交流笔记（原始材料）
