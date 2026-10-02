@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import { readLoopConfig } from '../src/loop/config.ts'
 import { readCommitMembers } from '../src/loop/sensors/cochange.ts'
 import { readTopicChurn } from '../src/loop/sensors/topic-churn.ts'
 import { readWorktrees } from '../src/loop/sensors/worktrees.ts'
@@ -126,6 +127,9 @@ describe('读 git 的传感器', { timeout: 30_000 }, () => {
   })
 })
 
+/** 成员预算「超 alert 的函数数」的处置线：要造一个超预算的成员，就造这么多个超 alert 的函数，不随负责人调线而失效。 */
+const OVER = readLoopConfig().memberBudget.overAlert.act
+
 describe('入口', { timeout: 60_000 }, () => {
   const cli = fileURLToPath(new URL('../src/loop/cli.ts', import.meta.url))
   const run = (root: string, home: string, ...args: string[]) =>
@@ -171,7 +175,7 @@ describe('入口', { timeout: 60_000 }, () => {
       '\n',
     )
     const tangled = Array.from(
-      { length: 8 },
+      { length: OVER },
       (_, n) => `export function tangled${n}(x: number) {\n${branches}\n  return -1\n}\n`,
     ).join('\n')
     write(root, 'packages/core/a/src/tangled.ts', tangled)
@@ -182,7 +186,7 @@ describe('入口', { timeout: 60_000 }, () => {
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('  没有断言的测试数 1')
     expect(result.stdout).toMatch(/全仓重复行占比（%） \d/u)
-    expect(result.stdout).toContain('packages/core/a：超 alert 的函数数 8')
+    expect(result.stdout).toContain(`packages/core/a：超 alert 的函数数 ${OVER}`)
     const draft = join(home, 'proposals', 'packages-core-a.md')
     expect(existsSync(draft)).toBe(true)
     expect(readFileSync(draft, 'utf8')).toContain('## 要清理的条目')
@@ -194,15 +198,15 @@ describe('入口', { timeout: 60_000 }, () => {
       '\n',
     )
     const tangled = Array.from(
-      { length: 8 },
+      { length: OVER },
       (_, n) => `export function tangled${n}(x: number) {\n${branches}\n  return -1\n}\n`,
     ).join('\n')
     write(root, 'examples/demo/src/tangled.ts', tangled)
     write(root, 'packages/core/a/src/tangled.ts', tangled.replaceAll('return', 'return 1 +'))
     const result = run(root, home)
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('超 alert 的函数数 16')
-    expect(result.stdout).toContain('packages/core/a：超 alert 的函数数 8')
+    expect(result.stdout).toContain(`超 alert 的函数数 ${OVER * 2}`)
+    expect(result.stdout).toContain(`packages/core/a：超 alert 的函数数 ${OVER}`)
     expect(result.stdout).not.toContain('examples/demo：')
     expect(existsSync(join(home, 'proposals', 'packages-core-a.md'))).toBe(true)
     expect(existsSync(join(home, 'proposals', 'examples-demo.md'))).toBe(false)

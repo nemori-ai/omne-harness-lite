@@ -3,7 +3,12 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { countRelapses, judgeMember, type BudgetValues } from '../src/loop/budget.ts'
+import {
+  countRelapses,
+  judgeMember,
+  type BudgetValues,
+  type MemberBaseline,
+} from '../src/loop/budget.ts'
 import {
   CLEANUP_SECTIONS,
   proposalPath,
@@ -43,8 +48,34 @@ function history(entries: readonly [number, MemberSnapshot['band']][]): Snapshot
   }))
 }
 
-const judge = (current: BudgetValues, past: Snapshot[] = [], head = 'head') =>
-  judgeMember({ member: MEMBER, values: current, budget, history: past, head, relapseLimit: 2 })
+const judge = (
+  current: BudgetValues,
+  past: Snapshot[] = [],
+  head = 'head',
+  baseline: MemberBaseline = { kind: 'off' },
+) =>
+  judgeMember({
+    member: MEMBER,
+    values: current,
+    budget,
+    history: past,
+    head,
+    relapseLimit: 2,
+    baseline,
+  })
+
+/** 基线快照里这个成员的条目：超 alert 的函数数取 `overAlert`，其余同 `values()`。 */
+const entry = (overAlert: number | null): MemberSnapshot => ({
+  overAlert,
+  risk: 5,
+  duplication: 0,
+  testsWithoutAssertions: 0,
+  band: 'normal',
+})
+const inBaseline = (overAlert: number | null): MemberBaseline => ({
+  kind: 'snapshot',
+  entry: entry(overAlert),
+})
 
 describe('成员预算', () => {
   it('任一项到处置线就超预算；没有数据的项不判', () => {
@@ -85,6 +116,102 @@ describe('成员预算', () => {
     ])
     const own = { ...past[1], commit: 'head' } as Snapshot
     expect(judge(values({ overAlert: 7 }), [...past, own], 'head').relapses).toBe(1)
+  })
+})
+
+// 线：超 alert 的函数数 提醒 3／处置 6／解除 2。
+describe('成员预算与基线比', () => {
+  it('没有基线快照：照绝对线判，各项标未判（没有基线快照）', () => {
+    const judged = judge(values({ overAlert: 4 }), [], 'head', { kind: 'none' })
+    expect(judged.bands.overAlert).toBe('warn')
+    expect(judged.band).toBe('warn')
+    expect(judged.comparisons?.overAlert).toEqual({ result: 'unjudged', reason: '没有基线快照' })
+  })
+
+  it('新成员（基线快照里没有它）：照绝对线判，标新成员；与这一项为 null 的未判分开', () => {
+    const fresh = judge(values({ overAlert: 4 }), [], 'head', {
+      kind: 'snapshot',
+      entry: undefined,
+    })
+    expect(fresh.bands.overAlert).toBe('warn')
+    expect(fresh.comparisons?.overAlert).toEqual({ result: 'new' })
+    const blank = judge(values({ overAlert: 4 }), [], 'head', inBaseline(null))
+    expect(blank.bands.overAlert).toBe('warn')
+    expect(blank.comparisons?.overAlert).toEqual({
+      result: 'unjudged',
+      reason: '基线快照里这一项没有数据',
+    })
+  })
+
+  it('在基线里、绝对线是处置：仍是处置，另标好了、一样、差了（含滞回：低于处置线、高于解除线）', () => {
+    expect(judge(values({ overAlert: 7 }), [], 'head', inBaseline(9))).toMatchObject({
+      bands: { overAlert: 'act' },
+      comparisons: { overAlert: { result: 'better', baseline: 9 } },
+      over: ['overAlert'],
+    })
+    expect(judge(values({ overAlert: 7 }), [], 'head', inBaseline(7))).toMatchObject({
+      bands: { overAlert: 'act' },
+      comparisons: { overAlert: { result: 'same', baseline: 7 } },
+    })
+    const sticky = judge(values({ overAlert: 4 }), history([[7, 'act']]), 'head', inBaseline(3))
+    expect(sticky).toMatchObject({
+      bands: { overAlert: 'act' },
+      comparisons: { overAlert: { result: 'worse', baseline: 3 } },
+      over: ['overAlert'],
+    })
+  })
+
+  it('在基线里、不是处置、比基线大：提醒（绝对线下是正常也一样）', () => {
+    const judged = judge(values({ overAlert: 1 }), [], 'head', inBaseline(0))
+    expect(judged.bands.overAlert).toBe('warn')
+    expect(judged.band).toBe('warn')
+    expect(judged.comparisons?.overAlert).toEqual({ result: 'worse', baseline: 0 })
+    expect(judged.over).toEqual([])
+  })
+
+  it('在基线里、不是处置、不比基线大：正常，即使过了绝对的提醒线', () => {
+    const same = judge(values({ overAlert: 5 }), [], 'head', inBaseline(5))
+    expect(same.bands.overAlert).toBe('normal')
+    expect(same.band).toBe('normal')
+    expect(same.comparisons?.overAlert).toEqual({ result: 'same', baseline: 5 })
+    const better = judge(values({ overAlert: 4 }), [], 'head', inBaseline(5))
+    expect(better.bands.overAlert).toBe('normal')
+    expect(better.comparisons?.overAlert).toEqual({ result: 'better', baseline: 5 })
+  })
+
+  it('不与基线比（baseline: false）：带位就是绝对线的，没有与基线比的结果', () => {
+    const judged = judge(values({ overAlert: 4, risk: 13 }), history([[1, 'normal']]))
+    expect(judged.bands).toEqual({
+      overAlert: 'warn',
+      risk: 'warn',
+      duplication: 'normal',
+      testsWithoutAssertions: 'normal',
+    })
+    expect(judged.band).toBe('warn')
+    expect(judged).not.toHaveProperty('comparisons')
+  })
+
+  it('超预算的条件不受与基线比影响：同一串历史与取值，比与不比超的项一样', () => {
+    const past = history([
+      [7, 'act'],
+      [3, 'warn'],
+    ])
+    const baselines: MemberBaseline[] = [
+      { kind: 'none' },
+      { kind: 'snapshot', entry: undefined },
+      inBaseline(null),
+      inBaseline(0),
+      inBaseline(5),
+      inBaseline(20),
+    ]
+    for (let overAlert = 0; overAlert <= 10; overAlert += 1)
+      for (const prior of [[], past])
+        for (const baseline of baselines) {
+          const off = judge(values({ overAlert }), prior)
+          const on = judge(values({ overAlert }), prior, 'head', baseline)
+          expect(on.over).toEqual(off.over)
+          expect(on.band === 'act').toBe(off.band === 'act')
+        }
   })
 })
 

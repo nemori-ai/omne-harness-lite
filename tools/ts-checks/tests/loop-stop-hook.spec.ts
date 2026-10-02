@@ -84,6 +84,25 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
     })
   })
 
+  it('存量超线的函数：改一行不加分支不反馈；加一个分支才反馈，带「原 N」', () => {
+    const root = repository()
+    const path = 'packages/core/a/src/tangled.ts'
+    write(root, path, tangled)
+    commit(root, 'member')
+    spawnSync('git', ['checkout', '-q', '-b', 'someone/work'], { cwd: root })
+    const home = temporaryDirectory('loop-hook-home-')
+    write(root, path, tangled.replace('return -1', 'return -2'))
+    const quiet = hook(root, home, input(root))
+    expect(quiet.status).toBe(0)
+    expect(quiet.stdout).toBe('')
+    write(root, path, tangled.replace('  return -1', '  if (x === 99) return 99\n  return -1'))
+    const loud = hook(root, home, input(root))
+    expect(loud.status).toBe(0)
+    expect((JSON.parse(loud.stdout) as { reason: string }).reason).toContain(
+      `- 超过 alert 的函数：${path}:1 tangled 圈复杂度 16（alert 12），原 15\n`,
+    )
+  })
+
   it('改的不是产品源码（测试目录、examples、仓库根）：放行', () => {
     const { root, home } = work()
     write(root, 'packages/core/a/tests/tangled.spec.ts', tangled)

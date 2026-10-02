@@ -2,6 +2,7 @@
 // 这里只有纯函数与一个以依赖注入编排的 `stopHook`；读标准输入、跑 git、起 worker、写文件都在 stop-hook.ts。
 import { createHash } from 'node:crypto'
 import type { DirectionFinding, ImportSite } from '../metrics/graph.ts'
+import { describeAgainstBase, type ExplainedFunction } from './against-base.ts'
 import type { HookConfig } from './config.ts'
 import type { Explain, HardLines } from './status.ts'
 
@@ -51,6 +52,14 @@ function hardLineFinding(kind: string, finding: DirectionFinding): Finding {
   }
 }
 
+/** 函数那一行末尾与基线比的说明：现值前面已经写了，涨了的只补「原 N」。 */
+function baseNote(row: ExplainedFunction): string {
+  const against = row.againstBase
+  return against.kind === 'worse' || against.kind === 'not-worse'
+    ? `原 ${against.baseline}`
+    : describeAgainstBase(row)
+}
+
 /** 硬线排最前：条目多了被截断时，截掉的是报告项而不是硬线。 */
 export function findingsOf(readings: HookReadings): Finding[] {
   const { explain, hardLines, alert } = readings
@@ -62,7 +71,7 @@ export function findingsOf(readings: HookReadings): Finding[] {
     if (row.level === 'alert')
       out.push({
         key: `function\u0000${row.path}\u0000${row.name}`,
-        text: `超过 alert 的函数：${row.path}:${row.line} ${row.name} 圈复杂度 ${row.complexity}（alert ${alert}）`,
+        text: `超过 alert 的函数：${row.path}:${row.line} ${row.name} 圈复杂度 ${row.complexity}（alert ${alert}），${baseNote(row)}`,
       })
   if (explain.newEdges.status === 'data')
     for (const edge of explain.newEdges.data)

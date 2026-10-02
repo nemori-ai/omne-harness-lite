@@ -2,17 +2,20 @@
 // 这里只有纯函数；读 git、跑传感器、写文件都在 cli.ts。
 import { basename } from 'node:path'
 import type { DirectionFinding } from '../metrics/graph.ts'
-import { describeFunction, type FunctionRow } from '../metrics/report.ts'
+import { describeFunction } from '../metrics/report.ts'
 import { BAND_WORDS, judgeIndicator, type Band, type Comparison } from './bands.ts'
-import { BUDGET_LABELS, type MemberBudget } from './budget.ts'
+import { BUDGET_LABELS, type ItemComparison, type MemberBudget } from './budget.ts'
 import { CATEGORIES, type CatalogueStatus } from './catalogue.ts'
 import {
+  BUDGET_ITEMS,
   INDICATORS,
+  type BudgetItem,
   SWITCHED_SENSORS,
   type IndicatorId,
   type LoopConfig,
   type SwitchedSensor,
 } from './config.ts'
+import { describeAgainstBase, type ExplainedFunction } from './against-base.ts'
 import { describeClone, fixed } from './proposals.ts'
 import type { Reading } from './reading.ts'
 import type { CaseWithoutAssertion } from './sensors/assertions.ts'
@@ -164,7 +167,10 @@ export function hardLinesBroken(lines: HardLines): boolean {
 
 /** 这次变更里要解释的红项，五类；全量，终端只列前 explainTop 条。 */
 export interface Explain {
-  readonly functions: readonly FunctionRow[]
+  /** 碰过、带位不是 ok，且比基线涨了、新出现或拿不准的函数。 */
+  readonly functions: readonly ExplainedFunction[]
+  /** 碰过、原来就在线外、这次没有变差的函数：不要解释，但数出来。 */
+  readonly functionsNotWorse: readonly ExplainedFunction[]
   readonly newEdges: Reading<readonly EdgeChange[]>
   readonly newStableOnUnstable: Reading<readonly StabilityEdge[]>
   readonly casesWithoutAssertions: Reading<readonly CaseWithoutAssertion[]>
@@ -192,6 +198,10 @@ export interface StatusView {
   readonly explain: Explain | undefined
   readonly explainTop: number
   readonly overBudget: readonly OverBudget[]
+  /** 判过预算的全部成员；列「比基线变差的成员」用。 */
+  readonly budgets: readonly MemberBudget[]
+  /** 配置里成员预算与不与基线比（`memberBudget.baseline`）。 */
+  readonly budgetBaseline: boolean
   readonly proposalDir: string
   readonly catalogue: CatalogueStatus
   readonly cataloguePath: string
@@ -285,7 +295,11 @@ function explainLines(view: StatusView): string[] {
     if (reading.data.length > view.explainTop)
       out.push(`    其余 ${reading.data.length - view.explainTop} 条见 status.json`)
   }
-  section('变更函数里超过 warn 的', { status: 'data', data: explain.functions }, describeFunction)
+  section(
+    '变更函数里超过 warn、且比基线涨了或新出现的',
+    { status: 'data', data: explain.functions },
+    row => `${describeFunction(row)}：${describeAgainstBase(row)}`,
+  )
   section('新增的跨成员依赖', explain.newEdges, edge => `${edge.from} → ${edge.to}${at(edge.site)}`)
   section(
     '新增依赖里稳定依赖不稳定的',
@@ -300,6 +314,11 @@ function explainLines(view: StatusView): string[] {
   )
   section('有一端落在改动文件里的克隆', explain.clones, describeClone)
   if (out.length === 1) out.push('  无')
+  // 不要解释、但不让它们无声消失：放在最后，不影响上面「无」的判断。
+  if (explain.functionsNotWorse.length > 0)
+    out.push(
+      `  另有 ${explain.functionsNotWorse.length} 个碰过的函数原来就在线外、这次没有变差（见 status.json）`,
+    )
   return out
 }
 
@@ -320,9 +339,7 @@ function budgetLines(view: StatusView): string[] {
       a.budget.member.localeCompare(b.budget.member),
   )
   for (const { budget, proposal } of ordered.slice(0, view.explainTop)) {
-    const items = budget.over
-      .map(item => `${BUDGET_LABELS[item]} ${fixed(budget.values[item] ?? 0)}`)
-      .join('、')
+    const items = budget.over.map(item => itemWithComparison(budget, item)).join('、')
     out.push(
       budget.structural
         ? `  ${budget.member}：${items} → 结构问题：反复变红 ${budget.relapses} 次，上报，不派清理`
@@ -331,8 +348,80 @@ function budgetLines(view: StatusView): string[] {
   }
   if (ordered.length > view.explainTop)
     out.push(`  其余 ${ordered.length - view.explainTop} 个见 status.json`)
+  out.push(...baselineBudgetLines(view))
   out.push(catalogueLine(view.cataloguePath, view.catalogue))
   return out
+}
+
+function comparisonText(comparison: ItemComparison): string {
+  switch (comparison.result) {
+    case 'new':
+      return '新成员'
+    case 'unjudged':
+      return `与基线比未判：${comparison.reason}`
+    default:
+      return `与基线比 ${COMPARISON_WORD[comparison.result]}，基线 ${fixed(comparison.baseline)}`
+  }
+}
+
+function itemWithComparison(budget: MemberBudget, item: BudgetItem): string {
+  const text = `${BUDGET_LABELS[item]} ${fixed(budget.values[item] ?? 0)}`
+  const comparison = budget.comparisons?.[item]
+  return comparison === undefined ? text : `${text}（${comparisonText(comparison)}）`
+}
+
+/** 每个成员一行，列出满足 `pick` 的那几项；没有这样的项的成员不列。按成员路径排。 */
+function memberItemLines(
+  budgets: readonly MemberBudget[],
+  pick: (budget: MemberBudget, item: BudgetItem) => string | undefined,
+): string[] {
+  return [...budgets]
+    .sort((a, b) => a.member.localeCompare(b.member))
+    .flatMap(budget => {
+      const items = BUDGET_ITEMS.flatMap(item => {
+        const text = pick(budget, item)
+        return text === undefined ? [] : [text]
+      })
+      return items.length === 0 ? [] : [`${budget.member}：${items.join('、')}`]
+    })
+}
+
+/**
+ * 成员预算与基线比的那一段：比基线变差的成员（基线值 → 现值），与过了提醒线的新成员。
+ * 配置里不比时整段不出，输出与不比时的旧样子逐字相同。
+ */
+function baselineBudgetLines(view: StatusView): string[] {
+  if (!view.budgetBaseline) return []
+  const title = '  比基线变差的成员'
+  if (view.baseline.kind === 'none') return [`${title}：未判：没有基线快照`]
+  const band = (budget: MemberBudget, item: BudgetItem) => {
+    const found = budget.bands[item]
+    return found === undefined ? '' : `（${BAND_WORDS[found]}）`
+  }
+  const worse = memberItemLines(view.budgets, (budget, item) => {
+    const comparison = budget.comparisons?.[item]
+    return comparison?.result === 'worse'
+      ? `${BUDGET_LABELS[item]} ${fixed(comparison.baseline)} → ${fixed(budget.values[item] ?? 0)}${band(budget, item)}`
+      : undefined
+  })
+  const fresh = memberItemLines(view.budgets, (budget, item) =>
+    budget.comparisons?.[item]?.result === 'new' &&
+    budget.bands[item] !== undefined &&
+    budget.bands[item] !== 'normal'
+      ? `${BUDGET_LABELS[item]} ${fixed(budget.values[item] ?? 0)}${band(budget, item)}`
+      : undefined,
+  )
+  const listed = (label: string, entries: readonly string[]) => {
+    if (entries.length === 0) return [`${label}：无`]
+    return [
+      `${label} ${entries.length} 个：`,
+      ...entries.slice(0, view.explainTop).map(entry => `    ${entry}`),
+      ...(entries.length > view.explainTop
+        ? [`    其余 ${entries.length - view.explainTop} 个见 status.json`]
+        : []),
+    ]
+  }
+  return [...listed(title, worse), ...listed('  新成员过了提醒线的', fresh)]
 }
 
 export function catalogueLine(path: string, catalogue: CatalogueStatus): string {

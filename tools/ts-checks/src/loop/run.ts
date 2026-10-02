@@ -13,9 +13,10 @@ import { inspectRetire } from '../product/retire.ts'
 import { readTestRunsConfig } from '../testing/config.ts'
 import { GROUP_DIRECTION_POLICY } from '../rules/group-direction.ts'
 import { isTestPath, type SourceFile } from '../rule.ts'
-import { judgeMember, type MemberBudget } from './budget.ts'
+import { judgeMember, type MemberBaseline, type MemberBudget } from './budget.ts'
 import { readCatalogue } from './catalogue.ts'
 import { readLoopConfig, type IndicatorId, type LoopConfig } from './config.ts'
+import { baseFilesOf, judgeAgainstBase } from './function-baseline.ts'
 import { loopHome } from './home.ts'
 import { writeProposal } from './proposals.ts'
 import { data, noData, type Reading } from './reading.ts'
@@ -284,13 +285,25 @@ function acceptanceNote(timing: AcceptanceTiming): string {
   return `${timing.files} 份（${timing.members} 个成员），记录开始于 ${timing.ledger?.startedAt ?? '？'}`
 }
 
+/** 一个成员拿什么与基线比：配置不比、没有基线快照，或基线快照里它的条目（新成员没有）。 */
+function memberBaseline(
+  enabled: boolean,
+  baseline: BaselineSnapshot,
+): (member: string) => MemberBaseline {
+  if (!enabled) return () => ({ kind: 'off' })
+  if (baseline.kind === 'none') return () => ({ kind: 'none' })
+  return member => ({ kind: 'snapshot', entry: baseline.snapshot.members[member] })
+}
+
 function memberBudgets(
   report: Report,
   sensors: Sensors,
   config: LoopConfig,
   history: readonly Snapshot[],
   head: string,
+  baseline: BaselineSnapshot,
 ): MemberBudget[] {
+  const baselineOfMember = memberBaseline(config.budgetBaseline, baseline)
   const duplication =
     sensors.duplication.status === 'data'
       ? new Map(sensors.duplication.data.members.map(entry => [entry.member, entry.percent]))
@@ -318,12 +331,18 @@ function memberBudgets(
         history,
         head,
         relapseLimit: config.relapseLimit,
+        baseline: baselineOfMember(member.path),
       }),
     )
 }
 
-/** 这次变更里要解释的红项；只用到四个传感器，收工钩子不跑重复代码时给它一个没数据的读数。 */
+/**
+ * 这次变更里要解释的红项；只用到四个传感器，收工钩子不跑重复代码时给它一个没数据的读数。
+ * 函数一类与基线比：碰过、带位不是 ok 的函数里只留涨了的、新出现的与拿不准的，
+ * 为此只取这些函数所在文件在 `change.mergeBase` 上的文本（`root` 是被量的检出）。
+ */
 export function explainOf(
+  root: string,
   report: Report,
   sensors: Pick<Sensors, 'newEdges' | 'stability' | 'assertions' | 'duplication'>,
   change: Change,
@@ -334,10 +353,17 @@ export function explainOf(
     sensors.stability.status === 'data'
       ? new Map(sensors.stability.data.map(edge => [`${edge.from}\u0000${edge.to}`, edge]))
       : undefined
+  const candidates = report.functions
+    .filter(row => row.changed && row.level !== 'ok')
+    .sort((a, b) => b.score - a.score)
+  const { kept, notWorse } = judgeAgainstBase(
+    candidates,
+    report.functions,
+    baseFilesOf(root, change.mergeBase, new Set(candidates.map(row => row.path))),
+  )
   return {
-    functions: report.functions
-      .filter(row => row.changed && row.level !== 'ok')
-      .sort((a, b) => b.score - a.score),
+    functions: kept,
+    functionsNotWorse: notWorse,
     newEdges: added,
     newStableOnUnstable:
       unstable === undefined
@@ -506,6 +532,7 @@ export async function runLoopStatus(
     config,
     ancestorSnapshots(trend.snapshots, headAncestry),
     at.head,
+    baseline,
   )
   const proposalDir = join(options.strict ? outDir : home, 'proposals')
   const overBudget = writeProposals(budgets, report, sensors, config, proposalDir, at)
@@ -564,7 +591,7 @@ export async function runLoopStatus(
         : `；趋势文件第 ${trend.badLines.join('、')} 行读不了，已跳过`),
     `产物：${outDir}/status.md 与 status.json`,
   ]
-  const explain = change === undefined ? undefined : explainOf(report, sensors, change)
+  const explain = change === undefined ? undefined : explainOf(root, report, sensors, change)
   const lines = renderStatus({
     shortHead: at.shortHead,
     branch: at.branch,
@@ -578,6 +605,8 @@ export async function runLoopStatus(
     explain,
     explainTop: config.explainTop,
     overBudget,
+    budgets,
+    budgetBaseline: config.budgetBaseline,
     proposalDir,
     catalogue,
     cataloguePath: config.sensors.catalogue.path,
