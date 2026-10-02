@@ -28,6 +28,8 @@ catalog:
   '@eslint-community/regexpp': 4.12.2
   '@jscpd/core': 4.0.1
   '@jscpd/tokenizer': 4.0.1
+  '@stryker-mutator/core': 10.0.0
+  '@stryker-mutator/vitest-runner': 10.0.0
 
 patchedDependencies:
   '@earendil-works/pi-tui@1.0.0': apps/cli/patches/pi-tui-1.0.0.patch

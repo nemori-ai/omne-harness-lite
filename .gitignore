@@ -8,4 +8,6 @@ dist/
 node_modules/
 tmp/
 /.worktrees/
+# make mutation 的 sandbox（与成员同深度，跑完删掉；被打断时可能留下）
+.stryker-tmp*
 .env

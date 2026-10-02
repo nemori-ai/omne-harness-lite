@@ -629,6 +629,36 @@ pnpm 自带的 `--filter "...[<基线>]"` 做的是同一件事，但它在 git 
 策略都在 [test-runs.config.json](test-runs.config.json)，不写死在代码里。自测：`tests/test-runs.spec.ts`；
 运行名额脚本的行为核对在 `tests/test-slot.spec.ts`，脚本本身见[自动化入口](../../scripts/README.md#运行名额)。
 
+## 差分变异
+
+`make mutation [BASE=<基线>]` 回答「这次改动碰到的代码，测试守不守得住」：把改动行上的代码逐处改坏（变异体），
+看有没有测试因此失败。`src/mutation/` 是 [Stryker](https://stryker-mutator.io/) 10 与它的 vitest runner 上面薄薄的一层，
+变异算子、插桩、调度与判定都是 Stryker 的，这里只做三件事：
+
+- **范围**：基线合并点到工作树（含未提交、未跟踪）的改动，取新一侧的行号（与[结构度量](#结构度量)同一份 diff 解析），
+  只留 `packages/`、`apps/` 成员 `src/` 下的源码（不含 `*.d.ts`），按成员写成 Stryker 的 `mutate` 条目 `文件:起-止`；
+  未跟踪的文件整份变异。`MEMBERS=<成员目录,…>` 改为变异点名成员 `src/` 下的全部源码。`PLAN=1` 只列范围。
+- **运行**：先构建这些成员及其依赖，再逐成员调用 Stryker：成员目录为工作目录、只跑**快层**（`OMNE_TEST_TIER=fast`）、
+  并行度取 `test-runs.config.json` 的 `parallel.vitestMaxWorkers`（环境变量 `VITEST_MAX_WORKERS` 可改）。
+  sandbox 放在与成员**同深度**的 `.stryker-tmp-*` 目录（被 `.gitignore` 忽略）：不少测试用 `import.meta.dirname`
+  拼相对路径读成员外的规格与根配置，换了深度就读不到。sandbox 里先把成员的 `node_modules` 软链进来再构建成员
+  （`src/mutation/sandbox-build.ts`），跑完连容器目录一起删掉。不就地改源码。
+- **读数**：读每个成员的 `mutation.json`，只计落在要变异的行上的变异体（跨到范围外的另记一个数），
+  汇总被杀、超时、存活、无覆盖、编译错误、运行错误与分数（测出来的占测出来与没测出来之和），
+  逐条列出存活与无覆盖的「文件:行 算子 原文 → 替换」。原件、`summary.md`、`summary.json` 与各成员日志写进
+  主检出的 `tmp/mutation-ledger/<提交短号>[-dirty]/<时间>/`（环境变量 `OMNE_MUTATION_LEDGER_HOME` 可改）。
+
+**只报告**（负责人 2026-10-02 定）：变异体存活不影响退出码，不进 `make check`；Stryker 起不来、初跑失败、
+没写出报告才退出 1，参数错退出 2。读数的边界：
+
+- 存活少不等于测试好：只量了改动行，没改的代码不在内；变异算子之外的错误写法量不到。
+- 判定会抖（Stryker 的 perTest 判定已知会抖，上游 #6073）：一个存活要复跑确认，再决定补不补测试。
+- `static` 标记的变异体在模块加载时就求值，Stryker 只能为它跑全部测试，成本高。
+- 慢层的测试不参与：只被慢层测试守着的代码会显示为无覆盖或存活。
+
+自测：`tests/mutation.spec.ts`，其中一条在夹具项目上真起 Stryker（归慢层）：没断言的测试留下存活变异体，
+补上断言后被杀；只变异改动行；跑完不留 sandbox。
+
 ## 后续 core 静态义务的兑现方式
 
 下表是开发者选择检查形式的导航，语义和责任仍归各节点 design「静态检查义务怎么承载」。

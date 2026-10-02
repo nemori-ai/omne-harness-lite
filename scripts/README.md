@@ -51,7 +51,7 @@
 `scripts/with-test-slot.sh <命令> [参数…]` 拿到名额才执行命令，并原样返回它的退出码。
 
 经它执行的入口：`make check`（整套占一个名额）、根 `pnpm run test` 与 `pnpm run check` 的测试一步、
-`make test-affected`、`make test-tier`、`make test-triage`、`make metrics COVERAGE=1`。已经持有名额的进程再调用它
+`make test-affected`、`make test-tier`、`make test-triage`、`make mutation`、`make metrics COVERAGE=1`。已经持有名额的进程再调用它
 （例如 `make check` 里嵌着的测试一步）直接放行，不重复排队。名额随持有它的进程退出而释放，
 进程被杀也不会留下卡死的锁。
 
