@@ -1,14 +1,34 @@
 """What the flows a program judges have in common: the write scope, the tools used, the shape of a row.
 
-In these flows (implement, acceptance) the role changes or runs a checkout, and a program reads the
+In these flows (implement, acceptance, write-tests) the role changes or runs a checkout, and a program reads the
 result off the copy when the run is recorded, before the copy is removed. There is no judge.
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from .claude_host import Episode
 from .suite import Flow, Material
+
+
+def tally(doc: dict[str, Any] | None, only: list[str] | None = None) -> tuple[int, int, list[str]]:
+    """(passed, total, failed names) from a vitest JSON report; a file that failed to load counts as one failure."""
+    passed = total = 0
+    failed = []
+    for result in (doc or {}).get("testResults", []):
+        name = Path(result["name"]).name
+        if only is not None and name not in only:
+            continue
+        for assertion in result["assertionResults"]:
+            total += 1
+            if assertion["status"] == "passed":
+                passed += 1
+            else:
+                failed.append(f"{name} :: {assertion['fullName'] if 'fullName' in assertion else assertion['title']}")
+        if not result["assertionResults"] and result.get("status") == "failed":
+            failed.append(f"{name} :: (file failed to load)")
+    return passed, total, failed
 
 
 def outside_scope(changes: list[tuple[str, str]], allowed: list[str] | tuple[str, ...]) -> list[str]:

@@ -21,12 +21,8 @@ REQUIRED_FIELDS = ("commit", "run_id", "exit_code", "verifier")
 VERDICTS = ("Pass", "Pass with issues", "Fail", "Unable to verify")
 
 
-def run_id(material: Material, rep: int) -> str:
-    return f"{material.id.lower()}-r{rep}"
-
-
 def brief(flow: Flow, material: Material, *, workdir: str, rep: int, keep: tuple[str, ...] = ()) -> str:
-    values = {"TASK_ID": material.id, "RUN_ID": run_id(material, rep), "ROLE": flow.role, "WORKDIR": workdir}
+    values = {"TASK_ID": material.id, "RUN_ID": checkout.run_id(material, rep), "ROLE": flow.role, "WORKDIR": workdir}
     return checkout.fill(material.brief.read_text(encoding="utf-8"), values, keep=keep)
 
 

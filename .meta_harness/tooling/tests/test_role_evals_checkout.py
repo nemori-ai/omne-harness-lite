@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,7 @@ import pytest
 from test_role_evals import EVALUATION, META, MODEL, git, repo, serial, transcript, wired  # noqa: F401  (fixtures)
 from test_role_evals import prepare as prepare_material
 
-from roleeval import acceptance, checkout, claude_host, cli, implement, judge, review, suite, workspace  # noqa: E402
+from roleeval import acceptance, checkout, claude_host, cli, implement, judge, review, suite, workspace, write_tests  # noqa: E402
 from roleeval.store import VariantStore, check_row  # noqa: E402
 
 PY = sys.executable
@@ -311,9 +312,10 @@ def test_editing_an_existing_test_and_writing_outside_the_scope_are_seen(impleme
 
 def test_the_brief_is_the_frame_with_the_task_filled_in(tiny: dict[str, Any]) -> None:
     flow = tiny["flows"]["tiny-implement"]
-    text = implement.brief(flow, flow.materials[0], workdir="/w/x", rep=1)
+    text = checkout.framed_brief(flow, flow.materials[0], workdir="/w/x", rep=1)
     assert text == "任务 T1（run t1-r1），角色 tiny-developer，检出 `/w/x`。\n\n把 member/src/mod.ts 补完。\n"
-    assert "{WORKDIR}" in implement.brief(flow, flow.materials[0], workdir="{WORKDIR}", rep=0, keep=("WORKDIR", "RUN_ID"))
+    assert "{WORKDIR}" in checkout.framed_brief(flow, flow.materials[0], workdir="{WORKDIR}", rep=0,
+                                                keep=("WORKDIR", "RUN_ID"))
     with pytest.raises(checkout.BriefError, match="GOAL"):
         checkout.fill("{GOAL} 与 {WORKDIR}", {"WORKDIR": "/w"})
 
@@ -706,7 +708,7 @@ def test_the_inputs_page_of_each_new_family(tiny: dict[str, Any]) -> None:
 
 
 def test_nothing_new_in_the_runner_starts_a_model() -> None:
-    for name in ("checkout.py", "implement.py", "acceptance.py", "program.py", "workspace.py", "review.py"):
+    for name in ("checkout.py", "implement.py", "acceptance.py", "program.py", "workspace.py", "review.py", "write_tests.py"):
         source = (EVALUATION / "harness" / "roleeval" / name).read_text(encoding="utf-8")
         assert '"claude"' not in source and "'claude'" not in source and "claude -p" not in source, name
 
@@ -717,8 +719,9 @@ CHECKOUT_SUITES = sorted(path.parent for path in (EVALUATION / "suites").glob("*
                          if json.loads(path.read_text(encoding="utf-8"))["workspace"].get("kind") == "checkout")
 
 
-def test_the_three_new_suites_are_standing_and_unsigned() -> None:
-    assert [root.name for root in CHECKOUT_SUITES] == ["developer-implement", "implementation-review", "qa-acceptance"]
+def test_the_checkout_suites_are_standing_and_unsigned() -> None:
+    assert [root.name for root in CHECKOUT_SUITES] == ["developer-implement", "implementation-review", "qa-acceptance",
+                                                       "tui-developer-implement", "verification-write-tests"]
     for root in CHECKOUT_SUITES:
         flow = suite.load(root)
         assert flow.unsigned() == ["cases", "grading"] and flow.version == 1
@@ -742,10 +745,17 @@ def test_a_checkout_suite_still_fits_its_pinned_commit(root: Path) -> None:
                 assert text.count(op["find"]) == 1, f"{flow.id}/{material.id}.{op.get('id')}: no longer lands once"
             else:
                 workspace.git(repo, "show", f"{base}:{op['file']}")
-        if material.task:
+        if flow.family == "implement":
             for path in [*material.task["hidden_tests"], *implement.stub_files(flow, material)]:
                 workspace.git(repo, "show", f"{base}:{path}")
-            implement.brief(flow, material, workdir="/w", rep=0)
+            checkout.framed_brief(flow, material, workdir="/w", rep=0)
+        if flow.family == "write-tests":
+            for path in material.task["hidden_tests"]:
+                workspace.git(repo, "show", f"{base}:{path}")
+            module = subprocess.run(["git", "-C", str(repo), "show", f"{base}:{material.task['target']}"],
+                                    capture_output=True, text=True, check=True).stdout
+            assert write_tests.landing(material, module) == [], f"{flow.id}/{material.id}: mutants no longer land once"
+            checkout.framed_brief(flow, material, workdir="/w", rep=0)
         if flow.family == "acceptance":
             acceptance.brief(flow, material, workdir="/w", rep=0)
         if material.delivery_note:

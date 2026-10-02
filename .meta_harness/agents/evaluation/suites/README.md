@@ -12,11 +12,14 @@
 | [developer-implement](developer-implement/README.md) | developer 在整仓检出里补完一个模块，程序判定 | 两次签字都未签；还没有基线 |
 | [qa-acceptance](qa-acceptance/README.md) | qa 按十条标准验收一份构建，程序判定 | 同上 |
 | [implementation-review](implementation-review/README.md) | implementation-reviewer 评审一份交付提交，判官判定 | 同上；判官已在这个流上校准 |
+| [tui-developer-implement](tui-developer-implement/README.md) | tui-developer 在整仓检出里补完一个终端模块，程序判定 | 两次签字都未签；还没有基线 |
+| [verification-write-tests](verification-write-tests/README.md) | verification-developer 为拿走了原有测试的模块写测试，程序用预置变异体判定 | 两次签字都未签；还没有基线 |
 
 负责人 2026-10-01 定：各流的完整基线不随用例集一起跑，统一放到研发方案的最后。在那之前，这些用例集可以用来对单次改动做有针对性的试派，
 但没有基线可比。
 
-其余角色的流还没有迁入或建立，各自的一次性评估见[评估索引](../README.md)。
+`tui-debugger`、`spec-drafter`、`realization-drafter`、`product-design-drafter`、`product-design-reviewer` 的流还没有迁入或建立，
+各自的一次性评估见[评估索引](../README.md)。
 
 ## 一个用例集里有什么
 
@@ -26,13 +29,14 @@ briefs/          每份材料的派发简报，{WORKDIR} 在运行时换成副�
 materials/       整份放进副本的待审材料（如为评估写的施工计划）
 stubs/           implement 一类：盖到副本上的桩文件，路径相对检出根
 target-tests.json  implement 一类：每份材料的桩在位时失败的测试
+                 （write-tests 一类的变异体写在 flow.json 每份材料的 task.mutants 里，简报框架是 _write-tests.md）
 ground-truth.sh  acceptance 一类：在副本上逐条跑验收标准的真值脚本
 calibration/     校准判官用：cases.json（每份报告的人工判定，反例怎样从真实报告删改而来）、
                  reports/（报告原文）、results/（判官校准的比对记录）
 README.md        这个流量什么、量不出什么、基线数字与噪声范围
 ```
 
-流分三类：评审类（`review`）由判官逐条判报告；`implement` 与 `acceptance` 由程序在收录运行时判副本，没有判官，
+流分四类：评审类（`review`）由判官逐条判报告；`implement`、`acceptance` 与 `write-tests` 由程序在收录运行时判副本，没有判官，
 它们的副本是装好依赖的整仓检出（见[运行器](../harness/README.md#整仓检出一类)）。
 
 评审类的流里，一份**材料**是一次派发的待审对象，分三种：
@@ -69,12 +73,14 @@ README.md        这个流量什么、量不出什么、基线数字与噪声范
 | `developer` 的正文、`developer-contract.md` | `developer-implement` |
 | `qa` 的正文 | `qa-acceptance` |
 | `implementation-reviewer` 的正文、`implementation-review-checklist.md` | `implementation-review` |
-| `engineering-taste.md`（四个角色都内联它） | 每个角色至少一个流；改的是 TS/JS 专节时以 `developer-implement` 与 `implementation-review` 为主 |
+| `tui-developer` 的正文 | `tui-developer-implement` |
+| `verification-developer` 的正文 | `verification-write-tests` |
+| `engineering-taste.md`（有流的六个角色都内联它） | 每个角色至少一个流；改的是 TS/JS 专节时以 `developer-implement`、`tui-developer-implement` 与 `implementation-review` 为主 |
 | 某个角色的模型钉值或档位 | 该角色的全部流；流里写的模型与档位同步改，用例集升版本 |
 | 宿主（Claude Code）升了版本 | 每个角色至少一个流 |
 | 判官的规则文本，或换判官模型 | 不是跑流：先重新校准（`calibrate-*`），判定方法重新签字，之后的结果才可比 |
 
-**其余角色还没有常设用例集**：`tui-developer`、`verification-developer`、`tui-debugger`、`spec-drafter`、`realization-drafter`、
+**其余角色还没有常设用例集**：`tui-debugger`、`spec-drafter`、`realization-drafter`、
 `product-design-drafter`、`product-design-reviewer`。改了它们，按[角色说明](../../roles/README.md)里的办法做一次试派，
 并对照它们各自的一次性评估记录（见[评估索引](../README.md)）；别拿上表里的流代替。
 
