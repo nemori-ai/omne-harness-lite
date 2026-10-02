@@ -113,13 +113,11 @@ function sessionAndStandingDiagnostic(
   if (input.standing.standing !== 'effective') return diagnostic('C12', 'ineffective membership')
   return undefined
 }
-/** C2～C8、C11、C12 in the contract's order; the first violated condition is the diagnostic. */
-function consistencyDiagnostic(
+/** C5～C8、C11、C12 in the contract's order; the first violated condition is the diagnostic. */
+function definitionsDiagnostic(
   input: EvaluationRootSelectionInput,
   definitions: ReadonlyMap<string, AssetDefinition>,
 ): InputDiagnostic | undefined {
-  const scope = scopeDiagnostic(input)
-  if (scope !== undefined) return scope
   for (const holding of input.holdings) {
     const bad = heldDefinitionDiagnostic(holding, input, definitions)
     if (bad !== undefined) return bad
@@ -299,8 +297,11 @@ export function selectAssets(
   input: EvaluationRootSelectionInput,
   facts: EvaluationFacts,
 ): Selection | InvalidInput {
+  const outOfScope = scopeDiagnostic(input)
+  if (outOfScope !== undefined) return invalidInput(outOfScope)
+  // Built only after C2～C4, as before: a malformed definition entry must not throw ahead of them.
   const definitions = new Map(input.definitions.map(definition => [definition.id, definition]))
-  const inconsistent = consistencyDiagnostic(input, definitions)
+  const inconsistent = definitionsDiagnostic(input, definitions)
   if (inconsistent !== undefined) return invalidInput(inconsistent)
   const filtered: FilteredOut[] = []
   const disabled = disabledAssets(input, definitions)
