@@ -115,6 +115,9 @@
     "residentPaths": [
       "README.md",
       "CONTRIBUTING.md",
+      ".agents",
+      ".claude",
+      ".codex",
       "docs/**",
       ".meta_harness/design/**",
       ".meta_harness/design_legacy/**",
@@ -135,6 +138,8 @@
       "scripts/package-cli.sh",
       "scripts/package-tenancy-host.sh",
       "scripts/build-tenancy-image.sh",
+      "packages/**/*.md",
+      "apps/**/*.md",
       "tools/*.md",
       "tools/model-probe/**"
     ],

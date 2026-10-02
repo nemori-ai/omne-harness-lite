@@ -252,15 +252,17 @@ function scopedReason(
   python: boolean,
 ): string {
   if (files.length === 0) return '基线以来没有改动'
-  if (planned.length === 0 && !python)
-    return `只需常驻检查：${files.length} 个改动文件都只被常驻检查读`
+  if (planned.length === 0)
+    return python
+      ? `只跑 pytest：${files.length} 个改动文件里有 Python 工具读的，没有成员受影响`
+      : `只需常驻检查：${files.length} 个改动文件都只被常驻检查读`
   const own = planned.filter(member => member.changed.length > 0).length
   const readers = planned.filter(member => member.changed.length === 0 && member.reads.length > 0)
   const dependents = planned.filter(
     member => member.changed.length === 0 && member.reads.length === 0,
   )
   return (
-    `按影响面：${files.length} 个改动文件，成员 ${planned.length} 个` +
+    `${files.length} 个改动文件，成员 ${planned.length} 个` +
     `（自己改了 ${own} 个、依赖方 ${dependents.length} 个、只因读者规则 ${readers.length} 个）` +
     `；pytest ${python ? '跑' : '不跑'}`
   )
@@ -381,18 +383,20 @@ export function describeCheckPlan(
     lines.push('  类型检查：全部（根 pnpm run typecheck）')
     lines.push(`  成员测试：全部 ${plan.test.length} 个成员的快、慢两层`)
   } else {
-    const resident = plan.build.filter(entry => entry.reason === 'resident')
-    const forTests = plan.build.length - resident.length
+    const resident = plan.build.filter(entry => entry.reason === 'resident').map(e => e.path)
+    const forTests = plan.build.filter(entry => entry.reason !== 'resident').map(e => e.path)
     const residentWhy = rules.residentBuild
-      .filter(entry => resident.some(build => build.path === entry.member))
-      .map(entry => `${entry.member}——${entry.why}`)
+      .filter(entry => resident.includes(entry.member))
+      .map(entry => entry.why)
+    const residentNote =
+      resident.length === 0
+        ? ''
+        : `${resident.join('、')}——常驻检查需要${residentWhy.length > 0 ? `：${residentWhy.join('；')}` : ''}`
     lines.push(
-      `  构建：${plan.build.length} 个` +
-        (forTests > 0 ? `（被选中的成员及其依赖 ${forTests} 个）` : '') +
-        (resident.length > 0
-          ? `；常驻检查需要的 ${resident.map(entry => entry.path).join('、')}` +
-            (residentWhy.length > 0 ? `（${residentWhy.join('；')}）` : '')
-          : ''),
+      forTests.length === 0
+        ? `  构建：只构建 ${residentNote}`
+        : `  构建：${plan.build.length} 个——被选中的成员及其依赖 ${sample(forTests, 6)}` +
+            (resident.length === 0 ? '' : `；另有 ${residentNote}`),
     )
     lines.push(
       plan.typecheck.length === 0

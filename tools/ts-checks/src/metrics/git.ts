@@ -82,11 +82,14 @@ export function changedLines(root: string, mergeBase: string): ChangedLines {
   return changed
 }
 
-/** 基线合并点到当前工作树改动过的全部仓库相对路径（含删除、未提交与未跟踪），不限目录。 */
+/** `-z` 输出的路径：以 NUL 分隔，非 ASCII 的文件名原样给出（不加引号、不转义）。 */
+export const nulSeparated = (output: string) => output.split('\u0000').filter(path => path !== '')
+
+/** 基线合并点到当前工作树改动过的全部仓库相对路径（含删除、未提交与未跟踪），不限目录；改名拆成删与增。 */
 export function changedFiles(root: string, mergeBase: string): string[] {
-  const tracked = git(root, ['diff', '--no-renames', '--name-only', mergeBase])
-  const untracked = git(root, ['ls-files', '--others', '--exclude-standard'])
-  return [...new Set(`${tracked}\n${untracked}`.split('\n').filter(path => path !== ''))].sort()
+  const tracked = git(root, ['diff', '--no-renames', '--name-only', '-z', mergeBase])
+  const untracked = git(root, ['ls-files', '--others', '--exclude-standard', '-z'])
+  return [...new Set([...nulSeparated(tracked), ...nulSeparated(untracked)])].sort()
 }
 
 /** 某个提交上该路径的文本；那时还没有这个文件则为 undefined。 */

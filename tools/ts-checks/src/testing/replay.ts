@@ -1,10 +1,10 @@
 // 回放：对一条分支上最近的若干个 first-parent 提交，各以父提交为基线、以它本身为改动算一次计划（只算不跑）。
 // 成员清单取那个提交上的（当时的 workspace 与依赖），路径规则取现在的配置——回放量的是现行规则放在过去会怎么判。
 // 用来在改规则前后看「判全量的有几个、是不是该全量」，不进 `make check`。
-import { git } from '../metrics/git.ts'
+import { git, nulSeparated } from '../metrics/git.ts'
 import { planCheck, sample, type CheckPlan } from './affected.ts'
 import type { AffectedRules } from './config.ts'
-import { gitTree, listWorkspaceMembers } from './members.ts'
+import { gitTree, listWorkspaceMembers, type WorkspaceMember } from './members.ts'
 
 export interface ReplayRow {
   readonly commit: string
@@ -20,9 +20,22 @@ export interface ReplayRow {
 
 /** 一个提交相对它第一个父提交改动的路径（改名拆成删与增，两侧都算）。 */
 export function commitChanges(root: string, commit: string): string[] {
-  return git(root, ['diff', '--no-renames', '--name-only', `${commit}^1`, commit])
-    .split('\n')
-    .filter(path => path !== '')
+  return nulSeparated(
+    git(root, ['diff', '--no-renames', '--name-only', '-z', `${commit}^1`, commit]),
+  )
+}
+
+/** 现行规则放到过去：那时还不存在的成员从读者与常驻构建里拿掉（那时没有这个读者），其余照旧。 */
+export function rulesAt(rules: AffectedRules, members: readonly WorkspaceMember[]): AffectedRules {
+  const known = new Set(members.map(member => member.path))
+  return {
+    ...rules,
+    readers: rules.readers.map(reader => ({
+      ...reader,
+      members: reader.members.filter(member => known.has(member)),
+    })),
+    residentBuild: rules.residentBuild.filter(entry => known.has(entry.member)),
+  }
 }
 
 export function replay(
@@ -40,7 +53,7 @@ export function replay(
     const changed = commitChanges(root, commit)
     try {
       const members = listWorkspaceMembers(gitTree(root, commit), rules.excludeRoots)
-      const plan = planCheck(changed, members, rules)
+      const plan = planCheck(changed, members, rulesAt(rules, members))
       const because = plan.files
         .filter(file => file.category === 'global' || file.category === 'unclassified')
         .map(file => file.path)

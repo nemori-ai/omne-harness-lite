@@ -85,7 +85,9 @@ describe('影响面计划（真实规则）', () => {
     const text = describe_(result)
     expect(text).toContain('判为只需常驻检查，跳过了类型检查、成员测试、验收、pytest')
     expect(text).toContain(`${CONFIG} 的 affected.residentPaths`)
-    expect(text).toContain('packages/core/identity-values——lint:rules 经')
+    expect(text).toContain(
+      '构建：只构建 packages/core/identity-values——常驻检查需要：lint:rules 经',
+    )
     expect(text).toContain('成员测试：没有要跑的成员')
   })
 
@@ -291,7 +293,7 @@ describe('取改动', () => {
     writeFileSync(join(root, path), text)
   }
 
-  it('改名拆成删与增：工作树改动与单个提交的改动都给出两侧', () => {
+  it('改名拆成删与增、非 ASCII 文件名原样：工作树改动与单个提交的改动都是如此', () => {
     const root = mkdtempSync(join(tmpdir(), 'affected-rename-'))
     roots.push(root)
     run(root, 'init', '-q')
@@ -304,13 +306,18 @@ describe('取改动', () => {
     mkdirSync(join(root, 'packages/a/y/src'), { recursive: true })
     run(root, 'mv', 'packages/a/x/src/old.ts', 'packages/a/y/src/new.ts')
     put(root, 'untracked.txt', '')
+    // 非 ASCII 的文件名要原样给出：git 缺省会给它加引号、转义成八进制，那样就归不了类、整份判全量。
+    put(root, 'docs/本机实测.md', '')
+    run(root, 'add', 'docs/本机实测.md')
     expect(changedFiles(root, base)).toEqual([
+      'docs/本机实测.md',
       'packages/a/x/src/old.ts',
       'packages/a/y/src/new.ts',
       'untracked.txt',
     ])
     run(root, 'commit', '-q', '-m', 'rename')
     expect(commitChanges(root, 'HEAD').sort()).toEqual([
+      'docs/本机实测.md',
       'packages/a/x/src/old.ts',
       'packages/a/y/src/new.ts',
     ])
