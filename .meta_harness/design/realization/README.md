@@ -37,7 +37,8 @@ realization/
 使「读设计」和「读源码」用同一个词。
 
 **Cordis 符合性核对表**（2026-10-01 起）：Cordis 是装配时要满足的契约规范，新写或修订的节点在 `design.md` 里按模板逐行填这张表——
-插件边界、服务声明、注入、装卸成对、在途工作、事件派发、内核不给的保证由谁兑现。它只核节点对 Cordis 的符合性，
+插件边界、服务声明、注入、装卸成对、在途工作、事件派发、内核不给的保证由谁兑现、接缝角色、事件命名、配置，装配节点另有插件树。
+各行由 [Cordis 集成约定](cordis-integration-conventions.md)导出：本项目做出来的东西怎样接进 Cordis，规则与编号（`IC-`）的权威在那份约定。它只核节点对 Cordis 的符合性，
 不把机制写回契约。2026-10-01 之前接受的节点没有这张表，**不回填**；它们下次修订时补上。
 
 2026-09-28，原 `apps/model-request-acceptance` 的实现已迁到开发示例 `examples/model-invocation-minimal-demo`；同名产品 app 不再是当前交付节点。D-076、D-092 所采用的原技术投影移至[退出现行映射的历史节点](retired/model-request-acceptance/README.md)，保留原路径与 SHA 的采用时证据。现行 `apps/` 目录仅列产品应用；历史设计里仍出现的旧装配 owner 是当时读数，不表示现有示例已经承接完整十三操作、37 模型认证或相关生产责任。后续完整纵线必须逐个重新落实这些未承接责任。
@@ -49,14 +50,14 @@ realization/
 
 | 第一层                                                                                                                | 放什么                                                                                                                                  | 判据                                                                                                                                                                                 |
 | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `core/`                                                                                                               | **核心、共享、契约或底层协议相关**：`data.*` 数据契约的纯模块、跨领域复用的构造（身份值、交接凭证、过期判定、时间源形状）、内核层复用件 | 它没有自己的领域事实，**被两个以上领域消费**，或它兑现的是一份 `data.*` 契约                                                                                                         |
+| `core/`                                                                                                               | **核心、共享、契约或底层协议相关**：`data.*` 数据契约的纯模块、跨领域复用的构造（身份值、交接凭证、过期判定、时间源形状）、内核层复用件；**能力契约的 Cordis 服务定义**（每份以服务被消费的能力契约一个定义包，[Cordis 集成约定](cordis-integration-conventions.md) IC-1） | 它没有自己的领域事实，**被两个以上领域消费**，或它兑现的是一份 `data.*` 契约，或它是一份能力契约的服务定义（负责人 2026-10-02：服务定义全部放 `core`） |
 | `<domain>/`                                                                                                           | **按领域或限界上下文聚合**的能力与组合提供者                                                                                            | 它拥有该领域的事实或动作链；一个节点只属于一个领域。领域名由产品负责人拍板——租户领域是 `tenancy`（[D-024](../record/decisions/tenancy-domain-name/README.md)），新领域在拍板前标候选 |
 | `infra/`（组名由 [D-027](../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板，2026-09-23） | **基础设施提供者**：兑现 `core/` 里某个协议级构造的具体实现（SQL 存储、时钟），或据点／中心的**窄口基础设施契约**（密钥保管、进程起停、连接探测）的最小提供者，被装配层选用                                             | 它没有领域事实，也不定义协议，只兑现一个协议；选型受 [D-026](../record/decisions/infrastructure-persistence-choices/README.md) 约束（不提供 in-memory 实现）。协议本身留在 `core/`   |
 
 `util/` 由用户2026-09-26明确追加；[D-046](../record/decisions/core-formatter-adoption/decision.md)限定为无领域事实的[unix-format](packages/util/unix-format/README.md)、[xml-format](packages/util/xml-format/README.md)两格式化技术件。不是新限界上下文，也不把core扩成公共工具箱；本程timeout/brand不迁入。
 
 **怎么判一个节点归 `core` 还是某个领域**：问它兑现的契约是 `data.*` 还是 `capability.*`／`composition.*`——前者几乎总在 `core`；
-后者按契约拥有的事实归领域。拿不准的先按领域放，**被第二个领域消费的那天再搬进 `core`**，搬动是「实现换方案」，记 changelog 即可，不改契约。
+后者按契约拥有的事实归领域——但它的 Cordis 服务定义（服务键、`Service` 类、词汇类型）不跟着提供者走，一律在 `core` 的定义包里，提供者节点只写实现。拿不准的先按领域放，**被第二个领域消费的那天再搬进 `core`**，搬动是「实现换方案」，记 changelog 即可，不改契约。
 `core` 不是「公共工具箱」：一个只被一个领域用的辅助模块不因为「看起来通用」进 `core`。
 
 节点的相对链接因此多一层：`packages/<group>/<node>/` 下指向 `spec/`、`product/`、`record/` 的链接是 `../../../../`，
@@ -153,7 +154,7 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | [`packages/tenancy/organization-governance`](packages/tenancy/organization-governance/README.md) | `capability.organization-governance` v1                                                 | 插件，四个服务面（S-53 单列一个只给清除链）；跨 owner「同一提交」靠账号行上的过期事实加组织行对账号行的引用约束，无进程内锁。**2026-09-25 按 v2（accepted）修订、尚未实现**：两个时刻、v2 读面另起服务名、存量记录不补时刻、给资产提供者的事务内读入口与三项外部依赖 |
 | [`packages/tenancy/account-registration`](packages/tenancy/account-registration/README.md)       | `composition.account-registration` v1                                                   | 薄插件，无事实；两条动作链，签发激活依据；清扫提供者因缺枚举读面本版建不起来                                                                                                                                                                          |
 | [`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md) | `composition.governance-center-entry` v1（accepted，D-028）                             | 2026-09-23 首稿：两个插件都不 provide、同起同停——入口层（封闭路由表、判定次序、读或铸中心标识、路由上不提交）与运维面（本机套接字上只答完整体检）；认领契约 G-10（传输绑定）、G-11（防冒充）                                                          |
-| [`packages/core/kernel-basis`](packages/core/kernel-basis/README.md)                             | 无契约条款（D-025、basis 准入）                                                         | 纯模块：Cordis 4.0.4 的 8 条 probe、`definePlugin`／`Outcome`／`FIBER_STATE`、测试装配 `bootAssembly`                                                                                                                                                 |
+| [`packages/core/kernel-basis`](packages/core/kernel-basis/README.md)                             | 无契约条款（D-025、basis 准入）                                                         | 纯模块：Cordis 4.0.4 的 13 条 probe、`definePlugin`／`Outcome`／`FIBER_STATE`、测试装配 `bootAssembly`                                                                                                                                                 |
 | [`packages/core/storage`](packages/core/storage/README.md)                                       | 无契约条款（AI R-1～R-7／OG R-1～R-6 的规格化）                                         | 纯模块：存储协议（一次读／写事务、显式锁、四型失败）与一致性套件                                                                                                                                                                                      |
 | [`packages/infra/storage-sql`](packages/infra/storage-sql/README.md)                             | 无契约条款（D-026）                                                                     | 插件 `storage-sql`：Kysely 提供者，sqlite（`node:sqlite`）／pg 由配置切换，迁移运行器。**2026-09-23 修订**：升级整体性（显式 `upgrade` 守卫、属主独占锁、只读核对、快照与恢复、守卫对象 `createUpgradeGuard()` 的 `confirm()`／`pending()`）          |
 | [`packages/infra/clock`](packages/infra/clock/README.md)                                         | offer-expiry S-16 形状／S-17「`now` 不后退」的承接                                      | 插件 `clock`：写在前的租约。**2026-09-23 修订**：`now()` 每次现读墙钟并与最晚已用时刻比对（运行中回拨与启动窗口同一规则）、`clockPreflight` 导出                                                                                                      |

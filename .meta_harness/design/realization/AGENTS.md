@@ -17,7 +17,7 @@
 |---|---|
 | 开发者要开包，想知道**这个契约由哪个插件兑现、服务面长什么样、依赖谁、装卸谁负责** | 读 `packages/<group>/<node>/README.md` 的分层状态，再读 `design.md` 的投影表。**「可实施范围」之外的条款别当已定**。**源码包放在与节点路径逐字相同的位置**（`packages/<group>/<node>`），不另起目录。不加载 skill |
 | 想知道**这条承诺有没有实证、前提是什么** | `bindings.yaml`：`evidence` 指向 registry 的形式任务或实际测试，`assumptions` 是它成立的前提。**读结论时把前提一起带走** |
-| 契约成稿、要为它做提供者设计 | **先加载 skill**（「提供者与装配投影」+「Cordis 最小内核模型」），从 [node 模板包](.templates/node/README.md)建 `packages/<group>/<node>/`，`kind: provider`——第一层按 [README 的两层布局](README.md#packages-的两层布局)选 `core/`（数据契约、协议级构造、跨领域共享）或某个领域／限界上下文。每条绑定先核「形状像但语义是否重合」——`intercept` 的合并顺序是装配链，领域优先级链是数据层次，两者不重合 |
+| 契约成稿、要为它做提供者设计 | **先加载 skill**（「提供者与装配投影」+「Cordis 最小内核模型」），从 [node 模板包](.templates/node/README.md)建 `packages/<group>/<node>/`，`kind: provider`——第一层按 [README 的两层布局](README.md#packages-的两层布局)选 `core/`（数据契约、协议级构造、跨领域共享、能力契约的服务定义）或某个领域／限界上下文，再按 [Cordis 集成约定](cordis-integration-conventions.md)定服务定义、依赖、事件与配置。每条绑定先核「形状像但语义是否重合」——`intercept` 的合并顺序是装配链，领域优先级链是数据层次，两者不重合 |
 | 要为一个实际应用选提供者、写装配与完整动作链 | 同上加载 skill，建 `apps/<node>/`，`kind: assembly`。**建立条件是该交付面已有 PF**——不为没有产品设计的应用预建 |
 | 要为一个已开题、尚未开建的应用做**架构选型与框架设计**（拓扑、进程模型、交互面、包分层、技术栈、分发） | 同上加载 skill，建 `apps/<node>/` 并填 `architecture.md`，状态 `candidate`。候选比较先进 [proposals](../record/proposals/README.md)，采用进 [decisions](../record/decisions/README.md)，节点只引用；PF 仍是 draft 时不登记绑定。**不另立一个「应用架构」目录** |
 | 评审一份应用节点的 `architecture.md` | 委派 [design-reviewer](../../agents/roles/README.md#按判断对象选择-reviewer) 判「选择」，给它 PF、契约坐标与提案；它核的是引用是否闭合、边上的保证有没有落在契约里，不代选技术栈 |
@@ -32,6 +32,7 @@
 查**这个节点现在到哪一步**（语义接受 / 可实施 / 绑定 / 实际验证四层各自的状态）→ 节点 `README.md`，**四层分别陈述，不互相补齐**；
 查**这个应用起哪些进程、与谁有边、人和脚本从哪进、装配哪些包、采用了什么、怎么分发** → `architecture.md`（仅 assembly）；
 查**实现路径、插件边界、服务面、依赖、状态与失败映射、装卸配对** → `design.md`；
+查**本项目做出来的东西怎样接进 Cordis**（服务定义放哪、键怎么写、依赖与事件怎么声明、登记怎么撤、配置怎么校验、插件树怎么写）→ [Cordis 集成约定](cordis-integration-conventions.md)，对所有节点成立；
 查**哪条条款靠哪份证据、前提是什么、上次对着 basis 核是哪天** → `bindings.yaml`；
 查**实际跑过什么、覆盖到哪、还缺什么** → `verification.md`，原始结果在它链接的 evidence run；
 查**契约到底承诺什么** → 它引用的 `spec/` 坐标。**这里到「由谁、靠什么原语兑现」为止。**
@@ -47,7 +48,8 @@
 - **异步控制走 `serial`，不走 `bail`。**`bail` 不 await，Promise 不是 bail 值，授权检查会静默放行；这条静态可查，查到就是失败。
 - **装配胶水不得暗中拥有未定义能力。**整体保证缺独立协调责任时回能力分解，不在 `apps/` 里补一段逻辑了事。
 - **装载与撤除成对写。**卸载时释放什么、交接什么、什么仍为真；发出取消不等于已静止，外部效应不假定可回滚。
-- **节点名与它实现的包或应用同名，节点路径与源码路径逐字相同。**读设计与读源码用同一个词；`packages/` 第一层只有 `core/` 与领域名，**`core/` 只收数据契约、协议级构造与跨领域共享件**，不是公共工具箱。
+- **节点名与它实现的包或应用同名，节点路径与源码路径逐字相同。**读设计与读源码用同一个词；`packages/` 第一层只有 `core/` 与领域名，**`core/` 只收数据契约、协议级构造、跨领域共享件与能力契约的 Cordis 服务定义**，不是公共工具箱。
+- **照 [Cordis 集成约定](cordis-integration-conventions.md)接进 Cordis。**服务定义在 `core`、服务键只写一次、包的根入口与 Cordis 无关、`inject` 写字面量、异步控制走 `serial`、登记即效应；核对表各行引它的 `IC-` 编号。
 - **应用节点不持有能力语义。**边上的保证一律指向契约，命令的产品含义一律指向 PF，采用一律指向决定；`architecture.md` 里出现第二份定义就是错。
 - **拓扑总图不手写。**节点只写自己的进程与自己那一侧的边；总图归 views 派生。
 
