@@ -147,7 +147,7 @@ git commit -m "chore(docs): update blog submodule"
 | 规格还没定，想先看一条主路径走不走得通 | 做探路件：放 [examples/](../examples/README_ZH.md) 或任务的 `tmp/`，不进 `packages/`、`apps/`；跑通后带回设计的是事实清单，不是代码 |
 | 存储提供者或迁移 | `pnpm --filter @omne-harness-lite/storage-sql run test`：sqlite 上跑一致性套件；pg 需设 `OMNE_TEST_PG_URL`，否则跳过 |
 | 形式工具是否可用 | `make formal-tools` |
-| 跨入口改动、合并前 | 在待合并的提交上计算影响面，再执行需要的检查。记录基线、提交、范围、选择依据、结果和未覆盖范围。当前 `make check` 尚未自动收窄构建、类型检查与快层测试；按已计算的范围手动执行相关入口。其自适应改造归增量 10（#68）。整套重检查入口使用机器级[运行名额](../scripts/README.md#运行名额)，并发限制仍须遵守负责人的当前安排 |
+| 跨入口改动、合并前 | 在待合并的提交上计算影响面，再执行需要的检查。记录基线、提交、范围、选择依据、结果和未覆盖范围。`make check` 按基线以来的改动打印计划，再运行常驻检查及计划选中的 Python 测试、构建、类型检查、成员快慢两层与可执行验收。纯文档只构建常驻检查需要的 identity-values；其他成员步骤可跳过。`make check-plan` 只看计划，`FULL=1` 显式要全量。整套重检查入口使用机器级[运行名额](../scripts/README.md#运行名额)，并发限制仍须遵守负责人的当前安排 |
 
 覆盖与退出含义归[验证与证据](verification.md)——**那里写明了每个入口不能声称什么**。
 

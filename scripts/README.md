@@ -9,8 +9,8 @@
 | [package-tenancy-host.sh](package-tenancy-host.sh) | 构建治理中心全新本地.tar.gz归档；不安装、不启动、不上传，见[中心开发入口](../apps/tenancy-host/README.md) |
 | [build-tenancy-image.sh](build-tenancy-image.sh) | 从已解压且核完整清单的治理中心app构建指定Linux架构镜像与独占新Docker save归档；不安装、不推送，见[Docker部署入口](../apps/tenancy-host/deploy/docker/README.md) |
 | [package-cli.sh](package-cli.sh) | 将现有CLI构建为指定的全新本地.tar.gz归档；不安装、不上传，使用与前提见[CLI开发入口](../apps/cli/README.md) |
-| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再依次运行 agent 产物与根链接、文档、规格、Python 工具测试、产品包检查、可执行验收，最后是严格模式的回路状态；任一步失败即停止并返回非零 |
-| [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上按先来后到排队执行，见[下文](#运行名额) |
+| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，算基线以来改动的影响面并打印计划，再依次运行常驻检查与计划里的各步，最后是严格模式的回路状态；任一步失败即停止并返回非零 |
+| [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
 | [format.sh](format.sh) | 用根配置和本地锁定 Prettier 检查或写入受维护文件；`staged` 模式只检查 Git index blob |
 | [test-formatting.sh](test-formatting.sh) | 在临时独立 Git 仓库验证格式范围、幂等、部分暂存和 hook 安装边界 |
 | [install-format-hook.sh](install-format-hook.sh) | 显式安装格式化 pre-commit hook；发现已有 hook 时拒绝覆盖 |
@@ -19,22 +19,32 @@
 安装 Bash、Make、uv、Node/npm/pnpm 并按[验证规范](../docs/verification.md)准备环境后，
 在根执行 `make check` 或 `./scripts/check.sh`。脚本也可通过绝对路径从其他目录调用。
 需要比较冻结基线时使用 `make check BASELINE=<git-ref>` 或
-`BASELINE=<git-ref> ./scripts/check.sh`；脚本不接受位置参数。
+`BASELINE=<git-ref> ./scripts/check.sh`；要全量用 `make check FULL=1` 或 `FULL=1 ./scripts/check.sh`；脚本不接受位置参数。
 基线在脚本开头解析一次（没给就用 `origin/main`，本地没有这个引用就用 `main`）并导出为 `BASELINE`，
-产品包检查里的测试一步与最后的回路状态共用它。
+影响面与最后的回路状态共用它。
 
-产品包检查（`product-check`，含全量构建与 `lint:rules`——后者也核[验收的覆盖声明](../tools/ts-checks/README_ZH.md#验收的覆盖声明)）的测试一步是
-`pnpm run test:gate`：全部成员的快层，再加基线以来受影响成员的慢层（[分层](../tools/ts-checks/README_ZH.md#测试运行)）；
-其余成员的慢层不在这个入口中执行，负责人需要时可手动运行 `make test-tier TIER=slow`。产品包检查之后是
-`make acceptance NO_BUILD=1`：跑每个带 `acceptance` 脚本的成员的可执行验收，驱动刚构建出来的 `dist/`，任何一份不过整套检查就失败；
-它的耗时记录写进主检出的 `tmp/acceptance-ledger/`，是下一步验收耗时传感器的读数来源（见 [tools/ts-checks](../tools/ts-checks/README_ZH.md#测试运行)）。
-现在只有 `apps/cli` 一份，约 10～16 秒。
+脚本先跑 `tools/ts-checks/src/testing/cli.ts plan`：按 [test-runs.config.json](../tools/ts-checks/test-runs.config.json) 的 `affected` 规则
+给每个改动文件归类，打印判成什么、每一步跑还是跳、选中哪些成员与为什么，计划写进被忽略的 `tmp/check-plan/plan.json`
+（算不出计划就在这里失败，不改判全量；`make check-plan` 只打印不跑）。之后的顺序是：
+
+1. 常驻：`agents-check`、`docs-check`、`design-check`；
+2. 按计划：`make test`（pytest）；
+3. 常驻：`pnpm run format:check`、`pnpm run test:format`；
+4. 按计划：构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）、类型检查、成员测试——被选中成员的快层再慢层（[分层](../tools/ts-checks/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」；
+5. 常驻：`pnpm run lint:rules`（也核[验收的覆盖声明](../tools/ts-checks/README_ZH.md#验收的覆盖声明)与提交署名）；
+6. 按计划：可执行验收——只跑被选中、带 `acceptance` 脚本的成员，驱动上面构建出来的 `dist/`，任何一份不过整套检查就失败；
+   耗时记录写进主检出的 `tmp/acceptance-ledger/`，是下一步验收耗时传感器的读数来源。计划里一个带验收的成员都没有时，为当前提交记一份标着「本次影响面不含带验收的成员」的账本，传感器认它。
+   现在只有 `apps/cli` 一份，约 10～16 秒。
+
+判全量时（全局文件改了、有规则不认得的路径、`FULL=1`）全部步骤对全部成员跑，构建与类型检查用根 `pnpm run build`／`typecheck`。
+合并后没有自动补跑，也没有定时任务：全量由负责人不定时让一个会话手动跑 `make check FULL=1`。
+根 `pnpm run check`（`make product-check`）仍保留为单独的产品检查：全量构建与类型检查，测试一步同样跟计划。
 
 最后一步是 `make loop-status STRICT=1 BASE=<基线> OUT=tmp/loop-status-check`：方向与环、验收锁、删卡记录（与验收锁同一个基线）、
-开着的传感器都有数据，破一个就失败（见 [tools/ts-checks](../tools/ts-checks/README_ZH.md#回路状态)）。
+开着的传感器都有数据（验收被计划跳过时认上一步的记录），破一个就失败（见 [tools/ts-checks](../tools/ts-checks/README_ZH.md#回路状态)）。
 基线就是脚本开头解析的那一个；HEAD 就是那个提交时照跑，新增依赖为 0。
 它只读源码、git 与上一步的验收耗时记录，放最后是让前面的失败先报；产物写进被 git 忽略的 `tmp/loop-status-check/`（每次先清掉），
-回路目录里什么都不写。这一步约 30 秒，大头是重复代码检测。单独跑这一步时，要先在同一个提交上跑过 `make acceptance`，否则验收耗时传感器没数据、严格模式判失败。
+回路目录里什么都不写。这一步约 30 秒，大头是重复代码检测。单独跑这一步时，要先在同一个提交上跑过 `make acceptance`（或 `make check` 的验收一步留下过记录），否则验收耗时传感器没数据、严格模式判失败。
 
 格式化命令由根 `package.json` 提供：`pnpm format:check` 检查完整受维护范围，
 `pnpm format:write` 写入该范围；两者后接 `-- <仓库相对文件...>` 可收窄到明确文件。
