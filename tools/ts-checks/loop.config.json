@@ -3,31 +3,31 @@
   "relapseLimit": 2,
   "explainTop": 10,
   "indicators": {
-    "redMembers": { "lines": { "warn": 1, "act": 3, "release": 0 }, "baseline": true },
+    "redMembers": { "lines": null, "baseline": true },
     "functionsOverAlert": { "lines": null, "baseline": true },
     "stableOnUnstable": { "lines": null, "baseline": true },
     "cochangePairs": { "lines": { "warn": 1, "act": 4, "release": 0 }, "baseline": false },
     "newEdges": { "lines": null, "baseline": false },
     "testsWithoutAssertions": { "lines": null, "baseline": true },
     "duplicationPercent": { "lines": { "warn": 3, "act": 6, "release": 2 }, "baseline": true },
-    "topicRevChurn": { "lines": { "warn": 3, "act": 5, "release": 2 }, "baseline": false },
+    "topicRevChurn": { "lines": { "warn": 6, "act": 10, "release": 4 }, "baseline": false },
     "worktrees": { "lines": { "warn": 3, "act": 5, "release": 2 }, "baseline": false },
     "worktreeSharedMembers": { "lines": { "warn": 1, "act": 2, "release": 0 }, "baseline": false },
     "acceptanceSeconds": {
       "lines": { "warn": 60, "act": 120, "release": 45 },
       "baseline": false,
-      "note": "初值是 2026-10-02 施工简报的提议，归负责人定，还没有校准。超了处置线再考虑合并前只跑受影响成员的验收"
+      "note": "负责人 2026-10-02 定（按提议），还没有用真实读数校准。超了处置线再考虑合并前只跑受影响成员的验收"
     },
     "acceptanceSlowestSeconds": {
       "lines": { "warn": 20, "act": 40, "release": 15 },
       "baseline": false,
-      "note": "初值是 2026-10-02 施工简报的提议，归负责人定，还没有校准"
+      "note": "负责人 2026-10-02 定（按提议），还没有用真实读数校准"
     }
   },
   "memberBudget": {
     "excludeGroups": ["examples"],
-    "overAlert": { "warn": 3, "act": 6, "release": 2 },
-    "risk": { "warn": 12, "act": 20, "release": 10 },
+    "overAlert": { "warn": 8, "act": 14, "release": 6 },
+    "risk": { "warn": 20, "act": 23, "release": 18 },
     "duplication": { "warn": 5, "act": 10, "release": 4 },
     "testsWithoutAssertions": { "warn": 3, "act": 8, "release": 2 }
   },

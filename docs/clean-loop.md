@@ -58,7 +58,8 @@
 
 阈值、窗口与开关都在 [`tools/ts-checks/loop.config.json`](../tools/ts-checks/loop.config.json) 与
 [`metrics.config.json`](../tools/ts-checks/metrics.config.json) 里。它们是负责人的判断，可以改，**改的理由写进那次提交**；
-不为了让某次交付变绿而放宽。现在的数是起步值，没有用真实交付校准过。
+不为了让某次交付变绿而放宽。负责人 2026-10-02 照试点时量到的分布定过一轮（成员预算的两组线、红色成员数只与基线比、
+topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，都还没有用多轮真实交付校准过。
 
 ## 入口
 
