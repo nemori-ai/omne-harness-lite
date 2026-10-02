@@ -120,7 +120,8 @@ describe('group-direction', () => {
     expect(found[0]?.message).toContain('packages/newgroup')
   })
 
-  it('真实仓库：现状在已登记例外下无违反；撤掉例外即报出那条边', () => {
+  // 归慢层：重 CPU：读取并解析整个真实仓库的成员源码。
+  it('真实仓库：现状在已登记例外下无违反；撤掉例外即报出那条边', { tags: ['slow'] }, () => {
     const root = fileURLToPath(new URL('../../../', import.meta.url))
     const sources = collectMemberSources(root)
     expect(sources.length).toBeGreaterThan(100)
@@ -131,6 +132,5 @@ describe('group-direction', () => {
     expect(found.every(v => v.path.startsWith('packages/frontend/client-local-state/src/'))).toBe(
       true,
     )
-    // 读全仓源码：单跑两秒多，全仓并行测试的负载下会超过默认的五秒。
-  }, 60_000)
+  })
 })

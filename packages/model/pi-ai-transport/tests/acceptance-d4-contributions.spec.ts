@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：子进程＋网络：起 Node 子进程冷导入整个包，并在本地 TLS 服务上跑真实 HTTPS 读取与撤除。
 import { imagePreparation } from './image-transport-support.ts'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { execFileSync } from 'node:child_process'

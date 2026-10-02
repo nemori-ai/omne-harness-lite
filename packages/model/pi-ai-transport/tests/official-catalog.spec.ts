@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：重 CPU：为全部官方模型逐个构造真实输入计量器（加载真实分词器），并重置模块后重新加载目录。
 import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import fingerprint from './fixtures/official-catalog/fingerprint.json' with { type: 'json' }

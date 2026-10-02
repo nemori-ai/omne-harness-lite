@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：重 CPU：为全部官方模型逐个构造真实输入计量器（加载真实分词器）并各规划一次请求。
 import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it } from 'vitest'
 import before from './fixtures/shared-reader/before-mp4-17.json' with { type: 'json' }

@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：真实等待＋整套装配：按真实时长等时钟租约与撤除总超时，每条都起完整中心（SQLite 文件库、本地 TLS 入口）。
 // 按真实时长跑的几条（时钟租约宽度 10 s、撤除总超时 30 s 都是真常量）：
 // assembly.clock-ready-timeout ②③、assembly.clock-rollback-fails-boot 的反向（快速重启）、
 // assembly.no-commit-before-open ⑤（U-4：确认之后等不到 serving）、assembly.dispose-timeout。

@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：子进程：起真实 Node 子进程争用同一组 JSONL 会话日志文件，含 SIGKILL 崩溃注入。
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'

@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：整套装配＋真库：每条用例在 SQLite 文件库上起租户与资产注册的整套装配（含真实资产评估）。
 import { expect, test } from 'vitest'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import type { ManifestRecord } from '@omne-harness-lite/assembly-manifest-store'

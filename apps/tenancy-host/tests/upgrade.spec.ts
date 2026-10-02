@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：整套装配＋真库＋网络：进程内反复起停完整中心（SQLite 文件库的升级、快照与恢复），经本地 TLS 入口写入数据。
 // 升级的整体性（verification：assembly.upgrade-preflight-refuses、assembly.upgrade-restore-on-boot-failure、
 // assembly.upgrade-confirmed 含交错守卫支、断言支、U-3 反向支、显式守卫支）。
 // 「上一版」= 本节点现在的合成序列；「本版」= 经测试钩子在末尾多一个片段（M-9：只追加）。sqlite 临时文件库。

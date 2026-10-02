@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：网络＋重 CPU：经本地 HTTPS 服务（openssl 现生成证书）走真实传输与读取，输入计量用真实分词器。
 // QC-V1 of the adopted Qwen commercial public-template estimate (candidate revision 1):
 // six leaves × each route's wire effort domain × with/without tools × {public transport,
 // Cordis transport service}, three rounds of QC-V0-shaped SSE (every frame `reasoning` + one

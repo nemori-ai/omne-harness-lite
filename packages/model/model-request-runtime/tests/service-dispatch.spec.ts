@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
 import { expect, test } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'

@@ -277,6 +277,7 @@ describe('耗时账本', () => {
       wallSeconds: 30,
       files: 2,
       tests: 2,
+      skipped: 0,
       failed: 1,
       fileSeconds: 12.5,
     })
@@ -320,6 +321,144 @@ describe('耗时账本', () => {
       },
       { member: 'apps/top', message: '退出码 137，没有产出报告' },
     ])
+  })
+
+  it('跳过、待写与被层过滤掉的用例不计入「用例」，另计「没跑」', () => {
+    const filtered = buildLedger(
+      [
+        {
+          member: 'packages/core/mid',
+          exitCode: 0,
+          wallSeconds: 2,
+          report: {
+            testResults: [
+              {
+                name: '/repo/packages/core/mid/tests/d.spec.ts',
+                status: 'passed',
+                startTime: 0,
+                endTime: 10,
+                assertionResults: [
+                  { fullName: '跑了', status: 'passed', duration: 10 },
+                  { fullName: '被滤掉', status: 'skipped', duration: 0 },
+                  { fullName: '待写', status: 'todo', duration: 0 },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+      '/repo',
+      0.5,
+    )
+    expect(filtered.members[0]).toMatchObject({ tests: 1, skipped: 2 })
+    expect(filtered.files[0]?.tests).toBe(1)
+    expect(
+      ledgerSummary(filtered, {
+        wallSeconds: 2,
+        slowFileSeconds: 10,
+        nearTimeoutRatio: 0.5,
+        top: 2,
+        runDir: '/out',
+      })[0],
+    ).toContain('1 个成员、1 个文件、1 条用例（另有 2 条没跑），墙钟 2 秒；全部通过')
+  })
+
+  it('归层漂移：快层超出的文件、快层贴线的用例、全归慢层却其实很快的文件', () => {
+    const file = (
+      name: string,
+      results: [string, number][],
+      slow: string[],
+      timeouts: Readonly<Record<string, number>> = {},
+    ) => ({
+      result: {
+        name: `/repo/packages/core/x/tests/${name}`,
+        status: 'passed',
+        startTime: 0,
+        endTime: results.reduce((sum, [, ms]) => sum + ms, 0),
+        assertionResults: results.map(([fullName, duration]) => ({
+          fullName,
+          status: 'passed',
+          duration,
+        })),
+      },
+      timing: {
+        file: `/repo/packages/core/x/tests/${name}`,
+        collectSeconds: 0.1,
+        tests: results.map(([fullName]) => ({
+          fullName,
+          timeoutSeconds: timeouts[fullName] ?? (slow.includes(fullName) ? 120 : 5),
+          tags: slow.includes(fullName) ? ['slow'] : [],
+        })),
+      },
+    })
+    const files = [
+      file(
+        'heavy.spec.ts',
+        [
+          ['重 1', 6_000],
+          ['重 2', 6_000],
+        ],
+        [],
+      ),
+      file(
+        'edge.spec.ts',
+        [
+          ['贴线', 3_000],
+          ['快', 10],
+        ],
+        [],
+      ),
+      // 自带 30 秒时限、跑 3 秒：没贴自己的线，却超了快层的单条预算。
+      file('loose.spec.ts', [['自带宽时限', 3_000]], [], { 自带宽时限: 30 }),
+      file('needless.spec.ts', [['其实很快', 200]], ['其实很快']),
+      // 每条都不到 2.5 秒、整份不到 10 秒，但没低过一半：不提示回快层，免得负载一变就来回点名。
+      file(
+        'borderline.spec.ts',
+        [
+          ['略慢 1', 2_000],
+          ['略慢 2', 4_000],
+        ],
+        ['略慢 1', '略慢 2'],
+      ),
+      file('real-slow.spec.ts', [['真慢', 70_000]], ['真慢']),
+    ]
+    const drift = buildLedger(
+      [
+        {
+          member: 'packages/core/x',
+          exitCode: 0,
+          wallSeconds: 90,
+          report: { testResults: files.map(item => item.result) },
+          timing: { files: files.map(item => item.timing) },
+        },
+      ],
+      '/repo',
+      0.5,
+    )
+    expect(drift.nearTimeout.map(test => [test.test, test.slow])).toEqual([
+      ['重 1', false],
+      ['重 2', false],
+      ['贴线', false],
+      ['真慢', true],
+    ])
+    expect(drift.fastOverBudget.map(test => test.test)).toEqual([
+      '重 1',
+      '重 2',
+      '贴线',
+      '自带宽时限',
+    ])
+    const lines = ledgerSummary(drift, {
+      wallSeconds: 90,
+      slowFileSeconds: 10,
+      nearTimeoutRatio: 0.5,
+      top: 5,
+      runDir: '/out',
+    })
+    expect(lines).toContain(
+      '归层：快层用例合计超过 10 秒的文件 1 个、快层里超过单条预算（2.5 秒）的用例 4 条；全归慢层、却每条不到 1.25 秒且整份不到 5 秒的文件 1 个',
+    )
+    expect(lines).toContain('  快层超出的文件：packages/core/x/tests/heavy.spec.ts 12 秒')
+    expect(lines).toContain('  慢层里很快的文件：packages/core/x/tests/needless.spec.ts 0.2 秒')
   })
 
   it('有报告、退出码非零、却没有失败的用例或文件：单列一条，不当作通过', () => {

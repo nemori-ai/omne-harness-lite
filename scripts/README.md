@@ -20,15 +20,19 @@
 在根执行 `make check` 或 `./scripts/check.sh`。脚本也可通过绝对路径从其他目录调用。
 需要比较冻结基线时使用 `make check BASELINE=<git-ref>` 或
 `BASELINE=<git-ref> ./scripts/check.sh`；脚本不接受位置参数。
+基线在脚本开头解析一次（没给就用 `origin/main`，本地没有这个引用就用 `main`）并导出为 `BASELINE`，
+产品包检查里的测试一步与最后的回路状态共用它。
 
-产品包检查（`product-check`，含全量构建与 `lint:rules`——后者也核[验收的覆盖声明](../tools/ts-checks/README_ZH.md#验收的覆盖声明)）之后是
+产品包检查（`product-check`，含全量构建与 `lint:rules`——后者也核[验收的覆盖声明](../tools/ts-checks/README_ZH.md#验收的覆盖声明)）的测试一步是
+`pnpm run test:gate`：全部成员的快层，再加基线以来受影响成员的慢层（[分层](../tools/ts-checks/README_ZH.md#测试运行)）；
+其余成员的慢层不在合并前跑，合并后在主线头上用 `make test-tier TIER=slow` 补跑。产品包检查之后是
 `make acceptance NO_BUILD=1`：跑每个带 `acceptance` 脚本的成员的可执行验收，驱动刚构建出来的 `dist/`，任何一份不过整套检查就失败；
 它的耗时记录写进主检出的 `tmp/acceptance-ledger/`，是下一步验收耗时传感器的读数来源（见 [tools/ts-checks](../tools/ts-checks/README_ZH.md#测试运行)）。
 现在只有 `apps/cli` 一份，约 10～16 秒。
 
 最后一步是 `make loop-status STRICT=1 BASE=<基线> OUT=tmp/loop-status-check`：方向与环、验收锁、删卡记录（与验收锁同一个基线）、
 开着的传感器都有数据，破一个就失败（见 [tools/ts-checks](../tools/ts-checks/README_ZH.md#回路状态)）。
-基线取 `BASELINE`；没给就用 `origin/main`，本地没有这个引用就用 `main`；HEAD 就是那个提交时照跑，新增依赖为 0。
+基线就是脚本开头解析的那一个；HEAD 就是那个提交时照跑，新增依赖为 0。
 它只读源码、git 与上一步的验收耗时记录，放最后是让前面的失败先报；产物写进被 git 忽略的 `tmp/loop-status-check/`（每次先清掉），
 回路目录里什么都不写。这一步约 30 秒，大头是重复代码检测。单独跑这一步时，要先在同一个提交上跑过 `make acceptance`，否则验收耗时传感器没数据、严格模式判失败。
 
@@ -47,7 +51,7 @@
 `scripts/with-test-slot.sh <命令> [参数…]` 拿到名额才执行命令，并原样返回它的退出码。
 
 经它执行的入口：`make check`（整套占一个名额）、根 `pnpm run test` 与 `pnpm run check` 的测试一步、
-`make test-affected`、`make test-triage`、`make metrics COVERAGE=1`。已经持有名额的进程再调用它
+`make test-affected`、`make test-tier`、`make test-triage`、`make metrics COVERAGE=1`。已经持有名额的进程再调用它
 （例如 `make check` 里嵌着的测试一步）直接放行，不重复排队。名额随持有它的进程退出而释放，
 进程被杀也不会留下卡死的锁。
 

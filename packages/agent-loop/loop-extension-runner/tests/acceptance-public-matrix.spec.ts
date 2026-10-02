@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：真实文件日志：公开函数矩阵逐格在临时目录开真实 JSONL 会话日志，落盘后读回判定。
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'

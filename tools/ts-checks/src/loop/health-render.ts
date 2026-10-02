@@ -1,6 +1,7 @@
 // 流程体检页与它的文字摘要。页面自包含：样式取审讯页的同一套，走向图是内联 SVG，不带脚本，不引任何外部地址。
 // 每一块要么有数据，要么写明「没有数据」与原因，不留空白、不画空图。纯函数。
 import { escapeHtml, STYLE } from '../metrics/render.ts'
+import { RUN_TIERS, TIER_NAMES } from '../testing/config.ts'
 import { BAND_WORDS, type Band, type Lines } from './bands.ts'
 import { BUDGET_LABELS } from './budget.ts'
 import { CATEGORIES } from './catalogue.ts'
@@ -206,21 +207,28 @@ function testsHtml(block: TestsBlock): string {
       ? ''
       : `读不了的账本 ${block.unreadable.length} 份：${block.unreadable.join('、')}`,
   ].filter(text => text !== '')
+  // 各层的墙钟不可比，一层一条走向线。
+  const lines = RUN_TIERS.map(tier => ({
+    tier,
+    seconds: block.runs.filter(run => run.tier === tier).map(run => run.wallSeconds),
+  }))
+    .filter(group => group.seconds.length > 0)
+    .map(
+      group => `<div class="meta">${TIER_NAMES[group.tier]}</div>${sparkline(group.seconds, null)}`,
+    )
   return (
     `<div class="meta">最近 ${block.runs.length} 次全量运行的墙钟（秒）${skipped.length === 0 ? '' : `；${esc(skipped.join('；'))}`}</div>` +
-    sparkline(
-      block.runs.map(run => run.wallSeconds),
-      null,
-    ) +
+    lines.join('') +
     table(
-      ['开始', '提交', '秒', '结果'],
+      ['开始', '提交', '层', '秒', '结果'],
       block.runs.map(run => [
         localTime(run.startedAt),
         `<span class="mono">${esc(run.head.slice(0, 9))}${run.dirty ? '（不干净）' : ''}</span>`,
+        TIER_NAMES[run.tier],
         String(run.wallSeconds),
         run.passed ? '全过' : '<span class="bad">有失败</span>',
       ]),
-      [2],
+      [3],
     )
   )
 }
@@ -368,9 +376,16 @@ export function healthSummary(health: Health, pagePath: string): string[] {
     }),
     line(SECTION_TITLES.tests, health.tests, block => {
       const last = block.runs.at(-1)
+      const byTier = RUN_TIERS.map(tier => ({
+        tier,
+        seconds: block.runs.filter(run => run.tier === tier).map(run => run.wallSeconds),
+      })).filter(group => group.seconds.length > 0)
       return (
-        `最近 ${block.runs.length} 次全量：${block.runs.map(run => run.wallSeconds).join('、')} 秒` +
-        (last === undefined ? '' : `；最近一次${last.passed ? '全过' : '有失败'}`)
+        `最近 ${block.runs.length} 次全量：` +
+        byTier.map(group => `${TIER_NAMES[group.tier]} ${group.seconds.join('、')} 秒`).join('；') +
+        (last === undefined
+          ? ''
+          : `；最近一次（${TIER_NAMES[last.tier]}）${last.passed ? '全过' : '有失败'}`)
       )
     }),
     line(SECTION_TITLES.debt, health.debt, block => {

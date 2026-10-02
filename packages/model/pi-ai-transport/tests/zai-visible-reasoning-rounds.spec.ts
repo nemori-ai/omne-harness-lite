@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：网络＋重 CPU：经本地 HTTPS 服务（openssl 现生成证书）走真实传输与读取，输入计量用真实分词器。
 // ZV1 of the adopted ZAI visible reasoning estimate (revision 1): all five released leaves
 // (GLM-5.2, Prime, FlashX, and after ZV0 GLM-5.3 and Flash, at pi-ai:zai@mp4-18; GLM-5.3 on
 // the Flash archive text), each current effort send domain, with and

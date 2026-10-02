@@ -533,8 +533,10 @@ test('real Cordis wrapper reads the same component; withdrawal disables old refe
     await host.dispose()
   }))
 
+// 归慢层：子进程＋真库：fork 发布子进程，在提交点 SIGKILL，再读 SQLite 文件库核对。
 test.each(['before_commit', 'after_commit_before_ack'] as const)(
   'real OS SIGKILL at %s leaves either the whole old publication or the whole committed publication, with no automatic retry',
+  { tags: ['slow'] },
   async mode =>
     withHost(async h => {
       const { tenant } = await h.identity('alice')
@@ -590,5 +592,4 @@ test.each(['before_commit', 'after_commit_before_ack'] as const)(
         }
       }
     }),
-  20000,
 )

@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：子进程＋真库：fork 写入子进程，在提交前后 SIGKILL，再重开 SQLite 文件库核对。
 import { fork } from 'node:child_process'
 import { once } from 'node:events'
 import { expect, test } from 'vitest'

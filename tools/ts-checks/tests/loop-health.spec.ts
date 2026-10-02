@@ -234,6 +234,18 @@ describe('测试耗时', () => {
     expect(parseLedgerRun(ledger(null, '昨天', 1, [0]))).toBeUndefined()
   })
 
+  it('全量运行带着层：没有 tier 的旧账本按两层读，认不出的层算读不了', () => {
+    const tiered = (tier: unknown) => ({
+      ...ledger(null, '2026-10-02T10:00:00Z', 200, [0]),
+      meta: { ...ledger(null, '2026-10-02T10:00:00Z', 200, [0]).meta, tier },
+    })
+    const fast = parseLedgerRun(tiered('fast'))
+    expect(fast?.kind === 'full' ? fast.run.tier : undefined).toBe('fast')
+    const old = parseLedgerRun(ledger(null, '2026-10-02T10:00:00Z', 600, [0]))
+    expect(old?.kind === 'full' ? old.run.tier : undefined).toBe('all')
+    expect(parseLedgerRun(tiered('medium'))).toBeUndefined()
+  })
+
   it('目录不存在、只有受影响范围的运行：没有数据，原因不同', () => {
     expect(testsBlock(undefined, 10, 'home')).toEqual(noData('测试耗时账本目录 home 不存在'))
     expect(
@@ -400,6 +412,20 @@ describe('页面与摘要', () => {
               members: [{ exitCode: 1 }],
             },
           },
+          {
+            path: 'f',
+            value: {
+              meta: {
+                head: 'f'.repeat(40),
+                dirty: false,
+                base: null,
+                tier: 'fast',
+                startedAt: '2026-10-02T10:00:00Z',
+                wallSeconds: 201,
+              },
+              members: [{ exitCode: 0 }],
+            },
+          },
         ],
         10,
         'ledger-home',
@@ -425,6 +451,9 @@ describe('页面与摘要', () => {
     expect(page).toContain('tooling: big one')
     expect(page).toContain('docs: &lt;small&gt;')
     expect(page).toContain('>693<')
+    expect(page).toContain('>201<')
+    expect(page).toContain('<td>快层</td>')
+    expect(page).toContain('<td>两层</td>')
     expect(page).toContain('有失败')
     expect(page).toContain('<polyline')
     expect(page).toContain('packages/core/a')
@@ -450,6 +479,9 @@ describe('页面与摘要', () => {
       '各 topic 剩余卡数：没有数据，产品区 .meta_harness/design/product 不存在',
     )
     expect(lines.some(line => line.startsWith('卡：1 张，已接受 1'))).toBe(true)
+    expect(lines.find(line => line.startsWith('测试耗时'))).toBe(
+      '测试耗时：最近 2 次全量：快层 201 秒；两层 693 秒；最近一次（快层）全过',
+    )
   })
 
   it('小折线：全是 null 不画；null 处断开成两段；有线时画两条虚线', () => {

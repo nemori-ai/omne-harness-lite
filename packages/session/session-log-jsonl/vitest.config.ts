@@ -1,7 +1,9 @@
 import { defineConfig } from 'vitest/config'
+import { testTiers } from '../../../vitest.tiers.mts'
 
 export default defineConfig({
   test: {
+    ...testTiers(),
     pool: 'forks',
     include: ['tests/**/*.spec.ts'],
     typecheck: {

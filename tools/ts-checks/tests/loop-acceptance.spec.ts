@@ -17,6 +17,7 @@ const put = (root: string, path: string, text: string) => {
 const ledger = (overrides: Partial<LedgerFile['meta']> = {}, seconds = 12): LedgerFile => ({
   meta: {
     script: 'acceptance',
+    tier: 'all',
     head: 'a'.repeat(40),
     branch: 'main',
     dirty: false,
@@ -36,14 +37,24 @@ const ledger = (overrides: Partial<LedgerFile['meta']> = {}, seconds = 12): Ledg
       wallSeconds: seconds,
       files: 1,
       tests: 6,
+      skipped: 0,
       failed: 0,
       fileSeconds: seconds,
     },
   ],
   files: [
-    { member: 'apps/cli', file: 'apps/cli/acceptance/PF-016.a.acceptance.ts', seconds, tests: 6 },
+    {
+      member: 'apps/cli',
+      file: 'apps/cli/acceptance/PF-016.a.acceptance.ts',
+      seconds,
+      tests: 6,
+      slowTests: 0,
+      fastSeconds: seconds,
+      longestSeconds: seconds,
+    },
   ],
   nearTimeout: [],
+  fastOverBudget: [],
   failures: [],
 })
 

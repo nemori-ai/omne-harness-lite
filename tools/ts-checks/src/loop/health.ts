@@ -2,6 +2,7 @@
 // 债的走向、对照表条数、各传感器最近一次有数据。全是纯函数：读文件、跑 git 在 health-cli.ts，
 // 「现在」由调用方注入。每一块要么有数据，要么写明没有数据的原因。
 import { shapeOf } from '../metrics/git.ts'
+import { isRunTier, type RunTier } from '../testing/config.ts'
 import type { Band, Lines } from './bands.ts'
 import type { CardEntry } from './cards.ts'
 import { CATEGORIES, type Category } from './catalogue.ts'
@@ -233,6 +234,8 @@ export interface TestRun {
   readonly startedAt: string
   readonly head: string
   readonly dirty: boolean
+  /** 跑的是哪一层；早于分层的账本按 `all`。 */
+  readonly tier: RunTier
   readonly wallSeconds: number
   readonly passed: boolean
 }
@@ -240,6 +243,7 @@ export interface TestRun {
 /**
  * 一份 `ledger.json`（`src/testing/cli.ts` 写的）里这里要的部分；不是全量运行返回 `partial`。
  * 全量与受影响范围的区分：`run --all` 与 `--base` 二选一，全量运行的 `meta.base` 是 null。
+ * 全量运行可以只跑一层（合并前的那一步就是全量快层），层记在 `meta.tier`。
  */
 export function parseLedgerRun(
   value: unknown,
@@ -247,14 +251,15 @@ export function parseLedgerRun(
   if (typeof value !== 'object' || value === null) return undefined
   const { meta, members } = value as Record<string, unknown>
   if (typeof meta !== 'object' || meta === null || !Array.isArray(members)) return undefined
-  const { base, startedAt, head, dirty, wallSeconds } = meta as Record<string, unknown>
+  const { base, startedAt, head, dirty, wallSeconds, tier } = meta as Record<string, unknown>
   if (
     typeof startedAt !== 'string' ||
     Number.isNaN(Date.parse(startedAt)) ||
     typeof head !== 'string' ||
     typeof dirty !== 'boolean' ||
     typeof wallSeconds !== 'number' ||
-    base === undefined
+    base === undefined ||
+    (tier !== undefined && !isRunTier(tier))
   )
     return undefined
   if (base !== null) return { kind: 'partial' }
@@ -266,7 +271,14 @@ export function parseLedgerRun(
   if (!exitCodes.every(code => typeof code === 'number')) return undefined
   return {
     kind: 'full',
-    run: { startedAt, head, dirty, wallSeconds, passed: exitCodes.every(code => code === 0) },
+    run: {
+      startedAt,
+      head,
+      dirty,
+      tier: tier ?? 'all',
+      wallSeconds,
+      passed: exitCodes.every(code => code === 0),
+    },
   }
 }
 

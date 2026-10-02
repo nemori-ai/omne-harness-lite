@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：子进程＋真库：两条都起 Node 子进程在真实 SQLite 文件库上跑整套存储一致性用例。
 import { evidencePath } from '../src/evidence-path.ts'
 import { execFileSync, spawn } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'

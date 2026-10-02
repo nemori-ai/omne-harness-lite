@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：网络＋重 CPU：经本地 HTTPS 服务（openssl 现生成证书）走真实传输与读取，输入计量用真实分词器。
 // QV1 of the adopted Qwen open-leaf visible reasoning estimate (revision 2): both open
 // leaves, with and without tools, default/high/max effort, through the public transport and
 // the Cordis transport service, three rounds of archived-shape SSE (every frame `reasoning`

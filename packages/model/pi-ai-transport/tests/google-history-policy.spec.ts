@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：网络＋重 CPU：经本地 HTTPS 服务（openssl 现生成证书）走真实传输与读取，输入计量用真实分词器。
 // Google revision 4 GS-V1 (finite table and factory coordinates) and GS-V2 (detail domain).
 // GS-V2 fixtures are served over local TLS and read by the production reader; no merged
 // detail entry is written by hand. Unit-level shapes the projection never produces are

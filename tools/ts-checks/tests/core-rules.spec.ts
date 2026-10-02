@@ -354,7 +354,8 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
     ).toEqual([])
   })
 
-  it('collectSources + CLI 真实临时包：坏依赖退出1，合法包退出0', () => {
+  // 归慢层：子进程＋重 CPU：两次起真实 CLI 子进程，每次都扫描整个仓库的执行模块。
+  it('collectSources + CLI 真实临时包：坏依赖退出1，合法包退出0', { tags: ['slow'] }, () => {
     const scratch = join(root, 'tmp')
     mkdirSync(scratch, { recursive: true })
     const dir = mkdtempSync(join(scratch, 'core-rules-'))
@@ -379,7 +380,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
-  }, 60_000) // Two real CLI scans of the repository (~15 s each under load); budget covers both, assertions unchanged.
+  })
 })
 
 describe('SC-OE-3 no-wall-clock', () => {

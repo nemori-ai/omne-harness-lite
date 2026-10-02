@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：重 CPU：每条用例跑完整的 evaluate，正文判定在调用中真实编译 JSON Schema（不替换）。
 import { describe, expect, it } from 'vitest'
 import {
   carrierRecordId,

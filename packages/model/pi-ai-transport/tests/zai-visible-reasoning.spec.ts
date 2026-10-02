@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：网络＋重 CPU：经本地 HTTPS 服务（openssl 现生成证书）走真实传输与读取，输入计量用真实分词器。
 // ZV2 and ZV3 of the adopted ZAI visible reasoning estimate (revision 1): counterexamples 1–8
 // and 10–13 with the template and equivalence oracles, then counterexample 9 on the methods
 // the three factories actually return for all five leaves. Archived fragments of both evidence

@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
 /**
  * Independent acceptance 2026-09-30 for the T29 runtime increment: A2 acknowledgeCall, A3 the
  * RT12 S-98 retention gate and the review-fix batch (B1/N1/S1). Scope A22-V1..V12, V15, V16.

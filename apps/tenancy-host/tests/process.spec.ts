@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：子进程＋真库：起真实中心与 CLI 子进程、SIGKILL 崩溃注入，多个进程共用同一个 SQLite 文件库。
 // 真子进程（verification：assembly.upgrade-crash-recovery、assembly.no-commit-before-open ②、交错 I-9 两进程属主排他与
 // clock 租约同一文件、两进程同时 boot()、进程入口 serve／keygen 与信号、AI S-32 完整进程重启）。
 // 「崩溃」一律是 SIGKILL：不走任何撤除。sqlite 临时文件库。

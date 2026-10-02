@@ -130,8 +130,9 @@ git commit -m "chore(docs): update blog submodule"
 | 统一语言词条、领域对象条目，或某个产品 topic 的 rev | `make design-check`；本地迭代用 `STALE=report` 看待复核队列 |
 | 检查器或生成器行为 | `make test` |
 | TS/JS 格式 | `pnpm format:check`；局部写入 `pnpm format:write -- <文件...>` |
-| 某个产品包的源码或测试，迭代中 | `pnpm --filter @omne-harness-lite/<包名> run test`（含 `*.spec-d.ts` 类型测试），或在包目录里 `pnpm exec vitest run <文件>` 只跑一个文件 |
-| 产品源码或测试改完，要知道波及了谁 | `make test-affected BASE=<任务基线提交>`：只构建并测试变更成员与依赖它们的成员，不必跑全量；`PLAN=1` 先看范围。改了公开入口再跑 `pnpm run build && pnpm run typecheck` |
+| 某个产品包的源码或测试，迭代中 | `OMNE_TEST_TIER=fast pnpm --filter @omne-harness-lite/<包名> run test` 只跑快层（不设这个变量两层全跑，含 `*.spec-d.ts` 类型测试），或在包目录里 `pnpm exec vitest run <文件>` 只跑一个文件 |
+| 产品源码或测试改完，要知道波及了谁 | `make test-affected BASE=<任务基线提交>`：只构建并测试变更成员与依赖它们的成员的**快层**，不必跑全量；`PLAN=1` 先看范围。交付前加 `TIER=slow` 把它们的慢层也跑一次。改了公开入口再跑 `pnpm run build && pnpm run typecheck` |
+| 写了一个慢测试（起子进程、真实等待、重 CPU、网络），或账本说快层里有超出预算的 | 快层的预算：单条用例不到默认 5 秒时限的一半，单个文件的快层用例合计不到 10 秒。超了先看能不能改快；改不快就归慢层——整个文件在开头注释里写 `@module-tag slow`，单条用例写 `{ tags: ['slow'] }`，旁边写一句为什么慢。慢层的时限是 120 秒，定义在根上的 [vitest.tiers.mts](../vitest.tiers.mts)，用法见 [tools/ts-checks](../tools/ts-checks/README_ZH.md#测试运行)。账本摘要的「归层」一行列出两头的漂移 |
 | 测试红了，想知道是不是「单独跑能过」 | `make test-triage RUN=<那次运行打印的运行目录>`：逐条单独重跑并归类。**把红灯归因于并行或机器负载，要附它的输出**；「隔离稳定通过」的含义与边界见[验证与证据](verification.md#检查入口) |
 | 想知道测试时间花在哪 | 每次 `test-affected`、`pnpm run test` 与 `make check` 都写耗时账本（成员、文件、用例三级，路径在运行末尾打印），摘要里列出最慢的成员、超线的文件、导入耗时最多的成员，以及耗时达到自身时限一半的用例（带各自的时限） |
 | 产品源码的结构约束（墙钟、`bail`、受限调用点、跨组依赖方向） | `pnpm run lint:rules`；规则与自测见 [tools/ts-checks](../tools/ts-checks/README.md) |
@@ -145,7 +146,7 @@ git commit -m "chore(docs): update blog submodule"
 | 规格还没定，想先看一条主路径走不走得通 | 做探路件：放 [examples/](../examples/README_ZH.md) 或任务的 `tmp/`，不进 `packages/`、`apps/`；跑通后带回设计的是事实清单，不是代码 |
 | 存储提供者或迁移 | `pnpm --filter @omne-harness-lite/storage-sql run test`：sqlite 上跑一致性套件；pg 需设 `OMNE_TEST_PG_URL`，否则跳过 |
 | 形式工具是否可用 | `make formal-tools` |
-| 跨入口改动、合并前 | `make check`。它占一个机器级的[运行名额](../scripts/README.md#运行名额)：别的检出正在跑时会排队，不要为了绕开排队而手工并行起多套 |
+| 跨入口改动、合并前 | `make check`：测试一步跑全部成员的快层，再加基线（`BASELINE`，缺省 `origin/main`）以来受影响成员的慢层；其余成员的慢层在合并后的主线头上补跑。它占一个机器级的[运行名额](../scripts/README.md#运行名额)：别的检出正在跑时会排队，不要为了绕开排队而手工并行起多套 |
 
 覆盖与退出含义归[验证与证据](verification.md)——**那里写明了每个入口不能声称什么**。
 

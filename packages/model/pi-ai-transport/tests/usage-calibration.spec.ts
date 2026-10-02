@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：重 CPU：用真实 Anthropic 输入计量器（真实分词器）跑多轮完整与增量计量，含超长历史。
 import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, it, expect, vi } from 'vitest'
 import { LosslessNumber, type JsonObject } from '@omne-harness-lite/content-blocks'

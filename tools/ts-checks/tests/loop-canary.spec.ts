@@ -91,6 +91,7 @@ function seedSlowAcceptance(root: string, ledgers: string): void {
   const ledger: LedgerFile = {
     meta: {
       script: 'acceptance',
+      tier: 'all',
       head: at.head,
       branch: at.branch,
       dirty: at.dirty,
@@ -109,20 +110,33 @@ function seedSlowAcceptance(root: string, ledgers: string): void {
         wallSeconds: 128,
         files: 2,
         tests: 3,
+        skipped: 0,
         failed: 0,
         fileSeconds: 55,
       },
     ],
     files: [
-      { member: 'apps/cli', file: SLOW, seconds: 50, tests: 2 },
+      {
+        member: 'apps/cli',
+        file: SLOW,
+        seconds: 50,
+        tests: 2,
+        slowTests: 0,
+        fastSeconds: 50,
+        longestSeconds: 30,
+      },
       {
         member: 'apps/cli',
         file: 'apps/cli/acceptance/PF-001.quick.acceptance.ts',
         seconds: 5,
         tests: 1,
+        slowTests: 0,
+        fastSeconds: 5,
+        longestSeconds: 5,
       },
     ],
     nearTimeout: [],
+    fastOverBudget: [],
     failures: [],
   }
   write(

@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：子进程：起 Node 子进程跑构建好的资产消费者程序（真实正文判定与资产评估）并写证据，正反各一遍。
 import { evidencePath } from '../src/evidence-path.ts'
 import assert from 'node:assert/strict'
 import { execFile, execFileSync, type ExecFileException } from 'node:child_process'

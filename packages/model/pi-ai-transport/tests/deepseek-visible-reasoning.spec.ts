@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：重 CPU：用真实分词器逐条计量推理内容与参考历史。
 // DV2/DV3 of the adopted DeepSeek visible reasoning estimate (revision 2): the captured
 // `reasoning.text` detail is metered only as reference reasoning_content, on a meter copy.
 import { readFileSync } from 'node:fs'
