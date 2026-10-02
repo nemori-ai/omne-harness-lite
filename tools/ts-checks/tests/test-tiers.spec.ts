@@ -117,7 +117,8 @@ describe('真起 vitest：各层跑了什么、导入了什么', { timeout: 60_0
     ].join('\n'),
     'heavy.spec.ts': [
       '/**',
-      ' * @module-tag slow',
+      // vitest 扫描整个文件找这条声明，字符串里的也算：拆开写，免得本文件自己被归进慢层。
+      ` * @module-${'tag'} slow`,
       ' * 归慢层：夹具，整文件归慢。',
       ' */',
       ...MARK('heavy'),
