@@ -20,3 +20,10 @@
 - 已确认范围：`SYS-KERNEL` 仅采用 Cordis 官方包；不采用 DSH `agent` 原语，自主设计 Agent Runtime（Agent Loop）。取代旧条款的 agent 原语复用与其他 DSH 组件 fork 安排，不改变 Cordis 的官方包采用方式。
 - 同步消费者：项目根 README、AGENTS.md 与博客「抉择」章节。
 - 后续复核：`record/proposals/cli-tui/`、`realization/apps/cli/` 仍有 DSH 原语采用或跨进程复用前提；`ubiquitous_language/terms/architecture-core-and-extension.md` 的上游内核说明仍沿用旧范围。上述表述不能继续作为采用 DSH 原语的依据，须由各自 owner 在后续修订中按本条核对；历史记录不改写。本次未修改契约或宣称实现完成。
+
+## 2026-10-01：重定 Cordis 的定位
+
+- 来源：负责人在当日「整洁之道各条取舍」的问答里写下：「Cordis 依然是内核，但是在对它有了更深刻的理解后，我认为 Cordis 提供的是一套能过让我们有条件实现完全动态系统的全系统集成装配时候需要面向满足和遵循的契约规范，就是不再是以它为视角进行建模，而是架构设计和实现出来的东西需要满足它的契约规范能过以 fiber plugin service inject 的方式来集成来装配」。本段逐字保留当次原话以恢复确认依据。
+- 已确认范围：`SYS-KERNEL` 增补定位一段；复用范围（仅 Cordis、官方发布包、不用 DSH `agent` 原语）不变。
+- 同步消费者：`SYS-DYNAMIC.C2` 与 SYS-COMPOSITION 的确认记录、根 AGENTS.md 项目心智、设计工作区的 AGENTS.md、设计手册主线及其评审判据、相关角色；逐处见 [D-112](../../record/decisions/cordis-as-assembly-contract/decision.md#四取代与修订的范围)。
+- 后续复核：已接受契约正文里的内核机制词、九份固化投影的小节标题、几份产品 topic 的措辞，都留到各自下次修订时改，清单在 D-112；历史记录不改写。本次未修改契约，也不宣称已有的架构材料已按新定位重写。

@@ -108,7 +108,7 @@ PF-0NN-<slug>/
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决        ← 必须
 ├── changelog.md      产品设计本身的演进（rev N）        ← 必须
 ├── interviews/       设计交流笔记（原始材料）
-└── projection/       向 Cordis 的技术设计投影，按版本固化
+└── projection/       技术设计的投影，按版本固化
 ```
 
 四个必须的分别回答**是什么**、**谁定的**、**怎么变的**、**在哪**。

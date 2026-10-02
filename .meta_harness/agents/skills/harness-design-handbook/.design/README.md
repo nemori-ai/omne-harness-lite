@@ -19,6 +19,9 @@
 取代刚起草的集中单文件模板；组织、检查与试用记录见[信息包模板修订](template-packages.md)。
 正式 proposal topic 至少三个实质候选的后续要求，以及决定草稿归属修正，见[提案准入增量](proposal-admission.md)。
 同一接受基线最多三轮实质迭代、未收敛时升级整体诊断的规则，见[评审收敛规则](review-convergence.md)。
+2026-10-01 负责人重定 Cordis 的定位：它是装配时要满足的契约规范，不是建模的视角。主线据此改写——A～E 不用内核机制词，
+Cordis 到「装配与符合性核对」那一步才出场；本页与同目录各份笔记里「需求到 Cordis 设计」「投影为独立插件」「Cordis 插件投影」是当时的说法，
+现行定位以 [D-112](../../../../design/record/decisions/cordis-as-assembly-contract/README.md) 为准。
 
 ## 来源与边界
 

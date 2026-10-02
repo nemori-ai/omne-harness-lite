@@ -108,6 +108,6 @@
 
 ## 与技术设计的交接
 
-产品设计完成之后，向 Cordis 的技术设计沿 `harness-design-handbook` skill 展开，
+产品设计完成之后，技术设计沿 `harness-design-handbook` skill 展开，
 产物按其步骤 G 落回本 topic 的 `projection/`。
 产品设计是那条链的**输入**，不是它的一部分——两者的作者视角不同。

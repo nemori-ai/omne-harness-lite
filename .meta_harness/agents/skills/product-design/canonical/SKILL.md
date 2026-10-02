@@ -274,5 +274,5 @@ metadata:
 
 红线清单在 `design/product/AGENTS.md`，它约束所有在那里落字的人，不只是你。
 
-产品设计完成之后，向 Cordis 的技术设计沿 `harness-design-handbook` skill 展开。
+产品设计完成之后，技术设计沿 `harness-design-handbook` skill 展开。
 **产品设计是那条链的输入，不是它的一部分**——两者的作者视角不同，不要在这里做技术判断。

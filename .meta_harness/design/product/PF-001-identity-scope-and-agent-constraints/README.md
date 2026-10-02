@@ -61,7 +61,7 @@ PF-001-identity-scope-and-agent-constraints/
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决 / 来源问题
 ├── changelog.md      产品设计本身的演进
 ├── interviews/       设计交流笔记（原始材料）
-└── projection/       向 Cordis 的技术设计投影，按版本固化（派生快照，不是权威）
+└── projection/       技术设计的投影，按版本固化（派生快照，不是权威）
 ```
 
 本次并行修订的来源、编号协调与消费者复核见 [decisions](decisions.md#2026-09-26-并行修订对账)。
