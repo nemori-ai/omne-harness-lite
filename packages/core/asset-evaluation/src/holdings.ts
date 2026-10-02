@@ -17,6 +17,7 @@ import type {
   Layer,
   NonConnectorEvaluationInput,
   PermissionDeclaration,
+  SessionAssignment,
 } from './types.ts'
 
 /** Internal projection values, keyed by the admitted holding and selected body version. Not a domain object or provider port. */
@@ -82,6 +83,37 @@ export function declarationsFor(
 ): readonly AttributeDeclaration[] {
   return facts.declarations.get(holding) ?? [USABLE_BY_DECLARATION]
 }
+/** Which declaration a layer's permission assignment is read against: the reserved usableBy, an mcp per-action item, or the held version's own declaration. */
+function sourceDeclarationFor(
+  holding: AssetHolding,
+  capability: CapabilityId,
+  declaration: PermissionDeclaration,
+  version: AssetVersion | undefined,
+  specialUsable: boolean,
+  facts: EvaluationFacts,
+): AttributeDeclaration | undefined {
+  if (specialUsable) return USABLE_BY_DECLARATION
+  const held =
+    version === undefined
+      ? undefined
+      : declarationsFor(holding, facts).find(entry => entry.item === declaration.item)
+  return capability.category === 'mcp' ? (mcpExecute(declaration.item) ?? held) : held
+}
+function sessionPermissionAssignment(
+  session: readonly SessionAssignment[] | undefined,
+  capability: CapabilityId,
+  declaration: PermissionDeclaration,
+): LayerPermissionAssignment | undefined {
+  const entry = session?.find(
+    entry => same(entry.capability, capability) && entry.assignment.item === declaration.item,
+  )
+  if (entry === undefined) return undefined
+  const value = permission(entry.assignment.value)
+  return value === undefined
+    ? undefined
+    : { layer: 'session', value, immutable: entry.assignment.immutable }
+}
+/** S-23: the permission assignments for `declaration.item` on `capability` along the permission order. */
 export function assignmentsFor(
   input: Pick<NonConnectorEvaluationInput, 'tenant' | 'session'>,
   capability: CapabilityId,
@@ -101,29 +133,20 @@ export function assignmentsFor(
     if (assignment === undefined) continue
     const definition = definitions.get(holding.asset)
     if (definition === undefined) throw new Error('admitted holding has no definition')
-    const version = versionOf(holding, definition)
-    const sourceDeclaration = specialUsable
-      ? USABLE_BY_DECLARATION
-      : capability.category === 'mcp'
-        ? (mcpExecute(declaration.item) ??
-          (version === undefined
-            ? undefined
-            : declarationsFor(holding, facts).find(entry => entry.item === declaration.item)))
-        : version === undefined
-          ? undefined
-          : declarationsFor(holding, facts).find(entry => entry.item === declaration.item)
-    if (sourceDeclaration?.kind !== 'permission') continue
+    const source = sourceDeclarationFor(
+      holding,
+      capability,
+      declaration,
+      versionOf(holding, definition),
+      specialUsable,
+      facts,
+    )
+    if (source?.kind !== 'permission') continue
     const value = permission(assignment.value)
     if (value === undefined) continue
     result.push({ layer, value, immutable: assignment.immutable })
   }
-  const session = input.session?.find(
-    entry => same(entry.capability, capability) && entry.assignment.item === declaration.item,
-  )
-  if (session !== undefined) {
-    const value = permission(session.assignment.value)
-    if (value !== undefined)
-      result.push({ layer: 'session', value, immutable: session.assignment.immutable })
-  }
+  const session = sessionPermissionAssignment(input.session, capability, declaration)
+  if (session !== undefined) result.push(session)
   return result
 }
