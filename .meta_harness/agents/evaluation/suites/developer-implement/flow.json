@@ -7,7 +7,7 @@
   "reps": 2,
   "host": {
     "claude-code": {
-      "model": "claude-sonnet-5-5",
+      "model": "claude-opus-5-5",
       "effort": "high",
       "allowed": [
         "Read",
@@ -15,7 +15,9 @@
         "Grep",
         "Edit",
         "Write",
-        "Bash"
+        "Bash",
+        "WebFetch",
+        "WebSearch"
       ]
     }
   },
@@ -110,7 +112,10 @@
       "label": "只用放行工具"
     }
   ],
-  "signoffs": {},
+  "signoffs": {
+    "cases": { "by": "panqiwei", "date": "2026-10-02", "version": 1 },
+    "grading": { "by": "panqiwei", "date": "2026-10-02", "version": 1 }
+  },
   "materials": [
     {
       "id": "AD-1",
