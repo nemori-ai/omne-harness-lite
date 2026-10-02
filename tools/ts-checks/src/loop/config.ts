@@ -80,6 +80,8 @@ export interface LoopConfig {
       readonly assertionPattern: RegExp
       /** 空串表示不用。 */
       readonly helperPattern: RegExp | undefined
+      /** 类型测试文件的路径模式；空串表示不区分。 */
+      readonly typeTestPattern: RegExp | undefined
     }
     readonly newEdges: { readonly enabled: boolean }
     readonly topicChurn: {
@@ -269,6 +271,10 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
         helperPattern: optionalPattern(
           assertions['helperPattern'],
           'sensors.assertions.helperPattern',
+        ),
+        typeTestPattern: optionalPattern(
+          assertions['typeTestPattern'],
+          'sensors.assertions.typeTestPattern',
         ),
       },
       newEdges: { enabled: bool(newEdges['enabled'], 'sensors.newEdges.enabled') },

@@ -45,7 +45,8 @@
     "assertions": {
       "enabled": true,
       "assertionPattern": "^(expect|assert|expectTypeOf|assertType)",
-      "helperPattern": ""
+      "helperPattern": "",
+      "typeTestPattern": "\\.(test|spec)-d\\.[cm]?[jt]sx?$"
     },
     "newEdges": { "enabled": true },
     "topicChurn": {

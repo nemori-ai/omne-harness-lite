@@ -101,12 +101,15 @@ describe('没有断言的测试', () => {
   const patterns = {
     assertionPattern: /^(expect|assert|expectTypeOf|assertType)/u,
     helperPattern: undefined,
+    typeTestPattern: /\.(test|spec)-d\.[cm]?[jt]sx?$/u,
   }
-  const scan = (text: string, helperPattern?: RegExp) =>
+  const scan = (text: string, helperPattern?: RegExp, path = 'packages/core/a/tests/a.spec.ts') =>
     casesWithoutAssertions(
-      { path: 'packages/core/a/tests/a.spec.ts', text },
+      { path, text },
       helperPattern === undefined ? patterns : { ...patterns, helperPattern },
     ).map(found => `${found.line} ${found.name}`)
+  const scanTypeTest = (text: string) =>
+    scan(text, undefined, 'packages/core/a/tests/public.spec-d.ts')
 
   it('有 expect、assert 或 expectTypeOf 的不列；什么都没断言的列出，带行号与用例名', () => {
     const text = [
@@ -146,6 +149,39 @@ describe('没有断言的测试', () => {
       "import { verifyShape } from './helpers'\nit('导入的校验', () => { verifyShape(f()) })"
     expect(scan(text)).toEqual(['2 导入的校验'])
     expect(scan(text, /^verify/u)).toEqual([])
+  })
+
+  it('外层 describe.skip／describe.todo 里的用例整组不跑，不列；describe.skipIf 照样判', () => {
+    const text = [
+      "if (url === undefined) describe.skip('缺环境', () => { it('占位', () => {}) })",
+      "suite.skip('也是一组', () => { describe('里层', () => { test('深处', () => { f() }) }) })",
+      "describe.skipIf(ci)('条件跳过', () => { it('有时跑', () => { f() }) })",
+    ].join('\n')
+    expect(scan(text)).toEqual(['3 有时跑'])
+  })
+
+  it('类型测试文件：@ts-expect-error 指令与「应当编译得过」的调用、注解声明、satisfies 都算断言', () => {
+    const text = [
+      "it('指令', () => {\n  // @ts-expect-error 宽度是数字\n  const bad = width\n  void bad\n})",
+      "it('块注释指令', () => { /* @ts-expect-error */ const bad = width; void bad })",
+      "it('编译得过的调用', () => { evaluate({ root }) })",
+      "it('注解声明', () => { const ok: Width = 1; void ok })",
+      "it('satisfies', () => { void (1 satisfies Width) })",
+      "it('什么都没有', () => { void 0 })",
+      "it('字符串里的指令不算', () => { const note = '// @ts-expect-error'; void note })",
+    ].join('\n')
+    expect(scanTypeTest(text)).toEqual(['10 什么都没有', '11 字符串里的指令不算'])
+  })
+
+  it('运行时测试文件里 @ts-expect-error 与调用不算断言；不给 typeTestPattern 时类型测试也按运行时判', () => {
+    const text = "it('指令', () => {\n  // @ts-expect-error 宽度是数字\n  f(width)\n})"
+    expect(scan(text)).toEqual(['1 指令'])
+    expect(
+      casesWithoutAssertions(
+        { path: 'packages/core/a/tests/public.spec-d.ts', text },
+        { ...patterns, typeTestPattern: undefined },
+      ).map(found => found.name),
+    ).toEqual(['指令'])
   })
 })
 
