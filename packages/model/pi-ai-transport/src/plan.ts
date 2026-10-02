@@ -3,7 +3,7 @@ import { normalizeToolCallId, projectAssistant } from './assistant-projection.ts
 import { projectInput, stableAnthropicRoute } from './projection.ts'
 import { measureCalibrated } from './calibration.ts'
 import { projectHistorySpans, type MessageSpan } from './history-projection.ts'
-// Derived from pi 0.86.1 openai-completions.ts, commit 3390bd93630965a12a0a1a5c36ce890ec22f7e1d.
+// Derived from pi 1.0.0 openai-completions.ts, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32.
 // Copyright (c) 2025 Mario Zechner. MIT: ../LICENSE.pi. See provenance.json for changes.
 import { createHash } from 'node:crypto'
 import {

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "OpenRouter 单次请求与无损流读取，pi 0.86.1 定向 fork",
+  "description": "OpenRouter 单次请求与无损流读取，pi 1.0.0 定向 fork",
   "engines": {
     "node": ">=24.18.0 <25"
   },

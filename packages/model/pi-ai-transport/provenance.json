@@ -1,19 +1,66 @@
 {
   "repository": "https://github.com/earendil-works/pi",
-  "version": "0.86.1",
-  "commit": "3390bd93630965a12a0a1a5c36ce890ec22f7e1d",
-  "source_archive_sha256": "29b35ae69e9cc7696cfdd0992e157892dfedc857c50762f49d752584358e4163",
+  "version": "1.0.0",
+  "commit": "a13d35a742c6ef8462812a28fbe1d8c8b7431c32",
+  "source_archive": "git archive --format=tar.gz a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (git 2.25.1)",
+  "source_archive_sha256": "1de4da19981f0caed95df5ed76a14aa90b082fa08d997407e6e3a1898fc913d1",
   "license_sha256": "0457f5bcec3b3b211605dfb5d1a49042fd638f3686a410fe099c24a25af13c48",
   "sources": [
     {
       "path": "packages/ai/src/api/openai-completions.ts",
-      "sha256": "b06508ab22b6595d85d636db0737ac7c48adbf9d8d5ff61ba2bac94c9599ac51"
+      "sha256": "7c1bc51ddf740ce69b371e1ae391fcdcecde26852428451e7b17eeabdcfb4eb4"
     },
     {
       "path": "packages/ai/src/api/openai-codex-responses.ts",
-      "sha256": "ea1860ea6f78d1ed4e935e86b5dcb149ccb1f03a12669ff8550cc7243ec6ddc8"
+      "sha256": "1f7a4f169d826a30189e3905475ca9f4c7edc518812013ae4b9f86b367942a05"
     }
   ],
+  "rebase": {
+    "date": "2026-10-02",
+    "from": {
+      "version": "0.86.1",
+      "commit": "3390bd93630965a12a0a1a5c36ce890ec22f7e1d",
+      "note": "main two commits after the v0.86.1 release tag (v0.86.1-2-g3390bd93); both source files are byte-identical to the tag",
+      "source_archive_sha256": "29b35ae69e9cc7696cfdd0992e157892dfedc857c50762f49d752584358e4163",
+      "sources_sha256": {
+        "packages/ai/src/api/openai-completions.ts": "b06508ab22b6595d85d636db0737ac7c48adbf9d8d5ff61ba2bac94c9599ac51",
+        "packages/ai/src/api/openai-codex-responses.ts": "ea1860ea6f78d1ed4e935e86b5dcb149ccb1f03a12669ff8550cc7243ec6ddc8"
+      }
+    },
+    "code_changed": false,
+    "upstream_changes": [
+      {
+        "where": "openai-completions.ts streaming loop; openai-codex-responses.ts mapCodexEvents and WebSocket path",
+        "change": "onProviderStreamEvent callback per parsed provider event (pi 0.99.0)",
+        "disposition": "not applicable: src/stream.ts already yields raw arrival events to the consumer"
+      },
+      {
+        "where": "openai-completions.ts request params",
+        "change": "stream_options and max_tokens assignments retyped without any casts",
+        "disposition": "not applicable: typing only"
+      },
+      {
+        "where": "openai-completions.ts request params",
+        "change": "model-level samplingParams merged before per-request samplingParams",
+        "disposition": "not applicable: src/plan.ts sends only the explicit model binding; no samplingParams layer"
+      },
+      {
+        "where": "openai-completions.ts compat detection",
+        "change": "unknown OpenAI-compatible endpoints default to supportsStrictMode false (pi #9816, 0.87.0)",
+        "disposition": "not applicable: src/ never sends strict tool schemas"
+      },
+      {
+        "where": "openai-completions.ts user message conversion",
+        "change": "empty text parts filtered from user content (pi #9797, 0.87.1)",
+        "disposition": "not adopted here: src/plan.ts projects content blocks itself and TextBlock text may be empty; tracked as nemori-ai/omne-harness-lite#50"
+      },
+      {
+        "where": "openai-codex-responses.ts parseSSE",
+        "change": "none",
+        "disposition": "src/sse.ts baseline unchanged"
+      }
+    ]
+  },
   "adaptations": [
     {
       "file": "src/plan.ts",
