@@ -10,6 +10,7 @@ import { memberGraph, memberOf, type Member } from '../metrics/graph.ts'
 import { buildReport, isMeasuredSource, type Report } from '../metrics/report.ts'
 import { baseTextsOf, collectMemberSources } from '../metrics/sources.ts'
 import { inspectRetire } from '../product/retire.ts'
+import { readTestRunsConfig } from '../testing/config.ts'
 import { GROUP_DIRECTION_POLICY } from '../rules/group-direction.ts'
 import { isTestPath, type SourceFile } from '../rule.ts'
 import { judgeMember, type MemberBudget } from './budget.ts'
@@ -18,6 +19,11 @@ import { readLoopConfig, type IndicatorId, type LoopConfig } from './config.ts'
 import { loopHome } from './home.ts'
 import { writeProposal } from './proposals.ts'
 import { data, noData, type Reading } from './reading.ts'
+import {
+  readAcceptanceTiming,
+  type AcceptanceLocation,
+  type AcceptanceTiming,
+} from './sensors/acceptance.ts'
 import { casesWithoutAssertions, type CaseWithoutAssertion } from './sensors/assertions.ts'
 import { cochange, readCommitMembers, type CochangeResult } from './sensors/cochange.ts'
 import { detectDuplication, type DuplicationResult } from './sensors/duplication.ts'
@@ -83,6 +89,7 @@ interface Sensors {
   readonly newEdges: Reading<EdgeDelta>
   readonly topicChurn: Reading<readonly TopicChurn[]>
   readonly worktrees: Reading<readonly WorktreeChanges[]>
+  readonly acceptance: Reading<AcceptanceTiming>
 }
 
 /** 基线合并点到当前工作树的改动：全部改动路径，与改动过的成员源码在合并点的文本。 */
@@ -184,6 +191,7 @@ async function readSensors(
   files: readonly SourceFile[],
   report: Report,
   change: Change | undefined,
+  acceptanceAt: AcceptanceLocation,
 ): Promise<Sensors> {
   const { sensors } = config
   const windowStart = new Date(Date.now() - sensors.topicChurn.windowDays * 24 * 60 * 60 * 1000)
@@ -199,6 +207,7 @@ async function readSensors(
     worktrees: sensors.worktrees.enabled
       ? data(readWorktrees(root, config.primaryBranch))
       : noData(OFF),
+    acceptance: sensors.acceptance.enabled ? readAcceptanceTiming(acceptanceAt) : noData(OFF),
   }
 }
 
@@ -255,7 +264,24 @@ function indicatorValues(
       reading: map(shared, entries => entries.length),
       ...(sharedNote === undefined ? {} : { note: sharedNote }),
     },
+    acceptanceSeconds: {
+      reading: map(sensors.acceptance, timing => timing.totalSeconds),
+      ...(sensors.acceptance.status === 'data'
+        ? { note: acceptanceNote(sensors.acceptance.data) }
+        : {}),
+    },
+    acceptanceSlowestSeconds: {
+      reading: map(sensors.acceptance, timing => timing.slowest?.seconds ?? 0),
+      ...(sensors.acceptance.status === 'data' && sensors.acceptance.data.slowest !== undefined
+        ? { note: sensors.acceptance.data.slowest.path }
+        : {}),
+    },
   }
+}
+
+function acceptanceNote(timing: AcceptanceTiming): string {
+  if (timing.members === 0) return '0 份：没有成员有 acceptance 脚本'
+  return `${timing.files} 份（${timing.members} 个成员），记录开始于 ${timing.ledger?.startedAt ?? '？'}`
 }
 
 function memberBudgets(
@@ -453,7 +479,14 @@ export async function runLoopStatus(
   const files = collectMemberSources(root)
   const change = at.base === undefined ? undefined : changeSince(root, at.base.mergeBase)
   const report = measuredReport(root, files, metrics, change)
-  const sensors = await readSensors(root, config, files, report, change)
+  const sensors = await readSensors(root, config, files, report, change, {
+    root,
+    mainRoot: at.mainRoot,
+    shortHead: at.shortHead,
+    dirty: at.dirty,
+    env,
+    excludeRoots: readTestRunsConfig().affected.excludeRoots,
+  })
 
   const trendPath = join(home, 'trend.jsonl')
   const trend = readTrend(trendPath)

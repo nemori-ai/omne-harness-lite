@@ -22,7 +22,7 @@ import {
   RUN_SCRIPTS,
   type RunScript,
 } from './config.ts'
-import { buildLedger, ledgerSummary, type Failure } from './ledger.ts'
+import { buildLedger, ledgerSummary, type Failure, type LedgerFile } from './ledger.ts'
 import { runMembers, slugOf } from './run.ts'
 import { triage, triageSummary } from './triage.ts'
 
@@ -185,7 +185,7 @@ async function run(argv: readonly string[]): Promise<number> {
     summary.push(`对这些失败做隔离重跑：make test-triage RUN=${runDir}`)
   writeFileSync(
     join(runDir, 'ledger.json'),
-    `${JSON.stringify({ meta: { ...meta, wallSeconds: Math.round(wallSeconds) }, ...ledger }, null, 1)}\n`,
+    `${JSON.stringify({ meta: { ...meta, wallSeconds: Math.round(wallSeconds) }, ...ledger } satisfies LedgerFile, null, 1)}\n`,
   )
   writeFileSync(join(runDir, 'summary.md'), `${summary.join('\n')}\n`)
   console.log(summary.join('\n'))

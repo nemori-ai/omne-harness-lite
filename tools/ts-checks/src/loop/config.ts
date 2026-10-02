@@ -15,6 +15,8 @@ export const INDICATORS = [
   'topicRevChurn',
   'worktrees',
   'worktreeSharedMembers',
+  'acceptanceSeconds',
+  'acceptanceSlowestSeconds',
 ] as const
 export type IndicatorId = (typeof INDICATORS)[number]
 
@@ -27,6 +29,7 @@ export const SWITCHED_SENSORS = [
   'newEdges',
   'topicChurn',
   'worktrees',
+  'acceptance',
 ] as const
 export type SwitchedSensor = (typeof SWITCHED_SENSORS)[number]
 
@@ -38,6 +41,8 @@ export interface IndicatorConfig {
   readonly lines: Lines | null
   /** 另与基线快照比，比基线差至少是提醒。 */
   readonly baseline: boolean
+  /** 写给读配置的人的一句话，例如这几条线是谁定的、校准过没有。工具不读它的内容。 */
+  readonly note?: string
 }
 
 export interface LoopConfig {
@@ -78,6 +83,8 @@ export interface LoopConfig {
       readonly windowDays: number
     }
     readonly worktrees: { readonly enabled: boolean }
+    /** 验收耗时：读 `make acceptance` 写下的账本。 */
+    readonly acceptance: { readonly enabled: boolean }
     readonly catalogue: { readonly path: string; readonly doctrinePath: string }
   }
   /** 流程体检页的窗口与条数。 */
@@ -194,6 +201,7 @@ function indicator(value: unknown, name: string): IndicatorConfig {
   return {
     lines: raw['lines'] === null ? null : lines(raw['lines'], `${name}.lines`),
     baseline: bool(raw['baseline'], `${name}.baseline`),
+    ...('note' in raw ? { note: text(raw['note'], `${name}.note`) } : {}),
   }
 }
 
@@ -215,6 +223,7 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
   const newEdges = object(sensors['newEdges'], 'sensors.newEdges')
   const topicChurn = object(sensors['topicChurn'], 'sensors.topicChurn')
   const worktrees = object(sensors['worktrees'], 'sensors.worktrees')
+  const acceptance = object(sensors['acceptance'], 'sensors.acceptance')
   const catalogue = object(sensors['catalogue'], 'sensors.catalogue')
   const minRatio = number(cochange['minRatio'], 'sensors.cochange.minRatio')
   if (minRatio > 1) throw new Error('sensors.cochange.minRatio 须在 0 到 1 之间')
@@ -263,6 +272,7 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
         windowDays: integer(topicChurn['windowDays'], 'sensors.topicChurn.windowDays'),
       },
       worktrees: { enabled: bool(worktrees['enabled'], 'sensors.worktrees.enabled') },
+      acceptance: { enabled: bool(acceptance['enabled'], 'sensors.acceptance.enabled') },
       catalogue: {
         path: text(catalogue['path'], 'sensors.catalogue.path'),
         doctrinePath: text(catalogue['doctrinePath'], 'sensors.catalogue.doctrinePath'),

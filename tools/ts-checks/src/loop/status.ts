@@ -32,6 +32,8 @@ export const INDICATOR_LABELS: Readonly<Record<IndicatorId, string>> = {
   topicRevChurn: '单个 topic 窗口内 rev 翻动次数',
   worktrees: '并行工作树数',
   worktreeSharedMembers: '被多棵工作树同时改的成员数',
+  acceptanceSeconds: '验收总耗时（秒）',
+  acceptanceSlowestSeconds: '最慢一份验收的耗时（秒）',
 }
 
 /** 一个指标这次的读数，`note` 是跟在行尾的简短事实（例如达到提醒线的 topic）。 */
