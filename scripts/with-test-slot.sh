@@ -10,6 +10,11 @@
 #   OMNE_TEST_SLOT_DIR               锁文件目录（/tmp/omne-test-slots-<uid>；同一用户的全部检出共用）
 #   OMNE_TEST_SLOT_POLL_SECONDS      没轮到时隔多久再看一次（5）
 #   OMNE_TEST_SLOT_MAX_WAIT_SECONDS  最多等多久，超过即以 75 退出、命令不执行（7200）
+#   OMNE_TEST_SLOT_LEDGER            运行账本（${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl）
+#
+# 运行账本：每次用完名额、或等到超时放弃，都追加一行 JSON：命令、目录、等了多久、占了多久、
+# 命令用掉的 CPU 时间、起止时的机器负载、退出码。它给「按任务大小分配名额」（#57 第二步）校准用，
+# 所以跟名额同一个范围（同一用户的全部检出与克隆），放在重启也不清的用户状态目录；写不进去只提醒，不改退出码。
 #
 # 先来后到：进队时领一张票（ticket-<号>，号比队里所有活票都大），名额空出时只有号码最小的活票去拿。
 # 票和名额持有者的登记（slot-<序号>.holder）都被登记它的进程 flock 住；进程一退出，被杀也一样，锁就随之失效，
@@ -31,6 +36,7 @@ slots="${OMNE_TEST_SLOTS:-1}"
 slot_dir="${OMNE_TEST_SLOT_DIR:-/tmp/omne-test-slots-$(id -u)}"
 poll_seconds="${OMNE_TEST_SLOT_POLL_SECONDS:-5}"
 max_wait_seconds="${OMNE_TEST_SLOT_MAX_WAIT_SECONDS:-7200}"
+ledger="${OMNE_TEST_SLOT_LEDGER:-${XDG_STATE_HOME:-${HOME:-/tmp}/.local/state}/omne-test-slots/ledger.jsonl}"
 
 for name in slots poll_seconds max_wait_seconds; do
     if ! [[ "${!name}" =~ ^[0-9]+$ ]]; then
@@ -44,9 +50,11 @@ if (( slots < 1 || poll_seconds < 1 )); then
 fi
 
 mkdir -p -- "$slot_dir"
+mkdir -p -- "$(dirname -- "$ledger")" 2>/dev/null || true
 
 command_line="$*"
 command_line="${command_line//$'\n'/ }"
+clock_ticks="$(getconf CLK_TCK)"
 
 # 票与持有者登记同一格式：谁、从何时起、在哪个目录、跑什么命令。
 describe() {
@@ -83,6 +91,59 @@ duration() {
         printf '%d 分 %d 秒' $(( $1 / 60 )) $(( $1 % 60 ))
     else
         printf '%d 小时 %d 分' $(( $1 / 3600 )) $(( $1 % 3600 / 60 ))
+    fi
+}
+
+# JSON 字符串字面量：转义反斜杠、引号、制表与回车，其余控制字符直接去掉。
+json_string() {
+    local value=$1
+    value=${value//\\/\\\\}
+    value=${value//\"/\\\"}
+    value=${value//$'\t'/\\t}
+    value=${value//$'\r'/\\r}
+    value=${value//[$'\001'-$'\037']/}
+    printf '"%s"' "$value"
+}
+
+# RFC 3339 时刻：strftime 的 %z 不带冒号（+0800），补上。
+json_time() {
+    local at
+    printf -v at '%(%Y-%m-%dT%H:%M:%S%z)T' "$1"
+    printf '"%s:%s"' "${at:0:22}" "${at:22}"
+}
+
+# 机器负载（1、5、15 分钟平均），写成 JSON 数组。
+json_load() {
+    local one five fifteen rest
+    read -r one five fifteen rest </proc/loadavg
+    printf '[%s,%s,%s]' "$one" "$five" "$fifteen"
+}
+
+# 本进程已回收的子孙进程累计用掉的 CPU（用户态加内核态），单位是时钟滴答，写进 ticks。
+read_child_ticks() {
+    local stat fields
+    read -r stat </proc/$$/stat
+    read -ra fields <<<"${stat##*) }"
+    ticks=$(( fields[13] + fields[14] ))
+}
+
+# 往运行账本追加一行；只在队列锁内调用，各进程的行不会交错。
+# 没拿到名额（gave-up）时，名额、占用、CPU 与拿到时的负载都写 null。
+record() {
+    local event=$1 line
+    line="{\"event\":\"${event}\",\"command\":$(json_string "${command_line:0:500}"),\"cwd\":$(json_string "$PWD")"
+    line+=",\"pid\":$$,\"cores\":$(nproc),\"slots\":${slots},\"aheadOnArrival\":${ahead_on_arrival}"
+    line+=",\"arrivedAt\":$(json_time "$started"),\"waitSeconds\":${waited}"
+    if [[ $event == ran ]]; then
+        line+=",\"slot\":${acquired},\"acquiredAt\":$(json_time "$acquired_at"),\"heldSeconds\":$(( ended_at - acquired_at ))"
+        line+=",\"cpuSeconds\":$(( cpu_ticks / clock_ticks )).$(printf '%02d' $(( cpu_ticks * 100 / clock_ticks % 100 )))"
+        line+=",\"loadAtAcquire\":${load_at_acquire}"
+    else
+        line+=",\"slot\":null,\"acquiredAt\":null,\"heldSeconds\":null,\"cpuSeconds\":null,\"loadAtAcquire\":null"
+    fi
+    line+=",\"endedAt\":$(json_time "$ended_at"),\"loadAtEnd\":$(json_load),\"exitCode\":${status}}"
+    if ! { printf '%s\n' "$line" >>"$ledger"; } 2>/dev/null; then
+        echo "with-test-slot: 运行账本写不进 ${ledger}，这次没记" >&2
     fi
 }
 
@@ -155,8 +216,14 @@ in_queue() {
     exec {queue_fd}>&-
 }
 
-leave_queue() {
+give_up() {
     rm -f -- "$ticket"
+    record gave-up
+}
+
+finish() {
+    rm -f -- "$slot_dir/slot-$acquired.holder"
+    record ran
 }
 
 started=$EPOCHSECONDS
@@ -164,12 +231,15 @@ announced=0
 last_seen=''
 while :; do
     in_queue take_turn
+    : "${ahead_on_arrival:=$ahead}"
     waited=$(( EPOCHSECONDS - started ))
     if (( acquired )); then
         break
     fi
     if (( waited >= max_wait_seconds )); then
-        in_queue leave_queue
+        status=75
+        ended_at=$EPOCHSECONDS
+        in_queue give_up
         echo "with-test-slot: 等了 ${waited} 秒仍没轮到（前面还有 ${ahead} 个，共 ${slots} 个名额，锁在 ${slot_dir}），命令没有执行" >&2
         exit 75
     fi
@@ -196,8 +266,15 @@ done
 if (( announced )); then
     echo "with-test-slot: 等了 ${waited} 秒，拿到名额 ${acquired}/${slots}" >&2
 fi
+acquired_at=$EPOCHSECONDS
+load_at_acquire="$(json_load)"
+read_child_ticks
+ticks_before=$ticks
 # 不用 exec：让本进程持有锁直到命令结束，命令留下的后台进程不会把名额带走。
 status=0
 OMNE_TEST_SLOT_HELD="$slot_dir/slot-$acquired.lock" "$@" {slot_fd}>&- {holder_fd}>&- || status=$?
-in_queue rm -f -- "$slot_dir/slot-$acquired.holder"
+read_child_ticks
+cpu_ticks=$(( ticks - ticks_before ))
+ended_at=$EPOCHSECONDS
+in_queue finish
 exit "$status"
