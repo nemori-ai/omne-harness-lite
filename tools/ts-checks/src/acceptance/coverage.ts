@@ -6,11 +6,12 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Violation } from '../rule.ts'
 import { readProductTopics, SCENARIO_ID, type ProductTopic } from '../product/scenarios.ts'
+import type { RunScript } from '../testing/config.ts'
 import { isAcceptancePath, type AcceptanceLockConfig } from './lock.ts'
 
 export const ACCEPTANCE_COVERS_RULE = 'acceptance-covers'
-/** 成员跑验收的脚本名；有验收文件的成员必须有它。 */
-export const ACCEPTANCE_SCRIPT = 'acceptance'
+/** 成员跑验收的脚本名；有验收文件的成员必须有它，测试运行器以 `--script acceptance` 跑它。 */
+export const ACCEPTANCE_SCRIPT: RunScript = 'acceptance'
 
 const SUFFIX = '.acceptance.ts'
 const COVERS = /^\s*\/\/\s*covers\s*:(.*)$/u

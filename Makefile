@@ -1,4 +1,4 @@
-.PHONY: check agents-check docs-check design-check design-review spec-retention formal-tools test product-check metrics test-affected test-triage role-eval acceptance-lock card-retire scenario-status loop-status loop-card loop-health
+.PHONY: check agents-check docs-check design-check design-review spec-retention formal-tools test product-check acceptance metrics test-affected test-triage role-eval acceptance-lock card-retire scenario-status loop-status loop-card loop-health
 
 TEST_RUNS := node --experimental-strip-types tools/ts-checks/src/testing/cli.ts
 
@@ -65,7 +65,12 @@ loop-health:
 test-affected:
 	$(if $(PLAN),,./scripts/with-test-slot.sh) $(TEST_RUNS) run --base "$(or $(BASE),main)" $(if $(PLAN),--plan-only)
 
-# 失败归因：把一次运行里失败的用例逐个单独重跑并分类。RUN 给那次运行打印出来的运行目录。
+# 可执行验收：跑每个带 acceptance 脚本的成员的验收，与测试同一个运行器、同一份并行度，账本写进主检出的 tmp/acceptance-ledger/。
+# 验收驱动构建出来的 dist/：缺省先构建这些成员及其依赖，NO_BUILD=1 跳过（make check 在 product-check 里已全量构建过）。
+acceptance:
+	./scripts/with-test-slot.sh $(TEST_RUNS) run --all --script acceptance $(if $(NO_BUILD),,--build)
+
+# 失败归因：把一次运行里失败的用例逐个单独重跑并分类。RUN 给那次运行打印出来的运行目录（测试或验收的都行）。
 test-triage:
 	./scripts/with-test-slot.sh $(TEST_RUNS) triage --run "$(RUN)"
 
