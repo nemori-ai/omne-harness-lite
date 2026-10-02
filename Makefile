@@ -1,4 +1,4 @@
-.PHONY: check agents-check docs-check design-check design-review formal-tools test product-check metrics test-affected test-triage role-eval
+.PHONY: check agents-check docs-check design-check design-review formal-tools test product-check metrics test-affected test-triage role-eval acceptance-lock
 
 TEST_RUNS := node --experimental-strip-types tools/ts-checks/src/testing/cli.ts
 
@@ -23,7 +23,7 @@ design-review:
 	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/design_review.py --root .meta_harness/design $(foreach c,$(CONTRACT),--contract "$(c)") $(if $(FROZEN),--include-frozen) $(if $(FORMAT),--format "$(FORMAT)")
 
 # 角色评估：ARGS 给子命令与参数，如 ARGS="verify .meta_harness/agents/evaluation/suites/design-review-expression"。
-# verify、inputs、grade、summary、report 不调用模型；run 是付费的一步，用例与判定方法都签过字才肯跑。
+# 子命令都不调用模型：模型由主会话派 subagent 来跑，prepare／record、judge-brief／judge-record 成对围着那一次派发；用例与判定方法都签过字 prepare 才肯备。
 role-eval:
 	PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=.meta_harness/agents/evaluation/harness uv run --locked python -m roleeval $(ARGS)
 
@@ -49,3 +49,7 @@ test-affected:
 # 失败归因：把一次运行里失败的用例逐个单独重跑并分类。RUN 给那次运行打印出来的运行目录。
 test-triage:
 	./scripts/with-test-slot.sh $(TEST_RUNS) triage --run "$(RUN)"
+
+# 验收锁：列出任务基线以来碰过各成员 acceptance/ 的提交；实施角色的提交或未提交的验收改动在其中就退出 1。BASE 给任务基线（缺省 main）。
+acceptance-lock:
+	node --experimental-strip-types tools/ts-checks/src/acceptance/cli.ts --base "$(or $(BASE),main)"

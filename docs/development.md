@@ -135,6 +135,8 @@ git commit -m "chore(docs): update blog submodule"
 | 想知道测试时间花在哪 | 每次 `test-affected`、`pnpm run test` 与 `make check` 都写耗时账本（成员、文件、用例三级，路径在运行末尾打印），摘要里列出最慢的成员、超线的文件与用例 |
 | 产品源码的结构约束（墙钟、`bail`、受限调用点、跨组依赖方向） | `pnpm run lint:rules`；规则与自测见 [tools/ts-checks](../tools/ts-checks/README.md) |
 | 实现类交付前后看结构与度量（本仓库的结构度量入口） | `make metrics BASE=<任务基线提交>`，秒级；要 CRAP 加 `COVERAGE=1`（会跑变更成员的测试，先构建）。它只报告、不判失败；把打印的摘要原样附进交付说明，审讯页路径在摘要末行 |
+| 接受一份配了可执行验收的交付之前，核对验收没被实施者动过 | `make acceptance-lock BASE=<任务基线提交>`：列出基线以来碰过各成员 `acceptance/` 的提交与其来源；实施角色的提交或未提交的验收改动在其中就退出 1。它认的是提交里自己写的 `Agent-Role`，列出来的仍要人过目，见[验证与证据](verification.md#检查入口) |
+| 规格还没定，想先看一条主路径走不走得通 | 做探路件：放 [examples/](../examples/README_ZH.md) 或任务的 `tmp/`，不进 `packages/`、`apps/`；跑通后带回设计的是事实清单，不是代码 |
 | 存储提供者或迁移 | `pnpm --filter @omne-harness-lite/storage-sql run test`：sqlite 上跑一致性套件；pg 需设 `OMNE_TEST_PG_URL`，否则跳过 |
 | 形式工具是否可用 | `make formal-tools` |
 | 跨入口改动、合并前 | `make check`。它占一个机器级的[运行名额](../scripts/README.md#运行名额)：别的检出正在跑时会排队，不要为了绕开排队而手工并行起多套 |
