@@ -1,23 +1,15 @@
-// 测试运行入口：`run` 算受影响范围并跑测试（`--tier` 选层，`--script acceptance` 改跑可执行验收）、写耗时账本；
-// `gate` 是合并前那一步：全部成员的快层，再加受影响成员的慢层；`triage` 对一次运行里的失败做隔离重跑。
-// `run`、`gate` 的退出码只反映测试是否全过；`triage` 只报告，退出码非零表示工具自己出错。
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { availableParallelism } from 'node:os'
+// 测试运行入口：
+// `plan` 算本次改动的影响面（`make check` 开头那一步），`step` 按计划执行 pytest、构建、类型检查、成员测试与验收；
+// `run` 跑受影响或全部成员的某一层（`--script acceptance` 改跑可执行验收）并写耗时账本；
+// `replay` 对主线上最近的提交逐个算计划（只算不跑）；`triage` 对一次运行里的失败做隔离重跑。
+// `step`、`run` 的退出码反映那一步是否通过；`plan`、`replay` 只在引擎出错时非零；`triage` 只报告，非零表示工具自己出错。
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { changedFiles, coordinates } from '../metrics/git.ts'
+import { coordinates } from '../metrics/git.ts'
 import {
-  describePlan,
-  listTestMembers,
-  planAffected,
-  type AffectedPlan,
-  type TestMember,
-} from './affected.ts'
-import {
-  effectiveParallelism,
   isRunScript,
   isRunTier,
-  ledgerHome,
   readTestRunsConfig,
   RUN_SCRIPTS,
   RUN_TIERS,
@@ -25,30 +17,43 @@ import {
   type RunScript,
   type RunTier,
 } from './config.ts'
-import { buildLedger, ledgerSummary, type Failure, type LedgerFile } from './ledger.ts'
-import { runMembers, slugOf } from './run.ts'
-import { buildTargets, parseFlags as parseSharedFlags, timestamp, type Flags } from './support.ts'
+import type { Failure } from './ledger.ts'
+import { fileTree, listWorkspaceMembers, withScript } from './members.ts'
+import { replay, replayTable } from './replay.ts'
+import {
+  acceptanceStep,
+  baselineOf,
+  computePlan,
+  describePlanFile,
+  fullRequested,
+  pnpmStep,
+  pythonStep,
+  readPlanFile,
+  recordedRun,
+  testStep,
+  writePlanFile,
+  type PlanFile,
+} from './steps.ts'
+import { parseFlags as parseSharedFlags, type Flags } from './support.ts'
 import { triage, triageSummary } from './triage.ts'
+
+const STEPS = ['python', 'build', 'typecheck', 'test', 'acceptance'] as const
+type Step = (typeof STEPS)[number]
 
 const USAGE = [
   '用法：',
+  '  plan [--base <ref>] [--full] [--json <路径>]',
+  '      算基线以来改动的影响面并打印；--json 另写计划文件。基线缺省取环境变量 BASELINE，再缺省 main；',
+  '      --full 或环境变量 FULL=1 给全量计划',
+  `  step ${STEPS.join('|')} (--plan <计划文件> | [--base <ref>] [--full])`,
+  '      按计划执行一步；没给计划文件就当场算一份（同 plan）。test 跑计划里成员的快层再慢层，不构建',
   '  run (--base <ref> | --all) [--tier fast|slow|all] [--script test|acceptance] [--plan-only] [--no-build | --build] [--out <dir>]',
-  '      --base 先构建受影响的成员及其依赖（--no-build 跳过），缺省只跑快层；--all 不构建（调用方先构建），除非给 --build，缺省两层全跑',
+  '      --base 按影响面选成员并先构建它们及其依赖（--no-build 跳过），缺省只跑快层；--all 不构建（调用方先构建），除非给 --build，缺省两层全跑',
   '      --script acceptance 不分层，不接受 --tier',
-  '  gate [--base <ref>]',
-  '      合并前：全部成员的快层，再加受影响成员的慢层；不构建（调用方先构建）。基线缺省取环境变量 BASELINE，再缺省 main',
+  '  replay [--ref <ref>] [--count <n>] [--json <路径>]',
+  '      对 ref（缺省 main）最近 n 个（缺省 40）first-parent 提交，以父提交为基线逐个算计划，只算不跑',
   '  triage --run <运行目录>',
 ].join('\n')
-
-/** 一次运行要做的事；`run` 从命令行读出它，`gate` 拼两次。 */
-interface RunRequest {
-  readonly base: string | undefined
-  readonly script: RunScript
-  readonly tier: RunTier
-  readonly build: boolean
-  readonly planOnly: boolean
-  readonly out: string | undefined
-}
 
 const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 
@@ -57,6 +62,50 @@ const parseFlags = (
   valued: readonly string[],
   switches: readonly string[],
 ) => parseSharedFlags(argv, valued, switches, USAGE)
+
+function planFromFlags(flags: Flags): PlanFile {
+  const full = flags.switches.has('--full') || fullRequested(process.env)
+  return computePlan(ROOT, baselineOf(flags.values.get('--base'), process.env), full)
+}
+
+function plan(argv: readonly string[]): number {
+  const flags = parseFlags(argv, ['--base', '--json'], ['--full'])
+  const file = planFromFlags(flags)
+  for (const line of describePlanFile(ROOT, file)) console.log(line)
+  const json = flags.values.get('--json')
+  if (json !== undefined) writePlanFile(resolve(json), file)
+  return 0
+}
+
+async function step(argv: readonly string[]): Promise<number> {
+  const [name, ...rest] = argv
+  if (!(STEPS as readonly unknown[]).includes(name))
+    throw new Error(`step 要给 ${STEPS.join('、')} 之一\n${USAGE}`)
+  const flags = parseFlags(rest, ['--plan', '--base'], ['--full'])
+  const planPath = flags.values.get('--plan')
+  if (planPath !== undefined && (flags.values.has('--base') || flags.switches.has('--full')))
+    throw new Error(`--plan 与 --base、--full 不能同时给\n${USAGE}`)
+  const file = planPath === undefined ? planFromFlags(flags) : readPlanFile(ROOT, resolve(planPath))
+  if (planPath === undefined) for (const line of describePlanFile(ROOT, file)) console.log(line)
+  const steps: Record<Step, () => number | Promise<number>> = {
+    python: () => pythonStep(ROOT, file),
+    build: () => pnpmStep(ROOT, file, 'build'),
+    typecheck: () => pnpmStep(ROOT, file, 'typecheck'),
+    test: () => testStep(ROOT, file),
+    acceptance: () => acceptanceStep(ROOT, file),
+  }
+  return steps[name as Step]()
+}
+
+/** 一次运行要做的事；从命令行读出。 */
+interface RunRequest {
+  readonly base: string | undefined
+  readonly script: RunScript
+  readonly tier: RunTier
+  readonly build: boolean
+  readonly planOnly: boolean
+  readonly out: string | undefined
+}
 
 function scriptOf(flags: Flags): RunScript {
   const script = flags.values.get('--script') ?? 'test'
@@ -97,20 +146,18 @@ function parseRun(argv: readonly string[]): RunRequest {
 
 async function run(request: RunRequest): Promise<number> {
   const { base, script, tier } = request
-  const all = base === undefined
   const config = readTestRunsConfig()
-  const parallel = effectiveParallelism(config, process.env)
-  const at = coordinates(ROOT, base)
-  const members = listTestMembers(ROOT, config.affected.excludeRoots, script)
-
-  let plan: AffectedPlan | undefined
+  const members = withScript(
+    listWorkspaceMembers(fileTree(ROOT), config.affected.excludeRoots),
+    script,
+  )
   let targets = members
-  if (at.base !== undefined) {
-    plan = planAffected(changedFiles(ROOT, at.base.mergeBase), members, config.affected.globalPaths)
-    const selected = new Set([...plan.changed, ...plan.dependents])
+  let planned: PlanFile | undefined
+  if (base !== undefined) {
+    planned = computePlan(ROOT, base, false)
+    for (const line of describePlanFile(ROOT, planned)) console.log(line)
+    const selected = new Set(script === 'test' ? planned.plan.test : planned.plan.acceptance)
     targets = members.filter(member => selected.has(member.path))
-    console.log(`受影响范围（基线 ${at.base.ref}，合并点 ${at.base.mergeBase.slice(0, 9)}）：`)
-    for (const line of describePlan(plan, members.length)) console.log(`  ${line}`)
   }
   if (request.planOnly) {
     console.log(`层：${TIER_NAMES[tier]}（${tier}）`)
@@ -118,95 +165,38 @@ async function run(request: RunRequest): Promise<number> {
   }
   if (targets.length === 0) {
     console.log(
-      all
+      base === undefined
         ? `没有成员有 \`${script}\` 脚本，不需要跑。`
         : `没有受影响的成员，不需要跑 \`${script}\` 的${TIER_NAMES[tier]}。`,
     )
     return 0
   }
-
-  const runDir = resolve(
-    request.out ??
-      join(
-        ledgerHome(script, at.mainRoot, process.env),
-        `${at.shortHead}${at.dirty ? '-dirty' : ''}`,
-        `${timestamp(new Date())}${tier === 'all' ? '' : `-${tier}`}`,
-      ),
-  )
-  mkdirSync(runDir, { recursive: true })
-
-  if (request.build && !buildTargets(ROOT, targets, runDir)) return 1
-
-  const meta = {
+  return recordedRun(ROOT, {
     script,
     tier,
-    head: at.head,
-    branch: at.branch,
-    dirty: at.dirty,
-    base: at.base ?? null,
-    startedAt: new Date().toISOString(),
-    parallel,
-    cores: availableParallelism(),
-    plan: plan ?? null,
-    members: targets.map(member => member.path),
-  }
-  console.log(
-    `跑 ${targets.length} 个成员的 \`${script}\`${script === 'test' ? `（${TIER_NAMES[tier]}）` : ''}：` +
-      `同时 ${parallel.memberConcurrency} 个成员、每个至多 ${parallel.vitestMaxWorkers} 个工作进程（本机 ${meta.cores} 核）`,
-  )
-  const started = Date.now()
-  const runs = await runMembers(ROOT, targets, runDir, parallel, script, tier, (done, finished) => {
-    const tests = done.report?.testResults.reduce(
-      (sum, file) =>
-        sum +
-        file.assertionResults.filter(
-          assertion => assertion.status === 'passed' || assertion.status === 'failed',
-        ).length,
-      0,
-    )
-    console.log(
-      `[${finished}/${targets.length}] ${done.exitCode === 0 ? '✓' : '✗'} ${done.member} ${Math.round(done.wallSeconds)} 秒` +
-        (tests === undefined ? '' : `，${tests} 条用例`) +
-        (done.exitCode === 0
-          ? ''
-          : `，退出码 ${done.exitCode}，日志 ${join(runDir, `${slugOf(done.member)}.log`)}`),
-    )
+    targets,
+    build: request.build,
+    out: request.out,
+    at: coordinates(ROOT, undefined),
+    base: planned === undefined || planned.plan.mode === 'full' ? null : planned.base,
+    plan: planned === undefined ? null : { mode: planned.plan.mode, reason: planned.plan.reason },
   })
-  const wallSeconds = (Date.now() - started) / 1000
-
-  const ledger = buildLedger(runs, ROOT, config.ledger.nearTimeoutRatio)
-  const summary = ledgerSummary(ledger, {
-    wallSeconds,
-    slowFileSeconds: config.ledger.slowFileSeconds,
-    nearTimeoutRatio: config.ledger.nearTimeoutRatio,
-    top: config.ledger.top,
-    runDir,
-  })
-  if (ledger.failures.length > 0)
-    summary.push(`对这些失败做隔离重跑：make test-triage RUN=${runDir}`)
-  writeFileSync(
-    join(runDir, 'ledger.json'),
-    `${JSON.stringify({ meta: { ...meta, wallSeconds: Math.round(wallSeconds) }, ...ledger } satisfies LedgerFile, null, 1)}\n`,
-  )
-  writeFileSync(join(runDir, 'summary.md'), `${summary.join('\n')}\n`)
-  console.log(summary.join('\n'))
-  return runs.every(member => member.exitCode === 0) ? 0 : 1
 }
 
-/**
- * 合并前的测试一步（负责人 2026-10-02 定）：全部成员的快层，再加基线以来受影响成员的慢层；两次各写一份账本。
- * 没被选中的成员的慢层不在这里跑——合并后在主线头补跑全量慢层（`make test-tier TIER=slow`）。
- */
-async function gate(argv: readonly string[]): Promise<number> {
-  const flags = parseFlags(argv, ['--base'], [])
-  const fromEnv = process.env['BASELINE']
-  const base =
-    flags.values.get('--base') ?? (fromEnv === undefined || fromEnv === '' ? 'main' : fromEnv)
-  const common = { script: 'test', build: false, planOnly: false, out: undefined } as const
-  console.log(`合并前测试：全部成员的快层，再加受影响成员（基线 ${base}）的慢层`)
-  const fast = await run({ ...common, base: undefined, tier: 'fast' })
-  const slow = await run({ ...common, base, tier: 'slow' })
-  return fast === 0 && slow === 0 ? 0 : 1
+function runReplay(argv: readonly string[]): number {
+  const flags = parseFlags(argv, ['--ref', '--count', '--json'], [])
+  const count = Number(flags.values.get('--count') ?? '40')
+  if (!Number.isInteger(count) || count < 1) throw new Error(`--count 须为正整数\n${USAGE}`)
+  const rows = replay(
+    ROOT,
+    flags.values.get('--ref') ?? 'main',
+    count,
+    readTestRunsConfig().affected,
+  )
+  for (const line of replayTable(rows)) console.log(line)
+  const json = flags.values.get('--json')
+  if (json !== undefined) writeFileSync(resolve(json), `${JSON.stringify(rows, null, 1)}\n`)
+  return 0
 }
 
 async function runTriage(argv: readonly string[]): Promise<number> {
@@ -258,8 +248,10 @@ async function runTriage(argv: readonly string[]): Promise<number> {
 
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2)
-  if (command === 'run') process.exitCode = await run(parseRun(rest))
-  else if (command === 'gate') process.exitCode = await gate(rest)
+  if (command === 'plan') process.exitCode = plan(rest)
+  else if (command === 'step') process.exitCode = await step(rest)
+  else if (command === 'run') process.exitCode = await run(parseRun(rest))
+  else if (command === 'replay') process.exitCode = runReplay(rest)
   else if (command === 'triage') process.exitCode = await runTriage(rest)
   else throw new Error(`未知命令 ${String(command)}\n${USAGE}`)
 }

@@ -242,8 +242,8 @@ export interface TestRun {
 
 /**
  * 一份 `ledger.json`（`src/testing/cli.ts` 写的）里这里要的部分；不是全量运行返回 `partial`。
- * 全量与受影响范围的区分：`run --all` 与 `--base` 二选一，全量运行的 `meta.base` 是 null。
- * 全量运行可以只跑一层（合并前的那一步就是全量快层），层记在 `meta.tier`。
+ * 全量与受影响范围的区分：跑的是全部成员的运行（`run --all`，或计划判为全量的 `make check` 测试一步）`meta.base` 是 null，
+ * 按影响面选成员的不是。全量运行可以只跑一层（`make check` 的测试一步快、慢两层各记一份），层记在 `meta.tier`。
  */
 export function parseLedgerRun(
   value: unknown,
