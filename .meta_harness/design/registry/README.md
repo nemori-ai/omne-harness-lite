@@ -1,3 +1,5 @@
+2026-10-01：[D-113](../record/decisions/spec-single-revision/README.md) 定下「规格只留最新一版」：终态是每份契约一条登记、原地修订、修订号接着现在的版本号往下数；**切换尚未执行，登记形状与检查器现在都没变**。过渡期不再新增指向旧版的依赖、覆盖与形式任务，旧版的登记在消费者迁完后随目录一起删。本页下文与各决定里「推荐／接受新版本不自动升级消费者」「旧版保留」的说法，自该决定起只描述已发生的事，不再是规矩。现数（多少契约、多少旧版、各被谁消费）看 `make spec-retention`。
+
 2026-09-30：[D-110 ACK 后继](../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受 RT12/MS8/MR11/CA4，新增冻结134项，原970项保持；covers及formal任务状态不提升，实际实现另验。
 
 2026-09-29：[D-107](../record/decisions/model-input-usage-calibration-adoption/decision.md) 接受 MR9/RT10，新增冻结81资源；原冻结项保持，covers/formal任务状态不提升。规范接受不等于实现或消费者升级。
@@ -17,8 +19,8 @@
 | 文件                 | 持续含义与关键字段                                                                                               | 谁写           |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------- |
 | `baseline.json`      | `format=1`、稳定 `baseline_id`、输入 `snapshot_id`、Schema `schema_namespace`、旧谱系清单及显式 `version_policy` | 基线切换       |
-| `catalog.json` | **63 条，全部 accepted**；治理线 21 条保持原坐标，#9 的 34 条由 [D-066](../record/decisions/pr9-pr10-coordinate-reconciliation/README.md) 行政迁移坐标，沿用 D-061 的语义接受。315 条依赖带精确坐标与消费 clauses；推荐／接受新版本不自动升级消费者 |
-| `frozen.json` | **351 项规格资源**；治理线 173 项 hash 不变，#9 的 146 项在新坐标冻结，原字节在完整 main 快照中按原 182 项登记核对。后续修改须出新版本 |
+| `catalog.json` | 每个契约版本一条：坐标、状态、资源清单、接受依据；依赖带精确坐标与消费 clauses。条数不在这里手写，看文件或 `make spec-retention` | 发布与接受 |
+| `frozen.json` | 已接受版本的每个资源一项：路径 → SHA-256。过渡期里字节变了就判失败，修订出新版本目录（见页首 D-113 的说明） | 冻结 |
 | `lineage.json`       | 旧→新 baseline 的条款关系、退出身份、`freeze_gate` 与实际产品消费者的旧/新谱系观察                                           | 重分解         |
 | `version-migrations.json` | 同 baseline 的行政版本迁移：原提交/完整快照、原新坐标、逐文件摘要及决定/产品修订映射；#9 的 34 份规格遵循 [D-066](../record/decisions/pr9-pr10-coordinate-reconciliation/decision.md) | 行政迁移 |
 | `formal-tasks.json`  | 模型种类、已登记工件、可注入 argv runner 和超时；结果不写回规范                                                  | 形式义务变化   |
@@ -106,7 +108,8 @@ catalog 的稳定键是 `(baseline_id, contract_id, version)`。资源位置为
 - 清单由发布、接受与复核动作驱动，不在设计正文里顺手改；改动要能指出是哪次事件。
 - 不在其他目录复制坐标清单。需要展示时由 [views/](../views/README.md) 派生，派生物不得被引为依据。
 - `version_policy` 决定能否新增版本。`{"kind":"initial-uniform","version":1}` 下任何契约都只能有 v1；
-  稳定演化阶段切换为 `{"kind":"evolving"}` 后可新增 v2，且不能改写 v1。
+  稳定演化阶段切换为 `{"kind":"evolving"}` 后可新增 v2，且不能改写 v1。这是过渡期的机制；
+  终态的修订号模型见 [D-113](../record/decisions/spec-single-revision/decision.md#二接受了什么)。
 - 清单是数据不是叙述。为什么这样分解归 [record/decisions/](../record/decisions/README.md)，
   这里只登记结果。
 
