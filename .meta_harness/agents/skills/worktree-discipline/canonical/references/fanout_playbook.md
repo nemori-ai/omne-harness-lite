@@ -16,6 +16,7 @@ of evidence follow the [evidence rules](execution-context.md#evidence-and-delive
 # From anywhere — paths are explicit
 git -C /path/to/main-checkout worktree add .worktrees/<campaign> -b worktree-<campaign>
 cd /path/to/main-checkout/.worktrees/<campaign>
+pwd && git branch --show-current   # the orchestrating session works from here until the wave is delivered (red line 9)
 # Run the declared setup here; the HUB owns its own required environment.
 
 # Land plan-mandated foundation work as ordinary commits on the HUB branch

@@ -196,7 +196,10 @@ export interface HookDeps {
 
 type Repository = NonNullable<ReturnType<HookDeps['repository']>>
 
-/** 要反馈时返回标准输出的全文（恰好一个 JSON 对象），否则 undefined。从不抛出。 */
+/**
+ * 返回标准输出的全文（恰好一个 JSON 对象），没有要说的就是 undefined。从不抛出。
+ * 要反馈：`{"decision":"block","reason"}`；钩子自己出错：`{"systemMessage"}`，只给用户看、不拦。
+ */
 export async function stopHook(stdin: string, deps: HookDeps): Promise<string | undefined> {
   if (deps.env['OMNE_LOOP_HOOK'] === 'off') return undefined
   const input = parseHookInput(stdin)
@@ -210,9 +213,22 @@ export async function stopHook(stdin: string, deps: HookDeps): Promise<string | 
   return repository === undefined ? undefined : feedback(repository, deps)
 }
 
+/** 警告里引的出错原因最多这么多个字符；全文在日志里。 */
+const WARNING_REASON_CHARS = 300
+
 /**
- * 找到了仓库之后：量、去重、记状态、出文字。这里的任何错误都只记进回路目录的日志，不反馈——
- * 钩子自己出错从不影响 agent 收工。
+ * 钩子自己出错时给人看的警告：宿主把 `systemMessage` 显示给用户，不交给 agent、不拦收工。
+ * 不出这一句，「钩子坏了」与「没有红项」在会话里看起来一模一样。
+ */
+export function renderWarning(reason: string, home: string): string {
+  const shown =
+    reason.length > WARNING_REASON_CHARS ? `${reason.slice(0, WARNING_REASON_CHARS)}…` : reason
+  return `收工钩子没能量出这次变更的结构读数，所以没有反馈，agent 照常收工。原因：${shown}（全文在 ${home}/hook.log）`
+}
+
+/**
+ * 找到了仓库之后：量、去重、记状态、出文字。这里的任何错误都记进回路目录的日志，并作为警告显示给用户；
+ * 不反馈给 agent——钩子自己出错从不影响 agent 收工。
  */
 async function feedback(
   { root, branch, home }: Repository,
@@ -236,12 +252,12 @@ async function feedback(
     deps.writeState(home, `${JSON.stringify(next, null, 1)}\n`)
     return JSON.stringify({ decision: 'block', reason: renderReason(findings, config) })
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
+    const reason = (error instanceof Error ? error.message : String(error)).replaceAll('\n', ' ')
     try {
-      deps.log(home, `${deps.now().toISOString()} ${root} ${reason.replaceAll('\n', ' ')}`)
+      deps.log(home, `${deps.now().toISOString()} ${root} ${reason}`)
     } catch {
       // 写日志失败也不拦人：钩子自己出错从不影响 agent 收工。
     }
-    return undefined
+    return JSON.stringify({ systemMessage: renderWarning(reason, home) })
   }
 }

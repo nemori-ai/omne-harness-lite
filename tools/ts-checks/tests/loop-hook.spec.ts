@@ -1,4 +1,4 @@
-// 收工钩子的判断：放行的几种情形、反馈文字、条数与字数上限、同一组读数只反馈一次、出错不拦人。
+// 收工钩子的判断：放行的几种情形、反馈文字、条数与字数上限、同一组读数只反馈一次、出错不拦人但给用户一句警告。
 // 外部动作全用替身（hook.ts 的 HookDeps）；入口与线程在 loop-stop-hook.spec.ts 用临时仓库测。
 import { describe, expect, it } from 'vitest'
 import type { HookConfig } from '../src/loop/config.ts'
@@ -9,6 +9,7 @@ import {
   parseState,
   remember,
   renderReason,
+  renderWarning,
   stopHook,
   type HookDeps,
   type HookReadings,
@@ -279,20 +280,38 @@ describe('收工钩子的判断', () => {
     expect(() => parseState('{"reported": [{"branch": 1}]}')).toThrow('不合约定')
   })
 
-  it('量的时候出错或超时：不反馈，往日志追加一行；写日志也失败照样不拦', async () => {
+  it('量的时候出错或超时：不拦，往日志追加一行，并给用户恰好一句警告；写日志也失败照样不拦', async () => {
     const failing = fakes({
       measure: async () => {
         throw new Error('量读数超过 40 秒，已放弃')
       },
     })
-    expect(await stopHook(STOP, failing.deps)).toBeUndefined()
+    const warning =
+      '{"systemMessage":"收工钩子没能量出这次变更的结构读数，所以没有反馈，agent 照常收工。' +
+      '原因：量读数超过 40 秒，已放弃（全文在 /home/hook.log）"}'
+    expect(await stopHook(STOP, failing.deps)).toBe(warning)
     expect(failing.store.log).toEqual(['2026-10-01T12:00:00.000Z /work 量读数超过 40 秒，已放弃'])
+    expect(failing.store.state).toBeUndefined()
     const noLog: HookDeps = {
       ...failing.deps,
       log: () => {
         throw new Error('磁盘满了')
       },
     }
-    expect(await stopHook(STOP, noLog)).toBeUndefined()
+    expect(await stopHook(STOP, noLog)).toBe(warning)
+  })
+
+  it('警告里的原因压成一行、最多引 300 个字符；全文只在日志里', async () => {
+    const long = `第一行\n${'长'.repeat(400)}`
+    const failing = fakes({
+      measure: async () => {
+        throw new Error(long)
+      },
+    })
+    const parsed = JSON.parse((await stopHook(STOP, failing.deps)) ?? '') as Record<string, unknown>
+    expect(Object.keys(parsed)).toEqual(['systemMessage'])
+    expect(parsed['systemMessage']).toContain(`原因：第一行 ${'长'.repeat(296)}…（全文在`)
+    expect(failing.store.log[0]).toContain('长'.repeat(400))
+    expect(renderWarning('短', '/h')).toContain('原因：短（全文在 /h/hook.log）')
   })
 })

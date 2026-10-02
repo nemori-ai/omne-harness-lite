@@ -74,8 +74,14 @@ One well-bounded task, one worktree:
 ```bash
 git -C /path/to/main-checkout worktree add .worktrees/<name> -b <branch-name>
 cd /path/to/main-checkout/.worktrees/<name>  # all subsequent paths are THIS tree's
+pwd && git branch --show-current             # the session now stands in the worktree
 # Run the setup selected for this checkout; do not infer Python or uv from this skill
 ```
+
+The `cd` is part of creating the worktree, not a convenience: the session's main agent
+works from inside the worktree from the first edit until the unit is integrated (red
+line 9). Writing into the worktree by path while the session still stands in the main
+checkout leaves the session's hooks and sensors looking at the wrong tree.
 
 Baseline: when behavior changes need comparison, run the relevant checks in this
 checkout so inherited failures can be distinguished. Use the
@@ -117,8 +123,8 @@ require the affected checks.
 
 **Lifecycle.**
 
-1. **HUB setup** — create the HUB worktree, land shared scaffolding (plan-mandated
-   foundation work) as setup commits.
+1. **HUB setup** — create the HUB worktree, `cd` the orchestrating session into it
+   (red line 9), land shared scaffolding (plan-mandated foundation work) as setup commits.
 2. **Pilot shared uncertainty** — when spokes will reuse an unproven implementation
    pattern or verification setup, run a representative spoke through work, merge-back,
    and HUB verification before dispatching the spokes that depend on it. Resolve shared
@@ -181,10 +187,10 @@ retirement alone is not a wall before unrelated work. Remove safe-to-retire tree
 promptly rather than stockpiling them. This is a local decision, not an automatic
 cleanup service or a requirement to archive every cache.
 
-## The Eight Red Lines
+## The Nine Red Lines
 
-These safeguards address wrong-tree writes, stale checks, lost evidence and active
-consumers.
+These safeguards address wrong-tree writes, stale checks, lost evidence, active
+consumers and feedback that looks at the wrong tree.
 
 1. **Write/Edit with worktree-absolute paths only.** Using main-checkout paths from a
    worktree session writes files into the main working tree. After creating any file,
@@ -216,6 +222,15 @@ consumers.
    synchronization triggers and full pre-PR gate verification: a stale HUB makes
    reviewers judge against superseded standards and leaves gates added on `main`
    unexercised.
+9. **The session's main agent works from inside its worktree.** Right after creating
+   the worktree, change the session's working directory into it — the Solo worktree, or
+   the HUB in a fan-out — and confirm with `pwd` and `git branch --show-current` before
+   the first edit. Stay there until the unit is integrated; do not edit a worktree by
+   path from the main checkout. Host hooks and the repository's sensors measure the
+   checkout the session stands in, so changes written into another tree are invisible
+   to them and the session gets no feedback on what it wrote. Where the host does not
+   carry `cd` from one command to the next, start or resume the session in the worktree,
+   or set its working directory explicitly.
 
 ## In Orchestrator Mode
 
