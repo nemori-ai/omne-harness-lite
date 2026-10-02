@@ -1,6 +1,34 @@
 // 测试运行的策略只在 `test-runs.config.json` 里定一次；这里读它、校验它，并接受环境变量的临时覆盖。
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+/**
+ * 运行器逐成员跑的脚本：`test` 是成员的测试，`acceptance` 是成员的可执行验收（`docs/workspace.md`「可执行验收」）。
+ * 两种运行共用并行度与账本格式，账本各放一处，互不混入。
+ */
+export const RUN_SCRIPTS = ['test', 'acceptance'] as const
+export type RunScript = (typeof RUN_SCRIPTS)[number]
+
+const LEDGER_HOMES: Readonly<Record<RunScript, { readonly env: string; readonly dir: string }>> = {
+  test: { env: 'OMNE_TEST_LEDGER_HOME', dir: 'test-ledger' },
+  acceptance: { env: 'OMNE_ACCEPTANCE_LEDGER_HOME', dir: 'acceptance-ledger' },
+}
+
+export function isRunScript(value: unknown): value is RunScript {
+  return (RUN_SCRIPTS as readonly unknown[]).includes(value)
+}
+
+/** 账本根：环境变量给了用它，否则是主检出的 `tmp/<脚本>-ledger/`。下面一层是提交，再下一层是每次运行。 */
+export function ledgerHome(
+  script: RunScript,
+  mainRoot: string,
+  env: Readonly<Record<string, string | undefined>>,
+): string {
+  const { env: name, dir } = LEDGER_HOMES[script]
+  const value = env[name]
+  return value === undefined || value === '' ? join(mainRoot, 'tmp', dir) : value
+}
 
 export interface Parallelism {
   /** 同时跑几个成员的测试。 */

@@ -33,6 +33,7 @@ const record = (
   authorEmail: 'someone@example.com',
   committerName: 'panqiwei',
   committerEmail: 'someone@example.com',
+  trailers: '',
   message,
 })
 

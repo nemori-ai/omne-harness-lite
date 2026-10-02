@@ -1,5 +1,30 @@
 // 耗时账本：把各成员 vitest 的 JSON 报告汇总成成员、文件、用例三级的耗时与失败清单。纯函数。
 import { relative } from 'node:path'
+import type { AffectedPlan } from './affected.ts'
+import type { Parallelism, RunScript } from './config.ts'
+
+/** 一次运行的抬头：`ledger.json` 的 `meta`。读它的有体检页（测试）与回路的验收耗时传感器。 */
+export interface RunMeta {
+  readonly script: RunScript
+  readonly head: string
+  readonly branch: string
+  readonly dirty: boolean
+  /** 全量运行（`--all`）为 null。 */
+  readonly base: { readonly ref: string; readonly mergeBase: string } | null
+  readonly startedAt: string
+  readonly parallel: Parallelism
+  readonly cores: number
+  readonly plan: AffectedPlan | null
+  /** 这次跑了的成员目录。 */
+  readonly members: readonly string[]
+  /** 整次运行的墙钟，取整到秒。 */
+  readonly wallSeconds: number
+}
+
+/** 运行目录里的 `ledger.json`。 */
+export interface LedgerFile extends Ledger {
+  readonly meta: RunMeta
+}
 
 /** vitest `--reporter=json` 的形状里这里用到的部分。 */
 export interface VitestJsonReport {

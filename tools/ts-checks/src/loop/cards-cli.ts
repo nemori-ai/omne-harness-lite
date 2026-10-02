@@ -14,7 +14,7 @@ import {
 } from './cards.ts'
 import { readLoopConfig } from './config.ts'
 import { loopHome } from './home.ts'
-import { cardIndex, CARD_ID, readStories } from './stories.ts'
+import { cardIndex, CARD_ID, readStories } from '../product/stories.ts'
 
 const USAGE =
   '用法：loop-card --card <ST-NNN-NN> --event proposed|runnable|accepted [--at <ISO 时间>] [--root <检出目录>]'
@@ -87,6 +87,13 @@ function main(argv: readonly string[]): number {
   console.log(
     `已记 ${options.card} ${options.event}（${EVENT_WORDS[options.event]}）于 ${candidate.at}：${path}`,
   )
+  if (options.event === 'accepted') {
+    // 接受了的卡会从 stories.md 删掉，所以这里不再核它在不在。
+    console.log(
+      `提醒：接受以删卡提交上的 \`Accepted-Card: ${options.card}\` 为准（见 conventions.md「卡的一生」），台账只供度量`,
+    )
+    return 0
+  }
   const stories = readStories(join(options.root, config.sensors.topicChurn.productRoot))
   if (stories === undefined || !cardIndex(stories).has(options.card))
     console.log(

@@ -1,24 +1,35 @@
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { attributionViolations, readCommits } from './commits.ts'
+import { inspectCoverage } from './acceptance/coverage.ts'
+import { readAcceptanceLockConfig } from './acceptance/lock.ts'
+import { attributionViolations, cardTrailerViolations, readCommits } from './commits.ts'
 import { collectSources, RULES, runRules } from './index.ts'
+import { readLoopConfig } from './loop/config.ts'
 import { collectRepositorySources, REPOSITORY_RULES } from './repository.ts'
 
 const roots = (process.argv.length > 2 ? process.argv.slice(2) : ['packages']).map(p => resolve(p))
 const violations = roots.flatMap(root => runRules(collectSources(root)))
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url))
 violations.push(...runRules(collectRepositorySources(repositoryRoot), REPOSITORY_RULES))
-// 提交署名：当前提交可达的全部历史。不在 git 检出里（例如被打包后单独运行）时如实说没查。
-let commitsNote = '提交署名未检查（不在 git 检出内）'
+// 验收的覆盖声明：声明的场景要在产品区的 acceptance.md 里存在。产品区的位置与回路的读法同一份配置。
+const coverage = inspectCoverage(
+  repositoryRoot,
+  readLoopConfig().sensors.topicChurn.productRoot,
+  readAcceptanceLockConfig(),
+)
+violations.push(...coverage.violations)
+// 提交署名与删卡 trailer 的写法：当前提交可达的全部历史。不在 git 检出里（例如被打包后单独运行）时如实说没查。
+let commitsNote = '提交署名与删卡 trailer 未检查（不在 git 检出内）'
 if (existsSync(join(repositoryRoot, '.git'))) {
   const commits = readCommits(repositoryRoot)
-  violations.push(...attributionViolations(commits))
-  commitsNote = `${commits.length} 个提交的署名`
+  violations.push(...attributionViolations(commits), ...cardTrailerViolations(commits))
+  commitsNote = `${commits.length} 个提交的署名与删卡 trailer`
 }
 if (violations.length === 0) {
   console.log(
-    `PASS: ts-checks ${RULES.length} 包规则 + ${REPOSITORY_RULES.length} 仓库路径规则，扫描 ${roots.join('、')} 及仓库执行模块，${commitsNote}，无违反。`,
+    `PASS: ts-checks ${RULES.length} 包规则 + ${REPOSITORY_RULES.length} 仓库路径规则，扫描 ${roots.join('、')} 及仓库执行模块，` +
+      `${coverage.declarations.length} 份验收的覆盖声明，${commitsNote}，无违反。`,
   )
 } else {
   for (const v of violations) console.error(`${v.path}:${v.line} [${v.rule}] ${v.message}`)

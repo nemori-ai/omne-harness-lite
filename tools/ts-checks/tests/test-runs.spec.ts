@@ -11,6 +11,7 @@ import {
 } from '../src/testing/affected.ts'
 import {
   effectiveParallelism,
+  ledgerHome,
   parseTestRunsConfig,
   readTestRunsConfig,
 } from '../src/testing/config.ts'
@@ -22,7 +23,7 @@ const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 const member = (path: string, name: string, dependencies: string[] = []): TestMember => ({
   path,
   name,
-  testScript: 'vitest run',
+  script: 'vitest run',
   dependencies,
 })
 
@@ -124,6 +125,29 @@ describe('受影响范围', () => {
     const checks = members.find(item => item.path === 'tools/ts-checks')
     expect(checks?.dependencies).toContain('@omne-harness-lite/identity-values')
     expect(listTestMembers(ROOT, []).some(item => item.path.startsWith('examples/'))).toBe(true)
+  })
+
+  it('按脚本名选成员：acceptance 只选有这个脚本的，并带上脚本原文', () => {
+    const config = readTestRunsConfig()
+    const accepting = listTestMembers(ROOT, config.affected.excludeRoots, 'acceptance')
+    expect(accepting.map(item => item.path)).toContain('apps/cli')
+    expect(accepting.find(item => item.path === 'apps/cli')?.script).toContain('acceptance/')
+    expect(accepting.some(item => item.path === 'tools/ts-checks')).toBe(false)
+  })
+})
+
+describe('账本根', () => {
+  it('测试与验收各放一处；环境变量给了用它，给空串当没给', () => {
+    expect(ledgerHome('test', '/repo', {})).toBe('/repo/tmp/test-ledger')
+    expect(ledgerHome('acceptance', '/repo', {})).toBe('/repo/tmp/acceptance-ledger')
+    expect(ledgerHome('test', '/repo', { OMNE_TEST_LEDGER_HOME: '/x' })).toBe('/x')
+    expect(ledgerHome('acceptance', '/repo', { OMNE_TEST_LEDGER_HOME: '/x' })).toBe(
+      '/repo/tmp/acceptance-ledger',
+    )
+    expect(ledgerHome('acceptance', '/repo', { OMNE_ACCEPTANCE_LEDGER_HOME: '/y' })).toBe('/y')
+    expect(ledgerHome('acceptance', '/repo', { OMNE_ACCEPTANCE_LEDGER_HOME: '' })).toBe(
+      '/repo/tmp/acceptance-ledger',
+    )
   })
 })
 

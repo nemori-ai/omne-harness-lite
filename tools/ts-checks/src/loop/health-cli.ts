@@ -4,6 +4,7 @@ import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'n
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { coordinates, git } from '../metrics/git.ts'
+import { ledgerHome as testLedgerHome } from '../testing/config.ts'
 import { readCards } from './cards.ts'
 import { countPending, readCatalogue, readIfFile } from './catalogue.ts'
 import { readLoopConfig } from './config.ts'
@@ -23,7 +24,7 @@ import {
 import { healthSummary, renderHealthPage } from './health-render.ts'
 import { loopHome } from './home.ts'
 import { noData, type Reading } from './reading.ts'
-import { cardIndex, readStories } from './stories.ts'
+import { cardIndex, readStories } from '../product/stories.ts'
 import { readTrend } from './trend.ts'
 
 const USAGE = '用法：loop-health [--out <dir>] [--root <检出目录>]'
@@ -96,10 +97,8 @@ function main(argv: readonly string[]): number {
   const { root } = options
   const at = coordinates(root, undefined)
   const home = loopHome(at.mainRoot, process.env)
-  // 账本根与 `src/testing/cli.ts` 同一取法。
-  const ledgerHome = resolve(
-    process.env['OMNE_TEST_LEDGER_HOME'] ?? join(at.mainRoot, 'tmp', 'test-ledger'),
-  )
+  // 测试的账本根，与 `src/testing/cli.ts` 同一取法；验收的账本另放一处，不混进来。
+  const ledgerHome = resolve(testLedgerHome('test', at.mainRoot, process.env))
   const outDir = resolve(options.out ?? join(home, 'health'))
   const now = new Date()
 

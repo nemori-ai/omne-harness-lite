@@ -1,10 +1,10 @@
-// 运行器：按给定的并行度逐成员跑它自己的 `test` 脚本，一个失败不拦其余的；
+// 运行器：按给定的并行度逐成员跑它自己的 `test`（或 `acceptance`）脚本，一个失败不拦其余的；
 // 每个成员的输出落到运行目录里的日志，vitest 的 JSON 报告落在旁边，供账本与失败归因读取。
 import { spawn, type ChildProcess } from 'node:child_process'
 import { closeSync, existsSync, openSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { TestMember } from './affected.ts'
-import { VITEST_MAX_WORKERS_ENV, type Parallelism } from './config.ts'
+import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunScript } from './config.ts'
 import type { MemberRun, VitestJsonReport } from './ledger.ts'
 
 export const slugOf = (member: string) => member.replaceAll('/', '__')
@@ -70,14 +70,15 @@ async function runMember(
   member: TestMember,
   runDir: string,
   vitestMaxWorkers: number,
+  script: RunScript,
 ): Promise<MemberRun> {
   const slug = slugOf(member.path)
   const reportPath = join(runDir, `${slug}.json`)
   // 只有 vitest 的脚本才认这几个参数；别的脚本原样跑，账本里只有成员一级的耗时。
-  const reporters = /\bvitest\b/u.test(member.testScript)
+  const reporters = /\bvitest\b/u.test(member.script)
     ? ['--reporter=default', '--reporter=json', `--outputFile.json=${reportPath}`]
     : []
-  const result = await spawnLogged('pnpm', ['run', 'test', ...reporters], {
+  const result = await spawnLogged('pnpm', ['run', script, ...reporters], {
     cwd: join(root, member.path),
     env: { ...process.env, [VITEST_MAX_WORKERS_ENV]: String(vitestMaxWorkers) },
     logPath: join(runDir, `${slug}.log`),
@@ -86,12 +87,13 @@ async function runMember(
   return { member: member.path, ...result, ...(report === undefined ? {} : { report }) }
 }
 
-/** 同时最多跑 `memberConcurrency` 个成员；返回顺序与传入顺序一致。 */
+/** 同时最多跑 `memberConcurrency` 个成员，各跑它的 `script` 脚本；返回顺序与传入顺序一致。 */
 export async function runMembers(
   root: string,
   members: readonly TestMember[],
   runDir: string,
   parallel: Parallelism,
+  script: RunScript,
   onDone: (run: MemberRun, finished: number) => void,
 ): Promise<MemberRun[]> {
   const runs = new Array<MemberRun>(members.length)
@@ -101,7 +103,7 @@ export async function runMembers(
     for (let index = next++; index < members.length; index = next++) {
       const member = members[index]
       if (member === undefined) continue
-      const run = await runMember(root, member, runDir, parallel.vitestMaxWorkers)
+      const run = await runMember(root, member, runDir, parallel.vitestMaxWorkers, script)
       runs[index] = run
       finished += 1
       onDone(run, finished)

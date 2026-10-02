@@ -5,6 +5,8 @@ import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { runLoopStatus } from '../src/loop/run.ts'
+import { coordinates } from '../src/metrics/git.ts'
+import type { LedgerFile } from '../src/testing/ledger.ts'
 import {
   commit,
   copyCanary,
@@ -51,6 +53,14 @@ function canary(): { root: string; base: string } {
     "import { a } from '@omne-harness-lite/a'\n\nexport const extra = a\n",
   )
   commit(root, 'after base')
+  // 验收耗时：apps/cli 有 acceptance 脚本；它的慢记录在 strictRun 里种进账本。
+  write(root, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*/*'\n  - 'apps/*'\n")
+  write(
+    root,
+    'apps/cli/package.json',
+    `${JSON.stringify({ name: '@omne-harness-lite/cli', scripts: { test: 'vitest run', acceptance: 'vitest run --config acceptance/vitest.config.ts' } })}\n`,
+  )
+  commit(root, 'accepting member')
   // 并行工作树：两棵各自改 model/m（未提交也算）。
   for (const name of ['w1', 'w2']) {
     const tree = join(temporaryDirectory('loop-canary-tree-'), name)
@@ -69,15 +79,67 @@ interface Status {
   readonly explain: {
     readonly functions: readonly { path: string; name: string; level: string }[]
   }
+  readonly indicators: readonly { readonly id: string; readonly band?: string }[]
   readonly sensors: Record<string, { readonly status: string; readonly data?: unknown }>
+}
+
+const SLOW = 'apps/cli/acceptance/PF-001.slow.acceptance.ts'
+
+/** 在验收账本里种一次「跑全了、但一份 50 秒、整次 130 秒」的运行，落在当前提交那一格。 */
+function seedSlowAcceptance(root: string, ledgers: string): void {
+  const at = coordinates(root, undefined)
+  const ledger: LedgerFile = {
+    meta: {
+      script: 'acceptance',
+      head: at.head,
+      branch: at.branch,
+      dirty: at.dirty,
+      base: null,
+      startedAt: '2026-10-02T00:00:00.000Z',
+      parallel: { memberConcurrency: 2, vitestMaxWorkers: 4 },
+      cores: 8,
+      plan: null,
+      members: ['apps/cli'],
+      wallSeconds: 130,
+    },
+    members: [
+      {
+        member: 'apps/cli',
+        exitCode: 0,
+        wallSeconds: 128,
+        files: 2,
+        tests: 3,
+        failed: 0,
+        fileSeconds: 55,
+      },
+    ],
+    files: [
+      { member: 'apps/cli', file: SLOW, seconds: 50, tests: 2 },
+      {
+        member: 'apps/cli',
+        file: 'apps/cli/acceptance/PF-001.quick.acceptance.ts',
+        seconds: 5,
+        tests: 1,
+      },
+    ],
+    slowTests: [],
+    failures: [],
+  }
+  write(
+    ledgers,
+    `${at.shortHead}${at.dirty ? '-dirty' : ''}/20261002-000000/ledger.json`,
+    JSON.stringify(ledger),
+  )
 }
 
 async function strictRun(root: string, base: string) {
   const out = join(temporaryDirectory('loop-canary-out-'), 'status')
   const home = temporaryDirectory('loop-canary-home-')
+  const ledgers = temporaryDirectory('loop-canary-ledgers-')
+  seedSlowAcceptance(root, ledgers)
   const result = await runLoopStatus(
     { root, base, out, strict: true, snapshot: false },
-    { OMNE_METRICS_HOME: home },
+    { OMNE_METRICS_HOME: home, OMNE_ACCEPTANCE_LEDGER_HOME: ledgers },
   )
   const status = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8')) as Status
   return { result, status }
@@ -135,6 +197,19 @@ describe('传感器金丝雀', { timeout: 120_000 }, () => {
       ['someone/w1', ['packages/model/m']],
       ['someone/w2', ['packages/model/m']],
     ])
+
+    expect(dataOf(status, 'acceptance')).toMatchObject({
+      members: 1,
+      files: 2,
+      totalSeconds: 130,
+      slowest: { path: SLOW, seconds: 50 },
+    })
+    const band = (id: string) => status.indicators.find(row => row.id === id)?.band
+    expect(band('acceptanceSeconds')).toBe('act')
+    expect(band('acceptanceSlowestSeconds')).toBe('act')
+    expect(result.lines).toContainEqual(
+      expect.stringMatching(/^ {2}最慢一份验收的耗时（秒） 50 · 处置 · 不与基线比；apps\/cli/u),
+    )
 
     expect(status.hardLines.sensors).toMatchObject({ status: 'judged', silent: [] })
     expect(result.code).toBe(1)

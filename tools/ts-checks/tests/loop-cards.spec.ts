@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { judgeEntry, parseAt, readCards, type CardEntry } from '../src/loop/cards.ts'
-import { parseStories } from '../src/loop/stories.ts'
+import { parseStories } from '../src/product/stories.ts'
 
 const made: string[] = []
 afterEach(() => {
@@ -152,10 +152,10 @@ describe('stories.md', () => {
       '',
       '### ST-016-03 · 没写就绪',
     ].join('\n')
-    expect(parseStories(text)).toEqual([
-      { id: 'ST-016-01', title: '用户能在终端里开一个会话', ready: 'ready' },
-      { id: 'ST-016-02', title: '第二张', ready: 'not-ready' },
-      { id: 'ST-016-03', title: '没写就绪', ready: 'unknown' },
+    expect(parseStories(text).cards).toEqual([
+      { id: 'ST-016-01', title: '用户能在终端里开一个会话', ready: 'ready', covers: [] },
+      { id: 'ST-016-02', title: '第二张', ready: 'not-ready', covers: [] },
+      { id: 'ST-016-03', title: '没写就绪', ready: 'unknown', covers: [] },
     ])
   })
 })
@@ -227,8 +227,16 @@ describe('入口', { timeout: 60_000 }, () => {
     expect(elsewhere.status).toBe(0)
     expect(elsewhere.stdout).toContain('提醒：ST-099-01 不在这个检出的任何 stories.md 里')
 
+    // 接受：提醒以删卡提交上的 trailer 为准；卡已经从 stories.md 删掉也不再提醒它不在。
+    const accepted = run(root, home, '--card', 'ST-099-01', '--event', 'accepted')
+    expect(accepted.status).toBe(0)
+    expect(accepted.stdout).toContain(
+      '提醒：接受以删卡提交上的 `Accepted-Card: ST-099-01` 为准（见 conventions.md「卡的一生」），台账只供度量',
+    )
+    expect(accepted.stdout).not.toContain('不在这个检出的任何 stories.md 里')
+
     const lines = readFileSync(join(home, 'cards.jsonl'), 'utf8').trim().split('\n')
-    expect(lines).toHaveLength(2)
+    expect(lines).toHaveLength(3)
     const recorded: unknown = JSON.parse(lines[0] ?? '')
     expect(recorded).toMatchObject({
       schema: 1,

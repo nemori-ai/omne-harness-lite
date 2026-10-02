@@ -19,8 +19,11 @@ make --no-print-directory docs-check
 make --no-print-directory design-check
 make --no-print-directory test
 make --no-print-directory product-check
+# 可执行验收：驱动 product-check 刚构建出来的 dist/，所以不再构建；任何一份不过整套检查就失败。
+# 它的耗时记录（tmp/acceptance-ledger/）是下面回路状态里验收耗时传感器的读数来源。
+make --no-print-directory acceptance NO_BUILD=1
 
-# 回路状态的严格模式：方向与环、验收锁、开着的传感器都有数据。它只读源码与 git、不依赖构建产物，
+# 回路状态的严格模式：方向与环、验收锁与删卡记录（同一个基线）、开着的传感器都有数据。它只读源码、git 与验收的耗时记录，
 # 放在最后是让前面的失败先报。基线取 BASELINE；没给就用 origin/main，本地没有这个引用就用 main。
 # 产物写进被 git 忽略的 tmp/，回路目录里什么都不写。
 baseline="${BASELINE:-}"
