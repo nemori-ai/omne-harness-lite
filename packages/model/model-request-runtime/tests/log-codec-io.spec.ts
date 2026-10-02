@@ -96,9 +96,14 @@ describe('D088 controlled real public JSONL provider; no production provenance c
           replyDisposition: { consumed: { by: 'side_query' } },
         })
         const submissions = first === 'external' ? [external, runtime] : [runtime, external]
-        const results = await Promise.all(
-          submissions.map(entries => log.append(session, entries, fence, condition)),
-        )
+        // #40: the contract keeps the batch that commits first (session-log S-14), not the first
+        // caller, and two appends in flight together commit in IO completion order. Each commit
+        // order is covered once by submitting in order: the second batch arrives against the
+        // same tail after the first one committed. Two appends racing for real are covered by
+        // the provider's own tests.
+        const results: Awaited<ReturnType<typeof log.append>>[] = []
+        for (const entries of submissions)
+          results.push(await log.append(session, entries, fence, condition))
         expect(results[0]).toHaveProperty('positions')
         expect(results[1]).toHaveProperty('failure', 'alreadyRecorded')
         const prefix = readable(await log.readSince(session, 0))

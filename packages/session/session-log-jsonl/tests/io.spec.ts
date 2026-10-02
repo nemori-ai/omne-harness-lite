@@ -347,7 +347,7 @@ describe('real JSONL submission and opaque snapshots', () => {
     const release = deferred()
     barriers.push(release.resolve)
     let writes = 0
-    const io = interceptFiles((path, file) =>
+    const files = interceptFiles((path, file) =>
       !path.endsWith('entries.jsonl')
         ? file
         : {
@@ -361,13 +361,31 @@ describe('real JSONL submission and opaque snapshots', () => {
             },
           },
     )
+    // An append is admitted only after its root check (a real stat) and resident lookup, so the
+    // second and third requests would otherwise race on stat completion and the third could
+    // take the free slot (#40's family: call order is not completion order). Pin it: the third
+    // request's root check starts only after the second one's finished and it was admitted.
+    let armed = false,
+      checks = 0
+    const secondAdmitted = deferred()
+    const io: typeof files = {
+      ...files,
+      async identity(path) {
+        const check = armed ? ++checks : 0
+        if (check === 2) await secondAdmitted.promise
+        try {
+          return await files.identity(path)
+        } finally {
+          if (check === 1) setImmediate(secondAdmitted.resolve)
+        }
+      },
+    }
     const log = await openWithIo({ processOwnership, dir, policy: { appendQueueLimit: 2 } }, io)
     owners.push(log)
     const first = log.append(session(), [entry('first')], unfenced, { kind: 'tailEquals', tail: 0 })
     await entered.promise
+    armed = true
     const second = log.append(session(), [entry('second')], unfenced, unconditional)
-    // Wait for the second request's root identity check to reach actual admission.
-    await new Promise<void>(resolve => setImmediate(resolve))
     const third = await log.append(session(), [entry('third')], unfenced, unconditional)
     expect(third).toEqual({ failure: 'unavailable' })
     let closed = false

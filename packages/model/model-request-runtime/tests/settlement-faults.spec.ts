@@ -47,16 +47,29 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
   for (const winner of ['single', 'persisted'])
     it(`actual concurrent ${winner} winner leaves no orphan or second account`, async () => {
       await controlled(`concurrent-${winner}`, async ({ binding, owner, wrap, submissions }) => {
+        // Like #40: the first complete batch to commit wins, and once both appends are released
+        // together, which one commits first depends on real IO completion order. Pin it: the
+        // second settlement starts only after the first one's append has arrived, and the
+        // second append commits only after the first one's returned. Both are still prepared
+        // against the same prefix before either commits.
         const release = deferred<void>(),
-          both = deferred<void>()
+          firstArrived = deferred<void>(),
+          both = deferred<void>(),
+          firstCommitted = deferred<void>()
         let calls = 0
         const source: SessionLog = {
           ...binding.log,
           async append(...args) {
-            calls++
-            if (calls === 2) both.resolve()
+            const call = ++calls
+            if (call === 1) firstArrived.resolve()
+            if (call === 2) both.resolve()
             await release.promise
-            return await binding.log.append(...args)
+            if (call === 2) await firstCommitted.promise
+            try {
+              return await binding.log.append(...args)
+            } finally {
+              if (call === 1) firstCommitted.resolve()
+            }
           },
         }
         const coordinator = createSettlementCoordinator({
@@ -72,6 +85,7 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
           response: lostReply(),
         }
         const first = coordinator.settle(winner === 'single' ? single : request)
+        await firstArrived.promise
         const second = coordinator.settle(winner === 'single' ? request : single)
         await both.promise
         expect(owner.active).toBe(2)
@@ -861,9 +875,38 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
               { kind: 'unconditional' },
             )
             if ('failure' in opened) throw new Error('Run anchors')
-            const coordinator = () =>
+            // #40: the contract says the first complete batch to commit wins, not the first caller,
+            // and which side commits first otherwise depends on real IO completion order. Pin it:
+            // the leader may commit only after the follower has read the same prefix, and the
+            // follower may submit only after the leader's append returned. Both hold one tail, the
+            // leader commits first, and the follower loses at the JSONL commit point and recognizes
+            // the durable winner.
+            const followerRead = deferred<void>(),
+              leaderCommitted = deferred<void>()
+            const ordered = (leader: boolean): SessionLog => {
+              let reads = 0
+              return {
+                ...binding.log,
+                async readSince(...args) {
+                  try {
+                    return await binding.log.readSince(...args)
+                  } finally {
+                    if (!leader && ++reads === 1) followerRead.resolve()
+                  }
+                },
+                async append(...args) {
+                  await (leader ? followerRead.promise : leaderCommitted.promise)
+                  try {
+                    return await binding.log.append(...args)
+                  } finally {
+                    if (leader) leaderCommitted.resolve()
+                  }
+                },
+              }
+            }
+            const coordinator = (leader: boolean) =>
               createSettlementCoordinator({
-                binding: { ...binding, session: runSession },
+                binding: { ...binding, log: ordered(leader), session: runSession },
                 owner,
                 run(_prefix, originalRun, originalAttempt) {
                   return {
@@ -879,8 +922,8 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
                 settlementScheduler: noWaitScheduler,
                 diagnostic() {},
               })
-            const persisted = coordinator()
-            const competing = coordinator()
+            const persisted = coordinator(persistedFirst)
+            const competing = coordinator(!persistedFirst)
             const calibration = {
               requestInput: {
                 kind: 'known',
@@ -1015,7 +1058,7 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
                   'kind' in item.condition &&
                   item.condition.kind === 'tailEquals',
               ).length,
-            ).toBeGreaterThanOrEqual(1)
+            ).toBe(2)
             await persisted.close()
             await competing.close()
           },
