@@ -122,7 +122,7 @@ function seedSlowAcceptance(root: string, ledgers: string): void {
         tests: 1,
       },
     ],
-    slowTests: [],
+    nearTimeout: [],
     failures: [],
   }
   write(

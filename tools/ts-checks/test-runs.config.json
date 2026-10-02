@@ -16,7 +16,7 @@
   },
   "ledger": {
     "slowFileSeconds": 10,
-    "slowTestSeconds": 2.5,
+    "nearTimeoutRatio": 0.5,
     "top": 5
   },
   "triage": {

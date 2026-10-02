@@ -1,7 +1,12 @@
-// 耗时账本：把各成员 vitest 的 JSON 报告汇总成成员、文件、用例三级的耗时与失败清单。纯函数。
+// 耗时账本：把各成员 vitest 的 JSON 报告与计时报告汇总成成员、文件、用例三级的耗时、导入耗时、
+// 贴着自身时限的用例与失败清单。纯函数。
 import { relative } from 'node:path'
 import type { AffectedPlan } from './affected.ts'
 import type { Parallelism, RunScript } from './config.ts'
+import type { TimingReport } from './timing-reporter.ts'
+
+/** vitest 的默认用例时限。计时报告缺失（成员没跑到报告器那一步）时，贴线按它判，并在账本里标明是假定的。 */
+export const VITEST_DEFAULT_TIMEOUT_SECONDS = 5
 
 /** 一次运行的抬头：`ledger.json` 的 `meta`。读它的有体检页（测试）与回路的验收耗时传感器。 */
 export interface RunMeta {
@@ -50,6 +55,8 @@ export interface MemberRun {
   readonly wallSeconds: number
   /** 没有报告：脚本不是 vitest，或进程在写出报告前就退出了。 */
   readonly report?: VitestJsonReport
+  /** 计时报告；与 JSON 报告同理可能没有。 */
+  readonly timing?: TimingReport
 }
 
 export interface Failure {
@@ -69,21 +76,28 @@ export interface Ledger {
     readonly files: number
     readonly tests: number
     readonly failed: number
-    /** 各文件耗时之和；与墙钟的差是进程启动、类型检查与并行重叠。 */
+    /** 各文件用例耗时之和（从第一条用例开始到最后一条结束，不含导入）。 */
     readonly fileSeconds: number
+    /** 各文件导入耗时之和；没有计时报告时不写。墙钟减去两者之和是进程启动、类型检查与并行重叠。 */
+    readonly collectSeconds?: number
   }[]
   readonly files: readonly {
     readonly member: string
     readonly file: string
     readonly seconds: number
     readonly tests: number
+    /** 导入这个测试文件（含它的依赖与 describe 回调）的耗时；没有计时报告时不写。 */
+    readonly collectSeconds?: number
   }[]
-  /** 耗时达到 `slowTestSeconds` 的用例，从慢到快。 */
-  readonly slowTests: readonly {
+  /** 耗时达到自身时限 × `nearTimeoutRatio` 的用例，按占时限的比例从高到低。 */
+  readonly nearTimeout: readonly {
     readonly member: string
     readonly file: string
     readonly test: string
     readonly seconds: number
+    readonly timeoutSeconds: number
+    /** 时限取自计时报告为 false；拿不到、按 vitest 默认时限假定的为 true。 */
+    readonly timeoutAssumed: boolean
   }[]
   readonly failures: readonly Failure[]
 }
@@ -95,39 +109,63 @@ function firstLine(text: string): string {
 
 const round = (seconds: number) => Math.round(seconds * 10) / 10
 
+type FileTiming = TimingReport['files'][number]
+
+/** 一个成员的计时报告按文件索引；同一文件里同名的用例取第一条的时限。 */
+function timingIndex(timing: TimingReport | undefined) {
+  const files = new Map<string, { file: FileTiming; timeouts: Map<string, number | null> }>()
+  for (const file of timing?.files ?? []) {
+    const timeouts = new Map<string, number | null>()
+    for (const test of file.tests)
+      if (!timeouts.has(test.fullName)) timeouts.set(test.fullName, test.timeoutSeconds)
+    files.set(file.file, { file, timeouts })
+  }
+  return files
+}
+
 export function buildLedger(
   runs: readonly MemberRun[],
   root: string,
-  slowTestSeconds: number,
+  nearTimeoutRatio: number,
 ): Ledger {
   const members: Ledger['members'][number][] = []
   const files: Ledger['files'][number][] = []
-  const tests: Ledger['slowTests'][number][] = []
+  const tests: Ledger['nearTimeout'][number][] = []
   const failures: Failure[] = []
   for (const run of runs) {
     let testCount = 0
     let failed = 0
     let fileSeconds = 0
+    let collectSeconds = 0
+    const timings = timingIndex(run.timing)
     for (const result of run.report?.testResults ?? []) {
       const file = relative(root, result.name).replaceAll('\\', '/')
       const seconds = Math.max(0, result.endTime - result.startTime) / 1000
+      const timing = timings.get(result.name)
       fileSeconds += seconds
+      collectSeconds += timing?.file.collectSeconds ?? 0
       testCount += result.assertionResults.length
       files.push({
         member: run.member,
         file,
         seconds: round(seconds),
         tests: result.assertionResults.length,
+        ...(timing === undefined ? {} : { collectSeconds: round(timing.file.collectSeconds) }),
       })
       let failedHere = 0
       for (const assertion of result.assertionResults) {
         const testSeconds = (assertion.duration ?? 0) / 1000
-        if (testSeconds >= slowTestSeconds)
+        const known = timing?.timeouts.get(assertion.fullName) ?? null
+        const timeoutSeconds = known ?? VITEST_DEFAULT_TIMEOUT_SECONDS
+        // 时限 0 在 vitest 里是「不设时限」，无线可贴。
+        if (timeoutSeconds > 0 && testSeconds >= timeoutSeconds * nearTimeoutRatio)
           tests.push({
             member: run.member,
             file,
             test: assertion.fullName,
             seconds: round(testSeconds),
+            timeoutSeconds,
+            timeoutAssumed: known === null,
           })
         if (assertion.status !== 'failed') continue
         failedHere += 1
@@ -160,17 +198,19 @@ export function buildLedger(
       tests: testCount,
       failed,
       fileSeconds: round(fileSeconds),
+      ...(run.timing === undefined ? {} : { collectSeconds: round(collectSeconds) }),
     })
   }
   files.sort((a, b) => b.seconds - a.seconds)
-  tests.sort((a, b) => b.seconds - a.seconds)
-  return { members, files, slowTests: tests, failures }
+  const share = (test: Ledger['nearTimeout'][number]) => test.seconds / test.timeoutSeconds
+  tests.sort((a, b) => share(b) - share(a) || b.seconds - a.seconds)
+  return { members, files, nearTimeout: tests, failures }
 }
 
 export interface LedgerSummaryContext {
   readonly wallSeconds: number
   readonly slowFileSeconds: number
-  readonly slowTestSeconds: number
+  readonly nearTimeoutRatio: number
   readonly top: number
   readonly runDir: string
 }
@@ -214,13 +254,27 @@ export function ledgerSummary(ledger: Ledger, context: LedgerSummaryContext): st
             .map(file => `${file.file} ${Math.round(file.seconds)} 秒`)
             .join('、')}`),
   )
+  const importers = ledger.members
+    .filter(member => member.collectSeconds !== undefined)
+    .sort((a, b) => (b.collectSeconds ?? 0) - (a.collectSeconds ?? 0))
+  if (importers.length > 0)
+    lines.push(
+      `导入耗时（各文件累计）最多的成员：${importers
+        .slice(0, context.top)
+        .map(member => `${member.member} ${Math.round(member.collectSeconds ?? 0)} 秒`)
+        .join('、')}`,
+    )
+  const assumed = ledger.nearTimeout.filter(test => test.timeoutAssumed).length
   lines.push(
-    `超过 ${context.slowTestSeconds} 秒的用例 ${ledger.slowTests.length} 条` +
-      (ledger.slowTests.length === 0
+    `贴着时限（耗时 ≥ 自身时限 × ${context.nearTimeoutRatio}）的用例 ${ledger.nearTimeout.length} 条` +
+      (assumed === 0
         ? ''
-        : `：${ledger.slowTests
+        : `（其中 ${assumed} 条没拿到时限，按 vitest 默认 ${VITEST_DEFAULT_TIMEOUT_SECONDS} 秒算）`) +
+      (ledger.nearTimeout.length === 0
+        ? ''
+        : `：${ledger.nearTimeout
             .slice(0, context.top)
-            .map(test => `${test.file} › ${test.test} ${test.seconds} 秒`)
+            .map(test => `${test.file} › ${test.test} ${test.seconds}／${test.timeoutSeconds} 秒`)
             .join('；')}`),
   )
   lines.push(`账本与各成员日志：${context.runDir}`)

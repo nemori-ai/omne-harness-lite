@@ -48,10 +48,10 @@ export interface TestRunsConfig {
   readonly ledger: {
     readonly slowFileSeconds: number
     /**
-     * 单条用例耗时到这个数就列入账本。初值取 vitest 默认时限（5 秒）的一半：
+     * 单条用例耗时达到它自身时限的这个比例就列入账本（贴着时限）。初值 0.5：
      * 空闲时就占掉一半时限的用例，机器一忙就会越线。
      */
-    readonly slowTestSeconds: number
+    readonly nearTimeoutRatio: number
     readonly top: number
   }
   readonly triage: { readonly repeats: number }
@@ -70,6 +70,12 @@ function positive(value: unknown, name: string): number {
   return value
 }
 
+function ratio(value: unknown, name: string): number {
+  if (typeof value !== 'number' || !(value > 0 && value <= 1))
+    throw new Error(`${name} 须在 (0, 1] 之间`)
+  return value
+}
+
 function strings(value: unknown, name: string): string[] {
   if (!Array.isArray(value) || !value.every((item): item is string => typeof item === 'string'))
     throw new Error(`${name} 须为字符串数组`)
@@ -80,7 +86,7 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
   const raw = parsed as {
     parallel?: { memberConcurrency?: unknown; vitestMaxWorkers?: unknown }
     affected?: { excludeRoots?: unknown; globalPaths?: unknown }
-    ledger?: { slowFileSeconds?: unknown; slowTestSeconds?: unknown; top?: unknown }
+    ledger?: { slowFileSeconds?: unknown; nearTimeoutRatio?: unknown; top?: unknown }
     triage?: { repeats?: unknown }
   }
   return {
@@ -100,7 +106,7 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
     },
     ledger: {
       slowFileSeconds: positive(raw.ledger?.slowFileSeconds, 'ledger.slowFileSeconds'),
-      slowTestSeconds: positive(raw.ledger?.slowTestSeconds, 'ledger.slowTestSeconds'),
+      nearTimeoutRatio: ratio(raw.ledger?.nearTimeoutRatio, 'ledger.nearTimeoutRatio'),
       top: positiveInteger(raw.ledger?.top, 'ledger.top'),
     },
     triage: { repeats: positiveInteger(raw.triage?.repeats, 'triage.repeats') },

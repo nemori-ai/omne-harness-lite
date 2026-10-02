@@ -173,11 +173,11 @@ async function run(argv: readonly string[]): Promise<number> {
   })
   const wallSeconds = (Date.now() - started) / 1000
 
-  const ledger = buildLedger(runs, ROOT, config.ledger.slowTestSeconds)
+  const ledger = buildLedger(runs, ROOT, config.ledger.nearTimeoutRatio)
   const summary = ledgerSummary(ledger, {
     wallSeconds,
     slowFileSeconds: config.ledger.slowFileSeconds,
-    slowTestSeconds: config.ledger.slowTestSeconds,
+    nearTimeoutRatio: config.ledger.nearTimeoutRatio,
     top: config.ledger.top,
     runDir,
   })
