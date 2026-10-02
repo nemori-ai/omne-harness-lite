@@ -75,6 +75,42 @@ describe('严格模式', { timeout: 60_000 }, () => {
     expect(result.stdout).toContain('  方向违规 0')
   })
 
+  it('有成员有验收、这个提交却没有验收的耗时记录：验收耗时没数据，退出 1', () => {
+    const { root, home, out, base } = complete()
+    write(root, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*/*'\n  - 'apps/*'\n")
+    write(
+      root,
+      'apps/cli/package.json',
+      '{"name":"@x/cli","scripts":{"acceptance":"vitest run --config acceptance/vitest.config.ts"}}\n',
+    )
+    const result = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', cli, '--root', root, '--strict', '--base', base, '--out', out],
+      {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          OMNE_METRICS_HOME: home,
+          OMNE_ACCEPTANCE_LEDGER_HOME: temporaryDirectory('loop-ledgers-'),
+        },
+      },
+    )
+    expect(result.status).toBe(1)
+    expect(result.stdout).toMatch(
+      /✗ 传感器没数据 1 个：sensors\.acceptance（有 1 个成员有验收，这个提交（\w{9}，工作树不干净）却没有跑全它们的耗时记录/u,
+    )
+    expect(result.stdout).toContain('  验收总耗时（秒） · 没数据：')
+  })
+
+  it('没有成员有验收：验收耗时读数是 0 份，算有数据', () => {
+    const { root, home, out, base } = complete()
+    const result = run(root, home, '--strict', '--base', base, '--out', out)
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain(
+      '  验收总耗时（秒） 0 · 正常 · 不与基线比；0 份：没有成员有 acceptance 脚本',
+    )
+  })
+
   it('不是严格模式时这一条不判：同样没数据也退出 0', () => {
     const { root, home, out, base } = complete()
     git(root, 'rm', '-q', 'packages/core/a/tests/a.spec.ts')

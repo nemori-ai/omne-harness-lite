@@ -5,13 +5,14 @@
 // 而实施都在工作树里进行，所以这里自己算。
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { RunScript } from './config.ts'
 
 export interface TestMember {
   /** 仓库相对目录，例如 `packages/core/messages`。 */
   readonly path: string
   readonly name: string
-  /** `package.json` 里 `test` 脚本的原文。 */
-  readonly testScript: string
+  /** `package.json` 里被选中的那个脚本（`test` 或 `acceptance`）的原文。 */
+  readonly script: string
   /** 它声明依赖的 workspace 成员名（dependencies、devDependencies、peerDependencies）。 */
   readonly dependencies: readonly string[]
 }
@@ -63,8 +64,12 @@ function expand(root: string, pattern: string): string[] {
   return paths
 }
 
-/** 仓库里带测试脚本的 workspace 成员，不含被排除根目录下的。 */
-export function listTestMembers(root: string, excludeRoots: readonly string[]): TestMember[] {
+/** 仓库里带 `script` 脚本（缺省 `test`）的 workspace 成员，不含被排除根目录下的。 */
+export function listTestMembers(
+  root: string,
+  excludeRoots: readonly string[],
+  scriptName: RunScript = 'test',
+): TestMember[] {
   const members: TestMember[] = []
   for (const pattern of workspacePatterns(readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8')))
     for (const path of expand(root, pattern)) {
@@ -73,13 +78,13 @@ export function listTestMembers(root: string, excludeRoots: readonly string[]): 
       if (!existsSync(manifestPath)) continue
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
         name?: unknown
-        scripts?: { test?: unknown }
+        scripts?: Record<string, unknown>
         dependencies?: Record<string, unknown>
         devDependencies?: Record<string, unknown>
         peerDependencies?: Record<string, unknown>
       }
-      const testScript = manifest.scripts?.test
-      if (typeof manifest.name !== 'string' || typeof testScript !== 'string') continue
+      const script = manifest.scripts?.[scriptName]
+      if (typeof manifest.name !== 'string' || typeof script !== 'string') continue
       const dependencies = [
         manifest.dependencies,
         manifest.devDependencies,
@@ -92,7 +97,7 @@ export function listTestMembers(root: string, excludeRoots: readonly string[]): 
       members.push({
         path,
         name: manifest.name,
-        testScript,
+        script,
         dependencies: [...new Set(dependencies)].sort(),
       })
     }

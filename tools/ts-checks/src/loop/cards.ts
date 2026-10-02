@@ -3,7 +3,7 @@
 // 同一张卡同一个事件只记一次，后两个不早于 proposed；要更正只能手工改文件。
 import { appendFileSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { CARD_ID } from './stories.ts'
+import { CARD_ID } from '../product/stories.ts'
 
 export const CARD_EVENTS = ['proposed', 'runnable', 'accepted'] as const
 export type CardEvent = (typeof CARD_EVENTS)[number]

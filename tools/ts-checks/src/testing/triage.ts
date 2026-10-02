@@ -2,7 +2,7 @@
 // 它回答的是「这条用例单独跑过不过」，不替人下「是机器的问题」这样的结论——分类的措辞只说重跑看到了什么。
 import { mkdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { VITEST_MAX_WORKERS_ENV } from './config.ts'
+import { VITEST_MAX_WORKERS_ENV, type RunScript } from './config.ts'
 import type { Failure, VitestJsonReport } from './ledger.ts'
 import { readReport, spawnLogged } from './run.ts'
 
@@ -97,18 +97,19 @@ export function triageSummary(entries: readonly TriageEntry[], triageDir: string
 
 async function rerun(
   root: string,
+  script: RunScript,
   failure: Failure & { readonly file: string },
   test: string | undefined,
   base: string,
 ): Promise<RerunOutcome> {
   const memberDir = join(root, failure.member)
   const reportPath = `${base}.json`
+  // 经成员自己的脚本跑（它是 `vitest run …`，验收的那份还带着自己的配置），后面的参数原样传给 vitest。
   const result = await spawnLogged(
     'pnpm',
     [
-      'exec',
-      'vitest',
       'run',
+      script,
       relative(memberDir, join(root, failure.file)),
       ...(test === undefined ? [] : ['-t', namePattern(test)]),
       '--reporter=default',
@@ -130,6 +131,7 @@ async function rerun(
 /** 串行地逐个重跑：归因要的就是「旁边没有别的东西在跑」。 */
 export async function triage(
   root: string,
+  script: RunScript,
   failures: readonly Failure[],
   repeats: number,
   triageDir: string,
@@ -145,7 +147,13 @@ export async function triage(
       const outcomes: RerunOutcome[] = []
       for (let attempt = 1; attempt <= repeats; attempt += 1)
         outcomes.push(
-          await rerun(root, target, failure.test, join(triageDir, `${index + 1}-${attempt}`)),
+          await rerun(
+            root,
+            script,
+            target,
+            failure.test,
+            join(triageDir, `${index + 1}-${attempt}`),
+          ),
         )
       const kind = classify(outcomes)
       entry =
@@ -154,7 +162,13 @@ export async function triage(
               ...failure,
               outcomes,
               class: kind,
-              wholeFile: await rerun(root, target, undefined, join(triageDir, `${index + 1}-file`)),
+              wholeFile: await rerun(
+                root,
+                script,
+                target,
+                undefined,
+                join(triageDir, `${index + 1}-file`),
+              ),
             }
           : { ...failure, outcomes, class: kind }
     }

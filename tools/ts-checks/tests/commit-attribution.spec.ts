@@ -1,10 +1,17 @@
-// 提交署名检查的正反夹具：作者式署名报出，来源 trailer 与人与人的共同署名放行。
-import { resolve } from 'node:path'
+// 提交信息规则的正反夹具：作者式署名报出，来源 trailer 与人与人的共同署名放行；
+// 删卡 trailer 的值不是合乎写法的卡号报出。
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   attributionViolations,
+  cardTrailers,
+  cardTrailerViolations,
   parseCommitLog,
+  parseTrailers,
   readCommits,
   type CommitRecord,
 } from '../src/commits.ts'
@@ -14,6 +21,7 @@ const human = {
   authorEmail: 'someone@example.com',
   committerName: 'GitHub',
   committerEmail: 'noreply@github.com',
+  trailers: '',
 }
 const commit = (message: string, overrides: Partial<CommitRecord> = {}): CommitRecord => ({
   sha: '0123456789abcdef0123456789abcdef01234567',
@@ -95,22 +103,99 @@ describe('commit-attribution', () => {
     ).toEqual([])
   })
 
-  it('解析 git log：信息里的空行与多段正文原样保留', () => {
+  it('解析 git log：信息里的空行与多段正文原样保留，trailer 块单独一栏', () => {
     const raw =
-      ['a'.repeat(40), 'n1', 'e1', 'c1', 'ce1', 'subject\n\nbody 1\n\nbody 2\n'].join('\u001f') +
+      [
+        'a'.repeat(40),
+        'n1',
+        'e1',
+        'c1',
+        'ce1',
+        'Agent-Role: main\n',
+        'subject\n\nbody 1\n\nbody 2\n\nAgent-Role: main\n',
+      ].join('\u001f') +
       '\u001e\n' +
-      ['b'.repeat(40), 'n2', 'e2', 'c2', 'ce2', 'only subject\n'].join('\u001f') +
+      ['b'.repeat(40), 'n2', 'e2', 'c2', 'ce2', '', 'only subject\n'].join('\u001f') +
       '\u001e\n'
     const parsed = parseCommitLog(raw)
     expect(parsed.map(item => item.sha)).toEqual(['a'.repeat(40), 'b'.repeat(40)])
-    expect(parsed[0]?.message).toBe('subject\n\nbody 1\n\nbody 2\n')
-    expect(parsed[1]).toMatchObject({ authorName: 'n2', committerEmail: 'ce2' })
+    expect(parsed[0]?.message).toBe('subject\n\nbody 1\n\nbody 2\n\nAgent-Role: main\n')
+    expect(parsed[0]?.trailers).toBe('Agent-Role: main\n')
+    expect(parsed[1]).toMatchObject({ authorName: 'n2', committerEmail: 'ce2', trailers: '' })
   })
 
-  it('本仓库当前可达的全部历史没有作者式署名', () => {
+  it('本仓库当前可达的全部历史没有作者式署名，删卡 trailer 都合乎写法', () => {
     const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
     const commits = readCommits(root)
     expect(commits.length).toBeGreaterThan(0)
     expect(attributionViolations(commits)).toEqual([])
+    expect(cardTrailerViolations(commits)).toEqual([])
+  })
+})
+
+describe('card-trailer', () => {
+  it('trailer 块按行拆成键与值；删卡的两条键不分大小写，规范成标准写法', () => {
+    const trailers = 'Harness: claude-code\naccepted-card: ST-016-01\nVoided-Card:  ST-016-02 \n'
+    expect(parseTrailers(trailers)).toEqual([
+      { key: 'Harness', value: 'claude-code' },
+      { key: 'accepted-card', value: 'ST-016-01' },
+      { key: 'Voided-Card', value: 'ST-016-02' },
+    ])
+    expect(cardTrailers({ trailers })).toEqual([
+      { key: 'Accepted-Card', value: 'ST-016-01' },
+      { key: 'Voided-Card', value: 'ST-016-02' },
+    ])
+  })
+
+  it('值不是一个合乎写法的卡号：报出；合乎写法的放行', () => {
+    const found = cardTrailerViolations([
+      commit('product: accept\n\nAccepted-Card: ST-016-01', {
+        trailers: 'Accepted-Card: ST-016-01\n',
+      }),
+      commit('product: two in one', {
+        trailers: 'Accepted-Card: ST-016-01, ST-016-02\nVoided-Card: ST-16-3\n',
+      }),
+    ])
+    expect(found).toEqual([
+      {
+        rule: 'card-trailer',
+        path: 'commit 012345678',
+        line: 0,
+        message:
+          'Accepted-Card 的值「ST-016-01, ST-016-02」不是卡号：写成 ST-<三位>-<两位>，一张卡一条',
+      },
+      {
+        rule: 'card-trailer',
+        path: 'commit 012345678',
+        line: 0,
+        message: 'Voided-Card 的值「ST-16-3」不是卡号：写成 ST-<三位>-<两位>，一张卡一条',
+      },
+    ])
+  })
+
+  it('读 git：只认 git 判为 trailer 块里的那几行，正文里写着同样字样的不算', () => {
+    const root = mkdtempSync(join(tmpdir(), 'card-trailer-'))
+    try {
+      const git = (...args: string[]) =>
+        execFileSync(
+          'git',
+          ['-c', 'user.name=someone', '-c', 'user.email=someone@example.com', ...args],
+          { cwd: root, encoding: 'utf8' },
+        )
+      git('init', '-q')
+      git(
+        'commit',
+        '-q',
+        '--allow-empty',
+        '-m',
+        'product: accept\n\n正文里提到 Accepted-Card: 随便写\n\nHarness: claude-code\nAccepted-Card: ST-016-01',
+      )
+      const [record] = readCommits(root)
+      expect(record === undefined ? [] : cardTrailers(record)).toEqual([
+        { key: 'Accepted-Card', value: 'ST-016-01' },
+      ])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })

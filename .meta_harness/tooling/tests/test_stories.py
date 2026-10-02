@@ -47,14 +47,16 @@ def card(identifier: str = "ST-016-01", *, title: str = "装好就能看到版�
             f"- **不含**：{without}\n- **前置**：{before}\n- **就绪**：{ready}\n")
 
 
-def tree(tmp_path: Path, cards: str, *, center_cards: str | None = None, acceptance: str = ACCEPTANCE) -> Path:
+def tree(tmp_path: Path, cards: str, *, center_cards: str | None = None, acceptance: str = ACCEPTANCE,
+         high_water: str = "**已发到**：ST-016-02\n\n") -> Path:
     root = tmp_path / "design"
     for topic, text in ((CLI, acceptance), (CENTER, CENTER_ACCEPTANCE)):
         (root / topic).mkdir(parents=True)
         (root / topic / "acceptance.md").write_text(text, encoding="utf-8")
-    (root / CLI / "stories.md").write_text(f"# PF-016 故事卡\n\n说明文字。\n\n{cards}", encoding="utf-8")
+    (root / CLI / "stories.md").write_text(f"# PF-016 故事卡\n\n{high_water}说明文字。\n\n{cards}", encoding="utf-8")
     if center_cards is not None:
-        (root / CENTER / "stories.md").write_text(f"# PF-017 故事卡\n\n{center_cards}", encoding="utf-8")
+        (root / CENTER / "stories.md").write_text(f"# PF-017 故事卡\n\n**已发到**: ST-017-01\n\n{center_cards}",
+                                                  encoding="utf-8")
     return root
 
 
@@ -194,6 +196,48 @@ def test_cards_inside_a_code_fence_are_examples(tmp_path: Path) -> None:
     checker = Checker(tree(tmp_path, fenced + card()))
     checker.check()
     assert checker.errors == [] and [found.id for found in checker.cards] == ["ST-016-01"]
+
+
+def test_a_queue_with_only_the_high_water_line_is_valid(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = tree(tmp_path, "", high_water="**已发到**：ST-016-03\n\n")
+    checker = Checker(root)
+    checker.check()
+    assert checker.errors == [] and checker.cards == []
+    assert checker.notes == [f"{CLI}/acceptance.md: 4 条带编号的场景还不属于任何卡：S1、S2、S3、S4b"]
+    assert stories.main(["--root", str(root)]) == 0
+    assert "PASS: 1 个 topic 有 stories.md，眼下没有待交付的卡，对账一致。" in capsys.readouterr().out
+
+
+def test_the_high_water_line_is_required(tmp_path: Path) -> None:
+    found = errors(tree(tmp_path, card(), high_water=""))
+    assert found == [f"{CLI}/stories.md: 缺「已发到」一行；在文件开头写 `**已发到**：ST-<三位>-<两位>`，值是这个 topic 发出过的最大卡号"]
+
+
+def test_the_high_water_line_appears_once(tmp_path: Path) -> None:
+    found = errors(tree(tmp_path, card(), high_water="**已发到**：ST-016-02\n**已发到**：ST-016-03\n\n"))
+    assert found == [f"{CLI}/stories.md:4: 「已发到」只能有一行，现在有 2 行（第 3、4 行）"]
+
+
+def test_the_high_water_card_belongs_to_the_topic(tmp_path: Path) -> None:
+    found = errors(tree(tmp_path, card(), high_water="**已发到**：ST-017-02\n\n"))
+    assert found == [f"{CLI}/stories.md:3: 「已发到」ST-017-02 的中间三位要等于所在 topic 的编号 016"]
+
+
+def test_the_high_water_value_is_a_card_id(tmp_path: Path) -> None:
+    found = errors(tree(tmp_path, card(), high_water="**已发到**：第二张\n\n"))
+    assert found == [f"{CLI}/stories.md:3: 「已发到」的值要写成卡号 ST-<三位>-<两位>，现在是「第二张」"]
+
+
+def test_no_card_is_numbered_past_the_high_water(tmp_path: Path) -> None:
+    cards = card() + "\n" + card("ST-016-03", title="能登录", scenarios="[S2](acceptance.md)")
+    found = errors(tree(tmp_path, cards))
+    assert len(found) == 1
+    assert "ST-016-03 的序号超过了「已发到」ST-016-02" in found[0] and found[0].startswith(f"{CLI}/stories.md:")
+
+
+def test_a_high_water_line_inside_a_code_fence_is_an_example(tmp_path: Path) -> None:
+    fenced = "```markdown\n**已发到**：ST-016-09\n```\n\n"
+    assert errors(tree(tmp_path, fenced + card())) == []
 
 
 def test_the_entry_point_reports_and_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
