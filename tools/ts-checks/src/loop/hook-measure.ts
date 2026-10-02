@@ -51,6 +51,7 @@ export function measureForHook(
   // 只要改动过的测试文件里的：全仓的测试文件逐个解析要一秒多，而要解释的红项本来就只看改动过的。
   const changedTests = files.filter(file => change.paths.has(file.path))
   const explain = explainOf(
+    root,
     report,
     {
       stability: readStability(report, config.sensors.stability),

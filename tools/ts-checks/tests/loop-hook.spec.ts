@@ -13,9 +13,10 @@ import {
   type HookDeps,
   type HookReadings,
 } from '../src/loop/hook.ts'
-import type { FunctionRow } from '../src/metrics/report.ts'
+import type { ExplainedFunction } from '../src/loop/against-base.ts'
 
-const fn = (over: Partial<FunctionRow>): FunctionRow => ({
+/** 一个碰过、比基线涨了的函数（原 34 → 现 35）。 */
+const fn = (over: Partial<ExplainedFunction>): ExplainedFunction => ({
   path: 'apps/cli/src/x.ts',
   member: 'apps/cli',
   name: 'runCli',
@@ -26,6 +27,7 @@ const fn = (over: Partial<FunctionRow>): FunctionRow => ({
   level: 'alert',
   grade: 1,
   changed: true,
+  againstBase: { kind: 'worse', baseline: 34 },
   ...over,
 })
 
@@ -47,6 +49,7 @@ const readings = (): HookReadings => ({
   },
   explain: {
     functions: [fn({}), fn({ name: 'mild', level: 'warn', complexity: 11, score: 11 })],
+    functionsNotWorse: [],
     newEdges: {
       status: 'data',
       data: [{ from: 'packages/a', to: 'packages/b', site: site('packages/a/src/y.ts', 3) }],
@@ -129,7 +132,7 @@ describe('收工钩子的判断', () => {
       [
         '收工前的结构读数（事实，不是指令）。这次变更里有下面几处读数落在线外：',
         '- ✗ 硬线 · 方向违规：packages/core/a 依赖了更外层的 packages/infra/b（packages/core/a/src/x.ts:3）',
-        '- 超过 alert 的函数：apps/cli/src/x.ts:47 runCli 圈复杂度 35（alert 12）',
+        '- 超过 alert 的函数：apps/cli/src/x.ts:47 runCli 圈复杂度 35（alert 12），原 34',
         '- 新增的跨成员依赖：packages/a → packages/b（packages/a/src/y.ts:3）',
         '- 新增的稳定依赖不稳定的边：packages/a（I 0.25）→ packages/b（I 0.50）（packages/a/src/y.ts:3）',
         '- 没有断言的测试用例：packages/a/tests/z.spec.ts:10 「不断言」',
@@ -158,6 +161,7 @@ describe('收工钩子的判断', () => {
       hardLines: { direction: [], cycles: [] },
       explain: {
         functions: [fn({ level: 'warn' })],
+        functionsNotWorse: [fn({ name: 'old', againstBase: { kind: 'not-worse', baseline: 35 } })],
         newEdges: { status: 'data', data: [] },
         newStableOnUnstable: { status: 'no-data', reason: '配置里关了' },
         casesWithoutAssertions: { status: 'no-data', reason: '成员里没有测试文件' },
@@ -224,6 +228,36 @@ describe('收工钩子的判断', () => {
       explain: { ...before.explain, functions: [fn({ name: 'other' })] },
     }
     expect(fingerprintOf(findingsOf(renamed))).not.toBe(same)
+  })
+
+  it('函数那一行末尾补与基线比的说明；指纹不看它（只看类别与位置）', () => {
+    const base = readings()
+    const only = (row: ExplainedFunction): HookReadings => ({
+      ...base,
+      hardLines: { direction: [], cycles: [] },
+      explain: {
+        ...base.explain,
+        functions: [row],
+        newEdges: { status: 'data', data: [] },
+        newStableOnUnstable: { status: 'data', data: [] },
+        casesWithoutAssertions: { status: 'data', data: [] },
+      },
+    })
+    const texts = (row: ExplainedFunction) => findingsOf(only(row)).map(finding => finding.text)
+    const head = '超过 alert 的函数：apps/cli/src/x.ts:47 runCli 圈复杂度 35（alert 12）'
+    expect(texts(fn({ againstBase: { kind: 'new', reason: 'new-function' } }))).toEqual([
+      `${head}，新出现`,
+    ])
+    expect(texts(fn({ againstBase: { kind: 'new', reason: 'new-file' } }))).toEqual([
+      `${head}，新出现（新文件）`,
+    ])
+    expect(texts(fn({ againstBase: { kind: 'unsure', reason: '基线文本取不到' } }))).toEqual([
+      `${head}，拿不准，照列：基线文本取不到`,
+    ])
+    const fingerprint = (row: ExplainedFunction) => fingerprintOf(findingsOf(only(row)))
+    expect(fingerprint(fn({ againstBase: { kind: 'new', reason: 'new-function' } }))).toBe(
+      fingerprint(fn({ complexity: 36, againstBase: { kind: 'worse', baseline: 20 } })),
+    )
   })
 
   it('条数多于 maxItems：列前若干条并写「另有 N 条」；放不下 maxChars 就再少列', () => {

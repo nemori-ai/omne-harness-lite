@@ -16,6 +16,7 @@ import { isTestPath, type SourceFile } from '../rule.ts'
 import { judgeMember, type MemberBaseline, type MemberBudget } from './budget.ts'
 import { readCatalogue } from './catalogue.ts'
 import { readLoopConfig, type IndicatorId, type LoopConfig } from './config.ts'
+import { baseFilesOf, judgeAgainstBase } from './function-baseline.ts'
 import { loopHome } from './home.ts'
 import { writeProposal } from './proposals.ts'
 import { data, noData, type Reading } from './reading.ts'
@@ -335,8 +336,13 @@ function memberBudgets(
     )
 }
 
-/** 这次变更里要解释的红项；只用到四个传感器，收工钩子不跑重复代码时给它一个没数据的读数。 */
+/**
+ * 这次变更里要解释的红项；只用到四个传感器，收工钩子不跑重复代码时给它一个没数据的读数。
+ * 函数一类与基线比：碰过、带位不是 ok 的函数里只留涨了的、新出现的与拿不准的，
+ * 为此只取这些函数所在文件在 `change.mergeBase` 上的文本（`root` 是被量的检出）。
+ */
 export function explainOf(
+  root: string,
   report: Report,
   sensors: Pick<Sensors, 'newEdges' | 'stability' | 'assertions' | 'duplication'>,
   change: Change,
@@ -347,10 +353,17 @@ export function explainOf(
     sensors.stability.status === 'data'
       ? new Map(sensors.stability.data.map(edge => [`${edge.from}\u0000${edge.to}`, edge]))
       : undefined
+  const candidates = report.functions
+    .filter(row => row.changed && row.level !== 'ok')
+    .sort((a, b) => b.score - a.score)
+  const { kept, notWorse } = judgeAgainstBase(
+    candidates,
+    report.functions,
+    baseFilesOf(root, change.mergeBase, new Set(candidates.map(row => row.path))),
+  )
   return {
-    functions: report.functions
-      .filter(row => row.changed && row.level !== 'ok')
-      .sort((a, b) => b.score - a.score),
+    functions: kept,
+    functionsNotWorse: notWorse,
     newEdges: added,
     newStableOnUnstable:
       unstable === undefined
@@ -578,7 +591,7 @@ export async function runLoopStatus(
         : `；趋势文件第 ${trend.badLines.join('、')} 行读不了，已跳过`),
     `产物：${outDir}/status.md 与 status.json`,
   ]
-  const explain = change === undefined ? undefined : explainOf(report, sensors, change)
+  const explain = change === undefined ? undefined : explainOf(root, report, sensors, change)
   const lines = renderStatus({
     shortHead: at.shortHead,
     branch: at.branch,

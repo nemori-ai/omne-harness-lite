@@ -1,11 +1,15 @@
-// 「与基线比」的判法，走 `make loop-status` 同一个入口（runLoopStatus），用临时仓库：
-// 成员预算——基线里有的成员只在变差时进提醒、新成员照绝对线。线在这里给死，不随仓库配置里负责人调的数值变。
+// 两处「与基线比」的判法，走 `make loop-status` 同一个入口（runLoopStatus），用临时仓库：
+// 成员预算——基线里有的成员只在变差时进提醒、新成员照绝对线；要解释的函数——只留比基线涨了的、
+// 新出现的与拿不准的，没变差的另计。线在这里给死，不随仓库配置里负责人调的数值变。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { ExplainedFunction } from '../src/loop/against-base.ts'
 import type { ItemComparison } from '../src/loop/budget.ts'
 import { readLoopConfig, type LoopConfig } from '../src/loop/config.ts'
+import { baseFilesOf, judgeAgainstBase, parseNameStatus } from '../src/loop/function-baseline.ts'
 import { runLoopStatus } from '../src/loop/run.ts'
+import type { FunctionRow } from '../src/metrics/report.ts'
 import {
   commit,
   git,
@@ -56,6 +60,10 @@ interface Status {
     readonly bands: Record<string, string>
     readonly comparisons?: Record<string, ItemComparison>
   }[]
+  readonly explain: {
+    readonly functions: readonly ExplainedFunction[]
+    readonly functionsNotWorse: readonly ExplainedFunction[]
+  }
 }
 
 async function status(
@@ -155,5 +163,145 @@ describe('成员预算与基线比（入口）', { timeout: 120_000 }, () => {
     expect(json.members.every(entry => entry.comparisons === undefined)).toBe(true)
     expect(lines.join('\n')).not.toMatch(/比基线变差的成员|新成员过了提醒线的/u)
     expect(lines).toContain('  packages/core/d：超 alert 的函数数 6 → 草稿 packages-core-d.md')
+  })
+})
+
+describe('要解释的函数与基线比（入口）', { timeout: 120_000 }, () => {
+  it('没变差的拿掉并计数；涨了的、新函数、新文件留下；改名的文件对回改名前；同名对不上的照留', async () => {
+    const root = repository()
+    const home = temporaryDirectory('loop-baseline-home-')
+    const member = 'packages/core/a/src'
+    write(root, `${member}/stay.ts`, routed('stay', 14))
+    write(root, `${member}/grow.ts`, routed('grow', 14))
+    write(root, `${member}/old.ts`, `${routed('moved', 14)}\nexport const kept = 1\n`)
+    const twin = (tag: string) =>
+      `  {\n    run(x: number): string {\n${Array.from({ length: 14 }, (_, i) => `      if (x === ${i}) return '${tag}${i}'`).join('\n')}\n      return ''\n    },\n  },`
+    write(root, `${member}/twins.ts`, `export const handlers = [\n${twin('p')}\n${twin('q')}\n]\n`)
+    const base = commit(root, 'base')
+
+    git(root, 'checkout', '-q', '-b', 'someone/work')
+    // 改名（已提交）并改一行、不加分支：git 认作改名，对回 old.ts。
+    git(root, 'mv', `${member}/old.ts`, `${member}/moved.ts`)
+    write(
+      root,
+      `${member}/moved.ts`,
+      `${routed('moved', 14).replace("return ''", "return 'z'")}\nexport const kept = 1\n`,
+    )
+    commit(root, 'rename')
+    // 未提交：改一行不加分支、加一个分支加一个新函数、一个新文件、改同名的其中一个。
+    write(root, `${member}/stay.ts`, routed('stay', 14).replace("return ''", "return 'z'"))
+    write(root, `${member}/grow.ts`, `${routed('grow', 15)}\n${routed('fresh', 14)}`)
+    write(root, `${member}/brand.ts`, routed('brand', 14))
+    write(
+      root,
+      `${member}/twins.ts`,
+      `export const handlers = [\n${twin('p')}\n${twin('q').replace("return ''", "return 'z'")}\n]\n`,
+    )
+
+    const { lines, json } = await status(root, home, config(true), base)
+    const kept = json.explain.functions.map(row => [
+      row.path.split('/').pop(),
+      row.name,
+      row.againstBase,
+    ])
+    expect(kept).toEqual(
+      expect.arrayContaining([
+        ['grow.ts', 'grow', { kind: 'worse', baseline: 15 }],
+        ['grow.ts', 'fresh', { kind: 'new', reason: 'new-function' }],
+        ['brand.ts', 'brand', { kind: 'new', reason: 'new-file' }],
+        [
+          'twins.ts',
+          'run',
+          { kind: 'unsure', reason: '同一文件里同名函数现在 2 个、基线上 2 个，对不上' },
+        ],
+      ]),
+    )
+    expect(kept.map(([path, name]) => `${path} ${name}`).sort()).toEqual([
+      'brand.ts brand',
+      'grow.ts fresh',
+      'grow.ts grow',
+      'twins.ts run',
+      'twins.ts run',
+    ])
+    expect(
+      json.explain.functionsNotWorse.map(row => [
+        row.path.split('/').pop(),
+        row.name,
+        row.againstBase,
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        ['stay.ts', 'stay', { kind: 'not-worse', baseline: 15 }],
+        ['moved.ts', 'moved', { kind: 'not-worse', baseline: 15 }],
+      ]),
+    )
+    expect(json.explain.functionsNotWorse).toHaveLength(2)
+
+    expect(lines).toContain('  变更函数里超过 warn、且比基线涨了或新出现的 5 条：')
+    expect(lines).toContain(`    ${member}/grow.ts:1 grow CC 16：原 15 → 现 16`)
+    expect(lines).toContain(`    ${member}/brand.ts:1 brand CC 15：新出现（新文件）`)
+    expect(lines).toContain('  另有 2 个碰过的函数原来就在线外、这次没有变差（见 status.json）')
+  })
+})
+
+describe('要解释的函数与基线比（判法）', () => {
+  const row = (over: Partial<FunctionRow>): FunctionRow => ({
+    path: 'packages/core/a/src/x.ts',
+    member: 'packages/core/a',
+    name: 'f',
+    line: 1,
+    endLine: 20,
+    complexity: 15,
+    score: 15,
+    level: 'alert',
+    grade: 1,
+    changed: true,
+    ...over,
+  })
+
+  it('基线文本取不到：照留并注明原因；<module> 在基线上没有单元按 1 算', () => {
+    const missing = row({})
+    const module = row({ path: 'packages/core/a/src/m.ts', name: '<module>', complexity: 14 })
+    const { kept, notWorse } = judgeAgainstBase(
+      [missing, module],
+      [missing, module],
+      new Map([
+        [missing.path, { kind: 'unreadable', reason: '基线文本取不到' } as const],
+        [module.path, { kind: 'text', path: module.path, text: 'export const a = 1\n' } as const],
+      ]),
+    )
+    expect(kept.map(entry => entry.againstBase)).toEqual([
+      { kind: 'unsure', reason: '基线文本取不到' },
+      { kind: 'worse', baseline: 1 },
+    ])
+    expect(notWorse).toEqual([])
+  })
+
+  it('改名、复制、删除与修改：只留现在还在的路径，改名的对回原路径，新增与复制出来的不在其中', () => {
+    const output = [
+      'M',
+      'a.ts',
+      'R087',
+      'old.ts',
+      'new.ts',
+      'A',
+      'b.ts',
+      'D',
+      'gone.ts',
+      'C075',
+      'a.ts',
+      'copy.ts',
+      '',
+    ].join('\u0000')
+    expect([...parseNameStatus(output)]).toEqual([
+      ['a.ts', 'a.ts'],
+      ['new.ts', 'old.ts'],
+    ])
+  })
+
+  it('没有候选函数时不跑 git（给一个不存在的基线也不报错）', () => {
+    const root = repository()
+    expect(baseFilesOf(root, 'no-such-commit', new Set()).size).toBe(0)
+    expect(() => baseFilesOf(root, 'no-such-commit', new Set(['x.ts']))).toThrow()
   })
 })

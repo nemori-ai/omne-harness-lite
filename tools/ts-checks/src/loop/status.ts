@@ -2,7 +2,7 @@
 // 这里只有纯函数；读 git、跑传感器、写文件都在 cli.ts。
 import { basename } from 'node:path'
 import type { DirectionFinding } from '../metrics/graph.ts'
-import { describeFunction, type FunctionRow } from '../metrics/report.ts'
+import { describeFunction } from '../metrics/report.ts'
 import { BAND_WORDS, judgeIndicator, type Band, type Comparison } from './bands.ts'
 import { BUDGET_LABELS, type ItemComparison, type MemberBudget } from './budget.ts'
 import { CATEGORIES, type CatalogueStatus } from './catalogue.ts'
@@ -15,6 +15,7 @@ import {
   type LoopConfig,
   type SwitchedSensor,
 } from './config.ts'
+import { describeAgainstBase, type ExplainedFunction } from './against-base.ts'
 import { describeClone, fixed } from './proposals.ts'
 import type { Reading } from './reading.ts'
 import type { CaseWithoutAssertion } from './sensors/assertions.ts'
@@ -166,7 +167,10 @@ export function hardLinesBroken(lines: HardLines): boolean {
 
 /** 这次变更里要解释的红项，五类；全量，终端只列前 explainTop 条。 */
 export interface Explain {
-  readonly functions: readonly FunctionRow[]
+  /** 碰过、带位不是 ok，且比基线涨了、新出现或拿不准的函数。 */
+  readonly functions: readonly ExplainedFunction[]
+  /** 碰过、原来就在线外、这次没有变差的函数：不要解释，但数出来。 */
+  readonly functionsNotWorse: readonly ExplainedFunction[]
   readonly newEdges: Reading<readonly EdgeChange[]>
   readonly newStableOnUnstable: Reading<readonly StabilityEdge[]>
   readonly casesWithoutAssertions: Reading<readonly CaseWithoutAssertion[]>
@@ -291,7 +295,11 @@ function explainLines(view: StatusView): string[] {
     if (reading.data.length > view.explainTop)
       out.push(`    其余 ${reading.data.length - view.explainTop} 条见 status.json`)
   }
-  section('变更函数里超过 warn 的', { status: 'data', data: explain.functions }, describeFunction)
+  section(
+    '变更函数里超过 warn、且比基线涨了或新出现的',
+    { status: 'data', data: explain.functions },
+    row => `${describeFunction(row)}：${describeAgainstBase(row)}`,
+  )
   section('新增的跨成员依赖', explain.newEdges, edge => `${edge.from} → ${edge.to}${at(edge.site)}`)
   section(
     '新增依赖里稳定依赖不稳定的',
@@ -306,6 +314,11 @@ function explainLines(view: StatusView): string[] {
   )
   section('有一端落在改动文件里的克隆', explain.clones, describeClone)
   if (out.length === 1) out.push('  无')
+  // 不要解释、但不让它们无声消失：放在最后，不影响上面「无」的判断。
+  if (explain.functionsNotWorse.length > 0)
+    out.push(
+      `  另有 ${explain.functionsNotWorse.length} 个碰过的函数原来就在线外、这次没有变差（见 status.json）`,
+    )
   return out
 }
 
