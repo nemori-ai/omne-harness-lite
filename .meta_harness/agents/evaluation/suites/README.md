@@ -15,7 +15,7 @@
 | [tui-developer-implement](tui-developer-implement/README.md) | tui-developer 在整仓检出里补完一个终端模块，程序判定 | 同上 |
 | [verification-write-tests](verification-write-tests/README.md) | verification-developer 为拿走了原有测试的模块写测试，程序用预置变异体判定 | 同上 |
 
-八个流的基线何时跑、开跑前还差什么，由 [#35](https://github.com/nemori-ai/omne-harness-lite/issues/35) 跟踪。
+八个流的基线何时跑、开跑前还差什么，由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
 
 负责人 2026-10-01 定：各流的完整基线不随用例集一起跑，统一放到研发方案的最后。在那之前，这些用例集可以用来对单次改动做有针对性的试派，
 但没有基线可比。
