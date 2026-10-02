@@ -441,7 +441,12 @@ describe('耗时账本', () => {
       ['贴线', false],
       ['真慢', true],
     ])
-    expect(drift.fastOverBudget.map(test => test.test)).toEqual(['重 1', '重 2', '贴线', '自带宽时限'])
+    expect(drift.fastOverBudget.map(test => test.test)).toEqual([
+      '重 1',
+      '重 2',
+      '贴线',
+      '自带宽时限',
+    ])
     const lines = ledgerSummary(drift, {
       wallSeconds: 90,
       slowFileSeconds: 10,
