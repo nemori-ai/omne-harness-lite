@@ -528,7 +528,7 @@ make loop-health                                                     # 体检页
 | 每周接受数 | 最近 `health.weeks` 周每周接受了几张；周一零点为一周之始，按本机时区 | 台账 |
 | 各 topic 剩余卡数 | 每个有 `stories.md` 的 topic：卡总数、已接受、剩余、剩余里「就绪」写「否」的；台账里接受过却不在任何 `stories.md` 里的卡单列 | `stories.md` 与台账 |
 | 提交与合并的大小 | `primaryBranch` 沿第一父链最近 `health.commits` 个提交各改了几个文件（合并提交按它对第一父的改动计）：中位数、最大值、最大的三个 | `git log --first-parent -m` |
-| 测试耗时 | 最近 `health.runs` 次**全量**运行的墙钟、提交、是否全过 | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`），受影响范围的运行带基线，不计入 |
+| 测试耗时 | 最近 `health.runs` 次**全量**运行的墙钟、提交、层、是否全过；各层的墙钟不可比，一层一条走向线 | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`），可以只跑一层（合并前那一步就是快层全量），层取 `meta.tier`，没有这一栏的旧账本按两层；受影响范围的运行带基线，不计入 |
 | 债的走向 | 每个指标一条小折线（虚线是提醒线与处置线，蓝点是最新值）、最新值与最新带位；当前或曾经处于处置的成员，各项预算的读数走向 | `trend.jsonl`；同一提交多条取最后一条，按提交时间排 |
 | 对照表条数 | 五类各多少条、不合约定的行数、「现状」以「待建」开头的行数 | `docs/clean-loop.md`，与回路状态同一份解析 |
 | 传感器最近一次有数据 | 每个指标最近一条带着它的值的快照是哪个提交、什么时候；从没有过数据的标出 | `trend.jsonl` |
@@ -548,12 +548,24 @@ make loop-health                                                     # 体检页
 失败之后单独重跑归类。它替代了根脚本里原先的 `pnpm -r run test`。同一个运行器也跑成员的可执行验收（`--script acceptance`）。
 
 ```sh
-make test-affected BASE=<基线提交或分支>   # 只构建并测试受这次改动影响的成员；BASE 缺省 main
-make test-affected BASE=<基线> PLAN=1     # 只列受影响范围，不构建也不运行
+make test-affected BASE=<基线提交或分支>   # 只构建并测试受这次改动影响的成员的快层；BASE 缺省 main，TIER=slow|all 换层
+make test-affected BASE=<基线> PLAN=1     # 只列受影响范围与层，不构建也不运行
+make test-tier TIER=slow                   # 先构建，再跑全部成员的某一层（合并后在主线头补跑全量慢层用它）
 make test-triage RUN=<运行目录>            # 把那次运行里的失败逐条单独重跑并归类（测试或验收的运行都行）
-pnpm run test                              # 全量：先构建，再跑全部成员（make check 的测试一步同此）
+pnpm run test                              # 全量两层：先构建，再跑全部成员
+pnpm run test:gate                         # make check 的测试一步：全部成员的快层，再加基线（BASELINE，缺省 main）以来受影响成员的慢层
 make acceptance                            # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；NO_BUILD=1 不构建
 ```
+
+**分层。**测试分快慢两层，定义只在仓库根 [`vitest.tiers.mts`](../../vitest.tiers.mts) 写一处：一个 `slow` 标签（带慢层时限 120 秒），
+以及把环境变量 `OMNE_TEST_TIER`（`fast`／`slow`，不设为两层）翻成 vitest 的 `tagsFilter`、`passWithNoTests` 与 `experimental.preParse`。
+每个成员的 vitest 配置在 `test` 里先展开 `testTiers()`。一个测试归慢层：整个文件在开头注释里写 `@module-tag slow`，单条用例写 `{ tags: ['slow'] }`，
+并写一句为什么慢。时限的先后：用例自己写的（选项里的 `timeout` 或 `test(名字, 函数, 毫秒)`）＞ 慢层标签的 ＞ 成员配置的 `testTimeout` ＞ vitest 默认 5 秒。
+运行器的 `--tier fast|slow|all` 把层经 `OMNE_TEST_TIER` 交给每个成员（`all` 时置空，不让外面环境里的残留漏进来），慢层另加 `--typecheck.enabled=false`
+（`*.spec-d.ts` 都归快层）；`--base` 缺省 `fast`，`--all` 缺省 `all`，验收不分层、不接受 `--tier`。层记在账本的 `meta.tier`，
+慢层与快层运行的目录名带 `-slow`／`-fast` 后缀。被滤掉的用例在报告里是跳过，账本把它们计进「没跑」，不计进「用例」。
+整个文件都被滤掉时 vitest 不导入它；用例名或标签不是字面量时静态解析看不出，照常导入、导入后再过滤。
+自测：`tests/test-tiers.spec.ts` 真起 vitest 核对三种层各跑了什么、整文件归慢的在快层下不被导入、没有慢测试的项目在慢层下退出 0、标签写错会报错。
 
 **验收**（`run --all --script acceptance`）：选的是 `package.json` 里有 `acceptance` 脚本的成员（同样去掉 `affected.excludeRoots`），
 逐个跑 `pnpm run acceptance`，并行度、vitest 报告、账本格式都与测试相同；账本根另放在主检出的 `tmp/acceptance-ledger/`

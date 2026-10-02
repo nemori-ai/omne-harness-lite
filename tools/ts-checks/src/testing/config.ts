@@ -19,6 +19,26 @@ export function isRunScript(value: unknown): value is RunScript {
   return (RUN_SCRIPTS as readonly unknown[]).includes(value)
 }
 
+/**
+ * 测试分为快慢两层（docs/verification.md「测试分层」）：`all` 两层都跑。层的定义在仓库根 `vitest.tiers.mts`，
+ * 运行器只经下面这个环境变量告诉成员这一轮跑哪一层（本包构建的 rootDir 是 src，引不到根上的文件，
+ * 名字在这里重抄一遍，由自测钉住两边一致）。
+ */
+export const RUN_TIERS = ['fast', 'slow', 'all'] as const
+export type RunTier = (typeof RUN_TIERS)[number]
+export const TEST_TIER_ENV = 'OMNE_TEST_TIER'
+
+export function isRunTier(value: unknown): value is RunTier {
+  return (RUN_TIERS as readonly unknown[]).includes(value)
+}
+
+/** 摘要与体检页里怎么称呼各层。 */
+export const TIER_NAMES: Readonly<Record<RunTier, string>> = {
+  fast: '快层',
+  slow: '慢层',
+  all: '两层',
+}
+
 /** 账本根：环境变量给了用它，否则是主检出的 `tmp/<脚本>-ledger/`。下面一层是提交，再下一层是每次运行。 */
 export function ledgerHome(
   script: RunScript,

@@ -277,6 +277,7 @@ describe('耗时账本', () => {
       wallSeconds: 30,
       files: 2,
       tests: 2,
+      skipped: 0,
       failed: 1,
       fileSeconds: 12.5,
     })
@@ -320,6 +321,46 @@ describe('耗时账本', () => {
       },
       { member: 'apps/top', message: '退出码 137，没有产出报告' },
     ])
+  })
+
+  it('跳过、待写与被层过滤掉的用例不计入「用例」，另计「没跑」', () => {
+    const filtered = buildLedger(
+      [
+        {
+          member: 'packages/core/mid',
+          exitCode: 0,
+          wallSeconds: 2,
+          report: {
+            testResults: [
+              {
+                name: '/repo/packages/core/mid/tests/d.spec.ts',
+                status: 'passed',
+                startTime: 0,
+                endTime: 10,
+                assertionResults: [
+                  { fullName: '跑了', status: 'passed', duration: 10 },
+                  { fullName: '被滤掉', status: 'skipped', duration: 0 },
+                  { fullName: '待写', status: 'todo', duration: 0 },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+      '/repo',
+      0.5,
+    )
+    expect(filtered.members[0]).toMatchObject({ tests: 1, skipped: 2 })
+    expect(filtered.files[0]?.tests).toBe(1)
+    expect(
+      ledgerSummary(filtered, {
+        wallSeconds: 2,
+        slowFileSeconds: 10,
+        nearTimeoutRatio: 0.5,
+        top: 2,
+        runDir: '/out',
+      })[0],
+    ).toContain('1 个成员、1 个文件、1 条用例（另有 2 条没跑），墙钟 2 秒；全部通过')
   })
 
   it('有报告、退出码非零、却没有失败的用例或文件：单列一条，不当作通过', () => {

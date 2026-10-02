@@ -2,7 +2,7 @@
 // 贴着自身时限的用例与失败清单。纯函数。
 import { relative } from 'node:path'
 import type { AffectedPlan } from './affected.ts'
-import type { Parallelism, RunScript } from './config.ts'
+import type { Parallelism, RunScript, RunTier } from './config.ts'
 import type { TimingReport } from './timing-reporter.ts'
 
 /** vitest 的默认用例时限。计时报告缺失（成员没跑到报告器那一步）时，贴线按它判，并在账本里标明是假定的。 */
@@ -11,6 +11,8 @@ export const VITEST_DEFAULT_TIMEOUT_SECONDS = 5
 /** 一次运行的抬头：`ledger.json` 的 `meta`。读它的有体检页（测试）与回路的验收耗时传感器。 */
 export interface RunMeta {
   readonly script: RunScript
+  /** 跑的是哪一层；早于分层的账本没有这一栏，读时按 `all`。 */
+  readonly tier: RunTier
   readonly head: string
   readonly branch: string
   readonly dirty: boolean
@@ -74,7 +76,10 @@ export interface Ledger {
     readonly exitCode: number
     readonly wallSeconds: number
     readonly files: number
+    /** 跑了的用例（通过或失败）。 */
     readonly tests: number
+    /** 没跑的用例：`.skip`、`.todo`、被层过滤掉的（文件里还有别的用例要跑时，它们以跳过出现在报告里）。 */
+    readonly skipped: number
     readonly failed: number
     /** 各文件用例耗时之和（从第一条用例开始到最后一条结束，不含导入）。 */
     readonly fileSeconds: number
@@ -85,6 +90,7 @@ export interface Ledger {
     readonly member: string
     readonly file: string
     readonly seconds: number
+    /** 跑了的用例。 */
     readonly tests: number
     /** 导入这个测试文件（含它的依赖与 describe 回调）的耗时；没有计时报告时不写。 */
     readonly collectSeconds?: number
@@ -111,6 +117,10 @@ const round = (seconds: number) => Math.round(seconds * 10) / 10
 
 type FileTiming = TimingReport['files'][number]
 
+/** 跑了的用例：通过或失败；跳过、待写、被层过滤掉的不算。 */
+const ranTest = (assertion: { readonly status: string }) =>
+  assertion.status === 'passed' || assertion.status === 'failed'
+
 /** 一个成员的计时报告按文件索引；同一文件里同名的用例取第一条的时限。 */
 function timingIndex(timing: TimingReport | undefined) {
   const files = new Map<string, { file: FileTiming; timeouts: Map<string, number | null> }>()
@@ -134,6 +144,7 @@ export function buildLedger(
   const failures: Failure[] = []
   for (const run of runs) {
     let testCount = 0
+    let skipped = 0
     let failed = 0
     let fileSeconds = 0
     let collectSeconds = 0
@@ -142,14 +153,16 @@ export function buildLedger(
       const file = relative(root, result.name).replaceAll('\\', '/')
       const seconds = Math.max(0, result.endTime - result.startTime) / 1000
       const timing = timings.get(result.name)
+      const ran = result.assertionResults.filter(ranTest).length
       fileSeconds += seconds
       collectSeconds += timing?.file.collectSeconds ?? 0
-      testCount += result.assertionResults.length
+      testCount += ran
+      skipped += result.assertionResults.length - ran
       files.push({
         member: run.member,
         file,
         seconds: round(seconds),
-        tests: result.assertionResults.length,
+        tests: ran,
         ...(timing === undefined ? {} : { collectSeconds: round(timing.file.collectSeconds) }),
       })
       let failedHere = 0
@@ -196,6 +209,7 @@ export function buildLedger(
       wallSeconds: round(run.wallSeconds),
       files: run.report?.testResults.length ?? 0,
       tests: testCount,
+      skipped,
       failed,
       fileSeconds: round(fileSeconds),
       ...(run.timing === undefined ? {} : { collectSeconds: round(collectSeconds) }),
@@ -221,13 +235,16 @@ export function ledgerSummary(ledger: Ledger, context: LedgerSummaryContext): st
     (sum, member) => ({
       files: sum.files + member.files,
       tests: sum.tests + member.tests,
+      skipped: sum.skipped + member.skipped,
       failed: sum.failed + member.failed,
     }),
-    { files: 0, tests: 0, failed: 0 },
+    { files: 0, tests: 0, skipped: 0, failed: 0 },
   )
   const red = ledger.members.filter(member => member.exitCode !== 0)
   const lines = [
-    `${ledger.members.length} 个成员、${total.files} 个文件、${total.tests} 条用例，墙钟 ${Math.round(context.wallSeconds)} 秒；` +
+    `${ledger.members.length} 个成员、${total.files} 个文件、${total.tests} 条用例` +
+      (total.skipped === 0 ? '' : `（另有 ${total.skipped} 条没跑）`) +
+      `，墙钟 ${Math.round(context.wallSeconds)} 秒；` +
       (red.length === 0
         ? '全部通过'
         : `${red.length} 个成员未通过，失败 ${ledger.failures.length} 处`),

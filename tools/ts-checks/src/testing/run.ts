@@ -5,7 +5,13 @@ import { closeSync, existsSync, openSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { TestMember } from './affected.ts'
-import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunScript } from './config.ts'
+import {
+  TEST_TIER_ENV,
+  VITEST_MAX_WORKERS_ENV,
+  type Parallelism,
+  type RunScript,
+  type RunTier,
+} from './config.ts'
 import type { MemberRun, VitestJsonReport } from './ledger.ts'
 import { TIMING_FILE_ENV, type TimingReport } from './timing-reporter.ts'
 
@@ -80,31 +86,38 @@ export function readTiming(path: string): TimingReport | undefined {
   }
 }
 
+/** 运行器加给成员 vitest 的参数：两份报告；慢层另关掉类型测试（`*.spec-d.ts` 都归快层，不重跑）。 */
+export function vitestArgs(reportPath: string, tier: RunTier): string[] {
+  return [
+    '--reporter=default',
+    '--reporter=json',
+    `--outputFile.json=${reportPath}`,
+    `--reporter=${TIMING_REPORTER}`,
+    ...(tier === 'slow' ? ['--typecheck.enabled=false'] : []),
+  ]
+}
+
 async function runMember(
   root: string,
   member: TestMember,
   runDir: string,
   vitestMaxWorkers: number,
   script: RunScript,
+  tier: RunTier,
 ): Promise<MemberRun> {
   const slug = slugOf(member.path)
   const reportPath = join(runDir, `${slug}.json`)
   const timingPath = join(runDir, `${slug}.timing.json`)
   // 只有 vitest 的脚本才认这几个参数；别的脚本原样跑，账本里只有成员一级的耗时。
-  const reporters = /\bvitest\b/u.test(member.script)
-    ? [
-        '--reporter=default',
-        '--reporter=json',
-        `--outputFile.json=${reportPath}`,
-        `--reporter=${TIMING_REPORTER}`,
-      ]
-    : []
-  const result = await spawnLogged('pnpm', ['run', script, ...reporters], {
+  const args = /\bvitest\b/u.test(member.script) ? vitestArgs(reportPath, tier) : []
+  const result = await spawnLogged('pnpm', ['run', script, ...args], {
     cwd: join(root, member.path),
     env: {
       ...process.env,
       [VITEST_MAX_WORKERS_ENV]: String(vitestMaxWorkers),
       [TIMING_FILE_ENV]: timingPath,
+      // 两层全跑时置空，不让外面环境里残留的层漏进来。
+      [TEST_TIER_ENV]: tier === 'all' ? '' : tier,
     },
     logPath: join(runDir, `${slug}.log`),
   })
@@ -118,13 +131,14 @@ async function runMember(
   }
 }
 
-/** 同时最多跑 `memberConcurrency` 个成员，各跑它的 `script` 脚本；返回顺序与传入顺序一致。 */
+/** 同时最多跑 `memberConcurrency` 个成员，各跑它的 `script` 脚本的 `tier` 那一层；返回顺序与传入顺序一致。 */
 export async function runMembers(
   root: string,
   members: readonly TestMember[],
   runDir: string,
   parallel: Parallelism,
   script: RunScript,
+  tier: RunTier,
   onDone: (run: MemberRun, finished: number) => void,
 ): Promise<MemberRun[]> {
   const runs = new Array<MemberRun>(members.length)
@@ -134,7 +148,7 @@ export async function runMembers(
     for (let index = next++; index < members.length; index = next++) {
       const member = members[index]
       if (member === undefined) continue
-      const run = await runMember(root, member, runDir, parallel.vitestMaxWorkers, script)
+      const run = await runMember(root, member, runDir, parallel.vitestMaxWorkers, script, tier)
       runs[index] = run
       finished += 1
       onDone(run, finished)
