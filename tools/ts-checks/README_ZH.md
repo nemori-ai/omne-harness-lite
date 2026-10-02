@@ -643,6 +643,9 @@ pnpm 自带的 `--filter "...[<基线>]"` 做的是同一件事，但它在 git 
   sandbox 放在与成员**同深度**的 `.stryker-tmp-*` 目录（被 `.gitignore` 忽略）：不少测试用 `import.meta.dirname`
   拼相对路径读成员外的规格与根配置，换了深度就读不到。sandbox 里先把成员的 `node_modules` 软链进来再构建成员
   （`src/mutation/sandbox-build.ts`），跑完连容器目录一起删掉。不就地改源码。
+  Stryker 给每个语句插桩记覆盖，CPU 重的用例会慢上几倍，平时守得住 5 秒的在初跑里就会超时；所以 sandbox 里另写一份
+  vitest 配置，展开成员自己的那份，只把没写自己时限的用例的时限放宽到 `mutation.testTimeoutSeconds`（初值 60 秒）。
+  成员的配置不动；变异体本身的超时由 Stryker 另判。
 - **读数**：读每个成员的 `mutation.json`，只计落在要变异的行上的变异体（跨到范围外的另记一个数），
   汇总被杀、超时、存活、无覆盖、编译错误、运行错误与分数（测出来的占测出来与没测出来之和），
   逐条列出存活与无覆盖的「文件:行 算子 原文 → 替换」。原件、`summary.md`、`summary.json` 与各成员日志写进

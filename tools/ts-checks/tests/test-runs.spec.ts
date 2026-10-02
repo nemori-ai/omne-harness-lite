@@ -163,6 +163,7 @@ describe('并行度', () => {
     affected: { excludeRoots: [], globalPaths: [] },
     ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
     triage: { repeats: 3 },
+    mutation: { testTimeoutSeconds: 60 },
   })
 
   it('配置给初值，环境变量覆盖', () => {
@@ -189,6 +190,7 @@ describe('并行度', () => {
         affected: { excludeRoots: [], globalPaths: [] },
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
+        mutation: { testTimeoutSeconds: 60 },
       }),
     ).toThrow('parallel.memberConcurrency')
   })

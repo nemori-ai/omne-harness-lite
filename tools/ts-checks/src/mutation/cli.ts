@@ -117,12 +117,18 @@ async function run(request: MutationRequest): Promise<number> {
     )
   )
     return 1
-  const concurrency = effectiveParallelism(readTestRunsConfig(), process.env).vitestMaxWorkers
-  const nonce = `${process.pid}`
+  const config = readTestRunsConfig()
+  const strykerRun = {
+    root: request.root,
+    runDir,
+    concurrency: effectiveParallelism(config, process.env).vitestMaxWorkers,
+    testTimeoutSeconds: config.mutation.testTimeoutSeconds,
+    nonce: `${process.pid}`,
+  }
   const results: MemberMutation[] = []
   const errors: string[] = []
   for (const [index, target] of targets.entries()) {
-    const ran = await runStryker(target, { root: request.root, runDir, concurrency, nonce })
+    const ran = await runStryker(target, strykerRun)
     const report = readMutationReport(ran.reportPath)
     const label = `[${index + 1}/${targets.length}] ${target.member.path} ${Math.round(ran.wallSeconds)} 秒`
     if (ran.exitCode !== 0 || report === undefined) {

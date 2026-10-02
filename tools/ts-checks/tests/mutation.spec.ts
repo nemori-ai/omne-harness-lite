@@ -227,15 +227,17 @@ describe('sandbox 与配置', () => {
     )
   })
 
-  it('配置：vitest runner、改动行的 mutate、报告落在运行目录、只报告不设线', () => {
+  it('配置：vitest runner 读 sandbox 里放宽时限的配置、改动行的 mutate、报告落在运行目录、只报告不设线', () => {
     const config = strykerConfig(TARGET, {
       root: '/repo',
       runDir: '/out',
       concurrency: 3,
+      testTimeoutSeconds: 60,
       nonce: '7',
     })
     expect(config).toMatchObject({
       testRunner: 'vitest',
+      vitest: { configFile: 'vitest.stryker-sandbox.config.mts' },
       mutate: ['src/a.ts:2-3'],
       symlinkNodeModules: false,
       tempDirName: '/repo/packages/.stryker-tmp-packages__core__alpha-7',

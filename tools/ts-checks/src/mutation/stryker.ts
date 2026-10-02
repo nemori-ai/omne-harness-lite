@@ -10,6 +10,13 @@ import { mutateEntries, type MutationTarget } from './scope.ts'
 
 /** sandbox 里的构建脚本从这个环境变量拿到成员的原目录。 */
 export const MEMBER_DIR_ENV = 'OMNE_MUTATION_MEMBER_DIR'
+/** 构建脚本把它写进 sandbox 的那份 vitest 配置，作为没写自己时限的用例的时限（毫秒）。 */
+export const TEST_TIMEOUT_ENV = 'OMNE_MUTATION_TEST_TIMEOUT_MS'
+/**
+ * 构建脚本在 sandbox 里写的 vitest 配置：展开成员自己的配置，只放宽默认用例时限。
+ * 只在副本里，成员的配置不动。
+ */
+export const SANDBOX_VITEST_CONFIG = 'vitest.stryker-sandbox.config.mts'
 
 const require = createRequire(import.meta.url)
 const SANDBOX_BUILD = fileURLToPath(new URL('./sandbox-build.ts', import.meta.url))
@@ -39,6 +46,8 @@ export interface StrykerRun {
   readonly runDir: string
   /** Stryker 同时起几个工作进程（每个进程里 vitest 只用一个线程）。 */
   readonly concurrency: number
+  /** 没写自己时限的用例在变异时的时限。 */
+  readonly testTimeoutSeconds: number
   readonly nonce: string
 }
 
@@ -48,7 +57,7 @@ export function strykerConfig(target: MutationTarget, run: StrykerRun): Record<s
   return {
     testRunner: 'vitest',
     plugins: [paths.vitestRunner],
-    vitest: { configFile: 'vitest.config.ts' },
+    vitest: { configFile: SANDBOX_VITEST_CONFIG },
     mutate: mutateEntries(target),
     // 成员的 node_modules 要先软链进 sandbox，构建才找得到依赖；所以不让 Stryker 自己链。
     // buildCommand 不经 shell：按空格切开、引号原样保留，路径里的空格只能用反斜杠转义。
@@ -79,7 +88,13 @@ export async function runStryker(target: MutationTarget, run: StrykerRun): Promi
   const result = await spawnLogged(process.execPath, [strykerPaths().bin, 'run', configPath], {
     cwd: memberDir,
     // 日志落文件，不要终端颜色码。
-    env: { ...process.env, [TEST_TIER_ENV]: 'fast', [MEMBER_DIR_ENV]: memberDir, FORCE_COLOR: '0' },
+    env: {
+      ...process.env,
+      [TEST_TIER_ENV]: 'fast',
+      [MEMBER_DIR_ENV]: memberDir,
+      [TEST_TIMEOUT_ENV]: String(Math.round(run.testTimeoutSeconds * 1000)),
+      FORCE_COLOR: '0',
+    },
     logPath,
   })
   // Stryker 清掉 sandbox 后留下空的容器目录；被杀时连 sandbox 一起留下。两种都不留。

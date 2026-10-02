@@ -22,5 +22,8 @@
   },
   "triage": {
     "repeats": 3
+  },
+  "mutation": {
+    "testTimeoutSeconds": 60
   }
 }
