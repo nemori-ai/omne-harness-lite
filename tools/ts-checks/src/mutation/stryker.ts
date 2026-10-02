@@ -57,7 +57,10 @@ export function strykerConfig(target: MutationTarget, run: StrykerRun): Record<s
   return {
     testRunner: 'vitest',
     plugins: [paths.vitestRunner],
-    vitest: { configFile: SANDBOX_VITEST_CONFIG },
+    // 不按「直接导入了被变异文件」挑测试：不少成员的测试按自己的包名导入，走的是 sandbox 里重新构建的 dist，
+    // vitest 认不出它们与 src 的关系，挑出来就漏了（只用包名导入的成员一条测试都不跑）。初跑跑全部快层，
+    // 每个变异体该跑哪些测试仍由逐条覆盖决定。
+    vitest: { configFile: SANDBOX_VITEST_CONFIG, related: false },
     mutate: mutateEntries(target),
     // 成员的 node_modules 要先软链进 sandbox，构建才找得到依赖；所以不让 Stryker 自己链。
     // buildCommand 不经 shell：按空格切开、引号原样保留，路径里的空格只能用反斜杠转义。

@@ -227,7 +227,7 @@ describe('sandbox 与配置', () => {
     )
   })
 
-  it('配置：vitest runner 读 sandbox 里放宽时限的配置、改动行的 mutate、报告落在运行目录、只报告不设线', () => {
+  it('配置：vitest runner 读 sandbox 里放宽时限的配置、不只挑相关测试、改动行的 mutate、报告落在运行目录、只报告不设线', () => {
     const config = strykerConfig(TARGET, {
       root: '/repo',
       runDir: '/out',
@@ -237,7 +237,7 @@ describe('sandbox 与配置', () => {
     })
     expect(config).toMatchObject({
       testRunner: 'vitest',
-      vitest: { configFile: 'vitest.stryker-sandbox.config.mts' },
+      vitest: { configFile: 'vitest.stryker-sandbox.config.mts', related: false },
       mutate: ['src/a.ts:2-3'],
       symlinkNodeModules: false,
       tempDirName: '/repo/packages/.stryker-tmp-packages__core__alpha-7',
@@ -284,15 +284,20 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     mkdirSync(join(memberDir, 'tests'))
     writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n')
     writeFileSync(join(root, 'package.json'), '{ "name": "fixture-root", "private": true }\n')
-    writeFileSync(join(root, '.gitignore'), 'node_modules\n.stryker-tmp*\n')
+    writeFileSync(join(root, '.gitignore'), 'node_modules\ndist\n.stryker-tmp*\n')
     copyFileSync(ROOT_TIERS, join(root, 'vitest.tiers.mts'))
+    // 真构建出 dist：测试按包名导入自己时走的是它（sandbox 里由插过桩的 src 重新构建）。
     writeFileSync(
       join(memberDir, 'package.json'),
       JSON.stringify({
         name: '@fixture/sign',
         private: true,
         type: 'module',
-        scripts: { build: 'node -e ""', test: 'vitest run' },
+        exports: { '.': './dist/sign.js' },
+        scripts: {
+          build: 'tsc src/sign.ts --outDir dist --module nodenext --target es2022 --skipLibCheck',
+          test: 'vitest run',
+        },
       }),
     )
     writeFileSync(
@@ -362,11 +367,15 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       '只跑快层（OMNE_TEST_TIER=fast）',
     )
 
+    // 补上断言的那条放进只按包名导入的文件：只有它守着改动行，被杀就说明这份文件跑了、自引用走到了插过桩的代码。
     writeFileSync(
       join(memberDir, 'tests/sign.spec.ts'),
+      "import { zero } from '../src/sign.ts'\ntest('zero', () => { expect(zero).toBe(0) })\n",
+    )
+    writeFileSync(
+      join(memberDir, 'tests/public.spec.ts'),
       [
-        "import { isPositive, zero } from '../src/sign.ts'",
-        "test('zero', () => { expect(zero).toBe(0) })",
+        "import { isPositive } from '@fixture/sign'",
         "test('sign', () => { expect(isPositive(1)).toBe(true); expect(isPositive(0)).toBe(false); expect(isPositive(-1)).toBe(false) })",
       ].join('\n'),
     )
@@ -374,8 +383,9 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     expect(strong.ran.status, `${strong.ran.stdout}${strong.ran.stderr}`).toBe(0)
     const [after] = strong.summary?.members ?? []
     expect(after?.counts['Survived']).toBe(0)
+    expect(after?.counts['NoCoverage']).toBe(0)
     expect(after?.counts['Killed']).toBeGreaterThan(0)
-    // 只改了工作树里的两份文件，别的什么都没留下。
+    // 只有工作树里改的、加的那几份文件，别的什么都没留下。
     expect(
       git(root, 'status', '--short')
         .split('\n')
@@ -383,9 +393,9 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
         .sort(),
     ).toEqual([
       ' M packages/core/sign/src/sign.ts',
-      ' M packages/core/sign/tests/sign.spec.ts',
       '?? out-strong/',
       '?? out-weak/',
+      '?? packages/core/sign/tests/public.spec.ts',
     ])
   })
 })
