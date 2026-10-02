@@ -99,7 +99,7 @@ HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义�
 ## P1 历史实施读数（2026-09-27）
 
 - 语义接受：精确 runtime3 与本节点 [v3-design.md](v3-design.md)由 [D-076](../../../../record/decisions/model-runtime-delivery-adoption/decision.md)接受；冻结设计不变。
-- 已实施：`packages/model/pi-ai-transport` 提供公开 plan/send/read/factory，保存 pi 0.86.1 精确来源、许可与修改说明；使用显式配置及凭据、一次 OpenRouter HTTPS 与严格无损 SSE。当前只有 OpenAI/Anthropic 各一个 pilot 定义，implementation revision 2、definition revision 1；其余 35 模型与动态贡献/引用租约、Cordis 插件尚未交付。
+- 已实施：`packages/model/pi-ai-transport` 提供公开 plan/send/read/factory，保存 pi 精确来源、许可与修改说明（2026-10-02 起锚在 1.0.0，见 [D-019 追加 2026-10-02](../../../../record/decisions/model-provider-pi-ai-fork/rebase-1.0.0-2026-10-02.md)）；使用显式配置及凭据、一次 OpenRouter HTTPS 与严格无损 SSE。当前只有 OpenAI/Anthropic 各一个 pilot 定义，implementation revision 2、definition revision 1；其余 35 模型与动态贡献/引用租约、Cordis 插件尚未交付。
 - 绑定与证据：[bindings.yaml](bindings.yaml)新增五条有前提的 v3 传输局部测试绑定。[P1 实际证据](../../../../record/evidence/2026-09-27-tests-model-request-runtime-p1/README.md)记录 plan 12＋TLS HTTPS 27 项、仓库外制品及八次实际 OpenRouter 请求。不是完整 T/SC/G 门通过。
 - 实际验证：r2 OpenAI/Anthropic 暖读分别报告 5837/9382 cache token，显式 TTL 来自本次 configuration values；TTL 到期未测，官方完整认证 0/37。
 
@@ -110,7 +110,7 @@ HUB 共享实现 revision6、定义 revision1，仍是旧五字段 37 窄定义�
 - 源码位置：`packages/model/pi-ai-transport`——尚未建包。第二层 `model` 由 D-059 拍板；与节点路径逐字相同
 - 公开面：**公开函数面**是 `planRequest`（纯：出网前定下线上请求与改值、丢项）、`sendRequest`（发一次，不重试、不回退、不跟随重定向）、`readStream`（把上游的流译成 `data.arrival-events` 的增量，并交回收尾事实）、`createPiAiTransport`（把三者组成一个传输适配）与候选状态码表 `openRouterStatusCauseTable`（候选名），不依赖 Cordis、会话、租户或存储；**Cordis 服务面**是插件 `pi-ai-transport` 登记的服务 `modelTransport`（候选），model-request-runtime 的 P-2 必需 inject 它，验收装配以脚本化传输登记同一个键即可替换（[design 的公开面](design.md#公开面)，[SYS-OPEN](../../../../foundation/cross-system-constraints/requirements.md#sys-open)）
 - 契约采用与边界依据：
-  - **fork 的方向与基线**：[D-019](../../../../record/decisions/model-provider-pi-ai-fork/decision.md)（定向 fork pi-ai 作 OpenRouter 传输，只接受方向）；[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-5 与 [D-019 追加 2026-09-25](../../../../record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-25.md)（基线 pi 0.86.1、提交 `3390bd9`；作为本 monorepo 一个包、许可随包记；**只取传输一层**）；比较门现状见 [D-019 追加 2026-09-23](../../../../record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-23.md)
+  - **fork 的方向与基线**：[D-019](../../../../record/decisions/model-provider-pi-ai-fork/decision.md)（定向 fork pi-ai 作 OpenRouter 传输，只接受方向）；[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-5 与 [D-019 追加 2026-09-25](../../../../record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-25.md)（基线 pi 0.86.1、提交 `3390bd9`；作为本 monorepo 一个包、许可随包记；**只取传输一层**）；2026-10-02 改锚到 1.0.0 发布提交 `a13d35a`，代码未改（[D-019 追加 2026-10-02](../../../../record/decisions/model-provider-pi-ai-fork/rebase-1.0.0-2026-10-02.md)）；比较门现状见 [D-019 追加 2026-09-23](../../../../record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-23.md)
   - **流片段语法**：[D-035](../../../../record/decisions/message-and-stream-baseline/decision.md)（pi 只在传输适配处被翻译进来；保留前提 1「fork 禁止中间解析」、前提 2「custom grammar 分支」）
   - **Cordis 采用版本** 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)）
   - **最小的边界**：本节点只兑现契约留给传输适配的那几条，**不扩展任何契约**；锚点、结算、成因分类、凭据取用、时限计时都仍在 P-2（[model-request-runtime 节点](../model-request-runtime/README.md)）。它不取代任何替身：**脚本化传输仍是验收装配的另一件**，与本插件登记同一个服务键

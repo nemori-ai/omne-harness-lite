@@ -1,4 +1,4 @@
-// Derived from pi 0.86.1 openai-completions.ts streaming/finishBlock/reasoning_details.
+// Derived from pi 1.0.0 openai-completions.ts streaming/finishBlock/reasoning_details.
 // Copyright (c) 2025 Mario Zechner. MIT: ../LICENSE.pi. Baseline and modifications: provenance.json.
 import { createHash } from 'node:crypto'
 import {

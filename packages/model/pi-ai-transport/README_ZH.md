@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-规划一次 OpenRouter 请求，通过 HTTPS 发送，再把 SSE 转为公开到达事件。本包是实验性 ESM workspace 成员，使用 pi 0.86.1 定向 fork，尚未发布到 npm。
+规划一次 OpenRouter 请求，通过 HTTPS 发送，再把 SSE 转为公开到达事件。本包是实验性 ESM workspace 成员，使用 pi 1.0.0 定向 fork，尚未发布到 npm。
 
 调用者必须显式提供完整模型定义，没有默认模型。`officialModelIds` 从八个公开的 `<family>Definitions` 列表派生；这 37 个已确认模型均已有 MP4 六项能力的完整声明。项目供给上限明确且有限，未知的上游限制显式写为 `unknown`。完整声明可供纯读取和建档，真实模型／供应商发送与缓存认证仍需另行验证。状态见[实现映射](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/README.md)。
 
