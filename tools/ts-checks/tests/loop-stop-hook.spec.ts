@@ -139,7 +139,8 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
   })
 })
 
-describe('量读数的线程', { timeout: 60_000 }, () => {
+// 归慢层：子进程：工作线程在临时 git 仓库里连着量两次读数（另有 git 子进程）。
+describe('量读数的线程', { tags: ['slow'] }, () => {
   it('没碰产品源码给 undefined；碰了给读数；超过时限以超时拒绝', async () => {
     const { root } = work()
     expect(await measureInWorker(root, 'main', 30_000)).toBeUndefined()
