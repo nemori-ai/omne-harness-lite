@@ -110,7 +110,15 @@
       "better": "lower"
     }
   ],
-  "signoffs": {},
+  "signoffs": {
+    "cases": { "by": "panqiwei", "date": "2026-10-02", "version": 1 },
+    "grading": {
+      "by": "panqiwei",
+      "date": "2026-10-02",
+      "version": 1,
+      "judge": "judge:subagent:claude-sonnet-5-5 rules e65bb670c43e"
+    }
+  },
   "materials": [
     {
       "id": "session-tenancy-delivery",

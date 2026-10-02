@@ -110,7 +110,10 @@
       "label": "只用放行工具"
     }
   ],
-  "signoffs": {},
+  "signoffs": {
+    "cases": { "by": "panqiwei", "date": "2026-10-02", "version": 1 },
+    "grading": { "by": "panqiwei", "date": "2026-10-02", "version": 1 }
+  },
   "materials": [
     {
       "id": "TD-1",

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -719,15 +720,31 @@ CHECKOUT_SUITES = sorted(path.parent for path in (EVALUATION / "suites").glob("*
                          if json.loads(path.read_text(encoding="utf-8"))["workspace"].get("kind") == "checkout")
 
 
-def test_the_checkout_suites_are_standing_and_unsigned() -> None:
+def test_the_checkout_suites_are_standing_and_signed_at_their_version() -> None:
     assert [root.name for root in CHECKOUT_SUITES] == ["developer-implement", "implementation-review", "qa-acceptance",
                                                        "tui-developer-implement", "verification-write-tests"]
     for root in CHECKOUT_SUITES:
         flow = suite.load(root)
-        assert flow.unsigned() == ["cases", "grading"] and flow.version == 1
-        with pytest.raises(cli.Refused, match="no sign-off on: cases, grading"):
-            cli.prepare(flow, flow.materials[0], 0, variant="baseline", out=Path("/nonexistent"), work=Path("/nonexistent"),
-                        allow_dirty=False, again=False)
+        assert flow.unsigned() == [] and flow.version == 1, root.name
+        # 判官判定的流，签的是那一个判官；程序判定的流没有判官可签。
+        signed_judge = flow.signoffs["grading"].get("judge")
+        if flow.judgment:
+            assert signed_judge == judge.identity("claude-sonnet-5-5", flow.judgment) != SIGNED_JUDGE, root.name
+        else:
+            assert signed_judge is None, root.name
+
+
+def test_a_sign_off_does_not_outlive_the_version_it_was_given_for(tmp_path: Path) -> None:
+    root = tmp_path / "developer-implement"
+    shutil.copytree(EVALUATION / "suites" / "developer-implement", root)
+    stored = json.loads((root / "flow.json").read_text(encoding="utf-8"))
+    stored["version"] += 1
+    (root / "flow.json").write_text(json.dumps(stored, ensure_ascii=False), encoding="utf-8")
+    flow = suite.load(root)
+    assert flow.unsigned() == ["cases", "grading"]
+    with pytest.raises(cli.Refused, match="no sign-off on: cases, grading"):
+        cli.prepare(flow, flow.materials[0], 0, variant="baseline", out=Path("/nonexistent"), work=Path("/nonexistent"),
+                    allow_dirty=False, again=False)
 
 
 @pytest.mark.parametrize("root", CHECKOUT_SUITES, ids=lambda path: path.name)

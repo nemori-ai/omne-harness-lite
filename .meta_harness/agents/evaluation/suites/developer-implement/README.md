@@ -4,7 +4,7 @@
 针对它的原有测试被拿走，按一份完整的施工简报让它把模块补完——补完之后原有测试与类型检查是否全过，
 它是否守住写入范围、没有动原有测试。判定由程序在收录运行时做，没有判官。
 
-状态：**第 1 版，两次签字都未签，没有基线。**`prepare` 因此拒绝准备运行。
+状态：**第 1 版，两次签字已齐（2026-10-02），还没有基线。**基线何时跑由 [#35](https://github.com/nemori-ai/omne-harness-lite/issues/35) 跟踪。
 
 ## 材料
 
@@ -46,9 +46,10 @@ target-tests.json      每份材料的目标测试清单
 
 ## 运行设置
 
-Claude Sonnet 5.5，high，放行 Read、Glob、Grep、Edit、Write、Bash，每份材料 2 次。
-角色源钉的是 Opus 5.5；三项都是规格完整的单模块应用切片，按角色说明里的经济档派 Sonnet——**这是用例层面的选择，留给负责人签用例时定**。
-角色定义里另有 WebFetch、WebSearch；registered 派发拿不走它们，用了就体现在 `only_allowed` 上。
+Claude Opus 5.5，high，放行 Read、Glob、Grep、Edit、Write、Bash、WebFetch、WebSearch，每份材料 2 次——
+**就是[角色源](../../../roles/developer/claude.yaml)自己钉的默认模型与工具清单**。负责人 2026-10-02 签用例时定的：这个流量的是角色按默认设置干活的表现。
+原对照里这三项是用 Sonnet 5.5、不带联网工具跑的（它们是规格完整的单模块应用切片，属于角色说明里可以派经济档的那一类），
+所以原对照的结果不能直接当作这个流的参照。
 
 ## 复制时改了什么
 

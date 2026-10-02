@@ -9,11 +9,13 @@
 | [design-review-expression](design-review-expression/README.md) | design-reviewer 判「表达」 | 两次签字已齐（判定方法签的是 subagent 判官）；还没有基线 |
 | [design-review-choice](design-review-choice/README.md) | design-reviewer 判「选择」 | 同上 |
 | [design-review-plan](design-review-plan/README.md) | design-reviewer 判「计划」 | 同上 |
-| [developer-implement](developer-implement/README.md) | developer 在整仓检出里补完一个模块，程序判定 | 两次签字都未签；还没有基线 |
+| [developer-implement](developer-implement/README.md) | developer 在整仓检出里补完一个模块，程序判定 | 两次签字已齐（2026-10-02）；还没有基线 |
 | [qa-acceptance](qa-acceptance/README.md) | qa 按十条标准验收一份构建，程序判定 | 同上 |
-| [implementation-review](implementation-review/README.md) | implementation-reviewer 评审一份交付提交，判官判定 | 同上；判官已在这个流上校准 |
-| [tui-developer-implement](tui-developer-implement/README.md) | tui-developer 在整仓检出里补完一个终端模块，程序判定 | 两次签字都未签；还没有基线 |
-| [verification-write-tests](verification-write-tests/README.md) | verification-developer 为拿走了原有测试的模块写测试，程序用预置变异体判定 | 两次签字都未签；还没有基线 |
+| [implementation-review](implementation-review/README.md) | implementation-reviewer 评审一份交付提交，判官判定 | 同上（判定方法签的是在这个流上校准过的 subagent 判官） |
+| [tui-developer-implement](tui-developer-implement/README.md) | tui-developer 在整仓检出里补完一个终端模块，程序判定 | 同上 |
+| [verification-write-tests](verification-write-tests/README.md) | verification-developer 为拿走了原有测试的模块写测试，程序用预置变异体判定 | 同上 |
+
+八个流的基线何时跑、开跑前还差什么，由 [#35](https://github.com/nemori-ai/omne-harness-lite/issues/35) 跟踪。
 
 负责人 2026-10-01 定：各流的完整基线不随用例集一起跑，统一放到研发方案的最后。在那之前，这些用例集可以用来对单次改动做有针对性的试派，
 但没有基线可比。
