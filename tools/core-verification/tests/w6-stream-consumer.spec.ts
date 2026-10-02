@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：子进程：两条都起 Node 子进程跑构建好的流消费者程序并写证据。
 import { evidencePath } from '../src/evidence-path.ts'
 import assert from 'node:assert/strict'
 import { execFile, execFileSync, type ExecFileException } from 'node:child_process'
@@ -117,8 +119,7 @@ async function consume(negativeControl: boolean) {
   return cases
 }
 
-// 归慢层：子进程：起 Node 子进程跑构建好的流消费者程序并写证据。
-it('w6.consumer.actual-stream-to-messages-and-model-response', { tags: ['slow'] }, async () => {
+it('w6.consumer.actual-stream-to-messages-and-model-response', async () => {
   const cases = await consume(false)
   expect(cases.map(item => item.status)).toEqual(caseIds.map(() => 'passed'))
 })
