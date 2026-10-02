@@ -1,4 +1,4 @@
-.PHONY: check agents-check docs-check design-check design-review spec-retention formal-tools test product-check metrics test-affected test-triage role-eval acceptance-lock scenario-status loop-status loop-card loop-health
+.PHONY: check agents-check docs-check design-check design-review spec-retention formal-tools test product-check metrics test-affected test-triage role-eval acceptance-lock card-retire scenario-status loop-status loop-card loop-health
 
 TEST_RUNS := node --experimental-strip-types tools/ts-checks/src/testing/cli.ts
 
@@ -52,6 +52,7 @@ loop-status:
 	node --experimental-strip-types tools/ts-checks/src/loop/cli.ts $(if $(BASE),--base "$(BASE)") $(if $(SNAPSHOT),--snapshot) $(if $(OUT),--out "$(OUT)") $(if $(STRICT),--strict)
 
 # 卡片台账：给一张故事卡记一个时间点。EVENT 是 proposed（提出）、runnable（第一次能跑）或 accepted（接受）；AT 补记时给 ISO 时间。
+# 台账只供度量：接受以删卡提交上的 Accepted-Card trailer 为准。
 loop-card:
 	node --experimental-strip-types tools/ts-checks/src/loop/cards-cli.ts --card "$(CARD)" --event "$(EVENT)" $(if $(AT),--at "$(AT)")
 
@@ -71,6 +72,11 @@ test-triage:
 # 验收锁：列出任务基线以来碰过各成员 acceptance/ 的提交；实施角色的提交或未提交的验收改动在其中就退出 1。BASE 给任务基线（缺省 main）。
 acceptance-lock:
 	node --experimental-strip-types tools/ts-checks/src/acceptance/cli.ts --base "$(or $(BASE),main)"
+
+# 删卡记录：BASE..HEAD 里让卡从 stories.md 消失的提交都要带 Accepted-Card／Voided-Card trailer 点到它，点到的卡要真的消失，「已发到」不许变小。
+# 有缺或对不上退出 1。BASE 给任务基线（缺省 main）。make check 最后一步的回路状态与验收锁并列判它。
+card-retire:
+	node --experimental-strip-types tools/ts-checks/src/product/retire-cli.ts --base "$(or $(BASE),main)"
 
 # 场景状态：按 topic 列出每条带编号的验收场景是已交付、交付中、已立卡还是还没切到。由 acceptance.md、stories.md 与验收的覆盖声明推导，只读、只报告。
 scenario-status:

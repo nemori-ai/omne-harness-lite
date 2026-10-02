@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inspectCoverage } from './acceptance/coverage.ts'
 import { readAcceptanceLockConfig } from './acceptance/lock.ts'
-import { attributionViolations, readCommits } from './commits.ts'
+import { attributionViolations, cardTrailerViolations, readCommits } from './commits.ts'
 import { collectSources, RULES, runRules } from './index.ts'
 import { readLoopConfig } from './loop/config.ts'
 import { collectRepositorySources, REPOSITORY_RULES } from './repository.ts'
@@ -19,12 +19,12 @@ const coverage = inspectCoverage(
   readAcceptanceLockConfig(),
 )
 violations.push(...coverage.violations)
-// 提交署名：当前提交可达的全部历史。不在 git 检出里（例如被打包后单独运行）时如实说没查。
-let commitsNote = '提交署名未检查（不在 git 检出内）'
+// 提交署名与删卡 trailer 的写法：当前提交可达的全部历史。不在 git 检出里（例如被打包后单独运行）时如实说没查。
+let commitsNote = '提交署名与删卡 trailer 未检查（不在 git 检出内）'
 if (existsSync(join(repositoryRoot, '.git'))) {
   const commits = readCommits(repositoryRoot)
-  violations.push(...attributionViolations(commits))
-  commitsNote = `${commits.length} 个提交的署名`
+  violations.push(...attributionViolations(commits), ...cardTrailerViolations(commits))
+  commitsNote = `${commits.length} 个提交的署名与删卡 trailer`
 }
 if (violations.length === 0) {
   console.log(

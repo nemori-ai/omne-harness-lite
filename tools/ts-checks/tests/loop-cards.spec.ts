@@ -227,8 +227,16 @@ describe('入口', { timeout: 60_000 }, () => {
     expect(elsewhere.status).toBe(0)
     expect(elsewhere.stdout).toContain('提醒：ST-099-01 不在这个检出的任何 stories.md 里')
 
+    // 接受：提醒以删卡提交上的 trailer 为准；卡已经从 stories.md 删掉也不再提醒它不在。
+    const accepted = run(root, home, '--card', 'ST-099-01', '--event', 'accepted')
+    expect(accepted.status).toBe(0)
+    expect(accepted.stdout).toContain(
+      '提醒：接受以删卡提交上的 `Accepted-Card: ST-099-01` 为准（见 conventions.md「卡的一生」），台账只供度量',
+    )
+    expect(accepted.stdout).not.toContain('不在这个检出的任何 stories.md 里')
+
     const lines = readFileSync(join(home, 'cards.jsonl'), 'utf8').trim().split('\n')
-    expect(lines).toHaveLength(2)
+    expect(lines).toHaveLength(3)
     const recorded: unknown = JSON.parse(lines[0] ?? '')
     expect(recorded).toMatchObject({
       schema: 1,

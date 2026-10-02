@@ -1,5 +1,6 @@
 // 回路状态的一次运行：只读源码与 git，回答「整洁的各项指标各在哪条带上、这次变更里有哪些红项要解释、哪些成员超了预算」。
-// 除两条硬线外一切只报告：结果码 1 只在方向违规或环、或给了基线且验收锁被破时。命令行外壳在 cli.ts。
+// 除硬线外一切只报告：结果码 1 只在方向违规或环、给了基线且验收锁被破或删卡缺记录、严格模式下开着的传感器没数据时。
+// 命令行外壳在 cli.ts。
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { inspect, readAcceptanceLockConfig } from '../acceptance/lock.ts'
@@ -8,6 +9,7 @@ import { changedFiles, changedLines, coordinates, git, type Coordinates } from '
 import { memberGraph, memberOf, type Member } from '../metrics/graph.ts'
 import { buildReport, isMeasuredSource, type Report } from '../metrics/report.ts'
 import { baseTextsOf, collectMemberSources } from '../metrics/sources.ts'
+import { inspectRetire } from '../product/retire.ts'
 import { GROUP_DIRECTION_POLICY } from '../rules/group-direction.ts'
 import { isTestPath, type SourceFile } from '../rule.ts'
 import { judgeMember, type MemberBudget } from './budget.ts'
@@ -33,6 +35,7 @@ import {
   type HardLines,
   type IndicatorInput,
   type OverBudget,
+  type RangeLine,
   type SensorLine,
 } from './status.ts'
 import {
@@ -404,16 +407,19 @@ function hardLinesOf(
   root: string,
   report: Report,
   base: string | undefined,
+  productRoot: string,
   sensors: SensorLine,
 ): HardLines {
-  const lock: HardLines['acceptanceLock'] =
+  const range = (judge: (base: string) => readonly string[]): RangeLine =>
     base === undefined
       ? { status: 'unjudged', reason: '没给基线' }
-      : {
-          status: 'judged',
-          violations: inspect(root, base, readAcceptanceLockConfig()).violations,
-        }
-  return { ...directionLines(report), acceptanceLock: lock, sensors }
+      : { status: 'judged', violations: judge(base) }
+  return {
+    ...directionLines(report),
+    acceptanceLock: range(at => inspect(root, at, readAcceptanceLockConfig()).violations),
+    cardRetire: range(at => inspectRetire(root, at, productRoot).violations),
+    sensors,
+  }
 }
 
 /** 严格模式的前提：要基线、要产物目录、不写快照。不满足按用法错处理。 */
@@ -474,6 +480,7 @@ export async function runLoopStatus(
     root,
     report,
     options.base,
+    config.sensors.topicChurn.productRoot,
     options.strict
       ? judgeSensors(sensors, config)
       : { status: 'unjudged', reason: '只在严格模式（STRICT=1）下判' },

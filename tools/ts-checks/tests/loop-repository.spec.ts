@@ -221,6 +221,22 @@ describe('入口', { timeout: 60_000 }, () => {
     expect(result.stdout).toContain('packages/core/a/tests/a.spec.ts:1 不断言')
   })
 
+  it('给了基线：删卡记录与验收锁并列一行；删卡不带 trailer 退出 1，没给基线不判', () => {
+    const { root, home } = members()
+    const stories = '.meta_harness/design/product/PF-016-x/stories.md'
+    write(root, stories, '**已发到**：ST-016-01\n\n### ST-016-01 · 一张卡\n- **就绪**：是\n')
+    const base = commit(root, 'cut a card')
+    expect(run(root, home, '--base', base).stdout).toContain('  删卡记录 齐\n')
+    expect(run(root, home).stdout).toContain('  删卡记录 未判：没给基线\n')
+    write(root, stories, '**已发到**：ST-016-01\n')
+    commit(root, 'drop the card')
+    const result = run(root, home, '--base', base)
+    expect(result.status).toBe(1)
+    expect(result.stdout).toMatch(
+      /✗ 删卡记录 缺 1 处：提交 \w{9}（drop the card）：ST-016-01 从 stories\.md 里删掉了/u,
+    )
+  })
+
   it('快照：干净的工作树上 --snapshot 写一条，再跑不重复写；不干净不写', () => {
     const { root, home } = members()
     const trend = join(home, 'trend.jsonl')

@@ -134,20 +134,28 @@ export function judgeSensors(
   return { status: 'judged', silent, off }
 }
 
+/** 对一段提交范围判的硬线：没给基线时不判。 */
+export type RangeLine =
+  | { readonly status: 'unjudged'; readonly reason: string }
+  | { readonly status: 'judged'; readonly violations: readonly string[] }
+
 export interface HardLines {
   readonly direction: readonly DirectionFinding[]
   readonly cycles: readonly DirectionFinding[]
-  readonly acceptanceLock:
-    | { readonly status: 'unjudged'; readonly reason: string }
-    | { readonly status: 'judged'; readonly violations: readonly string[] }
+  readonly acceptanceLock: RangeLine
+  /** 删卡要有记录：与验收锁同一个基线。 */
+  readonly cardRetire: RangeLine
   readonly sensors: SensorLine
 }
+
+const broken = (line: RangeLine) => line.status === 'judged' && line.violations.length > 0
 
 export function hardLinesBroken(lines: HardLines): boolean {
   return (
     lines.direction.length > 0 ||
     lines.cycles.length > 0 ||
-    (lines.acceptanceLock.status === 'judged' && lines.acceptanceLock.violations.length > 0) ||
+    broken(lines.acceptanceLock) ||
+    broken(lines.cardRetire) ||
     (lines.sensors.status === 'judged' && lines.sensors.silent.length > 0)
   )
 }
@@ -220,18 +228,18 @@ function hardLineLines(lines: HardLines): string[] {
       ? `  ${label} 0`
       : `  ✗ ${label} ${found.length}：${first.message}${at(first.sites[0])}${found.length > 1 ? ' 等' : ''}`
   }
-  const lock = lines.acceptanceLock
-  const lockLine =
-    lock.status === 'unjudged'
-      ? `  验收锁 未判：${lock.reason}`
-      : lock.violations.length === 0
-        ? '  验收锁 没破'
-        : `  ✗ 验收锁 破 ${lock.violations.length} 处：${lock.violations[0] ?? ''}${lock.violations.length > 1 ? ' 等' : ''}`
+  const range = (line: RangeLine, label: string, ok: string, bad: string) =>
+    line.status === 'unjudged'
+      ? `  ${label} 未判：${line.reason}`
+      : line.violations.length === 0
+        ? `  ${label} ${ok}`
+        : `  ✗ ${label} ${bad} ${line.violations.length} 处：${line.violations[0] ?? ''}${line.violations.length > 1 ? ' 等' : ''}`
   return [
     '## 硬线',
     finding('方向违规', lines.direction),
     finding('环', lines.cycles),
-    lockLine,
+    range(lines.acceptanceLock, '验收锁', '没破', '破'),
+    range(lines.cardRetire, '删卡记录', '齐', '缺'),
     sensorLine(lines.sensors),
   ]
 }
