@@ -8,7 +8,7 @@
 
 ## 材料
 
-一份，取自[实现评审与独立验收](../../implementation-review-and-qa-2026-10-01/README.md)那次试派，钉在提交 `f1db2fa25`，
+一份，取自[实现评审与独立验收](../../implementation-review-and-qa-2026-10-01/README.md)那次试派，钉在提交 `6694e2d6b`（原试派用的 `f1db2fa25` 随 squash 合并不在主线上了，见下面「复制时改了什么」），
 成员 `packages/session/session-tenancy-table`，契约 `capability.session-tenancy/v2`，接受级别写 L3。
 
 | 种入 | 位置 | 应当被报出的问题 |
@@ -69,7 +69,10 @@ Claude Fable 5.1，high，放行 Read、Glob、Grep、Bash，每份材料 2 次�
 
 - 清单字段按 `flow.json` 的形状改写：一条种入的 `edits` 与 `append` 改成有序的 `ops`（`replace`、`append`），I6 的 `in` 保留。
 - 每条种入新写了 `kind`（`seeded`）与 `where`（位置说明，判官看得到）；`target`、`tags` 是新写的说明。
-- 原试派从 `HEAD` 导出（当时就是 `f1db2fa25`）；这里钉成那个提交，并删掉检出里指向宿主生成物的 `.claude`、`.agents`、`.codex` 链接。
+- 原试派从 `HEAD` 导出（当时就是 `f1db2fa25`），并删掉检出里指向宿主生成物的 `.claude`、`.agents`、`.codex` 链接。
+  `f1db2fa25` 是分支上的提交，那条分支以 squash 合入后它不再是主线的祖先，所以改钉到合并提交 `6694e2d6b`。
+  两者之间 `packages/`、`apps/`、`tools/`、`scripts/` 与依赖清单逐字相同——被评审的成员、契约与种入落点都没变；
+  不同的只在检出里的角色源、手册、根 `AGENTS.md` 与开发文档（评审者读得到），以及多出的设计评审报告工具。`verify` 在新钉的提交上重跑过。
 
 ## 量不出什么
 

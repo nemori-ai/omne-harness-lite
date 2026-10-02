@@ -16,7 +16,7 @@
     }
   },
   "workspace": {
-    "base": "332b11570a7f27ac69d8d9ae385385651b044b00",
+    "base": "6694e2d6b29a95ec7ddbd6194b74439bd7b4766e",
     "material_paths": [".meta_harness/design"],
     "material_excludes": [".meta_harness/design/record/evidence"],
     "subject_paths": [
