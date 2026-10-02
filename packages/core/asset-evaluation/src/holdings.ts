@@ -95,6 +95,17 @@ export function declarationsFor(
 ): readonly AttributeDeclaration[] {
   return facts.declarations.get(holding) ?? [USABLE_BY_DECLARATION]
 }
+/** The declaration an assignment targets: a declared item, else the per-action execute item an mcp endpoint implies. */
+export function targetDeclaration(
+  declared: readonly AttributeDeclaration[],
+  capability: CapabilityId,
+  item: string,
+): AttributeDeclaration | undefined {
+  return (
+    declared.find(entry => entry.item === item) ??
+    (capability.category === 'mcp' ? mcpExecute(item) : undefined)
+  )
+}
 /** Which declaration a layer's permission assignment is read against: the reserved usableBy, an mcp per-action item, or the held version's own declaration. */
 function sourceDeclarationFor(
   holding: AssetHolding,
