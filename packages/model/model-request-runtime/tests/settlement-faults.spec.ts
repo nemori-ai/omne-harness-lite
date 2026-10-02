@@ -47,16 +47,29 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
   for (const winner of ['single', 'persisted'])
     it(`actual concurrent ${winner} winner leaves no orphan or second account`, async () => {
       await controlled(`concurrent-${winner}`, async ({ binding, owner, wrap, submissions }) => {
+        // Like #40: the first complete batch to commit wins, and once both appends are released
+        // together, which one commits first depends on real IO completion order. Pin it: the
+        // second settlement starts only after the first one's append has arrived, and the
+        // second append commits only after the first one's returned. Both are still prepared
+        // against the same prefix before either commits.
         const release = deferred<void>(),
-          both = deferred<void>()
+          firstArrived = deferred<void>(),
+          both = deferred<void>(),
+          firstCommitted = deferred<void>()
         let calls = 0
         const source: SessionLog = {
           ...binding.log,
           async append(...args) {
-            calls++
-            if (calls === 2) both.resolve()
+            const call = ++calls
+            if (call === 1) firstArrived.resolve()
+            if (call === 2) both.resolve()
             await release.promise
-            return await binding.log.append(...args)
+            if (call === 2) await firstCommitted.promise
+            try {
+              return await binding.log.append(...args)
+            } finally {
+              if (call === 1) firstCommitted.resolve()
+            }
           },
         }
         const coordinator = createSettlementCoordinator({
@@ -72,6 +85,7 @@ describe('A1a actual IO fault boundaries; no production G29/G30 claim', () => {
           response: lostReply(),
         }
         const first = coordinator.settle(winner === 'single' ? single : request)
+        await firstArrived.promise
         const second = coordinator.settle(winner === 'single' ? request : single)
         await both.promise
         expect(owner.active).toBe(2)
