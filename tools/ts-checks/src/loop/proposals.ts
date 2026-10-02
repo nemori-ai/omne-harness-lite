@@ -4,7 +4,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describeFunction, type FunctionRow } from '../metrics/report.ts'
-import type { Lines } from './bands.ts'
+import { BAND_WORDS, type Lines } from './bands.ts'
 import { BUDGET_LABELS, type MemberBudget } from './budget.ts'
 import { BUDGET_ITEMS, type BudgetItem } from './config.ts'
 import type { CaseWithoutAssertion } from './sensors/assertions.ts'
@@ -18,8 +18,6 @@ export const CLEANUP_SECTIONS = [
   '## 不许动的',
   '## 状态',
 ] as const
-
-const BAND_WORD = { normal: '正常', warn: '提醒', act: '处置' } as const
 
 export const fixed = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(1))
 
@@ -73,7 +71,7 @@ export function renderProposal(input: ProposalInput): string {
     out.push(
       value === undefined || band === undefined
         ? `- ${BUDGET_LABELS[item]}：这次没有数据；解除线 ${fixed(line.release)}`
-        : `- ${BUDGET_LABELS[item]}：当前 ${fixed(value)}（${BAND_WORD[band]}）；解除线 ${fixed(line.release)}` +
+        : `- ${BUDGET_LABELS[item]}：当前 ${fixed(value)}（${BAND_WORDS[band]}）；解除线 ${fixed(line.release)}` +
             (band === 'act' ? '，须回落到它及以下' : ''),
     )
   }

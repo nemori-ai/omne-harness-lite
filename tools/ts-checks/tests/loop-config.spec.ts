@@ -29,6 +29,7 @@ describe('回路配置', () => {
     })
     expect(config.sensors.assertions.assertionPattern.test('expectTypeOf')).toBe(true)
     expect(config.sensors.assertions.helperPattern).toBeUndefined()
+    expect(config.health).toEqual({ weeks: 8, commits: 50, runs: 10 })
   })
 
   it('缺项、类型不对、线的次序不对、多出认不出的项：报错并点名', () => {
@@ -73,5 +74,16 @@ describe('回路配置', () => {
         if (sensors['assertions'] !== undefined) sensors['assertions']['assertionPattern'] = '('
       }),
     ).toThrow('不是合法的正则表达式')
+    expect(without(value => delete value['health'])).toThrow('health 须为对象')
+    expect(
+      without(value => {
+        ;(value['health'] as Record<string, unknown>)['weeks'] = 0
+      }),
+    ).toThrow('health.weeks 须为正整数')
+    expect(
+      without(value => {
+        ;(value['health'] as Record<string, unknown>)['week'] = 8
+      }),
+    ).toThrow('health 里有认不出的项：week')
   })
 })

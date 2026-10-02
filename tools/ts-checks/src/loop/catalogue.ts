@@ -81,6 +81,17 @@ export function countCategories(path: string, text: string): CategoryCount {
   return { counts, invalid }
 }
 
+/** 有「归类」一栏的表里，「现状」一格以「待建」开头的行数。 */
+export function countPending(text: string): number {
+  return parseTables(text)
+    .filter(table => table.header.includes('归类'))
+    .reduce((sum, table) => {
+      const column = table.header.indexOf('现状')
+      if (column < 0) return sum
+      return sum + table.rows.filter(row => (row.cells[column] ?? '').startsWith('待建')).length
+    }, 0)
+}
+
 /** 表头第一栏叫「条目」的表里，每行第一格的条目名。 */
 export function entryNames(text: string): string[] {
   return parseTables(text)
@@ -125,7 +136,7 @@ export interface CatalogueStatus {
   readonly crossCheck: Reading<CrossCheck>
 }
 
-function readIfFile(full: string): string | undefined {
+export function readIfFile(full: string): string | undefined {
   return statSync(full, { throwIfNoEntry: false })?.isFile() === true
     ? readFileSync(full, 'utf8')
     : undefined

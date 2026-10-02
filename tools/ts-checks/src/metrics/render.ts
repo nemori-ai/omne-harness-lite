@@ -27,7 +27,8 @@ function embed(value: unknown): string {
   return JSON.stringify(value).replaceAll('<', '\\u003c').replaceAll('\u2028', '\\u2028')
 }
 
-const STYLE = `
+/** 审讯页的样式；流程体检页（`src/loop/health-render.ts`）沿用同一套，风格一致。 */
+export const STYLE = `
 :root { --bg:#fbfbf9; --fg:#1d1f21; --muted:#6b7280; --line:#d6d3cd; --panel:#ffffff;
   --bad-fill:#f8d2cf; --mid-fill:#fbeebf; --good-fill:#dcefdc;
   --bad:#c0392b; --mid:#b98900; --good:#3f8a4b;
@@ -347,6 +348,6 @@ export function renderPage(report: Report, context: PageContext): string {
 `
 }
 
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }

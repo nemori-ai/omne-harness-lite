@@ -14,6 +14,7 @@ import { isTestPath, type SourceFile } from '../rule.ts'
 import { judgeMember, type MemberBudget } from './budget.ts'
 import { readCatalogue } from './catalogue.ts'
 import { readLoopConfig, type IndicatorId, type LoopConfig } from './config.ts'
+import { loopHome } from './home.ts'
 import { writeProposal } from './proposals.ts'
 import { data, noData, type Reading } from './reading.ts'
 import { casesWithoutAssertions, type CaseWithoutAssertion } from './sensors/assertions.ts'
@@ -381,7 +382,7 @@ async function main(argv: readonly string[]): Promise<number> {
   const metrics = readMetricsConfig()
   const { root } = options
   const at = coordinates(root, options.base)
-  const home = resolve(process.env['OMNE_METRICS_HOME'] ?? join(at.mainRoot, 'tmp', 'clean-loop'))
+  const home = loopHome(at.mainRoot, process.env)
   const outDir = resolve(
     options.out ?? join(home, 'status', `${at.shortHead}${at.dirty ? '-dirty' : ''}`),
   )

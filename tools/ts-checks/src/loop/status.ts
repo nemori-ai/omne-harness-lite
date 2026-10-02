@@ -3,7 +3,7 @@
 import { basename } from 'node:path'
 import type { DirectionFinding } from '../metrics/graph.ts'
 import { describeFunction, type FunctionRow } from '../metrics/report.ts'
-import { judgeIndicator, type Band, type Comparison } from './bands.ts'
+import { BAND_WORDS, judgeIndicator, type Band, type Comparison } from './bands.ts'
 import { BUDGET_LABELS, type MemberBudget } from './budget.ts'
 import { CATEGORIES, type CatalogueStatus } from './catalogue.ts'
 import { INDICATORS, type IndicatorId, type LoopConfig } from './config.ts'
@@ -150,7 +150,6 @@ export interface StatusView {
   readonly cataloguePath: string
 }
 
-const BAND_WORD: Record<Band, string> = { normal: '正常', warn: '提醒', act: '处置' }
 const COMPARISON_WORD: Record<Comparison, string> = {
   better: '好了',
   same: '一样',
@@ -197,7 +196,7 @@ function hardLineLines(lines: HardLines): string[] {
 function indicatorLine(row: IndicatorRow): string {
   if (row.reading.status === 'no-data') return `  ${row.label} · 没数据：${row.reading.reason}`
   const parts = [`  ${row.label} ${fixed(row.reading.data)}`]
-  parts.push(row.band === undefined ? '不分带' : BAND_WORD[row.band])
+  parts.push(row.band === undefined ? '不分带' : BAND_WORDS[row.band])
   if (row.comparison === undefined) parts.push('不与基线比')
   else
     parts.push(
