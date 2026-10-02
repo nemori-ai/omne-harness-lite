@@ -1,5 +1,5 @@
 // 运行名额脚本的行为核对：透传退出码、嵌套放行、占满时按先来后到排队并报出位置、
-// 被杀的排队者不挡后来者、等太久放弃且不执行命令。
+// 被杀的排队者不挡后来者、等太久放弃且不执行命令，以及每次用完或放弃都在运行账本记一行。
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -33,7 +33,41 @@ function slotEnv(env: Record<string, string>): NodeJS.ProcessEnv {
   const cleared: NodeJS.ProcessEnv = { ...process.env }
   // 这份测试自己可能就跑在名额里；清掉标记才测得到排队。
   delete cleared['OMNE_TEST_SLOT_HELD']
-  return { ...cleared, OMNE_TEST_SLOT_DIR: join(dir, 'locks'), ...env }
+  // 账本也指到临时目录，测试的运行不混进真实账本。
+  return {
+    ...cleared,
+    OMNE_TEST_SLOT_DIR: join(dir, 'locks'),
+    OMNE_TEST_SLOT_LEDGER: join(dir, 'ledger.jsonl'),
+    ...env,
+  }
+}
+
+interface LedgerLine {
+  readonly event: 'ran' | 'gave-up'
+  readonly command: string
+  readonly cwd: string
+  readonly cores: number
+  readonly slots: number
+  readonly slot: number | null
+  readonly aheadOnArrival: number
+  readonly waitSeconds: number
+  readonly heldSeconds: number | null
+  readonly cpuSeconds: number | null
+  readonly exitCode: number
+  readonly arrivedAt: string
+  readonly acquiredAt: string | null
+  readonly endedAt: string
+  readonly loadAtAcquire: readonly number[] | null
+  readonly loadAtEnd: readonly number[]
+}
+
+function ledger(): LedgerLine[] {
+  const path = join(dir, 'ledger.jsonl')
+  if (!existsSync(path)) return []
+  return readFileSync(path, 'utf8')
+    .trim()
+    .split('\n')
+    .map(line => JSON.parse(line) as LedgerLine)
 }
 
 function slot(args: readonly string[], env: Record<string, string> = {}) {
@@ -140,6 +174,52 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
     expect(result.status).toBe(0)
     expect(result.stdout.trim()).toBe(join(dir, 'locks', 'slot-1.lock'))
     expect(result.stderr).toBe('')
+    expect(ledger().map(line => line.command)).toEqual([
+      `${SCRIPT} bash -c echo "$OMNE_TEST_SLOT_HELD"`,
+    ])
+  })
+
+  it('运行账本：用完名额记一行，命令原样转义，CPU 时间算的是命令自己用掉的', () => {
+    const args = [
+      'node',
+      '-e',
+      'while (process.cpuUsage().user < 600000) {} process.exit(3)',
+      'a"b\\c\tz',
+    ]
+    const result = slot(args)
+    expect(result.status).toBe(3)
+    const [line, ...rest] = ledger()
+    expect(rest).toEqual([])
+    expect(line).toMatchObject({
+      event: 'ran',
+      command: args.join(' '),
+      cwd: process.cwd(),
+      slots: 1,
+      slot: 1,
+      aheadOnArrival: 0,
+      waitSeconds: 0,
+      exitCode: 3,
+    })
+    expect(line?.cpuSeconds).toBeGreaterThanOrEqual(0.6)
+    expect(line?.heldSeconds).toBeGreaterThanOrEqual(0)
+    expect(line?.cores).toBeGreaterThanOrEqual(1)
+    for (const at of [line?.arrivedAt, line?.acquiredAt, line?.endedAt]) {
+      expect(at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/)
+      expect(Number.isNaN(Date.parse(at ?? ''))).toBe(false)
+    }
+    for (const load of [line?.loadAtAcquire, line?.loadAtEnd]) {
+      expect(load).toHaveLength(3)
+      expect(load?.every(value => typeof value === 'number' && value >= 0)).toBe(true)
+    }
+  })
+
+  it('运行账本写不进去：只提醒，不改命令的退出码', () => {
+    writeFileSync(join(dir, 'file'), '')
+    const result = slot(['bash', '-c', 'exit 7'], {
+      OMNE_TEST_SLOT_LEDGER: join(dir, 'file', 'ledger.jsonl'),
+    })
+    expect(result.status).toBe(7)
+    expect(result.stderr).toContain('运行账本写不进')
   })
 
   it('名额占满且有人排队：已持有名额的嵌套调用照旧直接放行', async () => {
@@ -153,13 +233,14 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
       expect(result.status).toBe(0)
       expect(result.stdout).toBe('嵌套\n')
       expect(result.stderr).toBe('')
+      expect(ledger()).toEqual([])
     } finally {
       await holder.release()
       await waiter.exited
     }
   })
 
-  it('名额占满：超过最长等待即以 75 退出，命令没有执行，票也收回', async () => {
+  it('名额占满：超过最长等待即以 75 退出，命令没有执行，票也收回，账本记下放弃', async () => {
     const holder = await hold()
     try {
       const marker = join(dir, 'ran')
@@ -172,6 +253,20 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
       expect(result.stderr).toContain('命令没有执行')
       expect(existsSync(marker)).toBe(false)
       expect(tickets()).toEqual([])
+      const [line, ...rest] = ledger()
+      expect(rest).toEqual([])
+      expect(line).toMatchObject({
+        event: 'gave-up',
+        command: `touch ${marker}`,
+        aheadOnArrival: 0,
+        slot: null,
+        acquiredAt: null,
+        heldSeconds: null,
+        cpuSeconds: null,
+        loadAtAcquire: null,
+        exitCode: 75,
+      })
+      expect(line?.waitSeconds).toBeGreaterThanOrEqual(1)
     } finally {
       await holder.release()
     }
@@ -200,6 +295,15 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
     await holder.release()
     expect(await Promise.all([first.exited, second.exited, third.exited])).toEqual([0, 0, 0])
     expect(order()).toEqual(['A', 'B', 'C'])
+    // 账本按用完的先后记：占着的、A、B、C；各自进队时前面有几个也记下了。
+    const name = (command: string) =>
+      /SLOT_TEST=(\w+)|echo (\w+) >>/.exec(command)?.slice(1).find(Boolean)
+    expect(ledger().map(line => [name(line.command), line.aheadOnArrival])).toEqual([
+      ['holder', 0],
+      ['A', 0],
+      ['B', 1],
+      ['C', 2],
+    ])
   })
 
   it('排在中间的被杀掉：它的票作废，后来者照常轮到', async () => {
