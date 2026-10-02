@@ -35,6 +35,7 @@
 - [Codex 一端 GPT-6 Sol 升为 GPT-6.1 Sol](codex-sol-6.1-upgrade-2026-10-01.md)：四个角色的钉值替换、宿主支持证据与未验证项；未跑任务质量对照。
 - [三个设计评审角色合成 design-reviewer](design-reviewer-merge-2026-10-01/README.md)：预先写定的分析计划、三份带预置缺陷的材料、新旧各跑的十次对照与逐条判定；只支持「没有看到退化」。
 - [实现评审与独立验收](implementation-review-and-qa-2026-10-01/README.md)：tui-qa 泛化为 qa 后在原三项留出验收任务上的重跑；新设 implementation-reviewer 在一份种入已知问题的交付上的一次试派。
+- [工作树纪律重构成「一个会话一棵工作树」](worktree-single-session-2026-10-02.md)：去掉 HUB 与 spoke 的依据与对应关系、五种情形各一次的试派；宿主加载与真实会话里的拒绝未验证。
 
 角色迁移试用与开发模型采用评估是不同证据面。需要采用评估时明确基线、判据与接受权限；
 需要评估 handbook 或角色修改时只建立覆盖本次变化的任务，不把公开样例称作留出集。
