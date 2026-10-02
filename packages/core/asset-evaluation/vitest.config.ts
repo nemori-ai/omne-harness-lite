@@ -8,7 +8,6 @@ export default defineConfig({
     // Actual Schema compilation is exercised rather than replaced; a single worker
     // makes the runner budget independent of simultaneous package validation jobs.
     maxWorkers: 1,
-    testTimeout: 30_000,
     typecheck: {
       enabled: true,
       include: ['tests/**/*.spec-d.ts'],

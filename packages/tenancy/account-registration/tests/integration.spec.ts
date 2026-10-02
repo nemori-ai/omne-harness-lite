@@ -64,53 +64,58 @@ describe('I-6 清除完成之前同一标识重新注册', () => {
 })
 
 describe('I-7 单一共享 storage 上三方写并发', () => {
-  it('真实 clock 定时续约写 ＋ AI accounts.read 落盘写 ＋ OG／AR 写，跨过至少一次续约：没有「nested storage call」缺陷，每次调用都落在自己的结果集合里，不变量成立', async () => {
-    // 留存期限 1 ms：几乎每一次 ② 的账号读面都要把过期落盘（AI 的读面里的写），重来的注册又要就地跑清除链
-    const c = await boot({ retention: 1 })
-    const expiryWitness = await c.accounts.produce('expiry-witness', PASSWORD)
-    if (!('ok' in expiryWitness)) throw new Error('expiry witness was not produced')
-    await new Promise(resolve => setTimeout(resolve, 5))
-    const mark = c.storage.statements.length
-    // Ensure the expiry-write path is exercised even if fast registrations finish within 1 ms.
-    expect(await c.accounts.read(expiryWitness.ok)).toEqual({
-      ok: { activated: false, retentionExpired: true },
-    })
-    const outcomes: string[] = []
-    const deadline = performance.now() + 4_000 // > 续约周期（LEASE_WIDTH_MS / 3 ≈ 3.3 s）
-    let round = 0
-    while (performance.now() < deadline) {
-      const identifier = `load-${round % 5}`
-      round += 1
-      const batch = await Promise.all([
-        c.service().register(identifier, PASSWORD),
-        c.service().register(identifier, OTHER_PASSWORD),
-        c.service().register(`${identifier}-x`, PASSWORD),
-        (async () => {
-          const [row] = await accountsOf(c, identifier)
-          if (row === undefined) return 'no-row'
-          const read = await c.accounts.read(row.account_id)
-          return 'ok' in read ? 'read' : read.failure
-        })(),
-      ])
-      outcomes.push(...batch)
-      // node:sqlite 是同步驱动，一整轮调用可以只靠微任务走完；不让出宏任务，定时续约就永远排不上（真实请求经 I/O 到达，天然让出）
-      await new Promise(resolve => setTimeout(resolve, 0))
-    }
-    const written = c.storage.statements.slice(mark).filter(s => s.inWrite)
-    expect(written.filter(s => s.tables.has('clock_lease')).length).toBeGreaterThan(0) // 续约真的发生在窗口里
-    expect(
-      written.filter(s => s.tables.has('account') && s.columns.has('expired_at')).length,
-    ).toBeGreaterThan(0)
-    expect(written.filter(s => s.tables.has('organization')).length).toBeGreaterThan(0)
-    for (const outcome of outcomes)
-      expect([...TERMINAL_OUTCOMES, 'read', 'no-row', 'account-not-found']).toContain(outcome)
-    const logged = c
-      .messages()
-      .map(m => m.args.map(String).join(' '))
-      .filter(text => /nested storage call|StorageDefect/.test(text))
-    expect(logged).toEqual([])
-    expect(await invariantViolations(c)).toEqual(NO_VIOLATIONS)
-  }, 20_000)
+  // 归慢层：真实等待＋真库：按真实时钟压满一个以上的续约周期，期间在 SQLite 文件库上并发写。
+  it(
+    '真实 clock 定时续约写 ＋ AI accounts.read 落盘写 ＋ OG／AR 写，跨过至少一次续约：没有「nested storage call」缺陷，每次调用都落在自己的结果集合里，不变量成立',
+    { tags: ['slow'] },
+    async () => {
+      // 留存期限 1 ms：几乎每一次 ② 的账号读面都要把过期落盘（AI 的读面里的写），重来的注册又要就地跑清除链
+      const c = await boot({ retention: 1 })
+      const expiryWitness = await c.accounts.produce('expiry-witness', PASSWORD)
+      if (!('ok' in expiryWitness)) throw new Error('expiry witness was not produced')
+      await new Promise(resolve => setTimeout(resolve, 5))
+      const mark = c.storage.statements.length
+      // Ensure the expiry-write path is exercised even if fast registrations finish within 1 ms.
+      expect(await c.accounts.read(expiryWitness.ok)).toEqual({
+        ok: { activated: false, retentionExpired: true },
+      })
+      const outcomes: string[] = []
+      const deadline = performance.now() + 4_000 // > 续约周期（LEASE_WIDTH_MS / 3 ≈ 3.3 s）
+      let round = 0
+      while (performance.now() < deadline) {
+        const identifier = `load-${round % 5}`
+        round += 1
+        const batch = await Promise.all([
+          c.service().register(identifier, PASSWORD),
+          c.service().register(identifier, OTHER_PASSWORD),
+          c.service().register(`${identifier}-x`, PASSWORD),
+          (async () => {
+            const [row] = await accountsOf(c, identifier)
+            if (row === undefined) return 'no-row'
+            const read = await c.accounts.read(row.account_id)
+            return 'ok' in read ? 'read' : read.failure
+          })(),
+        ])
+        outcomes.push(...batch)
+        // node:sqlite 是同步驱动，一整轮调用可以只靠微任务走完；不让出宏任务，定时续约就永远排不上（真实请求经 I/O 到达，天然让出）
+        await new Promise(resolve => setTimeout(resolve, 0))
+      }
+      const written = c.storage.statements.slice(mark).filter(s => s.inWrite)
+      expect(written.filter(s => s.tables.has('clock_lease')).length).toBeGreaterThan(0) // 续约真的发生在窗口里
+      expect(
+        written.filter(s => s.tables.has('account') && s.columns.has('expired_at')).length,
+      ).toBeGreaterThan(0)
+      expect(written.filter(s => s.tables.has('organization')).length).toBeGreaterThan(0)
+      for (const outcome of outcomes)
+        expect([...TERMINAL_OUTCOMES, 'read', 'no-row', 'account-not-found']).toContain(outcome)
+      const logged = c
+        .messages()
+        .map(m => m.args.map(String).join(' '))
+        .filter(text => /nested storage call|StorageDefect/.test(text))
+      expect(logged).toEqual([])
+      expect(await invariantViolations(c)).toEqual(NO_VIOLATIONS)
+    },
+  )
 })
 
 describe('I-8 同一库文件整装配重启（同进程 dispose 再 boot，不是 OS 进程重启）', () => {
@@ -151,31 +156,36 @@ describe('I-8 同一库文件整装配重启（同进程 dispose 再 boot，不�
 })
 
 describe('I-10 storage 先于 clock 撤除', () => {
-  it('存储先关、再撤 clock：clock 记一条 warn、撤除不抛；同一库文件下一次启动 clock 不报回拨', async () => {
-    const c = await bootComposition({ label: 'clock-order' })
-    const clockFiber = c.assembly.fibers[1]
-    if (clockFiber === undefined) throw new Error('no clock fiber')
-    await c.raw.close()
-    await expect(clockFiber.dispose()).resolves.toBeUndefined()
-    const warns = c
-      .messages()
-      .filter(m => m.type === 'warn')
-      .map(m => m.args.map(String).join(' '))
-      .filter(text => text.includes('reclaiming the lease on dispose failed'))
-    expect(warns).toHaveLength(1)
-    await c.assembly.dispose()
+  // 归慢层：真实等待＋真库：重启后按真实时钟等旧租约到期、钟才可读（真 clock 插件、SQLite 文件库）。
+  it(
+    '存储先关、再撤 clock：clock 记一条 warn、撤除不抛；同一库文件下一次启动 clock 不报回拨',
+    { tags: ['slow'] },
+    async () => {
+      const c = await bootComposition({ label: 'clock-order' })
+      const clockFiber = c.assembly.fibers[1]
+      if (clockFiber === undefined) throw new Error('no clock fiber')
+      await c.raw.close()
+      await expect(clockFiber.dispose()).resolves.toBeUndefined()
+      const warns = c
+        .messages()
+        .filter(m => m.type === 'warn')
+        .map(m => m.args.map(String).join(' '))
+        .filter(text => text.includes('reclaiming the lease on dispose failed'))
+      expect(warns).toHaveLength(1)
+      await c.assembly.dispose()
 
-    // 租约没收回：下一次启动不报回拨（boot 不抛 ClockRollbackDetected）；接手旧行后 hw 起于旧 lease_until，
-    // 在那之前答 'unavailable'（等至多一个租约宽度），之后照常取时、注册走得通
-    const next = await boot({ file: c.file, keys: c.keys })
-    const clock = next.ctx.get('clock') as { now(): number | 'unavailable' }
-    const waitedFrom = performance.now()
-    while (clock.now() === 'unavailable') {
-      expect(performance.now() - waitedFrom).toBeLessThan(LEASE_WIDTH_MS + 2_000)
-      await new Promise(resolve => setTimeout(resolve, 100))
-    }
-    expect(await next.service().register('after-restart', PASSWORD)).toBe('registered')
-  }, 30_000)
+      // 租约没收回：下一次启动不报回拨（boot 不抛 ClockRollbackDetected）；接手旧行后 hw 起于旧 lease_until，
+      // 在那之前答 'unavailable'（等至多一个租约宽度），之后照常取时、注册走得通
+      const next = await boot({ file: c.file, keys: c.keys })
+      const clock = next.ctx.get('clock') as { now(): number | 'unavailable' }
+      const waitedFrom = performance.now()
+      while (clock.now() === 'unavailable') {
+        expect(performance.now() - waitedFrom).toBeLessThan(LEASE_WIDTH_MS + 2_000)
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+      expect(await next.service().register('after-restart', PASSWORD)).toBe('registered')
+    },
+  )
 })
 
 describe('插件装载面', () => {

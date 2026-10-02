@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：网络＋重 CPU：经本地 HTTPS 服务（openssl 现生成证书）走真实传输与读取，输入计量用真实分词器。
 // QC-V4 and QC-V5 of the adopted Qwen commercial public-template estimate (candidate
 // revision 1): the open page's counterexamples 1–10 rerun on the six commercial leaves with
 // each leaf's settings, the new counterexamples 11–16 and 18, and the factory methods called

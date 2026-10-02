@@ -63,45 +63,55 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
     expect(hook(root, home, input(root)).stdout).not.toBe('')
   })
 
-  it('种一个超 alert 的函数：恰好一个只有 decision、reason 的 JSON 对象；再跑一次为空；续跑中为空', () => {
-    const { root, home } = work()
-    write(root, 'packages/core/a/src/tangled.ts', tangled)
-    const first = hook(root, home, input(root))
-    expect(first.status).toBe(0)
-    const parsed = JSON.parse(first.stdout) as Record<string, unknown>
-    expect(Object.keys(parsed)).toEqual(['decision', 'reason'])
-    expect(parsed['decision']).toBe('block')
-    expect(parsed['reason']).toContain(
-      '- 超过 alert 的函数：packages/core/a/src/tangled.ts:1 tangled 圈复杂度 15（alert 12）',
-    )
-    const again = hook(root, home, input(root))
-    expect(again.status).toBe(0)
-    expect(again.stdout).toBe('')
-    const active = hook(root, home, input(root, true))
-    expect(active.stdout).toBe('')
-    expect(JSON.parse(readFileSync(join(home, 'hook-state.json'), 'utf8'))).toMatchObject({
-      reported: [{ branch: 'someone/work' }],
-    })
-  })
+  // 归慢层：子进程：在临时 git 仓库里连着起几次收工钩子脚本子进程（另有 git 子进程）。
+  it(
+    '种一个超 alert 的函数：恰好一个只有 decision、reason 的 JSON 对象；再跑一次为空；续跑中为空',
+    { tags: ['slow'] },
+    () => {
+      const { root, home } = work()
+      write(root, 'packages/core/a/src/tangled.ts', tangled)
+      const first = hook(root, home, input(root))
+      expect(first.status).toBe(0)
+      const parsed = JSON.parse(first.stdout) as Record<string, unknown>
+      expect(Object.keys(parsed)).toEqual(['decision', 'reason'])
+      expect(parsed['decision']).toBe('block')
+      expect(parsed['reason']).toContain(
+        '- 超过 alert 的函数：packages/core/a/src/tangled.ts:1 tangled 圈复杂度 15（alert 12）',
+      )
+      const again = hook(root, home, input(root))
+      expect(again.status).toBe(0)
+      expect(again.stdout).toBe('')
+      const active = hook(root, home, input(root, true))
+      expect(active.stdout).toBe('')
+      expect(JSON.parse(readFileSync(join(home, 'hook-state.json'), 'utf8'))).toMatchObject({
+        reported: [{ branch: 'someone/work' }],
+      })
+    },
+  )
 
-  it('存量超线的函数：改一行不加分支不反馈；加一个分支才反馈，带「原 N」', () => {
-    const root = repository()
-    const path = 'packages/core/a/src/tangled.ts'
-    write(root, path, tangled)
-    commit(root, 'member')
-    spawnSync('git', ['checkout', '-q', '-b', 'someone/work'], { cwd: root })
-    const home = temporaryDirectory('loop-hook-home-')
-    write(root, path, tangled.replace('return -1', 'return -2'))
-    const quiet = hook(root, home, input(root))
-    expect(quiet.status).toBe(0)
-    expect(quiet.stdout).toBe('')
-    write(root, path, tangled.replace('  return -1', '  if (x === 99) return 99\n  return -1'))
-    const loud = hook(root, home, input(root))
-    expect(loud.status).toBe(0)
-    expect((JSON.parse(loud.stdout) as { reason: string }).reason).toContain(
-      `- 超过 alert 的函数：${path}:1 tangled 圈复杂度 16（alert 12），原 15\n`,
-    )
-  })
+  // 归慢层：子进程：在临时 git 仓库里连着起几次收工钩子脚本子进程（另有 git 子进程）。
+  it(
+    '存量超线的函数：改一行不加分支不反馈；加一个分支才反馈，带「原 N」',
+    { tags: ['slow'] },
+    () => {
+      const root = repository()
+      const path = 'packages/core/a/src/tangled.ts'
+      write(root, path, tangled)
+      commit(root, 'member')
+      spawnSync('git', ['checkout', '-q', '-b', 'someone/work'], { cwd: root })
+      const home = temporaryDirectory('loop-hook-home-')
+      write(root, path, tangled.replace('return -1', 'return -2'))
+      const quiet = hook(root, home, input(root))
+      expect(quiet.status).toBe(0)
+      expect(quiet.stdout).toBe('')
+      write(root, path, tangled.replace('  return -1', '  if (x === 99) return 99\n  return -1'))
+      const loud = hook(root, home, input(root))
+      expect(loud.status).toBe(0)
+      expect((JSON.parse(loud.stdout) as { reason: string }).reason).toContain(
+        `- 超过 alert 的函数：${path}:1 tangled 圈复杂度 16（alert 12），原 15\n`,
+      )
+    },
+  )
 
   it('改的不是产品源码（测试目录、examples、仓库根）：放行', () => {
     const { root, home } = work()

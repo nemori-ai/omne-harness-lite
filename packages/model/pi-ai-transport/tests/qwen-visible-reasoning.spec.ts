@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：网络＋重 CPU：经本地 HTTPS 服务（openssl 现生成证书）走真实传输与读取，输入计量用真实分词器。
 // QV2 and QV3 of the adopted Qwen open-leaf visible reasoning estimate (revision 2):
 // counterexamples 1–7 and 9 (plus 10) with the equivalence oracle, then counterexample 8 on
 // the methods the factory actually returns. Archived fragments are merged by the real

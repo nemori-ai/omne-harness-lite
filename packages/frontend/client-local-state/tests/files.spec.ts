@@ -81,22 +81,27 @@ describe('private file boundary', () => {
     expect(await readFile(file, 'utf8')).toBe('this is not sqlite')
   })
 
-  it('does not bootstrap an existing empty file left by a failed initializer', async () => {
-    const directory = await f.directory()
-    await mkdir(directory, { mode: 0o700 })
-    await writeFile(join(directory, 'client.sqlite'), '', { mode: 0o600 })
-    await expect(openClientLocalState({ directory })).rejects.toMatchObject({
-      reason: 'invalid-record',
-    })
-    const db = new DatabaseSync(join(directory, 'client.sqlite'), { readOnly: true })
-    try {
-      expect(
-        db.prepare("SELECT name FROM sqlite_master WHERE name='client_local_state'").get(),
-      ).toBeUndefined()
-    } finally {
-      db.close()
-    }
-  }, 15000)
+  // 归慢层：真实等待：空库文件被当作别的进程正在初始化，打开方按真实时钟等满打开时限才判损坏（SQLite 文件）。
+  it(
+    'does not bootstrap an existing empty file left by a failed initializer',
+    { tags: ['slow'] },
+    async () => {
+      const directory = await f.directory()
+      await mkdir(directory, { mode: 0o700 })
+      await writeFile(join(directory, 'client.sqlite'), '', { mode: 0o600 })
+      await expect(openClientLocalState({ directory })).rejects.toMatchObject({
+        reason: 'invalid-record',
+      })
+      const db = new DatabaseSync(join(directory, 'client.sqlite'), { readOnly: true })
+      try {
+        expect(
+          db.prepare("SELECT name FROM sqlite_master WHERE name='client_local_state'").get(),
+        ).toBeUndefined()
+      } finally {
+        db.close()
+      }
+    },
+  )
 
   it('does not replace an unknown table layout or a future format', async () => {
     const directory = await f.directory(),

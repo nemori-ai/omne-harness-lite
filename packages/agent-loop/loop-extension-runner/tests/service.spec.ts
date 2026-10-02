@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：整套装配＋真库：用例在 SQLite 文件库上起租户与资产注册的整套装配，并开真实 JSONL 会话日志。
 import { Context } from '@deepseek-ai/cordis'
 import { mkdtemp, rm, open, type FileHandle } from 'node:fs/promises'
 import { join } from 'node:path'

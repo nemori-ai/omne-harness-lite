@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：网络＋重 CPU：经本地 HTTPS 服务（openssl 现生成证书）走真实传输，大幅噪声图用 sharp 真实编码与缩放。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import sharp from 'sharp'
 import { Context, type Plugin } from '@deepseek-ai/cordis'

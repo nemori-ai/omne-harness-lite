@@ -67,55 +67,60 @@ it.each(['full-health', 'backup', 'backup-status'] as const)(
   },
 )
 
-it('network drain finishes before a blocked owned run, without releasing the source or replaying it', async () => {
-  const center = await boot()
-  const source = center.raw.maintenance
-  if (source === undefined) throw new Error('missing source maintenance')
-  let release!: () => void
-  let entered!: () => void
-  const gate = new Promise<void>(resolve => {
-    release = resolve
-  })
-  const ready = new Promise<void>(resolve => {
-    entered = resolve
-  })
-  const run = source.run.bind(source)
-  const admitted = vi.spyOn(source, 'run').mockImplementation((fn, options) =>
-    run(async session => {
-      entered()
-      await gate
-      return fn(session)
-    }, options),
-  )
-  const response = center.ops(request('backup-status'), { timeoutMs: 10_000 })
-  await ready
-  let disposed = false
-  const disposing = center.opsFiber!.dispose().then(() => {
-    disposed = true
-  })
-  let sourceClosed = false
-  const closingSource = center.raw.close().then(() => {
-    sourceClosed = true
-  })
-  try {
-    expect((await response).bytes.length).toBe(0)
-    expect(disposed).toBe(false)
-    expect(sourceClosed).toBe(false)
-    await expect(
-      openStorage({
-        dialect: 'sqlite',
-        file: center.file,
-        migrations: composedMigrations(),
-        upgrade: { guard: createUpgradeGuard(), checks: [] },
-      }),
-    ).rejects.toMatchObject({ stage: 'occupied' })
-    expect(admitted).toHaveBeenCalledTimes(1)
-  } finally {
-    release()
-    await disposing
-    await closingSource
-  }
-}, 15_000)
+// 归慢层：真实等待＋整套装配：维护运行被闸住时，运维面撤除按真实时钟等满排空时限（SQLite 文件库上的完整中心装配）。
+it(
+  'network drain finishes before a blocked owned run, without releasing the source or replaying it',
+  { tags: ['slow'] },
+  async () => {
+    const center = await boot()
+    const source = center.raw.maintenance
+    if (source === undefined) throw new Error('missing source maintenance')
+    let release!: () => void
+    let entered!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const ready = new Promise<void>(resolve => {
+      entered = resolve
+    })
+    const run = source.run.bind(source)
+    const admitted = vi.spyOn(source, 'run').mockImplementation((fn, options) =>
+      run(async session => {
+        entered()
+        await gate
+        return fn(session)
+      }, options),
+    )
+    const response = center.ops(request('backup-status'), { timeoutMs: 10_000 })
+    await ready
+    let disposed = false
+    const disposing = center.opsFiber!.dispose().then(() => {
+      disposed = true
+    })
+    let sourceClosed = false
+    const closingSource = center.raw.close().then(() => {
+      sourceClosed = true
+    })
+    try {
+      expect((await response).bytes.length).toBe(0)
+      expect(disposed).toBe(false)
+      expect(sourceClosed).toBe(false)
+      await expect(
+        openStorage({
+          dialect: 'sqlite',
+          file: center.file,
+          migrations: composedMigrations(),
+          upgrade: { guard: createUpgradeGuard(), checks: [] },
+        }),
+      ).rejects.toMatchObject({ stage: 'occupied' })
+      expect(admitted).toHaveBeenCalledTimes(1)
+    } finally {
+      release()
+      await disposing
+      await closingSource
+    }
+  },
+)
 
 it('refuses a missing maintenance facet or config before creating the ops socket', async () => {
   const center = await bootCenter({ withOps: false })

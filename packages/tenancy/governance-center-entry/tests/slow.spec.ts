@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：真实等待＋网络：在完整中心的本地 TLS 与 Unix 套接字入口上按真实时长慢发请求、等满接收时限。
 // 接收时限（https-json/1 S-10 的下限表、S-20；绑定 V-11 与规范场景 S-28 的「接近 30 秒才发完」一例、V-6 的「到了接收时限还没收齐」）。
 // 这两支按真实时长跑（约 30 秒），用 describe.concurrent 并行，放在单独的文件里，不拖慢其余测试文件。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -34,7 +36,7 @@ describe.concurrent('接收时限：下限 30 秒之内不被切，到了时限�
     })
     expect(performance.now() - started).toBeGreaterThan(27_000)
     expect(bodyOf(reply.bytes)).toMatchObject({ reachable: true })
-  }, 45_000)
+  })
 
   it('客户端一面：到了接收时限仍没收齐 ⇒ 关闭，一个字节都不写；关闭不早于 30 秒', async () => {
     const started = performance.now()
@@ -50,7 +52,7 @@ describe.concurrent('接收时限：下限 30 秒之内不被切，到了时限�
     expect(reply.bytes.length).toBe(0)
     expect(elapsed).toBeGreaterThanOrEqual(RECEIVE_LIMITS.receiveTimeoutMs)
     expect(elapsed).toBeLessThan(RECEIVE_LIMITS.receiveTimeoutMs + 3_000)
-  }, 45_000)
+  })
 
   it('运维面同一时限：约 28 秒才发完的请求照答；没收齐的在 30 秒后关闭不写', async () => {
     const slow = unixExchange(center.socketPath, Buffer.alloc(0), {
@@ -66,5 +68,5 @@ describe.concurrent('接收时限：下限 30 秒之内不被切，到了时限�
     expect(bodyOf((await slow).bytes)).toMatchObject({ reachable: true })
     expect((await stalled).bytes.length).toBe(0)
     expect(performance.now() - started).toBeGreaterThanOrEqual(RECEIVE_LIMITS.receiveTimeoutMs)
-  }, 45_000)
+  })
 })

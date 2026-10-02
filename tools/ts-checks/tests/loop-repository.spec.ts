@@ -149,25 +149,30 @@ describe('入口', { timeout: 60_000 }, () => {
     return { root, home }
   }
 
-  it('硬线破了（core 依赖了 infra）：退出 1，硬线一段标出；撤掉后退出 0', () => {
-    const { root, home } = members()
-    write(
-      root,
-      'packages/core/a/src/probe.ts',
-      "import { b } from '@omne-harness-lite/b'\nexport const p = b\n",
-    )
-    const broken = run(root, home)
-    expect(broken.stderr).toBe('')
-    expect(broken.status).toBe(1)
-    expect(broken.stdout).toMatch(
-      /✗ 方向违规 1：packages\/core\/a 依赖了更外层的 packages\/infra\/b/u,
-    )
-    expect(broken.stdout).toContain('packages/core/a/src/probe.ts:1')
-    rmSync(join(root, 'packages/core/a/src/probe.ts'))
-    const fixed = run(root, home)
-    expect(fixed.status).toBe(0)
-    expect(fixed.stdout).toContain('  方向违规 0')
-  })
+  // 归慢层：子进程：在临时 git 仓库里反复起回路入口 CLI 子进程与 git 子进程。
+  it(
+    '硬线破了（core 依赖了 infra）：退出 1，硬线一段标出；撤掉后退出 0',
+    { tags: ['slow'] },
+    () => {
+      const { root, home } = members()
+      write(
+        root,
+        'packages/core/a/src/probe.ts',
+        "import { b } from '@omne-harness-lite/b'\nexport const p = b\n",
+      )
+      const broken = run(root, home)
+      expect(broken.stderr).toBe('')
+      expect(broken.status).toBe(1)
+      expect(broken.stdout).toMatch(
+        /✗ 方向违规 1：packages\/core\/a 依赖了更外层的 packages\/infra\/b/u,
+      )
+      expect(broken.stdout).toContain('packages/core/a/src/probe.ts:1')
+      rmSync(join(root, 'packages/core/a/src/probe.ts'))
+      const fixed = run(root, home)
+      expect(fixed.status).toBe(0)
+      expect(fixed.stdout).toContain('  方向违规 0')
+    },
+  )
 
   it('其余报告项再多也是 0：超阈值的函数、重复代码、没有断言的测试、超预算的成员', () => {
     const { root, home } = members()
@@ -225,23 +230,29 @@ describe('入口', { timeout: 60_000 }, () => {
     expect(result.stdout).toContain('packages/core/a/tests/a.spec.ts:1 不断言')
   })
 
-  it('给了基线：删卡记录与验收锁并列一行；删卡不带 trailer 退出 1，没给基线不判', () => {
-    const { root, home } = members()
-    const stories = '.meta_harness/design/product/PF-016-x/stories.md'
-    write(root, stories, '**已发到**：ST-016-01\n\n### ST-016-01 · 一张卡\n- **就绪**：是\n')
-    const base = commit(root, 'cut a card')
-    expect(run(root, home, '--base', base).stdout).toContain('  删卡记录 齐\n')
-    expect(run(root, home).stdout).toContain('  删卡记录 未判：没给基线\n')
-    write(root, stories, '**已发到**：ST-016-01\n')
-    commit(root, 'drop the card')
-    const result = run(root, home, '--base', base)
-    expect(result.status).toBe(1)
-    expect(result.stdout).toMatch(
-      /✗ 删卡记录 缺 1 处：提交 \w{9}（drop the card）：ST-016-01 从 stories\.md 里删掉了/u,
-    )
-  })
+  // 归慢层：子进程：在临时 git 仓库里反复起回路入口 CLI 子进程与 git 子进程。
+  it(
+    '给了基线：删卡记录与验收锁并列一行；删卡不带 trailer 退出 1，没给基线不判',
+    { tags: ['slow'] },
+    () => {
+      const { root, home } = members()
+      const stories = '.meta_harness/design/product/PF-016-x/stories.md'
+      write(root, stories, '**已发到**：ST-016-01\n\n### ST-016-01 · 一张卡\n- **就绪**：是\n')
+      const base = commit(root, 'cut a card')
+      expect(run(root, home, '--base', base).stdout).toContain('  删卡记录 齐\n')
+      expect(run(root, home).stdout).toContain('  删卡记录 未判：没给基线\n')
+      write(root, stories, '**已发到**：ST-016-01\n')
+      commit(root, 'drop the card')
+      const result = run(root, home, '--base', base)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toMatch(
+        /✗ 删卡记录 缺 1 处：提交 \w{9}（drop the card）：ST-016-01 从 stories\.md 里删掉了/u,
+      )
+    },
+  )
 
-  it('快照：干净的工作树上 --snapshot 写一条，再跑不重复写；不干净不写', () => {
+  // 归慢层：子进程：在临时 git 仓库里反复起回路入口 CLI 子进程与 git 子进程。
+  it('快照：干净的工作树上 --snapshot 写一条，再跑不重复写；不干净不写', { tags: ['slow'] }, () => {
     const { root, home } = members()
     const trend = join(home, 'trend.jsonl')
     const lines = () =>
@@ -267,7 +278,8 @@ describe('入口', { timeout: 60_000 }, () => {
     expect(lines()).toBe(2)
   })
 
-  it('用法错或基线不存在：退出 2', () => {
+  // 归慢层：子进程：在临时 git 仓库里反复起回路入口 CLI 子进程与 git 子进程。
+  it('用法错或基线不存在：退出 2', { tags: ['slow'] }, () => {
     const { root, home } = members()
     expect(run(root, home, '--nope').status).toBe(2)
     expect(run(root, home, '--base').status).toBe(2)

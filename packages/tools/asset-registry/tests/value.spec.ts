@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：重 CPU：每条用例的夹具都跑一次完整的资产评估（真实编译 JSON Schema），再建表与快照。
 import { expect, test } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'

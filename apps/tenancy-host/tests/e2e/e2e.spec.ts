@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：子进程＋网络＋真库：照部署方式起中心进程（openssl 证书、CLI keygen 与 serve），经本地 TLS 走完整旅程，SQLite 文件库。
 // 治理中心的黑盒端到端验收：照部署方式起进程（openssl 自签证书、`dist/cli.js keygen`、环境变量、`dist/cli.js serve`），
 // 从本进程（测试进程，不是中心进程）只凭传输绑定与入口契约走产品正文的核心旅程。每条用例名带出处锚点：
 //   PF-001 = design/product/PF-001-identity-scope-and-agent-constraints/flows.md（§1.1～1.8、§二）

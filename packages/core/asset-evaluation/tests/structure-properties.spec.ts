@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：重 CPU：穷举锁定与停用的全部组合，每组都跑完整的 evaluate（真实编译 JSON Schema）。
 import { describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { evaluate } from '../src/index.ts'
