@@ -10,6 +10,7 @@
       "pnpm-lock.yaml",
       "pnpm-workspace.yaml",
       "tsconfig*.json",
+      "vitest.tiers.mts",
       ".meta_harness/design/spec/**",
       "tools/ts-checks/test-runs.config.json"
     ]

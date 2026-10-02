@@ -136,6 +136,7 @@ function seedSlowAcceptance(root: string, ledgers: string): void {
       },
     ],
     nearTimeout: [],
+    fastOverBudget: [],
     failures: [],
   }
   write(

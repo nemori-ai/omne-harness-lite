@@ -54,6 +54,7 @@ const ledger = (overrides: Partial<LedgerFile['meta']> = {}, seconds = 12): Ledg
     },
   ],
   nearTimeout: [],
+  fastOverBudget: [],
   failures: [],
 })
 

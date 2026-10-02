@@ -579,7 +579,8 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 一个成员「受影响」指它自己有文件改动，或它直接、间接依赖的成员有改动；依赖取各 `package.json`
 里写成 `workspace:` 的 `dependencies`、`devDependencies` 与 `peerDependencies`——按声明算而不是按源码导入算，
 因为测试可能导入生产代码不导入的包。改动命中 `affected.globalPaths` 的任一模式（根清单、锁文件、
-共享 tsconfig、`.meta_harness/design/spec/**`、本配置文件）即判为全部受影响：不少成员的测试会直接读规格文件。
+共享 tsconfig、根上的分层定义 `vitest.tiers.mts`、`.meta_harness/design/spec/**`、本配置文件）即判为全部受影响：
+不少成员的测试会直接读规格文件，每个成员的 vitest 配置都展开分层定义。
 pnpm 自带的 `--filter "...[<基线>]"` 做的是同一件事，但它在 git 工作树里选不中任何包，所以这里自己算；
 算出来的集合与 `pnpm ls --filter '...<包名>'` 对照过一致。
 
@@ -607,9 +608,10 @@ pnpm 自带的 `--filter "...[<基线>]"` 做的是同一件事，但它在 git 
 成员的 `fileSeconds` 是各文件用例耗时之和（从第一条用例开始到最后一条结束），`collectSeconds` 是各文件导入耗时之和；
 墙钟减去两者是进程启动、类型检查与并行重叠。同一文件里同名的用例取第一条的时限。
 
-**归层**一行只列事实，按计时报告里的标签分层：快层用例合计超过 `ledger.slowFileSeconds` 的文件、快层里贴着时限的用例
-（快层的预算没守住），以及全归慢层、却每条都不到 vitest 默认时限 × `nearTimeoutRatio`、整份不到 `slowFileSeconds` 的文件
-（归慢了却其实守得住）。各列前 `ledger.top` 个。只量这一次跑到的那一层：快层运行里看不到慢层，反之亦然；
+**归层**一行只列事实，按计时报告里的标签分层：快层用例合计超过 `ledger.slowFileSeconds` 的文件、快层里超过单条预算的用例
+（耗时 ≥ 自身时限与 vitest 默认时限中较小的那个 × `nearTimeoutRatio`：自带更宽时限的用例也按默认时限判，快层的预算不随它放宽；
+这两项是快层的预算没守住），以及全归慢层、却每条都不到 vitest 默认时限 × `nearTimeoutRatio` 的一半、整份不到 `slowFileSeconds` 的一半的文件
+（归慢了却其实守得住；回快层的线取一半，是因为空闲与忙时的读数差一倍上下，同一条线会让贴着它的文件来回被点名）。各列前 `ledger.top` 个。只量这一次跑到的那一层：快层运行里看不到慢层，反之亦然；
 受机器负载影响，一次的读数只是线索。
 
 **失败归因。**`triage` 读那次运行的账本，把每处失败单独重跑 `triage.repeats` 次（一次只起一个工作进程、

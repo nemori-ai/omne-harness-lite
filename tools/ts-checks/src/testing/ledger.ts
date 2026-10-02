@@ -113,6 +113,16 @@ export interface Ledger {
     /** 这条用例归慢层。 */
     readonly slow: boolean
   }[]
+  /**
+   * 快层里超出单条预算的用例，按耗时从高到低：耗时 ≥ 自身时限与 vitest 默认时限中较小的那个 × `nearTimeoutRatio`。
+   * 自带更宽时限的也按默认时限判——快层的预算不随用例自己放宽的时限放宽。
+   */
+  readonly fastOverBudget: readonly {
+    readonly member: string
+    readonly file: string
+    readonly test: string
+    readonly seconds: number
+  }[]
   readonly failures: readonly Failure[]
 }
 
@@ -161,6 +171,7 @@ export function buildLedger(
   const members: Ledger['members'][number][] = []
   const files: Ledger['files'][number][] = []
   const tests: Ledger['nearTimeout'][number][] = []
+  const fastOverBudget: Ledger['fastOverBudget'][number][] = []
   const failures: Failure[] = []
   for (const run of runs) {
     let testCount = 0
@@ -202,6 +213,17 @@ export function buildLedger(
             timeoutSeconds,
             timeoutAssumed: known?.timeoutSeconds === undefined || known.timeoutSeconds === null,
             slow,
+          })
+        const budget =
+          timeoutSeconds > 0
+            ? Math.min(timeoutSeconds, VITEST_DEFAULT_TIMEOUT_SECONDS)
+            : VITEST_DEFAULT_TIMEOUT_SECONDS
+        if (ranTest(assertion) && !slow && testSeconds >= budget * nearTimeoutRatio)
+          fastOverBudget.push({
+            member: run.member,
+            file,
+            test: assertion.fullName,
+            seconds: round(testSeconds),
           })
         if (assertion.status !== 'failed') continue
         failedHere += 1
@@ -251,7 +273,8 @@ export function buildLedger(
   files.sort((a, b) => b.seconds - a.seconds)
   const share = (test: Ledger['nearTimeout'][number]) => test.seconds / test.timeoutSeconds
   tests.sort((a, b) => share(b) - share(a) || b.seconds - a.seconds)
-  return { members, files, nearTimeout: tests, failures }
+  fastOverBudget.sort((a, b) => b.seconds - a.seconds)
+  return { members, files, nearTimeout: tests, fastOverBudget, failures }
 }
 
 export interface LedgerSummaryContext {
@@ -332,24 +355,29 @@ export function ledgerSummary(ledger: Ledger, context: LedgerSummaryContext): st
   return lines
 }
 
+/** 回快层的线是归慢那条线的一半：空闲与忙时的读数差一倍上下，同一条线会让贴着它的文件在两个方向上轮流被点名。 */
+const RETURN_SHARE = 0.5
+
 /**
- * 归层的漂移：快层的承诺是单条用例不到默认时限的 `nearTimeoutRatio`、单个文件的快层用例合计不到 `slowFileSeconds`；
- * 列出没守住的，和归了慢层却其实守得住的。只列事实，改快还是改归层由改代码的人定。
+ * 归层的漂移：快层的承诺是单条用例不到默认时限的 `nearTimeoutRatio`（自带更宽时限的也一样）、单个文件的快层用例合计不到 `slowFileSeconds`；
+ * 列出没守住的，和归了慢层却连这两条线的一半都不到的。只列事实，改快还是改归层由改代码的人定。
  */
 function driftLines(ledger: Ledger, context: LedgerSummaryContext): string[] {
   const quickTest = VITEST_DEFAULT_TIMEOUT_SECONDS * context.nearTimeoutRatio
+  const returnTest = quickTest * RETURN_SHARE
+  const returnFile = context.slowFileSeconds * RETURN_SHARE
   const fastFiles = ledger.files.filter(file => file.fastSeconds >= context.slowFileSeconds)
-  const fastNear = ledger.nearTimeout.filter(test => !test.slow)
+  const fastOver = ledger.fastOverBudget
   const quickSlow = ledger.files.filter(
     file =>
       file.slowTests > 0 &&
       file.slowTests === file.tests &&
-      file.seconds < context.slowFileSeconds &&
-      file.longestSeconds < quickTest,
+      file.seconds < returnFile &&
+      file.longestSeconds < returnTest,
   )
   const lines = [
-    `归层：快层用例合计超过 ${context.slowFileSeconds} 秒的文件 ${fastFiles.length} 个、快层里贴着时限的用例 ${fastNear.length} 条；` +
-      `全归慢层、却每条不到 ${quickTest} 秒且整份不到 ${context.slowFileSeconds} 秒的文件 ${quickSlow.length} 个`,
+    `归层：快层用例合计超过 ${context.slowFileSeconds} 秒的文件 ${fastFiles.length} 个、快层里超过单条预算（${quickTest} 秒）的用例 ${fastOver.length} 条；` +
+      `全归慢层、却每条不到 ${returnTest} 秒且整份不到 ${returnFile} 秒的文件 ${quickSlow.length} 个`,
   ]
   const top = <T>(items: readonly T[], show: (item: T) => string) =>
     items.slice(0, context.top).map(show).join('、') +
@@ -358,9 +386,9 @@ function driftLines(ledger: Ledger, context: LedgerSummaryContext): string[] {
     lines.push(
       `  快层超出的文件：${top(fastFiles, file => `${file.file} ${Math.round(file.fastSeconds)} 秒`)}`,
     )
-  if (fastNear.length > 0)
+  if (fastOver.length > 0)
     lines.push(
-      `  快层贴线的用例：${top(fastNear, test => `${test.file} › ${test.test} ${test.seconds}／${test.timeoutSeconds} 秒`)}`,
+      `  快层超出预算的用例：${top(fastOver, test => `${test.file} › ${test.test} ${test.seconds} 秒`)}`,
     )
   if (quickSlow.length > 0)
     lines.push(`  慢层里很快的文件：${top(quickSlow, file => `${file.file} ${file.seconds} 秒`)}`)

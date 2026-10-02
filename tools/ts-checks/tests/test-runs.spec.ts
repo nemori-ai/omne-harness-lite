@@ -364,7 +364,12 @@ describe('耗时账本', () => {
   })
 
   it('归层漂移：快层超出的文件、快层贴线的用例、全归慢层却其实很快的文件', () => {
-    const file = (name: string, results: [string, number][], slow: string[]) => ({
+    const file = (
+      name: string,
+      results: [string, number][],
+      slow: string[],
+      timeouts: Readonly<Record<string, number>> = {},
+    ) => ({
       result: {
         name: `/repo/packages/core/x/tests/${name}`,
         status: 'passed',
@@ -381,7 +386,7 @@ describe('耗时账本', () => {
         collectSeconds: 0.1,
         tests: results.map(([fullName]) => ({
           fullName,
-          timeoutSeconds: slow.includes(fullName) ? 120 : 5,
+          timeoutSeconds: timeouts[fullName] ?? (slow.includes(fullName) ? 120 : 5),
           tags: slow.includes(fullName) ? ['slow'] : [],
         })),
       },
@@ -403,7 +408,18 @@ describe('耗时账本', () => {
         ],
         [],
       ),
+      // 自带 30 秒时限、跑 3 秒：没贴自己的线，却超了快层的单条预算。
+      file('loose.spec.ts', [['自带宽时限', 3_000]], [], { 自带宽时限: 30 }),
       file('needless.spec.ts', [['其实很快', 200]], ['其实很快']),
+      // 每条都不到 2.5 秒、整份不到 10 秒，但没低过一半：不提示回快层，免得负载一变就来回点名。
+      file(
+        'borderline.spec.ts',
+        [
+          ['略慢 1', 2_000],
+          ['略慢 2', 4_000],
+        ],
+        ['略慢 1', '略慢 2'],
+      ),
       file('real-slow.spec.ts', [['真慢', 70_000]], ['真慢']),
     ]
     const drift = buildLedger(
@@ -425,6 +441,7 @@ describe('耗时账本', () => {
       ['贴线', false],
       ['真慢', true],
     ])
+    expect(drift.fastOverBudget.map(test => test.test)).toEqual(['重 1', '重 2', '贴线', '自带宽时限'])
     const lines = ledgerSummary(drift, {
       wallSeconds: 90,
       slowFileSeconds: 10,
@@ -433,7 +450,7 @@ describe('耗时账本', () => {
       runDir: '/out',
     })
     expect(lines).toContain(
-      '归层：快层用例合计超过 10 秒的文件 1 个、快层里贴着时限的用例 3 条；全归慢层、却每条不到 2.5 秒且整份不到 10 秒的文件 1 个',
+      '归层：快层用例合计超过 10 秒的文件 1 个、快层里超过单条预算（2.5 秒）的用例 4 条；全归慢层、却每条不到 1.25 秒且整份不到 5 秒的文件 1 个',
     )
     expect(lines).toContain('  快层超出的文件：packages/core/x/tests/heavy.spec.ts 12 秒')
     expect(lines).toContain('  慢层里很快的文件：packages/core/x/tests/needless.spec.ts 0.2 秒')
