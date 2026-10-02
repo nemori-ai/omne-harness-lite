@@ -4,6 +4,7 @@ import type {
   GovernanceClientOperations,
   InputPrompt,
 } from '@omne-harness-lite/governance-client-operations'
+import { InputFailure } from '../src/diagnostic.ts'
 import { runTui, tuiProviders, type TuiRuntime } from '../src/tui/application.ts'
 import { FakeTerminal, tick } from './support/tui.ts'
 import { validIntent, validReport } from '../src/validation.ts'
@@ -127,6 +128,25 @@ it('help and invalid syntax are pure, without state or terminal access', async (
   expect(f.runtime.openState).not.toHaveBeenCalled()
   expect(f.runtime.terminal).not.toHaveBeenCalled()
 })
+it.each(['tty-required', 'tty-unsupported'] as const)(
+  'a refused terminal (%s) writes the code line then the signpost, and opens no state',
+  async code => {
+    const f = fixture()
+    const runtime = {
+      ...f.runtime,
+      terminal: vi.fn(async (): Promise<never> => {
+        throw new InputFailure(code)
+      }),
+    }
+    expect(
+      await runTui(['tui', '--terminal-profile', 'xterm-379', '--state-dir', '/s'], runtime),
+    ).toBe(2)
+    expect(f.outputs).toEqual([
+      `omne: ${code}\nFor scripts or redirected output, use omne machine (see omne --help)\n`,
+    ])
+    expect(f.runtime.openState).not.toHaveBeenCalled()
+  },
+)
 it('signal cancellation before any CG report is status 2, while normal menu exit is 0', async () => {
   const f = fixture()
   f.terminal.onFrame = () => f.controller.abort()

@@ -11,7 +11,7 @@ import {
   type GovernanceClientOperations,
   type ActionReport,
 } from '@omne-harness-lite/governance-client-operations'
-import { InputFailure, type Diagnostic } from './diagnostic.ts'
+import { diagnosticText, InputFailure, type Diagnostic } from './diagnostic.ts'
 import { buildIntent, readSecrets } from './input.ts'
 import { commands, parseInvocation, type Invocation } from './parser.ts'
 import { previewText, reportText, unopened } from './presentation.ts'
@@ -44,12 +44,17 @@ export function providers(): Pick<
     secrets: readSecrets,
   }
 }
+/** What the no-screen signpost may name: the table's command, if the invocation recognized one. */
+function signpostFor(invocation: Invocation): { readonly command?: readonly string[] } {
+  if (invocation.kind === 'help' || invocation.kind === 'version' || !invocation.command) return {}
+  return { command: invocation.command.command }
+}
 export async function runCli(args: readonly string[], runtime: CliRuntime): Promise<number> {
   const invocation = parseInvocation(args)
   let applicationFailed = false
-  const diagnose = async (code: Diagnostic) => {
+  const diagnose = async (code: Diagnostic, signpost?: ReturnType<typeof signpostFor>) => {
     try {
-      await runtime.stderr(`omne: ${code}\n`)
+      await runtime.stderr(diagnosticText(code, signpost))
     } catch {
       applicationFailed = true
     }
@@ -90,7 +95,7 @@ export async function runCli(args: readonly string[], runtime: CliRuntime): Prom
     }
   }
   if (!invocation.machine && !runtime.stdoutIsTTY) {
-    await diagnose('tty-required')
+    await diagnose('tty-required', signpostFor(invocation))
     return applicationFailed ? 70 : 2
   }
   if (invocation.kind === 'error') {
