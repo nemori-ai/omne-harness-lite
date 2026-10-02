@@ -92,6 +92,12 @@ export interface Ledger {
     readonly seconds: number
     /** 跑了的用例。 */
     readonly tests: number
+    /** 跑了的用例里归慢层的（带 `slow` 标签，含整文件的）；没有计时报告时一律按快层，为 0。 */
+    readonly slowTests: number
+    /** 跑了的快层用例的耗时之和。 */
+    readonly fastSeconds: number
+    /** 跑了的用例里最长的一条。 */
+    readonly longestSeconds: number
     /** 导入这个测试文件（含它的依赖与 describe 回调）的耗时；没有计时报告时不写。 */
     readonly collectSeconds?: number
   }[]
@@ -104,6 +110,8 @@ export interface Ledger {
     readonly timeoutSeconds: number
     /** 时限取自计时报告为 false；拿不到、按 vitest 默认时限假定的为 true。 */
     readonly timeoutAssumed: boolean
+    /** 这条用例归慢层。 */
+    readonly slow: boolean
   }[]
   readonly failures: readonly Failure[]
 }
@@ -121,14 +129,26 @@ type FileTiming = TimingReport['files'][number]
 const ranTest = (assertion: { readonly status: string }) =>
   assertion.status === 'passed' || assertion.status === 'failed'
 
-/** 一个成员的计时报告按文件索引；同一文件里同名的用例取第一条的时限。 */
+/** 慢层的标签名（定义在仓库根 `vitest.tiers.mts`）。 */
+export const SLOW_TAG = 'slow'
+
+interface TestTiming {
+  readonly timeoutSeconds: number | null
+  readonly slow: boolean
+}
+
+/** 一个成员的计时报告按文件索引；同一文件里同名的用例取第一条。 */
 function timingIndex(timing: TimingReport | undefined) {
-  const files = new Map<string, { file: FileTiming; timeouts: Map<string, number | null> }>()
+  const files = new Map<string, { file: FileTiming; tests: Map<string, TestTiming> }>()
   for (const file of timing?.files ?? []) {
-    const timeouts = new Map<string, number | null>()
+    const tests = new Map<string, TestTiming>()
     for (const test of file.tests)
-      if (!timeouts.has(test.fullName)) timeouts.set(test.fullName, test.timeoutSeconds)
-    files.set(file.file, { file, timeouts })
+      if (!tests.has(test.fullName))
+        tests.set(test.fullName, {
+          timeoutSeconds: test.timeoutSeconds,
+          slow: test.tags.includes(SLOW_TAG),
+        })
+    files.set(file.file, { file, tests })
   }
   return files
 }
@@ -158,18 +178,20 @@ export function buildLedger(
       collectSeconds += timing?.file.collectSeconds ?? 0
       testCount += ran
       skipped += result.assertionResults.length - ran
-      files.push({
-        member: run.member,
-        file,
-        seconds: round(seconds),
-        tests: ran,
-        ...(timing === undefined ? {} : { collectSeconds: round(timing.file.collectSeconds) }),
-      })
+      let slowTests = 0
+      let fastSeconds = 0
+      let longestSeconds = 0
       let failedHere = 0
       for (const assertion of result.assertionResults) {
         const testSeconds = (assertion.duration ?? 0) / 1000
-        const known = timing?.timeouts.get(assertion.fullName) ?? null
-        const timeoutSeconds = known ?? VITEST_DEFAULT_TIMEOUT_SECONDS
+        const known = timing?.tests.get(assertion.fullName)
+        const slow = known?.slow === true
+        if (ranTest(assertion)) {
+          if (slow) slowTests += 1
+          else fastSeconds += testSeconds
+          longestSeconds = Math.max(longestSeconds, testSeconds)
+        }
+        const timeoutSeconds = known?.timeoutSeconds ?? VITEST_DEFAULT_TIMEOUT_SECONDS
         // 时限 0 在 vitest 里是「不设时限」，无线可贴。
         if (timeoutSeconds > 0 && testSeconds >= timeoutSeconds * nearTimeoutRatio)
           tests.push({
@@ -178,7 +200,8 @@ export function buildLedger(
             test: assertion.fullName,
             seconds: round(testSeconds),
             timeoutSeconds,
-            timeoutAssumed: known === null,
+            timeoutAssumed: known?.timeoutSeconds === undefined || known.timeoutSeconds === null,
+            slow,
           })
         if (assertion.status !== 'failed') continue
         failedHere += 1
@@ -190,6 +213,16 @@ export function buildLedger(
         })
       }
       failed += failedHere
+      files.push({
+        member: run.member,
+        file,
+        seconds: round(seconds),
+        tests: ran,
+        slowTests,
+        fastSeconds: round(fastSeconds),
+        longestSeconds: round(longestSeconds),
+        ...(timing === undefined ? {} : { collectSeconds: round(timing.file.collectSeconds) }),
+      })
       // 文件判失败却没有任何失败用例：收集、加载或钩子出的错。
       if (result.status === 'failed' && failedHere === 0)
         failures.push({ member: run.member, file, message: firstLine(result.message ?? '') })
@@ -294,6 +327,42 @@ export function ledgerSummary(ledger: Ledger, context: LedgerSummaryContext): st
             .map(test => `${test.file} › ${test.test} ${test.seconds}／${test.timeoutSeconds} 秒`)
             .join('；')}`),
   )
+  lines.push(...driftLines(ledger, context))
   lines.push(`账本与各成员日志：${context.runDir}`)
+  return lines
+}
+
+/**
+ * 归层的漂移：快层的承诺是单条用例不到默认时限的 `nearTimeoutRatio`、单个文件的快层用例合计不到 `slowFileSeconds`；
+ * 列出没守住的，和归了慢层却其实守得住的。只列事实，改快还是改归层由改代码的人定。
+ */
+function driftLines(ledger: Ledger, context: LedgerSummaryContext): string[] {
+  const quickTest = VITEST_DEFAULT_TIMEOUT_SECONDS * context.nearTimeoutRatio
+  const fastFiles = ledger.files.filter(file => file.fastSeconds >= context.slowFileSeconds)
+  const fastNear = ledger.nearTimeout.filter(test => !test.slow)
+  const quickSlow = ledger.files.filter(
+    file =>
+      file.slowTests > 0 &&
+      file.slowTests === file.tests &&
+      file.seconds < context.slowFileSeconds &&
+      file.longestSeconds < quickTest,
+  )
+  const lines = [
+    `归层：快层用例合计超过 ${context.slowFileSeconds} 秒的文件 ${fastFiles.length} 个、快层里贴着时限的用例 ${fastNear.length} 条；` +
+      `全归慢层、却每条不到 ${quickTest} 秒且整份不到 ${context.slowFileSeconds} 秒的文件 ${quickSlow.length} 个`,
+  ]
+  const top = <T>(items: readonly T[], show: (item: T) => string) =>
+    items.slice(0, context.top).map(show).join('、') +
+    (items.length > context.top ? ` 等 ${items.length} 个` : '')
+  if (fastFiles.length > 0)
+    lines.push(
+      `  快层超出的文件：${top(fastFiles, file => `${file.file} ${Math.round(file.fastSeconds)} 秒`)}`,
+    )
+  if (fastNear.length > 0)
+    lines.push(
+      `  快层贴线的用例：${top(fastNear, test => `${test.file} › ${test.test} ${test.seconds}／${test.timeoutSeconds} 秒`)}`,
+    )
+  if (quickSlow.length > 0)
+    lines.push(`  慢层里很快的文件：${top(quickSlow, file => `${file.file} ${file.seconds} 秒`)}`)
   return lines
 }

@@ -43,7 +43,15 @@ const ledger = (overrides: Partial<LedgerFile['meta']> = {}, seconds = 12): Ledg
     },
   ],
   files: [
-    { member: 'apps/cli', file: 'apps/cli/acceptance/PF-016.a.acceptance.ts', seconds, tests: 6 },
+    {
+      member: 'apps/cli',
+      file: 'apps/cli/acceptance/PF-016.a.acceptance.ts',
+      seconds,
+      tests: 6,
+      slowTests: 0,
+      fastSeconds: seconds,
+      longestSeconds: seconds,
+    },
   ],
   nearTimeout: [],
   failures: [],
