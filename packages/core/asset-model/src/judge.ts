@@ -19,6 +19,8 @@ import {
 import type {
   AssetJudgeContext,
   AssetJudgment,
+  AssetOrigin,
+  AttributeDeclaration,
   BodyContract,
   BodyCategory,
   BodyContracts,
@@ -156,48 +158,76 @@ export function bindBodyContracts(bodies: BodyContractSupply): BodyContractSuppl
     ? Object.freeze(captured)
     : Object.freeze({ ...captured, connector: pin(bodies.connector) })
 }
+/** Ask one category's captured body contract; an absent connector port is an availability boundary. */
+function judgeBody(
+  bodies: BodyContractSupply,
+  category: BodyCategory,
+  body: unknown,
+  context: BodyJudgeContext,
+): string | undefined {
+  const port = bodies[category]
+  if (port === undefined) throw new BodyProviderUnavailableError()
+  const result = port.judge(body, context)
+  return 'rejected' in result ? result.rejected : undefined
+}
 interface Positions {
   readonly capabilities: readonly JsonObject[]
   readonly contents: readonly JsonObject[]
   readonly versions: readonly JsonValue[]
   readonly root?: JsonObject
 }
+/** Collects positions in traversal order; a plugin content contributes its members' identities. */
+class PositionCollector {
+  readonly capabilities: JsonObject[] = []
+  readonly contents: JsonObject[] = []
+  readonly versions: JsonValue[] = []
+  capability(input: JsonValue | undefined): void {
+    const entry = object(input)
+    if (entry !== undefined) this.capabilities.push(entry)
+  }
+  content(input: JsonValue | undefined): void {
+    const entry = object(input)
+    if (entry === undefined) return
+    this.contents.push(entry)
+    if (entry.category === 'plugin')
+      for (const member of array(entry.members)) this.capability(member)
+  }
+  version(input: JsonValue): void {
+    this.versions.push(input)
+    this.content(object(input)?.content)
+  }
+}
+/** The positions each definition owns; definitions without an entry own none. */
+const OWNED_POSITIONS: {
+  readonly [N in SchemaDefName]?: (found: PositionCollector, value: JsonValue) => void
+} = {
+  CapabilityId: (found, value) => found.capability(value),
+  AssetDefinition: (found, value) => {
+    const root = object(value)
+    if (root === undefined) return
+    found.capability(root.capability)
+    found.content(root.draft)
+    for (const version of array(root.versions)) found.version(version)
+  },
+  AssetContent: (found, value) => found.content(value),
+  AssetVersion: (found, value) => found.version(value),
+  AssetHolding: (found, value) => found.capability(object(value)?.capability),
+  WorkspaceCarrierManifest: (found, value) => {
+    const root = object(value)
+    if (root === undefined) return
+    for (const entry of [...array(root.assets), ...array(root.assignments)])
+      found.capability(object(entry)?.capability)
+    for (const entry of array(root.disabled)) found.capability(entry)
+  },
+}
 /** Traverse only the contract-owned positions. Opaque bodies and arbitrary values stay opaque. */
 function positions(defName: SchemaDefName, value: JsonValue): Positions {
   const root = object(value)
-  const capabilities: JsonObject[] = []
-  const contents: JsonObject[] = []
-  const versions: JsonValue[] = []
-  function capability(input: JsonValue | undefined): void {
-    const entry = object(input)
-    if (entry !== undefined) capabilities.push(entry)
-  }
-  function content(input: JsonValue | undefined): void {
-    const entry = object(input)
-    if (entry === undefined) return
-    contents.push(entry)
-    if (entry.category === 'plugin') for (const member of array(entry.members)) capability(member)
-  }
-  if (defName === 'CapabilityId') capability(value)
-  if (defName === 'AssetDefinition' && root !== undefined) {
-    capability(root.capability)
-    content(root.draft)
-    for (const version of array(root.versions)) {
-      versions.push(version)
-      content(object(version)?.content)
-    }
-  }
-  if (defName === 'AssetContent') content(value)
-  if (defName === 'AssetVersion') {
-    versions.push(value)
-    content(root?.content)
-  }
-  if (defName === 'AssetHolding') capability(root?.capability)
-  if (defName === 'WorkspaceCarrierManifest' && root !== undefined) {
-    for (const entry of [...array(root.assets), ...array(root.assignments)])
-      capability(object(entry)?.capability)
-    for (const entry of array(root.disabled)) capability(entry)
-  }
+  const found = new PositionCollector()
+  // Own entries only: a name outside the table, inherited ones included, owns no positions.
+  const walk = Object.hasOwn(OWNED_POSITIONS, defName) ? OWNED_POSITIONS[defName] : undefined
+  walk?.(found, value)
+  const { capabilities, contents, versions } = found
   return root === undefined
     ? { capabilities, contents, versions }
     : { capabilities, contents, versions, root }
@@ -277,6 +307,236 @@ function canonicalWorkspaceKey(defName: SchemaDefName, root: JsonObject | undefi
     throw error
   }
 }
+function isAssetOrigin(value: JsonValue | undefined): value is AssetOrigin {
+  return value === 'official' || value === 'customized'
+}
+function ownerOf(defName: SchemaDefName, root: JsonObject | undefined): JsonObject | undefined {
+  return defName === 'AssetOwner'
+    ? root
+    : defName === 'AssetDefinition'
+      ? object(root?.owner)
+      : undefined
+}
+/** The value under judgment: its contract-owned positions and what embedded body contracts said. */
+interface Candidate extends Positions {
+  readonly defName: SchemaDefName
+  readonly value: JsonValue
+  readonly nested: readonly string[]
+}
+function manifestFormatUnsupported(defName: SchemaDefName, root: JsonObject | undefined): boolean {
+  return (
+    defName === 'WorkspaceCarrierManifest' &&
+    root !== undefined &&
+    Object.hasOwn(root, 'format') &&
+    !numericOne(root.format)
+  )
+}
+/** Visible record facts a body contract may read: the record's name and a known origin. */
+function bodyJudgeContext(defName: SchemaDefName, root: JsonObject | undefined): BodyJudgeContext {
+  if (defName !== 'AssetDefinition') return {}
+  const name = object(root?.capability)?.name
+  const origin = root?.origin
+  return {
+    ...(typeof name === 'string' ? { capabilityName: name } : {}),
+    ...(isAssetOrigin(origin) ? { origin } : {}),
+  }
+}
+/** Each draft and version body goes to its own category's contract, in position order. */
+function contentBodyRejections(
+  bodies: BodyContractSupply,
+  contents: readonly JsonObject[],
+  context: BodyJudgeContext,
+): string[] {
+  const rejections: string[] = []
+  for (const entry of contents) {
+    const category = entry.category
+    if (!isAssetCategory(category) || category === 'plugin' || category === 'agent_definition')
+      continue
+    const body =
+      category === 'tool'
+        ? entry.definition
+        : category === 'loop_extension'
+          ? entry.extension
+          : entry.body
+    const rejection = body === undefined ? 'malformed' : judgeBody(bodies, category, body, context)
+    if (rejection !== undefined) rejections.push(rejection)
+  }
+  return rejections
+}
+/** The `$ref` of a setting declaration whose domain points at a named Schema definition. */
+function settingSchemaRef(
+  declarations: readonly AttributeDeclaration[],
+  item: JsonValue | undefined,
+): string | undefined {
+  const declaration = declarations.find(candidate => candidate.item === item)
+  if (declaration?.kind !== 'setting') return undefined
+  const schema = declaration.domain.schema
+  return isObject(schema) && typeof schema.$ref === 'string' ? schema.$ref : undefined
+}
+/** A value whose domain is a body contract's definition is judged by that contract. */
+function bodyDefinitionRejections(
+  bodies: BodyContractSupply,
+  ref: string,
+  value: JsonValue | undefined,
+): string[] {
+  const rejections: string[] = []
+  for (const category of bodyCategories) {
+    const resource = object(bodySchema(bodies, category))
+    if (typeof resource?.$id !== 'string' || !ref.startsWith(`${resource.$id}#/$defs/`)) continue
+    const definition = ref.slice(`${resource.$id}#/$defs/`.length)
+    if (!isObject(resource.$defs) || !Object.hasOwn(resource.$defs, definition))
+      throw new TypeError('declaration references an unknown body definition')
+    const rejection = judgeBody(bodies, category, value, { definition })
+    if (rejection !== undefined) rejections.push(rejection)
+  }
+  return rejections
+}
+function settingValueRejections(
+  bodies: BodyContractSupply,
+  defName: SchemaDefName,
+  value: JsonValue,
+  root: JsonObject | undefined,
+  declarations: readonly AttributeDeclaration[] | undefined,
+): string[] {
+  if (
+    declarations === undefined ||
+    (defName !== 'AttributeAssignment' && defName !== 'AssetHolding')
+  )
+    return []
+  const assignments = defName === 'AttributeAssignment' ? [value] : array(root?.assignments)
+  const rejections: string[] = []
+  for (const assignment of assignments) {
+    const entry = object(assignment)
+    const ref = settingSchemaRef(declarations, entry?.item)
+    if (entry === undefined || ref === undefined) continue
+    rejections.push(...bodyDefinitionRejections(bodies, ref, entry.value))
+  }
+  return rejections
+}
+function categoryUnknown(c: Candidate): boolean {
+  return (
+    (c.defName === 'AssetCategory' && !isAssetCategory(c.value)) ||
+    [...c.capabilities, ...c.contents].some(
+      entry => Object.hasOwn(entry, 'category') && !isAssetCategory(entry.category),
+    ) ||
+    c.nested.includes('category_unknown')
+  )
+}
+function originUnknown(c: Candidate): boolean {
+  return (
+    (c.defName === 'AssetOrigin' && !isAssetOrigin(c.value)) ||
+    (c.defName === 'AssetDefinition' &&
+      c.root !== undefined &&
+      Object.hasOwn(c.root, 'origin') &&
+      !isAssetOrigin(c.root.origin)) ||
+    c.nested.includes('origin_unknown')
+  )
+}
+function ownerKindUnknown(c: Candidate): boolean {
+  const owner = ownerOf(c.defName, c.root)
+  return (
+    owner !== undefined &&
+    Object.hasOwn(owner, 'kind') &&
+    owner.kind !== 'organization' &&
+    owner.kind !== 'tenant'
+  )
+}
+function nameInvalid(c: Candidate): boolean {
+  return (
+    (c.defName === 'CapabilityName' && typeof c.value === 'string' && !isCapabilityName(c.value)) ||
+    c.capabilities.some(entry => typeof entry.name === 'string' && !isCapabilityName(entry.name)) ||
+    c.nested.includes('name_invalid')
+  )
+}
+/** A body contract's own rejection, carried under its name; the shared names rank above it. */
+function bodyContractRejection(nested: readonly string[]): string | undefined {
+  return nested.find(
+    rejection =>
+      rejection !== 'malformed' &&
+      !['category_unknown', 'origin_unknown', 'name_invalid'].includes(rejection),
+  )
+}
+function pluginMemberIsPlugin(c: Candidate): boolean {
+  return c.contents.some(
+    entry =>
+      entry.category === 'plugin' &&
+      array(entry.members).some(member => object(member)?.category === 'plugin'),
+  )
+}
+function versionSequenceBroken(c: Candidate): boolean {
+  return (
+    c.defName === 'AssetDefinition' &&
+    c.versions.length > 0 &&
+    c.versions.every(version => positiveInteger(object(version)?.number)) &&
+    c.versions.some((version, index) => {
+      const number = object(version)?.number
+      return !isJsonNumber(number) || Number(jsonNumberSource(number)) !== index + 1
+    })
+  )
+}
+function assignmentItemDuplicate(c: Candidate): boolean {
+  if (c.defName === 'AssetHolding')
+    return duplicate(array(c.root?.assignments), entry =>
+      typeof entry.item === 'string' ? entry.item : undefined,
+    )
+  if (c.defName === 'WorkspaceCarrierManifest')
+    return duplicate(array(c.root?.assignments), entry => {
+      const key = capabilityKey(entry.capability)
+      return key !== undefined && typeof entry.item === 'string'
+        ? writeJsonLossless([key, entry.item])
+        : undefined
+    })
+  return false
+}
+function manifestSourceEscapes(c: Candidate): boolean {
+  return (
+    c.defName === 'WorkspaceCarrierManifest' &&
+    array(c.root?.assets).some(entry => {
+      const source = object(entry)?.source
+      return (
+        typeof source === 'string' &&
+        (source.startsWith('/') ||
+          /^[A-Za-z]:/u.test(source) ||
+          source.includes('\\') ||
+          source.split('/').includes('..'))
+      )
+    })
+  )
+}
+/** S-27: the named rejection of highest precedence, ahead of the `malformed` remainder. */
+function namedRejection(c: Candidate): string | undefined {
+  if (categoryUnknown(c)) return 'category_unknown'
+  if (originUnknown(c)) return 'origin_unknown'
+  if (ownerKindUnknown(c)) return 'owner_kind_unknown'
+  if (nameInvalid(c)) return 'name_invalid'
+  const bodyRejection = bodyContractRejection(c.nested)
+  if (bodyRejection !== undefined) return bodyRejection
+  if (pluginMemberIsPlugin(c)) return 'plugin_member_is_plugin'
+  if (versionSequenceBroken(c)) return 'version_sequence_broken'
+  if (assignmentItemDuplicate(c)) return 'assignment_item_duplicate'
+  if (manifestSourceEscapes(c)) return 'manifest_source_escapes'
+  return undefined
+}
+/** An owned record's author and importer stay inside the owner's tenant. */
+function authorshipLeavesOwner(c: Candidate): boolean {
+  const owner = c.defName === 'AssetDefinition' ? object(c.root?.owner) : undefined
+  if (c.root === undefined || owner === undefined) return false
+  if (!sameTenant(owner, c.root.author)) return true
+  const lineage = object(c.root.lineage)
+  return lineage !== undefined && !sameTenant(owner, lineage.importedBy)
+}
+/** Section-three constraints Schema cannot express; each one is a `malformed` value. */
+function violatesCrossMemberRules(c: Candidate, bodies: BodyContractSupply): boolean {
+  return (
+    !canonicalWorkspaceKey(c.defName, c.root) ||
+    authorshipLeavesOwner(c) ||
+    (c.defName === 'WorkspaceCarrierManifest' &&
+      duplicate(array(c.root?.assets), entry => capabilityKey(entry.capability))) ||
+    ((c.defName === 'AttributeDeclaration' || c.defName === 'AttributeDomain') &&
+      c.root !== undefined &&
+      !validDomain(c.root, bodies))
+  )
+}
 export interface AssetModelJudge {
   readonly judgeAssetValue: (
     defName: SchemaDefName,
@@ -312,182 +572,20 @@ export function createAssetModelJudge(bodyContracts: BodyContractSupply): AssetM
     const value = jsonCopy(input)
     if (value === undefined) return Object.freeze({ rejected: 'malformed' })
     const p = positions(defName, value)
-    const root = p.root
-    if (
-      defName === 'WorkspaceCarrierManifest' &&
-      root !== undefined &&
-      Object.hasOwn(root, 'format') &&
-      !numericOne(root.format)
-    )
+    // The format outranks everything, so no body contract is consulted for an unknown format.
+    if (manifestFormatUnsupported(defName, p.root))
       return Object.freeze({ rejected: 'manifest_format_unsupported' })
-    const nested: string[] = []
-    const name = defName === 'AssetDefinition' ? object(root?.capability)?.name : undefined
-    const origin = defName === 'AssetDefinition' ? root?.origin : undefined
-    const bodyContext: BodyJudgeContext = {
-      ...(typeof name === 'string' ? { capabilityName: name } : {}),
-      ...(origin === 'official' || origin === 'customized' ? { origin } : {}),
-    }
-    for (const entry of p.contents) {
-      const category = entry.category
-      if (!isAssetCategory(category) || category === 'plugin' || category === 'agent_definition')
-        continue
-      const body =
-        category === 'tool'
-          ? entry.definition
-          : category === 'loop_extension'
-            ? entry.extension
-            : entry.body
-      if (body === undefined) {
-        nested.push('malformed')
-        continue
-      }
-      const port = bodies[category]
-      if (port === undefined) throw new BodyProviderUnavailableError()
-      const result = port.judge(body, bodyContext)
-      if ('rejected' in result) nested.push(result.rejected)
-    }
+    const nested = [
+      ...contentBodyRejections(bodies, p.contents, bodyJudgeContext(defName, p.root)),
+      ...settingValueRejections(bodies, defName, value, p.root, context?.declarations),
+    ]
+    const candidate: Candidate = { ...p, defName, value, nested }
+    const rejection = namedRejection(candidate)
+    if (rejection !== undefined) return Object.freeze({ rejected: rejection })
     if (
-      context?.declarations !== undefined &&
-      (defName === 'AttributeAssignment' || defName === 'AssetHolding')
-    ) {
-      const assignments = defName === 'AttributeAssignment' ? [value] : array(root?.assignments)
-      for (const assignment of assignments) {
-        const entry = object(assignment)
-        const declaration = context.declarations.find(item => item.item === entry?.item)
-        if (
-          entry === undefined ||
-          declaration?.kind !== 'setting' ||
-          !isObject(declaration.domain.schema) ||
-          typeof declaration.domain.schema.$ref !== 'string'
-        )
-          continue
-        const ref = declaration.domain.schema.$ref
-        for (const category of bodyCategories) {
-          const resource = object(bodySchema(bodies, category))
-          if (typeof resource?.$id !== 'string' || !ref.startsWith(`${resource.$id}#/$defs/`))
-            continue
-          const definition = ref.slice(`${resource.$id}#/$defs/`.length)
-          if (!isObject(resource.$defs) || !Object.hasOwn(resource.$defs, definition))
-            throw new TypeError('declaration references an unknown body definition')
-          const port = bodies[category]
-          if (port === undefined) throw new BodyProviderUnavailableError()
-          const result = port.judge(entry.value, { definition })
-          if ('rejected' in result) nested.push(result.rejected)
-        }
-      }
-    }
-    if (
-      (defName === 'AssetCategory' && !isAssetCategory(value)) ||
-      [...p.capabilities, ...p.contents].some(
-        entry => Object.hasOwn(entry, 'category') && !isAssetCategory(entry.category),
-      ) ||
-      nested.includes('category_unknown')
-    )
-      return Object.freeze({ rejected: 'category_unknown' })
-    if (
-      (defName === 'AssetOrigin' && value !== 'official' && value !== 'customized') ||
-      (defName === 'AssetDefinition' &&
-        root !== undefined &&
-        Object.hasOwn(root, 'origin') &&
-        origin !== 'official' &&
-        origin !== 'customized') ||
-      nested.includes('origin_unknown')
-    )
-      return Object.freeze({ rejected: 'origin_unknown' })
-    const owner =
-      defName === 'AssetOwner'
-        ? root
-        : defName === 'AssetDefinition'
-          ? object(root?.owner)
-          : undefined
-    if (
-      owner !== undefined &&
-      Object.hasOwn(owner, 'kind') &&
-      owner.kind !== 'organization' &&
-      owner.kind !== 'tenant'
-    )
-      return Object.freeze({ rejected: 'owner_kind_unknown' })
-    if (
-      (defName === 'CapabilityName' && typeof value === 'string' && !isCapabilityName(value)) ||
-      p.capabilities.some(
-        entry => typeof entry.name === 'string' && !isCapabilityName(entry.name),
-      ) ||
-      nested.includes('name_invalid')
-    )
-      return Object.freeze({ rejected: 'name_invalid' })
-    const bodyRejection = nested.find(
-      rejection =>
-        rejection !== 'malformed' &&
-        !['category_unknown', 'origin_unknown', 'name_invalid'].includes(rejection),
-    )
-    if (bodyRejection !== undefined) return Object.freeze({ rejected: bodyRejection })
-    if (
-      p.contents.some(
-        entry =>
-          entry.category === 'plugin' &&
-          array(entry.members).some(member => object(member)?.category === 'plugin'),
-      )
-    )
-      return Object.freeze({ rejected: 'plugin_member_is_plugin' })
-    if (
-      defName === 'AssetDefinition' &&
-      p.versions.length > 0 &&
-      p.versions.every(version => positiveInteger(object(version)?.number)) &&
-      p.versions.some((version, index) => {
-        const number = object(version)?.number
-        return !isJsonNumber(number) || Number(jsonNumberSource(number)) !== index + 1
-      })
-    )
-      return Object.freeze({ rejected: 'version_sequence_broken' })
-    if (
-      defName === 'AssetHolding' &&
-      duplicate(array(root?.assignments), entry =>
-        typeof entry.item === 'string' ? entry.item : undefined,
-      )
-    )
-      return Object.freeze({ rejected: 'assignment_item_duplicate' })
-    if (defName === 'WorkspaceCarrierManifest') {
-      if (
-        duplicate(array(root?.assignments), entry => {
-          const key = capabilityKey(entry.capability)
-          return key !== undefined && typeof entry.item === 'string'
-            ? writeJsonLossless([key, entry.item])
-            : undefined
-        })
-      )
-        return Object.freeze({ rejected: 'assignment_item_duplicate' })
-      if (
-        array(root?.assets).some(entry => {
-          const source = object(entry)?.source
-          return (
-            typeof source === 'string' &&
-            (source.startsWith('/') ||
-              /^[A-Za-z]:/u.test(source) ||
-              source.includes('\\') ||
-              source.split('/').includes('..'))
-          )
-        })
-      )
-        return Object.freeze({ rejected: 'manifest_source_escapes' })
-    }
-    if (nested.includes('malformed') || !validate(defName, value).valid)
-      return Object.freeze({ rejected: 'malformed' })
-    if (!canonicalWorkspaceKey(defName, root)) return Object.freeze({ rejected: 'malformed' })
-    if (defName === 'AssetDefinition' && root !== undefined && owner !== undefined) {
-      if (!sameTenant(owner, root.author)) return Object.freeze({ rejected: 'malformed' })
-      const lineage = object(root.lineage)
-      if (lineage !== undefined && !sameTenant(owner, lineage.importedBy))
-        return Object.freeze({ rejected: 'malformed' })
-    }
-    if (
-      defName === 'WorkspaceCarrierManifest' &&
-      duplicate(array(root?.assets), entry => capabilityKey(entry.capability))
-    )
-      return Object.freeze({ rejected: 'malformed' })
-    if (
-      (defName === 'AttributeDeclaration' || defName === 'AttributeDomain') &&
-      root !== undefined &&
-      !validDomain(root, bodies)
+      nested.includes('malformed') ||
+      !validate(defName, value).valid ||
+      violatesCrossMemberRules(candidate, bodies)
     )
       return Object.freeze({ rejected: 'malformed' })
     return Object.freeze({ ok: true })
