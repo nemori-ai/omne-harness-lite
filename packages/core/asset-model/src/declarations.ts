@@ -9,6 +9,7 @@ import type {
   AssetContent,
   AssetCategory,
   AttributeDeclaration,
+  BodyCategory,
   BodyContractSupply,
   DeclarationResult,
 } from './types.ts'
@@ -67,68 +68,69 @@ function pinDeclaration(declaration: AttributeDeclaration): AttributeDeclaration
 function pinReference(reference: CapabilityId): CapabilityId {
   return Object.freeze({ category: reference.category, name: reference.name })
 }
-export function attributeDeclarationsOf<C extends AssetCategory>(
-  content: AssetContent & { readonly category: C },
-  bodyContracts: BodyContractSupply,
-  actionSnapshot?: JsonValue,
-): DeclarationResult<C>
-export function attributeDeclarationsOf(
-  content: AssetContent,
-  bodyContracts: BodyContractSupply,
-  actionSnapshot?: JsonValue,
+type SnapshotKind = 'fetched' | 'not_fetched'
+/** Only MCP accepts an action snapshot, and a supplied one must say which kind it is. */
+function suppliedSnapshotKind(
+  category: AssetCategory,
+  actionSnapshot: JsonValue | undefined,
+): SnapshotKind | undefined {
+  if (actionSnapshot === undefined) return undefined
+  if (category !== 'mcp') throw new TypeError('only MCP declarations accept an action snapshot')
+  if (
+    !isObject(actionSnapshot) ||
+    !Object.hasOwn(actionSnapshot, 'kind') ||
+    (actionSnapshot.kind !== 'fetched' && actionSnapshot.kind !== 'not_fetched')
+  )
+    throw new TypeError('MCP action snapshot requires its actual kind')
+  return actionSnapshot.kind
+}
+function deriveBodyDeclarations(
+  bodies: BodyContractSupply,
+  content: Extract<AssetContent, { readonly category: BodyCategory }>,
+  actionSnapshot: JsonValue | undefined,
 ): DeclarationResult {
-  const bodies = bindBodyContracts(bodyContracts)
-  if (content.category !== 'mcp' && actionSnapshot !== undefined)
-    throw new TypeError('only MCP declarations accept an action snapshot')
-  if (content.category === 'agent_definition' || content.category === 'plugin')
-    return Object.freeze({ underivable: content.category })
-  let expectedSnapshotKind: 'fetched' | 'not_fetched' | undefined
-  if (content.category === 'mcp' && actionSnapshot !== undefined) {
-    if (
-      !isObject(actionSnapshot) ||
-      !Object.hasOwn(actionSnapshot, 'kind') ||
-      (actionSnapshot.kind !== 'fetched' && actionSnapshot.kind !== 'not_fetched')
-    )
-      throw new TypeError('MCP action snapshot requires its actual kind')
-    expectedSnapshotKind = actionSnapshot.kind
+  return content.category === 'tool'
+    ? bodies.tool.deriveDeclarations(content.definition)
+    : content.category === 'loop_extension'
+      ? bodies.loop_extension.deriveDeclarations(content.extension)
+      : content.category === 'mcp'
+        ? bodies.mcp.deriveDeclarations(content.body, actionSnapshot)
+        : content.category === 'skill'
+          ? bodies.skill.deriveDeclarations(content.body)
+          : content.category === 'connector'
+            ? connectorContract(bodies).deriveDeclarations(content.body)
+            : bodies.slash_command.deriveDeclarations(content.body)
+}
+/** The MCP rule must echo the snapshot kind it was given; no other rule may carry the marker. */
+function reportedSnapshotKind(
+  category: AssetCategory,
+  result: DeclarationResult,
+  expected: SnapshotKind | undefined,
+): SnapshotKind | undefined {
+  if (category !== 'mcp') {
+    if (Object.hasOwn(result, 'actionSnapshotKind'))
+      throw new TypeError('only MCP body rules can carry an action snapshot marker')
+    return undefined
   }
-  const result =
-    content.category === 'tool'
-      ? bodies.tool.deriveDeclarations(content.definition)
-      : content.category === 'loop_extension'
-        ? bodies.loop_extension.deriveDeclarations(content.extension)
-        : content.category === 'mcp'
-          ? bodies.mcp.deriveDeclarations(content.body, actionSnapshot)
-          : content.category === 'skill'
-            ? bodies.skill.deriveDeclarations(content.body)
-            : content.category === 'connector'
-              ? connectorContract(bodies).deriveDeclarations(content.body)
-              : bodies.slash_command.deriveDeclarations(content.body)
-  let actionSnapshotKind: 'fetched' | 'not_fetched' | undefined
-  if (content.category === 'mcp') {
-    if ('underivable' in result)
-      throw new TypeError('MCP body rule cannot discard its known fixed declarations')
-    if (!Object.hasOwn(result, 'actionSnapshotKind'))
-      throw new TypeError('MCP body rule omitted its action snapshot knowledge marker')
-    const marker = result.actionSnapshotKind
-    if (marker !== undefined && marker !== 'fetched' && marker !== 'not_fetched')
-      throw new TypeError('MCP body rule produced an invalid action snapshot marker')
-    if (marker !== expectedSnapshotKind)
-      throw new TypeError('MCP body rule action snapshot marker disagrees with its input')
-    actionSnapshotKind = marker
-  } else if (Object.hasOwn(result, 'actionSnapshotKind')) {
-    throw new TypeError('only MCP body rules can carry an action snapshot marker')
-  }
-  if ('underivable' in result) {
-    if (result.underivable !== content.category)
-      throw new TypeError('body rule produced an underivable result for another category')
-    return Object.freeze({ underivable: result.underivable })
-  }
-  if (content.category === 'connector')
-    throw new TypeError('connector v1 declarations are underivable')
+  if ('underivable' in result)
+    throw new TypeError('MCP body rule cannot discard its known fixed declarations')
+  if (!Object.hasOwn(result, 'actionSnapshotKind'))
+    throw new TypeError('MCP body rule omitted its action snapshot knowledge marker')
+  const marker = result.actionSnapshotKind
+  if (marker !== undefined && marker !== 'fetched' && marker !== 'not_fetched')
+    throw new TypeError('MCP body rule produced an invalid action snapshot marker')
+  if (marker !== expected)
+    throw new TypeError('MCP body rule action snapshot marker disagrees with its input')
+  return marker
+}
+/** A body rule's declarations avoid the reserved items, repeat none, and are valid values. */
+function checkBodyDeclarations(
+  bodies: BodyContractSupply,
+  declarations: readonly AttributeDeclaration[],
+): void {
   const seen = new Set<string>()
   const judge = createAssetModelJudge(bodies)
-  for (const declaration of result.declarations) {
+  for (const declaration of declarations) {
     if (
       declaration.item === 'disabled' ||
       declaration.item === 'usableBy' ||
@@ -141,6 +143,31 @@ export function attributeDeclarationsOf(
       throw new TypeError('body rule produced an invalid declaration')
     seen.add(declaration.item)
   }
+}
+export function attributeDeclarationsOf<C extends AssetCategory>(
+  content: AssetContent & { readonly category: C },
+  bodyContracts: BodyContractSupply,
+  actionSnapshot?: JsonValue,
+): DeclarationResult<C>
+export function attributeDeclarationsOf(
+  content: AssetContent,
+  bodyContracts: BodyContractSupply,
+  actionSnapshot?: JsonValue,
+): DeclarationResult {
+  const bodies = bindBodyContracts(bodyContracts)
+  const expectedSnapshotKind = suppliedSnapshotKind(content.category, actionSnapshot)
+  if (content.category === 'agent_definition' || content.category === 'plugin')
+    return Object.freeze({ underivable: content.category })
+  const result = deriveBodyDeclarations(bodies, content, actionSnapshot)
+  const actionSnapshotKind = reportedSnapshotKind(content.category, result, expectedSnapshotKind)
+  if ('underivable' in result) {
+    if (result.underivable !== content.category)
+      throw new TypeError('body rule produced an underivable result for another category')
+    return Object.freeze({ underivable: result.underivable })
+  }
+  if (content.category === 'connector')
+    throw new TypeError('connector v1 declarations are underivable')
+  checkBodyDeclarations(bodies, result.declarations)
   const declarations = Object.freeze([
     ...result.declarations.map(pinDeclaration),
     DISABLED_DECLARATION,

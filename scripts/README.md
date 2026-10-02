@@ -10,7 +10,7 @@
 | [build-tenancy-image.sh](build-tenancy-image.sh) | 从已解压且核完整清单的治理中心app构建指定Linux架构镜像与独占新Docker save归档；不安装、不推送，见[Docker部署入口](../apps/tenancy-host/deploy/docker/README.md) |
 | [package-cli.sh](package-cli.sh) | 将现有CLI构建为指定的全新本地.tar.gz归档；不安装、不上传，使用与前提见[CLI开发入口](../apps/cli/README.md) |
 | [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再依次运行 agent 产物与根链接、文档、规格、Python 工具测试、产品包检查、可执行验收，最后是严格模式的回路状态；任一步失败即停止并返回非零 |
-| [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
+| [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上按先来后到排队执行，见[下文](#运行名额) |
 | [format.sh](format.sh) | 用根配置和本地锁定 Prettier 检查或写入受维护文件；`staged` 模式只检查 Git index blob |
 | [test-formatting.sh](test-formatting.sh) | 在临时独立 Git 仓库验证格式范围、幂等、部分暂存和 hook 安装边界 |
 | [install-format-hook.sh](install-format-hook.sh) | 显式安装格式化 pre-commit hook；发现已有 hook 时拒绝覆盖 |
@@ -51,16 +51,44 @@
 （例如 `make check` 里嵌着的测试一步）直接放行，不重复排队。名额随持有它的进程退出而释放，
 进程被杀也不会留下卡死的锁。
 
+**先来后到**：进队时领一张号（锁目录里的 `ticket-<号>`），名额空出时只有号码最小的那张活票去拿，
+与谁隔多久看一次无关。票和持有者登记（`slot-<序号>.holder`）都由登记它的进程锁住，进程退出或被杀，
+锁随之失效：排在中间的被杀掉，后面的照常往前挪，失效的文件由下一个看队列的进程删掉。
+
 | 环境变量 | 初值 | 含义 |
 |---|---|---|
 | `OMNE_TEST_SLOTS` | 1 | 同时允许几套在跑 |
 | `OMNE_TEST_SLOT_DIR` | `/tmp/omne-test-slots-<uid>` | 锁文件目录；同一用户的全部检出共用。要跨用户排队，把它指到一个共享可写的目录 |
-| `OMNE_TEST_SLOT_POLL_SECONDS` | 5 | 没有空名额时隔多久再看一次 |
+| `OMNE_TEST_SLOT_POLL_SECONDS` | 5 | 没轮到时隔多久再看一次 |
 | `OMNE_TEST_SLOT_MAX_WAIT_SECONDS` | 7200 | 最多等多久；超过即以 **75** 退出，命令**没有执行** |
+| `OMNE_TEST_SLOT_LEDGER` | `${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl` | 运行账本，见下文 |
 
-排队与拿到名额各在标准错误打一行。75 表示「没轮到」，既不是检查失败也不是通过；
-要么稍后再跑，要么先看是谁占着（`ls` 锁目录，`fuser <锁文件>`）。脚本的行为由
-`tools/ts-checks/tests/test-slot.spec.ts` 核对。
+排队时在标准错误报「前面还有 N 个」，以及每个名额正被什么命令占着、占了多久、在哪个目录、进程号；
+前面的人数或持有者变了再报一次，拿到名额时报等了多久。75 表示「没轮到」，既不是检查失败也不是通过；
+要么稍后再跑，要么先看是谁占着（`cat <锁目录>/slot-*.holder`，或 `fuser <锁目录>/slot-*.lock`）。
+还没并入这一版的检出用的是旧脚本：它与新脚本抢同一把名额锁，互斥照旧，但不领号，可能插队；
+它占着名额时排队者会报「持有者没有登记」。
+
+一个名额等于整台机器，几分钟的受影响范围测试仍要排在几十分钟的全量覆盖率或变异测试后面；
+按任务大小分配名额要等数据再定（[#57](https://github.com/nemori-ai/omne-harness-lite/issues/57) 第二步）。
+
+**运行账本**给那一步攒数据：每次用完名额、或等到超时放弃，都往 `OMNE_TEST_SLOT_LEDGER` 追加一行 JSON。
+它与名额同一个范围——同一用户的全部检出与一次性克隆——所以不放主检出的 `tmp/`，而放在重启也不清的用户状态目录。
+写不进去只在标准错误提醒一句，不改命令的退出码；嵌套放行的调用不另记。
+
+| 字段 | 含义 |
+|---|---|
+| `event` | `ran`：用了名额；`gave-up`：等到超时放弃（这时 `slot`、`acquiredAt`、`heldSeconds`、`cpuSeconds`、`loadAtAcquire` 为 `null`） |
+| `command`、`cwd`、`pid` | 经名额执行的命令（截到 500 字符）、从哪个目录、包装进程号 |
+| `cores`、`slots`、`slot` | 机器核数、名额总数、用的是第几个 |
+| `aheadOnArrival` | 进队时前面有几张活票 |
+| `arrivedAt`、`acquiredAt`、`endedAt` | 进队、拿到名额、结束（或放弃）的时刻，RFC 3339 |
+| `waitSeconds`、`heldSeconds` | 排了多久、占了多久 |
+| `cpuSeconds` | 命令及其已退出的子孙进程用掉的 CPU（用户态加内核态）；除以 `heldSeconds` 就是这类任务平均占几个核 |
+| `loadAtAcquire`、`loadAtEnd` | 拿到名额时与结束时的机器负载（1、5、15 分钟平均）；与测试耗时账本里的超时对时间，看负载到多少开始超时 |
+| `exitCode` | 命令的退出码；放弃时是 75 |
+
+脚本的行为由 `tools/ts-checks/tests/test-slot.spec.ts` 核对。
 
 ## CI
 
