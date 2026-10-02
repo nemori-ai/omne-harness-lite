@@ -14,7 +14,7 @@ import {
 } from './cards.ts'
 import { readLoopConfig } from './config.ts'
 import { loopHome } from './home.ts'
-import { cardIndex, CARD_ID, readStories } from './stories.ts'
+import { cardIndex, CARD_ID, readStories } from '../product/stories.ts'
 
 const USAGE =
   '用法：loop-card --card <ST-NNN-NN> --event proposed|runnable|accepted [--at <ISO 时间>] [--root <检出目录>]'

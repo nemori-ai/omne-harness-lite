@@ -7,7 +7,7 @@ import type { CardEntry } from './cards.ts'
 import { CATEGORIES, type Category } from './catalogue.ts'
 import { BUDGET_ITEMS, INDICATORS, type BudgetItem, type LoopConfig } from './config.ts'
 import { data, noData, type Reading } from './reading.ts'
-import type { TopicStories } from './stories.ts'
+import type { TopicStories } from '../product/stories.ts'
 import type { Snapshot } from './trend.ts'
 
 const HOUR = 60 * 60 * 1000

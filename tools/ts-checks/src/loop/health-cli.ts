@@ -23,7 +23,7 @@ import {
 import { healthSummary, renderHealthPage } from './health-render.ts'
 import { loopHome } from './home.ts'
 import { noData, type Reading } from './reading.ts'
-import { cardIndex, readStories } from './stories.ts'
+import { cardIndex, readStories } from '../product/stories.ts'
 import { readTrend } from './trend.ts'
 
 const USAGE = '用法：loop-health [--out <dir>] [--root <检出目录>]'

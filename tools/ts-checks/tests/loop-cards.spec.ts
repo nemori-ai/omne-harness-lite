@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { judgeEntry, parseAt, readCards, type CardEntry } from '../src/loop/cards.ts'
-import { parseStories } from '../src/loop/stories.ts'
+import { parseStories } from '../src/product/stories.ts'
 
 const made: string[] = []
 afterEach(() => {
