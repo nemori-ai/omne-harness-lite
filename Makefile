@@ -1,4 +1,4 @@
-.PHONY: check agents-check docs-check design-check design-review spec-retention formal-tools test product-check metrics test-affected test-triage role-eval acceptance-lock loop-status loop-card loop-health
+.PHONY: check agents-check docs-check design-check design-review spec-retention formal-tools test product-check metrics test-affected test-triage role-eval acceptance-lock scenario-status loop-status loop-card loop-health
 
 TEST_RUNS := node --experimental-strip-types tools/ts-checks/src/testing/cli.ts
 
@@ -71,3 +71,7 @@ test-triage:
 # 验收锁：列出任务基线以来碰过各成员 acceptance/ 的提交；实施角色的提交或未提交的验收改动在其中就退出 1。BASE 给任务基线（缺省 main）。
 acceptance-lock:
 	node --experimental-strip-types tools/ts-checks/src/acceptance/cli.ts --base "$(or $(BASE),main)"
+
+# 场景状态：按 topic 列出每条带编号的验收场景是已交付、交付中、已立卡还是还没切到。由 acceptance.md、stories.md 与验收的覆盖声明推导，只读、只报告。
+scenario-status:
+	node --experimental-strip-types tools/ts-checks/src/acceptance/scenario-status-cli.ts
