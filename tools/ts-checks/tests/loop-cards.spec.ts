@@ -152,10 +152,10 @@ describe('stories.md', () => {
       '',
       '### ST-016-03 · 没写就绪',
     ].join('\n')
-    expect(parseStories(text)).toEqual([
-      { id: 'ST-016-01', title: '用户能在终端里开一个会话', ready: 'ready' },
-      { id: 'ST-016-02', title: '第二张', ready: 'not-ready' },
-      { id: 'ST-016-03', title: '没写就绪', ready: 'unknown' },
+    expect(parseStories(text).cards).toEqual([
+      { id: 'ST-016-01', title: '用户能在终端里开一个会话', ready: 'ready', covers: [] },
+      { id: 'ST-016-02', title: '第二张', ready: 'not-ready', covers: [] },
+      { id: 'ST-016-03', title: '没写就绪', ready: 'unknown', covers: [] },
     ])
   })
 })

@@ -7,7 +7,7 @@ import type { CardEntry } from './cards.ts'
 import { CATEGORIES, type Category } from './catalogue.ts'
 import { BUDGET_ITEMS, INDICATORS, type BudgetItem, type LoopConfig } from './config.ts'
 import { data, noData, type Reading } from './reading.ts'
-import type { TopicStories } from '../product/stories.ts'
+import type { StoryCard, TopicStories } from '../product/stories.ts'
 import type { Snapshot } from './trend.ts'
 
 const HOUR = 60 * 60 * 1000
@@ -152,7 +152,11 @@ export interface RemainingBlock {
 }
 
 export function remainingCards(
-  topics: readonly TopicStories[] | undefined,
+  topics:
+    | readonly (Pick<TopicStories, 'topic'> & {
+        readonly cards: readonly Pick<StoryCard, 'id' | 'ready'>[]
+      })[]
+    | undefined,
   entries: readonly CardEntry[],
   productRoot: string,
 ): Reading<RemainingBlock> {
