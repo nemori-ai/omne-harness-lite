@@ -35,6 +35,9 @@ export const layers: readonly HoldingLayer[] = ['factory', 'organization', 'tena
 export const index = (layer: Layer): number => (layer === 'session' ? 4 : layers.indexOf(layer))
 export const key = capabilityCanonicalString
 export const same = (a: CapabilityId, b: CapabilityId): boolean => key(a) === key(b)
+/** Asset ownership order: outer layers first. */
+export const byLayer = (left: AssetHolding, right: AssetHolding): number =>
+  index(left.holder.layer) - index(right.holder.layer)
 
 /** One capability's selected holding, definition and version, with the EffectiveAsset they yield (S-18). */
 export interface Selected {
@@ -56,6 +59,15 @@ export function versionOf(
             ExactDecimal.from(holding.versionSelection.number),
           ) === 0,
       )
+}
+/** The definition a holding points to; C5 admitted it before any caller gets here. */
+export function heldDefinition(
+  definitions: ReadonlyMap<string, AssetDefinition>,
+  holding: AssetHolding,
+): AssetDefinition {
+  const definition = definitions.get(holding.asset)
+  if (definition === undefined) throw new Error('C5 invariant')
+  return definition
 }
 export function permission(value: unknown): PermissionValue | undefined {
   if (
