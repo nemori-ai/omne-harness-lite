@@ -6,8 +6,15 @@ hooks:
     events: [Stop, SubagentStop]
     # 只对会改产品源码的角色。
     subagent_types: [developer, verification-developer, tui-developer]
-    # shell 形式、从 git 根解析：两端都以会话的当前目录运行钩子，Codex 没有项目根变量，
-    # Claude Code 的 ${CLAUDE_PROJECT_DIR} 进了工作树仍指主检出——要跑的是当前工作树里的那份脚本。
-    # 不经 make：make 失败退出 2，宿主把 2 一律当成拦截。
-    command: 'node --experimental-strip-types "$(git rev-parse --show-toplevel)/tools/ts-checks/src/loop/stop-hook.ts"'
+    # shell 形式、从 git 根解析：两端都以会话的当前目录运行钩子，Codex 没有项目根变量。
+    # 跑哪一份脚本：当前工作树里有这份脚本且装了依赖，就跑它自己的（它可能正在改这套工具）；
+    # 否则跑主检出里的那一份——刚建的工作树还没装依赖，脚本加载不了解析器，量的仍是会话所在的那棵工作树。
+    # 主检出取公共 git 目录的上一级；先进到工作树根再问，Git 2.25 在子目录里给的相对路径不可靠。
+    # 不在 git 仓库里：退出 0，什么都不做。不经 make：make 失败退出 2，宿主把 2 一律当成拦截。
+    command: >-
+      t="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0;
+      s=tools/ts-checks;
+      { [ -e "$t/$s/src/loop/stop-hook.ts" ] && [ -e "$t/$s/node_modules/typescript/package.json" ]; }
+      || t="$(cd "$t" && cd "$(git rev-parse --git-common-dir)/.." && pwd)";
+      exec node --experimental-strip-types "$t/$s/src/loop/stop-hook.ts"
     timeout: 60

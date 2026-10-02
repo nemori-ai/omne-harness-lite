@@ -11,7 +11,10 @@ Codex 的 `.codex/hooks.json`。两端在 `Stop`、`SubagentStop` 上读同一�
 tui-developer 子代理收工（`SubagentStop`）时跑执行仓库的收工钩子（`tools/ts-checks/src/loop/stop-hook.ts`，
 说明在 `tools/ts-checks/README_ZH.md`「收工钩子」一节）。
 它只在这次变更碰了 `packages/`、`apps/` 的产品源码、且有要解释的红项时，把那几条读数作为事实反馈回去，
-同一分支上同一组读数只反馈一次；钩子自己出错从不拦人。
+同一分支上同一组读数只反馈一次；钩子自己出错从不拦人，只给用户一句警告。
+
+命令先定跑哪一份脚本：会话所在的工作树里有这份脚本且装了依赖，跑它自己的；否则跑主检出里的那一份
+（刚建的工作树还没装依赖，脚本在那里加载不了解析器）。量的总是会话所在的那棵工作树。不在 git 仓库里时命令直接退出 0。
 
 ## 怎么生效
 
@@ -19,9 +22,12 @@ tui-developer 子代理收工（`SubagentStop`）时跑执行仓库的收工钩�
   软链接暴露给宿主。编译与接入命令见 tooling；**编译不等于宿主已经加载**。
 - Claude Code：交互会话里要先接受该目录的工作区信任；设置文件改了由宿主自动重载。
   会话从主检出启动再进工作树时，读的是哪一份设置，宿主文档没有说明。
+  **见过的一次**（2026-10-02，负责人的交互会话）：会话开在主检出，建了一棵新工作树并在里面写了文件，收工时 `Stop` 钩子被调用了，
+  脚本认到的仓库根是那棵新工作树。只此一次观察：`SubagentStop`、警告怎样显示、Codex 一端都还没有在真实会话里见过。
 - Codex：项目要受信任，且每条非托管钩子都要在 `/hooks` 里按定义逐条信任；定义一改就要重新信任。
 - 字段与行为的出处：研究[收工钩子：两个宿主在收工点能做什么、不能做什么](../../research/host-stop-hooks/README.md)
-  （Claude Code 2.1.287、Codex CLI 0.159.0，2026-10-01 取证，没有实际触发过钩子）与 Codex 文档 Hooks 页「Config shape」一节。
+  （Claude Code 2.1.287、Codex CLI 0.159.0，2026-10-01 取证，取证时没有实际触发过钩子）与 Codex 文档 Hooks 页「Config shape」一节。
+  警告用的 `systemMessage` 出自同一批钉住的文档原文：Claude Code 的「JSON output」表把它列为通用字段，Codex 的 Hooks 页写明 `Stop`、`SubagentStop` 支持它。
   宿主升级后先回那里重新核对，再改这里。
 
 ## 怎么关

@@ -1,5 +1,6 @@
 // 收工钩子的入口：宿主（Claude Code、Codex）在 Stop 与 SubagentStop 上调它，标准输入是一个 JSON 对象。
-// 要反馈时向标准输出写恰好一个 {"decision":"block","reason":…}，否则一个字节都不写；所有路径都退出 0。
+// 要反馈时向标准输出写恰好一个 {"decision":"block","reason":…}；量读数时自己出错写恰好一个 {"systemMessage":…}
+//（宿主显示给用户，不拦）；其余情形一个字节都不写。所有路径都退出 0。
 // 宿主把退出码 2 一律当拦截，所以这里不经 make、不透传任何子进程的退出码。判断在 hook.ts。
 import { appendFileSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
