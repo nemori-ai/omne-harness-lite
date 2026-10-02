@@ -22,7 +22,8 @@
 
 ## 准备可用的检出
 
-先确认自己在哪个检出、有没有未提交改动；隔离规则加载 `worktree-discipline` skill：
+先确认自己在哪个检出、有没有未提交改动。隔离规则加载 `worktree-discipline` skill，要点是**一个会话一棵工作树**：
+在主检出就为手上这个单元建一棵并 `cd` 进去；已经在一棵里，就在它里面做到并入主线，不开第二棵：
 
 ```sh
 git rev-parse --show-toplevel
@@ -176,7 +177,12 @@ Claude Code 通过同级 `CLAUDE.md` 的 `@AGENTS.md` 读取同一份约定。
 | 创建或修改 skill | 环境提供的官方 `skill-creator`；源在 `.meta_harness/agents/skills/<name>/canonical/` |
 | 创建或修改 role、宿主配置 | `design-subagents` skill；源在 `.meta_harness/agents/roles/<role>/` |
 | 编写或调整 AGENTS.md | `write-agents-md` skill；改实际作用域的源文件 |
-| 创建、使用或清理隔离检出 | `worktree-discipline` skill |
+| 创建、使用或清理隔离检出 | `worktree-discipline` skill；一个会话一棵工作树，建好先 `cd` 进去，不建 HUB 与 spoke |
+
+**派发有写权限的 agent 之前**：它就在本会话的这棵工作树里写，一次只派一个，不给它另开工作树。简报写明工作树的路径与分支，
+要它第一步 `cd` 进去并核对分支；它交回之前，主会话不在这条分支上写或提交。只读的研究、评审与验收可以同时派。
+几件互不相干的事要同时推进，由负责人另开会话；被要求开 HUB、开 spoke 或并行派几个写入者时，按那份 skill 说明理由后拒绝，
+对方坚持也不照办。简报各栏写什么见[开发者派发说明](../.meta_harness/agents/roles/developer-task.md)。
 
 **派发的一方在 agent 交回之后做什么**：核对提交确实落在它说的分支上、写入范围没越界；读交付说明里附的度量摘要与回路状态，
 没有交代的红项退回；配了可执行验收的跑验收锁；按[接受级别](development_human.md#接受级别)决定要不要另派评审或验收。
