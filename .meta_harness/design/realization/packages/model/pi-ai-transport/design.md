@@ -9,7 +9,7 @@
 
 **定向 fork pi 的传输一层，放进本 monorepo 一个包；HTTP 用 Node 内置 `node:https` 直发，不带 pi 的 SDK 依赖。**
 
-- **方向与基线已接受**：[D-019](../../../../record/decisions/model-provider-pi-ai-fork/decision.md#选择与范围)（以 pi-ai 的 OpenRouter 协议请求与流／工具解析为基线，定向 fork；目录估价不得冒充实际费用；拒绝整包服务层）；[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-5 与 [D-019 追加 2026-09-25](../../../../record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-25.md)（基线 `earendil-works/pi` 提交 `3390bd93630965a12a0a1a5c36ce890ec22f7e1d`，即 `@earendil-works/pi-ai@0.86.1`；**只取传输一层**：请求发出、流片段接收、供应商错误映射；其余 pi 代码不进来）。R-5 比 D-019 原文窄：**pi 的模型目录不进来**——本系统的档案归 `capability.model-profile-directory`，目录费率本来就不许用。
+- **方向与基线已接受**：[D-019](../../../../record/decisions/model-provider-pi-ai-fork/decision.md#选择与范围)（以 pi-ai 的 OpenRouter 协议请求与流／工具解析为基线，定向 fork；目录估价不得冒充实际费用；拒绝整包服务层）；[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-5 与 [D-019 追加 2026-09-25](../../../../record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-25.md)（基线 `earendil-works/pi` 提交 `3390bd93630965a12a0a1a5c36ce890ec22f7e1d`，即 `@earendil-works/pi-ai@0.86.1`；**只取传输一层**：请求发出、流片段接收、供应商错误映射；其余 pi 代码不进来）。2026-10-02 按 R-5「按需同步」改锚到 1.0.0 发布提交 `a13d35a`，代码未改（[D-019 追加 2026-10-02](../../../../record/decisions/model-provider-pi-ai-fork/rebase-1.0.0-2026-10-02.md)）。R-5 比 D-019 原文窄：**pi 的模型目录不进来**——本系统的档案归 `capability.model-profile-directory`，目录费率本来就不许用。
 - **流片段语法**：[D-035](../../../../record/decisions/message-and-stream-baseline/decision.md#选择与范围)——pi 只在传输适配处被翻译进来；[保留前提](../../../../record/decisions/message-and-stream-baseline/decision.md#理由与保留前提) 1（fork 禁止中间解析、唯一解析点在装配器）与 2（custom grammar 分支会构造 JSON 增量）由本节点的 [fork 边界](#fork-边界)兑现：普通 function 分支去掉 `parseStreamingJson`，custom grammar 分支整个不取。
 - **上游语义的来源**：pi 0.86.1 的行为读数全部来自研究 `model-request-transport-sources`（`.meta_harness/research/` 下，证据记录 E2、E3；OpenRouter 用量文档 E11）——**离线读数，未升 basis，一律是待核对主张**。fork 之后这些行为变成本包自己的代码，证据改为本包的符合性测试（[verification](verification.md#证据义务)），不再需要以「上游缺省行为」立 basis；契约 [G-10](../../../../spec/capabilities/model-request-runtime/v2/contract.md#十二已知缺口) 已按 D-060 §八 N-40 ④ 采用本包 T-1～T-11 为验证路径；测试尚未执行，不能据此称 G-10 已兑现。**Node `node:https` 的三条行为**（不跟随重定向、请求没有缺省总超时、`signal` 中止在途请求）是**假设，须按 source-check 取证**；本包的符合性测试恰好会在它们变了时失败（[verification](verification.md#证据义务) T-9、T-1、T-10）。
 - **Cordis 采用版本** `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)），只在插件子入口里用；插件层共用件取 [kernel-basis](../../core/kernel-basis/README.md)（`definePlugin`）。
@@ -21,7 +21,7 @@
 
 ## fork 边界
 
-**来源**：`earendil-works/pi` 提交 `3390bd9`，`packages/ai/src/`（下表路径都相对它）；来源归档的 SHA-256 记在研究 `model-request-transport-sources` 证据记录的「取证条件总览」里（`29b35ae6…`）。**取的是函数与片段，不是整文件照搬**；每个取来的片段在本包里保留原作者的 MIT 许可声明与「来自哪个文件、哪个提交、改了什么」的头注。
+**来源**：`earendil-works/pi` 1.0.0 发布提交 `a13d35a`，`packages/ai/src/`（下表路径都相对它）。下表初稿按 0.86.1 之后的 `3390bd9` 写成，那份来源归档的 SHA-256 记在研究 `model-request-transport-sources` 证据记录的「取证条件总览」里（`29b35ae6…`）；两版之间下表所涉两个文件的改动逐处处置与新归档的哈希见 [D-019 追加 2026-10-02](../../../../record/decisions/model-provider-pi-ai-fork/rebase-1.0.0-2026-10-02.md)。**取的是函数与片段，不是整文件照搬**；每个取来的片段在本包里保留原作者的 MIT 许可声明与「来自哪个文件、哪个提交、改了什么」的头注。
 
 | 上游位置 | 取不取 | 在本包里改了什么／为什么不取 |
 | --- | --- | --- |
