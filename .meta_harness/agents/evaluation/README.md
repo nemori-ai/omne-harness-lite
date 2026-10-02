@@ -1,9 +1,18 @@
 # 研发 Agent 评估
 
-- [TUI 开发角色引入](tui-developer-introduction.md)：职责、两端生成与静态验证；未做模型行为评估。
-
 这里保存研发 agent 的评估输入与证据。编译器单元测试归 `tooling/tests/`；
 资产生成、普通 agent 试用、原生宿主加载与精确模型行为分别报告。
+
+**常设的**——改了角色、换了模型之后拿来重跑的：
+
+- [常设用例集](suites/README.md)：按流（一个角色做一种事）组织的用例、判定依据与基线；每个流的用例与判定方法各经负责人签字。
+  现有 design-reviewer 的三种判断，以及 developer 补完模块、qa 独立验收、implementation-reviewer 评审交付（后三个尚未签字）。
+- [运行器](harness/README.md)：跑用例集的那一套——一次性工作副本（待审材料，或装好依赖的整仓检出）、统一的结果形状、失败另记、带区间的汇总。
+  它自己不起模型：角色与判官都由主会话派 subagent，运行器只在派发前写简报、派发后收录记录；要程序判定的流在收录时判定。
+
+**已发生的**——某一天为某个决定做的评估，写完不再改：
+
+- [TUI 开发角色引入](tui-developer-introduction.md)：职责、两端生成与静态验证；未做模型行为评估。
 
 - [角色迁移记录](role-migration.md)：本轮源包映射、静态验证及 reviewer 试用。
 - [公开试用输入](role-migration-cases.json)：能力覆盖、规格信息包与交付依赖场景，不是留出集。
