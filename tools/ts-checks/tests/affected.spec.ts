@@ -18,7 +18,7 @@ import {
 import { readTestRunsConfig } from '../src/testing/config.ts'
 import { fileTree, listWorkspaceMembers, type WorkspaceMember } from '../src/testing/members.ts'
 import { commitChanges, replayTable } from '../src/testing/replay.ts'
-import { computePlan, fullRequested } from '../src/testing/steps.ts'
+import { computePlan, fullRequested, readPlanFile } from '../src/testing/steps.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 const RULES = readTestRunsConfig().affected
@@ -133,7 +133,7 @@ describe('影响面计划（真实规则）', () => {
 
   it('没有测试读它的成员 README：不算成员改动，只需常驻检查', () => {
     const result = plan(['packages/infra/plain/README.md'])
-    expect(result.files[0]).toMatchObject({ category: 'resident', rule: '**/*.md' })
+    expect(result.files[0]).toMatchObject({ category: 'resident', rule: 'packages/*/*/*.md' })
     expect(result.files[0]?.owner).toBeUndefined()
     expect(result.test).toEqual([])
     expect(result.build).toEqual(RESIDENT_BUILD)
@@ -268,6 +268,28 @@ describe('影响面计划（真实规则）', () => {
     )
   })
 
+  it('成员根与部署说明的 .md 只需常驻检查；tests/ 下的 .md 是夹具，算成员改动', () => {
+    expect(
+      plan(['packages/infra/leaf/README.md', 'apps/top/deploy/docker/README.md']).test,
+    ).toEqual([])
+    // loop-canary.spec.ts 把这份 README 复制进临时仓、改它的 revision 行再断言修订次数。
+    const fixture = plan([
+      'tools/ts-checks/tests/fixtures/loop-canary/repo/.meta_harness/design/product/PF-001-canary/README.md',
+    ])
+    expect(fixture.files[0]).toMatchObject({ category: 'member', owner: 'tools/ts-checks' })
+    expect(fixture.test).toEqual(['tools/ts-checks'])
+  })
+
+  it('依赖成环：反向闭包照样停下，环上的成员都进来', () => {
+    const ring = [
+      ...MEMBERS,
+      member('packages/infra/ring-a', ['@x/ring-b']),
+      member('packages/infra/ring-b', ['@x/ring-a']),
+    ]
+    const result = planCheck(['packages/infra/ring-a/data/x.json'], ring, RULES)
+    expect([...result.test].sort()).toEqual(['packages/infra/ring-a', 'packages/infra/ring-b'])
+  })
+
   it('成员目录里的文件按最长前缀归属；被排除的 examples 的 TS 只带上 ts-checks', () => {
     expect(classify('packages/infra/leaf/package.json', MEMBERS, RULES)).toMatchObject({
       category: 'reader',
@@ -287,6 +309,34 @@ describe('真实仓库', () => {
 
   it('基线不存在：引擎报错，不改判全量', () => {
     expect(() => computePlan(ROOT, 'no-such-ref-for-affected-spec', false)).toThrow()
+  })
+})
+
+describe('计划文件', () => {
+  const dirs: string[] = []
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+  })
+  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim()
+  const planFile = (overrides: Record<string, unknown>) => {
+    const dir = mkdtempSync(join(tmpdir(), 'check-plan-'))
+    dirs.push(dir)
+    const path = join(dir, 'plan.json')
+    const file = { head, dirty: false, base: { ref: 'main', mergeBase: head }, plan: plan([]) }
+    writeFileSync(path, JSON.stringify({ ...file, ...overrides }))
+    return path
+  }
+
+  it('对当前提交算的：读得回来', () => {
+    expect(readPlanFile(ROOT, planFile({})).head).toBe(head)
+  })
+
+  it('不存在、形状不对、对别的提交算的：都报错，不照着跑', () => {
+    expect(() => readPlanFile(ROOT, join(tmpdir(), 'no-such-check-plan.json'))).toThrow('不存在')
+    expect(() => readPlanFile(ROOT, planFile({ plan: { mode: 'scoped' } }))).toThrow('形状不对')
+    expect(() => readPlanFile(ROOT, planFile({ head: '0'.repeat(40) }))).toThrow(
+      '是对提交 000000000 算的',
+    )
   })
 })
 

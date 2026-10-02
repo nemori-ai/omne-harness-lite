@@ -14,6 +14,9 @@
       "scripts/check.sh",
       ".meta_harness/design/spec/**",
       "tools/ts-checks/test-runs.config.json",
+      "tools/ts-checks/src/metrics/git.ts",
+      "tools/ts-checks/src/testing/affected.ts",
+      "tools/ts-checks/src/testing/members.ts",
       "tools/ts-checks/src/testing/cli.ts",
       "tools/ts-checks/src/testing/config.ts",
       "tools/ts-checks/src/testing/run.ts",
@@ -97,7 +100,12 @@
         "why": "tests/readme.spec.ts 运行两份 README 里的代码块"
       }
     ],
-    "memberDocuments": ["**/*.md"],
+    "memberDocuments": [
+      "packages/*/*/*.md",
+      "apps/*/*.md",
+      "tools/*/*.md",
+      "apps/*/deploy/**/*.md"
+    ],
     "pythonPaths": [
       "Makefile",
       "pyproject.toml",
