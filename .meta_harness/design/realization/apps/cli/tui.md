@@ -4,7 +4,7 @@
 
 ## 选择与拥有者
 
-沿A采用`@earendil-works/pi-tui`0.86.1的公共Input、宽字符/换行工具与普通按键拆分组件；不是采用ProcessTerminal/TUI完整默认终端控制。应用内部组合固定身份区域、分页内容和单行非秘密表单，输入水平滚动；不fork/patch第三方渲染器，不新增领域服务或Agent后台进程。组件复用不免除应用自己的输入/屏幕生命周期。
+沿A采用`@earendil-works/pi-tui`1.0.0（2026-10-02自0.86.1升级，见[D-051追加](../../../record/decisions/governance-tui-entry-adoption/pi-tui-1.0.0-2026-10-02.md)）的公共Input、宽字符/换行工具与普通按键拆分组件；不是采用ProcessTerminal/TUI完整默认终端控制。应用内部组合固定身份区域、分页内容和单行非秘密表单，输入水平滚动；不fork/patch第三方渲染器，不新增领域服务或Agent后台进程。组件复用不免除应用自己的输入/屏幕生命周期。
 
 B的canonical菜单因长输入在Enter前卷走身份而不成立；C的外层终端拥有方式尚缺宿主证据。A的本次限定进一步避免无关模式责任：只改变OS termios和2004，既不启用Kitty/modifyOtherKeys/2031/鼠标/备用屏，也不改变cursor visibility/title/progress。整帧输出只含应用所有的定位/清屏、纯文本；Input返回的CURSOR_MARKER用于定位IME硬件光标后去除，样式控制序列在输出前剥离。没有把整个应用改造成新的通用渲染引擎。
 
