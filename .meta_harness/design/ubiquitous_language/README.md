@@ -48,7 +48,7 @@
 
 | 卷 | 回答什么问题 | 典型词条 |
 |---|---|---|
-| [架构内核与扩展](terms/architecture-core-and-extension.md) | 这个系统**哪一部分立规矩**，其余部分怎么建在它之上 | 架构内核 |
+| [架构内核与扩展](terms/architecture-core-and-extension.md) | 这个系统**哪一部分立规矩**，其余部分怎么建在它之上 | 架构内核 · 能力接缝 · Cordis 插件树 |
 | [主体与归属](terms/subjects-and-ownership.md) | **谁**在用这个系统，东西**归谁** | 账号 · 组织 · 租户 · 租户角色 |
 | [作用域与求值](terms/scope-and-resolution.md) | 一个值**怎么被算出来** | 作用域层 · 能力标识 · 覆盖与收窄 |
 | [能力与构成](terms/capabilities-and-composition.md) | agent **由什么构成**，因此**能做什么** | 资产八类 · agent 构成 · 动作空间 |

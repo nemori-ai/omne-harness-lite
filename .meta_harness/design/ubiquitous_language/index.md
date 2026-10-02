@@ -15,6 +15,12 @@
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
 | [UL-architecture-core](terms/architecture-core-and-extension.md#ul-architecture-core--架构内核--architecture-core) | 架构内核 | Architecture Core | 立规矩的那一部分，**与 Cordis 的「内核层」不是一回事**；旧说法 ~~harness core~~ |
+| [UL-capability-seam](terms/architecture-core-and-extension.md#ul-capability-seam--能力接缝--capability-seam) | 能力接缝 | Capability Seam | 一项可替换能力在装配上接进来的位点，**服务定义、提供者、消费者三个角色合起来才算**；旧说法 ~~seam~~ |
+| [UL-cordis-service-definition](terms/architecture-core-and-extension.md#ul-cordis-service-definition--cordis-服务定义--cordis-service-definition) | Cordis 服务定义 | Cordis Service Definition | 接缝里占定服务键、给出形状的那个角色，**每个接缝恰一个**；只有类型不占键的不算 |
+| [UL-cordis-service-provider](terms/architecture-core-and-extension.md#ul-cordis-service-provider--cordis-服务提供者--cordis-service-provider) | Cordis 服务提供者 | Cordis Service Provider | 接缝里在服务键上兑现能力的那个角色，**不是模型「供应商」**；旧说法 ~~服务提供者~~（裸写） |
+| [UL-cordis-service-consumer](terms/architecture-core-and-extension.md#ul-cordis-service-consumer--cordis-服务消费者--cordis-service-consumer) | Cordis 服务消费者 | Cordis Service Consumer | 接缝里按服务键取用能力的那个角色；直接 import 函数不经服务键的不算 |
+| [UL-cordis-plugin-tree](terms/architecture-core-and-extension.md#ul-cordis-plugin-tree--cordis-插件树--cordis-plugin-tree) | Cordis 插件树 | Cordis Plugin Tree | 一个进程启动时挂上的全部 Cordis 插件及配置，**由插件树层叠出，不随租户或会话变** |
+| [UL-plugin-tree-layer](terms/architecture-core-and-extension.md#ul-plugin-tree-layer--插件树层--plugin-tree-layer) | 插件树层 | Plugin Tree Layer | 叠成插件树的一级数据，**本版恰两格：发行层、运维者层**；不是作用域层 |
 
 ## [主体与归属](terms/subjects-and-ownership.md)
 
