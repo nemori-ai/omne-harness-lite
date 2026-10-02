@@ -17,7 +17,9 @@ import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { assetJudge, defaultBodyContracts } from './defaults.ts'
 import { invalidInput } from './diagnostics.ts'
 import { copyJson, immutable, object, own } from './json.ts'
-import { computeEvaluation, selectAssets, versionOf, type EvaluationFacts } from './compute.ts'
+import { computeEvaluation } from './compute.ts'
+import { versionOf, type EvaluationFacts } from './holdings.ts'
+import { selectAssets } from './selection.ts'
 import type {
   InputDiagnostic,
   NonConnectorEvaluationInput,

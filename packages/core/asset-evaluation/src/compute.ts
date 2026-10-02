@@ -1,21 +1,27 @@
 import {
-  capabilityCanonicalString,
-  USABLE_BY_DECLARATION,
-  type AssetDefinition,
   type AssetHolding,
-  type AssetVersion,
-  type AttributeDeclaration,
   type AttributeAssignment,
+  type AttributeDeclaration,
   type CapabilityId,
-  type PermissionValue,
 } from '@omne-harness-lite/asset-model'
-import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { judgeAgentDefinitionBody } from '@omne-harness-lite/agent-definition'
 import { assetJudge } from './defaults.ts'
 import { diagnostic, invalidInput } from './diagnostics.ts'
-import { canonical, copyJson, immutable, object, own, codePointCompare } from './json.ts'
+import {
+  assignmentsFor,
+  declarationsFor,
+  index,
+  key,
+  mcpExecute,
+  permission,
+  same,
+  versionOf,
+  type EvaluationFacts,
+  type Selected,
+} from './holdings.ts'
+import { canonical, copyJson, immutable, codePointCompare } from './json.ts'
 import {
   classifyPermissionAssignment,
   resolvePermission,
@@ -23,320 +29,18 @@ import {
   tiersOf,
   type LayerPermissionAssignment,
 } from './permissions.ts'
+import { selectAssets } from './selection.ts'
 import type {
   EffectiveAssembly,
-  EffectiveAsset,
   EffectiveValue,
   EvaluationResult,
-  EvaluationRootSelectionInput,
-  FilteredOut,
-  HoldingLayer,
   Layer,
   NonConnectorEvaluationInput,
   PermissionDeclaration,
   Unresolved,
 } from './types.ts'
 
-/** Internal projection values, keyed by the admitted holding and selected body version. Not a domain object or provider port. */
-export interface EvaluationFacts {
-  readonly declarations: ReadonlyMap<AssetHolding, readonly AttributeDeclaration[]>
-  readonly references: ReadonlyMap<AssetVersion, readonly CapabilityId[]>
-}
-
-const usableBy: PermissionDeclaration = (() => {
-  if (USABLE_BY_DECLARATION.kind !== 'permission')
-    throw new Error('reserved usableBy declaration must be a permission')
-  return USABLE_BY_DECLARATION
-})()
-const layers: readonly HoldingLayer[] = ['factory', 'organization', 'tenant', 'workspace']
-const index = (layer: Layer): number => (layer === 'session' ? 4 : layers.indexOf(layer))
-const key = capabilityCanonicalString
-const same = (a: CapabilityId, b: CapabilityId): boolean => key(a) === key(b)
-
-interface Selected {
-  readonly holding: AssetHolding
-  readonly definition: AssetDefinition
-  readonly version: AssetVersion
-  readonly asset: EffectiveAsset
-}
-export function versionOf(
-  holding: AssetHolding,
-  definition: AssetDefinition,
-): AssetVersion | undefined {
-  return holding.versionSelection.kind === 'current'
-    ? definition.versions.at(-1)
-    : definition.versions.find(
-        version =>
-          holding.versionSelection.kind === 'pinned' &&
-          ExactDecimal.from(version.number).compare(
-            ExactDecimal.from(holding.versionSelection.number),
-          ) === 0,
-      )
-}
-function permission(value: unknown): PermissionValue | undefined {
-  if (
-    !object(value) ||
-    !Array.isArray(value.allowed) ||
-    value.allowed.some(token => typeof token !== 'string')
-  )
-    return undefined
-  // This local representation is only a projection after checking every token.
-  return { allowed: value.allowed.filter((token): token is string => typeof token === 'string') }
-}
-function mcpExecute(item: string): PermissionDeclaration | undefined {
-  return item.startsWith('execute:')
-    ? {
-        item,
-        kind: 'permission',
-        domain: { kind: 'enum', values: ['forbid', 'auto', 'ask'] },
-        default: 'ask',
-      }
-    : undefined
-}
-function declarationsFor(
-  holding: AssetHolding,
-  facts: EvaluationFacts,
-): readonly AttributeDeclaration[] {
-  return facts.declarations.get(holding) ?? [USABLE_BY_DECLARATION]
-}
-function assignmentsFor(
-  input: Pick<NonConnectorEvaluationInput, 'tenant' | 'session'>,
-  capability: CapabilityId,
-  declaration: PermissionDeclaration,
-  holdings: readonly AssetHolding[],
-  definitions: ReadonlyMap<string, AssetDefinition>,
-  specialUsable: boolean,
-  facts: EvaluationFacts,
-): LayerPermissionAssignment[] {
-  const result: LayerPermissionAssignment[] = []
-  for (const layer of ['organization', 'tenant'] as const) {
-    const holding = holdings.find(
-      entry => entry.holder.layer === layer && same(entry.capability, capability),
-    )
-    if (holding === undefined) continue
-    const assignment = holding.assignments.find(entry => entry.item === declaration.item)
-    if (assignment === undefined) continue
-    const definition = definitions.get(holding.asset)
-    if (definition === undefined) throw new Error('admitted holding has no definition')
-    const version = versionOf(holding, definition)
-    const sourceDeclaration = specialUsable
-      ? USABLE_BY_DECLARATION
-      : capability.category === 'mcp'
-        ? (mcpExecute(declaration.item) ??
-          (version === undefined
-            ? undefined
-            : declarationsFor(holding, facts).find(entry => entry.item === declaration.item)))
-        : version === undefined
-          ? undefined
-          : declarationsFor(holding, facts).find(entry => entry.item === declaration.item)
-    if (sourceDeclaration?.kind !== 'permission') continue
-    const value = permission(assignment.value)
-    if (value === undefined) continue
-    result.push({ layer, value, immutable: assignment.immutable })
-  }
-  const session = input.session?.find(
-    entry => same(entry.capability, capability) && entry.assignment.item === declaration.item,
-  )
-  if (session !== undefined) {
-    const value = permission(session.assignment.value)
-    if (value !== undefined)
-      result.push({ layer: 'session', value, immutable: session.assignment.immutable })
-  }
-  return result
-}
-
-export function selectAssets(input: EvaluationRootSelectionInput, facts: EvaluationFacts) {
-  if (input.rootDefinition.category !== 'agent_definition')
-    return invalidInput(diagnostic('C2', 'root is not an Agent Definition'))
-  if (input.workspace !== undefined && !tenantIdEquals(input.workspace.tenant, input.tenant))
-    return invalidInput(diagnostic('C3', 'workspace tenant'))
-  for (const holding of input.holdings) {
-    const holder = holding.holder
-    if (
-      (holder.layer === 'organization' && holder.organization !== input.tenant.organization) ||
-      (holder.layer === 'tenant' && !tenantIdEquals(holder.tenant, input.tenant)) ||
-      (holder.layer === 'workspace' &&
-        (input.workspace === undefined ||
-          holder.workspace.directory !== input.workspace.directory ||
-          !tenantIdEquals(holder.workspace.tenant, input.workspace.tenant)))
-    )
-      return invalidInput(diagnostic('C3', 'holding outside input scopes'))
-  }
-  const holdingKeys = input.holdings.map(
-    holding => `${holding.holder.layer}:${key(holding.capability)}`,
-  )
-  if (new Set(holdingKeys).size !== holdingKeys.length)
-    return invalidInput(diagnostic('C4', 'duplicate scope holding'))
-  const definitions = new Map<string, AssetDefinition>()
-  for (const definition of input.definitions) {
-    definitions.set(definition.id, definition)
-  }
-  for (const holding of input.holdings) {
-    const definition = definitions.get(holding.asset)
-    if (
-      definition === undefined ||
-      input.definitions.filter(entry => entry.id === holding.asset).length !== 1 ||
-      !same(definition.capability, holding.capability)
-    )
-      return invalidInput(diagnostic('C5', 'held asset has no unique matching definition'))
-    if (
-      holding.holder.layer === 'factory' &&
-      (definition.origin !== 'official' || holding.assignments.length !== 0)
-    )
-      return invalidInput(diagnostic('C6', 'factory holds only unassigned official assets'))
-    if (
-      definition.origin === 'official' &&
-      holding.assignments.some(entry => entry.item === 'disabled' && entry.value === true)
-    )
-      return invalidInput(diagnostic('C7', 'official disabled'))
-    if (
-      holding.holder.layer === 'workspace' &&
-      input.holdings.some(
-        entry => entry.holder.layer !== 'workspace' && entry.asset === holding.asset,
-      )
-    )
-      return invalidInput(diagnostic('C8', 'workspace asset also held outside workspace'))
-  }
-  const sessionKeys =
-    input.session?.map(entry => `${key(entry.capability)}:${entry.assignment.item}`) ?? []
-  if (new Set(sessionKeys).size !== sessionKeys.length)
-    return invalidInput(diagnostic('C11', 'duplicate session assignment'))
-  if (input.standing.standing !== 'effective')
-    return invalidInput(diagnostic('C12', 'ineffective membership'))
-  const filtered: FilteredOut[] = []
-  const disabled = new Set<string>()
-  for (const holding of input.holdings) {
-    if (holding.assignments.some(entry => entry.item === 'disabled' && entry.value === true))
-      disabled.add(holding.asset)
-    if (holding.holder.layer === 'workspace') {
-      const definition = definitions.get(holding.asset)
-      const content = definition?.versions[0]?.content
-      if (
-        (content?.category === 'mcp' && own(own(content.body, 'transport'), 'kind') === 'stdio') ||
-        (content?.category === 'loop_extension' &&
-          own(own(content.extension, 'implementation'), 'kind') === 'command')
-      )
-        disabled.add(holding.asset)
-    }
-  }
-  const live = input.holdings.filter(holding => !disabled.has(holding.asset))
-  for (const holding of input.holdings)
-    if (disabled.has(holding.asset))
-      filtered.push({
-        capability: holding.capability,
-        from: holding.holder.layer,
-        reason: 'disabled',
-      })
-  const usableValid = (assignment: AttributeAssignment): boolean => {
-    const value = permission(assignment.value)
-    return (
-      value !== undefined &&
-      new Set(value.allowed).size === value.allowed.length &&
-      value.allowed.every(token => usableBy.domain.values.includes(token))
-    )
-  }
-  for (const holding of live)
-    if (holding.holder.layer !== 'workspace') {
-      const assignment = holding.assignments.find(entry => entry.item === 'usableBy')
-      if (assignment !== undefined && !usableValid(assignment))
-        return invalidInput(diagnostic('C10', 'usableBy assignment outside declaration domain'))
-    }
-  for (const entry of input.session ?? [])
-    if (
-      entry.assignment.item === 'usableBy' &&
-      live.some(holding => same(holding.capability, entry.capability)) &&
-      !usableValid(entry.assignment)
-    )
-      return invalidInput(diagnostic('C10', 'session usableBy outside declaration domain'))
-  const usableValues = new Map<string, ReturnType<typeof resolvePermission>>()
-  const surviving = live.filter(holding => {
-    const definition = definitions.get(holding.asset)
-    if (definition === undefined) throw new Error('C5 invariant')
-    const value = resolvePermission(
-      usableBy,
-      assignmentsFor(input, holding.capability, usableBy, live, definitions, true, facts),
-      holding.holder.layer === 'workspace' ? strictPermission(usableBy) : undefined,
-    )
-    usableValues.set(holding.asset, value)
-    if (
-      definition.origin === 'official' ||
-      value.value.allowed.includes(
-        input.standing.standing === 'effective' ? input.standing.role : '',
-      ) ||
-      (value.value.allowed.includes('self') &&
-        (holding.holder.layer === 'workspace' || tenantIdEquals(definition.author, input.tenant)))
-    )
-      return true
-    filtered.push({
-      capability: holding.capability,
-      from: holding.holder.layer,
-      reason: 'not_usable',
-    })
-    return false
-  })
-  const locks = new Map<string, AssetHolding>()
-  for (const holding of [...surviving].sort(
-    (left, right) => index(left.holder.layer) - index(right.holder.layer),
-  ))
-    if (holding.immutable && !locks.has(key(holding.capability)))
-      locks.set(key(holding.capability), holding)
-  const inEffect = live.filter(holding => {
-    const lock = locks.get(key(holding.capability))
-    return (
-      lock === undefined ||
-      index(holding.holder.layer) <= index(lock.holder.layer) ||
-      holding.asset === lock.asset
-    )
-  })
-  for (const holding of surviving)
-    if (!inEffect.includes(holding))
-      filtered.push({
-        capability: holding.capability,
-        from: holding.holder.layer,
-        reason: 'locked_below',
-      })
-  const selected = new Map<string, Selected>()
-  for (const holding of inEffect) {
-    const definition = definitions.get(holding.asset)
-    if (definition === undefined) throw new Error('C5 invariant')
-    if (holding.holder.layer !== 'workspace' && versionOf(holding, definition) === undefined)
-      return invalidInput(diagnostic('C9', 'version selection cannot resolve'))
-  }
-  for (const holding of [...surviving]
-    .filter(entry => inEffect.includes(entry))
-    .sort((left, right) => index(left.holder.layer) - index(right.holder.layer))) {
-    const definition = definitions.get(holding.asset)
-    if (definition === undefined) throw new Error('C5 invariant')
-    const version = versionOf(holding, definition)
-    if (version === undefined)
-      return invalidInput(diagnostic('C9', 'selected asset has no published version'))
-    const lock = locks.get(key(holding.capability))
-    const replaced = layers.filter(layer =>
-      surviving.some(
-        entry =>
-          inEffect.includes(entry) &&
-          same(entry.capability, holding.capability) &&
-          entry.holder.layer === layer &&
-          index(layer) < index(holding.holder.layer) &&
-          entry.asset !== holding.asset,
-      ),
-    )
-    selected.set(key(holding.capability), {
-      holding,
-      definition,
-      version,
-      asset: {
-        capability: holding.capability,
-        asset: holding.asset,
-        version: version.number,
-        from: holding.holder.layer,
-        replaced,
-        ...(lock === undefined ? {} : { lockedAt: lock.holder.layer }),
-      },
-    })
-  }
-  return { selected, inEffect, surviving, definitions, usableValues, filtered }
-}
+export type { EvaluationFacts }
 
 export function computeEvaluation(
   input: NonConnectorEvaluationInput,
