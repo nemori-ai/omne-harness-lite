@@ -56,6 +56,11 @@ export interface LoopConfig {
   readonly memberBudget: Readonly<Record<BudgetItem, Lines>>
   /** 不判预算、不生成草稿的成员组（`memberOf` 的 group，如 `examples`）。全仓指标不受它影响。 */
   readonly budgetExcludeGroups: readonly string[]
+  /**
+   * 成员预算另与基线快照比：基线里有的成员只在变差时进提醒，绝对线只管新成员与处置。
+   * 处置（超预算）的条件不受它影响。
+   */
+  readonly budgetBaseline: boolean
   readonly sensors: {
     readonly stability: { readonly enabled: boolean; readonly margin: number }
     readonly cochange: {
@@ -213,8 +218,8 @@ function groups(value: unknown, name: string): string[] {
 
 export function parseLoopConfig(parsed: unknown): LoopConfig {
   const raw = object(parsed, '配置')
-  // memberBudget 里除四项预算的线之外，还有一项 excludeGroups。
-  const { excludeGroups, ...budgetLines } = object(raw['memberBudget'], 'memberBudget')
+  // memberBudget 里除四项预算的线之外，还有 excludeGroups 与 baseline 两项。
+  const { excludeGroups, baseline, ...budgetLines } = object(raw['memberBudget'], 'memberBudget')
   const sensors = object(raw['sensors'], 'sensors')
   const stability = object(sensors['stability'], 'sensors.stability')
   const cochange = object(sensors['cochange'], 'sensors.cochange')
@@ -234,6 +239,7 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
     indicators: exactly(raw['indicators'], INDICATORS, 'indicators', indicator),
     memberBudget: exactly(budgetLines, BUDGET_ITEMS, 'memberBudget', lines),
     budgetExcludeGroups: groups(excludeGroups, 'memberBudget.excludeGroups'),
+    budgetBaseline: bool(baseline, 'memberBudget.baseline'),
     sensors: {
       stability: {
         enabled: bool(stability['enabled'], 'sensors.stability.enabled'),

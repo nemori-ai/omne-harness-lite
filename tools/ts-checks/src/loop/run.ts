@@ -13,7 +13,7 @@ import { inspectRetire } from '../product/retire.ts'
 import { readTestRunsConfig } from '../testing/config.ts'
 import { GROUP_DIRECTION_POLICY } from '../rules/group-direction.ts'
 import { isTestPath, type SourceFile } from '../rule.ts'
-import { judgeMember, type MemberBudget } from './budget.ts'
+import { judgeMember, type MemberBaseline, type MemberBudget } from './budget.ts'
 import { readCatalogue } from './catalogue.ts'
 import { readLoopConfig, type IndicatorId, type LoopConfig } from './config.ts'
 import { loopHome } from './home.ts'
@@ -284,13 +284,25 @@ function acceptanceNote(timing: AcceptanceTiming): string {
   return `${timing.files} 份（${timing.members} 个成员），记录开始于 ${timing.ledger?.startedAt ?? '？'}`
 }
 
+/** 一个成员拿什么与基线比：配置不比、没有基线快照，或基线快照里它的条目（新成员没有）。 */
+function memberBaseline(
+  enabled: boolean,
+  baseline: BaselineSnapshot,
+): (member: string) => MemberBaseline {
+  if (!enabled) return () => ({ kind: 'off' })
+  if (baseline.kind === 'none') return () => ({ kind: 'none' })
+  return member => ({ kind: 'snapshot', entry: baseline.snapshot.members[member] })
+}
+
 function memberBudgets(
   report: Report,
   sensors: Sensors,
   config: LoopConfig,
   history: readonly Snapshot[],
   head: string,
+  baseline: BaselineSnapshot,
 ): MemberBudget[] {
+  const baselineOfMember = memberBaseline(config.budgetBaseline, baseline)
   const duplication =
     sensors.duplication.status === 'data'
       ? new Map(sensors.duplication.data.members.map(entry => [entry.member, entry.percent]))
@@ -318,6 +330,7 @@ function memberBudgets(
         history,
         head,
         relapseLimit: config.relapseLimit,
+        baseline: baselineOfMember(member.path),
       }),
     )
 }
@@ -506,6 +519,7 @@ export async function runLoopStatus(
     config,
     ancestorSnapshots(trend.snapshots, headAncestry),
     at.head,
+    baseline,
   )
   const proposalDir = join(options.strict ? outDir : home, 'proposals')
   const overBudget = writeProposals(budgets, report, sensors, config, proposalDir, at)
@@ -578,6 +592,8 @@ export async function runLoopStatus(
     explain,
     explainTop: config.explainTop,
     overBudget,
+    budgets,
+    budgetBaseline: config.budgetBaseline,
     proposalDir,
     catalogue,
     cataloguePath: config.sensors.catalogue.path,

@@ -26,6 +26,7 @@
   },
   "memberBudget": {
     "excludeGroups": ["examples"],
+    "baseline": true,
     "overAlert": { "warn": 8, "act": 14, "release": 6 },
     "risk": { "warn": 20, "act": 23, "release": 18 },
     "duplication": { "warn": 5, "act": 10, "release": 4 },

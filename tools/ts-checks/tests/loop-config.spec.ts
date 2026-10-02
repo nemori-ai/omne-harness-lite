@@ -17,6 +17,7 @@ describe('回路配置', () => {
     expect(config.indicators.duplicationPercent.lines).toEqual({ warn: 3, act: 6, release: 2 })
     expect(config.memberBudget.risk).toEqual({ warn: 20, act: 23, release: 18 })
     expect(config.budgetExcludeGroups).toEqual(['examples'])
+    expect(config.budgetBaseline).toBe(true)
     expect(config.sensors.cochange).toEqual({
       enabled: true,
       window: 300,
@@ -66,6 +67,16 @@ describe('回路配置', () => {
         delete (value['memberBudget'] as Record<string, unknown>)['excludeGroups']
       }),
     ).toThrow('memberBudget.excludeGroups')
+    expect(
+      without(value => {
+        delete (value['memberBudget'] as Record<string, unknown>)['baseline']
+      }),
+    ).toThrow('memberBudget.baseline 须为 true 或 false')
+    expect(
+      without(value => {
+        ;(value['memberBudget'] as Record<string, unknown>)['baseline'] = 'yes'
+      }),
+    ).toThrow('memberBudget.baseline 须为 true 或 false')
     expect(
       without(value => {
         const sensors = value['sensors'] as Record<string, Record<string, unknown>>
