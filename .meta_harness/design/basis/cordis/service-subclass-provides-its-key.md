@@ -28,6 +28,10 @@ checked: 2026-10-02
 这件事决定了「服务键只写一次」做得到：键写在服务定义（抽象类）里，提供者 `extends` 它而不重复写键，
 消费者按同一个键取用。
 
+一个插件要提供几个键（同一份实现的几个服务面）时，不必把每个子类各当一个插件装：在一个函数插件的插件体里
+逐个 `new 子类(ctx)`，构造函数照样以各自的键登记，**登记都落在这一条插件的 fiber 上**，插件撤除时一起撤掉——
+「一个插件、一条 fiber、几个服务面」的设计因此不用拆成几条 fiber。
+
 **想当然的理解**：抽象类只是 TypeScript 的类型，实现类还得自己 `ctx.provide(键, this)` 一次。
 
 **实际（4.0.4 取证）**：`Service` 的构造函数本身就调 `ctx.reflect.provide(name, self, check)`，
@@ -47,9 +51,11 @@ probe 在 `packages/core/kernel-basis`，对 4.0.4 通过（2026-10-02）：
 
 1. 抽象类 `super(ctx, 'probeGreeter')`、子类只实现 `greet`；`ctx.plugin(子类)` 之后 `ctx.get('probeGreeter')` 是抽象类的实例、方法可调；
    撤除那条 fiber 后 `ctx.get('probeGreeter')` 为 `undefined`。
-2. 先装一个 `inject: ['probeGreeter']` 的消费者，插件体不跑；装上子类后插件体跑一次。
+2. 一个函数插件的插件体里 `new` 两个不同键的子类：两个键都取得到；撤除这条插件的 fiber 后两个键都为空。
+3. 先装一个 `inject: ['probeGreeter']` 的消费者，插件体不跑；装上子类后插件体跑一次。
 
-上游若让 `Service` 的构造函数不再自行登记、或登记的键不再取自 `super` 的参数，第 1 条失败——本条目随之失效。
+上游若让 `Service` 的构造函数不再自行登记、或登记的键不再取自 `super` 的参数，第 1 条失败；
+若手工实例化的 `Service` 不再登记在当前插件的 fiber 上，第 2 条失败——本条目随之失效。
 
 ## 已知的误用
 
