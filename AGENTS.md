@@ -82,6 +82,10 @@ skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness
 
 这些判断在设计中按需展开为 `harness-design-handbook` skill 的 Taste 与 `references/architecture/assurance/judgment.md`，在实现中展开为[防御指导](docs/defensive-patterns.md)；知识该落在哪一区，归 [design/AGENTS.md](.meta_harness/design/AGENTS.md) 的准入。
 
+整洁靠回路守，不靠往提示里加条款：**约束结果不约束做法，反馈事实不下指令，阈值管边界不管路径**。
+能量的做成传感器，量不了但问得出后果的做成评审问法，剩下的归人；只有四条硬线拦合并，其余只报告，红项逐条交代。
+怎么运作、每一条归谁，见[整洁回路](docs/clean-loop.md)。
+
 ## 署名与分支：作者是人，来源可追溯
 
 > **AI 参与开发不改变权责归属。**指导和调用这些工具的那个人，对最终内容、
@@ -119,6 +123,7 @@ omne-harness-lite/
 │   ├── workspace.md              源码归属、包边界与两套 workspace
 │   ├── verification.md           每个检查入口覆盖什么、不能声称什么
 │   ├── defensive-patterns.md     十条防御指导，含编号、适用范围与复核触发
+│   ├── clean-loop.md             整洁回路：带位与硬线、谁来处置、整洁之道各条归传感器、评审还是人
 │   ├── blogs/                    个人技术博客仓库的 Git 子模块
 │   └── README.md / AGENTS.md / CLAUDE.md   地图与局部约定
 ├── packages/                     产品可复用包，按 core／infra／领域分组（现状见实现映射）
@@ -171,7 +176,7 @@ omne-harness-lite/
 | 接受一份实现类交付之前，定看法，或判断要不要另派实现评审与独立验收                                                    | 手册的[按风险选择接受实现的看法](.meta_harness/agents/skills/harness-design-handbook/canonical/references/handoff.md#按风险选择接受实现的看法)定级别；默认不派，L2／L3 或读数里有未交代的红项才派，派谁见[实现评审与独立验收](.meta_harness/agents/roles/README.md#实现评审与独立验收) |
 | 核对 Cordis API、依赖、插件或生命周期                                                                                 | 加载 `harness-design-handbook` skill，进入其「来源核对」                                                                                                                                                                                                                               |
 | 判断过度设计、抽象价值、复用或复杂度                                                                                  | 加载 `harness-design-handbook` skill，读其 Taste 与 `references/architecture/assurance/judgment.md`                                                                                                                                                                                    |
-| 实现改完要验证、测试红了要判原因、交付前要看结构与度量                                                                | [开发指南的「修改与验证」](docs/development.md#修改与验证)按问题给入口：受影响范围、失败归因、结构度量；每个入口不能声称什么见[验证规范](docs/verification.md)                                                                                                                         |
+| 实现改完要验证、测试红了要判原因、交付前要看结构与度量                                                                | [开发指南的「修改与验证」](docs/development.md#修改与验证)按问题给入口：受影响范围、失败归因、结构度量；每个入口不能声称什么见[验证规范](docs/verification.md)；带位与谁来处置见[整洁回路](docs/clean-loop.md)                                                                         |
 | 放置源码、增加成员或调整开发/CI 入口                                                                                  | [源码布局与 workspace](docs/workspace.md)及目标目录局部约定；具体命令见[验证规范](docs/verification.md)                                                                                                                                                                                |
 | 创建、接受、修改或迁移设计材料                                                                                        | 从 [design 信息包](.meta_harness/design/README.md)定位 family 和本地模板；已有材料按其接受与版本依据接续，迁移须明确来源和消费者切换                                                                                                                                                   |
 | 调整防御辅助或准备切换开发主力模型                                                                                    | [防御演化](.meta_harness/agents/evaluation/developer-model/README.md)与[开发模型评估](.meta_harness/agents/evaluation/developer-model/README.md)                                                                                                                                       |

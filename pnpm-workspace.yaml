@@ -26,6 +26,8 @@ catalog:
   '@standard-schema/spec': 1.1.0
   yaml: 2.9.1
   '@eslint-community/regexpp': 4.12.2
+  '@jscpd/core': 4.0.1
+  '@jscpd/tokenizer': 4.0.1
 
 patchedDependencies:
   '@earendil-works/pi-tui@0.86.1': apps/cli/patches/pi-tui-0.86.1.patch

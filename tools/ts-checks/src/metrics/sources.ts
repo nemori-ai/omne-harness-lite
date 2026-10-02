@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import type { SourceFile } from '../rule.ts'
+import { fileAt } from './git.ts'
+import { memberOf } from './graph.ts'
 
 /** 成员目录下的 TypeScript 源，路径相对于仓库根；不进 node_modules、dist 与覆盖率产物。 */
 export function collectMemberSources(root: string): SourceFile[] {
@@ -22,4 +24,20 @@ export function collectMemberSources(root: string): SourceFile[] {
     if (statSync(full, { throwIfNoEntry: false })?.isDirectory() === true) walk(full)
   }
   return out
+}
+
+/**
+ * 改动过的成员 TypeScript 源在基线上的文本（基线上还没有的文件值为 undefined），
+ * 用来按函数文本判断哪些函数真的变了、或还原基线上的导入。
+ */
+export function baseTextsOf(
+  root: string,
+  mergeBase: string,
+  paths: Iterable<string>,
+): Map<string, string | undefined> {
+  const texts = new Map<string, string | undefined>()
+  for (const path of paths)
+    if (memberOf(path) !== undefined && /\.[cm]?tsx?$/u.test(path))
+      texts.set(path, fileAt(root, mergeBase, path))
+  return texts
 }

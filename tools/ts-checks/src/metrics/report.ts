@@ -239,7 +239,8 @@ function undirected(
   return neighbors
 }
 
-function isMeasuredSource(path: string): boolean {
+/** 度量的口径：成员 `src/` 下的非测试、非声明 TypeScript 源。 */
+export function isMeasuredSource(path: string): boolean {
   return /\/src\//u.test(path) && !isTestPath(path) && !path.endsWith('.d.ts')
 }
 

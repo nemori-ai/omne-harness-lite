@@ -1,0 +1,51 @@
+{
+  "primaryBranch": "main",
+  "relapseLimit": 2,
+  "explainTop": 10,
+  "indicators": {
+    "redMembers": { "lines": { "warn": 1, "act": 3, "release": 0 }, "baseline": true },
+    "functionsOverAlert": { "lines": null, "baseline": true },
+    "stableOnUnstable": { "lines": null, "baseline": true },
+    "cochangePairs": { "lines": { "warn": 1, "act": 4, "release": 0 }, "baseline": false },
+    "newEdges": { "lines": null, "baseline": false },
+    "testsWithoutAssertions": { "lines": null, "baseline": true },
+    "duplicationPercent": { "lines": { "warn": 3, "act": 6, "release": 2 }, "baseline": true },
+    "topicRevChurn": { "lines": { "warn": 3, "act": 5, "release": 2 }, "baseline": false },
+    "worktrees": { "lines": { "warn": 3, "act": 5, "release": 2 }, "baseline": false },
+    "worktreeSharedMembers": { "lines": { "warn": 1, "act": 2, "release": 0 }, "baseline": false }
+  },
+  "memberBudget": {
+    "excludeGroups": ["examples"],
+    "overAlert": { "warn": 3, "act": 6, "release": 2 },
+    "risk": { "warn": 12, "act": 20, "release": 10 },
+    "duplication": { "warn": 5, "act": 10, "release": 4 },
+    "testsWithoutAssertions": { "warn": 3, "act": 8, "release": 2 }
+  },
+  "sensors": {
+    "stability": { "enabled": true, "margin": 0.2 },
+    "cochange": {
+      "enabled": true,
+      "window": 300,
+      "maxMembersPerCommit": 8,
+      "minTogether": 4,
+      "minRatio": 0.6
+    },
+    "duplication": { "enabled": true, "minTokens": 50, "minLines": 5 },
+    "assertions": {
+      "enabled": true,
+      "assertionPattern": "^(expect|assert|expectTypeOf|assertType)",
+      "helperPattern": ""
+    },
+    "newEdges": { "enabled": true },
+    "topicChurn": {
+      "enabled": true,
+      "productRoot": ".meta_harness/design/product",
+      "windowDays": 14
+    },
+    "worktrees": { "enabled": true },
+    "catalogue": {
+      "path": "docs/clean-loop.md",
+      "doctrinePath": ".meta_harness/research/clean-code-doctrine-current/doctrine-catalogue.md"
+    }
+  }
+}

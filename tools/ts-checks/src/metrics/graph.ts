@@ -52,8 +52,22 @@ export function memberGraph(files: readonly SourceFile[]): MemberGraph {
     const member = memberOf(file.path)
     if (member !== undefined && !members.has(member.path)) members.set(member.path, member)
   }
+  return {
+    members: [...members.values()].sort((a, b) => a.path.localeCompare(b.path)),
+    edges: memberEdges(files, [...members.values()]),
+  }
+}
+
+/**
+ * 这些文件里的产品源码指向给定成员的边，按 `from`、`to` 排好。导入按包名对到 `members`，
+ * 同名的成员以后出现的为准；`files` 可以只是部分文件（例如某个提交上的改动文件）。
+ */
+export function memberEdges(
+  files: readonly SourceFile[],
+  members: readonly Member[],
+): MemberEdge[] {
   const byName = new Map<string, Member>()
-  for (const member of members.values()) byName.set(member.name, member)
+  for (const member of members) byName.set(member.name, member)
 
   const edges = new Map<string, { from: string; to: string; sites: ImportSite[] }>()
   for (const file of files) {
@@ -73,13 +87,9 @@ export function memberGraph(files: readonly SourceFile[]): MemberGraph {
       edge.sites.push({ path: file.path, line: lineAt(file.text, ref.index), specifier })
     }
   }
-  const sorted = [...edges.values()].sort((a, b) =>
+  return [...edges.values()].sort((a, b) =>
     a.from === b.from ? a.to.localeCompare(b.to) : a.from.localeCompare(b.from),
   )
-  return {
-    members: [...members.values()].sort((a, b) => a.path.localeCompare(b.path)),
-    edges: sorted,
-  }
 }
 
 /** 强连通分量里节点数大于一的那些，即环；节点按字典序。 */

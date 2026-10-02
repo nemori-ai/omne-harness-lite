@@ -1,0 +1,240 @@
+// 回路状态的阈值、窗口与开关只在 `loop.config.json` 里定一次。这里只读它、校验它：
+// 缺项或类型不对一律报错，不悄悄换成默认值——那些数字是试点后要校准的起步值，必须看得见。
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { validLines, type Lines } from './bands.ts'
+
+export const INDICATORS = [
+  'redMembers',
+  'functionsOverAlert',
+  'stableOnUnstable',
+  'cochangePairs',
+  'newEdges',
+  'testsWithoutAssertions',
+  'duplicationPercent',
+  'topicRevChurn',
+  'worktrees',
+  'worktreeSharedMembers',
+] as const
+export type IndicatorId = (typeof INDICATORS)[number]
+
+export const BUDGET_ITEMS = ['overAlert', 'risk', 'duplication', 'testsWithoutAssertions'] as const
+export type BudgetItem = (typeof BUDGET_ITEMS)[number]
+
+export interface IndicatorConfig {
+  /** null：没有绝对线，只与基线比（或只进「要解释」）。 */
+  readonly lines: Lines | null
+  /** 另与基线快照比，比基线差至少是提醒。 */
+  readonly baseline: boolean
+}
+
+export interface LoopConfig {
+  /** 主线分支：HEAD 正是它的头时自动写趋势快照；不给 BASE 时以它的合并点找基线快照。 */
+  readonly primaryBranch: string
+  /** 「解除之后又进入处置」达到这个次数的成员标结构问题，不生成清理草稿。 */
+  readonly relapseLimit: number
+  /** 「要解释的红项」每一类在终端最多列几条。 */
+  readonly explainTop: number
+  readonly indicators: Readonly<Record<IndicatorId, IndicatorConfig>>
+  readonly memberBudget: Readonly<Record<BudgetItem, Lines>>
+  /** 不判预算、不生成草稿的成员组（`memberOf` 的 group，如 `examples`）。全仓指标不受它影响。 */
+  readonly budgetExcludeGroups: readonly string[]
+  readonly sensors: {
+    readonly stability: { readonly enabled: boolean; readonly margin: number }
+    readonly cochange: {
+      readonly enabled: boolean
+      readonly window: number
+      readonly maxMembersPerCommit: number
+      readonly minTogether: number
+      readonly minRatio: number
+    }
+    readonly duplication: {
+      readonly enabled: boolean
+      readonly minTokens: number
+      readonly minLines: number
+    }
+    readonly assertions: {
+      readonly enabled: boolean
+      readonly assertionPattern: RegExp
+      /** 空串表示不用。 */
+      readonly helperPattern: RegExp | undefined
+    }
+    readonly newEdges: { readonly enabled: boolean }
+    readonly topicChurn: {
+      readonly enabled: boolean
+      readonly productRoot: string
+      readonly windowDays: number
+    }
+    readonly worktrees: { readonly enabled: boolean }
+    readonly catalogue: { readonly path: string; readonly doctrinePath: string }
+  }
+}
+
+export const LOOP_CONFIG_PATH = fileURLToPath(new URL('../../loop.config.json', import.meta.url))
+
+type Raw = Readonly<Record<string, unknown>>
+
+function object(value: unknown, name: string): Raw {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    throw new Error(`${name} 须为对象`)
+  return value as Raw
+}
+
+function number(value: unknown, name: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0)
+    throw new Error(`${name} 须为非负数`)
+  return value
+}
+
+function integer(value: unknown, name: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1)
+    throw new Error(`${name} 须为正整数`)
+  return value
+}
+
+function bool(value: unknown, name: string): boolean {
+  if (typeof value !== 'boolean') throw new Error(`${name} 须为 true 或 false`)
+  return value
+}
+
+function text(value: unknown, name: string): string {
+  if (typeof value !== 'string' || value === '') throw new Error(`${name} 须为非空字符串`)
+  return value
+}
+
+function pattern(value: unknown, name: string): RegExp {
+  const source = text(value, name)
+  try {
+    return new RegExp(source, 'u')
+  } catch (error) {
+    throw new Error(`${name} 不是合法的正则表达式：${String(error)}`, { cause: error })
+  }
+}
+
+/** 可以是空串，表示不用。 */
+function optionalPattern(value: unknown, name: string): RegExp | undefined {
+  if (value === '') return undefined
+  return pattern(value, name)
+}
+
+function lines(value: unknown, name: string): Lines {
+  const raw = object(value, name)
+  const parsed = {
+    warn: number(raw['warn'], `${name}.warn`),
+    act: number(raw['act'], `${name}.act`),
+    release: number(raw['release'], `${name}.release`),
+  }
+  if (!validLines(parsed)) throw new Error(`${name} 须满足 release ≤ warn ≤ act`)
+  return parsed
+}
+
+/** 键须恰好是 `ids`：少了或多了都报错，免得拼错的键被悄悄忽略。 */
+function exactly<K extends string, V>(
+  value: unknown,
+  ids: readonly K[],
+  name: string,
+  parse: (item: unknown, itemName: string) => V,
+): Record<K, V> {
+  const raw = object(value, name)
+  const extra = Object.keys(raw).filter(key => !(ids as readonly string[]).includes(key))
+  if (extra.length > 0) throw new Error(`${name} 里有认不出的项：${extra.join('、')}`)
+  const out = {} as Record<K, V>
+  for (const id of ids) {
+    if (!(id in raw)) throw new Error(`${name} 缺 ${id}`)
+    out[id] = parse(raw[id], `${name}.${id}`)
+  }
+  return out
+}
+
+function indicator(value: unknown, name: string): IndicatorConfig {
+  const raw = object(value, name)
+  if (!('lines' in raw)) throw new Error(`${name}.lines 须给出（没有绝对线写 null）`)
+  return {
+    lines: raw['lines'] === null ? null : lines(raw['lines'], `${name}.lines`),
+    baseline: bool(raw['baseline'], `${name}.baseline`),
+  }
+}
+
+function groups(value: unknown, name: string): string[] {
+  if (!Array.isArray(value) || !value.every(item => typeof item === 'string' && item !== ''))
+    throw new Error(`${name} 须为成员组名的数组（可以为空）`)
+  return value
+}
+
+export function parseLoopConfig(parsed: unknown): LoopConfig {
+  const raw = object(parsed, '配置')
+  // memberBudget 里除四项预算的线之外，还有一项 excludeGroups。
+  const { excludeGroups, ...budgetLines } = object(raw['memberBudget'], 'memberBudget')
+  const sensors = object(raw['sensors'], 'sensors')
+  const stability = object(sensors['stability'], 'sensors.stability')
+  const cochange = object(sensors['cochange'], 'sensors.cochange')
+  const duplication = object(sensors['duplication'], 'sensors.duplication')
+  const assertions = object(sensors['assertions'], 'sensors.assertions')
+  const newEdges = object(sensors['newEdges'], 'sensors.newEdges')
+  const topicChurn = object(sensors['topicChurn'], 'sensors.topicChurn')
+  const worktrees = object(sensors['worktrees'], 'sensors.worktrees')
+  const catalogue = object(sensors['catalogue'], 'sensors.catalogue')
+  const minRatio = number(cochange['minRatio'], 'sensors.cochange.minRatio')
+  if (minRatio > 1) throw new Error('sensors.cochange.minRatio 须在 0 到 1 之间')
+  return {
+    primaryBranch: text(raw['primaryBranch'], 'primaryBranch'),
+    relapseLimit: integer(raw['relapseLimit'], 'relapseLimit'),
+    explainTop: integer(raw['explainTop'], 'explainTop'),
+    indicators: exactly(raw['indicators'], INDICATORS, 'indicators', indicator),
+    memberBudget: exactly(budgetLines, BUDGET_ITEMS, 'memberBudget', lines),
+    budgetExcludeGroups: groups(excludeGroups, 'memberBudget.excludeGroups'),
+    sensors: {
+      stability: {
+        enabled: bool(stability['enabled'], 'sensors.stability.enabled'),
+        margin: number(stability['margin'], 'sensors.stability.margin'),
+      },
+      cochange: {
+        enabled: bool(cochange['enabled'], 'sensors.cochange.enabled'),
+        window: integer(cochange['window'], 'sensors.cochange.window'),
+        maxMembersPerCommit: integer(
+          cochange['maxMembersPerCommit'],
+          'sensors.cochange.maxMembersPerCommit',
+        ),
+        minTogether: integer(cochange['minTogether'], 'sensors.cochange.minTogether'),
+        minRatio,
+      },
+      duplication: {
+        enabled: bool(duplication['enabled'], 'sensors.duplication.enabled'),
+        minTokens: integer(duplication['minTokens'], 'sensors.duplication.minTokens'),
+        minLines: integer(duplication['minLines'], 'sensors.duplication.minLines'),
+      },
+      assertions: {
+        enabled: bool(assertions['enabled'], 'sensors.assertions.enabled'),
+        assertionPattern: pattern(
+          assertions['assertionPattern'],
+          'sensors.assertions.assertionPattern',
+        ),
+        helperPattern: optionalPattern(
+          assertions['helperPattern'],
+          'sensors.assertions.helperPattern',
+        ),
+      },
+      newEdges: { enabled: bool(newEdges['enabled'], 'sensors.newEdges.enabled') },
+      topicChurn: {
+        enabled: bool(topicChurn['enabled'], 'sensors.topicChurn.enabled'),
+        productRoot: text(topicChurn['productRoot'], 'sensors.topicChurn.productRoot'),
+        windowDays: integer(topicChurn['windowDays'], 'sensors.topicChurn.windowDays'),
+      },
+      worktrees: { enabled: bool(worktrees['enabled'], 'sensors.worktrees.enabled') },
+      catalogue: {
+        path: text(catalogue['path'], 'sensors.catalogue.path'),
+        doctrinePath: text(catalogue['doctrinePath'], 'sensors.catalogue.doctrinePath'),
+      },
+    },
+  }
+}
+
+export function readLoopConfig(path: string = LOOP_CONFIG_PATH): LoopConfig {
+  try {
+    return parseLoopConfig(JSON.parse(readFileSync(path, 'utf8')))
+  } catch (error) {
+    throw new Error(`${path}: ${error instanceof Error ? error.message : String(error)}`, {
+      cause: error,
+    })
+  }
+}
