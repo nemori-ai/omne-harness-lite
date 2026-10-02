@@ -176,42 +176,58 @@ interface Positions {
   readonly versions: readonly JsonValue[]
   readonly root?: JsonObject
 }
+/** Collects positions in traversal order; a plugin content contributes its members' identities. */
+class PositionCollector {
+  readonly capabilities: JsonObject[] = []
+  readonly contents: JsonObject[] = []
+  readonly versions: JsonValue[] = []
+  capability(input: JsonValue | undefined): void {
+    const entry = object(input)
+    if (entry !== undefined) this.capabilities.push(entry)
+  }
+  content(input: JsonValue | undefined): void {
+    const entry = object(input)
+    if (entry === undefined) return
+    this.contents.push(entry)
+    if (entry.category === 'plugin')
+      for (const member of array(entry.members)) this.capability(member)
+  }
+  version(input: JsonValue): void {
+    this.versions.push(input)
+    this.content(object(input)?.content)
+  }
+}
+/** The positions each definition owns; definitions without an entry own none. */
+const OWNED_POSITIONS: {
+  readonly [N in SchemaDefName]?: (found: PositionCollector, value: JsonValue) => void
+} = {
+  CapabilityId: (found, value) => found.capability(value),
+  AssetDefinition: (found, value) => {
+    const root = object(value)
+    if (root === undefined) return
+    found.capability(root.capability)
+    found.content(root.draft)
+    for (const version of array(root.versions)) found.version(version)
+  },
+  AssetContent: (found, value) => found.content(value),
+  AssetVersion: (found, value) => found.version(value),
+  AssetHolding: (found, value) => found.capability(object(value)?.capability),
+  WorkspaceCarrierManifest: (found, value) => {
+    const root = object(value)
+    if (root === undefined) return
+    for (const entry of [...array(root.assets), ...array(root.assignments)])
+      found.capability(object(entry)?.capability)
+    for (const entry of array(root.disabled)) found.capability(entry)
+  },
+}
 /** Traverse only the contract-owned positions. Opaque bodies and arbitrary values stay opaque. */
 function positions(defName: SchemaDefName, value: JsonValue): Positions {
   const root = object(value)
-  const capabilities: JsonObject[] = []
-  const contents: JsonObject[] = []
-  const versions: JsonValue[] = []
-  function capability(input: JsonValue | undefined): void {
-    const entry = object(input)
-    if (entry !== undefined) capabilities.push(entry)
-  }
-  function content(input: JsonValue | undefined): void {
-    const entry = object(input)
-    if (entry === undefined) return
-    contents.push(entry)
-    if (entry.category === 'plugin') for (const member of array(entry.members)) capability(member)
-  }
-  if (defName === 'CapabilityId') capability(value)
-  if (defName === 'AssetDefinition' && root !== undefined) {
-    capability(root.capability)
-    content(root.draft)
-    for (const version of array(root.versions)) {
-      versions.push(version)
-      content(object(version)?.content)
-    }
-  }
-  if (defName === 'AssetContent') content(value)
-  if (defName === 'AssetVersion') {
-    versions.push(value)
-    content(root?.content)
-  }
-  if (defName === 'AssetHolding') capability(root?.capability)
-  if (defName === 'WorkspaceCarrierManifest' && root !== undefined) {
-    for (const entry of [...array(root.assets), ...array(root.assignments)])
-      capability(object(entry)?.capability)
-    for (const entry of array(root.disabled)) capability(entry)
-  }
+  const found = new PositionCollector()
+  // Own entries only: a name outside the table, inherited ones included, owns no positions.
+  const walk = Object.hasOwn(OWNED_POSITIONS, defName) ? OWNED_POSITIONS[defName] : undefined
+  walk?.(found, value)
+  const { capabilities, contents, versions } = found
   return root === undefined
     ? { capabilities, contents, versions }
     : { capabilities, contents, versions, root }
