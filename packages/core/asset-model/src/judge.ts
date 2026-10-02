@@ -156,6 +156,18 @@ export function bindBodyContracts(bodies: BodyContractSupply): BodyContractSuppl
     ? Object.freeze(captured)
     : Object.freeze({ ...captured, connector: pin(bodies.connector) })
 }
+/** Ask one category's captured body contract; an absent connector port is an availability boundary. */
+function judgeBody(
+  bodies: BodyContractSupply,
+  category: BodyCategory,
+  body: unknown,
+  context: BodyJudgeContext,
+): string | undefined {
+  const port = bodies[category]
+  if (port === undefined) throw new BodyProviderUnavailableError()
+  const result = port.judge(body, context)
+  return 'rejected' in result ? result.rejected : undefined
+}
 interface Positions {
   readonly capabilities: readonly JsonObject[]
   readonly contents: readonly JsonObject[]
@@ -341,10 +353,8 @@ export function createAssetModelJudge(bodyContracts: BodyContractSupply): AssetM
         nested.push('malformed')
         continue
       }
-      const port = bodies[category]
-      if (port === undefined) throw new BodyProviderUnavailableError()
-      const result = port.judge(body, bodyContext)
-      if ('rejected' in result) nested.push(result.rejected)
+      const rejection = judgeBody(bodies, category, body, bodyContext)
+      if (rejection !== undefined) nested.push(rejection)
     }
     if (
       context?.declarations !== undefined &&
@@ -369,10 +379,8 @@ export function createAssetModelJudge(bodyContracts: BodyContractSupply): AssetM
           const definition = ref.slice(`${resource.$id}#/$defs/`.length)
           if (!isObject(resource.$defs) || !Object.hasOwn(resource.$defs, definition))
             throw new TypeError('declaration references an unknown body definition')
-          const port = bodies[category]
-          if (port === undefined) throw new BodyProviderUnavailableError()
-          const result = port.judge(entry.value, { definition })
-          if ('rejected' in result) nested.push(result.rejected)
+          const rejection = judgeBody(bodies, category, entry.value, { definition })
+          if (rejection !== undefined) nested.push(rejection)
         }
       }
     }
