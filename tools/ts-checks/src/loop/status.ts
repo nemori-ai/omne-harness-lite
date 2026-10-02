@@ -6,7 +6,13 @@ import { describeFunction, type FunctionRow } from '../metrics/report.ts'
 import { BAND_WORDS, judgeIndicator, type Band, type Comparison } from './bands.ts'
 import { BUDGET_LABELS, type MemberBudget } from './budget.ts'
 import { CATEGORIES, type CatalogueStatus } from './catalogue.ts'
-import { INDICATORS, type IndicatorId, type LoopConfig } from './config.ts'
+import {
+  INDICATORS,
+  SWITCHED_SENSORS,
+  type IndicatorId,
+  type LoopConfig,
+  type SwitchedSensor,
+} from './config.ts'
 import { describeClone, fixed } from './proposals.ts'
 import type { Reading } from './reading.ts'
 import type { CaseWithoutAssertion } from './sensors/assertions.ts'
@@ -99,19 +105,50 @@ export function indicatorSnapshots(
   )
 }
 
+/** 开着却没数据的传感器与原因。 */
+export interface SilentSensor {
+  readonly sensor: SwitchedSensor
+  readonly reason: string
+}
+
+/** 硬线「传感器有数据」：只在严格模式下判；配置里关掉的不算，单列出来。 */
+export type SensorLine =
+  | { readonly status: 'unjudged'; readonly reason: string }
+  | {
+      readonly status: 'judged'
+      readonly silent: readonly SilentSensor[]
+      readonly off: readonly SwitchedSensor[]
+    }
+
+export function judgeSensors(
+  readings: Readonly<Record<SwitchedSensor, Reading<unknown>>>,
+  config: LoopConfig,
+): SensorLine {
+  const silent: SilentSensor[] = []
+  const off: SwitchedSensor[] = []
+  for (const sensor of SWITCHED_SENSORS) {
+    const reading = readings[sensor]
+    if (!config.sensors[sensor].enabled) off.push(sensor)
+    else if (reading.status === 'no-data') silent.push({ sensor, reason: reading.reason })
+  }
+  return { status: 'judged', silent, off }
+}
+
 export interface HardLines {
   readonly direction: readonly DirectionFinding[]
   readonly cycles: readonly DirectionFinding[]
   readonly acceptanceLock:
     | { readonly status: 'unjudged'; readonly reason: string }
     | { readonly status: 'judged'; readonly violations: readonly string[] }
+  readonly sensors: SensorLine
 }
 
 export function hardLinesBroken(lines: HardLines): boolean {
   return (
     lines.direction.length > 0 ||
     lines.cycles.length > 0 ||
-    (lines.acceptanceLock.status === 'judged' && lines.acceptanceLock.violations.length > 0)
+    (lines.acceptanceLock.status === 'judged' && lines.acceptanceLock.violations.length > 0) ||
+    (lines.sensors.status === 'judged' && lines.sensors.silent.length > 0)
   )
 }
 
@@ -190,7 +227,24 @@ function hardLineLines(lines: HardLines): string[] {
       : lock.violations.length === 0
         ? '  验收锁 没破'
         : `  ✗ 验收锁 破 ${lock.violations.length} 处：${lock.violations[0] ?? ''}${lock.violations.length > 1 ? ' 等' : ''}`
-  return ['## 硬线', finding('方向违规', lines.direction), finding('环', lines.cycles), lockLine]
+  return [
+    '## 硬线',
+    finding('方向违规', lines.direction),
+    finding('环', lines.cycles),
+    lockLine,
+    sensorLine(lines.sensors),
+  ]
+}
+
+function sensorLine(line: SensorLine): string {
+  if (line.status === 'unjudged') return `  传感器有数据 未判：${line.reason}`
+  const off =
+    line.off.length === 0
+      ? ''
+      : `；配置里关了、不算：${line.off.map(sensor => `sensors.${sensor}`).join('、')}`
+  if (line.silent.length === 0) return `  传感器有数据 是${off}`
+  const silent = line.silent.map(entry => `sensors.${entry.sensor}（${entry.reason}）`).join('、')
+  return `  ✗ 传感器没数据 ${line.silent.length} 个：${silent}${off}`
 }
 
 function indicatorLine(row: IndicatorRow): string {

@@ -19,3 +19,16 @@ make --no-print-directory docs-check
 make --no-print-directory design-check
 make --no-print-directory test
 make --no-print-directory product-check
+
+# 回路状态的严格模式：方向与环、验收锁、开着的传感器都有数据。它只读源码与 git、不依赖构建产物，
+# 放在最后是让前面的失败先报。基线取 BASELINE；没给就用 origin/main，本地没有这个引用就用 main。
+# 产物写进被 git 忽略的 tmp/，回路目录里什么都不写。
+baseline="${BASELINE:-}"
+if [[ -z "$baseline" ]]; then
+    baseline=main
+    if git rev-parse --verify --quiet origin/main >/dev/null; then
+        baseline=origin/main
+    fi
+fi
+rm -rf tmp/loop-status-check
+make --no-print-directory loop-status STRICT=1 BASE="$baseline" OUT=tmp/loop-status-check

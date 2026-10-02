@@ -8,6 +8,7 @@
 |---|---|
 | `skills/<name>/canonical/` + `adapters/<host>/strategy.yaml` | `.agents/skills/<name>/`、`.claude/skills/<name>/` |
 | `roles/<name>/role.md`、`codex.toml`、`claude.yaml`，可选 assembly / adaptation | `.codex/agents/<name>.toml`、`.claude/agents/<name>.md` |
+| [`hooks/hooks.yaml`](hooks/README.md)（宿主无关的收工钩子声明） | `.claude/settings.json`、`.codex/hooks.json` |
 
 [`research/`](research/README.md) 不是编译源，也不产出任何东西：它保存**当初据以立规的观察**——
 上游流程怎么要求候选比较、形式化证明到哪为止、评测怎样进入决策。

@@ -48,5 +48,12 @@
       "doctrinePath": ".meta_harness/research/clean-code-doctrine-current/doctrine-catalogue.md"
     }
   },
-  "health": { "weeks": 8, "commits": 50, "runs": 10 }
+  "health": { "weeks": 8, "commits": 50, "runs": 10 },
+  "hook": {
+    "enabled": true,
+    "maxItems": 12,
+    "maxChars": 4000,
+    "timeoutSeconds": 40,
+    "stateLimit": 200
+  }
 }

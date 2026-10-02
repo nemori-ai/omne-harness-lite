@@ -39,7 +39,15 @@
 1. 依赖方向与环——`pnpm run lint:rules` 的方向规则，`make loop-status` 也会标出。
 2. 验收没有被实施者改动——`make acceptance-lock BASE=<任务基线>`。
 3. 主线保持绿——合并前在待合并的提交上跑完整的 `make check`。
-4. 传感器有数据——一项指标量不出来不等于它是好的。`make loop-status` 现在逐项写明有数据还是没数据及原因；「缺数据即失败」还没接上。
+4. 传感器有数据——一项指标量不出来不等于它是好的。严格模式（`make loop-status STRICT=1 BASE=… OUT=…`）下，
+   配置里开着的传感器有哪个没数据就判失败并指名；传感器自己会不会悄悄失灵，由一份种了已知违规的小夹具每次跟着测试跑来守。
+
+**第一、二、四条都接在 `make check` 的最后一步**（严格模式的回路状态），所以第三条那一轮完整检查通过，就同时说明这三条没破。
+远程 CI 关着的时候，这一轮本地检查就是合并前唯一的门。
+
+**收工时的反馈**：agent 收工的那一刻，若这次变更碰了产品源码、且有要解释的红项，宿主的收工钩子会把那几条读数作为事实交还给它——
+只说位置与数值，不说该怎么改；同一分支上同一组读数只说一次，钩子自己出错从不拦人。它是提醒，不是门：
+没被提醒不等于没有红项，交代了没有仍由交付说明与接受的人核对。怎么生效、怎么关，见[宿主钩子的源](../.meta_harness/agents/hooks/README.md)。
 
 阈值、窗口与开关都在 [`tools/ts-checks/loop.config.json`](../tools/ts-checks/loop.config.json) 与
 [`metrics.config.json`](../tools/ts-checks/metrics.config.json) 里。它们是负责人的判断，可以改，**改的理由写进那次提交**；
@@ -52,6 +60,7 @@
 | 这次改动的结构与度量 | `make metrics BASE=<任务基线>`，摘要原样贴进交付说明 |
 | 各项指标的带位、这次变更里要解释的红项、哪些成员超了预算 | `make loop-status BASE=<任务基线>` |
 | 验收有没有被动过 | `make acceptance-lock BASE=<任务基线>` |
+| 合并前三条硬线（方向与环、验收锁、传感器有数据）破没破 | `make check` 的最后一步；单独跑是 `make loop-status STRICT=1 BASE=<基线> OUT=<目录>` |
 | 在主线上留一条趋势 | 干净的主线提交上跑 `make loop-status`，它自己追加一条快照；别的提交上要留就加 `SNAPSHOT=1` |
 | 给一张故事卡记时间点（提出、第一次能跑、接受） | `make loop-card CARD=<卡号> EVENT=proposed\|runnable\|accepted` |
 | 流程走得怎么样：卡的前置时间、每周接受数、剩余卡数、提交大小、测试耗时与债的走向 | `make loop-health`，出一张离线可开的页面 |

@@ -9,7 +9,7 @@
 | [package-tenancy-host.sh](package-tenancy-host.sh) | 构建治理中心全新本地.tar.gz归档；不安装、不启动、不上传，见[中心开发入口](../apps/tenancy-host/README.md) |
 | [build-tenancy-image.sh](build-tenancy-image.sh) | 从已解压且核完整清单的治理中心app构建指定Linux架构镜像与独占新Docker save归档；不安装、不推送，见[Docker部署入口](../apps/tenancy-host/deploy/docker/README.md) |
 | [package-cli.sh](package-cli.sh) | 将现有CLI构建为指定的全新本地.tar.gz归档；不安装、不上传，使用与前提见[CLI开发入口](../apps/cli/README.md) |
-| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再依次运行 agent 产物与根链接、文档、规格、Python 工具测试及产品包检查；任一步失败即停止并返回非零 |
+| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再依次运行 agent 产物与根链接、文档、规格、Python 工具测试、产品包检查，最后是严格模式的回路状态；任一步失败即停止并返回非零 |
 | [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
 | [format.sh](format.sh) | 用根配置和本地锁定 Prettier 检查或写入受维护文件；`staged` 模式只检查 Git index blob |
 | [test-formatting.sh](test-formatting.sh) | 在临时独立 Git 仓库验证格式范围、幂等、部分暂存和 hook 安装边界 |
@@ -20,6 +20,12 @@
 在根执行 `make check` 或 `./scripts/check.sh`。脚本也可通过绝对路径从其他目录调用。
 需要比较冻结基线时使用 `make check BASELINE=<git-ref>` 或
 `BASELINE=<git-ref> ./scripts/check.sh`；脚本不接受位置参数。
+
+最后一步是 `make loop-status STRICT=1 BASE=<基线> OUT=tmp/loop-status-check`：方向与环、验收锁、
+开着的传感器都有数据，三者破一个就失败（见 [tools/ts-checks](../tools/ts-checks/README_ZH.md#回路状态)）。
+基线取 `BASELINE`；没给就用 `origin/main`，本地没有这个引用就用 `main`；HEAD 就是那个提交时照跑，新增依赖为 0。
+它只读源码与 git、不依赖构建产物，放最后是让前面的失败先报；产物写进被 git 忽略的 `tmp/loop-status-check/`（每次先清掉），
+回路目录里什么都不写。这一步约 30 秒，大头是重复代码检测。
 
 格式化命令由根 `package.json` 提供：`pnpm format:check` 检查完整受维护范围，
 `pnpm format:write` 写入该范围；两者后接 `-- <仓库相对文件...>` 可收窄到明确文件。

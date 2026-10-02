@@ -1,0 +1,5 @@
+// 环：p 与 q 互相依赖。
+import { m } from '@omne-harness-lite/m'
+import { q } from '@omne-harness-lite/q'
+
+export const p = () => m + q()

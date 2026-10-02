@@ -18,6 +18,18 @@ export const INDICATORS = [
 ] as const
 export type IndicatorId = (typeof INDICATORS)[number]
 
+/** 配置里带 `enabled` 开关的传感器；严格模式要求开着的每一个都有数据。 */
+export const SWITCHED_SENSORS = [
+  'stability',
+  'cochange',
+  'duplication',
+  'assertions',
+  'newEdges',
+  'topicChurn',
+  'worktrees',
+] as const
+export type SwitchedSensor = (typeof SWITCHED_SENSORS)[number]
+
 export const BUDGET_ITEMS = ['overAlert', 'risk', 'duplication', 'testsWithoutAssertions'] as const
 export type BudgetItem = (typeof BUDGET_ITEMS)[number]
 
@@ -70,6 +82,16 @@ export interface LoopConfig {
   }
   /** 流程体检页的窗口与条数。 */
   readonly health: Readonly<Record<HealthWindow, number>>
+  readonly hook: HookConfig
+}
+
+/** 收工钩子：关掉、反馈的条数与字数上限、量一次的内部时限、记住反馈过几组读数。 */
+export interface HookConfig {
+  readonly enabled: boolean
+  readonly maxItems: number
+  readonly maxChars: number
+  readonly timeoutSeconds: number
+  readonly stateLimit: number
 }
 
 /** weeks：每周接受数看最近几周；commits：主线最近几个提交；runs：最近几次全量测试运行。 */
@@ -150,6 +172,20 @@ function exactly<K extends string, V>(
     out[id] = parse(raw[id], `${name}.${id}`)
   }
   return out
+}
+
+function hook(value: unknown): HookConfig {
+  const raw = object(value, 'hook')
+  const known = ['enabled', 'maxItems', 'maxChars', 'timeoutSeconds', 'stateLimit']
+  const extra = Object.keys(raw).filter(key => !known.includes(key))
+  if (extra.length > 0) throw new Error(`hook 里有认不出的项：${extra.join('、')}`)
+  return {
+    enabled: bool(raw['enabled'], 'hook.enabled'),
+    maxItems: integer(raw['maxItems'], 'hook.maxItems'),
+    maxChars: integer(raw['maxChars'], 'hook.maxChars'),
+    timeoutSeconds: integer(raw['timeoutSeconds'], 'hook.timeoutSeconds'),
+    stateLimit: integer(raw['stateLimit'], 'hook.stateLimit'),
+  }
 }
 
 function indicator(value: unknown, name: string): IndicatorConfig {
@@ -233,6 +269,7 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
       },
     },
     health: exactly(raw['health'], HEALTH_WINDOWS, 'health', integer),
+    hook: hook(raw['hook']),
   }
 }
 

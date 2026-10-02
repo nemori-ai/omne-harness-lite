@@ -43,8 +43,9 @@ metrics:
 
 # 回路状态：各项整洁指标的带位、这次变更里要解释的红项、超预算的成员与清理草稿。只在硬线被破时退出 1。
 # BASE 给任务基线（缺省不给：只报全仓现状）；SNAPSHOT=1 在干净的提交上追加一条趋势快照；OUT 改产物目录。
+# STRICT=1 另判「开着的传感器都有数据」，要求 BASE 与 OUT，产物与草稿只写 OUT、不写快照（make check 用它）。
 loop-status:
-	node --experimental-strip-types tools/ts-checks/src/loop/cli.ts $(if $(BASE),--base "$(BASE)") $(if $(SNAPSHOT),--snapshot) $(if $(OUT),--out "$(OUT)")
+	node --experimental-strip-types tools/ts-checks/src/loop/cli.ts $(if $(BASE),--base "$(BASE)") $(if $(SNAPSHOT),--snapshot) $(if $(OUT),--out "$(OUT)") $(if $(STRICT),--strict)
 
 # 卡片台账：给一张故事卡记一个时间点。EVENT 是 proposed（提出）、runnable（第一次能跑）或 accepted（接受）；AT 补记时给 ISO 时间。
 loop-card:
