@@ -191,7 +191,7 @@ D 的已知弱点正是：**收益是一份受约束的起草起点，而非一�
 [D19]: ../../../../record/decisions/model-provider-pi-ai-fork/decision.md
 [D26]: ../../../../record/decisions/infrastructure-persistence-choices/decision.md
 [OBJ]: ../../../../domain_objects/objects.md "消息与内容块条目"
-[ROLE]: ../../../../../agents/roles/architecture-reviewer/role.md
+[ROLE]: ../../../../../agents/skills/harness-design-handbook/canonical/references/review/choice.md "评审当时依据的 architecture-reviewer/role.md 已于 2026-10-01 并入 design-reviewer，判据现归此页；当时的原文见 Git 历史"
 [HB]: ../../../../../agents/skills/harness-design-handbook/canonical/SKILL.md
 [RC]: ../../../../../agents/skills/harness-design-handbook/canonical/references/reconciliation.md
 [RD]: ../../../../../research/message-model-and-stream-sources/notes/dsh-llm.md

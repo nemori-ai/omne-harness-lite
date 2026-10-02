@@ -1,0 +1,71 @@
+{
+  "note": "Seeded problems for the implementation-reviewer trial. Paths are relative to the trial checkout. Each text seed must match exactly once; the seeds are applied on top of a baseline commit as one delivery commit.",
+  "member": "packages/session/session-tenancy-table",
+  "write_scope": ["packages/session/session-tenancy-table/src/", "packages/session/session-tenancy-table/tests/"],
+  "contract": ".meta_harness/design/spec/capabilities/session-tenancy/v2/contract.md",
+  "seeds": [
+    {
+      "id": "I1",
+      "truth": "写入范围之外的改动：简报只给了 session-tenancy-table 的 src 与 tests，交付却改了 session-log-jsonl 的说明",
+      "file": "packages/session/session-log-jsonl/README_ZH.md",
+      "append": "\n> 备注：会话日志的读者应当先经 session-tenancy-table 确认会话归属，再读日志。\n"
+    },
+    {
+      "id": "I2",
+      "truth": "既有断言被改弱：原来断言读不到时得到 unavailable，被改成 sessionNotFound，正好掩盖 I3；另有一条既有测试被标成 skip",
+      "file": "packages/session/session-tenancy-table/tests/reader.spec.ts",
+      "edits": [
+        {
+          "find": "    expect(await reader.holdingTenant('session_a')).toEqual({ failure: 'unavailable' })\n    read.mockRestore()",
+          "replace": "    expect(await reader.holdingTenant('session_a')).toEqual({ failure: 'sessionNotFound' })\n    read.mockRestore()"
+        },
+        {
+          "find": "test('participation uses the real shared unit and never starts a nested ordinary read', async () => {",
+          "replace": "test.skip('participation uses the real shared unit and never starts a nested ordinary read', async () => {"
+        }
+      ]
+    },
+    {
+      "id": "I3",
+      "truth": "违背契约：存储读不到时答「没有这个会话」。契约 capability.session-tenancy/v2 S-7 要求读不到即 unavailable、没有记录才是 sessionNotFound（规范场景 S-14、S-15）；反例是读者未撤除时的任何一次存储不可用。撤除后的读仍答 unavailable，所以其余既有测试照常通过",
+      "file": "packages/session/session-tenancy-table/src/reader.ts",
+      "edits": [
+        {
+          "find": "    } catch (error) {\n      return mapStorageError(error, 'unavailable')\n    }",
+          "replace": "    } catch (error) {\n      // A store that cannot be read has no row to offer either way.\n      if (error instanceof StorageUnavailable && !closed) return { failure: 'sessionNotFound' }\n      return mapStorageError(error, 'unavailable')\n    }"
+        }
+      ]
+    },
+    {
+      "id": "I4",
+      "truth": "依赖方向：领域包的产品源码直接导入 infra 提供者 storage-sql（只有装配层可以选用 infra），仓库规则 group-direction 报红",
+      "file": "packages/session/session-tenancy-table/src/reader.ts",
+      "edits": [
+        {
+          "find": "import type { TenantId } from '@omne-harness-lite/identity-values'\n",
+          "replace": "import type { TenantId } from '@omne-harness-lite/identity-values'\nimport { openStorage } from '@omne-harness-lite/storage-sql'\nimport { composeMigrations } from '@omne-harness-lite/storage'\nimport { sessionTenancyMigrations } from './migrations.ts'\n"
+        },
+        {
+          "find": "export function createSessionTenancyReader(storage: Storage): SessionTenancyReader {",
+          "replace": "/** Convenience for callers that only have a database file. */\nexport async function openSessionTenancyReader(file: string): Promise<SessionTenancyReader> {\n  const storage = await openStorage({\n    dialect: 'sqlite',\n    file,\n    migrations: composeMigrations(sessionTenancyMigrations),\n    upgrade: false,\n  })\n  return createSessionTenancyReader(storage)\n}\nexport function createSessionTenancyReader(storage: Storage): SessionTenancyReader {"
+        }
+      ]
+    },
+    {
+      "id": "I5",
+      "truth": "结构：新增函数 describeHoldingTenant 圈复杂度远超处置线、没有任何测试，交付说明没有提到它",
+      "file": "packages/session/session-tenancy-table/src/reader.ts",
+      "edits": [
+        {
+          "find": "async function query(tx: ReadTx, session: string): Promise<HoldingTenantResult> {",
+          "replace": "/** Human-readable line for operators; used by diagnostics only. */\nexport function describeHoldingTenant(\n  session: unknown,\n  result: HoldingTenantResult,\n  options: { verbose?: boolean; locale?: 'zh' | 'en'; redact?: boolean } = {},\n): string {\n  const zh = options.locale !== 'en'\n  let who = typeof session === 'string' ? session : zh ? '（非法会话）' : '(invalid session)'\n  if (options.redact && typeof session === 'string') {\n    who = session.length > 8 ? `${session.slice(0, 4)}…${session.slice(-2)}` : '****'\n  }\n  if ('tenant' in result) {\n    if (options.verbose) {\n      return zh ? `会话 ${who} 归属已确认` : `session ${who} holding tenant confirmed`\n    }\n    return zh ? `${who}：已确认` : `${who}: ok`\n  }\n  if (result.failure === 'invalidInput') {\n    if (options.verbose) {\n      return zh ? `会话 ${who} 的指认不合形状` : `session ${who} is not a well-formed reference`\n    }\n    return zh ? `${who}：输入不合` : `${who}: invalid`\n  }\n  if (result.failure === 'sessionNotFound') {\n    if (options.verbose) {\n      return zh ? `没有会话 ${who} 的归属记录` : `no holding record for session ${who}`\n    }\n    return zh ? `${who}：无记录` : `${who}: not found`\n  }\n  if (options.verbose) {\n    return zh ? `读不到会话 ${who} 的归属` : `holding tenant of session ${who} cannot be read`\n  }\n  return zh ? `${who}：读不到` : `${who}: unavailable`\n}\nasync function query(tx: ReadTx, session: string): Promise<HoldingTenantResult> {"
+        }
+      ]
+    },
+    {
+      "id": "I6",
+      "truth": "交付说明与事实不符：声称「既有测试一条没动」，实际改了一条断言、跳过了一条测试；声称只改了 session-tenancy-table，实际还改了别的包的说明",
+      "in": "briefs/implementation-delivery-note.md"
+    }
+  ]
+}

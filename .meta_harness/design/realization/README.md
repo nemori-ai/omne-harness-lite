@@ -23,7 +23,7 @@ realization/
 ├── .templates/node/
 │   ├── README.md          节点入口与状态
 │   ├── architecture.md    应用的形状：拓扑、进程、交互面、分层、技术栈、分发——只有 assembly 节点有
-│   ├── design.md          实现路径、投影、依赖与装卸责任
+│   ├── design.md          实现路径、投影、依赖与装卸责任、Cordis 符合性核对
 │   ├── bindings.yaml      条款到证据的绑定表
 │   └── verification.md    符合性或集成证据的可变入口
 ├── packages/
@@ -35,6 +35,10 @@ realization/
 
 `packages/` 与 `apps/` 对应实际源码归属，不是又一层分类。节点名与它实现的包或应用同名，
 使「读设计」和「读源码」用同一个词。
+
+**Cordis 符合性核对表**（2026-10-01 起）：Cordis 是装配时要满足的契约规范，新写或修订的节点在 `design.md` 里按模板逐行填这张表——
+插件边界、服务声明、注入、装卸成对、在途工作、事件派发、内核不给的保证由谁兑现。它只核节点对 Cordis 的符合性，
+不把机制写回契约。2026-10-01 之前接受的节点没有这张表，**不回填**；它们下次修订时补上。
 
 2026-09-28，原 `apps/model-request-acceptance` 的实现已迁到开发示例 `examples/model-invocation-minimal-demo`；同名产品 app 不再是当前交付节点。D-076、D-092 所采用的原技术投影移至[退出现行映射的历史节点](retired/model-request-acceptance/README.md)，保留原路径与 SHA 的采用时证据。现行 `apps/` 目录仅列产品应用；历史设计里仍出现的旧装配 owner 是当时读数，不表示现有示例已经承接完整十三操作、37 模型认证或相关生产责任。后续完整纵线必须逐个重新落实这些未承接责任。
 

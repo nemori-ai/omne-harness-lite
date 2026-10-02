@@ -20,12 +20,12 @@
 | 契约成稿、要为它做提供者设计 | **先加载 skill**（「提供者与装配投影」+「Cordis 最小内核模型」），从 [node 模板包](.templates/node/README.md)建 `packages/<group>/<node>/`，`kind: provider`——第一层按 [README 的两层布局](README.md#packages-的两层布局)选 `core/`（数据契约、协议级构造、跨领域共享）或某个领域／限界上下文。每条绑定先核「形状像但语义是否重合」——`intercept` 的合并顺序是装配链，领域优先级链是数据层次，两者不重合 |
 | 要为一个实际应用选提供者、写装配与完整动作链 | 同上加载 skill，建 `apps/<node>/`，`kind: assembly`。**建立条件是该交付面已有 PF**——不为没有产品设计的应用预建 |
 | 要为一个已开题、尚未开建的应用做**架构选型与框架设计**（拓扑、进程模型、交互面、包分层、技术栈、分发） | 同上加载 skill，建 `apps/<node>/` 并填 `architecture.md`，状态 `candidate`。候选比较先进 [proposals](../record/proposals/README.md)，采用进 [decisions](../record/decisions/README.md)，节点只引用；PF 仍是 draft 时不登记绑定。**不另立一个「应用架构」目录** |
-| 评审一份应用节点的 `architecture.md` | 委派 [architecture-reviewer](../../agents/roles/README.md)，给它 PF、契约坐标与提案；它核的是引用是否闭合、边上的保证有没有落在契约里，不代选技术栈 |
+| 评审一份应用节点的 `architecture.md` | 委派 [design-reviewer](../../agents/roles/README.md#按判断对象选择-reviewer) 判「选择」，给它 PF、契约坐标与提案；它核的是引用是否闭合、边上的保证有没有落在契约里，不代选技术栈 |
 | 落点判断依赖某条 Cordis 行为（重载时机、派发语义、isolate 交互） | 引用 [basis](../basis/README.md) 的条目名，**不在节点里重新推导上游**；basis 没有或 probe 为 null 的，标「待核对主张」，按 skill 的「来源核对」补 |
 | 做设计时发现契约某条兑现不了、或两份契约对不上 | 不在这里改语义、也不在 `design.md` 里写一段「实际按 X 做」。回 `spec/` 按 skill 的「规格演进」走；节点里只记缺口与受阻消费 |
 | 跑过测试或形式任务，要把结果挂到绑定上 | 原始配置、输入、输出归 [record/evidence](../record/evidence/README.md)；本节点 `verification.md` 只引用并写范围。**先有 run，再有绑定** |
 | 采用了某个精确版本、fork 了某个包、做了一次替换 | 那是接受事实，归 [record/decisions](../record/decisions/README.md) 与 [registry](../registry/README.md)；节点引用它们，不复述 |
-| 评审一份节点设计 | 委派 [architecture-reviewer](../../agents/roles/README.md)；自己看也先加载同一份 skill——**评的判据要和写的判据是同一套** |
+| 评审一份节点设计 | 委派 [design-reviewer](../../agents/roles/README.md#按判断对象选择-reviewer) 判「选择」；自己看也先加载同一份 skill——**评的判据要和写的判据是同一套** |
 
 ## 答案在哪一份
 
