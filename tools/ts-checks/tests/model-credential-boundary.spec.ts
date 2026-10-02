@@ -529,6 +529,10 @@ test('root configured aliases have collector and actual built CLI parity', () =>
       recursive: true,
     })
     writeFileSync(join(tool, 'package.json'), JSON.stringify({ type: 'module' }))
+    // The CLI also reads the tool's own configuration, which sits next to dist/ in the real layout.
+    for (const config of ['acceptance-lock.config.json', 'loop.config.json']) {
+      cpSync(fileURLToPath(new URL(`../${config}`, import.meta.url)), join(tool, config))
+    }
     symlinkSync(
       fileURLToPath(new URL('../node_modules', import.meta.url)),
       join(root, 'node_modules'),
