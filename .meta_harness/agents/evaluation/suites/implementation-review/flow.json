@@ -21,7 +21,7 @@
   },
   "workspace": {
     "kind": "checkout",
-    "base": "f1db2fa25cf5872fbe9784f4eb3f8ba723e65027",
+    "base": "6694e2d6b29a95ec7ddbd6194b74439bd7b4766e",
     "excludes": [
       ".meta_harness/agents/evaluation"
     ],
