@@ -86,7 +86,7 @@
 **要你定**：Codex 一端是否也禁无界面进程。若不禁，运行器可以加一个 Codex 宿主入口，工作量与 Claude 一端当初相当。
 
 **已定（2026-10-02）：不禁。**负责人答复：禁的只是 `claude -p`（Claude Code 的无界面运行）；`codex exec` 这类直接运行的 Codex 命令不在禁令之内。
-所以本节开头「按同一条禁令处理」的做法到此为止，Codex 一端可以给运行器加宿主入口。**入口还没有做**，什么时候做跟着基线的安排走（[#35](https://github.com/nemori-ai/omne-harness-lite/issues/35)）。
+所以本节开头「按同一条禁令处理」的做法到此为止，Codex 一端可以给运行器加宿主入口。**入口还没有做**，什么时候做跟着基线的安排走（[#72](https://github.com/nemori-ai/omne-harness-lite/issues/72)）。
 
 ## 四、整仓检出的流怎样派发（遗留问题）
 
