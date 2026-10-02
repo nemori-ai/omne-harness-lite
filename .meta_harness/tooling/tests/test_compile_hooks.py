@@ -1,5 +1,6 @@
 """Host hook files are projected from `hooks/hooks.yaml`, deterministically and only when declared."""
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -109,3 +110,62 @@ def test_check_reports_missing_or_different_hook_files(source, tmp_path, capsys)
     (output / CLAUDE).write_text('{"hooks": {}}\n')
     assert compiler.main(args + ["--check"]) == 1
     assert "output differs" in capsys.readouterr().err
+
+
+# --- 入库的那条命令：真的拿 shell 跑一遍 ------------------------------------------------------------------------------
+
+DECLARED = Path(__file__).parents[2] / "agents/hooks/hooks.yaml"
+TOOL = "tools/ts-checks"
+# 替身脚本：印出「跑的是哪一份、标准输入收到了什么」。
+STAND_IN = "import { readFileSync } from 'node:fs'\nprocess.stdout.write(`${process.argv[1]}|${readFileSync(0, 'utf8')}`)\n"
+
+
+def _git(cwd: Path, *args: str) -> None:
+    subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@invalid", *args], cwd=cwd, check=True,
+                   capture_output=True)
+
+
+def _install(checkout: Path) -> None:
+    marker = checkout / TOOL / "node_modules/typescript/package.json"
+    marker.parent.mkdir(parents=True)
+    marker.write_text("{}\n", encoding="utf-8")
+
+
+def _stop(cwd: Path) -> subprocess.CompletedProcess:
+    (hook,) = yaml.safe_load(DECLARED.read_text(encoding="utf-8"))["hooks"]
+    return subprocess.run(["sh", "-c", hook["command"]], cwd=cwd, input="{}", capture_output=True, text=True,
+                          check=False)
+
+
+def test_the_declared_stop_command_runs_a_copy_of_the_tool_that_has_its_dependencies(tmp_path):
+    """刚建的工作树没装依赖：跑主检出里的那一份；装了就跑自己的。不在仓库里：退出 0，什么都不做。"""
+    main = tmp_path / "main"
+    script = Path(TOOL) / "src/loop/stop-hook.ts"
+    (main / script).parent.mkdir(parents=True)
+    (main / script).write_text(STAND_IN, encoding="utf-8")
+    (main / "apps/cli/src").mkdir(parents=True)
+    (main / "apps/cli/src/keep.ts").write_text("export {}\n", encoding="utf-8")
+    _git(main, "init", "-q")  # 不用 `init -b`：Git 2.28 才有
+    _git(main, "add", ".")
+    _git(main, "commit", "-q", "-m", "tool")
+    _install(main)
+    fresh = tmp_path / "fresh"
+    _git(main, "worktree", "add", "-q", str(fresh), "-b", "someone/work")
+
+    for cwd in (fresh, fresh / "apps/cli/src", main, main / "apps/cli/src"):
+        ran = _stop(cwd)
+        assert (ran.returncode, ran.stdout) == (0, f"{(main / script).resolve()}|{{}}"), (cwd, ran.stderr)
+
+    _install(fresh)
+    ran = _stop(fresh / "apps/cli/src")
+    assert (ran.returncode, ran.stdout) == (0, f"{(fresh / script).resolve()}|{{}}"), ran.stderr
+
+    # 一棵停在旧提交上的工作树：装了依赖，却还没有这份脚本。
+    (fresh / script).unlink()
+    ran = _stop(fresh)
+    assert (ran.returncode, ran.stdout) == (0, f"{(main / script).resolve()}|{{}}"), ran.stderr
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    ran = _stop(outside)
+    assert (ran.returncode, ran.stdout) == (0, "")

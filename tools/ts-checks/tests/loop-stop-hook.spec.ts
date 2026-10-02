@@ -1,5 +1,6 @@
 // 收工钩子的入口与量读数的线程：临时 git 仓库，子进程跑脚本、喂标准输入。
-// 钉住的是宿主看得到的东西：退出码永远是 0，标准输出要么空、要么恰好一个只有 decision 与 reason 的 JSON 对象。
+// 钉住的是宿主看得到的东西：退出码永远是 0，标准输出要么空、要么恰好一个 JSON 对象——
+// 反馈时只有 decision 与 reason，钩子自己出错时只有 systemMessage。
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
@@ -93,13 +94,16 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
     expect(result.stdout).toBe('')
   })
 
-  it('度量自己坏了（成员源码里一个指向不存在文件的链接）：退出 0、输出为空、日志多一行', () => {
+  it('度量自己坏了（成员源码里一个指向不存在文件的链接）：退出 0、只给用户一句警告、日志多一行', () => {
     const { root, home } = work()
     symlinkSync(join(root, 'missing.ts'), join(root, 'packages/core/a/src/broken.ts'))
     const before = logLines(home).length
     const result = hook(root, home, input(root))
     expect(result.status).toBe(0)
-    expect(result.stdout).toBe('')
+    const parsed = JSON.parse(result.stdout) as Record<string, unknown>
+    expect(Object.keys(parsed)).toEqual(['systemMessage'])
+    expect(parsed['systemMessage']).toContain('收工钩子没能量出这次变更的结构读数')
+    expect(parsed['systemMessage']).toContain(`${home}/hook.log`)
     const lines = logLines(home)
     expect(lines).toHaveLength(before + 1)
     expect(lines[0]).toContain(root)
