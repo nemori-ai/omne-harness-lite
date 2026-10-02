@@ -2,13 +2,14 @@
 """故事卡的对账。
 
 核的是 `design/product/PF-*/stories.md` 里每张卡的形状，以及卡与验收场景之间的对应：
-卡号唯一且与所在 topic 的编号一致、必填字段齐全、「覆盖场景」里的每条链接都指得到某个 topic
-`acceptance.md` 里一行带编号的场景、一条场景至多属于一张卡、「前置」指到的卡存在且不成环、
-演示的每一步都写着应当看到什么、未就绪的卡写着缺什么。
+卡号唯一且与所在 topic 的编号一致、每份 `stories.md` 有且只有一行「已发到」且它不小于文件里任何一张卡、
+必填字段齐全、「覆盖场景」里的每条链接都指得到某个 topic `acceptance.md` 里一行带编号的场景、
+一条场景至多属于一张卡、「前置」指到的卡存在且不成环、演示的每一步都写着应当看到什么、未就绪的卡写着缺什么。
 
 规矩的权威正文在 `design/product/conventions.md`；本工具只兑现其中机器能判的那几条，
 **不判断卡切得好不好**——它查不出一张卡是不是真的只证明一件事、演示能不能照着做出来、
-顺序排得对不对。本 topic 里没有被任何卡覆盖的带编号场景只列出来，不判失败：远处的场景可以还没有卡。
+顺序排得对不对；也看不到「已发到」有没有被改小（它只读眼前这一版，那由执行仓库对提交范围的检查来看）。
+有 `stories.md` 的 topic 里没有被任何卡覆盖的带编号场景只列出来，不判失败：它们要么已经交付、卡退场了，要么还没切到。
 
 只读 `--root` 指向的设计根。链接的锚点由 `check_design.py` 对设计根下全部 Markdown 统一查，这里不重复。
 """
@@ -25,6 +26,8 @@ TOPIC_RE = re.compile(r"^PF-(\d{3})(?:-|$)")
 CARD_ID = r"ST-(\d{3})-(\d{2})"
 CARD_RE = re.compile(rf"^###\s+({CARD_ID})\s*·\s*(\S.*?)\s*$")
 CARD_LIKE_RE = re.compile(r"^#{1,6}\s+ST-")
+CARD_ID_RE = re.compile(rf"^{CARD_ID}$")
+HIGH_WATER_RE = re.compile(r"^\*\*已发到\*\*\s*[:：]\s*(.*?)\s*$")
 HEADING_RE = re.compile(r"^#{1,6}\s")
 FIELD_RE = re.compile(r"^- \*\*(.+?)\*\*\s*[:：]\s*(.*)$")
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
@@ -66,6 +69,8 @@ class Checker:
         self.errors: list[str] = []
         self.notes: list[str] = []
         self.cards: list[Card] = []
+        # 每份 stories.md 里的「已发到」行：(行号, 写的值)。文件在这里就表示这个 topic 切过卡。
+        self.high_water: dict[Path, list[tuple[int, str]]] = {}
         self._scenarios: dict[Path, dict[str, list[int]]] = {}
 
     def error(self, message: str) -> None:
@@ -92,11 +97,16 @@ class Checker:
         card: Card | None = None
         current: str | None = None
         fenced = False
+        high_water = self.high_water.setdefault(path, [])
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             if line.lstrip().startswith("```"):
                 fenced = not fenced
                 continue
             if fenced:
+                continue
+            matched = HIGH_WATER_RE.match(line)
+            if matched:
+                high_water.append((number, matched.group(1)))
                 continue
             if HEADING_RE.match(line):
                 matched = CARD_RE.match(line)
@@ -146,11 +156,38 @@ class Checker:
             missing = [name for name in FIELDS if name not in card.fields or not card.text(name).strip()]
             if missing:
                 self.error(f"{where}: {card.id} 缺必填字段：{'、'.join(missing)}（没有就写「无」）")
+        self.check_high_water()
         covered = self.check_scenarios()
         self.check_demos()
         self.check_readiness()
         self.check_prerequisites(by_id)
         self.report_uncovered(covered)
+
+    def check_high_water(self) -> None:
+        """「已发到」：有且只有一行，卡号属于这个 topic，文件里每张卡的序号都不超过它。"""
+        for path, found in self.high_water.items():
+            where = self.rel(path)
+            if not found:
+                self.error(f"{where}: 缺「已发到」一行；在文件开头写 `**已发到**：ST-<三位>-<两位>`，"
+                           f"值是这个 topic 发出过的最大卡号")
+                continue
+            if len(found) > 1:
+                lines = "、".join(str(number) for number, _ in found)
+                self.error(f"{where}:{found[1][0]}: 「已发到」只能有一行，现在有 {len(found)} 行（第 {lines} 行）")
+                continue
+            number, value = found[0]
+            matched = CARD_ID_RE.match(value)
+            if not matched:
+                self.error(f"{where}:{number}: 「已发到」的值要写成卡号 ST-<三位>-<两位>，现在是「{value}」")
+                continue
+            topic = TOPIC_RE.match(path.parent.name).group(1)
+            if matched.group(1) != topic:
+                self.error(f"{where}:{number}: 「已发到」{value} 的中间三位要等于所在 topic 的编号 {topic}")
+                continue
+            for card in self.cards:
+                if card.path == path and int(card.id[7:9]) > int(matched.group(2)):
+                    self.error(f"{where}:{card.line}: {card.id} 的序号超过了「已发到」{value}；"
+                               f"发卡时要把「已发到」改到新卡号")
 
     def check_scenarios(self) -> dict[tuple[str, str], Card]:
         covered: dict[tuple[str, str], Card] = {}
@@ -252,7 +289,7 @@ class Checker:
                 visit(node, [node])
 
     def report_uncovered(self, covered: dict[tuple[str, str], Card]) -> None:
-        for topic in sorted({card.topic for card in self.cards}):
+        for topic in sorted(path.parent.name for path in self.high_water):
             path = self.root / "product" / topic / "acceptance.md"
             if not path.is_file():
                 continue
@@ -275,8 +312,11 @@ def main(argv: list[str] | None = None) -> int:
     if checker.errors:
         print(f"FAIL: 故事卡对账发现 {len(checker.errors)} 处问题。", file=sys.stderr)
         return 1
-    if not checker.cards:
+    if not checker.high_water:
         print("PASS: product/ 下还没有故事卡，没有可对账的内容。")
+        return 0
+    if not checker.cards:
+        print(f"PASS: {len(checker.high_water)} 个 topic 有 stories.md，眼下没有待交付的卡，对账一致。")
         return 0
     topics = len({card.topic for card in checker.cards})
     print(f"PASS: {len(checker.cards)} 张故事卡（{topics} 个 topic），对账一致。")
