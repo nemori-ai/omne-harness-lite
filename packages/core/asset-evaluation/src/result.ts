@@ -1,4 +1,8 @@
-import { capabilityCanonicalString, USABLE_BY_DECLARATION } from '@omne-harness-lite/asset-model'
+import {
+  capabilityCanonicalString,
+  USABLE_BY_DECLARATION,
+  type CapabilityId,
+} from '@omne-harness-lite/asset-model'
 import {
   copyJsonValue,
   isJsonNumber,
@@ -10,7 +14,7 @@ import { judgeAgentDefinitionBody } from '@omne-harness-lite/agent-definition'
 import agentSchema from '@omne-harness-lite/agent-definition/schema' with { type: 'json' }
 import { assetJudge } from './defaults.ts'
 import { object } from './json.ts'
-import type { EffectiveAssembly, EffectiveValue } from './types.ts'
+import type { EffectiveAsset, EffectiveAssembly, EffectiveValue, FilteredOut } from './types.ts'
 
 const holdingLayers = ['factory', 'organization', 'tenant', 'workspace'] as const
 const layers = [...holdingLayers, 'session'] as const
@@ -23,6 +27,8 @@ const reasons = [
   'workspace_governance',
 ] as const
 const rootItems = ['first_token_wait_limit', 'post_first_token_stall_limit', 'model'] as const
+const key = capabilityCanonicalString
+const tuple = (...items: readonly (string | null)[]): string => JSON.stringify(items)
 function member(value: unknown, allowed: readonly string[]): boolean {
   return typeof value === 'string' && allowed.includes(value)
 }
@@ -85,76 +91,287 @@ function rootValue(value: EffectiveValue): boolean {
   return 'ok' in judgeAgentDefinitionBody(input.ok)
 }
 
+/** EffectiveAsset members: closed set, capability, record id, positive version and a holding layer. */
+function assetIdentityShape(asset: JsonValue): asset is JsonObject {
+  return (
+    closed(
+      asset,
+      ['capability', 'asset', 'version', 'from', 'replaced'],
+      ['lockedAt', 'resident'],
+    ) &&
+    capability(asset.capability) &&
+    data('AssetRecordId', asset.asset) &&
+    positiveInteger(asset.version) &&
+    member(asset.from, holdingLayers)
+  )
+}
+/** EffectiveAsset layer members: distinct replaced holding layers, a lockable lockedAt, a boolean resident. */
+function assetLayersShape(asset: JsonObject): boolean {
+  return (
+    Array.isArray(asset.replaced) &&
+    asset.replaced.every(layer => member(layer, holdingLayers)) &&
+    new Set(asset.replaced).size === asset.replaced.length &&
+    (!Object.hasOwn(asset, 'lockedAt') ||
+      member(asset.lockedAt, ['factory', 'organization', 'tenant'])) &&
+    (!Object.hasOwn(asset, 'resident') || typeof asset.resident === 'boolean')
+  )
+}
+/** EffectiveValue members: closed set, capability, non-empty item and a layer. */
+function valueIdentityShape(item: JsonValue): item is JsonObject {
+  return (
+    closed(
+      item,
+      ['capability', 'item', 'value', 'from'],
+      ['lockedAt', 'provenance', 'tenantAutoWritable'],
+    ) &&
+    capability(item.capability) &&
+    typeof item.item === 'string' &&
+    item.item.length > 0 &&
+    member(item.from, layers)
+  )
+}
+/** EffectiveValue metadata: lockedAt in a locking layer, provenance a layer, tenantAutoWritable a boolean. */
+function valueMetadataShape(item: JsonObject): boolean {
+  return (
+    (!Object.hasOwn(item, 'lockedAt') ||
+      member(item.lockedAt, ['organization', 'tenant', 'session'])) &&
+    (!Object.hasOwn(item, 'provenance') || member(item.provenance, layers)) &&
+    (!Object.hasOwn(item, 'tenantAutoWritable') || typeof item.tenantAutoWritable === 'boolean')
+  )
+}
+function filteredOutShape(item: JsonValue): boolean {
+  return (
+    closed(item, ['capability', 'from', 'reason']) &&
+    capability(item.capability) &&
+    member(item.from, holdingLayers) &&
+    member(item.reason, reasons)
+  )
+}
+function unresolvedShape(item: JsonValue): boolean {
+  return (
+    closed(item, ['capability'], ['referencedBy']) &&
+    capability(item.capability) &&
+    (!Object.hasOwn(item, 'referencedBy') || capability(item.referencedBy))
+  )
+}
+function assetShape(asset: JsonValue): boolean {
+  return assetIdentityShape(asset) && assetLayersShape(asset)
+}
+function valueShape(item: JsonValue): boolean {
+  return valueIdentityShape(item) && valueMetadataShape(item)
+}
+/** The five collections are arrays whose every entry has its DTO shape. */
+function collectionsShape(value: JsonObject): boolean {
+  const { assets, composition, values, filteredOut, unresolved } = value
+  if (
+    !Array.isArray(assets) ||
+    !Array.isArray(composition) ||
+    !Array.isArray(values) ||
+    !Array.isArray(filteredOut) ||
+    !Array.isArray(unresolved)
+  )
+    return false
+  return (
+    assets.every(assetShape) &&
+    composition.every(capability) &&
+    values.every(valueShape) &&
+    filteredOut.every(filteredOutShape) &&
+    unresolved.every(unresolvedShape)
+  )
+}
+/** S-47 member table: the closed DTO positions and their value types; open JSON slots stay untouched. */
 function dtoShape(value: JsonValue): boolean {
+  return (
+    closed(value, ['root', 'assets', 'composition', 'values', 'filteredOut', 'unresolved']) &&
+    capability(value.root) &&
+    object(value.root) &&
+    value.root.category === 'agent_definition' &&
+    collectionsShape(value)
+  )
+}
+
+/** Local indexes over an admitted DTO, shared by the relation checks. */
+interface AssemblyIndex {
+  readonly root: string
+  readonly composition: ReadonlySet<string>
+  readonly assets: ReadonlyMap<string, EffectiveAsset>
+}
+/** S-47 clause 1: each of the five collections is unique under its own key. */
+function uniqueMembers(assembly: EffectiveAssembly): boolean {
+  return (
+    unique(assembly.assets, item => key(item.capability)) &&
+    unique(assembly.composition, key) &&
+    unique(assembly.values, item => tuple(key(item.capability), item.item)) &&
+    unique(assembly.filteredOut, item => tuple(key(item.capability), item.from, item.reason)) &&
+    unique(assembly.unresolved, item =>
+      tuple(key(item.capability), item.referencedBy === undefined ? null : key(item.referencedBy)),
+    )
+  )
+}
+/** S-47 clause 2: the composition excludes the root, has an asset per member, and no plugin or agent definition. */
+function compositionMembers(assembly: EffectiveAssembly, index: AssemblyIndex): boolean {
+  return (
+    !index.composition.has(index.root) &&
+    !assembly.composition.some(
+      cap =>
+        !index.assets.has(key(cap)) ||
+        cap.category === 'plugin' ||
+        cap.category === 'agent_definition',
+    )
+  )
+}
+/** S-47 clause 2: values belong to the composition or to the effective root, and never to `disabled`. */
+function valuesBelongToComposition(assembly: EffectiveAssembly, index: AssemblyIndex): boolean {
+  return !assembly.values.some(
+    item =>
+      item.item === 'disabled' ||
+      (!index.composition.has(key(item.capability)) &&
+        !(key(item.capability) === index.root && index.assets.has(index.root))),
+  )
+}
+/** S-47 clause 3 without an effective root: nothing composed or valued, exactly the root unresolved without a referrer. */
+function missingRootOnly(assembly: EffectiveAssembly, root: string): boolean {
+  return (
+    assembly.composition.length === 0 &&
+    assembly.values.length === 0 &&
+    assembly.unresolved.length === 1 &&
+    key(assembly.unresolved[0]?.capability ?? assembly.root) === root &&
+    assembly.unresolved[0]?.referencedBy === undefined
+  )
+}
+/** S-47 clause 3 with an effective root: each unresolved entry lacks an asset and is referenced by the root or a member. */
+function unresolvedReferences(assembly: EffectiveAssembly, index: AssemblyIndex): boolean {
+  return !assembly.unresolved.some(
+    item =>
+      index.assets.has(key(item.capability)) ||
+      item.referencedBy === undefined ||
+      (key(item.referencedBy) !== index.root && !index.composition.has(key(item.referencedBy))),
+  )
+}
+/** S-47 clause 4: replaced layers lie outside `from`, the lock bounds both, resident appears exactly on composed tools and skills. */
+function assetRelations(asset: EffectiveAsset, index: AssemblyIndex): boolean {
+  const from = holdingLayers.indexOf(asset.from)
+  if (asset.replaced.some(layer => holdingLayers.indexOf(layer) >= from)) return false
   if (
-    !closed(value, ['root', 'assets', 'composition', 'values', 'filteredOut', 'unresolved']) ||
-    !capability(value.root) ||
-    !object(value.root) ||
-    value.root.category !== 'agent_definition'
+    asset.lockedAt !== undefined &&
+    (holdingLayers.indexOf(asset.lockedAt) > from ||
+      asset.replaced.some(
+        layer =>
+          holdingLayers.indexOf(layer) >= holdingLayers.indexOf(asset.lockedAt ?? asset.from),
+      ))
+  )
+    return false
+  const resident =
+    index.composition.has(key(asset.capability)) &&
+    (asset.capability.category === 'tool' || asset.capability.category === 'skill')
+  return Object.hasOwn(asset, 'resident') === resident
+}
+/** S-47 clause 5 for a non-workspace trace: not from the factory, below the selection, and below its lock when locked out. */
+function filteredBelowSelection(
+  filtered: FilteredOut,
+  selected: EffectiveAsset | undefined,
+): boolean {
+  if (filtered.from === 'factory') return false
+  if (
+    selected !== undefined &&
+    (selected.from === filtered.from || selected.replaced.includes(filtered.from))
   )
     return false
   if (
-    !Array.isArray(value.assets) ||
-    !Array.isArray(value.composition) ||
-    !Array.isArray(value.values) ||
-    !Array.isArray(value.filteredOut) ||
-    !Array.isArray(value.unresolved)
+    filtered.reason === 'locked_below' &&
+    (selected?.lockedAt === undefined ||
+      holdingLayers.indexOf(filtered.from) <= holdingLayers.indexOf(selected.lockedAt))
   )
     return false
-  for (const asset of value.assets) {
-    if (
-      !closed(
-        asset,
-        ['capability', 'asset', 'version', 'from', 'replaced'],
-        ['lockedAt', 'resident'],
-      ) ||
-      !capability(asset.capability) ||
-      !data('AssetRecordId', asset.asset) ||
-      !positiveInteger(asset.version) ||
-      !member(asset.from, holdingLayers) ||
-      !Array.isArray(asset.replaced) ||
-      !asset.replaced.every(layer => member(layer, holdingLayers)) ||
-      new Set(asset.replaced).size !== asset.replaced.length ||
-      (Object.hasOwn(asset, 'lockedAt') &&
-        !member(asset.lockedAt, ['factory', 'organization', 'tenant'])) ||
-      (Object.hasOwn(asset, 'resident') && typeof asset.resident !== 'boolean')
-    )
-      return false
-  }
-  if (!value.composition.every(capability)) return false
-  for (const item of value.values)
-    if (
-      !closed(
-        item,
-        ['capability', 'item', 'value', 'from'],
-        ['lockedAt', 'provenance', 'tenantAutoWritable'],
-      ) ||
-      !capability(item.capability) ||
-      typeof item.item !== 'string' ||
-      item.item.length === 0 ||
-      !member(item.from, layers) ||
-      (Object.hasOwn(item, 'lockedAt') &&
-        !member(item.lockedAt, ['organization', 'tenant', 'session'])) ||
-      (Object.hasOwn(item, 'provenance') && !member(item.provenance, layers)) ||
-      (Object.hasOwn(item, 'tenantAutoWritable') && typeof item.tenantAutoWritable !== 'boolean')
-    )
-      return false
-  for (const item of value.filteredOut)
-    if (
-      !closed(item, ['capability', 'from', 'reason']) ||
-      !capability(item.capability) ||
-      !member(item.from, holdingLayers) ||
-      !member(item.reason, reasons)
-    )
-      return false
-  for (const item of value.unresolved)
-    if (
-      !closed(item, ['capability'], ['referencedBy']) ||
-      !capability(item.capability) ||
-      (Object.hasOwn(item, 'referencedBy') && !capability(item.referencedBy))
-    )
-      return false
   return true
+}
+/** S-47 clause 5: workspace reasons come from the workspace; the others sit below the selected asset. */
+function filteredOutRelations(filtered: FilteredOut, index: AssemblyIndex): boolean {
+  return filtered.reason.startsWith('workspace_')
+    ? filtered.from === 'workspace'
+    : filteredBelowSelection(filtered, index.assets.get(key(filtered.capability)))
+}
+/** S-47 clause 6: every composed capability has a usableBy value in the fixed domain, not from the workspace, without metadata. */
+function usableByValue(capability: CapabilityId, values: readonly EffectiveValue[]): boolean {
+  const usableDomain =
+    USABLE_BY_DECLARATION.kind === 'permission' ? USABLE_BY_DECLARATION.domain.values : []
+  const usable = values.find(
+    item => key(item.capability) === key(capability) && item.item === 'usableBy',
+  )
+  return (
+    usable !== undefined &&
+    permission(usable.value, usableDomain) &&
+    usable.from !== 'workspace' &&
+    !Object.hasOwn(usable, 'provenance') &&
+    !Object.hasOwn(usable, 'tenantAutoWritable')
+  )
+}
+/** S-47 clause 6: a root value is one of the three AD1 items, without metadata, locked only where it comes from. */
+function rootValueRelations(item: EffectiveValue): boolean {
+  return (
+    rootValue(item) &&
+    !Object.hasOwn(item, 'provenance') &&
+    !Object.hasOwn(item, 'tenantAutoWritable') &&
+    (item.lockedAt === undefined || item.lockedAt === item.from)
+  )
+}
+/** S-47 clause 7: provenance never comes from the workspace, names the asset's layer for factory values, and excludes tenantAutoWritable. */
+function provenanceRelation(item: EffectiveValue, asset: EffectiveAsset): boolean {
+  return (
+    item.provenance === undefined ||
+    (item.from !== 'workspace' &&
+      item.provenance === (item.from === 'factory' ? asset.from : item.from) &&
+      !Object.hasOwn(item, 'tenantAutoWritable'))
+  )
+}
+/** S-47 clause 7: tenantAutoWritable sits only on tool or mcp execution permissions outside the workspace, false for workspace assets. */
+function tenantAutoWritableRelation(item: EffectiveValue, asset: EffectiveAsset): boolean {
+  return (
+    item.tenantAutoWritable === undefined ||
+    (['tool', 'mcp'].includes(item.capability.category) &&
+      permission(item.value, ['forbid', 'auto', 'ask']) &&
+      item.from !== 'workspace' &&
+      !(asset.from === 'workspace' && item.tenantAutoWritable))
+  )
+}
+/** S-47 last paragraph: an mcp per-action execute item is never tenant-writable and carries no provenance. */
+function mcpExecuteRelation(item: EffectiveValue): boolean {
+  return (
+    item.capability.category !== 'mcp' ||
+    !item.item.startsWith('execute:') ||
+    item.item.length <= 8 ||
+    (item.tenantAutoWritable === false && !Object.hasOwn(item, 'provenance'))
+  )
+}
+/** S-47 clauses 6 and 7 for one value: it has an asset, root values obey AD1, metadata obeys its position. */
+function valueRelations(item: EffectiveValue, index: AssemblyIndex): boolean {
+  const asset = index.assets.get(key(item.capability))
+  if (asset === undefined) return false
+  return (
+    (key(item.capability) !== index.root || rootValueRelations(item)) &&
+    provenanceRelation(item, asset) &&
+    tenantAutoWritableRelation(item, asset) &&
+    mcpExecuteRelation(item)
+  )
+}
+
+/** S-47 clause 3: with an effective root every unresolved entry is a dangling reference; without one, only the root is unresolved. */
+function rootResolution(assembly: EffectiveAssembly, index: AssemblyIndex): boolean {
+  return index.assets.has(index.root)
+    ? unresolvedReferences(assembly, index)
+    : missingRootOnly(assembly, index.root)
+}
+/** S-47 clauses 2～7: the relations between the five collections. */
+function memberRelations(assembly: EffectiveAssembly, index: AssemblyIndex): boolean {
+  return (
+    compositionMembers(assembly, index) &&
+    valuesBelongToComposition(assembly, index) &&
+    rootResolution(assembly, index) &&
+    assembly.assets.every(asset => assetRelations(asset, index)) &&
+    assembly.filteredOut.every(filtered => filteredOutRelations(filtered, index)) &&
+    assembly.composition.every(capability => usableByValue(capability, assembly.values)) &&
+    assembly.values.every(item => valueRelations(item, index))
+  )
 }
 
 /** S-47 checks only represented result facts. It cannot establish source, current authorization or evaluation correctness. */
@@ -163,141 +380,10 @@ export function judgeEffectiveAssembly(value: unknown): boolean {
   if ('failed' in copied || !dtoShape(copied.ok)) return false
   // All represented DTO fields have been admitted above; open JSON value slots stay untouched.
   const assembly = copied.ok as unknown as EffectiveAssembly
-  const key = capabilityCanonicalString
-  const root = key(assembly.root)
-  const composition = new Set(assembly.composition.map(key))
-  const assets = new Map(assembly.assets.map(asset => [key(asset.capability), asset]))
-  const tuple = (...items: readonly (string | null)[]): string => JSON.stringify(items)
-  if (
-    !unique(assembly.assets, item => key(item.capability)) ||
-    !unique(assembly.composition, key) ||
-    !unique(assembly.values, item => tuple(key(item.capability), item.item)) ||
-    !unique(assembly.filteredOut, item => tuple(key(item.capability), item.from, item.reason)) ||
-    !unique(assembly.unresolved, item =>
-      tuple(key(item.capability), item.referencedBy === undefined ? null : key(item.referencedBy)),
-    )
-  )
-    return false
-  if (
-    composition.has(root) ||
-    assembly.composition.some(
-      cap =>
-        !assets.has(key(cap)) || cap.category === 'plugin' || cap.category === 'agent_definition',
-    )
-  )
-    return false
-  if (
-    assembly.values.some(
-      item =>
-        item.item === 'disabled' ||
-        (!composition.has(key(item.capability)) &&
-          !(key(item.capability) === root && assets.has(root))),
-    )
-  )
-    return false
-  if (!assets.has(root)) {
-    if (
-      assembly.composition.length !== 0 ||
-      assembly.values.length !== 0 ||
-      assembly.unresolved.length !== 1 ||
-      key(assembly.unresolved[0]?.capability ?? assembly.root) !== root ||
-      assembly.unresolved[0]?.referencedBy !== undefined
-    )
-      return false
-  } else if (
-    assembly.unresolved.some(
-      item =>
-        assets.has(key(item.capability)) ||
-        item.referencedBy === undefined ||
-        (key(item.referencedBy) !== root && !composition.has(key(item.referencedBy))),
-    )
-  )
-    return false
-  for (const asset of assembly.assets) {
-    const from = holdingLayers.indexOf(asset.from)
-    if (asset.replaced.some(layer => holdingLayers.indexOf(layer) >= from)) return false
-    if (
-      asset.lockedAt !== undefined &&
-      (holdingLayers.indexOf(asset.lockedAt) > from ||
-        asset.replaced.some(
-          layer =>
-            holdingLayers.indexOf(layer) >= holdingLayers.indexOf(asset.lockedAt ?? asset.from),
-        ))
-    )
-      return false
-    const resident =
-      composition.has(key(asset.capability)) &&
-      (asset.capability.category === 'tool' || asset.capability.category === 'skill')
-    if (Object.hasOwn(asset, 'resident') !== resident) return false
+  const index: AssemblyIndex = {
+    root: key(assembly.root),
+    composition: new Set(assembly.composition.map(key)),
+    assets: new Map(assembly.assets.map(asset => [key(asset.capability), asset])),
   }
-  for (const filtered of assembly.filteredOut) {
-    if (filtered.reason.startsWith('workspace_')) {
-      if (filtered.from !== 'workspace') return false
-    } else {
-      if (filtered.from === 'factory') return false
-      const selected = assets.get(key(filtered.capability))
-      if (
-        selected !== undefined &&
-        (selected.from === filtered.from || selected.replaced.includes(filtered.from))
-      )
-        return false
-      if (
-        filtered.reason === 'locked_below' &&
-        (selected?.lockedAt === undefined ||
-          holdingLayers.indexOf(filtered.from) <= holdingLayers.indexOf(selected.lockedAt))
-      )
-        return false
-    }
-  }
-  const usableDomain =
-    USABLE_BY_DECLARATION.kind === 'permission' ? USABLE_BY_DECLARATION.domain.values : []
-  for (const capability of assembly.composition) {
-    const usable = assembly.values.find(
-      item => key(item.capability) === key(capability) && item.item === 'usableBy',
-    )
-    if (
-      usable === undefined ||
-      !permission(usable.value, usableDomain) ||
-      usable.from === 'workspace' ||
-      Object.hasOwn(usable, 'provenance') ||
-      Object.hasOwn(usable, 'tenantAutoWritable')
-    )
-      return false
-  }
-  for (const item of assembly.values) {
-    const asset = assets.get(key(item.capability))
-    if (asset === undefined) return false
-    if (key(item.capability) === root) {
-      if (
-        !rootValue(item) ||
-        Object.hasOwn(item, 'provenance') ||
-        Object.hasOwn(item, 'tenantAutoWritable') ||
-        (item.lockedAt !== undefined && item.lockedAt !== item.from)
-      )
-        return false
-    }
-    if (
-      item.provenance !== undefined &&
-      (item.from === 'workspace' ||
-        item.provenance !== (item.from === 'factory' ? asset.from : item.from) ||
-        Object.hasOwn(item, 'tenantAutoWritable'))
-    )
-      return false
-    if (
-      item.tenantAutoWritable !== undefined &&
-      (!['tool', 'mcp'].includes(item.capability.category) ||
-        !permission(item.value, ['forbid', 'auto', 'ask']) ||
-        item.from === 'workspace' ||
-        (asset.from === 'workspace' && item.tenantAutoWritable))
-    )
-      return false
-    if (
-      item.capability.category === 'mcp' &&
-      item.item.startsWith('execute:') &&
-      item.item.length > 8 &&
-      (item.tenantAutoWritable !== false || Object.hasOwn(item, 'provenance'))
-    )
-      return false
-  }
-  return true
+  return uniqueMembers(assembly) && memberRelations(assembly, index)
 }
