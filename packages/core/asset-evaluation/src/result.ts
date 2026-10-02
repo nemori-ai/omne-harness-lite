@@ -93,8 +93,6 @@ function dtoShape(value: JsonValue): boolean {
     value.root.category !== 'agent_definition'
   )
     return false
-  for (const name of ['assets', 'composition', 'values', 'filteredOut', 'unresolved'])
-    if (!Array.isArray(value[name])) return false
   if (
     !Array.isArray(value.assets) ||
     !Array.isArray(value.composition) ||

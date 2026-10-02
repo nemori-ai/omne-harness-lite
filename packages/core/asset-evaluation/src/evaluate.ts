@@ -15,7 +15,8 @@ import { judgeAgentDefinitionBody } from '@omne-harness-lite/agent-definition'
 import { isJsonNumber } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { assetJudge, defaultBodyContracts } from './defaults.ts'
-import { copyJson, immutable, object } from './json.ts'
+import { invalidInput } from './diagnostics.ts'
+import { copyJson, immutable, object, own } from './json.ts'
 import { computeEvaluation, selectAssets, versionOf, type EvaluationFacts } from './compute.ts'
 import type {
   InputDiagnostic,
@@ -25,7 +26,6 @@ import type {
   EvaluationRootSelectionResult,
 } from './types.ts'
 
-const own = (input: unknown, member: string): unknown => (object(input) ? input[member] : undefined)
 const layers = ['factory', 'organization', 'tenant', 'workspace'] as const
 // Only actual record/content positions constrain the current provider domain. JSON bodies and identifiers are opaque here.
 function checkAvailability(input: unknown): void {
@@ -204,7 +204,7 @@ function projectFacts(
 
 export function evaluate(input: NonConnectorEvaluationInput): EvaluationResult {
   const bad = shape(input)
-  if (bad !== undefined) return immutable({ invalidInput: { diagnostics: [bad] } })
+  if (bad !== undefined) return invalidInput(bad)
   return computeEvaluation(input, projectFacts(input))
 }
 
@@ -213,7 +213,7 @@ export function selectEvaluationRootSource(
 ): EvaluationRootSelectionResult {
   try {
     const bad = shape(input)
-    if (bad !== undefined) return immutable({ invalidInput: { diagnostics: [bad] } })
+    if (bad !== undefined) return invalidInput(bad)
     const selection = selectAssets(input, projectFacts(input))
     if ('invalidInput' in selection) return selection
     const root = selection.selected.get(capabilityCanonicalString(input.rootDefinition))

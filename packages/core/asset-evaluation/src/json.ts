@@ -27,6 +27,9 @@ export function object(value: unknown): value is JsonObject {
     !LosslessNumber.is(value)
   )
 }
+/** One member of an unknown value, when that value is a JSON object. */
+export const own = (input: unknown, member: string): unknown =>
+  object(input) ? input[member] : undefined
 export function canonical(value: JsonValue): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
   if (object(value))
