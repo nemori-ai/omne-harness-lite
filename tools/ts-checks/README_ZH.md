@@ -582,7 +582,7 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 含未提交与未跟踪的文件，改名拆成删与增两侧，文件名原样（不受 git 的引号转义影响）。成员清单读 `pnpm-workspace.yaml`，去掉 `affected.excludeRoots` 下的（现为 `examples`）。
 每个改动文件按顺序归到第一类命中的：
 
-1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`Makefile`、`scripts/check.sh`、`.meta_harness/design/spec/**`、本配置文件、
+1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh`、`.meta_harness/design/spec/**`、本配置文件、
    测试运行器自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`）：整份计划判全量；
 2. **读者**（`readers`：`{ paths, members, why }`）：这些路径被这些成员的测试读——改了只把这些成员带进来，**不沿反向依赖传播**；
    每条带着谁读、证据在哪（登记 → stream-assembly 与 core-verification；核心成员的 `schema/` → stream-assembly；核心成员的 `src/` → core-verification；
@@ -591,7 +591,7 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 3. **成员文件**：按最长的成员目录前缀归属，这个成员与直接、间接依赖它的成员进来；依赖取各 `package.json` 里写成 `workspace:` 的
    `dependencies`、`devDependencies` 与 `peerDependencies`——按声明算而不是按源码导入算，因为测试可能导入生产代码不导入的包。
    成员目录里命中 `memberDocuments`（`**/*.md`）的不算成员改动，除非读者规则点了名；
-4. **Python 工具**（`pythonPaths`）：跑 pytest；
+4. **Python 工具**（`pythonPaths`）：跑 pytest；根 `Makefile` 也在这一类——`make check` 只经它跑常驻的几步与 `make test`，成员测试不经 make；
 5. **只需常驻检查**（`residentPaths`）：文档、设计区、research、`examples/`、`.github/`、格式配置、`tools/model-probe/` 等；
 6. 其余（没有规则认得的，如 `.gitignore`）：整份计划判全量，理由点名前几个文件与总数。
 

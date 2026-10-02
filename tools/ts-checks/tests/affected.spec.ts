@@ -208,6 +208,15 @@ describe('影响面计划（真实规则）', () => {
     expect(describe_(result)).toContain('构建：全部（根 pnpm run build')
   })
 
+  it('Makefile：只跑 pytest 与常驻检查——make check 只经它跑常驻的几步与 make test，成员测试不经 make', () => {
+    const result = plan(['Makefile'])
+    expect(result.mode).toBe('scoped')
+    expect(result.files[0]?.category).toBe('python')
+    expect(result.python.run).toBe(true)
+    expect(result.test).toEqual([])
+    expect(result.build).toEqual(RESIDENT_BUILD)
+  })
+
   it('锁文件：全量', () => {
     expect(plan(['pnpm-lock.yaml']).mode).toBe('full')
   })

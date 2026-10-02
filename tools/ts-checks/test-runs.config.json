@@ -11,7 +11,6 @@
       "pnpm-workspace.yaml",
       "tsconfig*.json",
       "vitest.tiers.mts",
-      "Makefile",
       "scripts/check.sh",
       ".meta_harness/design/spec/**",
       "tools/ts-checks/test-runs.config.json",
@@ -100,6 +99,7 @@
     ],
     "memberDocuments": ["**/*.md"],
     "pythonPaths": [
+      "Makefile",
       "pyproject.toml",
       "uv.lock",
       "tools/spec-tools/**",
