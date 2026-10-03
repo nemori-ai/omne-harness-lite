@@ -8,13 +8,14 @@ import {
   type AssetVersion,
   type AttributeDeclaration,
   type CapabilityId,
+  type AssetModelJudge,
 } from '@omne-harness-lite/asset-model'
 import { parseMembershipStanding, parseTenantId } from '@omne-harness-lite/identity-values'
 import { judgeMcpValue } from '@omne-harness-lite/mcp-endpoint'
 import { judgeAgentDefinitionBody } from '@omne-harness-lite/agent-definition'
 import { isJsonNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { assetJudge, defaultBodyContracts } from './defaults.ts'
+import { getAssetJudge, defaultBodyContracts } from './defaults.ts'
 import { invalidInput } from './diagnostics.ts'
 import { copyJson, immutable, object, own } from './json.ts'
 import { computeEvaluation } from './compute.ts'
@@ -50,10 +51,10 @@ function checkAvailability(input: unknown): void {
 }
 /** C1 through the asset-model judge: the rejection becomes the diagnostic's `rejected`. */
 function rejected(
-  name: Parameters<typeof assetJudge.judgeAssetValue>[0],
+  name: Parameters<AssetModelJudge['judgeAssetValue']>[0],
   value: unknown,
 ): InputDiagnostic | undefined {
-  const result = assetJudge.judgeAssetValue(name, value)
+  const result = getAssetJudge().judgeAssetValue(name, value)
   return 'rejected' in result
     ? { condition: 'C1', message: name, rejected: result.rejected }
     : undefined
@@ -205,10 +206,10 @@ function derivedDeclarations(
   return version.content.category === 'mcp'
     ? attributeDeclarationsOf(
         version.content,
-        assetJudge,
+        getAssetJudge(),
         action?.actions.kind === 'fetched' ? copyJson(action.actions) : undefined,
       )
-    : attributeDeclarationsOf(version.content, assetJudge)
+    : attributeDeclarationsOf(version.content, getAssetJudge())
 }
 /** The declarations a held version projects: the root's explicit attributes, else what its body derives, else only usableBy. */
 function heldDeclarations(

@@ -1,0 +1,9 @@
+{
+  "execution_lane_transferred": true,
+  "candidate_commit": "75c6a66eff119dc702224cab1265ba2564464dd8",
+  "baseline_commit": "52bc6005dc168f2254d21ff79f6cd2df021676b8",
+  "candidate_root": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation",
+  "baseline_root": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c",
+  "tmpdir": "/tmp/odq-668ijc3a",
+  "status": "ROOT explicitly transferred the frozen CPU 7 execution lane for independent L2 QA"
+}

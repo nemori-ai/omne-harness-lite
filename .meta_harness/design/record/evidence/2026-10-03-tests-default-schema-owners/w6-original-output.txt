@@ -1,0 +1,70 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tools/core-verification
+
+ ✓  TS  tests/w1-public-consumer.spec-d.ts (6 tests)
+ ✓  TS  tests/w1-public-types-complete.spec-d.ts (10 tests)
+ ✓  TS  tests/w6-public-types.spec-d.ts (3 tests)
+ ✓  TS  tests/w6-stream-types.spec-d.ts (2 tests)
+ ✓ tests/storage-conformance.selftest.spec.ts (2 tests) 3062ms
+     ✓ storage.conformance.real-sqlite: the unmodified public provider passes every case  1569ms
+     ✓ storage.conformance.detects-disabled-foreign-keys: C-11/C-12 fail their real assertions  1490ms
+ ❯ tests/w6-asset-consumer.spec.ts (2 tests | 2 failed) 17480ms
+   × w6.consumer.five-real-body-ports-to-evaluation 8779ms
+   × w6.consumer.detects-wrong-workspace-permission-expectation 8700ms
+ ✓ tests/w6-stream-consumer.spec.ts (2 tests) 1078ms
+   ✓ w6.consumer.actual-stream-to-messages-and-model-response  563ms
+   ✓ w6.consumer.detects-wrong-stream-frame-count  513ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/w6-asset-consumer.spec.ts > w6.consumer.five-real-body-ports-to-evaluation
+AssertionError: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ consume tests/w6-asset-consumer.spec.ts:93:26
+     91|   expect(execution.killed, 'timeout cannot satisfy a negative control'…
+     92|   expect(execution.signal, 'a signal cannot satisfy a negative control…
+     93|   expect(execution.code).toBe(negativeControl ? 1 : 0)
+       |                          ^
+     94|   const parsed: unknown = JSON.parse(result.stdout)
+     95|   await writeFile(join(directory, 'report.json'), JSON.stringify(parse…
+ ❯ tests/w6-asset-consumer.spec.ts:126:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/w6-asset-consumer.spec.ts > w6.consumer.detects-wrong-workspace-permission-expectation
+AssertionError: expected [ 'w6.asset.five-real-ports', …(1) ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  [
++   "w6.asset.five-real-ports",
+    "w6.asset.workspace-normalized-skill-reading",
+  ]
+
+ ❯ tests/w6-asset-consumer.spec.ts:132:79
+    130| it('w6.consumer.detects-wrong-workspace-permission-expectation', async…
+    131|   const cases = await consume(true)
+    132|   expect(cases.filter(item => item.status === 'failed').map(item => it…
+       |                                                                               ^
+    133|     'w6.asset.workspace-normalized-skill-reading',
+    134|   ])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 6 passed (7)
+      Tests  2 failed | 25 passed (27)
+Type Errors  no errors
+   Start at  21:40:38
+   Duration  27.43s (transform 9ms, setup 0ms, import 56ms, tests 21.62s, environment 0ms, typecheck 5.25s)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r5/tools__core-verification-slow.json

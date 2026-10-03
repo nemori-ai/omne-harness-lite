@@ -225,3 +225,5 @@ evidence/
 [2026-09-29 优先两家认证工具交付](2026-09-29-tests-priority-model-gate-tools/README.md)：HUB 44 public、16型号各3轮真实本机service及六类服务/入口负控通过；关闭工具交付，不替代逐模型线上认证。
 
 [2026-09-29 模型双语文档与独立检查](2026-09-29-tests-model-readme-independent-gates/README.md)：19包及demo双语文档收齐、关键实际示例与本机回归通过；八类独立检查通过，不代替后继公共接口迁移、最终产品与37型号线上认证。
+
+[2026-10-03 默认Schema owner](2026-10-03-tests-default-schema-owners/README.md)：三包首用/重试、五生产快照、独立L2六标准与真实业务/类型对拍；有限身份断言迁移、主体产物纠正和未复现MRR失败分别保留，不提升完整产品或正常并发性能状态。

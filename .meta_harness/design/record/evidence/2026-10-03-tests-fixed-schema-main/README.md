@@ -55,3 +55,8 @@
 逐字节归档独立报告、配置、输入坐标与机器输出；[provenance.json](provenance.json)记录原路径、长度、SHA-256。独立 [主体 QA](qa-main-report.txt)、[沙箱 QA](qa-sandbox-report.txt)、[实现评审](implementation-review.txt)及[依赖来源修复复评](dependency-origin-fix-review.txt)保留原输入和判决。大量原始日志、oracle 和失败夹具保留在主检出 tmp/test-tiers-mutation 的任务保全包。当前源码 bundle 982,326 字节，日志归档 453,536,869 字节；3,709 个归档文件逐项读回核对，两个位置的 bundle 均实际验证。原路径、逐文件摘要与归档摘要见[保全记录](source-preservation.json)。不声称大日志全部进入 Git，也不把本地保全当作远程备份。默认 owner 的待验源码一并保全，保全本身不提升其验收状态。
 
 变异 smoke 只证明正式 Stryker 沙箱能够构建、初跑并生成报告。#50 的原反控发现工具假存活，原因尚未判；其他存活未逐个复核。#43 的剩余完整报告另行收口，不据这里的 smoke 声称完整变异覆盖。
+
+
+## 2026-10-03 当前集成产物的追加纠正
+
+主体合并后清点发现，以上upstream100当前集成补验使用的ROOT有五个过期dist。原运行保留，因此该次输出不能独自证明当时完整当前装配已验证。旧产物保全、相同源码下的正确产物恢复、MRR/LER/PI与CLI实际补验及读回见[追加纠正事件](../2026-10-03-tests-default-schema-owners/parent-composition-correction.md)。冻结四项性能与原独立QA使用正确副本，不受此缺口影响；不改写原坐标或失败状态。

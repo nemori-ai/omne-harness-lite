@@ -253,10 +253,23 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
         'slash_command',
         'tool',
       ])
-      assert.equal(defaultBodyContracts.tool, toolBodyContract)
-      assert.equal(defaultBodyContracts.skill, skillBodyContract)
+      for (const [category, original] of [
+        ['tool', toolBodyContract],
+        ['skill', skillBodyContract],
+        ['mcp', mcpBodyContract],
+        ['slash_command', slashCommandBodyContract],
+      ] as const) {
+        const published = defaultBodyContracts[category]
+        assert.notEqual(published, original)
+        assert.equal(published.category, original.category)
+        assert.notEqual(published.schema, original.schema)
+        assert.deepEqual(published.schema, original.schema)
+        for (const responsibility of ['judge', 'deriveDeclarations', 'references'] as const)
+          assert.equal(published[responsibility], original[responsibility])
+      }
       const loopPort = defaultBodyContracts.loop_extension
-      assert.equal(loopPort.schema, loopDeclarationSchema)
+      assert.notEqual(loopPort.schema, loopDeclarationSchema)
+      assert.deepEqual(loopPort.schema, loopDeclarationSchema)
       assert.equal(loopPort.deriveDeclarations, loopExtensionBodyContract.deriveDeclarations)
       assert.equal(loopPort.references, loopExtensionBodyContract.references)
       const loopBody = bodies[2]
@@ -265,8 +278,6 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
         ok: true,
       })
       assert.throws(() => loopPort.judge({}, { definition: 'ModelRetryConclusion' }), TypeError)
-      assert.equal(defaultBodyContracts.mcp, mcpBodyContract)
-      assert.equal(defaultBodyContracts.slash_command, slashCommandBodyContract)
       for (const definition of definitions)
         assert.deepEqual(judge.judgeAssetValue('AssetDefinition', definition), { ok: true })
       const result = assembled(input)

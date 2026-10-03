@@ -112,7 +112,10 @@ export function holding(
     since: AT,
   }
 }
-export async function boot(file?: string) {
+export async function boot(
+  file?: string,
+  deployedOfficial: InputSourceDependencies['deployedOfficial'] = deployments,
+) {
   const directory = file === undefined ? await mkdtemp(join(tmpdir(), 'omne-eis-')) : undefined
   const databaseFile = file ?? join(directory as string, 'state.sqlite')
   const storage = await openStorage({
@@ -175,7 +178,7 @@ export async function boot(file?: string) {
   const deps: InputSourceDependencies = {
     storage,
     storeKey: 'local-model-inputs',
-    deployedOfficial: deployments,
+    deployedOfficial,
     memberships,
     sessionTenancy,
     diagnostics: event => {
