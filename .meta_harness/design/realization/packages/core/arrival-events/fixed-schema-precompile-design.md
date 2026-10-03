@@ -30,3 +30,7 @@
 - FS65-6：MR保留导入JSON变异保护；各owner不因晚加载而迟捕资源；运行期不编译固定图的采样及残留作者编译单列。
 
 这些是尚待的具名验证义务，没有新bindings evidence指向未运行用例。此前旧实现run保持原坐标；本技术采用不把它们变成新生成机制证据。
+
+## Ajv standalone运行辅助依赖
+
+该owner显式声明当前catalog固定的Ajv依赖，供生成模块按需加载官方`ajv/dist/runtime/*`辅助函数；标准standalone产物可能引用equal等函数。CB生成器仍在build提供编译上下文，产品根入口与固定校验不加载Ajv编译器，不复制官方helper或经CB新增公开helper接口。依赖缺失仍原抛，不依靠别的成员偶然提供裸specifier解析。

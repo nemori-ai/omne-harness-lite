@@ -32,7 +32,8 @@
     "@omne-harness-lite/loop-extension": "workspace:*",
     "@omne-harness-lite/messages": "workspace:*",
     "@omne-harness-lite/model-profile": "workspace:*",
-    "@omne-harness-lite/offer-expiry": "workspace:*"
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "ajv": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

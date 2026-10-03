@@ -532,6 +532,9 @@ importers:
       '@omne-harness-lite/tool-definition':
         specifier: workspace:*
         version: link:../tool-definition
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -557,6 +560,9 @@ importers:
       '@omne-harness-lite/loop-extension':
         specifier: workspace:*
         version: link:../loop-extension
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -787,6 +793,9 @@ importers:
       '@omne-harness-lite/tool-definition':
         specifier: workspace:*
         version: link:../tool-definition
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -877,6 +886,9 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../offer-expiry
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -918,6 +930,9 @@ importers:
       '@omne-harness-lite/tool-definition':
         specifier: workspace:*
         version: link:../tool-definition
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
       yaml:
         specifier: 'catalog:'
         version: 2.9.1
@@ -946,6 +961,9 @@ importers:
       '@omne-harness-lite/skill-package':
         specifier: workspace:*
         version: link:../skill-package
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1491,6 +1509,9 @@ importers:
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
       kysely:
         specifier: 'catalog:'
         version: 0.29.6
