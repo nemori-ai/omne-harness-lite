@@ -1,19 +1,18 @@
 import { isAbsolute, normalize } from 'node:path'
 import { compareArchitecture, type IntentChange } from '../../arch/compare.ts'
-import { extractArchitecture } from '../../arch/extract.ts'
-import { readIntents, semanticIntent } from '../../arch/intent.ts'
-import type {
-  Comparison,
-  ComparisonResult,
-  Extraction,
-  IntentNode,
-  Snapshot,
-} from '../../arch/model.ts'
+import {
+  extractIntentImplementation as extractArchitecture,
+  readIntents,
+  semanticIntent,
+  type IntentImplementation,
+} from '../../arch/intent.ts'
+import type { Comparison, ComparisonResult, IntentNode } from '../../arch/model.ts'
+import type { Snapshot } from '../../arch/actual-model.ts'
 import { readSnapshot } from '../../arch/snapshot.ts'
 import { data, noData, type Reading } from '../reading.ts'
 
 export interface Reflexion {
-  readonly current: Extraction
+  readonly current: IntentImplementation
   /** Current source against merge-base intent: HEAD intent cannot remove deviations. */
   readonly comparison: ComparisonResult
   readonly newDeviations: Reading<readonly Comparison[]>

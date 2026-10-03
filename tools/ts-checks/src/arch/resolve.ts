@@ -2,8 +2,9 @@ import { posix } from 'node:path'
 import ts from 'typescript'
 import { isTestPath, type SourceFile } from '../rule.ts'
 import { syntaxOf } from '../syntax.ts'
-import { memberOf } from '../metrics/graph.ts'
-import type { Site, Snapshot } from './model.ts'
+import { ownerOf } from '../testing/members.ts'
+import type { Member } from '../metrics/graph.ts'
+import type { Site, Snapshot } from './actual-model.ts'
 
 const ROOT = '/__arch__/'
 export const productSource = (path: string) =>
@@ -33,7 +34,9 @@ function pathsOf(snapshot: Snapshot): Record<string, string[]> {
       if (path === undefined) continue
       const source = path
         .replace(/^\.\/dist\//u, './src/')
-        .replace(/\.d\.[cm]?ts$|\.[cm]?js$/u, '.ts')
+        .replace(/\.d\.mts$|\.mjs$/u, '.mts')
+        .replace(/\.d\.cts$|\.cjs$/u, '.cts')
+        .replace(/\.d\.ts$|\.js$/u, '.ts')
       paths[`${pkg['name']}${key === '.' ? '' : key.slice(1)}`] = [posix.join(member.path, source)]
     }
   }
@@ -51,10 +54,15 @@ export class StaticResolver {
   readonly checker: ts.TypeChecker
   readonly modulePath: (specifier: string, file: ts.SourceFile) => string | undefined
   readonly snapshot: Snapshot
+  readonly configurationFiles = new Set<string>()
   constructor(snapshot: Snapshot) {
     this.snapshot = snapshot
     this.files = [...snapshot.texts]
-      .filter(([path]) => productSource(path))
+      .filter(
+        ([path]) =>
+          productSource(path) &&
+          ownerOf(path, snapshot.analysisMembers ?? snapshot.members) !== undefined,
+      )
       .map(([path, text]) => ({ path, text }))
     const texts = new Map([...snapshot.texts].map(([path, text]) => [ROOT + path, text]))
     const syntax = new Map<string, ts.SourceFile>()
@@ -66,7 +74,7 @@ export class StaticResolver {
         dir = posix.dirname(dir)
       }
     }
-    const options: ts.CompilerOptions = {
+    const defaults: ts.CompilerOptions = {
       target: ts.ScriptTarget.Latest,
       module: ts.ModuleKind.NodeNext,
       moduleResolution: ts.ModuleResolutionKind.NodeNext,
@@ -75,6 +83,64 @@ export class StaticResolver {
       paths: pathsOf(snapshot),
       skipLibCheck: true,
     }
+    const configured = new Map<string, ts.CompilerOptions>()
+    const configHost: ts.ParseConfigHost = {
+      useCaseSensitiveFileNames: true,
+      fileExists: path => texts.has(path),
+      readFile: path => {
+        if (texts.has(path)) this.configurationFiles.add(path.slice(ROOT.length))
+        return texts.get(path)
+      },
+      readDirectory: root =>
+        [...texts.keys()].filter(path => path.startsWith(root) && /\.[cm]?tsx?$/u.test(path)),
+    }
+    const configOptions = (path: string): ts.CompilerOptions => {
+      const cached = configured.get(path)
+      if (cached !== undefined) return cached
+      const file = ts.readConfigFile(ROOT + path, configHost.readFile)
+      if (file.error !== undefined)
+        throw new Error(ts.flattenDiagnosticMessageText(file.error.messageText, '\n'))
+      const parsed = ts.parseJsonConfigFileContent(
+        file.config,
+        configHost,
+        ROOT + posix.dirname(path),
+        undefined,
+        ROOT + path,
+      )
+      const errors = parsed.errors.filter(error => error.code !== 18003)
+      if (errors.length !== 0)
+        throw new Error(
+          `${path}: ${errors.map(error => ts.flattenDiagnosticMessageText(error.messageText, '\n')).join('; ')}`,
+        )
+      configured.set(path, parsed.options)
+      return parsed.options
+    }
+    const workspacePaths = Object.fromEntries(
+      Object.entries(pathsOf(snapshot)).map(([key, paths]) => [
+        key,
+        paths.map(path => ROOT + path),
+      ]),
+    )
+    const optionsFor = (path: string): ts.CompilerOptions => {
+      const member = ownerOf(path, snapshot.members)
+      const candidates = [
+        ...(member === undefined
+          ? []
+          : [`${member.path}/tsconfig.json`, `${member.path}/tsconfig.build.json`]),
+        'tsconfig.json',
+        'tsconfig.base.json',
+      ]
+      const config = candidates.find(path => snapshot.texts.has(path))
+      const local = config === undefined ? {} : configOptions(config)
+      return {
+        ...defaults,
+        ...local,
+        noLib: true,
+        noEmit: true,
+        paths: { ...workspacePaths, ...local.paths },
+      }
+    }
+    const options = optionsFor('')
     const host: ts.CompilerHost = {
       getSourceFile: path => {
         const text = texts.get(path)
@@ -98,10 +164,16 @@ export class StaticResolver {
       getCanonicalFileName: path => path,
       useCaseSensitiveFileNames: () => true,
       getNewLine: () => '\n',
+      resolveModuleNames: (names, containing) =>
+        names.map(
+          name =>
+            ts.resolveModuleName(name, containing, optionsFor(containing.slice(ROOT.length)), host)
+              .resolvedModule,
+        ),
     }
     this.modulePath = (specifier, file) =>
       ts
-        .resolveModuleName(specifier, file.fileName, options, host)
+        .resolveModuleName(specifier, file.fileName, optionsFor(this.path(file)), host)
         .resolvedModule?.resolvedFileName.slice(ROOT.length)
     this.program = ts.createProgram(
       this.files.map(file => ROOT + file.path),
@@ -111,7 +183,17 @@ export class StaticResolver {
     this.checker = this.program.getTypeChecker()
   }
   trees(): readonly ts.SourceFile[] {
-    return this.program.getSourceFiles().filter(tree => productSource(this.path(tree)))
+    return this.program
+      .getSourceFiles()
+      .filter(
+        tree =>
+          productSource(this.path(tree)) &&
+          ownerOf(this.path(tree), this.snapshot.analysisMembers ?? this.snapshot.members) !==
+            undefined,
+      )
+  }
+  member(path: string): Member | undefined {
+    return ownerOf(path, this.snapshot.members)
   }
   path(node: ts.Node): string {
     return node.getSourceFile().fileName.slice(ROOT.length)
@@ -249,7 +331,7 @@ export class StaticResolver {
     const resolved = this.declaration(node)
     return (
       resolved !== undefined &&
-      memberOf(this.path(resolved))?.name === module.split('/').at(-1) &&
+      [module, module.split('/').at(-1)].includes(this.member(this.path(resolved))?.name) &&
       (ts.isFunctionDeclaration(resolved) ||
         ts.isClassDeclaration(resolved) ||
         ts.isVariableDeclaration(resolved)) &&
@@ -324,7 +406,7 @@ export class StaticResolver {
       const declaration =
         value === original
           ? undefined
-          : { ...this.site(value), member: memberOf(this.path(value))?.path }
+          : { ...this.site(value), member: this.member(this.path(value))?.path }
       return {
         value: value.text,
         ...(declaration === undefined

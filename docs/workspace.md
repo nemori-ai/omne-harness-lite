@@ -3,10 +3,10 @@
 本页维护 monorepo 的源码归属、包边界与开发环境组织。产品实现以 TypeScript 为主；
 Python 当前服务于开发工具。
 
-> 成员与状态以 [packages/README](../packages/README.md)、[apps/README](../apps/README.md) 和各 realization 节点为准。本页维护归属与 workspace 规则，不另存易过期的成员总数。
+> 成员入口见 [packages/README](../packages/README.md)、[apps/README](../apps/README.md)；承诺和证据沿[架构维护入口](../.meta_harness/design/architecture/README.md)查找，未迁单元仍查旧节点。本页维护归属与 workspace 规则，不另存易过期的成员总数。
 
-语言无关的契约不在这里——它们归
-[`.meta_harness/design/spec/`](../.meta_harness/design/spec/README.md)；
+系统级要求与架构预期归 `.meta_harness/`；公开类型、薄 SPEC、必要 ADR 和验证资源随成员拥有者维护。
+未迁规格仍归[旧 spec 区](../.meta_harness/design/spec/README.md)；
 目录和包的划分不直接决定插件、服务或部署边界。
 
 ## 目录与内容归属
@@ -23,7 +23,7 @@ Python 当前服务于开发工具。
 | 各成员的 `acceptance/` | 产品验收场景的可执行验收 | 放在承载那些场景用户入口的成员里；见下面「可执行验收」 |
 | [docs/](README.md) | 项目开发文档：环境、布局、检查、防御指导；另接入 `blogs/` 子模块 | 设计与 research 的权威正文归 `.meta_harness/` |
 | `docs/blogs/` | 个人技术博客的独立 Git 子模块 | 工程复盘与开发者技术专题；内容和历史由个人博客仓库维护 |
-| [.meta_harness/](../.meta_harness/README.md) | 可独立迁出的私有设计工作区 | 需求、产品正文、统一语言、规格、决定、研究与 agent 能力的**唯一**源 |
+| [.meta_harness/](../.meta_harness/README.md) | 可独立迁出的私有设计工作区 | 需求、产品、统一语言、全局架构预期、决定、研究与 agent 能力的唯一源；未迁规格仍在其中 |
 | 根 `.agents/`、`.claude/`、`.codex/` | 指向 `.meta_harness/` 内同名目录的相对软链接 | 只暴露生成产物；源与检查归工作区 |
 
 按用途和所有权选择顶层位置，再按实际依赖选择语言与构建工具。独立包不等于
@@ -61,8 +61,8 @@ Python 当前服务于开发工具。
 同源、同批 fork、共同构建或实验阶段**都不是**聚合不相关职责的理由。
 共享类型和有身份的运行时原语保持唯一拥有者，其他包通过公开入口复用。
 
-> **只为已经有接受规格、且确实要写代码的职责建成员。**每个包对应一个
-> [realization 节点](../.meta_harness/design/realization/README.md)，节点先于包；
+> **只为承诺和职责已明确、且确实要写代码的责任建成员。**新单元按[架构维护规则](../.meta_harness/design/architecture/README.md)就近维护类型与薄规格；
+> 未迁单元继续采用精确 spec/realization，不要求新建空节点；
 > 第一层组名（`core`、`infra`、`tenancy`、`frontend`）随节点布局。
 
 ## 当前可执行代码

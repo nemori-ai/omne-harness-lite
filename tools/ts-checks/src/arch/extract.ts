@@ -1,8 +1,18 @@
 import ts from 'typescript'
-import { memberEdges, memberOf } from '../metrics/graph.ts'
+import { memberEdges } from '../metrics/graph.ts'
 import { nodeName, visitSyntax } from '../syntax.ts'
-import type { Extraction, Fact, FactKind, ImportFact, Snapshot, Unknown } from './model.ts'
+import type {
+  ActualExtraction,
+  Fact,
+  FactKind,
+  ImportFact,
+  ImportUnknown,
+  PackageImport,
+  Snapshot,
+  Unknown,
+} from './actual-model.ts'
 import { StaticResolver, type ResolvedString } from './resolve.ts'
+import { actualFactIdentity } from './actual-model.ts'
 
 const SERVICE_KINDS = new Set<FactKind>([
   'defines',
@@ -52,6 +62,9 @@ class Extractor {
   readonly attempts = new Set<string>()
   readonly failed = new Set<string>()
   readonly imports: ImportFact[] = []
+  readonly packageImports: PackageImport[] = []
+  readonly importUnknown: ImportUnknown[] = []
+  readonly factOccurrences = new Map<string, Fact>()
   readonly plugins: Plugin[] = []
   readonly registeredObjects = new Set<ts.ObjectLiteralExpression>()
   readonly visited = new Set<string>()
@@ -78,7 +91,7 @@ class Extractor {
       extra.target ?? '',
       extra.symbol ?? '',
     ].join('|')
-    this.facts.set(id, {
+    const fact: Fact = {
       ...this.resolver.site(node),
       member: context.member,
       scope: context.scope,
@@ -87,7 +100,9 @@ class Extractor {
       key,
       ...extra,
       id,
-    })
+    }
+    this.facts.set(id, fact)
+    this.factOccurrences.set(JSON.stringify([actualFactIdentity(fact), fact.path, node.pos]), fact)
   }
   key(
     kind: FactKind,
@@ -97,7 +112,7 @@ class Extractor {
   ): string | undefined {
     if (node === undefined) return undefined
     const site = this.resolver.site(node)
-    const identity = [site.path, node.pos, context.plugin, context.scope, kind].join('|')
+    const identity = JSON.stringify([site.path, node.pos, context.plugin, context.scope, kind])
     const serviceIdentifier = SERVICE_KINDS.has(kind)
     if (serviceIdentifier) this.attempts.add(identity)
     const result =
@@ -281,7 +296,7 @@ class Extractor {
     })
   }
   registrations(tree: ts.SourceFile): void {
-    const member = memberOf(this.resolver.path(tree))?.path
+    const member = this.resolver.member(this.resolver.path(tree))?.path
     if (member === undefined) return
     visitSyntax(tree, node => {
       if (
@@ -471,7 +486,7 @@ class Extractor {
       })
   }
   discover(tree: ts.SourceFile): void {
-    const member = memberOf(this.resolver.path(tree))?.path
+    const member = this.resolver.member(this.resolver.path(tree))?.path
     if (member === undefined) return
     const context = this.empty(member)
     visitSyntax(tree, node => {
@@ -527,7 +542,7 @@ class Extractor {
           : (this.resolver.string(arg)?.value ?? this.parameterKey(arg, context)?.value)
       if (key !== undefined) keys.set(symbol, key)
     })
-    const identity = [
+    const identity = JSON.stringify([
       this.resolver.path(fn),
       fn.pos,
       context.member,
@@ -540,7 +555,7 @@ class Extractor {
           return symbol === undefined ? '' : `${contexts.has(symbol)}:${keys.get(symbol) ?? ''}`
         })
         .join(','),
-    ].join('|')
+    ])
     if (this.visited.has(identity)) return
     this.visited.add(identity)
     this.walk(fn.body, { ...context, contexts, keys }, new Set([...active, fn]))
@@ -643,7 +658,7 @@ class Extractor {
         const fn = this.resolver.callable(node.expression)
         if (
           fn !== undefined &&
-          memberOf(this.resolver.path(fn)) !== undefined &&
+          this.resolver.member(this.resolver.path(fn)) !== undefined &&
           node.arguments.some(arg => this.contextBearing(arg, context))
         )
           this.enter(fn, context, node.arguments, active)
@@ -673,51 +688,110 @@ class Extractor {
     }
     ts.forEachChild(node, child => this.walk(child, context, active))
   }
-  readImports(tree: ts.SourceFile): void {
-    const member = memberOf(this.resolver.path(tree))?.path
-    if (member === undefined) return
-    const targets = new Map(this.snapshot.members.map(item => [item.name, item.path]))
-    const add = (
-      node: ts.Node,
-      specifier: string,
-      symbol: string,
-      type: boolean,
-      form: ImportFact['form'],
-      local?: string,
-    ) => {
-      let target = specifier.startsWith('@omne-harness-lite/')
-        ? targets.get(specifier.split('/')[1] ?? '')
-        : undefined
-      if (specifier.startsWith('.')) {
-        const path = this.resolver.modulePath(specifier, tree)
-        if (path !== undefined) target = memberOf(path)?.path
+  importTarget(
+    specifier: string,
+    tree: ts.SourceFile,
+  ): { resolved: string | undefined; target: string | undefined } {
+    const resolved = this.resolver.modulePath(specifier, tree)
+    let target = resolved === undefined ? undefined : this.resolver.member(resolved)?.path
+    if (target === undefined && !specifier.startsWith('.'))
+      for (const item of this.snapshot.members) {
+        const text = this.snapshot.texts.get(`${item.path}/package.json`)
+        const raw: unknown = text === undefined ? undefined : JSON.parse(text)
+        if (
+          typeof raw !== 'object' ||
+          raw === null ||
+          !('name' in raw) ||
+          typeof raw.name !== 'string'
+        )
+          continue
+        if (specifier === raw.name || specifier.startsWith(`${raw.name}/`)) {
+          target = item.path
+          break
+        }
       }
-      if (target === undefined || target === member) return
-      this.imports.push({
+    return { resolved, target }
+  }
+  recordImport(
+    node: ts.Node,
+    specifier: string,
+    symbol: string,
+    type: boolean,
+    form: ImportFact['form'],
+    local?: string,
+  ): void {
+    const tree = node.getSourceFile(),
+      member = this.resolver.member(this.resolver.path(tree))?.path
+    if (member === undefined) return
+    const { resolved, target } = this.importTarget(specifier, tree)
+    this.packageImports.push({
+      ...this.resolver.site(node),
+      member,
+      specifier,
+      symbol,
+      type,
+      form,
+      id: JSON.stringify([member, target ?? specifier, symbol, type, form]),
+      target:
+        target === undefined
+          ? { kind: specifier.startsWith('.') ? 'unresolved-local' : 'external' }
+          : { kind: 'workspace', member: target },
+      ...(local === undefined ? {} : { local }),
+    })
+    if (resolved === undefined && (target !== undefined || specifier.startsWith('.')))
+      this.importUnknown.push({
         ...this.resolver.site(node),
-        id: [member, target, symbol, type, form].join('|'),
         member,
-        target,
-        specifier,
-        symbol,
-        type,
-        form,
-        ...(local === undefined ? {} : { local }),
+        kind: 'import',
+        expression: specifier,
+        id: JSON.stringify([member, 'import-resolution', target ?? specifier, symbol, type, form]),
+        reason:
+          'Static module source cannot be resolved in this version; a workspace target identifies its manifest, not an observed export implementation',
       })
-    }
+    if (target === undefined || target === member) return
+    this.imports.push({
+      ...this.resolver.site(node),
+      id: [member, target, symbol, type, form].join('|'),
+      member,
+      target,
+      specifier,
+      symbol,
+      type,
+      form,
+      ...(local === undefined ? {} : { local }),
+    })
+  }
+  readImports(tree: ts.SourceFile): void {
+    const member = this.resolver.member(this.resolver.path(tree))?.path
+    if (member === undefined) return
     visitSyntax(tree, node => {
       if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
         const specifier = node.moduleSpecifier.text,
           clause = node.importClause
-        if (clause === undefined) add(node, specifier, '(side-effect)', false, 'import')
+        if (clause === undefined)
+          this.recordImport(node, specifier, '(side-effect)', false, 'import')
         if (clause?.name !== undefined)
-          add(node, specifier, 'default', clause.isTypeOnly, 'import', clause.name.text)
+          this.recordImport(
+            node,
+            specifier,
+            'default',
+            clause.isTypeOnly,
+            'import',
+            clause.name.text,
+          )
         const bindings = clause?.namedBindings
         if (bindings !== undefined && ts.isNamespaceImport(bindings))
-          add(node, specifier, '*', clause?.isTypeOnly ?? false, 'import', bindings.name.text)
+          this.recordImport(
+            node,
+            specifier,
+            '*',
+            clause?.isTypeOnly ?? false,
+            'import',
+            bindings.name.text,
+          )
         if (bindings !== undefined && ts.isNamedImports(bindings))
           for (const item of bindings.elements)
-            add(
+            this.recordImport(
               item,
               specifier,
               (item.propertyName ?? item.name).text,
@@ -732,7 +806,7 @@ class Extractor {
       ) {
         if (node.exportClause !== undefined && ts.isNamedExports(node.exportClause))
           for (const item of node.exportClause.elements)
-            add(
+            this.recordImport(
               item,
               node.moduleSpecifier.text,
               (item.propertyName ?? item.name).text,
@@ -740,18 +814,30 @@ class Extractor {
               'export',
               item.name.text,
             )
-        else add(node, node.moduleSpecifier.text, '*', node.isTypeOnly, 'export')
+        else this.recordImport(node, node.moduleSpecifier.text, '*', node.isTypeOnly, 'export')
       } else if (
         ts.isCallExpression(node) &&
-        node.expression.kind === ts.SyntaxKind.ImportKeyword &&
-        node.arguments[0] !== undefined &&
-        ts.isStringLiteral(node.arguments[0])
-      )
-        add(node, node.arguments[0].text, '*', false, 'dynamic')
+        node.expression.kind === ts.SyntaxKind.ImportKeyword
+      ) {
+        const argument = node.arguments[0]
+        const value = argument === undefined ? undefined : this.resolver.string(argument)
+        if (value !== undefined) this.recordImport(node, value.value, '*', false, 'dynamic')
+        else {
+          const expression = argument?.getText() ?? '(missing argument)'
+          this.importUnknown.push({
+            ...this.resolver.site(node),
+            member,
+            kind: 'import',
+            expression,
+            id: JSON.stringify([member, 'import', expression]),
+            reason: 'Dynamic import specifier has no static string value in this revision',
+          })
+        }
+      }
     })
   }
   manifest(tree: ts.SourceFile): void {
-    const member = memberOf(this.resolver.path(tree))?.path
+    const member = this.resolver.member(this.resolver.path(tree))?.path
     if (member === undefined || !member.startsWith('apps/')) return
     visitSyntax(tree, node => {
       if (!ts.isObjectLiteralExpression(node)) return
@@ -770,7 +856,9 @@ class Extractor {
       )
       const targetNode = this.resolver.declaration(reference)
       const target =
-        targetNode === undefined ? undefined : memberOf(this.resolver.path(targetNode))?.path
+        targetNode === undefined
+          ? undefined
+          : this.resolver.member(this.resolver.path(targetNode))?.path
       if (key !== undefined && plugin !== undefined)
         this.add(
           'composition',
@@ -791,7 +879,7 @@ class Extractor {
         })
     })
   }
-  run(): Extraction {
+  run(): ActualExtraction {
     for (const tree of this.resolver.trees()) this.registrations(tree)
     for (const tree of this.resolver.trees()) {
       this.discover(tree)
@@ -819,7 +907,7 @@ class Extractor {
       [...this.facts.values()].filter(fact => fact.plugin !== undefined).map(fact => fact.path),
     )
     for (const tree of this.resolver.trees()) {
-      const member = memberOf(this.resolver.path(tree))?.path
+      const member = this.resolver.member(this.resolver.path(tree))?.path
       if (member === undefined || ownedPaths.has(this.resolver.path(tree))) continue
       visitSyntax(tree, node => {
         if (
@@ -831,10 +919,16 @@ class Extractor {
     }
     return {
       facts: [...this.facts.values()].sort((a, b) => a.id.localeCompare(b.id)),
+      factOccurrences: [...this.factOccurrences.values()].sort(
+        (a, b) => a.id.localeCompare(b.id) || a.path.localeCompare(b.path) || a.line - b.line,
+      ),
+      packageImports: this.packageImports,
+      importUnknown: this.importUnknown,
+      configurationFiles: [...this.resolver.configurationFiles].sort(),
       unknown: [...this.unknown.values()],
       imports: this.imports,
       edges: memberEdges(this.resolver.files, this.snapshot.members),
-      members: this.snapshot.members,
+      members: this.snapshot.analysisMembers ?? this.snapshot.members,
       serviceIdentifiers: {
         attempted: this.attempts.size,
         unresolved: this.failed.size,
@@ -843,6 +937,6 @@ class Extractor {
     }
   }
 }
-export function extractArchitecture(snapshot: Snapshot): Extraction {
+export function extractArchitecture(snapshot: Snapshot): ActualExtraction {
   return new Extractor(snapshot).run()
 }

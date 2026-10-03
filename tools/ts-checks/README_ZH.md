@@ -238,6 +238,51 @@ make card-retire BASE=<任务基线提交或分支>   # BASE 缺省 main
 主线上查得到的才算数（`git log --format='%h %(trailers:key=Accepted-Card,valueonly)'`）。它也不判断 `Accepted-Card` 是不是在产品负责人说了接受之后才写的。
 范围之外（`BASE` 之前）的提交不看。自测：`tests/product-retire.spec.ts`（临时仓库造提交，含合并）。
 
+## 实际架构 JSON
+
+公共入口为 `@omne-harness-lite/ts-checks/architecture`。公开类型在
+[`src/arch/actual.ts`](src/arch/actual.ts) 与 [`src/arch/actual-model.ts`](src/arch/actual-model.ts)。
+`readActualArchitecture({ root, revision?, base? })` 读取实际源码，不依赖 realization 或意图声明。
+`actualArchitectureOf(source)` 投影同一个 AST 抽取器的观测；`readArchitectureSource(root, revision?)`
+提供版本内的虚拟文件树；`compareActualArchitectures(before, after)` 计算稳定身份的新增与删除。
+
+```sh
+pnpm --silent --filter @omne-harness-lite/ts-checks run architecture --root "$PWD"
+node --experimental-strip-types tools/ts-checks/src/arch/cli.ts --root "$PWD" --revision <commit> --base <commit> --out tmp/architecture.json
+```
+
+CLI 的 stdout 只有 JSON。`--out` 另写同一份 JSON。参数、Git、workspace、manifest 或配置错误退出 2，
+错误写到 stderr。构建后的入口为 `omne-architecture`。`root` 必须是 Git 仓库顶层；仓库必须有
+`pnpm-workspace.yaml` 和带非空 `name` 的成员 manifest。workspace 模式复用测试成员读取器：一行一个，
+只支持完整路径段的 `*`，其他 glob 写法报错；重叠模式按成员路径去重。
+
+结果为 `schemaVersion: 1`、`kind: actual-architecture`、`generatedAt` 与 `current`。给 `base`
+时另有 `baseline` 与 `difference`。不传 `revision` 读取当前文件系统；传入的 revision 和 BASE
+各自先解析成不可变 commit，后续只读该 Git 树。BASE 不取合并点、不从当前工作树补文件。
+`source` 记录仓库、commit、读取方式与 Git dirty；工作树 dirty 产物不能当作该提交的静态快照。
+
+成员来自该版本的 workspace 和 manifest。`packages/`、`apps/` 下的成员属于产品范围；其余成员
+作为 development 单列。名称取 `manifest.name`，不由目录猜包名。空成员保留；`sources` 只列成员
+`src/` 内 TypeScript 文件，`dataFiles` 列其余文件。成员源码数量与实际 `analyzedFiles` 分开：
+产品测试排除，开发成员可用于静态解析，但不独立抽取其插件。manifest 和配置取本版内容。
+配置的 `read` 清单与 `appliedToResolution` 清单分开；后者记录实际选中及 extends 读取的配置。
+每个导入先用所属成员的 tsconfig.json、tsconfig.build.json，再用根配置；应用其模块解析选项。
+这不复现 compiler build：仍分析全部产品 src TypeScript，不依赖 include/exclude，不加载安装包、
+标准库或安装包的 extends，也不运行 project references。workspace dist exports 静态映射到 src。
+
+`facts` 保留服务定义、候选提供、必需与可选取用、事件、插件和静态装配；`imports` 区分类型与运行导入，
+含 ESM import/export/dynamic import、外部包和成员内导入。CommonJS require 不在本抽取器范围内。
+`unknown` 保留无法还原的表达式、原因与所有出处，不能用空集合证明不存在。每项事实和导入的
+`occurrences` 保留所有来源；同一成员间、同一符号的关系可有多个出处。`candidateProviders` 保留
+全部候选事实，`runtimeSelection` 为 `not-observed`，不选择未经运行观察的提供者。
+
+实际关系 ID 用无歧义 tuple 编码；源码 path/line 不参加关系身份。文件搬迁或行号变化不会成为语义新增。
+差分分别列成员、事实、导入、未知的 added/removed；完整前后文档保留位置变化和成员 manifest 变化。
+复杂度直接复用 `functionMetrics`。coverage 为 `no-data`，不执行测试或推断覆盖率。
+进程、外部资源、运行选择与隔离等未观察项写在 `scope.limitations` 中；静态数据不证明租户、事务或生命周期保证。
+独立场景见 [`tests/actual-architecture.spec.ts`](tests/actual-architecture.spec.ts)。
+旧装配意图对照消费单独的 `IntentImplementation` 投影；其阈值、strict 和声明差分通道保持原义。
+
 ## 结构度量
 
 `make metrics` 是本包的第二入口（`src/metrics/`）。它**只报告、不判失败**，不在 `make check` 里；能让检查失败的只有上面的方向规则与提交署名。

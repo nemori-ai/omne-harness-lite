@@ -1,5 +1,12 @@
 # 来源、确认与变化
 
+## 2026-10-03：移除语言无关硬线，采用就近薄规格
+
+负责人在接手对话明确移除语言无关前提，并认可实际架构视图与逐步退役方向。
+SYS-SPEC 改为公开类型/运行时校验表达形状、模块旁薄规格约束剩余行为。
+有效旧承诺、冻结与消费者不自动迁移，必要模型/探针义务保持；具体接受与部分取代见
+[D-115](../../record/decisions/actual-architecture-and-thin-spec/decision.md)。历史记录不改写。
+
 | 可恢复输入 | 确认与迁入范围 | 对应正文定位 | 尚未确认的解释 |
 |---|---|---|---|
 | `docs/requirements/system/constraints.md` @ `e3573ca72d18bfe7ddd002df5025551b51eede46`；SHA-256 `6e959ebecc755643f3a1988573a5135cf973bd06cf2aff765396965008650991`；`# 已确认的跨系统约束` | 保持源文件中已确认条款、显式边界和未决项；本次仅改变知识归属与链接表达 | [requirements.md](requirements.md)：`SYS-IDENTITY`、`SYS-KERNEL`、`SYS-SPEC`、`SYS-DEPLOY`、`SYS-TENANT`、`SYS-LLM`、`SYS-EXPERIMENT` | 正文列出的待澄清、待设计和未采用范围继续保持原状态 |

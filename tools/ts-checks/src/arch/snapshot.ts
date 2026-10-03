@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileAt, git } from '../metrics/git.ts'
 import { memberOf, type Member } from '../metrics/graph.ts'
-import type { Snapshot } from './model.ts'
+import type { Snapshot } from './actual-model.ts'
 
 const ignored = new Set(['node_modules', 'dist', 'coverage', '.git'])
 const retained = (path: string) =>

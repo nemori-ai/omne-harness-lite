@@ -2,6 +2,8 @@
 
 # 决定
 
+[D-115：实际架构视图与就近薄规格](actual-architecture-and-thin-spec/README.md)：接受全局视图目标、维护边界及逐步退役方向，部分取代 D-112/113/114 的表达与路径前提；实际实现及迁移分别验收。
+
 [D-108：OpenRouter refusal 文本映射](openrouter-refusal-mapping-adoption/README.md)：采用 transport v14 revision 2 及局部投影；共享规格不升版，RF-V1–V9 和实际交付待验。
 
 [D-101：有依据的token估算准入](model-token-estimate-adoption/README.md)：MP6/RT8及两份计量映射技术采用，真实实现与整体交付另验。

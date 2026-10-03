@@ -43,8 +43,11 @@ Agent Runtime（Agent Loop）完全由本项目自主设计；Harness 层、工�
 
 ## SYS-SPEC
 
-设计保持编程语言无关，作为未来严格验证与跨语言复现的规格依据。TLA+ 表达行为
-权威规格，Alloy 辅助验证结构约束，JSON Schema 定义数据契约；实现不能替代规格。
+公开 TypeScript 类型与必要运行时校验拥有模块形状；类型表达不出的不变量、失败、
+副作用、并发、取消与恢复承诺由模块旁薄规格约束。设计不再要求编程语言无关。
+重要隔离、事务、恢复和进展问题仍保留相称的模型、探针或故障测试；实现不能替代承诺。
+规格与资源的唯一归属及未迁旧源读法见[架构维护入口](../../architecture/README.md)，
+确认与部分取代范围见 [D-115](../../record/decisions/actual-architecture-and-thin-spec/decision.md)。
 
 ## SYS-DEPLOY
 

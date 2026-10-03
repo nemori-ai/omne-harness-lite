@@ -2,8 +2,8 @@
 
 这里放产品的可复用包，按 `packages/<能力族>/<职责包>/` 两层组织：第一层只组织相关能力，
 **不是 workspace 成员**；第二层才拥有 `package.json`、`src`、依赖、公开入口和测试。
-布局规则见[源码布局](../docs/workspace.md)。每个包对应一个
-[realization 节点](../.meta_harness/design/realization/README.md)，节点 README 记录它的分层状态。
+布局规则见[源码布局](../docs/workspace.md)，承诺归属见[架构维护入口](../.meta_harness/design/architecture/README.md)。
+未迁包的分层状态仍由其 realization 节点记录，新单元不预建四件套。
 
 ## 当前成员
 

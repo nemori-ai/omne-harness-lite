@@ -28,7 +28,7 @@
 | 已有规则内的文字、链接、工具修复或实现修正 | 定位内容所有者或精确契约，在任务范围内修改并做相称验证；不要求另造提案或决定 |
 | 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 在 `.meta_harness/design/` 相应 family 接续或创建信息包，沿手册分析现有能力覆盖、剩余责任与候选；必要政策未明确时，暂停依赖它的实施 |
 | 新观察挑战已有决定 | 按 [record 家族](.meta_harness/design/record/README.md)的规矩关联受影响决定，提交可复现、可验证的因果依据；观察本身不自动取代决定 |
-| 发布或修订正式规格 | 按[身份清单](.meta_harness/design/registry/README.md)与[规格区](.meta_harness/design/spec/README.md)维护接受依据、精确引用与冻结；历史规范原件不原地覆盖 |
+| 发布或修订正式规格 | 按[架构维护规则](.meta_harness/design/architecture/README.md)维护唯一承诺源、接受依据和消费者；未迁规格仍按 registry/spec 冻结，历史原件不覆盖 |
 | 衔接能力规格、提供者设计与实施交接 | 加载 `harness-design-handbook` skill 的「规格演进」，明确当前正文、就绪范围、受影响消费者与未完成义务 |
 | 创建或维护 skills、角色及宿主适配 | 在 [.meta_harness/agents](.meta_harness/agents/README.md) 修改源；skill 加载官方 `skill-creator`，角色加载 `design-subagents` skill，AGENTS.md 加载 `write-agents-md` skill |
 

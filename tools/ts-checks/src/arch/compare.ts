@@ -1,4 +1,6 @@
-import type { Comparison, ComparisonResult, Extraction, Fact, IntentNode } from './model.ts'
+import type { Comparison, ComparisonResult, IntentNode } from './model.ts'
+import type { Fact } from './actual-model.ts'
+import type { IntentImplementation } from './intent.ts'
 
 function identity(
   fact: Pick<Fact, 'member' | 'plugin' | 'scope' | 'kind' | 'key' | 'mode' | 'target' | 'layer'>,
@@ -75,7 +77,7 @@ function sourceLocationState(readme: string | undefined): 'built' | 'not-built' 
 }
 
 function compareImports(
-  extraction: Extraction,
+  extraction: IntentImplementation,
   byMember: ReadonlyMap<string, IntentNode>,
 ): Pick<ComparisonResult, 'comparisons' | 'exceptions'> {
   const comparisons: Comparison[] = []
@@ -149,7 +151,7 @@ function lifecycleOf(
 
 /** Static presence comparison; unknown values never provide evidence of absence. */
 export function compareArchitecture(
-  extraction: Extraction,
+  extraction: IntentImplementation,
   nodes: readonly IntentNode[],
 ): ComparisonResult {
   const members = new Set(extraction.members.map(member => member.path)),

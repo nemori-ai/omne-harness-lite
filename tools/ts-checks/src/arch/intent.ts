@@ -1,5 +1,7 @@
 import { parse } from 'yaml'
-import type { IntentNode, IntentPlugin, Snapshot } from './model.ts'
+import type { IntentNode, IntentPlugin } from './model.ts'
+import type { ActualExtraction, Snapshot } from './actual-model.ts'
+import { extractArchitecture } from './extract.ts'
 
 function object(value: unknown, at: string): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
@@ -156,4 +158,15 @@ export function semanticIntent(node: IntentNode): string {
           },
     composition: node.composition ?? null,
   })
+}
+
+/** Project observed facts into the still-active intent comparison protocol. */
+export type IntentImplementation = Pick<
+  ActualExtraction,
+  'facts' | 'unknown' | 'imports' | 'edges' | 'members' | 'serviceIdentifiers'
+>
+export function extractIntentImplementation(snapshot: Snapshot): IntentImplementation {
+  const { facts, unknown, imports, edges, members, serviceIdentifiers } =
+    extractArchitecture(snapshot)
+  return { facts, unknown, imports, edges, members, serviceIdentifiers }
 }
