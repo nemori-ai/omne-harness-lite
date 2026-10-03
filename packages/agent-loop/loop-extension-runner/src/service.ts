@@ -10,7 +10,6 @@ import {
 } from './implementation-registry.ts'
 import {
   RunnerFailureSignal,
-  type RunnerReplayFailure,
   readPassConclusions,
   samePosition,
   validateHistoryScope,
@@ -45,13 +44,35 @@ const invalidInput = Object.freeze({ failure: 'invalidInput' } as const)
 function request(
   value: RunnerReplayRequest,
   dispatch: boolean,
-):
-  | { readonly initial: PositionedSubject; readonly request: RunnerDispatchRequest }
-  | RunnerReplayFailure {
+): { readonly initial: PositionedSubject; readonly request: RunnerDispatchRequest } {
   const copied = copyJsonValue(value)
-  if ('failed' in copied) return invalidInput
+  if ('failed' in copied) throw new RunnerFailureSignal(invalidInput)
   // Narrow only within this validator; all used members are judged before returning.
   value = copied.ok as unknown as RunnerReplayRequest
+  validateRequestShape(value, dispatch)
+  const initial = judgePositionedSubject({
+    position: value.position,
+    subject: value.subject,
+    ...(value.dimension === undefined ? {} : { dimension: value.dimension }),
+  })
+  if ('rejected' in initial)
+    throw new RunnerFailureSignal(
+      initial.rejected === 'position_unknown' ? { failure: 'positionUnknown' } : invalidInput,
+    )
+  validateHistoryScope(
+    {
+      initial: initial.ok,
+      anchor: value.anchor,
+      ...(value.run === undefined ? {} : { run: value.run }),
+    },
+    [],
+    false,
+  )
+  if (Object.hasOwn(value, 'run') && value.run === undefined)
+    throw new RunnerFailureSignal(invalidInput)
+  return { initial: initial.ok, request: value }
+}
+function validateRequestShape(value: RunnerReplayRequest, dispatch: boolean): void {
   if (
     !value ||
     typeof value !== 'object' ||
@@ -69,26 +90,23 @@ function request(
         ].includes(key),
     )
   )
-    return invalidInput
-  const initial = judgePositionedSubject({
-    position: value.position,
-    subject: value.subject,
-    ...(value.dimension === undefined ? {} : { dimension: value.dimension }),
-  })
-  if ('rejected' in initial)
-    return initial.rejected === 'position_unknown' ? { failure: 'positionUnknown' } : invalidInput
-  validateHistoryScope(
-    {
-      initial: initial.ok,
-      anchor: value.anchor,
-      ...(value.run === undefined ? {} : { run: value.run }),
-    },
-    [],
-    false,
-  )
-  if (Object.hasOwn(value, 'run') && value.run === undefined) return invalidInput
-  return { initial: initial.ok, request: value }
+    throw new RunnerFailureSignal(invalidInput)
 }
+
+function validateAttempt(
+  requested: RunnerDispatchRequest,
+  attempt: RunnerDispatchRequest['attempt'],
+): void {
+  if (
+    requested.run === undefined
+      ? Object.hasOwn(requested, 'attempt')
+      : !isJsonNumber(attempt) ||
+        !ExactDecimal.from(attempt).isInteger ||
+        ExactDecimal.from(attempt).compare(ExactDecimal.from(0)) <= 0
+  )
+    throw new RunnerFailureSignal(invalidInput)
+}
+
 function selected(
   chain: readonly RunnerPiece[],
   initial: PositionedSubject,
@@ -129,12 +147,26 @@ export function createLoopExtensionRunner(input: {
     return active() && scope.isActive() && scope.sources.isActive()
   }
   async function chain(scope: RunnerReadScope, requested: RunnerReplayRequest) {
-    if (scope.binding.session !== requested.manifest || !scopeActive(scope)) return unavailable
-    return readRunnerChain({
+    if (scope.binding.session !== requested.manifest || !scopeActive(scope))
+      throw new RunnerFailureSignal(unavailable)
+    const result = await readRunnerChain({
       session: requested.manifest,
       binding: scope.binding,
       sources: { ...scope.sources, isActive: () => scopeActive(scope) },
     })
+    if ('failure' in result) throw new RunnerFailureSignal(result)
+    return result
+  }
+  function startReplayRead(scope: RunnerReadScope, key: string) {
+    const session = parseOpaqueIdentifier(scope.binding.session, 'SessionRef')
+    if (!('ok' in session) || !scopeActive(scope) || scope.owner.hasUnknown(scope.binding, key))
+      throw new RunnerFailureSignal(unavailable)
+    const read = scope.owner.start({
+      kind: 'read',
+      execute: () => log.readByKey(session.ok, key),
+    })
+    if ('unavailable' in read) throw new RunnerFailureSignal(unavailable)
+    return read
   }
   const runner: LoopExtensionRunnerService = Object.freeze<LoopExtensionRunnerService>({
     dispatch(supplied, callerSignal) {
@@ -143,17 +175,9 @@ export function createLoopExtensionRunner(input: {
         (async () => {
           try {
             const parsed = request(supplied, true)
-            if ('failure' in parsed) return parsed
             const requested = parsed.request
             const attempt = requested.attempt
-            if (
-              requested.run === undefined
-                ? Object.hasOwn(requested, 'attempt')
-                : !isJsonNumber(attempt) ||
-                  !ExactDecimal.from(attempt).isInteger ||
-                  ExactDecimal.from(attempt).compare(ExactDecimal.from(0)) <= 0
-            )
-              return invalidInput
+            validateAttempt(requested, attempt)
             if (!active()) return unavailable
             if (callerSignal.aborted) return { failure: 'cancelled' as const }
             if (!modelPosition(parsed.initial)) return unavailable
@@ -173,7 +197,6 @@ export function createLoopExtensionRunner(input: {
               if (!scopeActive(scope)) return unavailable
               if (signal.aborted) return { failure: 'cancelled' as const }
               const all = await chain(scope, requested)
-              if ('failure' in all) return all
               if (!scopeActive(scope)) return unavailable
               const leases = new Map<RunnerPiece, RunnerImplementationLease>()
               const dependencyPresence = scope.sources.manifest.dependencyPresence.bind(
@@ -272,7 +295,6 @@ export function createLoopExtensionRunner(input: {
         (async () => {
           try {
             const parsed = request(supplied, false)
-            if ('failure' in parsed) return parsed
             const requested = parsed.request
             if (!active() || !modelPosition(parsed.initial)) return unavailable
             const scope = await host.acquireReplay(requested, stop.signal)
@@ -280,7 +302,6 @@ export function createLoopExtensionRunner(input: {
             try {
               if (!scopeActive(scope)) return unavailable
               const all = await chain(scope, requested)
-              if ('failure' in all) return all
               const keys = passKeys({
                 position: parsed.initial.position,
                 ...(parsed.initial.dimension === undefined
@@ -289,18 +310,7 @@ export function createLoopExtensionRunner(input: {
                 anchor: requested.anchor,
               })
               if ('invalidInput' in keys) return invalidInput
-              const session = parseOpaqueIdentifier(scope.binding.session, 'SessionRef')
-              if (
-                !('ok' in session) ||
-                !scopeActive(scope) ||
-                scope.owner.hasUnknown(scope.binding, keys.pass)
-              )
-                return unavailable
-              const read = scope.owner.start({
-                kind: 'read',
-                execute: () => log.readByKey(session.ok, keys.pass),
-              })
-              if ('unavailable' in read) return unavailable
+              const read = startReplayRead(scope, keys.pass)
               const history = await read.completion
               if (!scopeActive(scope) || !('entries' in history)) return unavailable
               return readPassConclusions({
