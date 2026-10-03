@@ -550,10 +550,9 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
       const plugin = { category: 'plugin', name: 'bundle' } as const
       const entry = record('ast_bundle', plugin, { category: 'plugin', members: [tool] })
       assert.deepEqual(judge.judgeAssetValue('AssetDefinition', entry), { ok: true })
-      assert.deepEqual(
-        attributeDeclarationsOf({ category: 'plugin', members: [tool] }, judge),
-        { underivable: 'plugin' },
-      )
+      assert.deepEqual(attributeDeclarationsOf({ category: 'plugin', members: [tool] }, judge), {
+        underivable: 'plugin',
+      })
       const result = evaluate({
         ...input,
         definitions: [...definitions, entry],
