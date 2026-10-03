@@ -1,20 +1,29 @@
 import {
-  capabilityCanonicalString,
-  USABLE_BY_DECLARATION,
   type AssetDefinition,
   type AssetHolding,
-  type AssetVersion,
-  type AttributeDeclaration,
   type AttributeAssignment,
+  type AttributeDeclaration,
   type CapabilityId,
-  type PermissionValue,
 } from '@omne-harness-lite/asset-model'
-import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { judgeAgentDefinitionBody } from '@omne-harness-lite/agent-definition'
 import { assetJudge } from './defaults.ts'
-import { canonical, copyJson, immutable, object, codePointCompare } from './json.ts'
+import { diagnostic, invalidInput } from './diagnostics.ts'
+import {
+  assignmentsFor,
+  declarationsFor,
+  heldDefinition,
+  index,
+  key,
+  permission,
+  same,
+  targetDeclaration,
+  versionOf,
+  type EvaluationFacts,
+  type Selected,
+} from './holdings.ts'
+import { canonical, copyJson, immutable, codePointCompare } from './json.ts'
 import {
   classifyPermissionAssignment,
   resolvePermission,
@@ -22,340 +31,26 @@ import {
   tiersOf,
   type LayerPermissionAssignment,
 } from './permissions.ts'
+import { selectAssets, type Selection } from './selection.ts'
 import type {
-  Condition,
-  EffectiveAssembly,
+  AssetReference,
+  CompositionRoot,
   EffectiveAsset,
+  EffectiveAssembly,
   EffectiveValue,
   EvaluationResult,
-  EvaluationRootSelectionInput,
   FilteredOut,
-  HoldingLayer,
+  InputDiagnostic,
   Layer,
   NonConnectorEvaluationInput,
   PermissionDeclaration,
   Unresolved,
 } from './types.ts'
 
-/** Internal projection values, keyed by the admitted holding and selected body version. Not a domain object or provider port. */
-export interface EvaluationFacts {
-  readonly declarations: ReadonlyMap<AssetHolding, readonly AttributeDeclaration[]>
-  readonly references: ReadonlyMap<AssetVersion, readonly CapabilityId[]>
-}
+export type { EvaluationFacts }
 
-const usableBy: PermissionDeclaration = (() => {
-  if (USABLE_BY_DECLARATION.kind !== 'permission')
-    throw new Error('reserved usableBy declaration must be a permission')
-  return USABLE_BY_DECLARATION
-})()
-const layers: readonly HoldingLayer[] = ['factory', 'organization', 'tenant', 'workspace']
-const index = (layer: Layer): number => (layer === 'session' ? 4 : layers.indexOf(layer))
-const key = capabilityCanonicalString
-const same = (a: CapabilityId, b: CapabilityId): boolean => key(a) === key(b)
-const own = (input: unknown, member: string): unknown => (object(input) ? input[member] : undefined)
-
-interface Selected {
-  readonly holding: AssetHolding
-  readonly definition: AssetDefinition
-  readonly version: AssetVersion
-  readonly asset: EffectiveAsset
-}
-export function versionOf(
-  holding: AssetHolding,
-  definition: AssetDefinition,
-): AssetVersion | undefined {
-  return holding.versionSelection.kind === 'current'
-    ? definition.versions.at(-1)
-    : definition.versions.find(
-        version =>
-          holding.versionSelection.kind === 'pinned' &&
-          ExactDecimal.from(version.number).compare(
-            ExactDecimal.from(holding.versionSelection.number),
-          ) === 0,
-      )
-}
-function permission(value: unknown): PermissionValue | undefined {
-  if (
-    !object(value) ||
-    !Array.isArray(value.allowed) ||
-    value.allowed.some(token => typeof token !== 'string')
-  )
-    return undefined
-  // This local representation is only a projection after checking every token.
-  return { allowed: value.allowed.filter((token): token is string => typeof token === 'string') }
-}
-function mcpExecute(item: string): PermissionDeclaration | undefined {
-  return item.startsWith('execute:')
-    ? {
-        item,
-        kind: 'permission',
-        domain: { kind: 'enum', values: ['forbid', 'auto', 'ask'] },
-        default: 'ask',
-      }
-    : undefined
-}
-function declarationsFor(
-  holding: AssetHolding,
-  facts: EvaluationFacts,
-): readonly AttributeDeclaration[] {
-  return facts.declarations.get(holding) ?? [USABLE_BY_DECLARATION]
-}
-function assignmentsFor(
-  input: Pick<NonConnectorEvaluationInput, 'tenant' | 'session'>,
-  capability: CapabilityId,
-  declaration: PermissionDeclaration,
-  holdings: readonly AssetHolding[],
-  definitions: ReadonlyMap<string, AssetDefinition>,
-  specialUsable: boolean,
-  facts: EvaluationFacts,
-): LayerPermissionAssignment[] {
-  const result: LayerPermissionAssignment[] = []
-  for (const layer of ['organization', 'tenant'] as const) {
-    const holding = holdings.find(
-      entry => entry.holder.layer === layer && same(entry.capability, capability),
-    )
-    if (holding === undefined) continue
-    const assignment = holding.assignments.find(entry => entry.item === declaration.item)
-    if (assignment === undefined) continue
-    const definition = definitions.get(holding.asset)
-    if (definition === undefined) throw new Error('admitted holding has no definition')
-    const version = versionOf(holding, definition)
-    const sourceDeclaration = specialUsable
-      ? USABLE_BY_DECLARATION
-      : capability.category === 'mcp'
-        ? (mcpExecute(declaration.item) ??
-          (version === undefined
-            ? undefined
-            : declarationsFor(holding, facts).find(entry => entry.item === declaration.item)))
-        : version === undefined
-          ? undefined
-          : declarationsFor(holding, facts).find(entry => entry.item === declaration.item)
-    if (sourceDeclaration?.kind !== 'permission') continue
-    const value = permission(assignment.value)
-    if (value === undefined) continue
-    result.push({ layer, value, immutable: assignment.immutable })
-  }
-  const session = input.session?.find(
-    entry => same(entry.capability, capability) && entry.assignment.item === declaration.item,
-  )
-  if (session !== undefined) {
-    const value = permission(session.assignment.value)
-    if (value !== undefined)
-      result.push({ layer: 'session', value, immutable: session.assignment.immutable })
-  }
-  return result
-}
-
-export function selectAssets(input: EvaluationRootSelectionInput, facts: EvaluationFacts) {
-  const fail = (
-    condition: Condition,
-    message: string,
-    rejected?: string,
-  ): Extract<EvaluationResult, { readonly invalidInput: unknown }> =>
-    immutable({
-      invalidInput: {
-        diagnostics: [{ condition, message, ...(rejected === undefined ? {} : { rejected }) }],
-      },
-    })
-  if (input.rootDefinition.category !== 'agent_definition')
-    return fail('C2', 'root is not an Agent Definition')
-  if (input.workspace !== undefined && !tenantIdEquals(input.workspace.tenant, input.tenant))
-    return fail('C3', 'workspace tenant')
-  for (const holding of input.holdings) {
-    const holder = holding.holder
-    if (
-      (holder.layer === 'organization' && holder.organization !== input.tenant.organization) ||
-      (holder.layer === 'tenant' && !tenantIdEquals(holder.tenant, input.tenant)) ||
-      (holder.layer === 'workspace' &&
-        (input.workspace === undefined ||
-          holder.workspace.directory !== input.workspace.directory ||
-          !tenantIdEquals(holder.workspace.tenant, input.workspace.tenant)))
-    )
-      return fail('C3', 'holding outside input scopes')
-  }
-  const holdingKeys = input.holdings.map(
-    holding => `${holding.holder.layer}:${key(holding.capability)}`,
-  )
-  if (new Set(holdingKeys).size !== holdingKeys.length) return fail('C4', 'duplicate scope holding')
-  const definitions = new Map<string, AssetDefinition>()
-  for (const definition of input.definitions) {
-    definitions.set(definition.id, definition)
-  }
-  for (const holding of input.holdings) {
-    const definition = definitions.get(holding.asset)
-    if (
-      definition === undefined ||
-      input.definitions.filter(entry => entry.id === holding.asset).length !== 1 ||
-      !same(definition.capability, holding.capability)
-    )
-      return fail('C5', 'held asset has no unique matching definition')
-    if (
-      holding.holder.layer === 'factory' &&
-      (definition.origin !== 'official' || holding.assignments.length !== 0)
-    )
-      return fail('C6', 'factory holds only unassigned official assets')
-    if (
-      definition.origin === 'official' &&
-      holding.assignments.some(entry => entry.item === 'disabled' && entry.value === true)
-    )
-      return fail('C7', 'official disabled')
-    if (
-      holding.holder.layer === 'workspace' &&
-      input.holdings.some(
-        entry => entry.holder.layer !== 'workspace' && entry.asset === holding.asset,
-      )
-    )
-      return fail('C8', 'workspace asset also held outside workspace')
-  }
-  const sessionKeys =
-    input.session?.map(entry => `${key(entry.capability)}:${entry.assignment.item}`) ?? []
-  if (new Set(sessionKeys).size !== sessionKeys.length)
-    return fail('C11', 'duplicate session assignment')
-  if (input.standing.standing !== 'effective') return fail('C12', 'ineffective membership')
-  const filtered: FilteredOut[] = []
-  const disabled = new Set<string>()
-  for (const holding of input.holdings) {
-    if (holding.assignments.some(entry => entry.item === 'disabled' && entry.value === true))
-      disabled.add(holding.asset)
-    if (holding.holder.layer === 'workspace') {
-      const definition = definitions.get(holding.asset)
-      const content = definition?.versions[0]?.content
-      if (
-        (content?.category === 'mcp' && own(own(content.body, 'transport'), 'kind') === 'stdio') ||
-        (content?.category === 'loop_extension' &&
-          own(own(content.extension, 'implementation'), 'kind') === 'command')
-      )
-        disabled.add(holding.asset)
-    }
-  }
-  const live = input.holdings.filter(holding => !disabled.has(holding.asset))
-  for (const holding of input.holdings)
-    if (disabled.has(holding.asset))
-      filtered.push({
-        capability: holding.capability,
-        from: holding.holder.layer,
-        reason: 'disabled',
-      })
-  const usableValid = (assignment: AttributeAssignment): boolean => {
-    const value = permission(assignment.value)
-    return (
-      value !== undefined &&
-      new Set(value.allowed).size === value.allowed.length &&
-      value.allowed.every(token => usableBy.domain.values.includes(token))
-    )
-  }
-  for (const holding of live)
-    if (holding.holder.layer !== 'workspace') {
-      const assignment = holding.assignments.find(entry => entry.item === 'usableBy')
-      if (assignment !== undefined && !usableValid(assignment))
-        return fail('C10', 'usableBy assignment outside declaration domain')
-    }
-  for (const entry of input.session ?? [])
-    if (
-      entry.assignment.item === 'usableBy' &&
-      live.some(holding => same(holding.capability, entry.capability)) &&
-      !usableValid(entry.assignment)
-    )
-      return fail('C10', 'session usableBy outside declaration domain')
-  const usableValues = new Map<string, ReturnType<typeof resolvePermission>>()
-  const surviving = live.filter(holding => {
-    const definition = definitions.get(holding.asset)
-    if (definition === undefined) throw new Error('C5 invariant')
-    const value = resolvePermission(
-      usableBy,
-      assignmentsFor(input, holding.capability, usableBy, live, definitions, true, facts),
-      holding.holder.layer === 'workspace' ? strictPermission(usableBy) : undefined,
-    )
-    usableValues.set(holding.asset, value)
-    if (
-      definition.origin === 'official' ||
-      value.value.allowed.includes(
-        input.standing.standing === 'effective' ? input.standing.role : '',
-      ) ||
-      (value.value.allowed.includes('self') &&
-        (holding.holder.layer === 'workspace' || tenantIdEquals(definition.author, input.tenant)))
-    )
-      return true
-    filtered.push({
-      capability: holding.capability,
-      from: holding.holder.layer,
-      reason: 'not_usable',
-    })
-    return false
-  })
-  const locks = new Map<string, AssetHolding>()
-  for (const holding of [...surviving].sort(
-    (left, right) => index(left.holder.layer) - index(right.holder.layer),
-  ))
-    if (holding.immutable && !locks.has(key(holding.capability)))
-      locks.set(key(holding.capability), holding)
-  const inEffect = live.filter(holding => {
-    const lock = locks.get(key(holding.capability))
-    return (
-      lock === undefined ||
-      index(holding.holder.layer) <= index(lock.holder.layer) ||
-      holding.asset === lock.asset
-    )
-  })
-  for (const holding of surviving)
-    if (!inEffect.includes(holding))
-      filtered.push({
-        capability: holding.capability,
-        from: holding.holder.layer,
-        reason: 'locked_below',
-      })
-  const selected = new Map<string, Selected>()
-  for (const holding of inEffect) {
-    const definition = definitions.get(holding.asset)
-    if (definition === undefined) throw new Error('C5 invariant')
-    if (holding.holder.layer !== 'workspace' && versionOf(holding, definition) === undefined)
-      return fail('C9', 'version selection cannot resolve')
-  }
-  for (const holding of [...surviving]
-    .filter(entry => inEffect.includes(entry))
-    .sort((left, right) => index(left.holder.layer) - index(right.holder.layer))) {
-    const definition = definitions.get(holding.asset)
-    if (definition === undefined) throw new Error('C5 invariant')
-    const version = versionOf(holding, definition)
-    if (version === undefined) return fail('C9', 'selected asset has no published version')
-    const lock = locks.get(key(holding.capability))
-    const replaced = layers.filter(layer =>
-      surviving.some(
-        entry =>
-          inEffect.includes(entry) &&
-          same(entry.capability, holding.capability) &&
-          entry.holder.layer === layer &&
-          index(layer) < index(holding.holder.layer) &&
-          entry.asset !== holding.asset,
-      ),
-    )
-    selected.set(key(holding.capability), {
-      holding,
-      definition,
-      version,
-      asset: {
-        capability: holding.capability,
-        asset: holding.asset,
-        version: version.number,
-        from: holding.holder.layer,
-        replaced,
-        ...(lock === undefined ? {} : { lockedAt: lock.holder.layer }),
-      },
-    })
-  }
-  return { selected, inEffect, surviving, definitions, usableValues, filtered }
-}
-
-export function computeEvaluation(
-  input: NonConnectorEvaluationInput,
-  facts: EvaluationFacts,
-): EvaluationResult {
-  const fail = (condition: Condition, message: string, rejected?: string): EvaluationResult =>
-    immutable({
-      invalidInput: {
-        diagnostics: [{ condition, message, ...(rejected === undefined ? {} : { rejected }) }],
-      },
-    })
+/** C13: each MCP action set names a held mcp endpoint at its scope, once, with fetched actions. */
+function mcpActionSetsDiagnostic(input: NonConnectorEvaluationInput): InputDiagnostic | undefined {
   const actionKeys = new Set<string>()
   for (const entry of input.mcpActionSets ?? []) {
     const token = `${key(entry.endpoint)}:${entry.scope}`
@@ -367,32 +62,54 @@ export function computeEvaluation(
       actionKeys.has(token) ||
       entry.actions.kind !== 'fetched'
     )
-      return fail('C13', 'invalid MCP action set')
+      return diagnostic('C13', 'invalid MCP action set')
     actionKeys.add(token)
   }
-  const refs = input.root.references.map(entry => key(entry.capability))
+  return undefined
+}
+/** C14: root references name each capability once; `resident` appears only on tool and skill references. */
+function rootReferencesDiagnostic(root: CompositionRoot): InputDiagnostic | undefined {
+  const refs = root.references.map(entry => key(entry.capability))
   if (
     new Set(refs).size !== refs.length ||
-    input.root.references.some(
+    root.references.some(
       entry =>
         entry.resident !== undefined &&
         entry.capability.category !== 'tool' &&
         entry.capability.category !== 'skill',
     )
   )
-    return fail('C14', 'invalid root references')
-  const selection = selectAssets({ ...input, rootDefinition: input.root.definition }, facts)
-  if ('invalidInput' in selection) return selection
-  const { selected, inEffect, surviving, definitions, usableValues, filtered } = selection
-  const selectedRoot = selected.get(key(input.root.definition))
+    return diagnostic('C14', 'invalid root references')
+  return undefined
+}
+/** C16: when the root has an effective asset, the declared source is that asset and version. */
+function rootSourceDiagnostic(
+  root: CompositionRoot,
+  selectedRoot: Selected | undefined,
+): InputDiagnostic | undefined {
   if (
     selectedRoot !== undefined &&
-    (input.root.source.asset !== selectedRoot.definition.id ||
-      ExactDecimal.from(input.root.source.version).compare(
+    (root.source.asset !== selectedRoot.definition.id ||
+      ExactDecimal.from(root.source.version).compare(
         ExactDecimal.from(selectedRoot.version.number),
       ) !== 0)
   )
-    return fail('C16', 'root source differs from the selected asset version')
+    return diagnostic('C16', 'root source differs from the selected asset version')
+  return undefined
+}
+
+interface Composition {
+  readonly composition: ReadonlyMap<string, CapabilityId>
+  readonly unresolved: Unresolved[]
+  readonly cycle: readonly CapabilityId[] | undefined
+  readonly unsupported: 'plugin' | 'agent_definition' | undefined
+}
+/** S-20: walk from root.references along each selected asset's declared references. */
+function compose(
+  input: NonConnectorEvaluationInput,
+  selected: ReadonlyMap<string, Selected>,
+  facts: EvaluationFacts,
+): Composition {
   const composition = new Map<string, CapabilityId>()
   const unresolved: Unresolved[] = []
   let cycle: readonly CapabilityId[] | undefined
@@ -436,91 +153,132 @@ export function computeEvaluation(
       codePointCompare(key(left.capability), key(right.capability)),
     ))
       visit(reference.capability, root, [root])
-  // C10 admits only assignments used by composition or the selected root.
-  const validAssignment = (
-    assignment: AttributeAssignment,
-    declaration: AttributeDeclaration,
-    rootSetting = false,
-  ): boolean => {
-    if (rootSetting)
-      return (
-        'ok' in
-        judgeAgentDefinitionBody(
-          copyJson({ references: [], attributes: [{ ...declaration, default: assignment.value }] }),
-        )
-      )
-    if (declaration.kind === 'permission') {
-      const value = permission(assignment.value)
-      return (
-        value !== undefined &&
-        new Set(value.allowed).size === value.allowed.length &&
-        value.allowed.every(token => declaration.domain.values.includes(token))
-      )
-    }
-    const result = assetJudge.judgeAssetValue('AttributeDeclaration', {
-      ...declaration,
-      default: assignment.value,
-    })
-    if ('rejected' in result) return false
+  return { composition, unresolved, cycle, unsupported }
+}
+
+/** C10: one assignment's value lies in its declaration's domain (root settings by AD1, permissions by the enum, settings by the schema). */
+function assignmentWithinDeclaration(
+  assignment: AttributeAssignment,
+  declaration: AttributeDeclaration,
+  rootSetting = false,
+): boolean {
+  if (rootSetting)
     return (
       'ok' in
-      assetJudge.judgeAssetValue('AttributeAssignment', assignment, { declarations: [declaration] })
-    )
-  }
-  for (const holding of inEffect) {
-    if (
-      !composition.has(key(holding.capability)) &&
-      !(selected.has(key(root)) && same(holding.capability, root))
-    )
-      continue
-    const definition = definitions.get(holding.asset)
-    if (definition === undefined) throw new Error('C5 invariant')
-    const version = versionOf(holding, definition)
-    if (version === undefined) continue
-    const declared = declarationsFor(holding, facts)
-    const current = selected.get(key(holding.capability))
-    if (current === undefined) throw new Error('composition has no selected asset')
-    const effectiveDeclarations = declarationsFor(current.holding, facts)
-    for (const assignment of holding.assignments) {
-      const declaration =
-        declared.find(entry => entry.item === assignment.item) ??
-        (holding.capability.category === 'mcp' ? mcpExecute(assignment.item) : undefined)
-      if (declaration === undefined) continue
-      if (declaration.kind === 'setting' && holding.asset !== current.definition.id) continue
-      if (
-        holding.holder.layer === 'workspace' &&
-        (declaration.kind === 'permission' ||
-          declaration.category === 'placement_identity' ||
-          declaration.category === 'governance')
+      judgeAgentDefinitionBody(
+        copyJson({ references: [], attributes: [{ ...declaration, default: assignment.value }] }),
       )
-        continue
-      if (declaration.kind === 'permission') {
-        const effective = effectiveDeclarations.find(entry => entry.item === assignment.item)
-        if (effective?.kind !== 'permission') {
-          const value = permission(assignment.value)
-          const missingBound =
-            effective === undefined &&
-            (holding.holder.layer === 'organization' || holding.holder.layer === 'tenant') &&
-            index(holding.holder.layer) < index(current.asset.from) &&
-            (assignment.immutable ||
-              (value !== undefined &&
-                classifyPermissionAssignment(declaration, {
-                  value,
-                  immutable: assignment.immutable,
-                }).role === 'bound'))
-          if (!missingBound) continue
-        }
-      }
-      if (!validAssignment(assignment, declaration, same(holding.capability, root)))
-        return fail('C10', 'holding assignment outside its declaration domain')
-    }
-  }
-  for (const entry of input.session ?? []) {
-    if (
-      !composition.has(key(entry.capability)) &&
-      !(selected.has(key(root)) && same(entry.capability, root))
     )
-      continue
+  if (declaration.kind === 'permission') {
+    const value = permission(assignment.value)
+    return (
+      value !== undefined &&
+      new Set(value.allowed).size === value.allowed.length &&
+      value.allowed.every(token => declaration.domain.values.includes(token))
+    )
+  }
+  const result = assetJudge.judgeAssetValue('AttributeDeclaration', {
+    ...declaration,
+    default: assignment.value,
+  })
+  if ('rejected' in result) return false
+  return (
+    'ok' in
+    assetJudge.judgeAssetValue('AttributeAssignment', assignment, { declarations: [declaration] })
+  )
+}
+/** A permission assignment takes part in S-23 when the effective asset declares the item as a permission, or when it is an outer bound on an item the effective asset lacks. */
+function permissionParticipates(
+  holding: AssetHolding,
+  assignment: AttributeAssignment,
+  declaration: PermissionDeclaration,
+  effectiveDeclarations: readonly AttributeDeclaration[],
+  current: Selected,
+): boolean {
+  const effective = effectiveDeclarations.find(entry => entry.item === assignment.item)
+  if (effective?.kind === 'permission') return true
+  const value = permission(assignment.value)
+  return (
+    effective === undefined &&
+    (holding.holder.layer === 'organization' || holding.holder.layer === 'tenant') &&
+    index(holding.holder.layer) < index(current.asset.from) &&
+    (assignment.immutable ||
+      (value !== undefined &&
+        classifyPermissionAssignment(declaration, {
+          value,
+          immutable: assignment.immutable,
+        }).role === 'bound'))
+  )
+}
+/** Whether S-21／S-23 read this assignment at all: settings only on the effective asset, nothing a workspace may not set, permissions that take part. */
+function assignmentRead(
+  holding: AssetHolding,
+  assignment: AttributeAssignment,
+  declaration: AttributeDeclaration,
+  effectiveDeclarations: readonly AttributeDeclaration[],
+  current: Selected,
+): boolean {
+  if (declaration.kind === 'setting' && holding.asset !== current.definition.id) return false
+  if (
+    holding.holder.layer === 'workspace' &&
+    (declaration.kind === 'permission' ||
+      declaration.category === 'placement_identity' ||
+      declaration.category === 'governance')
+  )
+    return false
+  return (
+    declaration.kind !== 'permission' ||
+    permissionParticipates(holding, assignment, declaration, effectiveDeclarations, current)
+  )
+}
+/** C10 over one in-effect holding: only assignments that S-21／S-23 actually read are judged. */
+function holdingAssignmentsDiagnostic(
+  holding: AssetHolding,
+  root: CapabilityId,
+  selection: Selection,
+  facts: EvaluationFacts,
+): InputDiagnostic | undefined {
+  const definition = heldDefinition(selection.definitions, holding)
+  const version = versionOf(holding, definition)
+  if (version === undefined) return undefined
+  const declared = declarationsFor(holding, facts)
+  const current = selection.selected.get(key(holding.capability))
+  if (current === undefined) throw new Error('composition has no selected asset')
+  const effectiveDeclarations = declarationsFor(current.holding, facts)
+  for (const assignment of holding.assignments) {
+    const declaration = targetDeclaration(declared, holding.capability, assignment.item)
+    if (declaration === undefined) continue
+    if (!assignmentRead(holding, assignment, declaration, effectiveDeclarations, current)) continue
+    if (!assignmentWithinDeclaration(assignment, declaration, same(holding.capability, root)))
+      return diagnostic('C10', 'holding assignment outside its declaration domain')
+  }
+  return undefined
+}
+/** C10 over the in-effect holdings and the session, for capabilities the composition or the effective root uses. */
+function assignmentsDiagnostic(
+  input: NonConnectorEvaluationInput,
+  root: CapabilityId,
+  selection: Selection,
+  facts: EvaluationFacts,
+  participates: (capability: CapabilityId) => boolean,
+): InputDiagnostic | undefined {
+  for (const holding of selection.inEffect) {
+    if (!participates(holding.capability)) continue
+    const bad = holdingAssignmentsDiagnostic(holding, root, selection, facts)
+    if (bad !== undefined) return bad
+  }
+  return sessionAssignmentsDiagnostic(input, root, selection.selected, facts, participates)
+}
+/** C10 over the session assignments, read against the effective asset's declarations. */
+function sessionAssignmentsDiagnostic(
+  input: NonConnectorEvaluationInput,
+  root: CapabilityId,
+  selected: ReadonlyMap<string, Selected>,
+  facts: EvaluationFacts,
+  participates: (capability: CapabilityId) => boolean,
+): InputDiagnostic | undefined {
+  for (const entry of input.session ?? []) {
+    if (!participates(entry.capability)) continue
     const asset = selected.get(key(entry.capability))
     if (asset === undefined) continue
     const declaration = declarationsFor(asset.holding, facts).find(
@@ -528,208 +286,341 @@ export function computeEvaluation(
     )
     if (
       declaration !== undefined &&
-      !validAssignment(entry.assignment, declaration, same(entry.capability, root))
+      !assignmentWithinDeclaration(entry.assignment, declaration, same(entry.capability, root))
     )
-      return fail('C10', 'session assignment outside effective declaration domain')
+      return diagnostic('C10', 'session assignment outside effective declaration domain')
   }
-  if (cycle !== undefined)
-    return immutable({ compositionCycle: { cycle: cycle.map(entry => ({ ...entry })) } })
-  if (unsupported !== undefined)
-    return immutable({ categoryUnsupported: { category: unsupported } })
-  const values: EffectiveValue[] = []
-  for (const capability of [...(selected.has(key(root)) ? [root] : []), ...composition.values()]) {
-    const current = selected.get(key(capability))
-    if (current === undefined) throw new Error('composition is outside selected assets')
-    const declared = declarationsFor(current.holding, facts).filter(
-      entry => entry.item !== 'disabled' && !(same(capability, root) && entry.item === 'usableBy'),
-    )
-    const permissionHoldings = inEffect.filter(holding => same(holding.capability, capability))
-    const ws = permissionHoldings.find(holding => holding.holder.layer === 'workspace')
-    if (ws !== undefined)
-      for (const assignment of ws.assignments) {
-        const declaration =
-          declared.find(entry => entry.item === assignment.item) ??
-          (capability.category === 'mcp' ? mcpExecute(assignment.item) : undefined)
-        if (declaration?.kind === 'permission')
-          filtered.push({ capability, from: 'workspace', reason: 'workspace_permission' })
-        else if (declaration?.category === 'placement_identity')
-          filtered.push({ capability, from: 'workspace', reason: 'workspace_placement' })
-        else if (declaration?.category === 'governance' && declaration.item !== 'disabled')
-          filtered.push({ capability, from: 'workspace', reason: 'workspace_governance' })
-      }
-    for (const declaration of declared) {
-      if (declaration.kind === 'setting') {
-        const assigned: { layer: Layer; assignment: AttributeAssignment }[] = []
-        for (const layer of ['organization', 'tenant', 'workspace'] as const) {
-          const holding = surviving.find(
-            entry =>
-              inEffect.includes(entry) &&
-              entry.holder.layer === layer &&
-              same(entry.capability, capability) &&
-              entry.asset === current.definition.id,
-          )
-          const assignment = holding?.assignments.find(entry => entry.item === declaration.item)
-          if (
-            assignment !== undefined &&
-            !(
-              layer === 'workspace' &&
-              (declaration.category === 'placement_identity' ||
-                declaration.category === 'governance')
-            )
-          )
-            assigned.push({ layer, assignment })
-        }
-        const session = input.session?.find(
-          entry => same(entry.capability, capability) && entry.assignment.item === declaration.item,
-        )
-        if (session !== undefined)
-          assigned.push({ layer: 'session', assignment: session.assignment })
-        const lock = assigned.find(entry => entry.assignment.immutable)
-        const final = lock ?? assigned.at(-1)
-        const value = final?.assignment.value ?? declaration.default
-        if (value !== undefined)
-          values.push({
-            capability,
-            item: declaration.item,
-            value,
-            from: final?.layer ?? 'factory',
-            ...(lock === undefined ? {} : { lockedAt: lock.layer }),
-            ...(declaration.category === 'placement_identity'
-              ? { provenance: final?.layer ?? current.asset.from }
-              : {}),
-          })
-      } else {
-        const resolved =
-          declaration.item === 'usableBy'
-            ? usableValues.get(current.definition.id)
-            : resolvePermission(
-                declaration,
-                assignmentsFor(
-                  input,
-                  capability,
-                  declaration,
-                  permissionHoldings,
-                  definitions,
-                  false,
-                  facts,
-                ),
-                current.asset.from === 'workspace' ? strictPermission(declaration) : undefined,
-              )
-        if (resolved === undefined) throw new Error('selected asset has no usableBy value')
-        const tieredExecute = tiersOf(declaration)?.includes('auto') === true
-        values.push({
-          capability,
-          item: declaration.item,
-          value: copyJson(resolved.value),
-          from: resolved.from,
-          ...(resolved.lockedAt === undefined ? {} : { lockedAt: resolved.lockedAt }),
-          ...(tieredExecute
-            ? {
-                tenantAutoWritable: tenantWritable(
-                  input,
-                  capability,
-                  current,
-                  declaration,
-                  inEffect,
-                ),
-              }
-            : {}),
-        })
-      }
-    }
-    // S23: an outer bound on a missing permission still creates its strict constrained value.
-    const missing = new Map<
-      string,
-      { declarations: PermissionDeclaration[]; bounds: LayerPermissionAssignment[] }
-    >()
-    for (const holding of permissionHoldings) {
-      if (
-        (holding.holder.layer !== 'organization' && holding.holder.layer !== 'tenant') ||
-        index(holding.holder.layer) >= index(current.asset.from)
-      )
-        continue
-      const definition = definitions.get(holding.asset)
-      if (definition === undefined) throw new Error('C5 invariant')
-      const version = versionOf(holding, definition)
-      if (version === undefined) continue
-      for (const assignment of holding.assignments) {
-        if (declared.some(entry => entry.item === assignment.item)) continue
-        const declaration =
-          declarationsFor(holding, facts).find(entry => entry.item === assignment.item) ??
-          (capability.category === 'mcp' ? mcpExecute(assignment.item) : undefined)
-        const value = permission(assignment.value)
-        if (
-          declaration?.kind !== 'permission' ||
-          value === undefined ||
-          classifyPermissionAssignment(declaration, { value, immutable: assignment.immutable })
-            .role !== 'bound'
-        )
-          continue
-        const entry = missing.get(assignment.item) ?? { declarations: [], bounds: [] }
-        entry.declarations.push(declaration)
-        entry.bounds.push({ layer: holding.holder.layer, value, immutable: assignment.immutable })
-        missing.set(assignment.item, entry)
-      }
-    }
-    for (const [item, entry] of missing) {
-      const first = entry.declarations[0]
-      if (first === undefined) throw new Error('missing permission has no declaration')
-      const strict = entry.declarations.every(
-        declaration =>
-          writeJsonLossless(strictPermission(declaration)) ===
-          writeJsonLossless(strictPermission(first)),
-      )
-        ? strictPermission(first)
-        : { allowed: [] }
-      const allowed = strict.allowed.filter(token =>
-        entry.bounds.every(bound => bound.value.allowed.includes(token)),
-      )
-      values.push({
-        capability,
-        item,
-        value: copyJson({ allowed }),
-        from: entry.bounds.at(-1)?.layer ?? 'factory',
-        lockedAt: entry.bounds[0]?.layer ?? 'factory',
-        ...(tiersOf(first)?.includes('auto') === true ? { tenantAutoWritable: false } : {}),
-      })
-    }
+  return undefined
+}
+
+/** One capability's value computation scope: its effective asset, the declarations to value, and its in-effect holdings. */
+interface CapabilityScope {
+  readonly capability: CapabilityId
+  readonly current: Selected
+  readonly declared: readonly AttributeDeclaration[]
+  readonly holdings: readonly AssetHolding[]
+}
+/** S-24: a workspace holding's permission, placement and governance assignments leave a trace instead of applying. */
+function workspaceFilteredOut(
+  scope: CapabilityScope,
+  workspace: AssetHolding,
+  filtered: FilteredOut[],
+): void {
+  const { capability } = scope
+  for (const assignment of workspace.assignments) {
+    const declaration = targetDeclaration(scope.declared, capability, assignment.item)
+    if (declaration?.kind === 'permission')
+      filtered.push({ capability, from: 'workspace', reason: 'workspace_permission' })
+    else if (declaration?.category === 'placement_identity')
+      filtered.push({ capability, from: 'workspace', reason: 'workspace_placement' })
+    else if (declaration?.category === 'governance' && declaration.item !== 'disabled')
+      filtered.push({ capability, from: 'workspace', reason: 'workspace_governance' })
   }
-  const assets = [...selected.values()].map(entry => {
+}
+interface LayerAssignment {
+  readonly layer: Layer
+  readonly assignment: AttributeAssignment
+}
+/** The in-effect surviving holding of the effective asset at one layer, if that layer holds it. */
+function effectiveHoldingAt(
+  scope: CapabilityScope,
+  selection: Selection,
+  layer: Layer,
+): AssetHolding | undefined {
+  return selection.surviving.find(
+    entry =>
+      selection.inEffect.includes(entry) &&
+      entry.holder.layer === layer &&
+      same(entry.capability, scope.capability) &&
+      entry.asset === scope.current.definition.id,
+  )
+}
+/** S-22: the assignments of a setting along the setting order, only from holdings of the effective asset. */
+function settingAssignments(
+  input: NonConnectorEvaluationInput,
+  scope: CapabilityScope,
+  declaration: AttributeDeclaration,
+  selection: Selection,
+): LayerAssignment[] {
+  const assigned: LayerAssignment[] = []
+  for (const layer of ['organization', 'tenant', 'workspace'] as const) {
+    const holding = effectiveHoldingAt(scope, selection, layer)
+    const assignment = holding?.assignments.find(entry => entry.item === declaration.item)
     if (
-      !composition.has(key(entry.asset.capability)) ||
-      (entry.asset.capability.category !== 'skill' && entry.asset.capability.category !== 'tool')
+      assignment !== undefined &&
+      !(
+        layer === 'workspace' &&
+        (declaration.category === 'placement_identity' || declaration.category === 'governance')
+      )
     )
-      return entry.asset
-    return {
-      ...entry.asset,
-      resident:
-        input.root.references.find(reference => same(reference.capability, entry.asset.capability))
-          ?.resident ?? false,
+      assigned.push({ layer, assignment })
+  }
+  const session = input.session?.find(
+    entry => same(entry.capability, scope.capability) && entry.assignment.item === declaration.item,
+  )
+  if (session !== undefined) assigned.push({ layer: 'session', assignment: session.assignment })
+  return assigned
+}
+/** S-22: a lock wins, else the innermost assignment, else the declared default; placement settings carry their provenance (S-40). */
+function settingValue(
+  input: NonConnectorEvaluationInput,
+  scope: CapabilityScope,
+  declaration: AttributeDeclaration,
+  selection: Selection,
+): EffectiveValue | undefined {
+  const assigned = settingAssignments(input, scope, declaration, selection)
+  const lock = assigned.find(entry => entry.assignment.immutable)
+  const final = lock ?? assigned.at(-1)
+  const value = final?.assignment.value ?? declaration.default
+  if (value === undefined) return undefined
+  return {
+    capability: scope.capability,
+    item: declaration.item,
+    value,
+    from: final?.layer ?? 'factory',
+    ...(lock === undefined ? {} : { lockedAt: lock.layer }),
+    ...(declaration.category === 'placement_identity'
+      ? { provenance: final?.layer ?? scope.current.asset.from }
+      : {}),
+  }
+}
+/** S-23: a permission resolved across layers for the capability; execution permissions also say whether the tenant layer may write `auto` (S-42). */
+function permissionValue(
+  input: NonConnectorEvaluationInput,
+  scope: CapabilityScope,
+  declaration: PermissionDeclaration,
+  selection: Selection,
+  facts: EvaluationFacts,
+): EffectiveValue {
+  const { capability, current } = scope
+  const resolved =
+    declaration.item === 'usableBy'
+      ? selection.usableValues.get(current.definition.id)
+      : resolvePermission(
+          declaration,
+          assignmentsFor(
+            input,
+            capability,
+            declaration,
+            scope.holdings,
+            selection.definitions,
+            false,
+            facts,
+          ),
+          current.asset.from === 'workspace' ? strictPermission(declaration) : undefined,
+        )
+  if (resolved === undefined) throw new Error('selected asset has no usableBy value')
+  const tieredExecute = tiersOf(declaration)?.includes('auto') === true
+  return {
+    capability,
+    item: declaration.item,
+    value: copyJson(resolved.value),
+    from: resolved.from,
+    ...(resolved.lockedAt === undefined ? {} : { lockedAt: resolved.lockedAt }),
+    ...(tieredExecute
+      ? {
+          tenantAutoWritable: tenantWritable(
+            input,
+            capability,
+            current,
+            declaration,
+            selection.inEffect,
+          ),
+        }
+      : {}),
+  }
+}
+interface OuterBound {
+  readonly declaration: PermissionDeclaration
+  readonly bound: LayerPermissionAssignment
+}
+/** S-23 last clause: an outer holding's bound on a permission item the effective asset does not declare. */
+function outerBound(
+  holding: AssetHolding,
+  assignment: AttributeAssignment,
+  scope: CapabilityScope,
+  facts: EvaluationFacts,
+): OuterBound | undefined {
+  if (scope.declared.some(entry => entry.item === assignment.item)) return undefined
+  const declaration = targetDeclaration(
+    declarationsFor(holding, facts),
+    scope.capability,
+    assignment.item,
+  )
+  const value = permission(assignment.value)
+  if (
+    declaration?.kind !== 'permission' ||
+    value === undefined ||
+    classifyPermissionAssignment(declaration, { value, immutable: assignment.immutable }).role !==
+      'bound'
+  )
+    return undefined
+  return {
+    declaration,
+    bound: { layer: holding.holder.layer, value, immutable: assignment.immutable },
+  }
+}
+interface MissingPermission {
+  readonly declarations: PermissionDeclaration[]
+  readonly bounds: LayerPermissionAssignment[]
+}
+/** S-23 last clause: per missing item, the declarations and bounds the outer organization and tenant holdings contribute. */
+function outerBoundsOnMissingItems(
+  scope: CapabilityScope,
+  selection: Selection,
+  facts: EvaluationFacts,
+): Map<string, MissingPermission> {
+  const missing = new Map<string, MissingPermission>()
+  for (const holding of scope.holdings) {
+    if (
+      (holding.holder.layer !== 'organization' && holding.holder.layer !== 'tenant') ||
+      index(holding.holder.layer) >= index(scope.current.asset.from)
+    )
+      continue
+    const definition = heldDefinition(selection.definitions, holding)
+    const version = versionOf(holding, definition)
+    if (version === undefined) continue
+    for (const assignment of holding.assignments) {
+      const found = outerBound(holding, assignment, scope, facts)
+      if (found === undefined) continue
+      const entry = missing.get(assignment.item) ?? { declarations: [], bounds: [] }
+      entry.declarations.push(found.declaration)
+      entry.bounds.push(found.bound)
+      missing.set(assignment.item, entry)
     }
-  })
-  const unique = <T>(list: readonly T[]): T[] => [
-    ...new Map(list.map(entry => [canonical(copyJson(entry)), entry])).values(),
-  ]
-  const ordered = <T>(list: readonly T[], capabilityOf: (entry: T) => CapabilityId): T[] =>
-    unique(list).sort(
-      (a, b) =>
-        codePointCompare(key(capabilityOf(a)), key(capabilityOf(b))) ||
-        codePointCompare(canonical(copyJson(a)), canonical(copyJson(b))),
-    )
+  }
+  return missing
+}
+/** S-23 last clause: the strict constrained value an outer bound creates on a missing permission item. */
+function missingPermissionValue(
+  capability: CapabilityId,
+  item: string,
+  entry: MissingPermission,
+): EffectiveValue {
+  const first = entry.declarations[0]
+  if (first === undefined) throw new Error('missing permission has no declaration')
+  const strict = entry.declarations.every(
+    declaration =>
+      writeJsonLossless(strictPermission(declaration)) ===
+      writeJsonLossless(strictPermission(first)),
+  )
+    ? strictPermission(first)
+    : { allowed: [] }
+  const allowed = strict.allowed.filter(token =>
+    entry.bounds.every(bound => bound.value.allowed.includes(token)),
+  )
+  return {
+    capability,
+    item,
+    value: copyJson({ allowed }),
+    from: entry.bounds.at(-1)?.layer ?? 'factory',
+    lockedAt: entry.bounds[0]?.layer ?? 'factory',
+    ...(tiersOf(first)?.includes('auto') === true ? { tenantAutoWritable: false } : {}),
+  }
+}
+/** S-21～S-24、S-42 for one capability of the composition or the effective root. */
+function capabilityValues(
+  input: NonConnectorEvaluationInput,
+  capability: CapabilityId,
+  selection: Selection,
+  facts: EvaluationFacts,
+): EffectiveValue[] {
+  const root = input.root.definition
+  const current = selection.selected.get(key(capability))
+  if (current === undefined) throw new Error('composition is outside selected assets')
+  const scope: CapabilityScope = {
+    capability,
+    current,
+    declared: declarationsFor(current.holding, facts).filter(
+      entry => entry.item !== 'disabled' && !(same(capability, root) && entry.item === 'usableBy'),
+    ),
+    holdings: selection.inEffect.filter(holding => same(holding.capability, capability)),
+  }
+  const workspace = scope.holdings.find(holding => holding.holder.layer === 'workspace')
+  if (workspace !== undefined) workspaceFilteredOut(scope, workspace, selection.filtered)
+  const values: EffectiveValue[] = []
+  for (const declaration of scope.declared) {
+    if (declaration.kind === 'setting') {
+      const value = settingValue(input, scope, declaration, selection)
+      if (value !== undefined) values.push(value)
+    } else values.push(permissionValue(input, scope, declaration, selection, facts))
+  }
+  for (const [item, entry] of outerBoundsOnMissingItems(scope, selection, facts))
+    values.push(missingPermissionValue(capability, item, entry))
+  return values
+}
+/** S-38: tool and skill assets in the composition carry the root reference's resident flag. */
+function withResident(
+  entry: Selected,
+  composition: ReadonlyMap<string, CapabilityId>,
+  references: readonly AssetReference[],
+): EffectiveAsset {
+  if (
+    !composition.has(key(entry.asset.capability)) ||
+    (entry.asset.capability.category !== 'skill' && entry.asset.capability.category !== 'tool')
+  )
+    return entry.asset
+  return {
+    ...entry.asset,
+    resident:
+      references.find(reference => same(reference.capability, entry.asset.capability))?.resident ??
+      false,
+  }
+}
+const unique = <T>(list: readonly T[]): T[] => [
+  ...new Map(list.map(entry => [canonical(copyJson(entry)), entry])).values(),
+]
+const ordered = <T>(list: readonly T[], capabilityOf: (entry: T) => CapabilityId): T[] =>
+  unique(list).sort(
+    (a, b) =>
+      codePointCompare(key(capabilityOf(a)), key(capabilityOf(b))) ||
+      codePointCompare(canonical(copyJson(a)), canonical(copyJson(b))),
+  )
+
+export function computeEvaluation(
+  input: NonConnectorEvaluationInput,
+  facts: EvaluationFacts,
+): EvaluationResult {
+  const inconsistent = mcpActionSetsDiagnostic(input) ?? rootReferencesDiagnostic(input.root)
+  if (inconsistent !== undefined) return invalidInput(inconsistent)
+  const selection = selectAssets({ ...input, rootDefinition: input.root.definition }, facts)
+  if ('invalidInput' in selection) return selection
+  const root = input.root.definition
+  const { selected } = selection
+  const mismatch = rootSourceDiagnostic(input.root, selected.get(key(root)))
+  if (mismatch !== undefined) return invalidInput(mismatch)
+  const composed = compose(input, selected, facts)
+  // C10 admits only assignments used by composition or the selected root.
+  const participates = (capability: CapabilityId): boolean =>
+    composed.composition.has(key(capability)) || (selected.has(key(root)) && same(capability, root))
+  const outsideDomain = assignmentsDiagnostic(input, root, selection, facts, participates)
+  if (outsideDomain !== undefined) return invalidInput(outsideDomain)
+  if (composed.cycle !== undefined)
+    return immutable({ compositionCycle: { cycle: composed.cycle.map(entry => ({ ...entry })) } })
+  if (composed.unsupported !== undefined)
+    return immutable({ categoryUnsupported: { category: composed.unsupported } })
+  const values = [
+    ...(selected.has(key(root)) ? [root] : []),
+    ...composed.composition.values(),
+  ].flatMap(capability => capabilityValues(input, capability, selection, facts))
+  const assets = [...selected.values()].map(entry =>
+    withResident(entry, composed.composition, input.root.references),
+  )
   const assembly: EffectiveAssembly = {
     root: { ...root },
     assets: ordered(assets, entry => entry.capability),
     composition: ordered(
-      [...composition.values()].map(entry => ({ ...entry })),
+      [...composed.composition.values()].map(entry => ({ ...entry })),
       entry => entry,
     ),
     values: ordered(values, entry => entry.capability),
-    filteredOut: ordered(filtered, entry => entry.capability),
-    unresolved: ordered(unresolved, entry => entry.capability),
+    filteredOut: ordered(selection.filtered, entry => entry.capability),
+    unresolved: ordered(composed.unresolved, entry => entry.capability),
   }
   // Copy every nested value before freezing: input ownership stays with the caller.
   return immutable({ ok: cloneAssembly(assembly) })
 }
+/** S-42: whether the tenant layer could now write an unlocked `{auto}` for this tool's execution permission. */
 function tenantWritable(
   input: NonConnectorEvaluationInput,
   capability: CapabilityId,
@@ -738,20 +629,36 @@ function tenantWritable(
   inEffect: readonly AssetHolding[],
 ): boolean {
   if (capability.category !== 'tool' || selected.asset.from === 'workspace') return false
+  if (organizationBoundExcludesAuto(input, capability, declaration)) return false
+  return tenantHoldingAdmitsAutoPick(input, capability, selected, declaration, inEffect)
+}
+/** S-42 clause 3: the organization layer's bound on this item leaves no room for `auto`. */
+function organizationBoundExcludesAuto(
+  input: NonConnectorEvaluationInput,
+  capability: CapabilityId,
+  declaration: PermissionDeclaration,
+): boolean {
   const organization = input.holdings.find(
     holding => holding.holder.layer === 'organization' && same(holding.capability, capability),
   )
   const assignment = organization?.assignments.find(entry => entry.item === declaration.item)
-  if (assignment !== undefined) {
-    const value = permission(assignment.value)
-    if (
-      value !== undefined &&
-      classifyPermissionAssignment(declaration, { value, immutable: assignment.immutable }).role ===
-        'bound' &&
-      !value.allowed.includes('auto')
-    )
-      return false
-  }
+  if (assignment === undefined) return false
+  const value = permission(assignment.value)
+  return (
+    value !== undefined &&
+    classifyPermissionAssignment(declaration, { value, immutable: assignment.immutable }).role ===
+      'bound' &&
+    !value.allowed.includes('auto')
+  )
+}
+/** S-42 clauses 2 and 4: no tenant holding, or one in effect on the effective asset without a lock on this item. */
+function tenantHoldingAdmitsAutoPick(
+  input: NonConnectorEvaluationInput,
+  capability: CapabilityId,
+  selected: Selected,
+  declaration: PermissionDeclaration,
+  inEffect: readonly AssetHolding[],
+): boolean {
   const tenant = input.holdings.find(
     holding => holding.holder.layer === 'tenant' && same(holding.capability, capability),
   )
