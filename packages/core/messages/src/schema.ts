@@ -1,96 +1,26 @@
-import schema from '@omne-harness-lite/messages/schema' with { type: 'json' }
-import retainedContentSchema from '@omne-harness-lite/content-blocks/schema/v2' with { type: 'json' }
-import contentSchema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
-import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }
-import expirySchema from '@omne-harness-lite/offer-expiry/schema/v1' with { type: 'json' }
-import accountsSchema from '@omne-harness-lite/call-accounts/schema' with { type: 'json' }
-import profileSchema from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
-import profileV6Schema from '@omne-harness-lite/model-profile/schema/v6' with { type: 'json' }
-import toolsSchema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
-import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
+import { createRequire } from 'node:module'
+import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { snapshot } from './json.ts'
+import { schemaId, SCHEMA_DEF_NAMES } from './schema-inputs.ts'
+export { schemaId, SCHEMA_DEF_NAMES }
 
-export const schemaId = schema.$id
-export const SCHEMA_DEF_NAMES = Object.freeze([
-  'MessageId',
-  'ResponseId',
-  'CardId',
-  'SessionRef',
-  'AgentRef',
-  'ScheduleRef',
-  'RuntimeContextBlockId',
-  'MessageBase',
-  'SystemMessage',
-  'UserMessage',
-  'AssistantEnding',
-  'AssistantMessage',
-  'ToolMessage',
-  'ToolInternalEnding',
-  'ToolInternalMessage',
-  'ReminderNature',
-  'SystemReminderMessage',
-  'ReminderSource',
-  'BackgroundExecutionFinishedSource',
-  'BackgroundExecutionInterruptedSource',
-  'AttemptStartedSource',
-  'InterruptedSource',
-  'CardAnswer',
-  'SystemWaitAnsweredSource',
-  'LoopGuardSource',
-  'PeerSessionNoteSource',
-  'ScheduledTriggerSource',
-  'RuntimeContextChangedSource',
-  'RuntimeContextSnapshotSource',
-  'ExtensionSource',
-  'LoopExtensionName',
-  'SilencedBlockRef',
-  'CompactionMessage',
-  'ModelCallDispatchedRecord',
-  'SelectedBy',
-  'ParameterAdjustment',
-  'CredentialScope',
-  'ModelCallOpenedRecord',
-  'ModelCallInterruptIntentRecord',
-  'ModelCallEndedRecord',
-  'ModelSelectionChangedRecord',
-  'ModelInvocationRecord',
-  'Message',
-  'CreationKey',
-  'CallKey',
-  'ModelCallPayloadRef',
-  'ModelCallCreationInput',
-  'ModelCallCreatedPayload',
-  'ModelCallCreatedRecord',
-  'ModelCallReplyReadyRecord',
-  'ModelCallSemanticDigest',
-  'ModelCallOrigin',
-  'ModelCallAccountingWitness',
-  'ModelCallAcknowledgedRecord',
-] as const)
 export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number]
 export interface SchemaValidation {
   readonly valid: boolean
 }
-// Exact resource closure of the 54 public definitions; dependency definitions are not extra roots.
-// No caller-schema cache or remote resolution.
-const runtime = createSchemaRuntime([
-  identitySchema,
-  expirySchema,
-  contentSchema,
-  retainedContentSchema,
-  accountsSchema,
-  profileSchema,
-  profileV6Schema,
-  toolsSchema,
-  schema,
-])
-const validators = SCHEMA_DEF_NAMES.map(name =>
-  Object.freeze({ name, validator: runtime.compile({ $ref: `${schemaId}#/$defs/${name}` }) }),
-)
+const require = createRequire(new URL('../package.json', import.meta.url))
+interface FixedValidation {
+  readonly valid: boolean
+}
 /** Shape only; the judge functions additionally implement contract cross-member predicates. */
 export function validate(defName: SchemaDefName, value: unknown): SchemaValidation {
-  const entry = validators.find(item => item.name === defName)
-  if (entry === undefined) throw new TypeError(`unknown messages Schema definition: ${defName}`)
+  const name = SCHEMA_DEF_NAMES.find(item => item === defName)
+  if (name === undefined) throw new TypeError(`unknown messages Schema definition: ${defName}`)
   const copied = snapshot(value)
-  return Object.freeze({ valid: copied !== undefined && entry.validator.validate(copied) })
+  if (copied === undefined) return Object.freeze({ valid: false })
+  const generated = require('./generated/exact.cjs') as Record<
+    SchemaDefName,
+    (text: string) => FixedValidation
+  >
+  return Object.freeze({ valid: generated[name](writeJsonLossless(copied)).valid })
 }
