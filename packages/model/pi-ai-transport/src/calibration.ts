@@ -47,30 +47,68 @@ export function ownCalibration(raw: unknown): PlanCalibration | undefined {
   const c = copyJsonValue(raw)
   if ('failed' in c || !object(c.ok)) return undefined
   const value = c.ok
-  if (value.kind === 'none')
-    return Object.keys(value).length === 2 &&
-      (value.reason === 'no_observation' || value.reason === 'source_unavailable')
-      ? { kind: 'none', reason: value.reason }
-      : undefined
-  if (
+  if (value.kind === 'none') return ownAbsentCalibration(value)
+  if (!calibrationObservationShape(value)) return undefined
+  const calibration = copyInputCalibration(value.inputCalibration)
+  if ('rejected' in calibration) return undefined
+  const outputBlocks = ownOutputBlocks(value.outputBlocks)
+  if (!outputBlocks) return undefined
+  const replaySelection = ownReplaySelection(value.replaySelection, outputBlocks)
+  if (!replaySelection) return undefined
+  const usage = value.usage as unknown as Usage
+  const { observedInput: observed, outputGroup: group } = calibration.ok
+  if (!observationUsageValid(usage, observed)) return undefined
+  if (!calibrationOutputMatches(group, outputBlocks)) return undefined
+  return Object.freeze({
+    kind: 'observation',
+    inputCalibration: calibration.ok,
+    usage,
+    outputBlocks: Object.freeze(outputBlocks),
+    replaySelection: Object.freeze(replaySelection),
+  })
+}
+function ownAbsentCalibration(value: JsonObject): PlanCalibration | undefined {
+  return Object.keys(value).length === 2 &&
+    (value.reason === 'no_observation' || value.reason === 'source_unavailable')
+    ? { kind: 'none', reason: value.reason }
+    : undefined
+}
+function calibrationObservationShape(value: JsonObject): value is JsonObject & {
+  outputBlocks: JsonValue[]
+  replaySelection: JsonValue[]
+} {
+  return !(
     value.kind !== 'observation' ||
     Object.keys(value).length !== 5 ||
     !Array.isArray(value.outputBlocks) ||
     !Array.isArray(value.replaySelection) ||
     'rejected' in judgeAccountValue('Usage', value.usage)
   )
-    return undefined
-  const calibration = copyInputCalibration(value.inputCalibration)
-  if ('rejected' in calibration) return undefined
+}
+function calibrationOutputMatches(
+  group: Extract<PlanCalibration, { kind: 'observation' }>['inputCalibration']['outputGroup'],
+  outputBlocks: readonly ContentBlock[],
+): boolean {
+  return !(
+    group.kind === 'known' &&
+    (group.blockDigests.length !== outputBlocks.length ||
+      (group.projectionRevision === INPUT_PROJECTION_REVISION &&
+        group.blockDigests.some((hash, index) => hash !== outputBlockDigest(outputBlocks[index]))))
+  )
+}
+function ownOutputBlocks(values: readonly JsonValue[]): ContentBlock[] | undefined {
   const outputBlocks: ContentBlock[] = []
-  for (const rawBlock of value.outputBlocks) {
+  for (const rawBlock of values) {
     const block = judgeContentBlock(rawBlock)
     if ('rejected' in block) return undefined
     outputBlocks.push(block.ok)
   }
+  return outputBlocks
+}
+function ownReplaySelection(values: readonly JsonValue[], outputBlocks: readonly ContentBlock[]) {
   const replaySelection = []
   const targets = new Set<string>()
-  for (const item of value.replaySelection) {
+  for (const item of values) {
     if (
       !object(item) ||
       Object.keys(item).length !== 3 ||
@@ -92,14 +130,18 @@ export function ownCalibration(raw: unknown): PlanCalibration | undefined {
     targets.add(key)
     replaySelection.push(Object.freeze(selected))
   }
-  const usage = value.usage as unknown as Usage
-  const { observedInput: observed, outputGroup: group } = calibration.ok
+  return replaySelection
+}
+function observationUsageValid(
+  usage: Usage,
+  observed: Extract<PlanCalibration, { kind: 'observation' }>['inputCalibration']['observedInput'],
+): boolean {
   const parts = [usage.input_tokens, usage.cache_read_tokens, usage.cache_write_tokens]
   if (
     observed.kind === 'from_usage' &&
     (usage.source !== 'upstream' || parts.some(p => p === 'unknown'))
   )
-    return undefined
+    return false
   if (
     observed.kind === 'upstream_total' &&
     (parts.every(p => p !== 'unknown') ||
@@ -110,21 +152,8 @@ export function ownCalibration(raw: unknown): PlanCalibration | undefined {
         )
         .compare(ExactDecimal.from(observed.tokens)) > 0)
   )
-    return undefined
-  if (
-    group.kind === 'known' &&
-    (group.blockDigests.length !== outputBlocks.length ||
-      (group.projectionRevision === INPUT_PROJECTION_REVISION &&
-        group.blockDigests.some((hash, index) => hash !== outputBlockDigest(outputBlocks[index]))))
-  )
-    return undefined
-  return Object.freeze({
-    kind: 'observation',
-    inputCalibration: calibration.ok,
-    usage,
-    outputBlocks: Object.freeze(outputBlocks),
-    replaySelection: Object.freeze(replaySelection),
-  })
+    return false
+  return true
 }
 type Fallback = Extract<InputMeasurement, { mode: 'full' }>['fallbackReason']
 export function measureCalibrated(
@@ -170,6 +199,10 @@ export function measureCalibrated(
   })
   if (calibration.kind === 'none') fallback = calibration.reason
   else {
+    const result = measureObservation(calibration)
+    if (result) return result
+  }
+  function measureObservation(calibration: Extract<PlanCalibration, { kind: 'observation' }>) {
     const source = calibration.inputCalibration
     const original = source.requestInput
     const observed = source.observedInput
@@ -179,205 +212,245 @@ export function measureCalibrated(
     else {
       const count = ExactDecimal.from(original.prefixBoundary)
       const n = Number(count.toString())
-      if (
-        !Number.isSafeInteger(n) ||
-        n > projection.units.length ||
-        original.inputEnvelopeDigest !== projection.requestInput.inputEnvelopeDigest ||
-        original.prefixDigest !== prefixDigest(projection.units.slice(0, n))
-      )
-        fallback = 'prefix_changed'
+      if (!originalPrefixMatches(original, n, projection)) fallback = 'prefix_changed'
       else if (
         relateMeterBases(basis, original.countingBasis, meter).kind !== 'sameEffective' ||
         original.projectionRevision !== projection.requestInput.projectionRevision ||
         observed.provenance.adapterRevision !== readerRevision(scope) ||
         (observed.provenance.upstreamModel !== undefined &&
           observed.provenance.upstreamModel !== basis.model) ||
-        (observed.provenance.servingProvider !== undefined &&
-          observed.provenance.servingProvider !== basis.provider &&
-          !(
-            basis.provider === 'anthropic' && observed.provenance.servingProvider === 'Anthropic'
-          ) &&
-          !(basis.provider === 'openai' && observed.provenance.servingProvider === 'OpenAI') &&
-          // Route `xai` reports the display name `xAI`: 2026-09-30 real raw SSE of both Grok leaves.
-          !(basis.provider === 'xai' && observed.provenance.servingProvider === 'xAI') &&
-          !(deepSeekBoundaryRoute(input) && observed.provenance.servingProvider === 'DeepInfra'))
+        !observedProviderMatches(observed)
       )
         fallback = 'basis_changed'
       else {
-        const g = new Set<number>()
-        const selectionSpans: ReplayMeterInput['selectionSpans'][number][] = []
-        let mapped = true
-        const targets = new Map<number, Set<number>>()
-        for (const [selectionIndex, selected] of calibration.replaySelection.entries()) {
-          const message = input.messages[selected.messageIndex]
-          const target = message?.blocks[selected.blockIndex]
-          const sourceBlock = calibration.outputBlocks[selected.sourceBlockIndex]
-          const span = spans[selected.messageIndex]
-          if (
-            !target ||
-            !sourceBlock ||
-            !span ||
-            span.start < n ||
-            outputBlockDigest(target) !== outputBlockDigest(sourceBlock) ||
-            !target.visibility.toModel
-          ) {
+        return measureMapped()
+        function measureMapped() {
+          const g = new Set<number>()
+          const selectionSpans: ReplayMeterInput['selectionSpans'][number][] = []
+          let mapped = true
+          const targets = new Map<number, Set<number>>()
+          mapReplayTargets()
+          function mapReplayTargets() {
+            for (const [selectionIndex, selected] of calibration.replaySelection.entries()) {
+              const message = input.messages[selected.messageIndex]
+              const target = message?.blocks[selected.blockIndex]
+              const sourceBlock = calibration.outputBlocks[selected.sourceBlockIndex]
+              const span = spans[selected.messageIndex]
+              if (
+                !target ||
+                !sourceBlock ||
+                !span ||
+                span.start < n ||
+                outputBlockDigest(target) !== outputBlockDigest(sourceBlock) ||
+                !target.visibility.toModel
+              ) {
+                mapped = false
+                break
+              }
+              const indices = targets.get(selected.messageIndex) ?? new Set<number>()
+              indices.add(selected.blockIndex)
+              targets.set(selected.messageIndex, indices)
+              selectionSpans.push(
+                Object.freeze({ selectionIndex, start: span.start, end: span.end }),
+              )
+            }
+          }
+          mapWholeMessages()
+          function mapWholeMessages() {
+            for (const [index, selected] of targets) {
+              const message = input.messages[index]!
+              const span = spans[index]!
+              // One wire unit can combine several blocks: either account for the whole unit as G or fall back.
+              if (message.blocks.some((block, i) => block.visibility.toModel && !selected.has(i))) {
+                mapped = false
+                break
+              }
+              for (let i = span.start; i < span.end; i++) g.add(i)
+            }
+          }
+          if (calibration.replaySelection.length && source.outputGroup.kind !== 'known')
             mapped = false
-            break
-          }
-          const indices = targets.get(selected.messageIndex) ?? new Set<number>()
-          indices.add(selected.blockIndex)
-          targets.set(selected.messageIndex, indices)
-          selectionSpans.push(Object.freeze({ selectionIndex, start: span.start, end: span.end }))
-        }
-        for (const [index, selected] of targets) {
-          const message = input.messages[index]!
-          const span = spans[index]!
-          // One wire unit can combine several blocks: either account for the whole unit as G or fall back.
-          if (message.blocks.some((block, i) => block.visibility.toModel && !selected.has(i))) {
-            mapped = false
-            break
-          }
-          for (let i = span.start; i < span.end; i++) g.add(i)
-        }
-        if (calibration.replaySelection.length && source.outputGroup.kind !== 'known')
-          mapped = false
-        const newHistory: PlanInput['outputHistory'][number][] = []
-        const newHistorySpans: HistorySelectionSpan[] = []
-        let replayHistory: PlanInput['outputHistory'][number] | undefined
-        for (const [groupIndex, group] of input.outputHistory.entries()) {
-          const groupSpans = historySpans.filter(item => item.groupIndex === groupIndex)
-          const regions = new Set<'prefix' | 'replay' | 'new'>()
-          for (const span of groupSpans) {
-            for (let i = span.start; i < span.end; i++) {
-              regions.add(i < n ? 'prefix' : g.has(i) ? 'replay' : 'new')
-            }
-          }
-          if (regions.size !== 1) {
-            mapped = false
-            break
-          }
-          if (regions.has('replay')) {
-            if (replayHistory !== undefined) {
-              mapped = false
-              break
-            }
-            replayHistory = group
-          } else if (regions.has('new')) {
-            const nextIndex = newHistory.length
-            newHistory.push(group)
-            newHistorySpans.push(
-              ...groupSpans.map(({ selectionIndex, start, end }) =>
-                Object.freeze({ groupIndex: nextIndex, selectionIndex, start, end }),
-              ),
-            )
-          }
-        }
-        if (
-          replayHistory !== undefined &&
-          canonicalProjection({
-            kind: 'observation',
-            inputCalibration: replayHistory.inputCalibration,
-            usage: replayHistory.usage,
-            outputBlocks: replayHistory.outputBlocks,
-            replaySelection: replayHistory.replaySelection,
-          }) !== canonicalProjection(calibration)
-        )
-          mapped = false
-        if (mapped) {
-          const replay: JsonValue[] = [],
-            fresh: JsonValue[] = [],
-            unitIndices: number[] = [],
-            freshIndices: number[] = []
-          for (let i = n; i < projection.units.length; i++) {
-            if (g.has(i)) {
-              replay.push(projection.units[i]!)
-              unitIndices.push(i)
-            } else {
-              fresh.push(projection.units[i]!)
-              freshIndices.push(i)
-            }
-          }
-          const deepSeek = deepSeekBoundaryRoute(input)
-          const prepared = deepSeek ? prepareDeepSeekBoundaries(projection, n, g) : undefined
-          const boundary = prepared && !('changed' in prepared) ? prepared : undefined
-          const arg = (units: readonly JsonValue[], edge?: JsonObject): MarginalMeterInput =>
-            Object.freeze({
-              units: Object.freeze(units),
-              envelope: projection.envelope,
-              precedingUnitCount: n,
-              ...(edge ? { boundary: edge } : {}),
-            })
-          try {
-            if (deepSeek && !boundary) {
-              if (prepared && 'changed' in prepared) fallback = 'prefix_changed'
-              throw new TypeError('DeepSeek substantive prefix changed or boundary unavailable')
-            }
-            const replayInput: ReplayMeterInput = Object.freeze({
-              ...arg(replay, boundary?.replay),
-              countingBasis: basis,
-              observation: calibration,
-              outputHistory: Object.freeze(replayHistory === undefined ? [] : [replayHistory]),
-              unitIndices: Object.freeze(unitIndices),
-              selectionSpans: Object.freeze(selectionSpans),
-            })
-            const phi =
-              replay.length || boundary?.replay.added !== boundary?.replay.removed
-                ? withOutputPrefix(replayInput, projection, () => measureReplay(meter, replayInput))
-                : { kind: 'exact' as const, tokens: 0 }
-            const newInput: NewMeterInput = Object.freeze({
-              ...arg(fresh, boundary?.fresh),
-              unitIndices: Object.freeze(freshIndices),
-              countingBasis: basis,
-              outputHistory: Object.freeze(newHistory),
-              historySpans: Object.freeze(newHistorySpans),
-            })
-            const delta =
-              fresh.length || boundary?.fresh.added !== boundary?.fresh.removed
-                ? withOutputPrefix(newInput, projection, () => measureNew(meter, newInput))
-                : { kind: 'exact' as const, tokens: 0 }
-            if (
-              meterContributionValid(phi) &&
-              meterContributionValid(delta) &&
-              'tokens' in phi &&
-              'tokens' in delta
-            ) {
-              const anchor =
-                observed.kind === 'upstream_total'
-                  ? ExactDecimal.from(observed.tokens)
-                  : [
-                      calibration.usage.input_tokens,
-                      calibration.usage.cache_read_tokens,
-                      calibration.usage.cache_write_tokens,
-                    ].reduce<ExactDecimal>((sum, value) => {
-                      if (value === 'unknown') throw new TypeError('missing anchor')
-                      return sum.add(ExactDecimal.from(value))
-                    }, ExactDecimal.from(0))
-              const total = anchor
-                .add(ExactDecimal.from(phi.tokens))
-                .add(ExactDecimal.from(delta.tokens))
-                .toJsonNumber()
-              const precision: MeasurementPrecision =
-                phi.kind === 'estimated' || delta.kind === 'estimated'
-                  ? 'estimated'
-                  : phi.kind === 'upperBound' || delta.kind === 'upperBound'
-                    ? 'upperBound'
-                    : 'exact'
-              if (isNonNegativeJsonInteger(total))
-                return finish(
-                  { kind: precision, tokens: total },
-                  {
-                    mode: 'marginal',
-                    replayContribution: Object.freeze({ tokens: phi.tokens, precision: phi.kind }),
-                    newContribution: Object.freeze({ tokens: delta.tokens, precision: delta.kind }),
-                  },
+          const newHistory: PlanInput['outputHistory'][number][] = []
+          const newHistorySpans: HistorySelectionSpan[] = []
+          let replayHistory: PlanInput['outputHistory'][number] | undefined
+          mapOutputHistory()
+          function mapOutputHistory() {
+            for (const [groupIndex, group] of input.outputHistory.entries()) {
+              const groupSpans = historySpans.filter(item => item.groupIndex === groupIndex)
+              const regions = new Set<'prefix' | 'replay' | 'new'>()
+              for (const span of groupSpans) {
+                for (let i = span.start; i < span.end; i++) {
+                  regions.add(i < n ? 'prefix' : g.has(i) ? 'replay' : 'new')
+                }
+              }
+              if (regions.size !== 1) {
+                mapped = false
+                break
+              }
+              if (regions.has('replay')) {
+                if (replayHistory !== undefined) {
+                  mapped = false
+                  break
+                }
+                replayHistory = group
+              } else if (regions.has('new')) {
+                const nextIndex = newHistory.length
+                newHistory.push(group)
+                newHistorySpans.push(
+                  ...groupSpans.map(({ selectionIndex, start, end }) =>
+                    Object.freeze({ groupIndex: nextIndex, selectionIndex, start, end }),
+                  ),
                 )
+              }
             }
-          } catch {
-            /* A failed marginal component never authorizes admission; try full. */
           }
+          if (
+            replayHistory !== undefined &&
+            canonicalProjection({
+              kind: 'observation',
+              inputCalibration: replayHistory.inputCalibration,
+              usage: replayHistory.usage,
+              outputBlocks: replayHistory.outputBlocks,
+              replaySelection: replayHistory.replaySelection,
+            }) !== canonicalProjection(calibration)
+          )
+            mapped = false
+          if (mapped) {
+            const replay: JsonValue[] = [],
+              fresh: JsonValue[] = [],
+              unitIndices: number[] = [],
+              freshIndices: number[] = []
+            partitionUnits()
+            function partitionUnits() {
+              for (let i = n; i < projection.units.length; i++) {
+                if (g.has(i)) {
+                  replay.push(projection.units[i]!)
+                  unitIndices.push(i)
+                } else {
+                  fresh.push(projection.units[i]!)
+                  freshIndices.push(i)
+                }
+              }
+            }
+            const deepSeek = deepSeekBoundaryRoute(input)
+            const prepared = deepSeek ? prepareDeepSeekBoundaries(projection, n, g) : undefined
+            const boundary = prepared && !('changed' in prepared) ? prepared : undefined
+            const arg = (units: readonly JsonValue[], edge?: JsonObject): MarginalMeterInput =>
+              Object.freeze({
+                units: Object.freeze(units),
+                envelope: projection.envelope,
+                precedingUnitCount: n,
+                ...(edge ? { boundary: edge } : {}),
+              })
+            try {
+              return measureContributions()
+            } catch {
+              /* A failed marginal component never authorizes admission; try full. */
+            }
+            function measureContributions() {
+              requireBoundary()
+              function requireBoundary() {
+                if (deepSeek && !boundary) {
+                  if (prepared && 'changed' in prepared) fallback = 'prefix_changed'
+                  throw new TypeError('DeepSeek substantive prefix changed or boundary unavailable')
+                }
+              }
+              const replayInput: ReplayMeterInput = Object.freeze({
+                ...arg(replay, boundary?.replay),
+                countingBasis: basis,
+                observation: calibration,
+                outputHistory: Object.freeze(replayHistory === undefined ? [] : [replayHistory]),
+                unitIndices: Object.freeze(unitIndices),
+                selectionSpans: Object.freeze(selectionSpans),
+              })
+              const phi =
+                replay.length || boundary?.replay.added !== boundary?.replay.removed
+                  ? withOutputPrefix(replayInput, projection, () =>
+                      measureReplay(meter, replayInput),
+                    )
+                  : { kind: 'exact' as const, tokens: 0 }
+              const newInput: NewMeterInput = Object.freeze({
+                ...arg(fresh, boundary?.fresh),
+                unitIndices: Object.freeze(freshIndices),
+                countingBasis: basis,
+                outputHistory: Object.freeze(newHistory),
+                historySpans: Object.freeze(newHistorySpans),
+              })
+              const delta =
+                fresh.length || boundary?.fresh.added !== boundary?.fresh.removed
+                  ? withOutputPrefix(newInput, projection, () => measureNew(meter, newInput))
+                  : { kind: 'exact' as const, tokens: 0 }
+              if (
+                meterContributionValid(phi) &&
+                meterContributionValid(delta) &&
+                'tokens' in phi &&
+                'tokens' in delta
+              ) {
+                return finishContributions(phi, delta)
+                function finishContributions(
+                  phi: Exclude<TokenMeasurement, { kind: 'unavailable' }>,
+                  delta: Exclude<TokenMeasurement, { kind: 'unavailable' }>,
+                ) {
+                  const anchor =
+                    observed.kind === 'upstream_total'
+                      ? ExactDecimal.from(observed.tokens)
+                      : [
+                          calibration.usage.input_tokens,
+                          calibration.usage.cache_read_tokens,
+                          calibration.usage.cache_write_tokens,
+                        ].reduce<ExactDecimal>((sum, value) => {
+                          if (value === 'unknown') throw new TypeError('missing anchor')
+                          return sum.add(ExactDecimal.from(value))
+                        }, ExactDecimal.from(0))
+                  const total = anchor
+                    .add(ExactDecimal.from(phi.tokens))
+                    .add(ExactDecimal.from(delta.tokens))
+                    .toJsonNumber()
+                  const precision: MeasurementPrecision =
+                    phi.kind === 'estimated' || delta.kind === 'estimated'
+                      ? 'estimated'
+                      : phi.kind === 'upperBound' || delta.kind === 'upperBound'
+                        ? 'upperBound'
+                        : 'exact'
+                  if (isNonNegativeJsonInteger(total))
+                    return finish(
+                      { kind: precision, tokens: total },
+                      {
+                        mode: 'marginal',
+                        replayContribution: Object.freeze({
+                          tokens: phi.tokens,
+                          precision: phi.kind,
+                        }),
+                        newContribution: Object.freeze({
+                          tokens: delta.tokens,
+                          precision: delta.kind,
+                        }),
+                      },
+                    )
+                  return undefined
+                }
+              }
+              return undefined
+            }
+          }
+          return undefined
         }
       }
     }
+    function observedProviderMatches(
+      observed: Exclude<typeof source.observedInput, { kind: 'unavailable' }>,
+    ) {
+      return !(
+        observed.provenance.servingProvider !== undefined &&
+        observed.provenance.servingProvider !== basis.provider &&
+        !(basis.provider === 'anthropic' && observed.provenance.servingProvider === 'Anthropic') &&
+        !(basis.provider === 'openai' && observed.provenance.servingProvider === 'OpenAI') &&
+        // Route `xai` reports the display name `xAI`: 2026-09-30 real raw SSE of both Grok leaves.
+        !(basis.provider === 'xai' && observed.provenance.servingProvider === 'xAI') &&
+        !(deepSeekBoundaryRoute(input) && observed.provenance.servingProvider === 'DeepInfra')
+      )
+    }
+    return undefined
   }
   const token = full()
   if (!tokenMeasurementValid(token) || token.kind === 'unavailable') return undefined
@@ -386,4 +459,19 @@ export function measureCalibrated(
     ...(fallback ? { fallbackReason: fallback } : {}),
     fullContribution: Object.freeze({ tokens: token.tokens, precision: token.kind }),
   })
+}
+function originalPrefixMatches(
+  original: Extract<
+    Extract<PlanCalibration, { kind: 'observation' }>['inputCalibration']['requestInput'],
+    { kind: 'known' }
+  >,
+  n: number,
+  projection: InputProjection,
+): boolean {
+  return !(
+    !Number.isSafeInteger(n) ||
+    n > projection.units.length ||
+    original.inputEnvelopeDigest !== projection.requestInput.inputEnvelopeDigest ||
+    original.prefixDigest !== prefixDigest(projection.units.slice(0, n))
+  )
 }
