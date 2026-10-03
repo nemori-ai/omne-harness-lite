@@ -1,6 +1,6 @@
 # 固定Schema的构建与装载
 
-2026-10-03；技术采用D-116，当前机制实现／实际验证均待。这个补充只改变固定图的编译时机，不改变本节点契约版本、领域拒绝、原值或租户保证。
+2026-10-03；技术采用 D-116。固定图机制已实施，实际验证范围见本页的运行记录。这个补充只改变固定图的编译时机，不改变本节点契约版本、领域拒绝、原值或租户保证。
 
 采用依据：[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)；完整共享机制与有限公开面：[施工设计](../../../../record/proposals/fixed-schema-precompile/design.md)。旧正文里固定图的导入时编译句仅在该范围内由本页取代；作者/动态port构造和其它生命周期保持。
 
@@ -29,6 +29,6 @@
 - FS65-5：native src/dist身份、full exact/meta/B1/ref/dynamicRef/propertyNames/errors及故意分域反控归CB/messages共享扩散门；未通过不向其余图扩散。
 - FS65-6：MR保留导入JSON变异保护；各owner不因晚加载而迟捕资源；运行期不编译固定图的采样及残留作者编译单列。
 
-这些是尚待的具名验证义务，没有新bindings evidence指向未运行用例。此前旧实现run保持原坐标；本技术采用不把它们变成新生成机制证据。
+本次实际执行及有限签收见[主体运行记录](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。它记录上述义务的有限定义、对拍、构建失败、新鲜性与原生消费范围；共享失败路径由代表性包实测。此前旧实现 run 保持原坐标，不作为新生成机制的运行证据。
 
 生成owner显式声明当前catalog的Ajv依赖，只供standalone产物按需加载官方`ajv/dist/runtime/*`辅助函数；不导入编译器，不复制helper，不依靠其他成员偶然提供specifier解析。

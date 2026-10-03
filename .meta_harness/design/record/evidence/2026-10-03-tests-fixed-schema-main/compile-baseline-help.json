@@ -1,0 +1,259 @@
+{
+  "observedInstances": 4,
+  "compileCalls": 17,
+  "schemaCompilations": [
+    {
+      "id": "https://json-schema.org/draft/2020-12/schema",
+      "milliseconds": 61.40477299999998,
+      "stack": [
+        "    at Ajv2020.getSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:285:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at Ajv2020.validate (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:146:22)",
+        "    at Ajv2020.validateSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:261:28)",
+        "    at Ajv2020._addSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:461:18)",
+        "    at Ajv2020.addSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:235:34)"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/GovernanceCenterId",
+      "milliseconds": 1.475958999999989,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at check (file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:17:33)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:18:18",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/LoginStatePresentation",
+      "milliseconds": 1.1614130000000387,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at check (file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:17:33)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:19:22",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/AccountId",
+      "milliseconds": 1.7481900000000223,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at check (file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:17:33)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:20:19",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId",
+      "milliseconds": 0.847878000000037,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at check (file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:17:33)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:21:16",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/TenantId",
+      "milliseconds": 3.2694810000000416,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at check (file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:17:33)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:22:16",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Envelope",
+      "milliseconds": 93.65862500000003,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at check (file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:17:33)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:23:18",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Exchange",
+      "milliseconds": 126.69113700000003,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at check (file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:17:33)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/client-local-state/dist/record.js:24:18",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26"
+      ]
+    },
+    {
+      "id": "https://json-schema.org/draft/2020-12/schema",
+      "milliseconds": 23.35723299999995,
+      "stack": [
+        "    at Ajv2020.getSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:285:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at Ajv2020.validate (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:146:22)",
+        "    at Ajv2020.validateSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:261:28)",
+        "    at Ajv2020._addSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:461:18)",
+        "    at Ajv2020.addSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:235:34)"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Envelope",
+      "milliseconds": 77.41325100000006,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/governance-center-client/dist/governance.js:17:28",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26",
+        "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Exchange",
+      "milliseconds": 107.57928700000002,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/governance-center-client/dist/governance.js:18:28",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26",
+        "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+      ]
+    },
+    {
+      "id": "https://json-schema.org/draft/2020-12/schema",
+      "milliseconds": 19.36993700000005,
+      "stack": [
+        "    at Ajv2020.getSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:285:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at Ajv2020.validate (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:146:22)",
+        "    at Ajv2020.validateSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:261:28)",
+        "    at Ajv2020._addSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:461:18)",
+        "    at Ajv2020.addSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:235:34)"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v2/governance-client-operations.schema.json#/$defs/Intent",
+      "milliseconds": 69.91549900000018,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/governance-client-operations/dist/validation.js:19:26",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26",
+        "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v2/governance-client-operations.schema.json#/$defs/Preview",
+      "milliseconds": 318.06028600000013,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/governance-client-operations/dist/validation.js:20:27",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26",
+        "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v2/governance-client-operations.schema.json#/$defs/PromptExchange",
+      "milliseconds": 29.930301999999983,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/governance-client-operations/dist/validation.js:21:26",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26",
+        "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v1/governance-client-operations.schema.json#/$defs/Input",
+      "milliseconds": 75.5064719999998,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/governance-client-operations/dist/validation.js:22:25",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26",
+        "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v1/governance-client-operations.schema.json#/$defs/Output",
+      "milliseconds": 187.43895199999997,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/governance-client-operations/dist/validation.js:23:26",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26",
+        "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v2/offer-expiry.schema.json#/$defs/Instant",
+      "milliseconds": 0.9947379999998702,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/frontend/governance-client-operations/dist/validation.js:24:27",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26",
+        "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+      ]
+    },
+    {
+      "id": "https://json-schema.org/draft/2020-12/schema",
+      "milliseconds": 37.22656899999993,
+      "stack": [
+        "    at Ajv2020.getSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:285:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at Ajv2020.validate (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:146:22)",
+        "    at Ajv2020.validateSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:261:28)",
+        "    at Ajv2020._addSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:461:18)",
+        "    at Ajv2020.addSchema (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:235:34)"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v2/governance-client-operations.schema.json#/$defs/Intent",
+      "milliseconds": 54.439166000000114,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/apps/cli/dist/validation.js:20:20",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26",
+        "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+      ]
+    },
+    {
+      "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v2/governance-client-operations.schema.json#/$defs/Output",
+      "milliseconds": 354.0636239999999,
+      "stack": [
+        "    at Ajv2020.compile (/data/qiwei/repos/omne-harness-lite/tmp/s65-b/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/core.js:160:38)",
+        "    at Ajv2020.value (file:///data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs:28:27)",
+        "    at file:///data/qiwei/repos/omne-harness-lite/tmp/s65-b/apps/cli/dist/validation.js:20:83",
+        "    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)",
+        "    at async node:internal/modules/esm/loader:647:26",
+        "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+      ]
+    }
+  ],
+  "exit_code": 0
+}

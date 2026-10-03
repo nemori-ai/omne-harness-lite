@@ -1,0 +1,46 @@
+{
+  "head": "fa97f208246ae29c0cd7e66db8b150f7a5a0ab2c",
+  "base": "5e668f0feeec22e1cb9291701444dbd571758130",
+  "reused_common": "final-common-r3/result.json; all steps except original strict-loop passed at this same clean commit",
+  "strict_scope": "Original strict command exit 1 is preserved. Only acceptance ledger was missing; other hard lines and metrics reuse that actual run.",
+  "steps": [
+    {
+      "name": "cli-acceptance",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "--experimental-strip-types",
+        "tools/ts-checks/src/testing/cli.ts",
+        "step",
+        "acceptance",
+        "--plan",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r3/plan.json"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 3.6370832980028354
+    },
+    {
+      "name": "acceptance-sensor",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "--experimental-strip-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/acceptance-sensor-supplement.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r4/acceptance-sensor.json"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 0.6684987280168571
+    }
+  ],
+  "complete": true
+}

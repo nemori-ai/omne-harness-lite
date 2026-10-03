@@ -1,0 +1,8 @@
+{
+  "status": "incomplete: baseline valid, candidate failed",
+  "actual_test_nice": 15,
+  "original_nice_field": "5 is the increment in the nested command, not actual priority",
+  "baseline": "46 members complete; reusable unchanged frozen input, five-pair cohort retains this actual sample",
+  "candidate": "core-verification inventory ENOENT; stopped before artifact-builder, cannot be reported as a passing/full performance sample",
+  "case_comparison": "Three session-log test names contain process UUIDs. The comparison needs narrowly bounded normalization, not changed assertions."
+}

@@ -1,0 +1,419 @@
+{
+  "scope": "Byte-identical actual reports, configuration and outputs. Raw large logs and oracle records remain in the preserved main-checkout task archives. README must state that retention boundary.",
+  "files": [
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/qa65-main-r1/evidence/report.md",
+      "target": "qa-main-report.txt",
+      "bytes": 10140,
+      "sha256": "46a69ac67bb77ab7954eb264a24f83dbd0dcf2357ea00531b8977d72f435eb54"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/qa65-main-r1/evidence/report.json",
+      "target": "qa-main-report.json",
+      "bytes": 17895,
+      "sha256": "53ad8bcc6c9f4dd026e23f324fb2ba15268a3e1e986dda003180496b8c777514"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/qa65-main-r2/evidence/report.md",
+      "target": "qa-sandbox-report.txt",
+      "bytes": 6767,
+      "sha256": "16a4876b648c03d9d7615539cc69a9114af5e7d85309d807446ba31ddb155053"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/qa65-main-r2/evidence/report.json",
+      "target": "qa-sandbox-report.json",
+      "bytes": 6745,
+      "sha256": "14879770dffb99e779349f6005d9b68ec8ece791a0c604f8f366a08a0633ed68"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/qa65-main-r2/evidence/structure/reuse-inputs.json",
+      "target": "qa-reuse-inputs.json",
+      "bytes": 7086,
+      "sha256": "5543fc3bdc77105bcacd82d34f60d0aead398b83e61ffa57c983b1842766dca5"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/review65-main-r1/report.md",
+      "target": "implementation-review.txt",
+      "bytes": 11097,
+      "sha256": "558babc052097635325eaa5ffd45591305eac02429d9556d42e38e1d68ec67d4"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/review65-main-r1/supplement-mutation-sandbox.md",
+      "target": "sandbox-original-finding.txt",
+      "bytes": 8132,
+      "sha256": "b661fc53901d18df8e98512b8304efb163dda5861204ff30fdb4983ed224fcb8"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/review65-main-r1/supplement-b1-fix-r2.md",
+      "target": "sandbox-fix-review.txt",
+      "bytes": 12774,
+      "sha256": "a9320b95a70167d7a4bfb161e25333faaee99f592ceb9595091a216bfbc29d3a"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/manual-plan.json",
+      "target": "affected-plan.json",
+      "bytes": 133034,
+      "sha256": "15193c2d5fa35a16a270e3f39362f26a3fb65f17fcfdadaadedef2a4393cdaf6"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/clones-r1/result.json",
+      "target": "build-coordinates.json",
+      "bytes": 12182,
+      "sha256": "6d77b5afd837883fb620d422266fd723d3fd7da92990d8f29a1af71941321821"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/clones-r1/candidate-sandbox-fix-build.json",
+      "target": "final-owner-builds.json",
+      "bytes": 8849,
+      "sha256": "086bdf2e22bb8a198572ea3190c66209aaff750dcfa04293c8a58f8bbb3d3c2e"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/main-range-diff-r2.txt",
+      "target": "upstream-patch-equivalence.txt",
+      "bytes": 2754,
+      "sha256": "df74c7484b486b84d8bdfd75c83f0bb5257a1160047c090bb55b1cec75dcc7ab"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-checks-batch1.json",
+      "target": "final-check-phases.json",
+      "bytes": 457,
+      "sha256": "a030027595f29ca45728be409594428678b3c209dc88751c342d58922fbc7b01"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-types-r1/result.json",
+      "target": "type-results.json",
+      "bytes": 17883,
+      "sha256": "07e8a6f67fec2d230b23e116c8be7b6c90a24ebb19dc17804994baca9e02df18"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/result.json",
+      "target": "slow-results.json",
+      "bytes": 32541,
+      "sha256": "48de224fcfbecd0872cc24ab50f33467804050a860e338adf1ebdd8b0ca46638"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-new-fast-r1/result.json",
+      "target": "supplementary-fast-results.json",
+      "bytes": 19185,
+      "sha256": "385cde782d3cfd2bbe838a9b4d1dc4da123719942f1fd4d9f15b48ff41f534c0"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-acceptance-r1/result.json",
+      "target": "acceptance-results.json",
+      "bytes": 929,
+      "sha256": "645615fecec8747dc33940edc0b0141b63d994f3e370b5bc516c7cc4617c359a"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-acceptance-r1/cli-acceptance.log",
+      "target": "acceptance-output.txt",
+      "bytes": 802,
+      "sha256": "a7b28cbefccba08323102fef534b99a44ed9612d24fd1f160e41a51acfd8d8ab"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r1/result.json",
+      "target": "common-results.json",
+      "bytes": 1447,
+      "sha256": "a6c2fcf421862709066ac3d7bd956d2a240f6a867cb970e3e0cd393dffd2e1bb"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/strict-loop-r1/status.json",
+      "target": "loop-status.json",
+      "bytes": 1909159,
+      "sha256": "974b80608d8871cd23820e932b4e60a5f24255f2a6dadd0756326092425bd50e"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/strict-loop-r1-run.log",
+      "target": "loop-output.txt",
+      "bytes": 6126,
+      "sha256": "1ae0393cbcf95e49becc14e301066676885ed8144ae44dd07288f6eeda3c53b5"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/structural-disposition.md",
+      "target": "structural-disposition.md",
+      "bytes": 5739,
+      "sha256": "9049790160148d9ba52e1c8c9c38ceb188453f5b6100f26c53391931bf2cd0f0"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/sandbox-compatibility/release.json",
+      "target": "shared-mechanism-release.json",
+      "bytes": 1610,
+      "sha256": "de8e8903afcce3fd90a3fe6346c4610371d836f6bee24e8882730ef9391389e7"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/sandbox-compatibility/checks-result.json",
+      "target": "owner-freshness-results.json",
+      "bytes": 8021,
+      "sha256": "74676f5ff3a1bac8f92e4d58fd690abc3ea75b03081427fd46dc980fed0a6abc"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/sandbox-compatibility/faults/result.json",
+      "target": "build-fault-results.json",
+      "bytes": 8887,
+      "sha256": "9d4c13f83491a8f3054530f268bb9692886c0effe493ae47cfb8fb48b3d539f8"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/compile-profile-r1/validity.json",
+      "target": "original-profile-limitation.json",
+      "bytes": 360,
+      "sha256": "52de3c00adcc1773f8cf8748efe59079ad6bd52ce29b1ff3c2d03d7708ee4327"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/compile-profile-r3/result.json",
+      "target": "compile-profile.json",
+      "bytes": 3732,
+      "sha256": "3bd9c07662bfe675eadc87376a05c1825b5e282745e171e7b0bffa02a3d37136"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/artifacts-r1/result.json",
+      "target": "package-artifacts.json",
+      "bytes": 239663,
+      "sha256": "5c012925db40672bf3399b2939aee3ddb0d6617676d05cd1f3004a9c1f48adab"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/review65-main-r1/supplement-dependency-origin-r1.md",
+      "target": "dependency-origin-original-finding.txt",
+      "bytes": 9966,
+      "sha256": "4dcb714696072edb66fef46c9875364eacac28de55a75d0148d9ce065fed019c"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/review65-main-r1/supplement-dependency-origin-r2.md",
+      "target": "dependency-origin-fix-review.txt",
+      "bytes": 7296,
+      "sha256": "a021b21a8fb9b2882d7f6ce301560282701c10b67150298b8a33db2f4ccf43c8"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/dependency-fix-checks-r2/result.json",
+      "target": "dependency-fix-checks.json",
+      "bytes": 1430,
+      "sha256": "974330f721db1cb616aaee8ee7e080653020c73e3fd8dc72611a37c400636bf8"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/performance-r1/full/validity.json",
+      "target": "failed-full-measurement.json",
+      "bytes": 590,
+      "sha256": "7108bd7cbf69f9a4860ff661d9554e2d813f881e9caf744d43d7b5d21bd29e7f"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/performance-r3/full/validity.json",
+      "target": "old-workload-filter-error.json",
+      "bytes": 5440,
+      "sha256": "5099a289cbe5feb2a4025eb03e82f6c5e61db48e533cd149b60990cb42e6413e"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/result.json",
+      "target": "workload-filter-verification.json",
+      "bytes": 14348,
+      "sha256": "bf0dbcb9aca0e627833ed8b0c422b35f71ac5e49ec0a1ce41cbb633f41ca8884"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/upstream96/integration.json",
+      "target": "upstream96-integration.json",
+      "bytes": 1127,
+      "sha256": "35b90e143af673e3d2751ca0a48431ff805a649177fcf6f4188f83e57d37e76c"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/upstream96/checks.json",
+      "target": "upstream96-checks.json",
+      "bytes": 3639,
+      "sha256": "35a94a62d473df548917363d408ef3b2d22791872ed9bdaf0d302a37efa9e96a"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/upstream96/declaration-reuse.json",
+      "target": "upstream96-declarations.json",
+      "bytes": 40172,
+      "sha256": "3757bc8d968eda4edb34429c9cf9f9eca2e726fe64f9c1bfa8467c44f15421ef"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/upstream96/public-type-reuse.json",
+      "target": "upstream96-public-types.json",
+      "bytes": 1099,
+      "sha256": "a1f10192a5860d3ed46bd79689e6d79a83d80db51530f284fb165868651610c1"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/upstream100/integration.json",
+      "target": "upstream100-integration.json",
+      "bytes": 895,
+      "sha256": "a250c2323ffc85d2565646559bd85199bdcdf175bb58eccffe1b4e5c7c6fa3bd"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/upstream100/range-diff.txt",
+      "target": "upstream100-patch-equivalence.txt",
+      "bytes": 2931,
+      "sha256": "bdcf72858bba5f80524dc193f59d6254d045ee61441baef53a91a5255cb4939a"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/upstream97/integration.json",
+      "target": "upstream97-integration.json",
+      "bytes": 627,
+      "sha256": "733b614ea355f02b208172ef49ffea633cf151f8ce64de62b524b5f124e1ea7d"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/upstream97/range-diff.txt",
+      "target": "upstream97-patch-equivalence.txt",
+      "bytes": 2931,
+      "sha256": "f280ad6927d5ff0a36a37d88afab6ac38d4abe043fe973883755011d213f830b"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/upstream100/checks-r1/result.json",
+      "target": "upstream100-checks.json",
+      "bytes": 29512,
+      "sha256": "4b862183aa95c8c9dc52cfe87f855c4e4c4376fde981ecc158b65694d3c4e82d"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/upstream100/checks-r1/plan.json",
+      "target": "upstream100-affected-plan.json",
+      "bytes": 84239,
+      "sha256": "b342c5b6da7c8a4a9ebcba94ce7a5b0299c8548fc2befb2d7b5ea67933dd2702"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/upstream100/startup-r1/result.json",
+      "target": "upstream100-startup.json",
+      "bytes": 9712,
+      "sha256": "ce56b12726906951b9f7804ca86b2e04db43c62e4aac642f9f360568021e2285"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r2/result.json",
+      "target": "common-format-original-failure.json",
+      "bytes": 9634,
+      "sha256": "2ca3b8456af7b289c080e0211543e8eb321717f3813b6cfd6cafb0f1c8ba11a5"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r2/changed-format.log",
+      "target": "common-format-original-output.txt",
+      "bytes": 835,
+      "sha256": "61d754c4316475759db30e79a888d91e38f8763ef63fba6ea23064c4a780d06c"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/format-fix-r1/result.json",
+      "target": "format-only-ast-proof.json",
+      "bytes": 1248,
+      "sha256": "27f0e90abc2bbbd50bccff7aa44c2b89a75db8dcbf95af39848ac728e3d61cc5"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r3/result.json",
+      "target": "current-common-original-results.json",
+      "bytes": 12427,
+      "sha256": "a3d3221a849d422b1a6b0369f0c79d7abcac9e27b5f0b1d7ec4fc7b28bda75a3"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r4/result.json",
+      "target": "current-common-results.json",
+      "bytes": 1564,
+      "sha256": "164d16f7d4706993113e36978e84f5b3a232ca060965579b44b7726c8bb2196e"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r4/acceptance-sensor.json",
+      "target": "current-acceptance-sensor.json",
+      "bytes": 1407,
+      "sha256": "f24e562e59a2821296d2adc54f81a0c00b8adca123a6e724f0fbb608cb7c165b"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/current-structural-disposition.md",
+      "target": "current-structural-disposition.md",
+      "bytes": 2036,
+      "sha256": "4b2101e07443b7c8bea82540492ddcfdb9fcadd8efe571a1cc4e56e15cdf8bc4"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r3/plan.json",
+      "target": "current-affected-plan.json",
+      "bytes": 84239,
+      "sha256": "bbaef2f780e78b9aeb84e4daec3d196a4ffc278ed5be3087c0fd8f13f3fdd766"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r3/loop/status.json",
+      "target": "current-loop-status.json",
+      "bytes": 1911970,
+      "sha256": "91ffb42a873a0a4380710ec7b99d151c89d38ba500b328b3f2661bac0a96dfd9"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r3/strict-loop.log",
+      "target": "current-loop-output.txt",
+      "bytes": 6789,
+      "sha256": "096e2cfbf4b06635f7efe973eb9606cc1212f4d7818e1bc4239fddcb946b4abf"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/test-status-account-r1.json",
+      "target": "test-status-account.json",
+      "bytes": 71272,
+      "sha256": "6e36181aecd21a61ea21160599ecf6dd00e5ed4bd3664dbeafd2f37e4af63b0e"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/performance-r4/full/workload.json",
+      "target": "performance-workload.json",
+      "bytes": 27002,
+      "sha256": "8c27521b17fc85af3f56a7e6e7a1b7ee5e5d4b904dd95643a8dc6f8fa85b2c35"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/benchmark-r4.py",
+      "target": "benchmark-controller.txt",
+      "bytes": 8174,
+      "sha256": "368b594a866b258b7ec685e2cc1918500426df585f63d0a0a6fbe72a0ddd0124"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/profile-ajv-r2.mjs",
+      "target": "compilation-instrument.txt",
+      "bytes": 1854,
+      "sha256": "37178581d4b74b751efcb478053aee44888e5b79254c2a1c2e04e8b8a6d429f1"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/execution-conditions-r1.json",
+      "target": "execution-conditions.json",
+      "bytes": 2070,
+      "sha256": "63a64d600dc60872822af4a9806ca90813a235026bc9d74262a9f38c653bc587"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/performance-r3/mrr/result.json",
+      "target": "performance-mrr.json",
+      "bytes": 9038,
+      "sha256": "1f19cecf96e89810b9e39fdea175da0cdd0622fde262209646d3cf573d72e5c5"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/performance-r3/help/result.json",
+      "target": "performance-help.json",
+      "bytes": 8280,
+      "sha256": "b3b01ca7c335567259b340a75acfa372d55e1a7ad0c26532c00fb1010fcdacdc"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/performance-r4/pi/result.json",
+      "target": "performance-pi.json",
+      "bytes": 80845,
+      "sha256": "6c98ca8075b88bef9d19f4c6a53199b609680ebe29ba5be8d3f1359323311986"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/performance-r4/full/result.json",
+      "target": "performance-full.json",
+      "bytes": 854007,
+      "sha256": "7b13192ffcdfce0186307fea7f5a26f5661d51706a778cfb2e6faa48108d3de5"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/compile-profile-r3/baseline-mrr/ajv.json",
+      "target": "compile-baseline-mrr.json",
+      "bytes": 324836,
+      "sha256": "c5c26e77b827799237d98dbe42a4547d3cb3cbef891ba93587d9d9e0d7ac9ed9"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/compile-profile-r3/baseline-help/ajv.json",
+      "target": "compile-baseline-help.json",
+      "bytes": 21258,
+      "sha256": "f13751a328711459bbfa8def937ab499a9650d744eea5762a52c988bc572c1e4"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/compile-profile-r3/candidate-mrr/ajv.json",
+      "target": "compile-candidate-mrr.json",
+      "bytes": 26829,
+      "sha256": "40b855cdf34dbb0c9e3488902cd1584f735b2ec92d315330ba0b645384dc378a"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/compile-profile-r3/candidate-help/ajv.json",
+      "target": "compile-candidate-help.json",
+      "bytes": 96,
+      "sha256": "fce17ed979ef817b49b51ccfa91d7b17667b1526345a5df6f0d555254bd1d634"
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/schema65-final-candidate-fa97f2082-preservation.json",
+      "target": "source-preservation.json",
+      "bytes": 591610,
+      "sha256": "e11a712800a0a95ccccecc5b42402eb3e55da5dce48a51a12a2d25960bbd1ed4"
+    }
+  ]
+}

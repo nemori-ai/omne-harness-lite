@@ -1,0 +1,63 @@
+{
+  "head": "aa1329cc0af575bbb4557360043c663873d9c513",
+  "base": {
+    "ref": "f226b4cca0c1a2ae78f0d7ea36b004eb1a27288f",
+    "mergeBase": "f226b4cca0c1a2ae78f0d7ea36b004eb1a27288f"
+  },
+  "phase": "common",
+  "scope": "Manual affected plan; serial CPU7, one worker and one member. No slot wrapper.",
+  "steps": [
+    {
+      "name": "agents",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "make",
+        "--no-print-directory",
+        "agents-check"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation",
+      "exit_code": 0,
+      "wall_seconds": 0.49196084000868723
+    },
+    {
+      "name": "docs",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "make",
+        "--no-print-directory",
+        "docs-check"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation",
+      "exit_code": 0,
+      "wall_seconds": 74.955585342017
+    },
+    {
+      "name": "design",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "make",
+        "--no-print-directory",
+        "design-check"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation",
+      "exit_code": 0,
+      "wall_seconds": 22.037923308031168
+    }
+  ],
+  "complete": true
+}

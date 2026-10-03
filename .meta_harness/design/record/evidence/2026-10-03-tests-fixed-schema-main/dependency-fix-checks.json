@@ -1,0 +1,59 @@
+[
+  {
+    "name": "format",
+    "command": [
+      "taskset",
+      "-c",
+      "7",
+      "nice",
+      "-n",
+      "5",
+      "pnpm",
+      "format:write",
+      "--",
+      "tools/core-verification/src/dependency-surface.ts",
+      "tools/core-verification/tests/dependency-require.spec.ts"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation",
+    "exit_code": 0,
+    "wall_seconds": 0.9181716059683822
+  },
+  {
+    "name": "typecheck",
+    "command": [
+      "taskset",
+      "-c",
+      "7",
+      "nice",
+      "-n",
+      "5",
+      "node",
+      "node_modules/typescript/bin/tsc",
+      "-p",
+      "tsconfig.test.json"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tools/core-verification",
+    "exit_code": 0,
+    "wall_seconds": 5.2860313090495765
+  },
+  {
+    "name": "fast",
+    "command": [
+      "taskset",
+      "-c",
+      "7",
+      "nice",
+      "-n",
+      "5",
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "--reporter=default",
+      "--reporter=json",
+      "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/dependency-fix-checks-r2/fast.json"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tools/core-verification",
+    "exit_code": 0,
+    "wall_seconds": 8.971357734000776
+  }
+]

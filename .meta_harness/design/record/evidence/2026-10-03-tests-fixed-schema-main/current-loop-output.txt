@@ -1,0 +1,65 @@
+回路状态 fa97f2082 · 分支 panqiwei/lazy-schema · 基线 5e668f0feeec22e1cb9291701444dbd571758130（合并点 5e668f0fe）
+基线快照：f226b4cca（合并点之前最近的一条；取基线 5e668f0feeec22e1cb9291701444dbd571758130 的合并点），记于 2026-10-03T15:46:50.599Z
+趋势：/data/qiwei/repos/omne-harness-lite/tmp/clean-loop/trend.jsonl；上一次的带位取自 f226b4cca；严格模式只读趋势，不写快照
+产物：/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r3/loop/status.md 与 status.json
+## 硬线
+  方向违规 0
+  环 0
+  验收锁 没破
+  删卡记录 齐
+  ✗ 传感器没数据 1 个：sensors.acceptance（有 1 个成员有验收，这个提交（fa97f2082）却没有跑全它们的耗时记录（/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/acceptance-ledger/fa97f2082）：先跑 make acceptance）
+## 各项指标的带位
+  红色成员数 20 · 正常 · 与基线比 一样（基线 20）
+  超 alert 的函数数 329 · 正常 · 与基线比 好了（基线 371）
+  稳定依赖不稳定的边数 0 · 正常 · 与基线比 一样（基线 0）
+  一起改却分属两组的成员对数 0 · 正常 · 不与基线比
+  新增跨成员依赖数 0 · 不分带 · 不与基线比
+  没有断言的测试数 0 · 正常 · 与基线比 一样（基线 0）
+  全仓重复行占比（%） 2.8 · 提醒 · 与基线比 差了（基线 2.7）
+  单个 topic 窗口内 rev 翻动次数 13 · 处置 · 不与基线比；达到提醒线的：PF-002 13、PF-006 10、PF-001 9、PF-012 9、PF-013 9、PF-004 8、PF-007 8、PF-005 7、PF-014 7、PF-015 7、PF-016 7、PF-009 6、PF-010 6
+  并行工作树数 12 · 处置 · 不与基线比
+  被多棵工作树同时改的成员数 21 · 处置 · 不与基线比；apps/local-harness（6 棵）、packages/agent/run-driver（6 棵）、packages/coordination/admission（6 棵） 等，各是哪几棵见 status.json
+  验收总耗时（秒） · 没数据：有 1 个成员有验收，这个提交（fa97f2082）却没有跑全它们的耗时记录（/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/acceptance-ledger/fa97f2082）：先跑 make acceptance
+  最慢一份验收的耗时（秒） · 没数据：有 1 个成员有验收，这个提交（fa97f2082）却没有跑全它们的耗时记录（/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/acceptance-ledger/fa97f2082）：先跑 make acceptance
+  新增装配偏离数 0 · 不分带 · 不与基线比
+  装配声明改动数 0 · 不分带 · 不与基线比
+  装配缺失数 0 · 正常 · 与基线比 一样（基线 0）
+  未解析服务标识符数 5 · 正常 · 与基线比 一样（基线 5）
+## 这次变更里要解释的红项
+  变更函数里超过 warn、且比基线涨了或新出现的 5 条：
+    packages/core/content-blocks/src/exact-transform.ts:72 exactSchema CC 27：新出现（新文件）
+    packages/core/content-blocks/src/exact-keywords.ts:58 equal CC 18：新出现（新文件）
+    packages/core/content-blocks/src/schema-codegen.ts:43 generateSchemaModule CC 13：新出现（新文件）
+    packages/core/content-blocks/src/exact-keywords.ts:40 compare CC 12：新出现（新文件）
+    packages/core/content-blocks/src/exact-keywords.ts:89 divisible CC 11：新出现（新文件）
+  有一端落在改动文件里的克隆 14 条：
+    packages/core/call-accounts/src/schema.ts:46-63 ↔ packages/core/arrival-events/src/json.ts:9-26（18 行）
+    packages/core/slash-command/src/schema.ts:1-12 ↔ packages/core/arrival-events/src/schema.ts:1-12（12 行）
+    packages/core/asset-model/src/judge.ts:96-106 ↔ packages/core/arrival-events/src/json.ts:9-19（11 行）
+    packages/core/identity-values/src/validate.ts:2-10 ↔ packages/core/content-blocks/src/schema.ts:3-11（9 行）
+    packages/core/loop-extension/src/schema.ts:9-17 ↔ packages/core/arrival-events/src/schema.ts:14-22（9 行）
+    packages/core/slash-command/src/schema.ts:15-23 ↔ packages/core/loop-extension/src/schema.ts:9-22（9 行）
+    packages/frontend/governance-client-operations/src/schema-inputs.ts:20-26 ↔ apps/cli/src/schema-inputs.ts:23-29（7 行）
+    packages/core/mcp-endpoint/src/schema.ts:14-19 ↔ packages/core/arrival-events/src/schema.ts:16-21（6 行）
+    packages/core/offer-expiry/src/validate.ts:20-25 ↔ packages/core/identity-values/src/validate.ts:30-35（6 行）
+    packages/core/loop-extension/src/schema-inputs.ts:262-290 ↔ packages/core/loop-extension/src/schema-inputs.ts:228-256（29 行）
+    其余 4 条见 status.json
+  另有 2 个碰过的函数原来就在线外、这次没有变差（见 status.json）
+装配对照（.meta_harness/design/realization）：converged 3、deviation 357、missing 0、unknown 0；undeclared 42、no-design 0、not-built 9、source-location-mismatch 24
+  服务标识符 113 次解析，未知 5；源码与声明逐项出处见 status.json
+  范围：Static TypeScript AST and version-local workspace exports; tests/examples excluded; no dynamic loading, isolation or same-commit guarantee proved
+## 超预算的成员
+  1 个，其中结构问题 0 个；草稿在 /data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-common-r3/loop/proposals/
+  packages/model/model-request-runtime：超 alert 的函数数 104（与基线比 好了，基线 147） → 草稿 packages-model-model-request-runtime.md
+  比基线变差的成员 9 个：
+    apps/cli：重复行占比（%） 0 → 0.3（提醒）
+    packages/core/arrival-events：重复行占比（%） 4 → 8.2（提醒）
+    packages/core/content-blocks：超 alert 的函数数 7 → 8（提醒）、重复行占比（%） 3.1 → 5.5（提醒）
+    packages/core/identity-values：重复行占比（%） 1.2 → 2.3（提醒）
+    packages/core/loop-extension：重复行占比（%） 2.6 → 6.4（提醒）
+    packages/core/mcp-endpoint：重复行占比（%） 3.4 → 4.4（提醒）
+    packages/core/model-profile：风险值 20.6 → 20.9（提醒）
+    packages/core/slash-command：重复行占比（%） 1.3 → 3.8（提醒）
+    packages/core/tool-definition：风险值 16.7 → 16.8（提醒）
+  新成员过了提醒线的：无
+对照表（docs/clean-loop.md）：传感器 40、评审问法 25、归人 25、不适用 47、不采 6；不合约定 0 行；对回全表：全表有而对照表缺 0、对照表有而全表没有 0、对照表比全表多出 0

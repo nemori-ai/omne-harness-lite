@@ -1,0 +1,334 @@
+{
+  "head": "955965ddf4e33d4da9843a9b079100fa3ad1650a",
+  "base": "bf9874441dc53d661ec0773f6e3803218630f2f2",
+  "case_pattern": "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+  "files": [
+    "packages/core/agent-definition/tests/body.spec.ts",
+    "packages/core/content-blocks/tests/inline-bytes.spec.ts",
+    "packages/core/offer-expiry/tests/rfc3339-order.spec.ts",
+    "packages/model/model-request-runtime/tests/retry-delay.spec.ts",
+    "packages/tenancy/governance-center-entry/tests/bytes.spec.ts",
+    "tools/ts-checks/tests/manifest-immutable.spec.ts"
+  ],
+  "steps": [
+    {
+      "label": "baseline",
+      "file": "packages/core/agent-definition/tests/body.spec.ts",
+      "exit_code": 0,
+      "wall_seconds": 1.5069074610364623,
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/body.spec.ts",
+        "--testNamePattern",
+        "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/baseline-packages__core__agent-definition.json"
+      ],
+      "previously_omitted": {
+        "all-or-nothing rejection zero or malformed duration PT1S\n rejects": "passed",
+        "all-or-nothing rejection invalid route example/model\n rejects": "passed"
+      },
+      "passed": 36
+    },
+    {
+      "label": "baseline",
+      "file": "packages/core/content-blocks/tests/inline-bytes.spec.ts",
+      "exit_code": 0,
+      "wall_seconds": 2.746909348992631,
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/inline-bytes.spec.ts",
+        "--testNamePattern",
+        "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/baseline-packages__core__content-blocks.json"
+      ],
+      "previously_omitted": {
+        "InlineBytes frozen language without input-sized RegExp stack preserves exact padding and strict ending for \"AAAA \"": "passed",
+        "InlineBytes frozen language without input-sized RegExp stack preserves exact padding and strict ending for \"AAAA \"": "passed"
+      },
+      "passed": 25
+    },
+    {
+      "label": "baseline",
+      "file": "packages/core/offer-expiry/tests/rfc3339-order.spec.ts",
+      "exit_code": 0,
+      "wall_seconds": 1.0266089150100015,
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/rfc3339-order.spec.ts",
+        "--testNamePattern",
+        "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/baseline-packages__core__offer-expiry.json"
+      ],
+      "previously_omitted": {
+        "D089 B/R1 exact conditional RFC 3339 ordering TO-V3/V6: either side rejects static invalid text without disclosure (0000-01-01T00:00:00Z\n)": "passed",
+        "D089 B/R1 exact conditional RFC 3339 ordering TO-V3/V6: either side rejects static invalid text without disclosure (0000-01-01T00:00:00+00:00\n)": "passed"
+      },
+      "passed": 64
+    },
+    {
+      "label": "baseline",
+      "file": "packages/model/model-request-runtime/tests/retry-delay.spec.ts",
+      "exit_code": 0,
+      "wall_seconds": 6.474218270974234,
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/retry-delay.spec.ts",
+        "--testNamePattern",
+        "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/baseline-packages__model__model-request-runtime.json"
+      ],
+      "previously_omitted": {
+        "S60 malformed reception has no defaults illegal policy base=PT1S\n": "passed"
+      },
+      "passed": 98
+    },
+    {
+      "label": "baseline",
+      "file": "packages/tenancy/governance-center-entry/tests/bytes.spec.ts",
+      "exit_code": 0,
+      "wall_seconds": 1.864875740953721,
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/bytes.spec.ts",
+        "--testNamePattern",
+        "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/baseline-packages__tenancy__governance-center-entry.json"
+      ],
+      "previously_omitted": {
+        "V-9：体的写出规则逐例（examples §7） 字符串 \" \"": "passed"
+      },
+      "passed": 22
+    },
+    {
+      "label": "baseline",
+      "file": "tools/ts-checks/tests/manifest-immutable.spec.ts",
+      "exit_code": 0,
+      "wall_seconds": 1.3388775970088318,
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/manifest-immutable.spec.ts",
+        "--testNamePattern",
+        "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/baseline-tools__ts-checks.json"
+      ],
+      "previously_omitted": {
+        "normal append/query/DDL and prose are admitted: // db.deleteFrom('assembly_manifest_record')\nconst label = 'deleteFrom';": "passed"
+      },
+      "passed": 17
+    },
+    {
+      "label": "candidate",
+      "file": "packages/core/agent-definition/tests/body.spec.ts",
+      "exit_code": 0,
+      "wall_seconds": 1.1150569660239853,
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/body.spec.ts",
+        "--testNamePattern",
+        "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/candidate-packages__core__agent-definition.json"
+      ],
+      "previously_omitted": {
+        "all-or-nothing rejection zero or malformed duration PT1S\n rejects": "passed",
+        "all-or-nothing rejection invalid route example/model\n rejects": "passed"
+      },
+      "passed": 36
+    },
+    {
+      "label": "candidate",
+      "file": "packages/core/content-blocks/tests/inline-bytes.spec.ts",
+      "exit_code": 0,
+      "wall_seconds": 1.7709344219765626,
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/inline-bytes.spec.ts",
+        "--testNamePattern",
+        "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/candidate-packages__core__content-blocks.json"
+      ],
+      "previously_omitted": {
+        "InlineBytes frozen language without input-sized RegExp stack preserves exact padding and strict ending for \"AAAA \"": "passed",
+        "InlineBytes frozen language without input-sized RegExp stack preserves exact padding and strict ending for \"AAAA \"": "passed"
+      },
+      "passed": 25
+    },
+    {
+      "label": "candidate",
+      "file": "packages/core/offer-expiry/tests/rfc3339-order.spec.ts",
+      "exit_code": 0,
+      "wall_seconds": 0.9016199700417928,
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/rfc3339-order.spec.ts",
+        "--testNamePattern",
+        "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/candidate-packages__core__offer-expiry.json"
+      ],
+      "previously_omitted": {
+        "D089 B/R1 exact conditional RFC 3339 ordering TO-V3/V6: either side rejects static invalid text without disclosure (0000-01-01T00:00:00Z\n)": "passed",
+        "D089 B/R1 exact conditional RFC 3339 ordering TO-V3/V6: either side rejects static invalid text without disclosure (0000-01-01T00:00:00+00:00\n)": "passed"
+      },
+      "passed": 64
+    },
+    {
+      "label": "candidate",
+      "file": "packages/model/model-request-runtime/tests/retry-delay.spec.ts",
+      "exit_code": 0,
+      "wall_seconds": 3.4048259900300764,
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/retry-delay.spec.ts",
+        "--testNamePattern",
+        "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/candidate-packages__model__model-request-runtime.json"
+      ],
+      "previously_omitted": {
+        "S60 malformed reception has no defaults illegal policy base=PT1S\n": "passed"
+      },
+      "passed": 98
+    },
+    {
+      "label": "candidate",
+      "file": "packages/tenancy/governance-center-entry/tests/bytes.spec.ts",
+      "exit_code": 0,
+      "wall_seconds": 1.7193815969512798,
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/bytes.spec.ts",
+        "--testNamePattern",
+        "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/candidate-packages__tenancy__governance-center-entry.json"
+      ],
+      "previously_omitted": {
+        "V-9：体的写出规则逐例（examples §7） 字符串 \" \"": "passed"
+      },
+      "passed": 22
+    },
+    {
+      "label": "candidate",
+      "file": "tools/ts-checks/tests/manifest-immutable.spec.ts",
+      "exit_code": 0,
+      "wall_seconds": 1.3596984239993617,
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/manifest-immutable.spec.ts",
+        "--testNamePattern",
+        "^(?![\\s\\S]*(?:D\\-116\\ native\\ loading\\ is\\ confined\\ to\\ declared\\ fixed\\-schema\\ and\\ build\\ sites|checks\\ the\\ D\\-116\\ resource\\ leaf\\ and\\ permits\\ only\\ its\\ finite\\ generated\\ entry))",
+        "--reporter=json",
+        "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/workload-filter-fix/candidate-tools__ts-checks.json"
+      ],
+      "previously_omitted": {
+        "normal append/query/DDL and prose are admitted: // db.deleteFrom('assembly_manifest_record')\nconst label = 'deleteFrom';": "passed"
+      },
+      "passed": 17
+    }
+  ],
+  "complete": true
+}

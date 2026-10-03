@@ -1,0 +1,732 @@
+{
+  "head": "aa1329cc0af575bbb4557360043c663873d9c513",
+  "base": {
+    "ref": "f226b4cca0c1a2ae78f0d7ea36b004eb1a27288f",
+    "mergeBase": "f226b4cca0c1a2ae78f0d7ea36b004eb1a27288f"
+  },
+  "phase": "types",
+  "scope": "Manual affected plan; serial CPU7, one worker and one member. No slot wrapper.",
+  "steps": [
+    {
+      "name": "packages__agent-loop__loop-extension-runner",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/agent-loop/loop-extension-runner",
+      "exit_code": 0,
+      "wall_seconds": 5.087122337019537
+    },
+    {
+      "name": "packages__assets__assembly-manifest-store",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/assets/assembly-manifest-store",
+      "exit_code": 0,
+      "wall_seconds": 3.2860916220233776
+    },
+    {
+      "name": "packages__assets__evaluation-input-store",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/assets/evaluation-input-store",
+      "exit_code": 0,
+      "wall_seconds": 3.681557760981377
+    },
+    {
+      "name": "packages__core__agent-definition",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/agent-definition",
+      "exit_code": 0,
+      "wall_seconds": 2.3665077519835904
+    },
+    {
+      "name": "packages__core__arrival-events",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/arrival-events",
+      "exit_code": 0,
+      "wall_seconds": 2.900935292011127
+    },
+    {
+      "name": "packages__core__asset-evaluation",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/asset-evaluation",
+      "exit_code": 0,
+      "wall_seconds": 4.053740171017125
+    },
+    {
+      "name": "packages__core__asset-model",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/asset-model",
+      "exit_code": 0,
+      "wall_seconds": 3.968846860982012
+    },
+    {
+      "name": "packages__core__call-accounts",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/call-accounts",
+      "exit_code": 0,
+      "wall_seconds": 2.735270984994713
+    },
+    {
+      "name": "packages__core__content-blocks",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/content-blocks",
+      "exit_code": 0,
+      "wall_seconds": 3.0727241260465235
+    },
+    {
+      "name": "packages__core__identity-values",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/identity-values",
+      "exit_code": 0,
+      "wall_seconds": 2.2017492890008725
+    },
+    {
+      "name": "packages__core__loop-extension",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/loop-extension",
+      "exit_code": 0,
+      "wall_seconds": 4.384510841045994
+    },
+    {
+      "name": "packages__core__mcp-endpoint",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/mcp-endpoint",
+      "exit_code": 0,
+      "wall_seconds": 3.2333513259654865
+    },
+    {
+      "name": "packages__core__messages",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/messages",
+      "exit_code": 0,
+      "wall_seconds": 3.9193774149753153
+    },
+    {
+      "name": "packages__core__model-profile",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/model-profile",
+      "exit_code": 0,
+      "wall_seconds": 2.622277893999126
+    },
+    {
+      "name": "packages__core__model-response",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/model-response",
+      "exit_code": 0,
+      "wall_seconds": 4.114349181007128
+    },
+    {
+      "name": "packages__core__offer-expiry",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/offer-expiry",
+      "exit_code": 0,
+      "wall_seconds": 2.220110160007607
+    },
+    {
+      "name": "packages__core__skill-package",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/skill-package",
+      "exit_code": 0,
+      "wall_seconds": 3.1724216809961945
+    },
+    {
+      "name": "packages__core__slash-command",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/slash-command",
+      "exit_code": 0,
+      "wall_seconds": 2.874636465043295
+    },
+    {
+      "name": "packages__core__stream-assembly",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/stream-assembly",
+      "exit_code": 0,
+      "wall_seconds": 3.1449027620255947
+    },
+    {
+      "name": "packages__core__tool-definition",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/tool-definition",
+      "exit_code": 0,
+      "wall_seconds": 3.131020948989317
+    },
+    {
+      "name": "packages__frontend__client-local-state",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/frontend/client-local-state",
+      "exit_code": 0,
+      "wall_seconds": 2.9752579359919764
+    },
+    {
+      "name": "packages__frontend__governance-center-client",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/frontend/governance-center-client",
+      "exit_code": 0,
+      "wall_seconds": 2.2206759689725004
+    },
+    {
+      "name": "packages__frontend__governance-client-operations",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/frontend/governance-client-operations",
+      "exit_code": 0,
+      "wall_seconds": 2.898443694051821
+    },
+    {
+      "name": "packages__infra__clock",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/infra/clock",
+      "exit_code": 0,
+      "wall_seconds": 2.910472457006108
+    },
+    {
+      "name": "packages__infra__credential-custodian-local",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/infra/credential-custodian-local",
+      "exit_code": 0,
+      "wall_seconds": 3.289489842019975
+    },
+    {
+      "name": "packages__model__model-profile-directory",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/model/model-profile-directory",
+      "exit_code": 0,
+      "wall_seconds": 3.5439009710098617
+    },
+    {
+      "name": "packages__model__model-request-runtime",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/model/model-request-runtime",
+      "exit_code": 0,
+      "wall_seconds": 12.740205180016346
+    },
+    {
+      "name": "packages__model__pi-ai-transport",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/model/pi-ai-transport",
+      "exit_code": 0,
+      "wall_seconds": 12.94443653995404
+    },
+    {
+      "name": "packages__session__session-log-jsonl",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/session/session-log-jsonl",
+      "exit_code": 0,
+      "wall_seconds": 3.935861705977004
+    },
+    {
+      "name": "packages__session__session-tenancy-table",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/session/session-tenancy-table",
+      "exit_code": 0,
+      "wall_seconds": 2.90616188099375
+    },
+    {
+      "name": "packages__tenancy__account-identity",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/tenancy/account-identity",
+      "exit_code": 0,
+      "wall_seconds": 4.618030098034069
+    },
+    {
+      "name": "packages__tenancy__account-registration",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/tenancy/account-registration",
+      "exit_code": 0,
+      "wall_seconds": 4.276629180996679
+    },
+    {
+      "name": "packages__tenancy__credential-verification",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/tenancy/credential-verification",
+      "exit_code": 0,
+      "wall_seconds": 2.3015884599881247
+    },
+    {
+      "name": "packages__tenancy__governance-center-entry",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/tenancy/governance-center-entry",
+      "exit_code": 0,
+      "wall_seconds": 6.006552562001161
+    },
+    {
+      "name": "packages__tenancy__organization-governance",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/tenancy/organization-governance",
+      "exit_code": 0,
+      "wall_seconds": 4.987239142996259
+    },
+    {
+      "name": "packages__tools__asset-registry",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/tools/asset-registry",
+      "exit_code": 0,
+      "wall_seconds": 3.408415862999391
+    },
+    {
+      "name": "apps__cli",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/apps/cli",
+      "exit_code": 0,
+      "wall_seconds": 2.980862452008296
+    },
+    {
+      "name": "apps__tenancy-host",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/apps/tenancy-host",
+      "exit_code": 0,
+      "wall_seconds": 4.974203328019939
+    },
+    {
+      "name": "tools__ts-checks",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/tools/ts-checks",
+      "exit_code": 0,
+      "wall_seconds": 10.243703546002507
+    },
+    {
+      "name": "tools__core-verification",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/tools/core-verification",
+      "exit_code": 0,
+      "wall_seconds": 7.9714275149744935
+    }
+  ],
+  "complete": true
+}
