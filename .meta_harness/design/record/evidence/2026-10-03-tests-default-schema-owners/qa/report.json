@@ -1,0 +1,379 @@
+{
+  "verdict": "Pass with issues",
+  "commit": "75c6a66eff119dc702224cab1265ba2564464dd8",
+  "baseline_commit": "52bc6005dc168f2254d21ff79f6cd2df021676b8",
+  "run_id": "qa65-default-owners-r1-20261003",
+  "exit_code": 0,
+  "verifier": "qa",
+  "verifier_instance": "/root/qa65_main",
+  "completed": true,
+  "completed_utc": "2026-10-03T21:55:48.168889+00:00",
+  "acceptance": false,
+  "criteria_source": "Formal ROOT L2 handoff; D-116; construction-65-plan-r5; preparation.md six criteria",
+  "environment": {
+    "cpu": 7,
+    "nice": 5,
+    "controller_nice": 0,
+    "worker": 1,
+    "member": 1,
+    "workspace": 1,
+    "locale": "C.UTF-8",
+    "tmpdir": "/tmp/odq-668ijc3a",
+    "native_flags": [
+      "--experimental-transform-types",
+      "--experimental-import-meta-resolve"
+    ],
+    "ordinary_timeout_seconds": 180,
+    "native_runner_timeout_seconds": 360,
+    "original_mrr_test_timeouts_unchanged": true
+  },
+  "criteria": [
+    {
+      "id": 1,
+      "result": "Pass",
+      "scenario": "worker.mjs lifecycle",
+      "hits": 6,
+      "trials": 6,
+      "evidence": [
+        "semantic/initial-candidate-src-ae-lifecycle.json",
+        "semantic/eis-r2-candidate-src-eis-lifecycle.json",
+        "semantic/initial-candidate-src-registry-lifecycle.json",
+        "semantic/initial-candidate-dist-ae-lifecycle.json",
+        "semantic/eis-r2-candidate-dist-eis-lifecycle.json",
+        "semantic/initial-candidate-dist-registry-lifecycle.json"
+      ],
+      "oracle": "zero AM main requests on public import; complete 25-definition main graph at first real public use; second call reuses that successful target owner",
+      "notes": "EIS nonempty deployment factory is first use; registry fixture warms actual AE separately; EIS read may first create an additional AE owner"
+    },
+    {
+      "id": 2,
+      "result": "Pass",
+      "scenario": "worker.mjs snapshot",
+      "hits": 2,
+      "trials": 2,
+      "evidence": [
+        "semantic/initial-candidate-src-ae-snapshot.json",
+        "semantic/initial-candidate-dist-ae-snapshot.json"
+      ],
+      "five_resources_per_run": true,
+      "frozen_nodes_per_run": 1422,
+      "reflect_set_and_delete_per_node": true,
+      "original_json_mutable_per_run": 5,
+      "notes": "Four judge refs and all five deriveDeclarations/references refs match original production duties; LC3 wrapper delegates actual original judge semantics and keeps limited definition domain; source binding is supporting read-only evidence"
+    },
+    {
+      "id": 3,
+      "result": "Pass",
+      "scenario": "worker.mjs cross",
+      "hits": 2,
+      "trials": 2,
+      "evidence": [
+        "semantic/initial-candidate-src-cross-cross.json",
+        "semantic/initial-candidate-dist-cross-cross.json"
+      ],
+      "notes": "Actual public AE dependency resolved from consumer parentURL; mutate original LC3 id, Power.enum, nested declaration name before AM first use; published value unchanged, real registry and SQLite EIS succeed, three default compilers register original LC3; never register mutated id"
+    },
+    {
+      "id": 4,
+      "result": "Pass",
+      "scenario": "worker.mjs retry",
+      "hits": 6,
+      "trials": 6,
+      "evidence": [
+        "semantic/initial-candidate-src-ae-retry.json",
+        "semantic/eis-r2-candidate-src-eis-retry.json",
+        "semantic/initial-candidate-src-registry-retry.json",
+        "semantic/initial-candidate-dist-ae-retry.json",
+        "semantic/eis-r2-candidate-dist-eis-retry.json",
+        "semantic/initial-candidate-dist-registry-retry.json"
+      ],
+      "notes": "Actual Ajv main compile throws one unique object at first request; public action catches identical object; recovered full graph uses another instance, then reuses successful owner"
+    },
+    {
+      "id": 5,
+      "result": "Pass",
+      "scenario": "worker.mjs explicit",
+      "hits": 2,
+      "trials": 2,
+      "evidence": [
+        "semantic/initial-candidate-src-ae-explicit.json",
+        "semantic/initial-candidate-dist-ae-explicit.json"
+      ],
+      "explicit_bad_supply_immediate": true,
+      "author_requests_per_run": 2,
+      "author_instances_per_run": 2,
+      "notes": "Same author declaration is judged twice, each actually compiles; no schema/value mutation or extra owner main construction"
+    },
+    {
+      "id": 6,
+      "result": "Pass",
+      "scenario": "Native public business baseline comparison + public-types.template.ts + scope evidence audit",
+      "business_comparisons": [
+        {
+          "flavor": "src",
+          "target": "ae",
+          "equal": true
+        },
+        {
+          "flavor": "src",
+          "target": "registry",
+          "equal": true
+        },
+        {
+          "flavor": "dist",
+          "target": "ae",
+          "equal": true
+        },
+        {
+          "flavor": "dist",
+          "target": "registry",
+          "equal": true
+        },
+        {
+          "flavor": "src",
+          "target": "eis",
+          "equal": true
+        },
+        {
+          "flavor": "dist",
+          "target": "eis",
+          "equal": true
+        }
+      ],
+      "public_types_hits": 2,
+      "public_types_trials": 2,
+      "evidence": [
+        "structure/initial-summary.json",
+        "structure/eis-r2-summary.json",
+        "structure/finish-result.json",
+        "structure/integrity.json"
+      ],
+      "scope_evidence_boundary": "ROOT affected checks/common gates reused at original coordinates and pinned by SHA; not represented as QA rerunning all 9 members",
+      "identity_assertion_exception": "Only accepted four AE port and four inventory port/one LC3 schema identity migrations; original business/negative-control expectations remain"
+    }
+  ],
+  "final_native_cases": [
+    {
+      "file": "semantic/initial-candidate-src-ae-lifecycle.json",
+      "status": "PASS",
+      "flavor": "src",
+      "target": "ae",
+      "mode": "lifecycle",
+      "successful_owner": 1
+    },
+    {
+      "file": "semantic/initial-candidate-src-ae-retry.json",
+      "status": "PASS",
+      "flavor": "src",
+      "target": "ae",
+      "mode": "retry",
+      "successful_owner": 2
+    },
+    {
+      "file": "semantic/eis-r2-candidate-src-eis-lifecycle.json",
+      "status": "PASS",
+      "flavor": "src",
+      "target": "eis",
+      "mode": "lifecycle",
+      "successful_owner": 1
+    },
+    {
+      "file": "semantic/eis-r2-candidate-src-eis-retry.json",
+      "status": "PASS",
+      "flavor": "src",
+      "target": "eis",
+      "mode": "retry",
+      "successful_owner": 2
+    },
+    {
+      "file": "semantic/initial-candidate-src-registry-lifecycle.json",
+      "status": "PASS",
+      "flavor": "src",
+      "target": "registry",
+      "mode": "lifecycle",
+      "successful_owner": 8
+    },
+    {
+      "file": "semantic/initial-candidate-src-registry-retry.json",
+      "status": "PASS",
+      "flavor": "src",
+      "target": "registry",
+      "mode": "retry",
+      "successful_owner": 9
+    },
+    {
+      "file": "semantic/initial-candidate-src-ae-snapshot.json",
+      "status": "PASS",
+      "flavor": "src",
+      "target": "ae",
+      "mode": "snapshot"
+    },
+    {
+      "file": "semantic/initial-candidate-src-ae-explicit.json",
+      "status": "PASS",
+      "flavor": "src",
+      "target": "ae",
+      "mode": "explicit"
+    },
+    {
+      "file": "semantic/initial-candidate-src-cross-cross.json",
+      "status": "PASS",
+      "flavor": "src",
+      "target": "cross",
+      "mode": "cross"
+    },
+    {
+      "file": "semantic/initial-candidate-dist-ae-lifecycle.json",
+      "status": "PASS",
+      "flavor": "dist",
+      "target": "ae",
+      "mode": "lifecycle",
+      "successful_owner": 1
+    },
+    {
+      "file": "semantic/initial-candidate-dist-ae-retry.json",
+      "status": "PASS",
+      "flavor": "dist",
+      "target": "ae",
+      "mode": "retry",
+      "successful_owner": 2
+    },
+    {
+      "file": "semantic/eis-r2-candidate-dist-eis-lifecycle.json",
+      "status": "PASS",
+      "flavor": "dist",
+      "target": "eis",
+      "mode": "lifecycle",
+      "successful_owner": 1
+    },
+    {
+      "file": "semantic/eis-r2-candidate-dist-eis-retry.json",
+      "status": "PASS",
+      "flavor": "dist",
+      "target": "eis",
+      "mode": "retry",
+      "successful_owner": 2
+    },
+    {
+      "file": "semantic/initial-candidate-dist-registry-lifecycle.json",
+      "status": "PASS",
+      "flavor": "dist",
+      "target": "registry",
+      "mode": "lifecycle",
+      "successful_owner": 8
+    },
+    {
+      "file": "semantic/initial-candidate-dist-registry-retry.json",
+      "status": "PASS",
+      "flavor": "dist",
+      "target": "registry",
+      "mode": "retry",
+      "successful_owner": 9
+    },
+    {
+      "file": "semantic/initial-candidate-dist-ae-snapshot.json",
+      "status": "PASS",
+      "flavor": "dist",
+      "target": "ae",
+      "mode": "snapshot"
+    },
+    {
+      "file": "semantic/initial-candidate-dist-ae-explicit.json",
+      "status": "PASS",
+      "flavor": "dist",
+      "target": "ae",
+      "mode": "explicit"
+    },
+    {
+      "file": "semantic/initial-candidate-dist-cross-cross.json",
+      "status": "PASS",
+      "flavor": "dist",
+      "target": "cross",
+      "mode": "cross"
+    }
+  ],
+  "totals": {
+    "passed_criteria": 6,
+    "failed_criteria": 0,
+    "required_uncovered": 0,
+    "confirmed_product_defects": 0,
+    "final_candidate_native_cases": 18,
+    "baseline_business_channels": 6,
+    "commands_including_integrity": 35
+  },
+  "additional_mrr": {
+    "result": "Pass",
+    "attempts": 1,
+    "tests": {
+      "numTotalTests": 148,
+      "numPassedTests": 148,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    },
+    "t15": [
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/packages/model/model-request-runtime/tests/acceptance-t15-fresh-dispatch-inputs.spec.ts",
+        "name": "RT10 T15 current dispatch inputs uses both newly published limits and the rotated credential for the same call retry",
+        "status": "passed"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/packages/model/model-request-runtime/tests/acceptance-t15-fresh-dispatch-inputs.spec.ts",
+        "name": "RT10 T15 current dispatch inputs preserves awaiting_decision without a new anchor when current evaluation is unavailable",
+        "status": "passed"
+      },
+      {
+        "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/packages/model/model-request-runtime/tests/acceptance-t15-fresh-dispatch-inputs.spec.ts",
+        "name": "RT10 T15 current dispatch inputs releases a previously dispatched call only when the fresh credential is missing",
+        "status": "passed"
+      }
+    ],
+    "evidence": [
+      "semantic/finish-mrr-original-slow.json",
+      "raw/finish-mrr-original-slow.log",
+      "structure/finish-result.json"
+    ],
+    "historical_failure_reproduced": false,
+    "root_cause": "Unknown",
+    "limitation": "One successful original isolate:false combination does not rule out ordering/shared-module/timing conditions; prior r4 failure retained"
+  },
+  "defects": [],
+  "facility_issues": [
+    {
+      "id": "F1",
+      "description": "QA used a string as supposedly invalid SessionRef; reader correctly treated it as a represented reference with missing session, returning unavailable",
+      "correction": "Use null as invalid input type; original invalidInput assertion unchanged",
+      "affected_candidate_cases": 4,
+      "affected_baseline_cases": 2,
+      "attempts_per_case": 2,
+      "first_failures_preserved": true,
+      "evidence": [
+        "structure/initial-summary.json",
+        "structure/eis-r2-summary.json"
+      ]
+    }
+  ],
+  "uncovered": [],
+  "residual_risks": [
+    "Prior ROOT MRR unavailable failure remains unexplained; this QA one-time combination passed",
+    "Native fixtures cover representative real public actions rather than every business permutation",
+    "ROOT scope checks are reused with recorded input/command coordinates, not independent QA executions",
+    "No full main fixed-graph matrix, performance rounds, network backend or TUI acceptance in this L2 slice"
+  ],
+  "substitutes": "No application boundary mocks. EIS uses real SQLite/storage/account services; existing test credential-cost configuration is its external-dependency test composition. Ajv observation calls real prototype methods; single injected compile error is the declared fault boundary.",
+  "terminal_gates": "Not applicable: non-TUI delivery",
+  "cleanup": {
+    "all_child_processes_ended": true,
+    "background_services": 0,
+    "sqlite_hosts_closed": true,
+    "terminal_state_unchanged": true,
+    "clean_candidate_and_baseline": true,
+    "prior_main_reports_unchanged": true,
+    "testing_lane_released_to_root": true,
+    "writes_only_authorized_qa_directory": true,
+    "no_install": true,
+    "no_product_test_golden_expectation_or_timeout_edits": true,
+    "no_commit_push_or_delegation": true
+  },
+  "evidence_index": "evidence-index.json"
+}

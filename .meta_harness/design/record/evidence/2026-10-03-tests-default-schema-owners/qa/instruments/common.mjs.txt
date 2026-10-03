@@ -1,0 +1,100 @@
+// Dispatch criteria 1-5. Real native consumer resolution and actual Ajv observation.
+import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+export const members={ae:'packages/core/asset-evaluation',eis:'packages/assets/evaluation-input-store',registry:'packages/tools/asset-registry'}
+export const fileUrl=path=>pathToFileURL(path).href
+export const entry=(root,target,flavor)=>fileUrl(join(root,members[target],flavor==='src'?'src/index.ts':'dist/index.js'))
+export const resolve=(specifier,parent)=>import.meta.resolve(specifier,parent)
+export const dependency=(specifier,parent)=>import(resolve(specifier,parent))
+export async function observe(parent) {
+  const am=await dependency('@omne-harness-lite/asset-model',parent)
+  const cb=resolve('@omne-harness-lite/content-blocks/schema-runtime',parent)
+  const {Ajv2020}=createRequire(cb)('ajv/dist/2020.js')
+  const prototype=Ajv2020.prototype
+  const priorCompile=Object.getOwnPropertyDescriptor(prototype,'compile')
+  const priorAdd=Object.getOwnPropertyDescriptor(prototype,'addSchema')
+  const originalCompile=prototype.compile,originalAdd=prototype.addSchema
+  const instances=new WeakMap(),requests=[],resources=[]
+  let sequence=0,stage='import',armed=false
+  const fault=new Error('QA first real AM compilation failure')
+  const id=instance=>{if(!instances.has(instance))instances.set(instance,++sequence);return instances.get(instance)}
+  const main=schema=>typeof schema?.$ref==='string'&&schema.$ref.startsWith(am.schemaId+'#/$defs/')
+  prototype.compile=function(schema,...rest) {
+    const record={stage,instance:id(this),schema:structuredClone(schema),main:main(schema),outcome:'pending'}
+    requests.push(record)
+    if(armed&&record.main){armed=false;record.outcome='injected-original-error';throw fault}
+    try {const result=Reflect.apply(originalCompile,this,[schema,...rest]);record.outcome='success';return result}
+    catch(error){record.outcome='error';record.error=String(error);throw error}
+  }
+  prototype.addSchema=function(schema,...rest) {
+    resources.push({stage,instance:id(this),schema:structuredClone(schema)})
+    return Reflect.apply(originalAdd,this,[schema,...rest])
+  }
+  return {
+    am,requests,resources,fault,
+    stage(value){stage=value},arm(){armed=true},
+    mains(){return requests.filter(item=>item.main)},
+    completeSince(offset){
+      const found=requests.slice(offset).filter(item=>item.main&&item.outcome==='success')
+      assert.equal(found.length,am.SCHEMA_DEF_NAMES.length)
+      assert.equal(new Set(found.map(item=>item.instance)).size,1)
+      assert.deepEqual(found.map(item=>item.schema.$ref),am.SCHEMA_DEF_NAMES.map(name=>am.schemaId+'#/$defs/'+name))
+      return found[0].instance
+    },
+    restore(){
+      if(priorCompile)Object.defineProperty(prototype,'compile',priorCompile);else delete prototype.compile
+      if(priorAdd)Object.defineProperty(prototype,'addSchema',priorAdd);else delete prototype.addSchema
+    },
+  }
+}
+export function frozenTree(value,path='$',seen=new Set()) {
+  if(value===null||typeof value!=='object'||seen.has(value))return []
+  seen.add(value);assert.equal(Object.isFrozen(value),true,path)
+  assert.equal(Reflect.set(value,'qaInjected',true),false,path+' set')
+  const key=Object.keys(value)[0]
+  if(key!==undefined)assert.equal(Reflect.deleteProperty(value,key),false,path+' delete')
+  return [path,...Object.entries(value).flatMap(([key,item])=>frozenTree(item,path+'/'+key,seen))]
+}
+export async function sourcePorts(parent) {
+  const specifications={tool:['@omne-harness-lite/tool-definition','toolBodyContract'],loop_extension:['@omne-harness-lite/loop-extension','loopExtensionBodyContract'],skill:['@omne-harness-lite/skill-package/v2','skillBodyContract'],mcp:['@omne-harness-lite/mcp-endpoint','mcpBodyContract'],slash_command:['@omne-harness-lite/slash-command','slashCommandBodyContract']}
+  const ports={}
+  for(const [category,[specifier,name]] of Object.entries(specifications))ports[category]=(await dependency(specifier,parent))[name]
+  return ports
+}
+export async function checkPublished(api,parent) {
+  const ports=await sourcePorts(parent),paths={}
+  const lc3=await import(resolve('@omne-harness-lite/loop-extension/schema/v3',parent),{with:{type:'json'}})
+  assert.deepEqual(Object.keys(api.defaultBodyContracts).sort(),Object.keys(ports).sort())
+  assert.equal(Object.isFrozen(api.defaultBodyContracts),true)
+  for(const [category,port] of Object.entries(api.defaultBodyContracts)) {
+    const original=category==='loop_extension'?lc3.default:ports[category].schema
+    assert.notEqual(port.schema,original)
+    assert.deepEqual(port.schema,original)
+    assert.equal(Object.isFrozen(port),true)
+    for(const duty of ['deriveDeclarations','references'])assert.equal(port[duty],ports[category][duty])
+    if(category!=='loop_extension')assert.equal(port.judge,ports[category].judge)
+    paths[category]=frozenTree(port.schema,category)
+  }
+  const declaration={name:'qa:review',position:'before_action',power:'veto',implementation:{kind:'builtin',builtinName:'review'}}
+  const port=api.defaultBodyContracts.loop_extension,original=ports.loop_extension
+  for(const context of [{capabilityName:'qa:review'},{capabilityName:'qa:other'},{definition:'Power'}]) {
+    const input=context.definition?'veto':declaration
+    assert.deepEqual(port.judge(input,context),original.judge(input,context))
+  }
+  assert.throws(()=>port.judge({}, {definition:'AfterModelCallFailureSubject'}),TypeError)
+  const preservedId=lc3.default.$id
+  assert.equal(Reflect.set(lc3.default,'qaOriginalIsMutable',true),true)
+  assert.equal(Reflect.deleteProperty(lc3.default,'qaOriginalIsMutable'),true)
+  assert.equal(lc3.default.$id,preservedId)
+  const originals={tool:'@omne-harness-lite/tool-definition/schema',loop_extension:'@omne-harness-lite/loop-extension/schema/v3',skill:'@omne-harness-lite/skill-package/schema/v2',mcp:'@omne-harness-lite/mcp-endpoint/schema',slash_command:'@omne-harness-lite/slash-command/schema'}
+  for(const [category,specifier] of Object.entries(originals)) {
+    const json=(await import(resolve(specifier,parent),{with:{type:'json'}})).default
+    const preserved=JSON.stringify(json)
+    assert.equal(Reflect.set(json,'qaOriginalIsMutable',true),true,category+' original JSON was not frozen')
+    assert.equal(Reflect.deleteProperty(json,'qaOriginalIsMutable'),true)
+    assert.equal(JSON.stringify(json),preserved)
+  }
+  return {paths,resourceCopies:5,responsibilities:true,lc3WrapperDelegation:true,originalJsonMutable:5}
+}

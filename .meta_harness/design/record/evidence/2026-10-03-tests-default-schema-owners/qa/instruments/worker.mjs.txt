@@ -1,0 +1,179 @@
+// ROOT dispatch criteria 1-6. Each invocation is a new native process.
+import assert from 'node:assert/strict'
+import { writeFileSync,readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { entry,resolve,dependency,fileUrl,members,observe,checkPublished } from './common.mjs'
+const [root,flavor,target,mode,output,database,seedMetadata]=process.argv.slice(2)
+assert.equal(process.env.QA65_EXECUTION_ALLOWED,'frozen-lane-transferred','Preparation is not execution authorization')
+assert.ok(['src','dist'].includes(flavor))
+const parent=entry(root,target==='cross'?'eis':target,flavor)
+const observed=await observe(parent)
+let host,reader,secondReader
+const result={status:'PENDING',flavor,target,mode,outputs:{}}
+const workspace={tenant:{organization:'org_acme',account:'acc_alice'},directory:'/home/alice/repo'}
+const carrier={format:1,assets:[],assignments:[],disabled:[]}
+async function setupAction() {
+  // Cold target import must be observed before support can consume its public dependencies.
+  observed.stage('target-import')
+  const before=observed.mains().length
+  const api=await import(parent)
+  if(mode!=='behavior')assert.equal(observed.mains().length,before,'target import constructs no default main graph')
+  result.importMainDelta=observed.mains().length-before
+  if(target==='ae')return {api,invoke:()=>api.readWorkspaceCarrier(carrier,workspace),again:()=>api.readWorkspaceCarrier(carrier,workspace)}
+  if(target==='registry') {
+    observed.stage('prepare-real-AE-input')
+    const support=await import(fileUrl(join(root,members.registry,'tests/support.ts')))
+    const fixture=support.fixture()
+    result.outputs.preparedEvaluation=fixture.evaluation
+    return {api,invoke:()=>api.buildTableContents(fixture.evaluation,fixture.order,fixture.definitions),again:()=>api.buildTableContents(fixture.evaluation,fixture.order,fixture.definitions)}
+  }
+  const support=await import(fileUrl(join(root,members.eis,'tests/support.ts')))
+  observed.stage('boot-existing-file-empty-deployment')
+  const beforeBoot=observed.mains().length
+  host=await support.boot(database,[])
+  if(mode!=='behavior')assert.equal(observed.mains().length,beforeBoot,'empty deployment setup does not touch AM')
+  return {api,invoke:()=>reader=api.createEvaluationInputReader({...host.deps,deployedOfficial:support.deployments}),again:()=>secondReader=api.createEvaluationInputReader({...host.deps,deployedOfficial:support.deployments})}
+}
+async function publicBusiness(action) {
+  if(target==='ae') {
+    assert.deepEqual(action.api.readWorkspaceCarrier(carrier,workspace),{ok:{holdings:[],dropped:[]}})
+    const fixture=await import(fileUrl(join(root,members.ae,'tests/fixtures.ts')))
+    const valid=action.api.evaluate(fixture.simple())
+    assert.ok('ok' in valid)
+    const invalid=action.api.readWorkspaceCarrier({...carrier,format:2},workspace)
+    assert.ok('invalidInput' in invalid)
+    result.outputs.valid=valid;result.outputs.invalid=invalid
+  } else if(target==='registry') {
+    const valid=action.invoke();assert.ok('plans' in valid)
+    const invalid=action.api.buildTableContents({},[],[])
+    assert.deepEqual(invalid,{failure:'invalidInput'})
+    result.outputs.valid=valid;result.outputs.invalid=invalid
+  } else {
+    const metadata=JSON.parse(readFileSync(seedMetadata,'utf8'))
+    observed.stage('first-real-read-additional-AE-owner-allowed')
+    const valid=await reader.read(metadata.session,metadata.tenant);assert.ok('input' in valid)
+    const count=observed.mains().length
+    observed.stage('second-real-read')
+    const repeated=await reader.read(metadata.session,metadata.tenant)
+    assert.deepEqual(repeated,valid)
+    if(mode!=='behavior')assert.equal(observed.mains().length,count,'both EIS and AE successful owners reused')
+    const invalid=await reader.read(null,metadata.tenant)
+    assert.deepEqual(invalid,{failure:'invalidInput'})
+    result.outputs.valid=valid;result.outputs.invalid=invalid
+  }
+}
+try {
+  if(mode==='lifecycle'||mode==='retry'||mode==='behavior') {
+    const action=await setupAction()
+    const base=observed.requests.length
+    let failedInstance
+    if(mode==='retry') {
+      observed.stage('failed-first-public-use');observed.arm()
+      let caught
+      try {await action.invoke()}catch(error){caught=error}
+      assert.equal(caught,observed.fault,'original error object crosses actual public boundary')
+      failedInstance=observed.requests.at(-1).instance
+      assert.equal(observed.requests.at(-1).outcome,'injected-original-error')
+      result.originalFailureIdentity=true
+    }
+    const before=observed.requests.length
+    observed.stage(mode==='retry'?'recovered-public-use':'first-public-use')
+    const first=await action.invoke()
+    if(target!=='eis')result.outputs.first=first
+    if(mode!=='behavior') {
+      const owner=observed.completeSince(before)
+      if(failedInstance!==undefined)assert.notEqual(owner,failedInstance,'failed owner was not cached')
+      result.successfulOwner=owner
+    }
+    const mains=observed.mains().length
+    observed.stage('second-public-use')
+    const second=await action.again()
+    if(target!=='eis')assert.deepEqual(second,first)
+    if(mode!=='behavior')assert.equal(observed.mains().length,mains,'successful target owner reused')
+    result.firstUseRequestOffset=base
+    await publicBusiness(action)
+  } else if(mode==='snapshot') {
+    const api=await import(parent)
+    assert.equal(observed.mains().length,0)
+    result.published=await checkPublished(api,parent)
+    assert.equal(observed.mains().length,0,'publishing and port actions do not construct default AM owner')
+  } else if(mode==='explicit') {
+    const api=await import(parent),am=observed.am
+    assert.equal(observed.mains().length,0)
+    const bodies=api.defaultBodyContracts
+    const beforeBad=observed.requests.length
+    assert.throws(()=>am.createAssetModelJudge({...bodies,tool:{...bodies.tool,schema:{}}}),TypeError)
+    assert.equal(observed.requests.length,beforeBad,'bad explicit supply rejected immediately')
+    const owner=am.createAssetModelJudge(bodies)
+    observed.completeSince(beforeBad)
+    const author={type:'string',minLength:3}
+    const declaration={item:'qaText',kind:'setting',category:'preference',domain:{kind:'open',schema:author},default:'accepted'}
+    const preserved=JSON.stringify(declaration)
+    const before=observed.requests.length
+    for(let index=0;index<2;index++)assert.deepEqual(owner.judgeAssetValue('AttributeDeclaration',declaration),{ok:true})
+    const authors=observed.requests.slice(before).filter(item=>!item.main)
+    assert.equal(authors.length,2,'no author Schema cache across identical calls')
+    assert.equal(new Set(authors.map(item=>item.instance)).size,2)
+    assert.equal(JSON.stringify(declaration),preserved)
+    assert.equal(observed.requests.slice(before).filter(item=>item.main).length,0)
+    result.authorRequests=authors;result.explicitImmediate=true
+  } else if(mode==='cross') {
+    const aeUrl=resolve('@omne-harness-lite/asset-evaluation',parent)
+    const api=await import(aeUrl)
+    assert.equal(observed.mains().length,0)
+    result.resolvedAE=aeUrl
+    result.published=await checkPublished(api,aeUrl)
+    const loop=(await import(resolve('@omne-harness-lite/loop-extension/schema/v3',aeUrl),{with:{type:'json'}})).default
+    const captured=JSON.stringify(api.defaultBodyContracts.loop_extension.schema)
+    const originalId=loop.$id
+    loop.$id='https://qa.invalid/after-publication-lc3.schema.json'
+    loop.$defs.Power.enum.splice(0,loop.$defs.Power.enum.length,'qa-impossible-power')
+    loop.$defs.LoopExtensionDefinition.properties.name={const:'qa-impossible-name'}
+    assert.equal(observed.mains().length,0,'mutation happened before any default construction')
+    assert.equal(JSON.stringify(api.defaultBodyContracts.loop_extension.schema),captured)
+    assert.deepEqual(api.defaultBodyContracts.loop_extension.judge('veto',{definition:'Power'}),{ok:true})
+    for(const consumer of ['registry','eis']) {
+      const consumerUrl=entry(root,consumer,flavor)
+      const actualAE=await dependency('@omne-harness-lite/asset-evaluation',consumerUrl)
+      assert.equal(actualAE.defaultBodyContracts,api.defaultBodyContracts,'same public AE dependency instance')
+      observed.stage('later-'+consumer+'-import')
+      const before=observed.mains().length
+      await import(consumerUrl)
+      assert.equal(observed.mains().length,before)
+    }
+    observed.stage('post-mutation-real-registry-business')
+    const support=await import(fileUrl(join(root,members.registry,'tests/support.ts')))
+    const fixture=support.fixture()
+    const registry=await import(entry(root,'registry',flavor))
+    const built=registry.buildTableContents(fixture.evaluation,fixture.order,fixture.definitions)
+    assert.ok('plans' in built);result.outputs.registry=built
+    observed.stage('post-mutation-real-eis-business')
+    const supportEIS=await import(fileUrl(join(root,members.eis,'tests/support.ts')))
+    host=await supportEIS.boot(database,[])
+    const eis=await import(entry(root,'eis',flavor))
+    reader=eis.createEvaluationInputReader({...host.deps,deployedOfficial:supportEIS.deployments})
+    const metadata=JSON.parse(readFileSync(seedMetadata,'utf8'))
+    const current=await reader.read(metadata.session,metadata.tenant)
+    assert.ok('input' in current);result.outputs.eis=current
+    assert.equal(JSON.stringify(api.defaultBodyContracts.loop_extension.schema),captured)
+    const capturedAdds=observed.resources.filter(item=>item.schema?.$id===originalId)
+    assert.ok(capturedAdds.length>=3,'AE, registry and EIS real compilers register the published LC3')
+    for(const added of capturedAdds) {
+      assert.ok(added.schema.$defs.Power.enum.includes('veto'))
+      assert.ok(!added.schema.$defs.Power.enum.includes('qa-impossible-power'))
+      assert.ok(!Object.hasOwn(added.schema.$defs.LoopExtensionDefinition.properties.name,'const'))
+    }
+    assert.equal(observed.resources.filter(item=>item.schema?.$id===loop.$id).length,0)
+    result.originalLC3Mutable=true;result.compiledOldLC3=capturedAdds.length
+  } else throw new Error('Unknown preparation mode '+mode)
+  result.status='PASS'
+} catch(error) {result.status='FAIL';result.error=String(error);process.exitCode=1}
+finally {
+  await reader?.close();await secondReader?.close();await host?.close(false)
+  observed.restore()
+  result.requests=observed.requests;result.resources=observed.resources
+  const cb=await dependency('@omne-harness-lite/content-blocks',parent)
+  result.businessText=cb.writeJsonLossless(result.outputs)
+  writeFileSync(output,JSON.stringify(result,null,2)+'\n')
+  console.log(result.status,flavor,target,mode)
+}

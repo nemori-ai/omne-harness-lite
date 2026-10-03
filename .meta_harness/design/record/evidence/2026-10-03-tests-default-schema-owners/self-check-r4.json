@@ -1,0 +1,34 @@
+{
+  "head": "b03945d7ea2ed341e37569f6b0a30078a9aaca39",
+  "base": "52bc6005dc168f2254d21ff79f6cd2df021676b8",
+  "scope": "Continue only remaining independent slow members and source reader. Original AE identity assertion failure remains unresolved in r3.",
+  "steps": [
+    {
+      "name": "packages__model__model-request-runtime-slow",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r4/packages__model__model-request-runtime-slow.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/packages/model/model-request-runtime",
+      "exit_code": 1,
+      "wall_seconds": 74.77189652400557,
+      "tests": {
+        "numTotalTests": 148,
+        "numPassedTests": 147,
+        "numFailedTests": 1,
+        "numPendingTests": 0
+      }
+    }
+  ],
+  "previous": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r3/result.json"
+}

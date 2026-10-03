@@ -1,0 +1,193 @@
+{
+  "head": "75c6a66eff119dc702224cab1265ba2564464dd8",
+  "base": "52bc6005dc168f2254d21ff79f6cd2df021676b8",
+  "scope": "Final AE identity-assertion migration: original file, AE test types, source reader, actual final plan and scoped acceptance ledger. Other completed product/check inputs unchanged.",
+  "steps": [
+    {
+      "name": "plan",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "--experimental-strip-types",
+        "tools/ts-checks/src/testing/cli.ts",
+        "plan",
+        "--base",
+        "52bc6005dc168f2254d21ff79f6cd2df021676b8",
+        "--json",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r6/plan.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation",
+      "exit_code": 0,
+      "wall_seconds": 0.4165661199949682,
+      "tests": {}
+    },
+    {
+      "name": "ae-identity",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/body-domain.spec.ts",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r6/ae-identity.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/packages/core/asset-evaluation",
+      "exit_code": 0,
+      "wall_seconds": 4.784848382987548,
+      "tests": {
+        "numTotalTests": 14,
+        "numPassedTests": 14,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "ae-type",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/packages/core/asset-evaluation",
+      "exit_code": 0,
+      "wall_seconds": 4.140226015006192
+    },
+    {
+      "name": "inventory-build",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "pnpm",
+        "run",
+        "build"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tools/core-verification",
+      "exit_code": 0,
+      "wall_seconds": 4.507715787971392
+    },
+    {
+      "name": "inventory-type",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tools/core-verification",
+      "exit_code": 0,
+      "wall_seconds": 4.635596283013001
+    },
+    {
+      "name": "inventory-identity",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/w6-asset-consumer.spec.ts",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r6/inventory-identity.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tools/core-verification",
+      "exit_code": 0,
+      "wall_seconds": 20.76245200104313,
+      "tests": {
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "source-reader",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/group-direction.spec.ts",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r6/source-reader.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tools/ts-checks",
+      "exit_code": 0,
+      "wall_seconds": 5.742958462040406,
+      "tests": {
+        "numTotalTests": 10,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 9
+      }
+    },
+    {
+      "name": "acceptance",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "--experimental-strip-types",
+        "tools/ts-checks/src/testing/cli.ts",
+        "step",
+        "acceptance",
+        "--plan",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r6/plan.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation",
+      "exit_code": 0,
+      "wall_seconds": 0.4207332579535432
+    }
+  ],
+  "reused_runs": [
+    "default-owners-self-r1:three builds",
+    "default-owners-self-r2:AE native",
+    "default-owners-self-r3:other native,8 types,all fast,LER/AMS/EIS slow,AE127 successes with one unresolved old identity failure",
+    "default-owners-self-r4:MRR147 successes and preserved unavailable failure",
+    "default-owners-self-r5:baseline/candidate MRR narrow retests,PI/registry slow plus core-verification25 successes and two preserved identity failures"
+  ],
+  "complete": true
+}
