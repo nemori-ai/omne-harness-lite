@@ -185,38 +185,26 @@ function validatePiece(initial: PositionedSubject, piece: RunnerPiece, seen: Set
 }
 
 function validateFallback(initial: PositionedSubject, piece: RunnerPiece, name: string): void {
-  switch (piece.fallback) {
-    case 'modality':
-      if (initial.position !== 'before_persist_message') throw new RunnerFailureSignal(invalidInput)
-      break
-    case 'admission':
-      if (
-        name !== 'omne-official:admission-judgment' ||
-        initial.position !== 'before_action' ||
-        piece.power !== 'veto'
-      )
-        throw new RunnerFailureSignal(invalidInput)
-      break
-    case 'retry':
-      if (
-        name !== 'omne-official:default-retry' ||
-        initial.position !== 'after_model_call' ||
-        initial.dimension.ending !== 'failure' ||
-        piece.power !== 'rewrite'
-      )
-        throw new RunnerFailureSignal(invalidInput)
-      break
-    case 'offload':
-      if (
-        name !== 'omne-official:offload-judgment' ||
-        initial.position !== 'after_action' ||
-        initial.dimension.scope !== 'each'
-      )
-        throw new RunnerFailureSignal(invalidInput)
-      break
-    case 'loop':
-      if (initial.position !== 'after_model_call' || initial.dimension.ending !== 'complete_reply')
-        throw new RunnerFailureSignal(invalidInput)
+  if (piece.fallback !== undefined) {
+    if (
+      (piece.fallback === 'modality' && initial.position !== 'before_persist_message') ||
+      (piece.fallback === 'admission' &&
+        (name !== 'omne-official:admission-judgment' ||
+          initial.position !== 'before_action' ||
+          piece.power !== 'veto')) ||
+      (piece.fallback === 'retry' &&
+        (name !== 'omne-official:default-retry' ||
+          initial.position !== 'after_model_call' ||
+          initial.dimension.ending !== 'failure' ||
+          piece.power !== 'rewrite')) ||
+      (piece.fallback === 'offload' &&
+        (name !== 'omne-official:offload-judgment' ||
+          initial.position !== 'after_action' ||
+          initial.dimension.scope !== 'each')) ||
+      (piece.fallback === 'loop' &&
+        (initial.position !== 'after_model_call' || initial.dimension.ending !== 'complete_reply'))
+    )
+      throw new RunnerFailureSignal(invalidInput)
   }
 }
 

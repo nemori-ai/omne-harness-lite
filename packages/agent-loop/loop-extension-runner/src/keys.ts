@@ -72,8 +72,13 @@ export function encodeRunnerKey(parts: readonly (string | null)[]): string {
   return `${runnerFormat}/${JSON.stringify(parts)}`
 }
 
-function hasUndefinedOption(input: RunnerKeyInput): boolean {
-  const { dimension, extension, occurrence, modelCallId } = input
+function hasUndefinedOption(
+  input: RunnerKeyInput,
+  dimension: Dimension | undefined,
+  extension: string | undefined,
+  occurrence: RunnerOccurrence | undefined,
+  modelCallId: string | undefined,
+): boolean {
   if (
     (Object.hasOwn(input, 'dimension') && dimension === undefined) ||
     (Object.hasOwn(input, 'extension') && extension === undefined) ||
@@ -112,7 +117,7 @@ function validModelCall(
 export function passKeys(input: RunnerKeyInput): RunnerKeys | typeof invalid {
   if (!keyInputShape(input)) return invalid
   const { position, dimension, anchor, extension, occurrence, modelCallId } = input
-  if (hasUndefinedOption(input)) return invalid
+  if (hasUndefinedOption(input, dimension, extension, occurrence, modelCallId)) return invalid
   if (!POSITIONS.includes(position) || !identity(anchor)) return invalid
   const part = dimensionPart(position, dimension)
   if (part === undefined) return invalid
