@@ -72,6 +72,18 @@ export function encodeRunnerKey(parts: readonly (string | null)[]): string {
   return `${runnerFormat}/${JSON.stringify(parts)}`
 }
 
+function hasUndefinedOption(input: RunnerKeyInput): boolean {
+  const { dimension, extension, occurrence, modelCallId } = input
+  if (
+    (Object.hasOwn(input, 'dimension') && dimension === undefined) ||
+    (Object.hasOwn(input, 'extension') && extension === undefined) ||
+    (Object.hasOwn(input, 'occurrence') && occurrence === undefined) ||
+    (Object.hasOwn(input, 'modelCallId') && modelCallId === undefined)
+  )
+    return true
+  return false
+}
+
 export function passKeys(input: RunnerKeyInput): RunnerKeys | typeof invalid {
   if (
     !object(input) ||
@@ -84,13 +96,7 @@ export function passKeys(input: RunnerKeyInput): RunnerKeys | typeof invalid {
   )
     return invalid
   const { position, dimension, anchor, extension, occurrence, modelCallId } = input
-  if (
-    (Object.hasOwn(input, 'dimension') && dimension === undefined) ||
-    (Object.hasOwn(input, 'extension') && extension === undefined) ||
-    (Object.hasOwn(input, 'occurrence') && occurrence === undefined) ||
-    (Object.hasOwn(input, 'modelCallId') && modelCallId === undefined)
-  )
-    return invalid
+  if (hasUndefinedOption(input)) return invalid
   if (!POSITIONS.includes(position) || !identity(anchor)) return invalid
   const part = dimensionPart(position, dimension)
   if (part === undefined) return invalid
@@ -108,6 +114,17 @@ export function passKeys(input: RunnerKeyInput): RunnerKeys | typeof invalid {
       ? {}
       : { modelCall: encodeRunnerKey(['model-call', modelCallId]) }),
   }
+  return occurrenceKeys(base, position, part, anchor, extension, occurrence)
+}
+
+function occurrenceKeys(
+  base: RunnerKeys,
+  position: Position,
+  part: string | null,
+  anchor: string,
+  extension: string | undefined,
+  occurrence: RunnerOccurrence | undefined,
+): RunnerKeys | typeof invalid {
   if (occurrence === undefined) return base
   if (!object(occurrence) || extension === undefined) return invalid
   if (occurrence.kind === 'final' && Object.keys(occurrence).length === 1) {

@@ -83,16 +83,11 @@ function occurrence(value: unknown): RunnerOccurrence | undefined {
     return { kind: 'ask', ordinal: value.ordinal }
   return undefined
 }
-function messageCopies(
-  value: unknown,
-  record: Conclusion,
-): readonly SystemReminderMessage[] | undefined {
-  if (!Array.isArray(value)) return undefined
-  const output = 'output' in record ? record.output : undefined
-  if (output?.kind === 'inject' && value.length !== 1) return undefined
-  if (output?.kind !== 'inject' && value.length > 1) return undefined
+function allowsCopies(count: number, record: Conclusion, output: Conclusion['output']): boolean {
+  if (output?.kind === 'inject' && count !== 1) return false
+  if (output?.kind !== 'inject' && count > 1) return false
   if (
-    value.length > 0 &&
+    count > 0 &&
     output?.kind !== 'inject' &&
     !(
       record.position === 'before_persist_message' &&
@@ -100,15 +95,35 @@ function messageCopies(
         output?.kind === 'veto')
     )
   )
+    return false
+  return true
+}
+
+function reminderCopy(
+  raw: unknown,
+  record: Conclusion,
+  output: Conclusion['output'],
+): SystemReminderMessage | undefined {
+  const judged = judgeMessage(raw)
+  if (!('ok' in judged) || judged.ok.type !== 'system_reminder') return undefined
+  const item = judged.ok
+  if (item.source.kind !== 'extension' || item.source.extension !== record.extension)
     return undefined
+  if (output?.kind !== 'inject' && item.nature !== 'event') return undefined
+  return item
+}
+
+function messageCopies(
+  value: unknown,
+  record: Conclusion,
+): readonly SystemReminderMessage[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const output = 'output' in record ? record.output : undefined
+  if (!allowsCopies(value.length, record, output)) return undefined
   const messages: SystemReminderMessage[] = []
   for (const raw of value) {
-    const judged = judgeMessage(raw)
-    if (!('ok' in judged) || judged.ok.type !== 'system_reminder') return undefined
-    const item = judged.ok
-    if (item.source.kind !== 'extension' || item.source.extension !== record.extension)
-      return undefined
-    if (output?.kind !== 'inject' && item.nature !== 'event') return undefined
+    const item = reminderCopy(raw, record, output)
+    if (item === undefined) return undefined
     const key = encodeModelLogKey({ kind: 'message', message: item.id })
     if (!('ok' in key) || messages.some(previous => previous.id === item.id)) return undefined
     messages.push(item)
@@ -132,6 +147,35 @@ function execution(value: unknown, position: Conclusion['position']): RunnerExec
     : undefined
 }
 
+function conclusionKeys(value: Conclusion, anchor: string, kind: RunnerOccurrence) {
+  const keys = passKeys({
+    position: value.position,
+    ...(value.dimension === undefined ? {} : { dimension: value.dimension }),
+    anchor: anchor,
+    extension: value.extension,
+    occurrence: kind,
+    ...(value.modelCallId === undefined ? {} : { modelCallId: value.modelCallId }),
+  })
+  return keys
+}
+
+function prepareValues(source: Record<string, unknown>) {
+  const tenant = parseTenantId(source.tenant)
+  const value = conclusion(source.value)
+  if (!('ok' in tenant) || value === undefined) return undefined
+  const kind = occurrence(source.occurrence)
+  const exec = execution(source.execution, value.position)
+  if (
+    kind === undefined ||
+    exec === undefined ||
+    (value.output?.kind === 'ask') !== (kind.kind === 'ask')
+  )
+    return undefined
+  const reminders = messageCopies(source.reminders, value)
+  if (reminders === undefined) return undefined
+  return { tenant: tenant.ok, value, kind, exec, reminders }
+}
+
 export function prepareRunnerConclusion(
   input: PrepareRunnerConclusionInput,
 ): { readonly entry: LogEntryInput } | typeof invalidInput {
@@ -152,27 +196,10 @@ export function prepareRunnerConclusion(
     return invalidInput
   const source = copied.ok
   if (!identity(source.session) || !identity(source.anchor)) return invalidInput
-  const tenant = parseTenantId(source.tenant)
-  const value = conclusion(source.value)
-  if (!('ok' in tenant) || value === undefined) return invalidInput
-  const kind = occurrence(source.occurrence)
-  const exec = execution(source.execution, value.position)
-  if (
-    kind === undefined ||
-    exec === undefined ||
-    (value.output?.kind === 'ask') !== (kind.kind === 'ask')
-  )
-    return invalidInput
-  const reminders = messageCopies(source.reminders, value)
-  if (reminders === undefined) return invalidInput
-  const keys = passKeys({
-    position: value.position,
-    ...(value.dimension === undefined ? {} : { dimension: value.dimension }),
-    anchor: source.anchor,
-    extension: value.extension,
-    occurrence: kind,
-    ...(value.modelCallId === undefined ? {} : { modelCallId: value.modelCallId }),
-  })
+  const parsed = prepareValues(source)
+  if (parsed === undefined) return invalidInput
+  const { tenant, value, kind, exec, reminders } = parsed
+  const keys = conclusionKeys(value, source.anchor, kind)
   if ('invalidInput' in keys) return invalidInput
   const dedupeKey = kind.kind === 'ask' ? keys.ask : keys.final
   if (dedupeKey === undefined) return invalidInput
@@ -191,7 +218,7 @@ export function prepareRunnerConclusion(
     reminders,
   })
   const entry: LogEntryInput = Object.freeze({
-    tenant: tenant.ok,
+    tenant,
     ...(exec.kind === 'withRun' ? { run: exec.run, attempt: exec.attempt } : {}),
     dedupeKey,
     readKeys: Object.freeze(readKeys),
@@ -207,35 +234,12 @@ export function prepareRunnerConclusion(
   return owned === undefined ? invalidInput : { entry: owned }
 }
 
-export function inspectRunnerConclusion(input: {
-  readonly session: string
-  readonly tenant: TenantId
-  readonly entry: LogEntry
-}): InspectedRunnerConclusion | typeof unrelated | typeof invalid {
-  const copied = copyJsonValue(input)
-  if ('failed' in copied || !object(copied.ok)) return invalid
-  const source = copied.ok
-  const entry = source.entry
-  if (!object(entry)) return invalid
-  const payload = entry.payload
-  const keyClaims =
-    claimsRunnerKey(entry.dedupeKey) ||
-    (Array.isArray(entry.readKeys) && entry.readKeys.some(claimsRunnerKey))
-  const payloadClaims =
-    object(payload) &&
-    ((typeof payload.format === 'string' && payload.format.startsWith('runner/')) ||
-      payload.category === 'conclusion')
-  if (!keyClaims && !payloadClaims) return unrelated
-  if (
-    !identity(source.session) ||
-    !object(payload) ||
-    payload.format !== runnerFormat ||
-    payload.category !== 'conclusion' ||
-    !only(payload, ['format', 'category', 'anchor', 'occurrence', 'value', 'reminders']) ||
-    Object.keys(payload).length !== 6
-  )
-    return invalid
-  const tenant = parseTenantId(source.tenant)
+function inspectShell(
+  entry: Record<string, unknown>,
+  session: string,
+  tenantValue: unknown,
+): LogEntryInput | undefined {
+  const tenant = parseTenantId(tenantValue)
   if (
     !('ok' in tenant) ||
     !only(entry, [
@@ -248,24 +252,71 @@ export function inspectRunnerConclusion(input: {
       'session',
       'position',
     ]) ||
-    entry.session !== source.session
+    entry.session !== session
   )
-    return invalid
+    return undefined
   if (
     !isNonNegativeJsonInteger(entry.position) ||
     ExactDecimal.from(entry.position).compare(ExactDecimal.from(0)) <= 0
   )
-    return invalid
+    return undefined
   const { session: _session, position: _position, ...shell } = entry
   const checked = checkAppendInput(
-    source.session,
+    session,
     [shell],
     { kind: 'unfenced' },
     { kind: 'unconditional' },
   )
-  if (!('ok' in checked)) return invalid
+  if (!('ok' in checked)) return undefined
   const owned = checked.ok.entries[0]
-  if (owned === undefined || !tenantIdEquals(owned.tenant, tenant.ok)) return invalid
+  if (owned === undefined || !tenantIdEquals(owned.tenant, tenant.ok)) return undefined
+  return owned
+}
+
+function claimsConclusion(entry: Record<string, unknown>, payload: unknown): boolean {
+  const keyClaims =
+    claimsRunnerKey(entry.dedupeKey) ||
+    (Array.isArray(entry.readKeys) && entry.readKeys.some(claimsRunnerKey))
+  const payloadClaims =
+    object(payload) &&
+    ((typeof payload.format === 'string' && payload.format.startsWith('runner/')) ||
+      payload.category === 'conclusion')
+  return keyClaims || payloadClaims
+}
+
+export function inspectRunnerConclusion(input: {
+  readonly session: string
+  readonly tenant: TenantId
+  readonly entry: LogEntry
+}): InspectedRunnerConclusion | typeof unrelated | typeof invalid {
+  const copied = copyJsonValue(input)
+  if ('failed' in copied || !object(copied.ok)) return invalid
+  const source = copied.ok
+  const entry = source.entry
+  if (!object(entry)) return invalid
+  const payload = entry.payload
+  if (!claimsConclusion(entry, payload)) return unrelated
+  if (
+    !identity(source.session) ||
+    !object(payload) ||
+    payload.format !== runnerFormat ||
+    payload.category !== 'conclusion' ||
+    !only(payload, ['format', 'category', 'anchor', 'occurrence', 'value', 'reminders']) ||
+    Object.keys(payload).length !== 6
+  )
+    return invalid
+  const owned = inspectShell(entry, source.session, source.tenant)
+  if (owned === undefined) return invalid
+  const parsed = inspectPayload(payload, owned)
+  if (parsed === undefined) return invalid
+  if (!matchesConclusionKeys(owned, parsed)) return invalid
+  return Object.freeze(parsed)
+}
+
+function inspectPayload(
+  payload: Record<string, unknown>,
+  owned: LogEntryInput,
+): InspectedRunnerConclusion | undefined {
   const value = conclusion(payload.value)
   const kind = occurrence(payload.occurrence)
   if (
@@ -274,25 +325,23 @@ export function inspectRunnerConclusion(input: {
     !identity(payload.anchor) ||
     (value.output?.kind === 'ask') !== (kind.kind === 'ask')
   )
-    return invalid
+    return undefined
   const reminders = messageCopies(payload.reminders, value)
-  if (reminders === undefined) return invalid
+  if (reminders === undefined) return undefined
   const exec = execution(
     owned.run === undefined
       ? { kind: 'noRun' }
       : { kind: 'withRun', run: owned.run, attempt: owned.attempt },
     value.position,
   )
-  if (exec === undefined) return invalid
-  const keys = passKeys({
-    position: value.position,
-    ...(value.dimension === undefined ? {} : { dimension: value.dimension }),
-    anchor: payload.anchor,
-    extension: value.extension,
-    occurrence: kind,
-    ...(value.modelCallId === undefined ? {} : { modelCallId: value.modelCallId }),
-  })
-  if ('invalidInput' in keys) return invalid
+  if (exec === undefined) return undefined
+  return { conclusion: value, anchor: payload.anchor, occurrence: kind, reminders, execution: exec }
+}
+
+function matchesConclusionKeys(owned: LogEntryInput, parsed: InspectedRunnerConclusion): boolean {
+  const { conclusion: value, anchor, occurrence: kind } = parsed
+  const keys = conclusionKeys(value, anchor, kind)
+  if ('invalidInput' in keys) return false
   const dedupeKey = kind.kind === 'ask' ? keys.ask : keys.final
   const expected = [
     dedupeKey,
@@ -306,12 +355,6 @@ export function inspectRunnerConclusion(input: {
     owned.readKeys.length !== expected.length ||
     expected.some((key, index) => owned.readKeys[index] !== key)
   )
-    return invalid
-  return Object.freeze({
-    conclusion: value,
-    anchor: payload.anchor,
-    occurrence: kind,
-    reminders,
-    execution: exec,
-  })
+    return false
+  return true
 }

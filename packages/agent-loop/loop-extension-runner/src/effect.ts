@@ -34,53 +34,72 @@ export function composeEffect(
   if (!('ok' in first)) return invalidInput
   let current: PositionedSubject = first.ok
   for (const [index, raw] of copied.ok.entries()) {
-    let admitted: ReturnType<typeof judgeConclusionForSubject>
-    try {
-      admitted = judgeConclusionForSubject(raw, {
-        positionedSubject: current,
-        extensionName:
-          raw !== null &&
-          typeof raw === 'object' &&
-          !Array.isArray(raw) &&
-          'extension' in raw &&
-          typeof raw.extension === 'string'
-            ? raw.extension
-            : '',
-      })
-    } catch (error) {
-      if (error instanceof TypeError) return invalidInput
-      throw error
-    }
-    if (!('ok' in admitted)) return invalidInput
-    const item = admitted.ok
-    if (item.skipped === 'unavailable' && item.unavailability === 'veto') {
-      if (index !== copied.ok.length - 1) return invalidInput
-      return { effect: { kind: 'vetoed', by: item.extension } }
-    }
-    const output = item.output
-    if (output === undefined || output.kind === 'observed' || output.kind === 'inject') continue
-    if (output.kind === 'rewrite') {
-      const next = judgePositionedSubject({ ...current, subject: output.subject })
-      if (!('ok' in next)) return invalidInput
-      current = next.ok
-      continue
-    }
-    if (output.kind === 'select_model') {
-      if (current.position !== 'before_model_call') return invalidInput
-      const next = judgePositionedSubject({
-        ...current,
-        subject: { request: { ...current.subject.request, target: output.profile } },
-      })
-      if (!('ok' in next)) return invalidInput
-      current = next.ok
-      continue
-    }
-    if (index !== copied.ok.length - 1) return invalidInput
-    if (output.kind === 'veto') return { effect: { kind: 'vetoed', by: item.extension } }
-    if (output.kind === 'stop') return { effect: { kind: 'stopped', by: item.extension } }
-    if (output.kind === 'ask')
-      return { effect: { kind: 'asked', card: output.card, by: item.extension } }
-    if (output.kind === 'retry') return { effect: { kind: 'retry', plan: output.plan } }
+    const item = admitConclusion(raw, current)
+    if (item === undefined) return invalidInput
+    const applied = applyConclusion(current, item)
+    if ('invalidInput' in applied) return invalidInput
+    if ('effect' in applied) return index === copied.ok.length - 1 ? applied : invalidInput
+    current = applied.current
   }
   return { effect: { kind: 'proceed', subject: current.subject } }
+}
+
+function admitConclusion(raw: unknown, current: PositionedSubject): Conclusion | undefined {
+  let admitted: ReturnType<typeof judgeConclusionForSubject>
+  try {
+    admitted = judgeConclusionForSubject(raw, {
+      positionedSubject: current,
+      extensionName:
+        raw !== null &&
+        typeof raw === 'object' &&
+        !Array.isArray(raw) &&
+        'extension' in raw &&
+        typeof raw.extension === 'string'
+          ? raw.extension
+          : '',
+    })
+  } catch (error) {
+    if (error instanceof TypeError) return undefined
+    throw error
+  }
+  return 'ok' in admitted ? admitted.ok : undefined
+}
+
+function terminalEffect(
+  item: Conclusion,
+  output: NonNullable<Conclusion['output']>,
+): RunnerEffect | undefined {
+  if (output.kind === 'veto') return { kind: 'vetoed', by: item.extension }
+  if (output.kind === 'stop') return { kind: 'stopped', by: item.extension }
+  if (output.kind === 'ask') return { kind: 'asked', card: output.card, by: item.extension }
+  if (output.kind === 'retry') return { kind: 'retry', plan: output.plan }
+  return undefined
+}
+
+function applyConclusion(
+  current: PositionedSubject,
+  item: Conclusion,
+):
+  | { readonly current: PositionedSubject }
+  | { readonly effect: RunnerEffect }
+  | typeof invalidInput {
+  if (item.skipped === 'unavailable' && item.unavailability === 'veto')
+    return { effect: { kind: 'vetoed', by: item.extension } }
+  const output = item.output
+  if (output === undefined || output.kind === 'observed' || output.kind === 'inject')
+    return { current }
+  if (output.kind === 'rewrite') {
+    const next = judgePositionedSubject({ ...current, subject: output.subject })
+    return 'ok' in next ? { current: next.ok } : invalidInput
+  }
+  if (output.kind === 'select_model') {
+    if (current.position !== 'before_model_call') return invalidInput
+    const next = judgePositionedSubject({
+      ...current,
+      subject: { request: { ...current.subject.request, target: output.profile } },
+    })
+    return 'ok' in next ? { current: next.ok } : invalidInput
+  }
+  const effect = terminalEffect(item, output)
+  return effect === undefined ? { current } : { effect }
 }
