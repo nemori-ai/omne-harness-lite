@@ -1,3 +1,4 @@
+import { messageToolCalls, promptTools } from './deepseek-prompt.ts'
 import { defineInputMeter } from '../input-meter.ts'
 import {
   measureDeepSeekBoundary,
@@ -234,18 +235,6 @@ function mergeUserBlocks(blocks: readonly MergedBlock[], merged: PromptMessage[]
   merged.push({ role: 'user', content: '', reasoning: '', toolCalls: [], blocks })
 }
 
-function messageToolCalls(raw: JsonObject): JsonObject[] | undefined {
-  const toolCalls: JsonObject[] = []
-  if (raw.tool_calls !== undefined) {
-    if (!Array.isArray(raw.tool_calls)) return undefined
-    for (const call of raw.tool_calls) {
-      if (!object(call)) return undefined
-      toolCalls.push(call)
-    }
-  }
-  return toolCalls
-}
-
 function reorderToolResults(merged: PromptMessage[]): PromptMessage[] | undefined {
   let order = new Map<string, number>()
   for (const [index, message] of merged.entries()) {
@@ -303,20 +292,6 @@ export function renderDeepSeekV41Prompt(
     prompt += assistantPrefix(message, messages[index + 1], index, lastUser, tools, thinkingMode)
   }
   return prompt
-}
-
-function promptTools(body: JsonObject): readonly JsonObject[] | undefined {
-  let tools: readonly JsonObject[] = []
-  if (body.tools !== undefined) {
-    if (!Array.isArray(body.tools)) return undefined
-    const checked: JsonObject[] = []
-    for (const tool of body.tools) {
-      if (!object(tool) || !object(tool.function)) return undefined
-      checked.push(tool)
-    }
-    tools = checked
-  }
-  return tools
 }
 
 function instructionPrefix(

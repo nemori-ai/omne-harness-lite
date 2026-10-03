@@ -1,3 +1,4 @@
+import { messageToolCalls, promptTools } from './deepseek-prompt.ts'
 import { defineInputMeter } from '../input-meter.ts'
 import {
   measureDeepSeekBoundary,
@@ -178,18 +179,6 @@ function mergeUserContent(content: string, merged: PromptMessage[]): void {
   merged.push({ role: 'user', content, reasoning: '', toolCalls: [], blocks: [block] })
 }
 
-function messageToolCalls(raw: JsonObject): JsonObject[] | undefined {
-  const toolCalls: JsonObject[] = []
-  if (raw.tool_calls !== undefined) {
-    if (!Array.isArray(raw.tool_calls)) return undefined
-    for (const call of raw.tool_calls) {
-      if (!object(call)) return undefined
-      toolCalls.push(call)
-    }
-  }
-  return toolCalls
-}
-
 function messageReasoning(raw: JsonObject): string {
   return typeof raw.reasoning_content === 'string'
     ? raw.reasoning_content
@@ -222,20 +211,6 @@ export function renderDeepSeekV4Prompt(
     prompt += assistantPrefix(message, messages[index + 1], index, lastUser, tools, thinkingMode)
   }
   return prompt
-}
-
-function promptTools(body: JsonObject): readonly JsonObject[] | undefined {
-  let tools: readonly JsonObject[] = []
-  if (body.tools !== undefined) {
-    if (!Array.isArray(body.tools)) return undefined
-    const checked: JsonObject[] = []
-    for (const tool of body.tools) {
-      if (!object(tool) || !object(tool.function)) return undefined
-      checked.push(tool)
-    }
-    tools = checked
-  }
-  return tools
 }
 
 function renderMessage(

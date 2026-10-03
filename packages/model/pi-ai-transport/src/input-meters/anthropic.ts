@@ -1,3 +1,4 @@
+import { unsupportedToolCall, unsupportedTool } from './wire-validation.ts'
 import { fullOutputHistory, newOutputHistory, replayOutputHistory } from './output-history.ts'
 import {
   anthropicOutputHistoryPolicy,
@@ -188,21 +189,6 @@ function supportedInputBody(
   return true
 }
 
-function unsupportedTool(tool: JsonValue): boolean {
-  return (
-    !object(tool) ||
-    Object.keys(tool).some(key => key !== 'type' && key !== 'function') ||
-    tool.type !== 'function' ||
-    !object(tool.function) ||
-    Object.keys(tool.function).some(
-      key => key !== 'name' && key !== 'description' && key !== 'parameters',
-    ) ||
-    typeof tool.function.name !== 'string' ||
-    typeof tool.function.description !== 'string' ||
-    !object(tool.function.parameters)
-  )
-}
-
 function supportedMessage(
   message: JsonValue,
   ttlValues: ReadonlySet<string>,
@@ -254,19 +240,6 @@ function supportedToolCalls(message: JsonObject): boolean {
   return !(
     message.tool_calls !== undefined &&
     (!Array.isArray(message.tool_calls) || message.tool_calls.some(unsupportedToolCall))
-  )
-}
-
-function unsupportedToolCall(call: JsonValue): boolean {
-  return (
-    !object(call) ||
-    Object.keys(call).some(key => key !== 'id' && key !== 'type' && key !== 'function') ||
-    typeof call.id !== 'string' ||
-    call.type !== 'function' ||
-    !object(call.function) ||
-    Object.keys(call.function).some(key => key !== 'name' && key !== 'arguments') ||
-    typeof call.function.name !== 'string' ||
-    typeof call.function.arguments !== 'string'
   )
 }
 
