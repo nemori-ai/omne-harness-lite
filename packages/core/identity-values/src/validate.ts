@@ -1,45 +1,18 @@
 import { createRequire } from 'node:module'
-import { Ajv2020, type ValidateFunction } from 'ajv/dist/2020.js'
-
-const require = createRequire(import.meta.url)
-/** 规范工件在 spec 目录，这里是逐字节副本；副本漂移由测试核对。 */
-const schema = require('../schema/identity-values.schema.json') as {
-  $id: string
-  $defs: Record<string, unknown>
-}
-
-export const SCHEMA_DEF_NAMES = [
-  'OpaqueIdentifier',
-  'HandoffWarrant',
-  'LoginIdentifier',
-  'AccountId',
-  'OrganizationId',
-  'LoginStateId',
-  'OrganizationKind',
-  'TenantRole',
-  'TenantId',
-  'MembershipStanding',
-  'MembershipStandingResult',
-  'ScopeLayerIdentity',
-] as const
+import { schemaId, SCHEMA_DEF_NAMES } from './schema-inputs.ts'
+export { schemaId, SCHEMA_DEF_NAMES }
 
 export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number]
 
-// pattern 用了 (?![\s\S]) 与显式码点类，ECMA-262 语义下与 Python re 一致；ajv 默认按 'u' 编译，
-// 这里保持默认以便 \uXXXX 码点在 BMP 之外也按码点匹配。
-const ajv = new Ajv2020({ strict: true, allErrors: false })
-ajv.addSchema(schema)
-
-const validators = new Map<SchemaDefName, ValidateFunction>()
-
-function validatorFor(defName: SchemaDefName): ValidateFunction {
-  let fn = validators.get(defName)
-  if (fn === undefined) {
-    const ref = `${schema.$id}#/$defs/${defName}`
-    fn = ajv.getSchema(ref)
-    if (fn === undefined) throw new Error(`schema definition not found: ${defName}`)
-    validators.set(defName, fn)
-  }
+const require = createRequire(new URL('../package.json', import.meta.url))
+interface FixedValidator {
+  (value: unknown): unknown
+  readonly errors?: readonly { readonly instancePath: string; readonly message?: string }[] | null
+}
+function validatorFor(defName: SchemaDefName): FixedValidator {
+  const generated = require('./generated/ordinary.cjs') as Record<string, FixedValidator>
+  const fn = Object.hasOwn(generated, defName) ? generated[defName] : undefined
+  if (fn === undefined) throw new Error(`schema definition not found: ${defName}`)
   return fn
 }
 
@@ -60,5 +33,3 @@ export function validate(defName: SchemaDefName, value: unknown): SchemaValidati
     : (fn.errors ?? []).map(e => `${e.instancePath} ${e.message ?? ''}`.trim())
   return { valid, errors }
 }
-
-export const schemaId: string = schema.$id

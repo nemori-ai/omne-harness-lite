@@ -11,3 +11,5 @@ tmp/
 # make mutation 的 sandbox（与成员同深度，跑完删掉；被打断时可能留下）
 .stryker-tmp*
 .env
+# D-116 fixed Schema build output; published with its owning package.
+generated/
