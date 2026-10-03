@@ -2,6 +2,7 @@ import { judgeAccountValue, type AttemptId, type RunId } from '@omne-harness-lit
 import { instantFromEpochMs, type Instant } from '@omne-harness-lite/offer-expiry'
 import type { EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
 import type { CapabilityId } from '@omne-harness-lite/asset-model'
+import type { JsonObject } from '@omne-harness-lite/content-blocks'
 import { closed, equal, object, own, requiredOwn } from './json.ts'
 import { capability, entryName, registered, session } from './records.ts'
 import {
@@ -11,29 +12,13 @@ import {
   type Within,
   type RefreshRun,
 } from './types.ts'
-export function buildReport(
-  sessionValue: string,
-  runId: RunId,
-  attempt: AttemptId,
-  computedAt: Instant,
+function reportPermissions(
   snapshots: readonly RegistrySnapshot[],
   evaluation: EffectiveAssembly,
   meta: readonly CapabilityId[],
-  skillGate: readonly CapabilityId[],
-): AvailabilityReport {
-  if (
-    !session(sessionValue) ||
-    !('ok' in judgeAccountValue('RunId', runId)) ||
-    !('ok' in judgeAccountValue('AttemptId', attempt)) ||
-    !('ok' in instantFromEpochMs(computedAt)) ||
-    snapshots.length !== 6 ||
-    !REGISTERED_CATEGORIES.every(
-      category => snapshots.filter(snapshot => snapshot.category === category).length === 1,
-    )
-  )
-    throw new TypeError('report requires actual identified complete snapshots')
+) {
   const tools = snapshots.find(snapshot => snapshot.category === 'tool')?.entries ?? []
-  const effectivePermissions = Object.fromEntries(
+  return Object.fromEntries(
     tools.map(entry => {
       const key = entryName(entry.capability)
       if (meta.some(id => equal(id, entry.capability)))
@@ -57,6 +42,29 @@ export function buildReport(
       return [key, value]
     }),
   )
+}
+export function buildReport(
+  sessionValue: string,
+  runId: RunId,
+  attempt: AttemptId,
+  computedAt: Instant,
+  snapshots: readonly RegistrySnapshot[],
+  evaluation: EffectiveAssembly,
+  meta: readonly CapabilityId[],
+  skillGate: readonly CapabilityId[],
+): AvailabilityReport {
+  if (
+    !session(sessionValue) ||
+    !('ok' in judgeAccountValue('RunId', runId)) ||
+    !('ok' in judgeAccountValue('AttemptId', attempt)) ||
+    !('ok' in instantFromEpochMs(computedAt)) ||
+    snapshots.length !== 6 ||
+    !REGISTERED_CATEGORIES.every(
+      category => snapshots.filter(snapshot => snapshot.category === category).length === 1,
+    )
+  )
+    throw new TypeError('report requires actual identified complete snapshots')
+  const effectivePermissions = reportPermissions(snapshots, evaluation, meta)
   const endpoints = snapshots.find(snapshot => snapshot.category === 'mcp')?.entries ?? []
   return requiredOwn({
     session: sessionValue,
@@ -101,13 +109,9 @@ function availability(value: unknown): boolean {
       ['missing', 'unreadable'].includes(String(issue.state)),
   )
 }
-export function readReport(
-  value: unknown,
-  expectedSession: string,
-): AvailabilityReport | undefined {
-  const copy = own(value)
-  if (
-    !closed(copy, [
+function reportIdentity(copy: unknown, expectedSession: string): copy is JsonObject {
+  return (
+    closed(copy, [
       'session',
       'runId',
       'attempt',
@@ -118,36 +122,39 @@ export function readReport(
       'endpointHoldings',
       'effectivePermissions',
       'skillGate',
-    ]) ||
-    copy.session !== expectedSession ||
-    !('ok' in judgeAccountValue('RunId', copy.runId)) ||
-    !('ok' in judgeAccountValue('AttemptId', copy.attempt)) ||
-    !('ok' in instantFromEpochMs(copy.computedAt)) ||
-    !Array.isArray(copy.snapshots) ||
-    copy.snapshots.length !== 6 ||
-    !copy.snapshots.every(
+    ]) &&
+    copy.session === expectedSession &&
+    'ok' in judgeAccountValue('RunId', copy.runId) &&
+    'ok' in judgeAccountValue('AttemptId', copy.attempt) &&
+    'ok' in instantFromEpochMs(copy.computedAt)
+  )
+}
+function reportSnapshots(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.length === 6 &&
+    value.every(
       item =>
         closed(item, ['category', 'filledAt']) &&
         registered(item.category) &&
         'ok' in instantFromEpochMs(item.filledAt),
-    ) ||
-    !REGISTERED_CATEGORIES.every(
-      category =>
-        (copy.snapshots as readonly unknown[]).filter(
-          item => object(item) && item.category === category,
-        ).length === 1,
-    ) ||
-    !Array.isArray(copy.availability) ||
-    !Array.isArray(copy.skillGate) ||
-    !copy.skillGate.every(id => capability(id) && id.category === 'skill') ||
-    !Array.isArray(copy.mcpActions) ||
-    copy.mcpActions.length !== 0 ||
-    !Array.isArray(copy.endpointHoldings) ||
-    !object(copy.effectivePermissions)
+    ) &&
+    REGISTERED_CATEGORIES.every(
+      category => value.filter(item => object(item) && item.category === category).length === 1,
+    )
   )
-    return undefined
+}
+function commandAvailability(value: unknown): boolean {
+  return (
+    (closed(value, ['kind']) && value.kind === 'available') ||
+    (closed(value, ['kind', 'reason']) &&
+      value.kind === 'unavailable' &&
+      ['run_mode_never', 'run_mode_unreadable'].includes(String(value.reason)))
+  )
+}
+function reportAvailabilityIds(items: readonly unknown[]): string[] | undefined {
   const ids: string[] = []
-  for (const item of copy.availability) {
+  for (const item of items) {
     if (
       !object(item) ||
       !Object.keys(item).every(key =>
@@ -162,24 +169,43 @@ export function readReport(
       Object.hasOwn(item, 'commandAvailability') &&
       (!object(item.commandAvailability) ||
         item.capability.category !== 'tool' ||
-        !Object.values(item.commandAvailability).every(
-          value =>
-            (closed(value, ['kind']) && value.kind === 'available') ||
-            (closed(value, ['kind', 'reason']) &&
-              value.kind === 'unavailable' &&
-              ['run_mode_never', 'run_mode_unreadable'].includes(String(value.reason))),
-        ))
+        !Object.values(item.commandAvailability).every(commandAvailability))
     )
       return undefined
     ids.push(`${item.capability.category}/${item.capability.name}`)
   }
+  return ids
+}
+function reportPayload(copy: JsonObject) {
+  if (
+    !Array.isArray(copy.availability) ||
+    !Array.isArray(copy.skillGate) ||
+    !copy.skillGate.every(id => capability(id) && id.category === 'skill') ||
+    !Array.isArray(copy.mcpActions) ||
+    copy.mcpActions.length !== 0 ||
+    !Array.isArray(copy.endpointHoldings) ||
+    !object(copy.effectivePermissions)
+  )
+    return undefined
+  return { availability: copy.availability, skillGate: copy.skillGate }
+}
+export function readReport(
+  value: unknown,
+  expectedSession: string,
+): AvailabilityReport | undefined {
+  const copy = own(value)
+  if (!reportIdentity(copy, expectedSession) || !reportSnapshots(copy.snapshots)) return undefined
+  const payload = reportPayload(copy)
+  if (payload === undefined) return undefined
+  const ids = reportAvailabilityIds(payload.availability)
+  if (ids === undefined) return undefined
   if (
     new Set(ids).size !== ids.length ||
     new Set(
-      copy.skillGate.map(
+      payload.skillGate.map(
         id => `${(id as unknown as CapabilityId).category}/${(id as unknown as CapabilityId).name}`,
       ),
-    ).size !== copy.skillGate.length
+    ).size !== payload.skillGate.length
   )
     return undefined
   return copy as unknown as AvailabilityReport

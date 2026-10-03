@@ -30,6 +30,7 @@ import {
   type BodySelection,
   type AvailabilityFacts,
   type Availability,
+  type DependencyIssue,
   type RegistryFailure,
 } from './types.ts'
 /** Values only. Source authorization and input production remain the caller's obligations. */
@@ -84,13 +85,11 @@ export function dependenciesOf(
   if (entry.content.category === 'mcp') return [{ kind: 'mcp_bridge' }]
   return []
 }
-/** Pure public dependency resolution; all declared items require their own explicit observation. */
-export function computeAvailability(
-  entry: RegistryEntry,
+function dependencyIssues(
   declarations: readonly AvailabilityFacts['dependencies'][number]['dependency'][],
   facts: AvailabilityFacts,
-): RegistryEntry {
-  const issues = declarations.flatMap(dependency => {
+): readonly DependencyIssue[] {
+  return declarations.flatMap(dependency => {
     const matching = facts.dependencies.filter(item => equal(item.dependency, dependency))
     const observation = matching.length === 1 ? matching[0] : undefined
     return observation?.state === 'satisfied'
@@ -103,6 +102,14 @@ export function computeAvailability(
           },
         ]
   })
+}
+/** Pure public dependency resolution; all declared items require their own explicit observation. */
+export function computeAvailability(
+  entry: RegistryEntry,
+  declarations: readonly AvailabilityFacts['dependencies'][number]['dependency'][],
+  facts: AvailabilityFacts,
+): RegistryEntry {
+  const issues = dependencyIssues(declarations, facts)
   const availability: Availability =
     issues.length === 0
       ? { kind: 'available' }
@@ -170,6 +177,33 @@ export function computeTableAvailability(
     plans.map(plan => computed.find(item => item.category === plan.category) as TablePlan),
   )
 }
+function buildPlans(
+  evaluation: EffectiveAssembly,
+  sequence: readonly CapabilityId[],
+  definitions: readonly AssetDefinition[],
+  categories: readonly RegisteredCategory[],
+): readonly TablePlan[] | undefined {
+  const plans: TablePlan[] = []
+  for (const category of categories) {
+    const composition = compositionFor(evaluation, sequence, category)
+    if (composition === undefined) return undefined
+    const entries: RegistryEntry[] = []
+    for (const tuple of composition) {
+      const source = selectBody(definitions, { ...tuple, replaced: [] })
+      if (source === undefined) return undefined
+      entries.push({
+        capability: tuple.capability,
+        asset: tuple.asset,
+        from: tuple.from,
+        content: source.version.content,
+        availability: { kind: 'available' },
+        ...(tuple.resident === undefined ? {} : { resident: tuple.resident }),
+      })
+    }
+    plans.push({ category, composition, entries })
+  }
+  return plans
+}
 export function buildTableContents(
   value: unknown,
   sequence: unknown,
@@ -191,30 +225,13 @@ export function buildTableContents(
     return { failure: 'invalidInput' }
   if (evaluation.unresolved.length !== 0)
     return requiredOwn({ failure: 'dependencyUnresolved', missing: evaluation.unresolved })
-  const definitions = copiedDefinitions as unknown as readonly AssetDefinition[]
-  const plans: TablePlan[] = []
-  for (const category of categories) {
-    const composition = compositionFor(
-      evaluation,
-      copiedOrder as unknown as readonly CapabilityId[],
-      category,
-    )
-    if (composition === undefined) return { failure: 'unavailable' }
-    const entries: RegistryEntry[] = []
-    for (const tuple of composition) {
-      const source = selectBody(definitions, { ...tuple, replaced: [] })
-      if (source === undefined) return { failure: 'unavailable' }
-      entries.push({
-        capability: tuple.capability,
-        asset: tuple.asset,
-        from: tuple.from,
-        content: source.version.content,
-        availability: { kind: 'available' },
-        ...(tuple.resident === undefined ? {} : { resident: tuple.resident }),
-      })
-    }
-    plans.push({ category, composition, entries })
-  }
+  const plans = buildPlans(
+    evaluation,
+    copiedOrder as unknown as readonly CapabilityId[],
+    copiedDefinitions as unknown as readonly AssetDefinition[],
+    categories,
+  )
+  if (plans === undefined) return { failure: 'unavailable' }
   const tools = plans.find(plan => plan.category === 'tool')?.entries ?? []
   if (new Set(tools.map(entry => entryName(entry.capability))).size !== tools.length)
     return { failure: 'toolNameConflict' }

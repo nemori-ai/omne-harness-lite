@@ -15,6 +15,7 @@ import {
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
 import { modelName } from '@omne-harness-lite/tool-definition'
+import type { JsonObject, JsonValue } from '@omne-harness-lite/content-blocks'
 import { closed, equal, object, own, requiredOwn } from './json.ts'
 import {
   REGISTERED_CATEGORIES,
@@ -89,6 +90,88 @@ export function compositionFor(
   }
   return requiredOwn(result)
 }
+function recordEnvelope(
+  value: unknown,
+  expectedSession: string,
+  head: number,
+): value is JsonObject {
+  return (
+    closed(value, ['session', 'seq', 'evaluationRef', 'evaluation', 'tables', 'content']) &&
+    value.session === expectedSession &&
+    typeof value.seq === 'number' &&
+    Number.isSafeInteger(value.seq) &&
+    value.seq >= 1 &&
+    !(value.seq > head) &&
+    'ok' in parseOpaqueIdentifier(value.evaluationRef, 'EvaluationRef')
+  )
+}
+function recordIdentity(identity: JsonObject, ref: JsonValue | undefined): boolean {
+  return identity.kind === 'mint'
+    ? closed(identity, ['kind'])
+    : closed(identity, ['kind', 'ref']) &&
+        ['given', 'reuse'].includes(String(identity.kind)) &&
+        identity.ref === ref
+}
+function recordPurpose(kind: JsonValue | undefined, reason: FilledBy): boolean {
+  return kind === 'given'
+    ? reason.kind === 'assembly'
+    : kind === 'mint'
+      ? reason.kind === 'reload'
+      : ['auto_refresh_after_failure', 'asset_change'].includes(reason.kind)
+}
+function recordCategories(
+  tables: JsonObject,
+  kind: JsonValue | undefined,
+): RegisteredCategory[] | undefined {
+  const categories = Object.keys(tables)
+  if (
+    categories.length === 0 ||
+    !categories.every(registered) ||
+    (kind === 'given' &&
+      (categories.length !== 6 ||
+        !REGISTERED_CATEGORIES.every(cat => Object.hasOwn(tables, cat)))) ||
+    (kind === 'reuse' && (categories.length !== 1 || categories[0] !== 'slash_command'))
+  )
+    return undefined
+  return categories
+}
+function subsequence(actual: readonly JsonValue[], expected: readonly CompositionEntry[]): boolean {
+  let cursor = 0
+  for (const entry of actual) {
+    while (cursor < expected.length && !equal(expected[cursor], entry)) cursor++
+    if (cursor >= expected.length) return false
+    cursor++
+  }
+  return true
+}
+function readCompositions(
+  tables: JsonObject,
+  categories: readonly RegisteredCategory[],
+  kind: JsonValue | undefined,
+  evaluation: EffectiveAssembly,
+  sequence: readonly CapabilityId[],
+): CheckedRegistryRecord['compositions'] | undefined {
+  const compositions: Partial<Record<RegisteredCategory, readonly CompositionEntry[]>> = {}
+  for (const category of categories) {
+    const table = tables[category]
+    const expected = compositionFor(evaluation, sequence, category)
+    if (
+      !closed(table, ['filledAt', 'composition']) ||
+      !('ok' in instantFromEpochMs(table.filledAt)) ||
+      !Array.isArray(table.composition) ||
+      expected === undefined
+    )
+      return undefined
+    if (
+      kind === 'reuse'
+        ? !subsequence(table.composition, expected)
+        : !equal(table.composition, expected)
+    )
+      return undefined
+    compositions[category] = table.composition as unknown as readonly CompositionEntry[]
+  }
+  return compositions
+}
 /** Checks the complete AR use, including reuse subsequences. It does not prove storage or caller authority. */
 export function readRegistryRecord(
   value: unknown,
@@ -97,13 +180,7 @@ export function readRegistryRecord(
 ): CheckedRegistryRecord | undefined {
   const copied = own(value)
   if (
-    !closed(copied, ['session', 'seq', 'evaluationRef', 'evaluation', 'tables', 'content']) ||
-    copied.session !== expectedSession ||
-    typeof copied.seq !== 'number' ||
-    !Number.isSafeInteger(copied.seq) ||
-    copied.seq < 1 ||
-    copied.seq > head ||
-    !('ok' in parseOpaqueIdentifier(copied.evaluationRef, 'EvaluationRef')) ||
+    !recordEnvelope(copied, expectedSession, head) ||
     !object(copied.evaluation) ||
     !object(copied.tables) ||
     !closed(copied.content, ['evaluation', 'compositionOrder', 'filledBy']) ||
@@ -111,59 +188,20 @@ export function readRegistryRecord(
   )
     return undefined
   const identity = copied.evaluation
-  if (
-    identity.kind === 'mint'
-      ? !closed(identity, ['kind'])
-      : !closed(identity, ['kind', 'ref']) ||
-        !['given', 'reuse'].includes(String(identity.kind)) ||
-        identity.ref !== copied.evaluationRef
-  )
-    return undefined
+  if (!recordIdentity(identity, copied.evaluationRef)) return undefined
   const projected = readEvaluationProjection(copied.content)
   if (!('ok' in projected) || projected.ok.evaluation.unresolved.length !== 0) return undefined
-  if (
-    identity.kind === 'given'
-      ? copied.content.filledBy.kind !== 'assembly'
-      : identity.kind === 'mint'
-        ? copied.content.filledBy.kind !== 'reload'
-        : !['auto_refresh_after_failure', 'asset_change'].includes(copied.content.filledBy.kind)
+  if (!recordPurpose(identity.kind, copied.content.filledBy)) return undefined
+  const categories = recordCategories(copied.tables, identity.kind)
+  if (categories === undefined) return undefined
+  const compositions = readCompositions(
+    copied.tables,
+    categories,
+    identity.kind,
+    projected.ok.evaluation,
+    projected.ok.compositionOrder,
   )
-    return undefined
-  const categories = Object.keys(copied.tables)
-  if (
-    categories.length === 0 ||
-    !categories.every(registered) ||
-    (identity.kind === 'given' &&
-      (categories.length !== 6 ||
-        !REGISTERED_CATEGORIES.every(cat => Object.hasOwn(copied.tables as object, cat)))) ||
-    (identity.kind === 'reuse' && (categories.length !== 1 || categories[0] !== 'slash_command'))
-  )
-    return undefined
-  const compositions: Partial<Record<RegisteredCategory, readonly CompositionEntry[]>> = {}
-  for (const category of categories as RegisteredCategory[]) {
-    const table = copied.tables[category]
-    const expected = compositionFor(
-      projected.ok.evaluation,
-      projected.ok.compositionOrder,
-      category,
-    )
-    if (
-      !closed(table, ['filledAt', 'composition']) ||
-      !('ok' in instantFromEpochMs(table.filledAt)) ||
-      !Array.isArray(table.composition) ||
-      expected === undefined
-    )
-      return undefined
-    if (identity.kind === 'reuse') {
-      let cursor = 0
-      for (const entry of table.composition) {
-        while (cursor < expected.length && !equal(expected[cursor], entry)) cursor++
-        if (cursor >= expected.length) return undefined
-        cursor++
-      }
-    } else if (!equal(table.composition, expected)) return undefined
-    compositions[category] = table.composition as unknown as readonly CompositionEntry[]
-  }
+  if (compositions === undefined) return undefined
   return requiredOwn({
     record: copied as unknown as ManifestRecord,
     content: { ...projected.ok, filledBy: copied.content.filledBy as unknown as FilledBy },
