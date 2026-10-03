@@ -239,50 +239,62 @@ export function googleOutputHistoryPolicy(release: GoogleHistoryRelease): Output
     const row = googleHistoryRow(meter.modelId)
     if (!row || !currentMeterApplies(meter, row)) return false
     const reasoning = envelope.reasoning
-    if (
-      envelope.model !== row.modelId ||
-      !object(envelope.provider) ||
-      canonicalProjection(envelope.provider) !==
-        canonicalProjection({
-          order: [PROVIDER],
-          allow_fallbacks: false,
-          require_parameters: true,
-        }) ||
-      (reasoning !== undefined &&
-        (!object(reasoning) ||
-          Object.keys(reasoning).length !== 1 ||
-          !effortApplies(reasoning.effort)))
-    )
-      return false
+    function envelopeApplies(row: GoogleRow): boolean {
+      return !(
+        envelope.model !== row.modelId ||
+        !object(envelope.provider) ||
+        canonicalProjection(envelope.provider) !==
+          canonicalProjection({
+            order: [PROVIDER],
+            allow_fallbacks: false,
+            require_parameters: true,
+          }) ||
+        (reasoning !== undefined &&
+          (!object(reasoning) ||
+            Object.keys(reasoning).length !== 1 ||
+            !effortApplies(reasoning.effort)))
+      )
+    }
+    if (!envelopeApplies(row)) return false
     const request = source.observation.inputCalibration.requestInput
     const basis = request.kind === 'known' ? request.countingBasis : undefined
     if (basis && basis.provider !== PROVIDER) return false
     const binding = source.origin?.adaptation ?? basis?.binding
-    if (
-      !binding ||
-      binding.definition.modelId !== row.modelId ||
-      binding.implementation.name !== IMPLEMENTATION ||
-      !originalRow(binding.definition.revision, binding.implementation.revision)
-    )
-      return false
+    function bindingApplies(row: GoogleRow): boolean {
+      return !(
+        !binding ||
+        binding.definition.modelId !== row.modelId ||
+        binding.implementation.name !== IMPLEMENTATION ||
+        !originalRow(binding.definition.revision, binding.implementation.revision)
+      )
+    }
+    if (!bindingApplies(row)) return false
     const origin = source.origin
-    if (
-      origin &&
-      (origin.provider !== PROVIDER ||
-        !effortApplies(origin.parameters.reasoningEffort) ||
-        (origin.parameters.extra !== undefined &&
-          Object.keys(origin.parameters.extra).length > 0) ||
-        !identityApplies(row, origin))
-    )
-      return false
+    function originApplies(row: GoogleRow): boolean {
+      return !(
+        origin &&
+        (origin.provider !== PROVIDER ||
+          !effortApplies(origin.parameters.reasoningEffort) ||
+          (origin.parameters.extra !== undefined &&
+            Object.keys(origin.parameters.extra).length > 0) ||
+          !identityApplies(row, origin))
+      )
+    }
+    if (!originApplies(row)) return false
     const observed = source.observation.inputCalibration.observedInput
-    if (
-      observed.kind !== 'unavailable' &&
-      (observed.provenance.adapterRevision !== 'openrouter-usage-reader/2' ||
-        !identityApplies(row, observed.provenance) ||
-        (origin !== undefined && !sameIdentity(origin, observed.provenance)))
-    )
-      return false
+    function observedApplies(row: GoogleRow): boolean {
+      return !(
+        observed.kind !== 'unavailable' &&
+        (observed.provenance.adapterRevision !== 'openrouter-usage-reader/2' ||
+          !identityApplies(row, observed.provenance) ||
+          (origin !== undefined && !sameIdentity(origin, observed.provenance)))
+      )
+    }
+    if (!observedApplies(row)) return false
+    return opaqueBlocksApply(source, row)
+  }
+
+  function opaqueBlocksApply(source: OutputGroupSource, row: GoogleRow): boolean {
     // Every opaque thinking block of the group is this route's E-only details; at least one.
     const opaque = source.observation.outputBlocks.flatMap(block =>
       block.kind === 'thinking' && block.opaque !== undefined ? [readOpaqueJson(block.opaque)] : [],

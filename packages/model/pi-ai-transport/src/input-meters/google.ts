@@ -7,6 +7,7 @@ import {
   isJsonNumber,
   writeJsonLossless,
   type JsonObject,
+  type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
 import { jsonEqual, ruleAccepts } from '../definitions.ts'
@@ -52,104 +53,143 @@ function supported(body: JsonObject, definition: ModelDefinition): boolean {
   const modelId = definition.modelId
   const effortRule = definition.routes['google-ai-studio']?.parameters.reasoningEffort
   if (!effortRule) return false
+  const supportedEffort = effortRule
+  const unsupportedField = (key: string): boolean =>
+    key !== 'model' &&
+    key !== 'provider' &&
+    key !== 'stream' &&
+    key !== 'store' &&
+    key !== 'messages' &&
+    key !== 'tools' &&
+    key !== 'reasoning' &&
+    key !== 'max_tokens'
+  function providerSupported(): boolean {
+    return !(
+      !object(body.provider) ||
+      Object.keys(body.provider).some(
+        key => key !== 'order' && key !== 'allow_fallbacks' && key !== 'require_parameters',
+      ) ||
+      !Array.isArray(body.provider.order) ||
+      body.provider.order.length !== 1 ||
+      body.provider.order[0] !== 'google-ai-studio' ||
+      body.provider.allow_fallbacks !== false ||
+      body.provider.require_parameters !== true
+    )
+  }
+  function controlsSupported(): boolean {
+    return !(
+      body.stream !== true ||
+      body.store !== false ||
+      (body.max_tokens !== undefined && !isJsonNumber(body.max_tokens)) ||
+      (body.reasoning !== undefined &&
+        (!object(body.reasoning) ||
+          Object.keys(body.reasoning).some(key => key !== 'effort') ||
+          typeof body.reasoning.effort !== 'string' ||
+          !ruleAccepts(supportedEffort, body.reasoning.effort)))
+    )
+  }
   if (
     body.model !== modelId ||
     !modelIds.has(modelId) ||
-    Object.keys(body).some(
-      key =>
-        key !== 'model' &&
-        key !== 'provider' &&
-        key !== 'stream' &&
-        key !== 'store' &&
-        key !== 'messages' &&
-        key !== 'tools' &&
-        key !== 'reasoning' &&
-        key !== 'max_tokens',
-    ) ||
-    !object(body.provider) ||
-    Object.keys(body.provider).some(
-      key => key !== 'order' && key !== 'allow_fallbacks' && key !== 'require_parameters',
-    ) ||
-    !Array.isArray(body.provider.order) ||
-    body.provider.order.length !== 1 ||
-    body.provider.order[0] !== 'google-ai-studio' ||
-    body.provider.allow_fallbacks !== false ||
-    body.provider.require_parameters !== true ||
-    body.stream !== true ||
-    body.store !== false ||
-    (body.max_tokens !== undefined && !isJsonNumber(body.max_tokens)) ||
-    (body.reasoning !== undefined &&
-      (!object(body.reasoning) ||
-        Object.keys(body.reasoning).some(key => key !== 'effort') ||
-        typeof body.reasoning.effort !== 'string' ||
-        !ruleAccepts(effortRule, body.reasoning.effort))) ||
+    Object.keys(body).some(unsupportedField) ||
+    !providerSupported() ||
+    !controlsSupported()
+  )
+    return false
+  return supportedInputs(body)
+}
+
+function supportedInputs(body: JsonObject): boolean {
+  if (
     !Array.isArray(body.messages) ||
     body.messages.length === 0 ||
     (body.tools !== undefined && !Array.isArray(body.tools))
   )
     return false
   for (const message of body.messages) {
-    if (
-      !object(message) ||
-      Object.keys(message).some(
-        key =>
-          key !== 'role' &&
-          key !== 'content' &&
-          key !== 'tool_calls' &&
-          key !== 'tool_call_id' &&
-          key !== 'reasoning',
-      ) ||
-      (message.role !== 'system' &&
-        message.role !== 'user' &&
-        message.role !== 'assistant' &&
-        message.role !== 'tool') ||
-      (message.reasoning !== undefined && typeof message.reasoning !== 'string') ||
-      (message.tool_call_id !== undefined && typeof message.tool_call_id !== 'string')
-    )
-      return false
-    if (typeof message.content !== 'string') {
-      if (!Array.isArray(message.content)) return false
-      for (const part of message.content)
-        if (
-          !object(part) ||
-          Object.keys(part).some(key => key !== 'type' && key !== 'text') ||
-          part.type !== 'text' ||
-          typeof part.text !== 'string'
-        )
-          return false
-    }
-    if (message.tool_calls !== undefined) {
-      if (!Array.isArray(message.tool_calls)) return false
-      for (const call of message.tool_calls)
-        if (
-          !object(call) ||
-          Object.keys(call).some(key => key !== 'id' && key !== 'type' && key !== 'function') ||
-          typeof call.id !== 'string' ||
-          call.type !== 'function' ||
-          !object(call.function) ||
-          Object.keys(call.function).some(key => key !== 'name' && key !== 'arguments') ||
-          typeof call.function.name !== 'string' ||
-          typeof call.function.arguments !== 'string'
-        )
-          return false
-    }
+    if (!supportedMessage(message)) return false
   }
   if (body.tools !== undefined)
-    for (const tool of body.tools)
+    for (const tool of body.tools) if (unsupportedTool(tool)) return false
+  return true
+}
+
+function supportedMessage(message: JsonValue): boolean {
+  if (!object(message)) return false
+  if (!supportedMessageFields(message)) return false
+  if (!supportedContent(message)) return false
+  return supportedToolCalls(message)
+}
+
+function supportedMessageFields(message: JsonObject): boolean {
+  const unsupportedField = (key: string): boolean =>
+    key !== 'role' &&
+    key !== 'content' &&
+    key !== 'tool_calls' &&
+    key !== 'tool_call_id' &&
+    key !== 'reasoning'
+  if (
+    Object.keys(message).some(unsupportedField) ||
+    (message.role !== 'system' &&
+      message.role !== 'user' &&
+      message.role !== 'assistant' &&
+      message.role !== 'tool') ||
+    (message.reasoning !== undefined && typeof message.reasoning !== 'string') ||
+    (message.tool_call_id !== undefined && typeof message.tool_call_id !== 'string')
+  )
+    return false
+  return true
+}
+
+function supportedContent(message: JsonObject): boolean {
+  if (typeof message.content !== 'string') {
+    if (!Array.isArray(message.content)) return false
+    for (const part of message.content)
       if (
-        !object(tool) ||
-        Object.keys(tool).some(key => key !== 'type' && key !== 'function') ||
-        tool.type !== 'function' ||
-        !object(tool.function) ||
-        Object.keys(tool.function).some(
-          key => key !== 'name' && key !== 'description' && key !== 'parameters',
-        ) ||
-        typeof tool.function.name !== 'string' ||
-        typeof tool.function.description !== 'string' ||
-        !object(tool.function.parameters)
+        !object(part) ||
+        Object.keys(part).some(key => key !== 'type' && key !== 'text') ||
+        part.type !== 'text' ||
+        typeof part.text !== 'string'
       )
         return false
+  }
   return true
+}
+
+function supportedToolCalls(message: JsonObject): boolean {
+  if (message.tool_calls !== undefined) {
+    if (!Array.isArray(message.tool_calls)) return false
+    for (const call of message.tool_calls) if (unsupportedToolCall(call)) return false
+  }
+  return true
+}
+
+function unsupportedToolCall(call: JsonValue): boolean {
+  return (
+    !object(call) ||
+    Object.keys(call).some(key => key !== 'id' && key !== 'type' && key !== 'function') ||
+    typeof call.id !== 'string' ||
+    call.type !== 'function' ||
+    !object(call.function) ||
+    Object.keys(call.function).some(key => key !== 'name' && key !== 'arguments') ||
+    typeof call.function.name !== 'string' ||
+    typeof call.function.arguments !== 'string'
+  )
+}
+
+function unsupportedTool(tool: JsonValue): boolean {
+  return (
+    !object(tool) ||
+    Object.keys(tool).some(key => key !== 'type' && key !== 'function') ||
+    tool.type !== 'function' ||
+    !object(tool.function) ||
+    Object.keys(tool.function).some(
+      key => key !== 'name' && key !== 'description' && key !== 'parameters',
+    ) ||
+    typeof tool.function.name !== 'string' ||
+    typeof tool.function.description !== 'string' ||
+    !object(tool.function.parameters)
+  )
 }
 
 /**
