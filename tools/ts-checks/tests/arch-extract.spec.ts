@@ -173,6 +173,43 @@ export const name = 'exported'; export const inject = ['clock']; export function
       ['Other', 'Other', true],
     ])
   })
+  it('uses only static provide/name/inject metadata and keeps legacy super keys', () => {
+    const result = extract(`${prelude}
+class S extends Service {
+  provide = 'ordinary-field'; name = 'ordinary-name'; inject = ['ordinary-inject']
+  constructor(ctx:C) {super(ctx, 'actual-service')}
+}
+class StaticService extends Service {
+  static provide = 'static-service'; static name = 'static-plugin'; static inject = ['static-dependency']
+  provide = 'another-ordinary-field'
+  constructor(ctx:C) {super(ctx)}
+}
+export class NativeClass {
+  name = 'ordinary-native-name'; inject = ['ordinary-native-inject']
+  constructor(ctx:C) {ctx.provide('nativeService', {})}
+}
+`)
+    expect(result.facts.filter(f => f.kind === 'defines').map(f => f.key)).toEqual([
+      'actual-service',
+      'static-service',
+    ])
+    expect(result.facts.filter(f => f.kind === 'plugin').map(f => f.key)).toEqual([
+      'NativeClass',
+      'S',
+      'static-plugin',
+    ])
+    expect(result.facts.filter(f => f.kind === 'provides').map(f => f.key)).toEqual([
+      'nativeService',
+      'actual-service',
+      'static-service',
+    ])
+    expect(result.facts.filter(f => f.kind === 'injects').map(f => f.key)).toEqual([
+      'static-dependency',
+    ])
+    expect(
+      result.facts.some(f => f.key.startsWith('ordinary') || f.key === 'another-ordinary-field'),
+    ).toBe(false)
+  })
   it('rejects ordinary name/apply objects and requires native Context, Plugin type or registration provenance', () => {
     const result = extract(`${prelude}
 import type {Plugin} from '@deepseek-ai/cordis'

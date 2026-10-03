@@ -206,7 +206,10 @@ class Extractor {
     if (seen.has(node)) return undefined
     seen.add(node)
     const provide = node.members.find(
-      item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'provide',
+      item =>
+        ts.isPropertyDeclaration(item) &&
+        item.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword) &&
+        nodeName(item.name) === 'provide',
     )
     if (provide !== undefined && ts.isPropertyDeclaration(provide)) return provide.initializer
     const base = this.serviceBase(node)
@@ -330,7 +333,10 @@ class Extractor {
     const member = context.member
 
     const ownKey = node.members.find(
-      item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'provide',
+      item =>
+        ts.isPropertyDeclaration(item) &&
+        item.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword) &&
+        nodeName(item.name) === 'provide',
     )
     const key = this.classKey(node)
     // Inherited keys are providers; own static keys and legacy super keys are declarations.
@@ -345,7 +351,10 @@ class Extractor {
       })
     if (!node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.AbstractKeyword)) {
       const name = node.members.find(
-        item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'name',
+        item =>
+          ts.isPropertyDeclaration(item) &&
+          item.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword) &&
+          nodeName(item.name) === 'name',
       )
       const pluginName =
         name !== undefined && ts.isPropertyDeclaration(name)
@@ -354,7 +363,10 @@ class Extractor {
       if (pluginName !== undefined) {
         this.add('plugin', pluginName, node, context)
         const inject = node.members.find(
-          item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'inject',
+          item =>
+            ts.isPropertyDeclaration(item) &&
+            item.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword) &&
+            nodeName(item.name) === 'inject',
         )
         this.plugins.push({
           name: pluginName,
@@ -382,14 +394,20 @@ class Extractor {
       return
 
     const metadataName = node.members.find(
-      item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'name',
+      item =>
+        ts.isPropertyDeclaration(item) &&
+        item.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword) &&
+        nodeName(item.name) === 'name',
     )
     const name =
       metadataName !== undefined && ts.isPropertyDeclaration(metadataName)
         ? this.resolver.string(metadataName.initializer)?.value
         : node.name?.text
     const inject = node.members.find(
-      item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'inject',
+      item =>
+        ts.isPropertyDeclaration(item) &&
+        item.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword) &&
+        nodeName(item.name) === 'inject',
     )
     if (name !== undefined) {
       this.add('plugin', name, node, context)
