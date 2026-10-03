@@ -78,6 +78,11 @@ skills 的源归 `.meta_harness/agents/skills/`，roles 的源归 `.meta_harness
 - 策略类的东西不写死：重试、退避、超时、限流做成可配置策略加可替换实现，优先复用成熟库；核心能力是可公开的独立函数闭包，runtime 只是一种消费者。
 - 专用工具优先，shell 兜底；TS/JS 代码的品味在同一文件的专节，格式与检查操作见[开发指南](docs/development.md#修改与验证)。
 
+**后续新建或修订文档时，必须加载 `asd-ste100` skill。遵循其适用写作规范。**
+英文按文种选择 Strict 或 STE-flavored；中文至少符合其中可跨语言采用的清晰性原则。
+语义准确优先于压缩：保留事实、条件、例外、范围、正式术语与要求强度。
+具体适用范围与语言边界见[写作要求](.meta_harness/agents/skills/asd-ste100/canonical/references/documentation.md)。
+
 派发 subagent 时，每个 subagent 都应明确职责、行动边界、必要输入与停止条件；精确任务限定可写路径，关键歧义或必需规格/计划缺失时暂停依赖工作并澄清，持续区分已知、假设与未知。编写方法见 `design-subagents` skill。
 
 这些判断在设计中按需展开为 `harness-design-handbook` skill 的 Taste 与 `references/architecture/assurance/judgment.md`，在实现中展开为[防御指导](docs/defensive-patterns.md)；知识该落在哪一区，归 [design/AGENTS.md](.meta_harness/design/AGENTS.md) 的准入。
@@ -182,6 +187,7 @@ omne-harness-lite/
 | 调整防御辅助或准备切换开发主力模型                                                                                    | [防御演化](.meta_harness/agents/evaluation/developer-model/README.md)与[开发模型评估](.meta_harness/agents/evaluation/developer-model/README.md)                                                                                                                                       |
 | 创建、使用、合并或清理工作树                                                                                          | 加载 `worktree-discipline` skill；统一使用主检出根的 `.worktrees/`，一个会话一棵工作树、建好先 `cd` 进去                                                                                                                                                                               |
 | 编写、压缩或审查 AGENTS.md                                                                                            | 加载 `write-agents-md` skill                                                                                                                                                                                                                                                           |
+| 新建或修订文档                                                                                                       | 加载 `asd-ste100` skill；遵循[写作要求](.meta_harness/agents/skills/asd-ste100/canonical/references/documentation.md)，保留语义与要求强度                                                                                                                                                             |
 | 创建或修改 skill                                                                                                      | 在 `.meta_harness/agents/skills/` 维护 canonical 源和适配；加载当前环境提供的官方 `skill-creator`，源与资源归属见 [agents](.meta_harness/agents/README.md)                                                                                                                             |
 | 定义 subagent 职责、两端配置或模型专属提示                                                                            | 在 `.meta_harness/agents/roles/` 工作，加载 `design-subagents` skill；先确认目标宿主支持，再核对精确模型的官方指导                                                                                                                                                                     |
 

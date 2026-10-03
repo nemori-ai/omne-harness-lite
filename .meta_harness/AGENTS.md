@@ -62,6 +62,9 @@ fiber、plugin、service、inject 的方式集成装配；它不是建模的视�
   optional 而消失；有限检查不写成无条件证明。
 - **修改 skills/roles 的源，再由工具生成** `.agents/`、`.claude/`、`.codex/`；不手改生成物。
   生成、宿主加载、项目根接入和对外发布是不同动作，**编译不扩张授权**。
+- **这里的文档写作与修订必须加载 `asd-ste100` skill。遵循其适用规范。**这包括产品、设计、规格、研究和 agent 正文。
+  英文按文种选模式；中文至少满足可跨语言的清晰性原则，适用边界归[写作要求](agents/skills/asd-ste100/canonical/references/documentation.md)。
+  清晰化必须保留正式术语、事实、条件、例外与要求强度；涉及语义变更时仍走材料所属的接受入口。
 
 ## 按当前任务展开
 
@@ -81,6 +84,7 @@ fiber、plugin、service、inject 的方式集成装配；它不是建模的视�
 | 维护 skill 源、编译或链接 | [agents 源约定](agents/README.md)与 [tooling](tooling/README.md)：**检查不等于安装** |
 | 操作执行仓库的 worktree | 加载 `worktree-discipline` skill：先定位本次检出、基线与证据 |
 | 重写常驻指令或继承范围 | 加载 `write-agents-md` skill：先确认权威拥有者，再调整这里的投影 |
+| 新建或修订本工作区文档 | 加载 `asd-ste100` skill：按[写作要求](agents/skills/asd-ste100/canonical/references/documentation.md)选择模式并复核语义；写作规范不替代该材料所属的方法与接受流程 |
 
 普通局部改动沿已有契约与相关检查完成；**出现新的责任边界、保证或失效前提才展开设计**。
 按当前问题逐层读取，信息足够就停，不把渐进披露变成通读全部 references。

@@ -1,11 +1,25 @@
 ---
 name: asd-ste100
-description: "Use when English text must be parsed without a human to resolve ambiguity — tool descriptions, error messages, inter-agent instructions, system prompts, status reports — and misreading has a real cost, or when text reads as dense, hedged, or easy to misparse. Triggers: disambiguate, STE100 rewrite, apply Simplified Technical English, plain-language rewrite, controlled-language rewrite, rewrite so an agent cannot misread this. Not for creative or marketing copy."
+description: "Write or revise documentation, including technical prose, prompts, tool descriptions, and agent instructions. Apply ASD-STE100 rules to English. Apply language-independent clarity rules to Chinese. Also rewrite or review English text for ambiguity. Preserve meaning, modality, and the document's required structure. Not for standalone creative or marketing copy."
 metadata:
   version: "0.4.0"
 ---
 
 # Simplified Technical English (ASD-STE100)
+
+## Documentation in This Workspace
+
+Use this skill for every documentation task in this workspace.
+Read [the documentation rules](references/documentation.md) before you write or revise documentation.
+For English, select Strict or STE-flavored from the document type.
+For Chinese, apply the clarity rules that do not depend on English grammar.
+
+Keep the document owner's required structure, metadata, acceptance process, and delivery report.
+The default rewrite output format applies to standalone rewrite requests.
+Other skills retain their task scope and required output format.
+Preserve meaning when a style rule conflicts with necessary precision.
+
+## Background
 
 ASD-STE100 is a controlled-language standard built by the aerospace and defense industry (ASD, the AeroSpace and Defense Industries Association of Europe) to stop maintenance technicians from misreading English instructions. The standard removes the two biggest sources of misreading: words with more than one meaning, and sentences with more than one possible structure.
 

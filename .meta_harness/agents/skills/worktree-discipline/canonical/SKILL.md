@@ -13,6 +13,10 @@ stands inside that worktree while it writes. There is no HUB and there are no sp
 First resolve the [execution context](references/execution-context.md); the skill's
 installation directory does not identify the repository whose code you may change.
 
+Load `asd-ste100` before you write plans, recovery notes, or evidence reports.
+Follow its applicable writing rules.
+Keep this skill's worktree boundaries, evidence requirements, and task permissions.
+
 ## Resolve the adopted workspace conventions
 
 | Convention | Value |

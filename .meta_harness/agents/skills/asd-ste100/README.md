@@ -1,7 +1,7 @@
 # ASD-STE100：本地维护入口
 
-本 skill 将密集或有歧义的英文改写为简明技术英语，供 agent、工具调用者和非英语母语读者理解。
-适用于英文工具描述、错误消息、agent 间指令、系统提示和状态说明；不用于创意或营销文案。
+本 skill 提供全工作区文档写作与修订的表达规范，供 agent、工具调用者和读者理解。
+英文采用简明技术英语规则，中文采用可跨语言的清晰性原则；独立改写功能不用于创意或营销文案。
 
 ## 来源与完整性
 
@@ -11,7 +11,7 @@
 上游全部 7 个受 Git 管理的文件均进入 `canonical/`，包括 README、许可、规则说明、示例和检查器。
 这是本仓库维护的源码副本；Git 历史由上游提交定位，不引入嵌套仓库或 submodule。
 
-唯一的迁入调整是将 `SKILL.md` 的顶层 `version: 0.4.0` 移至 `metadata.version`，
+首次迁入的唯一调整是将 `SKILL.md` 的顶层 `version: 0.4.0` 移至 `metadata.version`，
 以通过 Codex 官方 skill 校验；名称、description、完整正文和其余文件逐字节保留。
 每份原件与迁入文件的 SHA-256、上游文件模式及调整记录见 [来源清单](.design/upstream.json)。
 清单记录本次引入基线，后续本地演进不回写这份历史观察。
@@ -32,6 +32,13 @@
 它采用 25 词句长上限，无法自动区分指令所需的 20 词上限；名词簇和一条一句等要求仍需人工或模型判断。
 被动语态、复合时态只产生 advisory；数字、条件和语气强度需要对照原文复核。
 
+## 本仓库的写作要求
+
+负责人要求所有后续文档写作遵循本 skill。
+适用范围、中英文规则与其他写作方法的组合方式统一归
+[文档写作的采用范围](canonical/references/documentation.md)，随 skill 一起分发。
+本地演进增加了这份参考文、入口触发与组合说明；上游原写作规则、示例及检查器继续保留。
+
 ## 源与宿主产物
 
 ```text
@@ -43,6 +50,7 @@ asd-ste100/
 │   ├── README.md              上游原说明
 │   ├── LICENSE
 │   ├── references/writing-rules.md
+│   ├── references/documentation.md   本地文档写作要求
 │   ├── examples/before-after.md
 │   ├── examples/linter-edge-cases.md
 │   └── scripts/ste-lint.py
