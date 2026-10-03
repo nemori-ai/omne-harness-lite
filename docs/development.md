@@ -147,12 +147,12 @@ git commit -m "chore(docs): update blog submodule"
 | 规格还没定，想先看一条主路径走不走得通 | 做探路件：放 [examples/](../examples/README_ZH.md) 或任务的 `tmp/`，不进 `packages/`、`apps/`；跑通后带回设计的是事实清单，不是代码 |
 | 存储提供者或迁移 | `pnpm --filter @omne-harness-lite/storage-sql run test`：sqlite 上跑一致性套件；pg 需设 `OMNE_TEST_PG_URL`，否则跳过 |
 | 形式工具是否可用 | `make formal-tools` |
-| 跨入口改动、合并前 | `make check`：测试一步跑全部成员的快层，再加基线（`BASELINE`，缺省 `origin/main`）以来受影响成员的慢层；其余成员的慢层在合并后的主线头上补跑。它占一个机器级的[运行名额](../scripts/README.md#运行名额)：别的检出正在跑时会排队，不要为了绕开排队而手工并行起多套 |
+| 跨入口改动、合并前 | 在待合并的提交上计算影响面，再执行需要的检查。记录基线、提交、范围、选择依据、结果和未覆盖范围。当前 `make check` 尚未自动收窄构建、类型检查与快层测试；按已计算的范围手动执行相关入口。其自适应改造归增量 10（#68）。整套重检查入口使用机器级[运行名额](../scripts/README.md#运行名额)，并发限制仍须遵守负责人的当前安排 |
 
 覆盖与退出含义归[验证与证据](verification.md)——**那里写明了每个入口不能声称什么**。
 
-全量测试在本机约十几分钟，是合并前的门，不是迭代中的反馈手段：迭代时跑一个文件或一个包，
-改完跑受影响范围，合并前才跑 `make check`。并行度的初值在
+迭代时跑一个文件或一个包，改完跑受影响范围。合并前，在待合并的提交上核对影响面，完成该范围所需的检查。
+全量检查由负责人明确要求，或由实际影响面决定；合并后不自动补跑全量慢层。并行度的初值在
 [test-runs.config.json](../tools/ts-checks/test-runs.config.json)，临时调整用环境变量，见[测试运行](../tools/ts-checks/README_ZH.md#测试运行)。
 
 对检查器做局部迭代时，可从仓库根运行一组测试：
