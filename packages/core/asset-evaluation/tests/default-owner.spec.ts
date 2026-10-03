@@ -10,7 +10,7 @@ it.each(['src', 'dist'])(
     const output = execFileSync(
       process.execPath,
       [
-        '--experimental-strip-types',
+        '--experimental-transform-types',
         fileURLToPath(new URL('./default-owner-worker.mjs', import.meta.url)),
         mode,
       ],

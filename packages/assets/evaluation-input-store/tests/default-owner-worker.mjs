@@ -7,8 +7,7 @@ import amSchema from '@omne-harness-lite/asset-model/schema' with { type: 'json'
 const [mode, directory] = process.argv.slice(2)
 assert(['src', 'dist'].includes(mode))
 assert(directory)
-const local = createRequire(import.meta.url)
-const compiler = createRequire(local.resolve('@omne-harness-lite/content-blocks'))
+const compiler = createRequire(import.meta.resolve('@omne-harness-lite/content-blocks'))
 const owners = new Set()
 let compilations = 0
 let failure
