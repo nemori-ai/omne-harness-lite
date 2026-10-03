@@ -189,12 +189,24 @@ describe('architecture intent comparison and protected baseline', () => {
   })
   it('disabled sensors do not read missing roots and absent declarations provide concrete no-data', () => {
     expect(readReflexion('/does-not-exist', { enabled: false, nodeRoot: root })).toEqual({
-      status: 'no-data',
-      reason: '配置里关了',
+      reflexion: { status: 'no-data', reason: '配置里关了' },
+      intentChanges: { status: 'no-data', reason: '配置里关了' },
     })
     expect(readReflexion('/does-not-exist', { enabled: true, nodeRoot: root })).toEqual({
+      reflexion: { status: 'no-data', reason: `${root} 缺失或没有 realization 节点` },
+      intentChanges: { status: 'no-data', reason: '没给基线' },
+    })
+  })
+  it('no declarations and removal of an undeclared node have the same semantic intent', () => {
+    const before = snapshot('', '{}')
+    const after = snapshotOf(new Map([...before.texts].filter(([path]) => path !== yaml)))
+    expect(compareRevisions(after, before, root).intentChanges).toEqual({
+      status: 'data',
+      data: [],
+    })
+    expect(compareRevisions(after, undefined, root).intentChanges).toEqual({
       status: 'no-data',
-      reason: `${root} 缺失或没有 realization 节点`,
+      reason: '没给基线',
     })
   })
 })

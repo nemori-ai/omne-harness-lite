@@ -2,7 +2,7 @@
 // 归慢层：子进程：在临时 git 仓库里起回路入口 CLI 子进程（严格模式）。
 // 严格模式（make check 用的那一档）：另判「开着的传感器都有数据」，要求基线与产物目录，回路目录一个字节都不动。
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -127,6 +127,43 @@ describe('严格模式', { timeout: 60_000 }, () => {
     expect(result.stdout).toContain(
       'sensors.reflexion（.meta_harness/design/realization 缺失或没有 realization 节点）',
     )
+    const status: unknown = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(status).toMatchObject({
+      sensors: {
+        reflexion: { status: 'no-data' },
+        assemblyChanges: {
+          status: 'data',
+          data: [{ member: 'packages/core/a', after: null }],
+        },
+      },
+      indicators: expect.arrayContaining([
+        expect.objectContaining({ id: 'assemblyChanges', reading: { status: 'data', data: 1 } }),
+      ]),
+      explain: { assemblyChanges: { status: 'data', data: [{ member: 'packages/core/a' }] } },
+    })
+  })
+
+  it('最后一份 assembly 移除：strict 仍失败，声明改动在指标与解释中独立可见', () => {
+    const { root, home, out, base } = complete()
+    write(root, '.meta_harness/design/realization/packages/core/a/bindings.yaml', '{}')
+    const result = run(root, home, '--strict', '--base', base, '--out', out)
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain(
+      'sensors.reflexion（.meta_harness/design/realization 完全没有 assembly/composition 声明）',
+    )
+    const status: unknown = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(status).toMatchObject({
+      hardLines: { sensors: { status: 'judged', silent: [{ sensor: 'reflexion' }] } },
+      sensors: {
+        reflexion: { status: 'no-data' },
+        assemblyChanges: { status: 'data', data: [{ after: null }] },
+      },
+      indicators: expect.arrayContaining([
+        expect.objectContaining({ id: 'assemblyChanges', reading: { status: 'data', data: 1 } }),
+      ]),
+      explain: { assemblyChanges: { status: 'data', data: [{ member: 'packages/core/a' }] } },
+    })
+    expect(readdirSync(home)).toEqual([])
   })
 
   it('不是严格模式时这一条不判：同样没数据也退出 0', () => {

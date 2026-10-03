@@ -60,6 +60,7 @@ import {
 } from './trend.ts'
 
 import { readReflexion, type Reflexion } from './sensors/reflexion.ts'
+import type { IntentChange } from '../arch/compare.ts'
 
 const OFF = '配置里关了'
 
@@ -94,6 +95,7 @@ interface Sensors {
   readonly worktrees: Reading<readonly WorktreeChanges[]>
   readonly acceptance: Reading<AcceptanceTiming>
   readonly reflexion: Reading<Reflexion>
+  readonly assemblyChanges: Reading<readonly IntentChange[]>
 }
 
 /** 基线合并点到当前工作树的改动：全部改动路径，与改动过的成员源码在合并点的文本。 */
@@ -199,6 +201,7 @@ async function readSensors(
 ): Promise<Sensors> {
   const { sensors } = config
   const windowStart = new Date(Date.now() - sensors.topicChurn.windowDays * 24 * 60 * 60 * 1000)
+  const { reflexion, intentChanges } = readReflexion(root, sensors.reflexion, change?.mergeBase)
   return {
     stability: readStability(report, sensors.stability),
     cochange: readCochange(root, sensors.cochange),
@@ -211,7 +214,8 @@ async function readSensors(
     worktrees: sensors.worktrees.enabled
       ? data(readWorktrees(root, config.primaryBranch))
       : noData(OFF),
-    reflexion: readReflexion(root, sensors.reflexion, change?.mergeBase),
+    reflexion,
+    assemblyChanges: intentChanges,
     acceptance: sensors.acceptance.enabled ? readAcceptanceTiming(acceptanceAt) : noData(OFF),
   }
 }
@@ -249,10 +253,7 @@ function indicatorValues(
           : map(sensors.reflexion.data.newDeviations, items => items.length),
     },
     assemblyChanges: {
-      reading:
-        sensors.reflexion.status === 'no-data'
-          ? sensors.reflexion
-          : map(sensors.reflexion.data.intentChanges, items => items.length),
+      reading: map(sensors.assemblyChanges, items => items.length),
     },
     missingAssembly: { reading: map(sensors.reflexion, result => result.missing.length) },
     unresolvedServiceNames: {
@@ -620,10 +621,7 @@ export async function runLoopStatus(
             sensors.reflexion.status === 'no-data'
               ? sensors.reflexion
               : sensors.reflexion.data.newDeviations,
-          assemblyChanges:
-            sensors.reflexion.status === 'no-data'
-              ? sensors.reflexion
-              : sensors.reflexion.data.intentChanges,
+          assemblyChanges: sensors.assemblyChanges,
         }
   const lines = renderStatus({
     shortHead: at.shortHead,

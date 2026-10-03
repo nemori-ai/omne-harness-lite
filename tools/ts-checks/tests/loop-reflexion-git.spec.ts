@@ -1,6 +1,6 @@
 // @module-tag slow
 // Slow: complete revision snapshots use real Git subprocesses and a temporary repository.
-import { readFileSync, renameSync } from 'node:fs'
+import { readFileSync, renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { readReflexion } from '../src/loop/sensors/reflexion.ts'
@@ -17,6 +17,66 @@ const nodeRoot = '.meta_harness/design/realization',
 const declaration = `${nodeRoot}/${member}/bindings.yaml`
 
 describe('version-local architecture baseline', () => {
+  it.each([
+    {
+      kind: 'assembly',
+      text: 'assembly: {plugins: [{name: example, source: "design.md#plugin"}]}',
+    },
+    { kind: 'composition', text: 'composition: {plugins: []}' },
+  ])(
+    'removing the last $kind preserves intent differences while comparison has no data',
+    ({ text }) => {
+      const root = repository()
+      write(root, declaration, text)
+      const base = commit(root, 'declared intent')
+      write(root, declaration, '{}')
+      expect(readReflexion(root, { enabled: true, nodeRoot }, base)).toMatchObject({
+        reflexion: { status: 'no-data', reason: `${nodeRoot} 完全没有 assembly/composition 声明` },
+        intentChanges: {
+          status: 'data',
+          data: [{ member, path: declaration, before: expect.any(String), after: null }],
+        },
+      })
+    },
+  )
+  it('removing the whole node area retains the baseline declaration and its location', () => {
+    const root = repository()
+    write(root, declaration, 'assembly: {plugins: []}')
+    const base = commit(root, 'declared intent')
+    rmSync(join(root, nodeRoot), { recursive: true })
+    expect(readReflexion(root, { enabled: true, nodeRoot }, base)).toMatchObject({
+      reflexion: { status: 'no-data', reason: `${nodeRoot} 缺失或没有 realization 节点` },
+      intentChanges: {
+        status: 'data',
+        data: [{ member, path: declaration, before: expect.any(String), after: null }],
+      },
+    })
+  })
+  it('no baseline is unknown and unchanged undeclared revisions have no semantic red items', () => {
+    const root = repository()
+    write(root, declaration, '{}')
+    const base = commit(root, 'undeclared intent')
+    write(root, declaration, '# no semantic change\n{}')
+    expect(readReflexion(root, { enabled: true, nodeRoot })).toMatchObject({
+      reflexion: { status: 'no-data' },
+      intentChanges: { status: 'no-data', reason: '没给基线' },
+    })
+    expect(readReflexion(root, { enabled: true, nodeRoot }, base).intentChanges).toEqual({
+      status: 'data',
+      data: [],
+    })
+    rmSync(join(root, nodeRoot), { recursive: true })
+    expect(readReflexion(root, { enabled: true, nodeRoot }, base).intentChanges).toEqual({
+      status: 'data',
+      data: [],
+    })
+    expect(
+      readReflexion('/does-not-exist', { enabled: false, nodeRoot: '/invalid' }, 'invalid'),
+    ).toEqual({
+      reflexion: { status: 'no-data', reason: '配置里关了' },
+      intentChanges: { status: 'no-data', reason: '配置里关了' },
+    })
+  })
   it('deleted helpers, moved source, changed export aliases and uncommitted new files retain their correct baseline', () => {
     const root = repository()
     write(
@@ -55,7 +115,7 @@ describe('version-local architecture baseline', () => {
         './moved.js',
       ),
     )
-    const moved = readReflexion(root, { enabled: true, nodeRoot }, base)
+    const { reflexion: moved } = readReflexion(root, { enabled: true, nodeRoot }, base)
     expect(moved).toMatchObject({
       status: 'data',
       data: { newDeviations: { status: 'data', data: [] } },
@@ -71,7 +131,7 @@ describe('version-local architecture baseline', () => {
       `${member}/src/untracked.ts`,
       "import {definePlugin} from '@omne-harness-lite/kernel-basis';export const b=definePlugin({name:'untracked',apply(ctx){ctx.provide('fresh',{})}})",
     )
-    const changed = readReflexion(root, { enabled: true, nodeRoot }, base)
+    const { reflexion: changed } = readReflexion(root, { enabled: true, nodeRoot }, base)
     expect(changed).toMatchObject({
       status: 'data',
       data: {
@@ -87,7 +147,7 @@ describe('version-local architecture baseline', () => {
       },
     })
     git(root, 'rm', '-q', `${member}/src/keys.ts`)
-    const deleted = readReflexion(root, { enabled: true, nodeRoot }, base)
+    const { reflexion: deleted } = readReflexion(root, { enabled: true, nodeRoot }, base)
     expect(deleted).toMatchObject({
       status: 'data',
       data: {
