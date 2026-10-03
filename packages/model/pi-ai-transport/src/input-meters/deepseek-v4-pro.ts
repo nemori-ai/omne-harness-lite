@@ -116,67 +116,86 @@ function mergeMessages(value: JsonValue | undefined): PromptMessage[] | undefine
   const merged: PromptMessage[] = []
   for (const raw of value) {
     if (!object(raw) || typeof raw.role !== 'string') return undefined
-    const content =
-      raw.role === 'assistant' && (raw.content === null || raw.content === undefined)
-        ? ''
-        : contentText(raw.content)
-    if (content === undefined) return undefined
-    if (raw.role === 'tool') {
-      if (typeof raw.tool_call_id !== 'string') return undefined
-      const block: ToolResultBlock = { type: 'tool_result', content, id: raw.tool_call_id }
-      const previous = merged.at(-1)
-      if (previous?.role === 'user') {
-        merged[merged.length - 1] = { ...previous, blocks: [...previous.blocks, block] }
-      } else {
-        merged.push({
-          role: 'user',
-          content: '',
-          reasoning: '',
-          toolCalls: [],
-          blocks: [block],
-        })
-      }
-      continue
-    }
-    if (
-      raw.role !== 'system' &&
-      raw.role !== 'developer' &&
-      raw.role !== 'user' &&
-      raw.role !== 'assistant'
-    )
-      return undefined
-    if (raw.role === 'user') {
-      const previous = merged.at(-1)
-      const block: TextBlock = { type: 'text', text: content }
-      if (previous?.role === 'user') {
-        merged[merged.length - 1] = { ...previous, blocks: [...previous.blocks, block] }
-        continue
-      }
-      merged.push({ role: 'user', content, reasoning: '', toolCalls: [], blocks: [block] })
-      continue
-    }
-    const toolCalls: JsonObject[] = []
-    if (raw.tool_calls !== undefined) {
-      if (!Array.isArray(raw.tool_calls)) return undefined
-      for (const call of raw.tool_calls) {
-        if (!object(call)) return undefined
-        toolCalls.push(call)
-      }
-    }
-    merged.push({
-      role: raw.role,
-      content,
-      reasoning:
-        typeof raw.reasoning_content === 'string'
-          ? raw.reasoning_content
-          : typeof raw.reasoning === 'string'
-            ? raw.reasoning
-            : '',
-      toolCalls,
-      blocks: [],
-    })
+    if (!mergeMessage(raw, merged)) return undefined
   }
   return merged
+}
+
+function messageContent(raw: JsonObject): string | undefined {
+  return raw.role === 'assistant' && (raw.content === null || raw.content === undefined)
+    ? ''
+    : contentText(raw.content)
+}
+
+function mergeMessage(raw: JsonObject, merged: PromptMessage[]): boolean {
+  const content = messageContent(raw)
+  if (content === undefined) return false
+  if (raw.role === 'tool') {
+    return mergeToolResult(raw, content, merged)
+  }
+  if (
+    raw.role !== 'system' &&
+    raw.role !== 'developer' &&
+    raw.role !== 'user' &&
+    raw.role !== 'assistant'
+  )
+    return false
+  if (raw.role === 'user') {
+    mergeUserContent(content, merged)
+    return true
+  }
+  const toolCalls = messageToolCalls(raw)
+  if (!toolCalls) return false
+  merged.push({ role: raw.role, content, reasoning: messageReasoning(raw), toolCalls, blocks: [] })
+  return true
+}
+
+function mergeToolResult(raw: JsonObject, content: string, merged: PromptMessage[]): boolean {
+  if (typeof raw.tool_call_id !== 'string') return false
+  const block: ToolResultBlock = { type: 'tool_result', content, id: raw.tool_call_id }
+  const previous = merged.at(-1)
+  if (previous?.role === 'user') {
+    merged[merged.length - 1] = { ...previous, blocks: [...previous.blocks, block] }
+  } else {
+    merged.push({
+      role: 'user',
+      content: '',
+      reasoning: '',
+      toolCalls: [],
+      blocks: [block],
+    })
+  }
+  return true
+}
+
+function mergeUserContent(content: string, merged: PromptMessage[]): void {
+  const previous = merged.at(-1)
+  const block: TextBlock = { type: 'text', text: content }
+  if (previous?.role === 'user') {
+    merged[merged.length - 1] = { ...previous, blocks: [...previous.blocks, block] }
+    return
+  }
+  merged.push({ role: 'user', content, reasoning: '', toolCalls: [], blocks: [block] })
+}
+
+function messageToolCalls(raw: JsonObject): JsonObject[] | undefined {
+  const toolCalls: JsonObject[] = []
+  if (raw.tool_calls !== undefined) {
+    if (!Array.isArray(raw.tool_calls)) return undefined
+    for (const call of raw.tool_calls) {
+      if (!object(call)) return undefined
+      toolCalls.push(call)
+    }
+  }
+  return toolCalls
+}
+
+function messageReasoning(raw: JsonObject): string {
+  return typeof raw.reasoning_content === 'string'
+    ? raw.reasoning_content
+    : typeof raw.reasoning === 'string'
+      ? raw.reasoning
+      : ''
 }
 
 /** The official V4 text/tool prompt projection for the OpenAI-compatible subset we send. */
@@ -186,6 +205,26 @@ export function renderDeepSeekV4Prompt(
 ): string | undefined {
   const messages = mergeMessages(body.messages)
   if (!messages) return undefined
+  const tools = promptTools(body)
+  if (!tools) return undefined
+  let prompt = BOS
+  if (tools.length && messages[0]?.role !== 'system' && messages[0]?.role !== 'developer') {
+    // The official encoder attaches OpenAI-format tools to an instruction message.
+    messages.unshift({ role: 'system', content: '', reasoning: '', toolCalls: [], blocks: [] })
+  }
+  const lastUser = messages.findLastIndex(
+    message => message.role === 'user' || message.role === 'developer',
+  )
+  for (const [index, message] of messages.entries()) {
+    const rendered = renderMessage(message, index, lastUser, tools, thinkingMode)
+    if (rendered === undefined) return undefined
+    prompt += rendered
+    prompt += assistantPrefix(message, messages[index + 1], index, lastUser, tools, thinkingMode)
+  }
+  return prompt
+}
+
+function promptTools(body: JsonObject): readonly JsonObject[] | undefined {
   let tools: readonly JsonObject[] = []
   if (body.tools !== undefined) {
     if (!Array.isArray(body.tools)) return undefined
@@ -196,58 +235,88 @@ export function renderDeepSeekV4Prompt(
     }
     tools = checked
   }
-  let prompt = BOS
-  if (tools.length && messages[0]?.role !== 'system' && messages[0]?.role !== 'developer') {
-    // The official encoder attaches OpenAI-format tools to an instruction message.
-    messages.unshift({ role: 'system', content: '', reasoning: '', toolCalls: [], blocks: [] })
-  }
-  const lastUser = messages.findLastIndex(
-    message => message.role === 'user' || message.role === 'developer',
-  )
-  const dropThinking = tools.length === 0
-  for (const [index, message] of messages.entries()) {
-    if (message.role === 'system') {
-      prompt += message.content
-      if (index === 0 && tools.length) prompt += `\n\n${renderTools(tools)}`
-    } else if (message.role === 'developer') {
-      if (!message.content) return undefined
-      prompt += USER + message.content
-      if (index === 0 && tools.length) prompt += `\n\n${renderTools(tools)}`
-    } else if (message.role === 'user') {
-      prompt += USER
-      prompt += message.blocks
-        .map(block =>
-          block.type === 'text' ? block.text : `<tool_result>${block.content}</tool_result>`,
-        )
-        .join('\n\n')
-    } else {
-      if (thinkingMode === 'thinking' && (!dropThinking || index > lastUser))
-        prompt += message.reasoning + END_THINK
-      prompt += message.content
-      if (message.toolCalls.length) {
-        const calls: string[] = []
-        for (const call of message.toolCalls) {
-          const fn = call.function
-          if (!object(fn) || typeof fn.name !== 'string' || typeof fn.arguments !== 'string')
-            return undefined
-          const args = toolArguments(fn.arguments)
-          if (args === undefined) return undefined
-          calls.push(`<${DSML}invoke name="${fn.name}">\n${args}\n</${DSML}invoke>`)
-        }
-        prompt += `\n\n<${DSML}tool_calls>\n${calls.join('\n')}\n</${DSML}tool_calls>`
-      }
-      prompt += EOS
-    }
-    const next = messages[index + 1]
-    if (
-      (message.role === 'user' || message.role === 'developer') &&
-      (!next || next.role === 'assistant')
-    )
-      prompt +=
-        ASSISTANT +
-        (thinkingMode === 'thinking' && (!dropThinking || index >= lastUser) ? THINK : END_THINK)
+  return tools
+}
+
+function renderMessage(
+  message: PromptMessage,
+  index: number,
+  lastUser: number,
+  tools: readonly JsonObject[],
+  thinkingMode: 'chat' | 'thinking',
+): string | undefined {
+  let prompt = ''
+  if (message.role === 'system') {
+    prompt += message.content
+    if (index === 0 && tools.length) prompt += `\n\n${renderTools(tools)}`
+  } else if (message.role === 'developer') {
+    if (!message.content) return undefined
+    prompt += USER + message.content
+    if (index === 0 && tools.length) prompt += `\n\n${renderTools(tools)}`
+  } else if (message.role === 'user') {
+    prompt += USER
+    prompt += message.blocks
+      .map(block =>
+        block.type === 'text' ? block.text : `<tool_result>${block.content}</tool_result>`,
+      )
+      .join('\n\n')
+  } else {
+    return renderAssistant(message, index, lastUser, tools, thinkingMode)
   }
   return prompt
+}
+
+function renderAssistant(
+  message: PromptMessage,
+  index: number,
+  lastUser: number,
+  tools: readonly JsonObject[],
+  thinkingMode: 'chat' | 'thinking',
+): string | undefined {
+  let prompt = ''
+  const dropThinking = tools.length === 0
+  if (thinkingMode === 'thinking' && (!dropThinking || index > lastUser))
+    prompt += message.reasoning + END_THINK
+  prompt += message.content
+  if (message.toolCalls.length) {
+    const calls = renderCalls(message.toolCalls)
+    if (calls === undefined) return undefined
+    prompt += calls
+  }
+  return prompt + EOS
+}
+
+function renderCalls(toolCalls: readonly JsonObject[]): string | undefined {
+  const calls: string[] = []
+  for (const call of toolCalls) {
+    const fn = call.function
+    if (!object(fn) || typeof fn.name !== 'string' || typeof fn.arguments !== 'string')
+      return undefined
+    const args = toolArguments(fn.arguments)
+    if (args === undefined) return undefined
+    calls.push(`<${DSML}invoke name="${fn.name}">\n${args}\n</${DSML}invoke>`)
+  }
+  return `\n\n<${DSML}tool_calls>\n${calls.join('\n')}\n</${DSML}tool_calls>`
+}
+
+function assistantPrefix(
+  message: PromptMessage,
+  next: PromptMessage | undefined,
+  index: number,
+  lastUser: number,
+  tools: readonly JsonObject[],
+  thinkingMode: 'chat' | 'thinking',
+): string {
+  const dropThinking = tools.length === 0
+  if (
+    (message.role === 'user' || message.role === 'developer') &&
+    (!next || next.role === 'assistant')
+  )
+    return (
+      ASSISTANT +
+      (thinkingMode === 'thinking' && (!dropThinking || index >= lastUser) ? THINK : END_THINK)
+    )
+  return ''
 }
 
 const TOKENIZER_SHA256 = '8f9f37ca37fdc4f5fd36d5cf4d3b0e8392edb4e894fd10cc0d70b4957c8633cf'

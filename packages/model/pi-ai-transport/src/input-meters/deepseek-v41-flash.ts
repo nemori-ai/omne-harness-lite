@@ -151,66 +151,102 @@ function mergeMessages(value: JsonValue | undefined): PromptMessage[] | undefine
   const merged: PromptMessage[] = []
   for (const raw of value) {
     if (!object(raw) || typeof raw.role !== 'string') return undefined
-    const content =
-      raw.role === 'assistant' && (raw.content === null || raw.content === undefined)
-        ? ''
-        : contentText(raw.content)
-    const blocks = raw.role === 'user' ? userBlocks(raw.content) : undefined
-    if (raw.role === 'user' && !blocks) return undefined
-    if (raw.role !== 'user' && content === undefined) return undefined
-    if (raw.role === 'tool') {
-      if (typeof raw.tool_call_id !== 'string') return undefined
-      const block: ToolResultBlock = {
-        type: 'tool_result',
-        content: content ?? '',
-        id: raw.tool_call_id,
-      }
-      const previous = merged.at(-1)
-      if (previous?.role === 'user') {
-        merged[merged.length - 1] = { ...previous, blocks: [...previous.blocks, block] }
-      } else {
-        merged.push({
-          role: 'user',
-          content: '',
-          reasoning: '',
-          toolCalls: [],
-          blocks: [block],
-        })
-      }
-      continue
-    }
-    if (raw.role !== 'system' && raw.role !== 'user' && raw.role !== 'assistant') return undefined
-    if (raw.role === 'user') {
-      if (!blocks) return undefined
-      const previous = merged.at(-1)
-      if (previous?.role === 'user') {
-        merged[merged.length - 1] = { ...previous, blocks: [...previous.blocks, ...blocks] }
-        continue
-      }
-      merged.push({ role: 'user', content: '', reasoning: '', toolCalls: [], blocks })
-      continue
-    }
-    const toolCalls: JsonObject[] = []
-    if (raw.tool_calls !== undefined) {
-      if (!Array.isArray(raw.tool_calls)) return undefined
-      for (const call of raw.tool_calls) {
-        if (!object(call)) return undefined
-        toolCalls.push(call)
-      }
-    }
+    if (!mergeMessage(raw, merged)) return undefined
+  }
+  return reorderToolResults(merged)
+}
+
+function messageContent(
+  raw: JsonObject,
+): { content: string | undefined; blocks: readonly MergedBlock[] | undefined } | undefined {
+  const content =
+    raw.role === 'assistant' && (raw.content === null || raw.content === undefined)
+      ? ''
+      : contentText(raw.content)
+  const blocks = raw.role === 'user' ? userBlocks(raw.content) : undefined
+  if (raw.role === 'user' && !blocks) return undefined
+  if (raw.role !== 'user' && content === undefined) return undefined
+  return { content, blocks }
+}
+
+function mergeMessage(raw: JsonObject, merged: PromptMessage[]): boolean {
+  const projected = messageContent(raw)
+  if (!projected) return false
+  const { content, blocks } = projected
+  if (raw.role === 'tool') {
+    return mergeToolResult(raw, content, merged)
+  }
+  if (raw.role !== 'system' && raw.role !== 'user' && raw.role !== 'assistant') return false
+  if (raw.role === 'user') {
+    if (!blocks) return false
+    mergeUserBlocks(blocks, merged)
+    return true
+  }
+  const toolCalls = messageToolCalls(raw)
+  if (!toolCalls) return false
+  merged.push({
+    role: raw.role,
+    content: content ?? '',
+    reasoning:
+      typeof raw.reasoning_content === 'string'
+        ? raw.reasoning_content
+        : typeof raw.reasoning === 'string'
+          ? raw.reasoning
+          : '',
+    toolCalls,
+    blocks: [],
+  })
+  return true
+}
+
+function mergeToolResult(
+  raw: JsonObject,
+  content: string | undefined,
+  merged: PromptMessage[],
+): boolean {
+  if (typeof raw.tool_call_id !== 'string') return false
+  const block: ToolResultBlock = {
+    type: 'tool_result',
+    content: content ?? '',
+    id: raw.tool_call_id,
+  }
+  const previous = merged.at(-1)
+  if (previous?.role === 'user') {
+    merged[merged.length - 1] = { ...previous, blocks: [...previous.blocks, block] }
+  } else {
     merged.push({
-      role: raw.role,
-      content: content ?? '',
-      reasoning:
-        typeof raw.reasoning_content === 'string'
-          ? raw.reasoning_content
-          : typeof raw.reasoning === 'string'
-            ? raw.reasoning
-            : '',
-      toolCalls,
-      blocks: [],
+      role: 'user',
+      content: '',
+      reasoning: '',
+      toolCalls: [],
+      blocks: [block],
     })
   }
+  return true
+}
+
+function mergeUserBlocks(blocks: readonly MergedBlock[], merged: PromptMessage[]): void {
+  const previous = merged.at(-1)
+  if (previous?.role === 'user') {
+    merged[merged.length - 1] = { ...previous, blocks: [...previous.blocks, ...blocks] }
+    return
+  }
+  merged.push({ role: 'user', content: '', reasoning: '', toolCalls: [], blocks })
+}
+
+function messageToolCalls(raw: JsonObject): JsonObject[] | undefined {
+  const toolCalls: JsonObject[] = []
+  if (raw.tool_calls !== undefined) {
+    if (!Array.isArray(raw.tool_calls)) return undefined
+    for (const call of raw.tool_calls) {
+      if (!object(call)) return undefined
+      toolCalls.push(call)
+    }
+  }
+  return toolCalls
+}
+
+function reorderToolResults(merged: PromptMessage[]): PromptMessage[] | undefined {
   let order = new Map<string, number>()
   for (const [index, message] of merged.entries()) {
     if (message.role === 'assistant' && message.toolCalls.length) {
@@ -249,6 +285,27 @@ export function renderDeepSeekV41Prompt(
 ): string | undefined {
   const messages = mergeMessages(body.messages)
   if (!messages) return undefined
+  const tools = promptTools(body)
+  if (!tools) return undefined
+  let prompt = BOS
+  if (tools.length && messages[0]?.role !== 'system') {
+    // The official encoder attaches OpenAI-format tools to an instruction message.
+    messages.unshift({ role: 'system', content: '', reasoning: '', toolCalls: [], blocks: [] })
+  }
+  const lastUser = messages.findLastIndex(
+    (message, index) => message.role === 'user' || (index > 0 && message.role === 'system'),
+  )
+  for (const [index, message] of messages.entries()) {
+    prompt += instructionPrefix(message, index, thinkingMode, effort)
+    const rendered = renderMessage(message, index, lastUser, tools, thinkingMode)
+    if (rendered === undefined) return undefined
+    prompt += rendered
+    prompt += assistantPrefix(message, messages[index + 1], index, lastUser, tools, thinkingMode)
+  }
+  return prompt
+}
+
+function promptTools(body: JsonObject): readonly JsonObject[] | undefined {
   let tools: readonly JsonObject[] = []
   if (body.tools !== undefined) {
     if (!Array.isArray(body.tools)) return undefined
@@ -259,62 +316,103 @@ export function renderDeepSeekV41Prompt(
     }
     tools = checked
   }
-  let prompt = BOS
-  if (tools.length && messages[0]?.role !== 'system') {
-    // The official encoder attaches OpenAI-format tools to an instruction message.
-    messages.unshift({ role: 'system', content: '', reasoning: '', toolCalls: [], blocks: [] })
-  }
-  const lastUser = messages.findLastIndex(
-    (message, index) => message.role === 'user' || (index > 0 && message.role === 'system'),
-  )
-  const dropThinking = tools.length === 0
-  for (const [index, message] of messages.entries()) {
-    if (index === 0 && (message.role === 'system' || thinkingMode === 'thinking')) prompt += SYSTEM
-    if (index === 0 && thinkingMode === 'thinking')
-      prompt += `Reasoning Effort: ${effort === 'low' ? 50 : effort === 'max' ? 100 : 75} (range 1-100, the higher the value, the more thorough the reasoning)\n\n`
-    if (message.role === 'system') {
-      if (index > 0) prompt += SYSTEM
-      prompt += message.content
-      if (index === 0 && tools.length) prompt += `\n\n${renderTools(tools)}`
-    } else if (message.role === 'user') {
-      prompt += USER
-      prompt += message.blocks
-        .map(block =>
-          block.type === 'text'
-            ? block.text
-            : block.type === 'image'
-              ? IMAGE
-              : `<tool_result>${block.content}</tool_result>`,
-        )
-        .join('\n\n')
-    } else {
-      if (thinkingMode === 'thinking' && (!dropThinking || index > lastUser))
-        prompt += message.reasoning + END_THINK
-      prompt += message.content
-      if (message.toolCalls.length) {
-        const calls: string[] = []
-        for (const call of message.toolCalls) {
-          const fn = call.function
-          if (!object(fn) || typeof fn.name !== 'string' || typeof fn.arguments !== 'string')
-            return undefined
-          const args = toolArguments(fn.arguments)
-          if (args === undefined) return undefined
-          calls.push(`<${DSML} invoke name="${fn.name}">\n${args}\n</${DSML} invoke>`)
-        }
-        prompt += `\n\n<${DSML} calls>\n${calls.join('\n')}\n</${DSML} calls>`
-      }
-      prompt += EOS
-    }
-    const next = messages[index + 1]
-    if (
-      (message.role === 'user' || (message.role === 'system' && index > 0)) &&
-      (!next || next.role === 'assistant')
-    )
-      prompt +=
-        ASSISTANT +
-        (thinkingMode === 'thinking' && (!dropThinking || index >= lastUser) ? THINK : END_THINK)
+  return tools
+}
+
+function instructionPrefix(
+  message: PromptMessage,
+  index: number,
+  thinkingMode: 'chat' | 'thinking',
+  effort: 'low' | 'high' | 'max',
+): string {
+  let prompt = ''
+  if (index === 0 && (message.role === 'system' || thinkingMode === 'thinking')) prompt += SYSTEM
+  if (index === 0 && thinkingMode === 'thinking')
+    prompt += `Reasoning Effort: ${effort === 'low' ? 50 : effort === 'max' ? 100 : 75} (range 1-100, the higher the value, the more thorough the reasoning)\n\n`
+  return prompt
+}
+
+function renderMessage(
+  message: PromptMessage,
+  index: number,
+  lastUser: number,
+  tools: readonly JsonObject[],
+  thinkingMode: 'chat' | 'thinking',
+): string | undefined {
+  let prompt = ''
+  if (message.role === 'system') {
+    if (index > 0) prompt += SYSTEM
+    prompt += message.content
+    if (index === 0 && tools.length) prompt += `\n\n${renderTools(tools)}`
+  } else if (message.role === 'user') {
+    prompt += USER
+    prompt += message.blocks
+      .map(block =>
+        block.type === 'text'
+          ? block.text
+          : block.type === 'image'
+            ? IMAGE
+            : `<tool_result>${block.content}</tool_result>`,
+      )
+      .join('\n\n')
+  } else {
+    return renderAssistant(message, index, lastUser, tools, thinkingMode)
   }
   return prompt
+}
+
+function renderAssistant(
+  message: PromptMessage,
+  index: number,
+  lastUser: number,
+  tools: readonly JsonObject[],
+  thinkingMode: 'chat' | 'thinking',
+): string | undefined {
+  let prompt = ''
+  const dropThinking = tools.length === 0
+  if (thinkingMode === 'thinking' && (!dropThinking || index > lastUser))
+    prompt += message.reasoning + END_THINK
+  prompt += message.content
+  if (message.toolCalls.length) {
+    const calls = renderCalls(message.toolCalls)
+    if (calls === undefined) return undefined
+    prompt += calls
+  }
+  prompt += EOS
+  return prompt
+}
+
+function renderCalls(toolCalls: readonly JsonObject[]): string | undefined {
+  const calls: string[] = []
+  for (const call of toolCalls) {
+    const fn = call.function
+    if (!object(fn) || typeof fn.name !== 'string' || typeof fn.arguments !== 'string')
+      return undefined
+    const args = toolArguments(fn.arguments)
+    if (args === undefined) return undefined
+    calls.push(`<${DSML} invoke name="${fn.name}">\n${args}\n</${DSML} invoke>`)
+  }
+  return `\n\n<${DSML} calls>\n${calls.join('\n')}\n</${DSML} calls>`
+}
+
+function assistantPrefix(
+  message: PromptMessage,
+  next: PromptMessage | undefined,
+  index: number,
+  lastUser: number,
+  tools: readonly JsonObject[],
+  thinkingMode: 'chat' | 'thinking',
+): string {
+  const dropThinking = tools.length === 0
+  if (
+    (message.role === 'user' || (message.role === 'system' && index > 0)) &&
+    (!next || next.role === 'assistant')
+  )
+    return (
+      ASSISTANT +
+      (thinkingMode === 'thinking' && (!dropThinking || index >= lastUser) ? THINK : END_THINK)
+    )
+  return ''
 }
 
 const TOKENIZER_SHA256 = 'c90dfa01249db1be4245780a052ede752e1361c612ac6d08e2bdada7d599476b'
@@ -352,7 +450,17 @@ function imageType(mime: string): string | undefined {
 
 /** Pinned Flash image_processor.py grid projection, before private route transformations. */
 export function referenceImageTokens(width: number, height: number): number | undefined {
-  if (
+  if (!validImageDimensions(width, height)) return undefined
+  if (width * height < VISION_MIN_PIXELS) {
+    const ratio = Math.sqrt(VISION_MIN_PIXELS / (width * height))
+    width = Math.trunc(width * ratio)
+    height = Math.trunc(height * ratio)
+  }
+  return imageGridTokens(width, height)
+}
+
+function validImageDimensions(width: number, height: number): boolean {
+  return !(
     !Number.isSafeInteger(width) ||
     !Number.isSafeInteger(height) ||
     width <= 0 ||
@@ -360,12 +468,9 @@ export function referenceImageTokens(width: number, height: number): number | un
     width > 65535 ||
     height > 65535
   )
-    return undefined
-  if (width * height < VISION_MIN_PIXELS) {
-    const ratio = Math.sqrt(VISION_MIN_PIXELS / (width * height))
-    width = Math.trunc(width * ratio)
-    height = Math.trunc(height * ratio)
-  }
+}
+
+function imageGridTokens(width: number, height: number): number | undefined {
   let bestWidth = Math.ceil(width / VISION_PATCH_SIZE) * VISION_PATCH_SIZE
   let bestHeight = Math.ceil(height / VISION_PATCH_SIZE) * VISION_PATCH_SIZE
   const grid = () => {
@@ -404,31 +509,35 @@ function inlineImageTokens(body: JsonObject): number | undefined {
     if (!object(message) || !Array.isArray(message.content)) continue
     for (const part of message.content) {
       if (!object(part) || part.type !== 'image_url') continue
-      const image = part.image_url
-      if (
-        Object.keys(part).some(key => key !== 'type' && key !== 'image_url') ||
-        !object(image) ||
-        Object.keys(image).some(key => key !== 'url') ||
-        typeof image.url !== 'string'
-      )
-        return undefined
-      const match = inlineImage.exec(image.url)
-      if (!match?.[1] || !match[2]) return undefined
-      const decoded = Buffer.from(match[2], 'base64')
-      if (!decoded.length || decoded.toString('base64') !== match[2]) return undefined
-      try {
-        const dimensions = imageSize(decoded)
-        if (dimensions.type !== imageType(match[1])) return undefined
-        const span = referenceImageTokens(dimensions.width, dimensions.height)
-        if (span === undefined) return undefined
-        // The encoded prompt already contains one placeholder token per image.
-        tokens += span - 1
-      } catch {
-        return undefined
-      }
+      const span = inlineImageSpan(part)
+      if (span === undefined) return undefined
+      // The encoded prompt already contains one placeholder token per image.
+      tokens += span - 1
     }
   }
   return tokens
+}
+
+function inlineImageSpan(part: JsonObject): number | undefined {
+  const image = part.image_url
+  if (
+    Object.keys(part).some(key => key !== 'type' && key !== 'image_url') ||
+    !object(image) ||
+    Object.keys(image).some(key => key !== 'url') ||
+    typeof image.url !== 'string'
+  )
+    return undefined
+  const match = inlineImage.exec(image.url)
+  if (!match?.[1] || !match[2]) return undefined
+  const decoded = Buffer.from(match[2], 'base64')
+  if (!decoded.length || decoded.toString('base64') !== match[2]) return undefined
+  try {
+    const dimensions = imageSize(decoded)
+    if (dimensions.type !== imageType(match[1])) return undefined
+    return referenceImageTokens(dimensions.width, dimensions.height)
+  } catch {
+    return undefined
+  }
 }
 
 const supplemental = createDeepSeekSupplemental(['type', 'text', 'image_url'])
