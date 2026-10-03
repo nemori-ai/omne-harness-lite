@@ -172,6 +172,7 @@ SHA-256，而运行结果每跑一次就多一份——两类失效事件互相�
 | -------------------------------------- | --------------------------------------------- |
 | 具体提供者、依赖、资源、采用对象与版本 | `design/realization/packages/<group>/<node>/`（`kind: provider`；两层布局与 `core` 的准入见该区 README） |
 | 应用选择、配置和跨能力装配             | `design/realization/apps/<node>/`（`kind: assembly`） |
+| 本项目怎样接进 Cordis：服务定义放哪、服务键、依赖、事件、登记、配置、插件树（步骤 F 与节点的符合性核对表照它判） | `design/realization/cordis-integration-conventions.md`，规则编号 `IC-`。它核于 `@deepseek-ai/cordis` **4.0.4**（DSH `639ed015`），本手册「最小内核模型」核于 4.0.2（DSH `c291e796`）；两处对不上时以约定与 `design/basis/` 的 probe 为准 |
 | 精确契约条款绑到哪份证据上             | 该节点的 `bindings.yaml`；**绑定要有稳定名字和一个在该语义消失时会失败的检查** |
 | 长期迁移边界和消费关系变化             | `design/registry/lineage.json`（旧新身份对应）；过程材料留 `tmp/` |
 | 评审与起草角色及行动边界               | `agents/roles/`，按实际定义与宿主可用能力使用；主线与角色的分工见下表 |

@@ -37,8 +37,10 @@ Python 当前服务于开发工具。
 
 产品包采用 `packages/<能力族>/<职责包>/` 两层：**第一层只组织相关能力，不是 workspace 成员**；
 第二层才拥有 `package.json`、`src`、依赖、公开入口和测试。
-能力定义、具体提供者、消费扩展在具有独立职责和变化边界时分包；消费者依赖能力定义及契约，
-装配负责选择提供者。不机械地为每个插件或每种角色创建包。
+能力的 Cordis 服务定义一律放 `packages/core/`，具体提供者放所属领域或 `infra/`；消费者依赖服务定义及契约、不依赖提供者，
+装配负责选择提供者。每个包的根入口与 Cordis 无关，Cordis 绑定放同包的 `./cordis` 入口。
+这些规则与其余集成规矩的权威在 [Cordis 集成约定](../.meta_harness/design/realization/cordis-integration-conventions.md)。
+不机械地为每个插件创建包。
 
 **可执行验收**放在成员的 `acceptance/` 目录，与 `tests/` 分开，因为两者的主人不同：
 

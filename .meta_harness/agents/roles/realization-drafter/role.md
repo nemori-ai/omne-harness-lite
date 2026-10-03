@@ -37,7 +37,7 @@
 ## 任务输入
 
 需要：设计工作区位置、节点名与 `<group>/<node>` 路径、本节点兑现的契约坐标（精确版本、状态）、节点划分与共同约定（主线裁定）、
-承载读数的承载草图或对应提案（它只说每个对象的落点、谁拥有什么、谁依赖谁及各要哪种连续性、什么同生共死、哪些关系是控制；用 Cordis 的哪种原语兑现由你在节点设计里落并自核）、需求 topic 及 rev、basis 目录、模板与区约定（`design/realization/AGENTS.md`、`README.md`）。
+承载读数的承载草图或对应提案（它只说每个对象的落点、谁拥有什么、谁依赖谁及各要哪种连续性、什么同生共死、哪些关系是控制；用 Cordis 的哪种原语兑现由你在节点设计里落并自核）、需求 topic 及 rev、basis 目录、模板与区约定（`design/realization/AGENTS.md`、`README.md`）、Cordis 集成约定（`design/realization/cordis-integration-conventions.md`：服务定义放 `core`、键只写一次、包的两面、依赖与事件的写法、登记即效应、配置、插件树；符合性核对表各行照它判，引它的 `IC-` 编号）。
 assembly 节点另需：本批 provider 节点清单、各自的存储要求清单与「归装配」的事项（时钟、密钥、入口层身份核实）。
 
 开始前核对：契约坐标在 catalog 里存在且版本一致；节点路径符合两层布局；共同约定里的政策（Cordis 版本、存储抽象、配置错误收场）齐全。任一项对不上先报。
@@ -54,7 +54,7 @@ assembly 节点另需：本批 provider 节点清单、各自的存储要求清�
 「交付与反向核对」（`references/handoff.md`）、「生命周期」与「动态演化」（`references/architecture/runtime/`）、
 「复杂度与复用」（`references/architecture/assurance/judgment.md`）。宿主没有预加载时自己调用；
 调不动时读工作区内 `agents/skills/harness-design-handbook/canonical/SKILL.md`。
-再读 `design/realization/AGENTS.md` 与 `README.md`、`design/basis/README.md`。
+再读 `design/realization/AGENTS.md` 与 `README.md`、`design/realization/cordis-integration-conventions.md`、`design/basis/README.md`。
 
 每一处关键选择（一条 fiber 还是拆、必需 inject 还是可选、签名还是登记）写成一张对比表：落选方的最强论证、本方弱点、置信度——
 置信度不代替评审，节点写完主线会派独立评审判这些选择。

@@ -61,6 +61,12 @@
       "kind": "acceptance-scenario",
       "owner": "product",
       "description": "产品 topic 的 acceptance.md 里验收场景行的编号：1 到 3 个大写字母接数字，可再带一个小写字母（现有 S1、S2b、A01 两种写法，由各 topic 自定）。**不带连字符**，以区别于契约条款的 S-。作用域限于单个 topic 的 acceptance.md；跨 topic 引用须带 topic 编号；故事卡的「覆盖场景」按它指到具体一行"
+    },
+    {
+      "prefix": "IC-",
+      "kind": "integration-convention-rule",
+      "owner": "realization",
+      "description": "Cordis 集成约定（realization/cordis-integration-conventions.md）的规则编号，形如 IC-12。全仓唯一，发出去不重排、不复用；废止的规则保留编号并标明。节点的符合性核对、读数与评审引用规则时用这个编号"
     }
   ]
 }

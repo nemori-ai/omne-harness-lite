@@ -81,6 +81,9 @@ probe 断言什么。
 
 ## 当前状态
 
+2026-10-02 加三条，都是实现映射区的 Cordis 集成约定依赖的内核行为：`service-subclass-provides-its-key`（抽象 `Service` 子类在抽象类给的键上提供服务）、
+`service-method-ctx-is-caller`（经调用方取到的服务，方法里的 `this.ctx` 是调用方，登记归调用方 fiber）、`ctx-property-is-not-ctx-get`（插件里 `ctx.<键>` 要先声明，`ctx.get` 直接读服务表）；probe 同目录，对 4.0.4 通过。
+
 2026-09-23 阶段 2 加两条（W1-B 实现 account-identity 时核实）：`emit-listener-throw-propagates`（否定事实：`emit` 不隔离监听者）、`logger-level-order-error-lowest`（级别序与缺省阈值）；probe 同目录，对 4.0.4 通过。
 
 已有 6 条条目，均来自账号与租户设计实际依赖的机制语义：
