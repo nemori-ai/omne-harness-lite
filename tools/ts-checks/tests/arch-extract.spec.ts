@@ -79,6 +79,40 @@ const contextCases: readonly {
 ]
 
 describe('static architecture extraction', () => {
+  it('keeps unowned helpers beside manifests and plugins without duplicating reached helpers', () => {
+    const appSource = 'apps/host/src/index.ts'
+    const result = extract('', {
+      'apps/host/package.json': '{"name":"@fixture/host","exports":{".":"./dist/index.js"}}',
+      [appSource]: `${prelude}
+export function reached(ctx: C) { ctx.provide('owned-helper', {}) }
+export const live = plugin({ name: 'live', apply(ctx) { reached(ctx); ctx.provide('live-service', {}) } })
+export function assemble(ctx: C) { ctx.get(dynamicKey()); ctx.provide('unowned-service', {}) }
+export const manifest = [{ id: 'live-component', plugin: live }]
+`,
+    })
+    expect(result.facts.filter(f => f.kind === 'provides' && f.key === 'owned-helper')).toEqual([
+      expect.objectContaining({ plugin: 'live', path: appSource }),
+    ])
+    expect(result.facts.filter(f => f.kind === 'provides' && f.key === 'unowned-service')).toEqual([
+      expect.objectContaining({ path: appSource, scope: 'top' }),
+    ])
+    expect(result.facts.find(f => f.key === 'unowned-service')?.plugin).toBeUndefined()
+    expect(result.facts.some(f => f.kind === 'composition' && f.key === 'live-component')).toBe(
+      true,
+    )
+    expect(result.unknown).toEqual([
+      expect.objectContaining({
+        expression: 'dynamicKey()',
+        path: appSource,
+        scope: 'top',
+        kind: 'optional',
+        serviceIdentifier: true,
+      }),
+    ])
+    expect(result.unknown[0]?.plugin).toBeUndefined()
+    expect(result.serviceIdentifiers.unresolved).toBe(1)
+  })
+
   it('resolves workspace public re-exports, aliases and static class keys without merging plugins', () => {
     const result = extract(
       `${prelude}
