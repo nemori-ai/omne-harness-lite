@@ -8,7 +8,7 @@ import {
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { judgeAgentDefinitionBody } from '@omne-harness-lite/agent-definition'
-import { assetJudge } from './defaults.ts'
+import { getAssetJudge } from './defaults.ts'
 import { diagnostic, invalidInput } from './diagnostics.ts'
 import {
   assignmentsFor,
@@ -177,14 +177,14 @@ function assignmentWithinDeclaration(
       value.allowed.every(token => declaration.domain.values.includes(token))
     )
   }
-  const result = assetJudge.judgeAssetValue('AttributeDeclaration', {
+  const result = getAssetJudge().judgeAssetValue('AttributeDeclaration', {
     ...declaration,
     default: assignment.value,
   })
   if ('rejected' in result) return false
   return (
     'ok' in
-    assetJudge.judgeAssetValue('AttributeAssignment', assignment, { declarations: [declaration] })
+    getAssetJudge().judgeAssetValue('AttributeAssignment', assignment, { declarations: [declaration] })
   )
 }
 /** A permission assignment takes part in S-23 when the effective asset declares the item as a permission, or when it is an outer bound on an item the effective asset lacks. */

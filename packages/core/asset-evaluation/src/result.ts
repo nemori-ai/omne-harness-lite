@@ -2,6 +2,7 @@ import {
   capabilityCanonicalString,
   USABLE_BY_DECLARATION,
   type CapabilityId,
+  type AssetModelJudge,
 } from '@omne-harness-lite/asset-model'
 import {
   copyJsonValue,
@@ -12,7 +13,7 @@ import {
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { judgeAgentDefinitionBody } from '@omne-harness-lite/agent-definition'
 import agentSchema from '@omne-harness-lite/agent-definition/schema' with { type: 'json' }
-import { assetJudge } from './defaults.ts'
+import { getAssetJudge } from './defaults.ts'
 import { object } from './json.ts'
 import type { EffectiveAsset, EffectiveAssembly, EffectiveValue, FilteredOut } from './types.ts'
 
@@ -44,10 +45,10 @@ function closed(
   )
 }
 function data(
-  definition: Parameters<typeof assetJudge.judgeAssetValue>[0],
+  definition: Parameters<AssetModelJudge['judgeAssetValue']>[0],
   value: unknown,
 ): boolean {
-  return 'ok' in assetJudge.judgeAssetValue(definition, value)
+  return 'ok' in getAssetJudge().judgeAssetValue(definition, value)
 }
 function capability(value: unknown): boolean {
   return data('CapabilityId', value)

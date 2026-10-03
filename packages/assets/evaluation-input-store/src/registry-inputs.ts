@@ -10,7 +10,7 @@ import { parseTenantId, tenantIdEquals, type TenantId } from '@omne-harness-lite
 import { validate as validateMessage } from '@omne-harness-lite/messages'
 import { narrow, StorageUnavailable } from '@omne-harness-lite/storage'
 import {
-  assetJudge,
+  getAssetJudge,
   buildInputWithRoot,
   emit,
   equal,
@@ -66,10 +66,10 @@ function request(value: unknown): RegistryInputRequest | undefined {
     !['reload', 'refresh_availability'].includes(String(copied.purpose)) ||
     !object(copied.rootSource) ||
     Object.keys(copied.rootSource).length !== 2 ||
-    !('ok' in assetJudge.judgeAssetValue('AssetRecordId', copied.rootSource.asset)) ||
+    !('ok' in getAssetJudge().judgeAssetValue('AssetRecordId', copied.rootSource.asset)) ||
     !(
       'ok' in
-      assetJudge.judgeAssetValue('VersionSelection', {
+      getAssetJudge().judgeAssetValue('VersionSelection', {
         kind: 'pinned',
         number: copied.rootSource.version,
       })

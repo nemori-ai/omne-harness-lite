@@ -23,7 +23,7 @@ import { StorageUnavailable } from '@omne-harness-lite/storage'
 import type { SlashCommandDefinition } from '@omne-harness-lite/slash-command'
 import { own, object, closed, equal, requiredOwn } from './json.ts'
 import {
-  assetJudge,
+  getAssetJudge,
   capability,
   compositionFor,
   effective,
@@ -169,7 +169,7 @@ function notification(value: unknown): boolean {
   if (
     !object(copy) ||
     !capability(copy.capability) ||
-    !('ok' in assetJudge.judgeAssetValue('HoldingScope', copy.holder))
+    !('ok' in getAssetJudge().judgeAssetValue('HoldingScope', copy.holder))
   )
     return false
   if (copy.kind === 'HoldingChanged')
@@ -309,7 +309,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
       }
       const copied = own(result.version)
       if (
-        !('ok' in assetJudge.judgeAssetValue('AssetVersion', copied)) ||
+        !('ok' in getAssetJudge().judgeAssetValue('AssetVersion', copied)) ||
         !object(copied) ||
         !equal(copied.number, tuple.version) ||
         !object(copied.content) ||

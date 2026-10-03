@@ -1,6 +1,7 @@
 import {
   capabilityCanonicalString,
   createAssetModelJudge,
+  type AssetModelJudge,
   type CapabilityId,
 } from '@omne-harness-lite/asset-model'
 import {
@@ -25,9 +26,12 @@ import {
   type CheckedRegistryRecord,
   type RootSourceProof,
 } from './types.ts'
-export const assetJudge = createAssetModelJudge(defaultBodyContracts)
+let assetJudge: AssetModelJudge | undefined
+export function getAssetJudge(): AssetModelJudge {
+  return (assetJudge ??= createAssetModelJudge(defaultBodyContracts))
+}
 export function capability(value: unknown): value is CapabilityId {
-  return 'ok' in assetJudge.judgeAssetValue('CapabilityId', value)
+  return 'ok' in getAssetJudge().judgeAssetValue('CapabilityId', value)
 }
 export function registered(value: unknown): value is RegisteredCategory {
   return typeof value === 'string' && REGISTERED_CATEGORIES.includes(value as RegisteredCategory)
