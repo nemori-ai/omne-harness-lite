@@ -26,11 +26,15 @@ for (const name of ['ajv', 'ajv/dist/2020.js']) {
 // Resolve the same public AE dependency that the registry will consume.
 const { defaultBodyContracts } = await import('@omne-harness-lite/asset-evaluation')
 const snapshot = JSON.stringify(defaultBodyContracts)
-const original = (await import('@omne-harness-lite/loop-extension/schema/v3', { with: { type: 'json' } })).default
+const original = (
+  await import('@omne-harness-lite/loop-extension/schema/v3', { with: { type: 'json' } })
+).default
 assert.notEqual(defaultBodyContracts.loop_extension.schema, original)
 assert.equal(Reflect.set(original, '$id', 'urn:changed-after-publication'), true)
 assert.equal(Reflect.set(original.$defs.LoopExtensionDefinition, 'type', 'null'), true)
-const api = await import(new URL(`../${mode}/index.${mode === 'src' ? 'ts' : 'js'}`, import.meta.url))
+const api = await import(
+  new URL(`../${mode}/index.${mode === 'src' ? 'ts' : 'js'}`, import.meta.url)
+)
 const { fixture } = await import('./support.ts')
 assert.equal(compilations, 0, 'import must not construct a default owner')
 const f = fixture()
@@ -45,7 +49,18 @@ assert('plans' in accepted, JSON.stringify(accepted))
 assert.equal(owners.size, 3, 'failed registry owner must not be cached')
 const afterFirst = compilations
 assert.deepEqual(prepare(), accepted)
-assert.deepEqual(api.buildTableContents(f.evaluation, [], f.definitions), { failure: 'invalidInput' })
+assert.deepEqual(api.buildTableContents(f.evaluation, [], f.definitions), {
+  failure: 'invalidInput',
+})
 assert.equal(compilations, afterFirst, 'successful registry owner must be reused')
 assert.equal(JSON.stringify(defaultBodyContracts), snapshot)
-process.stdout.write(JSON.stringify({ mode, importedCompilations: 0, owners: owners.size, retry: true, snapshot: true, cached: true }) + '\n')
+process.stdout.write(
+  JSON.stringify({
+    mode,
+    importedCompilations: 0,
+    owners: owners.size,
+    retry: true,
+    snapshot: true,
+    cached: true,
+  }) + '\n',
+)

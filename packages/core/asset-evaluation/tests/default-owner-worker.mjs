@@ -24,7 +24,9 @@ for (const name of ['ajv', 'ajv/dist/2020.js']) {
   }
 }
 
-const api = await import(new URL(`../${mode}/index.${mode === 'src' ? 'ts' : 'js'}`, import.meta.url))
+const api = await import(
+  new URL(`../${mode}/index.${mode === 'src' ? 'ts' : 'js'}`, import.meta.url)
+)
 const { simple } = await import('./fixtures.ts')
 assert.equal(compilations, 0, 'import must not construct the default owner')
 const snapshot = JSON.stringify(api.defaultBodyContracts)
@@ -50,7 +52,9 @@ for (const [category, module, symbol] of [
   for (const responsibility of ['judge', 'deriveDeclarations', 'references'])
     assert.equal(api.defaultBodyContracts[category][responsibility], originalPort[responsibility])
 }
-const original = (await import('@omne-harness-lite/loop-extension/schema/v3', { with: { type: 'json' } })).default
+const original = (
+  await import('@omne-harness-lite/loop-extension/schema/v3', { with: { type: 'json' } })
+).default
 assert.notEqual(api.defaultBodyContracts.loop_extension.schema, original)
 assert.equal(Reflect.set(original, '$id', 'urn:changed-after-publication'), true)
 assert.equal(Reflect.set(original.$defs.LoopExtensionDefinition, 'type', 'null'), true)
@@ -58,18 +62,29 @@ assert.equal(JSON.stringify(api.defaultBodyContracts), snapshot)
 
 const input = simple()
 const declaration = {
-  name: 'review-before-action', position: 'before_action', power: 'veto',
+  name: 'review-before-action',
+  position: 'before_action',
+  power: 'veto',
   implementation: { kind: 'builtin', builtinName: 'review' },
 }
 const capability = { category: 'loop_extension', name: declaration.name }
 input.root.references = [{ capability }]
 input.holdings[1] = { ...input.holdings[1], capability }
 input.definitions[1] = {
-  ...input.definitions[1], capability,
-  versions: [{ ...input.definitions[1].versions[0], content: { category: 'loop_extension', extension: declaration } }],
+  ...input.definitions[1],
+  capability,
+  versions: [
+    {
+      ...input.definitions[1].versions[0],
+      content: { category: 'loop_extension', extension: declaration },
+    },
+  ],
 }
 failure = new Error('first default construction fails')
-assert.throws(() => api.evaluate(input), error => error === failure)
+assert.throws(
+  () => api.evaluate(input),
+  error => error === failure,
+)
 assert.equal(owners.size, 1)
 failure = undefined
 const accepted = api.evaluate(input)
@@ -91,5 +106,17 @@ assert.equal(compilations, afterFirst)
 const { createAssetModelJudge } = await import('@omne-harness-lite/asset-model')
 createAssetModelJudge(api.defaultBodyContracts)
 assert(compilations > afterFirst, 'explicit factory must still compile immediately')
-assert.throws(() => createAssetModelJudge({ ...api.defaultBodyContracts, tool: undefined }), TypeError)
-process.stdout.write(JSON.stringify({ mode, importedCompilations: 0, owners: owners.size, retry: true, snapshot: true, cached: true }) + '\n')
+assert.throws(
+  () => createAssetModelJudge({ ...api.defaultBodyContracts, tool: undefined }),
+  TypeError,
+)
+process.stdout.write(
+  JSON.stringify({
+    mode,
+    importedCompilations: 0,
+    owners: owners.size,
+    retry: true,
+    snapshot: true,
+    cached: true,
+  }) + '\n',
+)

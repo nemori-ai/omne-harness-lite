@@ -184,7 +184,9 @@ function assignmentWithinDeclaration(
   if ('rejected' in result) return false
   return (
     'ok' in
-    getAssetJudge().judgeAssetValue('AttributeAssignment', assignment, { declarations: [declaration] })
+    getAssetJudge().judgeAssetValue('AttributeAssignment', assignment, {
+      declarations: [declaration],
+    })
   )
 }
 /** A permission assignment takes part in S-23 when the effective asset declares the item as a permission, or when it is an outer bound on an item the effective asset lacks. */

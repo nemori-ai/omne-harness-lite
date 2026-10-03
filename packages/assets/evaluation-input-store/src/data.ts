@@ -280,7 +280,10 @@ export function recipeFromRow(row: SourceDb['evaluation_input_recipe']): Recipe 
   if (session !== undefined && !Array.isArray(session))
     throw new SourceUnavailable('recipe_assignments')
   const workspace = row.workspace === null ? undefined : parsed(row.workspace, 'recipe_workspace')
-  if (workspace !== undefined && !('ok' in getAssetJudge().judgeAssetValue('WorkspaceKey', workspace)))
+  if (
+    workspace !== undefined &&
+    !('ok' in getAssetJudge().judgeAssetValue('WorkspaceKey', workspace))
+  )
     throw new SourceUnavailable('recipe_workspace')
   return {
     tenant: tenant.ok,
