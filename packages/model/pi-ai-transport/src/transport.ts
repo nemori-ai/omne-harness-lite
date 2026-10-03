@@ -66,80 +66,13 @@ export function createOwnedTransport(options: TransportOptions): {
     meter: InputMeter | undefined,
   ) => Promise<PlanResult<PlannedRequest>>
 } {
-  const policy = Object.freeze({
-    ...options.policy,
-    credentialRedaction: ownCredentialConfiguration(options.policy.credentialRedaction),
-  })
-  for (const key of [
-    'maxConnections',
-    'idleConnectionTimeoutMs',
-    'maxErrorBodyBytes',
-    'maxSseEventBytes',
-  ] as const)
-    if (!Number.isSafeInteger(policy[key]) || policy[key] < 1) throw new TypeError(`invalid ${key}`)
-  if (
-    policy.connectTimeoutMs !== null &&
-    (!Number.isSafeInteger(policy.connectTimeoutMs) || policy.connectTimeoutMs < 1)
-  )
-    throw new TypeError('invalid connectTimeoutMs')
-  const baseUrl = new URL(options.baseUrl ?? OPENROUTER_BASE_URL)
-  if (
-    baseUrl.protocol !== 'https:' ||
-    baseUrl.username ||
-    baseUrl.password ||
-    baseUrl.search ||
-    baseUrl.hash ||
-    !baseUrl.pathname.endsWith('/')
-  )
-    throw new TypeError('explicit HTTPS base URL required')
+  const policy = ownTransportPolicy(options)
+  const baseUrl = transportBaseUrl(options)
   const definitions = ownDefinitions(options.definitions)
-  const inputMeters = options.inputMeters.map(value => {
-    const meter = ownInputMeter(value)
-    if (!meter) throw new TypeError('invalid input meter')
-    if (
-      !definitions.some(
-        definition =>
-          Object.hasOwn(definition.routes, meter.provider) &&
-          meterMatches(meter, definition, meter.provider),
-      )
-    )
-      throw new TypeError('input meter does not match a supplied definition')
-    return meter
-  })
-  for (let index = 0; index < inputMeters.length; index++) {
-    const meter = inputMeters[index]
-    if (!meter) throw new Error('meter index invariant')
-    if (
-      inputMeters
-        .slice(0, index)
-        .some(
-          other =>
-            other.modelId === meter.modelId &&
-            other.definitionRevision === meter.definitionRevision &&
-            other.provider === meter.provider &&
-            other.implementation.name === meter.implementation.name &&
-            other.implementation.revision === meter.implementation.revision,
-        )
-    )
-      throw new TypeError('duplicate exact input meter')
-  }
+  const inputMeters = ownTransportMeters(options, definitions)
   const owner = Object.freeze({})
   const claim = (planned: PlannedRequest) => claimPlan(planned, owner)
-  if (
-    options.imagePreparation !== undefined &&
-    (!options.imagePreparation ||
-      typeof options.imagePreparation !== 'object' ||
-      Object.keys(options.imagePreparation).length !== 2 ||
-      !Object.hasOwn(options.imagePreparation, 'policy') ||
-      !Object.hasOwn(options.imagePreparation, 'codec'))
-  )
-    throw new TypeError('explicit image policy and codec required')
-  const preparation =
-    options.imagePreparation === undefined || options.imagePreparation.codec === null
-      ? undefined
-      : createImagePreparer(options.imagePreparation.policy, options.imagePreparation.codec)
-  if (options.imagePreparation?.codec === null) ownPolicy(options.imagePreparation.policy)
-  const preparer = preparation && 'ready' in preparation ? preparation.ready : undefined
+  const preparer = transportImagePreparer(options)
   const scopeCleaner = createScopeCleaner(preparer ? [preparer] : [])
   const planningController = new AbortController()
   const planning = new Set<Promise<PlanResult<PlannedRequest>>>()
@@ -272,4 +205,91 @@ export function createOwnedTransport(options: TransportOptions): {
     return completion
   }
   return { transport: Object.freeze(transport), stopAdmission, claim, plan }
+}
+
+function ownTransportPolicy(options: TransportOptions) {
+  const policy = Object.freeze({
+    ...options.policy,
+    credentialRedaction: ownCredentialConfiguration(options.policy.credentialRedaction),
+  })
+  for (const key of [
+    'maxConnections',
+    'idleConnectionTimeoutMs',
+    'maxErrorBodyBytes',
+    'maxSseEventBytes',
+  ] as const)
+    if (!Number.isSafeInteger(policy[key]) || policy[key] < 1) throw new TypeError(`invalid ${key}`)
+  if (
+    policy.connectTimeoutMs !== null &&
+    (!Number.isSafeInteger(policy.connectTimeoutMs) || policy.connectTimeoutMs < 1)
+  )
+    throw new TypeError('invalid connectTimeoutMs')
+  return policy
+}
+
+function transportBaseUrl(options: TransportOptions): URL {
+  const baseUrl = new URL(options.baseUrl ?? OPENROUTER_BASE_URL)
+  if (
+    baseUrl.protocol !== 'https:' ||
+    baseUrl.username ||
+    baseUrl.password ||
+    baseUrl.search ||
+    baseUrl.hash ||
+    !baseUrl.pathname.endsWith('/')
+  )
+    throw new TypeError('explicit HTTPS base URL required')
+  return baseUrl
+}
+
+function ownTransportMeters(options: TransportOptions, definitions: readonly ModelDefinition[]) {
+  const inputMeters = options.inputMeters.map(value => {
+    const meter = ownInputMeter(value)
+    if (!meter) throw new TypeError('invalid input meter')
+    if (
+      !definitions.some(
+        definition =>
+          Object.hasOwn(definition.routes, meter.provider) &&
+          meterMatches(meter, definition, meter.provider),
+      )
+    )
+      throw new TypeError('input meter does not match a supplied definition')
+    return meter
+  })
+  for (let index = 0; index < inputMeters.length; index++) {
+    const meter = inputMeters[index]
+    if (!meter) throw new Error('meter index invariant')
+    if (
+      inputMeters
+        .slice(0, index)
+        .some(
+          other =>
+            other.modelId === meter.modelId &&
+            other.definitionRevision === meter.definitionRevision &&
+            other.provider === meter.provider &&
+            other.implementation.name === meter.implementation.name &&
+            other.implementation.revision === meter.implementation.revision,
+        )
+    )
+      throw new TypeError('duplicate exact input meter')
+  }
+  return inputMeters
+}
+
+function transportImagePreparer(options: TransportOptions) {
+  if (
+    options.imagePreparation !== undefined &&
+    (!options.imagePreparation ||
+      typeof options.imagePreparation !== 'object' ||
+      Object.keys(options.imagePreparation).length !== 2 ||
+      !Object.hasOwn(options.imagePreparation, 'policy') ||
+      !Object.hasOwn(options.imagePreparation, 'codec'))
+  )
+    throw new TypeError('explicit image policy and codec required')
+  const preparation =
+    options.imagePreparation === undefined || options.imagePreparation.codec === null
+      ? undefined
+      : createImagePreparer(options.imagePreparation.policy, options.imagePreparation.codec)
+  if (options.imagePreparation?.codec === null) ownPolicy(options.imagePreparation.policy)
+  const preparer = preparation && 'ready' in preparation ? preparation.ready : undefined
+  return preparer
 }

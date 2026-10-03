@@ -371,62 +371,68 @@ export function createModelTransportService(
         recordRegistry('registration', 'rejected', {})
         return { rejected: 'invalidInput' }
       }
-      const exact = key({
-        implementation: owned.implementation,
-        definition: { modelId: owned.modelId, revision: owned.revision },
-      })
-      const content = owned
-      const equivalent = (other: ModelDefinition) => {
-        const left = copyJsonValue(content),
-          right = copyJsonValue(other)
-        return 'ok' in left && 'ok' in right && jsonEqual(left.ok, right.ok)
-      }
-      const declaration = declarations.get(exact)
-      if (
-        declaration &&
-        (!equivalent(declaration.definition) || declaration.meter !== meterSource)
-      ) {
-        recordRegistry('registration', 'rejected', {})
-        return { rejected: 'invalidInput' }
-      }
-      const prior = entries.get(exact)
-      if (prior) {
+      return registerOwned(owned, meter)
+      function registerOwned(
+        owned: ModelDefinition,
+        meter: InputMeter,
+      ): ReturnType<ModelTransportService['registerAdaptation']> {
+        const exact = key({
+          implementation: owned.implementation,
+          definition: { modelId: owned.modelId, revision: owned.revision },
+        })
+        const content = owned
+        const equivalent = (other: ModelDefinition) => {
+          const left = copyJsonValue(content),
+            right = copyJsonValue(other)
+          return 'ok' in left && 'ok' in right && jsonEqual(left.ok, right.ok)
+        }
+        const declaration = declarations.get(exact)
         if (
-          !prior.retiring &&
-          prior.owner === owner &&
-          prior.cleanup === cleanup &&
-          prior.meterSource === meterSource &&
-          equivalent(prior.content)
-        )
-          return { registered: prior.registration }
-        recordRegistry('registration', 'rejected', {}, prior)
-        return { rejected: 'invalidInput' }
+          declaration &&
+          (!equivalent(declaration.definition) || declaration.meter !== meterSource)
+        ) {
+          recordRegistry('registration', 'rejected', {})
+          return { rejected: 'invalidInput' }
+        }
+        const prior = entries.get(exact)
+        if (prior) {
+          if (
+            !prior.retiring &&
+            prior.owner === owner &&
+            prior.cleanup === cleanup &&
+            prior.meterSource === meterSource &&
+            equivalent(prior.content)
+          )
+            return { registered: prior.registration }
+          recordRegistry('registration', 'rejected', {}, prior)
+          return { rejected: 'invalidInput' }
+        }
+        const registration = Object.freeze({ definition: owned })
+        let complete: Entry['complete'] = () => {}
+        const completed = new Promise<RetirementResult>(resolve => {
+          complete = resolve
+        })
+        const entry: Entry = {
+          registration,
+          owner,
+          cleanup,
+          key: exact,
+          content,
+          meter,
+          meterSource,
+          users: new Set(),
+          completed,
+          complete,
+          retiring: false,
+          cleanupStarted: false,
+          cleanupFailed: false,
+        }
+        entries.set(exact, entry)
+        registrations.set(registration, entry)
+        declarations.set(exact, { definition: content, meter: meterSource })
+        recordRegistry('registration', 'accepted', { phase: 'published', ...counts(entry) }, entry)
+        return { registered: registration }
       }
-      const registration = Object.freeze({ definition: owned })
-      let complete: Entry['complete'] = () => {}
-      const completed = new Promise<RetirementResult>(resolve => {
-        complete = resolve
-      })
-      const entry: Entry = {
-        registration,
-        owner,
-        cleanup,
-        key: exact,
-        content,
-        meter,
-        meterSource,
-        users: new Set(),
-        completed,
-        complete,
-        retiring: false,
-        cleanupStarted: false,
-        cleanupFailed: false,
-      }
-      entries.set(exact, entry)
-      registrations.set(registration, entry)
-      declarations.set(exact, { definition: content, meter: meterSource })
-      recordRegistry('registration', 'accepted', { phase: 'published', ...counts(entry) }, entry)
-      return { registered: registration }
     },
     acquire(binding, routeName) {
       const owned = ownBinding(binding)
