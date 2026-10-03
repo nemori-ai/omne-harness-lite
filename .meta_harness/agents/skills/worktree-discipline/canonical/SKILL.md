@@ -67,16 +67,24 @@ pwd
 
 ```bash
 git -C /path/to/main-checkout worktree add .worktrees/<name> -b <branch-name>
-cd /path/to/main-checkout/.worktrees/<name>  # all subsequent paths are THIS tree's
-pwd && git branch --show-current             # the session now stands in the worktree
-# Run the setup selected for this checkout; do not infer Python or uv from this skill
+cd /path/to/main-checkout/.worktrees/<name>  # only sufficient when the host preserves this directory
 ```
 
-The `cd` is part of creating the worktree, not a convenience. Host hooks and the
-repository's sensors measure the checkout the session stands in; a session that stays
-in the main checkout and writes into the worktree by path gets no feedback on what it
-wrote. Where the host does not carry `cd` from one command to the next, start or resume
-the session in the worktree, or set its working directory explicitly.
+**Move the host session into the worktree before editing.** A shell `cd` or a tool's
+`workdir` can affect one command without changing the host session directory.
+Host hooks can then measure the main checkout while commands change the worktree.
+
+1. Use the host's session-directory control. For Codex, follow
+   [session directory switching](references/codex-session-cwd.md).
+   This includes the service interface when the host exposes no suitable tool.
+2. Wait until the change takes effect. A change for subsequent turns requires a new turn before dependent work continues.
+3. In a separate tool call, run `pwd` without `workdir` or a preceding `cd`.
+   Check `git rev-parse --show-toplevel` and `git branch --show-current` against the intended worktree and branch.
+4. Run the setup selected for this checkout. Do not infer Python or uv from this skill.
+
+For hosts that do not preserve shell directory changes, a command's `pwd` alone does not establish the host session directory.
+Check the host session state too. Starting or resuming the session in the worktree is another supported route.
+Report a pending or failed switch instead of claiming that an explicit command directory moved the session.
 
 Baseline: when behavior changes need comparison, run the relevant checks in this
 checkout so inherited failures can be distinguished. Use the
@@ -157,8 +165,11 @@ removing a worktree:
    covered by the existing authorization and no consumer needs them. Do not use
    force to bypass unknown contents, active use, or unpreserved work.
 
-A session cannot remove the worktree it stands in. Leave it, say so, and name the one
-command that removes it once the session has ended.
+A session cannot remove the worktree its current turn still uses.
+Switch the host session to the main checkout before removal.
+If the switch applies to subsequent turns, continue cleanup in the next turn and check its default directory first.
+Codex can [queue that continuation in the same session](references/codex-session-cwd.md#continue-after-the-switch).
+If the session cannot leave, defer removal and name the command to run after it ends.
 
 Record a deferred tree's reason, consumer, and release condition in the existing
 task/plan record. Remove safe-to-retire trees promptly rather than stockpiling them.
@@ -172,9 +183,10 @@ consumers and feedback that looks at the wrong tree.
 
 1. **One session, one worktree.** No second worktree for the same session, no worktree
    per dispatched agent, no HUB with spokes.
-2. **The session works from inside its worktree.** Change into it right after creating
-   it, confirm with `pwd` and `git branch --show-current` before the first edit, and stay
-   until the unit is integrated. Use this tree's paths: a main-checkout path written from
+2. **The session works from inside its worktree.** Change the host session directory after creating the worktree.
+   Complete the checks in Create and Enter before the first edit.
+   Stay until the unit reaches the primary branch.
+   Use this tree's paths: a main-checkout path written from
    a worktree session lands in the main working tree. After creating a file, `git status`
    in the worktree confirms where it landed.
 3. **One writer at a time, and landing is verified.** A dispatched writer proves its
