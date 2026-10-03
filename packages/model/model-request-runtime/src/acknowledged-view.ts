@@ -144,6 +144,32 @@ export interface AcknowledgedDispatch {
   readonly final: AcknowledgedAttempt | null
 }
 
+function acknowledgedAttempt(
+  item: AcknowledgedDispatch,
+  witness: AcknowledgedAttempt | undefined,
+): AcknowledgedAttempt | undefined {
+  const witnessed =
+    witness !== undefined &&
+    witness.response === item.response &&
+    ExactDecimal.from(witness.dispatch).compare(ExactDecimal.from(item.dispatch)) === 0
+      ? witness
+      : undefined
+  if (item.final !== null) {
+    if (
+      item.final.response !== item.response ||
+      ExactDecimal.from(item.final.dispatch).compare(ExactDecimal.from(item.dispatch)) !== 0 ||
+      (witnessed !== undefined &&
+        !modelLogJsonEqual(accountingOf(witnessed), accountingOf(item.final)))
+    )
+      return undefined
+    return item.final
+  } else if (witnessed !== undefined) {
+    return witnessed
+  } else {
+    return undefined
+  }
+}
+
 /**
  * RT12 S-97 with CA4 S-43 selection: per dispatch, the durable final, else the ACK witness of
  * the same ResponseId. A contradiction between them, or a dispatch with neither, is not
@@ -159,26 +185,9 @@ export function acknowledgedAttempts(
       : attemptFromWitness(record.accountingWitness)
   const attempts: AcknowledgedAttempt[] = []
   for (const item of dispatches) {
-    const witnessed =
-      witness !== undefined &&
-      witness.response === item.response &&
-      ExactDecimal.from(witness.dispatch).compare(ExactDecimal.from(item.dispatch)) === 0
-        ? witness
-        : undefined
-    if (item.final !== null) {
-      if (
-        item.final.response !== item.response ||
-        ExactDecimal.from(item.final.dispatch).compare(ExactDecimal.from(item.dispatch)) !== 0 ||
-        (witnessed !== undefined &&
-          !modelLogJsonEqual(accountingOf(witnessed), accountingOf(item.final)))
-      )
-        return undefined
-      attempts.push(item.final)
-    } else if (witnessed !== undefined) {
-      attempts.push(witnessed)
-    } else {
-      return undefined
-    }
+    const attempt = acknowledgedAttempt(item, witness)
+    if (attempt === undefined) return undefined
+    attempts.push(attempt)
   }
   if (
     witness !== undefined &&

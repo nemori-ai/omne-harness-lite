@@ -41,18 +41,28 @@ export interface ModelLogResponseProjection extends JsonObject {
 function responseProjection(value: JsonValue): value is ModelLogResponseProjection {
   return (
     object(value) &&
-    typeof value.id === 'string' &&
-    isJsonNumber(value.dispatch) &&
-    object(value.call) &&
-    typeof value.call.callId === 'string' &&
-    object(value.route) &&
-    object(value.timing) &&
-    (typeof value.timing.sentAt === 'string' || value.timing.sentAt === null) &&
-    typeof value.timing.endedAt === 'string' &&
+    responseIdentity(value) &&
+    responseTiming(value) &&
     object(value.usage) &&
     object(value.cost) &&
     object(value.inputCalibration) &&
     typeof value.outcome === 'string'
+  )
+}
+function responseIdentity(value: JsonObject): boolean {
+  return (
+    typeof value.id === 'string' &&
+    isJsonNumber(value.dispatch) &&
+    object(value.call) &&
+    typeof value.call.callId === 'string' &&
+    object(value.route)
+  )
+}
+function responseTiming(value: JsonObject): boolean {
+  return (
+    object(value.timing) &&
+    (typeof value.timing.sentAt === 'string' || value.timing.sentAt === null) &&
+    typeof value.timing.endedAt === 'string'
   )
 }
 
@@ -126,43 +136,60 @@ export function createValueCodec(domain: ModelLogCodecDomain) {
           : { failed: 'not_json' }
     if ('failed' in snapshot) return invalidValue('not_json')
     const value = snapshot.ok
-    if (input.category === 'record') {
-      const judged = judgeModelInvocationRecord(value)
-      return 'rejected' in judged
-        ? invalidValue('value')
-        : Object.freeze({
-            ok: new CapturedValue(
-              captureToken,
-              domain,
-              format,
-              writable,
-              'record',
-              value,
-              judged.ok,
-              null,
-              null,
-            ),
-          })
-    }
-    if (input.category === 'message') {
-      const judged = judgeMessage(value)
-      return 'rejected' in judged
-        ? invalidValue('value')
-        : Object.freeze({
-            ok: new CapturedValue(
-              captureToken,
-              domain,
-              format,
-              writable,
-              'message',
-              value,
-              null,
-              judged.ok,
-              null,
-            ),
-          })
-    }
+    if (input.category === 'record') return captureRecord(value, format, writable)
+    if (input.category === 'message') return captureMessage(value, format, writable)
     if (input.category !== 'response') return invalidValue('category')
+    return captureResponse(value, format, writable)
+  }
+  function captureRecord(
+    value: JsonValue,
+    format: string,
+    writable: boolean,
+  ): { readonly ok: CapturedModelLogValue } | ModelLogInvalidValue {
+    const judged = judgeModelInvocationRecord(value)
+    return 'rejected' in judged
+      ? invalidValue('value')
+      : Object.freeze({
+          ok: new CapturedValue(
+            captureToken,
+            domain,
+            format,
+            writable,
+            'record',
+            value,
+            judged.ok,
+            null,
+            null,
+          ),
+        })
+  }
+  function captureMessage(
+    value: JsonValue,
+    format: string,
+    writable: boolean,
+  ): { readonly ok: CapturedModelLogValue } | ModelLogInvalidValue {
+    const judged = judgeMessage(value)
+    return 'rejected' in judged
+      ? invalidValue('value')
+      : Object.freeze({
+          ok: new CapturedValue(
+            captureToken,
+            domain,
+            format,
+            writable,
+            'message',
+            value,
+            null,
+            judged.ok,
+            null,
+          ),
+        })
+  }
+  function captureResponse(
+    value: JsonValue,
+    format: string,
+    writable: boolean,
+  ): { readonly ok: CapturedModelLogValue } | ModelLogInvalidValue {
     const judged = judgeModelResponse(value)
     if ('rejected' in judged || !responseProjection(value)) return invalidValue('value')
     if (value.reply !== undefined) {
