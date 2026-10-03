@@ -71,31 +71,38 @@ type Loaded = {
   readonly snapshots: readonly RegistrySnapshot[]
   readonly tenant: TenantId
 }
-function ownDependencies(input: RegistryDependencies): RegistryDependencies {
-  if (
-    !input ||
-    typeof input !== 'object' ||
-    !input.manifest ||
-    ![
+function dependencyPorts(input: RegistryDependencies): boolean {
+  return (
+    !!input &&
+    typeof input === 'object' &&
+    !!input.manifest &&
+    [
       'readHead',
       'append',
       'readHistory',
       'readGiven',
       'readEvaluation',
       'dependencyPresence',
-    ].every(key => typeof input.manifest[key as keyof typeof input.manifest] === 'function') ||
-    typeof input.clock?.now !== 'function' ||
-    typeof input.diagnostic !== 'function' ||
-    typeof input.diagnosticFailure !== 'function' ||
-    typeof input.monotonicNow !== 'function' ||
-    !Number.isSafeInteger(input.conflictPolicy?.maxRetries) ||
-    input.conflictPolicy.maxRetries < 0 ||
-    !Number.isSafeInteger(input.maxInFlight) ||
-    input.maxInFlight < 1 ||
-    !Array.isArray(input.deployedMeta) ||
-    !input.deployedMeta.every(id => capability(id) && id.category === 'tool') ||
-    new Set(input.deployedMeta.map(id => id.name)).size !== input.deployedMeta.length
+    ].every(key => typeof input.manifest[key as keyof typeof input.manifest] === 'function') &&
+    typeof input.clock?.now === 'function' &&
+    typeof input.diagnostic === 'function' &&
+    typeof input.diagnosticFailure === 'function' &&
+    typeof input.monotonicNow === 'function'
   )
+}
+function dependencyConfiguration(input: RegistryDependencies): boolean {
+  return (
+    Number.isSafeInteger(input.conflictPolicy?.maxRetries) &&
+    !(input.conflictPolicy.maxRetries < 0) &&
+    Number.isSafeInteger(input.maxInFlight) &&
+    !(input.maxInFlight < 1) &&
+    Array.isArray(input.deployedMeta) &&
+    input.deployedMeta.every(id => capability(id) && id.category === 'tool') &&
+    new Set(input.deployedMeta.map(id => id.name)).size === input.deployedMeta.length
+  )
+}
+function ownDependencies(input: RegistryDependencies): RegistryDependencies {
+  if (!dependencyPorts(input) || !dependencyConfiguration(input))
     throw new TypeError(
       'registry requires valid explicit dependencies, bounded policies and trusted metadata',
     )
@@ -132,6 +139,30 @@ function ownDependencies(input: RegistryDependencies): RegistryDependencies {
     ...(input.fixedRootInput === undefined ? {} : { fixedRootInput: borrow(input.fixedRootInput) }),
     ...(input.historicalBody === undefined ? {} : { historicalBody: borrow(input.historicalBody) }),
   }) as RegistryDependencies
+}
+function readHeadRecords(
+  s: string,
+  h: number,
+  latest: Partial<Record<RegisteredCategory, unknown>>,
+): Head['records'] {
+  if (
+    Object.keys(latest).length !== 6 ||
+    !REGISTERED_CATEGORIES.every(cat => Object.hasOwn(latest, cat))
+  )
+    throw new Unavailable('manifest_tables_incomplete')
+  const records: Partial<Record<RegisteredCategory, CheckedRegistryRecord>> = {}
+  const sameSeq = new Map<number, ManifestRecord>()
+  for (const category of REGISTERED_CATEGORIES) {
+    const checked = readRegistryRecord(latest[category], s, h)
+    if (checked === undefined || checked.record.tables[category] === undefined)
+      throw new Unavailable('manifest_table_binding')
+    const other = sameSeq.get(checked.record.seq)
+    if (other !== undefined && !equal(other, checked.record))
+      throw new Unavailable('manifest_record_identity')
+    sameSeq.set(checked.record.seq, checked.record)
+    records[category] = checked
+  }
+  return records as Record<RegisteredCategory, CheckedRegistryRecord>
 }
 function notification(value: unknown): boolean {
   const copy = own(value)
@@ -245,26 +276,9 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
       if (Object.keys(observed.latest).length !== 0) throw new Unavailable('manifest_head_binding')
       return { failure: 'sessionNotFound' }
     }
-    if (
-      Object.keys(observed.latest).length !== 6 ||
-      !REGISTERED_CATEGORIES.every(cat => Object.hasOwn(observed.latest, cat))
-    )
-      throw new Unavailable('manifest_tables_incomplete')
-    const records: Partial<Record<RegisteredCategory, CheckedRegistryRecord>> = {}
-    const sameSeq = new Map<number, ManifestRecord>()
-    for (const category of REGISTERED_CATEGORIES) {
-      const checked = readRegistryRecord(observed.latest[category], s, observed.head)
-      if (checked === undefined || checked.record.tables[category] === undefined)
-        throw new Unavailable('manifest_table_binding')
-      const other = sameSeq.get(checked.record.seq)
-      if (other !== undefined && !equal(other, checked.record))
-        throw new Unavailable('manifest_record_identity')
-      sameSeq.set(checked.record.seq, checked.record)
-      records[category] = checked
-    }
     return {
       head: observed.head,
-      records: records as Record<RegisteredCategory, CheckedRegistryRecord>,
+      records: readHeadRecords(s, observed.head, observed.latest),
     }
   }
   async function rebuild(
