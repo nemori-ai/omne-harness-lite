@@ -201,10 +201,6 @@ const replayInconsistent = Object.freeze({ failure: 'replayInconsistent' } as co
 const cancelled = Object.freeze({ failure: 'cancelled' } as const)
 const attemptSuperseded = Object.freeze({ failure: 'attemptSuperseded' } as const)
 
-function isFailure(value: RunnerPassResult): value is RunnerFailure {
-  return 'failure' in value
-}
-
 function sameJson(left: unknown, right: unknown): boolean {
   return modelLogJsonEqual(left, right)
 }
@@ -241,17 +237,16 @@ function validPorts(value: RunnerPorts): boolean {
   )
 }
 
-function validatePass(
-  pass: RunnerPass,
-  chain: readonly RunnerPiece[],
-  nested: boolean,
-): RunnerFailure | undefined {
-  if (!pass || typeof pass !== 'object' || !identity(pass.anchor)) return invalidInput
+function validatePass(pass: RunnerPass, chain: readonly RunnerPiece[], nested: boolean): void {
+  if (!pass || typeof pass !== 'object' || !identity(pass.anchor))
+    throw new RunnerFailureSignal(invalidInput)
   const first = judgePositionedSubject(pass.initial)
   if ('rejected' in first)
-    return first.rejected === 'position_unknown' ? { failure: 'positionUnknown' } : invalidInput
+    throw new RunnerFailureSignal(
+      first.rejected === 'position_unknown' ? { failure: 'positionUnknown' } : invalidInput,
+    )
   if (!Array.isArray(chain) || !pass.execution || typeof pass.execution !== 'object')
-    return invalidInput
+    throw new RunnerFailureSignal(invalidInput)
   if (
     pass.execution.kind !== 'noRun' &&
     (pass.execution.kind !== 'withRun' ||
@@ -260,7 +255,7 @@ function validatePass(
       !ExactDecimal.from(pass.execution.attempt).isInteger ||
       ExactDecimal.from(pass.execution.attempt).compare(ExactDecimal.from(0)) <= 0)
   )
-    return invalidInput
+    throw new RunnerFailureSignal(invalidInput)
   validateHistoryScope(
     {
       initial: pass.initial,
@@ -272,25 +267,25 @@ function validatePass(
   )
 }
 
-function checkControl(signal: AbortSignal, ports: RunnerPorts): RunnerFailure | undefined {
-  if (signal.aborted) return cancelled
-  try {
-    if (!ports.isActive()) return unavailable
-  } catch {
-    return unavailable
+function checkControl(signal: AbortSignal, ports: RunnerPorts, onStopped?: () => void): void {
+  if (signal.aborted) {
+    onStopped?.()
+    throw new RunnerFailureSignal(cancelled)
   }
-  return undefined
+  let active: boolean
+  try {
+    active = ports.isActive()
+  } catch {
+    active = false
+  }
+  if (!active) {
+    onStopped?.()
+    throw new RunnerFailureSignal(unavailable)
+  }
 }
 
-function awaitWithAbort<T>(
-  work: Promise<T>,
-  signal: AbortSignal,
-): Promise<
-  | { readonly kind: 'value'; readonly value: T }
-  | { readonly kind: 'aborted' }
-  | { readonly kind: 'failed' }
-> {
-  return new Promise(resolve => {
+function awaitWithAbort<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
     let completed = false
     const finish = (
       result:
@@ -301,7 +296,8 @@ function awaitWithAbort<T>(
       if (completed) return
       completed = true
       signal.removeEventListener('abort', onAbort)
-      resolve(result)
+      if (result.kind === 'value') resolve(result.value)
+      else reject(new RunnerFailureSignal(result.kind === 'aborted' ? cancelled : unavailable))
     }
     const onAbort = (): void => finish({ kind: 'aborted' })
     signal.addEventListener('abort', onAbort, { once: true })
@@ -429,10 +425,11 @@ function entryFromRecord(
   pass: RunnerPass,
   piece: RunnerPiece,
   binding: RunnerLogBinding,
-): Historical | RunnerFailure {
-  if (record.kind === 'unknown' || record.kind === 'unavailable') return unavailable
-  if (record.kind === 'invalidInput') return invalidInput
-  if (record.kind === 'attemptSuperseded') return attemptSuperseded
+): Historical {
+  if (record.kind === 'unknown' || record.kind === 'unavailable')
+    throw new RunnerFailureSignal(unavailable)
+  if (record.kind === 'invalidInput') throw new RunnerFailureSignal(invalidInput)
+  if (record.kind === 'attemptSuperseded') throw new RunnerFailureSignal(attemptSuperseded)
   const inspected = inspectRunnerConclusion({
     session: binding.session,
     tenant: binding.tenant,
@@ -450,7 +447,7 @@ function entryFromRecord(
     (pass.execution.kind === 'withRun' &&
       (inspected.execution.kind !== 'withRun' || inspected.execution.run !== pass.execution.run))
   )
-    return replayInconsistent
+    throw new RunnerFailureSignal(replayInconsistent)
   return {
     entry: record.entry,
     conclusion: inspected.conclusion,
@@ -465,33 +462,32 @@ async function persistReminders(
   ports: RunnerPorts,
   signal: AbortSignal,
   nested: boolean,
-): Promise<RunnerFailure | undefined> {
+): Promise<void> {
   if (nested) return undefined
   for (const record of records) {
     for (const reminder of record.reminders) {
-      const stopped = checkControl(signal, ports)
-      if (stopped !== undefined) return stopped
+      checkControl(signal, ports)
       let existing: RunnerReminderRead
       try {
         existing = await ports.reminders.inspect(reminder)
       } catch {
-        return unavailable
+        throw new RunnerFailureSignal(unavailable)
       }
       if (existing.kind === 'same') continue
-      if (existing.kind === 'conflict') return replayInconsistent
-      if (existing.kind !== 'absent') return unavailable
+      if (existing.kind === 'conflict') throw new RunnerFailureSignal(replayInconsistent)
+      if (existing.kind !== 'absent') throw new RunnerFailureSignal(unavailable)
       let chain: readonly RunnerPiece[] | { readonly unavailable: true }
       try {
         chain = await ports.reminders.nestedChain(reminder)
       } catch {
-        return unavailable
+        throw new RunnerFailureSignal(unavailable)
       }
-      if (!Array.isArray(chain)) return unavailable
+      if (!Array.isArray(chain)) throw new RunnerFailureSignal(unavailable)
       const nestedInitial = judgePositionedSubject({
         position: 'before_persist_message',
         subject: { message: reminder, producer: 'system' },
       })
-      if ('rejected' in nestedInitial) return invalidInput
+      if ('rejected' in nestedInitial) throw new RunnerFailureSignal(invalidInput)
       const nestedResult = await runPassInternal(
         { initial: nestedInitial.ok, anchor: reminder.id, execution: pass.execution },
         chain,
@@ -499,28 +495,27 @@ async function persistReminders(
         signal,
         true,
       )
-      if (isFailure(nestedResult)) return nestedResult
       if (nestedResult.effect.kind === 'vetoed') continue
-      if (nestedResult.effect.kind !== 'proceed') return replayInconsistent
-      const prior = checkControl(signal, ports)
-      if (prior !== undefined) return prior
+      if (nestedResult.effect.kind !== 'proceed') throw new RunnerFailureSignal(replayInconsistent)
+      checkControl(signal, ports)
       let appended: RunnerReminderAppend
       try {
         appended = await ports.reminders.append(reminder, pass.execution)
       } catch {
-        return unavailable
+        throw new RunnerFailureSignal(unavailable)
       }
-      if (appended.kind === 'attemptSuperseded') return attemptSuperseded
-      if (appended.kind === 'unknown' || appended.kind === 'unavailable') return unavailable
+      if (appended.kind === 'attemptSuperseded') throw new RunnerFailureSignal(attemptSuperseded)
+      if (appended.kind === 'unknown' || appended.kind === 'unavailable')
+        throw new RunnerFailureSignal(unavailable)
       if (appended.kind === 'alreadyRecorded') {
         let reread: RunnerReminderRead
         try {
           reread = await ports.reminders.inspect(reminder)
         } catch {
-          return unavailable
+          throw new RunnerFailureSignal(unavailable)
         }
-        if (reread.kind === 'conflict') return replayInconsistent
-        if (reread.kind !== 'same') return unavailable
+        if (reread.kind === 'conflict') throw new RunnerFailureSignal(replayInconsistent)
+        if (reread.kind !== 'same') throw new RunnerFailureSignal(unavailable)
       }
     }
   }
@@ -549,30 +544,29 @@ async function runPassInternal(
   ports: RunnerPorts,
   signal: AbortSignal,
   nested: boolean,
-): Promise<RunnerPassResult> {
-  if (!validPorts(ports) || !(signal instanceof AbortSignal)) return invalidInput
+): Promise<Exclude<RunnerPassResult, RunnerFailure>> {
+  if (!validPorts(ports) || !(signal instanceof AbortSignal))
+    throw new RunnerFailureSignal(invalidInput)
   const owned = copyJsonValue(pass)
-  if ('failed' in owned) return invalidInput
+  if ('failed' in owned) throw new RunnerFailureSignal(invalidInput)
   // Validate this owned value before use; caller mutation cannot change the pass
   // after a verifier, history reader, or contributor yields.
   pass = owned.ok as unknown as RunnerPass
-  const passFailure = validatePass(pass, chain, nested)
-  if (passFailure !== undefined) return passFailure
+  validatePass(pass, chain, nested)
   const initialJudged = judgePositionedSubject(pass.initial)
-  if (!('ok' in initialJudged)) return invalidInput
+  if (!('ok' in initialJudged)) throw new RunnerFailureSignal(invalidInput)
   let initial = initialJudged.ok
-  const firstStop = checkControl(signal, ports)
-  if (firstStop !== undefined) return firstStop
+  checkControl(signal, ports)
   let releaseFailure: (() => void) | undefined
   try {
     if (initial.position === 'after_model_call' && initial.dimension.ending === 'failure') {
       const verified = await ports.verifyFailure(initial, ports.binding, pass.execution)
       if (verified.kind !== 'verified')
-        return verified.kind === 'invalidInput' ? invalidInput : unavailable
+        throw new RunnerFailureSignal(verified.kind === 'invalidInput' ? invalidInput : unavailable)
       const judged = judgePositionedSubject(verified.subject)
       if (!('ok' in judged) || !sameJson(initial, judged.ok)) {
         verified.release()
-        return invalidInput
+        throw new RunnerFailureSignal(invalidInput)
       }
       releaseFailure = verified.release
       initial = judged.ok
@@ -581,7 +575,7 @@ async function runPassInternal(
     try {
       read = await ports.readConclusions(pass)
     } catch {
-      return unavailable
+      throw new RunnerFailureSignal(unavailable)
     }
     const existing = readPassHistory(
       {
@@ -599,16 +593,15 @@ async function runPassInternal(
     const finals: Conclusion[] = []
     while (index < chain.length) {
       const piece = chain[index]
-      if (piece === undefined) return replayInconsistent
-      const stopped = checkControl(signal, ports)
-      if (stopped !== undefined) return stopped
+      if (piece === undefined) throw new RunnerFailureSignal(replayInconsistent)
+      checkControl(signal, ports)
       const thisPiece: Historical[] = []
       while (
         cursor < history.length &&
         history[cursor]?.conclusion.extension === piece.definition.name
       ) {
         const item = history[cursor]
-        if (item === undefined) return replayInconsistent
+        if (item === undefined) throw new RunnerFailureSignal(replayInconsistent)
         thisPiece.push(item)
         cursor++
       }
@@ -616,7 +609,7 @@ async function runPassInternal(
       if (last?.occurrence.kind === 'final') {
         finals.push(last.conclusion)
         const composed = await resolveEffect(initial, finals, chain, ports)
-        if ('failure' in composed) return composed
+        if ('failure' in composed) throw new RunnerFailureSignal(composed)
         if (composed.effect.kind !== 'proceed') break
         index++
         continue
@@ -624,7 +617,7 @@ async function runPassInternal(
       const subject = currentSubject(initial, finals, replayInconsistent)
       let mode: RunnerInvocationMode = { kind: 'fresh' }
       if (last !== undefined) {
-        if (last.occurrence.kind !== 'ask') return replayInconsistent
+        if (last.occurrence.kind !== 'ask') throw new RunnerFailureSignal(replayInconsistent)
         const association: RunnerAskAssociation = {
           binding: ports.binding,
           pass,
@@ -638,27 +631,26 @@ async function runPassInternal(
         try {
           state = await ports.readAskState(association, signal)
         } catch {
-          return unavailable
+          throw new RunnerFailureSignal(unavailable)
         }
-        const afterWait = checkControl(signal, ports)
-        if (afterWait !== undefined) {
+        checkControl(signal, ports, () => {
           if (state.kind === 'ready') state.binding.release()
-          return afterWait
-        }
-        if (state.kind === 'unavailable') return unavailable
-        if (state.kind === 'replayInconsistent') return replayInconsistent
+        })
+        if (state.kind === 'unavailable') throw new RunnerFailureSignal(unavailable)
+        if (state.kind === 'replayInconsistent') throw new RunnerFailureSignal(replayInconsistent)
         if (state.kind === 'pending') {
-          if (!sameAssociation(state.association, association)) return replayInconsistent
+          if (!sameAssociation(state.association, association))
+            throw new RunnerFailureSignal(replayInconsistent)
           const effective = [...finals, last.conclusion]
           const result = await resolveEffect(initial, effective, chain, ports)
-          if ('failure' in result || result.effect.kind !== 'asked') return replayInconsistent
-          const remindersFailure = await persistReminders(history, pass, ports, signal, nested)
-          if (remindersFailure !== undefined) return remindersFailure
+          if ('failure' in result || result.effect.kind !== 'asked')
+            throw new RunnerFailureSignal(replayInconsistent)
+          await persistReminders(history, pass, ports, signal, nested)
           return { conclusions: history.map(item => item.conclusion), effect: result.effect }
         }
         if (!sameAssociation(state.binding.association, association)) {
           state.binding.release()
-          return replayInconsistent
+          throw new RunnerFailureSignal(replayInconsistent)
         }
         if (
           !identity(state.binding.cardId) ||
@@ -666,7 +658,7 @@ async function runPassInternal(
           !identity(state.binding.answerId)
         ) {
           state.binding.release()
-          return unavailable
+          throw new RunnerFailureSignal(unavailable)
         }
         mode = { kind: 'replay', binding: state.binding }
       }
@@ -675,11 +667,10 @@ async function runPassInternal(
         try {
           presence = await ports.presence(piece)
         } catch {
-          return unavailable
+          throw new RunnerFailureSignal(unavailable)
         }
-        const afterPresence = checkControl(signal, ports)
-        if (afterPresence !== undefined) return afterPresence
-        if (presence === 'unavailable') return unavailable
+        checkControl(signal, ports)
+        if (presence === 'unavailable') throw new RunnerFailureSignal(unavailable)
         let candidateOutput: ExtensionOutput | undefined
         let candidateError:
           | {
@@ -694,12 +685,14 @@ async function runPassInternal(
           try {
             handles = await ports.openHandles(piece, mode)
           } catch {
-            return unavailable
+            throw new RunnerFailureSignal(unavailable)
           }
-          if ('unavailable' in handles) return checkControl(signal, ports) ?? unavailable
+          if ('unavailable' in handles) {
+            checkControl(signal, ports)
+            throw new RunnerFailureSignal(unavailable)
+          }
           try {
-            const afterHandles = checkControl(signal, ports)
-            if (afterHandles !== undefined) return afterHandles
+            checkControl(signal, ports)
             const rawInput = {
               ...subject,
               earlier: finals,
@@ -710,40 +703,38 @@ async function runPassInternal(
                 : { run: pass.execution.run, attempt: pass.execution.attempt }),
             }
             const judged = judgeInput(rawInput)
-            if (!('ok' in judged)) return invalidInput
+            if (!('ok' in judged)) throw new RunnerFailureSignal(invalidInput)
             input = judged.ok
             let work: Promise<RunnerInvocationResult>
             try {
               work = ports.invoke(piece, judged.ok, signal, mode)
             } catch {
-              return unavailable
+              throw new RunnerFailureSignal(unavailable)
             }
-            const completion = await awaitWithAbort(work, signal)
-            if (completion.kind === 'aborted') return cancelled
-            if (completion.kind === 'failed') return unavailable
-            const invoked = completion.value
+            const invoked = await awaitWithAbort(work, signal)
             if (mode.kind === 'replay') {
               const control = mode.binding.control()
-              if (control === 'replayInconsistent') return replayInconsistent
-              if (control !== 'valid') return unavailable
+              if (control === 'replayInconsistent')
+                throw new RunnerFailureSignal(replayInconsistent)
+              if (control !== 'valid') throw new RunnerFailureSignal(unavailable)
             }
-            const halted = checkControl(signal, ports)
-            if (halted !== undefined) return halted
-            if (invoked.kind === 'replayInconsistent') return replayInconsistent
-            if (invoked.kind === 'controlUnavailable') return unavailable
+            checkControl(signal, ports)
+            if (invoked.kind === 'replayInconsistent')
+              throw new RunnerFailureSignal(replayInconsistent)
+            if (invoked.kind === 'controlUnavailable') throw new RunnerFailureSignal(unavailable)
             if (invoked.kind === 'notStartedUnavailable') unavailablePiece = true
             else if (invoked.kind === 'errored') candidateError = invoked
             else if (invoked.kind === 'output') {
               const output = judgeOutput(invoked.value)
               if ('rejected' in output) candidateError = { error: output.rejected }
               else candidateOutput = output.ok
-            } else return unavailable
+            } else throw new RunnerFailureSignal(unavailable)
           } finally {
             handles.release()
           }
         }
         const at = ports.now()
-        if (typeof at !== 'string') return unavailable
+        if (typeof at !== 'string') throw new RunnerFailureSignal(unavailable)
         const base = {
           extension: piece.definition.name,
           position: initial.position,
@@ -772,7 +763,7 @@ async function runPassInternal(
                 },
               )
             } catch {
-              return invalidInput
+              throw new RunnerFailureSignal(invalidInput)
             }
             if ('rejected' in judged) candidateError = { error: judged.rejected }
             else {
@@ -780,17 +771,18 @@ async function runPassInternal(
               try {
                 capability = await ports.judgeCapabilities(input, candidateOutput)
               } catch {
-                return unavailable
+                throw new RunnerFailureSignal(unavailable)
               }
-              if (capability.kind === 'unavailable') return unavailable
-              if (capability.kind === 'invalidInput') return invalidInput
+              if (capability.kind === 'unavailable') throw new RunnerFailureSignal(unavailable)
+              if (capability.kind === 'invalidInput') throw new RunnerFailureSignal(invalidInput)
               if (capability.kind === 'rejected') candidateError = { error: capability.reason }
               else {
                 if (nested && candidateOutput.kind === 'inject')
                   candidateError = { error: 'output_not_allowed_at_position' }
                 else if (candidateOutput.kind === 'inject') {
                   const readReminder = await ports.reminders.inspect(candidateOutput.message)
-                  if (readReminder.kind === 'unavailable') return unavailable
+                  if (readReminder.kind === 'unavailable')
+                    throw new RunnerFailureSignal(unavailable)
                   if (readReminder.kind === 'conflict')
                     candidateError = { error: 'inject_message_id_conflict' }
                 }
@@ -810,7 +802,8 @@ async function runPassInternal(
                 : policy(piece, initial.position)
             if (effective === 'record' && !nested && initial.position !== 'after_terminal') {
               const id = ports.mintReminder()
-              if (typeof id !== 'string' || !identity(id)) return unavailable
+              if (typeof id !== 'string' || !identity(id))
+                throw new RunnerFailureSignal(unavailable)
               const proposed = judgeMessage({
                 id,
                 type: 'system_reminder',
@@ -826,7 +819,8 @@ async function runPassInternal(
                 nature: 'event',
                 source: { kind: 'extension', extension: piece.definition.name },
               })
-              if (!('ok' in proposed) || proposed.ok.type !== 'system_reminder') return invalidInput
+              if (!('ok' in proposed) || proposed.ok.type !== 'system_reminder')
+                throw new RunnerFailureSignal(invalidInput)
               reminders = [proposed.ok]
             }
             const output = errorOutput(effective, initial.position, reminders[0])
@@ -839,13 +833,13 @@ async function runPassInternal(
           }
         }
         const conclusionJudged = judgeConclusionForCurrent(rawConclusion, subject, piece)
-        if ('failure' in conclusionJudged) return conclusionJudged
+        if ('failure' in conclusionJudged) throw new RunnerFailureSignal(conclusionJudged)
         const finalOutput = conclusionJudged.conclusion.output
         if (
           finalOutput?.kind === 'ask' &&
           (initial.position === 'before_persist_message' || initial.position === 'after_terminal')
         )
-          return invalidInput
+          throw new RunnerFailureSignal(invalidInput)
         const occurrence: RunnerOccurrence =
           finalOutput?.kind === 'ask'
             ? {
@@ -866,7 +860,7 @@ async function runPassInternal(
           value: conclusionJudged.conclusion,
           reminders,
         })
-        if ('invalidInput' in prepared) return invalidInput
+        if ('invalidInput' in prepared) throw new RunnerFailureSignal(invalidInput)
         const keys = passKeys({
           position: initial.position,
           ...(initial.dimension === undefined ? {} : { dimension: initial.dimension }),
@@ -877,25 +871,19 @@ async function runPassInternal(
             ? { modelCallId: initial.subject.dispatches[0]?.call }
             : {}),
         })
-        if ('invalidInput' in keys) return invalidInput
+        if ('invalidInput' in keys) throw new RunnerFailureSignal(invalidInput)
         const expectedKey = occurrence.kind === 'ask' ? keys.ask : keys.final
-        if (expectedKey === undefined) return invalidInput
-        const beforeWrite = checkControl(signal, ports)
-        if (beforeWrite !== undefined) return beforeWrite
+        if (expectedKey === undefined) throw new RunnerFailureSignal(invalidInput)
+        checkControl(signal, ports)
         let work: Promise<RunnerRecordResult>
         try {
           work = ports.record(prepared.entry, pass.execution)
         } catch {
-          return unavailable
+          throw new RunnerFailureSignal(unavailable)
         }
-        const completion = await awaitWithAbort(work, signal)
-        if (completion.kind === 'aborted') return cancelled
-        if (completion.kind === 'failed') return unavailable
-        const written = completion.value
+        const written = await awaitWithAbort(work, signal)
         const recorded = entryFromRecord(written, expectedKey, pass, piece, ports.binding)
-        if ('failure' in recorded) return recorded
-        const afterWrite = checkControl(signal, ports)
-        if (afterWrite !== undefined) return afterWrite
+        checkControl(signal, ports)
         if (recorded.occurrence.kind === 'ask') {
           if (
             last?.occurrence.kind === 'ask' &&
@@ -903,31 +891,30 @@ async function runPassInternal(
               ExactDecimal.from(last.occurrence.ordinal),
             ) <= 0
           )
-            return replayInconsistent
+            throw new RunnerFailureSignal(replayInconsistent)
           history.push(recorded)
           const effective = [...finals, recorded.conclusion]
           const effect = await resolveEffect(initial, effective, chain, ports)
-          if ('failure' in effect || effect.effect.kind !== 'asked') return replayInconsistent
-          const reminderFailure = await persistReminders(history, pass, ports, signal, nested)
-          if (reminderFailure !== undefined) return reminderFailure
+          if ('failure' in effect || effect.effect.kind !== 'asked')
+            throw new RunnerFailureSignal(replayInconsistent)
+          await persistReminders(history, pass, ports, signal, nested)
           return { conclusions: history.map(item => item.conclusion), effect: effect.effect }
         }
-        if (recorded.occurrence.kind !== 'final') return replayInconsistent
+        if (recorded.occurrence.kind !== 'final') throw new RunnerFailureSignal(replayInconsistent)
         history.push(recorded)
         finals.push(recorded.conclusion)
         const effect = await resolveEffect(initial, finals, chain, ports)
-        if ('failure' in effect) return effect
+        if ('failure' in effect) throw new RunnerFailureSignal(effect)
         if (effect.effect.kind !== 'proceed') break
         index++
       } finally {
         if (mode.kind === 'replay') mode.binding.release()
       }
     }
-    if (cursor !== existing.length) return replayInconsistent
+    if (cursor !== existing.length) throw new RunnerFailureSignal(replayInconsistent)
     const effect = await resolveEffect(initial, finals, chain, ports)
-    if ('failure' in effect) return effect
-    const reminderFailure = await persistReminders(history, pass, ports, signal, nested)
-    if (reminderFailure !== undefined) return reminderFailure
+    if ('failure' in effect) throw new RunnerFailureSignal(effect)
+    await persistReminders(history, pass, ports, signal, nested)
     return { conclusions: history.map(item => item.conclusion), effect: effect.effect }
   } finally {
     releaseFailure?.()
