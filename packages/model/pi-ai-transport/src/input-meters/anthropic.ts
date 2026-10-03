@@ -1,3 +1,4 @@
+import { unsupportedToolCall, unsupportedTool } from './wire-validation.ts'
 import { fullOutputHistory, newOutputHistory, replayOutputHistory } from './output-history.ts'
 import {
   anthropicOutputHistoryPolicy,
@@ -9,7 +10,12 @@ import {
 import { defineInputMeter } from '../input-meter.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { isJsonNumber, writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
+import {
+  isJsonNumber,
+  writeJsonLossless,
+  type JsonObject,
+  type JsonValue,
+} from '@omne-harness-lite/content-blocks'
 import { imageSize } from 'image-size'
 import { Tiktoken } from 'js-tiktoken/lite'
 import { object } from '../json.ts'
@@ -139,110 +145,123 @@ function supportedInputBody(
   ttlValues: ReadonlySet<string>,
   images: Map<JsonObject, number>,
 ): boolean {
-  if (
-    Object.keys(body).some(
-      key => key !== 'messages' && key !== 'tools' && !requestControls.has(key),
+  const unsupportedField = (key: string): boolean =>
+    key !== 'messages' && key !== 'tools' && !requestControls.has(key)
+  if (Object.keys(body).some(unsupportedField)) return false
+  function providerSupported(): boolean {
+    return !(
+      !object(body.provider) ||
+      Object.keys(body.provider).some(
+        key => key !== 'order' && key !== 'allow_fallbacks' && key !== 'require_parameters',
+      ) ||
+      !Array.isArray(body.provider.order) ||
+      body.provider.order.length !== 1 ||
+      body.provider.order[0] !== 'anthropic' ||
+      body.provider.allow_fallbacks !== false ||
+      body.provider.require_parameters !== true
     )
-  )
-    return false
-  if (
-    !object(body.provider) ||
-    Object.keys(body.provider).some(
-      key => key !== 'order' && key !== 'allow_fallbacks' && key !== 'require_parameters',
-    ) ||
-    !Array.isArray(body.provider.order) ||
-    body.provider.order.length !== 1 ||
-    body.provider.order[0] !== 'anthropic' ||
-    body.provider.allow_fallbacks !== false ||
-    body.provider.require_parameters !== true ||
-    (body.stream !== undefined && typeof body.stream !== 'boolean') ||
-    (body.store !== undefined && typeof body.store !== 'boolean') ||
-    (body.reasoning !== undefined &&
+  }
+  function controlsSupported(): boolean {
+    return !(
+      (body.stream !== undefined && typeof body.stream !== 'boolean') ||
+      (body.store !== undefined && typeof body.store !== 'boolean') ||
+      !reasoningSupported() ||
+      (body.max_tokens !== undefined && !isJsonNumber(body.max_tokens)) ||
+      (body.stop !== undefined &&
+        (!Array.isArray(body.stop) || !body.stop.every(item => typeof item === 'string')))
+    )
+  }
+  function reasoningSupported(): boolean {
+    return !(
+      body.reasoning !== undefined &&
       (!object(body.reasoning) ||
         Object.keys(body.reasoning).some(key => key !== 'effort') ||
-        typeof body.reasoning.effort !== 'string')) ||
-    (body.max_tokens !== undefined && !isJsonNumber(body.max_tokens)) ||
-    (body.stop !== undefined &&
-      (!Array.isArray(body.stop) || !body.stop.every(item => typeof item === 'string')))
-  )
-    return false
+        typeof body.reasoning.effort !== 'string')
+    )
+  }
+  if (!providerSupported() || !controlsSupported()) return false
   if (!Array.isArray(body.messages)) return false
   if (body.tools !== undefined && !Array.isArray(body.tools)) return false
-  if (
-    Array.isArray(body.tools) &&
-    body.tools.some(
-      tool =>
-        !object(tool) ||
-        Object.keys(tool).some(key => key !== 'type' && key !== 'function') ||
-        tool.type !== 'function' ||
-        !object(tool.function) ||
-        Object.keys(tool.function).some(
-          key => key !== 'name' && key !== 'description' && key !== 'parameters',
-        ) ||
-        typeof tool.function.name !== 'string' ||
-        typeof tool.function.description !== 'string' ||
-        !object(tool.function.parameters),
-    )
-  )
-    return false
+  if (Array.isArray(body.tools) && body.tools.some(unsupportedTool)) return false
   for (const message of body.messages) {
-    if (
-      !object(message) ||
-      Object.keys(message).some(key => !messageFields.has(key)) ||
-      (message.role !== 'system' &&
-        message.role !== 'user' &&
-        message.role !== 'assistant' &&
-        message.role !== 'tool')
-    )
-      return false
-    // Signed text can be a display summary. Only the shared complete-group
-    // contribution may account for replay details, never this visible counter.
-    if (Object.hasOwn(message, 'reasoning_details')) return false
-    if (message.reasoning !== undefined && typeof message.reasoning !== 'string') return false
-    if (message.tool_call_id !== undefined && typeof message.tool_call_id !== 'string') return false
-    if (
-      message.tool_calls !== undefined &&
-      (!Array.isArray(message.tool_calls) ||
-        message.tool_calls.some(
-          call =>
-            !object(call) ||
-            Object.keys(call).some(key => key !== 'id' && key !== 'type' && key !== 'function') ||
-            typeof call.id !== 'string' ||
-            call.type !== 'function' ||
-            !object(call.function) ||
-            Object.keys(call.function).some(key => key !== 'name' && key !== 'arguments') ||
-            typeof call.function.name !== 'string' ||
-            typeof call.function.arguments !== 'string',
-        ))
-    )
-      return false
-    if (typeof message.content === 'string') continue
-    if (!Array.isArray(message.content)) return false
-    for (const part of message.content) {
-      if (object(part) && part.type === 'image_url') {
-        const tokens = message.role === 'user' ? imageTokens(part) : undefined
-        if (tokens === undefined) return false
-        images.set(part, tokens)
-        continue
-      }
-      if (
-        !object(part) ||
-        part.type !== 'text' ||
-        typeof part.text !== 'string' ||
-        Object.keys(part).some(
-          key => key !== 'type' && key !== 'text' && key !== 'cache_control',
-        ) ||
-        (part.cache_control !== undefined &&
-          (!object(part.cache_control) ||
-            Object.keys(part.cache_control).some(key => key !== 'type' && key !== 'ttl') ||
-            part.cache_control.type !== 'ephemeral' ||
-            typeof part.cache_control.ttl !== 'string' ||
-            !ttlValues.has(part.cache_control.ttl)))
-      )
-        return false
-    }
+    if (!supportedMessage(message, ttlValues, images)) return false
   }
   return true
+}
+
+function supportedMessage(
+  message: JsonValue,
+  ttlValues: ReadonlySet<string>,
+  images: Map<JsonObject, number>,
+): boolean {
+  if (!object(message)) return false
+  if (!supportedMessageFields(message)) return false
+  if (!supportedToolCalls(message)) return false
+  return supportedContent(message, ttlValues, images)
+}
+
+function supportedMessageFields(message: JsonObject): boolean {
+  if (
+    Object.keys(message).some(key => !messageFields.has(key)) ||
+    (message.role !== 'system' &&
+      message.role !== 'user' &&
+      message.role !== 'assistant' &&
+      message.role !== 'tool')
+  )
+    return false
+  // Signed text can be a display summary. Only the shared complete-group
+  // contribution may account for replay details, never this visible counter.
+  if (Object.hasOwn(message, 'reasoning_details')) return false
+  if (message.reasoning !== undefined && typeof message.reasoning !== 'string') return false
+  if (message.tool_call_id !== undefined && typeof message.tool_call_id !== 'string') return false
+  return true
+}
+
+function supportedContent(
+  message: JsonObject,
+  ttlValues: ReadonlySet<string>,
+  images: Map<JsonObject, number>,
+): boolean {
+  if (typeof message.content === 'string') return true
+  if (!Array.isArray(message.content)) return false
+  for (const part of message.content) {
+    if (object(part) && part.type === 'image_url') {
+      const tokens = message.role === 'user' ? imageTokens(part) : undefined
+      if (tokens === undefined) return false
+      images.set(part, tokens)
+      continue
+    }
+    if (!supportedTextPart(part, ttlValues)) return false
+  }
+  return true
+}
+
+function supportedToolCalls(message: JsonObject): boolean {
+  return !(
+    message.tool_calls !== undefined &&
+    (!Array.isArray(message.tool_calls) || message.tool_calls.some(unsupportedToolCall))
+  )
+}
+
+function supportedTextPart(part: JsonValue, ttlValues: ReadonlySet<string>): boolean {
+  return !(
+    !object(part) ||
+    part.type !== 'text' ||
+    typeof part.text !== 'string' ||
+    Object.keys(part).some(key => key !== 'type' && key !== 'text' && key !== 'cache_control') ||
+    !supportedCacheControl(part, ttlValues)
+  )
+}
+
+function supportedCacheControl(part: JsonObject, ttlValues: ReadonlySet<string>): boolean {
+  return !(
+    part.cache_control !== undefined &&
+    (!object(part.cache_control) ||
+      Object.keys(part.cache_control).some(key => key !== 'type' && key !== 'ttl') ||
+      part.cache_control.type !== 'ephemeral' ||
+      typeof part.cache_control.ttl !== 'string' ||
+      !ttlValues.has(part.cache_control.ttl))
+  )
 }
 
 /** Four exact Anthropic routes share one narrow estimated-input implementation. */
@@ -271,7 +290,7 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
     try {
       // Archived NFKC BPE is a rough surrogate. Cache markers select reuse, not prompt text.
       let visualTotal = 0
-      const messages = body.messages.map(message => {
+      const projectMessage = (message: JsonValue): JsonValue => {
         if (!object(message) || !Array.isArray(message.content)) return message
         return {
           ...message,
@@ -288,7 +307,8 @@ export function createAnthropicInputMeter(definition: ModelDefinition): InputMet
             return part
           }),
         }
-      })
+      }
+      const messages = body.messages.map(projectMessage)
       const projected = { messages, ...(body.tools === undefined ? {} : { tools: body.tools }) }
       const tokens =
         tokenizer.encode(writeJsonLossless(projected).normalize('NFKC'), 'all').length + visualTotal
