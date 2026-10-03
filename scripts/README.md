@@ -6,6 +6,7 @@
 
 | 入口 | 作用 |
 |---|---|
+| [build-fixed-schemas.mjs](build-fixed-schemas.mjs) | 在已登记的成员目录运行：清理旧 `dist/generated`，执行该成员的 TypeScript 构建，再按 `schema-inputs` 生成全部固定校验图和输入摘要；任一步失败即删除两份产物并返回非零。由成员的 `build` 脚本调用；生成目录随包发布，不纳入 Git |
 | [package-tenancy-host.sh](package-tenancy-host.sh) | 构建治理中心全新本地.tar.gz归档；不安装、不启动、不上传，见[中心开发入口](../apps/tenancy-host/README.md) |
 | [build-tenancy-image.sh](build-tenancy-image.sh) | 从已解压且核完整清单的治理中心app构建指定Linux架构镜像与独占新Docker save归档；不安装、不推送，见[Docker部署入口](../apps/tenancy-host/deploy/docker/README.md) |
 | [package-cli.sh](package-cli.sh) | 将现有CLI构建为指定的全新本地.tar.gz归档；不安装、不上传，使用与前提见[CLI开发入口](../apps/cli/README.md) |

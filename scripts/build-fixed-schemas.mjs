@@ -6,11 +6,28 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const repository = fileURLToPath(new URL('..', import.meta.url))
-// Extend only after the representative shared gate has released further owners.
+// D-116 finite owners; representative gate release-r2 permits their migration.
 const owners = new Set([
   'packages/core/identity-values',
   'packages/core/content-blocks',
   'packages/core/messages',
+  'packages/core/offer-expiry',
+  'packages/core/agent-definition',
+  'packages/core/arrival-events',
+  'packages/core/tool-definition',
+  'packages/core/loop-extension',
+  'packages/core/model-response',
+  'packages/core/model-profile',
+  'packages/core/skill-package',
+  'packages/core/call-accounts',
+  'packages/core/mcp-endpoint',
+  'packages/core/slash-command',
+  'packages/session/session-tenancy-table',
+  'packages/tenancy/governance-center-entry',
+  'packages/frontend/client-local-state',
+  'packages/frontend/governance-center-client',
+  'packages/frontend/governance-client-operations',
+  'apps/cli',
 ])
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 const snapshot = value => {

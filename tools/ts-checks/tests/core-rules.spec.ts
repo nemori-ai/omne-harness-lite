@@ -51,6 +51,16 @@ describe('core-pure-imports', () => {
       'core/content-blocks/src/schema-compiler.ts',
       'core/content-blocks/src/schema-codegen.ts',
       'core/messages/src/schema.ts',
+      'core/agent-definition/src/schema.ts',
+      'core/arrival-events/src/schema.ts',
+      'core/tool-definition/src/schema.ts',
+      'core/loop-extension/src/schema.ts',
+      'core/model-response/src/schema.ts',
+      'core/model-profile/src/schema.ts',
+      'core/skill-package/src/schema.ts',
+      'core/call-accounts/src/schema.ts',
+      'core/mcp-endpoint/src/schema.ts',
+      'core/slash-command/src/schema.ts',
     ])
       expect(
         corePureImports.check([file(path, "import { createRequire } from 'node:module'")]),
