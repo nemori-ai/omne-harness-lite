@@ -45,6 +45,23 @@ export function createReadFactsAccumulator(
     upstreamModel?: string
     servingProvider?: string
   } = {}
+  function observationProvenance(
+    read: JsonValue | undefined,
+    write: JsonValue | undefined,
+  ): ObservationProvenance {
+    const paths: [string, ...string[]] = [
+      'usage.prompt_tokens',
+      ...(isNonNegativeJsonInteger(read) ? ['usage.prompt_tokens_details.cached_tokens'] : []),
+      ...(isNonNegativeJsonInteger(write)
+        ? ['usage.prompt_tokens_details.cache_write_tokens']
+        : []),
+    ]
+    return Object.freeze({
+      adapterRevision: readerRevision(scope),
+      fieldPaths: Object.freeze(paths),
+      ...provenanceFacts,
+    })
+  }
   function refresh(): void {
     if (!raw) return
     const accounts = accountFromUsage(raw, diagnostic)
@@ -65,18 +82,7 @@ export function createReadFactsAccumulator(
     )
     const excessive =
       isNonNegativeJsonInteger(total) && knownParts.compare(ExactDecimal.from(total)) > 0
-    const paths: [string, ...string[]] = [
-      'usage.prompt_tokens',
-      ...(isNonNegativeJsonInteger(read) ? ['usage.prompt_tokens_details.cached_tokens'] : []),
-      ...(isNonNegativeJsonInteger(write)
-        ? ['usage.prompt_tokens_details.cache_write_tokens']
-        : []),
-    ]
-    const provenance: ObservationProvenance = Object.freeze({
-      adapterRevision: readerRevision(scope),
-      fieldPaths: Object.freeze(paths),
-      ...provenanceFacts,
-    })
+    const provenance = observationProvenance(read, write)
     let observedInput: ObservedInput
     if (responseCacheHit) observedInput = { kind: 'unavailable', reason: 'response_cache' }
     else if (inconsistent || malformed || excessive)

@@ -8,6 +8,32 @@ export function createScopeCleaner(resources: readonly Pick<ImagePreparer, 'clea
   const preparers = [...new Set(resources)]
   const pending = new WeakMap<object, Set<Pick<ImagePreparer, 'clearScope'>>>()
   const active = new Set<Promise<void>>()
+  function ownInvalidCompletion(
+    value: unknown,
+    scope: object,
+    preparer: Pick<ImagePreparer, 'clearScope'>,
+  ): void {
+    if (
+      value &&
+      (typeof value === 'object' || typeof value === 'function') &&
+      'then' in value &&
+      typeof value.then === 'function'
+    ) {
+      const scopes = pending.get(scope) ?? new Set<Pick<ImagePreparer, 'clearScope'>>()
+      scopes.add(preparer)
+      pending.set(scope, scopes)
+      const completion = Promise.resolve(value)
+        .then(
+          () => {},
+          () => {},
+        )
+        .finally(() => {
+          scopes.delete(preparer)
+          active.delete(completion)
+        })
+      active.add(completion)
+    }
+  }
   return {
     clear(scope) {
       if (!scope || typeof scope !== 'object') throw new TypeError('object reuse scope required')
@@ -17,26 +43,7 @@ export function createScopeCleaner(resources: readonly Pick<ImagePreparer, 'clea
           if (pending.get(scope)?.has(preparer)) throw new TypeError('scope cleanup still pending')
           const value: unknown = preparer.clearScope(scope)
           if (value === undefined) continue
-          if (
-            value &&
-            (typeof value === 'object' || typeof value === 'function') &&
-            'then' in value &&
-            typeof value.then === 'function'
-          ) {
-            const scopes = pending.get(scope) ?? new Set<Pick<ImagePreparer, 'clearScope'>>()
-            scopes.add(preparer)
-            pending.set(scope, scopes)
-            const completion = Promise.resolve(value)
-              .then(
-                () => {},
-                () => {},
-              )
-              .finally(() => {
-                scopes.delete(preparer)
-                active.delete(completion)
-              })
-            active.add(completion)
-          }
+          ownInvalidCompletion(value, scope, preparer)
           throw new TypeError('scope cleanup must synchronously return undefined')
         } catch (error) {
           errors.push(error)
