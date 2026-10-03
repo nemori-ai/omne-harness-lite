@@ -1,0 +1,163 @@
+[
+  {
+    "name": "baseline-checkout",
+    "command": [
+      "taskset",
+      "-c",
+      "7",
+      "nice",
+      "-n",
+      "5",
+      "git",
+      "checkout",
+      "--detach",
+      "bf9874441dc53d661ec0773f6e3803218630f2f2"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-b",
+    "exit_code": 0,
+    "wall_seconds": 0.10272992902901024
+  },
+  {
+    "name": "baseline-mrr-build",
+    "command": [
+      "taskset",
+      "-c",
+      "7",
+      "nice",
+      "-n",
+      "5",
+      "pnpm",
+      "build"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-b/packages/model/model-request-runtime",
+    "exit_code": 0,
+    "wall_seconds": 8.61125512100989
+  },
+  {
+    "name": "candidate-checkout",
+    "command": [
+      "taskset",
+      "-c",
+      "7",
+      "nice",
+      "-n",
+      "5",
+      "git",
+      "checkout",
+      "--detach",
+      "955965ddf4e33d4da9843a9b079100fa3ad1650a"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c",
+    "exit_code": 0,
+    "wall_seconds": 0.11140892095863819
+  },
+  {
+    "name": "candidate-mrr-build",
+    "command": [
+      "taskset",
+      "-c",
+      "7",
+      "nice",
+      "-n",
+      "5",
+      "pnpm",
+      "build"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/model/model-request-runtime",
+    "exit_code": 0,
+    "wall_seconds": 9.047734297986608
+  },
+  {
+    "name": "candidate-scanner-build",
+    "command": [
+      "taskset",
+      "-c",
+      "7",
+      "nice",
+      "-n",
+      "5",
+      "pnpm",
+      "build"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/tools/core-verification",
+    "exit_code": 0,
+    "wall_seconds": 4.647361975978129
+  },
+  {
+    "name": "packages__model__model-request-runtime-typecheck",
+    "command": [
+      "taskset",
+      "-c",
+      "7",
+      "nice",
+      "-n",
+      "5",
+      "node",
+      "node_modules/typescript/bin/tsc",
+      "-p",
+      "tsconfig.test.json"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/model/model-request-runtime",
+    "exit_code": 0,
+    "wall_seconds": 12.801694130001124
+  },
+  {
+    "name": "tools__core-verification-typecheck",
+    "command": [
+      "taskset",
+      "-c",
+      "7",
+      "nice",
+      "-n",
+      "5",
+      "node",
+      "node_modules/typescript/bin/tsc",
+      "-p",
+      "tsconfig.test.json"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/tools/core-verification",
+    "exit_code": 0,
+    "wall_seconds": 4.760609054996166
+  },
+  {
+    "name": "mrr-slow",
+    "command": [
+      "taskset",
+      "-c",
+      "7",
+      "nice",
+      "-n",
+      "5",
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "--reporter=default",
+      "--reporter=json",
+      "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/upstream96/mrr-slow.json"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/model/model-request-runtime",
+    "exit_code": 0,
+    "wall_seconds": 82.38793813099619
+  },
+  {
+    "name": "cli-acceptance",
+    "command": [
+      "taskset",
+      "-c",
+      "7",
+      "nice",
+      "-n",
+      "5",
+      "node",
+      "--experimental-strip-types",
+      "tools/ts-checks/src/testing/cli.ts",
+      "step",
+      "acceptance",
+      "--plan",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/manual-plan.json"
+    ],
+    "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c",
+    "exit_code": 0,
+    "wall_seconds": 3.8341498890076764
+  }
+]

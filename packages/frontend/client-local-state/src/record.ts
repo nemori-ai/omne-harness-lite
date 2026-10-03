@@ -1,30 +1,21 @@
 import { X509Certificate } from 'node:crypto'
 import { createRequire } from 'node:module'
-import { Ajv2020 } from 'ajv/dist/2020.js'
 import { z } from 'zod'
 import type { LocalRecord } from './surface.ts'
 
-const require = createRequire(import.meta.url)
-const ec: { readonly $id: string } = require('@omne-harness-lite/governance-center-client/schema')
-const iv: { readonly $id: string } = require('@omne-harness-lite/identity-values/schema')
-const oe: { readonly $id: string } = require('@omne-harness-lite/offer-expiry/schema')
-const ajv = new Ajv2020({
-  strict: true,
-  strictTypes: false,
-  strictRequired: false,
-  validateFormats: false,
-})
-ajv.addKeyword('x-counterexamples')
-ajv.addSchema(iv).addSchema(oe).addSchema(ec)
-const check = (id: string, name: string) => ajv.compile({ $ref: `${id}#/$defs/${name}` })
-const centerId = check(ec.$id, 'GovernanceCenterId')
-const presentation = check(ec.$id, 'LoginStatePresentation')
-const accountId = check(iv.$id, 'AccountId')
-const handle = check(iv.$id, 'LoginStateId')
-const tenant = check(iv.$id, 'TenantId')
-const envelope = check(ec.$id, 'Envelope')
-const exchange = check(ec.$id, 'Exchange')
-
+const require = createRequire(new URL('../package.json', import.meta.url))
+function fixedSchemas() {
+  return require('./generated/ordinary.cjs') as Record<
+    | 'GovernanceCenterId'
+    | 'LoginStatePresentation'
+    | 'AccountId'
+    | 'LoginStateId'
+    | 'TenantId'
+    | 'Envelope'
+    | 'Exchange',
+    (value: unknown) => boolean
+  >
+}
 function certificatesOnly(text: string): boolean {
   const blocks = text.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g)
   if (
@@ -59,24 +50,30 @@ const endpoint = z.string().refine(s => {
 })
 const shape = z
   .object({
-    center: z.object({ centerId: opaque.refine(s => centerId(s)), endpoint, trust }).strict(),
+    center: z
+      .object({
+        centerId: opaque.refine(s => fixedSchemas().GovernanceCenterId(s)),
+        endpoint,
+        trust,
+      })
+      .strict(),
     login: z
       .object({
-        presentation: opaque.refine(s => presentation(s)),
-        handle: opaque.refine(s => handle(s)),
-        accountId: opaque.refine(s => accountId(s)).optional(),
+        presentation: opaque.refine(s => fixedSchemas().LoginStatePresentation(s)),
+        handle: opaque.refine(s => fixedSchemas().LoginStateId(s)),
+        accountId: opaque.refine(s => fixedSchemas().AccountId(s)).optional(),
       })
       .strict()
       .optional(),
     cache: z.array(
       z
         .object({
-          centerId: opaque.refine(s => centerId(s)),
-          accountId: opaque.refine(s => accountId(s)),
+          centerId: opaque.refine(s => fixedSchemas().GovernanceCenterId(s)),
+          accountId: opaque.refine(s => fixedSchemas().AccountId(s)),
           tenant: z
             .object({ organization: opaque, account: opaque })
             .strict()
-            .refine(t => tenant(t))
+            .refine(t => fixedSchemas().TenantId(t))
             .optional(),
           operation: z.string(),
           payload: z.record(z.string(), z.unknown()),
@@ -111,13 +108,13 @@ export function validRecord(value: unknown): value is LocalRecord | null {
     )
       return false
     if (
-      !envelope({
+      !fixedSchemas().Envelope({
         protocolVersion: '2',
         operation: c.operation,
         presentedLoginState: 'cached-read',
         payload: c.payload,
       }) ||
-      !exchange({ operation: c.operation, reply: { result: c.result } })
+      !fixedSchemas().Exchange({ operation: c.operation, reply: { result: c.result } })
     )
       return false
     if (c.operation === 'capability.organization-governance/v2#S-34') {

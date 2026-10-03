@@ -18,10 +18,11 @@
     "dist",
     "schema",
     "README.md",
-    "README_ZH.md"
+    "README_ZH.md",
+    "generated"
   ],
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "build": "node ../../../scripts/build-fixed-schemas.mjs",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run"
   },
@@ -29,7 +30,8 @@
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
     "@omne-harness-lite/loop-extension": "workspace:*",
-    "@omne-harness-lite/identity-values": "workspace:*"
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "ajv": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

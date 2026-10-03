@@ -13,13 +13,15 @@ import {
 
 declare const full: BodyContracts
 declare const five: NonConnectorBodyContracts
+const fiveJudge = createAssetModelJudge(five)
+
 const supplied: BodyContractSupply = five
 createAssetModelJudge(full)
 createAssetModelJudge(five)
 createAssetModelJudge(supplied)
-parseWorkspaceManifestText('{}', five)
+parseWorkspaceManifestText('{}', fiveJudge)
 referencesOf({ category: 'plugin', members: [] }, five)
-const result = attributeDeclarationsOf({ category: 'mcp', body: {} }, five)
+const result = attributeDeclarationsOf({ category: 'mcp', body: {} }, fiveJudge)
 expectTypeOf(result).toEqualTypeOf<DeclarationResult<'mcp'>>()
 expectTypeOf(new BodyProviderUnavailableError().category).toEqualTypeOf<'connector'>()
 // @ts-expect-error the five-provider type does not satisfy the full-six obligation

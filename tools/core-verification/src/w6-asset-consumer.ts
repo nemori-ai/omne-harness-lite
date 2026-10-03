@@ -401,7 +401,7 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
     run() {
       const manifest = parseWorkspaceManifestText(
         '{"format":1,"assets":[{"capability":{"category":"skill","name":"review"},"source":"skills/review"}],"assignments":[{"capability":{"category":"skill","name":"review"},"item":"tone","value":"workspace","immutable":true},{"capability":{"category":"skill","name":"review"},"item":"usableBy","value":{"allowed":["member"]}},{"capability":{"category":"tool","name":"shell"},"item":"timeout","value":"PT10S"}],"disabled":[]}',
-        defaultBodyContracts,
+        judge,
       )
       assert.ok('ok' in manifest)
       assert.ok(isManifest(manifest.ok))
@@ -441,7 +441,7 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
       )
       const broken = parseWorkspaceManifestText(
         '{"format":1,"format":1,"assets":[],"assignments":[],"disabled":[]}',
-        defaultBodyContracts,
+        judge,
       )
       assert.deepEqual(broken, { rejected: 'malformed' })
     },
@@ -550,10 +550,9 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
       const plugin = { category: 'plugin', name: 'bundle' } as const
       const entry = record('ast_bundle', plugin, { category: 'plugin', members: [tool] })
       assert.deepEqual(judge.judgeAssetValue('AssetDefinition', entry), { ok: true })
-      assert.deepEqual(
-        attributeDeclarationsOf({ category: 'plugin', members: [tool] }, defaultBodyContracts),
-        { underivable: 'plugin' },
-      )
+      assert.deepEqual(attributeDeclarationsOf({ category: 'plugin', members: [tool] }, judge), {
+        underivable: 'plugin',
+      })
       const result = evaluate({
         ...input,
         definitions: [...definitions, entry],

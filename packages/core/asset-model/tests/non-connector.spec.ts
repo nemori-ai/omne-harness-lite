@@ -61,7 +61,7 @@ describe('accepted five-port provider scope', () => {
     const complete = createAssetModelJudge(bodies)
     expect(complete.validate('AssetContent', connector)).toEqual({ valid: true })
     expect(complete.judgeAssetValue('AssetContent', connector)).toEqual({ ok: true })
-    expect(attributeDeclarationsOf(connector, bodies)).toEqual({ underivable: 'connector' })
+    expect(attributeDeclarationsOf(connector, complete)).toEqual({ underivable: 'connector' })
     expect(referencesOf(connector, bodies)).toEqual({ references: [] })
     expect(Object.hasOwn(bindBodyContracts(bodies), 'connector')).toBe(true)
   })
@@ -103,9 +103,12 @@ describe('accepted five-port provider scope', () => {
     category => {
       const missing = Object.fromEntries(Object.entries(five).filter(([key]) => key !== category))
       expect(() => Reflect.apply(createAssetModelJudge, undefined, [missing])).toThrow(TypeError)
-      expect(() => Reflect.apply(attributeDeclarationsOf, undefined, [connector, missing])).toThrow(
-        TypeError,
-      )
+      expect(() =>
+        Reflect.apply(attributeDeclarationsOf, undefined, [
+          connector,
+          Reflect.apply(createAssetModelJudge, undefined, [missing]),
+        ]),
+      ).toThrow(TypeError)
       expect(() => Reflect.apply(referencesOf, undefined, [connector, missing])).toThrow(TypeError)
     },
   )
@@ -149,7 +152,7 @@ describe('accepted five-port provider scope', () => {
   ] as const)(
     'preserves the four MCP knowledge paths through five-port binding: %j',
     (snapshot, marker) => {
-      const result = attributeDeclarationsOf({ category: 'mcp', body: {} }, five, snapshot)
+      const result = attributeDeclarationsOf({ category: 'mcp', body: {} }, judge, snapshot)
       expect(Object.hasOwn(result, 'actionSnapshotKind')).toBe(true)
       expect(result.actionSnapshotKind).toBe(marker)
       expect(result.declarations.map(item => item.item)).toEqual(['disabled', 'usableBy'])
@@ -170,7 +173,7 @@ describe('availability is an explicit body-rule request', () => {
   })
   it('throws for declaration and reference requests without inventing business results', () => {
     for (const invoke of [
-      () => attributeDeclarationsOf(connector, five),
+      () => attributeDeclarationsOf(connector, judge),
       () => referencesOf(connector, five),
       () => judge.judgeAssetValue('AssetContent', connector),
     ]) {
@@ -237,7 +240,7 @@ describe('availability is an explicit body-rule request', () => {
     const plugin = { category: 'plugin', members: [capability] } as const
     expect(judge.judgeAssetValue('AssetContent', plugin)).toEqual({ ok: true })
     expect(referencesOf(plugin, five)).toEqual({ references: [capability] })
-    expect(attributeDeclarationsOf(plugin, five)).toEqual({ underivable: 'plugin' })
+    expect(attributeDeclarationsOf(plugin, judge)).toEqual({ underivable: 'plugin' })
   })
   it('keeps the complete workspace manifest domain with Connector identifiers and opaque values', () => {
     const capability = { category: 'connector', name: 'inbound' }
@@ -248,10 +251,10 @@ describe('availability is an explicit body-rule request', () => {
       disabled: [capability],
     }
     expect(judge.judgeAssetValue('WorkspaceCarrierManifest', manifest)).toEqual({ ok: true })
-    expect(parseWorkspaceManifestText(writeJsonLossless(manifest), five)).toEqual({ ok: manifest })
-    expect(parseWorkspaceManifestText(writeJsonLossless({ ...manifest, format: 2 }), five)).toEqual(
-      { rejected: 'manifest_format_unsupported' },
-    )
+    expect(parseWorkspaceManifestText(writeJsonLossless(manifest), judge)).toEqual({ ok: manifest })
+    expect(
+      parseWorkspaceManifestText(writeJsonLossless({ ...manifest, format: 2 }), judge),
+    ).toEqual({ rejected: 'manifest_format_unsupported' })
   })
   it('does not recursively classify agent opaque JSON, assignment values, defaults or tool input schemas', () => {
     const fakeBody = { category: 'connector', body: {} }

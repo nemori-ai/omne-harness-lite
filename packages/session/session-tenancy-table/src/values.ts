@@ -1,19 +1,22 @@
-import schema from '@omne-harness-lite/messages/schema/v2' with { type: 'json' }
-import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
+import { createRequire } from 'node:module'
 import {
   parseOpaqueIdentifier,
   parseTenantId,
   unwrap,
   type TenantId,
 } from '@omne-harness-lite/identity-values'
-import { readJsonStrict } from '@omne-harness-lite/content-blocks'
+import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { StorageDefect } from '@omne-harness-lite/storage'
 import type { SessionRef } from '@omne-harness-lite/messages'
 
-// Compile only the shared SessionRef definition; do not admit a current message as an ST2 prerequisite.
-const validator = createSchemaRuntime([schema]).compile({ $ref: `${schema.$id}#/$defs/SessionRef` })
+// Use only the shared SessionRef definition; current messages are not an ST2 prerequisite.
+const require = createRequire(new URL('../package.json', import.meta.url))
 export function sessionValue(value: unknown): SessionRef | undefined {
-  if (typeof value !== 'string' || !validator.validate(value)) return undefined
+  if (typeof value !== 'string') return undefined
+  const generated = require('./generated/exact.cjs') as {
+    SessionRef(text: string): { readonly valid: boolean }
+  }
+  if (!generated.SessionRef(writeJsonLossless(value)).valid) return undefined
   const parsed = parseOpaqueIdentifier(value, 'SessionRef')
   return 'ok' in parsed ? parsed.ok : undefined
 }

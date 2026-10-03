@@ -1,5 +1,4 @@
 import { createRequire } from 'node:module'
-import { Ajv2020 } from 'ajv/dist/2020.js'
 import type {
   ActionInput,
   ActionIntent,
@@ -8,31 +7,13 @@ import type {
   PromptResult,
 } from './surface.ts'
 
-const require = createRequire(import.meta.url)
-const cg: { readonly $id: string } = require('../schema/governance-client-operations.schema.json')
-const oe: { readonly $id: string } = require('@omne-harness-lite/offer-expiry/schema')
-const ajv = new Ajv2020({
-  strict: true,
-  strictTypes: false,
-  strictRequired: false,
-  validateFormats: false,
-})
-ajv.addKeyword('x-counterexamples')
-ajv.addSchema(require('@omne-harness-lite/identity-values/schema'))
-ajv.addSchema(oe)
-ajv.addSchema(require('@omne-harness-lite/governance-center-client/schema'))
-ajv.addSchema(cg)
-const cg2: {
-  readonly $id: string
-} = require('../schema/governance-client-operations-v2.schema.json')
-ajv.addSchema(cg2)
-const intentSchema = ajv.compile({ $ref: `${cg2.$id}#/$defs/Intent` })
-const previewSchema = ajv.compile({ $ref: `${cg2.$id}#/$defs/Preview` })
-const promptSchema = ajv.compile({ $ref: `${cg2.$id}#/$defs/PromptExchange` })
-const inputSchema = ajv.compile({ $ref: `${cg.$id}#/$defs/Input` })
-const outputSchema = ajv.compile({ $ref: `${cg.$id}#/$defs/Output` })
-const instantSchema = ajv.compile({ $ref: `${oe.$id}#/$defs/Instant` })
-
+const require = createRequire(new URL('../package.json', import.meta.url))
+function fixedSchemas() {
+  return require('./generated/ordinary.cjs') as Record<
+    'Intent' | 'Preview' | 'PromptExchange' | 'Input' | 'Output' | 'Instant',
+    (value: unknown) => boolean
+  >
+}
 function capture<T>(input: unknown, valid: (value: unknown) => boolean): T | undefined {
   let text: string | undefined
   try {
@@ -50,23 +31,25 @@ function capture<T>(input: unknown, valid: (value: unknown) => boolean): T | und
   return freeze(copy) as T
 }
 export function captureAction(input: unknown): ActionInput | undefined {
-  return capture<ActionInput>(input, inputSchema)
+  return capture<ActionInput>(input, fixedSchemas().Input)
 }
 export function captureIntent(input: unknown): ActionIntent | undefined {
-  return capture<ActionIntent>(input, intentSchema)
+  return capture<ActionIntent>(input, fixedSchemas().Intent)
 }
 export function capturePrompt(intent: ActionIntent, result: unknown): PromptResult | undefined {
-  return capture<{ intent: ActionIntent; result: PromptResult }>({ intent, result }, promptSchema)
-    ?.result
+  return capture<{ intent: ActionIntent; result: PromptResult }>(
+    { intent, result },
+    fixedSchemas().PromptExchange,
+  )?.result
 }
 export function validPreview(value: unknown): value is ActionPreview {
-  return previewSchema(value)
+  return fixedSchemas().Preview(value)
 }
 export function validReport(value: unknown): boolean {
-  return outputSchema(value)
+  return fixedSchemas().Output(value)
 }
 export function validInstant(value: unknown): value is string {
-  return instantSchema(value)
+  return fixedSchemas().Instant(value)
 }
 export function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)

@@ -16,10 +16,11 @@
   },
   "files": [
     "dist",
-    "schema"
+    "schema",
+    "generated"
   ],
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "build": "node ../../../scripts/build-fixed-schemas.mjs",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run"
   },
@@ -27,7 +28,8 @@
     "@omne-harness-lite/asset-model": "workspace:*",
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
-    "@omne-harness-lite/skill-package": "workspace:*"
+    "@omne-harness-lite/skill-package": "workspace:*",
+    "ajv": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

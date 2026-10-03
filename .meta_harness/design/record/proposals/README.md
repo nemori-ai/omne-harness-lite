@@ -62,3 +62,5 @@
 [模型调用引用与生命周期](model-runtime-reference-lifecycle/README.md)：比较既有模型服务扩面、独立定位服务、耐久动作协调器三候选；作者推荐在既有服务内补模型专属解析/消费面，四表已形成，尚未接受，不扩完整 Session/Run。
 
 [Moonshot 空串文本段](moonshot-empty-text/README.md)：精确两叶、全路由与公开配置三候选；独立选择无阻断，技术采用见 D-115。
+
+[固定Schema生成与装载](fixed-schema-precompile/README.md)：五条候选、现行26图与受限技术公开面；两项r2选择机制闭合，完整共享机制/正式采用/实现接受仍待。

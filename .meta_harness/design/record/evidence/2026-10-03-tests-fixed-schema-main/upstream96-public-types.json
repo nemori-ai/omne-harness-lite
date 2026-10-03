@@ -1,0 +1,19 @@
+{
+  "rows": [
+    {
+      "label": "baseline",
+      "file": "packages/model/model-request-runtime/dist/output-history.d.ts",
+      "old_sha256": "90204ec1ddfd0183d97a86d5b9d083e1c4189e3220f5758b9b52b45e4c3cd6d7",
+      "new_sha256": "a1a32ce52f252f00ad3a2ecdba28db17138b7227f8f1a98c68f532b587037f68",
+      "only_difference": "import { type Message } -> import type { Message }; public function signature identical"
+    },
+    {
+      "label": "candidate",
+      "file": "packages/model/model-request-runtime/dist/output-history.d.ts",
+      "old_sha256": "90204ec1ddfd0183d97a86d5b9d083e1c4189e3220f5758b9b52b45e4c3cd6d7",
+      "new_sha256": "a1a32ce52f252f00ad3a2ecdba28db17138b7227f8f1a98c68f532b587037f68",
+      "only_difference": "import { type Message } -> import type { Message }; public function signature identical"
+    }
+  ],
+  "scope": "Both emitted declaration byte diffs are solely equivalent type-only import syntax. New helpers are private and not re-exported by package entry. Prior dependent typechecks retain the same public signatures; changed member typechecks were rerun."
+}

@@ -19,6 +19,7 @@ const MAINTENANCE_LEAVES = new Set([
 ])
 const READONLY_LEAVES = new Set([
   ...MAINTENANCE_LEAVES,
+  `${ENTRY_SRC}schema-inputs`,
   `${ENTRY_SRC}center-id/table`,
   `${ENTRY_SRC}center-id/snapshot-structure`,
 ])
@@ -41,7 +42,7 @@ const EVENTS_MODULE = withoutExtension(ENTRY_EVENTS)
 export const opsImportWhitelist: Rule = {
   id: 'ops-import-whitelist',
   source:
-    'composition.governance-center-entry v3 SC-2 / D055-D056 · governance-center-entry 节点约束第 5 条与 verification「包布局常量」',
+    'composition.governance-center-entry v3 SC-2 / D055-D056 / D-116 · governance-center-entry 节点约束第 5 条与 verification「包布局常量」',
   description:
     '运维面仅消费已采用的ops/maintenance/严格JSON路径；维护及其只读叶子逐项受白名单约束，不得传递导入治理服务或写入口',
   check(files) {
@@ -131,6 +132,15 @@ function judgeReadonlyLeaf(path: string, specifier: string | undefined): string 
   const module = withoutExtension(path)
   const resolved = resolveRelative(path, specifier)
   if (module === `${ENTRY_SRC}routing/schema`) {
+    if (
+      (resolved !== undefined && withoutExtension(resolved) === `${ENTRY_SRC}schema-inputs`) ||
+      specifier === './generated/ordinary.cjs'
+    )
+      return undefined
+  }
+  // D-116 moves resource assembly into this checked readonly leaf. The native
+  // generated module is resolved by routing/schema's package-root createRequire.
+  if (module === `${ENTRY_SRC}routing/schema` || module === `${ENTRY_SRC}schema-inputs`) {
     if (
       [
         'node:module',

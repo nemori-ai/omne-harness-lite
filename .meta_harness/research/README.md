@@ -154,3 +154,5 @@
 [DSH AgentRegistry 的活引用与生命周期边界](dsh-agent-registry-reference/README.md)：固定官方修订的服务、引用、登记及拆卸读数；不构成 Agent 原语采用。
 
 [图片与空文本段的 OpenRouter 接受性](empty-text-part-acceptance/README.md)：2026-10-02 的 31 路由、97 请求有限观察；完整脱敏请求与离线复核入口已保全，消费者为 D-115 与 pi-ai-transport 窄修复。
+
+[固定Schema编译开销](fixed-schema-compile-cost/README.md)：Ajv8.20/Node24.21原研究及2026-10-03有限探针、26图构造捕获；全路径性能未量。

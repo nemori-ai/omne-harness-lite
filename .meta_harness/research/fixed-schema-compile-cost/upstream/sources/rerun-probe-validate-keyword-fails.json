@@ -1,0 +1,5 @@
+{
+ "validateKeywords": "throws: CodeGen: \"code\" for keyword0 not defined",
+ "patternEngine": "const func0 = schemaPattern;const pattern4 = func0(\"^a\", \"u\");",
+ "patternEngineLoads": "throws: schemaPattern is not defined"
+}

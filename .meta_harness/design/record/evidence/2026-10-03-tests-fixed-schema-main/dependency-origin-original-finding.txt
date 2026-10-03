@@ -1,0 +1,89 @@
+# #65 主实现窄增量评审：require 依赖来源解析
+
+评审工作树为 `/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation`，分支 `panqiwei/lazy-schema`。本轮增量基线为 `aa1329cc0af575bbb4557360043c663873d9c513`，冻结交付为 `1ef590fab6986255a783e75d50760dbedaf67981`，沿用 #65 的 L3 级别。只评审 `tools/core-verification/src/dependency-surface.ts` 和新增的 `tests/dependency-require.spec.ts`。原 20 图、AM、数值／runtime 和构建驱动均未改变，原报告坐标保留。
+
+**本轮发现 1 项阻断 DO-1：可重赋值的 require 绑定被当作固定初始化来源，扫描能成功遗漏真实依赖边。**三个授权测试文件独立运行 8/8 通过；随后按 ROOT 单独授权，用冻结实现实际复现了漏边。测试通过不消除该反例。本报告不接受交付，也不重开已消除的 sandbox owner 问题 B1。
+
+## 工具一览
+
+实际执行均串行、CPU 7、nice 5，`VITEST_MAX_WORKERS=1 OMNE_TEST_MEMBER_CONCURRENCY=1 npm_config_workspace_concurrency=1`。三文件测试后释放通道；ROOT 为单次反例再次交接，复现结束后再次明确释放。没有安装、产品修改、提交、全仓检查、槽位包装或新增独立 QA。
+
+以下输出名均相对于本报告目录。ROOT 原证据位于 `../final65-main-integration/`，读取不冒充本角色独立执行。
+
+| 入口 | 实际命令／读取 | 结果 | 输出位置 |
+|---|---|---|---|
+| 坐标及范围 | `git branch --show-current`、`git rev-parse HEAD`、`git status --porcelain=v1`；`git diff --name-status aa1329cc0 1ef590fab` | 退出 0；指定分支／冻结提交；初始及执行后跟踪状态为空；只变更两个派发文件 | 本次工具输出，chunks `6fa199`、`5bd120`、`dbbb3b` |
+| 差异／既有断言／提交 | 读取两文件完整 diff；对 `dependency-surface.spec.ts`、`public-type-surface.spec.ts` 读取同区间 diff；`git log -1 --format=fuller 1ef590fab` | 退出 0；既有两份测试 diff 为空，没有验收变化；提交为人类署名及所需 trailer | `supplement-dependency-origin-r1.diff`；冻结源保存在 `supplement-dependency-origin-r1-source.ts` |
+| 独立三文件回归 | cwd `tools/core-verification`，共同 CPU／nice／并发前缀，加 `OMNE_TEST_TIER=fast`，运行 `pnpm exec vitest run tests/dependency-require.spec.ts tests/dependency-surface.spec.ts tests/public-type-surface.spec.ts --maxWorkers=1 --reporter=json --outputFile=<本报告目录>/supplement-dependency-origin-r1-tests.json` | **退出 0；3 文件、8 用例全部通过，0 失败、0 跳过** | `supplement-dependency-origin-r1-tests.{json,log}`；session `79915` |
+| DO-1 单次实际复现 | 相同 CPU／nice／并发前缀，`node --experimental-strip-types tmp/test-tiers-mutation/review65-main-r1/supplement-dependency-origin-r1-reproduce.mjs` | 退出 0，表示**反例按断言命中**；真实 Node 与扫描清单不同，不表示扫描器通过 | `supplement-dependency-origin-r1-reproduce.{mjs,log}`；`supplement-dependency-origin-r1-evidence/let-reassignment/result.json`；工具 chunk `ef56b6` |
+| 原全 fast 失败（读取 ROOT） | 读取 performance 首轮工具日志／对应失败坐标 | 库存用例 ENOENT：误读 identity-values 的 `src/generated/ordinary.cjs`。该日志为 1 failed、28 passed、2 skipped，没有改记为成功 | `performance-r1/full/pair1-candidate/tools__core-verification.{log,json}` |
+| ROOT 修复检查 | 读取 `dependency-fix-checks-r1/result.json` 及 format/build/typecheck/fast 原日志 | 格式化执行、构建、类型检查均退出 0；整个工具 fast 为 33 passed、2 tags-filtered。格式记录是 `format:write`，不是独立 format check | `dependency-fix-checks-r1/{result.json,format.log,build.log,typecheck.log,fast.log,fast.json}` |
+| 规则／度量／其他成员 | 本轮未运行 | 按窄派发范围不新增全仓运行；无额外规则／结构读数通过声明 | 沿用原报告范围；不据此声称最终 gates 完成 |
+
+三文件测试的 `OMNE_CORE_VERIFICATION_EVIDENCE_ROOT` 和 `TMPDIR` 均指向授权前缀目录 `supplement-dependency-origin-r1-evidence`。既有库存输出与临时夹具没有写入产品树；新增用例的临时目录按其 afterEach 清理。故意保留的复现夹具及源摘要用于后续修复对照。
+
+## 阻断
+
+### DO-1：变量的初始化基点被当作调用时基点，重赋值后遗漏真实文件和外部边
+
+检查表第 9、10、14 问；位置为冻结提交中的 `tools/core-verification/src/dependency-surface.ts:88–92`，后续使用点为第 141 行。
+
+`requireOrigin` 取 `symbol.valueDeclaration.initializer`，接受任何 `VariableDeclaration`，既不限制不可重赋值的声明，也不核对可见赋值。后面的 `createRequire(...).resolve` 因此能得到一个真实存在但不是运行时实际读取的文件，整次扫描没有报错。
+
+**已执行反例：**夹具 `src/index.mjs` 为：
+
+```js
+import { createRequire } from 'node:module'
+let require = createRequire(new URL('../package.json', import.meta.url))
+require = createRequire(import.meta.url)
+export const value = require('./generated/start.cjs')
+```
+
+两个目标均存在。根 `generated/start.cjs` 只导出 `{ selected: 'package-base' }`；`src/generated/start.cjs` 导出 `selected: 'source-base'`，并读取 `require('node:fs').readFileSync`。所有模块名均为字面量，没有需要支持任意计算式模块名的要求。
+
+实际输出保存在 `supplement-dependency-origin-r1-evidence/let-reassignment/result.json`：
+
+```json
+{
+  "actual": { "selected": "source-base", "readFileSyncType": "function" },
+  "scanned.external": ["node:module"],
+  "omittedExternal": "node:fs",
+  "omittedFile": "…/src/generated/start.cjs",
+  "counterexampleReproduced": true
+}
+```
+
+扫描清单反而包含根 `generated/start.cjs`。复现脚本对真实 Node 结果、错误文件清单和遗漏的 `node:fs` 均有断言；冻结 HEAD 与被调用扫描器的 SHA256 一并写入原件。扫描器 SHA256 为 `b665e2533547a0f7985996503f6f4064b165793686b8bdcefb68c590c2cf7e7b`。
+
+**违反的约束：**`tools/core-verification/README_ZH.md:100` 要求识别受控文本中的 require 边，并且“不能把不可核对的动态路径当通过”；第 102–104 行将读取文件及 hash 作为受控入口图证据。本增量的 `requireOrigin` 注释和提交说明进一步承诺对未知来源拒绝。此反例在已识别的 require 调用中静默选择错误来源，产生成功但不完整的文件／依赖清单。它不是对通用 JS 解析器的额外要求：无法确定该绑定时拒绝，也能守住原边界。
+
+**后果：**真实运行时外部边可以从库存中消失，依赖例外断言或归档的 source graph 因此可能被错误放行。对这个具体输入，原扫描器按源码目录解析恰好会读到 `src/generated/start.cjs`；本次采用初始化基点后将该真实边移出了清单。当前产品的固定 Schema loader 使用 const，原 ENOENT 已修复，但不能因此把新增来源判定的这条错误成功路径视为成立。
+
+**实施者需要完成的事：**对调用时来源无法由受支持绑定确定的情况明确拒绝，或正确记录其真实依赖；增加会对上述漏边失败的回归。不得通过删掉库存断言、忽略错误文件或排除 require 边使检查变绿。本报告不修改产品，也不要求实现通用赋值流分析。
+
+## 非阻断
+
+无独立新增条目。四条新增回归都包含行为断言，现有 `moduleSpecifiers` 的去重／排序输出及两份旧测试断言保留；三文件 8/8 通过是真实结果。DO-1 的缺少覆盖并入同一阻断，不重复记账。
+
+## 范围外待裁决
+
+按 ROOT 补派要求，只读核对了原生 CommonJS 未声明 require 的可见重赋值。下面的 `.cjs` 内容可改变 Node wrapper 中的 require 参数：
+
+```js
+require = require('node:module').createRequire(
+  require('node:path').join(__dirname, '../package.json'),
+)
+module.exports = require('./generated/start.cjs')
+```
+
+源码单文件 binder 看不到 Node wrapper 参数的声明。当前第 87 行在 symbol 缺失时无条件采用文件基点，仍会忽略这种可见写入。若根与源码目录各有不同图，同样可错误记录源码目录的图。**这段只读判断未执行重现，而且原扫描器已存在相同限制，不计作本增量第二项新缺陷。**只限制有声明变量为 const，不会约束这个分支；若新来源判定承诺覆盖 native require，就需要对这种可见写入拒绝或准确处理。此判断只涉及明确赋值，未扩展到 eval、跨模块全局变更或完整语言解析。
+
+## 未覆盖
+
+- 本轮没有运行完整工具 slow、其他成员、全量 mutation、共同硬线或性能重测；派发范围没有要求新增独立 QA。ROOT 的工具 fast 记录只按其输入和层使用，tags-filtered 不记为通过。
+- 原全 fast 性能首轮已真实失败，后续定点和工具 fast 通过不等同于整个性能配对完成。最终性能／全范围 gates 仍需由 ROOT 的后续证据交代。
+- DO-1 修复尚未评审。本报告仅对应冻结提交 1ef590fab，后续更改不能沿用本轮用例结果冒称已验证。
+- 原生 CJS 可见重赋值仅做上述源码核对，没有实际运行。其他语言形式没有扩展审计；此工具原有“受控入口图、非通用解析器”的范围保持。
+- 原 L3 热点、B1 修复及主体验证沿用之前报告；本增量没有新租户身份、凭据或同提交存储路径，没有新增形式任务／故障注入声明。
+
+本轮只新增 `supplement-dependency-origin-r1*` 前缀的评审证据，未改原报告、产品、既有测试或验收。执行后跟踪状态为空；测试通道已释放。文件系统没有按路径强制写保护，写入边界由角色指令约束。

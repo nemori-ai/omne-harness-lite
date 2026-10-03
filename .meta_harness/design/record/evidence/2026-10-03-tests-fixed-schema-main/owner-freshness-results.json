@@ -1,0 +1,242 @@
+[
+  {
+    "check": "packages__core__identity-values-build",
+    "exitCode": 0,
+    "wallSeconds": 1.897,
+    "logSha256": "7ce77d84d35dca60fc39d210dd9dc9441223b34be8ea2bfa82b325e1748d4c50"
+  },
+  {
+    "check": "packages__core__identity-values-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.899,
+    "logSha256": "0b4f6bb97a119393ecc9c1ae5e3392c91e7ff047f56e23d6078d46cddaf18627"
+  },
+  {
+    "check": "packages__core__content-blocks-build",
+    "exitCode": 0,
+    "wallSeconds": 2.95,
+    "logSha256": "54c0e6c52e0cd8483c03ba1b38cb7edf004f153d204ad4e7ad647ccf9b9a8b00"
+  },
+  {
+    "check": "packages__core__content-blocks-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 1.187,
+    "logSha256": "649e38ff229b63a863722577498e8e6725d4ed1eed77f7dfad3120d16d766545"
+  },
+  {
+    "check": "packages__core__messages-build",
+    "exitCode": 0,
+    "wallSeconds": 4.292,
+    "logSha256": "a6d9ee0b9c4871fa789a8341f017ff183f305ba04a286a41ee5dd10c76c89019"
+  },
+  {
+    "check": "packages__core__messages-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 1.426,
+    "logSha256": "15789f61301108b58e6d8dda030827020255647e1627324b25e744dfd9b2249b"
+  },
+  {
+    "check": "packages__core__offer-expiry-build",
+    "exitCode": 0,
+    "wallSeconds": 1.792,
+    "logSha256": "812eb022a98eb204dc525829c8dcabd4b38917a1585974db5e48342c30965736"
+  },
+  {
+    "check": "packages__core__offer-expiry-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.775,
+    "logSha256": "4fd7260b649fba63e1304a486c49653652cde8b59b33a6821dcf1584c18a8e29"
+  },
+  {
+    "check": "packages__core__agent-definition-build",
+    "exitCode": 0,
+    "wallSeconds": 2.348,
+    "logSha256": "63ac1e0ff229ee946d28d6126623bdd5c04c5ee517f16665c0715a2fa43210ec"
+  },
+  {
+    "check": "packages__core__agent-definition-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.946,
+    "logSha256": "d7128911b3caf4b3d9a93d0ace41b6201eb9e5a33058596c682b494ba44cb1af"
+  },
+  {
+    "check": "packages__core__arrival-events-build",
+    "exitCode": 0,
+    "wallSeconds": 2.899,
+    "logSha256": "13a6e8fc36274edfb8f1b892612f460677aa708c8b6acfd29ea90af0aadd707a"
+  },
+  {
+    "check": "packages__core__arrival-events-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 1.157,
+    "logSha256": "315d1d6b623592bf02e4bc5498dae25b9107a0da3f97cc805756ca132a939958"
+  },
+  {
+    "check": "packages__core__tool-definition-build",
+    "exitCode": 0,
+    "wallSeconds": 2.651,
+    "logSha256": "2b794e6a4f7bf108dbca95730752a3946d600e72375e88f7915acb2116e6b39f"
+  },
+  {
+    "check": "packages__core__tool-definition-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.868,
+    "logSha256": "36800e78ad6f0ff554962165ffecfd35706d919d9f558ac599828c010c20cf24"
+  },
+  {
+    "check": "packages__core__loop-extension-build",
+    "exitCode": 0,
+    "wallSeconds": 5.769,
+    "logSha256": "2c122317d8c4bc5f8b89c840f14bb95a87511b2140b7bd5416d9211ce25aaaae"
+  },
+  {
+    "check": "packages__core__loop-extension-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 1.698,
+    "logSha256": "63c2abdc528f4861ad82bf6727b472afbf463a5524d10af3dfdbc6cbe0aad667"
+  },
+  {
+    "check": "packages__core__model-response-build",
+    "exitCode": 0,
+    "wallSeconds": 3.679,
+    "logSha256": "966ee012020f39d63be2a6ceaf9360cb295d8af47e46462b8b6805d1308e5b52"
+  },
+  {
+    "check": "packages__core__model-response-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 1.969,
+    "logSha256": "0568cf7cbb32cccc833bd2cdf46cc80838a4dc2a1bb869a9f0d78019817a908f"
+  },
+  {
+    "check": "packages__core__model-profile-build",
+    "exitCode": 0,
+    "wallSeconds": 2.119,
+    "logSha256": "83a7202b7be0ac471f41f77ae47166b3e18aef1c6840c7dd21ef00932f1f9c0b"
+  },
+  {
+    "check": "packages__core__model-profile-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.838,
+    "logSha256": "d2c0e9965b6e8d29c0e08cbcc7844b4b8deb3fdfda299b908466c23e8de29daa"
+  },
+  {
+    "check": "packages__core__skill-package-build",
+    "exitCode": 0,
+    "wallSeconds": 3.279,
+    "logSha256": "4f5c08021a3f25addd02520917924a5ae97b1cc27b27d74712bc494b9fc02746"
+  },
+  {
+    "check": "packages__core__skill-package-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.924,
+    "logSha256": "7893fdc7e0f23dfb2e8baeccfc6b03e2f2cb7487e4f31a9997bf9fb739df2280"
+  },
+  {
+    "check": "packages__core__call-accounts-build",
+    "exitCode": 0,
+    "wallSeconds": 2.35,
+    "logSha256": "a9231a7e6ee15248d4a9c50c8de3b1ba1bd146eaa4a76becefec310aa551188d"
+  },
+  {
+    "check": "packages__core__call-accounts-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.97,
+    "logSha256": "16301bce4512b765078d9c8038ef65dff398232a4cfe19dd0ac9cd3061c4a4f9"
+  },
+  {
+    "check": "packages__core__mcp-endpoint-build",
+    "exitCode": 0,
+    "wallSeconds": 2.428,
+    "logSha256": "3f09ee58ea144be11e7c3fc62fecaf0d5be6a3b97c69f26b41bc80f2c947c909"
+  },
+  {
+    "check": "packages__core__mcp-endpoint-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.896,
+    "logSha256": "f58ac2eda7280598678ff22992c2daec7d057b4a79df3240e62ffde3d7d3e788"
+  },
+  {
+    "check": "packages__core__slash-command-build",
+    "exitCode": 0,
+    "wallSeconds": 2.545,
+    "logSha256": "0c834b6332dd832412a054bf5d81e6f4e7c4942703945ea26a60fce8961da2dc"
+  },
+  {
+    "check": "packages__core__slash-command-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.86,
+    "logSha256": "9e3f184ad44fb5ae2f3edb48d2918d7c9c5ca5d801558966351aaaff93329bbf"
+  },
+  {
+    "check": "packages__session__session-tenancy-table-build",
+    "exitCode": 0,
+    "wallSeconds": 2.784,
+    "logSha256": "0845be31520f4cc71133c91e37ed01421a91bdd53b3d8993db23bcac1c6c7dae"
+  },
+  {
+    "check": "packages__session__session-tenancy-table-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.828,
+    "logSha256": "5ed103322c8e2b6087d924526308b787d2a835559403b32d84744797a115d15a"
+  },
+  {
+    "check": "packages__tenancy__governance-center-entry-build",
+    "exitCode": 0,
+    "wallSeconds": 5.085,
+    "logSha256": "4dc340eff47459c8bed520f34befaeabbf345a0ceb7dde6e859e4ced0ed20ac2"
+  },
+  {
+    "check": "packages__tenancy__governance-center-entry-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 1.083,
+    "logSha256": "5496ff937a5d0e9564ee8529ab9bfa6bb26e452c78eb63da94312ca73a759191"
+  },
+  {
+    "check": "packages__frontend__client-local-state-build",
+    "exitCode": 0,
+    "wallSeconds": 3.069,
+    "logSha256": "4d15762616fc5bee528743e55f0a56c7bd5fab0fbb68edce960b9047ba10a6c7"
+  },
+  {
+    "check": "packages__frontend__client-local-state-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.831,
+    "logSha256": "cf90e9e2b7c53c5d17e1e9970839018daae7703e81b43070f28ed1fb8f4827e4"
+  },
+  {
+    "check": "packages__frontend__governance-center-client-build",
+    "exitCode": 0,
+    "wallSeconds": 2.008,
+    "logSha256": "bd667618fdc3643b93f0e1e07a91d2537c0d60ced15b70d5b4f3d841f81decb1"
+  },
+  {
+    "check": "packages__frontend__governance-center-client-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.788,
+    "logSha256": "bcc3794d8417255ed76e9f8ddf17bb3553f1ac3409ee9c9157e0fafe32f01ca7"
+  },
+  {
+    "check": "packages__frontend__governance-client-operations-build",
+    "exitCode": 0,
+    "wallSeconds": 3.237,
+    "logSha256": "906d0333ed7a1709155f3a67e89de9a868da034f0d7070b24198bff08c7d9fa3"
+  },
+  {
+    "check": "packages__frontend__governance-client-operations-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.859,
+    "logSha256": "96a46cad074a708b6e2b1d4e4fcf32121729aced8b10da95ffeab9fd2a4521c5"
+  },
+  {
+    "check": "apps__cli-build",
+    "exitCode": 0,
+    "wallSeconds": 3.191,
+    "logSha256": "cab3cc717de6d63895f9b0cf240786bb99368d5f6d39df89069357fcc2abc14f"
+  },
+  {
+    "check": "apps__cli-definitions-freshness",
+    "exitCode": 0,
+    "wallSeconds": 0.841,
+    "logSha256": "090a2b5b3a5b49ae7c7d824f765b5e7cf7b264e8f5d803fc5d17dc657efae7b3"
+  }
+]

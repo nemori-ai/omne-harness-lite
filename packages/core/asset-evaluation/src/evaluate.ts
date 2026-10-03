@@ -205,10 +205,10 @@ function derivedDeclarations(
   return version.content.category === 'mcp'
     ? attributeDeclarationsOf(
         version.content,
-        defaultBodyContracts,
+        assetJudge,
         action?.actions.kind === 'fetched' ? copyJson(action.actions) : undefined,
       )
-    : attributeDeclarationsOf(version.content, defaultBodyContracts)
+    : attributeDeclarationsOf(version.content, assetJudge)
 }
 /** The declarations a held version projects: the root's explicit attributes, else what its body derives, else only usableBy. */
 function heldDeclarations(

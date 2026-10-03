@@ -39,6 +39,8 @@ const bodies = {
   connector: otherPort('connector', connectorSchema),
   mcp: mcpBodyContract,
 }
+const bodiesJudge = createAssetModelJudge(bodies)
+
 const body = {
   transport: { kind: 'streamable_http', url: 'https://example.invalid/mcp' },
   timeouts: { connect: 'PT1S', call: 'PT2S' },
@@ -81,7 +83,7 @@ describe('MCP resource handoff to the real public asset-model consumer', () => {
   it('lets the real asset-model guard retain partial knowledge and append its reserved items', () => {
     const parsed = readJsonStrict(JSON.stringify(body))
     if ('failed' in parsed) throw new Error('invalid fixture JSON')
-    const result = attributeDeclarationsOf({ category: 'mcp', body: parsed.ok }, bodies, {
+    const result = attributeDeclarationsOf({ category: 'mcp', body: parsed.ok }, bodiesJudge, {
       kind: 'not_fetched',
     })
     expect(Object.hasOwn(result, 'actionSnapshotKind')).toBe(true)

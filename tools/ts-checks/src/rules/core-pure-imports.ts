@@ -112,7 +112,39 @@ export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
   'offer-expiry': ['schema/v1'],
 }
 
-function allowedExternal(pkg: string, dependencies: readonly string[], specifier: string): boolean {
+// D-116 native loading/build assembly: finite technical sites only. This does not
+// grant module loading to value judges or the compiler-free code-runtime.
+const FIXED_SCHEMA_MODULE_SITES = new Set([
+  'core/content-blocks/src/schema.ts',
+  'core/content-blocks/src/exact-schema.ts',
+  'core/content-blocks/src/schema-runtime.ts',
+  'core/content-blocks/src/schema-compiler.ts',
+  'core/content-blocks/src/schema-codegen.ts',
+  'core/messages/src/schema.ts',
+  'core/agent-definition/src/schema.ts',
+  'core/arrival-events/src/schema.ts',
+  'core/tool-definition/src/schema.ts',
+  'core/loop-extension/src/schema.ts',
+  'core/model-response/src/schema.ts',
+  'core/model-profile/src/schema.ts',
+  'core/skill-package/src/schema.ts',
+  'core/call-accounts/src/schema.ts',
+  'core/mcp-endpoint/src/schema.ts',
+  'core/slash-command/src/schema.ts',
+])
+
+function allowedExternal(
+  pkg: string,
+  dependencies: readonly string[],
+  specifier: string,
+  path: string,
+): boolean {
+  if (
+    (specifier === 'node:module' || specifier === 'module') &&
+    FIXED_SCHEMA_MODULE_SITES.has(path)
+  )
+    return true
+
   // Explicitly retained schema resources share the same owner; no private subpath is opened.
   if (
     ['messages', 'model-profile', 'model-response', 'loop-extension'].includes(pkg) &&
@@ -181,7 +213,10 @@ export const corePureImports: Rule = {
           resolved !== undefined &&
           (resolved.startsWith(`core/${pkg}/src/`) ||
             (resolved.startsWith(`core/${pkg}/schema/`) && resolved.endsWith('.json')))
-        if (local || (specifier !== undefined && allowedExternal(pkg, dependencies, specifier)))
+        if (
+          local ||
+          (specifier !== undefined && allowedExternal(pkg, dependencies, specifier, file.path))
+        )
           continue
         out.push({
           rule: this.id,
