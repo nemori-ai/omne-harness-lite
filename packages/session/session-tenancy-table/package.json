@@ -20,10 +20,11 @@
   "files": [
     "dist",
     "README.md",
-    "README_ZH.md"
+    "README_ZH.md",
+    "generated"
   ],
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "build": "node ../../../scripts/build-fixed-schemas.mjs",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run"
   },
