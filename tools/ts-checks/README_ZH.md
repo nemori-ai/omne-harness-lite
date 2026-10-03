@@ -261,6 +261,7 @@ CLI 的 stdout 只有 JSON。`--out` 另写同一份 JSON。参数、Git、works
 各自先解析成不可变 commit，后续只读该 Git 树。BASE 不取合并点、不从当前工作树补文件。
 `source` 记录仓库、commit、读取方式与 Git `dirty`。`inputDirty` 还标记已读输入中没有进入该 commit 的文件，
 包括被 Git 忽略的源码或配置；路径在 `unversionedInputs` 中。工作树输入脏时不能当作该提交的静态快照。
+仓库根的 Python 虚拟环境 `.venv/` 不进入输入库存；成员中的同名目录仍按实际归属读取。
 
 成员来自该版本的 workspace 和 manifest。`packages/`、`apps/` 下的成员属于产品范围；其余成员
 作为 development 单列。名称取 `manifest.name`，不由目录猜包名。空成员保留；`sources` 只列成员

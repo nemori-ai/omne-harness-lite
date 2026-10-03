@@ -143,6 +143,31 @@ type T = import('./shape.js').Shape; type M = typeof import('./shape.js');`,
       }
     }
   })
+  it('excludes the root Python environment while retaining member directories named .venv', () => {
+    const root = workspace()
+    member(root, 'packages/.venv', '@test/venv', native('live', "ctx.provide('live',{})"))
+    write(root, '.gitignore', '/.venv/\n')
+    const head = commit(root, 'root environment boundary')
+    write(root, '.venv/lib/site-packages/metadata.json', '{}')
+    write(root, '.venv/lib/site-packages/ghost.ts', native('ghost', "ctx.provide('ghost',{})"))
+    expect(git(root, 'status', '--porcelain')).toBe('')
+    for (const revision of [undefined, head]) {
+      const actual = readActualArchitecture({
+        root,
+        ...(revision === undefined ? {} : { revision }),
+      }).current
+      expect(actual.source).toMatchObject({
+        dirty: false,
+        inputDirty: false,
+        unversionedInputs: [],
+      })
+      expect(actual.members.map(m => m.path)).toEqual(['packages/.venv'])
+      expect(actual.facts.filter(f => f.kind === 'provides').map(f => f.key)).toEqual(['live'])
+      expect([...readArchitectureSource(root, revision).snapshot.texts.keys()]).not.toContain(
+        '.venv/lib/site-packages/metadata.json',
+      )
+    }
+  })
   it('marks ignored source and configuration inputs without misreporting Git status', () => {
     const root = workspace()
     member(root, 'packages/live', '@test/live', native('tracked', "ctx.provide('tracked',{})"))

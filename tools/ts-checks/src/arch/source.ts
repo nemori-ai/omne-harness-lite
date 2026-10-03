@@ -33,7 +33,7 @@ export interface ArchitectureSource {
   /** Naming-based discovery only; the resolver records applied config and extends files separately. */
   readonly discoveredConfigurationFiles: readonly string[]
 }
-const ignored = new Set(['node_modules', '.git', '.worktrees', 'tmp', '.meta_harness'])
+const ignored = new Set(['node_modules', '.git', '.worktrees', '.venv', 'tmp', '.meta_harness'])
 const ignoredPath = (path: string) =>
   ignored.has(path.split('/')[0] ?? '') || path.split('/').includes('node_modules')
 const retained = (path: string) =>
