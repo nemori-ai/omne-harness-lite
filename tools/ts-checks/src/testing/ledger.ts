@@ -1,7 +1,6 @@
 // 耗时账本：把各成员 vitest 的 JSON 报告与计时报告汇总成成员、文件、用例三级的耗时、导入耗时、
 // 贴着自身时限的用例与失败清单。纯函数。
 import { relative } from 'node:path'
-import type { AffectedPlan } from './affected.ts'
 import type { Parallelism, RunScript, RunTier } from './config.ts'
 import type { TimingReport } from './timing-reporter.ts'
 
@@ -16,12 +15,18 @@ export interface RunMeta {
   readonly head: string
   readonly branch: string
   readonly dirty: boolean
-  /** 全量运行（`--all`）为 null。 */
+  /** 跑的是全部成员（`--all`，或判为全量的计划）时为 null。 */
   readonly base: { readonly ref: string; readonly mergeBase: string } | null
   readonly startedAt: string
   readonly parallel: Parallelism
   readonly cores: number
-  readonly plan: AffectedPlan | null
+  /** 按影响面选成员时那份计划的模式与理由；`--all` 为 null。 */
+  readonly plan: { readonly mode: 'full' | 'scoped'; readonly reason: string } | null
+  /**
+   * 按计划跑验收时写：计划没选中、因而没跑的有验收的成员，与为什么。有它的账本对它列出的成员也算交代过了
+   * （回路的验收耗时传感器据此认「本次影响面不含带验收的成员」）。
+   */
+  readonly scope?: { readonly reason: string; readonly skipped: readonly string[] }
   /** 这次跑了的成员目录。 */
   readonly members: readonly string[]
   /** 整次运行的墙钟，取整到秒。 */
@@ -124,6 +129,11 @@ export interface Ledger {
     readonly seconds: number
   }[]
   readonly failures: readonly Failure[]
+}
+
+/** 什么都没跑的账本正文（计划跳过了全部验收时用）。 */
+export function emptyLedger(): Ledger {
+  return { members: [], files: [], nearTimeout: [], fastOverBudget: [], failures: [] }
 }
 
 function firstLine(text: string): string {

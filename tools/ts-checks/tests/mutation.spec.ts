@@ -25,7 +25,7 @@ import {
   type MutationTarget,
 } from '../src/mutation/scope.ts'
 import { sandboxContainer, strykerConfig } from '../src/mutation/stryker.ts'
-import type { TestMember } from '../src/testing/affected.ts'
+import type { TestMember } from '../src/testing/members.ts'
 
 const CLI = fileURLToPath(new URL('../src/mutation/cli.ts', import.meta.url))
 const TS_CHECKS_MODULES = fileURLToPath(new URL('../node_modules', import.meta.url))

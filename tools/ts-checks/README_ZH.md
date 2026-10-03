@@ -360,15 +360,18 @@ make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make che
 
 ### 验收耗时
 
-`src/loop/sensors/acceptance.ts` 不跑验收，只读[测试运行](#测试运行)以 `--script acceptance` 写下的账本（`make acceptance`；`make check` 在构建之后跑它）：
+`src/loop/sensors/acceptance.ts` 不跑验收，只读[测试运行](#测试运行)以 `--script acceptance` 写下的账本（`make acceptance`，或 `make check` 按计划跑的验收一步）：
 账本根是主检出的 `tmp/acceptance-ledger/`（`OMNE_ACCEPTANCE_LEDGER_HOME` 可改），取**当前提交那一格**（工作树不干净时是带 `-dirty` 的那一格）里最新的一次
-全量验收运行，且这次运行跑全了现在有 `acceptance` 脚本的每一个成员。读数三样：整次运行的墙钟、最慢一份验收文件的耗时（没出 vitest 报告的成员按一份、用成员的墙钟计）、份数。
+交代了现在有 `acceptance` 脚本的每一个成员的验收运行：全量运行（`meta.base` 为 null）跑了它们，或按计划的运行跑了一部分、其余写在 `meta.scope.skipped` 里。
+同一格里真跑过验收的记录优先于只有「跳过」的记录。读数三样：整次运行的墙钟、最慢一份验收文件的耗时（没出 vitest 报告的成员按一份、用成员的墙钟计）、份数；有跳过的另带跳过了谁、为什么。
 
 - **没有任何成员有 `acceptance` 脚本**（或检出里没有 `pnpm-workspace.yaml`）：读数是「0 份」，这算有数据。
-- **有验收、却找不到这样一次运行**：没数据，原因指到 `make acceptance`；严格模式因此判失败。所以单独跑 `make loop-status STRICT=1` 之前要先在这个提交上跑过一次验收。
+- **`make check` 的计划不含带验收的成员**：验收一步不跑，为当前提交写一份 `meta.members` 为空、`meta.scope` 写明「本次影响面不含带验收的成员」与被跳过成员的账本（目录名带 `-skipped`）。
+  传感器认它，算有数据；两项耗时指标如实写没数据、写明跳过，不拿 0 秒冒充量过了。
+- **有验收、却找不到这样一次运行**：没数据，原因指到 `make acceptance`；严格模式因此判失败。所以单独跑 `make loop-status STRICT=1` 之前要先在这个提交上跑过一次验收（或 `make check` 的验收一步留下过记录）。
 - 两条带在 `loop.config.json` 的 `indicators.acceptanceSeconds`、`acceptanceSlowestSeconds`，不与基线比。数值
   （总耗时 提醒 60／处置 120／解除 45 秒，单份 提醒 20／处置 40／解除 15 秒）是负责人 2026-10-02 按提议定的，配置的 `note` 里照实写着，还没有用真实读数校准。
-- **升级路径**：现在合并前跑全部验收；总耗时进了处置带，再考虑合并前只跑受影响成员的验收（分层），那一步现在不做。
+- 合并前的验收已按影响面收窄（只跑被选中、带验收的成员），读数因此不是每个提交都有；全量读数来自 `make acceptance` 或 `make check FULL=1`。
 
 **不能声称**：耗时受机器负载影响，几次之间的差不能直接归因于代码；读数出自哪一次运行写在行尾与 `status.json` 里，
 同一提交、工作树不干净时的「-dirty」格可能是更早一版未提交改动跑出来的。
@@ -528,7 +531,7 @@ make loop-health                                                     # 体检页
 | 每周接受数 | 最近 `health.weeks` 周每周接受了几张；周一零点为一周之始，按本机时区 | 台账 |
 | 各 topic 剩余卡数 | 每个有 `stories.md` 的 topic：卡总数、已接受、剩余、剩余里「就绪」写「否」的；台账里接受过却不在任何 `stories.md` 里的卡单列 | `stories.md` 与台账 |
 | 提交与合并的大小 | `primaryBranch` 沿第一父链最近 `health.commits` 个提交各改了几个文件（合并提交按它对第一父的改动计）：中位数、最大值、最大的三个 | `git log --first-parent -m` |
-| 测试耗时 | 最近 `health.runs` 次**全量**运行的墙钟、提交、层、是否全过；各层的墙钟不可比，一层一条走向线 | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`），可以只跑一层（合并前那一步就是快层全量），层取 `meta.tier`，没有这一栏的旧账本按两层；受影响范围的运行带基线，不计入 |
+| 测试耗时 | 最近 `health.runs` 次**全量**运行的墙钟、提交、层、是否全过；各层的墙钟不可比，一层一条走向线 | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`，或计划判为全量的 `make check` 测试一步），可以只跑一层（`make check` 的测试一步快、慢两层各记一份），层取 `meta.tier`，没有这一栏的旧账本按两层；受影响范围的运行带基线，不计入 |
 | 债的走向 | 每个指标一条小折线（虚线是提醒线与处置线，蓝点是最新值）、最新值与最新带位；当前或曾经处于处置的成员，各项预算的读数走向 | `trend.jsonl`；同一提交多条取最后一条，按提交时间排 |
 | 对照表条数 | 五类各多少条、不合约定的行数、「现状」以「待建」开头的行数 | `docs/clean-loop.md`，与回路状态同一份解析 |
 | 传感器最近一次有数据 | 每个指标最近一条带着它的值的快照是哪个提交、什么时候；从没有过数据的标出 | `trend.jsonl` |
@@ -544,16 +547,17 @@ make loop-health                                                     # 体检页
 
 ## 测试运行
 
-`src/testing/` 是本包的第三入口：决定跑哪些成员的测试、以多大的并行度跑、把时间花在哪记成账本、
+`src/testing/` 是本包的第三入口：算一次改动的影响面（`make check` 的执行计划）、决定跑哪些成员的测试、以多大的并行度跑、把时间花在哪记成账本、
 失败之后单独重跑归类。它替代了根脚本里原先的 `pnpm -r run test`。同一个运行器也跑成员的可执行验收（`--script acceptance`）。
 
 ```sh
+make check-plan [BASE=<基线>]              # 只算影响面并打印计划：判成什么、每一步跑还是跳、选中谁与为什么；FULL=1 全量
 make test-affected BASE=<基线提交或分支>   # 只构建并测试受这次改动影响的成员的快层；BASE 缺省 main，TIER=slow|all 换层
 make test-affected BASE=<基线> PLAN=1     # 只列受影响范围与层，不构建也不运行
-make test-tier TIER=slow                   # 先构建，再跑全部成员的某一层（合并后在主线头补跑全量慢层用它）
+make test-tier TIER=slow                   # 先构建，再跑全部成员的某一层
 make test-triage RUN=<运行目录>            # 把那次运行里的失败逐条单独重跑并归类（测试或验收的运行都行）
 pnpm run test                              # 全量两层：先构建，再跑全部成员
-pnpm run test:gate                         # make check 的测试一步：全部成员的快层，再加基线（BASELINE，缺省 main）以来受影响成员的慢层
+pnpm run test:gate                         # make check 的测试一步：按影响面计划跑被选中成员的快层再慢层（基线 BASELINE，缺省 main；FULL=1 全部）
 make acceptance                            # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；NO_BUILD=1 不构建
 ```
 
@@ -571,20 +575,43 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 逐个跑 `pnpm run acceptance`，并行度、vitest 报告、账本格式都与测试相同；账本根另放在主检出的 `tmp/acceptance-ledger/`
 （`OMNE_ACCEPTANCE_LEDGER_HOME` 可改），不混进体检页读的测试账本。每份 `ledger.json` 的 `meta.script` 写着跑的是哪一种，
 `triage` 照它经同一个脚本重跑（`pnpm run <脚本> <文件> -t …`，验收的那份带着自己的 vitest 配置）。`--all` 缺省不构建（由调用方先构建），
-给 `--build` 才构建；`--base` 缺省构建，`--no-build` 跳过。`make check` 在 `product-check` 全量构建之后以 `NO_BUILD=1` 跑它，任何一份不过整套检查就失败。
-「合并前只跑受影响成员的验收」现在**不做**——等[验收耗时](#验收耗时)的读数超了预算再说。
+给 `--build` 才构建；`--base` 缺省构建，`--no-build` 跳过。`make check` 不调 `make acceptance`，而是按计划跑 `step acceptance`：
+只跑被选中、带验收的成员（驱动前面构建好的 `dist/`，不再构建），任何一份不过整套检查就失败；一个都没有时记一份「跳过」的账本（见[验收耗时](#验收耗时)）。
 
-**受影响范围怎么算。**改动文件取基线合并点到当前工作树的全部差异，含未提交与未跟踪的文件。
-成员清单读 `pnpm-workspace.yaml`，去掉 `affected.excludeRoots` 下的（现为 `examples`）。
-一个成员「受影响」指它自己有文件改动，或它直接、间接依赖的成员有改动；依赖取各 `package.json`
-里写成 `workspace:` 的 `dependencies`、`devDependencies` 与 `peerDependencies`——按声明算而不是按源码导入算，
-因为测试可能导入生产代码不导入的包。改动命中 `affected.globalPaths` 的任一模式（根清单、锁文件、
-共享 tsconfig、根上的分层定义 `vitest.tiers.mts`、`.meta_harness/design/spec/**`、本配置文件）即判为全部受影响：
-不少成员的测试会直接读规格文件，每个成员的 vitest 配置都展开分层定义。
-pnpm 自带的 `--filter "...[<基线>]"` 做的是同一件事，但它在 git 工作树里选不中任何包，所以这里自己算；
-算出来的集合与 `pnpm ls --filter '...<包名>'` 对照过一致。
+**影响面怎么算**（`src/testing/affected.ts`，规则在 `test-runs.config.json` 的 `affected`）。改动文件取基线合并点到当前工作树的全部差异，
+含未提交与未跟踪的文件，改名拆成删与增两侧，文件名原样（不受 git 的引号转义影响）。成员清单读 `pnpm-workspace.yaml`，去掉 `affected.excludeRoots` 下的（现为 `examples`）。
+每个改动文件按顺序归到第一类命中的：
 
-**怎么跑。**先 `pnpm --filter '<成员>...' run build` 把目标成员连同它们的依赖构建一遍（测试执行的是依赖的 `dist/`），
+1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh`、`.meta_harness/design/spec/**`、本配置文件、
+   测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`affected.ts`／`members.ts` 与取改动的 `src/metrics/git.ts`）：整份计划判全量——
+   引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围；
+2. **读者**（`readers`：`{ paths, members, why }`）：这些路径被这些成员的测试读——改了只把这些成员带进来，**不沿反向依赖传播**；
+   每条带着谁读、证据在哪（登记 → stream-assembly 与 core-verification；核心成员的 `schema/` → stream-assembly；核心成员的 `src/` → core-verification；
+   governance-center-entry 的 TLS 夹具 → governance-client-operations；`packages`、`apps`、`examples` 下的 TS 与成员 `package.json` → 本包；
+   `docs/clean-loop.md`、整洁之道对照表、`stories.py`、`scripts/with-test-slot.sh` → 本包；两个成员各自的 README → 它自己）；
+3. **成员文件**：按最长的成员目录前缀归属，这个成员与直接、间接依赖它的成员进来；依赖取各 `package.json` 里写成 `workspace:` 的
+   `dependencies`、`devDependencies` 与 `peerDependencies`——按声明算而不是按源码导入算，因为测试可能导入生产代码不导入的包。
+   成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）不算成员改动，除非读者规则点了名；`tests/` 等其余目录里的 `.md` 可能是夹具
+   （本包 `loop-canary.spec.ts` 就改写夹具里的 README 再断言），照成员改动算；
+4. **Python 工具**（`pythonPaths`）：跑 pytest；根 `Makefile` 也在这一类——`make check` 只经它跑常驻的几步与 `make test`，成员测试不经 make；
+5. **只需常驻检查**（`residentPaths`）：文档、设计区、research、`examples/`、`.github/`、格式配置、`tools/model-probe/` 等；
+6. 其余（没有规则认得的，如 `.gitignore`）：整份计划判全量，理由点名前几个文件与总数。
+
+读者、成员文件与 Python 工具三种归属可以同时成立（另一个成员的 `schema/` 既是那个成员的文件又被 stream-assembly 读），三者都算。
+被选中的成员定下之后：测试、类型检查、验收各取其中有对应脚本的；构建取它们连同正向依赖里有 `build` 脚本的，
+另加 `residentBuild` 列的成员（现为 identity-values：`lint:rules` 导入它的 `dist`），纯文档改动也构建它。
+`FULL=1` 或 `--full` 直接给全量计划。算不出计划——基线不存在、取不到改动、规则点名的成员不存在——就报错退出，不改判全量。
+pnpm 自带的 `--filter "...[<基线>]"` 只做反向依赖那一部分，而且它在 git 工作树里选不中任何包，所以这里自己算。
+
+`cli.ts replay [--ref main] [--count 40]` 对一条分支最近的 first-parent 提交逐个以父提交为基线算计划（成员清单取那个提交上的、规则取现在的，只算不跑），
+改规则前后用它看「判全量的有几个、该不该全量」。
+
+**不能声称**：没被选中的成员通过；测试读了某个路径却没写进读者规则，改它时就漏选——规则是查出来的现状，不是机器推导的，
+新增一处这样的读取要同时补一条规则；环境变量、外部服务与时间不在影响面里。合并后没有自动补跑，全量由负责人不定时让一个会话手动跑 `make check FULL=1`。
+自测：`tests/affected.spec.ts` 用真实规则与一份造出来的成员清单核对各类改动的判法，另在临时仓库核对改名与非 ASCII 文件名。
+
+**怎么跑。**`make test-affected` 先 `pnpm --filter '<成员>...' run build` 把目标成员连同它们的依赖构建一遍（测试执行的是依赖的 `dist/`；
+`make check` 则由前面的构建一步按计划构建），
 再同时跑 `parallel.memberConcurrency` 个成员，每个成员的 vitest 至多起 `parallel.vitestMaxWorkers` 个工作进程。
 一个成员失败不拦其余的，结束时列全失败；退出码只反映测试是否全过。两个并行度可用环境变量
 `OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时覆盖——后者是 vitest 自己认的变量，
@@ -597,7 +624,7 @@ pnpm 自带的 `--filter "...[<基线>]"` 做的是同一件事，但它在 git 
 | 文件 | 内容 |
 |---|---|
 | `summary.md` | 同时打印到标准输出：总数与墙钟、逐条失败、最慢的成员、超过 `ledger.slowFileSeconds` 的文件、导入耗时最多的成员、贴着自身时限的用例，以及「归层」一行（见下） |
-| `ledger.json` | 运行坐标（提交、是否干净、基线、并行度、核数、受影响计划）与成员、文件两级的用例耗时与导入耗时、贴着时限的用例（`nearTimeout`，带各自的时限）、失败清单 |
+| `ledger.json` | 运行坐标（提交、是否干净、基线、并行度、核数、计划的模式与理由；按计划跑验收时另有 `scope`：跳过了谁、为什么）与成员、文件两级的用例耗时与导入耗时、贴着时限的用例（`nearTimeout`，带各自的时限）、失败清单 |
 | `<成员>.log`、`<成员>.json`、`<成员>.timing.json` | 各成员的原始输出、vitest 的 JSON 报告、计时报告 |
 | `build.log` | 受影响范围运行时的构建输出 |
 

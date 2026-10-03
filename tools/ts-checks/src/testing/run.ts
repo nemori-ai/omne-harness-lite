@@ -4,7 +4,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { closeSync, existsSync, openSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { TestMember } from './affected.ts'
+import type { TestMember } from './members.ts'
 import {
   TEST_TIER_ENV,
   VITEST_MAX_WORKERS_ENV,

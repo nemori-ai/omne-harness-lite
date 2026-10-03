@@ -2,7 +2,7 @@
 import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { TestMember } from './affected.ts'
+import type { TestMember } from './members.ts'
 
 export interface Flags {
   readonly values: ReadonlyMap<string, string>

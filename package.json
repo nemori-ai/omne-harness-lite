@@ -10,7 +10,7 @@
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm run build && pnpm run test:members",
     "test:members": "./scripts/with-test-slot.sh node --experimental-strip-types tools/ts-checks/src/testing/cli.ts run --all",
-    "test:gate": "./scripts/with-test-slot.sh node --experimental-strip-types tools/ts-checks/src/testing/cli.ts gate",
+    "test:gate": "./scripts/with-test-slot.sh node --experimental-strip-types tools/ts-checks/src/testing/cli.ts step test",
     "format:write": "./scripts/format.sh write",
     "format:check": "./scripts/format.sh check",
     "format:staged": "./scripts/format.sh staged",
