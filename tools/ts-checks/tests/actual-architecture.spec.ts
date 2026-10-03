@@ -176,7 +176,7 @@ type T = import('./shape.js').Shape; type M = typeof import('./shape.js');`,
       'apps/host',
       '@test/host',
       `import {live} from '@test/live';
-export const manifest=[{id:'known',plugin:live},{id:'dynamic',plugin:resolveRuntimePlugin()}]`,
+export const manifest=[{id:'known',plugin:live},{id:'dynamic',plugin:resolveRuntimePlugin()},{id:dynamicEntryId(),plugin:live}]`,
     )
     commit(root, 'dynamic composition')
     const actual = readActualArchitecture({ root }).current
@@ -186,8 +186,18 @@ export const manifest=[{id:'known',plugin:live},{id:'dynamic',plugin:resolveRunt
         f.occurrences.some(
           o =>
             o.kind === 'composition' &&
-            o.expression.includes('resolveRuntimePlugin()') &&
+            o.expression === 'resolveRuntimePlugin()' &&
             o.path === 'apps/host/src/index.ts',
+        ),
+      ),
+    ).toBe(true)
+    expect(
+      actual.unknown.some(f =>
+        f.occurrences.some(
+          o =>
+            o.kind === 'composition' &&
+            o.expression === 'dynamicEntryId()' &&
+            o.reason === 'Manifest entry identity is not statically resolved',
         ),
       ),
     ).toBe(true)

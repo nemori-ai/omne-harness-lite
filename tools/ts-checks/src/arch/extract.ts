@@ -886,16 +886,21 @@ class Extractor {
           { member, scope: 'top', plugin: plugin.name },
           { target: plugin.member, symbol: reference.getText(), layer: 'distribution' },
         )
-      else
+      else {
+        const unresolved = key === undefined ? name : reference
         this.unknown.set(`${this.resolver.path(node)}|${node.pos}|composition`, {
-          ...this.resolver.site(node),
+          ...this.resolver.site(unresolved),
           member,
           scope: 'top',
           kind: 'composition',
-          expression: node.getText(),
-          reason: `Manifest plugin reference is not statically resolved${target === undefined ? '' : ` (${target})`}`,
+          expression: unresolved.getText(),
+          reason:
+            key === undefined
+              ? 'Manifest entry identity is not statically resolved'
+              : `Manifest plugin reference is not statically resolved${target === undefined ? '' : ` (${target})`}`,
           serviceIdentifier: false,
         })
+      }
     })
   }
   run(): ActualExtraction {
