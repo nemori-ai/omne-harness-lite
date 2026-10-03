@@ -44,11 +44,19 @@ function singleFrameGif(bytes: Buffer): boolean {
     const marker = bytes[offset++]
     if (marker === 0x3b) return frames === 1 && offset === bytes.length
     if (marker === 0x21) {
-      if (offset >= bytes.length) return false
-      offset++ // extension label; all extension payloads are sub-block chains
-      if (!skipSubBlocks()) return false
+      if (!skipExtension()) return false
       continue
     }
+    if (!skipImage(marker)) return false
+  }
+  return false
+
+  function skipExtension(): boolean {
+    if (offset >= bytes.length) return false
+    offset++ // extension label; all extension payloads are sub-block chains
+    return skipSubBlocks()
+  }
+  function skipImage(marker: number | undefined): boolean {
     if (marker !== 0x2c || ++frames > 1 || offset + 9 > bytes.length) return false
     const imageFlags = bytes[offset + 8]
     if (imageFlags === undefined) return false
@@ -56,9 +64,8 @@ function singleFrameGif(bytes: Buffer): boolean {
     if (imageFlags & 0x80) offset += 3 * 2 ** ((imageFlags & 0x07) + 1)
     if (offset >= bytes.length) return false
     offset++ // LZW minimum code size
-    if (!skipSubBlocks()) return false
+    return skipSubBlocks()
   }
-  return false
 }
 
 // Archived images-vision guide (2026-09-28), image-doc.md SHA256
@@ -94,6 +101,15 @@ export function patchImageTokens(
 
   const maxDimension =
     detail === 'low' ? 512 : detail === 'high' ? patchRules[rule].highMaxDimension : 65535
+  return fittedPatchTokens(width, height, detail, maxDimension)
+}
+
+function fittedPatchTokens(
+  width: number,
+  height: number,
+  detail: ImageDetail,
+  maxDimension: number,
+): number | undefined {
   const pixelScale = Math.min(1, maxDimension / Math.max(width, height))
   // The guide says to round the first fit to whole pixels without specifying
   // a direction. Floor is this estimator's convention, not an upstream-exact claim.
@@ -123,28 +139,45 @@ export function imageTokens(part: JsonObject, rule: ImageRule): number | undefin
   if (rule === 'unknown') return undefined
   if (Object.keys(part).some(key => key !== 'type' && key !== 'image_url')) return undefined
   const image = part.image_url
-  if (!object(image) || Object.keys(image).some(key => key !== 'url' && key !== 'detail'))
+  if (!imageFieldsValid(image)) return undefined
+  if (!imageDetailValid(image)) return undefined
+  const data = decodedImage(image)
+  if (!data) return undefined
+  const { decoded, mime } = data
+  if (mime === 'image/gif' && !singleFrameGif(decoded)) return undefined
+  try {
+    const dimensions = imageSize(decoded)
+    if (dimensions.type !== expectedImageType(mime)) return undefined
+    return patchImageTokens(dimensions.width, dimensions.height, image.detail ?? 'auto', rule)
+  } catch {
     return undefined
-  if (
+  }
+}
+
+function imageFieldsValid(image: unknown): image is JsonObject {
+  return !(!object(image) || Object.keys(image).some(key => key !== 'url' && key !== 'detail'))
+}
+
+function imageDetailValid(
+  image: JsonObject,
+): image is JsonObject & { readonly detail?: ImageDetail } {
+  return !(
     image.detail !== undefined &&
     image.detail !== 'auto' &&
     image.detail !== 'original' &&
     image.detail !== 'low' &&
     image.detail !== 'high'
   )
-    return undefined
+}
+
+function decodedImage(
+  image: JsonObject,
+): { readonly decoded: Buffer; readonly mime: string } | undefined {
   const match = typeof image.url === 'string' ? dataUrl.exec(image.url) : null
   if (!match?.[1] || !match[2]) return undefined
   // The single-level character class avoids regex stack growth on large images;
   // the canonical round trip also enforces length, padding and unused bits.
   const decoded = Buffer.from(match[2], 'base64')
   if (!decoded.length || decoded.toString('base64') !== match[2]) return undefined
-  if (match[1] === 'image/gif' && !singleFrameGif(decoded)) return undefined
-  try {
-    const dimensions = imageSize(decoded)
-    if (dimensions.type !== expectedImageType(match[1])) return undefined
-    return patchImageTokens(dimensions.width, dimensions.height, image.detail ?? 'auto', rule)
-  } catch {
-    return undefined
-  }
+  return { decoded, mime: match[1] }
 }

@@ -60,53 +60,82 @@ function supported(body: JsonObject, definition: ModelDefinition): boolean {
   const effortRule = definition.routes.xai?.parameters.reasoningEffort
   if (!effortRule) return false
   if (
-    body.model !== definition.modelId ||
-    Object.keys(body).some(key => !bodyKeys.has(key)) ||
-    body.stream !== true ||
-    body.store !== false ||
-    !object(body.provider) ||
-    Object.keys(body.provider).some(
-      key => !['order', 'allow_fallbacks', 'require_parameters'].includes(key),
-    ) ||
-    !Array.isArray(body.provider.order) ||
-    body.provider.order.length !== 1 ||
-    body.provider.order[0] !== 'xai' ||
-    body.provider.allow_fallbacks !== false ||
-    body.provider.require_parameters !== true ||
+    !fieldsSupported() ||
+    !providerSupported() ||
     !Array.isArray(body.messages) ||
-    (body.max_tokens !== undefined && !isNonNegativeJsonInteger(body.max_tokens)) ||
-    (body.reasoning !== undefined &&
-      (!object(body.reasoning) ||
-        Object.keys(body.reasoning).length !== 1 ||
-        typeof body.reasoning.effort !== 'string' ||
-        !ruleAccepts(effortRule, body.reasoning.effort)))
+    !controlsSupported(effortRule)
   )
     return false
-  for (const message of body.messages) {
-    if (
-      !object(message) ||
-      Object.keys(message).some(key => !messageKeys.has(key)) ||
-      !['system', 'user', 'assistant', 'tool'].includes(String(message.role)) ||
-      (message.reasoning !== undefined && typeof message.reasoning !== 'string') ||
-      (message.tool_call_id !== undefined && typeof message.tool_call_id !== 'string') ||
-      (message.tool_calls !== undefined &&
-        (!Array.isArray(message.tool_calls) || !message.tool_calls.every(functionCall)))
+  return supportedMessages(body.messages) && supportedTools(body)
+
+  function fieldsSupported(): boolean {
+    return !(
+      body.model !== definition.modelId ||
+      Object.keys(body).some(key => !bodyKeys.has(key)) ||
+      body.stream !== true ||
+      body.store !== false
     )
-      return false
-    if (
-      typeof message.content !== 'string' &&
-      (!Array.isArray(message.content) ||
-        !message.content.every(
-          part =>
-            object(part) &&
-            Object.keys(part).every(key => key === 'type' || key === 'text') &&
-            part.type === 'text' &&
-            typeof part.text === 'string',
-        ))
-    )
-      return false
   }
-  if (
+  function providerSupported(): boolean {
+    return !(
+      !object(body.provider) ||
+      Object.keys(body.provider).some(
+        key => !['order', 'allow_fallbacks', 'require_parameters'].includes(key),
+      ) ||
+      !Array.isArray(body.provider.order) ||
+      body.provider.order.length !== 1 ||
+      body.provider.order[0] !== 'xai' ||
+      body.provider.allow_fallbacks !== false ||
+      body.provider.require_parameters !== true
+    )
+  }
+  function controlsSupported(effortRule: Parameters<typeof ruleAccepts>[0]): boolean {
+    return !(
+      (body.max_tokens !== undefined && !isNonNegativeJsonInteger(body.max_tokens)) ||
+      (body.reasoning !== undefined &&
+        (!object(body.reasoning) ||
+          Object.keys(body.reasoning).length !== 1 ||
+          typeof body.reasoning.effort !== 'string' ||
+          !ruleAccepts(effortRule, body.reasoning.effort)))
+    )
+  }
+}
+
+function supportedMessages(messages: readonly JsonValue[]): boolean {
+  for (const message of messages) {
+    if (!object(message) || !messageFieldsSupported(message)) return false
+    if (!messageContentSupported(message)) return false
+  }
+  return true
+}
+
+function messageFieldsSupported(message: JsonObject): boolean {
+  return !(
+    Object.keys(message).some(key => !messageKeys.has(key)) ||
+    !['system', 'user', 'assistant', 'tool'].includes(String(message.role)) ||
+    (message.reasoning !== undefined && typeof message.reasoning !== 'string') ||
+    (message.tool_call_id !== undefined && typeof message.tool_call_id !== 'string') ||
+    (message.tool_calls !== undefined &&
+      (!Array.isArray(message.tool_calls) || !message.tool_calls.every(functionCall)))
+  )
+}
+
+function messageContentSupported(message: JsonObject): boolean {
+  return !(
+    typeof message.content !== 'string' &&
+    (!Array.isArray(message.content) ||
+      !message.content.every(
+        part =>
+          object(part) &&
+          Object.keys(part).every(key => key === 'type' || key === 'text') &&
+          part.type === 'text' &&
+          typeof part.text === 'string',
+      ))
+  )
+}
+
+function supportedTools(body: JsonObject): boolean {
+  return !(
     body.tools !== undefined &&
     (!Array.isArray(body.tools) ||
       !body.tools.every(
@@ -123,8 +152,6 @@ function supported(body: JsonObject, definition: ModelDefinition): boolean {
           object(tool.function.parameters),
       ))
   )
-    return false
-  return true
 }
 
 function fixedCalibration(definition: ModelDefinition) {

@@ -167,43 +167,66 @@ export function meterMatches(
 export function inputMeterValid(value: unknown): value is InputMeter {
   if (!value || typeof value !== 'object') return false
   return (
-    'modelId' in value &&
-    typeof value.modelId === 'string' &&
-    value.modelId.length > 0 &&
-    'definitionRevision' in value &&
-    typeof value.definitionRevision === 'string' &&
-    value.definitionRevision.length > 0 &&
-    'implementation' in value &&
-    !!value.implementation &&
-    typeof value.implementation === 'object' &&
-    'name' in value.implementation &&
-    typeof value.implementation.name === 'string' &&
-    value.implementation.name.length > 0 &&
-    'revision' in value.implementation &&
-    typeof value.implementation.revision === 'string' &&
-    value.implementation.revision.length > 0 &&
-    'provider' in value &&
-    typeof value.provider === 'string' &&
-    value.provider.length > 0 &&
-    'algorithmRevision' in value &&
-    typeof value.algorithmRevision === 'string' &&
-    value.algorithmRevision.length > 0 &&
-    'evidence' in value &&
-    typeof value.evidence === 'string' &&
-    value.evidence.length > 0 &&
-    ['tokenizerRevision', 'replayRevision', 'transformRevision'].every(
+    modelIdentityValid(value) &&
+    implementationValid(value) &&
+    evidenceValid(value) &&
+    revisionsValid(value) &&
+    operationsValid(value)
+  )
+  function modelIdentityValid(value: object): boolean {
+    return (
+      'modelId' in value &&
+      typeof value.modelId === 'string' &&
+      value.modelId.length > 0 &&
+      'definitionRevision' in value &&
+      typeof value.definitionRevision === 'string' &&
+      value.definitionRevision.length > 0
+    )
+  }
+  function implementationValid(value: object): boolean {
+    return (
+      'implementation' in value &&
+      !!value.implementation &&
+      typeof value.implementation === 'object' &&
+      'name' in value.implementation &&
+      typeof value.implementation.name === 'string' &&
+      value.implementation.name.length > 0 &&
+      'revision' in value.implementation &&
+      typeof value.implementation.revision === 'string' &&
+      value.implementation.revision.length > 0
+    )
+  }
+  function evidenceValid(value: object): boolean {
+    return (
+      'provider' in value &&
+      typeof value.provider === 'string' &&
+      value.provider.length > 0 &&
+      'algorithmRevision' in value &&
+      typeof value.algorithmRevision === 'string' &&
+      value.algorithmRevision.length > 0 &&
+      'evidence' in value &&
+      typeof value.evidence === 'string' &&
+      value.evidence.length > 0
+    )
+  }
+  function revisionsValid(value: object): boolean {
+    return ['tokenizerRevision', 'replayRevision', 'transformRevision'].every(
       key =>
         key in value &&
         typeof (value as Record<string, unknown>)[key] === 'string' &&
         ((value as Record<string, unknown>)[key] as string).length > 0,
-    ) &&
-    'measureFull' in value &&
-    typeof value.measureFull === 'function' &&
-    'measureReplay' in value &&
-    typeof value.measureReplay === 'function' &&
-    'measureNew' in value &&
-    typeof value.measureNew === 'function'
-  )
+    )
+  }
+  function operationsValid(value: object): boolean {
+    return (
+      'measureFull' in value &&
+      typeof value.measureFull === 'function' &&
+      'measureReplay' in value &&
+      typeof value.measureReplay === 'function' &&
+      'measureNew' in value &&
+      typeof value.measureNew === 'function'
+    )
+  }
 }
 
 export function ownInputMeter(value: unknown): InputMeter | undefined {
@@ -237,7 +260,11 @@ export function tokenMeasurementValid(value: unknown): value is TokenMeasurement
     return false
   if (!('tokens' in value) || !isJsonNumber(value.tokens) || Object.keys(value).length !== 2)
     return false
-  const amount = ExactDecimal.from(value.tokens)
+  return nonNegativeInteger(value.tokens)
+}
+
+function nonNegativeInteger(tokens: JsonNumber): boolean {
+  const amount = ExactDecimal.from(tokens)
   return amount.isInteger && amount.compare(ExactDecimal.from(0)) >= 0
 }
 
@@ -315,22 +342,9 @@ export function measureNew(meter: InputMeter, input: NewMeterInput): MeterContri
   const basis = relateMeterBases(input.countingBasis, undefined, meter)
   if (basis.kind !== 'currentOnly')
     return { kind: basis.kind === 'invalidInput' ? 'invalidInput' : 'unavailable' }
-  if (
-    !Array.isArray(input.unitIndices) ||
-    !Array.isArray(input.units) ||
-    input.unitIndices.length !== input.units.length ||
-    !Number.isSafeInteger(input.precedingUnitCount) ||
-    input.precedingUnitCount < 0
-  )
-    return { kind: 'invalidInput' }
-  const indices = new Set<number>()
-  let upper = input.precedingUnitCount
-  for (const index of input.unitIndices) {
-    if (!Number.isSafeInteger(index) || index < input.precedingUnitCount || indices.has(index))
-      return { kind: 'invalidInput' }
-    indices.add(index)
-    upper = Math.max(upper, index + 1)
-  }
+  const selection = newUnitSelection(input)
+  if (!selection) return { kind: 'invalidInput' }
+  const { indices, upper } = selection
   try {
     return meterHistoryValid(input.outputHistory, input.historySpans, upper, indices)
       ? meter.measureNew(input)
@@ -338,4 +352,26 @@ export function measureNew(meter: InputMeter, input: NewMeterInput): MeterContri
   } catch {
     return { kind: 'invalidInput' }
   }
+}
+
+function newUnitSelection(
+  input: NewMeterInput,
+): { readonly indices: Set<number>; readonly upper: number } | undefined {
+  if (
+    !Array.isArray(input.unitIndices) ||
+    !Array.isArray(input.units) ||
+    input.unitIndices.length !== input.units.length ||
+    !Number.isSafeInteger(input.precedingUnitCount) ||
+    input.precedingUnitCount < 0
+  )
+    return undefined
+  const indices = new Set<number>()
+  let upper = input.precedingUnitCount
+  for (const index of input.unitIndices) {
+    if (!Number.isSafeInteger(index) || index < input.precedingUnitCount || indices.has(index))
+      return undefined
+    indices.add(index)
+    upper = Math.max(upper, index + 1)
+  }
+  return { indices, upper }
 }

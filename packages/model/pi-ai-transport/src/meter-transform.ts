@@ -70,16 +70,7 @@ export function inspectTransformRevision(
       : { kind: 'unknown' }
   try {
     const value: unknown = JSON.parse(revision.slice(prefix.length))
-    if (
-      !Array.isArray(value) ||
-      value.length !== 4 ||
-      !nonempty(value[0]) ||
-      !nonempty(value[1]) ||
-      !nonempty(value[2]) ||
-      !hash(value[3]) ||
-      prefix + JSON.stringify(value) !== revision
-    )
-      return { kind: 'invalid' }
+    if (!preparationDescriptorValid(value, revision)) return { kind: 'invalid' }
     if (value[0] !== expectedBase) return { kind: 'unknown' }
     return Object.freeze({
       kind: 'known',
@@ -93,6 +84,21 @@ export function inspectTransformRevision(
   } catch {
     return { kind: 'invalid' }
   }
+}
+
+function preparationDescriptorValid(
+  value: unknown,
+  revision: string,
+): value is [string, string, string, string] {
+  return !(
+    !Array.isArray(value) ||
+    value.length !== 4 ||
+    !nonempty(value[0]) ||
+    !nonempty(value[1]) ||
+    !nonempty(value[2]) ||
+    !hash(value[3]) ||
+    prefix + JSON.stringify(value) !== revision
+  )
 }
 
 /** All current identities stay exact; the compound descriptor only extends the transform. */
@@ -148,6 +154,24 @@ export function relateMeterBases(
   )
   if (originalBase.kind !== 'known')
     return { kind: originalBase.kind === 'invalid' ? 'invalidInput' : 'unavailable' }
+  if (!originalBasisAccepted(ownedOriginal, originalBase, meter, originalApplies))
+    return { kind: 'unavailable' }
+  return Object.freeze({
+    kind:
+      canonicalProjection(ownedCurrent) === canonicalProjection(ownedOriginal)
+        ? 'sameEffective'
+        : 'changedEffective',
+    current: currentBase,
+    original: originalBase,
+  })
+}
+
+function originalBasisAccepted(
+  ownedOriginal: CountingBasis,
+  originalBase: KnownTransformRevision,
+  meter: InputMeter,
+  originalApplies: OriginalBasisApplies | undefined,
+): boolean {
   try {
     const applicable: unknown =
       originalApplies === undefined
@@ -164,17 +188,10 @@ export function relateMeterBases(
           () => {},
           () => {},
         )
-      return { kind: 'unavailable' }
+      return false
     }
   } catch {
-    return { kind: 'unavailable' }
+    return false
   }
-  return Object.freeze({
-    kind:
-      canonicalProjection(ownedCurrent) === canonicalProjection(ownedOriginal)
-        ? 'sameEffective'
-        : 'changedEffective',
-    current: currentBase,
-    original: originalBase,
-  })
+  return true
 }

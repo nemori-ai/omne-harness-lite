@@ -297,21 +297,8 @@ export function openAiFamilyRecord(modelId: string): OpenAiFamilyRecord | undefi
 export type OpenAiDetailClass = 'visible' | 'wholeGroup' | 'uninterpretable'
 /** Classifies one retained detail; unavailable is never a visible fallback. */
 export function classifyOpenAiDetail(detail: unknown): OpenAiDetailClass {
-  if (
-    !object(detail) ||
-    (detail.format !== undefined && detail.format !== 'openai-responses-v1') ||
-    (detail.id !== undefined && detail.id !== null && typeof detail.id !== 'string') ||
-    (detail.index !== undefined && !isNonNegativeJsonInteger(detail.index))
-  )
-    return 'uninterpretable'
-  const key =
-    detail.type === 'reasoning.encrypted'
-      ? 'data'
-      : detail.type === 'reasoning.text'
-        ? 'text'
-        : detail.type === 'reasoning.summary'
-          ? 'summary'
-          : undefined
+  if (!object(detail) || !detailIdentityValid(detail)) return 'uninterpretable'
+  const key = detailPayloadKey(detail)
   if (
     !key ||
     typeof detail[key] !== 'string' ||
@@ -326,6 +313,24 @@ export function classifyOpenAiDetail(detail: unknown): OpenAiDetailClass {
       : 'wholeGroup'
     : 'visible'
 }
+
+function detailPayloadKey(detail: JsonObject): 'data' | 'text' | 'summary' | undefined {
+  return detail.type === 'reasoning.encrypted'
+    ? 'data'
+    : detail.type === 'reasoning.text'
+      ? 'text'
+      : detail.type === 'reasoning.summary'
+        ? 'summary'
+        : undefined
+}
+
+function detailIdentityValid(detail: JsonObject): boolean {
+  return !(
+    (detail.format !== undefined && detail.format !== 'openai-responses-v1') ||
+    (detail.id !== undefined && detail.id !== null && typeof detail.id !== 'string') ||
+    (detail.index !== undefined && !isNonNegativeJsonInteger(detail.index))
+  )
+}
 export function openAiEnvelopeApplies(envelope: JsonObject, row: OpenAiFamilyRecord): boolean {
   const provider = envelope.provider
   const reasoning = envelope.reasoning
@@ -338,12 +343,17 @@ export function openAiEnvelopeApplies(envelope: JsonObject, row: OpenAiFamilyRec
     provider.order[0] === 'openai' &&
     provider.allow_fallbacks === false &&
     provider.require_parameters === true &&
-    (reasoning === undefined ||
+    reasoningApplies()
+  )
+  function reasoningApplies(): boolean {
+    return (
+      reasoning === undefined ||
       (object(reasoning) &&
         Object.keys(reasoning).length === 1 &&
         typeof reasoning.effort === 'string' &&
-        row.efforts.some(effort => effort === reasoning.effort)))
-  )
+        row.efforts.some(effort => effort === reasoning.effort))
+    )
+  }
 }
 export function originalOpenAiRecord(
   row: OpenAiFamilyRecord,
@@ -434,54 +444,69 @@ function sourceApplies(
   const request = observation.inputCalibration.requestInput
   const basis = request.kind === 'known' ? request.countingBasis : undefined
   const binding = origin?.adaptation ?? basis?.binding
-  if (
-    !binding ||
-    binding.definition.modelId !== row.modelId ||
-    binding.implementation.name !== 'pi-ai:openai' ||
-    !openAiBasisRecord(row, binding.definition.revision, binding.implementation.revision)
-  )
-    return false
-  if (
-    origin &&
-    (origin.provider !== 'openai' ||
-      (origin.parameters.reasoningEffort !== undefined &&
-        !row.efforts.includes(origin.parameters.reasoningEffort)) ||
-      (origin.upstreamModel !== undefined && origin.upstreamModel !== row.modelId) ||
-      (origin.servingProvider !== undefined &&
-        !['openai', 'OpenAI'].includes(origin.servingProvider)))
-  )
-    return false
+  if (!bindingApplies(row) || !originApplies(row)) return false
   const observed = observation.inputCalibration.observedInput
-  if (
-    observed.kind !== 'unavailable' &&
-    (row.inputScope === 'scope_unknown' ||
-      observed.provenance.adapterRevision !== 'openrouter-usage-reader/2' ||
-      (observed.provenance.upstreamModel !== undefined &&
-        observed.provenance.upstreamModel !== row.modelId) ||
-      (observed.provenance.servingProvider !== undefined &&
-        !['openai', 'OpenAI'].includes(observed.provenance.servingProvider)))
-  )
-    return false
-  let encrypted = false
-  for (const block of observation.outputBlocks) {
-    if (block.kind !== 'thinking') continue
-    const opaque = block.opaque === undefined ? undefined : readOpaqueJson(block.opaque)
-    if (
-      !object(opaque) ||
-      opaque.routeName !== row.modelId ||
-      Object.keys(opaque).some(key => !['routeName', 'reasoning_details'].includes(key)) ||
-      !Array.isArray(opaque.reasoning_details) ||
-      !opaque.reasoning_details.length
+  if (!observedApplies(row)) return false
+  return encryptedBlocksApply(row)
+
+  function bindingApplies(row: OpenAiFamilyRecord): boolean {
+    return !(
+      !binding ||
+      binding.definition.modelId !== row.modelId ||
+      binding.implementation.name !== 'pi-ai:openai' ||
+      !openAiBasisRecord(row, binding.definition.revision, binding.implementation.revision)
     )
-      return false
-    for (const detail of opaque.reasoning_details) {
-      if (!object(detail) || detail.format !== 'openai-responses-v1') return false
-      const classification = classifyOpenAiDetail(detail)
-      if (classification === 'uninterpretable') return false
-      encrypted ||= classification === 'wholeGroup'
-    }
   }
-  return encrypted
+  function originApplies(row: OpenAiFamilyRecord): boolean {
+    return !(
+      origin &&
+      (origin.provider !== 'openai' ||
+        (origin.parameters.reasoningEffort !== undefined &&
+          !row.efforts.includes(origin.parameters.reasoningEffort)) ||
+        (origin.upstreamModel !== undefined && origin.upstreamModel !== row.modelId) ||
+        (origin.servingProvider !== undefined &&
+          !['openai', 'OpenAI'].includes(origin.servingProvider)))
+    )
+  }
+  function observedApplies(row: OpenAiFamilyRecord): boolean {
+    return !(
+      observed.kind !== 'unavailable' &&
+      (row.inputScope === 'scope_unknown' ||
+        observed.provenance.adapterRevision !== 'openrouter-usage-reader/2' ||
+        (observed.provenance.upstreamModel !== undefined &&
+          observed.provenance.upstreamModel !== row.modelId) ||
+        (observed.provenance.servingProvider !== undefined &&
+          !['openai', 'OpenAI'].includes(observed.provenance.servingProvider)))
+    )
+  }
+  function encryptedBlocksApply(row: OpenAiFamilyRecord): boolean {
+    let encrypted = false
+    for (const block of observation.outputBlocks) {
+      if (block.kind !== 'thinking') continue
+      const opaque = block.opaque === undefined ? undefined : readOpaqueJson(block.opaque)
+      if (!opaqueEnvelopeApplies(opaque, row)) return false
+      for (const detail of opaque.reasoning_details) {
+        if (!object(detail) || detail.format !== 'openai-responses-v1') return false
+        const classification = classifyOpenAiDetail(detail)
+        if (classification === 'uninterpretable') return false
+        encrypted ||= classification === 'wholeGroup'
+      }
+    }
+    return encrypted
+  }
+}
+
+function opaqueEnvelopeApplies(
+  opaque: unknown,
+  row: OpenAiFamilyRecord,
+): opaque is JsonObject & { readonly reasoning_details: readonly JsonValue[] } {
+  return !(
+    !object(opaque) ||
+    opaque.routeName !== row.modelId ||
+    Object.keys(opaque).some(key => !['routeName', 'reasoning_details'].includes(key)) ||
+    !Array.isArray(opaque.reasoning_details) ||
+    !opaque.reasoning_details.length
+  )
 }
 export const openAiOutputHistoryPolicy: OutputHistoryPolicy = Object.freeze({
   classifyUnit: classifyOpenAiUnit,
