@@ -1,0 +1,77 @@
+{
+  "index": 29,
+  "route": "anthropic/claude-sonnet-5",
+  "providerRequested": "anthropic",
+  "variant": "A2",
+  "startedAt": "2026-10-02T17:04:15.197Z",
+  "finishedAt": "2026-10-02T17:04:18.398Z",
+  "durationMs": 3201,
+  "reservationUsd": "0.013524000000000000",
+  "costUsd": "0.000664000000",
+  "costReported": true,
+  "providerMismatch": true,
+  "status": 200,
+  "usage": {
+    "prompt_tokens": 12,
+    "completion_tokens": 64,
+    "total_tokens": 76,
+    "cost": "0.000664",
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.000664,
+      "upstream_inference_prompt_cost": 0.000024,
+      "upstream_inference_completions_cost": 0.00064
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 63,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "provider": "Anthropic",
+  "upstreamModel": "anthropic/claude-sonnet-5",
+  "requestId": "gen-1790960655-8Oo0QIjKgnbHstrLWNL9",
+  "finish": "length",
+  "outputPreview": "This just looks like a plain colored square, no text or question attached. I should ask the user what they'd like help with.\n\n",
+  "outcome": "accepted",
+  "rawResponse": ": OPENROUTER PROCESSING\n\n: OPENROUTER PROCESSING\n\n: OPENROUTER PROCESSING\n\n: OPENROUTER PROCESSING\n\n: OPENROUTER PROCESSING\n\ndata: {\"id\":\"gen-1790960655-8Oo0QIjKgnbHstrLWNL9\",\"object\":\"chat.completion.chunk\",\"created\":1790960655,\"model\":\"anthropic/claude-sonnet-5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"This just looks like a plain\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"This just looks like a plain\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960655-8Oo0QIjKgnbHstrLWNL9\",\"object\":\"chat.completion.chunk\",\"created\":1790960655,\"model\":\"anthropic/claude-sonnet-5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" col\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" col\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960655-8Oo0QIjKgnbHstrLWNL9\",\"object\":\"chat.completion.chunk\",\"created\":1790960655,\"model\":\"anthropic/claude-sonnet-5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"ored square,\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"ored square,\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960655-8Oo0QIjKgnbHstrLWNL9\",\"object\":\"chat.completion.chunk\",\"created\":1790960655,\"model\":\"anthropic/claude-sonnet-5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" no text or question attached. I\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" no text or question attached. I\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960655-8Oo0QIjKgnbHstrLWNL9\",\"object\":\"chat.completion.chunk\",\"created\":1790960655,\"model\":\"anthropic/claude-sonnet-5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" should\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" should\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960655-8Oo0QIjKgnbHstrLWNL9\",\"object\":\"chat.completion.chunk\",\"created\":1790960655,\"model\":\"anthropic/claude-sonnet-5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" ask the\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" ask the\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960655-8Oo0QIjKgnbHstrLWNL9\",\"object\":\"chat.completion.chunk\",\"created\":1790960655,\"model\":\"anthropic/claude-sonnet-5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" user what they'd like help with\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" user what they'd like help with\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960655-8Oo0QIjKgnbHstrLWNL9\",\"object\":\"chat.completion.chunk\",\"created\":1790960655,\"model\":\"anthropic/claude-sonnet-5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\".\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\".\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960655-8Oo0QIjKgnbHstrLWNL9\",\"object\":\"chat.completion.chunk\",\"created\":1790960655,\"model\":\"anthropic/claude-sonnet-5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"\\n\\n\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"\\n\\n\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960655-8Oo0QIjKgnbHstrLWNL9\",\"object\":\"chat.completion.chunk\",\"created\":1790960655,\"model\":\"anthropic/claude-sonnet-5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"signature\":\"EpEECsQBCBIYAipAqhN0B0j86aFD18AZsVvIeAKAo8FCVfHGMj0Q3MS9AoxZBREJr1/Vl5PL1WZ58xRcjxDrzuNCGJUctdUvHqqvtzIPY2xhdWRlLXNvbm5ldC01OABCCHRoaW5raW5nWiQwZDk4M2YzZi00OWZhLTRhNDYtODI1NC1iMWJiMjQ5MWEyYTl6HnVwcm9mXzAxMUNlUU5MQlhqUk1SVjJGeHAxZFR0Q5oBEQoPY2xhdWRlLXNvbm5ldC01qAGSyP/VBhIMiljRZLFJAL7FoXJXGgwsvo74IX1O1SQmYpMiMNQ+EmnE+PUWy2Ql1VVA4ELlVdmDUPViG++Dv43xFkeIxiyq/BJDdZMbfDP10vqDhir5Af4V4ued8nOUuMiKp+6u35iUPadplBm6YJpDjChoWsRJw7WnC7fSsiLnO6GajffDX/3uAJS1BuV2/S0iseGdsK4zA8VNi0DkaLalCRiXaSAQaTjg8NL7NTZjKPPHet9fjiXLxQUGp0PXModfkkZlW+oZTEikArA5Jlc0ZikxkJ33bMhhNKtSKJfVcLQ8KKNpZt9eYIrFz+H1L9K1z8lHhWGqcpZn1ErxdPoLJiuZIkLIcgo4VNKqkyfiEnn8FKax9QGDmVh9XS4h115D2MKWo02cGIKdAF+w0310IckQc48sw27WDTTfMd8qGynb6Elq9nQVZbZN6hNg6hgB.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1zb25uZXQtNS0yMDI2MDYzMHxhbnRocm9waWMifQ\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960655-8Oo0QIjKgnbHstrLWNL9\",\"object\":\"chat.completion.chunk\",\"created\":1790960655,\"model\":\"anthropic/claude-sonnet-5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"length\",\"native_finish_reason\":\"max_tokens\"}]}\n\ndata: {\"id\":\"gen-1790960655-8Oo0QIjKgnbHstrLWNL9\",\"object\":\"chat.completion.chunk\",\"created\":1790960655,\"model\":\"anthropic/claude-sonnet-5\",\"provider\":\"Anthropic\",\"service_tier\":\"default\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"length\",\"native_finish_reason\":\"max_tokens\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":64,\"total_tokens\":76,\"cost\":0.000664,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.000664,\"upstream_inference_prompt_cost\":0.000024,\"upstream_inference_completions_cost\":0.00064},\"completion_tokens_details\":{\"reasoning_tokens\":63,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+  "rawTruncated": false,
+  "request": {
+    "model": "anthropic/claude-sonnet-5",
+    "provider": {
+      "order": [
+        "anthropic"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true
+    },
+    "stream": true,
+    "usage": {
+      "include": true
+    },
+    "max_tokens": 64,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": ""
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSU...[154 chars, png sha256 0d9cc10556d669b8]"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

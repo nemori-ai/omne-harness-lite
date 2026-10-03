@@ -1,0 +1,50 @@
+{
+  "index": 32,
+  "route": "z-ai/glm-5.3-flash",
+  "providerRequested": "z-ai/fp8",
+  "variant": "A2",
+  "startedAt": "2026-10-02T17:08:53.684Z",
+  "finishedAt": "2026-10-02T17:08:54.561Z",
+  "durationMs": 877,
+  "reservationUsd": "0.003097100000000000",
+  "costUsd": null,
+  "costReported": false,
+  "providerMismatch": false,
+  "outcome": "http_error",
+  "status": 400,
+  "errorText": "{\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"error\\\":{\\\"code\\\":\\\"1210\\\",\\\"message\\\":\\\"Invalid API parameter, please check the documentation.\\\"}}\",\"provider_name\":\"Z.AI\",\"is_byok\":false,\"provider_error_code\":\"1210\"}},\"user_id\":\"org_REDACTED\"}",
+  "rawResponse": "{\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"error\\\":{\\\"code\\\":\\\"1210\\\",\\\"message\\\":\\\"Invalid API parameter, please check the documentation.\\\"}}\",\"provider_name\":\"Z.AI\",\"is_byok\":false,\"provider_error_code\":\"1210\"}},\"user_id\":\"org_REDACTED\"}",
+  "rawTruncated": false,
+  "request": {
+    "model": "z-ai/glm-5.3-flash",
+    "provider": {
+      "order": [
+        "z-ai/fp8"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true
+    },
+    "stream": true,
+    "usage": {
+      "include": true
+    },
+    "max_tokens": 64,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": ""
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSU...[154 chars, png sha256 0d9cc10556d669b8]"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,616 @@
+{
+  "format": 1,
+  "source": "Preserved Claude session 0d12f3b6-aa72-4661-a80c-d0422eb23a91; original report bytes remain in local retention.",
+  "redaction": "Organisation identifiers replaced by org_REDACTED; no credentials in sources.",
+  "files": [
+    {
+      "file": "reports/archive/live-1/01-openai_gpt-6-astra-A1.json",
+      "source_sha256": "12263074fc49cfed67e9f04a954f3117971bb36a8e2a3e00d4b8cd6c1370daec",
+      "stored_sha256": "12263074fc49cfed67e9f04a954f3117971bb36a8e2a3e00d4b8cd6c1370daec",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/02-openai_gpt-6-astra-A2.json",
+      "source_sha256": "a2afcce74ca5471e7ed0049f8a71dd45bdce50bd82f215a0d81587b1928ee04a",
+      "stored_sha256": "a2afcce74ca5471e7ed0049f8a71dd45bdce50bd82f215a0d81587b1928ee04a",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/03-openai_gpt-6-astra-B.json",
+      "source_sha256": "c5765fade4063a07da75c1bac588eef6ce36f18fdbde2dd69d03aceb8c75374a",
+      "stored_sha256": "c5765fade4063a07da75c1bac588eef6ce36f18fdbde2dd69d03aceb8c75374a",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/04-openai_gpt-6-astra-pro-A1.json",
+      "source_sha256": "c29c6bf1599dca1d7fab474aaa3930b9d1d32290361722ac2b2aa15ca8cd02ba",
+      "stored_sha256": "c29c6bf1599dca1d7fab474aaa3930b9d1d32290361722ac2b2aa15ca8cd02ba",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/05-openai_gpt-6-astra-pro-A2.json",
+      "source_sha256": "d1f71ecfaf7101d6ac909c5e1993c9732478c4f447d5cbd1c0f9bc090fc8e828",
+      "stored_sha256": "d1f71ecfaf7101d6ac909c5e1993c9732478c4f447d5cbd1c0f9bc090fc8e828",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/06-openai_gpt-6-astra-pro-B.json",
+      "source_sha256": "39f7ca3ae64c08be69c08310048e7a9e3135a0c7f0de8d35d217e5494c9360e4",
+      "stored_sha256": "39f7ca3ae64c08be69c08310048e7a9e3135a0c7f0de8d35d217e5494c9360e4",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/07-openai_gpt-6-sol-A1.json",
+      "source_sha256": "b35b60dafc40fa3116eec0f7b126438d827f999ef5e778d47a4b1e1d20fcb124",
+      "stored_sha256": "b35b60dafc40fa3116eec0f7b126438d827f999ef5e778d47a4b1e1d20fcb124",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/08-openai_gpt-6-sol-A2.json",
+      "source_sha256": "4a99eb7cb6d9b0aeeec1dceb814755baba519072fbd4d9cec91c6d34b4250abe",
+      "stored_sha256": "4a99eb7cb6d9b0aeeec1dceb814755baba519072fbd4d9cec91c6d34b4250abe",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/09-openai_gpt-6-sol-B.json",
+      "source_sha256": "0b50eb49deb18df14635180f84287bffbf570eeffdd6dcad889f8d76e4d9432a",
+      "stored_sha256": "0b50eb49deb18df14635180f84287bffbf570eeffdd6dcad889f8d76e4d9432a",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/10-openai_gpt-6-sol-pro-A1.json",
+      "source_sha256": "278047b25effcefd0cf8f1d615a886c2d27579a6f3bb2d076908df04f9119f23",
+      "stored_sha256": "278047b25effcefd0cf8f1d615a886c2d27579a6f3bb2d076908df04f9119f23",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/11-openai_gpt-6-sol-pro-A2.json",
+      "source_sha256": "9f5339c7fd693517bac2ce71418837c523eb858283c1f5076c955008e5dceaea",
+      "stored_sha256": "9f5339c7fd693517bac2ce71418837c523eb858283c1f5076c955008e5dceaea",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/12-openai_gpt-6-sol-pro-B.json",
+      "source_sha256": "e926457d5856324ad84cad83306a19d91be9974f0eda8f3e2f6ca67e339514ba",
+      "stored_sha256": "e926457d5856324ad84cad83306a19d91be9974f0eda8f3e2f6ca67e339514ba",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/13-openai_gpt-6-luna-A1.json",
+      "source_sha256": "4118867651802088da80cc8431d38302cd05fb5fb256a66aa8f7e07cd8169f1e",
+      "stored_sha256": "4118867651802088da80cc8431d38302cd05fb5fb256a66aa8f7e07cd8169f1e",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/14-openai_gpt-6-luna-A2.json",
+      "source_sha256": "b885ddca783727b154d9e58f584406c9dbc9a6f5d0d4628e7aeaf4154ceb43bb",
+      "stored_sha256": "b885ddca783727b154d9e58f584406c9dbc9a6f5d0d4628e7aeaf4154ceb43bb",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/15-openai_gpt-6-luna-B.json",
+      "source_sha256": "1d63bf0421b681f35fcf9b4c0bd773089019602402d027e86aba238bebf4dc4a",
+      "stored_sha256": "1d63bf0421b681f35fcf9b4c0bd773089019602402d027e86aba238bebf4dc4a",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/16-openai_gpt-6-luna-pro-A1.json",
+      "source_sha256": "45b815860dc9852c6073a683b4836d7e8c149839474f56fc1aabf0f560411581",
+      "stored_sha256": "45b815860dc9852c6073a683b4836d7e8c149839474f56fc1aabf0f560411581",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/17-openai_gpt-6-luna-pro-A2.json",
+      "source_sha256": "bedb522f8f48fe1cd9882884d7b3556c74025514a2c2124488fa2d9e6733f98e",
+      "stored_sha256": "bedb522f8f48fe1cd9882884d7b3556c74025514a2c2124488fa2d9e6733f98e",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-1/summary.md",
+      "source_sha256": "4356da0d7a620918a92abe86aeb9c3796b1c7ba552f4fc8271fc2524905d3665",
+      "stored_sha256": "4356da0d7a620918a92abe86aeb9c3796b1c7ba552f4fc8271fc2524905d3665",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/01-openai_gpt-6-luna-pro-A1.json",
+      "source_sha256": "d37599274464f270493c9478c2ad27c25fc61305c9b9f638364c0c23b92264ae",
+      "stored_sha256": "d37599274464f270493c9478c2ad27c25fc61305c9b9f638364c0c23b92264ae",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/02-openai_gpt-6-luna-pro-A2.json",
+      "source_sha256": "0e6b79f96617ad1be85a10479084df3b14019b90146404aed356494dc836accc",
+      "stored_sha256": "0e6b79f96617ad1be85a10479084df3b14019b90146404aed356494dc836accc",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/03-openai_gpt-6-luna-pro-B.json",
+      "source_sha256": "07bf712df41e2803585ae5ad0630ebd64cee448f02e47db6899cf5e7c6eba8d5",
+      "stored_sha256": "07bf712df41e2803585ae5ad0630ebd64cee448f02e47db6899cf5e7c6eba8d5",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/04-openai_gpt-5.6-sol-A1.json",
+      "source_sha256": "8ff2d46a388dbdaa5870e92abdc8ddebc42c35d02bc76eb907df4d39e0b85684",
+      "stored_sha256": "8ff2d46a388dbdaa5870e92abdc8ddebc42c35d02bc76eb907df4d39e0b85684",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/05-openai_gpt-5.6-sol-A2.json",
+      "source_sha256": "cc881a0e64d7de7614b877954c3fbd02aaf4f3fcc0eebf6de0a1b203fb05de40",
+      "stored_sha256": "cc881a0e64d7de7614b877954c3fbd02aaf4f3fcc0eebf6de0a1b203fb05de40",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/06-openai_gpt-5.6-sol-B.json",
+      "source_sha256": "9350d83438f46c16add82c173ff9a33e5ef5f9c48626b94b155c036f4018195c",
+      "stored_sha256": "9350d83438f46c16add82c173ff9a33e5ef5f9c48626b94b155c036f4018195c",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/07-openai_gpt-5.6-sol-pro-A1.json",
+      "source_sha256": "56063e4835e0b9c6646d18d4cddb98822b7bce02b06fba43bcac940f407156e2",
+      "stored_sha256": "56063e4835e0b9c6646d18d4cddb98822b7bce02b06fba43bcac940f407156e2",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/08-openai_gpt-5.6-sol-pro-A2.json",
+      "source_sha256": "9c26a166011f1c65cfea5061da388f5612fffe81429e53e9e3ded35b0cce5c4f",
+      "stored_sha256": "9c26a166011f1c65cfea5061da388f5612fffe81429e53e9e3ded35b0cce5c4f",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/09-openai_gpt-5.6-sol-pro-B.json",
+      "source_sha256": "b581988c5b45730bc6acaf10213c5f3730349b6c3713315b8225ddfd064acfd7",
+      "stored_sha256": "b581988c5b45730bc6acaf10213c5f3730349b6c3713315b8225ddfd064acfd7",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/10-openai_gpt-5.6-terra-A1.json",
+      "source_sha256": "7dc39afcb868e83cd3ccd143765e829c921bfb8e7935432d8519c0d0510262fa",
+      "stored_sha256": "7dc39afcb868e83cd3ccd143765e829c921bfb8e7935432d8519c0d0510262fa",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/11-openai_gpt-5.6-terra-A2.json",
+      "source_sha256": "40f233ca98d8ffd7e1e81a491dfb1cc69aa9fd60f328094af92e8db7bb9dc1b6",
+      "stored_sha256": "40f233ca98d8ffd7e1e81a491dfb1cc69aa9fd60f328094af92e8db7bb9dc1b6",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/12-openai_gpt-5.6-terra-B.json",
+      "source_sha256": "05302c25c5261370135191ccec46ab84173ab3a161b668dd9763cdc5050e9755",
+      "stored_sha256": "05302c25c5261370135191ccec46ab84173ab3a161b668dd9763cdc5050e9755",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/13-openai_gpt-5.6-terra-pro-A1.json",
+      "source_sha256": "5ae124decffb81ddb4542519768754a1ed5991063b0b112efbda92f83e646d2a",
+      "stored_sha256": "5ae124decffb81ddb4542519768754a1ed5991063b0b112efbda92f83e646d2a",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/14-openai_gpt-5.6-terra-pro-A2.json",
+      "source_sha256": "95a3816a4550ac9b96ae738b0f7dd962c5528c8689fbf50f303c37360ff573f3",
+      "stored_sha256": "95a3816a4550ac9b96ae738b0f7dd962c5528c8689fbf50f303c37360ff573f3",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/15-openai_gpt-5.6-terra-pro-B.json",
+      "source_sha256": "2d48e25c57dfb0235282f4a95c881e8192fd86a142f5aa279d76eba438c0b81d",
+      "stored_sha256": "2d48e25c57dfb0235282f4a95c881e8192fd86a142f5aa279d76eba438c0b81d",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/16-openai_gpt-5.6-luna-A1.json",
+      "source_sha256": "cb1ac15f245c1be055feb1f595903b9c8740f8d6b35e75d3e7e26ac4afc571fc",
+      "stored_sha256": "cb1ac15f245c1be055feb1f595903b9c8740f8d6b35e75d3e7e26ac4afc571fc",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/17-openai_gpt-5.6-luna-A2.json",
+      "source_sha256": "375cb4a8d7b3e292ef3b8fe2275aac76c9f3e08d813c2bf7217809d915506335",
+      "stored_sha256": "375cb4a8d7b3e292ef3b8fe2275aac76c9f3e08d813c2bf7217809d915506335",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/18-openai_gpt-5.6-luna-B.json",
+      "source_sha256": "02e076c23e2f072a357ee371cf40df6d2092288a6ae6ba453146761b1592b3f2",
+      "stored_sha256": "02e076c23e2f072a357ee371cf40df6d2092288a6ae6ba453146761b1592b3f2",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/19-openai_gpt-5.6-luna-pro-A1.json",
+      "source_sha256": "e9e0c053c9f491ea2d71dff83c57dc9424f43817a2261bf98187c48786a77fb5",
+      "stored_sha256": "e9e0c053c9f491ea2d71dff83c57dc9424f43817a2261bf98187c48786a77fb5",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/20-openai_gpt-5.6-luna-pro-A2.json",
+      "source_sha256": "5598df96131d6c34f1c61dec310bbb9d66ab0a094e448044778c58662f197bb1",
+      "stored_sha256": "5598df96131d6c34f1c61dec310bbb9d66ab0a094e448044778c58662f197bb1",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/21-openai_gpt-5.6-luna-pro-B.json",
+      "source_sha256": "33a1e2c7d9c8150e760b467baf4d81e1aa91ecd930d54a0a37b9ec51863571a0",
+      "stored_sha256": "33a1e2c7d9c8150e760b467baf4d81e1aa91ecd930d54a0a37b9ec51863571a0",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/22-anthropic_claude-opus-5.5-A1.json",
+      "source_sha256": "dc70fdc4880c65a34b16a46deebc23a6a977706cde63b86f9c6d1b4097f100b7",
+      "stored_sha256": "dc70fdc4880c65a34b16a46deebc23a6a977706cde63b86f9c6d1b4097f100b7",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/23-anthropic_claude-opus-5.5-A2.json",
+      "source_sha256": "c6429eca2498aeec27e62362c5607283b16842995fd764272aff8864056c1867",
+      "stored_sha256": "c6429eca2498aeec27e62362c5607283b16842995fd764272aff8864056c1867",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/24-anthropic_claude-opus-5.5-B.json",
+      "source_sha256": "a4f20f679067d7b8d0ed02b6ac9f91d49a38d4221e6be0f2e7d308df87211328",
+      "stored_sha256": "a4f20f679067d7b8d0ed02b6ac9f91d49a38d4221e6be0f2e7d308df87211328",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/25-anthropic_claude-opus-5-A1.json",
+      "source_sha256": "9dfae17adcf16440ef7a9485c162e7bc3ce58373cd0b2bad7a1ee8647e3a2c1a",
+      "stored_sha256": "9dfae17adcf16440ef7a9485c162e7bc3ce58373cd0b2bad7a1ee8647e3a2c1a",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/26-anthropic_claude-opus-5-A2.json",
+      "source_sha256": "e9a537c011a4d5154684e55ad550d7bc434ae3654b8f9579ae5a0f58bb2003ac",
+      "stored_sha256": "e9a537c011a4d5154684e55ad550d7bc434ae3654b8f9579ae5a0f58bb2003ac",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/27-anthropic_claude-opus-5-B.json",
+      "source_sha256": "6df88ecb502caf7e26b76509648d81a1333546e537e9ac1dcca67640f4eb5ef4",
+      "stored_sha256": "6df88ecb502caf7e26b76509648d81a1333546e537e9ac1dcca67640f4eb5ef4",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/28-anthropic_claude-sonnet-5-A1.json",
+      "source_sha256": "d3146d2accbd96b19afc370d6890337a1bf5033324e667c154043da7c1d50974",
+      "stored_sha256": "d3146d2accbd96b19afc370d6890337a1bf5033324e667c154043da7c1d50974",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/29-anthropic_claude-sonnet-5-A2.json",
+      "source_sha256": "6c27b29e80774117bfc0fae4f4602c5409e9c8bcc24ab93c50580a83c5de7ee8",
+      "stored_sha256": "6c27b29e80774117bfc0fae4f4602c5409e9c8bcc24ab93c50580a83c5de7ee8",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/30-anthropic_claude-sonnet-5-B.json",
+      "source_sha256": "7a7dcf2c7cdf783016073f2a62598c02e72ddf2c1a8ef1fd1c82f403c4d91c7c",
+      "stored_sha256": "7a7dcf2c7cdf783016073f2a62598c02e72ddf2c1a8ef1fd1c82f403c4d91c7c",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/31-anthropic_claude-fable-5.1-A1.json",
+      "source_sha256": "d3cfb4dc9b7346419ab7b8ecfa3f60036d568c263b579fe797e9712f537cc677",
+      "stored_sha256": "d3cfb4dc9b7346419ab7b8ecfa3f60036d568c263b579fe797e9712f537cc677",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/32-anthropic_claude-fable-5.1-A2.json",
+      "source_sha256": "e37e351057df60c557662fb840c01f141036773a92f1e8148200abda02260e9b",
+      "stored_sha256": "e37e351057df60c557662fb840c01f141036773a92f1e8148200abda02260e9b",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/33-anthropic_claude-fable-5.1-B.json",
+      "source_sha256": "ad3d23ad35bbc971835e7e4af7068d210b9f8fc5ebf4a06852210132048bf24d",
+      "stored_sha256": "ad3d23ad35bbc971835e7e4af7068d210b9f8fc5ebf4a06852210132048bf24d",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/34-deepseek_deepseek-v4.1-flash-A1.json",
+      "source_sha256": "ec2a74a72a4d695f1a00139c612df8d6cdb7db3aa15ba4bfb0d3fb8c4af22eef",
+      "stored_sha256": "ec2a74a72a4d695f1a00139c612df8d6cdb7db3aa15ba4bfb0d3fb8c4af22eef",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/35-deepseek_deepseek-v4.1-flash-A2.json",
+      "source_sha256": "ffcc8122354e366040f804888ef6bd4da7c2f8f9aa5bfd75b721d55609ee88b4",
+      "stored_sha256": "ffcc8122354e366040f804888ef6bd4da7c2f8f9aa5bfd75b721d55609ee88b4",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/36-deepseek_deepseek-v4.1-flash-B.json",
+      "source_sha256": "4d0b68ce6b4e432b632b3f916c4202dde16e363db8a55e6c23fa29399602ab2e",
+      "stored_sha256": "4d0b68ce6b4e432b632b3f916c4202dde16e363db8a55e6c23fa29399602ab2e",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/37-google_gemini-3.8-flash-A1.json",
+      "source_sha256": "1c4dab006bbea71ad1c69037cea0ced11c6b145feed3de8677aba6ce83745598",
+      "stored_sha256": "1c4dab006bbea71ad1c69037cea0ced11c6b145feed3de8677aba6ce83745598",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/38-google_gemini-3.8-flash-A2.json",
+      "source_sha256": "b239afab2b8366b6df68c866a84ab29b841743d310bdcba7ee1f49349575c7c1",
+      "stored_sha256": "b239afab2b8366b6df68c866a84ab29b841743d310bdcba7ee1f49349575c7c1",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/39-google_gemini-3.8-flash-B.json",
+      "source_sha256": "c0cadc0e2ba13d1d4fb078b35bfbfb408a4418ed394a94c6bac0f905d8338d28",
+      "stored_sha256": "c0cadc0e2ba13d1d4fb078b35bfbfb408a4418ed394a94c6bac0f905d8338d28",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/40-google_gemini-3.7-flash-A1.json",
+      "source_sha256": "ff8450e1bbcd3f8e79ed6c08aec274853c6887d99a48ea9071a7ced943479c4a",
+      "stored_sha256": "ff8450e1bbcd3f8e79ed6c08aec274853c6887d99a48ea9071a7ced943479c4a",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/41-google_gemini-3.7-flash-A2.json",
+      "source_sha256": "a84c40954e961a86a468a16909d0de0f12ca25add7c173556ad4e6aaf905141d",
+      "stored_sha256": "a84c40954e961a86a468a16909d0de0f12ca25add7c173556ad4e6aaf905141d",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/42-google_gemini-3.7-flash-B.json",
+      "source_sha256": "fa5a72f9c5fd349c2f364ccde636844517c8e70933f0e6c826f43adb9b9a5802",
+      "stored_sha256": "fa5a72f9c5fd349c2f364ccde636844517c8e70933f0e6c826f43adb9b9a5802",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/43-x-ai_grok-4.7-A1.json",
+      "source_sha256": "8d9a738851f8a74a755c9eef8fc8587a49191fafa8b836ba76966b641369a546",
+      "stored_sha256": "8d9a738851f8a74a755c9eef8fc8587a49191fafa8b836ba76966b641369a546",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/44-x-ai_grok-4.7-A2.json",
+      "source_sha256": "2e9a4ae0c7f7a0890dc9a6eb418655da9656b55e80e6022c1692439d6d4a1d4e",
+      "stored_sha256": "2e9a4ae0c7f7a0890dc9a6eb418655da9656b55e80e6022c1692439d6d4a1d4e",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-2/summary.md",
+      "source_sha256": "24cfd2fbf2b812e587e47bedc96e85cd307e304e186cba322061e868c0554c1c",
+      "stored_sha256": "24cfd2fbf2b812e587e47bedc96e85cd307e304e186cba322061e868c0554c1c",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/01-x-ai_grok-4.7-A1.json",
+      "source_sha256": "b40d187b4b3f73bd1671a164d52cd1904500ce92d689cd990782f0f77b872cab",
+      "stored_sha256": "b40d187b4b3f73bd1671a164d52cd1904500ce92d689cd990782f0f77b872cab",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/02-x-ai_grok-4.7-A2.json",
+      "source_sha256": "b5ffde1491cba51b31d75334948cc012b25dc87075c7413280b513ff3a1cc533",
+      "stored_sha256": "b5ffde1491cba51b31d75334948cc012b25dc87075c7413280b513ff3a1cc533",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/03-x-ai_grok-4.7-B.json",
+      "source_sha256": "95d0240048416ced0299e2e05cb400796cd52a1ba3868407cf49979fc7885ac9",
+      "stored_sha256": "95d0240048416ced0299e2e05cb400796cd52a1ba3868407cf49979fc7885ac9",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/04-x-ai_grok-4.6-A1.json",
+      "source_sha256": "9c809729250097c5e3d1bdc9cddd8c28ea7c1989dfb386799d63d85f001f3bb4",
+      "stored_sha256": "9c809729250097c5e3d1bdc9cddd8c28ea7c1989dfb386799d63d85f001f3bb4",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/05-x-ai_grok-4.6-A2.json",
+      "source_sha256": "0116572aae9629209ef70aaf6bfebfc8d60d73b7db22fae049c3ac2d430eafee",
+      "stored_sha256": "0116572aae9629209ef70aaf6bfebfc8d60d73b7db22fae049c3ac2d430eafee",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/06-x-ai_grok-4.6-B.json",
+      "source_sha256": "8bf20bb32c5b6d3ebbf7d89029ac53afbf1f29b10ccdfb49b31d70a3ebba4ff5",
+      "stored_sha256": "8bf20bb32c5b6d3ebbf7d89029ac53afbf1f29b10ccdfb49b31d70a3ebba4ff5",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/07-qwen_qwen3.8-max-0902-A1.json",
+      "source_sha256": "823ada76a45f915da9b6a8e9771bf15d2d3b47e37a2bf63bacf78dc974fd800a",
+      "stored_sha256": "823ada76a45f915da9b6a8e9771bf15d2d3b47e37a2bf63bacf78dc974fd800a",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/08-qwen_qwen3.8-max-0902-A2.json",
+      "source_sha256": "1e41e5d95e467c5e427fec90bb75fb58f146c82edb45d9639b9e486616f7f3ac",
+      "stored_sha256": "1e41e5d95e467c5e427fec90bb75fb58f146c82edb45d9639b9e486616f7f3ac",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/09-qwen_qwen3.8-max-0902-B.json",
+      "source_sha256": "4a652aab561645f837d153012277cf9d82d2f09571a0049eca54bb2887e0c96e",
+      "stored_sha256": "4a652aab561645f837d153012277cf9d82d2f09571a0049eca54bb2887e0c96e",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/10-qwen_qwen3.8-max-prime-A1.json",
+      "source_sha256": "0de51a7ecad69ad6dae3c1dbfac32193454554735939d0e67af16adfd747d2da",
+      "stored_sha256": "0de51a7ecad69ad6dae3c1dbfac32193454554735939d0e67af16adfd747d2da",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/11-qwen_qwen3.8-max-prime-A2.json",
+      "source_sha256": "30fbeedefc037111644d6ba2a8d309c08119848330df5a1713ffd44657222baa",
+      "stored_sha256": "30fbeedefc037111644d6ba2a8d309c08119848330df5a1713ffd44657222baa",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/12-qwen_qwen3.8-max-prime-B.json",
+      "source_sha256": "371b2d9dc69a871a343c3716e261b84620b8064d4d2d8d23f2cf9c6c27a77dc0",
+      "stored_sha256": "371b2d9dc69a871a343c3716e261b84620b8064d4d2d8d23f2cf9c6c27a77dc0",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/13-qwen_qwen3.8-flash-A1.json",
+      "source_sha256": "80a39b78535c0be0bd4ceb29201a604e5363ff860f5ea7813c97ff6792e449e3",
+      "stored_sha256": "80a39b78535c0be0bd4ceb29201a604e5363ff860f5ea7813c97ff6792e449e3",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/14-qwen_qwen3.8-flash-A2.json",
+      "source_sha256": "63a99e9e5f429c6dde5ab42c4457762fe60d873799090305483de80e30b104fa",
+      "stored_sha256": "63a99e9e5f429c6dde5ab42c4457762fe60d873799090305483de80e30b104fa",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/15-qwen_qwen3.8-flash-B.json",
+      "source_sha256": "31e64f9231557c876f6c717fdb4e4511a405a93ea0ff6790e9e3f01268e27420",
+      "stored_sha256": "31e64f9231557c876f6c717fdb4e4511a405a93ea0ff6790e9e3f01268e27420",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/16-qwen_qwen3.8-27b-A1.json",
+      "source_sha256": "6b933fb022494a5ccc0729d374f0c5f5e53275a39dbf697cdac5003a66781e14",
+      "stored_sha256": "6b933fb022494a5ccc0729d374f0c5f5e53275a39dbf697cdac5003a66781e14",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/17-qwen_qwen3.8-27b-A2.json",
+      "source_sha256": "47a28047f94b132091521e484011b7b141baf0bbc294412458f244fa17bb71db",
+      "stored_sha256": "47a28047f94b132091521e484011b7b141baf0bbc294412458f244fa17bb71db",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/18-qwen_qwen3.8-27b-B.json",
+      "source_sha256": "add216dc1074293e11e52eb6d724752d6f02868b9a283b8ee7444b7f03d66788",
+      "stored_sha256": "add216dc1074293e11e52eb6d724752d6f02868b9a283b8ee7444b7f03d66788",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/19-qwen_qwen3.7-plus-A1.json",
+      "source_sha256": "0ae13990af7437af71c739c814c6052e53672d3d9aa270df19445a6e7601cbef",
+      "stored_sha256": "0ae13990af7437af71c739c814c6052e53672d3d9aa270df19445a6e7601cbef",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/20-qwen_qwen3.7-plus-A2.json",
+      "source_sha256": "f71c0df5ffb9e01a3ebac9f9eaad4704d8a9978405260dd3f67945f3cd926040",
+      "stored_sha256": "f71c0df5ffb9e01a3ebac9f9eaad4704d8a9978405260dd3f67945f3cd926040",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/21-qwen_qwen3.7-plus-B.json",
+      "source_sha256": "a2ef15338fe8fb535d29b60ddf61ffc0c5345d81871ad84c6c670887c5f69bb7",
+      "stored_sha256": "a2ef15338fe8fb535d29b60ddf61ffc0c5345d81871ad84c6c670887c5f69bb7",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/22-qwen_qwen3.7-flash-A1.json",
+      "source_sha256": "311e88eb9a29fc597b926004f9d11a12443598e2f9f2616d83bd0f720d758e4f",
+      "stored_sha256": "311e88eb9a29fc597b926004f9d11a12443598e2f9f2616d83bd0f720d758e4f",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/23-qwen_qwen3.7-flash-A2.json",
+      "source_sha256": "8dc1301f7120db8b190bc325014f3a4147b9a01f52c945ad569d9da09cd061f8",
+      "stored_sha256": "8dc1301f7120db8b190bc325014f3a4147b9a01f52c945ad569d9da09cd061f8",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/24-qwen_qwen3.7-flash-B.json",
+      "source_sha256": "92a1a7290abe8f71d1d8696a31dbcd6d66f447b4eda904c98581f9d5a25953a4",
+      "stored_sha256": "92a1a7290abe8f71d1d8696a31dbcd6d66f447b4eda904c98581f9d5a25953a4",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/25-moonshotai_kimi-k3-A1.json",
+      "source_sha256": "eaa2a0bb84c138029d21ac1a30997e55f01259ed265ca5cb130d4b23fca74b46",
+      "stored_sha256": "aab3b159a786893d6c215ea01510cf7efe78749106ab88838ad2bec33fef2c83",
+      "redacted": true
+    },
+    {
+      "file": "reports/archive/live-3/26-moonshotai_kimi-k3-A2.json",
+      "source_sha256": "bcc398099c39dda2d6145d7666b2125618af585c7bd1056309e3bb79cd4dd96b",
+      "stored_sha256": "067db03afcc0939e58706ce971d852b876b4a9d7abde48d70b46047d902fa23a",
+      "redacted": true
+    },
+    {
+      "file": "reports/archive/live-3/27-moonshotai_kimi-k3-B.json",
+      "source_sha256": "75aa989fa605a3d840cce1dd360b047308632cef64a31cf56e0427acfd4fb463",
+      "stored_sha256": "75aa989fa605a3d840cce1dd360b047308632cef64a31cf56e0427acfd4fb463",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/28-moonshotai_kimi-k2.7-code-A1.json",
+      "source_sha256": "29e74a1d278c50edf9fe83e0ca3eb6ccffa89cb556de24b75e3dd07ba7b0589c",
+      "stored_sha256": "45108773d551057714dcc3cefb1aca26eea7c4518a83fa82b9f124e6a7dd6d3f",
+      "redacted": true
+    },
+    {
+      "file": "reports/archive/live-3/29-moonshotai_kimi-k2.7-code-A2.json",
+      "source_sha256": "dd74d85b64e37f47fa3ed5b441e5702c631c3a90e71554d36639c3cc41433444",
+      "stored_sha256": "37917cc0a0a2291e4045364e2c0b9d69b8256a7edf451bc3241e37ab92d1e894",
+      "redacted": true
+    },
+    {
+      "file": "reports/archive/live-3/30-moonshotai_kimi-k2.7-code-B.json",
+      "source_sha256": "b88fc9ba5aa89d3c6fc588d80c0a2d90d121f28d1379806c5830d09e2365e9c6",
+      "stored_sha256": "b88fc9ba5aa89d3c6fc588d80c0a2d90d121f28d1379806c5830d09e2365e9c6",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/31-z-ai_glm-5.3-flash-A1.json",
+      "source_sha256": "9a6f8f64ba1009b4d09ac3020c828132644508601fb3358245960102e4577862",
+      "stored_sha256": "df144f8e1149a543ad56782064645caae50173ecf31533224530feecd484b6f3",
+      "redacted": true
+    },
+    {
+      "file": "reports/archive/live-3/32-z-ai_glm-5.3-flash-A2.json",
+      "source_sha256": "02c24fccab053d2719819e1f3e9b702953a3fa69cfee283f2455eba3ede83d32",
+      "stored_sha256": "5d9995610a94d84be32bbff3f41f1763155e515059f9187c0093ed2a8e525911",
+      "redacted": true
+    },
+    {
+      "file": "reports/archive/live-3/33-z-ai_glm-5.3-flash-B.json",
+      "source_sha256": "ad27188a352f4a2b9e63ab7835bdbb12985903c48c3fff016178ef31164deeaa",
+      "stored_sha256": "ad27188a352f4a2b9e63ab7835bdbb12985903c48c3fff016178ef31164deeaa",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/34-z-ai_glm-5.3-flashx-A1.json",
+      "source_sha256": "916a2fb719f95a42a1202b2294a056cbd6887ac42219ce5f0af5f56a98f1e178",
+      "stored_sha256": "916a2fb719f95a42a1202b2294a056cbd6887ac42219ce5f0af5f56a98f1e178",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/35-z-ai_glm-5.3-flashx-A2.json",
+      "source_sha256": "205b6ca475a355179f5cad13ff96942cbc6115197134202e1dfde29104b7f662",
+      "stored_sha256": "205b6ca475a355179f5cad13ff96942cbc6115197134202e1dfde29104b7f662",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/36-z-ai_glm-5.3-flashx-B.json",
+      "source_sha256": "0a8c5f82a428bf2b54096bdf9fad844fc5f82a310c365f4e3547b3438f84996f",
+      "stored_sha256": "0a8c5f82a428bf2b54096bdf9fad844fc5f82a310c365f4e3547b3438f84996f",
+      "redacted": false
+    },
+    {
+      "file": "reports/archive/live-3/summary.md",
+      "source_sha256": "018472ed46a336e592d4c7daba4e4d45fc80b7fcbadc8074153681d77a1b346c",
+      "stored_sha256": "ce1da4af65926d370fd1e47c8084c143969e610b82bb1d3ffd5a2cf5a81236e3",
+      "redacted": true
+    }
+  ],
+  "derived": [
+    {
+      "file": "reports/archive/a.txt",
+      "source": "reports/sources/original-probe.mjs ROUTES",
+      "source_sha256": "02f9ed4f54c7b936d3eea9d37761c8c012d21b778cf96a961e354ba0e0e024ce",
+      "stored_sha256": "5e815859f24a9ef3ca266c021789fbf786340e0f08e6340c364f655dee12cbee",
+      "note": "Reconstructed exactly from the retained 31-row probe table; original a.txt was not retained."
+    }
+  ]
+}

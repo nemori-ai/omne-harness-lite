@@ -25,7 +25,7 @@ import {
   type MoonshotModel,
 } from './moonshot-support.ts'
 
-// Current official bindings (definition 3 / mp4-18). Local fixtures only; no
+// Current official bindings (definition 3 / mp4-19). Local fixtures only; no
 // statement here is an OpenRouter or Moonshot upstream observation.
 const [k3, k27] = moonshotModels
 

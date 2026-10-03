@@ -50,7 +50,7 @@ describe('official Moonshot MP4 definitions', () => {
       expect(definition.revision).toBe('3')
       expect(definition.implementation).toEqual({
         name: 'pi-ai:moonshot',
-        revision: 'mp4-18',
+        revision: 'mp4-19',
       })
       expect(definition.routes).toEqual(expectedRoute)
       expect(Object.keys(definition.routes)).toEqual([row.provider])

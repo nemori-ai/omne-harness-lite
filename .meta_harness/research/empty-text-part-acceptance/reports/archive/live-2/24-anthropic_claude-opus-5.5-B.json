@@ -1,0 +1,73 @@
+{
+  "index": 24,
+  "route": "anthropic/claude-opus-5.5",
+  "providerRequested": "anthropic",
+  "variant": "B",
+  "startedAt": "2026-10-02T17:03:58.336Z",
+  "finishedAt": "2026-10-02T17:04:00.468Z",
+  "durationMs": 2132,
+  "reservationUsd": "0.026944000000000000",
+  "costUsd": "0.001336000000",
+  "costReported": true,
+  "providerMismatch": true,
+  "status": 200,
+  "usage": {
+    "prompt_tokens": 14,
+    "completion_tokens": 64,
+    "total_tokens": 78,
+    "cost": "0.001336",
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.001336,
+      "upstream_inference_prompt_cost": 0.000056,
+      "upstream_inference_completions_cost": 0.00128
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 40,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "provider": "Anthropic",
+  "upstreamModel": "anthropic/claude-opus-5.5",
+  "requestId": "gen-1790960638-scLTxsNvoknrDXB6yk8A",
+  "finish": "length",
+  "outputPreview": "There's no text with this image, just a small red textured square with what looks like a dotted pattern. I should describe what I'm seeing.\n\nThis image shows a small square filled with a **red-orange ",
+  "outcome": "accepted",
+  "rawResponse": ": OPENROUTER PROCESSING\n\n: OPENROUTER PROCESSING\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"There's no text with\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"There's no text with\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" this image, just a small red text\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" this image, just a small red text\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"ured square with what\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"ured square with what\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" looks like a d\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" looks like a d\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"otted pattern. I should\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"otted pattern. I should\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" describe what I\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" describe what I\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"'m seeing.\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"'m seeing.\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"\\n\\n\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"\\n\\n\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"signature\":\"CAQS7QUKEAgSGAI4AUIIdGhpbmtpbmcSDNdwlKGPkKlmN88tvRoMVcWQLwWGVAv3JMMTIjAVPjhgHMe7m8lel8jXn8896WxaPAicZtLhhqga8CjxhIglJeYOsy4BqS9JJx24ZbsqigUy1gHfVFvWd69fPRmQ0mncv9yb6etCBEo0qhAzh7x8KsW1QJsLSOf18Udd8iQNizGfnY43qSjx7Mgy+NofpmMLqvmRItUqWvmixSkDzBwu6GeZRXAYjAocB8Vg9bT9tFC7c51nC/mmBrSxS8/v3g+s3Os0DF8M2FCuAC2wxABzWZ1QxTygwooaagAfhdsmeaSLQsqyeaKTqGAj9awSW97T63IbYY3sT3GmCVM9/DDai9rm9kdth9QRBtWfIO5E7zzp/rbBuazXsLzqsiyZyI4JN8mDH0DkErA49NWdyI9BsEykAz/AVFkS9YscT7YzoSCnbuZSFBlPmM53mbE73ZoiADxsEF7hdXsIRqaIfa4IcSidwYq8f8bIzJTwj3rL1xCqBAm3ASyow7J85rFplyOQaPk9DKlXPM1EaAcCbXGUn6chuQwm06vWUq2Vm5mnKd+3XeDKb12PMVFtxdJAvzxQvTemkOlOJbZQC3E0EzZIaWAuchjncmm58QmptoQYIdDiuX5D/ddXeeElYmzpyWxL3VUsYk07ingEQU9frWiCLWHPGFHPVuYy5mgyIJzJnujoBipsdaLJgcqJPT+7WAElSrrEavZvwZswRv907WzioSFq+7BtxYANwZ5gFqZXDgLsLp1SN5hqD8bYP9ipQbLEA0bo4l+Pc5w/kibWTKwxPlQ5iagAdX9Mx0nJnZe/zy9LteCGXAmfXZBNnXt5/NdyfXNEWO8gSoOUn1le0namHCD2HwxHIzBZhASFNPu0i5+gF1A1jlYwEIL825ZZzhOYYMHEqF7RW7yiW6VYUNu/ORAYGaiXk4u2tfxGxd2rzODqmBQ0vIomKHdGXI45JWr2nn0TYvHDtC4I0BgB.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1vcHVzLTUuNS0yMDI2MDkyMXxhbnRocm9waWMifQ\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"This\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" image sh\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ows a small square\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" fil\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"led with a **red\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"-\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"orange (\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"coral-red) background**\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"length\",\"native_finish_reason\":\"max_tokens\"}]}\n\ndata: {\"id\":\"gen-1790960638-scLTxsNvoknrDXB6yk8A\",\"object\":\"chat.completion.chunk\",\"created\":1790960638,\"model\":\"anthropic/claude-opus-5.5\",\"provider\":\"Anthropic\",\"service_tier\":\"default\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"length\",\"native_finish_reason\":\"max_tokens\"}],\"usage\":{\"prompt_tokens\":14,\"completion_tokens\":64,\"total_tokens\":78,\"cost\":0.001336,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.001336,\"upstream_inference_prompt_cost\":0.000056,\"upstream_inference_completions_cost\":0.00128},\"completion_tokens_details\":{\"reasoning_tokens\":40,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+  "rawTruncated": false,
+  "request": {
+    "model": "anthropic/claude-opus-5.5",
+    "provider": {
+      "order": [
+        "anthropic"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true
+    },
+    "stream": true,
+    "usage": {
+      "include": true
+    },
+    "max_tokens": 64,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSU...[154 chars, png sha256 0d9cc10556d669b8]"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -52,7 +52,7 @@
       {
         "where": "openai-completions.ts user message conversion",
         "change": "empty text parts filtered from user content (pi #9797, 0.87.1)",
-        "disposition": "not adopted here: src/plan.ts projects content blocks itself and TextBlock text may be empty; tracked as nemori-ai/omne-harness-lite#50"
+        "disposition": "narrowly adopted for the two current official Moonshot bindings at mp4-19: omit empty text in mixed final user/system/reminder/compaction arrays; preserve all-empty arrays, other routes and caller input; nemori-ai/omne-harness-lite#50, D-115"
       },
       {
         "where": "openai-codex-responses.ts parseSSE",
@@ -80,7 +80,7 @@
     {
       "file": "src/projection.ts",
       "source": "project-owned MR9/RT10 mapping",
-      "changes": "Version openrouter-input-projection/2: one lossless code-point-sorted canonical encoding, scoped Anthropic generated 1h cache metadata exclusion, stable nonempty assistant/tool arrays from first request; no cross-shape token equivalence claim."
+      "changes": "Version openrouter-input-projection/3: one lossless code-point-sorted canonical encoding, scoped configured Anthropic generated cache metadata exclusion, stable nonempty assistant/tool arrays from first request; no cross-shape token equivalence claim."
     },
     {
       "file": "src/read-facts.ts",

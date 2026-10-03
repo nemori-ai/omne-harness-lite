@@ -216,7 +216,7 @@ pass 保持原值，drop 记录项名，select 接受明确值集合或数值区
 
 `InputMeter` 是提供给函数或 transport factory 的可信可执行构件，不进 model profile JSON，也不是调用者传入的准入布尔值。定义、供应商、算法版本及证据绑定到贡献；另一计量来源签发的计划不能经本宿主发送。`createDeepSeekV4ProInputMeter(deepseekV4Pro0813Definition)` 针对精确的 `deepseek/deepseek-v4-pro-0813` / `deepinfra/fp8` 路由，固定 DeepSeek V4 Pro 公开提示词编码器与 tokenizer。由于已查来源未公开 OpenRouter／DeepInfra 的字节完全一致的私有提示词装配，它返回的是**估算**。打包 tokenizer/config 的哈希及官方文本、推理、工具 golden 离线验证。余量由调用者显式选择；估算不替代上游 usage 和费用。没有计量证据的官方定义无法成功规划。上面的合成 `controlledMeter` 只演示本地协议，绝不可用于真实供应商。
 
-37 个供给型号共用拒答文本读取器。当前 OpenAI、Anthropic、Moonshot 定义绑定各家族 `mp4-18` 实现，DeepSeek 与两个开源权重 Qwen 叶绑定 `mp4-19`，xAI 与六个商业 Qwen 叶绑定 `mp4-20`（各自家族的实现名），ZAI 五叶都绑定 `mp4-18`；Google 仍为 `mp4-17`。 `tests/official-reader-bindings.spec.ts` 对照明确的发布样本，验证所有当前工厂、完整 profile 和实际 planner 调用；工厂拒绝旧执行绑定。这些本地检查不等于 37 型号真实 OpenRouter 认证，Pro 上下文用量仍明确未知。
+37 个供给型号共用拒答文本读取器。当前 OpenAI、Anthropic 定义绑定各家族 `mp4-18` 实现，Moonshot、DeepSeek 与两个开源权重 Qwen 叶绑定 `mp4-19`，xAI 与六个商业 Qwen 叶绑定 `mp4-20`（各自家族的实现名），ZAI 五叶都绑定 `mp4-18`；Google 仍为 `mp4-17`。 `tests/official-reader-bindings.spec.ts` 对照明确的发布样本，验证所有当前工厂、完整 profile 和实际 planner 调用；工厂拒绝旧执行绑定。这些本地检查不等于 37 型号真实 OpenRouter 认证，Pro 上下文用量仍明确未知。
 
 `createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition)` 将单独的 V4.1 Flash tokenizer 和公开编码器绑定到 `deepseek/deepseek-v4.1-flash` / `deepinfra/fp8`。多轮工具与双图提示词使用固定的上游官方向量校验。`mp4-19` 实现按内联图片实际尺寸，使用固定公开图像处理器的 patch／下采样网格和 1,024-token 上限估算，并替换提示词已计入的图片占位符；实际供应商预处理并未公开。图片字节和数量仍由最终请求体的精确门检查。未知图片 URL 或不支持的内容在 HTTP 前返回计量不可得。估算包含提示词之外的序列化请求字段，不把内联 base64 当文本 token。余量由每次请求配置；估算不替代上游 usage，也不证明真实图片发送。
 
@@ -278,7 +278,7 @@ const meter = createXaiInputMeter(definition)
 // 向 createPiAiTransport({ ..., inputMeters: [meter!] }) 显式传入计量器。
 ```
 
-`createMoonshotInputMeter(definition)` 将 Kimi K3（`moonshotai/mxfp4`）与 K2.7 Code（`moonshotai/int4`）绑定到固定词表及各自 XTML／Jinja 提示词模板，两者均为定义修订 `3`、`pi-ai:moonshot@mp4-18`。文本、明文推理及配对工具历史参与估算，不再重复计入完整 JSON 外壳。K3 沿固定 encoder 按前一 assistant 的 call IDs 排序连续并行工具结果，仅用于提示词估算；实际发出的历史不改序。两型号按各自固定视觉处理规则估算内联 PNG/JPEG/WebP 图片，计入完整文本、工具与图片历史。K3 只发送 `low`、`high`、`max` 三档 effort，其他取值丢弃；K2.7 Code 丢弃任何显式 effort，不发送 `reasoning` 成员。两种丢弃都记在 `droppedParameters`。
+`createMoonshotInputMeter(definition)` 将 Kimi K3（`moonshotai/mxfp4`）与 K2.7 Code（`moonshotai/int4`）绑定到固定词表及各自 XTML／Jinja 提示词模板，两者均为定义修订 `3`、`pi-ai:moonshot@mp4-19`。文本、明文推理及配对工具历史参与估算，不再重复计入完整 JSON 外壳。K3 沿固定 encoder 按前一 assistant 的 call IDs 排序连续并行工具结果，仅用于提示词估算；实际发出的历史不改序。两型号按各自固定视觉处理规则估算内联 PNG/JPEG/WebP 图片，计入完整文本、工具与图片历史。K3 只发送 `low`、`high`、`max` 三档 effort，其他取值丢弃；K2.7 Code 丢弃任何显式 effort，不发送 `reasoning` 成员。两种丢弃都记在 `droppedParameters`。
 
 Moonshot 计量只做 full。每次请求都按完整输入计为 `estimated`，带上一轮响应观察的后续轮次也一样。本家族未采用增量的回放／新增贡献（φ/δ），二者返回 `unavailable`（`unsupported-marginal/1`），不声称任何增量估算。两条选定路由的已存档真实流，在每个推理片段旁都附带一条与明文 `reasoning` 片段逐字相同的可见 `reasoning.text` detail；reader 将其合并为一项，下一请求原样回放该项。可见推理历史按有限估算计量：assistant 消息的 `reasoning_details` 恰为一项、own keys 恰为 `type`、`text`、`format`、`index`（`reasoning.text`、非 `[REDACTED]` 的字符串 text、format `unknown`、index 0、无 `id` 与 `signature`），且并行的 `reasoning`／`reasoning_content` 若在场须为逐字相同的字符串时，该文字在仅供计量的副本中只放进模板推理槽位一次（K3 的 think 段、K2.7 Code 的 `<think>` 槽位）。实际发送体与字节仍保留 details；不另加输出或 `reasoning_tokens` 项，调用方余量只在最终门应用一次。OpenRouter 如何为这两条路由转换 details 未知，因此结果仍为 `estimated`，不承诺误差界。summary 或 encrypted 推理、任何附加键（含显式 `signature: null`）、多项或空数组、其他 format 或 index、不一致的并行字符串，以及非 assistant 消息上的 details 都使估算不可用，远程图片和未识别模型输入字段同样如此；这类请求在 HTTP 之前被拒绝。factory 返回的 full、replay、new 方法都经共同的来源与历史守门，直接交入的非法历史会被拒绝而不是计量。这些 details 的上游真实回放，以及必做的同路由 details 与明文 `reasoning` 字符串对照（MV4 含 P2），结果记录在 [Moonshot 可见推理决定](../../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/moonshot-visible-reasoning-decision.md)。K3 定义中保留视频输入声明；本期只承载文本和图片，视频不在本期范围内，不承载（`modality_not_carried`）。此估算不代表已认证 OpenRouter 实际用量、缓存保留期或费用；两型号已记录的真实 public 与 service 轮次列在 [transport 验证](../../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)。余量由调用方显式提供。随包的 `LICENSE.K3`、`LICENSE.K27` 保留各自上游许可和归属要求。
 
@@ -665,3 +665,6 @@ const replay = replayOutputHistory(replayInput, meter, visibleBodyCounter, finit
 ```
 
 三种输入都携带实际原组及选择区间；只有不存在已选入的原观测时才显式给空历史。`fullInput` 另携带真实序列化 body 及其投影。独立 full 的畸形输入返回 unavailable；畸形 new/replay 返回 invalidInput。合法来源缺少必要解释或签名前缀依据时，贡献返回 unavailable。planner 先从增量回退全量；全量仍不可计量时，既有 `invalidInput/input_size_unavailable` 表示准入失败，不表示签名或参数值非法。
+
+
+仅当前两条官方 Moonshot 完整绑定，在 user／system／reminder／compaction 的最终数组含其他内容时省略恰为空串的文本段；标记先加入，全空串、空数组、空白和调用者块均保留。assistant／tool 规则与其他路由保持原值。实现升至 `mp4-19`，definition 修订 3 与输入投影 `/3` 保持；计量和发送消费同一固定最终 body。见 [D-115](../../../.meta_harness/design/record/decisions/moonshot-empty-text-adoption/README.md)。
