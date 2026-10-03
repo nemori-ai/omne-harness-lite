@@ -295,7 +295,9 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
         type: 'module',
         exports: { '.': './dist/sign.js' },
         scripts: {
-          build: 'tsc src/sign.ts --outDir dist --module nodenext --target es2022 --skipLibCheck',
+          // pnpm 的 .bin shim 含相对路径，不能随 node_modules 软链接搬到夹具目录。
+          build:
+            'node node_modules/typescript/bin/tsc src/sign.ts --outDir dist --module nodenext --target es2022 --skipLibCheck',
           test: 'vitest run',
         },
       }),
