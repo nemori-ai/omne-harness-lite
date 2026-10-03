@@ -157,13 +157,7 @@ const effortApplies = (value: JsonValue | undefined) =>
   value === undefined || value === 'low' || value === 'medium' || value === 'high'
 
 export function classifyXaiDetail(detail: JsonValue): 'visible' | 'wholeGroup' | 'uninterpretable' {
-  if (
-    !object(detail) ||
-    detail.format !== 'xai-responses-v1' ||
-    (detail.id !== undefined && detail.id !== null && typeof detail.id !== 'string') ||
-    (detail.index !== undefined && !isNonNegativeJsonInteger(detail.index))
-  )
-    return 'uninterpretable'
+  if (!object(detail) || !detailIdentityValid(detail)) return 'uninterpretable'
   const field =
     detail.type === 'reasoning.summary'
       ? 'summary'
@@ -178,6 +172,14 @@ export function classifyXaiDetail(detail: JsonValue): 'visible' | 'wholeGroup' |
     Object.keys(detail).every(key => ['type', field, 'format', 'id', 'index'].includes(key))
     ? 'wholeGroup'
     : 'uninterpretable'
+}
+
+function detailIdentityValid(detail: JsonObject): boolean {
+  return !(
+    detail.format !== 'xai-responses-v1' ||
+    (detail.id !== undefined && detail.id !== null && typeof detail.id !== 'string') ||
+    (detail.index !== undefined && !isNonNegativeJsonInteger(detail.index))
+  )
 }
 
 export function classifyXaiUnit(unit: JsonValue): 'visible' | 'wholeGroup' | 'uninterpretable' {
@@ -226,58 +228,69 @@ function sourceApplies(
   if (!row || !currentMeterApplies(meter, row)) return false
   const provider = envelope.provider
   const reasoning = envelope.reasoning
-  if (
-    envelope.model !== row.modelId ||
-    !object(provider) ||
-    canonicalProjection(provider) !==
-      canonicalProjection({
-        order: ['xai'],
-        allow_fallbacks: false,
-        require_parameters: true,
-      }) ||
-    (reasoning !== undefined &&
-      (!object(reasoning) ||
-        Object.keys(reasoning).length !== 1 ||
-        !effortApplies(reasoning.effort)))
-  )
-    return false
+  if (!envelopeApplies(row)) return false
   const request = source.observation.inputCalibration.requestInput
   const basis = request.kind === 'known' ? request.countingBasis : undefined
   const binding = source.origin?.adaptation ?? basis?.binding
-  if (
-    !binding ||
-    binding.definition.modelId !== row.modelId ||
-    binding.implementation.name !== 'pi-ai:xai' ||
-    !originalRow(row, binding.definition.revision, binding.implementation.revision)
-  )
-    return false
-  if (
-    source.origin &&
-    (source.origin.provider !== 'xai' ||
-      !effortApplies(source.origin.parameters.reasoningEffort) ||
-      !identityApplies(row, source.origin))
-  )
-    return false
+  if (!bindingApplies(row) || !originApplies(row)) return false
   const observed = source.observation.inputCalibration.observedInput
-  if (
-    observed.kind !== 'unavailable' &&
-    (observed.provenance.adapterRevision !== 'openrouter-usage-reader/2' ||
-      !identityApplies(row, observed.provenance) ||
-      (source.origin !== undefined && !sameIdentity(source.origin, observed.provenance)))
-  )
-    return false
-  return source.observation.outputBlocks.some(block => {
-    if (block.kind !== 'thinking' || block.opaque === undefined) return false
-    const opaque = readOpaqueJson(block.opaque)
-    return (
-      object(opaque) &&
-      opaque.routeName === row.modelId &&
-      Object.keys(opaque).every(key => ['routeName', 'reasoning_details'].includes(key)) &&
-      Array.isArray(opaque.reasoning_details) &&
-      opaque.reasoning_details.length > 0 &&
-      opaque.reasoning_details.every(detail => classifyXaiDetail(detail) === 'wholeGroup')
+  if (!observedApplies(row)) return false
+  return opaqueBlocksApply(row)
+
+  function envelopeApplies(row: XaiRow): boolean {
+    return !(
+      envelope.model !== row.modelId ||
+      !object(provider) ||
+      canonicalProjection(provider) !==
+        canonicalProjection({
+          order: ['xai'],
+          allow_fallbacks: false,
+          require_parameters: true,
+        }) ||
+      (reasoning !== undefined &&
+        (!object(reasoning) ||
+          Object.keys(reasoning).length !== 1 ||
+          !effortApplies(reasoning.effort)))
     )
-  })
+  }
+  function bindingApplies(row: XaiRow): boolean {
+    return !(
+      !binding ||
+      binding.definition.modelId !== row.modelId ||
+      binding.implementation.name !== 'pi-ai:xai' ||
+      !originalRow(row, binding.definition.revision, binding.implementation.revision)
+    )
+  }
+  function originApplies(row: XaiRow): boolean {
+    return !(
+      source.origin &&
+      (source.origin.provider !== 'xai' ||
+        !effortApplies(source.origin.parameters.reasoningEffort) ||
+        !identityApplies(row, source.origin))
+    )
+  }
+  function observedApplies(row: XaiRow): boolean {
+    return !(
+      observed.kind !== 'unavailable' &&
+      (observed.provenance.adapterRevision !== 'openrouter-usage-reader/2' ||
+        !identityApplies(row, observed.provenance) ||
+        (source.origin !== undefined && !sameIdentity(source.origin, observed.provenance)))
+    )
+  }
+  function opaqueBlocksApply(row: XaiRow): boolean {
+    return source.observation.outputBlocks.some(block => {
+      if (block.kind !== 'thinking' || block.opaque === undefined) return false
+      const opaque = readOpaqueJson(block.opaque)
+      return (
+        object(opaque) &&
+        opaque.routeName === row.modelId &&
+        Object.keys(opaque).every(key => ['routeName', 'reasoning_details'].includes(key)) &&
+        Array.isArray(opaque.reasoning_details) &&
+        opaque.reasoning_details.length > 0 &&
+        opaque.reasoning_details.every(detail => classifyXaiDetail(detail) === 'wholeGroup')
+      )
+    })
+  }
 }
 
 export const xaiOutputHistoryPolicy: OutputHistoryPolicy = Object.freeze({
