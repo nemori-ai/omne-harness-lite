@@ -1,0 +1,105 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/packages/core/asset-evaluation
+
+ ✓  TS  tests/public.spec-d.ts (3 tests)
+ ✓ tests/normative.spec.ts (26 tests) 29368ms
+     ✓ E1 compares root and all five sets in one evaluation  4108ms
+     ✓ E1 all additional branches change only their hand-calculated fields  9950ms
+     ✓ E3 retains values, drops only locks/unknown references, with no since  3352ms
+     ✓ foreign holder tenant  1389ms
+     ✓ foreign workspace  1377ms
+     ✓ wrong root category  1426ms
+     ✓ missing held definition  1228ms
+     ✓ permission outside domain  1367ms
+     ✓ ineffective member  1375ms
+     ✓ resident on MCP  1373ms
+ ✓ tests/boundaries.spec.ts (23 tests) 14812ms
+     ✓ C3 missing workspace rejects its holdings  2179ms
+     ✓ C5 requires exactly one definition only for held records  320ms
+     ✓ C8 shared non-carrier workspace identity is rejected  1427ms
+     ✓ C10 real duration Schema rejects a selected setting but ignores root and undeclared settings  376ms
+     ✓ C11 duplicates and C14 duplicates/resident presence are rejected  303ms
+     ✓ C13 rejects not_fetched, wrong category, absent scope holding, and duplicates  5565ms
+     ✓ workspace stdio MCP and command hook are disabled before selection  563ms
+     ✓ transitive tool/skill residents default false, and output ownership never freezes the input  1644ms
+ ✓ tests/structure-properties.spec.ts (32 tests) 10652ms
+     ✓ Flock=false, Odisabled=false, Tdisabled=false, Olock=false, Tlock=false  993ms
+     ✓ Flock=false, Odisabled=false, Tdisabled=false, Olock=false, Tlock=true  438ms
+     ✓ Flock=false, Odisabled=false, Tdisabled=false, Olock=true, Tlock=false  363ms
+     ✓ Flock=false, Odisabled=false, Tdisabled=false, Olock=true, Tlock=true  375ms
+     ✓ Flock=false, Odisabled=false, Tdisabled=true, Olock=false, Tlock=false  356ms
+     ✓ Flock=false, Odisabled=false, Tdisabled=true, Olock=false, Tlock=true  354ms
+     ✓ Flock=false, Odisabled=false, Tdisabled=true, Olock=true, Tlock=false  348ms
+     ✓ Flock=false, Odisabled=false, Tdisabled=true, Olock=true, Tlock=true  347ms
+     ✓ Flock=false, Odisabled=true, Tdisabled=false, Olock=false, Tlock=false  358ms
+     ✓ Flock=false, Odisabled=true, Tdisabled=false, Olock=false, Tlock=true  364ms
+     ✓ Flock=false, Odisabled=true, Tdisabled=false, Olock=true, Tlock=false  364ms
+     ✓ Flock=false, Odisabled=true, Tdisabled=false, Olock=true, Tlock=true  374ms
+     ✓ Flock=false, Odisabled=true, Tdisabled=true, Olock=false, Tlock=true  301ms
+ ✓ tests/c10-used.spec.ts (5 tests) 7515ms
+     ✓ missing outer unlocked pick is not used, even when outside its declaration domain  2880ms
+     ✓ the same missing strictly outer immutable bound fails before intersection with strict  2092ms
+     ✓ missing same-layer immutable value does not automatically create a permission  740ms
+     ✓ missing inner not_usable holding value is not used  747ms
+     ✓ an existing effective permission checks every candidate even when a valid inner pick would win  1046ms
+ ✓ tests/mcp-snapshot.spec.ts (6 tests) 4381ms
+     ✓ absent snapshots derive static fields only  1138ms
+     ✓ not_fetched is C13, with no assembly partial result  458ms
+     ✓ fetched empty is knowledge of no actions and has the same static value set  853ms
+     ✓ fetched nonempty derives exactly the supplied actions and tenant writable is always false  424ms
+     ✓ a snapshot from a different held scope does not become the selected asset action set  753ms
+     ✓ workspace permissions are retained then excluded even without a known action  747ms
+ ❯ tests/body-domain.spec.ts (14 tests | 1 failed) 2821ms
+     × default construction contains the five released real ports 30ms
+     ✓ actual record Connector is technical unavailability 2ms
+     ✓ actual draft Connector is technical unavailability 0ms
+     ✓ actual current Connector is technical unavailability 0ms
+     ✓ actual historical Connector is technical unavailability 0ms
+     ✓ actual unheld Connector is technical unavailability 6ms
+     ✓ ordinary Connector references are unresolved and a held identifier without a definition is C5  789ms
+     ✓ opaque JSON and body data named category never recursively constrain availability 38ms
+     ✓ one complete result derives actual settings, power, per-action execution, and references  740ms
+     ✓ invalid tool body is rejected by the real AssetModel and evaluation 259ms
+     ✓ invalid skill body is rejected by the real AssetModel and evaluation 264ms
+     ✓ invalid mcp body is rejected by the real AssetModel and evaluation 206ms
+     ✓ invalid loop_extension body is rejected by the real AssetModel and evaluation 251ms
+     ✓ invalid slash_command body is rejected by the real AssetModel and evaluation 223ms
+ ✓ tests/normative-given.spec.ts (12 tests) 2710ms
+     ✓ E1 ten values, root and all five sets, replay and four additional branches  2453ms
+ ✓ tests/permissions-evaluate.spec.ts (7 tests) 2571ms
+     ✓ author ask, tenant auto  882ms
+     ✓ organization empty bound  348ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/body-domain.spec.ts > precise current body-provider domain > default construction contains the five released real ports
+AssertionError: expected { category: 'tool', …(4) } to be { category: 'tool', …(4) } // Object.is equality
+
+If it should pass with deep equality, replace "toBe" with "toStrictEqual"
+
+Expected: { category: 'tool', …(4) }
+Received: serializes to the same string
+
+
+Compared values have no visual difference.
+
+ ❯ tests/body-domain.spec.ts:53:39
+     51|     expect(Object.isFrozen(defaultBodyContracts)).toBe(true)
+     52|     expect(Object.values(defaultBodyContracts).every(port => Object.is…
+     53|     expect(defaultBodyContracts.tool).toBe(toolBodyContract)
+       |                                       ^
+     54|     expect(defaultBodyContracts.loop_extension.schema).toEqual(loopSch…
+     55|     expect(defaultBodyContracts.skill).toBe(skillBodyContract)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 8 passed (9)
+      Tests  1 failed | 127 passed (128)
+Type Errors  no errors
+   Start at  21:27:12
+   Duration  84.78s (transform 952ms, setup 0ms, import 4.07s, tests 74.83s, environment 1ms, typecheck 4.31s)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r3/packages__core__asset-evaluation-slow.json

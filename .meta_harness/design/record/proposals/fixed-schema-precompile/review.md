@@ -17,3 +17,10 @@
 ## 完整计划核对
 
 [revision3全文报告](review-65-plan-r3.txt)无阻断；此前r2只核简报的未覆盖仍保留。N1建议由ROOT采纳：共享helper/codegen/构建输入改变，暂停受影响扩散、补验受影响门项，在新摘要重新释放；不是自动全量重跑。过程计划仍归任务tmp，不进record；本报告不接受设计正文的表达，也不代表运行验证。
+
+
+## 2026-10-03 AE 发布快照的身份断言迁移
+
+主体合并后的默认 owner 片触发旧端口身份断言：候选 b03945d7e 的 AE 慢层128条中127通过，首个 toBe(originalPort)失败。已接受 design.md 要求复制全部生产 Schema/ports，旧身份与该边界不相容。窄[选择评审原件](default-owners-identity-choice.txt)未发现阻断或新增产品选择；评审未运行工具，不代表实现验收。
+
+ROOT 在原自主技术交付授权内采纳有限迁移：更换 body-domain.spec.ts 和 tools/core-verification/src/w6-asset-consumer.ts 各四处 tool/skill/mcp/slash_command 端口身份断言，以及后者一处LC3 Schema身份断言，核新 port、新 Schema 身份、Schema值与category相同，以及三个职责函数引用相同。保留五类keys、冻结、LC3值等价与其余业务预期；新增LC3不同Schema身份。原失败与后续实际结果分开记录，不再声称全部旧断言逐项不变。

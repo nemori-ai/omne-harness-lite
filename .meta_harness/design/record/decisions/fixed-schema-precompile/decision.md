@@ -46,3 +46,10 @@ code-runtime不导入编译器、标准meta、生成器或根入口，无IO/TLA�
 ## 2026-10-03 主体交付事件
 
 20 个固定图成员及 AM 同 owner 消费迁移已实施，运行证据与有限技术签收见[主体交付记录](../../evidence/2026-10-03-tests-fixed-schema-main/README.md)。本事件取代上文「取代与未完成」中当时关于主体实现/验证未完成的状态，不改写当时的技术采用依据。三默认 owner 与 AE 生产 Schema 发布快照仍待后续 PR；性能读数保留冻结输入及单 CPU 前提，不提升原正常并发目标的接受状态。
+
+
+## 2026-10-03 AE 快照身份断言的有限迁移
+
+已接受的[AE装配设计](../../proposals/fixed-schema-precompile/design.md)明确复制生产 Schema/ports。旧测试四处端口身份断言与该选择冲突，实际[原失败](../../evidence/2026-10-03-tests-default-schema-owners/README.md)保留。窄[选择判断](../../proposals/fixed-schema-precompile/default-owners-identity-choice.txt)无阻断、无新增产品选择，未代替运行验收。主会话在本决定原技术交付授权内采纳以下迁移。
+
+仅取代本决定「现有断言与预期不变」在 AE body-domain.spec.ts 及 tools/core-verification/src/w6-asset-consumer.ts 各四处生产 port 对象身份断言、以及后者一处 LC3 Schema 身份断言上的适用：新断言核新 port、新 Schema 身份、Schema值与category等价，以及 judge/deriveDeclarations/references引用不变。五类keys、容器/端口冻结、LC3原值等价及其他业务断言保持；增加LC3不同Schema身份。深冻结、原JSON反控、首用失败与重试继续履行既有义务。没有新增公开入口、缓存政策或兼容层；原失败、后续执行和L2独立验收各留自身输入。

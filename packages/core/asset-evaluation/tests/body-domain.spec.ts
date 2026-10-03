@@ -50,11 +50,23 @@ describe('precise current body-provider domain', () => {
     ])
     expect(Object.isFrozen(defaultBodyContracts)).toBe(true)
     expect(Object.values(defaultBodyContracts).every(port => Object.isFrozen(port))).toBe(true)
-    expect(defaultBodyContracts.tool).toBe(toolBodyContract)
+    // D-116 publishes owned snapshots while preserving the real provider closures.
+    for (const [category, original] of [
+      ['tool', toolBodyContract],
+      ['skill', skillBodyContract],
+      ['mcp', mcpBodyContract],
+      ['slash_command', slashCommandBodyContract],
+    ] as const) {
+      const published = defaultBodyContracts[category]
+      expect(published).not.toBe(original)
+      expect(published.category).toBe(original.category)
+      expect(published.schema).not.toBe(original.schema)
+      expect(published.schema).toEqual(original.schema)
+      for (const responsibility of ['judge', 'deriveDeclarations', 'references'] as const)
+        expect(published[responsibility]).toBe(original[responsibility])
+    }
+    expect(defaultBodyContracts.loop_extension.schema).not.toBe(loopSchemaV3)
     expect(defaultBodyContracts.loop_extension.schema).toEqual(loopSchemaV3)
-    expect(defaultBodyContracts.skill).toBe(skillBodyContract)
-    expect(defaultBodyContracts.mcp).toBe(mcpBodyContract)
-    expect(defaultBodyContracts.slash_command).toBe(slashCommandBodyContract)
   })
   const connector = { category: 'connector', name: 'external' } as const
   const actual = { category: 'connector', body: {} } as const
