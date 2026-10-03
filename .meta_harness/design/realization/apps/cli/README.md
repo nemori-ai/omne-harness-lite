@@ -14,7 +14,7 @@
 
 
 - kind：assembly
-- 交付面：[PF016](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 10），本期治理CLI/TUI。
+- 交付面：[PF016](../../../product/PF-016-cli-tui-delivery-surface/README.md)（rev 11），首批治理CLI/TUI。
 - 源码位置：`apps/cli`，D049文件输入增量已实现。
 - 语义接受：CQ1 S1～10已由[D049](../../../record/decisions/governance-cli-file-entry-adoption/README.md)接受；消费CG2/CLS1及冻结CG1报告表示。
 - 可实施：D049受保护文件CLI与D051限定profile的治理TUI；两者共用CG2/CLS1，秘密仍从保护文件读取，精确边界归[governance.md](governance.md)与[tui.md](tui.md)。
