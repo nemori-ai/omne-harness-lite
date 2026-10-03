@@ -61,3 +61,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-10-03 Schema构造与消费补充
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)技术采用：AM声明/manifest复用绑定owner，作者临时编译保持；AE发布捕获深冻结生产Schema，AE/EIS/registry三个默认owner首用构造分后续PR；MRR的固定图缺陷归相应MS/MR/CA构建失败，缺产物首次实际消费原抛。仅各自相关条款适用；本机制实施/验证尚待，不改变契约和原历史run。

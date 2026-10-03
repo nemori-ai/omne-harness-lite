@@ -90,3 +90,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 ## 2026-09-27 v4 技术采用
 
 [D-073](../../../../record/decisions/model-current-input-contracts-adoption/decision.md)接受 AE4 及本纯增量设计；此前候选读数保留原字节。AD1/MP3 已由 D072/D070 接受。v4 源码及真实符合性另行核验，旧 v3 的绑定不重标。
+
+## 2026-10-03 Schema构造与消费补充
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)技术采用：AM声明/manifest复用绑定owner，作者临时编译保持；AE发布捕获深冻结生产Schema，AE/EIS/registry三个默认owner首用构造分后续PR；MRR的固定图缺陷归相应MS/MR/CA构建失败，缺产物首次实际消费原抛。仅各自相关条款适用；本机制实施/验证尚待，不改变契约和原历史run。

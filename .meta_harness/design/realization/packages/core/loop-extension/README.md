@@ -87,3 +87,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 ## 2026-09-28 纯主体判断增补采用
 
 [D-106追加](../../../../record/decisions/runner-current-pure-provider-adoption/decision.md)技术采用[v7纯主体增补](v7-subject-judgment-design.md)精确SHA 53573d393e7fa61afdeb7d6d5abe3aaac93e2703626ced3214fda3835e7fd3a5。只释放两个公共纯判断及共享私有流水线的施工，LC6与Schema不变，S-14外部责任不迁移。原完整输入入口不降低前提；源码/制品/SV-1～6尚待，新增绑定0，不提升完整runner服务状态。
+
+## 2026-10-03 固定Schema技术采用
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。

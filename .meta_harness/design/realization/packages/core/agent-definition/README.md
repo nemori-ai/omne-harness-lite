@@ -30,3 +30,7 @@
 ## 2026-09-27 技术采用
 
 [D-072](../../../../record/decisions/agent-definition-read-adoption/decision.md)已接受 AD1 及本纯模块设计。此事件不修改此前设计字节，不证明源码或真实IO。Profile3 依据 D070 已接受；当前源生产者为 evaluation-input-store，验收应用为 model-request-acceptance，其节点和实际结果分别核验。
+
+## 2026-10-03 固定Schema技术采用
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。

@@ -10,3 +10,7 @@
 [设计](design.md) · [验证](verification.md)。来源为[CG1](../../../../spec/compositions/governance-client-operations/README.md)与[CLI-TUI §11](../../../../record/proposals/cli-tui/governance-client.md#11-2026-09-25-共享治理用例组合接续)，D046边界不重开。
 
 [CG2交互输入扩展](design-v2.md)已由[D048](../../../../record/decisions/governance-prepared-input-adoption/README.md)接受并实现，公开runPrepared及use.runPrepared；Input/Output仍沿冻结v1资源，新增Schema由schema/v2公开。139项测试（原106+新增33）及两平台真实编译组合通过，见[运行包](../../../../record/evidence/2026-09-25-tests-prepared-input/README.md)。上方D047数字为历史增量，不能替代本次新增证据；CLI/TUI仍未交付。
+
+## 2026-10-03 固定Schema技术采用
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。

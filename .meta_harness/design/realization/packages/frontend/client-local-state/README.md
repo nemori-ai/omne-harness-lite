@@ -8,3 +8,7 @@
 - 实际验证：本地36项、真实编译产物双平台驱动及infra 42项检查通过；详见验证义务与实际运行，未包含CLI/TUI。
 
 [设计](design.md) · [验证义务](verification.md)。初始化竞争、目录同步与真实多进程验证不可用形式模型替代。
+
+## 2026-10-03 固定Schema技术采用
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。

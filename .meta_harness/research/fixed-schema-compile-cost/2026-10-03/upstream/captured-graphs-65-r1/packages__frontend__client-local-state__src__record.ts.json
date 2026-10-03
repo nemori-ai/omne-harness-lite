@@ -1,0 +1,3594 @@
+{
+  "path": "packages/frontend/client-local-state/src/record.ts",
+  "sourceSha256": "1451cb661f2d8e72360ce0666c3cbe51790573d024f1929943ab5e435cc5fc25",
+  "inputs": [
+    {
+      "path": "packages/frontend/client-local-state/src/record.ts",
+      "bytes": 5867,
+      "sha256": "1451cb661f2d8e72360ce0666c3cbe51790573d024f1929943ab5e435cc5fc25"
+    },
+    {
+      "path": "packages/frontend/governance-center-client/schema/governance-center-entry.schema.json",
+      "bytes": 96559,
+      "sha256": "7c7124396ea16e1f0d2eda7d6a44f4284d9be77f2546e74de7ae740d718a3b29"
+    },
+    {
+      "path": "packages/core/identity-values/schema/identity-values.schema.json",
+      "bytes": 15185,
+      "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855"
+    },
+    {
+      "path": "packages/core/offer-expiry/schema/offer-expiry.schema.json",
+      "bytes": 5296,
+      "sha256": "2fa7b9bcd5ba528ef4dafc6812cc087c839c0a45a5e0f465747ad44a7230d05b"
+    }
+  ],
+  "skippedNonInitializationImports": [],
+  "graphs": [
+    {
+      "ordinal": 0,
+      "kind": "ordinary-ajv",
+      "options": {
+        "strict": true,
+        "strictTypes": false,
+        "strictRequired": false,
+        "validateFormats": false
+      },
+      "keywords": [
+        "x-counterexamples"
+      ],
+      "resources": [
+        {
+          "meta": false,
+          "value": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+            "title": "data.identity-values v1",
+            "description": "身份值的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.identity-values/v1 内有效。",
+            "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；隔离义务 S-16～S-30 约束的是各 owner 的访问路径与判定，Schema 一概管不到，由静态检查与消费者契约兑现。正反实例在同目录 examples.md。",
+            "$defs": {
+              "OpaqueIdentifier": {
+                "title": "不透明标识（内部基定义）",
+                "description": "S-1、S-3、S-9、S-31：不透明、部署内唯一、由存储生成的标识。交换表示是非空字符串，禁止首尾空白；相等是逐码点精确相等，不做 Unicode 规范化、大小写折叠或首尾裁剪。消费者不得解析其内容推断注册时间、顺序或归属，也不得做除相等之外的比较。它不来自运行时对象（如 Cordis 的 Fiber.uid）。本定义不单独被引用，只供下面各具体标识复用。",
+                "$comment": "字符集、长度与生成方式是已知缺口 G-04，留 realization。此处只约束到「非空、无首尾空白的字符串」，不补造格式；实现不得把这里的宽松当作「任意字符串都是合法标识」。pattern 刻意不用 \\s 与 $：\\s 的成员在不同引擎里不同（ECMA-262 含 U+FEFF、Python 不含），而 Python 的 $ 还会匹配到「末尾换行之前」，于是同一个串会被两个实现一收一拒。这里改用 S-31 写死的显式空白码点集合（U+0009–000D、U+0020、U+0085、U+00A0、U+1680、U+2000–200A、U+2028、U+2029、U+202F、U+205F、U+3000、U+FEFF）的否定字符类，并以 (?![\\s\\S]) 作绝对结尾断言——[\\s\\S] 的并集在任何引擎下都是全字符集，因此这个否定前瞻只在真正的字符串末尾成立。回归用例：examples.md 第 1 节的尾随换行与前导 U+FEFF 两条反例。",
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+              },
+              "HandoffWarrant": {
+                "$ref": "#/$defs/OpaqueIdentifier",
+                "title": "交接凭证 · Handoff Warrant",
+                "description": "S-35：一步操作交给下一步的凭证，断言「我这一步已经做完」，不断言别的。它不是身份值——不指认任何对象，不得作任何记录的键。形状与不透明标识同形：非空、首尾无空白、逐码点精确相等、核实方不解析其内容。六条性质里 Schema 一条也管不到：由哪一步产出、绑定哪个对象标识（本版两个实例都绑 AccountId，不绑定尝试、本版不作废，重放安全由核实方在自己提交里的前置现读承担）、核实方核实存在/绑定/由产出方签发、核实方不核实它断言的领域事实——全部是行为约束，归产出方与核实方各自的契约。",
+                "$comment": "绑定字段（凭证里怎么承载 AccountId）的形状由 realization 定，本 Schema 只约束到非空字符串，刻意不给结构：给了结构就等于邀请核实方去解析它，而里面的内容是产出方写的，解析出来的东西证明不了任何事。不可伪造同样管不到——它是 S-35 的契约承诺，单机由装配给（同进程 nonce 登记），跨进程须由协议重新兑现（签名或共享登记），见 contract.md 第六节。本版的两个实例：激活依据（composition.account-registration 于 capability.organization-governance#S-20 成功时产出，capability.account-identity#S-14 核实）、清除依据（capability.organization-governance#S-53 成功含幂等成功时产出，capability.account-identity#S-38 核实）。",
+                "examples": [
+                  "whf_2a91c07e"
+                ]
+              },
+              "LoginIdentifier": {
+                "$ref": "#/$defs/OpaqueIdentifier",
+                "title": "登录标识 · Login Identifier",
+                "description": "S-2：账号的一项属性（UL-login-identifier），用来指认这个账号的对外名字。整个部署内唯一，注册时确定，未激活的账号同样占用它。它只承担「指认」，不证明来者持有这个账号——那是凭据的事。它不是 AccountId：不得出现在 TenantId 中，也不得作为任何归属记录的键。本版无变更路径。",
+                "$comment": "它的对外形式（是否邮箱、是否允许大小写差异）本版未定，与 G-04 同属 realization。此处复用 OpaqueIdentifier 只是形状上的最小约束，不表示它对用户不可读。",
+                "examples": [
+                  "ada@example.invalid"
+                ]
+              },
+              "AccountId": {
+                "$ref": "#/$defs/OpaqueIdentifier",
+                "title": "账号标识 · Account Id",
+                "description": "S-1：账号（UL-account）的标识。不透明、部署内唯一、由存储生成、不回收不复用。相等即同一个账号。跨对象引用一律用它，不用登录标识（S-2）。",
+                "examples": [
+                  "acc_91ab40"
+                ]
+              },
+              "OrganizationId": {
+                "$ref": "#/$defs/OpaqueIdentifier",
+                "title": "组织标识 · Organization Id",
+                "description": "S-3：组织（UL-organization）的标识。不透明、部署内唯一、由存储生成、不回收不复用。个人组织与团队组织共用同一个标识空间，不能从它的形状分辨变体——要分辨读 OrganizationKind。",
+                "examples": [
+                  "org_7fd2c1"
+                ]
+              },
+              "LoginStateId": {
+                "$ref": "#/$defs/OpaqueIdentifier",
+                "title": "登录状态标识 · Login State Id",
+                "description": "S-9：登录状态（UL-login-state）的标识。不透明、部署内唯一、由存储生成。每次登录产生新的一个，不复用；它不是会话的标识，也不是账号的标识。产品正文未述登录状态靠什么标识（缺口 G-06），本定义只给出满足「彼此可分辨」的最小形状。",
+                "examples": [
+                  "lgs_3c7e11"
+                ]
+              },
+              "OrganizationKind": {
+                "title": "OrganizationKind",
+                "description": "S-4：组织的一项属性，创建时确定、此后不可改、无写路径。它是规格层的判别式名，不是统一语言词条——词表里没有「组织变体」这一条，因此这里刻意不给它「中文 · English」那种词条式标题。它的两个取值各对应一个词条：personal ↔ 个人组织 Personal Organization，team ↔ 团队组织 Team Organization。personal 蕴含一组结构性禁止（恰四条，逐条连同在哪个失败值上兑现，写在 omne-harness-lite-design-2026-09-15 · capability.organization-governance · v1 的 S-6；本契约不自列一份）。本契约只取其数据形状后果：判断这些事读这一个值、不另立标志位；个人组织的上级链恒空，因此任何两个不同的个人组织都不会有共同上级。",
+                "$comment": "「personal 蕴含那组禁止」是跨对象约束，Schema 表达不了，归组织治理契约与其结构模型。判别式闭合、未知取值一律拒绝，见 S-32。",
+                "type": "string",
+                "enum": [
+                  "personal",
+                  "team"
+                ]
+              },
+              "TenantRole": {
+                "title": "租户角色 · Tenant Role",
+                "description": "S-8：租户在其组织内的属性，单值，取值恰两种。可变，变更只影响此后的准入判定，不改变已发生的归属与既有事实。superAdministrator 的作用域恰是该组织，不表达任何平台范围的资格。它不进租户身份（见 TenantId）。",
+                "type": "string",
+                "enum": [
+                  "superAdministrator",
+                  "member"
+                ]
+              },
+              "TenantId": {
+                "title": "租户身份 · Tenant Id",
+                "description": "S-5 / S-7：值类型，由 (OrganizationId, AccountId) 这一有序对确定，这是它的唯一规范序列化形式。相等按分量，不存在第三种相等依据。不含角色、不含成员资格、不含时间。S-6：没有生成路径，也没有销毁路径——成员关系的建立与解除改变的是 MembershipStanding，不改变这个值是哪一个，已记录的引用永不悬空。两个分量都必需：缺一即非法值，不得用环境里的当前账号或当前组织补齐（S-12）。",
+                "$comment": "本版刻意不定义任何标量形式（拼接串、哈希、编码键都不是），见缺口 G-05。消费者若在实现里需要标量键，不得把它作为身份对外发布，也不得把解析它的结果当作授权依据（S-7、S-34）。additionalProperties: false 同时挡住了「顺手加一个 role 字段」这种最常见的越界。",
+                "type": "object",
+                "properties": {
+                  "organization": {
+                    "$ref": "#/$defs/OrganizationId"
+                  },
+                  "account": {
+                    "$ref": "#/$defs/AccountId"
+                  }
+                },
+                "required": [
+                  "organization",
+                  "account"
+                ],
+                "additionalProperties": false,
+                "examples": [
+                  {
+                    "organization": "org_7fd2c1",
+                    "account": "acc_91ab40"
+                  }
+                ]
+              },
+              "MembershipStanding": {
+                "title": "成员资格效力 · Membership Standing",
+                "description": "S-10：一个租户此刻算不算数（UL-membership-standing），恰两值。effective 表示成员关系成立，并同时给出该租户在其组织内恰持的那一个角色；ineffective 表示从未建立或已被解除。没有「有效但角色未知」这一态。「读不到」不是它的第三个取值——那是读面的失败，见 MembershipStandingResult 与 S-19。token 与词条的对应：effective ↔ 词条的「有效 In force」，ineffective ↔ 「无效 Not in force」。两者不得互相替代——对外文档用词条名，交换表示用 token；token 取「同一词根的正反」这条最不易写错的形状，不必与词条英文同形。",
+                "$comment": "效力本身（读面、写路径、失败集合）归组织治理契约，本契约只定取值与消费者的义务。断与续改变效力，不改变这个租户是哪一个（S-5、S-6）；角色调整两样都不改。",
+                "type": "object",
+                "oneOf": [
+                  {
+                    "title": "有效",
+                    "properties": {
+                      "standing": {
+                        "const": "effective"
+                      },
+                      "role": {
+                        "$ref": "#/$defs/TenantRole"
+                      }
+                    },
+                    "required": [
+                      "standing",
+                      "role"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "无效",
+                    "properties": {
+                      "standing": {
+                        "const": "ineffective"
+                      }
+                    },
+                    "required": [
+                      "standing"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "examples": [
+                  {
+                    "standing": "effective",
+                    "role": "superAdministrator"
+                  },
+                  {
+                    "standing": "ineffective"
+                  }
+                ]
+              },
+              "MembershipStandingResult": {
+                "title": "MembershipStandingResult",
+                "description": "S-10、S-19：成员资格判定的结果——要么是一个 MembershipStanding，要么以「不可用」失败。读面 capability.organization-governance/v1#S-26 的返回是闭合和 invalidInput | MembershipStandingResult，本类型只是其中的右项。它是规格层的结果包装名，不是统一语言词条——词表里没有它，因此这里刻意不给「中文 · English」那种词条式标题。准入判定必须用的那个成员资格读面是 omne-harness-lite-design-2026-09-15 · capability.organization-governance · v1 的 S-26（S-10：同契约的 S-59、S-27 也会说到成员关系，但它们的返回一概不得作准入依据）；它失败集合里的 unavailable 就是本类型的 {\"failure\": \"unavailable\"} 那一支，必须以返回值承载，不得走带外错误通道。{\"failure\": \"unavailable\"} 是失败，不是效力值：它表示这一次判不出来，而 ineffective 是判出来的结果是无效。消费者拿到它必须明确失败，不得视作 ineffective、不得回退到任何其他范围、不得返回空集、不得据此执行清理、不得写缓存。",
+                "$comment": "把失败放进一个与效力并列的包装、而不是塞成第三个 standing 取值，是为了让「不可用 ≠ 无效」在类型上就成立：拿到本类型的消费者必须先分支，分不掉。失败刻意不带原因字段——带上原因会诱使消费者按原因分支，而唯一正确的消费方式是失败。",
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/MembershipStanding"
+                  },
+                  {
+                    "title": "不可用（失败，不是效力值）",
+                    "type": "object",
+                    "properties": {
+                      "failure": {
+                        "const": "unavailable"
+                      }
+                    },
+                    "required": [
+                      "failure"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "examples": [
+                  {
+                    "standing": "effective",
+                    "role": "member"
+                  },
+                  {
+                    "standing": "ineffective"
+                  },
+                  {
+                    "failure": "unavailable"
+                  }
+                ]
+              },
+              "ScopeLayerIdentity": {
+                "title": "作用域层身份 · Scope Layer Identity",
+                "description": "S-11：作用域层的一格由哪重身份充当（UL-scope-layer-identity），本版供得出标识表示的恰两个变体：organization 由组织充当、携带一个 OrganizationId；tenant 由租户充当、携带一个 TenantId。刻意不含另两格与两个误解：factoryDefault（由系统充当，没有一个身份对象占这一格，不得铸一个「平台租户」）、session（由那个会话充当，但它的标识表示是缺口 G-01，归 PF-015）、account（账号不充当任何一格，它的求值是恒等的）、workspace（不是一重身份，只在设置与资产归属两条层序上各占一格）。本类型不表达资产归属那条层序（official < 组织 < 租户 < 工作区），那是另一条层序，成员对不齐。",
+                "$comment": "不含 session 是本版的一个明确设计动作，不是遗漏：词条已定它由那个会话充当，缺的是「用什么标识表示」。让它无法被静默构造出来，需要它的消费者会在这里停下并报缺口，而不是照一个猜测实施。补上它要出 v2。",
+                "type": "object",
+                "oneOf": [
+                  {
+                    "title": "组织级",
+                    "properties": {
+                      "layer": {
+                        "const": "organization"
+                      },
+                      "organization": {
+                        "$ref": "#/$defs/OrganizationId"
+                      }
+                    },
+                    "required": [
+                      "layer",
+                      "organization"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "租户级",
+                    "properties": {
+                      "layer": {
+                        "const": "tenant"
+                      },
+                      "tenant": {
+                        "$ref": "#/$defs/TenantId"
+                      }
+                    },
+                    "required": [
+                      "layer",
+                      "tenant"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "examples": [
+                  {
+                    "layer": "organization",
+                    "organization": "org_7fd2c1"
+                  },
+                  {
+                    "layer": "tenant",
+                    "tenant": {
+                      "organization": "org_7fd2c1",
+                      "account": "acc_91ab40"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "meta": false,
+          "value": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v2/offer-expiry.schema.json",
+            "title": "Offer expiry v2",
+            "description": "待接受邀约的过期语义：两个时刻值与派生状态的枚举。各消费者的 Schema 引用本文件的 $defs，不复制定义。本文件只约束形状，不能约束判定时点、时间源同源、存在性读面调用（见 contract.md S-22）。",
+            "$ref": "#/$defs/OfferTiming",
+            "$defs": {
+              "Instant": {
+                "title": "时间点",
+                "description": "带时区偏移的 RFC 3339 时间点字符串，推荐以 UTC 书写。比较按时间点语义，不按字典序。pattern 与 format 并列：多数校验器把 format 当注解而不断言，只写 format 会让「日期不是时间点」这条漏过去。",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]+)?([Zz]|[+-][0-9]{2}:[0-9]{2})$"
+              },
+              "OfferTiming": {
+                "title": "邀约的两个时刻（contract.md S-4）",
+                "description": "issuedAt 与 expiresAt 在邀约写入的同一次提交内确定，此后不可修改（S-5）。不含标识：本契约不铸标识（S-3）。",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "issuedAt",
+                  "expiresAt"
+                ],
+                "properties": {
+                  "issuedAt": {
+                    "$ref": "#/$defs/Instant",
+                    "description": "这份邀约被发出的时刻。"
+                  },
+                  "expiresAt": {
+                    "$ref": "#/$defs/Instant",
+                    "description": "这份邀约不再可被接受的时刻；expiresAt 必须严格晚于 issuedAt（S-4）。恰好等于该时刻仍可接受（S-8 用严格不等号）。"
+                  }
+                },
+                "examples": [
+                  {
+                    "issuedAt": "2026-09-22T09:00:00Z",
+                    "expiresAt": "2026-09-29T09:00:00Z"
+                  },
+                  {
+                    "issuedAt": "2026-09-22T17:00:00+08:00",
+                    "expiresAt": "2026-09-22T17:00:01+08:00"
+                  }
+                ],
+                "x-counterexamples": [
+                  {
+                    "value": {
+                      "issuedAt": "2026-09-22T09:00:00Z"
+                    },
+                    "rejectedBySchema": true,
+                    "why": "缺 expiresAt。没有到期时刻的邀约会无限期悬着，正是 S-1 要消除的情形；缺字段是拒绝，不取默认值（S-22）。"
+                  },
+                  {
+                    "value": {
+                      "issuedAt": "2026-09-22",
+                      "expiresAt": "2026-09-29"
+                    },
+                    "rejectedBySchema": true,
+                    "why": "日期不是时间点。判定式 S-8 比较的是时刻，日期值使「now > expiresAt」在一天之内无法求值。由 Instant 的 pattern 拒绝，不依赖校验器是否断言 format。"
+                  },
+                  {
+                    "value": {
+                      "issuedAt": "2026-09-22T09:00:00Z",
+                      "expiresAt": "2026-09-29T09:00:00Z",
+                      "state": "pending"
+                    },
+                    "rejectedBySchema": true,
+                    "why": "多出 state 字段。pending 与 expired 都是派生结果，不是被存下来的值（S-7）；把 expired 存成字段就需要一个按时发生的写入来维持正确，而 S-18 禁止依赖它。"
+                  },
+                  {
+                    "value": {
+                      "issuedAt": "2026-09-22T09:00:00Z",
+                      "expiresAt": "2026-09-22T09:00:00Z"
+                    },
+                    "rejectedBySchema": false,
+                    "why": "expiresAt 不晚于 issuedAt，违反 S-4，但**本 Schema 放它过去**：跨字段比较不在形状约束内，由消费者的写入前置兑现。留在这里是为了让 S-22「Schema 校验通过不表示条款成立」有一个具体的、可执行的例子，而不是一句免责声明。"
+                  }
+                ]
+              },
+              "OfferState": {
+                "title": "邀约的派生状态（contract.md S-7）",
+                "description": "读时求值；accepted、withdrawn、declined由对应操作同提交写终结，pending/expired派生。",
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "accepted",
+                  "withdrawn",
+                  "declined",
+                  "expired"
+                ],
+                "examples": [
+                  "pending",
+                  "expired",
+                  "declined"
+                ],
+                "x-counterexamples": [
+                  {
+                    "value": "cancelled",
+                    "rejectedBySchema": true,
+                    "why": "枚举外的值。撤回一律记为 withdrawn；另造同义词会让 S-12「过期与撤回收场相同」在两处各写一遍。"
+                  },
+                  {
+                    "value": "expiring",
+                    "rejectedBySchema": true,
+                    "why": "没有中间态。过期不是一个进行中的过程，是一次求值的结果（S-9）。"
+                  }
+                ]
+              },
+              "SettledState": {
+                "title": "终结记录（contract.md S-7、S-8）",
+                "description": "三个终结值。先看已终结记录，不再转expired，不允许相互覆盖。",
+                "type": "string",
+                "enum": [
+                  "accepted",
+                  "withdrawn",
+                  "declined"
+                ],
+                "examples": [
+                  "declined"
+                ],
+                "x-counterexamples": [
+                  {
+                    "value": "expired",
+                    "rejectedBySchema": true,
+                    "why": "过期是派生结果，不是终结字段。"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "meta": false,
+          "value": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json",
+            "title": "composition.governance-center-entry v2 · 治理中心入口的线上形状",
+            "description": "候选（candidate）。本文件只给信封、四种入口答复、路由结果外形、公开与完整体检、GovernanceCenterId 与出示物的形状；判定次序、映射与每条路由的语义以 contract.md 为准。身份值不在此复述，一律引用 data.identity-values v1；邀约的时刻与派生状态、以及时间点（issuedAt、startedAt）引用 data.offer-expiry v2。InvitationId、AffiliationRequestId、CreationKey 三个不透明标识的值定义归本文件，形状按 data.identity-values v1 S-31 的散文，不引用那份 Schema 的内部基定义。三份参与契约（capability.account-identity v3、capability.organization-governance v2、composition.account-registration v2）不发布 Schema，31 条路由的载荷与成功返回的线上形状由本文件定义（Payload_<路由>、Result_<路由>），成员名从各条款 ①／⑤ 的散文推出，见 contract.md S-17 的命名表（2026-09-23 主线认可）。",
+            "$defs": {
+              "GovernanceCenterId": {
+                "title": "治理中心标识 · Governance Center Identifier（contract.md S-27）",
+                "description": "128 位随机值；规范形式恰一种：32 个小写十六进制字符。相等即逐字符相等，不做任何规范化。不是地址、不是秘密，不从部署密钥或地址派生。",
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$",
+                "examples": [
+                  "3f9c1e0a7b2d4c6e8f0a1b2c3d4e5f60"
+                ],
+                "x-counterexamples": [
+                  {
+                    "value": "3F9C1E0A7B2D4C6E8F0A1B2C3D4E5F60",
+                    "rejectedBy": "大写不是规范形式；比较不做大小写折叠"
+                  },
+                  {
+                    "value": "3f9c1e0a-7b2d-4c6e-8f0a-1b2c3d4e5f60",
+                    "rejectedBy": "带分隔符不是规范形式"
+                  },
+                  {
+                    "value": "3f9c1e0a7b2d4c6e",
+                    "rejectedBy": "长度不足 128 位"
+                  }
+                ]
+              },
+              "LoginStatePresentation": {
+                "title": "出示物（登录状态出示物，无词条）· presentedLoginState、loginState（contract.md S-5；capability.account-identity v3 S-45）",
+                "description": "持有即被认的不透明字符串，由账号能力签发、只在登录成功的那一次答复里交出。不是 LoginStateId；字母表不定，消费者不得解析。交换表示按 capability.account-identity v3 S-45，本定义只是它的投影：Unicode 标量值序列（不含孤立的代理码点，由 not/pattern 断言，须在按码点匹配的正则方言下求值，如 ECMA-262 的 u 标志）；非空；至多 1024 个标量值（候选值，随 S-45 定）；首字符与末字符都不属于 data.identity-values v1 S-31 列出的空白码点集合；逐码点相等，不做任何规范化。末尾用 (?![\\s\\S]) 判绝对结尾，不用 $。",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024,
+                "not": {
+                  "pattern": "[\\uD800-\\uDFFF]"
+                },
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+              },
+              "ProtocolVersion": {
+                "title": "协议版本（contract.md S-8）",
+                "description": "客户端声明的线上协议版本。哪些值算对得上由具名参数 accepted_protocol_versions 决定（本契约不填值）。交换表示：非空字符串。",
+                "type": "string",
+                "minLength": 1
+              },
+              "PublicHealthRouteId": {
+                "title": "公开体检的路由标识（contract.md S-18）",
+                "const": "composition.governance-center-entry/v1#S-18"
+              },
+              "EnvelopeRouteId": {
+                "title": "信封路由标识（contract.md S-17）",
+                "description": "路由表封闭：恰这 31 条，没有泛化分派。每个值是被投影条款的坐标。表外的值 ⇒ invalid-input（S-10 ①′）。",
+                "type": "string",
+                "enum": [
+                  "composition.account-registration/v2#S-8",
+                  "capability.account-identity/v3#S-15",
+                  "capability.account-identity/v3#S-16",
+                  "capability.account-identity/v3#S-37",
+                  "capability.organization-governance/v2#S-21",
+                  "capability.organization-governance/v2#S-22",
+                  "capability.organization-governance/v2#S-23",
+                  "capability.organization-governance/v2#S-24",
+                  "capability.organization-governance/v2#S-25",
+                  "capability.organization-governance/v2#S-26",
+                  "capability.organization-governance/v2#S-27",
+                  "capability.organization-governance/v2#S-28",
+                  "capability.organization-governance/v2#S-29",
+                  "capability.organization-governance/v2#S-30",
+                  "capability.organization-governance/v2#S-31",
+                  "capability.organization-governance/v2#S-32",
+                  "capability.organization-governance/v2#S-33",
+                  "capability.organization-governance/v2#S-34",
+                  "capability.organization-governance/v2#S-35",
+                  "capability.organization-governance/v2#S-36",
+                  "capability.organization-governance/v2#S-37",
+                  "capability.organization-governance/v2#S-55",
+                  "capability.organization-governance/v2#S-56",
+                  "capability.organization-governance/v2#S-57",
+                  "capability.organization-governance/v2#S-58",
+                  "capability.organization-governance/v2#S-59",
+                  "capability.organization-governance/v2#S-60",
+                  "capability.account-identity/v3#S-50",
+                  "capability.organization-governance/v2#S-61",
+                  "capability.organization-governance/v2#S-62",
+                  "composition.governance-center-entry/v2#S-50"
+                ]
+              },
+              "Envelope": {
+                "title": "请求信封（contract.md S-4）",
+                "description": "恰含这四个成员，没有别的成员。不合这个形状时答哪一种由 S-10 按不合的是哪个成员决定：不可解析或 protocolVersion 缺席／不被接受 ⇒ version-mismatch；operation 表外或有表外成员 ⇒ invalid-input；出示物不合形状或不止一个 ⇒ login-state-rejected（免认人路由不看它）；payload 不合它那条路由的 Payload_<路由> ⇒ invalid-input（经第 ② 步的路由在认出人之后）。信封里没有任何时刻字段。",
+                "type": "object",
+                "required": [
+                  "protocolVersion",
+                  "operation",
+                  "payload"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "protocolVersion": {
+                    "$ref": "#/$defs/ProtocolVersion"
+                  },
+                  "presentedLoginState": {
+                    "$ref": "#/$defs/LoginStatePresentation",
+                    "description": "出示物（contract.md S-5）：恰一个，交给 capability.account-identity v3 S-44 认人；不是 LoginStateId。缺席没有默认值。"
+                  },
+                  "operation": {
+                    "$ref": "#/$defs/EnvelopeRouteId"
+                  },
+                  "payload": {
+                    "description": "这条路由的载荷；没有载荷项时是空对象。形状按 operation 判别到 Payload_<路由>（下面的 allOf），成员封闭；成员名见 contract.md S-17 的命名表。载荷里没有「以谁的身份」这一格：发起者、调用方、接受者的身份一律推导（S-12）。",
+                    "type": "object"
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "composition.account-registration/v2#S-8"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_AR_S8"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.account-identity/v3#S-15"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_AI_S15"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.account-identity/v3#S-16"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_AI_S16"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.account-identity/v3#S-37"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_AI_S37"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-21"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S21"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-22"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S22"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-23"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S23"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-24"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S24"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-25"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S25"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-26"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S26"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-27"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S27"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-28"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S28"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-29"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S29"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-30"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S30"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-31"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S31"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-32"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S32"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-33"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S33"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-34"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S34"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-35"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S35"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-36"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S36"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-37"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S37"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-55"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S55"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-56"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S56"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-57"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S57"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-58"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S58"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-59"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S59"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-60"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S60"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.account-identity/v3#S-50"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_AI_S50"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-61"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S61"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-62"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_OG_S62"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "composition.governance-center-entry/v2#S-50"
+                        }
+                      },
+                      "required": [
+                        "operation"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "payload": {
+                          "$ref": "#/$defs/Payload_ENTRY_S50"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "PublicHealthRequest": {
+                "title": "公开体检的请求（contract.md S-18）",
+                "description": "operation 等于公开体检路由标识即可；其余成员一律忽略，包括 protocolVersion 与出示物。形状跨协议版本不变（S-8）。",
+                "type": "object",
+                "required": [
+                  "operation"
+                ],
+                "properties": {
+                  "operation": {
+                    "$ref": "#/$defs/PublicHealthRouteId"
+                  }
+                }
+              },
+              "EntryAnswer": {
+                "title": "四种入口答复（contract.md S-6）",
+                "description": "四值封闭、互不合并。同一个值的每一次线上答复逐字相同（含传输层状态与头）；答复里没有随请求变化的部分。unavailable 对来者不带原因。",
+                "type": "string",
+                "enum": [
+                  "version-mismatch",
+                  "login-state-rejected",
+                  "unavailable",
+                  "invalid-input"
+                ]
+              },
+              "RouteFailureName": {
+                "title": "路由结果里可透传的具名失败值（contract.md S-14、S-19～S-23）",
+                "description": "各被投影条款失败集合的并，减去被映射掉的（AI 的 storage-unavailable、invalid-input、not-authorized、login-state-rejected；OG 的 unavailable、invalidInput、loginStateNotValid）。原名透传，不改名、不合并、不加原因。封闭，没有「其他」。",
+                "type": "string",
+                "enum": [
+                  "identifier-taken",
+                  "credential-rejected",
+                  "interrupted",
+                  "identifier-or-credential-rejected",
+                  "login-state-not-found",
+                  "accountNotActivated",
+                  "accountDoesNotExist",
+                  "issuerIsPersonalOrganization",
+                  "notAuthorized",
+                  "alreadyAnEffectiveMember",
+                  "invalidOfferDuration",
+                  "invitationDoesNotExist",
+                  "alreadyConcluded",
+                  "offerNoLongerValid",
+                  "notTheInvitedAccount",
+                  "membershipNotEffective",
+                  "wouldLeaveNoSuperAdministrator",
+                  "personalOrganizationMemberCannotLeave",
+                  "personalOrganizationTakesNoPartInAffiliation",
+                  "organizationDoesNotExist",
+                  "wouldFormACycle",
+                  "affiliationRequestDoesNotExist",
+                  "alreadyHasAParentOrganization",
+                  "noSuchAffiliation",
+                  "notOwnTenant",
+                  "current-credential-rejected",
+                  "expectedTenantMismatch"
+                ]
+              },
+              "RouteFailure": {
+                "title": "路由结果：具名失败（contract.md S-7）",
+                "type": "object",
+                "required": [
+                  "failure"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "failure": {
+                    "$ref": "#/$defs/RouteFailureName"
+                  }
+                }
+              },
+              "RouteSuccess": {
+                "title": "路由结果：成功（contract.md S-7）",
+                "description": "result 是被投影操作 ⑤ 的成功返回，形状由本契约定义（S-17 命名表），每条路由一个 Result_<路由>。答复本身不带 operation，所以这里只能取 31 个形状的并；按路由判别的核对用 Exchange。身份值按 data.identity-values v1 的规范形式原样给出。登录的 result 是全部输出里出示物唯一出现的一处（S-19、S-29）；列出登录状态的 result 每项是那个登录状态的 LoginStateId（列表句柄）与签发时间，不含出示物（S-9、S-20）。",
+                "type": "object",
+                "required": [
+                  "result"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "result": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/Result_AR_S8"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_AI_S15"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_AI_S16"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_AI_S37"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S21"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S22"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S23"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S24"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S25"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S26"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S27"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S28"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S29"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S30"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S31"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S32"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S33"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S34"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S35"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S36"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S37"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S55"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S56"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S57"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S58"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S59"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S60"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_AI_S50"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S61"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_OG_S62"
+                      },
+                      {
+                        "$ref": "#/$defs/Result_ENTRY_S50"
+                      }
+                    ]
+                  }
+                }
+              },
+              "Exchange": {
+                "title": "一次来往：按路由判别答复（contract.md S-7、S-17；符合性核对用）",
+                "description": "按精确路由同时校验成功结果和失败集合；表示形状不能验证判定先后、身份、授权或共同提交。",
+                "type": "object",
+                "required": [
+                  "operation",
+                  "reply"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "operation": {
+                    "$ref": "#/$defs/EnvelopeRouteId"
+                  },
+                  "reply": {
+                    "$ref": "#/$defs/ClientFaceReply"
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "composition.account-registration/v2#S-8"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_AR_S8"
+                            },
+                            "failure": {
+                              "enum": [
+                                "identifier-taken",
+                                "credential-rejected",
+                                "interrupted"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.account-identity/v3#S-15"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_AI_S15"
+                            },
+                            "failure": {
+                              "enum": [
+                                "identifier-or-credential-rejected"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.account-identity/v3#S-16"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_AI_S16"
+                            },
+                            "failure": {
+                              "enum": [
+                                "login-state-not-found"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.account-identity/v3#S-37"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_AI_S37"
+                            },
+                            "failure": false
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-21"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S21"
+                            },
+                            "failure": false
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-22"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S22"
+                            },
+                            "failure": {
+                              "enum": [
+                                "notAuthorized"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-23"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S23"
+                            },
+                            "failure": {
+                              "enum": [
+                                "issuerIsPersonalOrganization",
+                                "notAuthorized",
+                                "accountNotActivated",
+                                "accountDoesNotExist",
+                                "alreadyAnEffectiveMember",
+                                "invalidOfferDuration",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-24"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S24"
+                            },
+                            "failure": {
+                              "enum": [
+                                "invitationDoesNotExist",
+                                "notAuthorized",
+                                "alreadyConcluded",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-25"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S25"
+                            },
+                            "failure": {
+                              "enum": [
+                                "invitationDoesNotExist",
+                                "offerNoLongerValid",
+                                "notTheInvitedAccount",
+                                "alreadyAnEffectiveMember"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-26"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S26"
+                            },
+                            "failure": {
+                              "enum": [
+                                "notAuthorized"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-27"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S27"
+                            },
+                            "failure": false
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-28"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S28"
+                            },
+                            "failure": {
+                              "enum": [
+                                "notAuthorized",
+                                "membershipNotEffective",
+                                "wouldLeaveNoSuperAdministrator",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-29"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S29"
+                            },
+                            "failure": {
+                              "enum": [
+                                "personalOrganizationMemberCannotLeave",
+                                "notAuthorized",
+                                "membershipNotEffective",
+                                "wouldLeaveNoSuperAdministrator",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-30"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S30"
+                            },
+                            "failure": {
+                              "enum": [
+                                "personalOrganizationTakesNoPartInAffiliation",
+                                "notAuthorized",
+                                "organizationDoesNotExist",
+                                "wouldFormACycle",
+                                "invalidOfferDuration",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-31"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S31"
+                            },
+                            "failure": {
+                              "enum": [
+                                "affiliationRequestDoesNotExist",
+                                "notAuthorized",
+                                "alreadyConcluded",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-32"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S32"
+                            },
+                            "failure": {
+                              "enum": [
+                                "affiliationRequestDoesNotExist",
+                                "offerNoLongerValid",
+                                "notAuthorized",
+                                "alreadyHasAParentOrganization",
+                                "wouldFormACycle",
+                                "personalOrganizationTakesNoPartInAffiliation",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-33"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S33"
+                            },
+                            "failure": {
+                              "enum": [
+                                "noSuchAffiliation",
+                                "notAuthorized",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-34"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S34"
+                            },
+                            "failure": {
+                              "enum": [
+                                "notAuthorized"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-35"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S35"
+                            },
+                            "failure": {
+                              "enum": [
+                                "notAuthorized"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-36"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S36"
+                            },
+                            "failure": false
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-37"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S37"
+                            },
+                            "failure": {
+                              "enum": [
+                                "notOwnTenant",
+                                "membershipNotEffective",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-55"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S55"
+                            },
+                            "failure": {
+                              "enum": [
+                                "invitationDoesNotExist",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-56"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S56"
+                            },
+                            "failure": {
+                              "enum": [
+                                "affiliationRequestDoesNotExist",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-57"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S57"
+                            },
+                            "failure": false
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-58"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S58"
+                            },
+                            "failure": {
+                              "enum": [
+                                "notAuthorized",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-59"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S59"
+                            },
+                            "failure": {
+                              "enum": [
+                                "notAuthorized",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-60"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S60"
+                            },
+                            "failure": {
+                              "enum": [
+                                "notAuthorized",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.account-identity/v3#S-50"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_AI_S50"
+                            },
+                            "failure": {
+                              "enum": [
+                                "current-credential-rejected",
+                                "credential-rejected"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-61"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S61"
+                            },
+                            "failure": {
+                              "enum": [
+                                "invitationDoesNotExist",
+                                "alreadyConcluded"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "capability.organization-governance/v2#S-62"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_OG_S62"
+                            },
+                            "failure": {
+                              "enum": [
+                                "affiliationRequestDoesNotExist",
+                                "notAuthorized",
+                                "alreadyConcluded",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "operation": {
+                          "const": "composition.governance-center-entry/v2#S-50"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reply": {
+                          "properties": {
+                            "result": {
+                              "$ref": "#/$defs/Result_ENTRY_S50"
+                            },
+                            "failure": {
+                              "enum": [
+                                "issuerIsPersonalOrganization",
+                                "notAuthorized",
+                                "accountDoesNotExist",
+                                "alreadyAnEffectiveMember",
+                                "invalidOfferDuration",
+                                "expectedTenantMismatch"
+                              ]
+                            }
+                          },
+                          "if": {
+                            "type": "string"
+                          },
+                          "then": {
+                            "enum": [
+                              "version-mismatch",
+                              "unavailable",
+                              "invalid-input",
+                              "login-state-rejected"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "LoginResult": {
+                "title": "登录成功的返回（contract.md S-19）",
+                "description": "loginState 是 capability.account-identity v3 S-15 交出的出示物（只此一次）；loginStateHandle 是同一个登录状态的 LoginStateId（列表句柄，S-9），客户端据它在列表里认出自己、用它退出。",
+                "type": "object",
+                "required": [
+                  "loginState",
+                  "loginStateHandle"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "loginState": {
+                    "$ref": "#/$defs/LoginStatePresentation"
+                  },
+                  "loginStateHandle": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId"
+                  }
+                }
+              },
+              "LoginStateListItem": {
+                "title": "登录状态列表的一项（contract.md S-20）",
+                "description": "AI3 S37：句柄、I、读取时L、I+8h、L+1h；随后touch不改写这个读取结果。",
+                "type": "object",
+                "required": [
+                  "loginStateHandle",
+                  "issuedAt",
+                  "lastActivityAt",
+                  "absoluteExpiresAt",
+                  "idleExpiresAt"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "loginStateHandle": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId"
+                  },
+                  "issuedAt": {
+                    "description": "这个登录状态被签发的时刻（中心的钟）；形状取 data.offer-expiry v2 的 Instant（S-22：带时区偏移的 RFC 3339 时间点）。",
+                    "$ref": "../../../data/offer-expiry/v2/offer-expiry.schema.json#/$defs/Instant"
+                  },
+                  "lastActivityAt": {
+                    "$ref": "../../../data/offer-expiry/v2/offer-expiry.schema.json#/$defs/Instant"
+                  },
+                  "absoluteExpiresAt": {
+                    "$ref": "../../../data/offer-expiry/v2/offer-expiry.schema.json#/$defs/Instant"
+                  },
+                  "idleExpiresAt": {
+                    "$ref": "../../../data/offer-expiry/v2/offer-expiry.schema.json#/$defs/Instant"
+                  }
+                }
+              },
+              "InvitationId": {
+                "title": "InvitationId（capability.organization-governance v2 S-10；值定义归本契约，contract.md S-17 注 3）",
+                "description": "不透明、部署内唯一、由存储生成。交换表示按 data.identity-values v1 S-31 的散文：非空字符串；首字符与末字符都不属于该条列出的空白码点集合；逐码点相等，不做任何规范化。末尾用 (?![\\s\\S]) 判绝对结尾，不用 $。消费者不得解析其内容。",
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+              },
+              "AffiliationRequestId": {
+                "title": "AffiliationRequestId（capability.organization-governance v2 S-11；值定义归本契约，contract.md S-17 注 3）",
+                "description": "隶属请求的标识，与 InvitationId 同类。交换表示按 data.identity-values v1 S-31 的散文：非空字符串；首字符与末字符都不属于该条列出的空白码点集合；逐码点相等，不做任何规范化。消费者不得解析其内容。",
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+              },
+              "CreationKey": {
+                "title": "创建键（creationKey，capability.organization-governance v2 S-21 ①；值定义归本契约，contract.md S-17 注 3）",
+                "description": "调用方给出的不透明去重标识。交换表示按 data.identity-values v1 S-31 的散文：非空字符串；首字符与末字符都不属于该条列出的空白码点集合；逐码点相等，不做任何规范化。",
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+              },
+              "CredentialMaterial": {
+                "title": "凭据材料（credential，capability.account-identity v3 S-8）",
+                "description": "线上是一个非空字符串。内部格式归凭据方案的 owner（与 capability.account-identity v3 S-26 credential_policy 同一个 owner）；入口层的表示层校验用该 owner 给出的同一条解析规则，解析不过 ⇒ invalid-input（contract.md S-19）。Schema 只断言「非空字符串」这一层，解析规则不在这里。",
+                "type": "string",
+                "minLength": 1
+              },
+              "OfferTtl": {
+                "title": "这一份邀约的有效时长（offerTtl）",
+                "description": "每份邀约的整数毫秒时长，线上表示上界为最大安全整数。非正值由OG返回invalidOfferDuration；合法正值与发出时刻的计算溢出按OE2 S14返回unavailable，不写邀约。缺席时由领域取该类默认。",
+                "type": "integer",
+                "maximum": 9007199254740991
+              },
+              "AffiliationDirection": {
+                "title": "隶属请求的方向（direction，capability.organization-governance v2 S-11、S-30 ①）",
+                "description": "请对方作自己的上级 ⇒ recipientAsParent；请对方作自己的下级 ⇒ recipientAsChild。参与条款只有散文，两个取值名由本契约首次命名（S-17 命名表）。",
+                "type": "string",
+                "enum": [
+                  "recipientAsParent",
+                  "recipientAsChild"
+                ]
+              },
+              "CallerIdentityKind": {
+                "title": "读邀请时调用方身份取哪一支（callerIdentityKind，capability.organization-governance v2 S-55 ①）",
+                "description": "取值沿用 S-55 ①的两支 account／tenant。载荷里只带判别式，不带身份值：account 支交给领域的是第 ② 步认出的 AccountId，tenant 支是身份推导出的当前租户身份（contract.md S-12、S-22）。",
+                "type": "string",
+                "enum": [
+                  "account",
+                  "tenant"
+                ]
+              },
+              "OrganizationView": {
+                "title": "读组织的返回（capability.organization-governance v2 S-22 ⑤）",
+                "description": "上级组织「有或无」：有 ⇒ parentOrganization 在；无 ⇒ 这个成员不出现（不写 null）。",
+                "type": "object",
+                "required": [
+                  "organization",
+                  "organizationKind"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "organization": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+                  },
+                  "organizationKind": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationKind"
+                  },
+                  "parentOrganization": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+                  }
+                }
+              },
+              "InvitationView": {
+                "title": "一份邀请（capability.organization-governance v2 S-55 ⑤；S-57、S-58 的列表项同形）",
+                "type": "object",
+                "required": [
+                  "invitation",
+                  "issuerOrganization",
+                  "invitedAccount",
+                  "role",
+                  "offerTiming",
+                  "offerState"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "invitation": {
+                    "$ref": "#/$defs/InvitationId"
+                  },
+                  "issuerOrganization": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+                  },
+                  "invitedAccount": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/AccountId"
+                  },
+                  "role": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantRole"
+                  },
+                  "offerTiming": {
+                    "$ref": "../../../data/offer-expiry/v2/offer-expiry.schema.json#/$defs/OfferTiming"
+                  },
+                  "offerState": {
+                    "$ref": "../../../data/offer-expiry/v2/offer-expiry.schema.json#/$defs/OfferState"
+                  }
+                }
+              },
+              "AffiliationRequestView": {
+                "title": "一份隶属请求（capability.organization-governance v2 S-56 ⑤；S-58 的列表项同形）",
+                "type": "object",
+                "required": [
+                  "affiliationRequest",
+                  "issuerOrganization",
+                  "recipientOrganization",
+                  "direction",
+                  "offerTiming",
+                  "offerState"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "affiliationRequest": {
+                    "$ref": "#/$defs/AffiliationRequestId"
+                  },
+                  "issuerOrganization": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+                  },
+                  "recipientOrganization": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+                  },
+                  "direction": {
+                    "$ref": "#/$defs/AffiliationDirection"
+                  },
+                  "offerTiming": {
+                    "$ref": "../../../data/offer-expiry/v2/offer-expiry.schema.json#/$defs/OfferTiming"
+                  },
+                  "offerState": {
+                    "$ref": "../../../data/offer-expiry/v2/offer-expiry.schema.json#/$defs/OfferState"
+                  }
+                }
+              },
+              "IncomingAffiliationRequestView": {
+                "title": "组织收到的一份隶属请求（capability.organization-governance v2 S-60 ⑤）",
+                "description": "比 AffiliationRequestView 少接收方组织：接收方就是调用方自己的组织，S-60 ⑤不列它。",
+                "type": "object",
+                "required": [
+                  "affiliationRequest",
+                  "issuerOrganization",
+                  "direction",
+                  "offerTiming",
+                  "offerState"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "affiliationRequest": {
+                    "$ref": "#/$defs/AffiliationRequestId"
+                  },
+                  "issuerOrganization": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+                  },
+                  "direction": {
+                    "$ref": "#/$defs/AffiliationDirection"
+                  },
+                  "offerTiming": {
+                    "$ref": "../../../data/offer-expiry/v2/offer-expiry.schema.json#/$defs/OfferTiming"
+                  },
+                  "offerState": {
+                    "$ref": "../../../data/offer-expiry/v2/offer-expiry.schema.json#/$defs/OfferState"
+                  }
+                }
+              },
+              "MemberView": {
+                "title": "组织成员名单的一项（capability.organization-governance v2 S-59 ⑤）",
+                "description": "恰是成员关系记录的三样。effective 是这条记录此刻的有效性（有效／无效两值），不是一次 MembershipStanding 判定，不得作准入依据（S-59 ⑤）。",
+                "type": "object",
+                "required": [
+                  "tenant",
+                  "role",
+                  "effective"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "tenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  },
+                  "role": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantRole"
+                  },
+                  "effective": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "Payload_AR_S8": {
+                "title": "注册的载荷（composition.account-registration v2 S-8 ①：登录标识、凭据）",
+                "type": "object",
+                "required": [
+                  "loginIdentifier",
+                  "credential"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "loginIdentifier": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginIdentifier"
+                  },
+                  "credential": {
+                    "$ref": "#/$defs/CredentialMaterial"
+                  }
+                }
+              },
+              "Payload_AI_S15": {
+                "title": "登录的载荷（capability.account-identity v3 S-15 ①）",
+                "type": "object",
+                "required": [
+                  "loginIdentifier",
+                  "credential"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "loginIdentifier": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginIdentifier"
+                  },
+                  "credential": {
+                    "$ref": "#/$defs/CredentialMaterial"
+                  }
+                }
+              },
+              "Payload_AI_S16": {
+                "title": "撤销（含退出）的载荷（capability.account-identity v3 S-16 ①的目标 LoginStateId，成员名 loginStateHandle；contract.md S-20）",
+                "type": "object",
+                "required": [
+                  "loginStateHandle"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "loginStateHandle": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId"
+                  }
+                }
+              },
+              "Payload_AI_S37": {
+                "title": "列出登录状态的载荷（capability.account-identity v3 S-37：唯一输入是调用方的 LoginStateId，即认人所得 LoginStateId，不在载荷里；载荷为空）",
+                "type": "object",
+                "additionalProperties": false
+              },
+              "Payload_OG_S21": {
+                "title": "创建团队组织的载荷（capability.organization-governance v2 S-21 ①）",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "creationKey": {
+                    "$ref": "#/$defs/CreationKey"
+                  }
+                }
+              },
+              "Payload_OG_S22": {
+                "title": "读组织的载荷（S-22 ①）",
+                "type": "object",
+                "required": [
+                  "organization"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "organization": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+                  }
+                }
+              },
+              "Payload_OG_S23": {
+                "title": "发出邀请的载荷（S-23 ①；发起者 TenantId 推导，不在载荷里）",
+                "type": "object",
+                "required": [
+                  "invitedAccount",
+                  "expectedTenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "invitedAccount": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/AccountId"
+                  },
+                  "role": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantRole"
+                  },
+                  "offerTtl": {
+                    "$ref": "#/$defs/OfferTtl"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Payload_OG_S24": {
+                "title": "撤回邀请的载荷（S-24 ①）",
+                "type": "object",
+                "required": [
+                  "invitation",
+                  "expectedTenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "invitation": {
+                    "$ref": "#/$defs/InvitationId"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Payload_OG_S25": {
+                "title": "接受邀请的载荷（S-25 ①；接受者 AccountId 推导）",
+                "type": "object",
+                "required": [
+                  "invitation"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "invitation": {
+                    "$ref": "#/$defs/InvitationId"
+                  }
+                }
+              },
+              "Payload_OG_S26": {
+                "title": "成员资格判定的载荷（S-26 ①）",
+                "type": "object",
+                "required": [
+                  "tenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "tenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Payload_OG_S27": {
+                "title": "我的租户的载荷（S-27 ①的 AccountId 推导，载荷为空）",
+                "type": "object",
+                "additionalProperties": false
+              },
+              "Payload_OG_S28": {
+                "title": "调整角色的载荷（S-28 ①）",
+                "type": "object",
+                "required": [
+                  "targetTenant",
+                  "role",
+                  "expectedTenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "targetTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  },
+                  "role": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantRole"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Payload_OG_S29": {
+                "title": "解除成员的载荷（S-29 ①）",
+                "type": "object",
+                "required": [
+                  "targetTenant",
+                  "expectedTenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "targetTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Payload_OG_S30": {
+                "title": "发出隶属请求的载荷（S-30 ①）",
+                "type": "object",
+                "required": [
+                  "recipientOrganization",
+                  "direction",
+                  "expectedTenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "recipientOrganization": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+                  },
+                  "direction": {
+                    "$ref": "#/$defs/AffiliationDirection"
+                  },
+                  "offerTtl": {
+                    "$ref": "#/$defs/OfferTtl"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Payload_OG_S31": {
+                "title": "撤回隶属请求的载荷（S-31 ①）",
+                "type": "object",
+                "required": [
+                  "affiliationRequest",
+                  "expectedTenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "affiliationRequest": {
+                    "$ref": "#/$defs/AffiliationRequestId"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Payload_OG_S32": {
+                "title": "接受隶属请求的载荷（S-32 ①）",
+                "type": "object",
+                "required": [
+                  "affiliationRequest",
+                  "expectedTenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "affiliationRequest": {
+                    "$ref": "#/$defs/AffiliationRequestId"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Payload_OG_S33": {
+                "title": "解除隶属的载荷（S-33 ①：被解除的那条隶属关系，即下级组织）",
+                "type": "object",
+                "required": [
+                  "childOrganization",
+                  "expectedTenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "childOrganization": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Payload_OG_S34": {
+                "title": "上级链／有共同上级的载荷（S-34 ①：一个求上级链，两个求有共同上级）",
+                "type": "object",
+                "required": [
+                  "organizations"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "organizations": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 2,
+                    "items": {
+                      "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+                    }
+                  }
+                }
+              },
+              "Payload_OG_S35": {
+                "title": "层身份的载荷（S-35 ①）",
+                "type": "object",
+                "required": [
+                  "tenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "tenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Payload_OG_S36": {
+                "title": "当前租户身份查询的载荷（S-36 ①的 LoginStateId 是认人所得 LoginStateId，载荷为空）",
+                "type": "object",
+                "additionalProperties": false
+              },
+              "Payload_OG_S37": {
+                "title": "切换当前租户身份的载荷（S-37 ①；LoginStateId 是认人所得 LoginStateId）",
+                "type": "object",
+                "required": [
+                  "targetTenant",
+                  "expectedTenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "targetTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Payload_OG_S55": {
+                "title": "读邀请的载荷（S-55 ①）",
+                "type": "object",
+                "required": [
+                  "invitation",
+                  "callerIdentityKind"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "invitation": {
+                    "$ref": "#/$defs/InvitationId"
+                  },
+                  "callerIdentityKind": {
+                    "$ref": "#/$defs/CallerIdentityKind"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "callerIdentityKind": {
+                          "const": "tenant"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "expectedTenant"
+                      ]
+                    },
+                    "else": {
+                      "not": {
+                        "required": [
+                          "expectedTenant"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "Payload_OG_S56": {
+                "title": "读隶属请求的载荷（S-56 ①）",
+                "type": "object",
+                "required": [
+                  "affiliationRequest",
+                  "expectedTenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "affiliationRequest": {
+                    "$ref": "#/$defs/AffiliationRequestId"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Payload_OG_S57": {
+                "title": "列出账号收到的待接受邀请的载荷（S-57 ①）",
+                "description": "includeConcluded 缺席 ⇒ 只要 pending 的（领域的默认）；true ⇒ 连已终结的一起要。",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "includeConcluded": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "Payload_OG_S58": {
+                "title": "列出组织发出的邀请与隶属请求的载荷（S-58 ①）",
+                "description": "includeConcluded 同 S-57。",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "includeConcluded": {
+                    "type": "boolean"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                },
+                "required": [
+                  "expectedTenant"
+                ]
+              },
+              "Payload_OG_S59": {
+                "title": "列出组织成员的载荷（S-59 ①）",
+                "description": "includeIneffective 缺席 ⇒ 只要有效的（领域的默认）；true ⇒ 连无效的一起要（这一档另有授权，由领域判）。",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "includeIneffective": {
+                    "type": "boolean"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                },
+                "required": [
+                  "expectedTenant"
+                ]
+              },
+              "Payload_OG_S60": {
+                "title": "列出组织收到的隶属请求的载荷（S-60 ①）",
+                "description": "includeConcluded 同 S-57。",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "includeConcluded": {
+                    "type": "boolean"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                },
+                "required": [
+                  "expectedTenant"
+                ]
+              },
+              "Result_AR_S8": {
+                "title": "注册成功的返回（composition.account-registration v2 S-4、S-5）",
+                "const": "registered"
+              },
+              "Result_AI_S15": {
+                "title": "登录成功的返回（S-15 ⑤ 的 {出示物, LoginStateId}）",
+                "$ref": "#/$defs/LoginResult"
+              },
+              "Result_AI_S16": {
+                "title": "撤销成功的返回（S-16 ⑤）",
+                "const": "ok"
+              },
+              "Result_AI_S37": {
+                "title": "列出登录状态的返回（S-37 ⑤：每项的 LoginStateId 与签发时间）",
+                "description": "至少一项：成功调用必含调用方自己那一个；空列表是缺陷，入口答 unavailable，不会作为成功返回出现（contract.md S-20）。",
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/$defs/LoginStateListItem"
+                }
+              },
+              "Result_OG_S21": {
+                "title": "创建团队组织的返回（S-21 ⑤）",
+                "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+              },
+              "Result_OG_S22": {
+                "title": "读组织的返回（S-22 ⑤）",
+                "$ref": "#/$defs/OrganizationView"
+              },
+              "Result_OG_S23": {
+                "title": "发出邀请的返回（S-23 ⑤）",
+                "$ref": "#/$defs/InvitationId"
+              },
+              "Result_OG_S24": {
+                "title": "撤回邀请的返回（S-24 ⑤）",
+                "const": "ok"
+              },
+              "Result_OG_S25": {
+                "title": "接受邀请的返回（S-25 ⑤）",
+                "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+              },
+              "Result_OG_S26": {
+                "title": "成员资格判定的返回（S-26 ⑤；判不出来是入口答复 unavailable，不在这里）",
+                "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/MembershipStanding"
+              },
+              "Result_OG_S27": {
+                "title": "我的租户的返回（S-27 ⑤）",
+                "description": "至少一项：认得出的来者是已激活的账号，空列表是缺陷（contract.md S-22）。",
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                }
+              },
+              "Result_OG_S28": {
+                "title": "调整角色的返回（S-28 ⑤）",
+                "const": "ok"
+              },
+              "Result_OG_S29": {
+                "title": "解除成员的返回（S-29 ⑤）",
+                "const": "ok"
+              },
+              "Result_OG_S30": {
+                "title": "发出隶属请求的返回（S-30 ⑤）",
+                "$ref": "#/$defs/AffiliationRequestId"
+              },
+              "Result_OG_S31": {
+                "title": "撤回隶属请求的返回（S-31 ⑤）",
+                "const": "ok"
+              },
+              "Result_OG_S32": {
+                "title": "接受隶属请求的返回（S-32 ⑤）",
+                "const": "ok"
+              },
+              "Result_OG_S33": {
+                "title": "解除隶属的返回（S-33 ⑤）",
+                "const": "ok"
+              },
+              "Result_OG_S34": {
+                "title": "上级链／有共同上级的返回（S-34 ⑤）",
+                "description": "载荷一个组织 ⇒ 上级链：组织序列，不含自己，个人组织为空序列；两个组织 ⇒ 有共同上级：布尔。",
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+                    }
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              },
+              "Result_OG_S35": {
+                "title": "层身份的返回（S-35 ⑤）",
+                "type": "object",
+                "required": [
+                  "organizationLayer",
+                  "tenantLayer"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "organizationLayer": {
+                    "allOf": [
+                      {
+                        "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/ScopeLayerIdentity"
+                      },
+                      {
+                        "properties": {
+                          "layer": {
+                            "const": "organization"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "tenantLayer": {
+                    "allOf": [
+                      {
+                        "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/ScopeLayerIdentity"
+                      },
+                      {
+                        "properties": {
+                          "layer": {
+                            "const": "tenant"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "Result_OG_S36": {
+                "title": "当前租户身份查询的返回（S-36 ⑤）",
+                "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+              },
+              "Result_OG_S37": {
+                "title": "切换当前租户身份的返回（S-37 ⑤）",
+                "const": "ok"
+              },
+              "Result_OG_S55": {
+                "title": "读邀请的返回（S-55 ⑤）",
+                "$ref": "#/$defs/InvitationView"
+              },
+              "Result_OG_S56": {
+                "title": "读隶属请求的返回（S-56 ⑤）",
+                "$ref": "#/$defs/AffiliationRequestView"
+              },
+              "Result_OG_S57": {
+                "title": "列出账号收到的待接受邀请的返回（S-57 ⑤）",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/InvitationView"
+                }
+              },
+              "Result_OG_S58": {
+                "title": "列出组织发出的邀请与隶属请求的返回（S-58 ⑤：两段）",
+                "type": "object",
+                "required": [
+                  "invitations",
+                  "affiliationRequests"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "invitations": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/InvitationView"
+                    }
+                  },
+                  "affiliationRequests": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/AffiliationRequestView"
+                    }
+                  }
+                }
+              },
+              "Result_OG_S59": {
+                "title": "列出组织成员的返回（S-59 ⑤）",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/MemberView"
+                }
+              },
+              "Result_OG_S60": {
+                "title": "列出组织收到的隶属请求的返回（S-60 ⑤）",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/IncomingAffiliationRequestView"
+                }
+              },
+              "ClientFaceReply": {
+                "title": "客户端一面对一个信封的答复（contract.md S-7）",
+                "description": "恰为三类之一，没有第四类。",
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/EntryAnswer"
+                  },
+                  {
+                    "$ref": "#/$defs/RouteSuccess"
+                  },
+                  {
+                    "$ref": "#/$defs/RouteFailure"
+                  }
+                ]
+              },
+              "PublicHealthReply": {
+                "title": "公开体检答复（contract.md S-18）",
+                "description": "恰此三样；失败集合为空。reachable 只说中心在应答，数据所在够不着、钟倒退、中心自身故障时照样为 true。不含任何治理事实与秘密。形状跨协议版本不变（S-8）。",
+                "type": "object",
+                "required": [
+                  "reachable",
+                  "centerId",
+                  "version"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "reachable": {
+                    "const": true
+                  },
+                  "centerId": {
+                    "$ref": "#/$defs/GovernanceCenterId"
+                  },
+                  "version": {
+                    "description": "中心所装版本的标识；与 accepted_protocol_versions 的对应关系归技术设计。",
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "DeploymentParameterDuration": {
+                "title": "一项部署参数的值",
+                "description": "一个时长，以正整数毫秒表示。没有出厂默认。",
+                "type": "integer",
+                "minimum": 1
+              },
+              "DeploymentParameters": {
+                "title": "五项部署参数此刻生效的值（contract.md S-26）",
+                "description": "启动时读入；五项缺一不可。copyNoticeTtlDefault 与 sharingInvitationTtlDefault 本版没有消费它们的契约（G-4），照样要值、照样可见。",
+                "type": "object",
+                "required": [
+                  "unactivatedRetention",
+                  "invitationTtlDefault",
+                  "affiliationRequestTtlDefault",
+                  "copyNoticeTtlDefault",
+                  "sharingInvitationTtlDefault"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "unactivatedRetention": {
+                    "$ref": "#/$defs/DeploymentParameterDuration"
+                  },
+                  "invitationTtlDefault": {
+                    "$ref": "#/$defs/DeploymentParameterDuration"
+                  },
+                  "affiliationRequestTtlDefault": {
+                    "$ref": "#/$defs/DeploymentParameterDuration"
+                  },
+                  "copyNoticeTtlDefault": {
+                    "$ref": "#/$defs/DeploymentParameterDuration"
+                  },
+                  "sharingInvitationTtlDefault": {
+                    "$ref": "#/$defs/DeploymentParameterDuration"
+                  }
+                }
+              },
+              "FullHealthReply": {
+                "title": "完整体检答复（contract.md S-26）",
+                "description": "只在运维面上可读。恰此十项，没有别的成员。失败集合为空：读不到的项是 false，不是失败。不含部署密钥或任何凭据的值，不含任何治理事实。",
+                "type": "object",
+                "required": [
+                  "reachable",
+                  "centerId",
+                  "version",
+                  "startedAt",
+                  "storageReachable",
+                  "deploymentKeyPresent",
+                  "deploymentKeyComplete",
+                  "clockSane",
+                  "defectCount",
+                  "deploymentParameters"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "reachable": {
+                    "const": true
+                  },
+                  "centerId": {
+                    "$ref": "#/$defs/GovernanceCenterId"
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "startedAt": {
+                    "description": "这一次启动成功的时刻（中心的钟）；启动成功以钟可读为条件（contract.md S-34），所以总有定义。形状取 data.offer-expiry v2 的 Instant（S-22）。",
+                    "$ref": "../../../data/offer-expiry/v2/offer-expiry.schema.json#/$defs/Instant"
+                  },
+                  "storageReachable": {
+                    "description": "本次读取时现探数据所在；探不通为 false。",
+                    "type": "boolean"
+                  },
+                  "deploymentKeyPresent": {
+                    "description": "启动时载入的结果；中心在应答时恒为 true。",
+                    "const": true
+                  },
+                  "deploymentKeyComplete": {
+                    "description": "启动时载入的结果；中心在应答时恒为 true。",
+                    "const": true
+                  },
+                  "clockSane": {
+                    "description": "本次读取时现读钟；读不到或比中心用过的最晚时刻早为 false。",
+                    "type": "boolean"
+                  },
+                  "defectCount": {
+                    "description": "自本次启动以来记过的缺陷数（S-14）；启动时为 0，重启归零。「记过缺陷」即 defectCount > 0。",
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "deploymentParameters": {
+                    "$ref": "#/$defs/DeploymentParameters"
+                  }
+                }
+              },
+              "Payload_AI_S50": {
+                "type": "object",
+                "required": [
+                  "currentCredential",
+                  "newCredential"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "currentCredential": {
+                    "$ref": "#/$defs/CredentialMaterial"
+                  },
+                  "newCredential": {
+                    "$ref": "#/$defs/CredentialMaterial"
+                  }
+                }
+              },
+              "Result_AI_S50": {
+                "const": "ok"
+              },
+              "Payload_OG_S61": {
+                "type": "object",
+                "required": [
+                  "invitation"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "invitation": {
+                    "$ref": "#/$defs/InvitationId"
+                  }
+                }
+              },
+              "Result_OG_S61": {
+                "const": "ok"
+              },
+              "Payload_OG_S62": {
+                "type": "object",
+                "required": [
+                  "affiliationRequest",
+                  "expectedTenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "affiliationRequest": {
+                    "$ref": "#/$defs/AffiliationRequestId"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                }
+              },
+              "Result_OG_S62": {
+                "const": "ok"
+              },
+              "Payload_ENTRY_S50": {
+                "type": "object",
+                "required": [
+                  "loginIdentifier",
+                  "expectedTenant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "loginIdentifier": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/LoginIdentifier"
+                  },
+                  "expectedTenant": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  },
+                  "role": {
+                    "$ref": "../../../data/identity-values/v1/identity-values.schema.json#/$defs/TenantRole"
+                  },
+                  "offerTtl": {
+                    "$ref": "#/$defs/OfferTtl"
+                  }
+                }
+              },
+              "Result_ENTRY_S50": {
+                "$ref": "#/$defs/InvitationId"
+              }
+            }
+          }
+        }
+      ],
+      "definitions": [
+        {
+          "method": "compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/GovernanceCenterId"
+          }
+        },
+        {
+          "method": "compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/LoginStatePresentation"
+          }
+        },
+        {
+          "method": "compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/AccountId"
+          }
+        },
+        {
+          "method": "compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/LoginStateId"
+          }
+        },
+        {
+          "method": "compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+          }
+        },
+        {
+          "method": "compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Envelope"
+          }
+        },
+        {
+          "method": "compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json#/$defs/Exchange"
+          }
+        }
+      ],
+      "unvalidatedInvocations": []
+    }
+  ]
+}

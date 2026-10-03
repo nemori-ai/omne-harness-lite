@@ -75,3 +75,7 @@
 ## 2026-09-27 历史读取增量技术采用
 
 [D-080](../../../../record/decisions/model-registry-history-provider-adoption/decision.md)精确采用本增量；上方候选状态保留该次成稿事实。源码与适用验证义务继续独立落实，真实成功恢复尚未验收，新增绑定0。
+
+## 2026-10-03 Schema构造与消费补充
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)技术采用：AM声明/manifest复用绑定owner，作者临时编译保持；AE发布捕获深冻结生产Schema，AE/evaluation-input-store/asset-registry三个默认owner首用构造分后续PR；MRR的固定图缺陷归相应MS/MR/CA构建失败，缺产物首次实际消费原抛。仅各自相关条款适用；本机制实施/验证尚待，不改变契约和原历史run。

@@ -59,3 +59,7 @@
 ## 2026-09-27 历史正文组件实现检查
 
 受限历史读面与对应 AST 入口守卫已实现；EIS 全组件 68 项测试、工具 428 项测试、构建/类型检查及实际源码规则扫描通过。[运行与限度](../../../../record/evidence/2026-09-27-probe-model-request-runtime/eis-history-component-checks.md)保存真实版本发布/移除持有/换表/重开、当前资格竞争及零 MF IO 场景。MF 表项仍是明确的组件 fixture，真实 AR producer 与旧报告恢复、装配退化查询/OS 权限/独立制品消费未验证；HI-G1/AR4-G3/SI-G1 继续开放，bindings0。
+
+## 2026-10-03 Schema构造与消费补充
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)技术采用：AM声明/manifest复用绑定owner，作者临时编译保持；AE发布捕获深冻结生产Schema，AE/evaluation-input-store/asset-registry三个默认owner首用构造分后续PR；MRR的固定图缺陷归相应MS/MR/CA构建失败，缺产物首次实际消费原抛。仅各自相关条款适用；本机制实施/验证尚待，不改变契约和原历史run。

@@ -114,3 +114,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 ## MS8 ACK 候选
 
 [v8 ACK 实现映射](v8-acknowledgement-design.md)消费同批MS8/RT12/MR11/CA4候选，增加ACK/原账见证表示及唯一无损语义摘要纯构件。语义接受：未采用；可实施：待成组评审/主线采用；绑定证据：新增0；实际验证：未执行。旧D110与资源闭包纠正的采用/证据范围不被本候选冒用。
+
+## 2026-10-03 固定Schema技术采用
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。

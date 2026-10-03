@@ -143,3 +143,7 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 ## MR11 ACK 保留边界候选
 
 [v11 ACK 实现映射](v11-acknowledgement-design.md)保持完整Pending/final值形状，承接合法ACK的副本释放及后继真实处分原值验证。语义接受未采用；可实施待成组评审/采用；新增bindings0；实际验证未执行。纯包不新增Storage/权限/删除行为。
+
+## 2026-10-03 固定Schema技术采用
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。

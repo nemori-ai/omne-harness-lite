@@ -24,3 +24,7 @@
 2026-09-25：[D045](../../../../record/decisions/governance-protocol-client-adoption/README.md)在独立评审后接受[v2无状态业务协议增量](v2-design.md)。此增量待实现验证；D038 health旧证据不自动覆盖业务、本地状态或CLI。
 
 D045增量已实现：exchangeGovernance与health共享运输、按各自协议解码；90项测试及macOS/Linux真实中心组合冒烟通过，见[实际证据](../../../../record/evidence/2026-09-25-tests-governance-protocol-client/README.md)。仍无本地登录保存和正式CLI。
+
+## 2026-10-03 固定Schema技术采用
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。

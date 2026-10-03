@@ -1,0 +1,161 @@
+{
+  "head": "25c0b5e86612eb20979da9909ef5bdfdefdd76fe",
+  "node": "v24.21.0",
+  "scope": "Actual initialization/resource assembly with recording compiler stubs. No Ajv validation, native artifact, equivalence or compile-cost claim; CLI forms unvalidated invocation explicitly recorded.",
+  "rows": [
+    {
+      "path": "packages/core/content-blocks/src/schema.ts",
+      "file": "packages__core__content-blocks__src__schema.ts.json",
+      "graphs": 1,
+      "resourceInstances": 1,
+      "definitions": 22
+    },
+    {
+      "path": "packages/core/content-blocks/src/exact-schema.ts",
+      "file": "packages__core__content-blocks__src__exact-schema.ts.json",
+      "graphs": 1,
+      "resourceInstances": 8,
+      "definitions": 1
+    },
+    {
+      "path": "packages/core/identity-values/src/validate.ts",
+      "file": "packages__core__identity-values__src__validate.ts.json",
+      "graphs": 1,
+      "resourceInstances": 1,
+      "definitions": 12
+    },
+    {
+      "path": "packages/core/offer-expiry/src/validate.ts",
+      "file": "packages__core__offer-expiry__src__validate.ts.json",
+      "graphs": 1,
+      "resourceInstances": 1,
+      "definitions": 4
+    },
+    {
+      "path": "packages/core/agent-definition/src/index.ts",
+      "file": "packages__core__agent-definition__src__index.ts.json",
+      "graphs": 1,
+      "resourceInstances": 8,
+      "definitions": 1
+    },
+    {
+      "path": "packages/core/messages/src/schema.ts",
+      "file": "packages__core__messages__src__schema.ts.json",
+      "graphs": 1,
+      "resourceInstances": 9,
+      "definitions": 54
+    },
+    {
+      "path": "packages/core/arrival-events/src/schema.ts",
+      "file": "packages__core__arrival-events__src__schema.ts.json",
+      "graphs": 1,
+      "resourceInstances": 4,
+      "definitions": 14
+    },
+    {
+      "path": "packages/core/tool-definition/src/schema.ts",
+      "file": "packages__core__tool-definition__src__schema.ts.json",
+      "graphs": 1,
+      "resourceInstances": 3,
+      "definitions": 21
+    },
+    {
+      "path": "packages/core/loop-extension/src/schema.ts",
+      "file": "packages__core__loop-extension__src__schema.ts.json",
+      "graphs": 2,
+      "resourceInstances": 42,
+      "definitions": 86
+    },
+    {
+      "path": "packages/core/model-response/src/schema.ts",
+      "file": "packages__core__model-response__src__schema.ts.json",
+      "graphs": 1,
+      "resourceInstances": 10,
+      "definitions": 27
+    },
+    {
+      "path": "packages/core/model-profile/src/schema.ts",
+      "file": "packages__core__model-profile__src__schema.ts.json",
+      "graphs": 1,
+      "resourceInstances": 4,
+      "definitions": 14
+    },
+    {
+      "path": "packages/core/skill-package/src/schema.ts",
+      "file": "packages__core__skill-package__src__schema.ts.json",
+      "graphs": 3,
+      "resourceInstances": 14,
+      "definitions": 11
+    },
+    {
+      "path": "packages/core/call-accounts/src/schema.ts",
+      "file": "packages__core__call-accounts__src__schema.ts.json",
+      "graphs": 2,
+      "resourceInstances": 8,
+      "definitions": 26
+    },
+    {
+      "path": "packages/core/mcp-endpoint/src/schema.ts",
+      "file": "packages__core__mcp-endpoint__src__schema.ts.json",
+      "graphs": 1,
+      "resourceInstances": 6,
+      "definitions": 7
+    },
+    {
+      "path": "packages/core/slash-command/src/schema.ts",
+      "file": "packages__core__slash-command__src__schema.ts.json",
+      "graphs": 1,
+      "resourceInstances": 3,
+      "definitions": 9
+    },
+    {
+      "path": "packages/session/session-tenancy-table/src/values.ts",
+      "file": "packages__session__session-tenancy-table__src__values.ts.json",
+      "graphs": 1,
+      "resourceInstances": 1,
+      "definitions": 1
+    },
+    {
+      "path": "packages/tenancy/governance-center-entry/src/routing/schema.ts",
+      "file": "packages__tenancy__governance-center-entry__src__routing__schema.ts.json",
+      "graphs": 1,
+      "resourceInstances": 3,
+      "definitions": 107
+    },
+    {
+      "path": "packages/frontend/client-local-state/src/record.ts",
+      "file": "packages__frontend__client-local-state__src__record.ts.json",
+      "graphs": 1,
+      "resourceInstances": 3,
+      "definitions": 7
+    },
+    {
+      "path": "packages/frontend/governance-center-client/src/governance.ts",
+      "file": "packages__frontend__governance-center-client__src__governance.ts.json",
+      "graphs": 1,
+      "resourceInstances": 3,
+      "definitions": 2
+    },
+    {
+      "path": "packages/frontend/governance-client-operations/src/validation.ts",
+      "file": "packages__frontend__governance-client-operations__src__validation.ts.json",
+      "graphs": 1,
+      "resourceInstances": 5,
+      "definitions": 6
+    },
+    {
+      "path": "apps/cli/src/validation.ts",
+      "file": "apps__cli__src__validation.ts.json",
+      "graphs": 1,
+      "resourceInstances": 5,
+      "definitions": 2
+    },
+    {
+      "path": "apps/cli/src/tui/forms.ts",
+      "file": "apps__cli__src__tui__forms.ts.json",
+      "graphs": 1,
+      "resourceInstances": 0,
+      "definitions": 1
+    }
+  ]
+}
