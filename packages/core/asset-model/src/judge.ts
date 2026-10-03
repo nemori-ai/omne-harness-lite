@@ -1,3 +1,6 @@
+import { isObject } from './json.ts'
+export { isObject } from './json.ts'
+import { deriveAttributeDeclarations } from './declaration-rules.ts'
 import schema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
 import retainedSchema from '@omne-harness-lite/asset-model/schema/v2' with { type: 'json' }
 import retainedContentSchema from '@omne-harness-lite/content-blocks/schema/v2' with { type: 'json' }
@@ -10,7 +13,6 @@ import {
   isNonNegativeJsonInteger,
   isJsonNumber,
   jsonNumberSource,
-  LosslessNumber,
   readJsonStrict,
   writeJsonLossless,
   type JsonValue,
@@ -18,6 +20,9 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import type {
   AssetJudgeContext,
+  AssetCategory,
+  AssetContent,
+  DeclarationResult,
   AssetJudgment,
   AssetOrigin,
   AttributeDeclaration,
@@ -73,14 +78,6 @@ const bodyCategories = [
   'slash_command',
   'connector',
 ] as const
-export function isObject(value: unknown): value is JsonObject {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    !LosslessNumber.is(value)
-  )
-}
 function object(value: JsonValue | undefined): JsonObject | undefined {
   return isObject(value) ? value : undefined
 }
@@ -538,6 +535,11 @@ function violatesCrossMemberRules(c: Candidate, bodies: BodyContractSupply): boo
   )
 }
 export interface AssetModelJudge {
+  readonly attributeDeclarationsOf: <C extends AssetCategory>(
+    content: AssetContent & { readonly category: C },
+    actionSnapshot?: JsonValue,
+  ) => DeclarationResult<C>
+
   readonly judgeAssetValue: (
     defName: SchemaDefName,
     value: unknown,
@@ -590,7 +592,17 @@ export function createAssetModelJudge(bodyContracts: BodyContractSupply): AssetM
       return Object.freeze({ rejected: 'malformed' })
     return Object.freeze({ ok: true })
   }
-  return Object.freeze({ judgeAssetValue, validate })
+  const attributeDeclarationsOf: AssetModelJudge['attributeDeclarationsOf'] = (
+    content,
+    actionSnapshot,
+  ) =>
+    deriveAttributeDeclarations<typeof content.category>(
+      content,
+      bodies,
+      judgeAssetValue,
+      actionSnapshot,
+    )
+  return Object.freeze({ judgeAssetValue, validate, attributeDeclarationsOf })
 }
 function validDomain(root: JsonObject, bodies: BodyContractSupply): boolean {
   const domain = object(root.domain) ?? root
