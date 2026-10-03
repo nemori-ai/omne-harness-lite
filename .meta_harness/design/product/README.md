@@ -24,8 +24,8 @@
 | [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 32 |
 | [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 6 |
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 20 |
-| [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 8 |
-| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 23 |
+| [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 9 |
+| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 24 |
 | [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 23 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | active | 7 |
 | [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | active | 9 |

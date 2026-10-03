@@ -1,9 +1,15 @@
-.PHONY: check agents-check docs-check design-check design-review spec-retention formal-tools test product-check acceptance metrics test-affected test-tier test-triage mutation role-eval acceptance-lock card-retire scenario-status loop-status loop-card loop-health
+.PHONY: check check-plan agents-check docs-check design-check design-review spec-retention formal-tools test product-check acceptance metrics test-affected test-tier test-triage mutation role-eval acceptance-lock card-retire scenario-status loop-status loop-card loop-health
 
 TEST_RUNS := node --experimental-strip-types tools/ts-checks/src/testing/cli.ts
 
+# 整套检查：先算基线（BASELINE，缺省 origin/main 或 main）以来改动的影响面，常驻检查每次都跑，pytest、构建、类型检查、
+# 成员测试与验收只跑计划里的；FULL=1 全量。规则在 tools/ts-checks/test-runs.config.json，见 docs/verification.md。
 check:
 	./scripts/check.sh
+
+# 只算影响面、不跑：判成什么、每一步跑还是跳、选中哪些成员与为什么。BASE 给基线（缺省 BASELINE，再缺省 main），FULL=1 全量。
+check-plan:
+	$(TEST_RUNS) plan $(if $(BASE),--base "$(BASE)")
 
 agents-check:
 	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness --check
@@ -60,18 +66,18 @@ loop-card:
 loop-health:
 	node --experimental-strip-types tools/ts-checks/src/loop/health-cli.ts $(if $(OUT),--out "$(OUT)")
 
-# 只跑受这次改动影响的成员的测试（先构建它们及其依赖），并写耗时账本。
+# 只跑受这次改动影响的成员的测试（先构建它们及其依赖），并写耗时账本；影响面与 make check 是同一份计划。
 # BASE 给基线提交或分支（缺省 main）；TIER 给层（fast、slow、all，缺省 fast）；PLAN=1 只列出受影响范围，不构建也不运行。
 test-affected:
 	$(if $(PLAN),,./scripts/with-test-slot.sh) $(TEST_RUNS) run --base "$(or $(BASE),main)" $(if $(TIER),--tier "$(TIER)") $(if $(PLAN),--plan-only)
 
-# 全部成员的某一层（先构建）：TIER=slow 是合并后在主线头补跑的全量慢层，TIER=fast 量快层全量，TIER=all 同 pnpm run test。
+# 全部成员的某一层（先构建）：TIER=slow 跑全量慢层，TIER=fast 量快层全量，TIER=all 同 pnpm run test。
 test-tier:
 	$(if $(TIER),,$(error 给 TIER=fast、slow 或 all))
 	./scripts/with-test-slot.sh $(TEST_RUNS) run --all --tier "$(TIER)" --build
 
 # 可执行验收：跑每个带 acceptance 脚本的成员的验收，与测试同一个运行器、同一份并行度，账本写进主检出的 tmp/acceptance-ledger/。
-# 验收驱动构建出来的 dist/：缺省先构建这些成员及其依赖，NO_BUILD=1 跳过（make check 在 product-check 里已全量构建过）。
+# 验收驱动构建出来的 dist/：缺省先构建这些成员及其依赖，NO_BUILD=1 跳过（调用方已构建过）。make check 不用它，按计划跑自己的一步。
 acceptance:
 	./scripts/with-test-slot.sh $(TEST_RUNS) run --all --script acceptance $(if $(NO_BUILD),,--build)
 

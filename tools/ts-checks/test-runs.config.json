@@ -11,8 +11,151 @@
       "pnpm-workspace.yaml",
       "tsconfig*.json",
       "vitest.tiers.mts",
+      "scripts/check.sh",
       ".meta_harness/design/spec/**",
-      "tools/ts-checks/test-runs.config.json"
+      "tools/ts-checks/test-runs.config.json",
+      "tools/ts-checks/src/metrics/git.ts",
+      "tools/ts-checks/src/testing/affected.ts",
+      "tools/ts-checks/src/testing/members.ts",
+      "tools/ts-checks/src/testing/cli.ts",
+      "tools/ts-checks/src/testing/config.ts",
+      "tools/ts-checks/src/testing/run.ts",
+      "tools/ts-checks/src/testing/steps.ts",
+      "tools/ts-checks/src/testing/support.ts",
+      "tools/ts-checks/src/testing/timing-reporter.ts"
+    ],
+    "readers": [
+      {
+        "paths": [".meta_harness/design/registry/**"],
+        "members": ["packages/core/stream-assembly", "tools/core-verification"],
+        "why": "stream-assembly tests/fixtures.spec.ts 读 frozen.json、catalog.json 及其列出的资源；core-verification w1-public-consumer.spec.ts 读登记"
+      },
+      {
+        "paths": ["packages/core/*/schema/**"],
+        "members": ["packages/core/stream-assembly"],
+        "why": "stream-assembly tests/fixtures.spec.ts 的 INPUT-02／INPUT-04 读十几个核心成员的 schema/，其中多数没有声明依赖"
+      },
+      {
+        "paths": ["packages/core/*/src/**"],
+        "members": ["tools/core-verification"],
+        "why": "core-verification 的 dependency-surface、public-type-surface 读核心成员的 src 与 dist"
+      },
+      {
+        "paths": ["packages/tenancy/governance-center-entry/tests/fixtures/tls/**"],
+        "members": ["packages/frontend/governance-client-operations"],
+        "why": "governance-client-operations tests/prepared.spec.ts 读 governance-center-entry 的 TLS 夹具，没有声明依赖"
+      },
+      {
+        "paths": [
+          "packages/**/*.ts",
+          "packages/**/*.tsx",
+          "packages/**/*.mts",
+          "packages/**/*.cts",
+          "apps/**/*.ts",
+          "apps/**/*.tsx",
+          "apps/**/*.mts",
+          "apps/**/*.cts",
+          "examples/**/*.ts",
+          "examples/**/*.tsx",
+          "examples/**/*.mts",
+          "examples/**/*.cts"
+        ],
+        "members": ["tools/ts-checks"],
+        "why": "ts-checks 的规则测试读真实产品源码，慢层 group-direction.spec.ts 经 collectMemberSources 读 packages、apps、examples 下全部 TS"
+      },
+      {
+        "paths": [
+          "packages/*/*/package.json",
+          "apps/*/package.json",
+          "tools/*/package.json",
+          "examples/*/package.json"
+        ],
+        "members": ["tools/ts-checks"],
+        "why": "ts-checks tests/test-runs.spec.ts 读全部成员的 package.json"
+      },
+      {
+        "paths": [
+          "docs/clean-loop.md",
+          ".meta_harness/research/clean-code-doctrine-current/doctrine-catalogue.md",
+          ".meta_harness/tooling/src/stories.py",
+          "scripts/with-test-slot.sh"
+        ],
+        "members": ["tools/ts-checks"],
+        "why": "ts-checks 的 loop-catalogue.spec.ts 读 clean-loop 与整洁之道对照表，product-scenarios.spec.ts 读 stories.py，test-slot.spec.ts 执行 with-test-slot.sh"
+      },
+      {
+        "paths": [
+          "packages/infra/credential-custodian-local/README.md",
+          "packages/infra/credential-custodian-local/README_ZH.md"
+        ],
+        "members": ["packages/infra/credential-custodian-local"],
+        "why": "tests/literal.spec.ts 运行两份 README 里的代码块"
+      },
+      {
+        "paths": [
+          "packages/model/model-profile-directory/README.md",
+          "packages/model/model-profile-directory/README_ZH.md"
+        ],
+        "members": ["packages/model/model-profile-directory"],
+        "why": "tests/readme.spec.ts 运行两份 README 里的代码块"
+      }
+    ],
+    "memberDocuments": [
+      "packages/*/*/*.md",
+      "apps/*/*.md",
+      "tools/*/*.md",
+      "apps/*/deploy/**/*.md"
+    ],
+    "pythonPaths": [
+      "Makefile",
+      "pyproject.toml",
+      "uv.lock",
+      "tools/spec-tools/**",
+      ".meta_harness/tooling/**",
+      ".meta_harness/agents/**",
+      ".meta_harness/research/governance-recovery-providers/reports/2026-09-26-snapshot-check-worker/maintenance-probe/node24-worker-threads.md",
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".meta_harness/README.md",
+      ".meta_harness/AGENTS.md",
+      ".meta_harness/CLAUDE.md"
+    ],
+    "residentPaths": [
+      "README.md",
+      "CONTRIBUTING.md",
+      ".agents",
+      ".claude",
+      ".codex",
+      "docs/**",
+      ".meta_harness/design/**",
+      ".meta_harness/design_legacy/**",
+      ".meta_harness/research/**",
+      ".meta_harness/publication/**",
+      "examples/**",
+      ".github/**",
+      ".vscode/**",
+      ".editorconfig",
+      ".prettierrc.json",
+      ".prettierignore",
+      "scripts/*.md",
+      "scripts/format.sh",
+      "scripts/install-format-hook.sh",
+      "scripts/pre-commit-format",
+      "scripts/test-formatting.sh",
+      "scripts/model-probe.mjs",
+      "scripts/package-cli.sh",
+      "scripts/package-tenancy-host.sh",
+      "scripts/build-tenancy-image.sh",
+      "packages/**/*.md",
+      "apps/**/*.md",
+      "tools/*.md",
+      "tools/model-probe/**"
+    ],
+    "residentBuild": [
+      {
+        "member": "packages/core/identity-values",
+        "why": "lint:rules 经 tools/ts-checks/src/rules/identity-shapes.ts 导入它，入口指向 dist"
+      }
     ]
   },
   "ledger": {

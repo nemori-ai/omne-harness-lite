@@ -57,14 +57,38 @@ export interface Parallelism {
   readonly vitestMaxWorkers: number
 }
 
+/**
+ * 影响面的路径规则（`src/testing/affected.ts`）。路径模式都相对仓库根：`*` 不跨目录，`**` 跨目录。
+ * 每个改动文件按 全局 → 读者 → 成员文件 → Python 工具 → 只需常驻检查 的顺序归类，哪类都不是的判全量。
+ */
+export interface AffectedRules {
+  /** 这些根目录下的成员不参与测试、构建与类型检查的收窄（它们的文件靠下面的规则归类）。 */
+  readonly excludeRoots: readonly string[]
+  /** 命中任一条即全部成员、全部步骤：决定「怎么跑」的文件与被大量测试读的规格。 */
+  readonly globalPaths: readonly string[]
+  /** 成员外（或别的成员里）被某些成员的测试读的路径：改了只把这些成员带进来，不沿反向依赖传播。 */
+  readonly readers: readonly ReaderRule[]
+  /** 成员目录里命中这些模式的文件不算成员改动（除非读者规则点了名）。 */
+  readonly memberDocuments: readonly string[]
+  /** 命中则跑 pytest。 */
+  readonly pythonPaths: readonly string[]
+  /** 只被常驻检查读的路径：不构建、不测成员、不跑 pytest。 */
+  readonly residentPaths: readonly string[]
+  /** 常驻检查运行前要构建的成员（连同它们的依赖），每一份计划都构建。 */
+  readonly residentBuild: readonly { readonly member: string; readonly why: string }[]
+}
+
+export interface ReaderRule {
+  readonly paths: readonly string[]
+  /** 成员目录。 */
+  readonly members: readonly string[]
+  /** 谁读、证据在哪；工具只原样展示。 */
+  readonly why: string
+}
+
 export interface TestRunsConfig {
   readonly parallel: Parallelism
-  readonly affected: {
-    /** 这些根目录下的成员不参与测试运行。 */
-    readonly excludeRoots: readonly string[]
-    /** 命中任一条即判为「全部受影响」的仓库相对路径模式（`*` 不跨目录，`**` 跨目录）。 */
-    readonly globalPaths: readonly string[]
-  }
+  readonly affected: AffectedRules
   readonly ledger: {
     readonly slowFileSeconds: number
     /**
@@ -84,7 +108,7 @@ export interface TestRunsConfig {
   }
 }
 
-const CONFIG_PATH = fileURLToPath(new URL('../../test-runs.config.json', import.meta.url))
+export const CONFIG_PATH = fileURLToPath(new URL('../../test-runs.config.json', import.meta.url))
 
 function positiveInteger(value: unknown, name: string): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 1)
@@ -109,10 +133,51 @@ function strings(value: unknown, name: string): string[] {
   return value
 }
 
+function text(value: unknown, name: string): string {
+  if (typeof value !== 'string' || value.trim() === '') throw new Error(`${name} 须为非空字符串`)
+  return value
+}
+
+function records(value: unknown, name: string): Record<string, unknown>[] {
+  if (
+    !Array.isArray(value) ||
+    !value.every(
+      (item): item is Record<string, unknown> =>
+        typeof item === 'object' && item !== null && !Array.isArray(item),
+    )
+  )
+    throw new Error(`${name} 须为对象数组`)
+  return value
+}
+
+function parseAffected(raw: Record<string, unknown> | undefined): AffectedRules {
+  return {
+    excludeRoots: strings(raw?.['excludeRoots'], 'affected.excludeRoots'),
+    globalPaths: strings(raw?.['globalPaths'], 'affected.globalPaths'),
+    readers: records(raw?.['readers'], 'affected.readers').map((reader, index) => {
+      const name = `affected.readers[${index}]`
+      const paths = strings(reader['paths'], `${name}.paths`)
+      const members = strings(reader['members'], `${name}.members`)
+      if (paths.length === 0 || members.length === 0)
+        throw new Error(`${name} 的 paths 与 members 都不能为空`)
+      return { paths, members, why: text(reader['why'], `${name}.why`) }
+    }),
+    memberDocuments: strings(raw?.['memberDocuments'], 'affected.memberDocuments'),
+    pythonPaths: strings(raw?.['pythonPaths'], 'affected.pythonPaths'),
+    residentPaths: strings(raw?.['residentPaths'], 'affected.residentPaths'),
+    residentBuild: records(raw?.['residentBuild'], 'affected.residentBuild').map(
+      (entry, index) => ({
+        member: text(entry['member'], `affected.residentBuild[${index}].member`),
+        why: text(entry['why'], `affected.residentBuild[${index}].why`),
+      }),
+    ),
+  }
+}
+
 export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
   const raw = parsed as {
     parallel?: { memberConcurrency?: unknown; vitestMaxWorkers?: unknown }
-    affected?: { excludeRoots?: unknown; globalPaths?: unknown }
+    affected?: Record<string, unknown>
     ledger?: { slowFileSeconds?: unknown; nearTimeoutRatio?: unknown; top?: unknown }
     triage?: { repeats?: unknown }
     mutation?: { testTimeoutSeconds?: unknown }
@@ -128,10 +193,7 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
         'parallel.vitestMaxWorkers',
       ),
     },
-    affected: {
-      excludeRoots: strings(raw.affected?.excludeRoots, 'affected.excludeRoots'),
-      globalPaths: strings(raw.affected?.globalPaths, 'affected.globalPaths'),
-    },
+    affected: parseAffected(raw.affected),
     ledger: {
       slowFileSeconds: positive(raw.ledger?.slowFileSeconds, 'ledger.slowFileSeconds'),
       nearTimeoutRatio: ratio(raw.ledger?.nearTimeoutRatio, 'ledger.nearTimeoutRatio'),

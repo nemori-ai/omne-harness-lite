@@ -1,4 +1,4 @@
-// 测试运行工具的已知值核对：受影响范围、并行度覆盖、耗时账本、计时报告器、失败归因的分类。
+// 测试运行工具的已知值核对：成员清单、并行度覆盖、耗时账本、计时报告器、失败归因的分类。影响面的计划另见 affected.spec.ts。
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -6,12 +6,13 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
-  describePlan,
+  fileTree,
+  gitTree,
   listTestMembers,
-  planAffected,
+  listWorkspaceMembers,
+  ownerOf,
   workspacePatterns,
-  type TestMember,
-} from '../src/testing/affected.ts'
+} from '../src/testing/members.ts'
 import {
   effectiveParallelism,
   ledgerHome,
@@ -26,80 +27,14 @@ const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 const VITEST = fileURLToPath(new URL('../node_modules/.bin/vitest', import.meta.url))
 const TIMING_REPORTER = fileURLToPath(new URL('../src/testing/timing-reporter.ts', import.meta.url))
 
-const member = (path: string, name: string, dependencies: string[] = []): TestMember => ({
-  path,
-  name,
-  script: 'vitest run',
-  dependencies,
-})
-
-// leaf ← mid ← top；side 与它们无关。
-const MEMBERS = [
-  member('packages/core/leaf', '@x/leaf'),
-  member('packages/core/mid', '@x/mid', ['@x/leaf']),
-  member('apps/top', '@x/top', ['@x/mid']),
-  member('packages/core/side', '@x/side'),
-]
-const GLOBAL = ['package.json', 'tsconfig*.json', '.meta_harness/design/spec/**']
-
-describe('受影响范围', () => {
-  it('改叶子成员：计划恰好是它与直接、间接依赖它的成员', () => {
-    const plan = planAffected(['packages/core/leaf/src/index.ts'], MEMBERS, GLOBAL)
-    expect(plan.changed).toEqual(['packages/core/leaf'])
-    expect(plan.dependents).toEqual(['packages/core/mid', 'apps/top'])
-    expect(plan.global).toBeUndefined()
-  })
-
-  it('改顶层成员：只有它自己', () => {
-    const plan = planAffected(['apps/top/tests/a.spec.ts'], MEMBERS, GLOBAL)
-    expect(plan.changed).toEqual(['apps/top'])
-    expect(plan.dependents).toEqual([])
-  })
-
-  it('成员之外的改动只计数，不拉进任何成员', () => {
-    const plan = planAffected(['docs/development.md', 'examples/demo/src/a.ts'], MEMBERS, GLOBAL)
-    expect(plan.changed).toEqual([])
-    expect(plan.dependents).toEqual([])
-    expect(plan.outside).toBe(2)
-    expect(describePlan(plan, MEMBERS.length).join('\n')).toContain('另有 2 个改动文件')
-  })
-
-  it('目录名只是前缀相同的不算同一个成员', () => {
-    const plan = planAffected(['packages/core/leaf-extra/src/a.ts'], MEMBERS, GLOBAL)
-    expect(plan.changed).toEqual([])
-    expect(plan.outside).toBe(1)
-  })
-
-  it('命中全局路径：全部成员都算受影响，并说出是哪个文件、哪条模式', () => {
-    const plan = planAffected(
-      ['docs/a.md', '.meta_harness/design/spec/contracts/x/v1/schema.json'],
-      MEMBERS,
-      GLOBAL,
+describe('成员清单', () => {
+  it('路径归最长的成员目录前缀；目录名只是前缀相同的不算', () => {
+    const members = [{ path: 'packages/core/leaf' }, { path: 'packages/core/leaf/nested' }]
+    expect(ownerOf('packages/core/leaf/src/a.ts', members)?.path).toBe('packages/core/leaf')
+    expect(ownerOf('packages/core/leaf/nested/src/a.ts', members)?.path).toBe(
+      'packages/core/leaf/nested',
     )
-    expect(plan.global).toEqual({
-      path: '.meta_harness/design/spec/contracts/x/v1/schema.json',
-      pattern: '.meta_harness/design/spec/**',
-    })
-    expect(plan.changed).toHaveLength(MEMBERS.length)
-  })
-
-  it('`*` 不跨目录：根 tsconfig 算全局，成员自己的 tsconfig 不算', () => {
-    expect(planAffected(['tsconfig.base.json'], MEMBERS, GLOBAL).global?.pattern).toBe(
-      'tsconfig*.json',
-    )
-    const own = planAffected(['packages/core/side/tsconfig.json'], MEMBERS, GLOBAL)
-    expect(own.global).toBeUndefined()
-    expect(own.changed).toEqual(['packages/core/side'])
-  })
-
-  it('依赖成环也能停下', () => {
-    const cyclic = [
-      member('packages/a/x', '@x/x', ['@x/y']),
-      member('packages/a/y', '@x/y', ['@x/x']),
-    ]
-    const plan = planAffected(['packages/a/x/src/a.ts'], cyclic, [])
-    expect(plan.changed).toEqual(['packages/a/x'])
-    expect(plan.dependents).toEqual(['packages/a/y'])
+    expect(ownerOf('packages/core/leaf-extra/src/a.ts', members)).toBeUndefined()
   })
 
   it('成员模式取自 pnpm-workspace.yaml 的 packages 列表，到下一个顶层键为止', () => {
@@ -133,6 +68,18 @@ describe('受影响范围', () => {
     expect(listTestMembers(ROOT, []).some(item => item.path.startsWith('examples/'))).toBe(true)
   })
 
+  it('从提交读与从工作树读走同一套解析：HEAD 上的成员清单与工作树一致（工作树没有新增或删掉成员时）', () => {
+    const config = readTestRunsConfig()
+    const fromTree = listWorkspaceMembers(fileTree(ROOT), config.affected.excludeRoots)
+    const fromHead = listWorkspaceMembers(gitTree(ROOT, 'HEAD'), config.affected.excludeRoots)
+    const paths = (members: readonly { path: string }[]) => members.map(item => item.path)
+    // 工作树可能多出还没提交的成员；HEAD 上有的，工作树里都得有，且依赖与脚本一样。
+    expect(paths(fromHead).every(path => paths(fromTree).includes(path))).toBe(true)
+    for (const member of fromHead)
+      expect(fromTree.find(item => item.path === member.path)).toEqual(member)
+    expect(() => gitTree(ROOT, '0'.repeat(40))).toThrow('不存在')
+  })
+
   it('按脚本名选成员：acceptance 只选有这个脚本的，并带上脚本原文', () => {
     const config = readTestRunsConfig()
     const accepting = listTestMembers(ROOT, config.affected.excludeRoots, 'acceptance')
@@ -157,10 +104,20 @@ describe('账本根', () => {
   })
 })
 
+const AFFECTED_EMPTY = {
+  excludeRoots: [],
+  globalPaths: [],
+  readers: [],
+  memberDocuments: [],
+  pythonPaths: [],
+  residentPaths: [],
+  residentBuild: [],
+}
+
 describe('并行度', () => {
   const config = parseTestRunsConfig({
     parallel: { memberConcurrency: 2, vitestMaxWorkers: 4 },
-    affected: { excludeRoots: [], globalPaths: [] },
+    affected: AFFECTED_EMPTY,
     ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
     triage: { repeats: 3 },
     mutation: { testTimeoutSeconds: 60 },
@@ -187,7 +144,7 @@ describe('并行度', () => {
     expect(() =>
       parseTestRunsConfig({
         parallel: { memberConcurrency: 0, vitestMaxWorkers: 4 },
-        affected: { excludeRoots: [], globalPaths: [] },
+        affected: AFFECTED_EMPTY,
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
         mutation: { testTimeoutSeconds: 60 },

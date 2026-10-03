@@ -287,13 +287,13 @@ function indicatorValues(
       ...(sharedNote === undefined ? {} : { note: sharedNote }),
     },
     acceptanceSeconds: {
-      reading: map(sensors.acceptance, timing => timing.totalSeconds),
+      reading: acceptanceMeasured(sensors.acceptance, timing => timing.totalSeconds),
       ...(sensors.acceptance.status === 'data'
         ? { note: acceptanceNote(sensors.acceptance.data) }
         : {}),
     },
     acceptanceSlowestSeconds: {
-      reading: map(sensors.acceptance, timing => timing.slowest?.seconds ?? 0),
+      reading: acceptanceMeasured(sensors.acceptance, timing => timing.slowest?.seconds ?? 0),
       ...(sensors.acceptance.status === 'data' && sensors.acceptance.data.slowest !== undefined
         ? { note: sensors.acceptance.data.slowest.path }
         : {}),
@@ -301,9 +301,25 @@ function indicatorValues(
   }
 }
 
+/** 传感器有数据、但这个提交上的验收全被计划跳过：耗时指标没数据（不拿 0 秒冒充量过了），原因写明跳过。 */
+export function acceptanceMeasured(
+  reading: Reading<AcceptanceTiming>,
+  value: (timing: AcceptanceTiming) => number,
+): Reading<number> {
+  if (reading.status === 'data' && reading.data.files === 0 && reading.data.skipped !== undefined)
+    return noData(
+      `这个提交的验收被跳过：${reading.data.skipped.reason}（${reading.data.skipped.members.join('、')}；${reading.data.ledger?.path ?? ''}）`,
+    )
+  return map(reading, value)
+}
+
 function acceptanceNote(timing: AcceptanceTiming): string {
   if (timing.members === 0) return '0 份：没有成员有 acceptance 脚本'
-  return `${timing.files} 份（${timing.members} 个成员），记录开始于 ${timing.ledger?.startedAt ?? '？'}`
+  const skipped =
+    timing.skipped === undefined
+      ? ''
+      : `；跳过 ${timing.skipped.members.length} 个成员（${timing.skipped.reason}）`
+  return `${timing.files} 份（${timing.members} 个成员），记录开始于 ${timing.ledger?.startedAt ?? '？'}${skipped}`
 }
 
 /** 一个成员拿什么与基线比：配置不比、没有基线快照，或基线快照里它的条目（新成员没有）。 */

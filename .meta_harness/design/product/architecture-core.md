@@ -39,8 +39,8 @@
 | [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | 设置、权限、资产作为**范围化对象**的样子——挂在哪一层、多层同时有值时怎么合成、**工作区那一级**、**设置项分四类** | rev 32 |
 | [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | 资产**怎么进到组织里**，所有权与使用权怎么在主体之间流动 | rev 6 |
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | **定义、装配、装配清单**三者的关系、**两类 agent**，以及注入进来的是什么 | rev 20 |
-| [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | 动作**实际落到哪里**，隔离边界在哪，**作用准不准落在宿主机上** | rev 8 |
-| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | agent **能做什么**——工具与技能的常驻、装载与占位 | rev 23 |
+| [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | 动作**实际落到哪里**，隔离边界在哪，**作用准不准落在宿主机上** | rev 9 |
+| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | agent **能做什么**——工具与技能的常驻、装载与占位 | rev 24 |
 | [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | 系统**自带、关不掉的那几扇门**：agent 怎么问人、怎么看见自己、**一次放行怎么算** | rev 23 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | 人**在哪里看到这些问题、怎么答、答完怎么回去** | rev 7 |
 | [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | **一共有哪几种消息** | rev 9 |

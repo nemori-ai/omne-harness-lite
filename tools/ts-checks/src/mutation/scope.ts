@@ -2,7 +2,7 @@
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { touches, type ChangedLines } from '../metrics/git.ts'
-import type { TestMember } from '../testing/affected.ts'
+import { ownerOf, type TestMember } from '../testing/members.ts'
 
 /** 只变异这些根下成员的产品源码：`tools/` 是开发工具，`examples/` 不长期维护。 */
 export const MUTATION_ROOTS = ['packages', 'apps'] as const
@@ -23,18 +23,6 @@ const isProductSource = (path: string, member: string) =>
 
 const inMutationRoots = (member: TestMember) =>
   MUTATION_ROOTS.some(root => member.path.startsWith(`${root}/`))
-
-/** 路径归哪个成员：最长的成员目录前缀。 */
-function ownerOf(path: string, members: readonly TestMember[]): TestMember | undefined {
-  let owner: TestMember | undefined
-  for (const member of members)
-    if (
-      path.startsWith(`${member.path}/`) &&
-      (owner === undefined || member.path.length > owner.path.length)
-    )
-      owner = member
-  return owner
-}
 
 /** 基线以来改动碰到的产品源码行，按成员分组；测试、类型声明、开发工具与示例不在内。 */
 export function changedTargets(

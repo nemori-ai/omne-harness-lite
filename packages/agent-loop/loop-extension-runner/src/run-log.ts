@@ -11,7 +11,7 @@ import {
 } from '@omne-harness-lite/loop-extension'
 import { passKeys } from './keys.ts'
 import { inspectRunnerConclusion } from './conclusion-codec.ts'
-import type { RunnerExecution } from './conclusion-codec.ts'
+import { executionFence, type RunnerExecution } from './conclusion-codec.ts'
 import type { RunnerPass, RunnerPorts, RunnerRecordResult } from './run-pass.ts'
 import type { RunnerLogBinding, RunnerTaskOwner } from './task-owner.ts'
 
@@ -69,6 +69,29 @@ export function createRunnerLogAdapter(input: {
     }
   }
 
+  function admitCandidate(entry: LogEntryInput, subject: PositionedSubject): boolean {
+    const checked = checkAppendInput(
+      sessionRef,
+      [entry],
+      { kind: 'unfenced' },
+      { kind: 'unconditional' },
+    )
+    const owned = 'ok' in checked ? checked.ok.entries[0] : undefined
+    if (owned === undefined) return false
+    const inspected = inspectRunnerConclusion({
+      session: binding.session,
+      tenant: binding.tenant,
+      entry: { ...owned, session: sessionRef, position: 1 },
+    })
+    if ('invalid' in inspected || 'unrelated' in inspected) return false
+    const admitted = judgeConclusionForSubject(inspected.conclusion, {
+      positionedSubject: subject,
+      extensionName: inspected.conclusion.extension,
+    })
+    if (!('ok' in admitted)) return false
+    return true
+  }
+
   async function record(
     entry: LogEntryInput,
     execution: RunnerExecution,
@@ -82,37 +105,12 @@ export function createRunnerLogAdapter(input: {
       return { kind: 'unavailable' }
     }
     if ('unavailable' in subject) return { kind: 'unavailable' }
-    const checked = checkAppendInput(
-      sessionRef,
-      [entry],
-      { kind: 'unfenced' },
-      { kind: 'unconditional' },
-    )
-    const owned = 'ok' in checked ? checked.ok.entries[0] : undefined
-    if (owned === undefined) return { kind: 'invalidInput' }
-    const inspected = inspectRunnerConclusion({
-      session: binding.session,
-      tenant: binding.tenant,
-      entry: { ...owned, session: sessionRef, position: 1 },
-    })
-    if ('invalid' in inspected || 'unrelated' in inspected) return { kind: 'invalidInput' }
-    const admitted = judgeConclusionForSubject(inspected.conclusion, {
-      positionedSubject: subject,
-      extensionName: inspected.conclusion.extension,
-    })
-    if (!('ok' in admitted)) return { kind: 'invalidInput' }
+    if (!admitCandidate(entry, subject)) return { kind: 'invalidInput' }
     const started = owner.start({
       kind: 'append',
       candidate: { binding, entry, subject },
       execute: () =>
-        log.append(
-          sessionRef,
-          [entry],
-          execution.kind === 'withRun'
-            ? { kind: 'fenced', run: execution.run, attempt: execution.attempt }
-            : { kind: 'unfenced' },
-          { kind: 'unconditional' },
-        ),
+        log.append(sessionRef, [entry], executionFence(execution), { kind: 'unconditional' }),
       unknown: result => 'failure' in result && result.failure === 'unavailable',
     })
     if ('unavailable' in started) return { kind: 'unavailable' }
