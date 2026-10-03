@@ -79,3 +79,36 @@ it('rejects a shadowing parameter even when an outer static require exists', asy
     /unsupported require binding/,
   )
 })
+
+it.each(['let', 'var'])(
+  'rejects a reassigned %s origin instead of certifying the initial graph',
+  async declaration => {
+    const root = await fixture(`
+    import { createRequire } from 'node:module'
+    ${declaration} require = createRequire(new URL('../package.json', import.meta.url))
+    require = createRequire(import.meta.url)
+    require('./generated/start.cjs')
+  `)
+    await expect(dependencySurface(join(root, 'src/index.ts'))).rejects.toThrow(
+      /unsupported require binding/,
+    )
+  },
+)
+
+it.each([
+  "require = require('node:module').createRequire(require('node:path').join(__dirname, '../package.json'))",
+  '({ require } = customLoader)',
+  '[require] = customLoaders',
+  'for (require of customLoaders) {}',
+])('rejects a visible write to the native binding: %s', async write => {
+  const root = await fixture(`${write}; require('./generated/start.cjs')`)
+  await expect(dependencySurface(join(root, 'src/index.ts'))).rejects.toThrow(
+    /reassigned native require binding/,
+  )
+})
+
+it('does not treat a CommonJS require property write as a binding replacement', async () => {
+  const root = await fixture(`require.cache = {}; require('./generated/start.cjs')`)
+  const result = await dependencySurface(join(root, 'src/index.ts'))
+  expect(result.files.map(file => file.file)).toContain(join(root, 'src/generated/start.cjs'))
+})

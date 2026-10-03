@@ -81,13 +81,59 @@ function importsCreateRequire(checker: ts.TypeChecker, expression: ts.Expression
   )
 }
 
+function writesNativeRequire(source: ts.SourceFile, checker: ts.TypeChecker): boolean {
+  const targetsRequire = (node: ts.Node): boolean => {
+    // A property write does not replace the require binding.
+    if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) return false
+    if (ts.isIdentifier(node))
+      return node.text === 'require' && checker.getSymbolAtLocation(node) === undefined
+    if (ts.isShorthandPropertyAssignment(node))
+      return (
+        node.name.text === 'require' &&
+        checker.getShorthandAssignmentValueSymbol(node) === undefined
+      )
+    if (ts.isPropertyAssignment(node)) return targetsRequire(node.initializer)
+    return ts.forEachChild(node, targetsRequire) ?? false
+  }
+  const visit = (node: ts.Node): boolean => {
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+      node.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
+      targetsRequire(node.left)
+    )
+      return true
+    if (
+      (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) &&
+      (node.operator === ts.SyntaxKind.PlusPlusToken ||
+        node.operator === ts.SyntaxKind.MinusMinusToken) &&
+      targetsRequire(node.operand)
+    )
+      return true
+    if (
+      (ts.isForOfStatement(node) || ts.isForInStatement(node)) &&
+      targetsRequire(node.initializer)
+    )
+      return true
+    return ts.forEachChild(node, visit) ?? false
+  }
+  return visit(source)
+}
+
 /** Resolve the lexical binding; unknown origins are errors, not source-relative fallbacks. */
 function requireOrigin(checker: ts.TypeChecker, call: ts.CallExpression, file: string): string {
   const symbol = checker.getSymbolAtLocation(call.expression)
-  if (symbol === undefined) return file // The native CommonJS require binding.
+  if (symbol === undefined) {
+    if (writesNativeRequire(call.getSourceFile(), checker))
+      throw new Error('dependency surface contains a reassigned native require binding')
+    return file // The native CommonJS require binding.
+  }
   const declaration = symbol.valueDeclaration
   const factory =
-    declaration !== undefined && ts.isVariableDeclaration(declaration)
+    declaration !== undefined &&
+    ts.isVariableDeclaration(declaration) &&
+    ts.isVariableDeclarationList(declaration.parent) &&
+    (declaration.parent.flags & ts.NodeFlags.Const) !== 0
       ? declaration.initializer
       : undefined
   if (
