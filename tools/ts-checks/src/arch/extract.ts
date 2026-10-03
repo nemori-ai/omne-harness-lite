@@ -133,13 +133,7 @@ class Extractor {
     return key === undefined ? undefined : { value: key }
   }
   contextType(node: ts.TypeNode | undefined): boolean {
-    if (node === undefined) return false
-    if (ts.isTypeReferenceNode(node))
-      return this.resolver.imported(node.typeName, 'Context', '@deepseek-ai/cordis')
-    return (
-      (ts.isIntersectionTypeNode(node) || ts.isUnionTypeNode(node)) &&
-      node.types.some(type => this.contextType(type))
-    )
+    return this.resolver.typeImported(node, 'Context', '@deepseek-ai/cordis')
   }
   isContext(node: ts.Node, context: WalkContext, seen = new Set<ts.Node>()): boolean {
     node = this.resolver.unwrap(node)
@@ -168,6 +162,12 @@ class Extractor {
       while (parent !== undefined && !ts.isClassDeclaration(parent)) parent = parent.parent
       return parent !== undefined && this.serviceBase(parent) !== undefined
     }
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 'extend'
+    )
+      return this.isContext(node.expression.expression, context, seen)
     return (
       ts.isNewExpression(node) &&
       this.resolver.imported(node.expression, 'Context', '@deepseek-ai/cordis')
@@ -254,11 +254,7 @@ class Extractor {
     return members
   }
   pluginType(node: ts.TypeNode | undefined): boolean {
-    return (
-      node !== undefined &&
-      ts.isTypeReferenceNode(node) &&
-      this.resolver.imported(node.typeName, 'Plugin', '@deepseek-ai/cordis')
-    )
+    return this.resolver.typeImported(node, 'Plugin', '@deepseek-ai/cordis')
   }
   pluginObject(
     node: ts.ObjectLiteralExpression,
@@ -329,6 +325,25 @@ class Extractor {
         ...(body === undefined ? {} : { apply: body }),
       })
   }
+  classPluginName(node: ts.ClassDeclaration, context: WalkContext): string {
+    const metadata = node.members.find(
+      item =>
+        (ts.isPropertyDeclaration(item) || ts.isGetAccessorDeclaration(item)) &&
+        item.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword) &&
+        nodeName(item.name) === 'name',
+    )
+    if (metadata !== undefined) {
+      const value = ts.isPropertyDeclaration(metadata)
+        ? (metadata.initializer ?? metadata.name)
+        : metadata
+      return (
+        this.key('plugin', value, context) ?? `unresolved:class:${node.name?.text ?? 'default'}`
+      )
+    }
+    const name = node.name?.text ?? 'default'
+    this.add('plugin', name, node, context)
+    return name
+  }
   discoverService(node: ts.ClassDeclaration, context: WalkContext): void {
     const member = context.member
 
@@ -350,36 +365,24 @@ class Extractor {
         symbol: node.name?.text ?? 'default',
       })
     if (!node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.AbstractKeyword)) {
-      const name = node.members.find(
+      const pluginName = this.classPluginName(node, context)
+      const inject = node.members.find(
         item =>
           ts.isPropertyDeclaration(item) &&
           item.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword) &&
-          nodeName(item.name) === 'name',
+          nodeName(item.name) === 'inject',
       )
-      const pluginName =
-        name !== undefined && ts.isPropertyDeclaration(name)
-          ? this.resolver.string(name.initializer)?.value
-          : node.name?.text
-      if (pluginName !== undefined) {
-        this.add('plugin', pluginName, node, context)
-        const inject = node.members.find(
-          item =>
-            ts.isPropertyDeclaration(item) &&
-            item.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword) &&
-            nodeName(item.name) === 'inject',
-        )
-        this.plugins.push({
-          name: pluginName,
-          member,
-          node,
-          serviceClass: node,
-          ...(inject !== undefined &&
-          ts.isPropertyDeclaration(inject) &&
-          inject.initializer !== undefined
-            ? { inject: inject.initializer }
-            : {}),
-        })
-      }
+      this.plugins.push({
+        name: pluginName,
+        member,
+        node,
+        serviceClass: node,
+        ...(inject !== undefined &&
+        ts.isPropertyDeclaration(inject) &&
+        inject.initializer !== undefined
+          ? { inject: inject.initializer }
+          : {}),
+      })
     }
   }
   discoverClassPlugin(node: ts.ClassDeclaration, context: WalkContext): void {
@@ -393,36 +396,24 @@ class Extractor {
     ))
       return
 
-    const metadataName = node.members.find(
-      item =>
-        ts.isPropertyDeclaration(item) &&
-        item.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword) &&
-        nodeName(item.name) === 'name',
-    )
-    const name =
-      metadataName !== undefined && ts.isPropertyDeclaration(metadataName)
-        ? this.resolver.string(metadataName.initializer)?.value
-        : node.name?.text
+    const name = this.classPluginName(node, context)
     const inject = node.members.find(
       item =>
         ts.isPropertyDeclaration(item) &&
         item.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword) &&
         nodeName(item.name) === 'inject',
     )
-    if (name !== undefined) {
-      this.add('plugin', name, node, context)
-      this.plugins.push({
-        name,
-        member,
-        node,
-        serviceClass: node,
-        ...(inject !== undefined &&
-        ts.isPropertyDeclaration(inject) &&
-        inject.initializer !== undefined
-          ? { inject: inject.initializer }
-          : {}),
-      })
-    }
+    this.plugins.push({
+      name,
+      member,
+      node,
+      serviceClass: node,
+      ...(inject !== undefined &&
+      ts.isPropertyDeclaration(inject) &&
+      inject.initializer !== undefined
+        ? { inject: inject.initializer }
+        : {}),
+    })
   }
   discoverAugmentation(node: ts.InterfaceDeclaration, context: WalkContext): void {
     if (node.name.text !== 'Context' && node.name.text !== 'Events') return
@@ -460,35 +451,24 @@ class Extractor {
   }
   discoverNative(tree: ts.SourceFile, context: WalkContext): void {
     const member = context.member
-    const apply = tree.statements.find(
-      node => ts.isFunctionDeclaration(node) && node.name?.text === 'apply',
-    )
-    const vars = tree.statements.flatMap(node =>
-      ts.isVariableStatement(node) ? [...node.declarationList.declarations] : [],
-    )
-    const name = vars.find(node => nodeName(node.name) === 'name')?.initializer
-    const inject = vars.find(node => nodeName(node.name) === 'inject')?.initializer
-    const nativeApply =
-      apply !== undefined && ts.isFunctionDeclaration(apply)
-        ? apply
-        : this.resolver.callable(vars.find(node => nodeName(node.name) === 'apply')?.initializer)
-    if (
-      nativeApply !== undefined &&
-      name !== undefined &&
-      !this.contextType(nativeApply.parameters[0]?.type)
-    ) {
+    const name = this.resolver.exported(tree, 'name', 'value'),
+      apply = this.resolver.exported(tree, 'apply', 'value'),
+      inject = this.resolver.exported(tree, 'inject', 'value')
+    const nativeApply = this.resolver.callable(apply)
+    if (nativeApply === undefined || name === undefined) return
+    if (!this.contextType(nativeApply.parameters[0]?.type)) {
       this.unconfirmedPlugin(nativeApply, context)
-    } else if (nativeApply !== undefined && name !== undefined) {
-      const key = this.key('plugin', name, context)
-      if (key !== undefined)
-        this.plugins.push({
-          name: key,
-          member,
-          node: nativeApply,
-          apply: nativeApply,
-          ...(inject === undefined ? {} : { inject }),
-        })
+      return
     }
+    const key = this.key('plugin', name, context)
+    if (key !== undefined)
+      this.plugins.push({
+        name: key,
+        member,
+        node: nativeApply,
+        apply: nativeApply,
+        ...(inject === undefined ? {} : { inject }),
+      })
   }
   discover(tree: ts.SourceFile): void {
     const member = memberOf(this.resolver.path(tree))?.path

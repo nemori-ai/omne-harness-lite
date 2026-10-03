@@ -143,32 +143,109 @@ export class StaticResolver {
   declaration(node: ts.Node): ts.Declaration | undefined {
     return this.symbol(node)?.valueDeclaration ?? this.symbol(node)?.declarations?.[0]
   }
-  /** Check the lexical import before following aliases, including external unresolved symbols. */
-  imported(node: ts.Node, name: string, module: string): boolean {
+  /** Read the actual module surface, including aliases and re-exports. */
+  exported(
+    tree: ts.SourceFile,
+    name: string,
+    space: 'type' | 'value' = 'type',
+  ): ts.Node | undefined {
+    const module = this.checker.getSymbolAtLocation(tree)
+    if (module === undefined) return undefined
+    const symbol = this.checker.getExportsOfModule(module).find(item => item.name === name)
+    const declaration = symbol?.valueDeclaration ?? symbol?.declarations?.[0]
+    if (declaration === undefined) return undefined
+    if (
+      space === 'value' &&
+      (ts.isTypeAliasDeclaration(declaration) ||
+        ts.isInterfaceDeclaration(declaration) ||
+        (ts.isExportSpecifier(declaration) &&
+          (declaration.isTypeOnly || declaration.parent.parent.isTypeOnly)))
+    )
+      return undefined
+    if (
+      ts.isExportSpecifier(declaration) ||
+      ts.isVariableDeclaration(declaration) ||
+      ts.isFunctionDeclaration(declaration) ||
+      ts.isClassDeclaration(declaration) ||
+      ts.isTypeAliasDeclaration(declaration) ||
+      ts.isInterfaceDeclaration(declaration)
+    )
+      return declaration.name
+    return undefined
+  }
+  moduleOrigin(
+    owner: ts.ImportDeclaration | ts.ExportDeclaration,
+    exported: string,
+    name: string,
+    module: string,
+    seen: ReadonlySet<ts.Node>,
+  ): boolean {
+    if (owner.moduleSpecifier === undefined || !ts.isStringLiteral(owner.moduleSpecifier))
+      return false
+    if (owner.moduleSpecifier.text === module) return exported === name
+    const path = this.modulePath(owner.moduleSpecifier.text, owner.getSourceFile())
+    const tree = path === undefined ? undefined : this.program.getSourceFile(ROOT + path)
+    const target = tree === undefined ? undefined : this.exported(tree, exported)
+    return target !== undefined && this.imported(target, name, module, seen)
+  }
+  namespaceOrigin(
+    node: ts.QualifiedName | ts.PropertyAccessExpression,
+    name: string,
+    module: string,
+    seen: ReadonlySet<ts.Node>,
+  ): boolean {
+    const base = ts.isQualifiedName(node) ? node.left : node.expression
+    const exported = ts.isQualifiedName(node) ? node.right.text : node.name.text
+    const symbol = this.checker.getSymbolAtLocation(base)
+    return (
+      symbol?.declarations?.some(
+        declaration =>
+          ts.isNamespaceImport(declaration) &&
+          ts.isImportDeclaration(declaration.parent.parent) &&
+          this.moduleOrigin(declaration.parent.parent, exported, name, module, seen),
+      ) ?? false
+    )
+  }
+  /** Follow lexical imports/exports before external unresolved aliases lose their source. */
+  imported(
+    node: ts.Node,
+    name: string,
+    module: string,
+    seen: ReadonlySet<ts.Node> = new Set(),
+  ): boolean {
+    if (seen.has(node)) return false
+    const path = new Set([...seen, node])
+    if (
+      (ts.isQualifiedName(node) || ts.isPropertyAccessExpression(node)) &&
+      this.namespaceOrigin(node, name, module, path)
+    )
+      return true
     const symbol = this.checker.getSymbolAtLocation(node)
     for (const declaration of symbol?.declarations ?? []) {
-      if (ts.isImportSpecifier(declaration)) {
-        const owner = declaration.parent.parent.parent
-        if (
-          ts.isImportDeclaration(owner) &&
-          ts.isStringLiteral(owner.moduleSpecifier) &&
-          owner.moduleSpecifier.text === module &&
-          (declaration.propertyName ?? declaration.name).text === name
+      if (
+        ts.isImportSpecifier(declaration) &&
+        ts.isImportDeclaration(declaration.parent.parent.parent) &&
+        this.moduleOrigin(
+          declaration.parent.parent.parent,
+          (declaration.propertyName ?? declaration.name).text,
+          name,
+          module,
+          path,
         )
-          return true
-      }
-      if (ts.isNamespaceImport(declaration) && ts.isPropertyAccessExpression(node.parent)) {
-        const owner = declaration.parent.parent
-        if (
-          ts.isImportDeclaration(owner) &&
-          ts.isStringLiteral(owner.moduleSpecifier) &&
-          owner.moduleSpecifier.text === module &&
-          node.parent.name.text === name
+      )
+        return true
+      if (
+        ts.isExportSpecifier(declaration) &&
+        this.moduleOrigin(
+          declaration.parent.parent,
+          (declaration.propertyName ?? declaration.name).text,
+          name,
+          module,
+          path,
         )
-          return true
-      }
+      )
+        return true
     }
-    if (ts.isPropertyAccessExpression(node)) return this.imported(node.expression, name, module)
     const resolved = this.declaration(node)
     return (
       resolved !== undefined &&
@@ -179,6 +256,26 @@ export class StaticResolver {
       resolved.name !== undefined &&
       ts.isIdentifier(resolved.name) &&
       resolved.name.text === name
+    )
+  }
+  typeImported(
+    node: ts.TypeNode | undefined,
+    name: string,
+    module: string,
+    seen: ReadonlySet<ts.Node> = new Set(),
+  ): boolean {
+    if (node === undefined || seen.has(node)) return false
+    const path = new Set([...seen, node])
+    if (ts.isParenthesizedTypeNode(node)) return this.typeImported(node.type, name, module, path)
+    if (ts.isIntersectionTypeNode(node) || ts.isUnionTypeNode(node))
+      return node.types.some(type => this.typeImported(type, name, module, path))
+    if (!ts.isTypeReferenceNode(node)) return false
+    if (this.imported(node.typeName, name, module)) return true
+    const declaration = this.declaration(node.typeName)
+    return (
+      declaration !== undefined &&
+      ts.isTypeAliasDeclaration(declaration) &&
+      this.typeImported(declaration.type, name, module, path)
     )
   }
   unwrap(node: ts.Node): ts.Node {
@@ -242,8 +339,8 @@ export class StaticResolver {
       }
     }
     if (ts.isBinaryExpression(value) && value.operatorToken.kind === ts.SyntaxKind.PlusToken) {
-      const left = this.string(value.left, seen),
-        right = this.string(value.right, seen)
+      const left = this.string(value.left, new Set(seen)),
+        right = this.string(value.right, new Set(seen))
       if (left !== undefined && right !== undefined)
         return { value: left.value + right.value, declaration: this.site(value) }
     }

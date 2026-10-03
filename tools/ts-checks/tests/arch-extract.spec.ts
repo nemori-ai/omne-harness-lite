@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { compareArchitecture } from '../src/arch/compare.ts'
 import { extractArchitecture } from '../src/arch/extract.ts'
+import { readIntents } from '../src/arch/intent.ts'
 import { snapshotOf } from '../src/arch/snapshot.ts'
 
 const source = 'packages/session/example/src/plugin.ts'
@@ -20,6 +22,61 @@ function extract(text: string, extra: Record<string, string> = {}) {
 const prelude = `import { definePlugin as plugin } from '@omne-harness-lite/kernel-basis'
 import { Context as C, Service } from '@deepseek-ai/cordis'
 `
+
+function declaredComparisons(result: ReturnType<typeof extract>) {
+  const root = '.meta_harness/design/realization'
+  const declaration = snapshotOf(
+    new Map([
+      [
+        `${root}/packages/session/example/bindings.yaml`,
+        'assembly: {plugins: [{name: p, source: "design.md#plugin", provides: [svc]}]}',
+      ],
+    ]),
+  )
+  return compareArchitecture(result, readIntents(declaration, root)).comparisons
+}
+const contextCases: readonly {
+  label: string
+  header: string
+  parameterType: string
+  extra?: Record<string, string>
+}[] = [
+  {
+    label: 'direct',
+    header: "import {Context as C} from '@deepseek-ai/cordis'",
+    parameterType: 'C',
+  },
+  {
+    label: 'namespace',
+    header: "import * as Cordis from '@deepseek-ai/cordis'",
+    parameterType: 'Cordis.Context',
+  },
+  {
+    label: 'local aliases',
+    header: "import {Context} from '@deepseek-ai/cordis';type C=Context;type D=(C)",
+    parameterType: 'D',
+  },
+  {
+    label: 'barrel aliases',
+    header: "import type {PublicContext as C} from './barrel.js'",
+    parameterType: 'C',
+    extra: {
+      'packages/session/example/src/context.ts':
+        "export type {Context as C} from '@deepseek-ai/cordis'",
+      'packages/session/example/src/barrel.ts':
+        "export type {C as PublicContext} from './context.js'",
+    },
+  },
+  {
+    label: 'barrel namespace',
+    header: "import * as Types from './context.js'",
+    parameterType: 'Types.C',
+    extra: {
+      'packages/session/example/src/context.ts':
+        "export type {Context as C} from '@deepseek-ai/cordis'",
+    },
+  },
+]
 
 describe('static architecture extraction', () => {
   it('resolves workspace public re-exports, aliases and static class keys without merging plugins', () => {
@@ -172,6 +229,149 @@ export const name = 'exported'; export const inject = ['clock']; export function
       ['exported', 'local', false],
       ['Other', 'Other', true],
     ])
+  })
+  it.each(contextCases)(
+    'retains provides and convergence for $label Context origin',
+    ({ header, parameterType, extra }) => {
+      const result = extract(
+        `import {definePlugin} from '@omne-harness-lite/kernel-basis';
+${header};export const p=definePlugin({name:'p',apply(ctx:${parameterType}){ctx.provide('svc',{})}})`,
+        extra,
+      )
+      expect(result.unknown).toEqual([])
+      expect(result.facts.filter(f => f.kind === 'provides')).toEqual([
+        expect.objectContaining({ key: 'svc', plugin: 'p' }),
+      ])
+      expect(
+        declaredComparisons(result)
+          .filter(c => c.state === 'converged')
+          .map(c => c.kind)
+          .sort(),
+      ).toEqual(['plugin', 'provides'])
+      expect(declaredComparisons(result).some(c => c.state === 'missing')).toBe(false)
+    },
+  )
+  it('rejects ordinary namespace/type aliases and terminates cyclic type aliases', () => {
+    const result = extract(`${prelude}
+namespace Cordis {export interface Context {provide(name:string,value:unknown):void}}
+type Ordinary = {provide(name:string,value:unknown):void}; type Local = Ordinary
+type A=B; type B=A
+export const a=plugin({name:'a',apply(ctx:Cordis.Context){ctx.provide('namespaceFake',{})}})
+export const b=plugin({name:'b',apply(ctx:Local){ctx.provide('aliasFake',{})}})
+export const c=plugin({name:'c',apply(ctx:A){ctx.provide('cycleFake',{})}})
+`)
+    expect(result.facts.filter(f => f.kind === 'plugin')).toHaveLength(3)
+    expect(result.facts.filter(f => f.kind === 'provides')).toEqual([])
+    expect(result.serviceIdentifiers.attempted).toBe(0)
+  })
+  it('uses module public name/apply aliases including a local re-export barrel', () => {
+    const result = extract(
+      `${prelude}
+const identifier='p'; const dependencies=['clock']
+function run(ctx:C){ctx.provide('svc',{})}
+export {identifier as name, run as apply, dependencies as inject}
+`,
+      {
+        'packages/session/example/src/index.ts': "export {name, apply, inject} from './plugin.js'",
+      },
+    )
+    expect(result.facts.filter(f => f.kind === 'plugin').map(f => f.key)).toEqual(['p'])
+    expect(result.facts.filter(f => f.kind === 'provides')).toEqual([
+      expect.objectContaining({ key: 'svc', plugin: 'p' }),
+    ])
+    expect(result.facts.filter(f => f.kind === 'injects').map(f => f.key)).toEqual(['clock'])
+    expect(declaredComparisons(result).find(c => c.kind === 'provides')).toMatchObject({
+      state: 'converged',
+    })
+  })
+  it.each([
+    'export const data={label:name}',
+    'export {name as label, apply as work}',
+    'export type {name, apply}',
+    'export {name}',
+  ])('does not fabricate a native plugin for internal name/apply with %s', exports => {
+    const result = extract(
+      `${prelude}const name='p';function apply(ctx:C){ctx.provide('svc',{})};${exports}`,
+    )
+    expect(result.facts.filter(f => f.kind === 'plugin')).toEqual([])
+    expect(result.facts.filter(f => f.plugin !== undefined)).toEqual([])
+    expect(declaredComparisons(result).filter(c => c.state === 'converged')).toEqual([])
+    expect(declaredComparisons(result).find(c => c.kind === 'plugin')).toMatchObject({
+      state: 'missing',
+    })
+  })
+  it.each([
+    ['static name=getName()', 'getName()'],
+    ['static name:string', 'name'],
+    ['static get name(){return getName()}', 'static get name(){return getName()}'],
+  ])(
+    'reports unknown class metadata for %s without proving a missing plugin',
+    (metadata, expression) => {
+      const result = extract(
+        `${prelude}export class P {${metadata};constructor(ctx:C){ctx.provide('svc',{})}}`,
+      )
+      expect(result.facts.filter(f => f.kind === 'plugin')).toEqual([])
+      expect(result.unknown).toEqual([
+        expect.objectContaining({
+          path: source,
+          line: 3,
+          kind: 'plugin',
+          expression,
+          reason: expect.any(String),
+          serviceIdentifier: false,
+        }),
+      ])
+      expect(
+        declaredComparisons(result)
+          .filter(c => c.declaration !== undefined)
+          .map(c => c.state),
+      ).toEqual(['unknown', 'unknown'])
+      expect(result.serviceIdentifiers).toEqual({ attempted: 1, unresolved: 0, rate: 0 })
+    },
+  )
+  it('keeps static class metadata definite and records dynamic Service names separately from service keys', () => {
+    const normal = extract(
+      `${prelude}export class P {static name='p';constructor(ctx:C){ctx.provide('svc',{})}}`,
+    )
+    expect(normal.unknown).toEqual([])
+    expect(declaredComparisons(normal).map(c => c.state)).toEqual(['converged', 'converged'])
+    const dynamic = extract(
+      `${prelude}export class P extends Service {static provide='svc';static name=getName();constructor(ctx:C){super(ctx)}}`,
+    )
+    expect(dynamic.unknown).toEqual([
+      expect.objectContaining({
+        kind: 'plugin',
+        expression: 'getName()',
+        serviceIdentifier: false,
+      }),
+    ])
+    expect(dynamic.facts.find(f => f.kind === 'defines')).toMatchObject({ key: 'svc' })
+    expect(dynamic.serviceIdentifiers).toEqual({ attempted: 2, unresolved: 0, rate: 0 })
+    expect(declaredComparisons(dynamic).some(c => c.state === 'missing')).toBe(false)
+  })
+  it('resolves repeated const operands without weakening recursive-cycle detection', () => {
+    const result = extract(`${prelude}const A='s';const B=A+A;const X=Y+'x';const Y=X;
+export const p=plugin({name:'p',apply(ctx){ctx.provide(A+A,{});ctx.provide(B+B,{});ctx.provide(X,{})}})`)
+    expect(result.facts.filter(f => f.kind === 'provides').map(f => f.key)).toEqual(['ss', 'ssss'])
+    expect(result.unknown).toEqual([
+      expect.objectContaining({ kind: 'provides', expression: 'X', serviceIdentifier: true }),
+    ])
+    expect(result.serviceIdentifiers).toEqual({ attempted: 3, unresolved: 1, rate: 1 / 3 })
+  })
+  it('propagates only confirmed Context through extend including inline and repeated extensions', () => {
+    const result = extract(`${prelude}export const p=plugin({name:'p',apply(ctx){
+ const child=ctx.extend({});child.provide('svc',{});ctx.extend({}).extend({}).on('extended/event',()=>{})
+ const ordinary={extend(){return {provide(){},on(){}}}};const other=ordinary.extend({});other.provide('fake',{});ordinary.extend({}).on('fake/event',()=>{})
+ const x=y;const y=x;x.extend({}).provide('cycleFake',{})
+}})`)
+    expect(result.unknown).toEqual([])
+    expect(result.facts.filter(f => f.kind === 'provides')).toEqual([
+      expect.objectContaining({ key: 'svc', plugin: 'p' }),
+    ])
+    expect(result.facts.filter(f => f.kind === 'listens')).toEqual([
+      expect.objectContaining({ key: 'extended/event', plugin: 'p' }),
+    ])
+    expect(result.facts.some(f => f.key.includes('fake') || f.key === 'cycleFake')).toBe(false)
   })
   it('uses only static provide/name/inject metadata and keeps legacy super keys', () => {
     const result = extract(`${prelude}
