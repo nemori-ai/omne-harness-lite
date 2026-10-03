@@ -217,6 +217,13 @@ function validPorts(value: RunnerPorts): boolean {
     typeof value.binding === 'object' &&
     identity(value.binding.session) &&
     identity(value.binding.logGeneration) &&
+    validExecutionPorts(value) &&
+    validReminderPorts(value.reminders)
+  )
+}
+
+function validExecutionPorts(value: RunnerPorts): boolean {
+  return (
     typeof value.readConclusions === 'function' &&
     typeof value.readAskState === 'function' &&
     typeof value.presence === 'function' &&
@@ -228,12 +235,17 @@ function validPorts(value: RunnerPorts): boolean {
     typeof value.now === 'function' &&
     typeof value.mintReminder === 'function' &&
     typeof value.isActive === 'function' &&
-    typeof value.fallbackNeedsProjection === 'function' &&
-    value.reminders !== null &&
-    typeof value.reminders === 'object' &&
-    typeof value.reminders.inspect === 'function' &&
-    typeof value.reminders.nestedChain === 'function' &&
-    typeof value.reminders.append === 'function'
+    typeof value.fallbackNeedsProjection === 'function'
+  )
+}
+
+function validReminderPorts(value: RunnerPorts['reminders']): boolean {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    typeof value.inspect === 'function' &&
+    typeof value.nestedChain === 'function' &&
+    typeof value.append === 'function'
   )
 }
 
@@ -247,15 +259,7 @@ function validatePass(pass: RunnerPass, chain: readonly RunnerPiece[], nested: b
     )
   if (!Array.isArray(chain) || !pass.execution || typeof pass.execution !== 'object')
     throw new RunnerFailureSignal(invalidInput)
-  if (
-    pass.execution.kind !== 'noRun' &&
-    (pass.execution.kind !== 'withRun' ||
-      !identity(pass.execution.run) ||
-      !isJsonNumber(pass.execution.attempt) ||
-      !ExactDecimal.from(pass.execution.attempt).isInteger ||
-      ExactDecimal.from(pass.execution.attempt).compare(ExactDecimal.from(0)) <= 0)
-  )
-    throw new RunnerFailureSignal(invalidInput)
+  validateExecution(pass.execution)
   validateHistoryScope(
     {
       initial: pass.initial,
@@ -265,6 +269,18 @@ function validatePass(pass: RunnerPass, chain: readonly RunnerPiece[], nested: b
     chain,
     nested,
   )
+}
+
+function validateExecution(execution: RunnerExecution): void {
+  if (
+    execution.kind !== 'noRun' &&
+    (execution.kind !== 'withRun' ||
+      !identity(execution.run) ||
+      !isJsonNumber(execution.attempt) ||
+      !ExactDecimal.from(execution.attempt).isInteger ||
+      ExactDecimal.from(execution.attempt).compare(ExactDecimal.from(0)) <= 0)
+  )
+    throw new RunnerFailureSignal(invalidInput)
 }
 
 function checkControl(signal: AbortSignal, ports: RunnerPorts, onStopped?: () => void): void {

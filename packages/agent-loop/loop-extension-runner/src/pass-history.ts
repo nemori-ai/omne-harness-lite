@@ -129,8 +129,20 @@ export function validateHistoryScope(
       first.rejected === 'position_unknown' ? { failure: 'positionUnknown' } : invalidInput,
     )
   if (!Array.isArray(chain)) throw new RunnerFailureSignal(invalidInput)
-  const { position, subject } = first.ok
-  if (pass.run === undefined) {
+  validateRunScope(first.ok, pass.run, nested)
+  const seen = new Set<string>()
+  for (const piece of chain) {
+    validatePiece(first.ok, piece, seen)
+  }
+}
+
+function validateRunScope(
+  initial: PositionedSubject,
+  run: string | undefined,
+  nested: boolean,
+): void {
+  const { position, subject } = initial
+  if (run === undefined) {
     if (
       position !== 'before_persist_message' ||
       (position === 'before_persist_message' &&
@@ -145,49 +157,61 @@ export function validateHistoryScope(
     !(nested && subject.producer === 'system')
   ) {
     throw new RunnerFailureSignal(invalidInput)
-  } else if (!identity(pass.run)) throw new RunnerFailureSignal(invalidInput)
-  const seen = new Set<string>()
-  for (const piece of chain) {
-    if (!piece || typeof piece !== 'object') throw new RunnerFailureSignal(invalidInput)
-    const judged = judgeDefinition(piece.definition)
-    if ('rejected' in judged) throw new RunnerFailureSignal(invalidInput)
-    if (
-      !samePosition(first.ok, judged.ok) ||
-      seen.has(judged.ok.name) ||
-      !['observe', 'rewrite', 'veto'].includes(piece.power)
-    )
-      throw new RunnerFailureSignal(invalidInput)
-    seen.add(judged.ok.name)
-    const levels: readonly Power[] = ['observe', 'rewrite', 'veto']
-    if (levels.indexOf(piece.power) > levels.indexOf(judged.ok.power))
-      throw new RunnerFailureSignal(invalidInput)
-    if (
-      piece.onError !== undefined &&
-      !['ignore', 'record', 'treat_as_veto'].includes(piece.onError)
-    )
-      throw new RunnerFailureSignal(invalidInput)
-    if (piece.fallback !== undefined) {
+  } else if (!identity(run)) throw new RunnerFailureSignal(invalidInput)
+}
+
+function validatePiece(initial: PositionedSubject, piece: RunnerPiece, seen: Set<string>): void {
+  if (!piece || typeof piece !== 'object') throw new RunnerFailureSignal(invalidInput)
+  const judged = judgeDefinition(piece.definition)
+  if ('rejected' in judged) throw new RunnerFailureSignal(invalidInput)
+  if (
+    !samePosition(initial, judged.ok) ||
+    seen.has(judged.ok.name) ||
+    !['observe', 'rewrite', 'veto'].includes(piece.power)
+  )
+    throw new RunnerFailureSignal(invalidInput)
+  seen.add(judged.ok.name)
+  const levels: readonly Power[] = ['observe', 'rewrite', 'veto']
+  if (levels.indexOf(piece.power) > levels.indexOf(judged.ok.power))
+    throw new RunnerFailureSignal(invalidInput)
+  if (piece.onError !== undefined && !['ignore', 'record', 'treat_as_veto'].includes(piece.onError))
+    throw new RunnerFailureSignal(invalidInput)
+  validateFallback(initial, piece, judged.ok.name)
+}
+
+function validateFallback(initial: PositionedSubject, piece: RunnerPiece, name: string): void {
+  switch (piece.fallback) {
+    case 'modality':
+      if (initial.position !== 'before_persist_message') throw new RunnerFailureSignal(invalidInput)
+      break
+    case 'admission':
       if (
-        (piece.fallback === 'modality' && position !== 'before_persist_message') ||
-        (piece.fallback === 'admission' &&
-          (judged.ok.name !== 'omne-official:admission-judgment' ||
-            position !== 'before_action' ||
-            piece.power !== 'veto')) ||
-        (piece.fallback === 'retry' &&
-          (judged.ok.name !== 'omne-official:default-retry' ||
-            first.ok.position !== 'after_model_call' ||
-            first.ok.dimension.ending !== 'failure' ||
-            piece.power !== 'rewrite')) ||
-        (piece.fallback === 'offload' &&
-          (judged.ok.name !== 'omne-official:offload-judgment' ||
-            first.ok.position !== 'after_action' ||
-            first.ok.dimension.scope !== 'each')) ||
-        (piece.fallback === 'loop' &&
-          (first.ok.position !== 'after_model_call' ||
-            first.ok.dimension.ending !== 'complete_reply'))
+        name !== 'omne-official:admission-judgment' ||
+        initial.position !== 'before_action' ||
+        piece.power !== 'veto'
       )
         throw new RunnerFailureSignal(invalidInput)
-    }
+      break
+    case 'retry':
+      if (
+        name !== 'omne-official:default-retry' ||
+        initial.position !== 'after_model_call' ||
+        initial.dimension.ending !== 'failure' ||
+        piece.power !== 'rewrite'
+      )
+        throw new RunnerFailureSignal(invalidInput)
+      break
+    case 'offload':
+      if (
+        name !== 'omne-official:offload-judgment' ||
+        initial.position !== 'after_action' ||
+        initial.dimension.scope !== 'each'
+      )
+        throw new RunnerFailureSignal(invalidInput)
+      break
+    case 'loop':
+      if (initial.position !== 'after_model_call' || initial.dimension.ending !== 'complete_reply')
+        throw new RunnerFailureSignal(invalidInput)
   }
 }
 
@@ -202,6 +226,37 @@ export function currentSubject(
   const judged = judgePositionedSubject({ ...initial, subject: combined.effect.subject })
   if (!('ok' in judged)) throw new RunnerFailureSignal(failure)
   return judged.ok
+}
+
+function admitHistoryEntry(
+  entry: LogEntry,
+  pass: RunnerHistoryScope,
+  binding: RunnerLogBinding,
+  piece: RunnerPiece | undefined,
+  historicalFinals: readonly Conclusion[],
+) {
+  const inspected = inspectRunnerConclusion({
+    session: binding.session,
+    tenant: binding.tenant,
+    entry,
+  })
+  if ('invalid' in inspected || 'unrelated' in inspected)
+    throw new RunnerFailureSignal(replayInconsistent)
+  if (
+    inspected.anchor !== pass.anchor ||
+    !samePosition(pass.initial, inspected.conclusion) ||
+    (pass.run !== undefined &&
+      (inspected.execution.kind !== 'withRun' || inspected.execution.run !== pass.run)) ||
+    (pass.run === undefined && inspected.execution.kind !== 'noRun')
+  )
+    throw new RunnerFailureSignal(replayInconsistent)
+  if (piece === undefined || inspected.conclusion.extension !== piece.definition.name)
+    throw new RunnerFailureSignal(replayInconsistent)
+  if (inspected.conclusion.power !== piece.power) throw new RunnerFailureSignal(replayInconsistent)
+  const historicalSubject = currentSubject(pass.initial, historicalFinals, replayInconsistent)
+  const admitted = judgeConclusionForCurrent(inspected.conclusion, historicalSubject, piece)
+  if ('failure' in admitted) throw new RunnerFailureSignal(replayInconsistent)
+  return inspected
 }
 
 export function readPassHistory(
@@ -232,29 +287,7 @@ export function readPassHistory(
     )
       throw new RunnerFailureSignal(replayInconsistent)
     previousPosition = ExactDecimal.from(entry.position)
-    const inspected = inspectRunnerConclusion({
-      session: binding.session,
-      tenant: binding.tenant,
-      entry,
-    })
-    if ('invalid' in inspected || 'unrelated' in inspected)
-      throw new RunnerFailureSignal(replayInconsistent)
-    if (
-      inspected.anchor !== pass.anchor ||
-      !samePosition(pass.initial, inspected.conclusion) ||
-      (pass.run !== undefined &&
-        (inspected.execution.kind !== 'withRun' || inspected.execution.run !== pass.run)) ||
-      (pass.run === undefined && inspected.execution.kind !== 'noRun')
-    )
-      throw new RunnerFailureSignal(replayInconsistent)
-    const piece = chain[pieceIndex]
-    if (piece === undefined || inspected.conclusion.extension !== piece.definition.name)
-      throw new RunnerFailureSignal(replayInconsistent)
-    if (inspected.conclusion.power !== piece.power)
-      throw new RunnerFailureSignal(replayInconsistent)
-    const historicalSubject = currentSubject(pass.initial, historicalFinals, replayInconsistent)
-    const admitted = judgeConclusionForCurrent(inspected.conclusion, historicalSubject, piece)
-    if ('failure' in admitted) throw new RunnerFailureSignal(replayInconsistent)
+    const inspected = admitHistoryEntry(entry, pass, binding, chain[pieceIndex], historicalFinals)
     if (inspected.occurrence.kind === 'ask') {
       askOrdinal = askOrdinal.add(ExactDecimal.from(1))
       if (ExactDecimal.from(inspected.occurrence.ordinal).compare(askOrdinal) !== 0)
