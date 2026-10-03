@@ -47,8 +47,15 @@ function filesIn(directory) {
 }
 function checkOwner(owner) {
   const path = relative(repository, owner).split('\\').join('/')
-  if (!owners.has(path)) throw new Error(`fixed Schema build is not released for ${path}`)
-  return path
+  if (owners.has(path)) return path
+  // Mutation sandboxes relocate the same registered package. Its package identity
+  // keeps the finite owner boundary without requiring the checkout directory name.
+  const manifest = JSON.parse(readFileSync(join(owner, 'package.json'), 'utf8'))
+  const registered = [...owners].find(
+    item => manifest.name === `@omne-harness-lite/${item.split('/').at(-1)}`,
+  )
+  if (registered === undefined) throw new Error(`fixed Schema build is not released for ${path}`)
+  return registered
 }
 function compilerContext(owner, graphs) {
   const require = createRequire(join(owner, 'package.json'))
