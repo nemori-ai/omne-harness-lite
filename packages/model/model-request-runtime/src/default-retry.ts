@@ -9,6 +9,7 @@ import type { Duration } from '@omne-harness-lite/tool-definition'
 import { decideRetry } from './decide-retry.ts'
 import { retryDelay } from './retry-delay.ts'
 import type { RetryBackoffPolicy } from './retry-delay-types.ts'
+import { policyKind, policyJitter } from './retry-policy-shape.ts'
 
 export const DEFAULT_RETRY_BUILTIN = 'omne-official:default-retry'
 
@@ -43,14 +44,11 @@ function ownedPolicy(value: RetryBackoffPolicy): RetryBackoffPolicy {
   const policy = copied.ok
   if (
     Object.keys(policy).length !== 5 ||
-    (policy.kind !== 'constant' && policy.kind !== 'linear' && policy.kind !== 'exponential') ||
+    !policyKind(policy.kind) ||
     typeof policy.base !== 'string' ||
     !isJsonNumber(policy.factor) ||
     typeof policy.max !== 'string' ||
-    (policy.jitter !== 'none' &&
-      policy.jitter !== 'full' &&
-      policy.jitter !== 'half' &&
-      policy.jitter !== 'decorrelated')
+    !policyJitter(policy.jitter)
   )
     throw new TypeError('Invalid default retry policy')
   const owned: RetryBackoffPolicy = {
@@ -73,6 +71,46 @@ function ownedPolicy(value: RetryBackoffPolicy): RetryBackoffPolicy {
   return Object.freeze(owned)
 }
 
+function sampleUnavailable(value: JsonNumber | { readonly unavailable: true }): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'unavailable' in value &&
+    value.unavailable === true
+  )
+}
+
+function retryOutput(
+  subject: AfterModelCallFailureSubject,
+  policy: RetryBackoffPolicy,
+  uniformSample: JsonNumber,
+): DefaultRetryResult {
+  const last = [...subject.retryConclusions]
+    .reverse()
+    .find(conclusion => conclusion.extension === DEFAULT_RETRY_BUILTIN)
+  let result
+  if (policy.jitter === 'decorrelated') {
+    const previousDelay: Duration | undefined =
+      last === undefined ? policy.base : last.output.plan.after
+    if (previousDelay === undefined)
+      return { kind: 'errored', error: 'default_retry_previous_delay_missing' }
+    result = decideRetry({
+      subject: { known: subject },
+      policy: { ...policy, jitter: 'decorrelated' },
+      uniformSample,
+      previousDelay,
+    })
+  } else {
+    result = decideRetry({
+      subject: { known: subject },
+      policy: { ...policy, jitter: policy.jitter },
+      uniformSample,
+    })
+  }
+  if ('rejected' in result) return { kind: 'errored', error: `default_retry_${result.rejected}` }
+  return { kind: 'output', value: result }
+}
+
 /** An independent P-5 contribution. Scheduling, registration and durable conclusions belong to its consumers. */
 export function createDefaultRetryImplementation(
   config: DefaultRetryConfiguration,
@@ -91,39 +129,9 @@ export function createDefaultRetryImplementation(
     } catch {
       return { kind: 'notStartedUnavailable' }
     }
-    if (
-      typeof uniformSample === 'object' &&
-      uniformSample !== null &&
-      'unavailable' in uniformSample &&
-      uniformSample.unavailable === true
-    )
-      return { kind: 'notStartedUnavailable' }
+    if (sampleUnavailable(uniformSample)) return { kind: 'notStartedUnavailable' }
     if (!isJsonNumber(uniformSample) || signal.aborted)
       return { kind: 'errored', error: 'default_retry_sample_invalid_or_cancelled' }
-    const subject = input.subject
-    const last = [...subject.retryConclusions]
-      .reverse()
-      .find(conclusion => conclusion.extension === DEFAULT_RETRY_BUILTIN)
-    let result
-    if (policy.jitter === 'decorrelated') {
-      const previousDelay: Duration | undefined =
-        last === undefined ? policy.base : last.output.plan.after
-      if (previousDelay === undefined)
-        return { kind: 'errored', error: 'default_retry_previous_delay_missing' }
-      result = decideRetry({
-        subject: { known: subject },
-        policy: { ...policy, jitter: 'decorrelated' },
-        uniformSample,
-        previousDelay,
-      })
-    } else {
-      result = decideRetry({
-        subject: { known: subject },
-        policy: { ...policy, jitter: policy.jitter },
-        uniformSample,
-      })
-    }
-    if ('rejected' in result) return { kind: 'errored', error: `default_retry_${result.rejected}` }
-    return { kind: 'output', value: result }
+    return retryOutput(input.subject, policy, uniformSample)
   }
 }
