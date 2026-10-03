@@ -374,11 +374,13 @@ make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make che
 | `indicators.missingAssembly`、`unresolvedServiceNames` | `lines: null`、`baseline: true`；只报告增长                      |
 
 原生插件对象需要 Context 首参、Cordis Plugin 类型或已确认 Context 的 plugin 注册出处；definePlugin 也提供出处。
+模块形式的原生插件按实际公开导出的 name/apply/inject 识别，私有同名变量不构成插件。
 只有 name/apply 形状的候选逐项记未知，显式普通参数类型不会升级为 Context。
 抽取使用 TypeScript AST、词法符号和官方模块解析。公开入口与常量按对应版本的源码和 package exports 还原。
 基线源集包含已删除或搬迁的文件。事实身份不含源码路径或行号，多个插件和内嵌 inject 作用域分别保留。
 服务定义保留 Context 增补或 Service 类来源；提供调用另存。事件保留声明的 `@mode` 与实际派发模式。
 导入保留目标导出名、本地别名及 type/runtime。输出位于 `status.json` 的 `sensors.reflexion.data`。
+声明差分独立写入 `sensors.assemblyChanges`，指标与 explain 使用这个读数；两通道由同一个 reflexion 开关控制。
 
 逐项状态是 `converged`、`deviation`、`missing`、`unknown`。包存在但无 assembly/composition 是 `undeclared`，
 包无节点是 `no-design`，节点无包是 `not-built`。明确空声明的纯数据包有声明。README 的「源码位置」明确当前已建或未建、而包存在性相反时，
@@ -386,6 +388,7 @@ make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make che
 严格模式下开启却 no-data 会失败并点名。
 
 新增偏离始终对照 merge-base 声明。修改当前声明不能消除它，声明语义改动另列。
+删除最后一份有效声明后，关系通道是 no-data，独立声明差分仍保留删除红项；严格模式仍因关系通道无数据失败。
 YAML 注释、格式和映射键顺序不产生声明改动。未提交与未跟踪源码也参与分析。
 IC-5 例外只放行基线声明点名的导出符号；混合导入的其他符号仍报偏离，namespace 通配符不能放行。
 输出记录例外的 `sharedStorage` 和设计出处，不据此证明共同提交。原有方向与环硬线保持独立。
@@ -394,7 +397,7 @@ IC-5 例外只放行基线声明点名的导出符号；混合导入的其他符
 服务失败率仅计算服务标识符解析尝试，事件名与配置未知不进入分母。
 静态分析不执行配置工厂，不证明动态装配、事件隔离、运行时可用性或共享提交。
 动态插件名、循环中的动态服务键仍可能未知；调用关联仅覆盖可追踪的 Context 交接，不解释任意 JavaScript。
-当前 43 个成员、52 个节点的首轮 AST 抽取约 4.4 秒，111 次服务标识符尝试中 5 次未知。
+本阶段最终候选在 43 个成员、52 个节点上读取到 113 次服务标识符尝试，其中 5 次未知。
 基线完整读取和第二次抽取另有成本，耗时随输入规模和机器负载变化。
 
 自测：`tests/arch-extract.spec.ts`、`tests/loop-reflexion*.spec.ts`，加现有 config、strict 和金丝雀测试。
