@@ -1,7 +1,11 @@
 import { defineInputMeter } from '../input-meter.ts'
 // Text/tool projection from zai-org/GLM-5.3 aca966e4 and GLM-5.3-Flash
 // eb9eb208 pinned chat_template.jinja. OpenRouter private conversion is unknown.
-import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
+import {
+  writeJsonLossless,
+  type JsonObject,
+  type JsonValue,
+} from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
 import type { ModelDefinition } from '../definitions.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
@@ -37,45 +41,62 @@ function messages(body: JsonObject, history: ZaiHistoryTreatment): readonly Mess
       if (content === undefined) return undefined
       parsed.push({ role: raw.role, content })
     } else if (raw.role === 'assistant') {
-      if (!exactKeys(raw, ['role', 'content', 'tool_calls', 'reasoning', 'reasoning_details']))
-        return undefined
-      // The published templates consume reasoning_content, while the final OpenRouter body
-      // uses reasoning/reasoning_details. Only a visible-history release maps the plain
-      // string into that slot; nothing is ever silently discarded.
-      const thought = zaiAssistantReasoning(raw, history)
-      if (thought === undefined) return undefined
-      const content = visibleText(raw.content)
-      const calls = toolCalls(raw.tool_calls)
-      if (content === undefined || content.includes('</think>') || calls === undefined)
-        return undefined
-      const callIds: string[] = []
-      if (raw.tool_calls !== undefined) {
-        if (!Array.isArray(raw.tool_calls)) return undefined
-        for (const call of raw.tool_calls) {
-          if (!object(call) || typeof call.id !== 'string') return undefined
-          callIds.push(call.id)
-        }
-      }
-      // An absent reasoning_content renders the same empty think pair as the empty string.
-      parsed.push({
-        role: 'assistant',
-        content,
-        reasoning: thought.reasoning ?? '',
-        calls,
-        callIds,
-      })
+      const assistant = assistantMessage(raw, history)
+      if (!assistant) return undefined
+      parsed.push(assistant)
     } else if (raw.role === 'tool') {
-      if (
-        !exactKeys(raw, ['role', 'tool_call_id', 'content']) ||
-        typeof raw.tool_call_id !== 'string'
-      )
-        return undefined
-      const content = visibleText(raw.content)
-      if (content === undefined) return undefined
-      parsed.push({ role: 'tool', content, callId: raw.tool_call_id })
+      const tool = toolMessage(raw)
+      if (!tool) return undefined
+      parsed.push(tool)
     } else return undefined
   }
   return parsed
+}
+
+function toolMessage(raw: JsonObject): ToolMessage | undefined {
+  if (!exactKeys(raw, ['role', 'tool_call_id', 'content']) || typeof raw.tool_call_id !== 'string')
+    return undefined
+  const content = visibleText(raw.content)
+  if (content === undefined) return undefined
+  return { role: 'tool', content, callId: raw.tool_call_id }
+}
+
+function assistantMessage(
+  raw: JsonObject,
+  history: ZaiHistoryTreatment,
+): AssistantMessage | undefined {
+  if (!exactKeys(raw, ['role', 'content', 'tool_calls', 'reasoning', 'reasoning_details']))
+    return undefined
+  // The published templates consume reasoning_content, while the final OpenRouter body
+  // uses reasoning/reasoning_details. Only a visible-history release maps the plain
+  // string into that slot; nothing is ever silently discarded.
+  const thought = zaiAssistantReasoning(raw, history)
+  if (thought === undefined) return undefined
+  const content = visibleText(raw.content)
+  const calls = toolCalls(raw.tool_calls)
+  if (content === undefined || content.includes('</think>') || calls === undefined) return undefined
+  const callIds = assistantCallIds(raw)
+  if (!callIds) return undefined
+  // An absent reasoning_content renders the same empty think pair as the empty string.
+  return {
+    role: 'assistant',
+    content,
+    reasoning: thought.reasoning ?? '',
+    calls,
+    callIds,
+  }
+}
+
+function assistantCallIds(raw: JsonObject): string[] | undefined {
+  const callIds: string[] = []
+  if (raw.tool_calls !== undefined) {
+    if (!Array.isArray(raw.tool_calls)) return undefined
+    for (const call of raw.tool_calls) {
+      if (!object(call) || typeof call.id !== 'string') return undefined
+      callIds.push(call.id)
+    }
+  }
+  return callIds
 }
 
 function renderToolBlock(group: readonly ToolMessage[], previous: Message | undefined): string {
@@ -123,6 +144,14 @@ export function renderGlm53Prompt(
   const parsed = messages(body, history)
   const schemas = toolSchemas(body.tools)
   if (!parsed || schemas === undefined) return undefined
+  const namedEffort = reasoningEffort(body, flash)
+  if (namedEffort === undefined) return undefined
+  const prompt = `[gMASK]<sop><|system|>Reasoning Effort: ${namedEffort}` + schemas
+  const rendered = renderMessages(parsed, prompt)
+  return rendered === undefined ? undefined : rendered + '<|assistant|><think>'
+}
+
+function reasoningEffort(body: JsonObject, flash: boolean): string | undefined {
   if (flash && body.reasoning !== undefined) return undefined
   const effort = body.reasoning
   if (
@@ -132,10 +161,15 @@ export function renderGlm53Prompt(
       (effort.effort !== 'low' && effort.effort !== 'high' && effort.effort !== 'max'))
   )
     return undefined
+  return effortName(effort)
+}
+
+function effortName(effort: JsonValue | undefined): string {
   const effectiveEffort = effort && object(effort) ? effort.effort : 'max'
-  const namedEffort =
-    effectiveEffort === 'low' ? 'Low' : effectiveEffort === 'high' ? 'High' : 'Max'
-  let prompt = `[gMASK]<sop><|system|>Reasoning Effort: ${namedEffort}` + schemas
+  return effectiveEffort === 'low' ? 'Low' : effectiveEffort === 'high' ? 'High' : 'Max'
+}
+
+function renderMessages(parsed: readonly Message[], prompt: string): string | undefined {
   for (let index = 0; index < parsed.length; index++) {
     const message = parsed[index]
     if (!message) return undefined
@@ -145,15 +179,20 @@ export function renderGlm53Prompt(
       prompt += `<|assistant|><think>${message.reasoning}</think>${message.content.trim()}${message.calls}${message.calls ? '\n' : ''}`
     else {
       if (index > 0 && parsed[index - 1]?.role === 'tool') continue
-      const group: ToolMessage[] = []
-      for (let next = index; next < parsed.length && parsed[next]?.role === 'tool'; next++) {
-        const item = parsed[next]
-        if (item?.role === 'tool') group.push(item)
-      }
+      const group = consecutiveTools(parsed, index)
       prompt += renderToolBlock(group, parsed[index - 1])
     }
   }
-  return prompt + '<|assistant|><think>'
+  return prompt
+}
+
+function consecutiveTools(parsed: readonly Message[], index: number): ToolMessage[] {
+  const group: ToolMessage[] = []
+  for (let next = index; next < parsed.length && parsed[next]?.role === 'tool'; next++) {
+    const item = parsed[next]
+    if (item?.role === 'tool') group.push(item)
+  }
+  return group
 }
 
 // Release-gating ZV0 observation of each leaf's current-binding reply shape (one paid

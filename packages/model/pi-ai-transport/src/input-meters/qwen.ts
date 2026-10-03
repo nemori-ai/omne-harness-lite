@@ -180,22 +180,32 @@ function content(value: JsonValue | undefined, allowImages: boolean): string | u
   let text = ''
   for (const part of value) {
     if (allowImages && object(part) && part.type === 'image_url') {
-      if (
-        Object.keys(part).some(key => key !== 'type' && key !== 'image_url') ||
-        !object(part.image_url) ||
-        Object.keys(part.image_url).some(key => key !== 'url') ||
-        typeof part.image_url.url !== 'string'
-      )
-        return undefined
+      if (!imageFieldsValid(part)) return undefined
       text += visionPlaceholder
       continue
     }
-    if (!object(part) || part.type !== 'text' || typeof part.text !== 'string') return undefined
-    if (Object.keys(part).some(key => key !== 'type' && key !== 'text' && key !== 'cache_control'))
-      return undefined
+    if (!textFieldsValid(part)) return undefined
     text += part.text
   }
   return text
+}
+
+function textFieldsValid(part: JsonValue): part is JsonObject & { text: string } {
+  if (!object(part) || part.type !== 'text' || typeof part.text !== 'string') return false
+  if (Object.keys(part).some(key => key !== 'type' && key !== 'text' && key !== 'cache_control'))
+    return false
+  return true
+}
+
+function imageFieldsValid(
+  part: JsonObject,
+): part is JsonObject & { image_url: JsonObject & { url: string } } {
+  return !(
+    Object.keys(part).some(key => key !== 'type' && key !== 'image_url') ||
+    !object(part.image_url) ||
+    Object.keys(part.image_url).some(key => key !== 'url') ||
+    typeof part.image_url.url !== 'string'
+  )
 }
 
 type PromptMessage = {
@@ -210,33 +220,9 @@ function messages(value: JsonValue | undefined, allowImages: boolean): PromptMes
   const result: PromptMessage[] = []
   for (const raw of value) {
     if (!object(raw)) return undefined
-    const role = raw.role
-    if (role !== 'system' && role !== 'user' && role !== 'assistant' && role !== 'tool')
-      return undefined
-    const allowed =
-      role === 'assistant'
-        ? ['role', 'content', 'reasoning', 'tool_calls']
-        : role === 'tool'
-          ? ['role', 'content', 'tool_call_id']
-          : ['role', 'content']
-    if (Object.keys(raw).some(key => !allowed.includes(key))) return undefined
-    // Raw details reach here only unprojected; `reasoning_content` stays refused.
-    if (raw.reasoning_details !== undefined || raw.reasoning_content !== undefined) return undefined
-    const rendered = content(raw.content, allowImages && role === 'user')
-    if (rendered === undefined) return undefined
-    if (role !== 'assistant' && (raw.reasoning !== undefined || raw.tool_calls !== undefined))
-      return undefined
-    if (raw.reasoning !== undefined && typeof raw.reasoning !== 'string') return undefined
-    if (raw.tool_calls !== undefined && !Array.isArray(raw.tool_calls)) return undefined
-    const calls = raw.tool_calls ?? []
-    if (!Array.isArray(calls) || calls.some(call => !object(call))) return undefined
-    if (role === 'tool' && typeof raw.tool_call_id !== 'string') return undefined
-    result.push({
-      role,
-      content: rendered.trim(),
-      reasoning: typeof raw.reasoning === 'string' ? raw.reasoning.trim() : '',
-      toolCalls: calls.filter(object),
-    })
+    const message = promptMessage(raw, allowImages)
+    if (!message) return undefined
+    result.push(message)
   }
   if (
     !result.some(
@@ -251,6 +237,48 @@ function messages(value: JsonValue | undefined, allowImages: boolean): PromptMes
     return undefined
   if (result.some((message, index) => message.role === 'system' && index !== 0)) return undefined
   return result
+}
+
+function promptMessage(raw: JsonObject, allowImages: boolean): PromptMessage | undefined {
+  const role = raw.role
+  if (!promptRole(role)) return undefined
+  if (!messageFieldsValid(raw, role)) return undefined
+  const rendered = content(raw.content, allowImages && role === 'user')
+  if (rendered === undefined) return undefined
+  if (!messageReasoningValid(raw, role)) return undefined
+  const calls = raw.tool_calls ?? []
+  if (!Array.isArray(calls) || calls.some(call => !object(call))) return undefined
+  if (role === 'tool' && typeof raw.tool_call_id !== 'string') return undefined
+  return {
+    role,
+    content: rendered.trim(),
+    reasoning: typeof raw.reasoning === 'string' ? raw.reasoning.trim() : '',
+    toolCalls: calls.filter(object),
+  }
+}
+
+function promptRole(role: JsonValue | undefined): role is PromptMessage['role'] {
+  return role === 'system' || role === 'user' || role === 'assistant' || role === 'tool'
+}
+
+function messageFieldsValid(raw: JsonObject, role: PromptMessage['role']): boolean {
+  const allowed =
+    role === 'assistant'
+      ? ['role', 'content', 'reasoning', 'tool_calls']
+      : role === 'tool'
+        ? ['role', 'content', 'tool_call_id']
+        : ['role', 'content']
+  if (Object.keys(raw).some(key => !allowed.includes(key))) return false
+  // Raw details reach here only unprojected; `reasoning_content` stays refused.
+  return raw.reasoning_details === undefined && raw.reasoning_content === undefined
+}
+
+function messageReasoningValid(raw: JsonObject, role: PromptMessage['role']): boolean {
+  if (role !== 'assistant' && (raw.reasoning !== undefined || raw.tool_calls !== undefined))
+    return false
+  if (raw.reasoning !== undefined && typeof raw.reasoning !== 'string') return false
+  if (raw.tool_calls !== undefined && !Array.isArray(raw.tool_calls)) return false
+  return true
 }
 
 const xhighInstruction =
@@ -283,27 +311,53 @@ function renderToolCalls(
 ): string | undefined {
   let output = ''
   for (const [index, raw] of calls.entries()) {
-    const fn = object(raw.function) ? raw.function : undefined
-    if (!fn || typeof fn.name !== 'string' || typeof fn.arguments !== 'string') return undefined
-    if (Object.keys(raw).some(key => key !== 'id' && key !== 'type' && key !== 'function'))
-      return undefined
-    if (Object.keys(fn).some(key => key !== 'name' && key !== 'arguments')) return undefined
-    const parsed = readJsonStrict(fn.arguments)
-    if (!('ok' in parsed) || !object(parsed.ok)) return undefined
-    if (toolJson === 'wire-order' && !keepsSourceOrder(parsed.ok)) return undefined
+    const call = toolCallArguments(raw, toolJson)
+    if (!call) return undefined
+    const { fn, arguments: args } = call
     output += index === 0 && priorContent.trim() ? '\n\n' : index > 0 ? '\n' : ''
     output += `<tool_call>\n<function=${fn.name}>\n`
-    for (const [name, value] of Object.entries(parsed.ok)) {
-      const rendered =
-        typeof value === 'string'
-          ? value
-          : toolJson === 'wire-order'
-            ? wireOrderJson(value)
-            : jinjaJson(value)
-      if (rendered === undefined) return undefined
-      output += `<parameter=${name}>\n${rendered}\n</parameter>\n`
-    }
+    const parameters = renderCallParameters(args, toolJson)
+    if (parameters === undefined) return undefined
+    output += parameters
     output += '</function>\n</tool_call>'
+  }
+  return output
+}
+
+function toolCallArguments(
+  raw: JsonObject,
+  toolJson: QwenTemplateSettings['toolJson'],
+): { fn: JsonObject; arguments: JsonObject } | undefined {
+  const fn = object(raw.function) ? raw.function : undefined
+  if (!fn || typeof fn.name !== 'string' || typeof fn.arguments !== 'string') return undefined
+  if (!callFieldsValid(raw, fn)) return undefined
+  const parsed = readJsonStrict(fn.arguments)
+  if (!('ok' in parsed) || !object(parsed.ok)) return undefined
+  if (toolJson === 'wire-order' && !keepsSourceOrder(parsed.ok)) return undefined
+  return { fn, arguments: parsed.ok }
+}
+
+function callFieldsValid(raw: JsonObject, fn: JsonObject): boolean {
+  if (Object.keys(raw).some(key => key !== 'id' && key !== 'type' && key !== 'function'))
+    return false
+  if (Object.keys(fn).some(key => key !== 'name' && key !== 'arguments')) return false
+  return true
+}
+
+function renderCallParameters(
+  args: JsonObject,
+  toolJson: QwenTemplateSettings['toolJson'],
+): string | undefined {
+  let output = ''
+  for (const [name, value] of Object.entries(args)) {
+    const rendered =
+      typeof value === 'string'
+        ? value
+        : toolJson === 'wire-order'
+          ? wireOrderJson(value)
+          : jinjaJson(value)
+    if (rendered === undefined) return undefined
+    output += `<parameter=${name}>\n${rendered}\n</parameter>\n`
   }
   return output
 }
@@ -333,6 +387,18 @@ export function renderQwenPrompt(
   body: JsonObject,
   settings: QwenTemplateSettings = qwenOpenTemplateSettings,
 ): string | undefined {
+  if (!templateBodyFieldsValid(body)) return undefined
+  const sequence = messages(body.messages, body.model === visualModelId)
+  const definitions = tools(body.tools)
+  if (!sequence || !definitions) return undefined
+  const first = sequence[0]
+  if (!first) return undefined
+  const system = renderSystem(first, definitions, settings)
+  if (system === undefined) return undefined
+  return renderHistory(sequence, settings, system)
+}
+
+function templateBodyFieldsValid(body: JsonObject): boolean {
   if (
     Object.keys(body).some(
       key =>
@@ -347,12 +413,15 @@ export function renderQwenPrompt(
     ) ||
     body.reasoning !== undefined
   )
-    return undefined
-  const sequence = messages(body.messages, body.model === visualModelId)
-  const definitions = tools(body.tools)
-  if (!sequence || !definitions) return undefined
-  const first = sequence[0]
-  if (!first) return undefined
+    return false
+  return true
+}
+
+function renderSystem(
+  first: PromptMessage,
+  definitions: readonly JsonObject[],
+  settings: QwenTemplateSettings,
+): string | undefined {
   const instruction = settings.effortInstruction === 'xhigh' ? xhighInstruction : ''
   const toolJson = settings.toolJson === 'wire-order' ? wireOrderJson : jinjaJson
   const systemContent = first.role === 'system' ? first.content : ''
@@ -372,6 +441,14 @@ export function renderQwenPrompt(
   } else if (instruction) {
     prompt = `<|im_start|>system\n${instruction}<|im_end|>\n`
   }
+  return prompt
+}
+
+function renderHistory(
+  sequence: readonly PromptMessage[],
+  settings: QwenTemplateSettings,
+  prompt: string,
+): string | undefined {
   const lastQuery = lastQueryIndex(sequence)
   for (const [index, message] of sequence.entries()) {
     if (message.role === 'system') continue
@@ -386,13 +463,23 @@ export function renderQwenPrompt(
       if (callText === undefined) return undefined
       prompt += `${callText}<|im_end|>\n`
     } else {
-      if (index === 0 || sequence[index - 1]?.role !== 'tool') prompt += '<|im_start|>user'
-      prompt += `\n<tool_response>\n${message.content}\n</tool_response>`
-      if (index === sequence.length - 1 || sequence[index + 1]?.role !== 'tool')
-        prompt += '<|im_end|>\n'
+      prompt += renderToolResponse(sequence, index, message)
     }
   }
   return `${prompt}<|im_start|>assistant\n<think>\n`
+}
+
+function renderToolResponse(
+  sequence: readonly PromptMessage[],
+  index: number,
+  message: PromptMessage,
+): string {
+  let prompt = ''
+  if (index === 0 || sequence[index - 1]?.role !== 'tool') prompt += '<|im_start|>user'
+  prompt += `\n<tool_response>\n${message.content}\n</tool_response>`
+  if (index === sequence.length - 1 || sequence[index + 1]?.role !== 'tool')
+    prompt += '<|im_end|>\n'
+  return prompt
 }
 
 /** Alibaba's image formula for source dimensions requiring no resize. */
@@ -418,33 +505,34 @@ function inlineImageTokens(body: JsonObject): number | undefined {
     if (!object(message) || !Array.isArray(message.content)) continue
     for (const part of message.content) {
       if (!object(part) || part.type !== 'image_url') continue
-      if (
-        message.role !== 'user' ||
-        Object.keys(part).some(key => key !== 'type' && key !== 'image_url') ||
-        !object(part.image_url) ||
-        Object.keys(part.image_url).some(key => key !== 'url') ||
-        typeof part.image_url.url !== 'string'
-      )
-        return undefined
-      const encoded = inlinePng.exec(part.image_url.url)?.[1]
-      if (!encoded) return undefined
-      const bytes = Buffer.from(encoded, 'base64')
-      if (!bytes.length || bytes.length > 4 * 1024 * 1024 || bytes.toString('base64') !== encoded)
-        return undefined
-      try {
-        const dimensions = imageSize(bytes)
-        if (dimensions.type !== 'png') return undefined
-        const imageTokens = qwenUnscaledImageTokens(dimensions.width, dimensions.height)
-        if (imageTokens === undefined) return undefined
-        // The public template's three markers include the single image pad.
-        // Alibaba's image formula counts the two surrounding vision markers.
-        tokens += imageTokens - 3
-      } catch {
-        return undefined
-      }
+      if (message.role !== 'user' || !imageFieldsValid(part)) return undefined
+      const imageTokens = imagePartTokens(part)
+      if (imageTokens === undefined) return undefined
+      // The public template's three markers include the single image pad.
+      // Alibaba's image formula counts the two surrounding vision markers.
+      tokens += imageTokens - 3
     }
   }
   return tokens
+}
+
+function imagePartTokens(
+  part: JsonObject & { image_url: JsonObject & { url: string } },
+): number | undefined {
+  const encoded = inlinePng.exec(part.image_url.url)?.[1]
+  if (!encoded) return undefined
+  const bytes = Buffer.from(encoded, 'base64')
+  if (!bytes.length || bytes.length > 4 * 1024 * 1024 || bytes.toString('base64') !== encoded)
+    return undefined
+  try {
+    const dimensions = imageSize(bytes)
+    if (dimensions.type !== 'png') return undefined
+    const imageTokens = qwenUnscaledImageTokens(dimensions.width, dimensions.height)
+    if (imageTokens === undefined) return undefined
+    return imageTokens
+  } catch {
+    return undefined
+  }
 }
 
 // Alibaba's Chat API maps Qwen3.8 `high` and `max` to `xhigh`, the pinned
@@ -490,26 +578,25 @@ function onlyKeys(value: JsonObject, allowed: readonly string[]): boolean {
 
 function commercialContent(value: JsonValue | undefined, systemCache: boolean): boolean {
   if (typeof value === 'string' || value === null) return true
-  return (
-    Array.isArray(value) &&
-    value.every(part => {
-      if (
-        !object(part) ||
-        part.type !== 'text' ||
-        typeof part.text !== 'string' ||
-        !onlyKeys(part, ['type', 'text', 'cache_control'])
-      )
-        return false
-      if (part.cache_control === undefined) return true
-      return (
-        systemCache &&
-        object(part.cache_control) &&
-        onlyKeys(part.cache_control, ['type', 'ttl']) &&
-        part.cache_control.type === 'ephemeral' &&
-        part.cache_control.ttl === '5m'
-      )
-    })
-  )
+  return Array.isArray(value) && value.every(partValid)
+
+  function partValid(part: JsonValue): boolean {
+    if (
+      !object(part) ||
+      part.type !== 'text' ||
+      typeof part.text !== 'string' ||
+      !onlyKeys(part, ['type', 'text', 'cache_control'])
+    )
+      return false
+    if (part.cache_control === undefined) return true
+    return (
+      systemCache &&
+      object(part.cache_control) &&
+      onlyKeys(part.cache_control, ['type', 'ttl']) &&
+      part.cache_control.type === 'ephemeral' &&
+      part.cache_control.ttl === '5m'
+    )
+  }
 }
 
 /**
@@ -519,6 +606,15 @@ function commercialContent(value: JsonValue | undefined, systemCache: boolean): 
  * tool, call and message member sets. The template renderer judges everything else.
  */
 function commercialStructure(body: JsonObject, route: ModelRoute): boolean {
+  if (!commercialBodyFieldsValid(body)) return false
+  if (!commercialToolsValid(body)) return false
+  const explicitCache = route.cache.mode === 'explicit'
+  return body.messages.every(message => commercialMessageValid(message, explicitCache))
+}
+
+function commercialBodyFieldsValid(
+  body: JsonObject,
+): body is JsonObject & { messages: JsonValue[] } {
   if (
     !onlyKeys(body, [
       'model',
@@ -539,6 +635,10 @@ function commercialStructure(body: JsonObject, route: ModelRoute): boolean {
     !Array.isArray(body.messages)
   )
     return false
+  return true
+}
+
+function commercialToolsValid(body: JsonObject): boolean {
   if (
     body.tools !== undefined &&
     (!Array.isArray(body.tools) ||
@@ -556,50 +656,55 @@ function commercialStructure(body: JsonObject, route: ModelRoute): boolean {
       ))
   )
     return false
-  const explicitCache = route.cache.mode === 'explicit'
-  return body.messages.every(message => {
-    if (
-      !object(message) ||
-      !onlyKeys(message, [
-        'role',
-        'content',
-        'reasoning',
-        'reasoning_details',
-        'tool_calls',
-        'tool_call_id',
-      ]) ||
-      !commercialContent(message.content, explicitCache && message.role === 'system')
-    )
-      return false
-    if (
-      message.role !== 'assistant' &&
-      (message.reasoning !== undefined ||
-        message.reasoning_details !== undefined ||
-        message.tool_calls !== undefined)
-    )
-      return false
-    if (
-      message.role === 'tool'
-        ? typeof message.tool_call_id !== 'string'
-        : message.tool_call_id !== undefined
-    )
-      return false
-    return (
-      message.tool_calls === undefined ||
-      (Array.isArray(message.tool_calls) &&
-        message.tool_calls.every(
-          call =>
-            object(call) &&
-            onlyKeys(call, ['id', 'type', 'function']) &&
-            typeof call.id === 'string' &&
-            call.type === 'function' &&
-            object(call.function) &&
-            onlyKeys(call.function, ['name', 'arguments']) &&
-            typeof call.function.name === 'string' &&
-            typeof call.function.arguments === 'string',
-        ))
-    )
-  })
+  return true
+}
+
+function commercialMessageValid(message: JsonValue, explicitCache: boolean): boolean {
+  if (
+    !object(message) ||
+    !onlyKeys(message, [
+      'role',
+      'content',
+      'reasoning',
+      'reasoning_details',
+      'tool_calls',
+      'tool_call_id',
+    ]) ||
+    !commercialContent(message.content, explicitCache && message.role === 'system')
+  )
+    return false
+  if (
+    message.role !== 'assistant' &&
+    (message.reasoning !== undefined ||
+      message.reasoning_details !== undefined ||
+      message.tool_calls !== undefined)
+  )
+    return false
+  if (
+    message.role === 'tool'
+      ? typeof message.tool_call_id !== 'string'
+      : message.tool_call_id !== undefined
+  )
+    return false
+  return commercialCallsValid(message)
+}
+
+function commercialCallsValid(message: JsonObject): boolean {
+  return (
+    message.tool_calls === undefined ||
+    (Array.isArray(message.tool_calls) &&
+      message.tool_calls.every(
+        call =>
+          object(call) &&
+          onlyKeys(call, ['id', 'type', 'function']) &&
+          typeof call.id === 'string' &&
+          call.type === 'function' &&
+          object(call.function) &&
+          onlyKeys(call.function, ['name', 'arguments']) &&
+          typeof call.function.name === 'string' &&
+          typeof call.function.arguments === 'string',
+      ))
+  )
 }
 
 /** Pinned public-template estimates for the eight exact Alibaba leaves. */
@@ -614,15 +719,7 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
       ? qwenPublicTemplateBindings[definition.modelId]
       : undefined)
   const route = definition.routes.alibaba
-  if (
-    (!source && !commercial) ||
-    !binding ||
-    definition.revision !== binding.revision ||
-    definition.implementation.name !== 'pi-ai:qwen' ||
-    definition.implementation.revision !== binding.implementationRevision ||
-    !Object.hasOwn(definition.routes, 'alibaba') ||
-    !route
-  )
+  if ((!source && !commercial) || !bindingValid(definition, binding) || !route)
     throw new TypeError('unsupported Qwen definition')
   const effortRule = route.parameters.reasoningEffort
   const settings = commercial?.template ?? qwenOpenTemplateSettings
@@ -649,13 +746,7 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
       `${source?.repository} ${source?.commit} public chat_template.jinja and tokenizer.json sha256:${tokenizerSha256}; ${definition.modelId === visualModelId ? 'Alibaba Qwen3.8 32x32 image formula, unscaled inline PNG only;' : 'text/tools subset;'} OpenRouter/Alibaba conversion remains estimated; declared high/max request effort renders the template default xhigh instruction per Alibaba's documented high/max-to-xhigh mapping, an estimated scope extension with no actual effort holdout or error bound; one visible reasoning.text detail per assistant is projected into the public template reasoning_content slot, OpenRouter details conversion unknown, no holdout; none, other effort shapes and every other reasoning_details shape (summary, encrypted, redacted or extra keys) remain unavailable`,
     measureFull({ body, serialized }): TokenMeasurement {
       if (
-        body.model !== definition.modelId ||
-        !object(body.provider) ||
-        !Array.isArray(body.provider.order) ||
-        body.provider.order.length !== 1 ||
-        body.provider.order[0] !== 'alibaba' ||
-        body.provider.allow_fallbacks !== false ||
-        writeJsonLossless(body) !== serialized ||
+        !measurementBodyValid(body, definition, serialized) ||
         (commercial !== undefined && !commercialStructure(body, route))
       )
         return { kind: 'unavailable' }
@@ -680,4 +771,39 @@ export function createQwenInputMeter(definition: ModelDefinition): InputMeter {
   })
   // All eight factory methods run the shared source/basis guards.
   return guardInputMeter(raw)
+}
+
+function measurementBodyValid(
+  body: JsonObject,
+  definition: ModelDefinition,
+  serialized: string,
+): boolean {
+  return (
+    body.model === definition.modelId &&
+    providerValid(body) &&
+    writeJsonLossless(body) === serialized
+  )
+}
+
+function bindingValid(
+  definition: ModelDefinition,
+  binding: { readonly revision: string; readonly implementationRevision: string } | undefined,
+): boolean {
+  return !(
+    !binding ||
+    definition.revision !== binding.revision ||
+    definition.implementation.name !== 'pi-ai:qwen' ||
+    definition.implementation.revision !== binding.implementationRevision ||
+    !Object.hasOwn(definition.routes, 'alibaba')
+  )
+}
+
+function providerValid(body: JsonObject): boolean {
+  return !(
+    !object(body.provider) ||
+    !Array.isArray(body.provider.order) ||
+    body.provider.order.length !== 1 ||
+    body.provider.order[0] !== 'alibaba' ||
+    body.provider.allow_fallbacks !== false
+  )
 }

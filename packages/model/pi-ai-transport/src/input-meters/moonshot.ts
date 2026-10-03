@@ -23,6 +23,26 @@ const inlineImage =
   /^data:(image\/(?:png|jpeg|webp));base64,((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==))$/u
 
 function imageDimensions(part: JsonValue): { width: number; height: number } | undefined {
+  const decoded = imageBytes(part)
+  if (!decoded) return undefined
+  const { bytes, mime } = decoded
+  try {
+    const dimensions = imageSize(bytes)
+    if (dimensions.type !== (mime === 'image/jpeg' ? 'jpg' : mime.slice(6))) return undefined
+    if (
+      !Number.isSafeInteger(dimensions.width) ||
+      !Number.isSafeInteger(dimensions.height) ||
+      dimensions.width < 1 ||
+      dimensions.height < 1
+    )
+      return undefined
+    return { width: dimensions.width, height: dimensions.height }
+  } catch {
+    return undefined
+  }
+}
+
+function imageBytes(part: JsonValue): { bytes: Buffer; mime: string } | undefined {
   if (
     !object(part) ||
     part.type !== 'image_url' ||
@@ -40,21 +60,7 @@ function imageDimensions(part: JsonValue): { width: number; height: number } | u
   if (!match?.[1] || !match[2]) return undefined
   const bytes = Buffer.from(match[2], 'base64')
   if (!bytes.length || bytes.toString('base64') !== match[2]) return undefined
-  try {
-    const dimensions = imageSize(bytes)
-    if (dimensions.type !== (match[1] === 'image/jpeg' ? 'jpg' : match[1].slice(6)))
-      return undefined
-    if (
-      !Number.isSafeInteger(dimensions.width) ||
-      !Number.isSafeInteger(dimensions.height) ||
-      dimensions.width < 1 ||
-      dimensions.height < 1
-    )
-      return undefined
-    return { width: dimensions.width, height: dimensions.height }
-  } catch {
-    return undefined
-  }
+  return { bytes, mime: match[1] }
 }
 
 // Moonshot's pinned media_utils.py navit_resize_image with model-specific
@@ -168,16 +174,18 @@ function contents(value: JsonValue | undefined): string | undefined {
   let result = ''
   for (const part of value) {
     if (object(part) && part.type === 'image_url' && imageDimensions(part)) continue
-    if (
-      !object(part) ||
-      part.type !== 'text' ||
-      typeof part.text !== 'string' ||
-      Object.keys(part).some(key => key !== 'type' && key !== 'text')
-    )
-      return undefined
+    if (!object(part) || !textPartValid(part)) return undefined
     result += part.text
   }
   return result
+}
+
+function textPartValid(part: JsonObject): part is JsonObject & { text: string } {
+  return (
+    part.type === 'text' &&
+    typeof part.text === 'string' &&
+    !Object.keys(part).some(key => key !== 'type' && key !== 'text')
+  )
 }
 
 function contentSegments(route: Route, value: JsonValue | undefined): Segment[] | undefined {
@@ -191,12 +199,7 @@ function contentSegments(route: Route, value: JsonValue | undefined): Segment[] 
       const dimensions = imageDimensions(part)
       if (!dimensions) return undefined
       segments.push(...imageSegments(route, dimensions))
-    } else if (
-      part.type === 'text' &&
-      typeof part.text === 'string' &&
-      Object.keys(part).every(key => key === 'type' || key === 'text')
-    )
-      segments.push(text(part.text))
+    } else if (textPartValid(part)) segments.push(text(part.text))
     else return undefined
   }
   return segments
@@ -208,12 +211,7 @@ function messages(body: JsonObject): readonly JsonObject[] | undefined {
     if (!object(item) || typeof item.role !== 'string' || contents(item.content) === undefined)
       return undefined
     if (!['system', 'developer', 'user', 'assistant', 'tool'].includes(item.role)) return undefined
-    if (
-      item.role !== 'user' &&
-      Array.isArray(item.content) &&
-      item.content.some(part => object(part) && part.type === 'image_url')
-    )
-      return undefined
+    if (!messageMediaValid(item)) return undefined
     // Raw details reach here only unprojected; the public templates do not explain them.
     if (item.reasoning_details !== undefined) return undefined
     if (
@@ -236,6 +234,13 @@ function messages(body: JsonObject): readonly JsonObject[] | undefined {
   }
   return result
 }
+function messageMediaValid(item: JsonObject): boolean {
+  return !(
+    item.role !== 'user' &&
+    Array.isArray(item.content) &&
+    item.content.some(part => object(part) && part.type === 'image_url')
+  )
+}
 function tools(body: JsonObject): readonly JsonObject[] | undefined {
   if (body.tools === undefined) return []
   if (!Array.isArray(body.tools)) return undefined
@@ -251,17 +256,20 @@ function calls(message: JsonObject): readonly JsonObject[] | undefined {
   if (!Array.isArray(message.tool_calls)) return undefined
   const result: JsonObject[] = []
   for (const item of message.tool_calls) {
-    if (!object(item) || !object(item.function) || typeof item.function.name !== 'string')
-      return undefined
-    if (typeof item.function.arguments !== 'string') return undefined
-    if (item.id !== undefined && typeof item.id !== 'string') return undefined
-    if (item.type !== undefined && item.type !== 'function') return undefined
-    if (Object.keys(item).some(key => !['id', 'type', 'function'].includes(key))) return undefined
-    if (Object.keys(item.function).some(key => !['name', 'arguments'].includes(key)))
-      return undefined
+    if (!callValid(item)) return undefined
     result.push(item)
   }
   return result
+}
+function callValid(item: JsonValue): item is JsonObject {
+  if (!object(item) || !object(item.function) || typeof item.function.name !== 'string')
+    return false
+  if (typeof item.function.arguments !== 'string') return false
+  if (item.id !== undefined && typeof item.id !== 'string') return false
+  if (item.type !== undefined && item.type !== 'function') return false
+  if (Object.keys(item).some(key => !['id', 'type', 'function'].includes(key))) return false
+  if (Object.keys(item.function).some(key => !['name', 'arguments'].includes(key))) return false
+  return true
 }
 function escapeAttribute(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;')
@@ -334,13 +342,7 @@ function orderedK3History(history: readonly JsonObject[]): readonly JsonObject[]
     const message = history[index]
     if (!message) break
     if (message.role === 'assistant') {
-      callPositions = new Map()
-      if (Array.isArray(message.tool_calls)) {
-        for (const [position, call] of message.tool_calls.entries()) {
-          if (object(call) && typeof call.id === 'string' && !callPositions.has(call.id))
-            callPositions.set(call.id, position)
-        }
-      }
+      callPositions = assistantCallPositions(message)
     }
     if (message.role !== 'tool') {
       ordered.push(message)
@@ -366,6 +368,16 @@ function orderedK3History(history: readonly JsonObject[]): readonly JsonObject[]
     ordered.push(...run)
   }
   return ordered
+}
+function assistantCallPositions(message: JsonObject): Map<string, number> {
+  const callPositions = new Map<string, number>()
+  if (Array.isArray(message.tool_calls)) {
+    for (const [position, call] of message.tool_calls.entries()) {
+      if (object(call) && typeof call.id === 'string' && !callPositions.has(call.id))
+        callPositions.set(call.id, position)
+    }
+  }
+  return callPositions
 }
 function renderK3(
   body: JsonObject,
@@ -394,17 +406,23 @@ function renderK3(
   let priorCalls: readonly JsonObject[] = []
   let resultIndex = 0
   for (const message of orderedK3History(history)) {
+    if (!renderMessage(message)) return undefined
+  }
+  result.push(...open('message', [['role', 'assistant']]), ...open('think'))
+  return result
+
+  function renderMessage(message: JsonObject): boolean {
     const role = message.role
     const content = contents(message.content)
     const renderedContent = contentSegments('k3', message.content)
-    if (content === undefined || !renderedContent || typeof role !== 'string') return undefined
-    if (role === 'developer') return undefined // no documented K3 developer projection
+    if (content === undefined || !renderedContent || typeof role !== 'string') return false
+    if (role === 'developer') return false // no documented K3 developer projection
     if (role === 'tool') {
       resultIndex++
       const id = message.tool_call_id
       const matched = priorCalls.find(call => call.id === id)
       const fn = matched?.function
-      if (!object(fn) || typeof fn.name !== 'string') return undefined
+      if (!object(fn) || typeof fn.name !== 'string') return false
       result.push(
         ...open('message', [
           ['role', 'tool'],
@@ -413,35 +431,48 @@ function renderK3(
         ]),
       )
       result.push(...renderedContent, ...close('message'), control('<|end_of_msg|>'))
-      continue
+      return true
     }
-    const attrs: [string, string][] = [['role', role]]
-    if (typeof message.name === 'string' && message.name) attrs.push(['name', message.name])
-    result.push(...open('message', attrs))
+    result.push(...open('message', messageAttributes(role, message)))
     if (role === 'assistant') {
       const toolCalls = calls(message)
-      if (!toolCalls) return undefined
+      if (!toolCalls) return false
       priorCalls = toolCalls
       resultIndex = 0
-      result.push(...open('think'))
-      const reasoningText = message.reasoning_content ?? message.reasoning
-      if (typeof reasoningText === 'string') result.push(text(reasoningText))
-      else if (reasoningText !== undefined) return undefined
-      result.push(...close('think'), ...open('response'), ...renderedContent, ...close('response'))
-      if (toolCalls.length) {
-        result.push(...open('tools'))
-        for (const [index, call] of toolCalls.entries()) {
-          const segments = toolCallK3(call, index + 1)
-          if (!segments) return undefined
-          result.push(...segments)
-        }
-        result.push(...close('tools'))
-      }
+      if (!appendK3Assistant(result, message, renderedContent, toolCalls)) return false
     } else result.push(...renderedContent)
     result.push(...close('message'), control('<|end_of_msg|>'))
+    return true
   }
-  result.push(...open('message', [['role', 'assistant']]), ...open('think'))
-  return result
+}
+
+function messageAttributes(role: string, message: JsonObject): [string, string][] {
+  const attrs: [string, string][] = [['role', role]]
+  if (typeof message.name === 'string' && message.name) attrs.push(['name', message.name])
+  return attrs
+}
+
+function appendK3Assistant(
+  result: Segment[],
+  message: JsonObject,
+  renderedContent: readonly Segment[],
+  toolCalls: readonly JsonObject[],
+): boolean {
+  result.push(...open('think'))
+  const reasoningText = message.reasoning_content ?? message.reasoning
+  if (typeof reasoningText === 'string') result.push(text(reasoningText))
+  else if (reasoningText !== undefined) return false
+  result.push(...close('think'), ...open('response'), ...renderedContent, ...close('response'))
+  if (toolCalls.length) {
+    result.push(...open('tools'))
+    for (const [index, call] of toolCalls.entries()) {
+      const segments = toolCallK3(call, index + 1)
+      if (!segments) return false
+      result.push(...segments)
+    }
+    result.push(...close('tools'))
+  }
+  return true
 }
 
 function renderK27(
@@ -462,35 +493,9 @@ function renderK27(
     const content = contents(message.content)
     const renderedContent = contentSegments('k27', message.content)
     if (content === undefined || !renderedContent || typeof role !== 'string') return undefined
-    const marker =
-      role === 'user' ? '<|im_user|>' : role === 'assistant' ? '<|im_assistant|>' : '<|im_system|>'
-    result.push(
-      control(marker),
-      text(typeof message.name === 'string' && message.name ? message.name : role),
-      control('<|im_middle|>'),
-    )
+    appendK27Header(result, message, role)
     if (role === 'assistant') {
-      const toolCalls = calls(message)
-      if (!toolCalls) return undefined
-      const reasoningText = message.reasoning ?? message.reasoning_content ?? ''
-      if (typeof reasoningText !== 'string') return undefined
-      result.push(control('<think>'), text(reasoningText), control('</think>'), ...renderedContent)
-      if (toolCalls.length) {
-        result.push(control('<|tool_calls_section_begin|>'))
-        for (const call of toolCalls) {
-          const fn = call.function
-          if (typeof call.id !== 'string' || !object(fn) || typeof fn.arguments !== 'string')
-            return undefined
-          result.push(
-            control('<|tool_call_begin|>'),
-            text(call.id),
-            control('<|tool_call_argument_begin|>'),
-            text(fn.arguments),
-            control('<|tool_call_end|>'),
-          )
-        }
-        result.push(control('<|tool_calls_section_end|>'))
-      }
+      if (!appendK27Assistant(result, message, renderedContent)) return undefined
     } else if (role === 'tool') {
       if (typeof message.tool_call_id !== 'string') return undefined
       result.push(text(`## Return of ${message.tool_call_id}\n`), ...renderedContent)
@@ -504,6 +509,45 @@ function renderK27(
     control('<think>'),
   )
   return result
+}
+
+function appendK27Header(result: Segment[], message: JsonObject, role: string): void {
+  const marker =
+    role === 'user' ? '<|im_user|>' : role === 'assistant' ? '<|im_assistant|>' : '<|im_system|>'
+  result.push(
+    control(marker),
+    text(typeof message.name === 'string' && message.name ? message.name : role),
+    control('<|im_middle|>'),
+  )
+}
+
+function appendK27Assistant(
+  result: Segment[],
+  message: JsonObject,
+  renderedContent: readonly Segment[],
+): boolean {
+  const toolCalls = calls(message)
+  if (!toolCalls) return false
+  const reasoningText = message.reasoning ?? message.reasoning_content ?? ''
+  if (typeof reasoningText !== 'string') return false
+  result.push(control('<think>'), text(reasoningText), control('</think>'), ...renderedContent)
+  if (toolCalls.length) {
+    result.push(control('<|tool_calls_section_begin|>'))
+    for (const call of toolCalls) {
+      const fn = call.function
+      if (typeof call.id !== 'string' || !object(fn) || typeof fn.arguments !== 'string')
+        return false
+      result.push(
+        control('<|tool_call_begin|>'),
+        text(call.id),
+        control('<|tool_call_argument_begin|>'),
+        text(fn.arguments),
+        control('<|tool_call_end|>'),
+      )
+    }
+    result.push(control('<|tool_calls_section_end|>'))
+  }
+  return true
 }
 
 /** @internal Pinned prompt projection, exposed only from this package-private module. */

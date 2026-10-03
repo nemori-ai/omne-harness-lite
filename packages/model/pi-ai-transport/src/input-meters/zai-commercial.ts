@@ -7,7 +7,7 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
-import { ruleAccepts, type ModelDefinition } from '../definitions.ts'
+import { ruleAccepts, type ModelDefinition, type ParameterRule } from '../definitions.ts'
 import { zaiDefinitions, type ZaiHistoryTreatment } from '../official-models/zai.ts'
 import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { guardInputMeter } from './shared.ts'
@@ -35,7 +35,30 @@ export function projectZaiCommercialBody(
   if (!effortRule) return undefined
   if (
     body.model !== modelId ||
-    !exactKeys(body, [
+    !commercialFieldsValid(body) ||
+    !commercialEffortValid(body, effortRule) ||
+    !commercialProviderValid(body, provider) ||
+    !hasMessages(body)
+  )
+    return undefined
+  if (!streamOptionsValid(body)) return undefined
+
+  const messages = projectCacheMessages(body, modelId)
+  if (!messages) return undefined
+  const projection: Record<string, JsonValue> = {}
+  for (const [key, value] of Object.entries(body))
+    if (key !== 'stream_options') projection[key] = value
+  projection.messages = messages
+  return projection
+}
+
+function hasMessages(body: JsonObject): body is JsonObject & { messages: JsonValue[] } {
+  return Array.isArray(body.messages)
+}
+
+function commercialFieldsValid(body: JsonObject): boolean {
+  return (
+    exactKeys(body, [
       'model',
       'provider',
       'stream',
@@ -45,32 +68,47 @@ export function projectZaiCommercialBody(
       'tools',
       'max_tokens',
       'reasoning',
-    ]) ||
-    body.stream !== true ||
-    (body.store !== undefined && body.store !== false) ||
-    (body.reasoning !== undefined &&
-      (!object(body.reasoning) ||
-        !exactKeys(body.reasoning, ['effort']) ||
-        typeof body.reasoning.effort !== 'string' ||
-        !ruleAccepts(effortRule, body.reasoning.effort))) ||
-    !object(body.provider) ||
-    !exactKeys(body.provider, ['order', 'allow_fallbacks', 'require_parameters']) ||
-    !Array.isArray(body.provider.order) ||
-    body.provider.order.length !== 1 ||
-    body.provider.order[0] !== provider ||
-    body.provider.allow_fallbacks !== false ||
-    body.provider.require_parameters !== true ||
-    !Array.isArray(body.messages)
+    ]) &&
+    body.stream === true &&
+    !(body.store !== undefined && body.store !== false)
   )
-    return undefined
-  if (
+}
+
+function commercialEffortValid(body: JsonObject, effortRule: ParameterRule<JsonValue>): boolean {
+  return !(
+    body.reasoning !== undefined &&
+    (!object(body.reasoning) ||
+      !exactKeys(body.reasoning, ['effort']) ||
+      typeof body.reasoning.effort !== 'string' ||
+      !ruleAccepts(effortRule, body.reasoning.effort))
+  )
+}
+
+function commercialProviderValid(body: JsonObject, provider: string): boolean {
+  return (
+    object(body.provider) &&
+    exactKeys(body.provider, ['order', 'allow_fallbacks', 'require_parameters']) &&
+    Array.isArray(body.provider.order) &&
+    body.provider.order.length === 1 &&
+    body.provider.order[0] === provider &&
+    body.provider.allow_fallbacks === false &&
+    body.provider.require_parameters === true
+  )
+}
+
+function streamOptionsValid(body: JsonObject): boolean {
+  return !(
     body.stream_options !== undefined &&
     (!object(body.stream_options) ||
       !exactKeys(body.stream_options, ['include_usage']) ||
       body.stream_options.include_usage !== true)
   )
-    return undefined
+}
 
+function projectCacheMessages(
+  body: JsonObject & { messages: JsonValue[] },
+  modelId: CommercialModelId,
+): JsonValue[] | undefined {
   // The accepted Prime route can mark its final message for explicit cache.
   // The marker is preserved on the sent body; only the local public-template
   // projection removes this transport hint. Every other unknown member fails.
@@ -88,34 +126,44 @@ export function projectZaiCommercialBody(
     }
     const content: JsonValue[] = []
     for (const part of raw.content) {
-      if (!object(part)) return undefined
-      if (!Object.hasOwn(part, 'cache_control')) {
-        content.push(part)
-        continue
-      }
-      const marker = part.cache_control
-      if (
-        modelId !== 'z-ai/glm-5.3-prime' ||
-        index !== finalCacheable ||
-        markerCount++ !== 0 ||
-        !exactKeys(part, ['type', 'text', 'cache_control']) ||
-        part.type !== 'text' ||
-        typeof part.text !== 'string' ||
-        !object(marker) ||
-        !exactKeys(marker, ['type', 'ttl']) ||
-        marker.type !== 'ephemeral' ||
-        marker.ttl !== '5m'
-      )
-        return undefined
-      content.push({ type: 'text', text: part.text })
+      const projected = projectPart(part, index)
+      if (projected === undefined) return undefined
+      content.push(projected)
     }
     messages.push({ ...raw, content })
   }
-  const projection: Record<string, JsonValue> = {}
-  for (const [key, value] of Object.entries(body))
-    if (key !== 'stream_options') projection[key] = value
-  projection.messages = messages
-  return projection
+  return messages
+
+  function projectPart(part: JsonValue, index: number): JsonValue | undefined {
+    if (!object(part)) return undefined
+    if (!Object.hasOwn(part, 'cache_control')) {
+      return part
+    }
+    const marker = part.cache_control
+    if (
+      modelId !== 'z-ai/glm-5.3-prime' ||
+      index !== finalCacheable ||
+      markerCount++ !== 0 ||
+      !cacheTextValid(part, marker)
+    )
+      return undefined
+    return { type: 'text', text: part.text }
+  }
+}
+
+function cacheTextValid(
+  part: JsonObject,
+  marker: JsonValue | undefined,
+): part is JsonObject & { text: string } {
+  return (
+    exactKeys(part, ['type', 'text', 'cache_control']) &&
+    part.type === 'text' &&
+    typeof part.text === 'string' &&
+    object(marker) &&
+    exactKeys(marker, ['type', 'ttl']) &&
+    marker.type === 'ephemeral' &&
+    marker.ttl === '5m'
+  )
 }
 
 /**
