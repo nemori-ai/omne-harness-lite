@@ -552,6 +552,8 @@ class Checker:
         if not self._table(spot(), assembly, ("defines", "plugins", "importExceptions")):
             return
         self.check_import_exceptions(node, path, lines, assembly.get("importExceptions"))
+        if assembly.get("defines") and self.rel(node.path).split("/")[:3] != ["realization", "packages", "core"]:
+            self.error(f"{spot('defines')}: 服务定义声明只给 packages/core 里的节点（IC-1）")
         contracts = {contract for contract, _ in self.catalog()}
         defined: list[str] = []
         for index, item in enumerate(self._items(spot("defines"), assembly.get("defines"))):

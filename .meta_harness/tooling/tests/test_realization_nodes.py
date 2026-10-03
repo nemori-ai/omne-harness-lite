@@ -492,3 +492,13 @@ def test_import_exception_duplicate_across_rows_reports_the_later_symbol_line(tr
     found = [error for error in errors(tree) if "符号「readAccountInTransaction」重复" in error]
     assert len(found) == 1
     assert f"bindings.yaml:{line}: assembly.importExceptions[1].symbols" in found[0]
+
+
+def test_defines_cannot_be_declared_outside_core(tree) -> None:
+    declare_import_exception(tree)
+    target = tree / "realization/packages/tenancy/ledger/bindings.yaml"
+    with target.open("a", encoding="utf-8") as out:
+        out.write(ASSEMBLY)
+    found = [error for error in errors(tree) if "服务定义声明只给 packages/core" in error]
+    assert len(found) == 1
+    assert "realization/packages/tenancy/ledger/bindings.yaml" in found[0]
