@@ -1,9 +1,19 @@
 /// <reference lib="dom" />
 import type { ArchitectureView, RelationKind, ViewEdge, ViewNode, ViewSelection } from './view.ts'
 import type { selectArchitectureView } from './view.ts'
+import type { ELK, ElkNode, ElkExtendedEdge } from 'elkjs'
+import type { architectureLayoutInput } from './layout.ts'
+import type { architectureViewport } from './viewport.ts'
+import type { architectureMatrix } from './matrix.ts'
 
 /** Embedded after TypeScript erasure. Only the supplied projection function crosses this boundary. */
-export function architectureBrowser(selectView: typeof selectArchitectureView): void {
+export function architectureBrowser(
+  selectView: typeof selectArchitectureView,
+  layoutInput: typeof architectureLayoutInput,
+  attachViewport: typeof architectureViewport,
+  drawMatrix: typeof architectureMatrix,
+  engine: Pick<ELK, 'layout'>,
+): void {
   const required = (id: string): HTMLElement => {
     const element = document.getElementById(id)
     if (element === null) throw new Error(`Missing architecture element ${id}`)
@@ -30,7 +40,16 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
   const diagram = required('arch-diagram'),
     detail = required('arch-detail'),
     list = required('arch-relations')
-  const nodeById = new Map(graph.nodes.map(node => [node.id, node]))
+  const nodeById = new Map([...graph.nodes, ...graph.groups].map(node => [node.id, node]))
+  const exportButtons = ['arch-export-svg', 'arch-export-json'].map(id => {
+    const el = required(id)
+    if (!(el instanceof HTMLButtonElement)) throw new Error(`Expected button ${id}`)
+    return el
+  })
+  let request = 0
+  let viewport: ReturnType<typeof architectureViewport> | undefined
+  let geometry: { width: number; height: number } | undefined
+  let overviewMode: 'matrix' | 'graph' = 'matrix'
   const relations = new Map<RelationKind, HTMLInputElement>()
   const element = (tag: string, text = '', className = ''): HTMLElement => {
     const el = document.createElement(tag)
@@ -144,7 +163,10 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
     if (node.kind === 'group') {
       group.value = node.group ?? ''
       focus.value = ''
-    } else focus.value = node.id
+    } else {
+      group.value = node.group ?? ''
+      focus.value = node.id
+    }
     render()
     showNode(node)
   }
@@ -218,9 +240,7 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
         `${nodeById.get(edge.from)?.member ?? nodeById.get(edge.from)?.label ?? edge.from} → ${nodeById.get(edge.to)?.member ?? nodeById.get(edge.to)?.label ?? edge.to} ${edge.label}`,
       ),
     )
-    detail.append(
-      element('p', '静态关系。装配声明表示源码候选条目；它不表示运维覆盖后的配置选择或已经运行。'),
-    )
+    detail.append(element('p', '静态源码关系。候选声明不表示最终配置选择或实际运行。'))
     for (const evidence of edge.evidence) {
       const commit = evidence.version === 'baseline' ? graph.baseline?.commit : graph.source.commit
       detail.append(
@@ -239,32 +259,26 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
     }
   }
   const nodeWidth = 270,
-    nodeHeight = 84
-  function edgeShape(
-    edge: ViewEdge,
-    positions: ReadonlyMap<string, { x: number; y: number }>,
-  ): SVGElement {
-    const from = positions.get(edge.from),
-      to = positions.get(edge.to)
-    if (from === undefined || to === undefined) throw new Error('Missing edge geometry')
-    const sameColumn = from.x === to.x
-    const right = from.x < to.x
-    const x1 = sameColumn ? from.x + nodeWidth / 2 : from.x + (right ? nodeWidth : 0),
-      y1 = from.y + (sameColumn ? nodeHeight : nodeHeight / 2),
-      x2 = sameColumn ? to.x + nodeWidth / 2 : to.x + (right ? 0 : nodeWidth),
-      y2 = to.y + (sameColumn ? 0 : nodeHeight / 2)
-    const midX = (x1 + x2) / 2,
-      midY = (y1 + y2) / 2
+    nodeHeight = 100
+  function edgeShape(edge: ViewEdge, routed: ElkExtendedEdge): SVGElement {
+    if (routed.sections === undefined || routed.sections.length === 0)
+      throw new Error('Missing edge route')
+    const d = routed.sections
+      .map(section =>
+        [section.startPoint, ...(section.bendPoints ?? []), section.endPoint]
+          .map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`)
+          .join(' '),
+      )
+      .join(' ')
+    const container = svgElement('g', {})
     const path = svgElement('path', {
       'data-edge-id': edge.id,
-      d: sameColumn
-        ? `M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}`
-        : `M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`,
+      d,
       fill: 'none',
       stroke:
         edge.change === 'added' ? '#1f6feb' : edge.change === 'removed' ? '#b7473d' : '#9aa0a6',
-      'stroke-width': '1.2',
-      'stroke-opacity': '0.6',
+      'stroke-width': '1.5',
+      'stroke-opacity': '0.8',
       'stroke-dasharray':
         edge.kind === 'type-import' || edge.kind === 'optional' || edge.change === 'removed'
           ? '5 4'
@@ -272,7 +286,37 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
       'marker-end': 'url(#arch-arrow)',
     })
     path.append(svgElement('title', {}, `${graph.relations[edge.kind]} ${edge.label}`))
-    return path
+    path.setAttribute('role', 'button')
+    path.setAttribute('tabindex', '0')
+    path.setAttribute('aria-label', `${graph.relations[edge.kind]} ${edge.label}`)
+    path.addEventListener('click', () => showEdge(edge))
+    path.addEventListener('keydown', event => {
+      if (event instanceof KeyboardEvent && ['Enter', ' '].includes(event.key)) {
+        event.preventDefault()
+        showEdge(edge)
+      }
+    })
+    container.append(path)
+    for (const label of routed.labels ?? []) {
+      if (label.x === undefined || label.y === undefined) throw new Error('Missing edge label')
+      const text = svgElement(
+        'text',
+        {
+          x: String(label.x),
+          y: String(label.y + 13),
+          fill: '#475569',
+          'font-size': '12',
+          'paint-order': 'stroke',
+          stroke: '#fafbf9',
+          'stroke-width': '5',
+          'stroke-linejoin': 'round',
+        },
+        label.text,
+      )
+      text.addEventListener('click', () => showEdge(edge))
+      container.append(text)
+    }
+    return container
   }
   function nodeShape(
     node: ViewNode,
@@ -339,7 +383,7 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
     g.append(
       svgElement(
         'text',
-        { x: '10', y: '67', fill: '#4b5563', 'font-size': '11' },
+        { x: '10', y: '82', fill: '#4b5563', 'font-size': '11' },
         annotations.join(' · '),
       ),
       svgElement('title', {}, node.member ?? node.label),
@@ -353,36 +397,32 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
     })
     return g
   }
-  function drawDiagram(): void {
-    const columns = 4,
-      width = 1160,
-      rowHeight = 112
-    const positions = new Map<string, { x: number; y: number }>()
-    const occupied = [0, 0, 0, 0]
-    for (const [index, node] of shown.nodes.entries()) {
-      const primary = node.id === focus.value || (focus.value === '' && node.group === group.value)
-      const column = shown.overview
-        ? index % columns
-        : primary
-          ? 0
-          : ['service', 'event'].includes(node.kind)
-            ? 1
-            : node.kind === 'member'
-              ? 2
-              : 3
-      const row = shown.overview ? Math.floor(index / columns) : (occupied[column] ?? 0)
-      positions.set(node.id, { x: 10 + column * 286, y: 10 + row * rowHeight })
-      occupied[column] = row + 1
-    }
-    const height = Math.max(rowHeight, Math.max(...occupied) * rowHeight + 20)
+  function diagramOf(layout: ElkNode, selected: typeof shown): SVGSVGElement {
+    const width = Math.max(540, layout.width ?? 0),
+      height = Math.max(160, layout.height ?? 0) + 100
     const svg = svgElement('svg', {
       xmlns: 'http://www.w3.org/2000/svg',
       viewBox: `0 0 ${width} ${height}`,
       role: 'img',
-      'aria-label': shown.overview ? '系统总览图' : '当前架构子图',
+      'aria-label': selected.overview ? '系统总览图' : '当前架构子图',
       width: String(width),
       height: String(height),
     })
+    if (!(svg instanceof SVGSVGElement)) throw new Error('Expected SVG diagram')
+    svg.append(
+      svgElement(
+        'text',
+        { x: '24', y: '24', fill: '#1d1f21', 'font-size': '16' },
+        selected.overview
+          ? '系统总览 · 跨目录组的直接源码关系'
+          : `实际架构 · ${focus.value || group.value}`,
+      ),
+      svgElement(
+        'text',
+        { x: '24', y: String(height - 18), fill: '#475569', 'font-size': '11' },
+        '蓝＝新增 · 红虚线＝BASE 删除 · 虚线＝类型 / 可选 · 目录不表示运行边界 · 静态同名不表示绑定',
+      ),
+    )
     const defs = svgElement('defs', {})
     const marker = svgElement('marker', {
       id: 'arch-arrow',
@@ -396,32 +436,105 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
     marker.append(svgElement('path', { d: 'M0,0 L8,4 L0,8 z', fill: 'context-stroke' }))
     defs.append(marker)
     svg.append(defs)
-    const paths = svgElement('g', {})
-    for (const edge of shown.edges) paths.append(edgeShape(edge, positions))
-    svg.append(paths)
-    for (const node of shown.nodes) svg.append(nodeShape(node, positions))
-    diagram.replaceChildren(svg)
+    const scene = svgElement('g', { transform: 'translate(0,40)' })
+    const routes = new Map(layout.edges?.map(edge => [edge.id, edge]))
+    for (const edge of selected.edges) {
+      const route = routes.get(edge.id)
+      if (route === undefined) throw new Error('Missing edge geometry')
+      scene.append(edgeShape(edge, route))
+    }
+    const positions = new Map<string, { x: number; y: number }>()
+    for (const node of layout.children ?? []) {
+      if (node.x === undefined || node.y === undefined) throw new Error('Missing node position')
+      positions.set(node.id, { x: node.x, y: node.y })
+    }
+    for (const node of selected.nodes) scene.append(nodeShape(node, positions))
+    svg.append(scene)
+    return svg
+  }
+  async function drawDiagram(selected: typeof shown, generation: number): Promise<void> {
+    try {
+      const svg =
+        selected.overview && overviewMode === 'matrix'
+          ? drawMatrix(selected, graph.relations, focusNode, showEdge)
+          : diagramOf(await engine.layout(layoutInput(selected, graph.relations)), selected)
+      if (generation !== request) return
+      geometry = {
+        width: Number(svg.getAttribute('width')),
+        height: Number(svg.getAttribute('height')),
+      }
+      diagram.replaceChildren(svg)
+      if (geometry === undefined) throw new Error('Missing diagram size')
+      viewport = attachViewport(svg, diagram, geometry)
+      diagram.setAttribute('data-layout-state', 'ready')
+      required('arch-layout-status').textContent =
+        `布局完成 · ${selected.nodes.length} 个节点 · ${selected.edges.length} 条聚合关系`
+      for (const el of exportButtons) el.disabled = false
+    } catch (error) {
+      if (generation !== request) return
+      const message = `布局失败：${error instanceof Error ? error.message : String(error)}`
+      diagram.replaceChildren(element('p', message, 'arch-error'))
+      diagram.setAttribute('data-layout-state', 'failed')
+      required('arch-layout-status').textContent = message
+    } finally {
+      if (generation === request) diagram.setAttribute('aria-busy', 'false')
+    }
   }
   function renderOverview(): void {
     const cards = required('arch-overview')
     cards.replaceChildren()
-    for (const node of shown.nodes) {
+    for (const node of graph.groups) {
+      if (node.change === 'removed' && changes.value === 'current') continue
       const card = button(
-        `${node.label} · ${node.count ?? 0} 个当前成员${node.change === 'removed' ? ' · 已删除' : ''}`,
+        `${node.label} · ${node.count ?? 0}${node.change === 'removed' ? ' · BASE 删除' : ''}`,
         () => focusNode(node),
       )
       card.className = 'arch-card'
+      card.setAttribute('aria-current', String(node.group === group.value))
       cards.append(card)
     }
-    cards.hidden = !shown.overview
+    const members = required('arch-members')
+    members.replaceChildren()
+    for (const node of shown.nodes.filter(node => node.kind !== 'group')) {
+      const row = button(`${nodeKind(node)} · ${node.member?.split('/').pop() ?? node.label}`, () =>
+        focusNode(node),
+      )
+      row.className = 'arch-item'
+      members.append(row)
+    }
+    const breadcrumb = required('arch-breadcrumb')
+    breadcrumb.replaceChildren(
+      button('总览', () => {
+        group.value = ''
+        focus.value = ''
+        render()
+      }),
+    )
+    if (group.value !== '')
+      breadcrumb.append(
+        ' / ',
+        button(group.value, () => {
+          focus.value = ''
+          render()
+        }),
+      )
+    if (focus.value !== '')
+      breadcrumb.append(
+        ' / ',
+        element(
+          'span',
+          nodeById.get(focus.value)?.member ?? nodeById.get(focus.value)?.label ?? focus.value,
+        ),
+      )
   }
   function renderRelations(): void {
     list.replaceChildren(
       element('h2', `当前选择：${shown.nodes.length} 个节点 · ${shown.edges.length} 条聚合关系`),
     )
     if (shown.overview) {
-      list.append(element('p', '选择应用或目录组展开。总览不画全包箭头；导出保留当前总览。'))
-      return
+      list.append(
+        element('p', '跨目录组的直接导入与装配声明；组内关系请展开。服务同名不推断组间绑定。'),
+      )
     }
     if (shown.nodes.length === 0)
       list.append(element('p', '当前选择没有节点；这不表示全系统没有关系。'))
@@ -437,7 +550,24 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
   }
   function render(): void {
     shown = selectView(graph, selection())
-    drawDiagram()
+    for (const [id, mode] of [
+      ['arch-matrix', 'matrix'],
+      ['arch-graph', 'graph'],
+    ]) {
+      if (id === undefined) continue
+      const el = required(id)
+      el.hidden = !shown.overview
+      el.setAttribute('aria-pressed', String(overviewMode === mode))
+    }
+    viewport?.dispose()
+    viewport = undefined
+    geometry = undefined
+    for (const el of exportButtons) el.disabled = true
+    diagram.replaceChildren(element('p', '正在布局…', 'arch-loading'))
+    diagram.setAttribute('aria-busy', 'true')
+    diagram.setAttribute('data-layout-state', 'loading')
+    required('arch-layout-status').textContent = '正在布局…'
+    void drawDiagram(shown, ++request)
     renderOverview()
     renderRelations()
     detail.replaceChildren(element('p', '点击节点查看声明，点击关系查看全部出处。'))
@@ -465,7 +595,7 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
     container.append(
       element(
         'p',
-        'unknown 的条数不是全部架构缺口。进程、外部资源、运维最终配置和实际运行绑定未观测。',
+        '未识别写法仍可能漏检。unknown 的条数不是全部架构缺口。进程、外部资源、运维最终配置和实际运行绑定未观测。',
       ),
       element(
         'p',
@@ -475,8 +605,16 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
     for (const limitation of graph.document.current.scope.limitations)
       container.append(element('p', limitation))
   }
-  for (const control of [group, focus, changes, neighbors, complexity, coupling])
+  for (const control of [changes, neighbors, complexity, coupling])
     control.addEventListener('change', render)
+  group.addEventListener('change', () => {
+    focus.value = ''
+    render()
+  })
+  focus.addEventListener('change', () => {
+    group.value = nodeById.get(focus.value)?.group ?? ''
+    render()
+  })
   required('arch-home').addEventListener('click', () => {
     group.value = ''
     focus.value = ''
@@ -484,6 +622,17 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
   })
   required('arch-tab').addEventListener('click', showArchitecture)
   required('metrics-tab').addEventListener('click', () => showMetrics())
+  required('arch-zoom-in').addEventListener('click', () => viewport?.zoom(1.3))
+  required('arch-zoom-out').addEventListener('click', () => viewport?.zoom(1 / 1.3))
+  required('arch-fit').addEventListener('click', () => viewport?.fit())
+  required('arch-matrix').addEventListener('click', () => {
+    overviewMode = 'matrix'
+    render()
+  })
+  required('arch-graph').addEventListener('click', () => {
+    overviewMode = 'graph'
+    render()
+  })
   required('arch-export-json').addEventListener('click', () =>
     download(
       'architecture-selection.json',
@@ -493,10 +642,13 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
   )
   required('arch-export-svg').addEventListener('click', () => {
     const svg = diagram.querySelector('svg')
-    if (svg === null) throw new Error('No diagram to export')
+    if (svg === null || geometry === undefined) throw new Error('No diagram to export')
+    const exported = svg.cloneNode(true)
+    if (!(exported instanceof SVGSVGElement)) throw new Error('Expected SVG export')
+    exported.setAttribute('viewBox', `0 0 ${geometry.width} ${geometry.height}`)
     download(
       'architecture-selection.svg',
-      new XMLSerializer().serializeToString(svg),
+      new XMLSerializer().serializeToString(exported),
       'image/svg+xml',
     )
   })

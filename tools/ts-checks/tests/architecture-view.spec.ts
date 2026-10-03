@@ -284,6 +284,72 @@ describe('architecture view projection', () => {
         ?.evidence,
     ).toHaveLength(2)
   })
+  it('collapses direct cross-group imports without inferring bindings from shared services', () => {
+    const graph = buildArchitectureView(
+      document({
+        ...first,
+        'apps/host':
+          "import {plugin as sql} from '@omne-harness-lite/sql'; import type {Storage} from '@omne-harness-lite/storage'",
+        'packages/infra/consumer': "import {a,b} from '@omne-harness-lite/storage'",
+      }),
+      bands,
+    )
+    const view = selectArchitectureView(graph, selection)
+    expect(view.nodes.every(node => node.kind === 'group')).toBe(true)
+    expect(view.edges).toHaveLength(3)
+    expect(view.edges.every(edge => ['runtime-import', 'type-import'].includes(edge.kind))).toBe(
+      true,
+    )
+    const ids = new Set(view.nodes.map(node => node.id))
+    expect(
+      view.edges.every(edge => ids.has(edge.from) && ids.has(edge.to) && edge.from !== edge.to),
+    ).toBe(true)
+    const infra = JSON.stringify(['group', 'packages/infra']),
+      core = JSON.stringify(['group', 'packages/core'])
+    expect(view.edges.find(edge => edge.from === infra && edge.to === core)?.evidence).toHaveLength(
+      2,
+    )
+    expect(
+      selectArchitectureView(graph, { ...selection, relations: ['injects', 'provides'] }).edges,
+    ).toEqual([])
+    const expected = graph.document.current.imports.filter(
+      item => item.target.kind === 'workspace' && item.member !== item.target.member,
+    )
+    expect(view.edges.flatMap(edge => edge.evidence.map(item => item.id)).sort()).toEqual(
+      expected.map(item => item.id).sort(),
+    )
+  })
+  it('preserves overview change evidence and BASE endpoints independently of group existence', () => {
+    const before = { ...first, 'apps/old': "import {plugin} from '@omne-harness-lite/sql'" }
+    const after = {
+      ...first,
+      'apps/new': "import type {Storage} from '@omne-harness-lite/storage'",
+    }
+    const baseline = actualArchitectureOf(source(before, 'base'))
+    const current = actualArchitectureOf(source(after, 'head'))
+    const graph = buildArchitectureView(
+      {
+        ...document(),
+        current,
+        baseline,
+        difference: compareActualArchitectures(baseline, current),
+      },
+      bands,
+    )
+    const removed = selectArchitectureView(graph, { ...selection, changes: 'removed' })
+    expect(removed.edges).toHaveLength(1)
+    expect(removed.edges[0]?.evidence.every(item => item.version === 'baseline')).toBe(true)
+    expect(removed.nodes.some(node => node.label === 'apps/old' && node.change === 'removed')).toBe(
+      true,
+    )
+    expect(
+      removed.nodes.some(node => node.label === 'packages/infra' && node.change === 'present'),
+    ).toBe(true)
+    const added = selectArchitectureView(graph, { ...selection, changes: 'added' })
+    expect(added.edges).toHaveLength(1)
+    expect(added.edges[0]?.kind).toBe('type-import')
+    expect(added.edges[0]?.evidence.every(item => item.version === 'current')).toBe(true)
+  })
   it('embeds an inert payload and preserves the existing metric page without external resources', () => {
     const doc = document({
       'packages/infra/evil': plugin(
@@ -314,6 +380,6 @@ describe('architecture view projection', () => {
     expect(html).toContain('architecture-pane')
     expect(html).toContain('metrics-pane')
     expect(html).toContain('确认配置选择与实际运行绑定：未观测')
-    expect(html.match(/<\/script>/gu)).toHaveLength(4)
+    expect(html.match(/<\/script>/gu)).toHaveLength(5)
   })
 })

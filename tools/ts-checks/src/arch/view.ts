@@ -60,6 +60,7 @@ export interface ArchitectureView {
   readonly groups: readonly (ViewNode & { readonly members: readonly string[] })[]
   readonly nodes: readonly ViewNode[]
   readonly edges: readonly ViewEdge[]
+  readonly overviewEdges: readonly ViewEdge[]
   readonly document: ActualArchitectureDocument
   readonly measurement: { readonly bands: Bands; readonly configSource: string }
 }
@@ -86,6 +87,33 @@ export interface SelectedArchitecture {
 const nodeId = (kind: string, key: string) => JSON.stringify([kind, key])
 const memberId = (path: string) => nodeId('member', path)
 const groupOf = (path: string) => (path.startsWith('apps/') ? path : dirname(path))
+
+/** Collapse only observed member-to-member edges. Shared keys cannot establish group bindings. */
+function overviewEdges(nodes: readonly ViewNode[], edges: readonly ViewEdge[]): ViewEdge[] {
+  const groups = new Map(
+    nodes
+      .filter(node => node.category === 'product' && node.group !== undefined)
+      .map(node => [node.id, nodeId('group', node.group ?? '')]),
+  )
+  const result = new Map<string, ViewEdge>()
+  for (const edge of edges) {
+    const from = groups.get(edge.from),
+      to = groups.get(edge.to)
+    if (from === undefined || to === undefined || from === to) continue
+    const id = JSON.stringify(['overview', from, to, edge.kind, edge.change])
+    const previous = result.get(id)
+    result.set(id, {
+      id,
+      from,
+      to,
+      kind: edge.kind,
+      label: '',
+      change: edge.change,
+      evidence: [...(previous?.evidence ?? []), ...edge.evidence],
+    })
+  }
+  return [...result.values()]
+}
 
 function memberNodes(
   current: ActualArchitecture,
@@ -284,6 +312,7 @@ export function buildArchitectureView(
     groups,
     nodes: all,
     edges: [...edges.values()],
+    overviewEdges: overviewEdges(all, [...edges.values()]),
     document,
     measurement: { bands, configSource },
   }
@@ -308,6 +337,9 @@ export function selectArchitectureView(
   let nodes: readonly ViewNode[]
   let selectedEdges: readonly ViewEdge[] = []
   if (overview) {
+    selectedEdges = graph.overviewEdges.filter(
+      edge => selection.relations.includes(edge.kind) && matches(edge.change),
+    )
     nodes = graph.groups.filter(
       group =>
         matches(group.change) ||

@@ -36,6 +36,7 @@
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
     "@types/node": "catalog:",
+    "elkjs": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "yaml": "catalog:"

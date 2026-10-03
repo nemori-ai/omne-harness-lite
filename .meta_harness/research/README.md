@@ -137,6 +137,8 @@
 
 ### 架构判断辅助与 Cordis 集成约定（2026-10-02）
 
+- [架构视图的社区先例与布局边界](architecture-view-community/README.md)：C4、Structurizr、dependency-cruiser、ELK、NDepend 与 Lattix；elkjs 0.12.0 有限探针，取证 2026-10-03，消费者为 N2 工具视图。
+
 - [哪些方法与工具能辅助架构判断](architecture-judgment-aids/README.md) — 方法文献 97 条（主线抽核 2 篇原文）/ dependency-cruiser 18.5.0、LikeC4 1.59.4 等工具本机试用 / 本仓库主线 `6f3cefa39` 读数（装配边 32 对中 14 对同时是 import 边，更正原始调研稿），取证 2026-10-02，消费者为 #53／#46 合并方案
 - [DeepSeek Harness 在 Cordis 之上的集成约定](dsh-cordis-integration-conventions/README.md) — DSH `639ed015`（归档钉字节，约定表 17 行逐行核出处）；本仓库所装 Cordis 4.0.4 即 DSH vendor 的 fork，取证 2026-10-02，消费者为 #53／#46 合并方案的集成约定
 
