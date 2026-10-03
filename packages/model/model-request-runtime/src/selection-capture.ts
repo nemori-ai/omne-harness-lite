@@ -26,6 +26,52 @@ function number(input: LosslessNumber): LosslessNumber {
   throw new InputAdmissionError()
 }
 
+function containerDescriptors(input: object) {
+  const prototype: unknown = Object.getPrototypeOf(input)
+  const array = Array.isArray(input)
+  if (!array && prototype !== Object.prototype && prototype !== null)
+    throw new InputAdmissionError()
+  const descriptors = Object.getOwnPropertyDescriptors(input)
+  if (Object.getOwnPropertySymbols(input).length !== 0) throw new InputAdmissionError()
+  return { array, descriptors }
+}
+
+function captureArray(
+  descriptors: PropertyDescriptorMap,
+  capture: (value: unknown) => JsonValue,
+): JsonValue {
+  const length: unknown = descriptors.length?.value
+  if (
+    typeof length !== 'number' ||
+    !Number.isInteger(length) ||
+    length < 0 ||
+    Object.keys(descriptors).length !== length + 1
+  )
+    throw new InputAdmissionError()
+  const result: JsonValue[] = []
+  for (let index = 0; index < length; index++) {
+    const descriptor = descriptors[String(index)]
+    if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable)
+      throw new InputAdmissionError()
+    const item: unknown = descriptor.value
+    result.push(capture(item))
+  }
+  return Object.freeze(result)
+}
+
+function captureRecord(
+  descriptors: PropertyDescriptorMap,
+  capture: (value: unknown) => JsonValue,
+): JsonValue {
+  const result: Record<string, JsonValue> = {}
+  for (const [key, descriptor] of Object.entries(descriptors)) {
+    if (!('value' in descriptor) || !descriptor.enumerable) throw new InputAdmissionError()
+    const item: unknown = descriptor.value
+    Object.defineProperty(result, key, { value: capture(item), enumerable: true })
+  }
+  return Object.freeze(result)
+}
+
 /** Selection's owned JSON admission; numeric leaves must be captured before profile judges. */
 export function captureSelectionJson(value: unknown): JsonValue | undefined {
   const active = new Set<object>()
@@ -37,40 +83,10 @@ export function captureSelectionJson(value: unknown): JsonValue | undefined {
     }
     if (LosslessNumber.is(input)) return number(input)
     if (typeof input !== 'object' || active.has(input)) throw new InputAdmissionError()
-    const prototype: unknown = Object.getPrototypeOf(input)
-    const array = Array.isArray(input)
-    if (!array && prototype !== Object.prototype && prototype !== null)
-      throw new InputAdmissionError()
-    const descriptors = Object.getOwnPropertyDescriptors(input)
-    if (Object.getOwnPropertySymbols(input).length !== 0) throw new InputAdmissionError()
+    const { array, descriptors } = containerDescriptors(input)
     active.add(input)
     try {
-      if (array) {
-        const length: unknown = descriptors.length?.value
-        if (
-          typeof length !== 'number' ||
-          !Number.isInteger(length) ||
-          length < 0 ||
-          Object.keys(descriptors).length !== length + 1
-        )
-          throw new InputAdmissionError()
-        const result: JsonValue[] = []
-        for (let index = 0; index < length; index++) {
-          const descriptor = descriptors[String(index)]
-          if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable)
-            throw new InputAdmissionError()
-          const item: unknown = descriptor.value
-          result.push(capture(item))
-        }
-        return Object.freeze(result)
-      }
-      const result: Record<string, JsonValue> = {}
-      for (const [key, descriptor] of Object.entries(descriptors)) {
-        if (!('value' in descriptor) || !descriptor.enumerable) throw new InputAdmissionError()
-        const item: unknown = descriptor.value
-        Object.defineProperty(result, key, { value: capture(item), enumerable: true })
-      }
-      return Object.freeze(result)
+      return array ? captureArray(descriptors, capture) : captureRecord(descriptors, capture)
     } finally {
       active.delete(input)
     }
