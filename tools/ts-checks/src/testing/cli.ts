@@ -1,7 +1,6 @@
 // 测试运行入口：`run` 算受影响范围并跑测试（`--tier` 选层，`--script acceptance` 改跑可执行验收）、写耗时账本；
 // `gate` 是合并前那一步：全部成员的快层，再加受影响成员的慢层；`triage` 对一次运行里的失败做隔离重跑。
 // `run`、`gate` 的退出码只反映测试是否全过；`triage` 只报告，退出码非零表示工具自己出错。
-import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -28,6 +27,7 @@ import {
 } from './config.ts'
 import { buildLedger, ledgerSummary, type Failure, type LedgerFile } from './ledger.ts'
 import { runMembers, slugOf } from './run.ts'
+import { buildTargets, parseFlags as parseSharedFlags, timestamp, type Flags } from './support.ts'
 import { triage, triageSummary } from './triage.ts'
 
 const USAGE = [
@@ -52,55 +52,11 @@ interface RunRequest {
 
 const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 
-interface Flags {
-  readonly values: ReadonlyMap<string, string>
-  readonly switches: ReadonlySet<string>
-}
-
-function parseFlags(
+const parseFlags = (
   argv: readonly string[],
   valued: readonly string[],
   switches: readonly string[],
-): Flags {
-  const values = new Map<string, string>()
-  const seen = new Set<string>()
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index] ?? ''
-    if (switches.includes(arg)) seen.add(arg)
-    else if (valued.includes(arg)) {
-      const value = argv[index + 1]
-      if (value === undefined || value === '') throw new Error(`${arg} 需要一个值`)
-      values.set(arg, value)
-      index += 1
-    } else throw new Error(`未知参数 ${arg}\n${USAGE}`)
-  }
-  return { values, switches: seen }
-}
-
-function timestamp(now: Date): string {
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return (
-    `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-` +
-    `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-  )
-}
-
-/** 测试跑的是依赖的 dist：把目标成员连同它们的依赖构建一遍。构建失败返回 false，日志落在运行目录。 */
-function buildTargets(targets: readonly TestMember[], runDir: string): boolean {
-  const started = Date.now()
-  process.stdout.write(`构建 ${targets.length} 个成员及其依赖 …`)
-  const built = spawnSync(
-    'pnpm',
-    [...targets.flatMap(member => ['--filter', `${member.name}...`]), 'run', 'build'],
-    { cwd: ROOT, encoding: 'utf8' },
-  )
-  const buildLog = join(runDir, 'build.log')
-  writeFileSync(buildLog, `${built.stdout}${built.stderr}`)
-  console.log(` ${Math.round((Date.now() - started) / 1000)} 秒`)
-  if (built.status === 0) return true
-  console.log(`构建失败（退出码 ${built.status ?? -1}），没有运行。日志：${buildLog}`)
-  return false
-}
+) => parseSharedFlags(argv, valued, switches, USAGE)
 
 function scriptOf(flags: Flags): RunScript {
   const script = flags.values.get('--script') ?? 'test'
@@ -179,7 +135,7 @@ async function run(request: RunRequest): Promise<number> {
   )
   mkdirSync(runDir, { recursive: true })
 
-  if (request.build && !buildTargets(targets, runDir)) return 1
+  if (request.build && !buildTargets(ROOT, targets, runDir)) return 1
 
   const meta = {
     script,

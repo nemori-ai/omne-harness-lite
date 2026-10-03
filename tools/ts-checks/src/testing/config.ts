@@ -75,6 +75,13 @@ export interface TestRunsConfig {
     readonly top: number
   }
   readonly triage: { readonly repeats: number }
+  readonly mutation: {
+    /**
+     * 变异时用例的默认时限（没写自己时限的用例）。Stryker 给每个语句插桩记覆盖，CPU 重的用例会慢上几倍，
+     * 平时守得住 5 秒的在初跑里就会超时；变异体本身的超时由 Stryker 另判，不受它影响。
+     */
+    readonly testTimeoutSeconds: number
+  }
 }
 
 const CONFIG_PATH = fileURLToPath(new URL('../../test-runs.config.json', import.meta.url))
@@ -108,6 +115,7 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
     affected?: { excludeRoots?: unknown; globalPaths?: unknown }
     ledger?: { slowFileSeconds?: unknown; nearTimeoutRatio?: unknown; top?: unknown }
     triage?: { repeats?: unknown }
+    mutation?: { testTimeoutSeconds?: unknown }
   }
   return {
     parallel: {
@@ -130,6 +138,9 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
       top: positiveInteger(raw.ledger?.top, 'ledger.top'),
     },
     triage: { repeats: positiveInteger(raw.triage?.repeats, 'triage.repeats') },
+    mutation: {
+      testTimeoutSeconds: positive(raw.mutation?.testTimeoutSeconds, 'mutation.testTimeoutSeconds'),
+    },
   }
 }
 

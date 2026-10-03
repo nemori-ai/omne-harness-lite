@@ -21,6 +21,8 @@
     "@jscpd/core": "catalog:",
     "@jscpd/tokenizer": "catalog:",
     "@omne-harness-lite/identity-values": "workspace:*",
+    "@stryker-mutator/core": "catalog:",
+    "@stryker-mutator/vitest-runner": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
