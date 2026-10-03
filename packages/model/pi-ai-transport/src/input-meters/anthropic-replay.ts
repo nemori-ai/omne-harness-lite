@@ -98,39 +98,48 @@ function sourceApplies(
   const binding =
     source.origin?.adaptation ??
     (request.kind === 'known' ? request.countingBasis.binding : undefined)
-  if (
-    !binding ||
-    binding.definition.modelId !== meter.modelId ||
-    binding.implementation.name !== 'pi-ai:anthropic' ||
-    !records.some(
-      row =>
-        row.definitionRevision === binding.definition.revision &&
-        row.implementationRevision === binding.implementation.revision,
-    ) ||
-    envelope.model !== meter.modelId ||
-    !object(envelope.provider) ||
-    canonicalProjection(envelope.provider) !==
-      canonicalProjection({
-        order: ['anthropic'],
-        allow_fallbacks: false,
-        require_parameters: true,
-      }) ||
-    (envelope.reasoning !== undefined &&
-      (!object(envelope.reasoning) ||
-        Object.keys(envelope.reasoning).some(key => key !== 'effort') ||
-        !effortApplies(envelope.reasoning.effort)))
-  )
-    return false
-  if (
-    source.origin &&
-    (source.origin.provider !== 'anthropic' ||
-      !effortApplies(source.origin.parameters.reasoningEffort) ||
-      (source.origin.parameters.extra !== undefined &&
-        Object.keys(source.origin.parameters.extra).length > 0) ||
-      !providerApplies(source.origin.servingProvider) ||
-      (source.origin.upstreamModel !== undefined && source.origin.upstreamModel !== meter.modelId))
-  )
-    return false
+  function bindingApplies(): boolean {
+    return !(
+      !binding ||
+      binding.definition.modelId !== meter.modelId ||
+      binding.implementation.name !== 'pi-ai:anthropic' ||
+      !records.some(
+        row =>
+          row.definitionRevision === binding.definition.revision &&
+          row.implementationRevision === binding.implementation.revision,
+      )
+    )
+  }
+  function envelopeApplies(): boolean {
+    return !(
+      envelope.model !== meter.modelId ||
+      !object(envelope.provider) ||
+      canonicalProjection(envelope.provider) !==
+        canonicalProjection({
+          order: ['anthropic'],
+          allow_fallbacks: false,
+          require_parameters: true,
+        }) ||
+      (envelope.reasoning !== undefined &&
+        (!object(envelope.reasoning) ||
+          Object.keys(envelope.reasoning).some(key => key !== 'effort') ||
+          !effortApplies(envelope.reasoning.effort)))
+    )
+  }
+  if (!bindingApplies() || !envelopeApplies()) return false
+  function originApplies(): boolean {
+    return !(
+      source.origin &&
+      (source.origin.provider !== 'anthropic' ||
+        !effortApplies(source.origin.parameters.reasoningEffort) ||
+        (source.origin.parameters.extra !== undefined &&
+          Object.keys(source.origin.parameters.extra).length > 0) ||
+        !providerApplies(source.origin.servingProvider) ||
+        (source.origin.upstreamModel !== undefined &&
+          source.origin.upstreamModel !== meter.modelId))
+    )
+  }
+  if (!originApplies()) return false
   return (
     observed.kind === 'unavailable' ||
     (observed.provenance.adapterRevision === 'openrouter-usage-reader/2' &&
@@ -154,29 +163,36 @@ export function classifyAnthropicReasoning(
     if (
       !object(detail) ||
       detail.format !== 'anthropic-claude-v1' ||
-      (detail.id !== undefined && detail.id !== null && typeof detail.id !== 'string') ||
-      (detail.index !== undefined && !isNonNegativeJsonInteger(detail.index))
+      !reasoningIdentityValid(detail)
     )
       return 'uninterpretable'
-    if (detail.type === 'reasoning.text') {
-      if (
-        typeof detail.text !== 'string' ||
-        typeof detail.signature !== 'string' ||
-        detail.signature.length === 0
-      )
-        return 'uninterpretable'
-    } else if (detail.type === 'reasoning.encrypted') {
-      // OpenRouter may stream the literal `[REDACTED]` placeholder instead of ciphertext
-      // (dispatcher ruling R-M, same as the xAI policy); it is neither replayable nor meterable.
-      if (
-        typeof detail.data !== 'string' ||
-        detail.data.length === 0 ||
-        detail.data === '[REDACTED]'
-      )
-        return 'uninterpretable'
-    } else return 'uninterpretable'
+    if (!reasoningPayloadValid(detail)) return 'uninterpretable'
   }
   return 'wholeGroup'
+}
+
+function reasoningIdentityValid(detail: Readonly<Record<string, JsonValue>>): boolean {
+  return !(
+    (detail.id !== undefined && detail.id !== null && typeof detail.id !== 'string') ||
+    (detail.index !== undefined && !isNonNegativeJsonInteger(detail.index))
+  )
+}
+
+function reasoningPayloadValid(detail: Readonly<Record<string, JsonValue>>): boolean {
+  if (detail.type === 'reasoning.text') {
+    if (
+      typeof detail.text !== 'string' ||
+      typeof detail.signature !== 'string' ||
+      detail.signature.length === 0
+    )
+      return false
+  } else if (detail.type === 'reasoning.encrypted') {
+    // OpenRouter may stream the literal `[REDACTED]` placeholder instead of ciphertext
+    // (dispatcher ruling R-M, same as the xAI policy); it is neither replayable nor meterable.
+    if (typeof detail.data !== 'string' || detail.data.length === 0 || detail.data === '[REDACTED]')
+      return false
+  } else return false
+  return true
 }
 
 export const anthropicOutputHistoryPolicy: OutputHistoryPolicy = Object.freeze({
