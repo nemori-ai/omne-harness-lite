@@ -136,6 +136,7 @@ assembly:                      # 本节点的 Cordis 插件与服务定义
       emits: []                             # 发的事件：{ event: <名>, mode: emit|parallel|serial|bail|waterfall }
       listens: []                           # 监听的事件名
       contributes: []                       # 向哪些注册表服务登记（写注册表的服务键）
+  importExceptions: []                       # IC-5 的同提交例外，缺省为空；条目形状见下表
 composition:                   # 只有装配节点写：Cordis 插件树挂哪些插件
   plugins:
     - id: storage                           # 插件树的行 id
@@ -149,12 +150,14 @@ composition:                   # 只有装配节点写：Cordis 插件树挂哪�
 |---|---|---|
 | `assembly.plugins[].name`、`source` | 是 | 插件名与它在正文里的出处；其余列表缺省为空 |
 | `assembly.defines[]` | 定义包才有 | 每项 `key`、`source`，外加 `contract`（契约 ID）或 `owner`（接缝出自协议形状、没有契约时，写拥有它的节点路径，如 `packages/core/storage`），二者恰有其一，与代码里的 `@contract`／`@owner` 对应（IC-3） |
+| `assembly.importExceptions[]` | 有 IC-5 例外时 | 每项 `target`（导入目标的节点路径，如 `packages/tenancy/account-identity`）、`symbols`（导出的事务内读函数名列表）、`sharedStorage`（两个写入者共同触碰的存储对象名称）、`source`（本节点说明同提交责任的小节） |
 | `emits[].mode` | 是 | 五种派发之一，与代码里该事件 JSDoc 的 `@mode` 一致（IC-11） |
 | `composition.plugins[]` | 装配节点才有 | 每项 `id`、`node`、`plugin`、`layer`、`source` |
 
 - **`source` 是硬的**：`<节点内文件>.md#<锚点>`，文件与锚点都要在。字段与正文冲突时**以字段为准**，正文改成只写理由。
 - **契约不另记**：本节点兑现哪些契约，从 `bindings` 的条款坐标推出；`defines` 里只写 `contract_id`。
 - **实施者不改它来消红**：对照报出的偏离由实施者交代；改这里是改设计，过设计评审（负责人 2026-10-02）。
+- **导入例外精确到符号**：`importExceptions` 只表达 IC-5 已允许的事务内读函数，`symbols` 非空、不能用 `*` 放行整个成员；同一目标的同一符号不重复。`sharedStorage` 必须在 `source` 所指正文里解释两个写入者如何共同触碰它；这里只点名，不另定义存储语义。源码对照只放行点名的导出符号，别的导入照常报告。检查器核目标节点存在、名称与出处完整，**不能证明它确实是事务内读函数或共享同一提交**，这两件事仍需设计评审。
 - **加这两个键算修订绑定**：碰到的节点同时按 [D-113](../record/decisions/spec-single-revision/README.md) 的过渡规矩把旧版条款行改绑到最新版（负责人 2026-10-02：「算」，记在 [D-114](../record/decisions/cordis-integration-conventions/decision.md#一裁定原话)）。
 - **过渡**：节点全过完成之前，这两个键可以缺——检查器不判失败，对照工具把那个节点报成「未声明」；全过的最后一批把有包节点的 `assembly` 翻成必填。
 - **检查器核什么**：顶层键只认 `version`、`node`、`kind`、`bindings`、`assembly`、`composition`；派发模式只认五种；同节点服务键不重复；`source` 锚点存在；装配节点挂的插件在被引用节点的 `assembly.plugins` 里——被引用节点还没声明时只提示。**它不核声明与代码是否一致**，那归开发工具。

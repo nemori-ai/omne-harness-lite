@@ -147,6 +147,8 @@ python tooling/src/realization_nodes.py --root design --stale warn   # 交付面
 `bindings.yaml` 读 `node`、`kind`、`bindings` 三个顶层键做对账，另核装配声明 `assembly`／`composition` 的形状（顶层键只认六个、派发模式五种、同节点服务键不重复、`defines` 的 `contract`／`owner` 恰写其一、`source` 锚点存在、装配节点挂的插件在被引用节点的声明里——被引用节点还没声明时只打 `NOTE:` 提示）；绑定条目里的其余字段无人校验，声明与代码是否一致由开发工具核。
 工具只读 `--root` 指向的设计根，不从承载仓库发现 `apps/` 或 `packages/` 源码。
 
+`assembly.importExceptions` 核 IC-5 同提交例外的形状：目标节点存在且不是本节点、导出符号非空且不含通配符、同一目标符号不重复、共同存储对象有名称、正文出处存在。它不证明导入的是事务内读函数，也不证明两个写入者共享同一提交；语义归设计评审。
+
 测试用一棵含一个产品 topic、一个 catalog、一个 assembly 与一个 provider 节点的小型设计树，
 逐条覆盖每条规则的通过与失败，外加空目录通过、缺 `realization/`、缺 catalog、YAML 读不出来。
 

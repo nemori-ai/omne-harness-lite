@@ -436,3 +436,59 @@ def test_defines_owner_must_be_a_node(tree) -> None:
     declare(tree, provider=ASSEMBLY.replace("contract: capability.account-identity",
                                             "owner: packages/core/nowhere"))
     assert any("owner「packages/core/nowhere」不是一个实现映射节点" in e for e in errors(tree))
+
+
+IMPORT_EXCEPTION = """
+  importExceptions:
+    - target: packages/tenancy/ledger
+      symbols: [readAccountInTransaction]
+      sharedStorage: accountRows
+      source: design.md#插件边界与服务面
+"""
+
+
+def declare_import_exception(root: Path, declaration: str = IMPORT_EXCEPTION) -> None:
+    target = root / "realization/packages/tenancy/ledger"
+    target.mkdir(parents=True)
+    (target / "README.md").write_text(
+        PROVIDER_ENTRY.replace("# core", "# ledger").replace("`packages/core`", "`packages/tenancy/ledger`"),
+        encoding="utf-8",
+    )
+    (target / "design.md").write_text(PROVIDER_DESIGN, encoding="utf-8")
+    (target / "bindings.yaml").write_text('version: 1\nnode: ledger\nkind: provider\nbindings: []\n', encoding="utf-8")
+    declare(root, provider=ASSEMBLY + declaration)
+
+
+def test_import_exception_names_a_target_symbol_storage_and_source(tree) -> None:
+    declare_import_exception(tree)
+    assert errors(tree) == []
+
+
+@pytest.mark.parametrize(("old", "new", "message"), [
+    ("target: packages/tenancy/ledger", "target: packages/tenancy/missing", "不是一个实现映射节点"),
+    ("target: packages/tenancy/ledger", "target: packages/core", "不能指向本节点"),
+    ("symbols: [readAccountInTransaction]", "symbols: []", "至少点名一个事务内读函数"),
+    ("symbols: [readAccountInTransaction]", "symbols: ['*']", "不许用 `*`"),
+    ("symbols: [readAccountInTransaction]", "symbols: [readAccountInTransaction, readAccountInTransaction]", "符号「readAccountInTransaction」重复"),
+    ("symbols: [readAccountInTransaction]", "symbols: [false]", "非空字符串的列表"),
+    ("sharedStorage: accountRows", "sharedStorage: '  '", "sharedStorage 要点名"),
+    ("source: design.md#插件边界与服务面", "source: design.md#没有这一节", "锚点在 design.md 里找不到"),
+])
+def test_import_exception_rejects_incomplete_or_blanket_permissions(tree, old, new, message) -> None:
+    declare_import_exception(tree, IMPORT_EXCEPTION.replace(old, new))
+    assert any(message in error for error in errors(tree))
+
+
+def test_import_exception_requires_shared_storage(tree) -> None:
+    declare_import_exception(tree, IMPORT_EXCEPTION.replace("      sharedStorage: accountRows\n", ""))
+    assert any("sharedStorage 要点名" in error for error in errors(tree))
+
+
+def test_import_exception_duplicate_across_rows_reports_the_later_symbol_line(tree) -> None:
+    row = IMPORT_EXCEPTION.split("  importExceptions:\n", 1)[1]
+    declare_import_exception(tree, IMPORT_EXCEPTION + row)
+    text = (tree / f"{CORE}/bindings.yaml").read_text(encoding="utf-8")
+    line = max(number for number, value in enumerate(text.splitlines(), 1) if "symbols:" in value)
+    found = [error for error in errors(tree) if "符号「readAccountInTransaction」重复" in error]
+    assert len(found) == 1
+    assert f"bindings.yaml:{line}: assembly.importExceptions[1].symbols" in found[0]

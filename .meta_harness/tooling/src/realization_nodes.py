@@ -50,6 +50,7 @@ LAYERS = ("distribution", "operator")
 PLUGIN_KEYS = ("name", "source", "provides", "injects", "optional", "emits", "listens", "contributes")
 PLUGIN_LISTS = ("provides", "injects", "optional", "listens", "contributes")
 DEFINE_KEYS = ("key", "contract", "owner", "source")
+IMPORT_EXCEPTION_KEYS = ("target", "symbols", "sharedStorage", "source")
 ROW_KEYS = ("id", "node", "plugin", "layer", "source")
 
 SECTION_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
@@ -548,8 +549,9 @@ class Checker:
 
     def check_assembly(self, node: Node, path: Path, lines: dict[tuple, int], assembly: object) -> None:
         spot = partial(located, self.rel(path), lines, "assembly")
-        if not self._table(spot(), assembly, ("defines", "plugins")):
+        if not self._table(spot(), assembly, ("defines", "plugins", "importExceptions")):
             return
+        self.check_import_exceptions(node, path, lines, assembly.get("importExceptions"))
         contracts = {contract for contract, _ in self.catalog()}
         defined: list[str] = []
         for index, item in enumerate(self._items(spot("defines"), assembly.get("defines"))):
@@ -604,6 +606,37 @@ class Checker:
                     self.error(f"{spot('plugins', index, 'emits', number, 'mode')}: "
                                f"mode「{emit.get('mode')}」不在五种派发里（{'、'.join(MODES)}）")
         self.declared[self.rel(node.path)] = names
+
+    def check_import_exceptions(self, node: Node, path: Path, lines: dict[tuple, int], value: object) -> None:
+        """IC-5 的事务内读函数例外必须点名目标、导出符号、共同存储对象与正文依据；不判断事务语义。"""
+        spot = partial(located, self.rel(path), lines, "assembly", "importExceptions")
+        known = {self.rel(n.path).removeprefix("realization/") for n in self.nodes}
+        own = self.rel(node.path).removeprefix("realization/")
+        seen: set[tuple[str, str]] = set()
+        for index, item in enumerate(self._items(spot(), value)):
+            at = spot(index)
+            if not self._table(at, item, IMPORT_EXCEPTION_KEYS):
+                continue
+            target = item.get("target")
+            if not isinstance(target, str) or target not in known:
+                self.error(f"{spot(index, 'target')}: target「{target}」不是一个实现映射节点")
+            elif target == own:
+                self.error(f"{spot(index, 'target')}: importExceptions 只给跨成员导入，不能指向本节点")
+            symbols = self._strings(spot(index, "symbols"), item.get("symbols"))
+            if not symbols:
+                self.error(f"{spot(index, 'symbols')}: symbols 至少点名一个事务内读函数，不能写空列表")
+            for symbol in symbols:
+                if symbol == "*":
+                    self.error(f"{spot(index, 'symbols')}: symbols 不许用 `*` 免除整个成员的导入")
+                if not isinstance(target, str):
+                    continue
+                if (target, symbol) in seen:
+                    self.error(f"{spot(index, 'symbols')}: target「{target}」的符号「{symbol}」重复")
+                seen.add((target, symbol))
+            storage = item.get("sharedStorage")
+            if not isinstance(storage, str) or not storage.strip():
+                self.error(f"{spot(index, 'sharedStorage')}: sharedStorage 要点名两个写入者共同触碰的存储对象")
+            self._source(node, at, item.get("source"))
 
     def check_composition(self, node: Node, path: Path, lines: dict[tuple, int], composition: object) -> None:
         spot = partial(located, self.rel(path), lines, "composition")

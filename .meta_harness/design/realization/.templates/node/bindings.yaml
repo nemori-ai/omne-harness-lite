@@ -34,6 +34,10 @@ bindings:
 # 字段含义见 ../../README.md「装配声明」，规则见 ../../cordis-integration-conventions.md。
 # 只有 core 里的定义包写 defines；只有装配节点写 composition。
 assembly:
+  # IC-5 的同提交例外才写：target（目标节点路径）、symbols（事务内读函数名，非空、无通配符）、
+  # sharedStorage（两写入者共同触碰的存储对象）、source（本节点说明同提交责任的小节）。
+  # 名称与理由来自节点设计；不能为使对照变绿而添加例外。
+  importExceptions: []
   plugins:
     - name: "{{插件名，即 fiber 名}}"
       source: "design.md#{{给出这条意图的小节锚点}}"
