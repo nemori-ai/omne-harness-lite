@@ -218,20 +218,24 @@ function positiveInteger(value: unknown): value is number {
   return finiteInteger(value) && value > 0
 }
 
+function ownFields(value: object, allowed: readonly string[]): Record<string, unknown> | null {
+  const result: Record<string, unknown> = {}
+  for (const key of Object.getOwnPropertyNames(value)) {
+    if (!allowed.includes(key) || key === '__proto__') return null
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) return null
+    if (descriptor.value !== undefined) result[key] = descriptor.value
+  }
+  return result
+}
+
 function ownData(value: unknown, allowed: readonly string[]): Record<string, unknown> | null {
   try {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
     const prototype = Object.getPrototypeOf(value)
     if (prototype !== Object.prototype && prototype !== null) return null
     if (Object.getOwnPropertySymbols(value).length !== 0) return null
-    const result: Record<string, unknown> = {}
-    for (const key of Object.getOwnPropertyNames(value)) {
-      if (!allowed.includes(key) || key === '__proto__') return null
-      const descriptor = Object.getOwnPropertyDescriptor(value, key)
-      if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) return null
-      if (descriptor.value !== undefined) result[key] = descriptor.value
-    }
-    return result
+    return ownFields(value, allowed)
   } catch {
     return null
   }
@@ -299,18 +303,13 @@ function sameScope(left: DiagnosticScope, right: DiagnosticScope): boolean {
   )
 }
 
-function validAssociation(value: unknown, maxBytes: number): DiagnosticAssociation | null {
-  const record = ownData(value, associationKeys)
-  if (!record || !boundedString(record.executionId, maxBytes)) return null
-  for (const key of ['session', 'run', 'call', 'response']) {
-    if (!optionalString(record, key, maxBytes)) return null
-  }
-  if (!optionalCount(record, 'attempt') || !optionalCount(record, 'dispatch')) return null
-  const causedBy =
-    record.causedBy === undefined ? undefined : validReference(record.causedBy, maxBytes)
-  if (record.causedBy !== undefined && !causedBy) return null
+function associationValue(
+  record: Record<string, unknown>,
+  executionId: string,
+  causedBy: DiagnosticReference | null | undefined,
+): DiagnosticAssociation {
   const association: DiagnosticAssociation = {
-    executionId: record.executionId,
+    executionId,
     ...(causedBy ? { causedBy } : {}),
     ...(record.session === undefined ? {} : { session: record.session as string }),
     ...(record.run === undefined ? {} : { run: record.run as string }),
@@ -322,11 +321,160 @@ function validAssociation(value: unknown, maxBytes: number): DiagnosticAssociati
   return Object.freeze(association)
 }
 
+function validAssociation(value: unknown, maxBytes: number): DiagnosticAssociation | null {
+  const record = ownData(value, associationKeys)
+  if (!record || !boundedString(record.executionId, maxBytes)) return null
+  for (const key of ['session', 'run', 'call', 'response']) {
+    if (!optionalString(record, key, maxBytes)) return null
+  }
+  if (!optionalCount(record, 'attempt') || !optionalCount(record, 'dispatch')) return null
+  const causedBy =
+    record.causedBy === undefined ? undefined : validReference(record.causedBy, maxBytes)
+  if (record.causedBy !== undefined && !causedBy) return null
+  return associationValue(record, record.executionId, causedBy)
+}
+
 function validBinding(value: unknown, maxBytes: number): DiagnosticBinding | null {
   const record = ownData(value, bindingKeys)
   if (!record) return null
   for (const key of bindingKeys) if (!optionalString(record, key, maxBytes)) return null
   return Object.freeze({ ...record })
+}
+
+function optionalEnum(
+  record: Record<string, unknown>,
+  key: string,
+  values: readonly string[],
+): boolean {
+  return record[key] === undefined || oneOf(record[key], values)
+}
+
+function validDecisionFacts(record: Record<string, unknown>, maxBytes: number): boolean {
+  if (!optionalEnum(record, 'cause', causes)) return false
+  if (!optionalEnum(record, 'adjustment', ['omitted', 'converted', 'clamped'])) return false
+  if (!optionalString(record, 'parameter', maxBytes)) return false
+  if (!optionalEnum(record, 'credentialScope', ['tenant', 'factory'])) return false
+  if (record.credentialPresent !== undefined && typeof record.credentialPresent !== 'boolean')
+    return false
+  return true
+}
+
+function validTransportFacts(record: Record<string, unknown>, maxBytes: number): boolean {
+  if (!optionalEnum(record, 'touch', ['queued', 'touched', 'unknown'])) return false
+  if (
+    record.httpStatus !== undefined &&
+    (!finiteInteger(record.httpStatus) || record.httpStatus > 999)
+  )
+    return false
+  if (
+    !optionalString(record, 'requestedProvider', maxBytes) ||
+    !optionalString(record, 'servingProvider', maxBytes)
+  )
+    return false
+  if (!optionalEnum(record, 'gate', ['waiting', 'accepted', 'failed'])) return false
+  if (!optionalEnum(record, 'stream', ['first_content', 'ended', 'lost'])) return false
+  return true
+}
+
+function validCost(record: Record<string, unknown>, maxBytes: number): boolean {
+  if (
+    record.costUsd !== undefined &&
+    (!isJsonNumber(record.costUsd) ||
+      (typeof record.costUsd === 'number' &&
+        (!Number.isFinite(record.costUsd) || record.costUsd < 0)) ||
+      jsonNumberSource(record.costUsd).startsWith('-') ||
+      Buffer.byteLength(jsonNumberSource(record.costUsd)) > maxBytes)
+  )
+    return false
+  return true
+}
+
+function validProgressQuantities(record: Record<string, unknown>, maxBytes: number): boolean {
+  for (const key of ['anchorId', 'owner', 'policy'])
+    if (!optionalString(record, key, maxBytes)) return false
+  for (const key of [
+    'submissions',
+    'tailConflicts',
+    'inputTokens',
+    'outputTokens',
+    'cacheReadTokens',
+    'cacheWriteTokens',
+  ]) {
+    if (!optionalCount(record, key)) return false
+  }
+  if (!validCost(record, maxBytes)) return false
+  return true
+}
+
+function validProgressFacts(record: Record<string, unknown>, maxBytes: number): boolean {
+  if (!optionalEnum(record, 'cause', causes)) return false
+  if (!optionalEnum(record, 'settlement', ['unsettled', 'submitted', 'committed', 'unknown']))
+    return false
+  if (!optionalEnum(record, 'responseOutcome', ['complete', 'truncated', 'failed', 'interrupted']))
+    return false
+  if (!optionalEnum(record, 'anchor', ['dispatched', 'opened', 'response', 'ended'])) return false
+  if (!optionalEnum(record, 'retry', ['again', 'refused', 'without_resend'])) return false
+  if (!validProgressQuantities(record, maxBytes)) return false
+  return true
+}
+
+function validRegistrationFacts(record: Record<string, unknown>): boolean {
+  if (!optionalEnum(record, 'phase', ['published', 'admitted', 'retiring', 'closed'])) return false
+  if (!optionalCount(record, 'references') || !optionalCount(record, 'executions')) return false
+  if (
+    !optionalEnum(record, 'cancellation', [
+      'requested',
+      'stopped',
+      'remaining_active',
+      'cleanup_failed',
+    ])
+  )
+    return false
+  return true
+}
+
+function validObserverFacts(record: Record<string, unknown>): boolean {
+  if (!oneOf(record.observerStage, ['offer', 'delivery', 'close'])) return false
+  if (
+    !oneOf(record.reason, [
+      'malformed',
+      'observer_scope_mismatch',
+      'unavailable',
+      'buffer_full',
+      'consumer_failed',
+    ])
+  )
+    return false
+  for (const key of ['position', 'bufferedEvents', 'bufferedBytes'])
+    if (!optionalCount(record, key)) return false
+  return true
+}
+
+function validDiagnosticsFacts(record: Record<string, unknown>): boolean {
+  if (
+    !oneOf(record.reason, [
+      'sink_failed',
+      'sink_contract_violation',
+      'queue_full',
+      'io_failed',
+      'retention_full',
+      'transport_retention_full',
+      'close_incomplete',
+      'export_failed',
+    ])
+  )
+    return false
+  if (!optionalCount(record, 'count')) return false
+  return true
+}
+
+const factValidation = {
+  decision: { keys: decisionKeys, validate: validDecisionFacts },
+  transport: { keys: transportKeys, validate: validTransportFacts },
+  progress: { keys: progressKeys, validate: validProgressFacts },
+  registration: { keys: registrationKeys, validate: validRegistrationFacts },
+  observer: { keys: observerKeys, validate: validObserverFacts },
+  diagnostics: { keys: diagnosticsKeys, validate: validDiagnosticsFacts },
 }
 
 function validFacts(
@@ -351,135 +499,14 @@ function validFacts(
   )
     return null
   if (header.kind === 'measurement') return copyMeasurementDiagnostic(value, maxBytes)
-  const keys =
-    header.kind === 'decision'
-      ? decisionKeys
-      : header.kind === 'transport'
-        ? transportKeys
-        : header.kind === 'progress'
-          ? progressKeys
-          : header.kind === 'registration'
-            ? registrationKeys
-            : header.kind === 'observer'
-              ? observerKeys
-              : diagnosticsKeys
-  const record = ownData(value, keys)
+  const record = ownData(value, factValidation[header.kind].keys)
   if (!record) return null
-  if (header.kind === 'decision') {
-    if (record.cause !== undefined && !oneOf(record.cause, causes)) return null
-    if (
-      record.adjustment !== undefined &&
-      !oneOf(record.adjustment, ['omitted', 'converted', 'clamped'])
-    )
-      return null
-    if (!optionalString(record, 'parameter', maxBytes)) return null
-    if (
-      record.credentialScope !== undefined &&
-      !oneOf(record.credentialScope, ['tenant', 'factory'])
-    )
-      return null
-    if (record.credentialPresent !== undefined && typeof record.credentialPresent !== 'boolean')
-      return null
-  } else if (header.kind === 'transport') {
-    if (record.touch !== undefined && !oneOf(record.touch, ['queued', 'touched', 'unknown']))
-      return null
-    if (
-      record.httpStatus !== undefined &&
-      (!finiteInteger(record.httpStatus) || record.httpStatus > 999)
-    )
-      return null
-    if (
-      !optionalString(record, 'requestedProvider', maxBytes) ||
-      !optionalString(record, 'servingProvider', maxBytes)
-    )
-      return null
-    if (record.gate !== undefined && !oneOf(record.gate, ['waiting', 'accepted', 'failed']))
-      return null
-    if (record.stream !== undefined && !oneOf(record.stream, ['first_content', 'ended', 'lost']))
-      return null
-  } else if (header.kind === 'progress') {
-    if (record.cause !== undefined && !oneOf(record.cause, causes)) return null
-    if (
-      record.settlement !== undefined &&
-      !oneOf(record.settlement, ['unsettled', 'submitted', 'committed', 'unknown'])
-    )
-      return null
-    if (
-      record.responseOutcome !== undefined &&
-      !oneOf(record.responseOutcome, ['complete', 'truncated', 'failed', 'interrupted'])
-    )
-      return null
-    if (
-      record.anchor !== undefined &&
-      !oneOf(record.anchor, ['dispatched', 'opened', 'response', 'ended'])
-    )
-      return null
-    if (record.retry !== undefined && !oneOf(record.retry, ['again', 'refused', 'without_resend']))
-      return null
-    for (const key of ['anchorId', 'owner', 'policy'])
-      if (!optionalString(record, key, maxBytes)) return null
-    for (const key of [
-      'submissions',
-      'tailConflicts',
-      'inputTokens',
-      'outputTokens',
-      'cacheReadTokens',
-      'cacheWriteTokens',
-    ]) {
-      if (!optionalCount(record, key)) return null
-    }
-    if (
-      record.costUsd !== undefined &&
-      (!isJsonNumber(record.costUsd) ||
-        (typeof record.costUsd === 'number' &&
-          (!Number.isFinite(record.costUsd) || record.costUsd < 0)) ||
-        jsonNumberSource(record.costUsd).startsWith('-') ||
-        Buffer.byteLength(jsonNumberSource(record.costUsd)) > maxBytes)
-    )
-      return null
-  } else if (header.kind === 'registration') {
-    if (
-      record.phase !== undefined &&
-      !oneOf(record.phase, ['published', 'admitted', 'retiring', 'closed'])
-    )
-      return null
-    if (!optionalCount(record, 'references') || !optionalCount(record, 'executions')) return null
-    if (
-      record.cancellation !== undefined &&
-      !oneOf(record.cancellation, ['requested', 'stopped', 'remaining_active', 'cleanup_failed'])
-    )
-      return null
-  } else if (header.kind === 'observer') {
-    if (!oneOf(record.observerStage, ['offer', 'delivery', 'close'])) return null
-    if (
-      !oneOf(record.reason, [
-        'malformed',
-        'observer_scope_mismatch',
-        'unavailable',
-        'buffer_full',
-        'consumer_failed',
-      ])
-    )
-      return null
-    for (const key of ['position', 'bufferedEvents', 'bufferedBytes'])
-      if (!optionalCount(record, key)) return null
-  } else {
-    if (
-      !oneOf(record.reason, [
-        'sink_failed',
-        'sink_contract_violation',
-        'queue_full',
-        'io_failed',
-        'retention_full',
-        'transport_retention_full',
-        'close_incomplete',
-        'export_failed',
-      ])
-    )
-      return null
-    if (!optionalCount(record, 'count')) return null
-  }
+  if (!factValidation[header.kind].validate(record, maxBytes)) return null
   return Object.freeze({ ...record }) as DiagnosticFact
+}
+
+function unsupportedFactHeader(header: Record<string, unknown> | null): boolean {
+  return !!header && typeof header.kind === 'string' && !oneOf(header.kind, factKinds)
 }
 
 function validEvent(value: unknown, maxBytes: number): DiagnosticEvent | 'unsupported' | null {
@@ -501,8 +528,7 @@ function validEvent(value: unknown, maxBytes: number): DiagnosticEvent | 'unsupp
     ...diagnosticsKeys,
     ...measurementDiagnosticKeys,
   ])
-  if (factHeader && typeof factHeader.kind === 'string' && !oneOf(factHeader.kind, factKinds))
-    return 'unsupported'
+  if (unsupportedFactHeader(factHeader)) return 'unsupported'
   const facts = validFacts(record.facts, record.stage, maxBytes)
   if ((record.binding !== undefined && !binding) || !facts) return null
   return Object.freeze({
@@ -516,6 +542,47 @@ function validEvent(value: unknown, maxBytes: number): DiagnosticEvent | 'unsupp
 
 function increment(value: Counter): Counter {
   return value === 'unknown' || value === Number.MAX_SAFE_INTEGER ? 'unknown' : value + 1
+}
+
+function invalidSinkConfig(config: DiagnosticCollectorConfig): boolean {
+  return (
+    (config.sink?.mode === 'async' &&
+      (!positiveInteger(config.sink.maxPending) ||
+        !positiveInteger(config.sink.maxQueuedRecords) ||
+        !positiveInteger(config.sink.maxQueuedBytes))) ||
+    (config.sink !== undefined &&
+      ((config.sink.mode !== 'sync' && config.sink.mode !== 'async') ||
+        typeof config.sink.record !== 'function'))
+  )
+}
+
+function invalidClockConfig(config: DiagnosticCollectorConfig): boolean {
+  return (
+    typeof config.wallClock !== 'function' ||
+    typeof config.monotonicClock !== 'function' ||
+    typeof config.schedule !== 'function' ||
+    (config.stderr !== undefined && typeof config.stderr !== 'function')
+  )
+}
+
+function invalidStoreConfig(config: DiagnosticCollectorConfig): boolean {
+  return (
+    typeof config.store?.append !== 'function' ||
+    typeof config.store?.flush !== 'function' ||
+    typeof config.store?.close !== 'function' ||
+    typeof config.store?.query !== 'function' ||
+    typeof config.store?.exportPage !== 'function' ||
+    typeof config.store?.health !== 'function'
+  )
+}
+
+function invalidCapacityConfig(config: DiagnosticCollectorConfig): boolean {
+  return (
+    config.maxRecordBytes > config.segmentMaxBytes ||
+    config.segmentMaxBytes > config.retainedMaxBytes ||
+    config.maxRecordBytes > config.queryMaxBytes ||
+    config.maxRecordBytes > config.exportMaxBytes
+  )
 }
 
 function validateConfig(config: DiagnosticCollectorConfig): DiagnosticScope {
@@ -547,27 +614,10 @@ function validateConfig(config: DiagnosticCollectorConfig): DiagnosticScope {
   ]
   if (
     numbers.some(value => !positiveInteger(value)) ||
-    config.maxRecordBytes > config.segmentMaxBytes ||
-    config.segmentMaxBytes > config.retainedMaxBytes ||
-    config.maxRecordBytes > config.queryMaxBytes ||
-    config.maxRecordBytes > config.exportMaxBytes ||
-    (config.sink?.mode === 'async' &&
-      (!positiveInteger(config.sink.maxPending) ||
-        !positiveInteger(config.sink.maxQueuedRecords) ||
-        !positiveInteger(config.sink.maxQueuedBytes))) ||
-    (config.sink !== undefined &&
-      ((config.sink.mode !== 'sync' && config.sink.mode !== 'async') ||
-        typeof config.sink.record !== 'function')) ||
-    typeof config.wallClock !== 'function' ||
-    typeof config.monotonicClock !== 'function' ||
-    typeof config.schedule !== 'function' ||
-    (config.stderr !== undefined && typeof config.stderr !== 'function') ||
-    typeof config.store?.append !== 'function' ||
-    typeof config.store?.flush !== 'function' ||
-    typeof config.store?.close !== 'function' ||
-    typeof config.store?.query !== 'function' ||
-    typeof config.store?.exportPage !== 'function' ||
-    typeof config.store?.health !== 'function' ||
+    invalidCapacityConfig(config) ||
+    invalidSinkConfig(config) ||
+    invalidClockConfig(config) ||
+    invalidStoreConfig(config) ||
     !boundedString(config.collectorId, config.maxFieldBytes)
   ) {
     throw new Error('invalid diagnostic configuration')
@@ -829,42 +879,11 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
     }
   }
 
-  function record(
-    event: DiagnosticEvent,
-    requestedScope: DiagnosticScope,
-    association?: DiagnosticAssociation,
-  ): { recorded: DiagnosticReference } | { dropped: DiagnosticDropReason } {
-    if (writeState !== 'open') {
-      drop('closed')
-      return { dropped: 'closed' }
-    }
-    const safe = validEvent(event, config.maxFieldBytes)
-    if (safe === 'unsupported') {
-      drop('unsupported')
-      return { dropped: 'unsupported' }
-    }
-    const safeAssociation =
-      association === undefined ? undefined : validAssociation(association, config.maxFieldBytes)
-    const safeScope = validScope(requestedScope, config.maxFieldBytes)
-    if (
-      !safe ||
-      !safeScope ||
-      !sameScope(scope, safeScope) ||
-      (association !== undefined && !safeAssociation)
-    ) {
-      drop('invalid')
-      return { dropped: 'invalid' }
-    }
-    // Every structurally valid event gets a position, even if capacity later drops it.
-    if (sequence === Number.MAX_SAFE_INTEGER) {
-      coverage = 'unknown'
-      drop('oversize')
-      return { dropped: 'oversize' }
-    }
-    const reference = Object.freeze({
-      collectorId: config.collectorId,
-      sequence: String(++sequence),
-    })
+  function diagnosticRecord(
+    safe: DiagnosticEvent,
+    reference: DiagnosticReference,
+    safeAssociation: DiagnosticAssociation | null | undefined,
+  ): DiagnosticRecord {
     const observedAt = wallTime()
     const nowMono = monotonicTime()
     const elapsedMs =
@@ -872,7 +891,7 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
         ? nowMono - startMono
         : undefined
     if (nowMono !== undefined && startMono !== undefined && nowMono < startMono) failure('clock')
-    const full: DiagnosticRecord = Object.freeze({
+    return Object.freeze({
       ...safe,
       format: 'model-diagnostics/1',
       ...reference,
@@ -881,11 +900,9 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
       ...(observedAt ? { observedAt } : {}),
       ...(elapsedMs === undefined ? {} : { elapsedMs }),
     })
-    const bytes = Buffer.byteLength(writeJsonLossless(full)) + 1
-    if (bytes > config.maxRecordBytes) {
-      drop('oversize')
-      return { dropped: 'oversize' }
-    }
+  }
+
+  function countEvent(safe: DiagnosticEvent): void {
     const metricKey = `${safe.source}\0${safe.stage}\0${safe.outcome}`
     const previous = stageEvents.get(metricKey)
     const count = increment(previous?.count ?? 0)
@@ -905,6 +922,65 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
         count: increment(current?.count ?? 0),
       })
     }
+  }
+
+  function admitRecord(
+    event: DiagnosticEvent,
+    requestedScope: DiagnosticScope,
+    association: DiagnosticAssociation | undefined,
+  ):
+    | { safe: DiagnosticEvent; safeAssociation: DiagnosticAssociation | null | undefined }
+    | { dropped: DiagnosticDropReason } {
+    const safe = validEvent(event, config.maxFieldBytes)
+    if (safe === 'unsupported') {
+      return { dropped: 'unsupported' }
+    }
+    const safeAssociation =
+      association === undefined ? undefined : validAssociation(association, config.maxFieldBytes)
+    const safeScope = validScope(requestedScope, config.maxFieldBytes)
+    if (
+      !safe ||
+      !safeScope ||
+      !sameScope(scope, safeScope) ||
+      (association !== undefined && !safeAssociation)
+    ) {
+      return { dropped: 'invalid' }
+    }
+    return { safe, safeAssociation }
+  }
+
+  function record(
+    event: DiagnosticEvent,
+    requestedScope: DiagnosticScope,
+    association?: DiagnosticAssociation,
+  ): { recorded: DiagnosticReference } | { dropped: DiagnosticDropReason } {
+    if (writeState !== 'open') {
+      drop('closed')
+      return { dropped: 'closed' }
+    }
+    const admitted = admitRecord(event, requestedScope, association)
+    if ('dropped' in admitted) {
+      drop(admitted.dropped)
+      return admitted
+    }
+    const { safe, safeAssociation } = admitted
+    // Every structurally valid event gets a position, even if capacity later drops it.
+    if (sequence === Number.MAX_SAFE_INTEGER) {
+      coverage = 'unknown'
+      drop('oversize')
+      return { dropped: 'oversize' }
+    }
+    const reference = Object.freeze({
+      collectorId: config.collectorId,
+      sequence: String(++sequence),
+    })
+    const full = diagnosticRecord(safe, reference, safeAssociation)
+    const bytes = Buffer.byteLength(writeJsonLossless(full)) + 1
+    if (bytes > config.maxRecordBytes) {
+      drop('oversize')
+      return { dropped: 'oversize' }
+    }
+    countEvent(safe)
     if (queue.length >= config.queueMaxRecords || bytes > config.queueMaxBytes - queuedBytes) {
       drop('queue_full')
       return { dropped: 'queue_full' }
@@ -929,6 +1005,40 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
     }
   }
 
+  function countStageDuration(event: DiagnosticEvent, now: number, begun: number): void {
+    const duration = now - begun
+    const previous = stageDurations.get(event.stage) ?? { count: 0, sum: 0, max: 0 }
+    const candidateSum = previous.sum === 'unknown' ? NaN : previous.sum + duration
+    const sum =
+      Number.isFinite(candidateSum) && candidateSum <= Number.MAX_SAFE_INTEGER
+        ? candidateSum
+        : 'unknown'
+    const max =
+      previous.max === 'unknown' || duration > Number.MAX_SAFE_INTEGER
+        ? 'unknown'
+        : Math.max(previous.max, duration)
+    stageDurations.set(event.stage, { count: increment(previous.count), sum, max })
+    if (sum === 'unknown' || max === 'unknown') coverage = 'degraded'
+  }
+
+  function observeStageDuration(
+    event: DiagnosticEvent,
+    activeStages: Map<DiagnosticStage, number>,
+  ): void {
+    const now = monotonicTime()
+    if (event.outcome === 'started') {
+      if (now !== undefined && !activeStages.has(event.stage)) activeStages.set(event.stage, now)
+    } else if (now !== undefined) {
+      const begun = activeStages.get(event.stage)
+      if (begun !== undefined) {
+        activeStages.delete(event.stage)
+        if (now >= begun) {
+          countStageDuration(event, now, begun)
+        } else failure('clock')
+      }
+    }
+  }
+
   function emitter(
     requestedScope: DiagnosticScope,
     association?: DiagnosticAssociation,
@@ -945,31 +1055,7 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
         if (closed) return { dropped: 'closed' as const }
         const result = record(event, safeScope, fixed ?? undefined)
         if ('recorded' in result) {
-          const now = monotonicTime()
-          if (event.outcome === 'started') {
-            if (now !== undefined && !activeStages.has(event.stage))
-              activeStages.set(event.stage, now)
-          } else if (now !== undefined) {
-            const begun = activeStages.get(event.stage)
-            if (begun !== undefined) {
-              activeStages.delete(event.stage)
-              if (now >= begun) {
-                const duration = now - begun
-                const previous = stageDurations.get(event.stage) ?? { count: 0, sum: 0, max: 0 }
-                const candidateSum = previous.sum === 'unknown' ? NaN : previous.sum + duration
-                const sum =
-                  Number.isFinite(candidateSum) && candidateSum <= Number.MAX_SAFE_INTEGER
-                    ? candidateSum
-                    : 'unknown'
-                const max =
-                  previous.max === 'unknown' || duration > Number.MAX_SAFE_INTEGER
-                    ? 'unknown'
-                    : Math.max(previous.max, duration)
-                stageDurations.set(event.stage, { count: increment(previous.count), sum, max })
-                if (sum === 'unknown' || max === 'unknown') coverage = 'degraded'
-              } else failure('clock')
-            }
-          }
+          observeStageDuration(event, activeStages)
         }
         return result
       },
@@ -1049,31 +1135,45 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
     })
   }
 
-  function validQuery(value: unknown): DiagnosticQuery | 'forbidden' | null {
-    const query = ownData(value, ['scope', 'after', 'through', 'limit', 'maxBytes'])
-    if (!query) return null
-    const requestedScope = validScope(query.scope, config.maxFieldBytes)
-    if (!requestedScope || !sameScope(scope, requestedScope)) return 'forbidden'
-    if (
-      !positiveInteger(query.limit) ||
-      query.limit > config.queryMaxRecords ||
-      !positiveInteger(query.maxBytes) ||
-      query.maxBytes > config.queryMaxBytes
-    )
-      return null
-    const after =
-      query.after === undefined ? undefined : validReference(query.after, config.maxFieldBytes)
-    const through =
-      query.through === undefined
-        ? undefined
-        : validReference(query.through, config.maxFieldBytes, true)
+  function validQueryReferences(
+    query: Record<string, unknown>,
+    after: DiagnosticReference | null | undefined,
+    through: DiagnosticReference | null | undefined,
+  ): boolean {
     if (
       (query.after !== undefined && !after) ||
       (query.through !== undefined && !through) ||
       (after && after.collectorId !== config.collectorId) ||
       (through && through.collectorId !== config.collectorId)
     )
-      return null
+      return false
+    return true
+  }
+
+  function validQueryLimits(
+    query: Record<string, unknown>,
+  ): query is Record<string, unknown> & Pick<DiagnosticQuery, 'limit' | 'maxBytes'> {
+    return !(
+      !positiveInteger(query.limit) ||
+      query.limit > config.queryMaxRecords ||
+      !positiveInteger(query.maxBytes) ||
+      query.maxBytes > config.queryMaxBytes
+    )
+  }
+
+  function validQuery(value: unknown): DiagnosticQuery | 'forbidden' | null {
+    const query = ownData(value, ['scope', 'after', 'through', 'limit', 'maxBytes'])
+    if (!query) return null
+    const requestedScope = validScope(query.scope, config.maxFieldBytes)
+    if (!requestedScope || !sameScope(scope, requestedScope)) return 'forbidden'
+    if (!validQueryLimits(query)) return null
+    const after =
+      query.after === undefined ? undefined : validReference(query.after, config.maxFieldBytes)
+    const through =
+      query.through === undefined
+        ? undefined
+        : validReference(query.through, config.maxFieldBytes, true)
+    if (!validQueryReferences(query, after, through)) return null
     return {
       scope: requestedScope,
       limit: query.limit,
@@ -1150,33 +1250,40 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
     }
   }
 
+  function storeClosedCleanly(
+    result: Awaited<ReturnType<DiagnosticCollectorConfig['store']['close']>>,
+  ): boolean {
+    return 'complete' in result && result.complete && counters.flushFailures === 0
+  }
+
+  async function finishClose(): Promise<void> {
+    if (drainTask) await drainTask
+    while (sinkTasks.size > 0 || sinkQueue.length > 0) {
+      if (sinkTasks.size === 0) drainSink()
+      if (sinkTasks.size === 0) break
+      await Promise.allSettled([...sinkTasks])
+    }
+    if (writeState !== 'failed') {
+      try {
+        await config.store.flush()
+        flushedSequence = writtenSequence
+      } catch {
+        failure('flush')
+      }
+    }
+    try {
+      const result = await config.store.close()
+      if (storeClosedCleanly(result)) writeState = 'closed'
+      else coverage = 'degraded'
+    } catch {
+      failure('write')
+    }
+  }
+
   async function close(): Promise<DiagnosticCloseResult> {
     if (!closingTask) {
       if (writeState !== 'failed') writeState = 'closing'
-      closingTask = (async () => {
-        if (drainTask) await drainTask
-        while (sinkTasks.size > 0 || sinkQueue.length > 0) {
-          if (sinkTasks.size === 0) drainSink()
-          if (sinkTasks.size === 0) break
-          await Promise.allSettled([...sinkTasks])
-        }
-        if (writeState !== 'failed') {
-          try {
-            await config.store.flush()
-            flushedSequence = writtenSequence
-          } catch {
-            failure('flush')
-          }
-        }
-        try {
-          const result = await config.store.close()
-          if ('complete' in result && result.complete && counters.flushFailures === 0)
-            writeState = 'closed'
-          else coverage = 'degraded'
-        } catch {
-          failure('write')
-        }
-      })().finally(() => {
+      closingTask = finishClose().finally(() => {
         if (writeState !== 'closed') closingTask = undefined
       })
     }

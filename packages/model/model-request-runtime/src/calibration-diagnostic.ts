@@ -79,6 +79,29 @@ function number(raw: unknown, maxBytes: number, signed = false): JsonNumber | un
 function text(raw: unknown, maxBytes: number): raw is string {
   return typeof raw === 'string' && raw.length > 0 && Buffer.byteLength(raw) <= maxBytes
 }
+function priorRequestInput(raw: unknown, maxBytes: number) {
+  const prior = data(raw, [
+    'projectionRevision',
+    'prefixBoundary',
+    'prefixDigest',
+    'inputEnvelopeDigest',
+  ])
+  if (!prior || !text(prior.projectionRevision, maxBytes)) return undefined
+  const prefixBoundary = number(prior.prefixBoundary, maxBytes)
+  if (
+    prefixBoundary === undefined ||
+    ![prior.prefixDigest, prior.inputEnvelopeDigest].every(
+      v => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v) && v.length <= maxBytes,
+    )
+  )
+    return undefined
+  return Object.freeze({
+    projectionRevision: prior.projectionRevision,
+    prefixBoundary,
+    prefixDigest: prior.prefixDigest as string,
+    inputEnvelopeDigest: prior.inputEnvelopeDigest as string,
+  })
+}
 function source(raw: unknown, maxBytes: number): DiagnosticCalibrationSource | undefined {
   const value = data(raw, ['kind', 'reason', 'observedInputKind', 'requestInput'])
   if (!value) return undefined
@@ -98,33 +121,57 @@ function source(raw: unknown, maxBytes: number): DiagnosticCalibrationSource | u
     return undefined
   let requestInput: Extract<DiagnosticCalibrationSource, { kind: 'observation' }>['requestInput']
   if (value.requestInput !== undefined) {
-    const prior = data(value.requestInput, [
-      'projectionRevision',
-      'prefixBoundary',
-      'prefixDigest',
-      'inputEnvelopeDigest',
-    ])
-    if (!prior || !text(prior.projectionRevision, maxBytes)) return undefined
-    const prefixBoundary = number(prior.prefixBoundary, maxBytes)
-    if (
-      prefixBoundary === undefined ||
-      ![prior.prefixDigest, prior.inputEnvelopeDigest].every(
-        v => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v) && v.length <= maxBytes,
-      )
-    )
-      return undefined
-    requestInput = Object.freeze({
-      projectionRevision: prior.projectionRevision,
-      prefixBoundary,
-      prefixDigest: prior.prefixDigest as string,
-      inputEnvelopeDigest: prior.inputEnvelopeDigest as string,
-    })
+    requestInput = priorRequestInput(value.requestInput, maxBytes)
+    if (!requestInput) return undefined
   }
   return Object.freeze({
     kind: 'observation',
     observedInputKind: value.observedInputKind,
     ...(requestInput ? { requestInput } : {}),
   }) as DiagnosticCalibrationSource
+}
+function contribution(raw: unknown, signed: boolean, maxBytes: number) {
+  const part = data(raw, ['tokens', 'precision'])
+  if (!part || !precisions.includes(part.precision as string)) return undefined
+  const tokens = number(part.tokens, maxBytes, signed)
+  return tokens === undefined ? undefined : Object.freeze({ tokens, precision: part.precision })
+}
+function fullMeasurement(
+  value: Record<string, unknown>,
+  common: Record<string, unknown>,
+  maxBytes: number,
+): DiagnosticMeasurementFact | null {
+  if (
+    value.replayContribution !== undefined ||
+    value.newContribution !== undefined ||
+    (value.fallbackReason !== undefined &&
+      !fallbackReasons.includes(value.fallbackReason as string))
+  )
+    return null
+  const fullContribution = contribution(value.fullContribution, false, maxBytes)
+  return fullContribution
+    ? (Object.freeze({
+        ...common,
+        fullContribution,
+        ...(value.fallbackReason === undefined ? {} : { fallbackReason: value.fallbackReason }),
+      }) as DiagnosticMeasurementFact)
+    : null
+}
+function marginalMeasurement(
+  value: Record<string, unknown>,
+  common: Record<string, unknown>,
+  maxBytes: number,
+): DiagnosticMeasurementFact | null {
+  if (value.fullContribution !== undefined || value.fallbackReason !== undefined) return null
+  const replayContribution = contribution(value.replayContribution, true, maxBytes),
+    newContribution = contribution(value.newContribution, true, maxBytes)
+  return replayContribution && newContribution
+    ? (Object.freeze({
+        ...common,
+        replayContribution,
+        newContribution,
+      }) as DiagnosticMeasurementFact)
+    : null
 }
 /** Collector boundary: own, validate and freeze the narrow representation, including exact signed numbers. */
 export function copyMeasurementDiagnostic(
@@ -148,12 +195,6 @@ export function copyMeasurementDiagnostic(
       calibrationSource = source(value.calibrationSource, maxBytes)
     if (predictedInput === undefined || admissionTokens === undefined || !calibrationSource)
       return null
-    function contribution(raw: unknown, signed: boolean) {
-      const part = data(raw, ['tokens', 'precision'])
-      if (!part || !precisions.includes(part.precision as string)) return undefined
-      const tokens = number(part.tokens, maxBytes, signed)
-      return tokens === undefined ? undefined : Object.freeze({ tokens, precision: part.precision })
-    }
     const common = {
       kind: 'measurement',
       mode: value.mode,
@@ -163,33 +204,9 @@ export function copyMeasurementDiagnostic(
       basis,
       calibrationSource,
     }
-    if (value.mode === 'full') {
-      if (
-        value.replayContribution !== undefined ||
-        value.newContribution !== undefined ||
-        (value.fallbackReason !== undefined &&
-          !fallbackReasons.includes(value.fallbackReason as string))
-      )
-        return null
-      const fullContribution = contribution(value.fullContribution, false)
-      return fullContribution
-        ? (Object.freeze({
-            ...common,
-            fullContribution,
-            ...(value.fallbackReason === undefined ? {} : { fallbackReason: value.fallbackReason }),
-          }) as DiagnosticMeasurementFact)
-        : null
-    }
-    if (value.fullContribution !== undefined || value.fallbackReason !== undefined) return null
-    const replayContribution = contribution(value.replayContribution, true),
-      newContribution = contribution(value.newContribution, true)
-    return replayContribution && newContribution
-      ? (Object.freeze({
-          ...common,
-          replayContribution,
-          newContribution,
-        }) as DiagnosticMeasurementFact)
-      : null
+    return value.mode === 'full'
+      ? fullMeasurement(value, common, maxBytes)
+      : marginalMeasurement(value, common, maxBytes)
   } catch {
     return null
   }
@@ -216,6 +233,59 @@ function binding(raw: unknown, bound: BoundCredentialRedaction): DiagnosticBindi
   if (!Object.values(result).every(v => clean(v, bound))) return undefined
   return Object.freeze(result) as DiagnosticBinding
 }
+function projectCalibrationSource(raw: unknown, bound: BoundCredentialRedaction): unknown {
+  const calibration = data(raw, [
+    'kind',
+    'reason',
+    'inputCalibration',
+    'usage',
+    'outputBlocks',
+    'replaySelection',
+  ])
+  if (!calibration) return undefined
+  let calibrationSource: unknown
+  if (calibration.kind === 'none') calibrationSource = { kind: 'none', reason: calibration.reason }
+  else if (calibration.kind === 'observation') {
+    const original = data(calibration.inputCalibration, [
+      'requestInput',
+      'observedInput',
+      'outputGroup',
+    ])
+    const observed = data(original?.observedInput, ['kind', 'reason', 'tokens', 'provenance'])
+    const requestInput = data(original?.requestInput, [
+      'kind',
+      'reason',
+      'projectionRevision',
+      'prefixBoundary',
+      'prefixDigest',
+      'inputEnvelopeDigest',
+      'countingBasis',
+    ])
+    if (!observed || !requestInput) return undefined
+    calibrationSource = {
+      kind: 'observation',
+      observedInputKind: observed.kind,
+      ...(requestInput.kind === 'known'
+        ? {
+            requestInput: {
+              projectionRevision: requestInput.projectionRevision,
+              prefixBoundary: requestInput.prefixBoundary,
+              prefixDigest: requestInput.prefixDigest,
+              inputEnvelopeDigest: requestInput.inputEnvelopeDigest,
+            },
+          }
+        : {}),
+    }
+    if (
+      requestInput.kind === 'known' &&
+      !['projectionRevision', 'prefixDigest', 'inputEnvelopeDigest'].every(key =>
+        clean(requestInput[key], bound),
+      )
+    )
+      return undefined
+  } else return undefined
+  return calibrationSource
+}
 /** Invocation boundary, not a new source authority. It never reads configuration values, content or signatures. */
 export function projectCalibrationDiagnostic(
   planned: unknown,
@@ -234,57 +304,11 @@ export function projectCalibrationDiagnostic(
       bound,
     )
     if (!safeBinding || !basisKeys.every(key => clean(rawBasis[key], bound))) return undefined
-    const calibration = data(field(field(planned, 'input'), 'calibration'), [
-      'kind',
-      'reason',
-      'inputCalibration',
-      'usage',
-      'outputBlocks',
-      'replaySelection',
-    ])
-    if (!calibration) return undefined
-    let calibrationSource: unknown
-    if (calibration.kind === 'none')
-      calibrationSource = { kind: 'none', reason: calibration.reason }
-    else if (calibration.kind === 'observation') {
-      const original = data(calibration.inputCalibration, [
-        'requestInput',
-        'observedInput',
-        'outputGroup',
-      ])
-      const observed = data(original?.observedInput, ['kind', 'reason', 'tokens', 'provenance'])
-      const requestInput = data(original?.requestInput, [
-        'kind',
-        'reason',
-        'projectionRevision',
-        'prefixBoundary',
-        'prefixDigest',
-        'inputEnvelopeDigest',
-        'countingBasis',
-      ])
-      if (!observed || !requestInput) return undefined
-      calibrationSource = {
-        kind: 'observation',
-        observedInputKind: observed.kind,
-        ...(requestInput.kind === 'known'
-          ? {
-              requestInput: {
-                projectionRevision: requestInput.projectionRevision,
-                prefixBoundary: requestInput.prefixBoundary,
-                prefixDigest: requestInput.prefixDigest,
-                inputEnvelopeDigest: requestInput.inputEnvelopeDigest,
-              },
-            }
-          : {}),
-      }
-      if (
-        requestInput.kind === 'known' &&
-        !['projectionRevision', 'prefixDigest', 'inputEnvelopeDigest'].every(key =>
-          clean(requestInput[key], bound),
-        )
-      )
-        return undefined
-    } else return undefined
+    const calibrationSource = projectCalibrationSource(
+      field(field(planned, 'input'), 'calibration'),
+      bound,
+    )
+    if (calibrationSource === undefined) return undefined
     const facts = copyMeasurementDiagnostic(
       {
         ...value,
