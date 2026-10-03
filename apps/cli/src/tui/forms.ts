@@ -48,61 +48,67 @@ export function validFieldText(value: string): boolean {
     !/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u.test(value)
   )
 }
+function invalidField(): never {
+  throw new InputFailure('invalid-options')
+}
+function tenantValue(value: unknown): Tenant {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return invalidField()
+  const keys = Object.keys(value)
+  if (
+    keys.length !== 2 ||
+    !('account' in value) ||
+    !('organization' in value) ||
+    typeof value.account !== 'string' ||
+    typeof value.organization !== 'string' ||
+    !validFieldText(value.account) ||
+    !validFieldText(value.organization)
+  )
+    return invalidField()
+  return { account: value.account, organization: value.organization }
+}
+function organizationValues(value: unknown): unknown[] {
+  if (
+    !Array.isArray(value) ||
+    value.length < 1 ||
+    value.length > 2 ||
+    !value.every((x: unknown) => typeof x === 'string' && validFieldText(x))
+  )
+    return invalidField()
+  return [...value]
+}
 export function fieldValue(field: Field, value: unknown): unknown {
-  const bad = (): never => {
-    throw new InputFailure('invalid-options')
-  }
-  if (field.kind === 'boolean') return typeof value === 'boolean' ? value : bad()
-  if (field.kind === 'tenant' || field.kind === 'current-tenant') {
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) return bad()
-    const keys = Object.keys(value)
-    if (
-      keys.length !== 2 ||
-      !('account' in value) ||
-      !('organization' in value) ||
-      typeof value.account !== 'string' ||
-      typeof value.organization !== 'string' ||
-      !validFieldText(value.account) ||
-      !validFieldText(value.organization)
-    )
-      return bad()
-    return { account: value.account, organization: value.organization }
-  }
-  if (field.kind === 'organizations') {
-    if (
-      !Array.isArray(value) ||
-      value.length < 1 ||
-      value.length > 2 ||
-      !value.every((x: unknown) => typeof x === 'string' && validFieldText(x))
-    )
-      return bad()
-    return [...value]
-  }
-  if (typeof value !== 'string' || !validFieldText(value)) return bad()
+  if (field.kind === 'boolean') return typeof value === 'boolean' ? value : invalidField()
+  if (field.kind === 'tenant' || field.kind === 'current-tenant') return tenantValue(value)
+  if (field.kind === 'organizations') return organizationValues(value)
+  return textFieldValue(field, value)
+}
+function textFieldValue(field: Field, value: unknown): string | number {
+  if (typeof value !== 'string' || !validFieldText(value)) return invalidField()
   if (field.kind === 'integer') {
-    if (!/^-?(?:0|[1-9][0-9]*)$/.test(value) || !Number.isSafeInteger(Number(value))) return bad()
+    if (!/^-?(?:0|[1-9][0-9]*)$/.test(value) || !Number.isSafeInteger(Number(value)))
+      return invalidField()
     return Number(value)
   }
-  if (field.kind === 'enum' && !field.options?.includes(value)) return bad()
+  if (field.kind === 'enum' && !field.options?.includes(value)) return invalidField()
   return value
 }
 export interface PreparedForm {
   readonly intent: ActionIntent
   readonly secretPaths: Readonly<Record<string, string>>
 }
-/** A draft contains only non-secret values and paths. Secrets are read in the CG callback. */
-export async function prepareForm(
-  form: Form,
-  draft: Readonly<Record<string, unknown>>,
-  tenant: Tenant | undefined,
-  refresh: boolean,
-  signal: AbortSignal,
-): Promise<PreparedForm> {
-  const payload: Record<string, unknown> = {},
-    secretPaths: Record<string, string> = {}
+function validateDraftNames(form: Form, draft: Readonly<Record<string, unknown>>): void {
   for (const name of Object.keys(draft))
     if (!form.fields.some(f => f.name === name && f.kind !== 'current-tenant'))
       throw new InputFailure('invalid-options')
+}
+function parseDraft(
+  form: Form,
+  draft: Readonly<Record<string, unknown>>,
+  tenant: Tenant | undefined,
+) {
+  const payload: Record<string, unknown> = {},
+    secretPaths: Record<string, string> = {}
+  validateDraftNames(form, draft)
   for (const field of form.fields) {
     if (field.when && draft[field.when.field] !== field.when.equals) {
       if (Object.hasOwn(draft, field.name)) throw new InputFailure('invalid-options')
@@ -119,6 +125,17 @@ export async function prepareForm(
       secretPaths[field.name] = parsed
     } else payload[field.name] = parsed
   }
+  return { payload, secretPaths }
+}
+/** A draft contains only non-secret values and paths. Secrets are read in the CG callback. */
+export async function prepareForm(
+  form: Form,
+  draft: Readonly<Record<string, unknown>>,
+  tenant: Tenant | undefined,
+  refresh: boolean,
+  signal: AbortSignal,
+): Promise<PreparedForm> {
+  const { payload, secretPaths } = parseDraft(form, draft, tenant)
   let intent: unknown
   if (form.action === 'configure') {
     const trust =

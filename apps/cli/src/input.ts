@@ -86,50 +86,52 @@ export function payloadJSON(text: string): Record<string, unknown> {
     }
     return fail()
   }
+  const object = (depth: number): Record<string, unknown> => {
+    at++
+    space()
+    const result: Record<string, unknown> = Object.create(null),
+      keys = new Set<string>()
+    if (text[at] === '}') {
+      at++
+      return result
+    }
+    for (;;) {
+      space()
+      if (text[at] !== '"') return fail()
+      const key = string()
+      if (keys.has(key)) return fail()
+      keys.add(key)
+      space()
+      if (text[at++] !== ':') return fail()
+      result[key] = value(depth + 1)
+      space()
+      const end = text[at++]
+      if (end === '}') return result
+      if (end !== ',') return fail()
+    }
+  }
+  const array = (depth: number): unknown[] => {
+    at++
+    space()
+    const result: unknown[] = []
+    if (text[at] === ']') {
+      at++
+      return result
+    }
+    for (;;) {
+      result.push(value(depth + 1))
+      space()
+      const end = text[at++]
+      if (end === ']') return result
+      if (end !== ',') return fail()
+    }
+  }
   const value = (depth: number): unknown => {
     if (depth > 64) return fail()
     space()
     if (text[at] === '"') return string()
-    if (text[at] === '{') {
-      at++
-      space()
-      const result: Record<string, unknown> = Object.create(null),
-        keys = new Set<string>()
-      if (text[at] === '}') {
-        at++
-        return result
-      }
-      for (;;) {
-        space()
-        if (text[at] !== '"') return fail()
-        const key = string()
-        if (keys.has(key)) return fail()
-        keys.add(key)
-        space()
-        if (text[at++] !== ':') return fail()
-        result[key] = value(depth + 1)
-        space()
-        const end = text[at++]
-        if (end === '}') return result
-        if (end !== ',') return fail()
-      }
-    }
-    if (text[at] === '[') {
-      at++
-      space()
-      const result: unknown[] = []
-      if (text[at] === ']') {
-        at++
-        return result
-      }
-      for (;;) {
-        result.push(value(depth + 1))
-        space()
-        const end = text[at++]
-        if (end === ']') return result
-        if (end !== ',') return fail()
-      }
-    }
+    if (text[at] === '{') return object(depth)
+    if (text[at] === '[') return array(depth)
     for (const [word, result] of [
       ['true', true],
       ['false', false],
@@ -154,29 +156,34 @@ export function payloadJSON(text: string): Record<string, unknown> {
   return result as Record<string, unknown>
 }
 
+async function configureIntent(
+  values: Extract<Invocation, { kind: 'command' }>['values'],
+  signal: AbortSignal,
+): Promise<unknown> {
+  const trust =
+    values['system-ca'] === true
+      ? { mode: 'ca' }
+      : values['spki'] !== undefined
+        ? { mode: 'spki', sha256: values['spki'] }
+        : {
+            mode: 'ca',
+            certificateAuthorities: await readInputFile(
+              values['ca-file'] as string,
+              1024 * 1024,
+              false,
+              signal,
+            ),
+          }
+  return { action: 'configure', endpoint: values['endpoint'], trust }
+}
+
 export async function buildIntent(
   invocation: Extract<Invocation, { kind: 'command' }>,
   signal: AbortSignal,
 ): Promise<unknown> {
   const { command, values } = invocation
   const action = command.action
-  if (action === 'configure') {
-    const trust =
-      values['system-ca'] === true
-        ? { mode: 'ca' }
-        : values['spki'] !== undefined
-          ? { mode: 'spki', sha256: values['spki'] }
-          : {
-              mode: 'ca',
-              certificateAuthorities: await readInputFile(
-                values['ca-file'] as string,
-                1024 * 1024,
-                false,
-                signal,
-              ),
-            }
-    return { action, endpoint: values['endpoint'], trust }
-  }
+  if (action === 'configure') return configureIntent(values, signal)
   if (action === 'health' || action === 'logout') return { action }
   const payload =
     values['payload-file'] === undefined
