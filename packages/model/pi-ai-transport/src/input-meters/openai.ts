@@ -41,6 +41,13 @@ function sanitizedBody(
   const messages: JsonValue[] = []
   for (const message of body.messages) {
     if (!object(message)) return undefined
+    const sanitized = sanitizeMessage(message)
+    if (!sanitized) return undefined
+    messages.push(sanitized)
+  }
+  return { body: { ...body, messages }, imageTokens: total }
+
+  function sanitizeMessage(message: JsonObject): JsonObject | undefined {
     // The tokenizer basis covers visible reasoning text/summary and their
     // protocol metadata, not the context represented by encrypted payloads.
     // Keep the final wire intact: an unsupported detail makes the whole input
@@ -51,8 +58,7 @@ function sanitizedBody(
         if (classifyOpenAiDetail(detail) !== 'visible') return undefined
     }
     if (!Array.isArray(message.content)) {
-      messages.push(message)
-      continue
+      return message
     }
     const parts: JsonValue[] = []
     for (const part of message.content) {
@@ -69,9 +75,8 @@ function sanitizedBody(
       if (!object(image)) return undefined
       parts.push({ ...part, image_url: { ...image, url: '[image]' } })
     }
-    messages.push({ ...message, content: parts })
+    return { ...message, content: parts }
   }
-  return { body: { ...body, messages }, imageTokens: total }
 }
 
 let sharedEncoder: ReturnType<typeof getEncoding> | undefined
@@ -119,59 +124,84 @@ function finalVisibleBodyValid(body: JsonObject, row: OpenAiFamilyRecord): boole
   )
     return false
 
-  for (const message of body.messages as JsonValue[]) {
-    if (!object(message) || typeof message.role !== 'string') return false
-    switch (message.role) {
-      case 'system':
-      case 'developer':
-        if (!onlyKeys(message, ['role', 'content']) || !visibleTextParts(message.content))
-          return false
-        break
-      case 'user':
-        if (
-          !onlyKeys(message, ['role', 'content']) ||
-          !Array.isArray(message.content) ||
-          !message.content.every(
-            part => visibleTextParts([part]) || (object(part) && part.type === 'image_url'),
-          )
-        )
-          return false
-        break
-      case 'assistant':
-        if (
-          !onlyKeys(message, ['role', 'content', 'tool_calls', 'reasoning', 'reasoning_details']) ||
-          typeof message.content !== 'string' ||
-          (message.reasoning !== undefined && typeof message.reasoning !== 'string') ||
-          (message.tool_calls !== undefined &&
-            (!Array.isArray(message.tool_calls) ||
-              !message.tool_calls.length ||
-              !message.tool_calls.every(
-                call =>
-                  object(call) &&
-                  onlyKeys(call, ['id', 'type', 'function']) &&
-                  typeof call.id === 'string' &&
-                  call.type === 'function' &&
-                  object(call.function) &&
-                  onlyKeys(call.function, ['name', 'arguments']) &&
-                  typeof call.function.name === 'string' &&
-                  typeof call.function.arguments === 'string',
-              )))
-        )
-          return false
-        break
-      case 'tool':
-        if (
-          !onlyKeys(message, ['role', 'tool_call_id', 'content']) ||
-          typeof message.tool_call_id !== 'string' ||
-          typeof message.content !== 'string'
-        )
-          return false
-        break
-      default:
-        return false
-    }
-  }
+  if (!visibleMessagesValid(body.messages as JsonValue[])) return false
+  return visibleToolsValid(body)
+}
 
+function visibleMessagesValid(messages: readonly JsonValue[]): boolean {
+  for (const message of messages) {
+    if (!object(message) || typeof message.role !== 'string') return false
+    if (!visibleMessageValid(message)) return false
+  }
+  return true
+}
+
+function visibleMessageValid(message: JsonObject): boolean {
+  switch (message.role) {
+    case 'system':
+    case 'developer':
+      if (!onlyKeys(message, ['role', 'content']) || !visibleTextParts(message.content))
+        return false
+      return true
+    case 'user':
+      return visibleUserValid(message)
+    case 'assistant':
+      return visibleAssistantValid(message)
+    case 'tool':
+      if (
+        !onlyKeys(message, ['role', 'tool_call_id', 'content']) ||
+        typeof message.tool_call_id !== 'string' ||
+        typeof message.content !== 'string'
+      )
+        return false
+      return true
+    default:
+      return false
+  }
+}
+
+function visibleUserValid(message: JsonObject): boolean {
+  return !(
+    !onlyKeys(message, ['role', 'content']) ||
+    !Array.isArray(message.content) ||
+    !message.content.every(
+      part => visibleTextParts([part]) || (object(part) && part.type === 'image_url'),
+    )
+  )
+}
+
+function visibleAssistantValid(message: JsonObject): boolean {
+  return !(
+    !onlyKeys(message, ['role', 'content', 'tool_calls', 'reasoning', 'reasoning_details']) ||
+    typeof message.content !== 'string' ||
+    (message.reasoning !== undefined && typeof message.reasoning !== 'string') ||
+    !visibleCallsValid(message)
+  )
+}
+
+function visibleCallsValid(message: JsonObject): boolean {
+  return !(
+    message.tool_calls !== undefined &&
+    (!Array.isArray(message.tool_calls) ||
+      !message.tool_calls.length ||
+      !message.tool_calls.every(visibleCallValid))
+  )
+}
+
+function visibleCallValid(call: JsonValue): boolean {
+  return (
+    object(call) &&
+    onlyKeys(call, ['id', 'type', 'function']) &&
+    typeof call.id === 'string' &&
+    call.type === 'function' &&
+    object(call.function) &&
+    onlyKeys(call.function, ['name', 'arguments']) &&
+    typeof call.function.name === 'string' &&
+    typeof call.function.arguments === 'string'
+  )
+}
+
+function visibleToolsValid(body: JsonObject): boolean {
   if (Array.isArray(body.tools))
     for (const tool of body.tools) {
       if (
