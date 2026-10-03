@@ -1,5 +1,7 @@
 # 运行证据
 
+**2026-10-03 Moonshot空文本窄修复**：[独立验收与有限技术签收](2026-10-03-moonshot-empty-text/README.md)。两成员快2227／慢1204、公开42场景、34构建及共同硬线通过，10标准Pass with issues；CC与带位保留，真实上游仅当前Kimi一条，不提升37模型认证。
+
 **2026-09-30 ACK 接缝 v-next 暂存行模型**：[两正配置与十份变异的 TLC 运行](2026-09-30-ack-seam-vnext-tlc/README.md)。v-next candidate 模型，不是 v12 冻结模型重跑；正配置无反例、十份变异各命中目标不变量；不登记 formal task，不构成接受。
 
 **2026-09-29 模型引用第二轮**：[新 OpenedOrder、四负控与 70 项形状案例](2026-09-29-formal-model-reference-candidate-2/README.md)。执行前输入摘要、独立日志与两份评审锁分别保留；仅有限模型/形状检查，不构成接受。

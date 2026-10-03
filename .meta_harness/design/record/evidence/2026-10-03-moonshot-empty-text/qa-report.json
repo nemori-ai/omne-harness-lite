@@ -1,0 +1,384 @@
+{
+  "verdict": "Pass with issues",
+  "commit": "eb2b5bf00dca8facc67d5c082418d09e4a0fbdc0",
+  "base": "dfa3eb92e292dddb1bb47cf122212362d095c143",
+  "run_id": "qa50-r1-final",
+  "exit_code": 0,
+  "verifier": "qa",
+  "verifier_instance": "/root/qa68",
+  "completed_at": "2026-10-03T10:08:09.725427+00:00",
+  "completion": "all 10 criteria have observable results; report/coverage/provenance supplied",
+  "source_commit": "56c446ab842e2e2e69a120755019e2ad553e09e1",
+  "source_base": "75da02d205980c97bb3c279741abb356d70fdc00",
+  "standard_source": "../qa50-brief-r1.md; accepted D-115; v16 r1",
+  "frozen_design_sha256": "4496691143b5b0b631b0a21fb2dd882126ddb4e2be667880381248d587f1ef47",
+  "environment": {
+    "cpu": 7,
+    "nice": 5,
+    "workers": 1,
+    "members": 1,
+    "build_concurrency": 1,
+    "TMPDIR": "/tmp/q50.0h4seug7",
+    "network_by_qa": "loopback existing TLS only; no external paid request",
+    "global_machine_slot": false,
+    "OMNE_TEST_SLOT_HELD_real_orchestration": false
+  },
+  "build": "ROOT prepared offline frozen deps+190 host files/3 links; QA actual 34-member build and2-member type; byte-equal inputs reused on final HEAD",
+  "criteria": [
+    {
+      "id": 1,
+      "standard": "qa50-brief-r1.md#1; D-115/v16 r1",
+      "scenario": "acceptance/final-run.py + account.py",
+      "evidence": [
+        "evidence/final-plan.json",
+        "evidence/coverage-account.json"
+      ],
+      "result": "Pass",
+      "observations": "162 file classifications, scoped 2 test/type members,34 builds, Python/acceptance skip"
+    },
+    {
+      "id": 2,
+      "standard": "qa50-brief-r1.md#2; v16 MV5-1/2",
+      "scenario": "acceptance/public-api.mjs",
+      "evidence": [
+        "evidence/public-api.json",
+        "evidence/independent/public-api-r4.log"
+      ],
+      "result": "Pass",
+      "executions": 16
+    },
+    {
+      "id": 3,
+      "standard": "qa50-brief-r1.md#3; v16 MV5-4",
+      "scenario": "acceptance/public-api.mjs + PI two tiers",
+      "evidence": [
+        "evidence/public-api.json",
+        "evidence/pi-fast/ledger.json",
+        "evidence/pi-slow/ledger.json"
+      ],
+      "result": "Pass",
+      "observations": "empty-only/whitespace/markers/messages and assistant/tool paths"
+    },
+    {
+      "id": 4,
+      "standard": "qa50-brief-r1.md#4",
+      "scenario": "acceptance/public-api.mjs",
+      "evidence": [
+        "evidence/public-api.json"
+      ],
+      "result": "Pass",
+      "executions": 11,
+      "limitation": "Independent negative cases reach real official-meter registration boundary; existing selected suites also run"
+    },
+    {
+      "id": 5,
+      "standard": "qa50-brief-r1.md#5; v16 MV5-5",
+      "scenario": "acceptance/public-api.mjs + audit.py",
+      "evidence": [
+        "evidence/public-api.json",
+        "evidence/provenance-audit.json"
+      ],
+      "result": "Pass",
+      "executions": 4,
+      "synthetic_observation": true
+    },
+    {
+      "id": 6,
+      "standard": "qa50-brief-r1.md#6; v16 MV5-6",
+      "scenario": "acceptance/audit.py + public-api.mjs + account.py",
+      "evidence": [
+        "evidence/catalog-fingerprint-structure.json",
+        "evidence/provenance-audit.json"
+      ],
+      "result": "Pass",
+      "catalog_leaves": 37
+    },
+    {
+      "id": 7,
+      "standard": "qa50-brief-r1.md#7; v16 MV5-7",
+      "scenario": "acceptance/public-api.mjs real invocation through existing TLS fixture",
+      "evidence": [
+        "evidence/public-api.json",
+        "evidence/pi-fast/ledger.json",
+        "evidence/pi-slow/ledger.json"
+      ],
+      "result": "Pass",
+      "TLS_sends": 1,
+      "boundary": "Real products, synthetic loopback external provider only"
+    },
+    {
+      "id": 8,
+      "standard": "qa50-brief-r1.md#8",
+      "scenario": "prepare + pi-tiers + final-run + final-tools + account",
+      "evidence": [
+        "evidence/prepare-commands.json",
+        "evidence/final-commands.json",
+        "evidence/final-loop/status.json",
+        "evidence/coverage-account.json"
+      ],
+      "result": "Pass",
+      "fast": 2227,
+      "slow": 1204,
+      "unique_inapplicable": [
+        {
+          "member": "packages/model/pi-ai-transport",
+          "tier": "slow",
+          "file": "packages/model/pi-ai-transport/tests/deepseek-marginal.spec.ts",
+          "name": "'deepseek/deepseek-v4-pro-0813' signed reference boundaries meters only the new image span while checking every image byte",
+          "status": "skipped",
+          "executed_in_other_tier": false
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "standard": "qa50-brief-r1.md#9",
+      "scenario": "acceptance/audit.py; actual portable dry/self/reconcile/price CLIs",
+      "evidence": [
+        "evidence/provenance-audit.json",
+        "evidence/independent-final-commands.json",
+        "evidence/independent/provenance-audit-r2.log"
+      ],
+      "result": "Pass",
+      "archived_receipts": 97,
+      "summaries": 3,
+      "offline_self": 31,
+      "offline_dry": 93,
+      "price_matches": 86,
+      "price_differences": 5
+    },
+    {
+      "id": 10,
+      "standard": "qa50-brief-r1.md#10; v16 MV5-8",
+      "scenario": "acceptance/audit.py reads root actual paid evidence; QA does not network",
+      "evidence": [
+        "evidence/paid-audit.json"
+      ],
+      "result": "Pass",
+      "sends": 1,
+      "outcome": "complete",
+      "actual_usd": "0.001179",
+      "historical_usd": "0.2320266",
+      "combined_usd": "0.2332056"
+    }
+  ],
+  "summary": {
+    "criteria_passed": 10,
+    "criteria_failed": 0,
+    "criteria_uncovered": 0,
+    "public_cases": 42,
+    "passed_fast": 2227,
+    "passed_slow": 1204,
+    "unique_notrun": 1
+  },
+  "defects": [],
+  "issues": [
+    {
+      "id": "I-50-1",
+      "severity": "nonblocking metric",
+      "summary": "planRequest CC86→92 and4 clone pairs touching changed Moonshot file",
+      "evidence": "evidence/final-loop/status.json",
+      "destination": "developer / responsible human; not a QA design judgment"
+    },
+    {
+      "id": "I-50-2",
+      "severity": "nonblocking timing",
+      "summary": "Single CPU test-slot fast file about11s;9 PI slow files flagged very quick. Byte-identical input but no timed baseline: causality unjudged.",
+      "evidence": [
+        "evidence/tools-fast/ledger.json",
+        "evidence/pi-slow/ledger.json"
+      ],
+      "destination": "verification-developer / responsible human"
+    }
+  ],
+  "uncovered": [
+    {
+      "scope": "existing DeepSeek Pro image-specific case",
+      "reason": "runIf condition only applies to Flash; corresponding Flash executed",
+      "evidence": [
+        {
+          "member": "packages/model/pi-ai-transport",
+          "tier": "slow",
+          "file": "packages/model/pi-ai-transport/tests/deepseek-marginal.spec.ts",
+          "name": "'deepseek/deepseek-v4-pro-0813' signed reference boundaries meters only the new image span while checking every image byte",
+          "status": "skipped",
+          "executed_in_other_tier": false
+        }
+      ]
+    },
+    {
+      "scope": "TLC/Alloy",
+      "reason": "Registered metadata only; not executed or claimed formal proof"
+    },
+    {
+      "scope": "Python and CLI acceptance",
+      "reason": "No affected Python path or acceptance member; explicit final plan skips",
+      "required": false
+    },
+    {
+      "scope": "whole-repository structural baseline comparison",
+      "reason": "No baseline snapshot;21 red/470 abovealert/2 overbudget are current readings, not proven historical"
+    }
+  ],
+  "residual_risks": [
+    "One real root-owned Kimi paid sample is not37-model upstream certification or all-empty/history-position certification",
+    "Local TLS upstream content/usage and four calibration observations are synthetic; products are real",
+    "QA verified supplied actual root paid records/hash/script/send guard; no independent upstream-account audit",
+    "SingleCPU measurements do not certify normal-concurrency1minute goal; historic317seconds was test-only lowerbound, entry includes plan/build"
+  ],
+  "observations": [
+    "All5 historical Grok price differences and sampled balance lag preserved",
+    "5 QA facility errors separately recorded; no product/golden/assertion edits; public run initial+3retries then42/42 and audit2nd attempt passed",
+    "107 tier skips passed in other tier,1 unique inapplicable"
+  ],
+  "cleanup": {
+    "commit": "eb2b5bf00dca8facc67d5c082418d09e4a0fbdc0",
+    "base": "dfa3eb92e292dddb1bb47cf122212362d095c143",
+    "run_id": "qa50-r1-final",
+    "verifier": "qa",
+    "exit_code": 0,
+    "recorded_at": "2026-10-03T10:02:37Z",
+    "active_owned_checks": [],
+    "tracked_status": "",
+    "detached": true,
+    "candidate_retained": "Root latest instruction: handoff this clone for scoped mutation; QA will not remove it",
+    "TMPDIR": "/tmp/q50.0h4seug7",
+    "private_file_count": 26,
+    "private_bytes": 4080511,
+    "unique_evidence_policy": "All acceptance raw/semantic evidence resides under qa50-r1/evidence. Private fixtures retained for root handoff; not deleted by QA.",
+    "external_files": [
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/0b6a077d",
+        "bytes": 983188,
+        "sha256": "57b4058de6cb4797dfc56950e568d70221a2585b1f531ba80fa2e989d737c94d"
+      },
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/1f215ab5",
+        "bytes": 964,
+        "sha256": "ef05960787c0d6fda20d35b8727aa5735a9a987610c4599662ede9012175f595"
+      },
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/3c02efb1",
+        "bytes": 18876,
+        "sha256": "bd2c36587636d1e7dd6dcc97c3c70efb48882073833c37a5d84f632b60f7d88a"
+      },
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/4405cf63",
+        "bytes": 885460,
+        "sha256": "cfd6247b368e2a9d6068c728ba9c40818de35720edf546140c972fb33e3da61a"
+      },
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/4edfb8c3",
+        "bytes": 90236,
+        "sha256": "25e7516c5345ec8dd891b12432ad0cda03af1e2a81e134d1d9cf9a1d127a630b"
+      },
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/6a1ee6cf",
+        "bytes": 2228,
+        "sha256": "71001f17e9340d138b803c7ea957a990a0f9eaf81fcc4857f07f449403d1762b"
+      },
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/7668661d",
+        "bytes": 1362692,
+        "sha256": "39fe99990ac38611ea16064b91a0fcfd9d777829385f6ce083d478c7669e86ee"
+      },
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/8e3a76c4",
+        "bytes": 138692,
+        "sha256": "321640dfc65f5fc5bfb7be1eb8b460d413e00c288639076c0893e5cb86489927"
+      },
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/9de3dcc2",
+        "bytes": 1716,
+        "sha256": "66ae5541c9909c1d159e42a4e32bd917348457e870e58a91df1845b64385e17d"
+      },
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/c3da2edc",
+        "bytes": 88884,
+        "sha256": "0fda939ecfa8b7ad09b6b963cab81c1f1d3fab4ccd28f349612bc356832e509d"
+      },
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/d3223d53",
+        "bytes": 194052,
+        "sha256": "5a5a5d8baa8caaea375b0f14f96cbdd64fd82044327e3d095767ea8b572921e0"
+      },
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/edbf974c",
+        "bytes": 196276,
+        "sha256": "f3caab433840caad85a65cf20f727a9f9a645418bd1e974ee18496345dbd586e"
+      },
+      {
+        "path": "node-compile-cache/v24.21.0-x64-964aae3f-1001/fdd8037f",
+        "bytes": 101932,
+        "sha256": "95e35851ad6a8127d3ba99cb0ed24d9bdb5e9f72dd47e048ec70fc01d48d21ba"
+      },
+      {
+        "path": "probe-selftest-JtOT5F/01-openai_gpt-6-astra-A1.json",
+        "bytes": 1244,
+        "sha256": "4e1d5ce97f13672d68e824c09154ba846798e250b6aff11053250c3e4abbe0f3"
+      },
+      {
+        "path": "probe-selftest-JtOT5F/02-openai_gpt-6-astra-A2.json",
+        "bytes": 1413,
+        "sha256": "3497724540461c772cb0555821c3b8cedc39ad6cd295b13dfaa5586959e2515a"
+      },
+      {
+        "path": "probe-selftest-JtOT5F/03-openai_gpt-6-astra-B.json",
+        "bytes": 1343,
+        "sha256": "c9bdcce72440ee78bfb0b3e5cff0757d459170f4bfe463fa33abbd967a5df4db"
+      },
+      {
+        "path": "probe-selftest-JtOT5F/04-openai_gpt-6-astra-pro-A1.json",
+        "bytes": 1115,
+        "sha256": "e33ce0947af9ba0fd16872ce3e1b8630a85cc683b74884080d8e807d42a7b0c8"
+      },
+      {
+        "path": "probe-selftest-JtOT5F/05-openai_gpt-6-astra-pro-A2.json",
+        "bytes": 1115,
+        "sha256": "6611a30575b523a2c0e87bb732594f893b06a2cb8569b8b1a92b64669b55c483"
+      },
+      {
+        "path": "probe-selftest-JtOT5F/06-openai_gpt-6-astra-pro-B.json",
+        "bytes": 1351,
+        "sha256": "ac837d0183a9af272ee016a09076ec601647a008124830bb7ad5d046dd810f52"
+      },
+      {
+        "path": "probe-selftest-JtOT5F/07-openai_gpt-6-sol-A1.json",
+        "bytes": 1228,
+        "sha256": "4f69d6f03702fa431946e100122002c114d0af348e8cfaef25ebb3c40f324e9c"
+      },
+      {
+        "path": "probe-selftest-JtOT5F/08-openai_gpt-6-sol-A2.json",
+        "bytes": 1228,
+        "sha256": "4f5c2ce99bf180e8fbb4d89ffa517a5cdb57bc26ee571594b3d46ff51c8cb70d"
+      },
+      {
+        "path": "probe-selftest-JtOT5F/09-openai_gpt-6-sol-B.json",
+        "bytes": 1339,
+        "sha256": "6ccddba34b9ffc11e6e09e5ebd824d7a0faa8c184c4e5de04127caaa2cbf784a"
+      },
+      {
+        "path": "probe-selftest-JtOT5F/10-openai_gpt-6-sol-pro-A1.json",
+        "bytes": 1438,
+        "sha256": "fedfe95d4c4f44d66dac598405d0910e937837648d58f19e3ac078a873c71c82"
+      },
+      {
+        "path": "probe-selftest-NUFRQD/01-openai_gpt-6-luna-A1.json",
+        "bytes": 1418,
+        "sha256": "220050cc042f25aa9a7e64df5fa8a4207cb3d8d8e44fd83d695719a7b7e8a105"
+      },
+      {
+        "path": "probe-selftest-ePEu1G/01-openai_gpt-6-astra-A1.json",
+        "bytes": 1083,
+        "sha256": "532eff5d5ee03f7c9d4d2fd3fb2faf14deaf713c812cd280d09ab5b4c850d2f5"
+      },
+      {
+        "path": "uv-837af344432efe5b.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "QA_product_writes": []
+  },
+  "acceptance_action": "Not accepted by QA; dispatcher/human acceptance is separate"
+}
