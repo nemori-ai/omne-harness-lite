@@ -75,19 +75,115 @@ function reflect<T>(read: () => T): T {
   }
 }
 
+type SnapshotTask =
+  | { readonly kind: 'visit'; readonly input: unknown; readonly put: (value: JsonValue) => void }
+  | {
+      readonly kind: 'finish'
+      readonly input: object
+      readonly output: JsonValue[] | Record<string, JsonValue>
+      readonly put: (value: JsonValue) => void
+    }
+
+function snapshotNumber(input: LosslessNumber): LosslessNumber {
+  // Reject foreign accessors overriding the core's explicit numeric read boundary.
+  let owner: object | null = input
+  const owners = new Set<object>()
+  while (owner !== null) {
+    if (owners.has(owner)) throw new InputAdmissionError()
+    owners.add(owner)
+    const currentOwner = owner
+    const property = reflect(() => Object.getOwnPropertyDescriptor(currentOwner, 'source'))
+    if (property !== undefined) {
+      if (
+        losslessSourceGetter === undefined ||
+        property.get !== losslessSourceGetter ||
+        'value' in property
+      )
+        throw new InputAdmissionError()
+      const source: unknown = Reflect.apply(losslessSourceGetter, input, [])
+      if (typeof source !== 'string') throw new TypeError()
+      return new LosslessNumber(source)
+    }
+    const next: unknown = reflect(() => Object.getPrototypeOf(currentOwner))
+    if (next !== null && typeof next !== 'object') throw new InputAdmissionError()
+    owner = next
+  }
+  throw new InputAdmissionError()
+}
+
+function snapshotArray(
+  input: object,
+  put: (value: JsonValue) => void,
+  descriptors: PropertyDescriptorMap,
+  tasks: SnapshotTask[],
+): void {
+  const length: unknown = descriptors.length?.value
+  if (typeof length !== 'number' || Object.keys(descriptors).length !== length + 1)
+    throw new InputAdmissionError()
+  const output: JsonValue[] = []
+  tasks.push({ kind: 'finish', input, output, put })
+  for (let index = length - 1; index >= 0; index--) {
+    const property = descriptors[String(index)]
+    if (property === undefined || !property.enumerable || !('value' in property))
+      throw new InputAdmissionError()
+    const item: unknown = property.value
+    tasks.push({
+      kind: 'visit',
+      input: item,
+      put: value => {
+        output[index] = value
+      },
+    })
+  }
+}
+
+function snapshotObject(
+  input: object,
+  put: (value: JsonValue) => void,
+  descriptors: PropertyDescriptorMap,
+  tasks: SnapshotTask[],
+): void {
+  const output: Record<string, JsonValue> = Object.create(null)
+  tasks.push({ kind: 'finish', input, output, put })
+  const entries = Object.entries(descriptors)
+  for (let index = entries.length - 1; index >= 0; index--) {
+    const entry = entries[index]
+    if (entry === undefined) throw new InputAdmissionError()
+    const [key, property] = entry
+    if (!property.enumerable || !('value' in property)) throw new InputAdmissionError()
+    const item: unknown = property.value
+    tasks.push({
+      kind: 'visit',
+      input: item,
+      put: value => {
+        Object.defineProperty(output, key, { value, enumerable: true })
+      },
+    })
+  }
+}
+
+function snapshotContainer(
+  input: object,
+  put: (value: JsonValue) => void,
+  active: Set<object>,
+  tasks: SnapshotTask[],
+): void {
+  const prototype: unknown = reflect(() => Object.getPrototypeOf(input))
+  if (!reflect(() => Array.isArray(input)) && prototype !== Object.prototype && prototype !== null)
+    throw new InputAdmissionError()
+  if (reflect(() => Object.getOwnPropertySymbols(input)).length !== 0)
+    throw new InputAdmissionError()
+  const descriptors = reflect(() => Object.getOwnPropertyDescriptors(input))
+  active.add(input)
+  if (reflect(() => Array.isArray(input))) snapshotArray(input, put, descriptors, tasks)
+  else snapshotObject(input, put, descriptors, tasks)
+}
+
 /** Admit own data before reading it. Iterative traversal does not consume the JS call stack. */
 function snapshot(value: unknown): JsonValue {
-  type Task =
-    | { readonly kind: 'visit'; readonly input: unknown; readonly put: (value: JsonValue) => void }
-    | {
-        readonly kind: 'finish'
-        readonly input: object
-        readonly output: JsonValue[] | Record<string, JsonValue>
-        readonly put: (value: JsonValue) => void
-      }
   const active = new Set<object>()
   let result: JsonValue = null
-  const tasks: Task[] = [
+  const tasks: SnapshotTask[] = [
     {
       kind: 'visit',
       input: value,
@@ -116,84 +212,10 @@ function snapshot(value: unknown): JsonValue {
     }
     if (typeof input !== 'object' || active.has(input)) throw new InputAdmissionError()
     if (LosslessNumber.is(input)) {
-      // Reject foreign accessors overriding the core's explicit numeric read boundary.
-      let owner: object | null = input
-      const owners = new Set<object>()
-      let copied = false
-      while (owner !== null) {
-        if (owners.has(owner)) throw new InputAdmissionError()
-        owners.add(owner)
-        const currentOwner = owner
-        const property = reflect(() => Object.getOwnPropertyDescriptor(currentOwner, 'source'))
-        if (property !== undefined) {
-          if (
-            losslessSourceGetter === undefined ||
-            property.get !== losslessSourceGetter ||
-            'value' in property
-          )
-            throw new InputAdmissionError()
-          const source: unknown = Reflect.apply(losslessSourceGetter, input, [])
-          if (typeof source !== 'string') throw new TypeError()
-          task.put(new LosslessNumber(source))
-          copied = true
-          break
-        }
-        const next: unknown = reflect(() => Object.getPrototypeOf(currentOwner))
-        if (next !== null && typeof next !== 'object') throw new InputAdmissionError()
-        owner = next
-      }
-      if (!copied) throw new InputAdmissionError()
+      task.put(snapshotNumber(input))
       continue
     }
-    const prototype: unknown = reflect(() => Object.getPrototypeOf(input))
-    if (
-      !reflect(() => Array.isArray(input)) &&
-      prototype !== Object.prototype &&
-      prototype !== null
-    )
-      throw new InputAdmissionError()
-    if (reflect(() => Object.getOwnPropertySymbols(input)).length !== 0)
-      throw new InputAdmissionError()
-    const descriptors = reflect(() => Object.getOwnPropertyDescriptors(input))
-    active.add(input)
-    if (reflect(() => Array.isArray(input))) {
-      const length: unknown = descriptors.length?.value
-      if (typeof length !== 'number' || Object.keys(descriptors).length !== length + 1)
-        throw new InputAdmissionError()
-      const output: JsonValue[] = []
-      tasks.push({ kind: 'finish', input, output, put: task.put })
-      for (let index = length - 1; index >= 0; index--) {
-        const property = descriptors[String(index)]
-        if (property === undefined || !property.enumerable || !('value' in property))
-          throw new InputAdmissionError()
-        const item: unknown = property.value
-        tasks.push({
-          kind: 'visit',
-          input: item,
-          put: value => {
-            output[index] = value
-          },
-        })
-      }
-    } else {
-      const output: Record<string, JsonValue> = Object.create(null)
-      tasks.push({ kind: 'finish', input, output, put: task.put })
-      const entries = Object.entries(descriptors)
-      for (let index = entries.length - 1; index >= 0; index--) {
-        const entry = entries[index]
-        if (entry === undefined) throw new InputAdmissionError()
-        const [key, property] = entry
-        if (!property.enumerable || !('value' in property)) throw new InputAdmissionError()
-        const item: unknown = property.value
-        tasks.push({
-          kind: 'visit',
-          input: item,
-          put: value => {
-            Object.defineProperty(output, key, { value, enumerable: true })
-          },
-        })
-      }
-    }
+    snapshotContainer(input, task.put, active, tasks)
   }
   return result
 }
@@ -210,6 +232,73 @@ function object(value: JsonValue): value is Readonly<Record<string, JsonValue>> 
 function members(value: Readonly<Record<string, JsonValue>>, names: readonly string[]): boolean {
   const keys = Object.keys(value)
   return keys.length === names.length && keys.every(key => names.includes(key))
+}
+
+function headerNames(headers: readonly JsonValue[]): string[] {
+  const names: string[] = []
+  const usedNames = new Set<string>()
+  for (const name of headers) {
+    if (
+      typeof name !== 'string' ||
+      name.length < 1 ||
+      name.length > 128 ||
+      !/^[!#$%&'*+.^_`|~0-9a-z-]+(?![\s\S])/.test(name) ||
+      usedNames.has(name)
+    )
+      throw new TypeError()
+    names.push(name)
+    usedNames.add(name)
+  }
+  return names
+}
+
+function schemeLiteral(value: JsonValue | undefined): value is string {
+  return printable(value, 64) && /^[a-zA-Z]+$/.test(value)
+}
+
+function patternDefinition(pattern: JsonValue): CredentialRedactionPattern {
+  if (!object(pattern) || (pattern.alphabet !== 'key' && pattern.alphabet !== 'auth'))
+    throw new TypeError()
+  let definition: CredentialRedactionPattern
+  let literal: string
+  if (
+    pattern.kind === 'prefix-token' &&
+    members(pattern, ['kind', 'prefix', 'alphabet']) &&
+    printable(pattern.prefix, 64)
+  ) {
+    literal = pattern.prefix
+    definition = Object.freeze({
+      kind: 'prefix-token',
+      prefix: literal,
+      alphabet: pattern.alphabet,
+    })
+  } else if (
+    pattern.kind === 'scheme-token' &&
+    members(pattern, ['kind', 'scheme', 'alphabet']) &&
+    schemeLiteral(pattern.scheme)
+  ) {
+    literal = pattern.scheme
+    definition = Object.freeze({
+      kind: 'scheme-token',
+      scheme: literal,
+      alphabet: pattern.alphabet,
+    })
+  } else throw new TypeError()
+  return definition
+}
+
+function patternDefinitions(patterns: readonly JsonValue[]): CredentialRedactionPattern[] {
+  const definitions: CredentialRedactionPattern[] = []
+  const usedPatterns = new Set<string>()
+  for (const pattern of patterns) {
+    const definition = patternDefinition(pattern)
+    const literal = definition.kind === 'prefix-token' ? definition.prefix : definition.scheme
+    const key = JSON.stringify([definition.kind, literal, definition.alphabet])
+    if (usedPatterns.has(key)) throw new TypeError()
+    usedPatterns.add(key)
+    definitions.push(definition)
+  }
+  return definitions
 }
 
 function configuration(input: unknown): CredentialRedactionConfig {
@@ -235,56 +324,8 @@ function configuration(input: unknown): CredentialRedactionConfig {
     patterns.length > 64
   )
     throw new TypeError()
-  const names: string[] = []
-  const usedNames = new Set<string>()
-  for (const name of headers) {
-    if (
-      typeof name !== 'string' ||
-      name.length < 1 ||
-      name.length > 128 ||
-      !/^[!#$%&'*+.^_`|~0-9a-z-]+(?![\s\S])/.test(name) ||
-      usedNames.has(name)
-    )
-      throw new TypeError()
-    names.push(name)
-    usedNames.add(name)
-  }
-  const definitions: CredentialRedactionPattern[] = []
-  const usedPatterns = new Set<string>()
-  for (const pattern of patterns) {
-    if (!object(pattern) || (pattern.alphabet !== 'key' && pattern.alphabet !== 'auth'))
-      throw new TypeError()
-    let definition: CredentialRedactionPattern
-    let literal: string
-    if (
-      pattern.kind === 'prefix-token' &&
-      members(pattern, ['kind', 'prefix', 'alphabet']) &&
-      printable(pattern.prefix, 64)
-    ) {
-      literal = pattern.prefix
-      definition = Object.freeze({
-        kind: 'prefix-token',
-        prefix: literal,
-        alphabet: pattern.alphabet,
-      })
-    } else if (
-      pattern.kind === 'scheme-token' &&
-      members(pattern, ['kind', 'scheme', 'alphabet']) &&
-      printable(pattern.scheme, 64) &&
-      /^[a-zA-Z]+$/.test(pattern.scheme)
-    ) {
-      literal = pattern.scheme
-      definition = Object.freeze({
-        kind: 'scheme-token',
-        scheme: literal,
-        alphabet: pattern.alphabet,
-      })
-    } else throw new TypeError()
-    const key = JSON.stringify([definition.kind, literal, definition.alphabet])
-    if (usedPatterns.has(key)) throw new TypeError()
-    usedPatterns.add(key)
-    definitions.push(definition)
-  }
+  const names = headerNames(headers)
+  const definitions = patternDefinitions(patterns)
   return Object.freeze({
     credential_fragment_min_length: minimum,
     credential_header_names: Object.freeze(names),
@@ -292,11 +333,17 @@ function configuration(input: unknown): CredentialRedactionConfig {
   })
 }
 
-function alphabet(character: number, kind: 'key' | 'auth'): boolean {
+function asciiAlphanumeric(character: number): boolean {
   return (
     (character >= 65 && character <= 90) ||
     (character >= 97 && character <= 122) ||
-    (character >= 48 && character <= 57) ||
+    (character >= 48 && character <= 57)
+  )
+}
+
+function alphabet(character: number, kind: 'key' | 'auth'): boolean {
+  return (
+    asciiAlphanumeric(character) ||
     character === 95 ||
     character === 45 ||
     (kind === 'auth' &&
@@ -322,6 +369,65 @@ function literalAt(text: string, offset: number, literal: string, fold: boolean)
   return true
 }
 
+function replaceMatchedRanges(text: string, ends: Uint32Array): string {
+  const output: string[] = []
+  let retained = 0
+  let offset = 0
+  while (offset < text.length) {
+    let end = ends[offset] ?? 0
+    if (end <= offset) {
+      offset++
+      continue
+    }
+    const start = offset
+    for (offset++; offset <= end && offset < text.length; offset++)
+      end = Math.max(end, ends[offset] ?? 0)
+    output.push(text.slice(retained, start), marker)
+    retained = end
+    offset = end
+  }
+  output.push(text.slice(retained))
+  return output.join('')
+}
+
+function patternEnd(
+  text: string,
+  offset: number,
+  pattern: CredentialRedactionPattern,
+  keyEnds: Uint32Array,
+  authEnds: Uint32Array,
+  gapEnds: Uint32Array,
+  end: number,
+): number {
+  const scheme = pattern.kind === 'scheme-token'
+  const literal = pattern.kind === 'prefix-token' ? pattern.prefix : pattern.scheme
+  if (!literalAt(text, offset, literal, scheme)) return end
+  let tail = offset + literal.length
+  if (scheme) {
+    const gap = gapEnds[tail] ?? tail
+    if (gap <= tail) return end
+    tail = gap
+  }
+  const tokenEnd = (pattern.alphabet === 'key' ? keyEnds[tail] : authEnds[tail]) ?? tail
+  if (tokenEnd > tail) end = Math.max(end, tokenEnd)
+  return end
+}
+
+function tokenEnds(
+  text: string,
+  keyEnds: Uint32Array,
+  authEnds: Uint32Array,
+  gapEnds: Uint32Array,
+): void {
+  for (let offset = text.length - 1; offset >= 0; offset--) {
+    const character = text.charCodeAt(offset)
+    keyEnds[offset] = alphabet(character, 'key') ? keyEnds[offset + 1] || offset + 1 : offset
+    authEnds[offset] = alphabet(character, 'auth') ? authEnds[offset + 1] || offset + 1 : offset
+    gapEnds[offset] =
+      character === 32 || character === 9 ? gapEnds[offset + 1] || offset + 1 : offset
+  }
+}
+
 function matchKernel(
   config: CredentialRedactionConfig,
   credential: string,
@@ -336,50 +442,17 @@ function matchKernel(
     const authEnds = new Uint32Array(text.length + 1)
     const gapEnds = new Uint32Array(text.length + 1)
     const ends = new Uint32Array(text.length + 1)
-    for (let offset = text.length - 1; offset >= 0; offset--) {
-      const character = text.charCodeAt(offset)
-      keyEnds[offset] = alphabet(character, 'key') ? keyEnds[offset + 1] || offset + 1 : offset
-      authEnds[offset] = alphabet(character, 'auth') ? authEnds[offset + 1] || offset + 1 : offset
-      gapEnds[offset] =
-        character === 32 || character === 9 ? gapEnds[offset + 1] || offset + 1 : offset
-    }
+    tokenEnds(text, keyEnds, authEnds, gapEnds)
     for (let offset = 0; offset < text.length; offset++) {
       let end = 0
       if (offset + width <= text.length && windows.has(text.slice(offset, offset + width)))
         end = offset + width
       for (const pattern of config.credential_patterns) {
-        const scheme = pattern.kind === 'scheme-token'
-        const literal = pattern.kind === 'prefix-token' ? pattern.prefix : pattern.scheme
-        if (!literalAt(text, offset, literal, scheme)) continue
-        let tail = offset + literal.length
-        if (scheme) {
-          const gap = gapEnds[tail] ?? tail
-          if (gap <= tail) continue
-          tail = gap
-        }
-        const tokenEnd = (pattern.alphabet === 'key' ? keyEnds[tail] : authEnds[tail]) ?? tail
-        if (tokenEnd > tail) end = Math.max(end, tokenEnd)
+        end = patternEnd(text, offset, pattern, keyEnds, authEnds, gapEnds, end)
       }
       ends[offset] = end
     }
-    const output: string[] = []
-    let retained = 0
-    let offset = 0
-    while (offset < text.length) {
-      let end = ends[offset] ?? 0
-      if (end <= offset) {
-        offset++
-        continue
-      }
-      const start = offset
-      for (offset++; offset <= end && offset < text.length; offset++)
-        end = Math.max(end, ends[offset] ?? 0)
-      output.push(text.slice(retained, start), marker)
-      retained = end
-      offset = end
-    }
-    output.push(text.slice(retained))
-    return output.join('')
+    return replaceMatchedRanges(text, ends)
   }
 }
 
@@ -400,20 +473,77 @@ function projectedNames(
   return names
 }
 
+type ProjectionTask =
+  | {
+      readonly kind: 'visit'
+      readonly input: JsonValue
+      readonly put: (value: JsonValue) => void
+    }
+  | {
+      readonly kind: 'finish'
+      readonly output: JsonValue[] | Record<string, JsonValue>
+      readonly put: (value: JsonValue) => void
+    }
+
+function projectArray(
+  input: readonly JsonValue[],
+  put: (value: JsonValue) => void,
+  tasks: ProjectionTask[],
+): void {
+  const output: JsonValue[] = []
+  tasks.push({ kind: 'finish', output, put })
+  for (let index = input.length - 1; index >= 0; index--) {
+    const item: JsonValue | undefined = input[index]
+    if (item === undefined) throw new TypeError()
+    tasks.push({
+      kind: 'visit',
+      input: item,
+      put: value => {
+        output[index] = value
+      },
+    })
+  }
+}
+
+function projectObject(
+  input: readonly JsonValue[] | Readonly<Record<string, JsonValue>>,
+  put: (value: JsonValue) => void,
+  tasks: ProjectionTask[],
+  text: (value: string) => string,
+): void {
+  const entries = Object.entries(input)
+  const names = projectedNames(
+    entries.map(([key]) => key),
+    text,
+  )
+  const output: Record<string, JsonValue> = Object.create(null)
+  tasks.push({ kind: 'finish', output, put })
+  for (let index = entries.length - 1; index >= 0; index--) {
+    const entry = entries[index]
+    const name = names[index]
+    if (entry === undefined || name === undefined) throw new TypeError()
+    tasks.push({
+      kind: 'visit',
+      input: entry[1],
+      put: value => {
+        Object.defineProperty(output, name, { value, enumerable: true })
+      },
+    })
+  }
+}
+
+function scalar(input: JsonValue): input is null | boolean | number | LosslessNumber {
+  return (
+    input === null ||
+    typeof input === 'boolean' ||
+    typeof input === 'number' ||
+    LosslessNumber.is(input)
+  )
+}
+
 function projectJson(value: JsonValue, text: (value: string) => string): JsonValue {
-  type Task =
-    | {
-        readonly kind: 'visit'
-        readonly input: JsonValue
-        readonly put: (value: JsonValue) => void
-      }
-    | {
-        readonly kind: 'finish'
-        readonly output: JsonValue[] | Record<string, JsonValue>
-        readonly put: (value: JsonValue) => void
-      }
   let result: JsonValue = null
-  const tasks: Task[] = [
+  const tasks: ProjectionTask[] = [
     {
       kind: 'visit',
       input: value,
@@ -434,12 +564,7 @@ function projectJson(value: JsonValue, text: (value: string) => string): JsonVal
       task.put(text(input))
       continue
     }
-    if (
-      input === null ||
-      typeof input === 'boolean' ||
-      typeof input === 'number' ||
-      LosslessNumber.is(input)
-    ) {
+    if (scalar(input)) {
       const token =
         input === null
           ? 'null'
@@ -449,41 +574,8 @@ function projectJson(value: JsonValue, text: (value: string) => string): JsonVal
       task.put(text(token) === token ? input : marker)
       continue
     }
-    if (Array.isArray(input)) {
-      const output: JsonValue[] = []
-      tasks.push({ kind: 'finish', output, put: task.put })
-      for (let index = input.length - 1; index >= 0; index--) {
-        const item: JsonValue | undefined = input[index]
-        if (item === undefined) throw new TypeError()
-        tasks.push({
-          kind: 'visit',
-          input: item,
-          put: value => {
-            output[index] = value
-          },
-        })
-      }
-    } else {
-      const entries = Object.entries(input)
-      const names = projectedNames(
-        entries.map(([key]) => key),
-        text,
-      )
-      const output: Record<string, JsonValue> = Object.create(null)
-      tasks.push({ kind: 'finish', output, put: task.put })
-      for (let index = entries.length - 1; index >= 0; index--) {
-        const entry = entries[index]
-        const name = names[index]
-        if (entry === undefined || name === undefined) throw new TypeError()
-        tasks.push({
-          kind: 'visit',
-          input: entry[1],
-          put: value => {
-            Object.defineProperty(output, name, { value, enumerable: true })
-          },
-        })
-      }
-    }
+    if (Array.isArray(input)) projectArray(input, task.put, tasks)
+    else projectObject(input, task.put, tasks, text)
   }
   return result
 }
