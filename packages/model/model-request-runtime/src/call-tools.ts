@@ -10,6 +10,7 @@ import type { SessionRef } from '@omne-harness-lite/messages'
 import type {
   AssetRegistryService,
   AvailabilityReport,
+  RegistryEntry,
   Within,
 } from '@omne-harness-lite/asset-registry'
 import {
@@ -38,6 +39,10 @@ function reportMatches(request: CallToolRequest): boolean {
   if (hasRun !== (request.attempt !== undefined) || hasRun !== (request.report !== undefined))
     return false
   if (!hasRun) return true
+  return scopedReportMatches(request)
+}
+
+function scopedReportMatches(request: CallToolRequest): boolean {
   const report = request.report
   if (
     request.run === undefined ||
@@ -54,13 +59,7 @@ function reportMatches(request: CallToolRequest): boolean {
   return ExactDecimal.from(report.attempt).compare(ExactDecimal.from(request.attempt)) === 0
 }
 
-function capture(request: CallToolRequest): CallToolRequest | undefined {
-  const { session, run, attempt, report, tools } = request
-  if (
-    !('ok' in parseOpaqueIdentifier(session, 'SessionRef')) ||
-    (run !== undefined && !('ok' in judgeAccountValue('RunId', run)))
-  )
-    return undefined
+function captureNames(tools: readonly ModelToolName[]): ModelToolName[] | undefined {
   const copiedTools = copyJsonValue(tools)
   if (!('ok' in copiedTools) || !Array.isArray(copiedTools.ok)) return undefined
   const names: ModelToolName[] = []
@@ -70,10 +69,31 @@ function capture(request: CallToolRequest): CallToolRequest | undefined {
     seen.add(value)
     names.push(value)
   }
+  return names
+}
+
+function captureAttempt(attempt: AttemptId | undefined): { ok: AttemptId } | undefined | null {
   const copiedAttempt = attempt === undefined ? undefined : copyJsonValue(attempt)
-  if (copiedAttempt !== undefined && !('ok' in copiedAttempt)) return undefined
+  if (copiedAttempt !== undefined && !('ok' in copiedAttempt)) return null
   if (copiedAttempt !== undefined && !('ok' in judgeAccountValue('AttemptId', copiedAttempt.ok)))
-    return undefined
+    return null
+  return copiedAttempt as { ok: AttemptId } | undefined
+}
+
+function validCallIdentity(session: SessionRef, run: RunId | undefined): boolean {
+  return !(
+    !('ok' in parseOpaqueIdentifier(session, 'SessionRef')) ||
+    (run !== undefined && !('ok' in judgeAccountValue('RunId', run)))
+  )
+}
+
+function capture(request: CallToolRequest): CallToolRequest | undefined {
+  const { session, run, attempt, report, tools } = request
+  if (!validCallIdentity(session, run)) return undefined
+  const names = captureNames(tools)
+  if (names === undefined) return undefined
+  const copiedAttempt = captureAttempt(attempt)
+  if (copiedAttempt === null) return undefined
   const copiedReport = report === undefined ? undefined : copyJsonValue(report)
   if (copiedReport !== undefined && !('ok' in copiedReport)) return undefined
   // The source is typed as AvailabilityReport. The public JSON copy owns its entire tree;
@@ -82,12 +102,30 @@ function capture(request: CallToolRequest): CallToolRequest | undefined {
     session,
     tools: Object.freeze(names),
     ...(run === undefined ? {} : { run }),
-    ...(copiedAttempt === undefined ? {} : { attempt: copiedAttempt.ok as AttemptId }),
+    ...(copiedAttempt === undefined ? {} : { attempt: copiedAttempt.ok }),
     ...(copiedReport === undefined
       ? {}
       : { report: copiedReport.ok as unknown as AvailabilityReport }),
   }
   return reportMatches(captured) ? Object.freeze(captured) : undefined
+}
+
+function validToolEntry(
+  entry: RegistryEntry,
+  name: ModelToolName,
+): entry is RegistryEntry & {
+  readonly content: {
+    readonly category: 'tool'
+    readonly definition: Parameters<typeof modelEntry>[0]
+  }
+} {
+  return !(
+    entry.capability.category !== 'tool' ||
+    modelName(entry.capability.name) !== name ||
+    entry.content.category !== 'tool' ||
+    !isToolDefinition(entry.content.definition) ||
+    entry.content.definition.name !== entry.capability.name
+  )
 }
 
 /** RT5 S-28: resolve model-facing names at this call's registry scope. */
@@ -113,13 +151,7 @@ export async function resolveCallTools(
     if (!('entry' in result))
       throw new TypeError('asset registry returned an invalid lookup result')
     const { entry } = result
-    if (
-      entry.capability.category !== 'tool' ||
-      modelName(entry.capability.name) !== name ||
-      entry.content.category !== 'tool' ||
-      !isToolDefinition(entry.content.definition) ||
-      entry.content.definition.name !== entry.capability.name
-    )
+    if (!validToolEntry(entry, name))
       throw new TypeError('asset registry returned an invalid tool entry')
     tools.push(modelEntry(entry.content.definition))
   }

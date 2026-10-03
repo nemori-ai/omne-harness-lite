@@ -103,6 +103,9 @@ function sameRef(a: ModelProfileRef, b: ModelProfileRef): boolean {
         b.scope.layer === 'tenant' &&
         tenantIdEquals(a.scope.tenant, b.scope.tenant)
 }
+function sameScopeChain(tenant: TenantId | undefined, organization: string | undefined): boolean {
+  return tenant === undefined || organization === undefined || tenant.organization === organization
+}
 /** The explicit rows are one S-17 chain, including across distinct route names. */
 function chain(value: readonly ProfileRow[]): boolean {
   let organization: string | undefined
@@ -126,7 +129,7 @@ function chain(value: readonly ProfileRow[]): boolean {
       tenant = id
     }
   }
-  return tenant === undefined || organization === undefined || tenant.organization === organization
+  return sameScopeChain(tenant, organization)
 }
 function copy(value: unknown): unknown {
   try {
@@ -282,6 +285,106 @@ function credentialRows(value: unknown): value is readonly RowCredentialFact[] {
 function scope(item: ProfileRow): CatalogScope {
   return item.ref.origin === 'official' ? Object.freeze({ layer: 'factory' }) : item.ref.scope
 }
+
+interface DisplayFacts extends ProjectionFacts {
+  readonly selected: SelectedRouteFact
+  readonly credentials: SelectionFact<readonly RowCredentialFact[]>
+}
+function displayFacts(value: unknown): value is DisplayFacts {
+  return (
+    projected(value) &&
+    object(value) &&
+    fact(value.selected, optionalRoute) &&
+    fact(value.credentials, credentialRows)
+  )
+}
+
+function knownDisplayFacts(input: DisplayFacts): input is DisplayFacts & {
+  readonly rows: { readonly known: readonly ProfileRow[] }
+  readonly allowed: { readonly known: readonly string[] }
+  readonly projection: { readonly known: readonly Modality[] }
+  readonly selected: { readonly known: string }
+} {
+  return !(
+    'unknown' in input.rows ||
+    'unknown' in input.allowed ||
+    'unknown' in input.projection ||
+    'unknown' in input.selected ||
+    input.selected.known === null
+  )
+}
+
+function winnerAnnotations(
+  annotations: ModelDisplayAnnotation[],
+  winner: ProfileRow,
+  answer: SelectionCompatibilityResult | undefined,
+  credentials: SelectionFact<readonly RowCredentialFact[]>,
+): SelectionFailure | undefined {
+  if (answer === undefined || 'invalidInput' in answer || 'unavailable' in answer)
+    throw new Error('selection decision has no compatibility result')
+  annotations.push('ok' in answer ? 'legal' : 'modality_mismatch')
+  if ('unknown' in credentials) return unavailable()
+  const present = credentials.known.find(item => sameRef(item.ref, winner.ref))?.present
+  if (present === undefined) return invalid()
+  if ('unknown' in present) return unavailable()
+  if (!present.known) annotations.push('credential_missing')
+  return undefined
+}
+
+function coveredRows(
+  covered: ModelDisplayEntry['covered'][number][],
+  value: readonly ProfileRow[],
+  name: string,
+  names: readonly string[],
+  winner: ProfileRow,
+): void {
+  for (const item of value
+    .filter(row => row.ref.routeName === name && !sameRef(row.ref, winner.ref))
+    .sort((a, b) => rank(b) - rank(a))) {
+    const notes: ModelDisplayAnnotation[] = [
+      Object.freeze({ overridden_by: Object.freeze({ scope: scope(winner) }) }),
+    ]
+    if (item.profile.registration === 'withdrawn') notes.push('withdrawn')
+    if (!names.includes(name)) notes.push('scope_disallowed')
+    covered.push(Object.freeze({ ref: item.ref, annotations: Object.freeze(notes) }))
+  }
+}
+
+function appendDisplayEntry(
+  entries: ModelDisplayEntry[],
+  value: readonly ProfileRow[],
+  name: string,
+  names: readonly string[],
+  selected: string,
+  decisions: Decisions,
+  credentials: SelectionFact<readonly RowCredentialFact[]>,
+): SelectionFailure | undefined {
+  const primary = landing(value, name, names)
+  if (primary === undefined) throw new Error('selection decision has no landing')
+  const winner = winningRow(value, name, names)
+  const annotations: ModelDisplayAnnotation[] = []
+  const covered: ModelDisplayEntry['covered'][number][] = []
+  if (winner === undefined) {
+    annotations.push(
+      primary.profile.registration === 'withdrawn' ? 'withdrawn' : 'scope_disallowed',
+    )
+  } else {
+    const failure = winnerAnnotations(annotations, winner, decisions.answers.get(name), credentials)
+    if (failure !== undefined) return failure
+    coveredRows(covered, value, name, names, winner)
+  }
+  entries.push(
+    Object.freeze({
+      routeName: name,
+      ref: primary.ref,
+      annotations: Object.freeze(annotations),
+      covered: Object.freeze(covered),
+      selected: name === selected,
+    }),
+  )
+  return undefined
+}
+
 /** RT5 S-12/S-60: legal names plus selected name; covered rows are annotations. */
 export function displayList(
   rowFacts: SelectionRows,
@@ -300,22 +403,8 @@ export function displayList(
   })
   const reason = rowRejection(input)
   if (reason !== undefined) return invalid(reason)
-  if (
-    !projected(input) ||
-    !object(input) ||
-    !fact(input.selected, optionalRoute) ||
-    !fact(input.credentials, credentialRows) ||
-    typeof compatible !== 'function'
-  )
-    return invalid()
-  if (
-    'unknown' in input.rows ||
-    'unknown' in input.allowed ||
-    'unknown' in input.projection ||
-    'unknown' in input.selected ||
-    input.selected.known === null
-  )
-    return unavailable()
+  if (!displayFacts(input) || typeof compatible !== 'function') return invalid()
+  if (!knownDisplayFacts(input)) return unavailable()
   const value = input.rows.known,
     names = input.allowed.known,
     selected = input.selected.known
@@ -324,47 +413,30 @@ export function displayList(
   if (landing(value, selected, names) === undefined) return notFound()
   const entries: ModelDisplayEntry[] = []
   for (const name of [...new Set([...decisions.names, selected])].sort()) {
-    const primary = landing(value, name, names)
-    if (primary === undefined) throw new Error('selection decision has no landing')
-    const winner = winningRow(value, name, names)
-    const annotations: ModelDisplayAnnotation[] = []
-    const covered: ModelDisplayEntry['covered'][number][] = []
-    if (winner === undefined) {
-      annotations.push(
-        primary.profile.registration === 'withdrawn' ? 'withdrawn' : 'scope_disallowed',
-      )
-    } else {
-      const answer = decisions.answers.get(name)
-      if (answer === undefined || 'invalidInput' in answer || 'unavailable' in answer)
-        throw new Error('selection decision has no compatibility result')
-      annotations.push('ok' in answer ? 'legal' : 'modality_mismatch')
-      if ('unknown' in input.credentials) return unavailable()
-      const present = input.credentials.known.find(item => sameRef(item.ref, winner.ref))?.present
-      if (present === undefined) return invalid()
-      if ('unknown' in present) return unavailable()
-      if (!present.known) annotations.push('credential_missing')
-      for (const item of value
-        .filter(row => row.ref.routeName === name && !sameRef(row.ref, winner.ref))
-        .sort((a, b) => rank(b) - rank(a))) {
-        const notes: ModelDisplayAnnotation[] = [
-          Object.freeze({ overridden_by: Object.freeze({ scope: scope(winner) }) }),
-        ]
-        if (item.profile.registration === 'withdrawn') notes.push('withdrawn')
-        if (!names.includes(name)) notes.push('scope_disallowed')
-        covered.push(Object.freeze({ ref: item.ref, annotations: Object.freeze(notes) }))
-      }
-    }
-    entries.push(
-      Object.freeze({
-        routeName: name,
-        ref: primary.ref,
-        annotations: Object.freeze(annotations),
-        covered: Object.freeze(covered),
-        selected: name === selected,
-      }),
+    const failure = appendDisplayEntry(
+      entries,
+      value,
+      name,
+      names,
+      selected,
+      decisions,
+      input.credentials,
     )
+    if (failure !== undefined) return failure
   }
   return Object.freeze({ ok: Object.freeze(entries) })
+}
+interface EffectiveFacts extends BasicFacts {
+  readonly selection: SelectedRouteFact
+  readonly lock: ModelLockFact
+}
+function effectiveFacts(value: unknown): value is EffectiveFacts {
+  return (
+    basic(value) &&
+    object(value) &&
+    fact(value.selection, optionalRoute) &&
+    fact(value.lock, optionalRoute)
+  )
 }
 /** RT5 S-10/S-26/S-60: a lock keeps its source even when its name equals selection. */
 export function effectiveModel(
@@ -376,13 +448,7 @@ export function effectiveModel(
   const input = copy({ rows: rowFacts, allowed: allowedFacts, selection, lock })
   const reason = rowRejection(input)
   if (reason !== undefined) return invalid(reason)
-  if (
-    !basic(input) ||
-    !object(input) ||
-    !fact(input.selection, optionalRoute) ||
-    !fact(input.lock, optionalRoute)
-  )
-    return invalid()
+  if (!effectiveFacts(input)) return invalid()
   if (
     'unknown' in input.selection ||
     input.selection.known === null ||
