@@ -1,7 +1,6 @@
-import schema from '@omne-harness-lite/tool-definition/schema' with { type: 'json' }
-import contentSchema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
-import assetSchema from '@omne-harness-lite/asset-model/schema' with { type: 'json' }
-import { Ajv2020 } from 'ajv/dist/2020.js'
+import { createRequire } from 'node:module'
+import { schemaId, SCHEMA_DEF_NAMES } from './schema-inputs.ts'
+export { schemaId, SCHEMA_DEF_NAMES }
 import {
   validate as validateContent,
   isNonNegativeJsonInteger,
@@ -11,45 +10,8 @@ import {
 import type { JsonValue } from '@omne-harness-lite/content-blocks'
 import { copyJson, object, projection } from './json.ts'
 
-export const schemaId = schema.$id
-export const SCHEMA_DEF_NAMES = [
-  'ToolDefinition',
-  'SingleFunctionTool',
-  'MultiCommandTool',
-  'CommandDefinition',
-  'ToolName',
-  'ModelToolName',
-  'ModelToolEntry',
-  'ToolNeeds',
-  'ToolSettings',
-  'SettingDeclaration',
-  'TargetEnvironment',
-  'BindingLayer',
-  'Facility',
-  'Duration',
-  'ExecutePermission',
-  'ToolSource',
-  'DependencyName',
-  'ToolReturn',
-  'ToolResult',
-  'Offload',
-  'JsonSchema',
-] as const
 export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number]
-const ajv = new Ajv2020({
-  strict: true,
-  strictTypes: false,
-  strictRequired: false,
-  ownProperties: true,
-})
-ajv.addSchema(contentSchema)
-ajv.addSchema(assetSchema)
-ajv.addSchema(schema)
-const validators = SCHEMA_DEF_NAMES.map(name => {
-  const validator = ajv.getSchema(`${schemaId}#/$defs/${name}`)
-  if (validator === undefined) throw new Error(`missing Schema definition ${name}`)
-  return { name, validator }
-})
+const require = createRequire(new URL('../package.json', import.meta.url))
 export function positiveInteger(value: unknown): boolean {
   return (
     isNonNegativeJsonInteger(value) &&
@@ -95,8 +57,8 @@ function exactReturn(value: JsonValue): boolean {
 export function validate(definition: SchemaDefName, value: unknown): { readonly valid: boolean } {
   const copied = copyJson(value)
   if (copied === undefined) return Object.freeze({ valid: false })
-  const entry = validators.find(item => item.name === definition)
-  if (entry === undefined) throw new TypeError(`unknown Schema definition ${definition}`)
+  const name = SCHEMA_DEF_NAMES.find(item => item === definition)
+  if (name === undefined) throw new TypeError(`unknown Schema definition ${definition}`)
   let exact = true
   if (definition === 'ToolSettings') exact = exactSettings(copied)
   if (
@@ -107,5 +69,9 @@ export function validate(definition: SchemaDefName, value: unknown): { readonly 
     exact = exactSettings(copied.settings)
   if (['ToolReturn', 'ToolResult'].includes(definition)) exact = exactReturn(copied)
   if (definition === 'Offload') exact = exactReturn({ content: [], offload: copied })
-  return Object.freeze({ valid: entry.validator(projection(copied)) === true && exact })
+  const validators = require('./generated/ordinary.cjs') as Record<
+    SchemaDefName,
+    (value: unknown) => boolean
+  >
+  return Object.freeze({ valid: validators[name](projection(copied)) === true && exact })
 }
