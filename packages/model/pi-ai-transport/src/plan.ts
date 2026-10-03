@@ -33,6 +33,7 @@ import {
   protectedParameterKeys,
   ruleAccepts,
   type ModelDefinition,
+  type ModelRoute,
   type ParameterRule,
 } from './definitions.ts'
 import { interpretConfiguration } from './configuration.ts'
@@ -97,6 +98,11 @@ function parts(blocks: readonly ContentBlock[], images: boolean): JsonObject[] |
   const result: JsonObject[] = []
   for (const block of blocks) {
     if (!block.visibility.toModel) continue
+    if (!appendPart(block)) return undefined
+  }
+  return result
+
+  function appendPart(block: ContentBlock): boolean {
     if (block.kind === 'text') result.push({ type: 'text', text: block.text })
     else if ('transcript' in block && typeof block.transcript === 'string')
       result.push({ type: 'text', text: block.transcript })
@@ -107,16 +113,16 @@ function parts(blocks: readonly ContentBlock[], images: boolean): JsonObject[] |
       })
     else if (block.kind === 'tool_result') {
       const nested = parts(block.blocks, images)
-      if (!nested) return undefined
+      if (!nested) return false
       result.push(...nested)
     } else if (
       block.kind === 'thinking' ||
       (block.kind === 'tool_call' && !block.visibility.toModel)
     )
-      continue
-    else return undefined
+      return true
+    else return false
+    return true
   }
-  return result
 }
 function addBreakpoint(message: MutableObject, control: JsonObject): void {
   const content = message.content
@@ -141,28 +147,146 @@ export async function planRequest(
   execution: PlanExecutionContext,
   preparer?: ImagePreparer,
 ): Promise<PlanResult<PlannedRequest>> {
-  if (preparer !== undefined && !isImagePreparer(preparer))
-    return { rejected: 'invalidInput', reason: 'malformed' }
-  if (
-    !execution ||
-    !(execution.signal instanceof AbortSignal) ||
-    (execution.reuseScope !== undefined &&
-      (!execution.reuseScope || typeof execution.reuseScope !== 'object'))
-  )
-    return { rejected: 'invalidInput', reason: 'malformed' }
+  const inputs = ownPlanningInputs(raw, definitions, meter, execution, preparer)
+  if ('rejected' in inputs) return inputs
+  const { input, missing, ownedDefinitions } = inputs
+  meter = inputs.meter
+  const selection = selectPlanRoute(input, ownedDefinitions)
+  if ('rejected' in selection) return selection
+  const { definition, route, cache } = selection
+  const projectedMessages = projectMessages(input, definition, route)
+  if ('rejected' in projectedMessages) return projectedMessages
+  const { messages, spans, stableArrays } = projectedMessages
+  if (missing) return missing
+  const tools = input.tools.map(t => ({
+    type: 'function',
+    function: { name: t.name, description: t.description, parameters: t.parameters },
+  }))
+  const body: MutableObject = {
+    model: input.routeName,
+    provider: { order: [input.provider], allow_fallbacks: false, require_parameters: true },
+    stream: true,
+    store: false,
+    messages,
+    ...(tools.length ? { tools } : {}),
+  }
+  const { parameters, adjustments, dropped } = projectParameters(input, route, body)
+  const cacheFailure = applyCache()
+  if (cacheFailure) return cacheFailure
+  if (!meter || !meterMatches(meter, definition, input.provider)) return { rejected: 'unavailable' }
+  const sourceFailure = validateSourceTransforms(input, meter)
+  if (sourceFailure) return sourceFailure
+  const preparedWire = await preparePlanImages(body, input, execution, preparer)
+  if ('rejected' in preparedWire) return preparedWire
   if (execution.signal.aborted) return { rejected: 'unavailable' }
-  let ownedDefinitions: readonly ModelDefinition[]
-  try {
-    ownedDefinitions = ownDefinitions(definitions)
-  } catch (error) {
-    if (error instanceof TypeError) return { rejected: 'invalidInput', reason: 'malformed' }
-    throw error
+  return finishPlan(preparedWire)
+
+  function finishPlan(
+    preparedWire: Extract<Awaited<ReturnType<typeof preparePlanImages>>, { ok: unknown }>,
+  ): PlanResult<PlannedRequest> {
+    const owned = ownedObject(preparedWire.ok.body)
+    if (!owned) throw new Error('planned wire body is not JSON')
+    const serialized = writeJsonLossless(owned)
+    if (!meter) return { rejected: 'unavailable' }
+    const projection = projectInput(owned, input, meter, preparedWire.ok.preparation)
+    const historySpans = projectHistorySpans(input.outputHistory, projection, spans)
+    if (historySpans === undefined) return { rejected: 'invalidInput', reason: 'malformed' }
+    let calibrated: ReturnType<typeof measureCalibrated>
+    try {
+      calibrated = measureCalibrated(input, projection, spans, historySpans, meter, () =>
+        measureFull(meter, {
+          body: owned,
+          serialized,
+          projection,
+          outputHistory: input.outputHistory,
+          historySpans,
+        }),
+      )
+    } catch {
+      calibrated = undefined
+    }
+    if (!calibrated)
+      return {
+        rejected: 'invalidInput',
+        reason: 'input_size_unavailable',
+        metrics: ['maxInputTokens'],
+      }
+    const checked = checkFinalInput({
+      definition,
+      provider: input.provider,
+      snapshot: input.snapshot,
+      body: owned,
+      serialized,
+      meter,
+      tokenMargin: input.tokenMargin,
+      tokenMeasurement: calibrated.token,
+    })
+    if ('rejected' in checked) return checked
+    const planned = Object.freeze({
+      input,
+      parameters,
+      body: owned,
+      serialized,
+      inputLimitEvidence: checked.ok,
+      requestInput: projection.requestInput,
+      measurement: calibrated.measurement,
+      ...(adjustments.length
+        ? { parameterAdjustments: Object.freeze(adjustments.map(value => Object.freeze(value))) }
+        : {}),
+      ...(dropped.length ? { droppedParameters: Object.freeze(dropped) } : {}),
+    })
+    plans.add(planned)
+    planDefinitions.set(planned, definition)
+    if (meter) planMeters.set(planned, meterSource(meter))
+    return { planned }
   }
-  if (meter !== undefined) {
-    const ownedMeter = ownInputMeter(meter)
-    if (!ownedMeter) return { rejected: 'invalidInput', reason: 'malformed' }
-    meter = ownedMeter
+
+  function applyCache(): PlanFailure | undefined {
+    if (cache.mode === 'explicit') {
+      const control: JsonObject = { type: 'ephemeral', ttl: cache.ttl }
+      for (const breakpoint of cache.breakpoints) {
+        if (breakpoint === 'system') {
+          const instruction = messages.find(m => m.role === 'system' || m.role === 'developer')
+          if (instruction) addBreakpoint(instruction, control)
+        }
+        if (breakpoint === 'last_tool') {
+          const last = tools.at(-1)
+          if (last) Object.assign(last, { cache_control: control })
+        }
+        if (breakpoint === 'last_message') {
+          const rejected = cacheLastMessage(cache, control)
+          if (rejected) return rejected
+        }
+      }
+    }
+    return undefined
+
+    function cacheLastMessage(
+      explicitCache: Extract<typeof cache, { mode: 'explicit' }>,
+      control: JsonObject,
+    ): PlanFailure | undefined {
+      if (stableArrays) {
+        const cached = attachAnthropicCache(body, explicitCache.ttl)
+        if (!cached) return { rejected: 'unavailable' }
+        Object.assign(body, cached)
+      } else {
+        const last = messages.findLast(
+          m => m.role === 'user' || m.role === 'assistant' || m.role === 'tool',
+        )
+        if (last) addBreakpoint(last, control)
+      }
+      return undefined
+    }
   }
+}
+
+function actualParameters(value: unknown): value is ModelRequestParameters {
+  return 'ok' in judgeModelProfileDocument('ModelRequestParameters', value)
+}
+
+function inputWithPreflight(
+  raw: PlanInput,
+): { input: PlanInput; missing: PlanFailure | undefined } | PlanFailure {
   let input = ownPlanInput(raw)
   let missing: PlanFailure | undefined
   if (!input) {
@@ -173,44 +297,40 @@ export async function planRequest(
     }
     if (!input) return { rejected: 'invalidInput', reason: 'malformed' }
   }
-  const binding = input.snapshot.adaptation
-  const definition = ownedDefinitions.find(
-    d =>
-      d.modelId === input.routeName &&
-      d.revision === binding.definition.revision &&
-      d.implementation.name === binding.implementation.name &&
-      d.implementation.revision === binding.implementation.revision,
-  )
-  if (!definition) return { rejected: 'unavailable' }
-  const route = Object.hasOwn(definition.routes, input.provider)
-    ? definition.routes[input.provider]
-    : undefined
-  if (!route) return { rejected: 'unavailable' }
-  const interpreted = interpretConfiguration(
-    definition,
-    binding.configuration.values,
-    input.provider,
-  )
-  if ('rejected' in interpreted)
-    return interpreted.rejected === 'unavailable'
-      ? { rejected: 'unavailable' }
-      : { rejected: 'invalidInput', reason: 'malformed' }
-  const cache = interpreted.ok
+  return { input, missing }
+}
+
+function projectMessages(
+  input: PlanInput,
+  definition: ModelDefinition,
+  route: ModelRoute,
+): { messages: MutableObject[]; spans: MessageSpan[]; stableArrays: boolean } | PlanFailure {
   const images = input.snapshot.inputModalities.includes('image')
   const messages: MutableObject[] = []
   const spans: MessageSpan[] = []
   const stableArrays = stableAnthropicRoute(input)
-  const omitMixedEmptyText = moonshotDefinitions.some(
-    current =>
-      current.modelId === definition.modelId &&
-      current.revision === definition.revision &&
-      current.implementation.name === definition.implementation.name &&
-      current.implementation.revision === definition.implementation.revision &&
-      Object.hasOwn(current.routes, input.provider),
-  )
+  const omitMixedEmptyText = matchesMoonshotDefinition()
   const calls = new Set<string>(),
     results = new Set<string>()
   for (const message of input.messages) {
+    const rejected = appendMessage(message)
+    if (rejected) return rejected
+  }
+  if ([...calls].some(id => !results.has(id))) return { rejected: 'orphan_tool_call' }
+  return { messages, spans, stableArrays }
+
+  function matchesMoonshotDefinition(): boolean {
+    return moonshotDefinitions.some(
+      current =>
+        current.modelId === definition.modelId &&
+        current.revision === definition.revision &&
+        current.implementation.name === definition.implementation.name &&
+        current.implementation.revision === definition.implementation.revision &&
+        Object.hasOwn(current.routes, input.provider),
+    )
+  }
+
+  function appendMessage(message: PlanInput['messages'][number]): PlanFailure | undefined {
     const span = { start: messages.length, end: messages.length + 1 }
     spans.push(span)
     if (message.type === 'tool_internal') return { rejected: 'tool_internal_in_request' }
@@ -219,7 +339,7 @@ export async function planRequest(
       if ('rejected' in assistant) return assistant
       for (const callId of assistant.callIds) calls.add(callId)
       messages.push(assistant.message)
-      continue
+      return undefined
     }
     const converted = parts(message.blocks, images)
     if (!converted) return { rejected: 'modality_not_carried' }
@@ -242,43 +362,37 @@ export async function planRequest(
         span.end++
       }
     } else {
-      const role =
-        message.type === 'system_reminder'
-          ? route.reminderRole
-          : message.type === 'compaction'
-            ? 'user'
-            : message.type
-      const marked = message.type === 'system_reminder' || message.type === 'compaction'
-      const content = marked
-        ? [
-            { type: 'text', text: `[${message.type} ${writeJsonLossless(message.id)}]` },
-            ...converted,
-          ]
-        : converted
-      const isEmptyText = (part: JsonObject) => part.type === 'text' && part.text === ''
-      messages.push({
-        role,
-        content:
-          omitMixedEmptyText && content.some(part => !isEmptyText(part))
-            ? content.filter(part => !isEmptyText(part))
-            : content,
-      })
+      appendContentMessage(message, converted)
     }
+    return undefined
   }
-  if ([...calls].some(id => !results.has(id))) return { rejected: 'orphan_tool_call' }
-  if (missing) return missing
-  const tools = input.tools.map(t => ({
-    type: 'function',
-    function: { name: t.name, description: t.description, parameters: t.parameters },
-  }))
-  const body: MutableObject = {
-    model: input.routeName,
-    provider: { order: [input.provider], allow_fallbacks: false, require_parameters: true },
-    stream: true,
-    store: false,
-    messages,
-    ...(tools.length ? { tools } : {}),
+
+  function appendContentMessage(
+    message: PlanInput['messages'][number],
+    converted: JsonObject[],
+  ): void {
+    const role =
+      message.type === 'system_reminder'
+        ? route.reminderRole
+        : message.type === 'compaction'
+          ? 'user'
+          : message.type
+    const marked = message.type === 'system_reminder' || message.type === 'compaction'
+    const content = marked
+      ? [{ type: 'text', text: `[${message.type} ${writeJsonLossless(message.id)}]` }, ...converted]
+      : converted
+    const isEmptyText = (part: JsonObject) => part.type === 'text' && part.text === ''
+    messages.push({
+      role,
+      content:
+        omitMixedEmptyText && content.some(part => !isEmptyText(part))
+          ? content.filter(part => !isEmptyText(part))
+          : content,
+    })
   }
+}
+
+function projectParameters(input: PlanInput, route: ModelRoute, body: MutableObject) {
   const actual: MutableObject = {}
   const dropped: string[] = []
   const adjustments: NonNullable<PlannedSemantics['parameterAdjustments']>[number][] = []
@@ -320,56 +434,38 @@ export async function planRequest(
     if (name === 'reasoningEffort') body.reasoning = { effort: sent }
     else body[wireNames[name]] = sent
   }
-  if (input.parameters.extra !== undefined) {
-    const extra: MutableObject = {}
-    for (const key of Object.keys(input.parameters.extra).sort(codePointOrder)) {
-      const value = input.parameters.extra[key]
-      if (value === undefined) throw new Error('owned private parameter missing')
-      const rule =
-        !protectedParameterKeys.has(key) && Object.hasOwn(route.extra, key)
-          ? route.extra[key]
-          : undefined
-      const sent = apply(key, value, rule)
-      if (sent === undefined) continue
-      Object.defineProperty(body, key, {
-        value: sent,
-        enumerable: true,
-        configurable: true,
-        writable: true,
-      })
-      Object.defineProperty(extra, key, { value: sent, enumerable: true })
-    }
-    if (Object.keys(extra).length) actual.extra = extra
-  }
+  applyPrivateParameters()
   const parameters = ownedObject(actual)
   if (!parameters || !actualParameters(parameters))
     throw new Error('parameter rules produced invalid public parameters')
-  if (cache.mode === 'explicit') {
-    const control: JsonObject = { type: 'ephemeral', ttl: cache.ttl }
-    for (const breakpoint of cache.breakpoints) {
-      if (breakpoint === 'system') {
-        const instruction = messages.find(m => m.role === 'system' || m.role === 'developer')
-        if (instruction) addBreakpoint(instruction, control)
+  return { parameters, adjustments, dropped }
+
+  function applyPrivateParameters(): void {
+    if (input.parameters.extra !== undefined) {
+      const extra: MutableObject = {}
+      for (const key of Object.keys(input.parameters.extra).sort(codePointOrder)) {
+        const value = input.parameters.extra[key]
+        if (value === undefined) throw new Error('owned private parameter missing')
+        const rule =
+          !protectedParameterKeys.has(key) && Object.hasOwn(route.extra, key)
+            ? route.extra[key]
+            : undefined
+        const sent = apply(key, value, rule)
+        if (sent === undefined) continue
+        Object.defineProperty(body, key, {
+          value: sent,
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        })
+        Object.defineProperty(extra, key, { value: sent, enumerable: true })
       }
-      if (breakpoint === 'last_tool') {
-        const last = tools.at(-1)
-        if (last) Object.assign(last, { cache_control: control })
-      }
-      if (breakpoint === 'last_message') {
-        if (stableArrays) {
-          const cached = attachAnthropicCache(body, cache.ttl)
-          if (!cached) return { rejected: 'unavailable' }
-          Object.assign(body, cached)
-        } else {
-          const last = messages.findLast(
-            m => m.role === 'user' || m.role === 'assistant' || m.role === 'tool',
-          )
-          if (last) addBreakpoint(last, control)
-        }
-      }
+      if (Object.keys(extra).length) actual.extra = extra
     }
   }
-  if (!meter || !meterMatches(meter, definition, input.provider)) return { rejected: 'unavailable' }
+}
+
+function validateSourceTransforms(input: PlanInput, meter: InputMeter): PlanFailure | undefined {
   for (const source of [
     input.calibration.kind === 'observation'
       ? input.calibration.inputCalibration.requestInput
@@ -382,66 +478,88 @@ export async function planRequest(
         .kind === 'invalid'
     )
       return { rejected: 'invalidInput', reason: 'malformed' }
-  const preparedWire = await preparePlanImages(body, input, execution, preparer)
-  if ('rejected' in preparedWire) return preparedWire
-  if (execution.signal.aborted) return { rejected: 'unavailable' }
-  const owned = ownedObject(preparedWire.ok.body)
-  if (!owned) throw new Error('planned wire body is not JSON')
-  const serialized = writeJsonLossless(owned)
-  if (!meter) return { rejected: 'unavailable' }
-  const projection = projectInput(owned, input, meter, preparedWire.ok.preparation)
-  const historySpans = projectHistorySpans(input.outputHistory, projection, spans)
-  if (historySpans === undefined) return { rejected: 'invalidInput', reason: 'malformed' }
-  let calibrated: ReturnType<typeof measureCalibrated>
-  try {
-    calibrated = measureCalibrated(input, projection, spans, historySpans, meter, () =>
-      measureFull(meter, {
-        body: owned,
-        serialized,
-        projection,
-        outputHistory: input.outputHistory,
-        historySpans,
-      }),
-    )
-  } catch {
-    calibrated = undefined
-  }
-  if (!calibrated)
-    return {
-      rejected: 'invalidInput',
-      reason: 'input_size_unavailable',
-      metrics: ['maxInputTokens'],
-    }
-  const checked = checkFinalInput({
-    definition,
-    provider: input.provider,
-    snapshot: input.snapshot,
-    body: owned,
-    serialized,
-    meter,
-    tokenMargin: input.tokenMargin,
-    tokenMeasurement: calibrated.token,
-  })
-  if ('rejected' in checked) return checked
-  const planned = Object.freeze({
-    input,
-    parameters,
-    body: owned,
-    serialized,
-    inputLimitEvidence: checked.ok,
-    requestInput: projection.requestInput,
-    measurement: calibrated.measurement,
-    ...(adjustments.length
-      ? { parameterAdjustments: Object.freeze(adjustments.map(value => Object.freeze(value))) }
-      : {}),
-    ...(dropped.length ? { droppedParameters: Object.freeze(dropped) } : {}),
-  })
-  plans.add(planned)
-  planDefinitions.set(planned, definition)
-  if (meter) planMeters.set(planned, meterSource(meter))
-  return { planned }
+  return undefined
 }
 
-function actualParameters(value: unknown): value is ModelRequestParameters {
-  return 'ok' in judgeModelProfileDocument('ModelRequestParameters', value)
+function ownPlanningInputs(
+  raw: PlanInput,
+  definitions: readonly ModelDefinition[],
+  meter: InputMeter | undefined,
+  execution: PlanExecutionContext,
+  preparer: ImagePreparer | undefined,
+):
+  | {
+      input: PlanInput
+      missing: PlanFailure | undefined
+      ownedDefinitions: readonly ModelDefinition[]
+      meter: InputMeter | undefined
+    }
+  | PlanFailure {
+  if (preparer !== undefined && !isImagePreparer(preparer))
+    return { rejected: 'invalidInput', reason: 'malformed' }
+  if (!validPlanExecution(execution)) return { rejected: 'invalidInput', reason: 'malformed' }
+  if (execution.signal.aborted) return { rejected: 'unavailable' }
+  let ownedDefinitions: readonly ModelDefinition[]
+  try {
+    ownedDefinitions = ownDefinitions(definitions)
+  } catch (error) {
+    if (error instanceof TypeError) return { rejected: 'invalidInput', reason: 'malformed' }
+    throw error
+  }
+  if (meter !== undefined) {
+    const ownedMeter = ownInputMeter(meter)
+    if (!ownedMeter) return { rejected: 'invalidInput', reason: 'malformed' }
+    meter = ownedMeter
+  }
+  const ownedInput = inputWithPreflight(raw)
+  if ('rejected' in ownedInput) return ownedInput
+  const { input, missing } = ownedInput
+  return { input, missing, ownedDefinitions, meter }
+}
+
+function validPlanExecution(execution: PlanExecutionContext): boolean {
+  if (
+    !execution ||
+    !(execution.signal instanceof AbortSignal) ||
+    (execution.reuseScope !== undefined &&
+      (!execution.reuseScope || typeof execution.reuseScope !== 'object'))
+  )
+    return false
+  return true
+}
+
+function selectPlanRoute(
+  input: PlanInput,
+  ownedDefinitions: readonly ModelDefinition[],
+):
+  | {
+      definition: ModelDefinition
+      route: ModelRoute
+      cache: Extract<ReturnType<typeof interpretConfiguration>, { ok: unknown }>['ok']
+    }
+  | PlanFailure {
+  const binding = input.snapshot.adaptation
+  const definition = ownedDefinitions.find(
+    d =>
+      d.modelId === input.routeName &&
+      d.revision === binding.definition.revision &&
+      d.implementation.name === binding.implementation.name &&
+      d.implementation.revision === binding.implementation.revision,
+  )
+  if (!definition) return { rejected: 'unavailable' }
+  const route = Object.hasOwn(definition.routes, input.provider)
+    ? definition.routes[input.provider]
+    : undefined
+  if (!route) return { rejected: 'unavailable' }
+  const interpreted = interpretConfiguration(
+    definition,
+    binding.configuration.values,
+    input.provider,
+  )
+  if ('rejected' in interpreted)
+    return interpreted.rejected === 'unavailable'
+      ? { rejected: 'unavailable' }
+      : { rejected: 'invalidInput', reason: 'malformed' }
+  const cache = interpreted.ok
+  return { definition, route, cache }
 }

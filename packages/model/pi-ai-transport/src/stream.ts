@@ -77,6 +77,10 @@ function sameReasoningHead(
   return writeJsonLossless(head(left)) === writeJsonLossless(head(right))
 }
 
+const unsignedReasoning = (value: JsonValue | undefined) => value === undefined || value === null
+const signedReasoning = (value: JsonValue | undefined): value is string =>
+  typeof value === 'string' && value.length > 0
+
 /**
  * One streamed `reasoning.text` detail may arrive as several adjacent fragments. They are
  * joined only when every member except text and signature (type, id, index, format,
@@ -98,12 +102,28 @@ function sameReasoningHead(
  * Returns the merged detail, or undefined when `next` must stay a separate original entry.
  */
 function continueReasoningText(previous: JsonValue | undefined, next: JsonObject) {
-  const unsigned = (value: JsonValue | undefined) => value === undefined || value === null
-  const signed = (value: JsonValue | undefined): value is string =>
-    typeof value === 'string' && value.length > 0
   const earlier = object(previous) ? previous.signature : undefined,
     later = next.signature
-  const nextText = next.text === undefined && signed(later) ? '' : next.text
+  const nextText = next.text === undefined && signedReasoning(later) ? '' : next.text
+  if (!reasoningTextHead(previous, next, nextText, earlier, later)) return undefined
+  if (!sameReasoningIdentity(previous, next, earlier, later)) return undefined
+  // After a signature has arrived, only the identical signature may continue the detail.
+  if (signedReasoning(earlier) && earlier !== later) return undefined
+  const adopt = signedReasoning(later) || (earlier === undefined && later === null)
+  return {
+    ...previous,
+    text: previous.text + nextText,
+    ...(adopt ? { signature: later } : {}),
+  }
+}
+
+function reasoningTextHead(
+  previous: JsonValue | undefined,
+  next: JsonObject,
+  nextText: JsonValue | undefined,
+  earlier: JsonValue | undefined,
+  later: JsonValue | undefined,
+): previous is JsonObject & { text: string } {
   if (
     !object(previous) ||
     previous.type !== 'reasoning.text' ||
@@ -112,27 +132,31 @@ function continueReasoningText(previous: JsonValue | undefined, next: JsonObject
     typeof nextText !== 'string' ||
     // Includes id and index: both absent/null, or the same value.
     !sameReasoningHead(previous, next, 'text', 'signature') ||
-    !(unsigned(earlier) || signed(earlier)) ||
-    !(unsigned(later) || signed(later))
+    !(unsignedReasoning(earlier) || signedReasoning(earlier)) ||
+    !(unsignedReasoning(later) || signedReasoning(later))
   )
-    return undefined
-  if (unsigned(previous.id) && unsigned(next.id)) {
+    return false
+  return true
+}
+function sameReasoningIdentity(
+  previous: JsonObject,
+  next: JsonObject,
+  earlier: JsonValue | undefined,
+  later: JsonValue | undefined,
+): boolean {
+  if (unsignedReasoning(previous.id) && unsignedReasoning(next.id)) {
     if (
-      (!unsigned(earlier) || !unsigned(later)) &&
+      (!unsignedReasoning(earlier) || !unsignedReasoning(later)) &&
       (!isNonNegativeJsonInteger(previous.index) || !isNonNegativeJsonInteger(next.index))
     )
-      return undefined
+      return false
   } else if (typeof previous.id !== 'string' || previous.id.length === 0 || previous.id !== next.id)
-    return undefined
-  // After a signature has arrived, only the identical signature may continue the detail.
-  if (signed(earlier) && earlier !== later) return undefined
-  const adopt = signed(later) || (earlier === undefined && later === null)
-  return {
-    ...previous,
-    text: previous.text + nextText,
-    ...(adopt ? { signature: later } : {}),
-  }
+    return false
+  return true
 }
+
+const nonempty = (v: JsonValue | undefined) =>
+  v !== undefined && v !== null && v !== '' && (!Array.isArray(v) || v.length > 0)
 
 export async function* readStream(
   response: RawResponse,
@@ -230,184 +254,71 @@ export async function* readStream(
     if (signal.aborted) response.stop()
     for await (const data of parseSSE(state.stream, deps.maxSseEventBytes)) {
       if (signal.aborted) break
-      if (data === '[DONE]') {
-        done = true
-        continue
-      }
-      if (done) throw new SseProtocolError('event after DONE')
-      const frame = strictObject(data)
-      if (!frame) throw new SseProtocolError('invalid SSE JSON')
-      // Freeze usage before any subsequent frame member or policy processing can fail.
-      if (object(frame.usage)) {
-        usageReceived = true
-        accumulator.observe(frame.usage)
-      }
-      if (object(frame.error)) {
-        // Independent protocol status is obtained before processing its untrusted JSON copy.
-        const code = frame.error.code
-        failed = isNonNegativeJsonInteger(code)
-          ? {
-              source: 'in_band',
-              ...(state.statusCode === undefined ? {} : { httpStatus: state.statusCode }),
-              statusCode: code,
-              inBand: true,
-            }
-          : {
-              source: 'in_band',
-              ...(state.statusCode === undefined ? {} : { httpStatus: state.statusCode }),
-            }
-        remember('upstreamRequestId', frame.id)
-        remember('upstreamModel', frame.model)
-        remember('servingProvider', frame.provider)
-        failed = {
-          ...failed,
-          upstreamError: {
-            raw: processedObject(state.credentialPolicy, frame.error, 'in_band_error_policy'),
-          },
-        }
-        break
-      }
-      remember('upstreamRequestId', frame.id)
-      remember('upstreamModel', frame.model)
-      remember('servingProvider', frame.provider)
-      if (!Array.isArray(frame.choices) || frame.choices.length === 0) continue
-      if (frame.choices.length !== 1) throw new SseProtocolError('multiple choices')
-      const choice = frame.choices[0]
-      if (!object(choice)) throw new SseProtocolError('malformed choice')
-      const delta = choice.delta
-      if (delta !== undefined && delta !== null && !object(delta))
-        throw new SseProtocolError('malformed delta')
-      if (object(delta)) {
-        const nonempty = (v: JsonValue | undefined) =>
-          v !== undefined && v !== null && v !== '' && (!Array.isArray(v) || v.length > 0)
-        for (const key of ['images', 'audio'])
-          if (nonempty(delta[key])) throw new SseProtocolError(`unsupported content member: ${key}`)
-        // Validate before yielding any content from this frame. Refusal text shares
-        // the ordinary text channel; its protocol source does not alter its ending.
-        const refusal = delta.refusal
-        if (refusal !== undefined && refusal !== null && typeof refusal !== 'string')
-          throw new SseProtocolError('invalid refusal')
-        const content = delta.content
-        for (const key of ['reasoning', 'reasoning_content', 'reasoning_text'])
-          if (nonempty(delta[key]) && typeof delta[key] !== 'string')
-            throw new SseProtocolError('invalid reasoning')
-        const reasoning = [delta.reasoning, delta.reasoning_content, delta.reasoning_text].find(
-          v => typeof v === 'string' && v.length,
-        )
-        const detail = delta.reasoning_details
-        const callParts = delta.tool_calls
-        if (finish !== undefined && [content, refusal, reasoning, detail, callParts].some(nonempty))
-          throw new SseProtocolError('content after finish_reason')
-        if (nonempty(content) && typeof content !== 'string')
-          throw new SseProtocolError('invalid content')
-        for (const fragment of [content, refusal]) {
-          if (typeof fragment === 'string' && fragment.length) {
-            if (!textBlock) {
-              textBlock = block('text')
-              yield textBlock.opened
-            }
-            textBlock.text += fragment
-            yield { t: 'fill', index: textBlock.opened.index, payload: fragment }
-          }
-        }
-        if (typeof reasoning === 'string' && reasoning.length) {
-          if (!thinkingBlock) {
-            thinkingBlock = block('thinking')
-            yield thinkingBlock.opened
-          }
-          thinkingBlock.text += reasoning
-          yield { t: 'fill', index: thinkingBlock.opened.index, payload: reasoning }
-        }
-        if (nonempty(detail)) {
-          if (!Array.isArray(detail)) throw new SseProtocolError('invalid reasoning_details')
-          if (!thinkingBlock) {
-            thinkingBlock = block('thinking')
-            yield thinkingBlock.opened
-          }
-          for (const raw of detail) {
-            if (!object(raw) || typeof raw.type !== 'string')
-              throw new SseProtocolError('invalid reasoning detail')
-            const last = thinkingBlock.details.at(-1)
-            const continued =
-              raw.type === 'reasoning.text'
-                ? continueReasoningText(last, raw)
-                : raw.type === 'reasoning.summary' &&
-                    object(last) &&
-                    last.type === raw.type &&
-                    typeof last.summary === 'string' &&
-                    typeof raw.summary === 'string' &&
-                    sameReasoningHead(last, raw, 'summary')
-                  ? { ...last, summary: last.summary + raw.summary }
-                  : undefined
-            if (continued) thinkingBlock.details[thinkingBlock.details.length - 1] = continued
-            else thinkingBlock.details.push(raw)
-          }
-        }
-        if (nonempty(callParts)) {
-          if (!Array.isArray(callParts)) throw new SseProtocolError('invalid tool_calls')
-          for (const part of callParts) {
-            if (
-              !object(part) ||
-              !isNonNegativeJsonInteger(part.index) ||
-              ('type' in part && part.type !== 'function') ||
-              !object(part.function)
-            )
-              throw new SseProtocolError('unsupported tool call')
-            const key = canonicalInteger(part.index)
-            const previous = tools.get(key) ?? { pending: [] }
-            const name = part.function.name,
-              argumentsText = part.function.arguments
-            if (name !== undefined && typeof name !== 'string')
-              throw new SseProtocolError('invalid tool name')
-            if (argumentsText !== undefined && typeof argumentsText !== 'string')
-              throw new SseProtocolError('invalid tool arguments fragment')
-            let current = previous
-            if (typeof name === 'string' && name.length) {
-              if (previous.name !== undefined && previous.name !== name)
-                throw new SseProtocolError('tool name changed')
-              if (!previous.block) {
-                const opened = openTool(name)
-                current = { ...previous, name, block: opened }
-                yield opened.opened
-                for (const fragment of previous.pending) {
-                  opened.text += fragment
-                  yield { t: 'fill', index: opened.opened.index, payload: fragment }
-                }
-                previous.pending.length = 0
-              }
-            }
-            if (typeof argumentsText === 'string' && argumentsText.length) {
-              if (current.block) {
-                current.block.text += argumentsText
-                yield { t: 'fill', index: current.block.opened.index, payload: argumentsText }
-              } else current.pending.push(argumentsText)
-            }
-            tools.set(key, current)
-          }
-        }
-      }
-      if (choice.finish_reason !== undefined && choice.finish_reason !== null) {
-        if (typeof choice.finish_reason !== 'string')
-          throw new SseProtocolError('invalid finish_reason')
-        if (finish !== undefined && finish !== choice.finish_reason)
-          throw new SseProtocolError('finish_reason changed')
-        finish = choice.finish_reason
-        const abnormal = !['stop', 'tool_calls', 'length'].includes(finish)
-        if (abnormal) failed = { source: 'in_band' }
-        serving.stopReason = processedText(state.credentialPolicy, finish, 'stop_reason_policy')
-        if (abnormal) {
-          failed = { source: 'in_band', upstreamError: { code: serving.stopReason } }
-          break
-        }
+      for (const event of readFrame(data)) yield event
+      if (failed) break
+    }
+    checkTerminalFacts()
+  } catch (error) {
+    recordReadFailure(error)
+  } finally {
+    response.stop()
+    await response.stopped
+    signal.removeEventListener('abort', abort)
+  }
+  if (signal.aborted) {
+    reportExecutionDiagnostic(deps.executionDiagnostics, {
+      stage: 'stream_end',
+      outcome: 'stopped',
+      facts: { kind: 'transport', stream: 'lost' },
+    })
+    return { aborted: true, ...serving, readFacts: accumulator.read() }
+  }
+  for (const event of closeBlocks()) yield event
+  const readFacts = accumulator.read()
+  if (usageReceived) yield { t: 'account', usage: readFacts.usage, cost: readFacts.cost }
+  return streamResult(readFacts)
+
+  function* readChoiceDelta(choice: JsonObject): Generator<ArrivalEvent> {
+    const delta = choice.delta
+    if (delta !== undefined && delta !== null && !object(delta))
+      throw new SseProtocolError('malformed delta')
+    if (object(delta)) {
+      const { content, refusal, reasoning, detail, callParts } = readDeltaFields(delta)
+      for (const event of readTextFragments(content, refusal)) yield event
+      for (const event of readThinkingText(reasoning)) yield event
+      for (const event of readThinkingDetails(detail)) yield event
+      for (const event of readToolCalls(callParts)) yield event
+    }
+  }
+
+  function observeFinish(choice: JsonObject): boolean {
+    if (choice.finish_reason !== undefined && choice.finish_reason !== null) {
+      if (typeof choice.finish_reason !== 'string')
+        throw new SseProtocolError('invalid finish_reason')
+      if (finish !== undefined && finish !== choice.finish_reason)
+        throw new SseProtocolError('finish_reason changed')
+      finish = choice.finish_reason
+      const abnormal = !['stop', 'tool_calls', 'length'].includes(finish)
+      if (abnormal) failed = { source: 'in_band' }
+      serving.stopReason = processedText(state.credentialPolicy, finish, 'stop_reason_policy')
+      if (abnormal) {
+        failed = { source: 'in_band', upstreamError: { code: serving.stopReason } }
+        return true
       }
     }
+    return false
+  }
+
+  function checkTerminalFacts(): void {
     if (!signal.aborted && !failed) {
       if ([...tools.values()].some(t => !t.block))
         failed = { source: 'protocol', localError: 'tool name never arrived' }
       else if (!done || finish === undefined)
         failed = { source: 'stream_broken', localError: 'stream ended before terminal facts' }
     }
-  } catch (error) {
+  }
+
+  function recordReadFailure(error: unknown): void {
     if (!signal.aborted) {
       if (error instanceof CredentialProcessingFailure) {
         failed = { ...(failed ?? { source: 'local' }), localError: error.stage }
@@ -435,51 +346,241 @@ export async function* readStream(
         failed = { source: 'local', localError: 'reader_failure' }
       }
     }
-  } finally {
-    response.stop()
-    await response.stopped
-    signal.removeEventListener('abort', abort)
   }
-  if (signal.aborted) {
-    reportExecutionDiagnostic(deps.executionDiagnostics, {
-      stage: 'stream_end',
-      outcome: 'stopped',
-      facts: { kind: 'transport', stream: 'lost' },
-    })
-    return { aborted: true, ...serving, readFacts: accumulator.read() }
-  }
-  if (!failed && finish !== 'length') {
-    for (const b of blocks) {
-      if (b.opened.kind === 'tool_call') yield { t: 'close', index: b.opened.index }
-      else if (b.opened.kind === 'text' || b.opened.kind === 'thinking')
-        yield {
-          t: 'close',
-          index: b.opened.index,
-          block: {
-            id: b.opened.id,
-            visibility,
-            kind: b.opened.kind,
-            text: b.text,
-            ...(b.details.length
-              ? {
-                  opaque: toOpaqueJson({
-                    routeName: planned.input.routeName,
-                    reasoning_details: b.details,
-                  }),
-                }
-              : {}),
-          },
-        }
+
+  function* closeBlocks(): Generator<ArrivalEvent> {
+    if (!failed && finish !== 'length') {
+      for (const b of blocks) {
+        if (b.opened.kind === 'tool_call') yield { t: 'close', index: b.opened.index }
+        else if (b.opened.kind === 'text' || b.opened.kind === 'thinking')
+          yield {
+            t: 'close',
+            index: b.opened.index,
+            block: {
+              id: b.opened.id,
+              visibility,
+              kind: b.opened.kind,
+              text: b.text,
+              ...(b.details.length
+                ? {
+                    opaque: toOpaqueJson({
+                      routeName: planned.input.routeName,
+                      reasoning_details: b.details,
+                    }),
+                  }
+                : {}),
+            },
+          }
+      }
     }
   }
-  const readFacts = accumulator.read()
-  if (usageReceived) yield { t: 'account', usage: readFacts.usage, cost: readFacts.cost }
-  reportExecutionDiagnostic(deps.executionDiagnostics, {
-    stage: 'stream_end',
-    outcome: failed ? 'failed' : 'completed',
-    facts: { kind: 'transport', stream: failed ? 'lost' : 'ended' },
-  })
-  return failed
-    ? { failed, ...serving, readFacts }
-    : { ended: finish === 'length' ? 'max_tokens' : 'end', ...serving, readFacts }
+
+  function* readFrame(data: string): Generator<ArrivalEvent> {
+    if (data === '[DONE]') {
+      done = true
+      return
+    }
+    if (done) throw new SseProtocolError('event after DONE')
+    const frame = strictObject(data)
+    if (!frame) throw new SseProtocolError('invalid SSE JSON')
+    // Freeze usage before any subsequent frame member or policy processing can fail.
+    if (object(frame.usage)) {
+      usageReceived = true
+      accumulator.observe(frame.usage)
+    }
+    if (inBandErrorFrame(frame)) {
+      recordInBandError(frame)
+      return
+    }
+    remember('upstreamRequestId', frame.id)
+    remember('upstreamModel', frame.model)
+    remember('servingProvider', frame.provider)
+    if (!Array.isArray(frame.choices) || frame.choices.length === 0) return
+    if (frame.choices.length !== 1) throw new SseProtocolError('multiple choices')
+    const choice = frame.choices[0]
+    if (!object(choice)) throw new SseProtocolError('malformed choice')
+    for (const event of readChoiceDelta(choice)) yield event
+    observeFinish(choice)
+  }
+
+  function recordInBandError(frame: JsonObject & { error: JsonObject }): void {
+    // Independent protocol status is obtained before processing its untrusted JSON copy.
+    const code = frame.error.code
+    failed = isNonNegativeJsonInteger(code)
+      ? {
+          source: 'in_band',
+          ...(state.statusCode === undefined ? {} : { httpStatus: state.statusCode }),
+          statusCode: code,
+          inBand: true,
+        }
+      : {
+          source: 'in_band',
+          ...(state.statusCode === undefined ? {} : { httpStatus: state.statusCode }),
+        }
+    remember('upstreamRequestId', frame.id)
+    remember('upstreamModel', frame.model)
+    remember('servingProvider', frame.provider)
+    failed = {
+      ...failed,
+      upstreamError: {
+        raw: processedObject(state.credentialPolicy, frame.error, 'in_band_error_policy'),
+      },
+    }
+  }
+
+  function readDeltaFields(delta: JsonObject) {
+    for (const key of ['images', 'audio'])
+      if (nonempty(delta[key])) throw new SseProtocolError(`unsupported content member: ${key}`)
+    // Validate before yielding any content from this frame. Refusal text shares
+    // the ordinary text channel; its protocol source does not alter its ending.
+    const refusal = delta.refusal
+    if (refusal !== undefined && refusal !== null && typeof refusal !== 'string')
+      throw new SseProtocolError('invalid refusal')
+    const content = delta.content
+    const reasoning = readReasoningText(delta)
+    const detail = delta.reasoning_details
+    const callParts = delta.tool_calls
+    if (finish !== undefined && [content, refusal, reasoning, detail, callParts].some(nonempty))
+      throw new SseProtocolError('content after finish_reason')
+    if (nonempty(content) && typeof content !== 'string')
+      throw new SseProtocolError('invalid content')
+    return { content, refusal, reasoning, detail, callParts }
+  }
+
+  function readReasoningText(delta: JsonObject) {
+    for (const key of ['reasoning', 'reasoning_content', 'reasoning_text'])
+      if (nonempty(delta[key]) && typeof delta[key] !== 'string')
+        throw new SseProtocolError('invalid reasoning')
+    return [delta.reasoning, delta.reasoning_content, delta.reasoning_text].find(
+      v => typeof v === 'string' && v.length,
+    )
+  }
+
+  function* readTextFragments(
+    content: JsonValue | undefined,
+    refusal: JsonValue | undefined,
+  ): Generator<ArrivalEvent> {
+    for (const fragment of [content, refusal]) {
+      if (typeof fragment === 'string' && fragment.length) {
+        if (!textBlock) {
+          textBlock = block('text')
+          yield textBlock.opened
+        }
+        textBlock.text += fragment
+        yield { t: 'fill', index: textBlock.opened.index, payload: fragment }
+      }
+    }
+  }
+
+  function* readThinkingText(reasoning: JsonValue | undefined): Generator<ArrivalEvent> {
+    if (typeof reasoning === 'string' && reasoning.length) {
+      if (!thinkingBlock) {
+        thinkingBlock = block('thinking')
+        yield thinkingBlock.opened
+      }
+      thinkingBlock.text += reasoning
+      yield { t: 'fill', index: thinkingBlock.opened.index, payload: reasoning }
+    }
+  }
+
+  function* readThinkingDetails(detail: JsonValue | undefined): Generator<ArrivalEvent> {
+    if (nonempty(detail)) {
+      if (!Array.isArray(detail)) throw new SseProtocolError('invalid reasoning_details')
+      if (!thinkingBlock) {
+        thinkingBlock = block('thinking')
+        yield thinkingBlock.opened
+      }
+      for (const raw of detail) {
+        if (!object(raw) || typeof raw.type !== 'string')
+          throw new SseProtocolError('invalid reasoning detail')
+        const last = thinkingBlock.details.at(-1)
+        const continued = continueReasoningDetail(last, raw)
+        if (continued) thinkingBlock.details[thinkingBlock.details.length - 1] = continued
+        else thinkingBlock.details.push(raw)
+      }
+    }
+  }
+
+  function* readToolCalls(callParts: JsonValue | undefined): Generator<ArrivalEvent> {
+    if (nonempty(callParts)) {
+      if (!Array.isArray(callParts)) throw new SseProtocolError('invalid tool_calls')
+      for (const part of callParts) for (const event of readToolPart(part)) yield event
+    }
+  }
+
+  function continueReasoningDetail(
+    last: JsonValue | undefined,
+    raw: JsonObject,
+  ): JsonObject | undefined {
+    return raw.type === 'reasoning.text'
+      ? continueReasoningText(last, raw)
+      : raw.type === 'reasoning.summary' &&
+          object(last) &&
+          last.type === raw.type &&
+          typeof last.summary === 'string' &&
+          typeof raw.summary === 'string' &&
+          sameReasoningHead(last, raw, 'summary')
+        ? { ...last, summary: last.summary + raw.summary }
+        : undefined
+  }
+
+  function streamResult(readFacts: ReturnType<typeof accumulator.read>): StreamEnd {
+    reportExecutionDiagnostic(deps.executionDiagnostics, {
+      stage: 'stream_end',
+      outcome: failed ? 'failed' : 'completed',
+      facts: { kind: 'transport', stream: failed ? 'lost' : 'ended' },
+    })
+    return failed
+      ? { failed, ...serving, readFacts }
+      : { ended: finish === 'length' ? 'max_tokens' : 'end', ...serving, readFacts }
+  }
+
+  function* readToolPart(part: JsonValue): Generator<ArrivalEvent> {
+    const { key, previous, name, argumentsText } = toolPartFields(part)
+    let current = previous
+    if (typeof name === 'string' && name.length) {
+      if (previous.name !== undefined && previous.name !== name)
+        throw new SseProtocolError('tool name changed')
+      if (!previous.block) {
+        const opened = openTool(name)
+        current = { ...previous, name, block: opened }
+        yield opened.opened
+        for (const fragment of previous.pending) {
+          opened.text += fragment
+          yield { t: 'fill', index: opened.opened.index, payload: fragment }
+        }
+        previous.pending.length = 0
+      }
+    }
+    if (typeof argumentsText === 'string' && argumentsText.length) {
+      if (current.block) {
+        current.block.text += argumentsText
+        yield { t: 'fill', index: current.block.opened.index, payload: argumentsText }
+      } else current.pending.push(argumentsText)
+    }
+    tools.set(key, current)
+  }
+
+  function toolPartFields(part: JsonValue) {
+    if (
+      !object(part) ||
+      !isNonNegativeJsonInteger(part.index) ||
+      ('type' in part && part.type !== 'function') ||
+      !object(part.function)
+    )
+      throw new SseProtocolError('unsupported tool call')
+    const key = canonicalInteger(part.index)
+    const previous = tools.get(key) ?? { pending: [] }
+    const name = part.function.name,
+      argumentsText = part.function.arguments
+    if (name !== undefined && typeof name !== 'string')
+      throw new SseProtocolError('invalid tool name')
+    if (argumentsText !== undefined && typeof argumentsText !== 'string')
+      throw new SseProtocolError('invalid tool arguments fragment')
+    return { key, previous, name, argumentsText }
+  }
+}
+
+function inBandErrorFrame(frame: JsonObject): frame is JsonObject & { error: JsonObject } {
+  return object(frame.error)
 }

@@ -96,27 +96,8 @@ export async function preparePlanImages(
   if (!Array.isArray(body.messages)) return { rejected: 'invalidInput', reason: 'malformed' }
   const maxImageBytes = cap(input, 'maxImageBytes')
   const maxRequestBytes = cap(input, 'maxRequestBytes')
-  for (const [m, message] of body.messages.entries()) {
-    if (!object(message) || !Array.isArray(message.content)) continue
-    for (const [p, part] of message.content.entries()) {
-      if (!object(part) || part.type !== 'image_url') continue
-      const value = object(part.image_url) ? part.image_url.url : undefined
-      const match =
-        typeof value === 'string'
-          ? /^data:([^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/u.exec(value)
-          : null
-      const mediaType = match?.[1],
-        encoded = match?.[2]
-      if (!mediaType || !encoded || maxImageBytes === null)
-        return { rejected: 'invalidInput', reason: 'malformed' }
-      const bytes = Buffer.from(encoded, 'base64')
-      if (!bytes.length || bytes.toString('base64') !== encoded)
-        return { rejected: 'invalidInput', reason: 'malformed' }
-      const position = `${m}/${p}`
-      images.push({ position, bytes, mediaType, targetMaxBytes: maxImageBytes })
-      empty.set(position, '')
-    }
-  }
+  const imageFailure = collectImages(body.messages)
+  if (imageFailure) return imageFailure
   for (const limit of finiteLimits(input.snapshot, 'maxImages'))
     if (ExactDecimal.from(images.length).compare(ExactDecimal.from(limit)) > 0)
       return {
@@ -154,23 +135,64 @@ export async function preparePlanImages(
   )
   if ('rejected' in result) return rejection(result.rejected)
   if (execution.signal.aborted) return { rejected: 'unavailable' }
-  if (result.prepared.images.length !== images.length)
-    throw new TypeError('preparer image count mismatch')
-  const urls = new Map<string, string>()
-  for (const [index, image] of result.prepared.images.entries()) {
-    const source = images[index]
-    if (
-      !source ||
-      image.sourceDigest !== createHash('sha256').update(source.bytes).digest('hex') ||
-      image.targetDigest !== createHash('sha256').update(image.bytes).digest('hex') ||
-      image.policyDigest !== preparation.policyDigest ||
-      image.transformRevision !== preparation.algorithmRevision
-    )
-      throw new TypeError('preparer result does not match fixed source/descriptor')
-    urls.set(
-      source.position,
-      `data:${image.mediaType};base64,${Buffer.from(image.bytes).toString('base64')}`,
-    )
-  }
+  const urls = preparedUrls(result)
   return { ok: { body: replaceUrls(body, urls), preparation } }
+
+  function collectImages(messages: readonly JsonValue[]): PlanFailure | undefined {
+    for (const [m, message] of messages.entries()) {
+      if (!object(message) || !Array.isArray(message.content)) continue
+      for (const [p, part] of message.content.entries()) {
+        if (!object(part) || part.type !== 'image_url') continue
+        const rejected = appendImage(part, m, p)
+        if (rejected) return rejected
+      }
+    }
+    return undefined
+  }
+
+  function appendImage(part: JsonObject, m: number, p: number): PlanFailure | undefined {
+    const value = object(part.image_url) ? part.image_url.url : undefined
+    const match =
+      typeof value === 'string'
+        ? /^data:([^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/u.exec(value)
+        : null
+    const mediaType = match?.[1],
+      encoded = match?.[2]
+    if (!mediaType || !encoded || maxImageBytes === null)
+      return { rejected: 'invalidInput', reason: 'malformed' }
+    const bytes = Buffer.from(encoded, 'base64')
+    if (!bytes.length || bytes.toString('base64') !== encoded)
+      return { rejected: 'invalidInput', reason: 'malformed' }
+    const position = `${m}/${p}`
+    images.push({ position, bytes, mediaType, targetMaxBytes: maxImageBytes })
+    empty.set(position, '')
+    return undefined
+  }
+
+  function preparedUrls(
+    result: Extract<
+      Awaited<ReturnType<ImagePreparer['prepareRequestImages']>>,
+      { prepared: unknown }
+    >,
+  ): Map<string, string> {
+    if (result.prepared.images.length !== images.length)
+      throw new TypeError('preparer image count mismatch')
+    const urls = new Map<string, string>()
+    for (const [index, image] of result.prepared.images.entries()) {
+      const source = images[index]
+      if (
+        !source ||
+        image.sourceDigest !== createHash('sha256').update(source.bytes).digest('hex') ||
+        image.targetDigest !== createHash('sha256').update(image.bytes).digest('hex') ||
+        image.policyDigest !== preparation.policyDigest ||
+        image.transformRevision !== preparation.algorithmRevision
+      )
+        throw new TypeError('preparer result does not match fixed source/descriptor')
+      urls.set(
+        source.position,
+        `data:${image.mediaType};base64,${Buffer.from(image.bytes).toString('base64')}`,
+      )
+    }
+    return urls
+  }
 }
