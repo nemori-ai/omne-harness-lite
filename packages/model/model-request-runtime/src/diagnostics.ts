@@ -930,10 +930,11 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
     association: DiagnosticAssociation | undefined,
   ):
     | { safe: DiagnosticEvent; safeAssociation: DiagnosticAssociation | null | undefined }
-    | { dropped: DiagnosticDropReason } {
+    | 'unsupported'
+    | 'invalid' {
     const safe = validEvent(event, config.maxFieldBytes)
     if (safe === 'unsupported') {
-      return { dropped: 'unsupported' }
+      return 'unsupported'
     }
     const safeAssociation =
       association === undefined ? undefined : validAssociation(association, config.maxFieldBytes)
@@ -944,7 +945,7 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
       !sameScope(scope, safeScope) ||
       (association !== undefined && !safeAssociation)
     ) {
-      return { dropped: 'invalid' }
+      return 'invalid'
     }
     return { safe, safeAssociation }
   }
@@ -959,9 +960,9 @@ export function createDiagnosticCollector(input: DiagnosticCollectorConfig): Dia
       return { dropped: 'closed' }
     }
     const admitted = admitRecord(event, requestedScope, association)
-    if ('dropped' in admitted) {
-      drop(admitted.dropped)
-      return admitted
+    if (typeof admitted === 'string') {
+      drop(admitted)
+      return { dropped: admitted }
     }
     const { safe, safeAssociation } = admitted
     // Every structurally valid event gets a position, even if capacity later drops it.
