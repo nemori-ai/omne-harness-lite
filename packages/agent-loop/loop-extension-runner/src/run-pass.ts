@@ -261,7 +261,7 @@ function validatePass(
       ExactDecimal.from(pass.execution.attempt).compare(ExactDecimal.from(0)) <= 0)
   )
     return invalidInput
-  return validateHistoryScope(
+  validateHistoryScope(
     {
       initial: pass.initial,
       anchor: pass.anchor,
@@ -593,7 +593,6 @@ async function runPassInternal(
       ports.binding,
       read,
     )
-    if ('failure' in existing) return existing
     const history: Historical[] = [...existing]
     let index = 0
     let cursor = 0
@@ -622,8 +621,7 @@ async function runPassInternal(
         index++
         continue
       }
-      const subject = currentSubject(initial, finals)
-      if (subject === null) return replayInconsistent
+      const subject = currentSubject(initial, finals, replayInconsistent)
       let mode: RunnerInvocationMode = { kind: 'fresh' }
       if (last !== undefined) {
         if (last.occurrence.kind !== 'ask') return replayInconsistent

@@ -77,7 +77,7 @@ function request(
   })
   if ('rejected' in initial)
     return initial.rejected === 'position_unknown' ? { failure: 'positionUnknown' } : invalidInput
-  const failure = validateHistoryScope(
+  validateHistoryScope(
     {
       initial: initial.ok,
       anchor: value.anchor,
@@ -86,7 +86,6 @@ function request(
     [],
     false,
   )
-  if (failure) return failure
   if (Object.hasOwn(value, 'run') && value.run === undefined) return invalidInput
   return { initial: initial.ok, request: value }
 }

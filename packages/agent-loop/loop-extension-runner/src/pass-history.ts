@@ -82,8 +82,7 @@ export function readPassConclusions(
       (Object.hasOwn(input, 'run') && input.run === undefined)
     )
       return invalidInput
-    const failure = validateHistoryScope(input, input.chain, false)
-    if (failure !== undefined) return failure
+    validateHistoryScope(input, input.chain, false)
     if (
       !input.binding ||
       !identity(input.binding.session) ||
@@ -96,7 +95,7 @@ export function readPassConclusions(
       entries: input.entries,
       tail: input.tail,
     })
-    return 'failure' in read ? read : Object.freeze(read.map(item => item.conclusion))
+    return Object.freeze(read.map(item => item.conclusion))
   } catch (error) {
     if (error instanceof RunnerFailureSignal) return error.replayResult()
     return invalidInput
@@ -121,12 +120,15 @@ export function validateHistoryScope(
   pass: RunnerHistoryScope,
   chain: readonly RunnerPiece[],
   nested: boolean,
-): RunnerReplayFailure | undefined {
-  if (!pass || typeof pass !== 'object' || !identity(pass.anchor)) return invalidInput
+): void {
+  if (!pass || typeof pass !== 'object' || !identity(pass.anchor))
+    throw new RunnerFailureSignal(invalidInput)
   const first = judgePositionedSubject(pass.initial)
   if ('rejected' in first)
-    return first.rejected === 'position_unknown' ? { failure: 'positionUnknown' } : invalidInput
-  if (!Array.isArray(chain)) return invalidInput
+    throw new RunnerFailureSignal(
+      first.rejected === 'position_unknown' ? { failure: 'positionUnknown' } : invalidInput,
+    )
+  if (!Array.isArray(chain)) throw new RunnerFailureSignal(invalidInput)
   const { position, subject } = first.ok
   if (pass.run === undefined) {
     if (
@@ -134,7 +136,7 @@ export function validateHistoryScope(
       (position === 'before_persist_message' &&
         (subject.producer === 'model' || subject.producer === 'tool'))
     )
-      return invalidInput
+      throw new RunnerFailureSignal(invalidInput)
   } else if (
     position === 'before_persist_message' &&
     subject.producer !== 'model' &&
@@ -142,27 +144,28 @@ export function validateHistoryScope(
     // S-19: only runner-owned reminder nesting inherits the outer write fence.
     !(nested && subject.producer === 'system')
   ) {
-    return invalidInput
-  } else if (!identity(pass.run)) return invalidInput
+    throw new RunnerFailureSignal(invalidInput)
+  } else if (!identity(pass.run)) throw new RunnerFailureSignal(invalidInput)
   const seen = new Set<string>()
   for (const piece of chain) {
-    if (!piece || typeof piece !== 'object') return invalidInput
+    if (!piece || typeof piece !== 'object') throw new RunnerFailureSignal(invalidInput)
     const judged = judgeDefinition(piece.definition)
-    if ('rejected' in judged) return invalidInput
+    if ('rejected' in judged) throw new RunnerFailureSignal(invalidInput)
     if (
       !samePosition(first.ok, judged.ok) ||
       seen.has(judged.ok.name) ||
       !['observe', 'rewrite', 'veto'].includes(piece.power)
     )
-      return invalidInput
+      throw new RunnerFailureSignal(invalidInput)
     seen.add(judged.ok.name)
     const levels: readonly Power[] = ['observe', 'rewrite', 'veto']
-    if (levels.indexOf(piece.power) > levels.indexOf(judged.ok.power)) return invalidInput
+    if (levels.indexOf(piece.power) > levels.indexOf(judged.ok.power))
+      throw new RunnerFailureSignal(invalidInput)
     if (
       piece.onError !== undefined &&
       !['ignore', 'record', 'treat_as_veto'].includes(piece.onError)
     )
-      return invalidInput
+      throw new RunnerFailureSignal(invalidInput)
     if (piece.fallback !== undefined) {
       if (
         (piece.fallback === 'modality' && position !== 'before_persist_message') ||
@@ -183,20 +186,22 @@ export function validateHistoryScope(
           (first.ok.position !== 'after_model_call' ||
             first.ok.dimension.ending !== 'complete_reply'))
       )
-        return invalidInput
+        throw new RunnerFailureSignal(invalidInput)
     }
   }
-  return undefined
 }
 
 export function currentSubject(
   initial: PositionedSubject,
   finals: readonly Conclusion[],
-): PositionedSubject | null {
+  failure: RunnerReplayFailure,
+): PositionedSubject {
   const combined = composeEffect(initial, finals)
-  if ('invalidInput' in combined || combined.effect.kind !== 'proceed') return null
+  if ('invalidInput' in combined || combined.effect.kind !== 'proceed')
+    throw new RunnerFailureSignal(failure)
   const judged = judgePositionedSubject({ ...initial, subject: combined.effect.subject })
-  return 'ok' in judged ? judged.ok : null
+  if (!('ok' in judged)) throw new RunnerFailureSignal(failure)
+  return judged.ok
 }
 
 export function readPassHistory(
@@ -204,15 +209,15 @@ export function readPassHistory(
   chain: readonly RunnerPiece[],
   binding: RunnerLogBinding,
   read: ReadResult,
-): readonly Historical[] | RunnerReplayFailure {
-  if (!('entries' in read)) return unavailable
-  if (!isNonNegativeJsonInteger(read.tail)) return replayInconsistent
+): readonly Historical[] {
+  if (!('entries' in read)) throw new RunnerFailureSignal(unavailable)
+  if (!isNonNegativeJsonInteger(read.tail)) throw new RunnerFailureSignal(replayInconsistent)
   const key = passKeys({
     position: pass.initial.position,
     ...(pass.initial.dimension === undefined ? {} : { dimension: pass.initial.dimension }),
     anchor: pass.anchor,
   })
-  if ('invalidInput' in key) return invalidInput
+  if ('invalidInput' in key) throw new RunnerFailureSignal(invalidInput)
   const records: Historical[] = []
   const historicalFinals: Conclusion[] = []
   let pieceIndex = 0
@@ -225,14 +230,15 @@ export function readPassHistory(
       ExactDecimal.from(entry.position).compare(ExactDecimal.from(read.tail)) > 0 ||
       !entry.readKeys.includes(key.pass)
     )
-      return replayInconsistent
+      throw new RunnerFailureSignal(replayInconsistent)
     previousPosition = ExactDecimal.from(entry.position)
     const inspected = inspectRunnerConclusion({
       session: binding.session,
       tenant: binding.tenant,
       entry,
     })
-    if ('invalid' in inspected || 'unrelated' in inspected) return replayInconsistent
+    if ('invalid' in inspected || 'unrelated' in inspected)
+      throw new RunnerFailureSignal(replayInconsistent)
     if (
       inspected.anchor !== pass.anchor ||
       !samePosition(pass.initial, inspected.conclusion) ||
@@ -240,19 +246,19 @@ export function readPassHistory(
         (inspected.execution.kind !== 'withRun' || inspected.execution.run !== pass.run)) ||
       (pass.run === undefined && inspected.execution.kind !== 'noRun')
     )
-      return replayInconsistent
+      throw new RunnerFailureSignal(replayInconsistent)
     const piece = chain[pieceIndex]
     if (piece === undefined || inspected.conclusion.extension !== piece.definition.name)
-      return replayInconsistent
-    if (inspected.conclusion.power !== piece.power) return replayInconsistent
-    const historicalSubject = currentSubject(pass.initial, historicalFinals)
-    if (historicalSubject === null) return replayInconsistent
+      throw new RunnerFailureSignal(replayInconsistent)
+    if (inspected.conclusion.power !== piece.power)
+      throw new RunnerFailureSignal(replayInconsistent)
+    const historicalSubject = currentSubject(pass.initial, historicalFinals, replayInconsistent)
     const admitted = judgeConclusionForCurrent(inspected.conclusion, historicalSubject, piece)
-    if ('failure' in admitted) return replayInconsistent
+    if ('failure' in admitted) throw new RunnerFailureSignal(replayInconsistent)
     if (inspected.occurrence.kind === 'ask') {
       askOrdinal = askOrdinal.add(ExactDecimal.from(1))
       if (ExactDecimal.from(inspected.occurrence.ordinal).compare(askOrdinal) !== 0)
-        return replayInconsistent
+        throw new RunnerFailureSignal(replayInconsistent)
     } else {
       historicalFinals.push(inspected.conclusion)
       pieceIndex++
