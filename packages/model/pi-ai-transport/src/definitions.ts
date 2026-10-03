@@ -129,21 +129,23 @@ export function jsonEqual(left: JsonValue, right: JsonValue): boolean {
         return other !== undefined && jsonEqual(value, other)
       })
     )
-  if (object(left) && object(right))
-    return (
-      Object.keys(left).length === Object.keys(right).length &&
-      Object.keys(left).every(key => {
-        const value = left[key],
-          other = right[key]
-        return (
-          value !== undefined &&
-          other !== undefined &&
-          Object.hasOwn(right, key) &&
-          jsonEqual(value, other)
-        )
-      })
-    )
+  if (object(left) && object(right)) return jsonObjectsEqual(left, right)
   return left === right
+}
+function jsonObjectsEqual(left: JsonObject, right: JsonObject): boolean {
+  return (
+    Object.keys(left).length === Object.keys(right).length &&
+    Object.keys(left).every(key => {
+      const value = left[key],
+        other = right[key]
+      return (
+        value !== undefined &&
+        other !== undefined &&
+        Object.hasOwn(right, key) &&
+        jsonEqual(value, other)
+      )
+    })
+  )
 }
 export function codePointOrder(left: string, right: string): number {
   const a = Array.from(left),
@@ -188,14 +190,38 @@ function ruleValid(raw: JsonValue, name?: UnifiedParameterName): boolean {
   // G-22 retains the caller's requested output cap after profile validation.
   if (name === 'maxOutputTokens') return false
   if (raw.kind === 'drop') return members(raw, ['kind'])
-  if (
+  if (!selectRuleShape(raw)) return false
+  const accepted = raw.accepted
+  if (!acceptedDomainValid(accepted, name)) return false
+  return otherwiseValid(raw, accepted, name)
+}
+function selectRuleShape(raw: JsonObject): raw is JsonObject & {
+  accepted: JsonObject
+  otherwise: JsonObject
+} {
+  return !(
     raw.kind !== 'select' ||
     !members(raw, ['kind', 'accepted', 'otherwise']) ||
     !object(raw.accepted) ||
     !object(raw.otherwise)
   )
-    return false
-  const accepted = raw.accepted
+}
+function otherwiseValid(
+  raw: JsonObject & { otherwise: JsonObject },
+  accepted: JsonObject,
+  name: UnifiedParameterName | undefined,
+): boolean {
+  return members(raw.otherwise, ['drop'])
+    ? raw.otherwise.drop === true
+    : members(raw.otherwise, ['adjustTo']) &&
+        raw.otherwise.adjustTo !== undefined &&
+        parameterValue(name, raw.otherwise.adjustTo) &&
+        acceptedValue(accepted, raw.otherwise.adjustTo)
+}
+function acceptedDomainValid(
+  accepted: JsonObject,
+  name: UnifiedParameterName | undefined,
+): boolean {
   if (members(accepted, ['values'])) {
     const values = accepted.values
     if (
@@ -209,24 +235,21 @@ function ruleValid(raw: JsonValue, name?: UnifiedParameterName): boolean {
     )
       return false
   } else if (members(accepted, ['minimum', 'maximum'])) {
-    if (
-      name === undefined ||
-      name === 'reasoningEffort' ||
-      name === 'stopSequences' ||
-      !isJsonNumber(accepted.minimum) ||
-      !isJsonNumber(accepted.maximum) ||
-      !parameterValue(name, accepted.minimum) ||
-      !parameterValue(name, accepted.maximum) ||
-      ExactDecimal.from(accepted.minimum).compare(ExactDecimal.from(accepted.maximum)) > 0
-    )
-      return false
+    return acceptedRangeValid(accepted, name)
   } else return false
-  return members(raw.otherwise, ['drop'])
-    ? raw.otherwise.drop === true
-    : members(raw.otherwise, ['adjustTo']) &&
-        raw.otherwise.adjustTo !== undefined &&
-        parameterValue(name, raw.otherwise.adjustTo) &&
-        acceptedValue(accepted, raw.otherwise.adjustTo)
+  return true
+}
+function acceptedRangeValid(accepted: JsonObject, name: UnifiedParameterName | undefined): boolean {
+  return !(
+    name === undefined ||
+    name === 'reasoningEffort' ||
+    name === 'stopSequences' ||
+    !isJsonNumber(accepted.minimum) ||
+    !isJsonNumber(accepted.maximum) ||
+    !parameterValue(name, accepted.minimum) ||
+    !parameterValue(name, accepted.maximum) ||
+    ExactDecimal.from(accepted.minimum).compare(ExactDecimal.from(accepted.maximum)) > 0
+  )
 }
 function cacheValid(raw: JsonValue | undefined): boolean {
   if (!object(raw)) return false
@@ -240,6 +263,11 @@ function cacheValid(raw: JsonValue | undefined): boolean {
     ttls.length > 0 &&
     ttls.every(value => typeof value === 'string' && value.length > 0) &&
     new Set(ttls).size === ttls.length &&
+    cacheLayoutsValid(layouts)
+  )
+}
+function cacheLayoutsValid(layouts: JsonValue | undefined): boolean {
+  return (
     Array.isArray(layouts) &&
     layouts.length > 0 &&
     layouts.every(
@@ -291,30 +319,36 @@ function definitionValid(value: unknown): value is ModelDefinition {
     })
   )
     return false
-  return Object.entries(value.routes).every(([provider, route]) => {
-    if (
-      !validate('ProviderName', provider).valid ||
-      !object(route) ||
-      !members(route, ['reminderRole', 'parameters', 'extra', 'cache']) ||
-      (route.reminderRole !== 'developer' && route.reminderRole !== 'user')
-    )
-      return false
-    const parameters = route.parameters,
-      extra = route.extra
-    return (
-      object(parameters) &&
-      members(parameters, parameterOrder) &&
-      parameterOrder.every(name => {
-        const rule = parameters[name]
-        return rule !== undefined && ruleValid(rule, name)
-      }) &&
-      object(extra) &&
-      Object.entries(extra).every(
-        ([key, rule]) => key.length > 0 && !protectedParameterKeys.has(key) && ruleValid(rule),
-      ) &&
-      cacheValid(route.cache)
-    )
-  })
+  return Object.entries(value.routes).every(([provider, route]) => routeValid(provider, route))
+}
+function routeValid(provider: string, route: JsonValue): boolean {
+  if (
+    !validate('ProviderName', provider).valid ||
+    !object(route) ||
+    !members(route, ['reminderRole', 'parameters', 'extra', 'cache']) ||
+    (route.reminderRole !== 'developer' && route.reminderRole !== 'user')
+  )
+    return false
+  const parameters = route.parameters,
+    extra = route.extra
+  return (
+    parametersValid(parameters) &&
+    object(extra) &&
+    Object.entries(extra).every(
+      ([key, rule]) => key.length > 0 && !protectedParameterKeys.has(key) && ruleValid(rule),
+    ) &&
+    cacheValid(route.cache)
+  )
+}
+function parametersValid(parameters: JsonValue | undefined): boolean {
+  return (
+    object(parameters) &&
+    members(parameters, parameterOrder) &&
+    parameterOrder.every(name => {
+      const rule = parameters[name]
+      return rule !== undefined && ruleValid(rule, name)
+    })
+  )
 }
 /** Own every nested value before publication or network-resource construction. */
 export function ownDefinitions(values: readonly ModelDefinition[]): readonly ModelDefinition[] {

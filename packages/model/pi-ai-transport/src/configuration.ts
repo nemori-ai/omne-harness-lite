@@ -14,6 +14,7 @@ import {
   type ModelDefinition,
   type DefinitionResult,
   type CachePolicy,
+  type ModelRoute,
 } from './definitions.ts'
 import { object } from './json.ts'
 
@@ -73,6 +74,9 @@ export function interpretConfiguration(
   )
     return { rejected: 'invalidInput' }
   const cache = copied.ok.cache
+  return interpretCache(route, cache)
+}
+function interpretCache(route: ModelRoute, cache: JsonObject): DefinitionResult<CachePolicy> {
   if (route.cache.mode === 'automatic')
     return members(cache, ['mode']) && cache.mode === 'automatic'
       ? { ok: Object.freeze({ mode: 'automatic' }) }
@@ -104,6 +108,16 @@ export type OfficialProfileContentResult =
 function profileContent(value: unknown): value is ModelProfileContent {
   return 'ok' in judgeModelProfileDocument('ModelProfileContent', value)
 }
+function profileOptionsShape(value: JsonObject): boolean {
+  return (
+    Object.hasOwn(value, 'providers') &&
+    Object.hasOwn(value, 'allowFallback') &&
+    Object.hasOwn(value, 'configuration') &&
+    !Object.keys(value).some(
+      key => !['providers', 'allowFallback', 'configuration', 'parameters'].includes(key),
+    )
+  )
+}
 /** Builds content only. Directory authority, registration and timestamps belong to the caller. */
 export function createOfficialProfileContent(
   raw: ModelDefinition,
@@ -111,17 +125,7 @@ export function createOfficialProfileContent(
 ): OfficialProfileContentResult {
   const definition = tryDefinition(raw),
     copied = copyJsonValue(options)
-  if (
-    !definition ||
-    'failed' in copied ||
-    !object(copied.ok) ||
-    !Object.hasOwn(copied.ok, 'providers') ||
-    !Object.hasOwn(copied.ok, 'allowFallback') ||
-    !Object.hasOwn(copied.ok, 'configuration') ||
-    Object.keys(copied.ok).some(
-      key => !['providers', 'allowFallback', 'configuration', 'parameters'].includes(key),
-    )
-  )
+  if (!definition || 'failed' in copied || !object(copied.ok) || !profileOptionsShape(copied.ok))
     return { rejected: 'invalidInput' }
   const owned = copyJsonValue({
     ...definition.capabilities,
