@@ -26,6 +26,7 @@ import { composeEffect, type RunnerEffect } from './effect.ts'
 import { passKeys, type RunnerOccurrence } from './keys.ts'
 import type { RunnerLogBinding } from './task-owner.ts'
 import {
+  RunnerFailureSignal,
   validateHistoryScope,
   readPassHistory,
   currentSubject,
@@ -535,7 +536,8 @@ export async function runPass(
 ): Promise<RunnerPassResult> {
   try {
     return await runPassInternal(pass, chain, ports, signal, false)
-  } catch {
+  } catch (error) {
+    if (error instanceof RunnerFailureSignal) return error.result
     // Port and disposer failures are control-source failures, never contributor onError input.
     return unavailable
   }

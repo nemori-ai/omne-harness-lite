@@ -9,6 +9,7 @@ import {
   type RunnerImplementations,
 } from './implementation-registry.ts'
 import {
+  RunnerFailureSignal,
   type RunnerReplayFailure,
   readPassConclusions,
   samePosition,
@@ -141,122 +142,127 @@ export function createLoopExtensionRunner(input: {
       return track(
         tasks,
         (async () => {
-          const parsed = request(supplied, true)
-          if ('failure' in parsed) return parsed
-          const requested = parsed.request
-          const attempt = requested.attempt
-          if (
-            requested.run === undefined
-              ? Object.hasOwn(requested, 'attempt')
-              : !isJsonNumber(attempt) ||
-                !ExactDecimal.from(attempt).isInteger ||
-                ExactDecimal.from(attempt).compare(ExactDecimal.from(0)) <= 0
-          )
-            return invalidInput
-          if (!active()) return unavailable
-          if (callerSignal.aborted) return { failure: 'cancelled' as const }
-          if (!modelPosition(parsed.initial)) return unavailable
-          const pass: RunnerPass = Object.freeze({
-            initial: parsed.initial,
-            anchor: requested.anchor,
-            execution: Object.freeze(
-              requested.run === undefined
-                ? { kind: 'noRun' as const }
-                : { kind: 'withRun' as const, run: requested.run, attempt: attempt! },
-            ),
-          })
-          const signal = AbortSignal.any([callerSignal, stop.signal])
-          const scope = await host.acquireDispatch(requested, signal)
-          if ('failure' in scope) return scope
           try {
-            if (!scopeActive(scope)) return unavailable
-            if (signal.aborted) return { failure: 'cancelled' as const }
-            const all = await chain(scope, requested)
-            if ('failure' in all) return all
-            if (!scopeActive(scope)) return unavailable
-            const leases = new Map<RunnerPiece, RunnerImplementationLease>()
-            const dependencyPresence = scope.sources.manifest.dependencyPresence.bind(
-              scope.sources.manifest,
+            const parsed = request(supplied, true)
+            if ('failure' in parsed) return parsed
+            const requested = parsed.request
+            const attempt = requested.attempt
+            if (
+              requested.run === undefined
+                ? Object.hasOwn(requested, 'attempt')
+                : !isJsonNumber(attempt) ||
+                  !ExactDecimal.from(attempt).isInteger ||
+                  ExactDecimal.from(attempt).compare(ExactDecimal.from(0)) <= 0
             )
-            const adapter = createRunnerLogAdapter({
-              log,
-              binding: scope.binding,
-              owner: scope.owner,
-              subjectForCandidate: scope.subjectForCandidate,
+              return invalidInput
+            if (!active()) return unavailable
+            if (callerSignal.aborted) return { failure: 'cancelled' as const }
+            if (!modelPosition(parsed.initial)) return unavailable
+            const pass: RunnerPass = Object.freeze({
+              initial: parsed.initial,
+              anchor: requested.anchor,
+              execution: Object.freeze(
+                requested.run === undefined
+                  ? { kind: 'noRun' as const }
+                  : { kind: 'withRun' as const, run: requested.run, attempt: attempt! },
+              ),
             })
-            const reminders = createRunnerReminderLogAdapter({
-              log,
-              binding: scope.binding,
-              owner: scope.owner,
-              readMessagePrefix: scope.readMessagePrefix,
-            })
-            const result = await runPass(
-              pass,
-              selected(all, parsed.initial),
-              {
-                ...adapter,
-                ...scope.ports,
-                isActive: () => scopeActive(scope),
-                async presence(piece) {
-                  if (!scopeActive(scope)) return 'unavailable'
-                  if (piece.definition.needs !== undefined) {
-                    const needs = piece.definition.needs
-                    const read = await dependencyPresence(requested.manifest, needs)
-                    if (!scopeActive(scope) || 'failure' in read) return 'unavailable'
-                    if (
-                      needs.some(
-                        name =>
-                          read.presence[name] !== 'present' && read.presence[name] !== 'absent',
+            const signal = AbortSignal.any([callerSignal, stop.signal])
+            const scope = await host.acquireDispatch(requested, signal)
+            if ('failure' in scope) return scope
+            try {
+              if (!scopeActive(scope)) return unavailable
+              if (signal.aborted) return { failure: 'cancelled' as const }
+              const all = await chain(scope, requested)
+              if ('failure' in all) return all
+              if (!scopeActive(scope)) return unavailable
+              const leases = new Map<RunnerPiece, RunnerImplementationLease>()
+              const dependencyPresence = scope.sources.manifest.dependencyPresence.bind(
+                scope.sources.manifest,
+              )
+              const adapter = createRunnerLogAdapter({
+                log,
+                binding: scope.binding,
+                owner: scope.owner,
+                subjectForCandidate: scope.subjectForCandidate,
+              })
+              const reminders = createRunnerReminderLogAdapter({
+                log,
+                binding: scope.binding,
+                owner: scope.owner,
+                readMessagePrefix: scope.readMessagePrefix,
+              })
+              const result = await runPass(
+                pass,
+                selected(all, parsed.initial),
+                {
+                  ...adapter,
+                  ...scope.ports,
+                  isActive: () => scopeActive(scope),
+                  async presence(piece) {
+                    if (!scopeActive(scope)) return 'unavailable'
+                    if (piece.definition.needs !== undefined) {
+                      const needs = piece.definition.needs
+                      const read = await dependencyPresence(requested.manifest, needs)
+                      if (!scopeActive(scope) || 'failure' in read) return 'unavailable'
+                      if (
+                        needs.some(
+                          name =>
+                            read.presence[name] !== 'present' && read.presence[name] !== 'absent',
+                        )
                       )
+                        return 'unavailable'
+                      if (needs.some(name => read.presence[name] === 'absent')) return 'absent'
+                    }
+                    if (piece.definition.implementation.kind === 'command')
+                      return scope.ports.commandPresence(piece)
+                    const captured = registry.capture(piece.definition.implementation.builtinName)
+                    if ('absent' in captured) return 'absent'
+                    leases.set(piece, captured)
+                    return 'present'
+                  },
+                  invoke(
+                    piece,
+                    extensionInput,
+                    invocationSignal,
+                    mode,
+                  ): Promise<RunnerInvocationResult> {
+                    if (!scopeActive(scope)) return Promise.resolve({ kind: 'controlUnavailable' })
+                    if (piece.definition.implementation.kind === 'builtin') {
+                      const lease = leases.get(piece)
+                      return lease === undefined
+                        ? Promise.resolve({ kind: 'notStartedUnavailable' })
+                        : lease.invoke(extensionInput, invocationSignal, mode)
+                    }
+                    return track(
+                      actualInvocations,
+                      Promise.resolve().then(() =>
+                        scope.ports.invokeCommand(piece, extensionInput, invocationSignal, mode),
+                      ),
                     )
-                      return 'unavailable'
-                    if (needs.some(name => read.presence[name] === 'absent')) return 'absent'
-                  }
-                  if (piece.definition.implementation.kind === 'command')
-                    return scope.ports.commandPresence(piece)
-                  const captured = registry.capture(piece.definition.implementation.builtinName)
-                  if ('absent' in captured) return 'absent'
-                  leases.set(piece, captured)
-                  return 'present'
-                },
-                invoke(
-                  piece,
-                  extensionInput,
-                  invocationSignal,
-                  mode,
-                ): Promise<RunnerInvocationResult> {
-                  if (!scopeActive(scope)) return Promise.resolve({ kind: 'controlUnavailable' })
-                  if (piece.definition.implementation.kind === 'builtin') {
-                    const lease = leases.get(piece)
-                    return lease === undefined
-                      ? Promise.resolve({ kind: 'notStartedUnavailable' })
-                      : lease.invoke(extensionInput, invocationSignal, mode)
-                  }
-                  return track(
-                    actualInvocations,
-                    Promise.resolve().then(() =>
-                      scope.ports.invokeCommand(piece, extensionInput, invocationSignal, mode),
-                    ),
-                  )
-                },
-                reminders: {
-                  ...reminders,
-                  async nestedChain(message) {
-                    const subject = judgePositionedSubject({
-                      position: 'before_persist_message',
-                      subject: { producer: 'system', message },
-                    })
-                    return 'rejected' in subject || !scopeActive(scope)
-                      ? { unavailable: true }
-                      : selected(all, subject.ok)
+                  },
+                  reminders: {
+                    ...reminders,
+                    async nestedChain(message) {
+                      const subject = judgePositionedSubject({
+                        position: 'before_persist_message',
+                        subject: { producer: 'system', message },
+                      })
+                      return 'rejected' in subject || !scopeActive(scope)
+                        ? { unavailable: true }
+                        : selected(all, subject.ok)
+                    },
                   },
                 },
-              },
-              signal,
-            )
-            return active() ? result : unavailable
-          } finally {
-            scope.release()
+                signal,
+              )
+              return active() ? result : unavailable
+            } finally {
+              scope.release()
+            }
+          } catch (error) {
+            if (error instanceof RunnerFailureSignal) return error.result
+            throw error
           }
         })(),
       )
@@ -265,48 +271,53 @@ export function createLoopExtensionRunner(input: {
       return track(
         tasks,
         (async () => {
-          const parsed = request(supplied, false)
-          if ('failure' in parsed) return parsed
-          const requested = parsed.request
-          if (!active() || !modelPosition(parsed.initial)) return unavailable
-          const scope = await host.acquireReplay(requested, stop.signal)
-          if ('failure' in scope) return scope
           try {
-            if (!scopeActive(scope)) return unavailable
-            const all = await chain(scope, requested)
-            if ('failure' in all) return all
-            const keys = passKeys({
-              position: parsed.initial.position,
-              ...(parsed.initial.dimension === undefined
-                ? {}
-                : { dimension: parsed.initial.dimension }),
-              anchor: requested.anchor,
-            })
-            if ('invalidInput' in keys) return invalidInput
-            const session = parseOpaqueIdentifier(scope.binding.session, 'SessionRef')
-            if (
-              !('ok' in session) ||
-              !scopeActive(scope) ||
-              scope.owner.hasUnknown(scope.binding, keys.pass)
-            )
-              return unavailable
-            const read = scope.owner.start({
-              kind: 'read',
-              execute: () => log.readByKey(session.ok, keys.pass),
-            })
-            if ('unavailable' in read) return unavailable
-            const history = await read.completion
-            if (!scopeActive(scope) || !('entries' in history)) return unavailable
-            return readPassConclusions({
-              initial: parsed.initial,
-              anchor: requested.anchor,
-              ...(requested.run === undefined ? {} : { run: requested.run }),
-              binding: scope.binding,
-              chain: selected(all, parsed.initial),
-              ...history,
-            })
-          } finally {
-            scope.release()
+            const parsed = request(supplied, false)
+            if ('failure' in parsed) return parsed
+            const requested = parsed.request
+            if (!active() || !modelPosition(parsed.initial)) return unavailable
+            const scope = await host.acquireReplay(requested, stop.signal)
+            if ('failure' in scope) return scope
+            try {
+              if (!scopeActive(scope)) return unavailable
+              const all = await chain(scope, requested)
+              if ('failure' in all) return all
+              const keys = passKeys({
+                position: parsed.initial.position,
+                ...(parsed.initial.dimension === undefined
+                  ? {}
+                  : { dimension: parsed.initial.dimension }),
+                anchor: requested.anchor,
+              })
+              if ('invalidInput' in keys) return invalidInput
+              const session = parseOpaqueIdentifier(scope.binding.session, 'SessionRef')
+              if (
+                !('ok' in session) ||
+                !scopeActive(scope) ||
+                scope.owner.hasUnknown(scope.binding, keys.pass)
+              )
+                return unavailable
+              const read = scope.owner.start({
+                kind: 'read',
+                execute: () => log.readByKey(session.ok, keys.pass),
+              })
+              if ('unavailable' in read) return unavailable
+              const history = await read.completion
+              if (!scopeActive(scope) || !('entries' in history)) return unavailable
+              return readPassConclusions({
+                initial: parsed.initial,
+                anchor: requested.anchor,
+                ...(requested.run === undefined ? {} : { run: requested.run }),
+                binding: scope.binding,
+                chain: selected(all, parsed.initial),
+                ...history,
+              })
+            } finally {
+              scope.release()
+            }
+          } catch (error) {
+            if (error instanceof RunnerFailureSignal) return error.replayResult()
+            throw error
           }
         })(),
       )

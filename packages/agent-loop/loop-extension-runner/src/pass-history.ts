@@ -47,6 +47,27 @@ const replayInconsistent = Object.freeze({ failure: 'replayInconsistent' } as co
 const identity = (value: unknown): boolean => 'ok' in parseOpaqueIdentifier(value, 'RunnerIdentity')
 const sameJson = modelLogJsonEqual
 
+/** Package-private control failure. The boundary returns this exact occurrence's value. */
+export class RunnerFailureSignal extends Error {
+  constructor(readonly result: RunnerFailure) {
+    super(result.failure)
+  }
+
+  replayResult(): RunnerReplayFailure {
+    const result = this.result
+    switch (result.failure) {
+      case 'invalidInput':
+      case 'positionUnknown':
+      case 'manifestMissing':
+      case 'replayInconsistent':
+      case 'unavailable':
+        return result
+      default:
+        throw this
+    }
+  }
+}
+
 /** Pure S-22 interpretation: no attempt, ports, I/O, effect resolution, or reminder recovery. */
 export function readPassConclusions(
   input: ReadPassConclusionsInput,
@@ -76,7 +97,8 @@ export function readPassConclusions(
       tail: input.tail,
     })
     return 'failure' in read ? read : Object.freeze(read.map(item => item.conclusion))
-  } catch {
+  } catch (error) {
+    if (error instanceof RunnerFailureSignal) return error.replayResult()
     return invalidInput
   }
 }
