@@ -1,8 +1,10 @@
 import type sharp from 'sharp'
+import type { Metadata, OutputInfo } from 'sharp'
 import { crc32 } from 'node:zlib'
 import { bytesSchema, dataOnly, encodeSchema, limitsSchema, metadataSchema } from './validation.ts'
 import type {
   CodecResult,
+  DecodeLimits,
   DecodedImage,
   ImageEncodeSpec,
   ImageMetadata,
@@ -135,30 +137,14 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
       }
     },
     async decode(bytes, metadata, limits) {
-      if (
-        !bytesSchema.safeParse(bytes).success ||
-        !dataOnly(metadata) ||
-        !metadataSchema.safeParse(metadata).success ||
-        !dataOnly(limits) ||
-        !limitsSchema.safeParse(limits).success
-      )
-        return { failure: 'bad_input' }
+      if (!validDecodeInput(bytes, metadata, limits)) return { failure: 'bad_input' }
       try {
         const actual = await loadedSharp(bytes, {
           limitInputPixels: limits.maxPixels,
           failOn: 'warning',
           animated: true,
         }).metadata()
-        if (
-          mediaType(actual.format) !== metadata.mediaType ||
-          actual.width !== metadata.width ||
-          (actual.pageHeight ?? actual.height) !== metadata.height ||
-          (actual.pages ?? 1) !== metadata.pages ||
-          orientation(actual.orientation) !== metadata.orientation ||
-          actual.hasAlpha !== metadata.hasAlpha ||
-          metadata.pages !== 1
-        )
-          return { failure: 'bad_input' }
+        if (!matchesMetadata(actual, metadata)) return { failure: 'bad_input' }
         const { data, info } = await loadedSharp(bytes, {
           limitInputPixels: limits.maxPixels,
           failOn: 'warning',
@@ -168,15 +154,7 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
           .ensureAlpha()
           .raw({ depth: 'uchar' })
           .toBuffer({ resolveWithObject: true })
-        const swapped = metadata.orientation >= 5
-        if (
-          info.width !== (swapped ? metadata.height : metadata.width) ||
-          info.height !== (swapped ? metadata.width : metadata.height) ||
-          info.channels !== 4 ||
-          info.width > limits.maxDimension ||
-          info.height > limits.maxDimension
-        )
-          return { failure: 'internal' }
+        if (!matchesRaster(info, metadata, limits)) return { failure: 'internal' }
         let pixels: Buffer | undefined = data
         let closed = false
         let closing: Promise<void> | undefined
@@ -194,7 +172,15 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
           )
             return { failure: 'bad_input' }
           spec = validated.data
-          const task = (async () => {
+          const task = encodePixels()
+          active.add(task)
+          try {
+            return await task
+          } finally {
+            active.delete(task)
+          }
+
+          async function encodePixels(): Promise<CodecResult<import('./types.ts').EncodedImage>> {
             try {
               let image = loadedSharp(source, {
                 raw: { width: info.width, height: info.height, channels: 4 },
@@ -230,12 +216,6 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
             } catch (error) {
               return failure(error)
             }
-          })()
-          active.add(task)
-          try {
-            return await task
-          } finally {
-            active.delete(task)
           }
         }
         const decoded: DecodedImage = {
@@ -258,4 +238,47 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
       }
     },
   }
+}
+
+function validDecodeInput(
+  bytes: Uint8Array,
+  metadata: ImageMetadata,
+  limits: DecodeLimits,
+): boolean {
+  if (
+    !bytesSchema.safeParse(bytes).success ||
+    !dataOnly(metadata) ||
+    !metadataSchema.safeParse(metadata).success ||
+    !dataOnly(limits) ||
+    !limitsSchema.safeParse(limits).success
+  )
+    return false
+  return true
+}
+
+function matchesMetadata(actual: Metadata, metadata: ImageMetadata): boolean {
+  if (
+    mediaType(actual.format) !== metadata.mediaType ||
+    actual.width !== metadata.width ||
+    (actual.pageHeight ?? actual.height) !== metadata.height ||
+    (actual.pages ?? 1) !== metadata.pages ||
+    orientation(actual.orientation) !== metadata.orientation ||
+    actual.hasAlpha !== metadata.hasAlpha ||
+    metadata.pages !== 1
+  )
+    return false
+  return true
+}
+
+function matchesRaster(info: OutputInfo, metadata: ImageMetadata, limits: DecodeLimits): boolean {
+  const swapped = metadata.orientation >= 5
+  if (
+    info.width !== (swapped ? metadata.height : metadata.width) ||
+    info.height !== (swapped ? metadata.width : metadata.height) ||
+    info.channels !== 4 ||
+    info.width > limits.maxDimension ||
+    info.height > limits.maxDimension
+  )
+    return false
+  return true
 }

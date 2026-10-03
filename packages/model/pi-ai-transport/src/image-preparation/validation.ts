@@ -164,6 +164,10 @@ export function validateCodec(codec: LoadedImageCodec): void {
     keys.some(key => !descriptors[key] || !('value' in descriptors[key]))
   )
     throw new TypeError('Invalid loaded codec')
+  if (!codecIdentity(codec) || !codecMedia(codec)) throw new TypeError('Invalid loaded codec')
+}
+
+function codecIdentity(codec: LoadedImageCodec): boolean {
   if (
     typeof codec.name !== 'string' ||
     !codec.name ||
@@ -171,7 +175,14 @@ export function validateCodec(codec: LoadedImageCodec): void {
     !codec.revision ||
     typeof codec.available !== 'function' ||
     typeof codec.inspect !== 'function' ||
-    typeof codec.decode !== 'function' ||
+    typeof codec.decode !== 'function'
+  )
+    return false
+  return true
+}
+
+function codecMedia(codec: LoadedImageCodec): boolean {
+  if (
     !dataOnly(codec.inputMediaTypes) ||
     !dataOnly(codec.outputFormats) ||
     !Array.isArray(codec.inputMediaTypes) ||
@@ -183,5 +194,6 @@ export function validateCodec(codec: LoadedImageCodec): void {
     !codec.outputFormats.every(s => format.safeParse(s).success) ||
     new Set(codec.outputFormats).size !== codec.outputFormats.length
   )
-    throw new TypeError('Invalid loaded codec')
+    return false
+  return true
 }

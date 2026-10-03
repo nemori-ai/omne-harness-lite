@@ -1,5 +1,6 @@
 import { Agent, request, type RequestOptions } from 'node:https'
 import type { IncomingMessage } from 'node:http'
+import type { Socket } from 'node:net'
 import {
   createCredentialRedactionPolicy,
   type CredentialRedactionConfig,
@@ -82,34 +83,9 @@ export async function sendRequest(
   const instance = (event: Diagnostic) => {
     if (!diagnostics) reportDiagnostic(resources.diagnostic, event)
   }
-  if (
-    !isPlannedRequest(planned) ||
-    typeof credential !== 'string' ||
-    !credential.trim() ||
-    /[^\x20-\x7e]/.test(credential) ||
-    !(signal instanceof AbortSignal)
-  )
-    return { rejected: 'invalidInput' }
-  // Admission and binding happen before the connection queue, including direct consumers.
-  let credentialPolicy
-  try {
-    const config = ownCredentialConfiguration(resources.policy.credentialRedaction)
-    credentialPolicy = createCredentialRedactionPolicy(config)
-  } catch {
-    return { rejected: 'invalidInput' }
-  }
-  let binding
-  try {
-    binding = credentialPolicy.bind(credential)
-  } catch {
-    instance({
-      kind: 'model_transport.bind_policy_defect',
-      level: 'error',
-    })
-    execution({ stage: 'send', outcome: 'failed', facts: { kind: 'transport' } })
-    return { failed: { source: 'local', localError: 'bind_policy' } }
-  }
-  if ('rejected' in binding) return { rejected: 'invalidInput' }
+  if (!validSendInput(planned, credential, signal)) return { rejected: 'invalidInput' }
+  const binding = bindCredential()
+  if (!('ok' in binding)) return binding
   const bound = binding.ok
   const connectTimeoutMs = resources.policy.connectTimeoutMs
   const maxErrorBodyBytes = resources.policy.maxErrorBodyBytes
@@ -118,17 +94,7 @@ export async function sendRequest(
   execution({ stage: 'queue', outcome: 'waiting', facts: { kind: 'transport' } })
   const release = await resources.acquireConnection(signal)
   if (!release) {
-    execution({
-      stage: 'queue',
-      outcome: signal.aborted ? 'stopped' : 'unavailable',
-      facts: { kind: 'transport', touch: 'queued' },
-    })
-    if (signal.aborted)
-      instance({
-        kind: 'model_transport.queue_cancelled',
-        level: 'info',
-      })
-    return signal.aborted ? { aborted: true, queued: true } : { rejected: 'unavailable' }
+    return queueRefusal()
   }
   execution({ stage: 'queue', outcome: 'accepted', facts: { kind: 'transport' } })
   if (signal.aborted || resources.closed()) {
@@ -208,7 +174,19 @@ export async function sendRequest(
         facts: { kind: 'transport', touch: 'touched' },
       }),
     )
-    req.once('socket', socket => {
+    req.once('socket', onSocket)
+    req.once('close', onRequestClose)
+    req.once('error', () => {
+      // Once a response exists its owner alone settles, preserving actual HTTP facts and H.
+      if (received) stop()
+    })
+    req.once('response', onResponse)
+    execution({ stage: 'send', outcome: 'started', facts: { kind: 'transport' } })
+    instance({ kind: 'model_transport.send_started', level: 'info' })
+    req.end(planned.serialized)
+    if (signal.aborted) abort()
+
+    function onSocket(socket: Socket): void {
       attached = true
       if (connectTimeoutMs !== null && socket.connecting) {
         const timer = setTimeout(
@@ -222,8 +200,9 @@ export async function sendRequest(
         disposeConnect = dispose
         socket.once('secureConnect', dispose)
       }
-    })
-    req.once('close', () => {
+    }
+
+    function onRequestClose(): void {
       disposeConnect()
       requestClosed = true
       finishStop()
@@ -246,12 +225,9 @@ export async function sendRequest(
             ),
           reject,
         )
-    })
-    req.once('error', () => {
-      // Once a response exists its owner alone settles, preserving actual HTTP facts and H.
-      if (received) stop()
-    })
-    req.once('response', res => {
+    }
+
+    function onResponse(res: IncomingMessage): void {
       received = true
       responseStream = res
       responseClosed = false
@@ -269,31 +245,7 @@ export async function sendRequest(
           facts: { kind: 'transport', httpStatus: statusCode },
         })
       const httpFailure = statusCode !== undefined && !(statusCode >= 200 && statusCode < 300)
-      let rawHeaders: RawHeaders | undefined,
-        invalidHeaders = false
-      // Node's undefined entries denote absence. Do not normalize the actual map or arrays.
-      const headers: Record<string, string | readonly string[]> = Object.create(null)
-      for (const [key, value] of Object.entries(res.headers))
-        if (value !== undefined) headers[key] = value
-      let captured
-      try {
-        captured = bound.headers(headers)
-      } catch {
-        instance({
-          kind: 'model_transport.headers_policy_defect',
-          level: 'error',
-        })
-      }
-      if (captured) {
-        if ('ok' in captured) rawHeaders = captured.ok
-        else {
-          invalidHeaders = true
-          instance({
-            kind: 'model_transport.headers_policy_rejected',
-            level: 'error',
-          })
-        }
-      }
+      const { rawHeaders, invalidHeaders } = captureHeaders()
       const retained = rawHeaders === undefined ? {} : { rawHeaders }
       const actualFailure = (localError: string): TransportFailure =>
         httpFailure
@@ -356,28 +308,33 @@ export async function sendRequest(
         if (signal.aborted) return { aborted: true, ...retained }
         const parsed =
           tooLarge || readFailed ? undefined : strictObject(Buffer.concat(chunks).toString('utf8'))
-        let failed: TransportFailure = actualFailure(
-          readFailed ? 'error_body_read' : 'upstream HTTP error',
-        )
-        if (parsed) {
-          try {
-            failed = {
-              source: 'http_status',
-              statusCode,
-              upstreamError: { raw: processedObject(bound, parsed, 'error_body_policy') },
-            }
-          } catch (error) {
-            if (!(error instanceof CredentialProcessingFailure)) throw error
-            failed = actualFailure(error.stage)
-            instance({
-              kind: error.rejected
-                ? 'model_transport.error_body_policy_rejected'
-                : 'model_transport.error_body_policy_defect',
-              level: 'error',
-            })
-          }
-        }
+        const failed = errorBodyFailure(statusCode)
         return { failed, ...retained }
+
+        function errorBodyFailure(statusCode: number): TransportFailure {
+          let failed: TransportFailure = actualFailure(
+            readFailed ? 'error_body_read' : 'upstream HTTP error',
+          )
+          if (parsed) {
+            try {
+              failed = {
+                source: 'http_status',
+                statusCode,
+                upstreamError: { raw: processedObject(bound, parsed, 'error_body_policy') },
+              }
+            } catch (error) {
+              if (!(error instanceof CredentialProcessingFailure)) throw error
+              failed = actualFailure(error.stage)
+              instance({
+                kind: error.rejected
+                  ? 'model_transport.error_body_policy_rejected'
+                  : 'model_transport.error_body_policy_defect',
+                level: 'error',
+              })
+            }
+          }
+          return failed
+        }
       }
       void readError()
         .then(
@@ -396,10 +353,86 @@ export async function sendRequest(
           },
         )
         .catch(reject)
-    })
-    execution({ stage: 'send', outcome: 'started', facts: { kind: 'transport' } })
-    instance({ kind: 'model_transport.send_started', level: 'info' })
-    req.end(planned.serialized)
-    if (signal.aborted) abort()
+
+      function captureHeaders(): { rawHeaders: RawHeaders | undefined; invalidHeaders: boolean } {
+        let rawHeaders: RawHeaders | undefined,
+          invalidHeaders = false
+        // Node's undefined entries denote absence. Do not normalize the actual map or arrays.
+        const headers: Record<string, string | readonly string[]> = Object.create(null)
+        for (const [key, value] of Object.entries(res.headers))
+          if (value !== undefined) headers[key] = value
+        let captured
+        try {
+          captured = bound.headers(headers)
+        } catch {
+          instance({
+            kind: 'model_transport.headers_policy_defect',
+            level: 'error',
+          })
+        }
+        if (captured) {
+          if ('ok' in captured) rawHeaders = captured.ok
+          else {
+            invalidHeaders = true
+            instance({
+              kind: 'model_transport.headers_policy_rejected',
+              level: 'error',
+            })
+          }
+        }
+        return { rawHeaders, invalidHeaders }
+      }
+    }
   })
+
+  function bindCredential():
+    { ok: BoundCredentialRedaction } | { rejected: 'invalidInput' } | { failed: TransportFailure } {
+    // Admission and binding happen before the connection queue, including direct consumers.
+    let credentialPolicy
+    try {
+      const config = ownCredentialConfiguration(resources.policy.credentialRedaction)
+      credentialPolicy = createCredentialRedactionPolicy(config)
+    } catch {
+      return { rejected: 'invalidInput' }
+    }
+    let binding
+    try {
+      binding = credentialPolicy.bind(credential)
+    } catch {
+      instance({
+        kind: 'model_transport.bind_policy_defect',
+        level: 'error',
+      })
+      execution({ stage: 'send', outcome: 'failed', facts: { kind: 'transport' } })
+      return { failed: { source: 'local', localError: 'bind_policy' } }
+    }
+    if ('rejected' in binding) return { rejected: 'invalidInput' }
+    return { ok: binding.ok }
+  }
+
+  function queueRefusal(): SendResult<RawResponse> {
+    execution({
+      stage: 'queue',
+      outcome: signal.aborted ? 'stopped' : 'unavailable',
+      facts: { kind: 'transport', touch: 'queued' },
+    })
+    if (signal.aborted)
+      instance({
+        kind: 'model_transport.queue_cancelled',
+        level: 'info',
+      })
+    return signal.aborted ? { aborted: true, queued: true } : { rejected: 'unavailable' }
+  }
+}
+
+function validSendInput(planned: PlannedRequest, credential: string, signal: AbortSignal): boolean {
+  if (
+    !isPlannedRequest(planned) ||
+    typeof credential !== 'string' ||
+    !credential.trim() ||
+    /[^\x20-\x7e]/.test(credential) ||
+    !(signal instanceof AbortSignal)
+  )
+    return false
+  return true
 }

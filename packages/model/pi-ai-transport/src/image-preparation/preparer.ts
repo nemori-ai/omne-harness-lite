@@ -10,6 +10,7 @@ import {
 import { IMAGE_PREPARATION_ALGORITHM_REVISION } from './preset.ts'
 import type {
   CodecFailure,
+  CodecResult,
   DecodedImage,
   EncodedImage,
   ImageEncodeSpec,
@@ -170,43 +171,9 @@ export function createImagePreparer(
   ): Promise<ImagePrepareResult> {
     const refused = (rejected: ImagePrepareRejection) => Promise.resolve({ rejected })
     if (closed) return refused({ reason: 'provider_unavailable', cause: 'closed' })
-    if (!dataOnly(input)) return refused({ reason: 'malformed_input', field: 'input' })
-    const parsed = inputSchema.safeParse(input)
-    if (!parsed.success)
-      return refused({
-        reason: 'malformed_input',
-        field:
-          parsed.error.issues[0]?.path
-            .map(part => (typeof part === 'number' ? 'item' : String(part)))
-            .join('.') || 'input',
-      })
-    const validated = parsed.data
-    if (new Set(validated.images.map(image => image.position)).size !== validated.images.length)
-      return refused({ reason: 'malformed_input', field: 'images.position' })
-    if (reuseScope !== undefined && (reuseScope === null || typeof reuseScope !== 'object'))
-      return refused({ reason: 'malformed_input', field: 'reuseScope' })
-    if (validated.signal.aborted) return refused({ reason: 'aborted' })
-    try {
-      const available = codec.available()
-      if (available !== true)
-        return refused({
-          reason: 'provider_unavailable',
-          cause: available === false ? 'codec_unavailable' : 'codec_failure',
-        })
-    } catch {
-      return refused({ reason: 'provider_unavailable', cause: 'codec_failure' })
-    }
-    for (const [imageIndex, image] of validated.images.entries()) {
-      if (image.bytes.byteLength > p.sourceMaxBytes)
-        return refused({ reason: 'source_resource_limit', imageIndex })
-    }
-    const sourceBytes = validated.images.reduce((total, image) => total + image.bytes.byteLength, 0)
-    if (
-      !Number.isSafeInteger(sourceBytes) ||
-      active.size >= p.maxConcurrent ||
-      sourceBytes + inFlightBytes > p.maxInFlightBytes
-    )
-      return refused({ reason: 'provider_unavailable', cause: 'busy' })
+    const admission = admitBatch()
+    if ('refused' in admission) return admission.refused
+    const { validated, sourceBytes } = admission
     inFlightBytes += sourceBytes
     let reserved = sourceBytes
     const own = validated.images.map(image => ({ ...image, bytes: new Uint8Array(image.bytes) }))
@@ -272,12 +239,7 @@ export function createImagePreparer(
         }
         const spec = cursor.specs[ordinal - 1]
         if (!spec) continue
-        if (
-          spec.width < p.minWidth ||
-          spec.height < p.minHeight ||
-          !codec.outputFormats.includes(spec.format) ||
-          (cursor.decoded.hasAlpha && spec.format === 'jpeg' && p.alphaBackground === null)
-        ) {
+        if (unavailableSpec(spec, cursor)) {
           cursor.pending.set(key, { ordinal, image: null })
           continue
         }
@@ -292,19 +254,7 @@ export function createImagePreparer(
           }
           codecFailure(encoded.failure, imageIndex, true)
         }
-        if (!dataOnly(encoded.ok))
-          reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
-        const valid = encodedSchema.safeParse(encoded.ok)
-        if (!valid.success) reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
-        const image = valid.data
-        if (
-          image.mediaType !== mime[spec.format] ||
-          image.width > spec.width ||
-          image.height > spec.height ||
-          image.width < p.minWidth ||
-          image.height < p.minHeight
-        )
-          reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
+        const image = encodedImage(encoded, spec)
         release(p.candidateMaxBytes)
         if (image.bytes.byteLength > p.candidateMaxBytes) {
           continue
@@ -319,52 +269,55 @@ export function createImagePreparer(
         return candidate
       }
       return undefined
+
+      function encodedImage(encoded: { ok: EncodedImage }, spec: ImageEncodeSpec): EncodedImage {
+        if (!dataOnly(encoded.ok))
+          reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
+        const valid = encodedSchema.safeParse(encoded.ok)
+        if (!valid.success) reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
+        const image = valid.data
+        if (
+          image.mediaType !== mime[spec.format] ||
+          image.width > spec.width ||
+          image.height > spec.height ||
+          image.width < p.minWidth ||
+          image.height < p.minHeight
+        )
+          reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
+        return image
+      }
+
+      function unavailableSpec(spec: ImageEncodeSpec, cursor: Cursor): boolean {
+        if (
+          spec.width < p.minWidth ||
+          spec.height < p.minHeight ||
+          !codec.outputFormats.includes(spec.format) ||
+          (cursor.decoded.hasAlpha && spec.format === 'jpeg' && p.alphaBackground === null)
+        )
+          return true
+        return false
+      }
     }
-    const task = (async (): Promise<ImagePrepareResult> => {
+    const task = runPreparation()
+    active.set(task, controller)
+    const completion = task.finally(() => {
+      active.delete(task)
+    })
+    return completion
+
+    async function runPreparation(): Promise<ImagePrepareResult> {
       try {
         check()
-        if (
-          validated.maxRequestBytes !== null &&
-          validated.nonImageWireBytes > validated.maxRequestBytes
-        )
-          reject(
-            own.length
-              ? { reason: 'no_candidate', stage: 'request_total' }
-              : {
-                  reason: 'exact_request_limit_exceeded',
-                  actualBytes: validated.nonImageWireBytes,
-                  limitBytes: validated.maxRequestBytes,
-                },
-          )
+        checkNonImageBudget()
         for (const [i, image] of own.entries()) {
-          if (image.bytes.byteLength > p.sourceMaxBytes)
-            reject({ reason: 'source_resource_limit', imageIndex: i })
-          if (!codec.inputMediaTypes.includes(image.mediaType))
-            reject({ reason: 'unsupported_encoding', imageIndex: i })
+          checkSourceImage(image, i)
           const limits = { maxPixels: p.decodedMaxPixels, maxDimension: p.decodedMaxDimension }
           const inspected = await codec.inspect(image.bytes, limits)
           check()
-          if ('failure' in inspected) codecFailure(inspected.failure, i, false)
-          if (!dataOnly(inspected.ok))
-            reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
-          const valid = metadataSchema.safeParse(inspected.ok)
-          if (!valid.success) reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
-          const metadata = valid.data
-          if (metadata.mediaType !== image.mediaType)
-            reject({ reason: 'malformed_image', imageIndex: i })
-          if (metadata.pages !== 1) reject({ reason: 'animated_input', imageIndex: i })
-          if (
-            metadata.width > p.decodedMaxDimension ||
-            metadata.height > p.decodedMaxDimension ||
-            metadata.width * metadata.height > p.decodedMaxPixels
-          )
-            reject({ reason: 'source_resource_limit', imageIndex: i })
+          const metadata = inspectedMetadata(inspected, image, i)
           reserve(metadata.width * metadata.height * 4)
-          const decoded = await codec.decode(image.bytes, metadata, limits)
-          if ('failure' in decoded) {
-            check()
-            codecFailure(decoded.failure, i, true)
-          }
+          const decodedResult = await codec.decode(image.bytes, metadata, limits)
+          const decoded = requireDecoded(decodedResult, i)
           const cursor: Cursor = {
             input: image,
             metadata,
@@ -376,34 +329,10 @@ export function createImagePreparer(
           }
           cursors.push(cursor)
           check()
-          const swap = metadata.orientation >= 5
-          if (
-            decoded.ok.width !== (swap ? metadata.height : metadata.width) ||
-            decoded.ok.height !== (swap ? metadata.width : metadata.height) ||
-            decoded.ok.hasAlpha !== metadata.hasAlpha
-          )
-            reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
-          if (
-            metadata.orientation === 1 &&
-            image.bytes.byteLength <= image.targetMaxBytes &&
-            image.bytes.byteLength <= p.candidateMaxBytes &&
-            decoded.ok.width <= p.maxWidth &&
-            decoded.ok.height <= p.maxHeight
-          )
-            cursor.selected = {
-              ordinal: 0,
-              image: {
-                bytes: image.bytes,
-                mediaType: image.mediaType,
-                width: decoded.ok.width,
-                height: decoded.ok.height,
-              },
-            }
+          selectOriginalImage(cursor, decoded, metadata, image)
           while (!cursor.selected) {
             const candidate = await next(cursor, i)
-            if (!candidate) reject({ reason: 'no_candidate', stage: 'per_image', imageIndex: i })
-            if (candidate.image && candidate.image.bytes.byteLength <= image.targetMaxBytes)
-              cursor.selected = candidate
+            selectPerImageCandidate(cursor, candidate, image, i)
           }
         }
         const total = () =>
@@ -413,27 +342,12 @@ export function createImagePreparer(
             0,
           )
         if (validated.maxRequestBytes !== null && total() > validated.maxRequestBytes) {
-          const ordered = cursors
-            .map((cursor, index) => ({ cursor, index }))
-            .sort(
-              (a, b) =>
-                (b.cursor.selected?.image ? imageWireBytes(b.cursor.selected.image) : 0) -
-                  (a.cursor.selected?.image ? imageWireBytes(a.cursor.selected.image) : 0) ||
-                a.index - b.index,
-            )
+          const ordered = cursorsByWireContribution()
           for (const { cursor, index } of ordered) {
             while (total() > validated.maxRequestBytes) {
               const candidate = await next(cursor, index)
               if (!candidate) break
-              const previous = cursor.selected
-              if (
-                candidate.image &&
-                previous?.image &&
-                candidate.image.bytes.byteLength <= cursor.input.targetMaxBytes &&
-                imageWireBytes(candidate.image) < imageWireBytes(previous.image)
-              ) {
-                cursor.selected = candidate
-              }
+              selectSmallerCandidate(cursor, candidate)
             }
             if (total() <= validated.maxRequestBytes) break
           }
@@ -441,37 +355,15 @@ export function createImagePreparer(
             reject({ reason: 'no_candidate', stage: 'request_total' })
         }
         check()
-        const images: PreparedImage[] = cursors.map(cursor => {
-          const candidate = cursor.selected
-          if (!candidate?.image)
-            return reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
-          reserve(candidate.image.bytes.byteLength)
-          return {
-            ...candidate.image,
-            bytes: new Uint8Array(candidate.image.bytes),
-            sourceDigest: cursor.sourceDigest,
-            targetDigest: digest(candidate.image.bytes),
-            transformRevision: IMAGE_PREPARATION_ALGORITHM_REVISION,
-            policyDigest,
-            changed: candidate.ordinal !== 0,
-            candidateOrdinal: candidate.ordinal,
-          }
-        })
+        const images = preparedImages()
         const drained = await Promise.allSettled(cursors.map(closeDecoded))
-        if (drained.some(result => result.status === 'rejected'))
-          reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
+        requireDrained(drained)
         check()
-        if (table && reuseScope && scopes.get(reuseScope) === table)
-          for (const cursor of cursors)
-            for (const [key, candidate] of cursor.pending) publish(table, key, candidate)
+        publishPreparedCandidates()
         return { prepared: { images, exploredThrough: cursors.map(cursor => cursor.explored) } }
       } catch (error) {
         return {
-          rejected: controller.signal.aborted
-            ? { reason: 'aborted' }
-            : error instanceof Rejection
-              ? error.rejection
-              : { reason: 'provider_unavailable', cause: 'codec_failure' },
+          rejected: preparationFailure(error),
         }
       } finally {
         const drained = await Promise.allSettled(cursors.map(closeDecoded))
@@ -480,12 +372,219 @@ export function createImagePreparer(
         if (drained.some(result => result.status === 'rejected'))
           return { rejected: { reason: 'provider_unavailable', cause: 'codec_failure' } }
       }
-    })()
-    active.set(task, controller)
-    const completion = task.finally(() => {
-      active.delete(task)
-    })
-    return completion
+    }
+
+    function admitBatch():
+      | { validated: ReturnType<typeof inputSchema.parse>; sourceBytes: number }
+      | { refused: Promise<ImagePrepareResult> } {
+      const admissionRefused = (rejected: ImagePrepareRejection) => ({ refused: refused(rejected) })
+      if (!dataOnly(input)) return admissionRefused({ reason: 'malformed_input', field: 'input' })
+      const parsed = inputSchema.safeParse(input)
+      if (!parsed.success)
+        return admissionRefused({
+          reason: 'malformed_input',
+          field:
+            parsed.error.issues[0]?.path
+              .map(part => (typeof part === 'number' ? 'item' : String(part)))
+              .join('.') || 'input',
+        })
+      const validated = parsed.data
+      if (new Set(validated.images.map(image => image.position)).size !== validated.images.length)
+        return admissionRefused({ reason: 'malformed_input', field: 'images.position' })
+      if (reuseScope !== undefined && (reuseScope === null || typeof reuseScope !== 'object'))
+        return admissionRefused({ reason: 'malformed_input', field: 'reuseScope' })
+      if (validated.signal.aborted) return admissionRefused({ reason: 'aborted' })
+      const source = sourceAdmission()
+      if ('refused' in source) return source
+      return { validated, sourceBytes: source.sourceBytes }
+
+      function sourceAdmission():
+        { sourceBytes: number } | { refused: Promise<ImagePrepareResult> } {
+        try {
+          const available = codec.available()
+          if (available !== true)
+            return admissionRefused({
+              reason: 'provider_unavailable',
+              cause: available === false ? 'codec_unavailable' : 'codec_failure',
+            })
+        } catch {
+          return admissionRefused({ reason: 'provider_unavailable', cause: 'codec_failure' })
+        }
+        for (const [imageIndex, image] of validated.images.entries()) {
+          if (image.bytes.byteLength > p.sourceMaxBytes)
+            return admissionRefused({ reason: 'source_resource_limit', imageIndex })
+        }
+        const sourceBytes = validated.images.reduce(
+          (total, image) => total + image.bytes.byteLength,
+          0,
+        )
+        if (
+          !Number.isSafeInteger(sourceBytes) ||
+          active.size >= p.maxConcurrent ||
+          sourceBytes + inFlightBytes > p.maxInFlightBytes
+        )
+          return admissionRefused({ reason: 'provider_unavailable', cause: 'busy' })
+        return { sourceBytes }
+      }
+    }
+
+    function inspectedMetadata(
+      inspected: CodecResult<ImageMetadata>,
+      image: ImagePrepareInput,
+      i: number,
+    ): ImageMetadata {
+      if ('failure' in inspected) codecFailure(inspected.failure, i, false)
+      if (!dataOnly(inspected.ok))
+        reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
+      const valid = metadataSchema.safeParse(inspected.ok)
+      if (!valid.success) reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
+      const metadata = valid.data
+      if (metadata.mediaType !== image.mediaType)
+        reject({ reason: 'malformed_image', imageIndex: i })
+      if (metadata.pages !== 1) reject({ reason: 'animated_input', imageIndex: i })
+      if (
+        metadata.width > p.decodedMaxDimension ||
+        metadata.height > p.decodedMaxDimension ||
+        metadata.width * metadata.height > p.decodedMaxPixels
+      )
+        reject({ reason: 'source_resource_limit', imageIndex: i })
+      return metadata
+    }
+
+    function selectOriginalImage(
+      cursor: Cursor,
+      decoded: { ok: DecodedImage },
+      metadata: ImageMetadata,
+      image: ImagePrepareInput,
+    ): void {
+      const swap = metadata.orientation >= 5
+      if (
+        decoded.ok.width !== (swap ? metadata.height : metadata.width) ||
+        decoded.ok.height !== (swap ? metadata.width : metadata.height) ||
+        decoded.ok.hasAlpha !== metadata.hasAlpha
+      )
+        reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
+      if (
+        metadata.orientation === 1 &&
+        image.bytes.byteLength <= image.targetMaxBytes &&
+        image.bytes.byteLength <= p.candidateMaxBytes &&
+        decoded.ok.width <= p.maxWidth &&
+        decoded.ok.height <= p.maxHeight
+      )
+        cursor.selected = {
+          ordinal: 0,
+          image: {
+            bytes: image.bytes,
+            mediaType: image.mediaType,
+            width: decoded.ok.width,
+            height: decoded.ok.height,
+          },
+        }
+    }
+
+    function checkNonImageBudget(): void {
+      if (
+        validated.maxRequestBytes !== null &&
+        validated.nonImageWireBytes > validated.maxRequestBytes
+      )
+        reject(
+          own.length
+            ? { reason: 'no_candidate', stage: 'request_total' }
+            : {
+                reason: 'exact_request_limit_exceeded',
+                actualBytes: validated.nonImageWireBytes,
+                limitBytes: validated.maxRequestBytes,
+              },
+        )
+    }
+
+    function preparedImages(): PreparedImage[] {
+      const images: PreparedImage[] = cursors.map(cursor => {
+        const candidate = cursor.selected
+        if (!candidate?.image)
+          return reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
+        reserve(candidate.image.bytes.byteLength)
+        return {
+          ...candidate.image,
+          bytes: new Uint8Array(candidate.image.bytes),
+          sourceDigest: cursor.sourceDigest,
+          targetDigest: digest(candidate.image.bytes),
+          transformRevision: IMAGE_PREPARATION_ALGORITHM_REVISION,
+          policyDigest,
+          changed: candidate.ordinal !== 0,
+          candidateOrdinal: candidate.ordinal,
+        }
+      })
+      return images
+    }
+
+    function publishPreparedCandidates(): void {
+      if (table && reuseScope && scopes.get(reuseScope) === table)
+        for (const cursor of cursors)
+          for (const [key, candidate] of cursor.pending) publish(table, key, candidate)
+    }
+
+    function checkSourceImage(image: ImagePrepareInput, i: number): void {
+      if (image.bytes.byteLength > p.sourceMaxBytes)
+        reject({ reason: 'source_resource_limit', imageIndex: i })
+      if (!codec.inputMediaTypes.includes(image.mediaType))
+        reject({ reason: 'unsupported_encoding', imageIndex: i })
+    }
+
+    function requireDecoded(decoded: CodecResult<DecodedImage>, i: number): { ok: DecodedImage } {
+      if ('failure' in decoded) {
+        check()
+        codecFailure(decoded.failure, i, true)
+      }
+      return decoded
+    }
+
+    function selectPerImageCandidate(
+      cursor: Cursor,
+      candidate: Candidate | undefined,
+      image: ImagePrepareInput,
+      i: number,
+    ): void {
+      if (!candidate) reject({ reason: 'no_candidate', stage: 'per_image', imageIndex: i })
+      if (candidate.image && candidate.image.bytes.byteLength <= image.targetMaxBytes)
+        cursor.selected = candidate
+    }
+
+    function cursorsByWireContribution() {
+      return cursors
+        .map((cursor, index) => ({ cursor, index }))
+        .sort(
+          (a, b) =>
+            (b.cursor.selected?.image ? imageWireBytes(b.cursor.selected.image) : 0) -
+              (a.cursor.selected?.image ? imageWireBytes(a.cursor.selected.image) : 0) ||
+            a.index - b.index,
+        )
+    }
+
+    function selectSmallerCandidate(cursor: Cursor, candidate: Candidate): void {
+      const previous = cursor.selected
+      if (
+        candidate.image &&
+        previous?.image &&
+        candidate.image.bytes.byteLength <= cursor.input.targetMaxBytes &&
+        imageWireBytes(candidate.image) < imageWireBytes(previous.image)
+      ) {
+        cursor.selected = candidate
+      }
+    }
+
+    function requireDrained(drained: readonly PromiseSettledResult<void>[]): void {
+      if (drained.some(result => result.status === 'rejected'))
+        reject({ reason: 'provider_unavailable', cause: 'codec_failure' })
+    }
+
+    function preparationFailure(error: unknown): ImagePrepareRejection {
+      return controller.signal.aborted
+        ? { reason: 'aborted' }
+        : error instanceof Rejection
+          ? error.rejection
+          : { reason: 'provider_unavailable', cause: 'codec_failure' }
+    }
   }
   const preparer: ImagePreparer = Object.freeze({
     algorithmRevision: IMAGE_PREPARATION_ALGORITHM_REVISION,

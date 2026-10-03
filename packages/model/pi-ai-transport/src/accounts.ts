@@ -5,6 +5,7 @@ import {
   isNonNegativeJsonInteger,
   type JsonNumber,
   type JsonObject,
+  type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { member } from './json.ts'
 import type { Diagnostic } from './http.ts'
@@ -49,19 +50,23 @@ export function accountFromUsage(
       source: knownBase ? 'upstream' : 'none',
       ...(knownBase && isNonNegativeJsonInteger(reasoning) ? { reasoning_tokens: reasoning } : {}),
     },
-    cost:
-      isJsonNumber(reportedCost) &&
-      ExactDecimal.from(reportedCost).compare(ExactDecimal.from(0)) >= 0
-        ? {
-            cost_usd: reportedCost,
-            source: 'upstream_usage',
-            ...(isJsonNumber(upstream) &&
-            ExactDecimal.from(upstream).compare(ExactDecimal.from(0)) >= 0
-              ? { upstream_inference_cost_usd: upstream }
-              : {}),
-          }
-        : { cost_usd: 'unknown', source: 'none' },
+    cost: reportedUsageCost(reportedCost, upstream),
   }
+}
+function reportedUsageCost(
+  reportedCost: JsonValue | undefined,
+  upstream: JsonValue | undefined,
+): Cost {
+  return isJsonNumber(reportedCost) &&
+    ExactDecimal.from(reportedCost).compare(ExactDecimal.from(0)) >= 0
+    ? {
+        cost_usd: reportedCost,
+        source: 'upstream_usage',
+        ...(isJsonNumber(upstream) && ExactDecimal.from(upstream).compare(ExactDecimal.from(0)) >= 0
+          ? { upstream_inference_cost_usd: upstream }
+          : {}),
+      }
+    : { cost_usd: 'unknown', source: 'none' }
 }
 function newNumberMinus(value: JsonNumber): JsonNumber {
   const number = ExactDecimal.from(value).toString()
