@@ -313,7 +313,7 @@ make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make che
 或给了 `BASE` 且[验收锁](#验收锁)被破或[删卡缺记录](#删卡记录)（两条用同一个基线），或严格模式下有开着的传感器没数据；
 2 是工具自己出错（参数、配置、git）；其余报告项再多也是 0。
 
-**严格模式**（`STRICT=1`，即 `--strict`）另判一条硬线：配置里开着的传感器（`sensors` 下带 `enabled` 的八个）每一个都要有数据。
+**严格模式**（`STRICT=1`，即 `--strict`）另判一条硬线：配置里开着的传感器（`sensors` 下带 `enabled` 的九个）每一个都要有数据。
 有哪个报「没数据」，「硬线」一段列出是哪几个、原因是什么，退出 1；配置里关掉的不算，照旧写明是关掉的。
 对照表那一项没有开关、也不进指标，不在此列。「没有基线快照，与基线比未判」是趋势的事，不算传感器没数据。
 它要求给 `BASE` 与 `OUT`（缺了按用法错退出 2），草稿写进 `OUT/proposals/`，不写趋势快照（与 `SNAPSHOT=1` 同用也是用法错）——
@@ -352,11 +352,53 @@ make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make che
 | 稳定依赖不稳定的边数 | 成员边 `from → to` 里 `I(to) − I(from) > margin` 的条数，I 是度量报告的不稳定度 |
 | 一起改却分属两组的成员对数 | HEAD 上最近 `window` 个非合并提交各碰过哪些 `packages/`、`apps/` 成员；一次碰了超过 `maxMembersPerCommit` 个的不计；分属不同组、同改次数 ≥ `minTogether` 且同改次数 ÷ 两者各自被改次数的较小者 ≥ `minRatio` 的成员对 |
 | 新增跨成员依赖数 | 给了 `BASE` 才有：HEAD 的边减去基线的边。基线边集 = HEAD 的边去掉导入处全在改动文件里的，再并上改动过的产品源码在合并点的文本解析出的边（含已删除的文件）；同时列出消失的边作参考 |
+| 新增装配偏离数、装配声明改动数 | 当前源码对 merge-base 声明的偏离，减去基线源码对基线声明的偏离；HEAD 的 assembly/composition 语义改动另列。两项无绝对线、不与趋势基线比，每条进入红项 |
+| 装配缺失数、未解析服务标识符数 | 意图有而静态实现无的关系、服务标识符未解析次数；未知不能证明缺失。两项无绝对线，只报告相对趋势基线的增长 |
 | 没有断言的测试数 | 成员测试文件里的 `it`／`test` 用例（含 `.each`、`.concurrent`、`.only`；`.todo`、`.skip` 不算，外层 `describe.skip`／`describe.todo` 里的也不算），回调体里没有一次调用的最左标识符匹配 `assertionPattern` 或 `helperPattern`，也没有调用同一文件里声明的、函数体内含这种调用的函数（只解一层）。路径匹配 `typeTestPattern` 的类型测试文件里编译器就是断言者，`@ts-expect-error` 指令与「应当编译得过」的调用、带类型注解的声明、`satisfies` 也算断言。按语法树判 |
 | 全仓重复行占比（%） | 见下「重复代码」 |
 | 单个 topic 窗口内 rev 翻动次数 | `productRoot` 下每个 `PF-*/README.md` 最近 `windowDays` 天里改动过 `revision:` 那一行的提交数，取最大；达到提醒线的 topic 全部列出 |
 | 并行工作树数、被多棵工作树同时改的成员数 | `git worktree list` 里主检出以外、带分支的工作树；各自相对 `primaryBranch` 合并点改过的成员（含未提交） |
 | 验收总耗时（秒）、最慢一份验收的耗时（秒） | 见下「验收耗时」；份数跟在行尾 |
+
+### 装配意图对照
+
+`src/arch/` 提供独立静态抽取、版本快照和对照函数。回路经 `sensors.reflexion` 调用它们。
+声明语义沿 [realization 的装配声明](../../.meta_harness/design/realization/README.md)，
+集成约定沿 [IC-1、IC-2、IC-5、IC-8、IC-9](../../.meta_harness/design/realization/cordis-integration-conventions.md)。工具不反写声明。
+
+| 配置                                                   | 含义                                                             |
+| ------------------------------------------------------ | ---------------------------------------------------------------- |
+| `sensors.reflexion.enabled`                            | 关闭后不读取源码或节点，读数写「配置里关了」                     |
+| `sensors.reflexion.nodeRoot`                           | 相对于被量仓库根的节点区路径；缺项、绝对路径或向父目录越界报错   |
+| `indicators.newDeviations`、`assemblyChanges`          | `lines: null`、`baseline: false`；新增偏离和声明改动各条进入红项 |
+| `indicators.missingAssembly`、`unresolvedServiceNames` | `lines: null`、`baseline: true`；只报告增长                      |
+
+原生插件对象需要 Context 首参、Cordis Plugin 类型或已确认 Context 的 plugin 注册出处；definePlugin 也提供出处。
+只有 name/apply 形状的候选逐项记未知，显式普通参数类型不会升级为 Context。
+抽取使用 TypeScript AST、词法符号和官方模块解析。公开入口与常量按对应版本的源码和 package exports 还原。
+基线源集包含已删除或搬迁的文件。事实身份不含源码路径或行号，多个插件和内嵌 inject 作用域分别保留。
+服务定义保留 Context 增补或 Service 类来源；提供调用另存。事件保留声明的 `@mode` 与实际派发模式。
+导入保留目标导出名、本地别名及 type/runtime。输出位于 `status.json` 的 `sensors.reflexion.data`。
+
+逐项状态是 `converged`、`deviation`、`missing`、`unknown`。包存在但无 assembly/composition 是 `undeclared`，
+包无节点是 `no-design`，节点无包是 `not-built`。明确空声明的纯数据包有声明。README 的「源码位置」明确当前已建或未建、而包存在性相反时，
+另报 `source-location-mismatch`；历史引语和只有坐标的行保持未知。节点区缺失或完全无声明是 no-data；一个有效声明即可提供数据，其他未声明节点继续报告。
+严格模式下开启却 no-data 会失败并点名。
+
+新增偏离始终对照 merge-base 声明。修改当前声明不能消除它，声明语义改动另列。
+YAML 注释、格式和映射键顺序不产生声明改动。未提交与未跟踪源码也参与分析。
+IC-5 例外只放行基线声明点名的导出符号；混合导入的其他符号仍报偏离，namespace 通配符不能放行。
+输出记录例外的 `sharedStorage` 和设计出处，不据此证明共同提交。原有方向与环硬线保持独立。
+
+不能静态还原的表达式逐项保留 path/line/kind/expression/reason。
+服务失败率仅计算服务标识符解析尝试，事件名与配置未知不进入分母。
+静态分析不执行配置工厂，不证明动态装配、事件隔离、运行时可用性或共享提交。
+动态插件名、循环中的动态服务键仍可能未知；调用关联仅覆盖可追踪的 Context 交接，不解释任意 JavaScript。
+当前 43 个成员、52 个节点的首轮 AST 抽取约 4.4 秒，111 次服务标识符尝试中 5 次未知。
+基线完整读取和第二次抽取另有成本，耗时随输入规模和机器负载变化。
+
+自测：`tests/arch-extract.spec.ts`、`tests/loop-reflexion*.spec.ts`，加现有 config、strict 和金丝雀测试。
+这些自测支持已种下的正反例；独立 QA 与真实坏提交演示由接受者另行完成。
 
 ### 验收耗时
 

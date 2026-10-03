@@ -53,6 +53,7 @@ class Extractor {
   readonly failed = new Set<string>()
   readonly imports: ImportFact[] = []
   readonly plugins: Plugin[] = []
+  readonly registeredObjects = new Set<ts.ObjectLiteralExpression>()
   readonly visited = new Set<string>()
   readonly snapshot: Snapshot
   constructor(snapshot: Snapshot) {
@@ -249,6 +250,53 @@ class Extractor {
       }
     return members
   }
+  pluginType(node: ts.TypeNode | undefined): boolean {
+    return (
+      node !== undefined &&
+      ts.isTypeReferenceNode(node) &&
+      this.resolver.imported(node.typeName, 'Plugin', '@deepseek-ai/cordis')
+    )
+  }
+  pluginObject(
+    node: ts.ObjectLiteralExpression,
+    apply: ts.FunctionLikeDeclaration | undefined,
+  ): boolean {
+    if (this.contextType(apply?.parameters[0]?.type) || this.registeredObjects.has(node))
+      return true
+    let parent: ts.Node = node.parent
+    while (ts.isParenthesizedExpression(parent)) parent = parent.parent
+    if (ts.isSatisfiesExpression(parent) || ts.isAsExpression(parent))
+      return this.pluginType(parent.type)
+    return ts.isVariableDeclaration(parent) && this.pluginType(parent.type)
+  }
+  unconfirmedPlugin(node: ts.Node, context: WalkContext): void {
+    this.unknown.set(`${this.resolver.path(node)}|${node.pos}|candidate-plugin`, {
+      ...this.resolver.site(node),
+      member: context.member,
+      scope: context.scope,
+      kind: 'plugin',
+      expression: node.getText(),
+      reason:
+        'name/apply candidate has no static Cordis Context, Plugin type or ctx.plugin registration provenance',
+      serviceIdentifier: false,
+    })
+  }
+  registrations(tree: ts.SourceFile): void {
+    const member = memberOf(this.resolver.path(tree))?.path
+    if (member === undefined) return
+    visitSyntax(tree, node => {
+      if (
+        !ts.isCallExpression(node) ||
+        !ts.isPropertyAccessExpression(node.expression) ||
+        node.expression.name.text !== 'plugin' ||
+        !this.isContext(node.expression.expression, this.empty(member))
+      )
+        return
+      const value = this.resolver.value(node.arguments[0])
+      if (value !== undefined && ts.isObjectLiteralExpression(value))
+        this.registeredObjects.add(value)
+    })
+  }
   discover(tree: ts.SourceFile): void {
     const member = memberOf(this.resolver.path(tree))?.path
     if (member === undefined) return
@@ -265,9 +313,13 @@ class Extractor {
             '@omne-harness-lite/kernel-basis',
           )
         if (apply === undefined || (!wrapped && name === undefined)) return
+        const body = this.resolver.callable(apply)
+        if (!wrapped && !this.pluginObject(node, body)) {
+          this.unconfirmedPlugin(node, context)
+          return
+        }
         const key = this.key('plugin', name, context)
-        const inject = expression(property(node, 'inject')),
-          body = this.resolver.callable(apply)
+        const inject = expression(property(node, 'inject'))
         if (key !== undefined || body !== undefined)
           this.plugins.push({
             name: key ?? `unresolved:${name?.getText() ?? '?'}`,
@@ -405,7 +457,13 @@ class Extractor {
       apply !== undefined && ts.isFunctionDeclaration(apply)
         ? apply
         : this.resolver.callable(vars.find(node => nodeName(node.name) === 'apply')?.initializer)
-    if (nativeApply !== undefined) {
+    if (
+      nativeApply !== undefined &&
+      name !== undefined &&
+      !this.contextType(nativeApply.parameters[0]?.type)
+    ) {
+      this.unconfirmedPlugin(nativeApply, context)
+    } else if (nativeApply !== undefined && name !== undefined) {
       const key = this.key('plugin', name, context)
       if (key !== undefined)
         this.plugins.push({
@@ -447,7 +505,12 @@ class Extractor {
       const symbol = this.resolver.symbol(parameter.name),
         arg = args[index]
       if (symbol === undefined) return
-      if ((implicit && index === 0) || (arg !== undefined && this.isContext(arg, context)))
+      if (
+        (implicit &&
+          index === 0 &&
+          (parameter.type === undefined || this.contextType(parameter.type))) ||
+        (arg !== undefined && this.isContext(arg, context))
+      )
         contexts.add(symbol)
       const key =
         arg === undefined
@@ -549,6 +612,10 @@ class Extractor {
         const arg = node.arguments[1],
           key = this.resolver.string(arg)?.value
         if (key === undefined || !context.required.has(key)) this.key('optional', arg, context)
+        else if (arg !== undefined)
+          this.attempts.add(
+            `${this.resolver.path(arg)}|${arg.pos}|${context.plugin}|resolveOptional`,
+          )
       } else {
         if (
           ts.isPropertyAccessExpression(node.expression) &&
@@ -556,9 +623,12 @@ class Extractor {
         ) {
           const service = this.serviceKey(node.expression.expression, context)
           if (service !== undefined) {
-            if (ts.isIdentifier(service) && ts.isPropertyAccessExpression(service.parent))
+            if (ts.isIdentifier(service) && ts.isPropertyAccessExpression(service.parent)) {
+              this.attempts.add(
+                `${this.resolver.path(service)}|${service.pos}|${context.plugin}|contributes`,
+              )
               this.add('contributes', service.text, service, context)
-            else this.key('contributes', service, context)
+            } else this.key('contributes', service, context)
           }
         }
         const fn = this.resolver.callable(node.expression)
@@ -610,14 +680,8 @@ class Extractor {
         ? targets.get(specifier.split('/')[1] ?? '')
         : undefined
       if (specifier.startsWith('.')) {
-        const resolved = this.resolver.program
-          .getSourceFiles()
-          .find(
-            file =>
-              file.fileName ===
-              new URL(specifier.replace(/\.js$/u, '.ts'), `file://${tree.fileName}`).pathname,
-          )
-        if (resolved !== undefined) target = memberOf(this.resolver.path(resolved))?.path
+        const path = this.resolver.modulePath(specifier, tree)
+        if (path !== undefined) target = memberOf(path)?.path
       }
       if (target === undefined || target === member) return
       this.imports.push({
@@ -690,7 +754,10 @@ class Extractor {
       const definition =
         value !== undefined && ts.isCallExpression(value) ? value.arguments[0] : value
       const plugin = this.plugins.find(
-        item => item.node === definition || item.serviceClass === definition,
+        item =>
+          item.node === definition ||
+          item.serviceClass === definition ||
+          item.serviceClass === this.resolver.declaration(reference),
       )
       const targetNode = this.resolver.declaration(reference)
       const target =
@@ -716,6 +783,7 @@ class Extractor {
     })
   }
   run(): Extraction {
+    for (const tree of this.resolver.trees()) this.registrations(tree)
     for (const tree of this.resolver.trees()) {
       this.discover(tree)
       this.readImports(tree)

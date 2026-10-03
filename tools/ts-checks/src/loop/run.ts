@@ -59,6 +59,8 @@ import {
   type SnapshotDecision,
 } from './trend.ts'
 
+import { readReflexion, type Reflexion } from './sensors/reflexion.ts'
+
 const OFF = '配置里关了'
 
 export interface RunOptions {
@@ -91,6 +93,7 @@ interface Sensors {
   readonly topicChurn: Reading<readonly TopicChurn[]>
   readonly worktrees: Reading<readonly WorktreeChanges[]>
   readonly acceptance: Reading<AcceptanceTiming>
+  readonly reflexion: Reading<Reflexion>
 }
 
 /** 基线合并点到当前工作树的改动：全部改动路径，与改动过的成员源码在合并点的文本。 */
@@ -208,6 +211,7 @@ async function readSensors(
     worktrees: sensors.worktrees.enabled
       ? data(readWorktrees(root, config.primaryBranch))
       : noData(OFF),
+    reflexion: readReflexion(root, sensors.reflexion, change?.mergeBase),
     acceptance: sensors.acceptance.enabled ? readAcceptanceTiming(acceptanceAt) : noData(OFF),
   }
 }
@@ -238,6 +242,22 @@ function indicatorValues(
       ? sensors.worktrees.data.filter(tree => tree.problem !== undefined)
       : []
   return {
+    newDeviations: {
+      reading:
+        sensors.reflexion.status === 'no-data'
+          ? sensors.reflexion
+          : map(sensors.reflexion.data.newDeviations, items => items.length),
+    },
+    assemblyChanges: {
+      reading:
+        sensors.reflexion.status === 'no-data'
+          ? sensors.reflexion
+          : map(sensors.reflexion.data.intentChanges, items => items.length),
+    },
+    missingAssembly: { reading: map(sensors.reflexion, result => result.missing.length) },
+    unresolvedServiceNames: {
+      reading: map(sensors.reflexion, result => result.current.serviceIdentifiers.unresolved),
+    },
     redMembers: { reading: data(report.members.filter(m => m.band === 'red').length) },
     functionsOverAlert: {
       reading: data(report.functions.filter(row => row.level === 'alert').length),
@@ -591,7 +611,20 @@ export async function runLoopStatus(
         : `；趋势文件第 ${trend.badLines.join('、')} 行读不了，已跳过`),
     `产物：${outDir}/status.md 与 status.json`,
   ]
-  const explain = change === undefined ? undefined : explainOf(root, report, sensors, change)
+  const explain =
+    change === undefined
+      ? undefined
+      : {
+          ...explainOf(root, report, sensors, change),
+          newDeviations:
+            sensors.reflexion.status === 'no-data'
+              ? sensors.reflexion
+              : sensors.reflexion.data.newDeviations,
+          assemblyChanges:
+            sensors.reflexion.status === 'no-data'
+              ? sensors.reflexion
+              : sensors.reflexion.data.intentChanges,
+        }
   const lines = renderStatus({
     shortHead: at.shortHead,
     branch: at.branch,
@@ -603,6 +636,7 @@ export async function runLoopStatus(
     hardLines,
     indicators,
     explain,
+    reflexion: sensors.reflexion,
     explainTop: config.explainTop,
     overBudget,
     budgets,

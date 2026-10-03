@@ -36,6 +36,12 @@ function complete(): { root: string; home: string; out: string; base: string } {
   write(root, 'packages/infra/b/src/index.ts', 'export const b = 2\n')
   write(root, 'packages/core/a/tests/a.spec.ts', "it('断言', () => { expect(1).toBe(1) })\n")
   write(root, '.meta_harness/design/product/PF-001-x/README.md', '---\nrevision: 1\n---\n')
+  write(root, 'packages/core/a/package.json', '{"name":"@omne-harness-lite/a"}\n')
+  write(
+    root,
+    '.meta_harness/design/realization/packages/core/a/bindings.yaml',
+    'assembly: {plugins: [], defines: []}\n',
+  )
   const base = commit(root, 'members')
   return {
     root,
@@ -110,6 +116,16 @@ describe('严格模式', { timeout: 60_000 }, () => {
     expect(result.status).toBe(0)
     expect(result.stdout).toContain(
       '  验收总耗时（秒） 0 · 正常 · 不与基线比；0 份：没有成员有 acceptance 脚本',
+    )
+  })
+
+  it('装配声明全部删除：reflexion 点名 no-data，严格模式失败', () => {
+    const { root, home, out, base } = complete()
+    rmSync(join(root, '.meta_harness/design/realization'), { recursive: true })
+    const result = run(root, home, '--strict', '--base', base, '--out', out)
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain(
+      'sensors.reflexion（.meta_harness/design/realization 缺失或没有 realization 节点）',
     )
   })
 

@@ -18,6 +18,10 @@
       "baseline": false,
       "note": "负责人 2026-10-02 定（按提议），还没有用真实读数校准。超了处置线再考虑合并前只跑受影响成员的验收"
     },
+    "newDeviations": { "lines": null, "baseline": false },
+    "assemblyChanges": { "lines": null, "baseline": false },
+    "missingAssembly": { "lines": null, "baseline": true },
+    "unresolvedServiceNames": { "lines": null, "baseline": true },
     "acceptanceSlowestSeconds": {
       "lines": { "warn": 20, "act": 40, "release": 15 },
       "baseline": false,
@@ -49,6 +53,7 @@
       "typeTestPattern": "\\.(test|spec)-d\\.[cm]?[jt]sx?$"
     },
     "newEdges": { "enabled": true },
+    "reflexion": { "enabled": true, "nodeRoot": ".meta_harness/design/realization" },
     "topicChurn": {
       "enabled": true,
       "productRoot": ".meta_harness/design/product",

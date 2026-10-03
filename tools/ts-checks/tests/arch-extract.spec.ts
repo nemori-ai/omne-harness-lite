@@ -173,4 +173,71 @@ export const name = 'exported'; export const inject = ['clock']; export function
       ['Other', 'Other', true],
     ])
   })
+  it('rejects ordinary name/apply objects and requires native Context, Plugin type or registration provenance', () => {
+    const result = extract(`${prelude}
+import type {Plugin} from '@deepseek-ai/cordis'
+const writer = {name:'text-writer',apply(writer:{provide(name:string,value:unknown):void}){writer.provide('page',{})}}
+const other = {name:'other',apply(x:{on(name:string,f:()=>void):void}){x.on('ordinary/event',()=>{})}}
+const unknown = {name:'unconfirmed',apply(ctx){ctx.provide('unconfirmed',{})}}
+const typed: Plugin = {name:'typed',apply(ctx){ctx.provide('typedService',{})}}
+const registered = {name:'registered',apply(ctx){ctx.provide('registeredService',{})}}
+export function install(ctx:C){ctx.plugin(registered)}
+export const explicit = plugin({name:'explicit-ordinary',apply(writer:{provide(name:string,value:unknown):void}){writer.provide('alsoOrdinary',{})}})
+`)
+    expect(result.facts.filter(f => f.kind === 'plugin').map(f => f.key)).toEqual([
+      'explicit-ordinary',
+      'registered',
+      'typed',
+    ])
+    expect(result.facts.filter(f => f.kind === 'provides').map(f => f.key)).toEqual([
+      'registeredService',
+      'typedService',
+    ])
+    expect(result.facts.some(f => f.kind === 'listens')).toBe(false)
+    expect(result.unknown.filter(item => item.kind === 'plugin')).toHaveLength(3)
+    expect(result.serviceIdentifiers).toEqual({ attempted: 2, unresolved: 0, rate: 0 })
+  })
+  it('reads computed augmentation keys, inherited events, native class plugins and const apply exports', () => {
+    const result = extract(`${prelude}
+/** @owner packages/core/example */
+export abstract class Base extends Service { static readonly provide = 'registry' }
+const KEY = Base.provide
+interface ParentEvents {
+  /** @mode serial */
+  'example/control'(): void
+}
+declare module '@deepseek-ai/cordis' {
+  interface Context { [KEY]: Base }
+  interface Events extends ParentEvents {}
+}
+export class ClassPlugin {
+  static readonly name = 'class-plugin'
+  static readonly inject = ['registry']
+  constructor(ctx: C) { ctx.get('registry'); ctx.provide('classService', {}) }
+}
+export const name = 'const-apply'
+export const inject = ['registry']
+export const apply = (ctx: C) => ctx.provide('constService', {})
+`)
+    expect(
+      result.facts
+        .filter(f => f.kind === 'defines' && f.key === 'registry')
+        .map(f => f.definitionForm)
+        .sort(),
+    ).toEqual(['context-augmentation', 'service-class'])
+    expect(result.facts.find(f => f.kind === 'event-declaration')).toMatchObject({
+      key: 'example/control',
+      mode: 'serial',
+    })
+    expect(
+      result.facts.find(f => f.plugin === 'class-plugin' && f.kind === 'provides'),
+    ).toMatchObject({ key: 'classService', provideForm: 'ctx.provide' })
+    expect(
+      result.facts.find(f => f.plugin === 'const-apply' && f.kind === 'provides'),
+    ).toMatchObject({ key: 'constService' })
+    expect(
+      result.facts.find(f => f.plugin === 'class-plugin' && f.kind === 'injects'),
+    ).toMatchObject({ injectExpression: "['registry']", injectShape: 'ArrayLiteralExpression' })
+    expect(result.facts.some(f => f.kind === 'optional')).toBe(false)
+  })
 })

@@ -1,0 +1,6 @@
+import { definePlugin } from '@omne-harness-lite/kernel-basis'
+export const aPlugin = definePlugin({
+  name: 'a',
+  inject: ['canaryUndeclared'],
+  apply(ctx) { ctx.provide('canaryService', {}) },
+})

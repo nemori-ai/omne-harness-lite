@@ -1,6 +1,9 @@
 // 回路状态的判定与文字：各指标的带位、要解释的红项、超预算的成员，渲染成终端与 status.md 共用的几十行。
 // 这里只有纯函数；读 git、跑传感器、写文件都在 cli.ts。
 import { basename } from 'node:path'
+import type { Comparison as ArchComparison } from '../arch/model.ts'
+import type { IntentChange } from '../arch/compare.ts'
+import type { Reflexion } from './sensors/reflexion.ts'
 import type { DirectionFinding } from '../metrics/graph.ts'
 import { describeFunction } from '../metrics/report.ts'
 import { BAND_WORDS, judgeIndicator, type Band, type Comparison } from './bands.ts'
@@ -25,6 +28,10 @@ import type { StabilityEdge } from './sensors/stability.ts'
 import type { BaselineSnapshot, IndicatorSnapshot, Snapshot } from './trend.ts'
 
 export const INDICATOR_LABELS: Readonly<Record<IndicatorId, string>> = {
+  newDeviations: '新增装配偏离数',
+  assemblyChanges: '装配声明改动数',
+  missingAssembly: '装配缺失数',
+  unresolvedServiceNames: '未解析服务标识符数',
   redMembers: '红色成员数',
   functionsOverAlert: '超 alert 的函数数',
   stableOnUnstable: '稳定依赖不稳定的边数',
@@ -175,6 +182,8 @@ export interface Explain {
   readonly newStableOnUnstable: Reading<readonly StabilityEdge[]>
   readonly casesWithoutAssertions: Reading<readonly CaseWithoutAssertion[]>
   readonly clones: Reading<readonly Clone[]>
+  readonly newDeviations?: Reading<readonly ArchComparison[]>
+  readonly assemblyChanges?: Reading<readonly IntentChange[]>
 }
 
 export interface OverBudget {
@@ -205,6 +214,7 @@ export interface StatusView {
   readonly proposalDir: string
   readonly catalogue: CatalogueStatus
   readonly cataloguePath: string
+  readonly reflexion?: Reading<Reflexion>
 }
 
 const COMPARISON_WORD: Record<Comparison, string> = {
@@ -313,6 +323,15 @@ function explainLines(view: StatusView): string[] {
     found => `${found.path}:${found.line} ${found.name}`,
   )
   section('有一端落在改动文件里的克隆', explain.clones, describeClone)
+  if (explain.newDeviations !== undefined)
+    section(
+      '新增装配偏离',
+      explain.newDeviations,
+      item =>
+        `${item.member} ${item.plugin ?? ''} ${item.kind} ${item.key}${at(item.implementation)}`,
+    )
+  if (explain.assemblyChanges !== undefined)
+    section('装配声明改动', explain.assemblyChanges, item => `${item.member}（${item.path}）`)
   if (out.length === 1) out.push('  无')
   // 不要解释、但不让它们无声消失：放在最后，不影响上面「无」的判断。
   if (explain.functionsNotWorse.length > 0)
@@ -435,6 +454,24 @@ export function catalogueLine(path: string, catalogue: CatalogueStatus): string 
   return `对照表（${path}）：${counts}；不合约定 ${categories.data.invalid.length} 行；${check}`
 }
 
+function reflexionLines(reading: Reading<Reflexion> | undefined): string[] {
+  if (reading === undefined) return []
+  if (reading.status === 'no-data') return [`装配对照：没数据，${reading.reason}`]
+  const result = reading.data,
+    counts = ['converged', 'deviation', 'missing', 'unknown'].map(
+      state =>
+        `${state} ${result.comparison.comparisons.filter(item => item.state === state).length}`,
+    )
+  const lifecycle = ['undeclared', 'no-design', 'not-built', 'source-location-mismatch'].map(
+    kind => `${kind} ${result.comparison.lifecycle.filter(item => item.kind === kind).length}`,
+  )
+  return [
+    `装配对照（${result.nodeRoot}）：${counts.join('、')}；${lifecycle.join('、')}`,
+    `  服务标识符 ${result.current.serviceIdentifiers.attempted} 次解析，未知 ${result.current.serviceIdentifiers.unresolved}；源码与声明逐项出处见 status.json`,
+    `  范围：${result.staticScope}`,
+  ]
+}
+
 export function renderStatus(view: StatusView): string[] {
   return [
     ...headerLines(view),
@@ -442,6 +479,7 @@ export function renderStatus(view: StatusView): string[] {
     '## 各项指标的带位',
     ...view.indicators.map(indicatorLine),
     ...explainLines(view),
+    ...reflexionLines(view.reflexion),
     ...budgetLines(view),
   ]
 }

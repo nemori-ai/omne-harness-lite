@@ -27,6 +27,14 @@ describe('回路配置', () => {
     })
     expect(config.sensors.assertions.assertionPattern.test('expectTypeOf')).toBe(true)
     expect(config.sensors.assertions.helperPattern).toBeUndefined()
+    expect(config.sensors.reflexion).toEqual({
+      enabled: true,
+      nodeRoot: '.meta_harness/design/realization',
+    })
+    expect(config.indicators.newDeviations).toEqual({ lines: null, baseline: false })
+    expect(config.indicators.assemblyChanges).toEqual({ lines: null, baseline: false })
+    expect(config.indicators.missingAssembly).toEqual({ lines: null, baseline: true })
+    expect(config.indicators.unresolvedServiceNames).toEqual({ lines: null, baseline: true })
     expect(config.health).toEqual({ weeks: 8, commits: 50, runs: 10 })
     expect(config.hook).toEqual({
       enabled: true,
@@ -89,6 +97,23 @@ describe('回路配置', () => {
         if (sensors['assertions'] !== undefined) sensors['assertions']['assertionPattern'] = '('
       }),
     ).toThrow('不是合法的正则表达式')
+    expect(
+      without(value => {
+        delete (value['sensors'] as Record<string, unknown>)['reflexion']
+      }),
+    ).toThrow('sensors.reflexion')
+    expect(
+      without(value => {
+        const sensors = value['sensors'] as Record<string, Record<string, unknown>>
+        if (sensors['reflexion'] !== undefined) delete sensors['reflexion']['nodeRoot']
+      }),
+    ).toThrow('sensors.reflexion.nodeRoot')
+    expect(
+      without(value => {
+        const sensors = value['sensors'] as Record<string, Record<string, unknown>>
+        if (sensors['reflexion'] !== undefined) sensors['reflexion']['typo'] = true
+      }),
+    ).toThrow('sensors.reflexion 里有认不出的项')
     expect(without(value => delete value['health'])).toThrow('health 须为对象')
     expect(
       without(value => {

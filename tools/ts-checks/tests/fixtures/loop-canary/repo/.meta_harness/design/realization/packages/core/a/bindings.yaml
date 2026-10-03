@@ -1,0 +1,5 @@
+assembly:
+  plugins:
+    - name: a
+      source: design.md#plugin
+      provides: [canaryService]

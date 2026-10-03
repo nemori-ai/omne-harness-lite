@@ -49,6 +49,7 @@ export class StaticResolver {
   readonly files: readonly SourceFile[]
   readonly program: ts.Program
   readonly checker: ts.TypeChecker
+  readonly modulePath: (specifier: string, file: ts.SourceFile) => string | undefined
   readonly snapshot: Snapshot
   constructor(snapshot: Snapshot) {
     this.snapshot = snapshot
@@ -98,6 +99,10 @@ export class StaticResolver {
       useCaseSensitiveFileNames: () => true,
       getNewLine: () => '\n',
     }
+    this.modulePath = (specifier, file) =>
+      ts
+        .resolveModuleName(specifier, file.fileName, options, host)
+        .resolvedModule?.resolvedFileName.slice(ROOT.length)
     this.program = ts.createProgram(
       this.files.map(file => ROOT + file.path),
       options,

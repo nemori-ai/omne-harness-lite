@@ -17,6 +17,10 @@ export const INDICATORS = [
   'worktreeSharedMembers',
   'acceptanceSeconds',
   'acceptanceSlowestSeconds',
+  'newDeviations',
+  'assemblyChanges',
+  'missingAssembly',
+  'unresolvedServiceNames',
 ] as const
 export type IndicatorId = (typeof INDICATORS)[number]
 
@@ -30,6 +34,7 @@ export const SWITCHED_SENSORS = [
   'topicChurn',
   'worktrees',
   'acceptance',
+  'reflexion',
 ] as const
 export type SwitchedSensor = (typeof SWITCHED_SENSORS)[number]
 
@@ -92,6 +97,7 @@ export interface LoopConfig {
     readonly worktrees: { readonly enabled: boolean }
     /** 验收耗时：读 `make acceptance` 写下的账本。 */
     readonly acceptance: { readonly enabled: boolean }
+    readonly reflexion: { readonly enabled: boolean; readonly nodeRoot: string }
     readonly catalogue: { readonly path: string; readonly doctrinePath: string }
   }
   /** 流程体检页的窗口与条数。 */
@@ -231,6 +237,12 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
   const topicChurn = object(sensors['topicChurn'], 'sensors.topicChurn')
   const worktrees = object(sensors['worktrees'], 'sensors.worktrees')
   const acceptance = object(sensors['acceptance'], 'sensors.acceptance')
+  const reflexion = object(sensors['reflexion'], 'sensors.reflexion')
+  const extraReflexion = Object.keys(reflexion).filter(
+    key => !['enabled', 'nodeRoot'].includes(key),
+  )
+  if (extraReflexion.length > 0)
+    throw new Error(`sensors.reflexion 里有认不出的项：${extraReflexion.join('、')}`)
   const catalogue = object(sensors['catalogue'], 'sensors.catalogue')
   const minRatio = number(cochange['minRatio'], 'sensors.cochange.minRatio')
   if (minRatio > 1) throw new Error('sensors.cochange.minRatio 须在 0 到 1 之间')
@@ -285,6 +297,10 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
       },
       worktrees: { enabled: bool(worktrees['enabled'], 'sensors.worktrees.enabled') },
       acceptance: { enabled: bool(acceptance['enabled'], 'sensors.acceptance.enabled') },
+      reflexion: {
+        enabled: bool(reflexion['enabled'], 'sensors.reflexion.enabled'),
+        nodeRoot: text(reflexion['nodeRoot'], 'sensors.reflexion.nodeRoot'),
+      },
       catalogue: {
         path: text(catalogue['path'], 'sensors.catalogue.path'),
         doctrinePath: text(catalogue['doctrinePath'], 'sensors.catalogue.doctrinePath'),

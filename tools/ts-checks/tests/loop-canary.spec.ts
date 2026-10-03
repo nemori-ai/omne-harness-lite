@@ -181,6 +181,19 @@ describe('传感器金丝雀', { timeout: 120_000 }, () => {
     expect(status.explain.functions).toContainEqual(
       expect.objectContaining({ path: 'apps/cli/src/route.ts', name: 'route', level: 'alert' }),
     )
+    expect(dataOf(status, 'reflexion')).toMatchObject({
+      comparison: {
+        comparisons: expect.arrayContaining([
+          expect.objectContaining({
+            state: 'deviation',
+            member: 'packages/core/a',
+            plugin: 'a',
+            kind: 'injects',
+            key: 'canaryUndeclared',
+          }),
+        ]),
+      },
+    })
     expect(dataOf(status, 'stability')).toEqual([
       expect.objectContaining({ from: 'packages/model/m', to: 'packages/model/n' }),
     ])
@@ -242,5 +255,17 @@ describe('传感器金丝雀', { timeout: 120_000 }, () => {
     expect(result.lines).toContain(
       `  ✗ 传感器没数据 1 个：sensors.topicChurn（${PRODUCT} 下没有 PF-* topic）`,
     )
+  })
+  it('删除全部装配声明时 silent 指名 reflexion', async () => {
+    const { root, base } = canary()
+    rmSync(join(root, '.meta_harness/design/realization'), { recursive: true })
+    const { result, status } = await strictRun(root, base)
+    expect(status.hardLines.sensors.silent).toEqual([
+      {
+        sensor: 'reflexion',
+        reason: '.meta_harness/design/realization 缺失或没有 realization 节点',
+      },
+    ])
+    expect(result.code).toBe(1)
   })
 })
