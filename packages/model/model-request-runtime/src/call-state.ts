@@ -1,6 +1,10 @@
 import type { ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { SessionRef } from '@omne-harness-lite/messages'
-import { rejectAcknowledgedHistory, type CallHistoryResult } from './call-history.ts'
+import {
+  rejectAcknowledgedHistory,
+  type CallHistoryResult,
+  type CallHistoryKnown,
+} from './call-history.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
 
 /** Process-owned responsibility, never a replacement for a durable log fact. */
@@ -45,25 +49,38 @@ export function projectCallState(input: {
       : { callNotFound: true }
   if (history.known.session !== session || history.known.callId !== callId)
     return { unavailable: true }
-  if (
-    history.known.phase === null ||
-    (history.known.intent !== null &&
-      history.known.ending === null &&
-      history.known.phase !== 'complete' &&
-      history.known.phase !== 'interrupted' &&
+  if (!durablePhaseAvailable(history.known)) return { unavailable: true }
+  if (localReplyPending(history.known, local, sameLocal))
+    return { phase: 'reply_pending', source: 'local_responsibility' }
+  return { phase: history.known.phase, source: 'durable' }
+}
+
+function durablePhaseAvailable(
+  known: CallHistoryKnown,
+): known is CallHistoryKnown & { readonly phase: DispatchGuardPhase } {
+  return !(
+    known.phase === null ||
+    (known.intent !== null &&
+      known.ending === null &&
+      known.phase !== 'complete' &&
+      known.phase !== 'interrupted' &&
       // S-86: a durable ready marker is already the complete/interrupted terminal fact.
-      history.known.phase !== 'reply_pending')
+      known.phase !== 'reply_pending')
   )
-    return { unavailable: true }
-  const last = history.known.dispatches.at(-1)
-  if (
+}
+
+function localReplyPending(
+  known: CallHistoryKnown,
+  local: LocalCallResponsibility | undefined,
+  sameLocal: boolean,
+): boolean {
+  const last = known.dispatches.at(-1)
+  return (
     sameLocal &&
     local?.phase === 'reply_pending' &&
-    history.known.phase === 'speaking' &&
+    known.phase === 'speaking' &&
     last?.opened !== null &&
     last?.response === null &&
     last?.record.response === local.responseId
   )
-    return { phase: 'reply_pending', source: 'local_responsibility' }
-  return { phase: history.known.phase, source: 'durable' }
 }

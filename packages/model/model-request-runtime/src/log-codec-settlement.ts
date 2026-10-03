@@ -159,32 +159,52 @@ export function reconstructAdaptedParameters(record: unknown): JsonValue | undef
   const sent: Record<string, JsonValue> = { ...parameters }
   const extra = object(parameters.extra) ? { ...parameters.extra } : null
   const adjustments = owned.parameterAdjustments
-  if (Array.isArray(adjustments))
-    for (const adjustment of adjustments) {
-      if (
-        !object(adjustment) ||
-        typeof adjustment.name !== 'string' ||
-        adjustment.sent === undefined
-      )
-        return undefined
-      if (Object.hasOwn(sent, adjustment.name) && adjustment.name !== 'extra')
-        sent[adjustment.name] = adjustment.sent
-      else if (extra !== null && Object.hasOwn(extra, adjustment.name))
-        extra[adjustment.name] = adjustment.sent
-      else return undefined
-    }
-  if (Array.isArray(owned.droppedParameters))
-    for (const name of owned.droppedParameters) {
-      if (typeof name !== 'string') return undefined
-      if (Object.hasOwn(sent, name) && name !== 'extra') delete sent[name]
-      else if (extra !== null && Object.hasOwn(extra, name)) delete extra[name]
-      else return undefined
-    }
+  if (!applyParameterAdjustments(adjustments, sent, extra)) return undefined
+  if (!dropParameters(owned.droppedParameters, sent, extra)) return undefined
   if (extra !== null) {
     if (Object.keys(extra).length === 0) delete sent.extra
     else sent.extra = extra
   }
   return sent
+}
+
+function applyParameterAdjustment(
+  adjustment: JsonValue,
+  sent: Record<string, JsonValue>,
+  extra: Record<string, JsonValue> | null,
+): boolean {
+  if (!object(adjustment) || typeof adjustment.name !== 'string' || adjustment.sent === undefined)
+    return false
+  if (Object.hasOwn(sent, adjustment.name) && adjustment.name !== 'extra')
+    sent[adjustment.name] = adjustment.sent
+  else if (extra !== null && Object.hasOwn(extra, adjustment.name))
+    extra[adjustment.name] = adjustment.sent
+  else return false
+  return true
+}
+function applyParameterAdjustments(
+  adjustments: JsonValue | undefined,
+  sent: Record<string, JsonValue>,
+  extra: Record<string, JsonValue> | null,
+): boolean {
+  if (Array.isArray(adjustments))
+    for (const adjustment of adjustments)
+      if (!applyParameterAdjustment(adjustment, sent, extra)) return false
+  return true
+}
+function dropParameters(
+  dropped: JsonValue | undefined,
+  sent: Record<string, JsonValue>,
+  extra: Record<string, JsonValue> | null,
+): boolean {
+  if (Array.isArray(dropped))
+    for (const name of dropped) {
+      if (typeof name !== 'string') return false
+      if (Object.hasOwn(sent, name) && name !== 'extra') delete sent[name]
+      else if (extra !== null && Object.hasOwn(extra, name)) delete extra[name]
+      else return false
+    }
+  return true
 }
 
 function purpose(
@@ -211,6 +231,267 @@ export function foreignReserved(value: {
     key => typeof key === 'string' && key.startsWith('mrr/'),
   )
 }
+function prefixLocationMatches(
+  value: JsonObject,
+  input: CompletePrefixInput,
+  index: number,
+  tenant: ReturnType<typeof parseTenantId>,
+): boolean {
+  return !(
+    value.session !== input.session ||
+    !('ok' in tenant) ||
+    !tenantIdEquals(tenant.ok, input.tenant) ||
+    !positiveInteger(value.position) ||
+    ExactDecimal.from(value.position).compare(ExactDecimal.from(index + 1)) !== 0
+  )
+}
+function claimPrefixKey(value: JsonObject, dedupes: Set<string>): boolean {
+  if (value.dedupeKey !== undefined) {
+    if (!identity(value.dedupeKey) || dedupes.has(value.dedupeKey)) return false
+    dedupes.add(value.dedupeKey)
+  }
+  return true
+}
+function prefixRunKeysValid(value: JsonObject): boolean {
+  return !(
+    (value.run === undefined) !== (value.attempt === undefined) ||
+    (value.run !== undefined && (!identity(value.run) || !positiveInteger(value.attempt))) ||
+    !Array.isArray(value.readKeys) ||
+    !value.readKeys.every(identity) ||
+    new Set(value.readKeys).size !== value.readKeys.length
+  )
+}
+function modelShapedPayload(payload: JsonValue): boolean {
+  return (
+    object(payload) &&
+    ((typeof payload.format === 'string' && payload.format.startsWith('mrr/')) ||
+      payload.type !== undefined ||
+      (typeof payload.kind === 'string' && payload.kind.startsWith('model_')))
+  )
+}
+
+type ResponseFacts = {
+  readonly member: Member
+  readonly response: NonNullable<CapturedModelLogValue['response']>
+}
+function settlementResponse(members: readonly Member[]): ResponseFacts | undefined {
+  const responseMembers = members.filter(item => item.captured.response !== null)
+  const responseMember = responseMembers[0]
+  const response = responseMember?.captured.response
+  if (
+    responseMembers.length !== 1 ||
+    responseMember === undefined ||
+    response === null ||
+    response === undefined
+  )
+    return undefined
+  return { member: responseMember, response }
+}
+function responseIdentityMatches(
+  input: InspectSettlementMembersInput,
+  facts: ResponseFacts,
+  dispatched: InspectedModelLogEntry,
+  record: JsonValue,
+): record is JsonObject {
+  const { member: responseMember, response } = facts
+  return !(
+    !object(record) ||
+    response.id !== input.target.response ||
+    response.call.callId !== input.target.call ||
+    !numberEqual(response.dispatch, input.target.dispatch) ||
+    response.call.runId !== dispatched.entry.run ||
+    !modelLogJsonEqual(response.attemptId, dispatched.entry.attempt) ||
+    responseMember.entry.run !== dispatched.entry.run
+  )
+}
+function providerSnapshotMatches(response: ResponseFacts['response']): boolean {
+  const snapshot = response.route.profileSnapshot
+  return !(
+    !object(snapshot) ||
+    !Array.isArray(snapshot.providers) ||
+    !snapshot.providers.includes(response.route.provider ?? null) ||
+    ((numberEqual(response.dispatch, 1) || snapshot.allowFallback === false) &&
+      snapshot.providers[0] !== response.route.provider)
+  )
+}
+function routeAssociationReason(
+  input: InspectSettlementMembersInput,
+  response: ResponseFacts['response'],
+  record: JsonObject,
+): SettlementMemberReason | undefined {
+  for (const name of [
+    'profile',
+    'profileSnapshot',
+    'adaptation',
+    'selectedBy',
+    'provider',
+    'credentialScope',
+  ])
+    if (!modelLogJsonEqual(response.route[name], record[name])) return 'binding'
+  const credential = response.route.credentialScope
+  if (
+    object(credential) &&
+    credential.layer === 'tenant' &&
+    !modelLogJsonEqual(credential.tenant, input.tenant)
+  )
+    return 'identity'
+  if (!providerSnapshotMatches(response)) return 'binding'
+  if (
+    !modelLogJsonEqual(response.route.parameterAdjustments, record.parameterAdjustments) ||
+    !modelLogJsonEqual(response.route.droppedParameters, record.droppedParameters) ||
+    !modelLogJsonEqual(response.route.parameters, reconstructAdaptedParameters(record))
+  )
+    return 'parameters'
+
+  return undefined
+}
+function openedAnchorMatches(
+  dispatched: InspectedModelLogEntry,
+  opened: InspectedModelLogEntry | null,
+): boolean {
+  return !(
+    opened !== null &&
+    (!before(dispatched.entry, opened.entry) ||
+      opened.entry.run !== dispatched.entry.run ||
+      !numberEqual(opened.entry.attempt, dispatched.entry.attempt))
+  )
+}
+function openedResponseMatches(
+  opened: InspectedModelLogEntry | null,
+  responseMember: Member,
+  firstToken: JsonValue | undefined,
+): boolean {
+  return !(opened === null
+    ? firstToken !== undefined
+    : !object(opened.captured.value) ||
+      !modelLogJsonEqual(firstToken, opened.captured.value.firstTokenAt) ||
+      (isLocated(responseMember.entry) && !before(opened.entry, responseMember.entry)))
+}
+function intentMatches(intent: InspectedModelLogEntry | null, facts: ResponseFacts): boolean {
+  const { member: responseMember, response } = facts
+  if (
+    intent !== null &&
+    response.outcome === 'interrupted' &&
+    (!isLocated(responseMember.entry) || before(intent.entry, responseMember.entry))
+  )
+    return object(intent.captured.value) && response.initiator === intent.captured.value.initiator
+  return true
+}
+function responseAnchorsReason(
+  facts: ResponseFacts,
+  dispatched: InspectedModelLogEntry,
+  opened: InspectedModelLogEntry | null,
+  intent: InspectedModelLogEntry | null,
+): SettlementMemberReason | undefined {
+  const { member: responseMember, response } = facts
+  const firstToken = response.timing.firstTokenAt
+  if (!openedAnchorMatches(dispatched, opened)) return 'opened'
+  if (!openedResponseMatches(opened, responseMember, firstToken)) return 'opened'
+  if (!intentMatches(intent, facts)) return 'intent'
+  if (
+    object(response.failure) &&
+    ['withdrawn', 'scope_disallowed', 'modality_mismatch'].includes(
+      typeof response.failure.cause === 'string' ? response.failure.cause : '',
+    )
+  )
+    return 'identity'
+  return undefined
+}
+function responseAssociationReason(
+  input: InspectSettlementMembersInput,
+  facts: ResponseFacts,
+  dispatched: InspectedModelLogEntry,
+  opened: InspectedModelLogEntry | null,
+  intent: InspectedModelLogEntry | null,
+): SettlementMemberReason | undefined {
+  const record = dispatched.captured.value
+  if (!responseIdentityMatches(input, facts, dispatched, record)) return 'identity'
+  if (isLocated(facts.member.entry) && !before(dispatched.entry, facts.member.entry))
+    return 'anchor'
+  const routeFailure = routeAssociationReason(input, facts.response, record)
+  if (routeFailure !== undefined) return routeFailure
+  return responseAnchorsReason(facts, dispatched, opened, intent)
+}
+function persistedShapeMatches(
+  members: readonly Member[],
+  facts: ResponseFacts,
+  messageMembers: readonly Member[],
+  messageMember: Member | undefined,
+): messageMember is Member {
+  const { member: responseMember, response } = facts
+  return !(
+    members.length !== 2 ||
+    messageMembers.length !== 1 ||
+    messageMember === undefined ||
+    members[0] !== messageMember ||
+    members[1] !== responseMember ||
+    !modelLogJsonEqual(messageMember.captured.value, response.reply) ||
+    !modelLogJsonEqual(messageMember.entry.tenant, responseMember.entry.tenant) ||
+    messageMember.entry.run !== responseMember.entry.run ||
+    !numberEqual(messageMember.entry.attempt, responseMember.entry.attempt)
+  )
+}
+function persistedMessageReason(
+  members: readonly Member[],
+  all: readonly InspectedModelLogEntry[],
+  facts: ResponseFacts,
+  messageMembers: readonly Member[],
+  messageMember: Member | undefined,
+): SettlementMemberReason | undefined {
+  if (!persistedShapeMatches(members, facts, messageMembers, messageMember)) return 'message'
+  const responseMember = facts.member
+  if (
+    isLocated(messageMember.entry) &&
+    isLocated(responseMember.entry) &&
+    ExactDecimal.from(messageMember.entry.position)
+      .add(ExactDecimal.from(1))
+      .compare(ExactDecimal.from(responseMember.entry.position)) !== 0
+  )
+    return 'members'
+  const ownId = messageMember.captured.message?.id
+  if (
+    all.some(
+      item =>
+        item.captured.message?.id === ownId &&
+        !numberEqual(
+          item.entry.position,
+          isLocated(messageMember.entry) ? messageMember.entry.position : undefined,
+        ),
+    )
+  )
+    return 'message_occupied'
+  return undefined
+}
+function messageAssociationReason(
+  members: readonly Member[],
+  all: readonly InspectedModelLogEntry[],
+  facts: ResponseFacts,
+  messageMembers: readonly Member[],
+  messageMember: Member | undefined,
+): SettlementMemberReason | undefined {
+  const response = facts.response
+  const persisted = response.replyDisposition === 'persisted'
+  if (object(response.reply) && response.reply.response !== response.id) return 'message'
+  if (persisted) return persistedMessageReason(members, all, facts, messageMembers, messageMember)
+  if (members.length !== 1 || messageMembers.length !== 0) return 'members'
+  const originalReply = response.reply
+  if (object(originalReply) && all.some(item => item.captured.message?.id === originalReply.id))
+    return 'message_occupied'
+  return undefined
+}
+function candidateIdentityMatches(
+  input: InspectSettlementMembersInput,
+  response: ResponseFacts['response'],
+): boolean {
+  return !(
+    input.mode === 'write' &&
+    (input.current === null ||
+      (object(response.reply)
+        ? response.reply.id !== input.current.messageId
+        : input.current.messageId !== null) ||
+      !modelLogJsonEqual(response.replyDisposition, input.current.disposition ?? undefined))
+  )
+}
 export function createSettlementCodec(domain: ModelLogCodecDomain) {
   const { captureWrapper, inspectModelLogEntry, prepareModelLogEntry } = createEntryCodec(domain)
   function fullPrefix(
@@ -224,60 +505,9 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
       ) !== 0
     )
       return inconsistent('prefix')
-    const capturedEntries: {
-      readonly value: JsonObject
-      readonly captured: CapturedModelLogValue
-    }[] = []
-    const captures: CapturedModelLogValue[] = []
-    const dedupes = new Set<string>()
-    for (const [index, entry] of input.prefix.entries.entries()) {
-      const copied = copyJsonValue(entry)
-      if ('failed' in copied || !object(copied.ok)) return undetermined('entry')
-      const value = copied.ok
-      const tenant = parseTenantId(value.tenant)
-      if (
-        value.session !== input.session ||
-        !('ok' in tenant) ||
-        !tenantIdEquals(tenant.ok, input.tenant) ||
-        !positiveInteger(value.position) ||
-        ExactDecimal.from(value.position).compare(ExactDecimal.from(index + 1)) !== 0
-      )
-        return inconsistent('shell')
-      if (value.dedupeKey !== undefined) {
-        if (!identity(value.dedupeKey) || dedupes.has(value.dedupeKey))
-          return inconsistent('duplicate_key')
-        dedupes.add(value.dedupeKey)
-      }
-      if (
-        (value.run === undefined) !== (value.attempt === undefined) ||
-        (value.run !== undefined && (!identity(value.run) || !positiveInteger(value.attempt))) ||
-        !Array.isArray(value.readKeys) ||
-        !value.readKeys.every(identity) ||
-        new Set(value.readKeys).size !== value.readKeys.length
-      )
-        return inconsistent('shell')
-      const payload = value.payload
-      if (payload === undefined) return undetermined('entry')
-      if (
-        !object(payload) ||
-        typeof payload.format !== 'string' ||
-        !domain.readFormats.includes(payload.format)
-      ) {
-        if (
-          foreignReserved(value) ||
-          (object(payload) &&
-            ((typeof payload.format === 'string' && payload.format.startsWith('mrr/')) ||
-              payload.type !== undefined ||
-              (typeof payload.kind === 'string' && payload.kind.startsWith('model_'))))
-        )
-          return undetermined('unknown_format')
-        continue
-      }
-      const captured = captureWrapper(payload)
-      if ('invalidValue' in captured) return undetermined('entry')
-      capturedEntries.push({ value, captured: captured.ok })
-      captures.push(captured.ok)
-    }
+    const captured = capturePrefixEntries(input)
+    if (!('ok' in captured)) return captured
+    const { capturedEntries, captures } = captured.ok
     const messages: LoggedMessage[] = []
     const entries: InspectedModelLogEntry[] = []
     for (const { value, captured } of capturedEntries) {
@@ -296,6 +526,56 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
         messages.push(captured.message)
     }
     return { ok: entries }
+  }
+  function capturePrefixEntries(input: CompletePrefixInput):
+    | {
+        readonly ok: {
+          readonly capturedEntries: readonly {
+            readonly value: JsonObject
+            readonly captured: CapturedModelLogValue
+          }[]
+          readonly captures: readonly CapturedModelLogValue[]
+        }
+      }
+    | SettlementMembersResult {
+    const capturedEntries: {
+      readonly value: JsonObject
+      readonly captured: CapturedModelLogValue
+    }[] = []
+    const captures: CapturedModelLogValue[] = []
+    const dedupes = new Set<string>()
+    for (const [index, entry] of input.prefix.entries.entries()) {
+      const copied = copyJsonValue(entry)
+      if ('failed' in copied || !object(copied.ok)) return undetermined('entry')
+      const value = copied.ok
+      const tenant = parseTenantId(value.tenant)
+      if (!prefixLocationMatches(value, input, index, tenant)) return inconsistent('shell')
+      if (!claimPrefixKey(value, dedupes)) return inconsistent('duplicate_key')
+      if (!prefixRunKeysValid(value)) return inconsistent('shell')
+      const captured = capturePrefixPayload(value)
+      if (!('ok' in captured)) return captured
+      if (captured.ok === null) continue
+      capturedEntries.push({ value, captured: captured.ok })
+      captures.push(captured.ok)
+    }
+    return { ok: { capturedEntries, captures } }
+  }
+  function capturePrefixPayload(
+    value: JsonObject,
+  ): { readonly ok: CapturedModelLogValue | null } | SettlementMembersResult {
+    const payload = value.payload
+    if (payload === undefined) return undetermined('entry')
+    if (
+      !object(payload) ||
+      typeof payload.format !== 'string' ||
+      !domain.readFormats.includes(payload.format)
+    ) {
+      if (foreignReserved(value) || modelShapedPayload(payload))
+        return undetermined('unknown_format')
+      return { ok: null }
+    }
+    const captured = captureWrapper(payload)
+    return 'invalidValue' in captured ? undetermined('entry') : captured
   }
   function anchor(
     entries: readonly InspectedModelLogEntry[],
@@ -326,144 +606,22 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     opened: InspectedModelLogEntry | null,
     intent: InspectedModelLogEntry | null,
   ): SettlementMembersResult {
-    const responseMembers = members.filter(item => item.captured.response !== null)
-    const responseMember = responseMembers[0]
-    const response = responseMember?.captured.response
-    if (
-      responseMembers.length !== 1 ||
-      responseMember === undefined ||
-      response === null ||
-      response === undefined
-    )
-      return inconsistent('members')
-    const record = dispatched.captured.value
-    if (
-      !object(record) ||
-      response.id !== input.target.response ||
-      response.call.callId !== input.target.call ||
-      !numberEqual(response.dispatch, input.target.dispatch) ||
-      response.call.runId !== dispatched.entry.run ||
-      !modelLogJsonEqual(response.attemptId, dispatched.entry.attempt) ||
-      responseMember.entry.run !== dispatched.entry.run
-    )
-      return inconsistent('identity')
-    if (isLocated(responseMember.entry) && !before(dispatched.entry, responseMember.entry))
-      return inconsistent('anchor')
-    for (const name of [
-      'profile',
-      'profileSnapshot',
-      'adaptation',
-      'selectedBy',
-      'provider',
-      'credentialScope',
-    ])
-      if (!modelLogJsonEqual(response.route[name], record[name])) return inconsistent('binding')
-    const credential = response.route.credentialScope
-    if (
-      object(credential) &&
-      credential.layer === 'tenant' &&
-      !modelLogJsonEqual(credential.tenant, input.tenant)
-    )
-      return inconsistent('identity')
-    const snapshot = response.route.profileSnapshot
-    if (
-      !object(snapshot) ||
-      !Array.isArray(snapshot.providers) ||
-      !snapshot.providers.includes(response.route.provider ?? null) ||
-      ((numberEqual(response.dispatch, 1) || snapshot.allowFallback === false) &&
-        snapshot.providers[0] !== response.route.provider)
-    )
-      return inconsistent('binding')
-    if (
-      !modelLogJsonEqual(response.route.parameterAdjustments, record.parameterAdjustments) ||
-      !modelLogJsonEqual(response.route.droppedParameters, record.droppedParameters) ||
-      !modelLogJsonEqual(response.route.parameters, reconstructAdaptedParameters(record))
-    )
-      return inconsistent('parameters')
-    const firstToken = response.timing.firstTokenAt
-    if (
-      opened !== null &&
-      (!before(dispatched.entry, opened.entry) ||
-        opened.entry.run !== dispatched.entry.run ||
-        !numberEqual(opened.entry.attempt, dispatched.entry.attempt))
-    )
-      return inconsistent('opened')
-    if (
-      opened === null
-        ? firstToken !== undefined
-        : !object(opened.captured.value) ||
-          !modelLogJsonEqual(firstToken, opened.captured.value.firstTokenAt) ||
-          (isLocated(responseMember.entry) && !before(opened.entry, responseMember.entry))
-    )
-      return inconsistent('opened')
-    if (
-      intent !== null &&
-      response.outcome === 'interrupted' &&
-      (!isLocated(responseMember.entry) || before(intent.entry, responseMember.entry))
-    ) {
-      if (!object(intent.captured.value) || response.initiator !== intent.captured.value.initiator)
-        return inconsistent('intent')
-    }
-    if (
-      object(response.failure) &&
-      ['withdrawn', 'scope_disallowed', 'modality_mismatch'].includes(
-        typeof response.failure.cause === 'string' ? response.failure.cause : '',
-      )
-    )
-      return inconsistent('identity')
+    const facts = settlementResponse(members)
+    if (facts === undefined) return inconsistent('members')
+    const { member: responseMember, response } = facts
+    const responseFailure = responseAssociationReason(input, facts, dispatched, opened, intent)
+    if (responseFailure !== undefined) return inconsistent(responseFailure)
     const messageMembers = members.filter(item => item.captured.message !== null)
     const messageMember = messageMembers[0]
-    const persisted = response.replyDisposition === 'persisted'
-    if (object(response.reply) && response.reply.response !== response.id)
-      return inconsistent('message')
-    if (persisted) {
-      if (
-        members.length !== 2 ||
-        messageMembers.length !== 1 ||
-        messageMember === undefined ||
-        members[0] !== messageMember ||
-        members[1] !== responseMember ||
-        !modelLogJsonEqual(messageMember.captured.value, response.reply) ||
-        !modelLogJsonEqual(messageMember.entry.tenant, responseMember.entry.tenant) ||
-        messageMember.entry.run !== responseMember.entry.run ||
-        !numberEqual(messageMember.entry.attempt, responseMember.entry.attempt)
-      )
-        return inconsistent('message')
-      if (
-        isLocated(messageMember.entry) &&
-        isLocated(responseMember.entry) &&
-        ExactDecimal.from(messageMember.entry.position)
-          .add(ExactDecimal.from(1))
-          .compare(ExactDecimal.from(responseMember.entry.position)) !== 0
-      )
-        return inconsistent('members')
-      const ownId = messageMember.captured.message?.id
-      if (
-        all.some(
-          item =>
-            item.captured.message?.id === ownId &&
-            !numberEqual(
-              item.entry.position,
-              isLocated(messageMember.entry) ? messageMember.entry.position : undefined,
-            ),
-        )
-      )
-        return inconsistent('message_occupied')
-    } else {
-      if (members.length !== 1 || messageMembers.length !== 0) return inconsistent('members')
-      const originalReply = response.reply
-      if (object(originalReply) && all.some(item => item.captured.message?.id === originalReply.id))
-        return inconsistent('message_occupied')
-    }
-    if (
-      input.mode === 'write' &&
-      (input.current === null ||
-        (object(response.reply)
-          ? response.reply.id !== input.current.messageId
-          : input.current.messageId !== null) ||
-        !modelLogJsonEqual(response.replyDisposition, input.current.disposition ?? undefined))
+    const messageFailure = messageAssociationReason(
+      members,
+      all,
+      facts,
+      messageMembers,
+      messageMember,
     )
-      return inconsistent('candidate_identity')
+    if (messageFailure !== undefined) return inconsistent(messageFailure)
+    if (!candidateIdentityMatches(input, response)) return inconsistent('candidate_identity')
     if (!timingOrdered(response.timing)) return inconsistent('timing')
     // A durable original batch is recognized from its original values. G28 is needed
     // only when a new batch is constructed, not to recompute an already committed late fact.
@@ -493,19 +651,12 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     if (!('ok' in current)) return current
     return inspectOwnedMembers({ ...input, current: current.ok })
   }
-  function inspectOwnedMembers(input: InspectSettlementMembersInput): SettlementMembersResult {
-    if (
-      !identity(input.target.call) ||
-      !identity(input.target.response) ||
-      !positiveInteger(input.target.dispatch)
-    )
-      return inconsistent('prefix')
-    const prefix = fullPrefix(input)
-    if (!('ok' in prefix)) return prefix
-    const all = prefix.ok
-    const dispatched = anchor(all, input.anchors.dispatched)
-    const opened = anchor(all, input.anchors.opened)
-    const intent = anchor(all, input.anchors.intent)
+  function originalAnchorsMatch(
+    input: InspectSettlementMembersInput,
+    dispatched: InspectedModelLogEntry | null,
+    opened: InspectedModelLogEntry | null,
+    intent: InspectedModelLogEntry | null,
+  ): dispatched is InspectedModelLogEntry {
     const record = dispatched?.captured.record
     if (
       dispatched === null ||
@@ -516,7 +667,26 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
       (input.anchors.opened !== null && opened === null) ||
       (input.anchors.intent !== null && intent === null)
     )
-      return inconsistent('anchor')
+      return false
+    return true
+  }
+
+  function exactAnchor(
+    actual: readonly InspectedModelLogEntry[],
+    expected: InspectedModelLogEntry | null,
+  ): boolean {
+    return !(
+      actual.length !== (expected === null ? 0 : 1) ||
+      (expected !== null && actual[0] !== expected)
+    )
+  }
+
+  function actualAnchorsMatch(
+    input: InspectSettlementMembersInput,
+    all: readonly InspectedModelLogEntry[],
+    opened: InspectedModelLogEntry | null,
+    intent: InspectedModelLogEntry | null,
+  ): boolean {
     const actualOpened = all.filter(
       item =>
         item.captured.record?.kind === 'model_call_opened' &&
@@ -528,14 +698,27 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
         item.captured.record?.kind === 'model_call_interrupt_intent' &&
         item.captured.record.call === input.target.call,
     )
-    if (
-      actualOpened.length !== (opened === null ? 0 : 1) ||
-      (opened !== null && actualOpened[0] !== opened) ||
-      actualIntent.length !== (intent === null ? 0 : 1) ||
-      (intent !== null && actualIntent[0] !== intent)
-    )
-      return inconsistent('anchor')
-    const original = all.filter(item => {
+    if (!exactAnchor(actualOpened, opened) || !exactAnchor(actualIntent, intent)) return false
+    return true
+  }
+
+  function ownedAnchors(
+    input: InspectSettlementMembersInput,
+    all: readonly InspectedModelLogEntry[],
+  ) {
+    const dispatched = anchor(all, input.anchors.dispatched)
+    const opened = anchor(all, input.anchors.opened)
+    const intent = anchor(all, input.anchors.intent)
+    if (!originalAnchorsMatch(input, dispatched, opened, intent)) return undefined
+    if (!actualAnchorsMatch(input, all, opened, intent)) return undefined
+    return { dispatched, opened, intent }
+  }
+
+  function originalMembers(
+    input: InspectSettlementMembersInput,
+    all: readonly InspectedModelLogEntry[],
+  ) {
+    return all.filter(item => {
       if (item.captured.response?.id === input.target.response) return true
       return item.entry.readKeys.some(key => {
         const decoded = decodeModelLogKey(key)
@@ -546,23 +729,22 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
         )
       })
     })
-    // An existing lawful batch is inspected against its own ids/values before any losing candidate.
-    if (original.length !== 0)
-      return association(
-        input.mode === 'write' ? { ...input, mode: 'read' } : input,
-        original,
-        all,
-        dispatched,
-        opened,
-        intent,
-      )
-    if (
+  }
+
+  function currentMessageOccupied(
+    input: InspectSettlementMembersInput,
+    all: readonly InspectedModelLogEntry[],
+  ): boolean {
+    return (
       input.current?.messageId !== null &&
       input.current?.messageId !== undefined &&
       all.some(item => item.captured.message?.id === input.current?.messageId)
     )
-      return inconsistent('message_occupied')
-    if (input.mode === 'read') return Object.freeze({ absent: true })
+  }
+
+  function captureCandidates(
+    input: Extract<InspectSettlementMembersInput, { mode: 'write' }>,
+  ): { ok: Member[] } | SettlementMembersResult {
     const capturedCandidates: {
       readonly entry: OwnedLogEntry
       readonly captured: CapturedModelLogValue
@@ -582,6 +764,48 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
       if ('invalidValue' in captured) return undetermined('entry')
       capturedCandidates.push({ entry, captured: captured.ok })
     }
+    return { ok: capturedCandidates }
+  }
+
+  function prepareCandidate(
+    input: InspectSettlementMembersInput,
+    entry: OwnedLogEntry,
+    captured: CapturedModelLogValue,
+    capturedCandidates: readonly Member[],
+    messagePrefix: readonly LoggedMessage[],
+  ): OwnedLogEntry | undefined {
+    const usage = purpose(
+      captured,
+      capturedCandidates.map(item => item.captured),
+    )
+    if (usage === null || !tenantIdEquals(entry.tenant, input.tenant)) return undefined
+    const ownedShell: ModelLogShell = {
+      tenant: entry.tenant,
+      ...(entry.run === undefined ? {} : { run: entry.run }),
+      ...(entry.attempt === undefined ? {} : { attempt: entry.attempt }),
+    }
+    const prepared = prepareModelLogEntry({
+      session: input.session,
+      shell: ownedShell,
+      captured,
+      purpose: usage,
+      messagePrefix,
+    })
+    const copied = copyJsonValue(entry)
+    if (
+      'invalidValue' in prepared ||
+      'failed' in copied ||
+      !modelLogJsonEqual(copied.ok, copyEntry(prepared.ok))
+    )
+      return undefined
+    return prepared.ok
+  }
+
+  function prepareCandidates(
+    input: InspectSettlementMembersInput,
+    all: readonly InspectedModelLogEntry[],
+    capturedCandidates: readonly Member[],
+  ): Member[] | undefined {
     const members: Member[] = []
     const messagePrefix: LoggedMessage[] = all.flatMap(item =>
       item.captured.message !== null && item.captured.message.type !== 'system'
@@ -589,33 +813,43 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
         : [],
     )
     for (const { entry, captured } of capturedCandidates) {
-      const usage = purpose(
-        captured,
-        capturedCandidates.map(item => item.captured),
-      )
-      if (usage === null || !tenantIdEquals(entry.tenant, input.tenant))
-        return inconsistent('entry')
-      const ownedShell: ModelLogShell = {
-        tenant: entry.tenant,
-        ...(entry.run === undefined ? {} : { run: entry.run }),
-        ...(entry.attempt === undefined ? {} : { attempt: entry.attempt }),
-      }
-      const prepared = prepareModelLogEntry({
-        session: input.session,
-        shell: ownedShell,
-        captured,
-        purpose: usage,
-        messagePrefix,
-      })
-      const copied = copyJsonValue(entry)
-      if (
-        'invalidValue' in prepared ||
-        'failed' in copied ||
-        !modelLogJsonEqual(copied.ok, copyEntry(prepared.ok))
-      )
-        return inconsistent('entry')
-      members.push({ entry: prepared.ok, captured })
+      const prepared = prepareCandidate(input, entry, captured, capturedCandidates, messagePrefix)
+      if (prepared === undefined) return undefined
+      members.push({ entry: prepared, captured })
     }
+    return members
+  }
+
+  function inspectOwnedMembers(input: InspectSettlementMembersInput): SettlementMembersResult {
+    if (
+      !identity(input.target.call) ||
+      !identity(input.target.response) ||
+      !positiveInteger(input.target.dispatch)
+    )
+      return inconsistent('prefix')
+    const prefix = fullPrefix(input)
+    if (!('ok' in prefix)) return prefix
+    const all = prefix.ok
+    const anchors = ownedAnchors(input, all)
+    if (anchors === undefined) return inconsistent('anchor')
+    const { dispatched, opened, intent } = anchors
+    const original = originalMembers(input, all)
+    // An existing lawful batch is inspected against its own ids/values before any losing candidate.
+    if (original.length !== 0)
+      return association(
+        input.mode === 'write' ? { ...input, mode: 'read' } : input,
+        original,
+        all,
+        dispatched,
+        opened,
+        intent,
+      )
+    if (currentMessageOccupied(input, all)) return inconsistent('message_occupied')
+    if (input.mode === 'read') return Object.freeze({ absent: true })
+    const candidates = captureCandidates(input)
+    if (!('ok' in candidates)) return candidates
+    const members = prepareCandidates(input, all, candidates.ok)
+    if (members === undefined) return inconsistent('entry')
     return association(input, members, all, dispatched, opened, intent)
   }
   function copyEntry(entry: OwnedLogEntry): JsonValue | undefined {
