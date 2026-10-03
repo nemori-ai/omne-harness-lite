@@ -79,12 +79,7 @@ interface ProjectedChain {
   readonly evaluation: EffectiveAssembly
   readonly assets: readonly EffectiveAsset[]
 }
-/** Only the selected category is projected; other categories retain their own producer rules. */
-function project(
-  record: ManifestRecord,
-  head: number,
-  session: string,
-): ProjectedChain | undefined {
+function validManifestRecord(record: ManifestRecord, head: number, session: string): boolean {
   if (
     'failed' in copyJsonValue(record) ||
     record.session !== session ||
@@ -93,7 +88,21 @@ function project(
     record.seq > head ||
     !('ok' in parseOpaqueIdentifier(record.evaluationRef, 'EvaluationRef'))
   )
-    return undefined
+    return false
+  return true
+}
+
+function projectionContent(content: JsonValue): content is JsonObject {
+  return object(content) && closed(content, ['evaluation', 'compositionOrder', 'filledBy'])
+}
+
+/** Only the selected category is projected; other categories retain their own producer rules. */
+function project(
+  record: ManifestRecord,
+  head: number,
+  session: string,
+): ProjectedChain | undefined {
+  if (!validManifestRecord(record, head, session)) return undefined
   const checked = checkManifestAppendInput(session, head, {
     evaluation: record.evaluation,
     tables: record.tables,
@@ -103,20 +112,14 @@ function project(
   const owned = checked.ok.record
   if (
     (owned.evaluation.kind !== 'mint' && owned.evaluation.ref !== record.evaluationRef) ||
-    !object(owned.content) ||
-    !closed(owned.content, ['evaluation', 'compositionOrder', 'filledBy'])
+    !projectionContent(owned.content)
   )
     return undefined
-  const projection = readEvaluationProjection(owned.content)
-  if (
-    'failure' in projection ||
-    projection.ok.evaluation.unresolved.length !== 0 ||
-    !producer(record, owned.content)
-  )
-    return undefined
+  const projection = categoryProjection(record, owned.content)
+  if (projection === undefined) return undefined
   const table = owned.tables.loop_extension
   if (!table || !Array.isArray(table.composition)) return undefined
-  const expected = expectedAssets(projection.ok.compositionOrder, projection.ok.evaluation)
+  const expected = expectedAssets(projection.compositionOrder, projection.evaluation)
   if (expected === undefined) return undefined
   const selected = selectAssets(table.composition, expected, owned.evaluation.kind)
   if (selected === undefined) return undefined
@@ -127,10 +130,21 @@ function project(
       seq: record.seq,
       evaluationRef: record.evaluationRef,
     }),
-    evaluation: projection.ok.evaluation,
+    evaluation: projection.evaluation,
     assets: Object.freeze(selected),
   }
 }
+function categoryProjection(record: ManifestRecord, content: JsonObject) {
+  const projection = readEvaluationProjection(content)
+  if (
+    'failure' in projection ||
+    projection.ok.evaluation.unresolved.length !== 0 ||
+    !producer(record, content)
+  )
+    return undefined
+  return projection.ok
+}
+
 function expectedAssets(
   order: readonly EffectiveAsset['capability'][],
   evaluation: EffectiveAssembly,
@@ -199,6 +213,31 @@ function evaluatedPower(powerValue: JsonValue | undefined, limit: Power): Power 
   return power
 }
 
+function evaluatedDefinition(
+  body: LoopExtensionDefinition,
+  asset: EffectiveAsset,
+  positionValue: JsonValue | undefined,
+  dimensionValues: readonly { readonly value: JsonValue }[],
+): LoopExtensionDefinition | undefined {
+  const position = positionValue
+  const dimensional = body.position === 'after_model_call' || body.position === 'after_action'
+  if (
+    (dimensional && (position !== body.position || dimensionValues.length !== 1)) ||
+    (!dimensional &&
+      (position === 'after_model_call' ||
+        position === 'after_action' ||
+        dimensionValues.length !== 0))
+  )
+    return undefined
+  const definition = judgeDefinition({
+    ...body,
+    position,
+    ...(dimensional ? { dimension: dimensionValues[0]?.value } : {}),
+  })
+  if ('rejected' in definition || definition.ok.name !== asset.capability.name) return undefined
+  return definition.ok
+}
+
 function piece(
   body: LoopExtensionDefinition,
   asset: EffectiveAsset,
@@ -213,20 +252,8 @@ function piece(
   if (positions.length !== 1 || powers.length !== 1) return undefined
   const power = evaluatedPower(powers[0]?.value, body.power)
   if (power === undefined) return undefined
-  const position = positions[0]?.value
-  const dimensional = body.position === 'after_model_call' || body.position === 'after_action'
-  if (
-    (dimensional && (position !== body.position || dimensions.length !== 1)) ||
-    (!dimensional &&
-      (position === 'after_model_call' || position === 'after_action' || dimensions.length !== 0))
-  )
-    return undefined
-  const definition = judgeDefinition({
-    ...body,
-    position,
-    ...(dimensional ? { dimension: dimensions[0]?.value } : {}),
-  })
-  if ('rejected' in definition || definition.ok.name !== asset.capability.name) return undefined
+  const definition = evaluatedDefinition(body, asset, positions[0]?.value, dimensions)
+  if (definition === undefined) return undefined
   const fallback =
     asset.capability.name === 'omne-official:default-retry'
       ? 'retry'
@@ -236,7 +263,7 @@ function piece(
           ? 'offload'
           : undefined
   return Object.freeze({
-    definition: definition.ok,
+    definition,
     power,
     ...(body.onError === undefined ? {} : { onError: body.onError }),
     ...(fallback === undefined ? {} : { fallback }),

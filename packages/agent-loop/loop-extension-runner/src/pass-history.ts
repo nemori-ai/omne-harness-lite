@@ -17,7 +17,7 @@ import {
 import type { SystemReminderMessage } from '@omne-harness-lite/messages'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import type { LogEntry, ReadResult } from '@omne-harness-lite/session-log-jsonl'
-import { inspectRunnerConclusion } from './conclusion-codec.ts'
+import { inspectRunnerConclusion, type RunnerExecution } from './conclusion-codec.ts'
 import { composeEffect } from './effect.ts'
 import { passKeys, type RunnerOccurrence } from './keys.ts'
 import type { RunnerFailure, RunnerPiece } from './run-pass.ts'
@@ -83,14 +83,7 @@ export function readPassConclusions(
     )
       return invalidInput
     validateHistoryScope(input, input.chain, false)
-    if (
-      !input.binding ||
-      !identity(input.binding.session) ||
-      !identity(input.binding.logGeneration) ||
-      !('ok' in parseTenantId(input.binding.tenant)) ||
-      !Array.isArray(input.entries)
-    )
-      return invalidInput
+    if (!validHistoryBinding(input)) return invalidInput
     const read = readPassHistory(input, input.chain, input.binding, {
       entries: input.entries,
       tail: input.tail,
@@ -100,6 +93,18 @@ export function readPassConclusions(
     if (error instanceof RunnerFailureSignal) return error.replayResult()
     return invalidInput
   }
+}
+
+function validHistoryBinding(input: ReadPassConclusionsInput): boolean {
+  if (
+    !input.binding ||
+    !identity(input.binding.session) ||
+    !identity(input.binding.logGeneration) ||
+    !('ok' in parseTenantId(input.binding.tenant)) ||
+    !Array.isArray(input.entries)
+  )
+    return false
+  return true
 }
 
 export interface Historical {
@@ -228,6 +233,13 @@ export function currentSubject(
   return judged.ok
 }
 
+function sameHistoryRun(execution: RunnerExecution, run: string | undefined): boolean {
+  return !(
+    (run !== undefined && (execution.kind !== 'withRun' || execution.run !== run)) ||
+    (run === undefined && execution.kind !== 'noRun')
+  )
+}
+
 function admitHistoryEntry(
   entry: LogEntry,
   pass: RunnerHistoryScope,
@@ -245,9 +257,7 @@ function admitHistoryEntry(
   if (
     inspected.anchor !== pass.anchor ||
     !samePosition(pass.initial, inspected.conclusion) ||
-    (pass.run !== undefined &&
-      (inspected.execution.kind !== 'withRun' || inspected.execution.run !== pass.run)) ||
-    (pass.run === undefined && inspected.execution.kind !== 'noRun')
+    !sameHistoryRun(inspected.execution, pass.run)
   )
     throw new RunnerFailureSignal(replayInconsistent)
   if (piece === undefined || inspected.conclusion.extension !== piece.definition.name)

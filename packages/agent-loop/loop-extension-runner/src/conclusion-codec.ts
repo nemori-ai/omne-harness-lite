@@ -176,9 +176,7 @@ function prepareValues(source: Record<string, unknown>) {
   return { tenant: tenant.ok, value, kind, exec, reminders }
 }
 
-export function prepareRunnerConclusion(
-  input: PrepareRunnerConclusionInput,
-): { readonly entry: LogEntryInput } | typeof invalidInput {
+function prepareSource(input: PrepareRunnerConclusionInput) {
   const copied = copyJsonValue(input)
   if (
     'failed' in copied ||
@@ -193,9 +191,17 @@ export function prepareRunnerConclusion(
       'reminders',
     ])
   )
-    return invalidInput
+    return undefined
   const source = copied.ok
-  if (!identity(source.session) || !identity(source.anchor)) return invalidInput
+  if (!identity(source.session) || !identity(source.anchor)) return undefined
+  return { ...source, session: source.session, anchor: source.anchor }
+}
+
+export function prepareRunnerConclusion(
+  input: PrepareRunnerConclusionInput,
+): { readonly entry: LogEntryInput } | typeof invalidInput {
+  const source = prepareSource(input)
+  if (source === undefined) return invalidInput
   const parsed = prepareValues(source)
   if (parsed === undefined) return invalidInput
   const { tenant, value, kind, exec, reminders } = parsed
@@ -284,6 +290,16 @@ function claimsConclusion(entry: Record<string, unknown>, payload: unknown): boo
   return keyClaims || payloadClaims
 }
 
+function conclusionPayload(payload: unknown): payload is Record<string, unknown> {
+  return !(
+    !object(payload) ||
+    payload.format !== runnerFormat ||
+    payload.category !== 'conclusion' ||
+    !only(payload, ['format', 'category', 'anchor', 'occurrence', 'value', 'reminders']) ||
+    Object.keys(payload).length !== 6
+  )
+}
+
 export function inspectRunnerConclusion(input: {
   readonly session: string
   readonly tenant: TenantId
@@ -296,15 +312,7 @@ export function inspectRunnerConclusion(input: {
   if (!object(entry)) return invalid
   const payload = entry.payload
   if (!claimsConclusion(entry, payload)) return unrelated
-  if (
-    !identity(source.session) ||
-    !object(payload) ||
-    payload.format !== runnerFormat ||
-    payload.category !== 'conclusion' ||
-    !only(payload, ['format', 'category', 'anchor', 'occurrence', 'value', 'reminders']) ||
-    Object.keys(payload).length !== 6
-  )
-    return invalid
+  if (!identity(source.session) || !conclusionPayload(payload)) return invalid
   const owned = inspectShell(entry, source.session, source.tenant)
   if (owned === undefined) return invalid
   const parsed = inspectPayload(payload, owned)

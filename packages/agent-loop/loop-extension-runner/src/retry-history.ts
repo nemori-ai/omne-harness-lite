@@ -37,12 +37,36 @@ function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
-/** Expects one already-authorized complete prefix. Array shape is not a read authority. */
-export function readRunnerRetryConclusions(
-  input: ReadRunnerRetryConclusionsInput,
-): { readonly conclusions: readonly ModelRetryConclusion[] } | typeof unavailable {
+function retryEntry(
+  raw: unknown,
+  index: number,
+  session: LogEntry['session'],
+  tenant: TenantId,
+): LogEntry | undefined {
+  if (
+    !object(raw) ||
+    raw.session !== session ||
+    !isNonNegativeJsonInteger(raw.position) ||
+    ExactDecimal.from(raw.position).compare(ExactDecimal.from(index + 1)) !== 0
+  )
+    return undefined
+  const { session: _session, position: _position, ...shell } = raw
+  const checked = checkAppendInput(
+    session,
+    [shell],
+    { kind: 'unfenced' },
+    { kind: 'unconditional' },
+  )
+  if (!('ok' in checked)) return undefined
+  const owned = checked.ok.entries[0]
+  if (owned === undefined || !tenantIdEquals(owned.tenant, tenant)) return undefined
+  const entry: LogEntry = { ...owned, session: session, position: raw.position }
+  return entry
+}
+
+function retryPrefix(input: ReadRunnerRetryConclusionsInput) {
   const copied = copyJsonValue(input)
-  if (!('ok' in copied) || !object(copied.ok)) return unavailable
+  if (!('ok' in copied) || !object(copied.ok)) return undefined
   const source = copied.ok
   const session = parseOpaqueIdentifier(source.session, 'SessionRef')
   const callId = parseOpaqueIdentifier(source.callId, 'ModelCallId')
@@ -54,30 +78,24 @@ export function readRunnerRetryConclusions(
     !Array.isArray(source.entries) ||
     !isNonNegativeJsonInteger(source.tail)
   )
-    return unavailable
+    return undefined
   if (ExactDecimal.from(source.tail).compare(ExactDecimal.from(source.entries.length)) !== 0)
-    return unavailable
+    return undefined
+  return { source: { entries: source.entries }, session, tenant, callId }
+}
+
+/** Expects one already-authorized complete prefix. Array shape is not a read authority. */
+export function readRunnerRetryConclusions(
+  input: ReadRunnerRetryConclusionsInput,
+): { readonly conclusions: readonly ModelRetryConclusion[] } | typeof unavailable {
+  const parsed = retryPrefix(input)
+  if (parsed === undefined) return unavailable
+  const { source, session, tenant, callId } = parsed
   const conclusions: ModelRetryConclusion[] = []
   const dedupe = new Set<string>()
   for (const [index, raw] of source.entries.entries()) {
-    if (
-      !object(raw) ||
-      raw.session !== session.ok ||
-      !isNonNegativeJsonInteger(raw.position) ||
-      ExactDecimal.from(raw.position).compare(ExactDecimal.from(index + 1)) !== 0
-    )
-      return unavailable
-    const { session: _session, position: _position, ...shell } = raw
-    const checked = checkAppendInput(
-      session.ok,
-      [shell],
-      { kind: 'unfenced' },
-      { kind: 'unconditional' },
-    )
-    if (!('ok' in checked)) return unavailable
-    const owned = checked.ok.entries[0]
-    if (owned === undefined || !tenantIdEquals(owned.tenant, tenant.ok)) return unavailable
-    const entry: LogEntry = { ...owned, session: session.ok, position: raw.position }
+    const entry = retryEntry(raw, index, session.ok, tenant.ok)
+    if (entry === undefined) return unavailable
     const inspected = inspectRunnerConclusion({ session: session.ok, tenant: tenant.ok, entry })
     if ('invalid' in inspected) return unavailable
     if ('unrelated' in inspected) continue
