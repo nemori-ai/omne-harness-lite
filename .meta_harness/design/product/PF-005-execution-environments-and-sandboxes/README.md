@@ -2,7 +2,7 @@
 id: PF-005
 title: 执行环境与沙箱
 status: active
-revision: 8
+revision: 9
 relations:
   supersedes: []
   depends-on:
@@ -96,7 +96,7 @@ Agent Definition 对 agent runtime、会话历史对 agent runtime。三次形�
 
 ## 状态
 
-- 产品设计：**rev 8**，补齐会话执行环境策略初始化与持久化，逐工具求值及当前授权约束保持；工作区一致性增量已正式接受（[登记](decisions.md#2026-09-27-工作区增量正式状态登记)）；按 PF-020 已确认规则修订，原有接受与评审范围不扩张。此前状态：**rev 6，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 产品设计：**rev 9**，独立工具环境输入验收补充（S43）、五张故事卡及交付顺序已获[产品负责人确认](decisions.md#2026-10-03--故事卡验收补充与交付顺序确认)；此前工作区一致性增量已正式接受（[登记](decisions.md#2026-09-27-工作区增量正式状态登记)），其他接受范围按原依据。此前状态：**rev 6，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文；本次不提升规格、实现或功能验收状态。
 - 未决项：**无**
 - 待裁决：**无**
 - 来源问题，见 [decisions.md 第四节](decisions.md#四已知的来源问题)：两处**用词上的偏离**

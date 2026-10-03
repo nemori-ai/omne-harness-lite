@@ -204,7 +204,7 @@
 - **形态**：变体（父：[消息](#ul-message--消息--message)）
 - **出处**：[PF-006 §6.7 用户可以中断，而中断不是失败](../../product/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败) ·
   [占位消息一律要说清原因](../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因) ·
-  [§6.6](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 23） ·
+  [§6.6](../../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 24） ·
   [PF-009 §4 SystemReminderMessage](../../product/PF-009-context-message-types/design.md#systemremindermessage)（rev 9）
 - **别混**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)留下的那条**——正文也管它叫「占位」，但那一条装着真实结果的摘要与取全文的办法，**它就是那次调用的结果**；占位消息里没有结果
 - **注意**：**它不是失败。**agent 按原因读它——**失败是「这事没成」，中断是「这事不做了」**，把两者读混，agent 会去重试用户刚叫停的事
@@ -224,7 +224,7 @@
 > of the six outcomes: moved to background, interrupted, or failed.
 
 - **形态**：属性
-- **出处**：[PF-006 §6.7 占位消息一律要说清原因](../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)（rev 23）
+- **出处**：[PF-006 §6.7 占位消息一律要说清原因](../../product/PF-006-tools-and-skills/design.md#占位消息一律要说清原因)（rev 24）
 - **注意 ①**：**「工具执行异常中断」落在失败，不在被中断**——没有任何人叫停它，agent 该自己判断要不要再调
 - **注意 ②**：**「被 agent 停掉」不是它的取值**——后台那一段被 agent 自己掐掉时，原因写在那段执行收场的提醒里；那次调用的占位早在转后台时就放下了
 - **注意 ③**：**「运行被取消」不借「用户手动中断」**——取消的可能不是用户，而且停的是这一步，不是这一次执行
@@ -485,7 +485,7 @@
 - **形态**：规则
 - **出处**：[PF-009 §5.5 到达的过程有它自己的语法](../../product/PF-009-context-message-types/design.md#到达的过程有它自己的语法) ·
   [「填」有两种模式](../../product/PF-009-context-message-types/design.md#填有两种模式开块的时候说明是哪一种)（rev 9） ·
-  [PF-006 §4 发帧](../../product/PF-006-tools-and-skills/design.md#发帧)（rev 23）
+  [PF-006 §4 发帧](../../product/PF-006-tools-and-skills/design.md#发帧)（rev 24）
 - **别混**：与[增量到达](#ul-incremental-arrival--增量到达--incremental-arrival)——那一条说「一条消息是分次到达的」这件事，**这一条说那件事必须按什么先后走**
 - **注意**：**两种填法只管「填」这一步**，开块、封口、记账、收尾一样不少；取代只发生在一个块里，不跨块
 

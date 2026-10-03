@@ -18,7 +18,7 @@
 ### 存储
 
 - **现象**：工具定义可以指名声明「把附件放进哪个存储」，存储没配好则该工具整个不可用；被卸载的工具结果也「存着，没丢」。但全系统没有任何一处定义它——是对象、是一项设置、还是执行环境的一种设施，没人说过
-- **牵涉**：[PF-006 §4 工具的产出](../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 23）；[PF-006 §6.4](../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 23）；[PF-012 §5.10](../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 21）
+- **牵涉**：[PF-006 §4 工具的产出](../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 24）；[PF-006 §6.4](../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 24）；[PF-012 §5.10](../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 21）
 - **挂着谁**：[附件](objects.md#ul-attachment--附件)存在它里面，附件的宿主与留存因此都定不下来；被卸载的工具结果须保持可回取全文（PF-006 §6.10），物理存储归属与机制仍待技术设计
 - **谁来裁**：PF-006 的 owner
 - **闭合条件**：有一个 topic 定义了它，并立了词条，或明确说它不是一个产品概念
