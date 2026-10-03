@@ -185,9 +185,11 @@ consumers and feedback that looks at the wrong tree.
 5. **The main checkout stays on its declared primary branch.** Feature-branch switches
    belong in worktrees.
 6. **A branch does not drift from the primary branch.** Integrate each unit as soon as
-   it is verified. Before opening the delivery, take in the current primary branch and
-   run the full gate on that integrated state; gates added on the primary branch since
-   the worktree was cut are part of what must pass.
+   it is verified. Before merge, take in the current primary branch. Compute the impact
+   of the candidate commit relative to the integration baseline. Run the checks required
+   by that scope, including the repository's common hard lines. Include relevant checks
+   added on the primary branch since the worktree was cut. Record the baseline, candidate,
+   scope, selection reasons, and results.
 7. **Nothing needed is lost at retirement, and nothing is stashed.** Apply Retirement
    Before Removal after a merge: update the local primary branch, preserve unique
    ignored evidence outside the tree, keep a tree an active consumer still needs. No
