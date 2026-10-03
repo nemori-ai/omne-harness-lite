@@ -1,0 +1,54 @@
+{
+  "format": 1,
+  "source": "https://github.com/danyuchn/asd-ste100-skill",
+  "source_revision": "7d4a135a199a5d7447c4886bcd7ffe742a627bc9",
+  "source_version": "0.4.0",
+  "imported_on": "2026-10-03",
+  "destination": "canonical/",
+  "license": "MIT",
+  "maintenance": "locally maintained source; upstream changes require explicit comparison",
+  "files": {
+    "LICENSE": {
+      "source_sha256": "d3c674e8592076c9021a59b55177adbcba6fd7e1710082becb922522b22ec672",
+      "imported_sha256": "d3c674e8592076c9021a59b55177adbcba6fd7e1710082becb922522b22ec672",
+      "git_mode": "100644",
+      "adjustment": null
+    },
+    "README.md": {
+      "source_sha256": "614609cde7a885904cf5611cf93c693e3a981eae5cf686e0fbe0755943aad534",
+      "imported_sha256": "614609cde7a885904cf5611cf93c693e3a981eae5cf686e0fbe0755943aad534",
+      "git_mode": "100644",
+      "adjustment": null
+    },
+    "SKILL.md": {
+      "source_sha256": "406626aa8b9a534d15b59eb8c8f4d151a7e339984b604c1df697f3a310fa3ddd",
+      "imported_sha256": "2693dcaad3d5c65d1172b52577ddce6a75e3c071a0fffbc155b76bd0f74dd60c",
+      "git_mode": "100644",
+      "adjustment": "move version into metadata for Codex skill validation"
+    },
+    "examples/before-after.md": {
+      "source_sha256": "d7bf2b4a390f1997a18790b243dd4c0670018d0d4d5183ec8ed44cbbf282bc52",
+      "imported_sha256": "d7bf2b4a390f1997a18790b243dd4c0670018d0d4d5183ec8ed44cbbf282bc52",
+      "git_mode": "100644",
+      "adjustment": null
+    },
+    "examples/linter-edge-cases.md": {
+      "source_sha256": "b6cc08af876014453b0c72d26ee4bfaeed1e9a154b5046947392752911ce1774",
+      "imported_sha256": "b6cc08af876014453b0c72d26ee4bfaeed1e9a154b5046947392752911ce1774",
+      "git_mode": "100644",
+      "adjustment": null
+    },
+    "references/writing-rules.md": {
+      "source_sha256": "4b92c86bf803f9f54e069767d34dc7356fbb95fb52a3f28476093917c608c102",
+      "imported_sha256": "4b92c86bf803f9f54e069767d34dc7356fbb95fb52a3f28476093917c608c102",
+      "git_mode": "100644",
+      "adjustment": null
+    },
+    "scripts/ste-lint.py": {
+      "source_sha256": "73bbd3de05b6517428ff6df73b789248a2d11f9eaf8d413fee56bbe71b5f863b",
+      "imported_sha256": "73bbd3de05b6517428ff6df73b789248a2d11f9eaf8d413fee56bbe71b5f863b",
+      "git_mode": "100644",
+      "adjustment": null
+    }
+  }
+}
