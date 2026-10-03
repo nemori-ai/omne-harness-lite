@@ -1,8 +1,6 @@
-import schema from '@omne-harness-lite/call-accounts/schema' with { type: 'json' }
-import contentSchema from '@omne-harness-lite/content-blocks/schema/v2' with { type: 'json' }
-import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }
-import expirySchema from '@omne-harness-lite/offer-expiry/schema/v1' with { type: 'json' }
-import { Ajv2020 } from 'ajv/dist/2020.js'
+import { createRequire } from 'node:module'
+import { schemaId, SCHEMA_DEF_NAMES } from './schema-inputs.ts'
+export { schemaId, SCHEMA_DEF_NAMES }
 import {
   isJsonNumber,
   LosslessNumber,
@@ -13,61 +11,19 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from './decimal.ts'
 
-export const schemaId = schema.$id
-export const SCHEMA_DEF_NAMES = [
-  'Unknown',
-  'ResponseId',
-  'Usage',
-  'Cost',
-  'CostItem',
-  'ToolCallAccount',
-  'FrameAccount',
-  'TrimReason',
-  'TrimSummary',
-  'CostCorrection',
-  'RunId',
-  'AttemptId',
-  'ModelCallId',
-] as const
 export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number]
 export interface SchemaValidation {
   readonly valid: boolean
 }
 
-function compile(structure: boolean) {
-  const ajv = new Ajv2020({
-    strict: true,
-    strictTypes: false,
-    strictRequired: false,
-    validateFormats: false,
-    ownProperties: true,
-  })
-  // Imported frozen identity/expiry resources carry this non-asserting annotation.
-  ajv.addKeyword({ keyword: 'x-counterexamples', valid: true })
-  for (const resource of [contentSchema, identitySchema, expirySchema, schema]) {
-    const selected = structure ? structuralSchema(resource) : resource
-    if (selected === null || typeof selected !== 'object' || Array.isArray(selected))
-      throw new Error('owned Schema is not an object')
-    ajv.addSchema(selected)
-  }
-  return Object.freeze(
-    SCHEMA_DEF_NAMES.map(name => {
-      const validator = ajv.getSchema(`${schemaId}#/$defs/${name}`)
-      if (validator === undefined) throw new Error(`missing account Schema: ${name}`)
-      return Object.freeze({ name, validator })
-    }),
-  )
-}
-// Fixed, owned definitions only. There is no caller-schema cache or external lookup.
-const full = compile(false)
-const structural = compile(true)
+const require = createRequire(new URL('../package.json', import.meta.url))
 
 export function validate(kind: SchemaDefName, value: unknown): SchemaValidation {
   const copied = snapshotJson(value)
-  return Object.freeze({ valid: copied !== undefined && run(full, kind, copied) })
+  return Object.freeze({ valid: copied !== undefined && run('full', kind, copied) })
 }
 export function structureValid(kind: SchemaDefName, value: JsonValue): boolean {
-  if (!run(structural, kind, value)) return false
+  if (!run('structural', kind, value)) return false
   // This allOf is a shape restriction, not a cross-member or numeric rule.
   if (
     kind === 'ToolCallAccount' &&
@@ -78,14 +34,14 @@ export function structureValid(kind: SchemaDefName, value: JsonValue): boolean {
     return false
   return true
 }
-function run(
-  validators: ReturnType<typeof compile>,
-  kind: SchemaDefName,
-  value: JsonValue,
-): boolean {
-  const entry = validators.find(item => item.name === kind)
-  if (entry === undefined) throw new Error(`unknown account definition: ${kind}`)
-  return entry.validator(project(value)) === true
+function run(graph: 'full' | 'structural', kind: SchemaDefName, value: JsonValue): boolean {
+  const name = SCHEMA_DEF_NAMES.find(item => item === kind)
+  if (name === undefined) throw new Error(`unknown account definition: ${kind}`)
+  const validators = require(`./generated/${graph}.cjs`) as Record<
+    SchemaDefName,
+    (value: unknown) => boolean
+  >
+  return validators[name](project(value)) === true
 }
 /** A field-free JSON copy rejects getters, cycles, undefined, and non-JSON objects. */
 export function snapshotJson(value: unknown): JsonValue | undefined {
@@ -119,15 +75,5 @@ function project(value: JsonValue): unknown {
   if (Array.isArray(value)) return value.map(project)
   if (isObject(value))
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, project(item)]))
-  return value
-}
-function structuralSchema(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(structuralSchema)
-  if (value !== null && typeof value === 'object')
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([key]) => !['minimum', 'if', 'then', 'else', 'allOf'].includes(key))
-        .map(([key, item]) => [key, structuralSchema(item)]),
-    )
   return value
 }
