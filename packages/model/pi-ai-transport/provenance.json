@@ -65,7 +65,7 @@
     {
       "file": "src/plan.ts",
       "source": "packages/ai/src/api/openai-completions.ts",
-      "changes": "Project own messages/tools; remove transformMessages/environment/SDK retries; explicit model binding controls reminder/cache TTL."
+      "changes": "Project own messages/tools; remove transformMessages/environment/SDK retries; explicit model binding controls reminder/cache TTL. Extract input ownership, message projection, parameter rules, cache application and final measurement into private helpers; preserve validation order, wire bytes and the adopted Moonshot mixed-empty rule."
     },
     {
       "file": "src/stream.ts",
