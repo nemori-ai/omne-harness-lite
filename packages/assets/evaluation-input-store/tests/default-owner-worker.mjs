@@ -29,7 +29,12 @@ for (const name of ['ajv', 'ajv/dist/2020.js']) {
 const { defaultBodyContracts } = await import('@omne-harness-lite/asset-evaluation')
 const snapshot = JSON.stringify(defaultBodyContracts)
 const original = (
-  await import('@omne-harness-lite/loop-extension/schema/v3', { with: { type: 'json' } })
+  await import(
+    createRequire(import.meta.resolve('@omne-harness-lite/asset-evaluation')).resolve(
+      '@omne-harness-lite/loop-extension/schema/v3',
+    ),
+    { with: { type: 'json' } }
+  )
 ).default
 assert.notEqual(defaultBodyContracts.loop_extension.schema, original)
 assert.equal(Reflect.set(original, '$id', 'urn:changed-after-publication'), true)
