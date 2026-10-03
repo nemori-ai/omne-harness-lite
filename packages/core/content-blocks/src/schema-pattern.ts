@@ -30,7 +30,7 @@ function inlineBytes(value: string): boolean {
 export const schemaPattern: RegExpEngine = Object.assign(
   (source: string, flags?: string) =>
     source === inlineBytesPattern && flags === 'u'
-      ? { test: inlineBytes }
+      ? { test: inlineBytes, toString: () => `optimized:${JSON.stringify([source, flags])}` }
       : new RegExp(source, flags),
-  { code: 'schemaPattern' },
+  { code: 'require("@omne-harness-lite/content-blocks/code-runtime").schemaPattern' },
 )

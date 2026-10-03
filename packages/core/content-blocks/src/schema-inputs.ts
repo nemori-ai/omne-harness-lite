@@ -1,0 +1,78 @@
+import schema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
+import { schemaPattern } from './schema-pattern.ts'
+export const schemaId = schema.$id
+export const SCHEMA_DEF_NAMES = [
+  'ContentBlock',
+  'BlockBase',
+  'TextBlock',
+  'ThinkingBlock',
+  'VoiceBlock',
+  'ImageBlock',
+  'FileBlock',
+  'ToolCallBlock',
+  'IncompleteToolCallBlock',
+  'ToolResultBlock',
+  'Visibility',
+  'DerivedRendering',
+  'AttachmentRef',
+  'InlineBytes',
+  'MediaType',
+  'Modality',
+  'ExecutionOutcome',
+  'PlaceholderReason',
+  'BlockId',
+  'CallId',
+  'CapabilityId',
+  'ModelToolName',
+] as const
+
+export const schemaGraphs = [
+  {
+    name: 'ordinary',
+    kind: 'ordinary',
+    resources: [{ ...schema, $id: schemaId }],
+    options: {
+      strict: true,
+      strictTypes: false,
+      strictRequired: false,
+      allErrors: false,
+      ownProperties: true,
+      code: { regExp: schemaPattern },
+    },
+    keywords: [],
+    resourceSpecifiers: ['@omne-harness-lite/content-blocks/schema'],
+    sourceFiles: ['src/schema-inputs.ts', 'src/schema-pattern.ts'],
+    definitions: SCHEMA_DEF_NAMES.map(name => ({
+      name,
+      method: 'getSchema',
+      schema: `${schemaId}#/$defs/${name}`,
+    })),
+  },
+  {
+    name: 'meta',
+    kind: 'meta',
+    resources: [],
+    resourceSpecifiers: [
+      'ajv/dist/refs/json-schema-2020-12/schema.json',
+      'ajv/dist/refs/json-schema-2020-12/meta/applicator.json',
+      'ajv/dist/refs/json-schema-2020-12/meta/unevaluated.json',
+      'ajv/dist/refs/json-schema-2020-12/meta/content.json',
+      'ajv/dist/refs/json-schema-2020-12/meta/core.json',
+      'ajv/dist/refs/json-schema-2020-12/meta/format-annotation.json',
+      'ajv/dist/refs/json-schema-2020-12/meta/meta-data.json',
+      'ajv/dist/refs/json-schema-2020-12/meta/validation.json',
+    ],
+    sourceFiles: [
+      'src/meta-resources.ts',
+      'src/schema-codegen.ts',
+      'src/schema-compiler.ts',
+      'src/exact-transform.ts',
+      'src/exact-keywords.ts',
+      'src/schema-values.ts',
+      'src/json.ts',
+      'src/schema-pattern.ts',
+      'src/code-runtime.ts',
+    ],
+    definitions: [],
+  },
+] as const

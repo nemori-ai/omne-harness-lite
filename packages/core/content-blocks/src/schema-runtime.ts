@@ -1,12 +1,8 @@
-import { Ajv2020 } from 'ajv/dist/2020.js'
+import { createRequire } from 'node:module'
+import type { Ajv2020 as Ajv2020Type } from 'ajv/dist/2020.js'
 import type { RegExpEngine } from 'ajv/dist/types/index.js'
-import {
-  LosslessNumber,
-  readJsonStrict,
-  writeJsonLossless,
-  type JsonValue,
-  type JsonObject,
-} from './json.ts'
+import type { JsonValue, JsonObject } from './json.ts'
+import { object, copy, copySchema, projection } from './schema-values.ts'
 import { createExactMetaValidator, exactSchema, installExactKeywords } from './exact-schema.ts'
 import { schemaPattern } from './schema-pattern.ts'
 
@@ -21,39 +17,6 @@ export interface SchemaValidator {
 export interface SchemaRuntime {
   readonly metaValidate: (schema: SchemaDocument) => boolean
   readonly compile: (schema: SchemaDocument) => SchemaValidator
-}
-function object(value: unknown): value is JsonObject {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    !LosslessNumber.is(value)
-  )
-}
-function copy(value: JsonValue): JsonValue {
-  const result = readJsonStrict(writeJsonLossless(value))
-  if ('failed' in result) throw new Error('lossless writer produced invalid JSON')
-  return result.ok
-}
-function copySchema(schema: SchemaDocument): SchemaDocument {
-  const result = copy(schema)
-  if (typeof result !== 'boolean' && !object(result))
-    throw new TypeError('Schema must be an object or boolean')
-  return result
-}
-function projection(value: JsonValue): JsonValue {
-  if (LosslessNumber.is(value)) {
-    const numeric = Number(value.source)
-    return Number.isFinite(numeric)
-      ? numeric
-      : value.source.startsWith('-')
-        ? -Number.MAX_VALUE
-        : Number.MAX_VALUE
-  }
-  if (Array.isArray(value)) return value.map(projection)
-  if (object(value))
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, projection(item)]))
-  return value
 }
 /** One caller-owned compiler; no remote loading, async schemas or module-level author cache. */
 export function createSchemaRuntime(
@@ -72,6 +35,9 @@ export function createSchemaRuntime(
     },
     { code: 'schemaRuntimePatternFactory' },
   )
+  const { Ajv2020 } = createRequire(import.meta.url)('ajv/dist/2020.js') as {
+    Ajv2020: typeof Ajv2020Type
+  }
   const ajv = new Ajv2020({
     strict: false,
     allErrors: false,
