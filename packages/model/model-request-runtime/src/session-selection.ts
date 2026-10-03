@@ -1,8 +1,8 @@
-import { evaluate } from '@omne-harness-lite/asset-evaluation'
+import { evaluate, type EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
-import { tenantIdEquals } from '@omne-harness-lite/identity-values'
+import { tenantIdEquals, type TenantId } from '@omne-harness-lite/identity-values'
 import { judgeModelProfileDocument, type RouteName } from '@omne-harness-lite/model-profile'
 import { winningRow, type ProfileRow } from '@omne-harness-lite/model-profile-directory'
 import {
@@ -13,7 +13,11 @@ import {
 } from './log-codec.ts'
 import { displayList, effectiveModel, legalTargets } from './selection.ts'
 import { captureSelectionJson } from './selection-capture.ts'
-import { readSettlementPrefix, settlementGenerationCurrent } from './settlement-prefix.ts'
+import {
+  readSettlementPrefix,
+  settlementGenerationCurrent,
+  type SettlementPrefix,
+} from './settlement-prefix.ts'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
 import type { RowCredentialFact, SelectionProjection } from './selection-types.ts'
 import type { SettlementRegistration, SettlementTask } from './settlement-types.ts'
@@ -54,6 +58,102 @@ interface Operation {
   stopping: boolean
   readonly drained: Promise<void>
   readonly finish: () => void
+}
+
+function operationOutcome(result: object): SessionSelectionDiagnostic['outcome'] {
+  return 'unavailable' in result
+    ? 'unavailable'
+    : 'ok' in result || 'selected' in result
+      ? 'success'
+      : 'rejected'
+}
+
+type PrefixEntry = SettlementPrefix['entries'][number]
+function declaresModelLog(entry: PrefixEntry): boolean {
+  return (
+    entry.readKeys.some(key => 'ok' in decodeModelLogKey(key) || key.startsWith('mrr/')) ||
+    entry.dedupeKey?.startsWith('mrr/') === true ||
+    (object(entry.payload) &&
+      typeof entry.payload.format === 'string' &&
+      entry.payload.format.startsWith('mrr/'))
+  )
+}
+function currentModelLog(entry: PrefixEntry): entry is PrefixEntry & {
+  readonly payload: Readonly<Record<string, unknown>>
+} {
+  return !(
+    !object(entry.payload) ||
+    entry.payload.format !== 'mrr/3' ||
+    !['record', 'message', 'response'].includes(String(entry.payload.category))
+  )
+}
+
+function targetRejection(
+  name: string,
+  rows: readonly ProfileRow[],
+  allowed: readonly string[],
+  legal: readonly string[],
+): SessionSelectModelResult | undefined {
+  if (!rows.some(row => row.ref.routeName === name)) return { profileNotFound: true }
+  if (!legal.includes(name)) {
+    const landing = winningRow(rows, name, allowed)
+    const reason = landing === undefined ? 'withdrawn' : 'modality_mismatch'
+    return { notLegalTarget: { because: [reason] } }
+  }
+  return undefined
+}
+
+function selectionReceipt(
+  raw: unknown,
+  operation: Operation,
+  name: string,
+): SessionSelectModelResult {
+  const receipt = settlementAppendReceipt(raw, 1)
+  if (receipt === null || ('failure' in receipt && receipt.failure === 'unavailable')) {
+    operation.unknownWrite = true
+    return unavailable()
+  }
+  if ('failure' in receipt) return unavailable()
+  return { selected: name }
+}
+
+type CredentialPresence = Exclude<
+  Awaited<ReturnType<SessionModelSelectionInput['catalog']['credentialPresent']>>,
+  { readonly failure: unknown }
+>
+function validCredentialPresence(
+  presence: CredentialPresence,
+  winner: ProfileRow,
+  tenant: TenantId,
+) {
+  if (presence.present !== true && presence.present !== false) return false
+  if (
+    presence.present &&
+    (presence.scope.layer === 'factory'
+      ? winner.ref.origin !== 'official'
+      : presence.scope.layer !== 'tenant' || !tenantIdEquals(presence.scope.tenant, tenant))
+  )
+    return false
+  return true
+}
+
+function currentModelLock(evaluated: {
+  root: string
+  evaluation: EffectiveAssembly
+}): RouteName | null | undefined {
+  const values = evaluated.evaluation.values.filter(
+    value =>
+      value.item === 'model' && capabilityCanonicalString(value.capability) === evaluated.root,
+  )
+  if (values.length > 1) return undefined
+  const model = values[0]
+  if (model !== undefined && !route(model.value)) return undefined
+  const lock =
+    model !== undefined && model.lockedAt !== undefined && model.lockedAt !== 'session'
+      ? model.value
+      : null
+  if (lock !== null && !route(lock)) return undefined
+  return lock
 }
 
 /** RT5 S9–S14/S24–S27/S66. No initial selection, history substitution, or provider ownership. */
@@ -131,6 +231,23 @@ export function createSessionModelSelection(
       settlementGenerationCurrent(binding)
     )
   }
+  function finishOperation(operation: Operation, stopped: readonly boolean[], release: () => void) {
+    const cleanupFailed = stopped.some(fulfilled => !fulfilled)
+    live.delete(operation)
+    if (operation.unknownWrite || cleanupFailed) unknown.add(operation)
+    if (cleanupFailed) unreleased.add(operation)
+    else {
+      try {
+        release()
+      } catch {
+        unknown.add(operation)
+        unreleased.add(operation)
+        emit('close', 'unavailable')
+      }
+    }
+    if (cleanupFailed) emit('close', 'unavailable')
+    operation.finish()
+  }
   async function run<T extends object>(
     stage: SessionSelectionDiagnostic['stage'],
     work: (operation: Operation) => Promise<T>,
@@ -175,14 +292,7 @@ export function createSessionModelSelection(
     live.add(operation)
     try {
       const result = await work(operation)
-      emit(
-        stage,
-        'unavailable' in result
-          ? 'unavailable'
-          : 'ok' in result || 'selected' in result
-            ? 'success'
-            : 'rejected',
-      )
+      emit(stage, operationOutcome(result))
       return result
     } catch {
       emit(stage, 'unavailable')
@@ -192,21 +302,7 @@ export function createSessionModelSelection(
       // every task it started before waiting for the proof, or it may wait on itself forever.
       for (const task of operation.tasks.keys()) requestStop(task)
       const stopped = await Promise.all(operation.tasks.values())
-      const cleanupFailed = stopped.some(fulfilled => !fulfilled)
-      live.delete(operation)
-      if (operation.unknownWrite || cleanupFailed) unknown.add(operation)
-      if (cleanupFailed) unreleased.add(operation)
-      else {
-        try {
-          release()
-        } catch {
-          unknown.add(operation)
-          unreleased.add(operation)
-          emit('close', 'unavailable')
-        }
-      }
-      if (cleanupFailed) emit('close', 'unavailable')
-      operation.finish()
+      finishOperation(operation, stopped, release)
     }
   }
 
@@ -215,19 +311,9 @@ export function createSessionModelSelection(
     if ('unavailable' in received || !current(operation)) return unavailable()
     let selected: RouteName | null = null
     for (const entry of received.prefix.entries) {
-      const declared =
-        entry.readKeys.some(key => 'ok' in decodeModelLogKey(key) || key.startsWith('mrr/')) ||
-        entry.dedupeKey?.startsWith('mrr/') === true ||
-        (object(entry.payload) &&
-          typeof entry.payload.format === 'string' &&
-          entry.payload.format.startsWith('mrr/'))
+      const declared = declaresModelLog(entry)
       if (!declared) continue
-      if (
-        !object(entry.payload) ||
-        entry.payload.format !== 'mrr/3' ||
-        !['record', 'message', 'response'].includes(String(entry.payload.category))
-      )
-        return unavailable()
+      if (!currentModelLog(entry)) return unavailable()
       if (entry.payload.category !== 'record') continue
       const recognized = inspectModelLogEntry({
         session: binding.session,
@@ -331,6 +417,24 @@ export function createSessionModelSelection(
     )
     return { catalog, history, projected, result }
   }
+  function selectionEntry(name: string, operation: Operation) {
+    const captured = captureModelLogValue({
+      category: 'record',
+      input: {
+        kind: 'value',
+        value: { kind: 'model_selection_changed', routeName: name, at: now() },
+      },
+    })
+    if ('invalidValue' in captured || !current(operation)) return undefined
+    const entry = prepareModelLogEntry({
+      session: binding.session,
+      shell: { tenant: binding.tenant },
+      captured: captured.ok,
+      purpose: { kind: 'record' },
+      messagePrefix: null,
+    })
+    return 'invalidValue' in entry ? undefined : entry
+  }
   return Object.freeze({
     async legalTargets() {
       return await run('legalTargets', async operation => {
@@ -351,30 +455,16 @@ export function createSessionModelSelection(
         const facts = await legal(operation)
         if ('unavailable' in facts) return facts
         if (!('ok' in facts.result)) return facts.result
-        if (!facts.catalog.rows.some(row => row.ref.routeName === name))
-          return { profileNotFound: true }
-        if (!facts.result.ok.includes(name)) {
-          const landing = winningRow(facts.catalog.rows, name, facts.catalog.allowed)
-          const reason = landing === undefined ? 'withdrawn' : 'modality_mismatch'
-          return { notLegalTarget: { because: [reason] } }
-        }
+        const rejection = targetRejection(
+          name,
+          facts.catalog.rows,
+          facts.catalog.allowed,
+          facts.result.ok,
+        )
+        if (rejection !== undefined) return rejection
         if (facts.history.selected === name) return { selected: name }
-        const captured = captureModelLogValue({
-          category: 'record',
-          input: {
-            kind: 'value',
-            value: { kind: 'model_selection_changed', routeName: name, at: now() },
-          },
-        })
-        if ('invalidValue' in captured || !current(operation)) return unavailable()
-        const entry = prepareModelLogEntry({
-          session: binding.session,
-          shell: { tenant: binding.tenant },
-          captured: captured.ok,
-          purpose: { kind: 'record' },
-          messagePrefix: null,
-        })
-        if ('invalidValue' in entry) return unavailable()
+        const entry = selectionEntry(name, operation)
+        if (entry === undefined) return unavailable()
         let raw: unknown
         let started = false
         const task = operation.registration.start('append', async () => {
@@ -394,13 +484,7 @@ export function createSessionModelSelection(
           return unavailable()
         }
         if (!started) return unavailable()
-        const receipt = settlementAppendReceipt(raw, 1)
-        if (receipt === null || ('failure' in receipt && receipt.failure === 'unavailable')) {
-          operation.unknownWrite = true
-          return unavailable()
-        }
-        if ('failure' in receipt) return unavailable()
-        return { selected: name }
+        return selectionReceipt(raw, operation, name)
       })
     },
     async displayList() {
@@ -422,15 +506,7 @@ export function createSessionModelSelection(
             async () => await credentialPresent(binding.tenant, winner.ref.origin),
           ).completion
           if ('failure' in presence || !current(operation)) return unavailable()
-          if (presence.present !== true && presence.present !== false) return unavailable()
-          if (
-            presence.present &&
-            (presence.scope.layer === 'factory'
-              ? winner.ref.origin !== 'official'
-              : presence.scope.layer !== 'tenant' ||
-                !tenantIdEquals(presence.scope.tenant, binding.tenant))
-          )
-            return unavailable()
+          if (!validCredentialPresence(presence, winner, binding.tenant)) return unavailable()
           credentials.push({ ref: winner.ref, present: { known: presence.present } })
         }
         return displayList(
@@ -451,19 +527,8 @@ export function createSessionModelSelection(
         if ('unavailable' in history || history.selected === null) return unavailable()
         const evaluated = await evaluation(operation)
         if ('unavailable' in evaluated) return evaluated
-        const values = evaluated.evaluation.values.filter(
-          value =>
-            value.item === 'model' &&
-            capabilityCanonicalString(value.capability) === evaluated.root,
-        )
-        if (values.length > 1) return unavailable()
-        const model = values[0]
-        if (model !== undefined && !route(model.value)) return unavailable()
-        const lock =
-          model !== undefined && model.lockedAt !== undefined && model.lockedAt !== 'session'
-            ? model.value
-            : null
-        if (lock !== null && !route(lock)) return unavailable()
+        const lock = currentModelLock(evaluated)
+        if (lock === undefined) return unavailable()
         const result = effectiveModel(
           { known: history.selected },
           { known: lock },
