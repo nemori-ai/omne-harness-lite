@@ -123,14 +123,18 @@ export function createRunnerReminderLogAdapter(input: {
             ? { kind: 'alreadyRecorded' }
             : { kind: 'unavailable' }
       }
-      if (result.failure === 'unavailable') return { kind: 'unknown' }
-      if (result.failure === 'attemptSuperseded') return { kind: 'attemptSuperseded' }
-      if (result.failure === 'alreadyRecorded') return { kind: 'alreadyRecorded' }
-      return { kind: 'unavailable' }
+      return appendFailure(result)
     } catch {
       return { kind: 'unknown' }
     }
   }
 
   return Object.freeze({ inspect, append })
+}
+
+function appendFailure(result: { readonly failure: string }): RunnerReminderAppend {
+  if (result.failure === 'unavailable') return { kind: 'unknown' }
+  if (result.failure === 'attemptSuperseded') return { kind: 'attemptSuperseded' }
+  if (result.failure === 'alreadyRecorded') return { kind: 'alreadyRecorded' }
+  return { kind: 'unavailable' }
 }
