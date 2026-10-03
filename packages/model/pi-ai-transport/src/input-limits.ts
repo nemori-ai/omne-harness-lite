@@ -112,20 +112,12 @@ function imageMeasurements(body: JsonObject): {
     for (const part of message.content) {
       if (!object(part) || part.type !== 'image_url') continue
       count++
-      const image = part.image_url
-      const match =
-        object(image) && typeof image.url === 'string' ? encodedImage.exec(image.url) : null
-      const encoded = match?.[1]
-      if (!encoded) {
+      const size = imageBytes(part)
+      if (size === undefined) {
         unreadable = true
         continue
       }
-      const decoded = Buffer.from(encoded, 'base64')
-      if (!decoded.length || decoded.toString('base64') !== encoded) {
-        unreadable = true
-        continue
-      }
-      sizes.push(decoded.byteLength)
+      sizes.push(size)
     }
   }
   return { sizes, count, unreadable }
@@ -186,59 +178,10 @@ export function checkFinalInput(input: {
   const estimatedExceeds: Estimated[] = []
   const admitted =
     token.kind === 'estimated' ? admissionTokens(token.tokens, tokenMargin) : undefined
-  if (token.kind === 'unavailable') unavailable.push('maxInputTokens')
-  if (image.unreadable) unavailable.push('maxImageBytes')
-  for (const metric of metrics) {
-    if (metric === 'maxImageBytes') {
-      if (image.unreadable) continue
-      for (const size of image.sizes) {
-        const result = compareKnown(snapshot, metric, size, true)
-        if (result.exceeded) exactExceeds.push(result.exceeded)
-      }
-      continue
-    }
-    const value = measured.get(metric)
-    if (!value) continue
-    const result = compareKnown(snapshot, metric, value.value, value.exact)
-    if (result.exceeded) exactExceeds.push(result.exceeded)
-    if (result.unavailable) unavailable.push(metric)
-  }
-  if (token.kind === 'estimated' && admitted !== undefined) {
-    for (const limit of finiteLimits(snapshot, 'maxInputTokens')) {
-      if (ExactDecimal.from(admitted).compare(ExactDecimal.from(limit)) > 0)
-        estimatedExceeds.push({
-          metric: 'maxInputTokens',
-          estimatedTokens: token.tokens,
-          admissionTokens: admitted,
-          limit,
-        })
-    }
-  }
-  const exactExceed = exactExceeds[0]
-  if (exactExceed)
-    return {
-      rejected: 'invalidInput',
-      reason: 'input_limit_exceeded',
-      basis: 'exact',
-      ...exactExceed,
-    }
-  const estimatedExceed = estimatedExceeds[0]
-  if (estimatedExceed)
-    return {
-      rejected: 'invalidInput',
-      reason: 'input_limit_exceeded',
-      basis: 'estimated',
-      ...estimatedExceed,
-    }
-  if (unavailable.length) {
-    const first = unavailable[0]
-    if (!first) throw new Error('unavailable metric invariant')
-    return {
-      rejected: 'invalidInput',
-      reason: 'input_size_unavailable',
-      metrics: [first, ...unavailable.slice(1)],
-    }
-  }
+  compareMeasuredLimits()
+  compareEstimatedLimits()
+  const rejected = limitRejection()
+  if (rejected) return rejected
   return {
     ok: Object.freeze({
       meterRevision: meter.algorithmRevision,
@@ -250,6 +193,69 @@ export function checkFinalInput(input: {
       imageBytes: Object.freeze([...image.sizes]),
       images: image.count,
     }),
+  }
+
+  function compareMeasuredLimits(): void {
+    if (token.kind === 'unavailable') unavailable.push('maxInputTokens')
+    if (image.unreadable) unavailable.push('maxImageBytes')
+    for (const metric of metrics) {
+      if (metric === 'maxImageBytes') {
+        if (image.unreadable) continue
+        for (const size of image.sizes) {
+          const result = compareKnown(snapshot, metric, size, true)
+          if (result.exceeded) exactExceeds.push(result.exceeded)
+        }
+        continue
+      }
+      const value = measured.get(metric)
+      if (!value) continue
+      const result = compareKnown(snapshot, metric, value.value, value.exact)
+      if (result.exceeded) exactExceeds.push(result.exceeded)
+      if (result.unavailable) unavailable.push(metric)
+    }
+  }
+
+  function compareEstimatedLimits(): void {
+    if (token.kind === 'estimated' && admitted !== undefined) {
+      for (const limit of finiteLimits(snapshot, 'maxInputTokens')) {
+        if (ExactDecimal.from(admitted).compare(ExactDecimal.from(limit)) > 0)
+          estimatedExceeds.push({
+            metric: 'maxInputTokens',
+            estimatedTokens: token.tokens,
+            admissionTokens: admitted,
+            limit,
+          })
+      }
+    }
+  }
+
+  function limitRejection(): InputLimitRejection | undefined {
+    const exactExceed = exactExceeds[0]
+    if (exactExceed)
+      return {
+        rejected: 'invalidInput',
+        reason: 'input_limit_exceeded',
+        basis: 'exact',
+        ...exactExceed,
+      }
+    const estimatedExceed = estimatedExceeds[0]
+    if (estimatedExceed)
+      return {
+        rejected: 'invalidInput',
+        reason: 'input_limit_exceeded',
+        basis: 'estimated',
+        ...estimatedExceed,
+      }
+    if (unavailable.length) {
+      const first = unavailable[0]
+      if (!first) throw new Error('unavailable metric invariant')
+      return {
+        rejected: 'invalidInput',
+        reason: 'input_size_unavailable',
+        metrics: [first, ...unavailable.slice(1)],
+      }
+    }
+    return undefined
   }
 }
 
@@ -273,4 +279,14 @@ export function measureFinalInput(
     token = { kind: 'unavailable' }
   }
   return checkFinalInput({ ...input, tokenMeasurement: token })
+}
+
+function imageBytes(part: JsonObject): number | undefined {
+  const image = part.image_url
+  const match = object(image) && typeof image.url === 'string' ? encodedImage.exec(image.url) : null
+  const encoded = match?.[1]
+  if (!encoded) return undefined
+  const decoded = Buffer.from(encoded, 'base64')
+  if (!decoded.length || decoded.toString('base64') !== encoded) return undefined
+  return decoded.byteLength
 }

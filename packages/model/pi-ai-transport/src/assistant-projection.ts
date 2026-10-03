@@ -32,15 +32,8 @@ export function projectAssistant(
     if (!block.visibility.toModel) continue
     if (block.kind === 'text') content.push(block.text)
     else if (block.kind === 'thinking') {
-      thinking.push(block.text)
-      const opaque = block.opaque === undefined ? undefined : readOpaqueJson(block.opaque)
-      const replayed =
-        object(opaque) && opaque.routeName === routeName && Array.isArray(opaque.reasoning_details)
-          ? opaque.reasoning_details
-          : undefined
-      if (block.opaque !== undefined && !replayed?.length) return { rejected: 'unavailable' }
-      if (replayed) details.push(...replayed)
-      if (!replayed?.length && block.text.length > 0) independentPlainThinking = true
+      const rejected = appendThinking(block)
+      if (rejected) return rejected
     } else if (block.kind === 'tool_call' && block.complete) {
       callIds.push(block.callId)
       tools.push({
@@ -54,9 +47,26 @@ export function projectAssistant(
     } else return { rejected: 'modality_not_carried' }
   }
   if (details.length && independentPlainThinking) return { rejected: 'unavailable' }
-  const text = content.join('')
-  return {
-    message: {
+  return { message: assistantMessage(), callIds }
+
+  function appendThinking(
+    block: Extract<ContentBlock, { kind: 'thinking' }>,
+  ): { readonly rejected: 'unavailable' } | undefined {
+    thinking.push(block.text)
+    const opaque = block.opaque === undefined ? undefined : readOpaqueJson(block.opaque)
+    const replayed =
+      object(opaque) && opaque.routeName === routeName && Array.isArray(opaque.reasoning_details)
+        ? opaque.reasoning_details
+        : undefined
+    if (block.opaque !== undefined && !replayed?.length) return { rejected: 'unavailable' }
+    if (replayed) details.push(...replayed)
+    if (!replayed?.length && block.text.length > 0) independentPlainThinking = true
+    return undefined
+  }
+
+  function assistantMessage(): JsonObject {
+    const text = content.join('')
+    return {
       role: 'assistant',
       content: stableTextArrays && text.length ? [{ type: 'text', text }] : text,
       ...(tools.length ? { tool_calls: tools } : {}),
@@ -65,7 +75,6 @@ export function projectAssistant(
         : thinking.some(Boolean)
           ? { reasoning: thinking.join('') }
           : {}),
-    },
-    callIds,
+    }
   }
 }
