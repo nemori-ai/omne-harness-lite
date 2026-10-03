@@ -72,7 +72,24 @@ export function encodeRunnerKey(parts: readonly (string | null)[]): string {
   return `${runnerFormat}/${JSON.stringify(parts)}`
 }
 
-export function passKeys(input: RunnerKeyInput): RunnerKeys | typeof invalid {
+function hasUndefinedOption(
+  input: RunnerKeyInput,
+  dimension: Dimension | undefined,
+  extension: string | undefined,
+  occurrence: RunnerOccurrence | undefined,
+  modelCallId: string | undefined,
+): boolean {
+  if (
+    (Object.hasOwn(input, 'dimension') && dimension === undefined) ||
+    (Object.hasOwn(input, 'extension') && extension === undefined) ||
+    (Object.hasOwn(input, 'occurrence') && occurrence === undefined) ||
+    (Object.hasOwn(input, 'modelCallId') && modelCallId === undefined)
+  )
+    return true
+  return false
+}
+
+function keyInputShape(input: RunnerKeyInput): boolean {
   if (
     !object(input) ||
     Object.keys(input).some(
@@ -82,25 +99,31 @@ export function passKeys(input: RunnerKeyInput): RunnerKeys | typeof invalid {
         ),
     )
   )
-    return invalid
-  const { position, dimension, anchor, extension, occurrence, modelCallId } = input
-  if (
-    (Object.hasOwn(input, 'dimension') && dimension === undefined) ||
-    (Object.hasOwn(input, 'extension') && extension === undefined) ||
-    (Object.hasOwn(input, 'occurrence') && occurrence === undefined) ||
-    (Object.hasOwn(input, 'modelCallId') && modelCallId === undefined)
+    return false
+  return true
+}
+
+function validModelCall(
+  modelCallId: string | undefined,
+  position: Position,
+  part: string | null,
+): boolean {
+  return (
+    modelCallId === undefined ||
+    (position === 'after_model_call' && part === 'ending:failure' && identity(modelCallId))
   )
-    return invalid
+}
+
+export function passKeys(input: RunnerKeyInput): RunnerKeys | typeof invalid {
+  if (!keyInputShape(input)) return invalid
+  const { position, dimension, anchor, extension, occurrence, modelCallId } = input
+  if (hasUndefinedOption(input, dimension, extension, occurrence, modelCallId)) return invalid
   if (!POSITIONS.includes(position) || !identity(anchor)) return invalid
   const part = dimensionPart(position, dimension)
   if (part === undefined) return invalid
   if ((extension === undefined) !== (occurrence === undefined)) return invalid
   if (extension !== undefined && !isCapabilityName(extension)) return invalid
-  if (
-    modelCallId !== undefined &&
-    (position !== 'after_model_call' || part !== 'ending:failure' || !identity(modelCallId))
-  )
-    return invalid
+  if (!validModelCall(modelCallId, position, part)) return invalid
   const base = {
     pass: encodeRunnerKey(['pass', position, part, anchor]),
     all: runnerAllKey,
@@ -108,6 +131,17 @@ export function passKeys(input: RunnerKeyInput): RunnerKeys | typeof invalid {
       ? {}
       : { modelCall: encodeRunnerKey(['model-call', modelCallId]) }),
   }
+  return occurrenceKeys(base, position, part, anchor, extension, occurrence)
+}
+
+function occurrenceKeys(
+  base: RunnerKeys,
+  position: Position,
+  part: string | null,
+  anchor: string,
+  extension: string | undefined,
+  occurrence: RunnerOccurrence | undefined,
+): RunnerKeys | typeof invalid {
   if (occurrence === undefined) return base
   if (!object(occurrence) || extension === undefined) return invalid
   if (occurrence.kind === 'final' && Object.keys(occurrence).length === 1) {
