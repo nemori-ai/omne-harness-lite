@@ -149,6 +149,7 @@ export function fixedSchemaFingerprint(owner, graphs) {
             ],
       resources: snapshot(graph.resources),
       definitions: snapshot(graph.definitions),
+      includeSchema: graph.includeSchema === true,
     })),
   }
   return { sha256: sha256(JSON.stringify(input)), input }
@@ -162,6 +163,7 @@ function ordinaryModule(owner, graph) {
   for (const keyword of graph.keywords ?? []) ajv.addKeyword(keyword)
   for (const resource of graph.resources) ajv.addSchema(resource)
   const names = Object.create(null)
+  const schemas = Object.create(null)
   for (const definition of graph.definitions) {
     if (!definition.name || Object.hasOwn(names, definition.name))
       throw new TypeError('fixed Schema export names must be non-empty and unique')
@@ -171,6 +173,7 @@ function ordinaryModule(owner, graph) {
       if (validator.$async === true)
         throw new TypeError('asynchronous fixed Schemas are unsupported')
       names[definition.name] = definition.schema
+      if (graph.includeSchema === true) schemas[definition.name] = validator.schema
     } else if (definition.method === 'compile') {
       const validator = ajv.compile(definition.schema)
       if (validator.$async === true)
@@ -178,9 +181,20 @@ function ordinaryModule(owner, graph) {
       const key = `urn:omne:fixed-definition:${encodeURIComponent(definition.name)}`
       ajv.addSchema(definition.schema, key)
       names[definition.name] = key
+      if (graph.includeSchema === true) schemas[definition.name] = validator.schema
     } else throw new TypeError(`unknown fixed Schema request method: ${definition.method}`)
   }
-  return '"use strict";\nexports = module.exports = Object.create(null);\n' + standalone(ajv, names)
+  const metadata = Object.entries(schemas)
+    .map(
+      ([name, schema]) =>
+        `module.exports[${JSON.stringify(name)}].schema = JSON.parse(${JSON.stringify(JSON.stringify(schema))});`,
+    )
+    .join('\n')
+  return (
+    '"use strict";\nexports = module.exports = Object.create(null);\n' +
+    standalone(ajv, names) +
+    (metadata ? '\n' + metadata + '\n' : '')
+  )
 }
 function cleanup(owner) {
   const errors = []
