@@ -6,7 +6,7 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
 import type { ModelDefinition } from '../definitions.ts'
-import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type { FullMeterInput, InputMeter, TokenMeasurement } from '../input-meter.ts'
 import { createXaiInputMeter, createXaiVisibleBodyCounter } from './xai.ts'
 
 // xAI grok-build f0e3be1 uses UTF-8 bytes / 4 and 765 per image for its own
@@ -36,12 +36,7 @@ const messageFields = new Set([
 ])
 
 function projectedMessage(value: JsonValue): { message: JsonObject; images: number } | undefined {
-  if (!object(value) || Object.keys(value).some(key => !messageFields.has(key))) return undefined
-  if (!['system', 'user', 'assistant', 'tool'].includes(String(value.role))) return undefined
-  if (Object.hasOwn(value, 'reasoning_details')) return undefined // opaque replay is not text
-  if (value.reasoning !== undefined && typeof value.reasoning !== 'string') return undefined
-  if (value.tool_call_id !== undefined && typeof value.tool_call_id !== 'string') return undefined
-  if (value.tool_calls !== undefined && !Array.isArray(value.tool_calls)) return undefined
+  if (!object(value) || !projectedFieldsValid(value)) return undefined
   if (typeof value.content === 'string') return { message: value, images: 0 }
   if (!Array.isArray(value.content)) return undefined
   let images = 0
@@ -56,27 +51,58 @@ function projectedMessage(value: JsonValue): { message: JsonObject; images: numb
       parts.push(part)
       continue
     }
+    if (!projectImage(part, value)) return undefined
+  }
+  return { message: { ...value, content: parts }, images }
+
+  function projectImage(part: JsonObject, value: JsonObject): boolean {
     if (
       part.type !== 'image_url' ||
       value.role !== 'user' ||
       Object.keys(part).some(key => key !== 'type' && key !== 'image_url')
     )
-      return undefined
+      return false
     const image = part.image_url
-    if (
-      !object(image) ||
-      Object.keys(image).some(key => key !== 'url' && key !== 'detail') ||
-      typeof image.url !== 'string'
-    )
-      return undefined
-    const match = imageUrl.exec(image.url)
-    if (!match?.[1]) return undefined
-    const decoded = Buffer.from(match[1], 'base64')
-    if (!decoded.length || decoded.toString('base64') !== match[1]) return undefined
+    if (!candidateImageValid(image)) return false
     images++
     parts.push({ ...part, image_url: { ...image, url: '[image]' } })
+    return true
   }
-  return { message: { ...value, content: parts }, images }
+}
+
+function projectedFieldsValid(value: JsonObject): boolean {
+  if (Object.keys(value).some(key => !messageFields.has(key))) return false
+  if (!['system', 'user', 'assistant', 'tool'].includes(String(value.role))) return false
+  if (Object.hasOwn(value, 'reasoning_details')) return false // opaque replay is not text
+  if (value.reasoning !== undefined && typeof value.reasoning !== 'string') return false
+  if (value.tool_call_id !== undefined && typeof value.tool_call_id !== 'string') return false
+  if (value.tool_calls !== undefined && !Array.isArray(value.tool_calls)) return false
+  return true
+}
+
+function candidateImageValid(image: unknown): image is JsonObject {
+  if (
+    !object(image) ||
+    Object.keys(image).some(key => key !== 'url' && key !== 'detail') ||
+    typeof image.url !== 'string'
+  )
+    return false
+  const match = imageUrl.exec(image.url)
+  if (!match?.[1]) return false
+  const decoded = Buffer.from(match[1], 'base64')
+  if (!decoded.length || decoded.toString('base64') !== match[1]) return false
+  return true
+}
+
+function candidateProviderSupported(body: JsonObject): boolean {
+  return !(
+    !object(body.provider) ||
+    !Array.isArray(body.provider.order) ||
+    body.provider.order.length !== 1 ||
+    body.provider.order[0] !== 'xai' ||
+    body.provider.allow_fallbacks !== false ||
+    body.provider.require_parameters !== true
+  )
 }
 
 /** Unbound, first-party-sourced candidate for the two fixed Grok routes. */
@@ -102,12 +128,7 @@ export function createXaiCandidateInputMeter(definition: ModelDefinition): Input
         body.model !== definition.modelId ||
         writeJsonLossless(body) !== serialized ||
         Object.keys(body).some(key => !bodyFields.has(key)) ||
-        !object(body.provider) ||
-        !Array.isArray(body.provider.order) ||
-        body.provider.order.length !== 1 ||
-        body.provider.order[0] !== 'xai' ||
-        body.provider.allow_fallbacks !== false ||
-        body.provider.require_parameters !== true ||
+        !candidateProviderSupported(body) ||
         !Array.isArray(body.messages) ||
         (body.tools !== undefined && !Array.isArray(body.tools))
       )
@@ -163,40 +184,19 @@ export function createXaiHistoryCandidateInputMeter(
       let sawHistory = false
       for (const raw of body.messages) {
         if (!object(raw)) return { kind: 'unavailable' }
+        if (!projectHistoryMessage(raw)) return { kind: 'unavailable' }
+      }
+      if (!sawHistory) return countVisible({ body, serialized })
+      return historyMeasurement(countVisible)
+
+      function projectHistoryMessage(raw: JsonObject): boolean {
         if (!Object.hasOwn(raw, 'reasoning_details')) {
           messages.push(raw)
-          continue
+          return true
         }
-        if (raw.role !== 'assistant' || raw.reasoning !== undefined) return { kind: 'unavailable' }
-        const details = raw.reasoning_details
-        if (!Array.isArray(details) || (details.length !== 1 && details.length !== 2))
-          return { kind: 'unavailable' }
-        const summary = details.length === 2 ? details[0] : undefined
-        const encrypted = details[details.length - 1]
-        if (
-          (summary !== undefined &&
-            (!object(summary) ||
-              Object.keys(summary).some(
-                key => !['type', 'summary', 'format', 'index'].includes(key),
-              ) ||
-              summary.type !== 'reasoning.summary' ||
-              summary.format !== 'xai-responses-v1' ||
-              summary.index !== 0 ||
-              typeof summary.summary !== 'string')) ||
-          !object(encrypted) ||
-          Object.keys(encrypted).some(
-            key => !['type', 'data', 'format', 'id', 'index'].includes(key),
-          ) ||
-          encrypted.type !== 'reasoning.encrypted' ||
-          encrypted.format !== 'xai-responses-v1' ||
-          encrypted.index !== (summary ? 1 : 0) ||
-          typeof encrypted.id !== 'string' ||
-          encrypted.id.length === 0 ||
-          typeof encrypted.data !== 'string' ||
-          encrypted.data.length === 0 ||
-          !/^[A-Za-z0-9+/_=-]+\.[A-Za-z0-9+/_=-]+$/u.test(encrypted.data)
-        )
-          return { kind: 'unavailable' }
+        const reasoning = historyReasoning(raw)
+        if (!reasoning) return false
+        const { summary, encrypted } = reasoning
         const summaryText = summary && typeof summary.summary === 'string' ? summary.summary : ''
         const summaryBytes = Buffer.byteLength(summaryText, 'utf8')
         const ciphertextBytes = Buffer.byteLength(encrypted.data, 'utf8')
@@ -211,24 +211,77 @@ export function createXaiHistoryCandidateInputMeter(
         const { reasoning_details: _details, ...rest } = raw
         messages.push(rest)
         sawHistory = true
+        return true
       }
-      if (!sawHistory) return countVisible({ body, serialized })
-      const visibleBody = { ...body, messages }
-      const visibleSerialized = writeJsonLossless(visibleBody)
-      const base = countVisible({ body: visibleBody, serialized: visibleSerialized })
-      if (base.kind !== 'estimated' || typeof base.tokens !== 'number')
-        return { kind: 'unavailable' }
-      const visibleBytes = Buffer.byteLength(visibleSerialized, 'utf8')
-      const envelopeBytes =
-        Buffer.byteLength(serialized, 'utf8') - visibleBytes - encodedPayloadBytes
-      if (!Number.isSafeInteger(envelopeBytes) || envelopeBytes < 0) return { kind: 'unavailable' }
-      const offset = base.tokens - Math.floor(visibleBytes / bytesPerToken)
-      const tokens =
-        Math.floor((visibleBytes + envelopeBytes) / bytesPerToken) + offset + nativeReasoningTokens
-      return Number.isSafeInteger(tokens) && tokens >= 0
-        ? { kind: 'estimated', tokens }
-        : { kind: 'unavailable' }
+
+      function historyMeasurement(
+        count: (input: Pick<FullMeterInput, 'body' | 'serialized'>) => TokenMeasurement,
+      ): TokenMeasurement {
+        const visibleBody = { ...body, messages }
+        const visibleSerialized = writeJsonLossless(visibleBody)
+        const base = count({ body: visibleBody, serialized: visibleSerialized })
+        if (base.kind !== 'estimated' || typeof base.tokens !== 'number')
+          return { kind: 'unavailable' }
+        const visibleBytes = Buffer.byteLength(visibleSerialized, 'utf8')
+        const envelopeBytes =
+          Buffer.byteLength(serialized, 'utf8') - visibleBytes - encodedPayloadBytes
+        if (!Number.isSafeInteger(envelopeBytes) || envelopeBytes < 0)
+          return { kind: 'unavailable' }
+        const offset = base.tokens - Math.floor(visibleBytes / bytesPerToken)
+        const tokens =
+          Math.floor((visibleBytes + envelopeBytes) / bytesPerToken) +
+          offset +
+          nativeReasoningTokens
+        return Number.isSafeInteger(tokens) && tokens >= 0
+          ? { kind: 'estimated', tokens }
+          : { kind: 'unavailable' }
+      }
     },
   })
   return Object.freeze(meter)
+}
+
+function historyReasoning(raw: JsonObject):
+  | {
+      readonly summary: JsonObject | undefined
+      readonly encrypted: JsonObject & { readonly data: string }
+    }
+  | undefined {
+  if (raw.role !== 'assistant' || raw.reasoning !== undefined) return undefined
+  const details = raw.reasoning_details
+  if (!Array.isArray(details) || (details.length !== 1 && details.length !== 2)) return undefined
+  const summary = details.length === 2 ? details[0] : undefined
+  const encrypted = details[details.length - 1]
+  if (!historySummaryValid(summary) || !historyEncryptedValid(encrypted, summary)) return undefined
+  return { summary, encrypted }
+}
+
+function historySummaryValid(summary: unknown): summary is JsonObject | undefined {
+  return !(
+    summary !== undefined &&
+    (!object(summary) ||
+      Object.keys(summary).some(key => !['type', 'summary', 'format', 'index'].includes(key)) ||
+      summary.type !== 'reasoning.summary' ||
+      summary.format !== 'xai-responses-v1' ||
+      summary.index !== 0 ||
+      typeof summary.summary !== 'string')
+  )
+}
+
+function historyEncryptedValid(
+  encrypted: unknown,
+  summary: JsonObject | undefined,
+): encrypted is JsonObject & { readonly data: string } {
+  return !(
+    !object(encrypted) ||
+    Object.keys(encrypted).some(key => !['type', 'data', 'format', 'id', 'index'].includes(key)) ||
+    encrypted.type !== 'reasoning.encrypted' ||
+    encrypted.format !== 'xai-responses-v1' ||
+    encrypted.index !== (summary ? 1 : 0) ||
+    typeof encrypted.id !== 'string' ||
+    encrypted.id.length === 0 ||
+    typeof encrypted.data !== 'string' ||
+    encrypted.data.length === 0 ||
+    !/^[A-Za-z0-9+/_=-]+\.[A-Za-z0-9+/_=-]+$/u.test(encrypted.data)
+  )
 }
