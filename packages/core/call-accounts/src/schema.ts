@@ -37,10 +37,9 @@ export function structureValid(kind: SchemaDefName, value: JsonValue): boolean {
 function run(graph: 'full' | 'structural', kind: SchemaDefName, value: JsonValue): boolean {
   const name = SCHEMA_DEF_NAMES.find(item => item === kind)
   if (name === undefined) throw new Error(`unknown account definition: ${kind}`)
-  const validators = require(`./generated/${graph}.cjs`) as Record<
-    SchemaDefName,
-    (value: unknown) => boolean
-  >
+  const validators = (
+    graph === 'full' ? require('./generated/full.cjs') : require('./generated/structural.cjs')
+  ) as Record<SchemaDefName, (value: unknown) => boolean>
   return validators[name](project(value)) === true
 }
 /** A field-free JSON copy rejects getters, cycles, undefined, and non-JSON objects. */

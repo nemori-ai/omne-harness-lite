@@ -20,6 +20,8 @@
 
 固定制品是进程有界模块所有权，没有新service/plugin/fiber或存储。既有Cordis装配、启动/撤除/静止及租户责任仍归本节点原设计；生成文件不代替它们。
 
+SC-2 的只读导入边界继续约束 `src/routing/schema.ts`。拆出的 `src/schema-inputs.ts` 同样纳入只读叶子检查，只装配既有三份 Schema 资源，不得导入治理服务或写入口。路由校验器通过以包根为坐标的 `createRequire`，加载唯一的 `./generated/ordinary.cjs`；这条有限制品入口不放开其他生成模块或相对导入。
+
 ## 验证义务与目前范围
 
 - FS65-1：每个图的全部有限定义实际构建/加载；缺定义或坏固定资源为抛错，不是valid:false。

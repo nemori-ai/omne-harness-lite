@@ -1,6 +1,6 @@
 // Fixed entry definitions retain ordinary Ajv value and error behavior.
 import { createRequire } from 'node:module'
-import type { ErrorObject } from 'ajv'
+import type { ErrorObject } from 'ajv/dist/2020.js'
 import { ENTRY_SCHEMA_ID, entryDefinitions } from '../schema-inputs.ts'
 export { ENTRY_SCHEMA_ID }
 const require = createRequire(new URL('../../package.json', import.meta.url))

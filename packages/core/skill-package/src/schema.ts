@@ -38,8 +38,8 @@ function bind(version: 2 | 3): SkillSchemaBinding {
       if (name === undefined) throw new TypeError(`unknown Skill Schema definition ${definition}`)
       const value = copyJson(input)
       if (value === undefined) return Object.freeze({ valid: false })
-      const generated = require(
-        version === 2 ? './generated/previous.cjs' : './generated/exact.cjs',
+      const generated = (
+        version === 2 ? require('./generated/previous.cjs') : require('./generated/exact.cjs')
       ) as Record<SchemaDefName, (text: string) => { readonly valid: boolean }>
       return Object.freeze({ valid: generated[name](writeJsonLossless(value)).valid })
     },
