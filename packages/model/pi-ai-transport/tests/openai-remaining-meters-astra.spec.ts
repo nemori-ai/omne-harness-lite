@@ -19,23 +19,9 @@ import {
   policy,
   sse,
 } from './support.ts'
+import { recordTiktokenInput } from './tokenizer-input.ts'
 
-const tokenized = vi.hoisted(() => [] as string[])
-vi.mock('js-tiktoken', async importOriginal => {
-  const actual = await importOriginal<typeof import('js-tiktoken')>()
-  return {
-    ...actual,
-    getEncoding(...args: Parameters<typeof actual.getEncoding>) {
-      const encoder = actual.getEncoding(...args)
-      const encode = encoder.encode.bind(encoder)
-      encoder.encode = (...values: Parameters<typeof encode>) => {
-        tokenized.push(values[0])
-        return encode(...values)
-      }
-      return encoder
-    },
-  }
-})
+const tokenized = recordTiktokenInput()
 const definition = openaiDefinitions.find(value => value.modelId === 'openai/gpt-6-astra')!
 function request(): PlanInput {
   const profile = createOfficialProfileContent(definition, {

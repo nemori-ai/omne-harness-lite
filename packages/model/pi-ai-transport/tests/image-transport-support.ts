@@ -3,7 +3,6 @@ import {
   createImagePreparer as createPublishedPreparer,
 } from '@omne-harness-lite/pi-ai-transport'
 import sharp from 'sharp'
-import { afterAll } from 'vitest'
 import {
   createImagePreparer,
   createSharpImageCodec,
@@ -25,6 +24,7 @@ const publishedPreparer = publishedInstance.ready
 export function testImagePreparerFor(plan: unknown) {
   return plan === publishedPlan ? publishedPreparer : sourcePreparer
 }
-afterAll(async () => {
-  await Promise.all([sourcePreparer.close(), publishedPreparer.close()])
-})
+// The two preparers are never closed here. Without per-file isolation this module is loaded once
+// per worker and shared by every test file in it, so closing them after the first file would hand
+// a closed preparer to the rest. close() only aborts in-flight work and empties the cache; it holds
+// no handle or timer that would keep the worker alive.

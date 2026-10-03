@@ -48,20 +48,9 @@ import { object } from '../src/json.ts'
 import { testImagePreparerFor } from './image-transport-support.ts'
 import { directFull, directNew, fullInputWithoutSource } from './direct-full-input.ts'
 import { at, input, judgedMessage, message } from './support.ts'
+import { recordTokenizerInput } from './tokenizer-input.ts'
 
-const tokenized = vi.hoisted(() => [] as string[])
-vi.mock('@huggingface/tokenizers', async importOriginal => {
-  const actual = await importOriginal<typeof import('@huggingface/tokenizers')>()
-  return {
-    ...actual,
-    Tokenizer: class extends actual.Tokenizer {
-      encode(...args: Parameters<InstanceType<typeof actual.Tokenizer>['encode']>) {
-        tokenized.push(args[0])
-        return super.encode(...args)
-      }
-    },
-  }
-})
+const { texts: tokenized } = recordTokenizerInput()
 
 type Mode = 'chat' | 'thinking'
 const families = [

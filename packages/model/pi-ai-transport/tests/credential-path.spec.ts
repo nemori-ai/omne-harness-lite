@@ -29,6 +29,13 @@ import {
   sse,
 } from './support.ts'
 
+// The published transport binds the redaction policy from model-request-runtime when its module is
+// first evaluated. Without per-file isolation an earlier file in this worker may already have
+// evaluated it against the real runtime, out of reach of the mock below; so this file starts from a
+// fresh module registry and, when it ends, drops its mock and leaves a fresh registry behind.
+vi.hoisted(() => {
+  vi.resetModules()
+})
 const faults = vi.hoisted(() => ({
   stage: '' as 'bind' | 'headers' | 'json' | 'text' | '',
   rejected: false,
@@ -94,6 +101,10 @@ beforeAll(() => {
   cert = certificate()
 })
 afterAll(() => cert.dispose())
+afterAll(() => {
+  vi.doUnmock('@omne-harness-lite/model-request-runtime')
+  vi.resetModules()
+})
 afterEach(() => {
   faults.stage = ''
   faults.rejected = false
