@@ -20,23 +20,9 @@ import {
   policy,
   sse,
 } from './support.ts'
+import { recordTiktokenInput } from './tokenizer-input.ts'
 
-const tokenized = vi.hoisted(() => [] as string[])
-vi.mock('js-tiktoken', async importOriginal => {
-  const actual = await importOriginal<typeof import('js-tiktoken')>()
-  return {
-    ...actual,
-    getEncoding(...args: Parameters<typeof actual.getEncoding>) {
-      const encoder = actual.getEncoding(...args),
-        encode = encoder.encode.bind(encoder)
-      encoder.encode = (...values: Parameters<typeof encode>) => {
-        tokenized.push(values[0])
-        return encode(...values)
-      }
-      return encoder
-    },
-  }
-})
+const tokenized = recordTiktokenInput()
 const models = ['openai/gpt-5.6-sol', 'openai/gpt-5.6-terra', 'openai/gpt-5.6-luna']
 // Tokenizer construction is fixture setup, outside the three-request behavior timeout.
 const modelCases = models.map(model => {
@@ -146,6 +132,8 @@ describe.each(modelCases)('$model complete encrypted output replay', testCase =>
         expect(writeJsonLossless(result.cost.cost_usd)).toBe('0.000123')
         if (round > 1) {
           expect(full.mock.calls.length).toBe(beforeFull)
+          // The tokenizer did see this round's new text, so the next check is not vacuous.
+          expect(tokenized.length).toBeGreaterThan(0)
           expect(
             tokenized.some(
               text => text.includes('STABLE_PREFIX_MARKER') || text.includes(detail.data),

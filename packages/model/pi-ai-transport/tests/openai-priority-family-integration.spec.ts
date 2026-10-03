@@ -35,23 +35,9 @@ import {
   policy,
   sse,
 } from './support.ts'
+import { recordTiktokenInput } from './tokenizer-input.ts'
 
-const tokenized = vi.hoisted(() => [] as string[])
-vi.mock('js-tiktoken', async importOriginal => {
-  const actual = await importOriginal<typeof import('js-tiktoken')>()
-  return {
-    ...actual,
-    getEncoding(...args: Parameters<typeof actual.getEncoding>) {
-      const encoder = actual.getEncoding(...args),
-        encode = encoder.encode.bind(encoder)
-      encoder.encode = (...values: Parameters<typeof encode>) => {
-        tokenized.push(values[0])
-        return encode(...values)
-      }
-      return encoder
-    },
-  }
-})
+const tokenized = recordTiktokenInput()
 const retirement: RetirementPolicy = {
   waitMilliseconds: 100,
   force: false,
@@ -194,6 +180,8 @@ describe.each(['public', 'cordis'] as const)('%s actual OpenAI family transport'
               precision: 'estimated',
               tokens: 18,
             })
+            // The tokenizer did see this round's new text, so the next check is not vacuous.
+            expect(tokenized.length).toBeGreaterThan(0)
             expect(tokenized.some(text => text.includes('STABLE_PREFIX'))).toBe(false)
           }
           expect(planned.planned.serialized).toContain('data:image/png;base64,')
@@ -225,6 +213,7 @@ describe.each(['public', 'cordis'] as const)('%s actual OpenAI family transport'
             routeName: row.modelId,
             reasoning_details: [encrypted],
           })
+          expect(tokenized.length).toBeGreaterThan(0)
           expect(tokenized.some(text => text.includes(encrypted.data))).toBe(false)
           const wire = JSON.parse(host.requests.at(-1)!.body)
           const replayed = wire.messages.flatMap(

@@ -36,23 +36,9 @@ import {
   policy,
   sse,
 } from './support.ts'
+import { recordTokenizerInput } from './tokenizer-input.ts'
 
-const tokenized = vi.hoisted(() => [] as string[])
-const counts = vi.hoisted(() => [] as number[])
-vi.mock('@huggingface/tokenizers', async importOriginal => {
-  const actual = await importOriginal<typeof import('@huggingface/tokenizers')>()
-  return {
-    ...actual,
-    Tokenizer: class extends actual.Tokenizer {
-      encode(...args: Parameters<InstanceType<typeof actual.Tokenizer>['encode']>) {
-        tokenized.push(args[0])
-        const result = super.encode(...args)
-        counts.push(result.ids.length)
-        return result
-      }
-    },
-  }
-})
+const { texts: tokenized, counts } = recordTokenizerInput()
 const families = [
   {
     definition: deepseekV4Pro0813Definition,

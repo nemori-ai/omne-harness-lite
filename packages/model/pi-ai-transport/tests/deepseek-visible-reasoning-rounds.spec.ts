@@ -44,20 +44,9 @@ import {
   policy,
   sse,
 } from './support.ts'
+import { recordTokenizerInput } from './tokenizer-input.ts'
 
-const tokenized = vi.hoisted(() => [] as string[])
-vi.mock('@huggingface/tokenizers', async importOriginal => {
-  const actual = await importOriginal<typeof import('@huggingface/tokenizers')>()
-  return {
-    ...actual,
-    Tokenizer: class extends actual.Tokenizer {
-      encode(...args: Parameters<InstanceType<typeof actual.Tokenizer>['encode']>) {
-        tokenized.push(args[0])
-        return super.encode(...args)
-      }
-    },
-  }
-})
+const { texts: tokenized } = recordTokenizerInput()
 
 const families = [
   {

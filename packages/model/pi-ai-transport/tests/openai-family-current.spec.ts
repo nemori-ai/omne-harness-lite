@@ -3,6 +3,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import sharp from 'sharp'
 import { imageSize } from 'image-size'
+import { getEncoding } from 'js-tiktoken'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
@@ -56,6 +57,7 @@ import {
   policy,
   sse,
 } from './support.ts'
+import { recordTiktokenInput } from './tokenizer-input.ts'
 
 // Credential-free current-source closeout for the twelve OpenAI leaves over a
 // local TLS fixture, through the standalone public transport and through the
@@ -63,23 +65,7 @@ import {
 // proves the local plan/send/read/replay path on the current definitions and
 // pi-ai:openai/mp4-18, not live OpenRouter/OpenAI behavior, cache hits or billing.
 
-const tokenized = vi.hoisted(() => [] as string[])
-vi.mock('js-tiktoken', async importOriginal => {
-  const actual = await importOriginal<typeof import('js-tiktoken')>()
-  return {
-    ...actual,
-    getEncoding(...args: Parameters<typeof actual.getEncoding>) {
-      const encoder = actual.getEncoding(...args),
-        encode = encoder.encode.bind(encoder)
-      encoder.encode = (...values: Parameters<typeof encode>) => {
-        tokenized.push(values[0])
-        return encode(...values)
-      }
-      return encoder
-    },
-  }
-})
-const { getEncoding } = await import('js-tiktoken')
+const tokenized = recordTiktokenInput()
 
 // The first test in a worker pays tokenizer load and TLS setup.
 vi.setConfig({ testTimeout: 30000 })

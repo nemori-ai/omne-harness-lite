@@ -25,7 +25,7 @@
 
 产品包检查（`product-check`，含全量构建与 `lint:rules`——后者也核[验收的覆盖声明](../tools/ts-checks/README_ZH.md#验收的覆盖声明)）的测试一步是
 `pnpm run test:gate`：全部成员的快层，再加基线以来受影响成员的慢层（[分层](../tools/ts-checks/README_ZH.md#测试运行)）；
-其余成员的慢层不在合并前跑，合并后在主线头上用 `make test-tier TIER=slow` 补跑。产品包检查之后是
+其余成员的慢层不在这个入口中执行，负责人需要时可手动运行 `make test-tier TIER=slow`。产品包检查之后是
 `make acceptance NO_BUILD=1`：跑每个带 `acceptance` 脚本的成员的可执行验收，驱动刚构建出来的 `dist/`，任何一份不过整套检查就失败；
 它的耗时记录写进主检出的 `tmp/acceptance-ledger/`，是下一步验收耗时传感器的读数来源（见 [tools/ts-checks](../tools/ts-checks/README_ZH.md#测试运行)）。
 现在只有 `apps/cli` 一份，约 10～16 秒。
@@ -96,9 +96,10 @@
 
 ## CI
 
-**远程 CI 目前关闭，检查结论以本地跑的 `make check` 为准**（2026-10-01 定）。
+**远程 CI 目前关闭，检查结论以实际执行的本地检查证据为准。**
 [check.yml](../.github/workflows/check.yml) 只留了手动触发，仓库设置里这份工作流也已停用：
-没有注册 runner 时，自动触发的任务只会排队、不会执行。合并前的门是本地在待合并提交上跑的完整 `make check`。
+没有注册 runner 时，自动触发的任务只会排队、不会执行。合并前，在待合并的提交上计算影响面，再运行受影响、因此需要执行的检查。
+范围、依据与结果写进 PR，规则归[整洁回路](../docs/clean-loop.md#回路怎么转)。当前 `make check` 尚未自动收窄的范围，由实施者手动计算并执行；其自适应改造归增量 10（#68）。
 
 恢复自动触发要三步，缺一步都不算恢复：按下文注册自托管 runner；在仓库设置里启用这份工作流
 （`gh workflow enable Check`）；把工作流文件开头注释掉的三种触发放回 `on:` 之下。恢复之后的行为如下。
