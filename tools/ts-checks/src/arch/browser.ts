@@ -64,6 +64,8 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
     external: '外部代码依赖',
     group: '目录聚合',
   }
+  const nodeKind = (node: ViewNode): string =>
+    node.category === 'development' ? '开发成员' : kindLabel[node.kind]
   const changeLabel = { present: '', added: '新增', removed: '已删除 · BASE' }
   const scopeText = `HEAD ${graph.source.commit} · ${graph.source.kind} · dirty ${graph.source.dirty} / inputDirty ${graph.source.inputDirty}`
   required('arch-coordinate').textContent =
@@ -86,7 +88,7 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
       .map(node =>
         option(
           node.id,
-          `${kindLabel[node.kind]} · ${node.member ?? node.label}${changeLabel[node.change] === '' ? '' : ' · ' + changeLabel[node.change]}`,
+          `${nodeKind(node)} · ${node.member ?? node.label}${changeLabel[node.change] === '' ? '' : ' · ' + changeLabel[node.change]}`,
         ),
       ),
   )
@@ -151,7 +153,7 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
       element('h2', node.member ?? node.label),
       element(
         'p',
-        `${kindLabel[node.kind]} · ${changeLabel[node.change] || '静态源码声明'}。服务/事件同名聚合不表示实际绑定。`,
+        `${nodeKind(node)} · ${changeLabel[node.change] || '静态源码声明'}。服务/事件同名聚合不表示实际绑定。`,
       ),
     )
     if (node.kind === 'group') {
@@ -317,7 +319,7 @@ export function architectureBrowser(selectView: typeof selectArchitectureView): 
       svgElement(
         'text',
         { x: '10', y: '18', fill: '#4b5563', 'font-size': '11' },
-        `«${kindLabel[node.kind]}» ${changeLabel[node.change]}`,
+        `«${nodeKind(node)}» ${changeLabel[node.change]}`,
       ),
       svgElement(
         'text',
