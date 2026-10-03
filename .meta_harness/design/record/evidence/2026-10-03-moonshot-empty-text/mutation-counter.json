@@ -1,0 +1,28 @@
+{
+  "sourceHead": "eb2b5bf00dca8facc67d5c082418d09e4a0fbdc0",
+  "method": "Manual product counter for Stryker mutant43 filter->content. No existing assertions changed; only frozen clone src temporarily mutated, byte-exact restored.",
+  "command": [
+    "taskset",
+    "-c",
+    "7",
+    "nice",
+    "-n",
+    "5",
+    "pnpm",
+    "exec",
+    "vitest",
+    "run",
+    "tests/moonshot-empty-text.spec.ts",
+    "--reporter=json",
+    "--outputFile=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/checks50/mutation-counter-r1/vitest.json"
+  ],
+  "vitestExit": 1,
+  "total": 38,
+  "failed": 20,
+  "passed": 18,
+  "wallSeconds": 11.664,
+  "sourceSha256": "34da36902959041a2a65b5e756621dcdc1d940f4e44f2fe4a4a303fa61413ad2",
+  "counterSha256": "bb8d2212f2bb3b710b6375c7121b616c5089f51805c9b5e70bf2ec8d5eb4cf5e",
+  "restoredClean": true,
+  "interpretation": "Stryker Survived for mutant43 is not a confirmed test survivor; direct existing test actually detects this counter. Other22 statuses not individually confirmed."
+}

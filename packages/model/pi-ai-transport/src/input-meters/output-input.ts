@@ -43,53 +43,69 @@ function history(raw: JsonValue | undefined): readonly PlanOutputHistoryGroup[] 
   if (!Array.isArray(raw)) return undefined
   const result: PlanOutputHistoryGroup[] = []
   for (const group of raw) {
-    if (!object(group) || Object.keys(group).length !== 5 || !object(group.origin)) return undefined
-    const observed = ownCalibration({
-      kind: 'observation',
-      inputCalibration: group.inputCalibration,
-      usage: group.usage,
-      outputBlocks: group.outputBlocks,
-      replaySelection: group.replaySelection,
-    })
-    const origin = group.origin
-    const binding = origin.adaptation
-    const parameters = origin.parameters
-    if (
-      !observed ||
-      observed.kind !== 'observation' ||
-      !adaptation(binding) ||
-      !requestParameters(parameters) ||
-      typeof origin.provider !== 'string' ||
-      !validate('ProviderName', origin.provider).valid ||
-      (origin.servingProvider !== undefined && typeof origin.servingProvider !== 'string') ||
-      (origin.upstreamModel !== undefined && typeof origin.upstreamModel !== 'string') ||
-      Object.keys(origin).some(
-        key =>
-          !['adaptation', 'provider', 'parameters', 'servingProvider', 'upstreamModel'].includes(
-            key,
-          ),
-      )
-    )
-      return undefined
-    result.push(
-      Object.freeze({
-        inputCalibration: observed.inputCalibration,
-        usage: observed.usage,
-        outputBlocks: observed.outputBlocks,
-        replaySelection: observed.replaySelection,
-        origin: Object.freeze({
-          adaptation: binding,
-          parameters,
-          provider: origin.provider,
-          ...(origin.servingProvider === undefined
-            ? {}
-            : { servingProvider: origin.servingProvider }),
-          ...(origin.upstreamModel === undefined ? {} : { upstreamModel: origin.upstreamModel }),
-        }),
-      }),
-    )
+    const owned = historyGroup(group)
+    if (!owned) return undefined
+    result.push(owned)
   }
   return Object.freeze(result)
+}
+
+function historyGroup(group: JsonValue): PlanOutputHistoryGroup | undefined {
+  if (!object(group) || Object.keys(group).length !== 5 || !object(group.origin)) return undefined
+  const observed = ownCalibration({
+    kind: 'observation',
+    inputCalibration: group.inputCalibration,
+    usage: group.usage,
+    outputBlocks: group.outputBlocks,
+    replaySelection: group.replaySelection,
+  })
+  const origin = group.origin
+  const binding = origin.adaptation
+  const parameters = origin.parameters
+  if (
+    !observed ||
+    observed.kind !== 'observation' ||
+    !adaptation(binding) ||
+    !requestParameters(parameters) ||
+    typeof origin.provider !== 'string' ||
+    !validate('ProviderName', origin.provider).valid ||
+    !originMetadataValid(origin)
+  )
+    return undefined
+  return Object.freeze({
+    inputCalibration: observed.inputCalibration,
+    usage: observed.usage,
+    outputBlocks: observed.outputBlocks,
+    replaySelection: observed.replaySelection,
+    origin: Object.freeze({
+      adaptation: binding,
+      parameters,
+      provider: origin.provider,
+      ...originIdentity(origin),
+    }),
+  })
+}
+
+function originMetadataValid(
+  origin: JsonObject,
+): origin is JsonObject & { readonly servingProvider?: string; readonly upstreamModel?: string } {
+  return !(
+    (origin.servingProvider !== undefined && typeof origin.servingProvider !== 'string') ||
+    (origin.upstreamModel !== undefined && typeof origin.upstreamModel !== 'string') ||
+    Object.keys(origin).some(
+      key =>
+        !['adaptation', 'provider', 'parameters', 'servingProvider', 'upstreamModel'].includes(key),
+    )
+  )
+}
+
+function originIdentity(
+  origin: JsonObject & { readonly servingProvider?: string; readonly upstreamModel?: string },
+): { servingProvider?: string; upstreamModel?: string } {
+  return {
+    ...(origin.servingProvider === undefined ? {} : { servingProvider: origin.servingProvider }),
+    ...(origin.upstreamModel === undefined ? {} : { upstreamModel: origin.upstreamModel }),
+  }
 }
 function spans(raw: JsonValue | undefined): readonly HistorySelectionSpan[] | undefined {
   if (!Array.isArray(raw)) return undefined
@@ -199,8 +215,21 @@ export function ownReplayOutputInput(raw: unknown): ReplayMeterInput | undefined
     observation = ownCalibration(value.observation)
   if (!base || !basis || !groups || !observation || observation.kind !== 'observation')
     return undefined
+  const selected = replaySpans(value.selectionSpans)
+  if (!selected) return undefined
+  return Object.freeze({
+    ...base,
+    countingBasis: basis,
+    unitIndices: value.unitIndices,
+    observation,
+    outputHistory: groups,
+    selectionSpans: selected,
+  })
+}
+
+function replaySpans(raw: readonly JsonValue[]): ReplayMeterInput['selectionSpans'] | undefined {
   const selected: ReplayMeterInput['selectionSpans'][number][] = []
-  for (const span of value.selectionSpans) {
+  for (const span of raw) {
     if (
       !object(span) ||
       Object.keys(span).length !== 3 ||
@@ -213,12 +242,5 @@ export function ownReplayOutputInput(raw: unknown): ReplayMeterInput | undefined
       Object.freeze({ selectionIndex: span.selectionIndex, start: span.start, end: span.end }),
     )
   }
-  return Object.freeze({
-    ...base,
-    countingBasis: basis,
-    unitIndices: value.unitIndices,
-    observation,
-    outputHistory: groups,
-    selectionSpans: Object.freeze(selected),
-  })
+  return Object.freeze(selected)
 }

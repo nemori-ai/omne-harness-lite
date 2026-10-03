@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "limitUsd": "5",
+  "researchLimitUsd": "5",
+  "entries": [
+    {
+      "id": "historical-97-probes",
+      "model": "31 archived fixed routes",
+      "provider": "original fixed providers",
+      "stage": "research",
+      "estimateUsd": "0.232026600000000000",
+      "state": "settled",
+      "actualUsd": "0.232026600000000000",
+      "costSource": {
+        "evidence": "97 original receipts; historical aggregate, not a new effect",
+        "sha256": "ed66485b8f2e1576ea7b73d3859d6dfd3a8452266b54eee7893266acd9bf1225"
+      }
+    },
+    {
+      "id": "399f3f24-acbc-4805-aca9-7f54aee15cec",
+      "model": "moonshotai/kimi-k3",
+      "provider": "moonshotai/mxfp4",
+      "stage": "acceptance",
+      "estimateUsd": "1",
+      "state": "settled",
+      "actualUsd": "0.001179"
+    }
+  ]
+}

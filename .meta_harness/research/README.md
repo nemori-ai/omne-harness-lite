@@ -152,3 +152,5 @@
 [2026-09-26 core 规格实施一致性观察](core-spec-conformance-2026-09-26/README.md)：固定CB2/SA2的两个反例与静态消费者影响；不接受新版本或实现。
 
 [DSH AgentRegistry 的活引用与生命周期边界](dsh-agent-registry-reference/README.md)：固定官方修订的服务、引用、登记及拆卸读数；不构成 Agent 原语采用。
+
+[图片与空文本段的 OpenRouter 接受性](empty-text-part-acceptance/README.md)：2026-10-02 的 31 路由、97 请求有限观察；完整脱敏请求与离线复核入口已保全，消费者为 D-115 与 pi-ai-transport 窄修复。

@@ -75,14 +75,7 @@ export function toolSchemas(value: JsonValue | undefined): string | undefined {
     if (!object(raw) || !exactKeys(raw, ['type', 'function']) || raw.type !== 'function')
       return undefined
     const fn = raw.function
-    if (
-      !object(fn) ||
-      !exactKeys(fn, ['name', 'description', 'parameters']) ||
-      typeof fn.name !== 'string' ||
-      typeof fn.description !== 'string' ||
-      !object(fn.parameters)
-    )
-      return undefined
+    if (!schemaFunctionValid(fn)) return undefined
     schemas.push(pythonJson(fn))
   }
   return schemas.length
@@ -90,26 +83,43 @@ export function toolSchemas(value: JsonValue | undefined): string | undefined {
     : ''
 }
 
+function schemaFunctionValid(fn: JsonValue | undefined): fn is JsonObject {
+  return (
+    object(fn) &&
+    exactKeys(fn, ['name', 'description', 'parameters']) &&
+    typeof fn.name === 'string' &&
+    typeof fn.description === 'string' &&
+    object(fn.parameters)
+  )
+}
+
 export function toolCalls(value: JsonValue | undefined): string | undefined {
   if (value === undefined) return ''
   if (!Array.isArray(value)) return undefined
   let rendered = ''
   for (const raw of value) {
-    if (!object(raw) || !exactKeys(raw, ['id', 'type', 'function'])) return undefined
-    if (typeof raw.id !== 'string' || raw.type !== 'function' || !object(raw.function))
-      return undefined
-    const fn = raw.function
-    if (!exactKeys(fn, ['name', 'arguments']) || typeof fn.name !== 'string') return undefined
-    if (typeof fn.arguments !== 'string') return undefined
-    const decoded = readJsonStrict(fn.arguments)
-    if (!('ok' in decoded) || !object(decoded.ok)) return undefined
+    const call = decodedToolCall(raw)
+    if (!call) return undefined
+    const { fn, arguments: args } = call
     if (!rendered) rendered = '\n'
     rendered += `<tool_call>${fn.name}`
-    for (const [key, item] of Object.entries(decoded.ok))
+    for (const [key, item] of Object.entries(args))
       rendered += `<arg_key>${key}</arg_key><arg_value>${typeof item === 'string' ? item : pythonJson(item)}</arg_value>`
     rendered += '</tool_call>'
   }
   return rendered
+}
+
+function decodedToolCall(raw: JsonValue): { fn: JsonObject; arguments: JsonObject } | undefined {
+  if (!object(raw) || !exactKeys(raw, ['id', 'type', 'function'])) return undefined
+  if (typeof raw.id !== 'string' || raw.type !== 'function' || !object(raw.function))
+    return undefined
+  const fn = raw.function
+  if (!exactKeys(fn, ['name', 'arguments']) || typeof fn.name !== 'string') return undefined
+  if (typeof fn.arguments !== 'string') return undefined
+  const decoded = readJsonStrict(fn.arguments)
+  if (!('ok' in decoded) || !object(decoded.ok)) return undefined
+  return { fn, arguments: decoded.ok }
 }
 
 /**
@@ -122,7 +132,7 @@ export function renderGlm52Prompt(
   history: ZaiHistoryTreatment,
 ): string | undefined {
   const body = projectZaiHistory(wire, history)
-  if (!body || !Array.isArray(body.messages)) return undefined
+  if (!body || !hasMessages(body)) return undefined
   if (
     !exactKeys(body, [
       'model',
@@ -146,40 +156,66 @@ export function renderGlm52Prompt(
     return undefined
   let rendered = prefix + `<|system|>Reasoning Effort: ${effort ? 'High' : 'Max'}` + schemas
   for (const [index, raw] of body.messages.entries()) {
-    if (!object(raw) || typeof raw.role !== 'string') return undefined
-    if (raw.role === 'system' || raw.role === 'user') {
-      if (!exactKeys(raw, ['role', 'content'])) return undefined
-      const content = visibleText(raw.content)
-      if (content === undefined) return undefined
-      rendered += `${raw.role === 'system' ? '<|system|>' : '<|user|>'}${content}`
-    } else if (raw.role === 'assistant') {
-      if (!exactKeys(raw, ['role', 'content', 'tool_calls', 'reasoning', 'reasoning_details']))
-        return undefined
-      // The final OpenRouter wire sends reasoning/reasoning_details, whereas the published
-      // template consumes reasoning_content. Only a visible-history release maps the plain
-      // string into that slot; nothing is ever silently discarded.
-      const thought = zaiAssistantReasoning(raw, history)
-      if (thought === undefined) return undefined
-      const content = visibleText(raw.content)
-      if (content === undefined || content.includes('</think>')) return undefined
-      const thinking = `<think>${thought.reasoning ?? ''}</think>`
-      const calls = toolCalls(raw.tool_calls)
-      if (calls === undefined) return undefined
-      rendered += `<|assistant|>${thinking}${content.trim()}${calls}${calls ? '\n' : ''}`
-    } else if (raw.role === 'tool') {
-      if (
-        !exactKeys(raw, ['role', 'tool_call_id', 'content']) ||
-        typeof raw.tool_call_id !== 'string'
-      )
-        return undefined
-      const content = visibleText(raw.content)
-      if (content === undefined) return undefined
-      const previous = body.messages[index - 1]
-      if (!object(previous) || previous.role !== 'tool') rendered += '<|observation|>'
-      rendered += `<tool_response>${content}</tool_response>`
-    } else return undefined
+    const message = renderMessage(raw, index, body, history)
+    if (message === undefined) return undefined
+    rendered += message
   }
   return rendered + '<|assistant|><think>'
+}
+
+function hasMessages(body: JsonObject): body is JsonObject & { messages: JsonValue[] } {
+  return Array.isArray(body.messages)
+}
+
+function renderMessage(
+  raw: JsonValue,
+  index: number,
+  body: JsonObject & { messages: JsonValue[] },
+  history: ZaiHistoryTreatment,
+): string | undefined {
+  if (!object(raw) || typeof raw.role !== 'string') return undefined
+  if (raw.role === 'system' || raw.role === 'user') {
+    if (!exactKeys(raw, ['role', 'content'])) return undefined
+    const content = visibleText(raw.content)
+    if (content === undefined) return undefined
+    return `${raw.role === 'system' ? '<|system|>' : '<|user|>'}${content}`
+  } else if (raw.role === 'assistant') {
+    return renderAssistant(raw, history)
+  } else if (raw.role === 'tool') {
+    return renderToolResponse(raw, index, body)
+  } else return undefined
+}
+
+function renderAssistant(raw: JsonObject, history: ZaiHistoryTreatment): string | undefined {
+  if (!exactKeys(raw, ['role', 'content', 'tool_calls', 'reasoning', 'reasoning_details']))
+    return undefined
+  // The final OpenRouter wire sends reasoning/reasoning_details, whereas the published
+  // template consumes reasoning_content. Only a visible-history release maps the plain
+  // string into that slot; nothing is ever silently discarded.
+  const thought = zaiAssistantReasoning(raw, history)
+  if (thought === undefined) return undefined
+  const content = visibleText(raw.content)
+  if (content === undefined || content.includes('</think>')) return undefined
+  const thinking = `<think>${thought.reasoning ?? ''}</think>`
+  const calls = toolCalls(raw.tool_calls)
+  if (calls === undefined) return undefined
+  return `<|assistant|>${thinking}${content.trim()}${calls}${calls ? '\n' : ''}`
+}
+
+function renderToolResponse(
+  raw: JsonObject,
+  index: number,
+  body: JsonObject & { messages: JsonValue[] },
+): string | undefined {
+  if (!exactKeys(raw, ['role', 'tool_call_id', 'content']) || typeof raw.tool_call_id !== 'string')
+    return undefined
+  const content = visibleText(raw.content)
+  if (content === undefined) return undefined
+  const previous = body.messages[index - 1]
+  let rendered = ''
+  if (!object(previous) || previous.role !== 'tool') rendered += '<|observation|>'
+  rendered += `<tool_response>${content}</tool_response>`
+  return rendered
 }
 
 let sharedTokenizer: Tokenizer | undefined

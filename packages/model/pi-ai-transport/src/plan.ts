@@ -50,6 +50,7 @@ import { preparePlanImages } from './prepare-plan.ts'
 import type { ImagePreparer } from './image-preparation/types.ts'
 import { isImagePreparer } from './image-preparation/preparer.ts'
 import { inspectTransformRevision } from './meter-transform.ts'
+import { moonshotDefinitions } from './official-models/moonshot.ts'
 
 export interface PlannedRequest extends PlannedSemantics {
   readonly body: JsonObject
@@ -199,6 +200,14 @@ export async function planRequest(
   const messages: MutableObject[] = []
   const spans: MessageSpan[] = []
   const stableArrays = stableAnthropicRoute(input)
+  const omitMixedEmptyText = moonshotDefinitions.some(
+    current =>
+      current.modelId === definition.modelId &&
+      current.revision === definition.revision &&
+      current.implementation.name === definition.implementation.name &&
+      current.implementation.revision === definition.implementation.revision &&
+      Object.hasOwn(current.routes, input.provider),
+  )
   const calls = new Set<string>(),
     results = new Set<string>()
   for (const message of input.messages) {
@@ -246,7 +255,14 @@ export async function planRequest(
             ...converted,
           ]
         : converted
-      messages.push({ role, content })
+      const isEmptyText = (part: JsonObject) => part.type === 'text' && part.text === ''
+      messages.push({
+        role,
+        content:
+          omitMixedEmptyText && content.some(part => !isEmptyText(part))
+            ? content.filter(part => !isEmptyText(part))
+            : content,
+      })
     }
   }
   if ([...calls].some(id => !results.has(id))) return { rejected: 'orphan_tool_call' }

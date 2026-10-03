@@ -81,61 +81,58 @@ function completeGroup(
 ): { readonly index: number; readonly tokens: JsonNumber } | undefined {
   const original = source.observation
   const output = original.inputCalibration.outputGroup
-  if (
-    output.kind !== 'known' ||
-    output.source !== 'reply' ||
-    output.completeness !== 'complete' ||
-    policy.projectionRevisionApplies(output.projectionRevision) !== true ||
-    original.usage.source !== 'upstream' ||
-    original.usage.output_tokens === 'unknown'
-  )
-    return undefined
-  const request = original.inputCalibration.requestInput
-  if (request.kind === 'known') {
-    const relation = relateMeterBases(
-      basis,
-      request.countingBasis,
-      meter,
-      policy.originalBasisApplies(meter),
+  function contributionApplies(
+    original: OutputGroupSource['observation'],
+  ): original is OutputGroupSource['observation'] & {
+    readonly usage: OutputGroupSource['observation']['usage'] & {
+      readonly output_tokens: JsonNumber
+    }
+  } {
+    if (
+      output.kind !== 'known' ||
+      output.source !== 'reply' ||
+      output.completeness !== 'complete' ||
+      policy.projectionRevisionApplies(output.projectionRevision) !== true ||
+      original.usage.source !== 'upstream' ||
+      original.usage.output_tokens === 'unknown'
     )
-    if (relation.kind !== 'sameEffective' && relation.kind !== 'changedEffective') return undefined
+      return false
+    const request = original.inputCalibration.requestInput
+    function requestApplies(): boolean {
+      if (request.kind === 'known') {
+        const relation = relateMeterBases(
+          basis,
+          request.countingBasis,
+          meter,
+          policy.originalBasisApplies(meter),
+        )
+        if (relation.kind !== 'sameEffective' && relation.kind !== 'changedEffective') return false
+      }
+      if (
+        !source.origin &&
+        (request.kind !== 'known' ||
+          ExactDecimal.from(request.prefixBoundary).compare(ExactDecimal.from(indices[0] ?? -1)) !==
+            0 ||
+          request.inputEnvelopeDigest !==
+            projectionDigest('input-envelope', envelope, request.projectionRevision))
+      )
+        return false
+      return true
+    }
+    if (!requestApplies()) return false
+    if (policy.sourceApplies(source, meter, envelope) !== true) return false
+    if (
+      original.usage.reasoning_tokens !== undefined &&
+      ExactDecimal.from(original.usage.reasoning_tokens).compare(
+        ExactDecimal.from(original.usage.output_tokens),
+      ) > 0
+    )
+      return false
+    return true
   }
-  if (
-    !source.origin &&
-    (request.kind !== 'known' ||
-      ExactDecimal.from(request.prefixBoundary).compare(ExactDecimal.from(indices[0] ?? -1)) !==
-        0 ||
-      request.inputEnvelopeDigest !==
-        projectionDigest('input-envelope', envelope, request.projectionRevision))
-  )
-    return undefined
-  if (policy.sourceApplies(source, meter, envelope) !== true) return undefined
-  if (
-    original.usage.reasoning_tokens !== undefined &&
-    ExactDecimal.from(original.usage.reasoning_tokens).compare(
-      ExactDecimal.from(original.usage.output_tokens),
-    ) > 0
-  )
-    return undefined
-  const selected = original.replaySelection
-    .map((item, selectionIndex) => ({ ...item, selectionIndex }))
-    .sort((a, b) => a.messageIndex - b.messageIndex || a.blockIndex - b.blockIndex)
-  const first = selected[0]
-  if (
-    !first ||
-    selected.length !== original.outputBlocks.length ||
-    spans.length !== selected.length ||
-    selected.some(
-      (item, index) =>
-        item.sourceBlockIndex !== index ||
-        item.messageIndex !== first.messageIndex ||
-        (index > 0 && item.blockIndex <= selected[index - 1]!.blockIndex),
-    )
-  )
-    return undefined
-  const start = spans[0]?.start
-  if (start === undefined || spans.some(span => span.start !== start || span.end !== start + 1))
-    return undefined
+  if (!contributionApplies(original)) return undefined
+  const start = selectedUnitStart()
+  if (start === undefined) return undefined
   const index = indices.indexOf(start)
   if (index < 0 || original.outputBlocks.some(block => !block.visibility.toModel)) return undefined
   const expected = projectAssistant(
@@ -154,6 +151,28 @@ function completeGroup(
   )
     return undefined
   return { index, tokens: original.usage.output_tokens }
+
+  function selectedUnitStart(): number | undefined {
+    const selected = original.replaySelection
+      .map((item, selectionIndex) => ({ ...item, selectionIndex }))
+      .sort((a, b) => a.messageIndex - b.messageIndex || a.blockIndex - b.blockIndex)
+    const first = selected[0]
+    const misordered = (item: (typeof selected)[number], index: number): boolean =>
+      item.sourceBlockIndex !== index ||
+      item.messageIndex !== first?.messageIndex ||
+      (index > 0 && item.blockIndex <= selected[index - 1]!.blockIndex)
+    if (
+      !first ||
+      selected.length !== original.outputBlocks.length ||
+      spans.length !== selected.length ||
+      selected.some(misordered)
+    )
+      return undefined
+    const start = spans[0]?.start
+    if (start === undefined || spans.some(span => span.start !== start || span.end !== start + 1))
+      return undefined
+    return start
+  }
 }
 
 function contributions(
@@ -333,36 +352,55 @@ export function replayOutputHistory(
     const classifications = input.units.map(unit => policy.classifyUnit(unit))
     if (classifications.some(kind => !['visible', 'wholeGroup'].includes(kind)))
       return { kind: 'unavailable' }
-    const originalProjection = projectAssistant(
-      input.observation.outputBlocks,
-      meter.modelId,
-      meter.provider === 'anthropic',
-    )
-    if ('rejected' in originalProjection) return { kind: 'unavailable' }
-    const originalClass = policy.classifyUnit(originalProjection.message)
-    if (!['visible', 'wholeGroup'].includes(originalClass)) return { kind: 'unavailable' }
+    const originalClass = replayClassification(input, meter, policy)
+    if (originalClass === undefined) return { kind: 'unavailable' }
     if (originalClass !== 'wholeGroup' && !classifications.includes('wholeGroup'))
       return fullJsonMarginal(countBody, input)
-    const source =
-      input.outputHistory[0] === undefined
-        ? { observation: input.observation }
-        : observation(input.outputHistory[0])
-    const complete = completeGroup(
-      source,
-      input.selectionSpans,
-      input.units,
-      input.unitIndices,
-      input.envelope,
-      input.countingBasis,
-      meter,
-      policy,
-      identity,
-    )
-    if (!complete || input.units.length !== 1) return { kind: 'unavailable' }
-    return { kind: 'estimated', tokens: complete.tokens }
+    return completeReplayContribution(input, meter, policy, identity)
   } catch {
     return { kind: 'unavailable' }
   }
+}
+
+function replayClassification(
+  input: ReplayMeterInput,
+  meter: InputMeter,
+  policy: OutputHistoryPolicy,
+): OutputUnitClassification | undefined {
+  const originalProjection = projectAssistant(
+    input.observation.outputBlocks,
+    meter.modelId,
+    meter.provider === 'anthropic',
+  )
+  if ('rejected' in originalProjection) return undefined
+  const originalClass = policy.classifyUnit(originalProjection.message)
+  if (!['visible', 'wholeGroup'].includes(originalClass)) return undefined
+  return originalClass
+}
+
+function completeReplayContribution(
+  input: ReplayMeterInput,
+  meter: InputMeter,
+  policy: OutputHistoryPolicy,
+  identity: object,
+): MeterContribution {
+  const source =
+    input.outputHistory[0] === undefined
+      ? { observation: input.observation }
+      : observation(input.outputHistory[0])
+  const complete = completeGroup(
+    source,
+    input.selectionSpans,
+    input.units,
+    input.unitIndices,
+    input.envelope,
+    input.countingBasis,
+    meter,
+    policy,
+    identity,
+  )
+  if (!complete || input.units.length !== 1) return { kind: 'unavailable' }
+  return { kind: 'estimated', tokens: complete.tokens }
 }
 function marginalValid(input: NewMeterInput): boolean {
   if (

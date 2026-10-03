@@ -52,6 +52,9 @@ export function registryDiagnosticReporter(sink?: Pick<DiagnosticEmitter, 'recor
         ? 'dropped'
         : 'invalid'
     }
+    return recordedResultKind(value)
+  }
+  function recordedResultKind(value: unknown): 'recorded' | 'invalid' {
     const outer = ownData(value, ['recorded'])
     const reference = ownData(outer?.recorded?.value, ['collectorId', 'sequence'])
     if (!reference) return 'invalid'

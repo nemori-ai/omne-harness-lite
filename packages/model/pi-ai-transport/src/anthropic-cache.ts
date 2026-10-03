@@ -19,12 +19,30 @@ export function selectAnthropicCacheTarget(
   if (!object(message)) return undefined
   if (typeof message.content === 'string')
     return message.content.length ? { kind: 'text', messageIndex, partIndex: undefined } : undefined
-  if (!Array.isArray(message.content) || !message.content.length) return undefined
+  if (!messageHasParts(message)) return undefined
+  const text = selectTextPart(message, messageIndex)
+  if (text) return text
+  return selectPureImage(messages, message, messageIndex)
+}
+function messageHasParts(message: JsonObject): message is JsonObject & { content: JsonValue[] } {
+  return !(!Array.isArray(message.content) || !message.content.length)
+}
+function selectTextPart(
+  message: JsonObject & { content: JsonValue[] },
+  messageIndex: number,
+): CacheTarget | undefined {
   for (let i = message.content.length - 1; i >= 0; i--) {
     const part = message.content[i]
     if (object(part) && part.type === 'text' && typeof part.text === 'string' && part.text.length)
       return { kind: 'text', messageIndex, partIndex: i }
   }
+  return undefined
+}
+function selectPureImage(
+  messages: readonly JsonValue[],
+  message: JsonObject & { content: JsonValue[] },
+  messageIndex: number,
+): CacheTarget | undefined {
   if (
     message.role === 'user' &&
     messageIndex === messages.length - 1 &&
@@ -75,20 +93,7 @@ const models = new Set([
 /** Own body before calling; removes only the exact configured, selected marker. */
 export function cacheNeutralBody(body: JsonObject, basis: CountingBasis): JsonObject {
   const config = basis.binding.configuration.values.cache
-  if (
-    basis.provider !== 'anthropic' ||
-    !models.has(basis.model) ||
-    basis.binding.implementation.name !== 'pi-ai:anthropic' ||
-    basis.binding.implementation.revision !== 'mp4-18' ||
-    !object(config) ||
-    config.mode !== 'explicit' ||
-    typeof config.ttl !== 'string' ||
-    !Array.isArray(config.breakpoints) ||
-    config.breakpoints.length !== 1 ||
-    config.breakpoints[0] !== 'last_message' ||
-    !Array.isArray(body.messages)
-  )
-    return body
+  if (!neutralCacheConfiguration(basis, config) || !bodyHasMessages(body)) return body
   const target = selectAnthropicCacheTarget(body.messages)
   if (!target) return body
   const exact = (value: JsonValue | undefined): boolean =>
@@ -103,6 +108,33 @@ export function cacheNeutralBody(body: JsonObject, basis: CountingBasis): JsonOb
     }
     return body
   }
+  return neutralTextPart(body, target, exact)
+}
+function bodyHasMessages(body: JsonObject): body is JsonObject & { messages: JsonValue[] } {
+  return Array.isArray(body.messages)
+}
+function neutralCacheConfiguration(
+  basis: CountingBasis,
+  config: JsonValue | undefined,
+): config is JsonObject {
+  return !(
+    basis.provider !== 'anthropic' ||
+    !models.has(basis.model) ||
+    basis.binding.implementation.name !== 'pi-ai:anthropic' ||
+    basis.binding.implementation.revision !== 'mp4-18' ||
+    !object(config) ||
+    config.mode !== 'explicit' ||
+    typeof config.ttl !== 'string' ||
+    !Array.isArray(config.breakpoints) ||
+    config.breakpoints.length !== 1 ||
+    config.breakpoints[0] !== 'last_message'
+  )
+}
+function neutralTextPart(
+  body: JsonObject & { messages: JsonValue[] },
+  target: Extract<CacheTarget, { kind: 'text' }>,
+  exact: (value: JsonValue | undefined) => boolean,
+): JsonObject {
   const message = body.messages[target.messageIndex]
   if (!object(message) || !Array.isArray(message.content) || target.partIndex === undefined)
     return body

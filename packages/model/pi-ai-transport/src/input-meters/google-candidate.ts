@@ -32,13 +32,15 @@ export function googleCandidateFeatures(
   let textTokens = 0
   let objects = 0
   let arrays = 0
+  const visitText = (value: string): void => {
+    const amount = countText(value)
+    if (!Number.isSafeInteger(amount) || amount < 0) throw new TypeError('invalid tokenizer count')
+    textTokens += amount
+  }
   const visit = (value: JsonValue): boolean => {
     if (value === null) return true
     if (typeof value === 'string') {
-      const amount = countText(value)
-      if (!Number.isSafeInteger(amount) || amount < 0)
-        throw new TypeError('invalid tokenizer count')
-      textTokens += amount
+      visitText(value)
       return true
     }
     if (typeof value === 'boolean' || isJsonNumber(value))

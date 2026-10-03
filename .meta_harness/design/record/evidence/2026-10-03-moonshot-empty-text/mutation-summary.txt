@@ -1,0 +1,26 @@
+变异范围：基线 dfa3eb92e292dddb1bb47cf122212362d095c143（合并点 dfa3eb92e）以来改动碰到的产品源码行；只跑快层（OMNE_TEST_TIER=fast）；提交 eb2b5bf00
+packages/model/pi-ai-transport：变异体 45 个——被杀 23、超时 0、存活 22、无覆盖 0、编译错误 0、运行错误 0；分数 51.1%
+  存活 packages/model/pi-ai-transport/src/official-models/moonshot.ts:63 ObjectLiteral（static） `{ name: 'pi-ai:moonshot', revision: 'mp4-19' }` → `{}`
+  存活 packages/model/pi-ai-transport/src/official-models/moonshot.ts:63 StringLiteral（static） `'pi-ai:moonshot'` → `""`
+  存活 packages/model/pi-ai-transport/src/official-models/moonshot.ts:63 StringLiteral（static） `'mp4-19'` → `""`
+  存活 packages/model/pi-ai-transport/src/official-models/moonshot.ts:77 ObjectLiteral（static） `{ name: 'pi-ai:moonshot', revision: 'mp4-19' }` → `{}`
+  存活 packages/model/pi-ai-transport/src/official-models/moonshot.ts:77 StringLiteral（static） `'pi-ai:moonshot'` → `""`
+  存活 packages/model/pi-ai-transport/src/official-models/moonshot.ts:77 StringLiteral（static） `'mp4-19'` → `""`
+  存活 packages/model/pi-ai-transport/src/plan.ts:206 ConditionalExpression `current.revision === definition.revision` → `true`
+  存活 packages/model/pi-ai-transport/src/plan.ts:206 EqualityOperator `current.revision === definition.revision` → `current.revision !== definition.revision`
+  存活 packages/model/pi-ai-transport/src/plan.ts:207 ConditionalExpression `current.implementation.name === definition.implementation.name` → `true`
+  存活 packages/model/pi-ai-transport/src/plan.ts:207 EqualityOperator `current.implementation.name === definition.implementation.name` → `current.implementation.name !== definition.implementation.name`
+  存活 packages/model/pi-ai-transport/src/plan.ts:208 ConditionalExpression `current.implementation.revision === definition.implementation.revision` → `true`
+  存活 packages/model/pi-ai-transport/src/plan.ts:208 EqualityOperator `current.implementation.revision === definition.implementation.revision` → `current.implementation.revision !== definition.implementation.revision`
+  存活 packages/model/pi-ai-transport/src/plan.ts:258 ConditionalExpression `part.type === 'text' && part.text === ''` → `true`
+  存活 packages/model/pi-ai-transport/src/plan.ts:258 ConditionalExpression `part.type === 'text' && part.text === ''` → `false`
+  存活 packages/model/pi-ai-transport/src/plan.ts:258 ConditionalExpression `part.type === 'text'` → `true`
+  存活 packages/model/pi-ai-transport/src/plan.ts:258 EqualityOperator `part.type === 'text'` → `part.type !== 'text'`
+  存活 packages/model/pi-ai-transport/src/plan.ts:258 StringLiteral `'text'` → `""`
+  存活 packages/model/pi-ai-transport/src/plan.ts:258 StringLiteral `''` → `"Stryker was here!"`
+  存活 packages/model/pi-ai-transport/src/plan.ts:262 MethodExpression `content.some(part => !isEmptyText(part))` → `content.every(part => !isEmptyText(part))`
+  存活 packages/model/pi-ai-transport/src/plan.ts:262 ArrowFunction `part => !isEmptyText(part)` → `() => undefined`
+  存活 packages/model/pi-ai-transport/src/plan.ts:262 BooleanLiteral `!isEmptyText(part)` → `isEmptyText(part)`
+  存活 packages/model/pi-ai-transport/src/plan.ts:263 MethodExpression `content.filter(part => !isEmptyText(part))` → `content`
+存活、无覆盖只是线索：判定会抖，要复跑确认；static 变异体只能跑全部测试；没改的代码不在范围内。
+账本与各成员日志：/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/checks50/mutation-r1

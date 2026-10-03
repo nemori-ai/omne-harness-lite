@@ -507,3 +507,30 @@ H13-G4 不改变 MR9/RT10 的原接受状态，不将旧形式任务重绑给未
 | E 的 id 失配（GG-14）         | E 的 id 等于首轮工具调用的上游 id，投影写回的工具调用 id 由 reader 生成，回放时两者不等；上游后果未知，本机用例只能照实断言、不能证明无害 | GS-V7 通过；工具续接的实际语义；owner 为 transport reader／投影 |
 | 非工具路径形状（GG-2、GG-13） | 当前绑定下非工具完整回复的推理详情未以 raw 观测；唯一样本是 09-28 的 T-only 领域结果                                                      | 文本回复之后的下一轮；K2 映射                                   |
 | 签名语义（GG-3）              | Google thought signature 与 E 的关系、是否绑定前缀或工具调用 id 无来源核对                                                                | K1 置信度；`requiresSignedPrefix` 取 false 的依据               |
+
+
+## MV5：Moonshot 空串文本段窄修复
+
+采用范围见 [D-115](../../../../record/decisions/moonshot-empty-text-adoption/README.md)与冻结 [v16 revision 1](v16-moonshot-empty-text-design.md)。仅当前两条官方完整绑定改规划字节；投影 /3、wire /2 与计量算法保持。
+
+新增 `tests/moonshot-empty-text.spec.ts` 覆盖图前／后及多处空串、纯文本混合、全空串／空数组／空白、system／reminder／compaction、原输入、完整绑定反控、非目标官方叶旧字节、真实本地 invoke/TLS 与最终 meter/body 一致。跨修订夹具是实际旧规划器的四条 requestInput；附加 observation／usage 明确是 synthetic，分别要求 prefix_changed 与 basis_changed，不冒充上游历史。
+
+CB3 要求合法 transcript 至少一个字符，无法通过正式输入构造 transcript 空串；实际反控保留非空 transcript 的投影，同时去除相邻空文本。旧探针没有证明纯文本或历史位置的上游接受，本次不扩该结论。
+
+实施过程已取得局部 38 条通过及类型检查通过，尚是未提交工作树读数。最终提交的受影响两成员快慢层、共同硬线、独立验收与修后付费 MV5-8 尚待；原 97 请求不代替修后生产发送。原失败夹具／断言与修正日志保全在任务区。
+
+
+### 2026-10-03 MV5-8 当前生产发送与局部回归
+
+当前实现与目录局部四文件共124条通过，类型检查通过。原输入夹具取自真实mp4-18规划器，附加用量明确synthetic；另一个官方叶的完整serialized与真实基线规划器原值相等。最终待合并头的两成员两层及共同硬线由独立QA接续，不以局部检查冒充完整影响面。
+
+[一次Kimi K3生产运行](../../../../../research/empty-text-part-acceptance/reports/2026-10-03-current-planner-kimi-k3/README.md)锚`56c446ab842e2e2e69a120755019e2ad553e09e1`：实际当前planner／invoke／send，源image＋empty-text→最终image_url，固定588字节；一次send，complete，输入118、输出55（推理35），实际费用0.001179 USD。5美元范围内累计0.2332056，账本两项settled。进入新main后PI及34个构建成员目录、执行输入均无差分，可按字节复用此运行，不再次付费。
+
+MV5-8只要求预算内一条Kimi实际修后确认，该义务已取得；它不证明另一叶的真实上游行为或全空串／历史位置接受。Sonnet5本地三形状反例、网络0另立#86，未修改其缓存行为。
+
+
+### 2026-10-03 MV5 独立验收与有限技术签收
+
+[证据包](../../../../record/evidence/2026-10-03-moonshot-empty-text/README.md)保留源码候选eb2b5bf／基线dfa3eb92e的10标准Pass with issues，PI快1366／慢1185、tools快861／慢19及公开42场景真实通过；34成员构建和两成员类型、共同硬线通过。原PI和生产请求锚56c446，所有构建／执行输入未变，逐路径核对后复用；最终仓库内容读者在eb2上补跑，不改写原运行坐标。
+
+108原始分层skip中107在另一层真实通过，唯一未执行为既有Pro不适用图像例。元模型只registered，没有TLC／Alloy实际运行。CC86→92与四克隆、全仓现行带位及单CPU时间警报均有来源和处置；缺基线处未判。有限签收只覆盖D-115，单次上游确认仍只有当前Kimi K3，不提升全部历史位置／全空串、另一叶或37模型认证。原设施失败、日志与场景在任务保全区，证据包列SHA与复现范围。

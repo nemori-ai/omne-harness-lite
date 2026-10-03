@@ -61,6 +61,17 @@ export function deepSeekBoundaries(
   })
   const current = render(projected)
   if (previous === undefined || middle === undefined || current === undefined) return undefined
+  return renderedBoundaries(previous, middle, current, units, n, replay)
+}
+
+function renderedBoundaries(
+  previous: string,
+  middle: string,
+  current: string,
+  units: readonly JsonValue[],
+  n: number,
+  replay: ReadonlySet<number>,
+): { replay: JsonObject; fresh: JsonObject } | { changed: true } | undefined {
   const terminal = terminalFrames.find(frame => previous.endsWith(frame)) ?? ''
   const stable = terminal ? previous.slice(0, -terminal.length) : previous
   // A rewrite inside substantive old input is not a marginal correction.
@@ -143,7 +154,46 @@ export function createDeepSeekSupplemental(renderedContentFields: readonly strin
     }
     return omitted.length ? omitted : undefined
   }
-  return function supplemental(body: JsonObject): JsonObject | undefined {
+  function callMetadata(message: JsonObject, extra: Record<string, JsonValue>): boolean {
+    if (Array.isArray(message.tool_calls)) {
+      const calls: JsonValue[] = []
+      for (const call of message.tool_calls) {
+        if (!object(call)) return false
+        const extras = Object.fromEntries(
+          Object.entries(call).filter(([name]) => name !== 'function'),
+        )
+        if (object(call.function)) {
+          const functionExtra = Object.fromEntries(
+            Object.entries(call.function).filter(
+              ([name]) => name !== 'name' && name !== 'arguments',
+            ),
+          )
+          if (Object.keys(functionExtra).length) extras.function = functionExtra
+        }
+        if (Object.keys(extras).length) calls.push(extras)
+      }
+      if (calls.length) extra.toolCallMetadata = calls
+    }
+    return true
+  }
+  function messageMetadata(message: JsonValue): JsonObject | undefined {
+    if (!object(message) || message.reasoning_details !== undefined) return undefined
+    const extra = Object.fromEntries(
+      Object.entries(message).filter(
+        ([name]) =>
+          name !== 'role' &&
+          name !== 'content' &&
+          name !== 'reasoning' &&
+          name !== 'reasoning_content' &&
+          name !== 'tool_calls',
+      ),
+    )
+    const contentExtra = omittedContent(message.content)
+    if (contentExtra) extra.contentParts = contentExtra
+    if (!callMetadata(message, extra)) return undefined
+    return extra
+  }
+  function supplemental(body: JsonObject): JsonObject | undefined {
     if (!Array.isArray(body.messages)) return undefined
     const request = Object.fromEntries(
       Object.entries(body).filter(([name]) => name !== 'messages' && name !== 'tools'),
@@ -152,40 +202,19 @@ export function createDeepSeekSupplemental(renderedContentFields: readonly strin
     for (const message of body.messages) {
       // Callers pass the projected meter body. Raw details left here were not
       // explained; counting their serialized bytes is not a token estimate.
-      if (!object(message) || message.reasoning_details !== undefined) return undefined
-      const extra = Object.fromEntries(
-        Object.entries(message).filter(
-          ([name]) =>
-            name !== 'role' &&
-            name !== 'content' &&
-            name !== 'reasoning' &&
-            name !== 'reasoning_content' &&
-            name !== 'tool_calls',
-        ),
-      )
-      const contentExtra = omittedContent(message.content)
-      if (contentExtra) extra.contentParts = contentExtra
-      if (Array.isArray(message.tool_calls)) {
-        const calls: JsonValue[] = []
-        for (const call of message.tool_calls) {
-          if (!object(call)) return undefined
-          const extras = Object.fromEntries(
-            Object.entries(call).filter(([name]) => name !== 'function'),
-          )
-          if (object(call.function)) {
-            const functionExtra = Object.fromEntries(
-              Object.entries(call.function).filter(
-                ([name]) => name !== 'name' && name !== 'arguments',
-              ),
-            )
-            if (Object.keys(functionExtra).length) extras.function = functionExtra
-          }
-          if (Object.keys(extras).length) calls.push(extras)
-        }
-        if (calls.length) extra.toolCallMetadata = calls
-      }
+      const extra = messageMetadata(message)
+      if (!extra) return undefined
       if (Object.keys(extra).length) messages.push(extra)
     }
+    const tools = toolMetadata(body)
+    if (!tools) return undefined
+    return {
+      request,
+      ...(messages.length ? { messages } : {}),
+      ...(tools.length ? { tools } : {}),
+    }
+  }
+  function toolMetadata(body: JsonObject): JsonValue[] | undefined {
     const tools: JsonValue[] = []
     if (body.tools !== undefined) {
       if (!Array.isArray(body.tools)) return undefined
@@ -197,10 +226,7 @@ export function createDeepSeekSupplemental(renderedContentFields: readonly strin
         if (Object.keys(extra).length) tools.push(extra)
       }
     }
-    return {
-      request,
-      ...(messages.length ? { messages } : {}),
-      ...(tools.length ? { tools } : {}),
-    }
+    return tools
   }
+  return supplemental
 }
