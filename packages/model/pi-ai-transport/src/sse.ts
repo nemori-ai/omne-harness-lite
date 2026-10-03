@@ -26,18 +26,8 @@ export async function* parseSSE(stream: IncomingMessage, maximum: number): Async
       if (!Buffer.isBuffer(chunk)) throw new SseProtocolError('non-byte stream')
       const text = decoder.decode(chunk, { stream: true })
       for (const character of text) {
-        if (previousCR && character === '\n') {
-          previousCR = false
-          continue
-        }
-        previousCR = false
-        bytes += Buffer.byteLength(character)
-        if (bytes > maximum) throw new SseProtocolError('SSE event exceeds configured limit')
-        if (character === '\r' || character === '\n') {
-          const frame = endLine()
-          previousCR = character === '\r'
-          if (frame !== undefined) yield frame
-        } else line += character
+        const frame = consumeCharacter(character)
+        if (frame !== undefined) yield frame
       }
     }
     const tail = decoder.decode()
@@ -47,5 +37,21 @@ export async function* parseSSE(stream: IncomingMessage, maximum: number): Async
     if (error instanceof SseProtocolError) throw error
     if (error instanceof TypeError) throw new SseProtocolError('invalid UTF-8 stream')
     throw error
+  }
+
+  function consumeCharacter(character: string): string | undefined {
+    if (previousCR && character === '\n') {
+      previousCR = false
+      return undefined
+    }
+    previousCR = false
+    bytes += Buffer.byteLength(character)
+    if (bytes > maximum) throw new SseProtocolError('SSE event exceeds configured limit')
+    if (character === '\r' || character === '\n') {
+      const frame = endLine()
+      previousCR = character === '\r'
+      return frame
+    } else line += character
+    return undefined
   }
 }
