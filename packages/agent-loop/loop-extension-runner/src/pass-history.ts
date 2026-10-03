@@ -244,7 +244,8 @@ function admitHistoryEntry(
   entry: LogEntry,
   pass: RunnerHistoryScope,
   binding: RunnerLogBinding,
-  piece: RunnerPiece | undefined,
+  chain: readonly RunnerPiece[],
+  pieceIndex: number,
   historicalFinals: readonly Conclusion[],
 ) {
   const inspected = inspectRunnerConclusion({
@@ -260,6 +261,7 @@ function admitHistoryEntry(
     !sameHistoryRun(inspected.execution, pass.run)
   )
     throw new RunnerFailureSignal(replayInconsistent)
+  const piece = chain[pieceIndex]
   if (piece === undefined || inspected.conclusion.extension !== piece.definition.name)
     throw new RunnerFailureSignal(replayInconsistent)
   if (inspected.conclusion.power !== piece.power) throw new RunnerFailureSignal(replayInconsistent)
@@ -297,7 +299,7 @@ export function readPassHistory(
     )
       throw new RunnerFailureSignal(replayInconsistent)
     previousPosition = ExactDecimal.from(entry.position)
-    const inspected = admitHistoryEntry(entry, pass, binding, chain[pieceIndex], historicalFinals)
+    const inspected = admitHistoryEntry(entry, pass, binding, chain, pieceIndex, historicalFinals)
     if (inspected.occurrence.kind === 'ask') {
       askOrdinal = askOrdinal.add(ExactDecimal.from(1))
       if (ExactDecimal.from(inspected.occurrence.ordinal).compare(askOrdinal) !== 0)
