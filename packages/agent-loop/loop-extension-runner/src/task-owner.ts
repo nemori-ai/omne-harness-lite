@@ -193,100 +193,7 @@ export function createRunnerTaskOwner(binding: RunnerLogBinding): RunnerTaskOwne
         if (actual === undefined) {
           results.push({ kind: 'absent' })
         } else {
-          const checked = checkAppendInput(
-            sessionRef,
-            [candidate.entry],
-            { kind: 'unfenced' },
-            { kind: 'unconditional' },
-          )
-          const owned = 'ok' in checked ? checked.ok.entries[0] : undefined
-          if (owned === undefined) {
-            results.push({ kind: 'replayInconsistent' })
-            unknown.delete(task)
-            task.settle()
-            continue
-          }
-          const candidateEntry: LogEntry = {
-            ...owned,
-            session: sessionRef,
-            position: actual.position,
-          }
-          if (candidate.kind === 'reminder') {
-            const candidateInspected = inspectModelLogEntry({
-              session: binding.session,
-              tenant: binding.tenant,
-              entry: candidateEntry,
-              purpose: { kind: 'message' },
-              messagePrefix: candidate.messagePrefix,
-            })
-            const inspected = inspectModelLogEntry({
-              session: binding.session,
-              tenant: binding.tenant,
-              entry: actual,
-              purpose: { kind: 'message' },
-              messagePrefix: candidate.messagePrefix,
-            })
-            const { session: _session, position: _position, ...actualInput } = actual
-            results.push(
-              'invalidValue' in candidateInspected ||
-                'invalidValue' in inspected ||
-                actual.dedupeKey !== key ||
-                !modelLogJsonEqual(inspected.ok.captured.message, candidate.message) ||
-                !modelLogJsonEqual(actualInput, candidate.entry)
-                ? { kind: 'replayInconsistent' }
-                : { kind: 'same', entry: actual },
-            )
-            unknown.delete(task)
-            task.settle()
-            continue
-          }
-          const candidateInspected = inspectRunnerConclusion({
-            session: binding.session,
-            tenant: binding.tenant,
-            entry: candidateEntry,
-          })
-          const inspected = inspectRunnerConclusion({
-            session: binding.session,
-            tenant: binding.tenant,
-            entry: actual,
-          })
-          if (
-            'invalid' in candidateInspected ||
-            'unrelated' in candidateInspected ||
-            'invalid' in inspected ||
-            'unrelated' in inspected ||
-            actual.dedupeKey !== key ||
-            actual.run !== candidateEntry.run ||
-            inspected.conclusion.callId !== candidateInspected.conclusion.callId ||
-            inspected.conclusion.modelCallId !== candidateInspected.conclusion.modelCallId
-          )
-            results.push({ kind: 'replayInconsistent' })
-          else {
-            let admitted: ReturnType<typeof judgeConclusionForSubject>
-            try {
-              admitted = judgeConclusionForSubject(inspected.conclusion, {
-                positionedSubject: candidate.subject,
-                extensionName: candidateInspected.conclusion.extension,
-              })
-            } catch {
-              results.push({ kind: 'replayInconsistent' })
-              unknown.delete(task)
-              task.settle()
-              continue
-            }
-            if (!('ok' in admitted)) {
-              results.push({ kind: 'replayInconsistent' })
-              unknown.delete(task)
-              task.settle()
-              continue
-            }
-            const { session: _session, position: _position, ...actualInput } = actual
-            results.push(
-              modelLogJsonEqual(actualInput, candidate.entry)
-                ? { kind: 'same', entry: actual }
-                : { kind: 'winner', entry: actual },
-            )
-          }
+          results.push(recoverCandidate(candidate, actual, key, binding, sessionRef))
         }
         unknown.delete(task)
         task.settle()
@@ -295,4 +202,110 @@ export function createRunnerTaskOwner(binding: RunnerLogBinding): RunnerTaskOwne
       return Object.freeze(results)
     },
   })
+}
+
+function recoverCandidate(
+  candidate: RunnerAppendCandidate,
+  actual: LogEntry,
+  key: string,
+  binding: RunnerLogBinding,
+  sessionRef: LogEntry['session'],
+): RunnerRecoveryResult {
+  const checked = checkAppendInput(
+    sessionRef,
+    [candidate.entry],
+    { kind: 'unfenced' },
+    { kind: 'unconditional' },
+  )
+  const owned = 'ok' in checked ? checked.ok.entries[0] : undefined
+  if (owned === undefined) {
+    return { kind: 'replayInconsistent' }
+  }
+  const candidateEntry: LogEntry = {
+    ...owned,
+    session: sessionRef,
+    position: actual.position,
+  }
+  if (candidate.kind === 'reminder')
+    return recoverReminder(candidate, candidateEntry, actual, key, binding)
+  return recoverConclusion(candidate, candidateEntry, actual, key, binding)
+}
+
+function recoverReminder(
+  candidate: RunnerReminderCandidate,
+  candidateEntry: LogEntry,
+  actual: LogEntry,
+  key: string,
+  binding: RunnerLogBinding,
+): RunnerRecoveryResult {
+  const candidateInspected = inspectModelLogEntry({
+    session: binding.session,
+    tenant: binding.tenant,
+    entry: candidateEntry,
+    purpose: { kind: 'message' },
+    messagePrefix: candidate.messagePrefix,
+  })
+  const inspected = inspectModelLogEntry({
+    session: binding.session,
+    tenant: binding.tenant,
+    entry: actual,
+    purpose: { kind: 'message' },
+    messagePrefix: candidate.messagePrefix,
+  })
+  const { session: _session, position: _position, ...actualInput } = actual
+  return 'invalidValue' in candidateInspected ||
+    'invalidValue' in inspected ||
+    actual.dedupeKey !== key ||
+    !modelLogJsonEqual(inspected.ok.captured.message, candidate.message) ||
+    !modelLogJsonEqual(actualInput, candidate.entry)
+    ? { kind: 'replayInconsistent' }
+    : { kind: 'same', entry: actual }
+}
+
+function recoverConclusion(
+  candidate: RunnerConclusionCandidate,
+  candidateEntry: LogEntry,
+  actual: LogEntry,
+  key: string,
+  binding: RunnerLogBinding,
+): RunnerRecoveryResult {
+  const candidateInspected = inspectRunnerConclusion({
+    session: binding.session,
+    tenant: binding.tenant,
+    entry: candidateEntry,
+  })
+  const inspected = inspectRunnerConclusion({
+    session: binding.session,
+    tenant: binding.tenant,
+    entry: actual,
+  })
+  if (
+    'invalid' in candidateInspected ||
+    'unrelated' in candidateInspected ||
+    'invalid' in inspected ||
+    'unrelated' in inspected ||
+    actual.dedupeKey !== key ||
+    actual.run !== candidateEntry.run ||
+    inspected.conclusion.callId !== candidateInspected.conclusion.callId ||
+    inspected.conclusion.modelCallId !== candidateInspected.conclusion.modelCallId
+  )
+    return { kind: 'replayInconsistent' }
+  else {
+    let admitted: ReturnType<typeof judgeConclusionForSubject>
+    try {
+      admitted = judgeConclusionForSubject(inspected.conclusion, {
+        positionedSubject: candidate.subject,
+        extensionName: candidateInspected.conclusion.extension,
+      })
+    } catch {
+      return { kind: 'replayInconsistent' }
+    }
+    if (!('ok' in admitted)) {
+      return { kind: 'replayInconsistent' }
+    }
+    const { session: _session, position: _position, ...actualInput } = actual
+    return modelLogJsonEqual(actualInput, candidate.entry)
+      ? { kind: 'same', entry: actual }
+      : { kind: 'winner', entry: actual }
+  }
 }

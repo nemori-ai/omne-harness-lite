@@ -116,18 +116,43 @@ function project(
     return undefined
   const table = owned.tables.loop_extension
   if (!table || !Array.isArray(table.composition)) return undefined
+  const expected = expectedAssets(projection.ok.compositionOrder, projection.ok.evaluation)
+  if (expected === undefined) return undefined
+  const selected = selectAssets(table.composition, expected, owned.evaluation.kind)
+  if (selected === undefined) return undefined
+  return {
+    record: Object.freeze({
+      ...owned,
+      session: record.session,
+      seq: record.seq,
+      evaluationRef: record.evaluationRef,
+    }),
+    evaluation: projection.ok.evaluation,
+    assets: Object.freeze(selected),
+  }
+}
+function expectedAssets(
+  order: readonly EffectiveAsset['capability'][],
+  evaluation: EffectiveAssembly,
+): readonly EffectiveAsset[] | undefined {
   const expected: EffectiveAsset[] = []
-  for (const capability of projection.ok.compositionOrder) {
+  for (const capability of order) {
     if (capability.category !== 'loop_extension') continue
-    const asset = projection.ok.evaluation.assets.find(item =>
-      capabilityIdEquals(item.capability, capability),
-    )
+    const asset = evaluation.assets.find(item => capabilityIdEquals(item.capability, capability))
     if (!asset) return undefined
     expected.push(asset)
   }
+  return expected
+}
+
+function selectAssets(
+  table: readonly JsonValue[],
+  expected: readonly EffectiveAsset[],
+  evaluationKind: ManifestRecord['evaluation']['kind'],
+): EffectiveAsset[] | undefined {
   let cursor = 0
   const selected: EffectiveAsset[] = []
-  for (const tuple of table.composition) {
+  for (const tuple of table) {
     if (!object(tuple) || !closed(tuple, ['capability', 'asset', 'version', 'from']))
       return undefined
     let found: EffectiveAsset | undefined
@@ -145,36 +170,16 @@ function project(
         found = item
         break
       }
-      if (owned.evaluation.kind !== 'reuse') return undefined
+      if (evaluationKind !== 'reuse') return undefined
     }
     if (!found) return undefined
     selected.push(found)
   }
-  if (owned.evaluation.kind !== 'reuse' && selected.length !== expected.length) return undefined
-  return {
-    record: Object.freeze({
-      ...owned,
-      session: record.session,
-      seq: record.seq,
-      evaluationRef: record.evaluationRef,
-    }),
-    evaluation: projection.ok.evaluation,
-    assets: Object.freeze(selected),
-  }
+  if (evaluationKind !== 'reuse' && selected.length !== expected.length) return undefined
+  return selected
 }
-function piece(
-  body: LoopExtensionDefinition,
-  asset: EffectiveAsset,
-  evaluation: EffectiveAssembly,
-): RunnerPiece | undefined {
-  const values = evaluation.values.filter(item =>
-    capabilityIdEquals(item.capability, asset.capability),
-  )
-  const positions = values.filter(item => item.item === 'position')
-  const dimensions = values.filter(item => item.item === 'dimension')
-  const powers = values.filter(item => item.item === 'power')
-  if (positions.length !== 1 || powers.length !== 1) return undefined
-  const powerValue = powers[0]?.value
+
+function evaluatedPower(powerValue: JsonValue | undefined, limit: Power): Power | undefined {
   const levels: readonly Power[] = ['observe', 'rewrite', 'veto']
   if (
     !object(powerValue) ||
@@ -187,10 +192,27 @@ function piece(
   const seen = new Set<string>()
   for (const allowed of powerValue.allowed) {
     if (allowed !== 'observe' && allowed !== 'rewrite' && allowed !== 'veto') return undefined
-    if (seen.has(allowed) || levels.indexOf(allowed) > levels.indexOf(body.power)) return undefined
+    if (seen.has(allowed) || levels.indexOf(allowed) > levels.indexOf(limit)) return undefined
     seen.add(allowed)
     if (levels.indexOf(allowed) > levels.indexOf(power)) power = allowed
   }
+  return power
+}
+
+function piece(
+  body: LoopExtensionDefinition,
+  asset: EffectiveAsset,
+  evaluation: EffectiveAssembly,
+): RunnerPiece | undefined {
+  const values = evaluation.values.filter(item =>
+    capabilityIdEquals(item.capability, asset.capability),
+  )
+  const positions = values.filter(item => item.item === 'position')
+  const dimensions = values.filter(item => item.item === 'dimension')
+  const powers = values.filter(item => item.item === 'power')
+  if (positions.length !== 1 || powers.length !== 1) return undefined
+  const power = evaluatedPower(powers[0]?.value, body.power)
+  if (power === undefined) return undefined
   const position = positions[0]?.value
   const dimensional = body.position === 'after_model_call' || body.position === 'after_action'
   if (
@@ -221,19 +243,22 @@ function piece(
   })
 }
 
-/** Read one current category record and its exact immutable versions, without re-evaluation. */
-export async function readRunnerChain(
-  input: ReadRunnerChainInput,
-): Promise<readonly RunnerPiece[] | RunnerReplayFailure> {
-  const { session, binding, sources } = input
-  if (
+function validChainBinding(session: string, binding: RunnerLogBinding): boolean {
+  return !(
     !('ok' in parseOpaqueIdentifier(session, 'SessionRef')) ||
     !binding ||
     !('ok' in parseOpaqueIdentifier(binding.session, 'SessionRef')) ||
     !('ok' in parseOpaqueIdentifier(binding.logGeneration, 'LogGeneration')) ||
     !('ok' in parseTenantId(binding.tenant))
   )
-    return { failure: 'invalidInput' }
+}
+
+/** Read one current category record and its exact immutable versions, without re-evaluation. */
+export async function readRunnerChain(
+  input: ReadRunnerChainInput,
+): Promise<readonly RunnerPiece[] | RunnerReplayFailure> {
+  const { session, binding, sources } = input
+  if (!validChainBinding(session, binding)) return { failure: 'invalidInput' }
   if (session !== binding.session) return manifestMissing
   // Capture methods as well as receivers before any suspension. Never stitch replacement sources.
   const holdingTenant = sources.sessionTenancy.holdingTenant.bind(sources.sessionTenancy)
@@ -266,17 +291,27 @@ export async function readRunnerChain(
       version: asset.version,
     })
     if (!active()) return unavailable
-    if (
-      'failure' in version ||
-      !modelLogJsonEqual(version.version.number, asset.version) ||
-      version.version.content.category !== 'loop_extension'
-    )
-      return unavailable
-    const definition = judgeDefinition(version.version.content.extension)
-    if ('rejected' in definition) return unavailable
-    const item = piece(definition.ok, asset, projected.evaluation)
-    if (!item) return unavailable
+    const item = versionPiece(version, asset, projected.evaluation)
+    if (item === undefined) return unavailable
     chain.push(item)
   }
   return Object.freeze(chain)
+}
+
+function versionPiece(
+  version: Awaited<ReturnType<RegistryHistoryReader['read']>>,
+  asset: EffectiveAsset,
+  evaluation: EffectiveAssembly,
+): RunnerPiece | undefined {
+  if (
+    'failure' in version ||
+    !modelLogJsonEqual(version.version.number, asset.version) ||
+    version.version.content.category !== 'loop_extension'
+  )
+    return undefined
+  const definition = judgeDefinition(version.version.content.extension)
+  if ('rejected' in definition) return undefined
+  const item = piece(definition.ok, asset, evaluation)
+  if (!item) return undefined
+  return item
 }
