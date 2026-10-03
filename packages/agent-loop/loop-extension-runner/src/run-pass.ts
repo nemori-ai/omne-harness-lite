@@ -219,7 +219,7 @@ function validPorts(value: RunnerPorts): boolean {
     identity(value.binding.session) &&
     identity(value.binding.logGeneration) &&
     validExecutionPorts(value) &&
-    validReminderPorts(value.reminders)
+    validReminderPorts(value)
   )
 }
 
@@ -240,13 +240,13 @@ function validExecutionPorts(value: RunnerPorts): boolean {
   )
 }
 
-function validReminderPorts(value: RunnerPorts['reminders']): boolean {
+function validReminderPorts(value: RunnerPorts): boolean {
   return (
-    value !== null &&
-    typeof value === 'object' &&
-    typeof value.inspect === 'function' &&
-    typeof value.nestedChain === 'function' &&
-    typeof value.append === 'function'
+    value.reminders !== null &&
+    typeof value.reminders === 'object' &&
+    typeof value.reminders.inspect === 'function' &&
+    typeof value.reminders.nestedChain === 'function' &&
+    typeof value.reminders.append === 'function'
   )
 }
 
@@ -832,7 +832,7 @@ async function runPassInternal(
           last,
           pass,
           piece,
-          ports.binding,
+          ports,
           reminders,
         )
         checkControl(signal, ports)
@@ -983,7 +983,7 @@ function prepareOccurrence(
   last: Historical | undefined,
   pass: RunnerPass,
   piece: RunnerPiece,
-  binding: RunnerLogBinding,
+  ports: RunnerPorts,
   reminders: readonly SystemReminderMessage[],
 ) {
   const finalOutput = conclusion.output
@@ -998,8 +998,8 @@ function prepareOccurrence(
         }
       : { kind: 'final' }
   const prepared = prepareRunnerConclusion({
-    session: binding.session,
-    tenant: binding.tenant,
+    session: ports.binding.session,
+    tenant: ports.binding.tenant,
     execution: pass.execution,
     anchor: pass.anchor,
     occurrence,
