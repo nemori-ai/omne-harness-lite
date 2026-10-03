@@ -3,7 +3,7 @@
     "definition": "3",
     "implementation": {
       "name": "pi-ai:moonshot",
-      "revision": "mp4-18"
+      "revision": "mp4-19"
     },
     "algorithm": "moonshot-k3-xtml-image-5",
     "tokenizer": "tokenizer-basis/moonshot-k3-xtml-image-4",
@@ -14,7 +14,7 @@
     "definition": "3",
     "implementation": {
       "name": "pi-ai:moonshot",
-      "revision": "mp4-18"
+      "revision": "mp4-19"
     },
     "algorithm": "moonshot-k27-jinja-image-4",
     "tokenizer": "tokenizer-basis/moonshot-k27-jinja-image-3",

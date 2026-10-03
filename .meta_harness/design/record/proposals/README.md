@@ -60,3 +60,5 @@
 [内容块实现接缝](content-blocks-implementation-seams/README.md)：无损数字进入 Schema 校验、普通与 pi 生产者的铸号策略协调；R2 的限定范围已由 D-068 接受；完整 pi 与其他消费者实施门仍未闭合。
 
 [模型调用引用与生命周期](model-runtime-reference-lifecycle/README.md)：比较既有模型服务扩面、独立定位服务、耐久动作协调器三候选；作者推荐在既有服务内补模型专属解析/消费面，四表已形成，尚未接受，不扩完整 Session/Run。
+
+[Moonshot 空串文本段](moonshot-empty-text/README.md)：精确两叶、全路由与公开配置三候选；独立选择无阻断，技术采用见 D-115。

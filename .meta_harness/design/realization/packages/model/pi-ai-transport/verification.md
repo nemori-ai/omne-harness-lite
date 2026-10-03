@@ -507,3 +507,14 @@ H13-G4 不改变 MR9/RT10 的原接受状态，不将旧形式任务重绑给未
 | E 的 id 失配（GG-14）         | E 的 id 等于首轮工具调用的上游 id，投影写回的工具调用 id 由 reader 生成，回放时两者不等；上游后果未知，本机用例只能照实断言、不能证明无害 | GS-V7 通过；工具续接的实际语义；owner 为 transport reader／投影 |
 | 非工具路径形状（GG-2、GG-13） | 当前绑定下非工具完整回复的推理详情未以 raw 观测；唯一样本是 09-28 的 T-only 领域结果                                                      | 文本回复之后的下一轮；K2 映射                                   |
 | 签名语义（GG-3）              | Google thought signature 与 E 的关系、是否绑定前缀或工具调用 id 无来源核对                                                                | K1 置信度；`requiresSignedPrefix` 取 false 的依据               |
+
+
+## MV5：Moonshot 空串文本段窄修复
+
+采用范围见 [D-115](../../../../record/decisions/moonshot-empty-text-adoption/README.md)与冻结 [v16 revision 1](v16-moonshot-empty-text-design.md)。仅当前两条官方完整绑定改规划字节；投影 /3、wire /2 与计量算法保持。
+
+新增 `tests/moonshot-empty-text.spec.ts` 覆盖图前／后及多处空串、纯文本混合、全空串／空数组／空白、system／reminder／compaction、原输入、完整绑定反控、非目标官方叶旧字节、真实本地 invoke/TLS 与最终 meter/body 一致。跨修订夹具是实际旧规划器的四条 requestInput；附加 observation／usage 明确是 synthetic，分别要求 prefix_changed 与 basis_changed，不冒充上游历史。
+
+CB3 要求合法 transcript 至少一个字符，无法通过正式输入构造 transcript 空串；实际反控保留非空 transcript 的投影，同时去除相邻空文本。旧探针没有证明纯文本或历史位置的上游接受，本次不扩该结论。
+
+实施过程已取得局部 38 条通过及类型检查通过，尚是未提交工作树读数。最终提交的受影响两成员快慢层、共同硬线、独立验收与修后付费 MV5-8 尚待；原 97 请求不代替修后生产发送。原失败夹具／断言与修正日志保全在任务区。

@@ -1,0 +1,77 @@
+{
+  "index": 32,
+  "route": "anthropic/claude-fable-5.1",
+  "providerRequested": "anthropic",
+  "variant": "A2",
+  "startedAt": "2026-10-02T17:04:28.889Z",
+  "finishedAt": "2026-10-02T17:04:34.351Z",
+  "durationMs": 5462,
+  "reservationUsd": "0.067630000000000000",
+  "costUsd": "0.003340000000",
+  "costReported": true,
+  "providerMismatch": true,
+  "status": 200,
+  "usage": {
+    "prompt_tokens": 14,
+    "completion_tokens": 64,
+    "total_tokens": 78,
+    "cost": "0.00334",
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00334,
+      "upstream_inference_prompt_cost": 0.00014,
+      "upstream_inference_completions_cost": 0.0032
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 48,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "provider": "Anthropic",
+  "upstreamModel": "anthropic/claude-fable-5.1",
+  "requestId": "gen-1790960668-R3UzwZXJlQQr5lorXpME",
+  "finish": "length",
+  "outputPreview": "The image just shows a solid red/coral colored square with no accompanying text, so I should note what I'm seeing and ask the user what they'd like me to do with it.\n\nThis image appears to be a solid ",
+  "outcome": "accepted",
+  "rawResponse": ": OPENROUTER PROCESSING\n\n: OPENROUTER PROCESSING\n\n: OPENROUTER PROCESSING\n\n: OPENROUTER PROCESSING\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"The image just\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"The image just\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" shows a solid red/co\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" shows a solid red/co\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"ral col\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"ral col\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"ored square with no accompanying\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"ored square with no accompanying\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" text,\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" text,\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" so I should note\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" so I should note\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" what I'm seeing and\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" what I'm seeing and\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" ask the user what they'd\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" ask the user what they'd\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" like me to do with it.\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" like me to do with it.\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"\\n\\n\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"\\n\\n\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"signature\":\"CAQSmwYKEAgSGAI4AUIIdGhpbmtpbmcSDDpjtEVwL6pXPouClhoMGXUfbo52trvP/v2kIjC2pGtvG1oNE6X11Rfzwj4lSbNep/5J7pj7HMNaOmUpNLY53m8d5DfsT65NpgyDNscquAWROiEQ/QD2JTVyPlJlsqGf09OAx6jzFnbqmoE4flNcS4s0ktpYC0Th3tw2aeyPj0+Jnf0dfsCR+L1oKXm3p0uXRqD9F3SM2mggR6dj/m2obcdG44nYtSR5cDh6jWM/oLbRRPCaItEx5mUCYyHQraQsdrEMdgoDxskDL9rUHBmFG0fM6lTL8gud7QZY3mEyo4c/rJ+R44bH0SJ6NOJ5pPmINwTo36bskZbwccZj3Zk40QamQb4i0PrdQWgSK8tMqb5vDgxeT3jMytz772f6wUwyl1DWqBk9x9/LQURmuZ/Jl2HV59Tzy/H/uWraCuYEiFRGaRiNmjZtMHExnFEj+rczc6pCyp7X696yhTrCwE7esL4fucplGt0ILvjO6Ym2Isv4wUYkMT6/B8rf8QR6PesUeW1aOtamaRqkzerKkdc5dQp3wqXvjFzOyjhtTvKh3XtiVdvmIqTf7gRoTkDo9WIiiksyCJoBB1mwVJOFNw3or3tgp2DGwtNRV95p7jPaSl9vuEiPyWNri8D2Kaao6JRCz9UnM2VoxTPY16KDVbpm1845VmVOY47b1dxNp50eTAkY8hUHtcIQ+0p0eR3yd6lWVtg+2qAY/qFGVH1VpQ1cT67y6fF52iYo2zKXxTa1+ENou9PR9fgq+lCRjRKRSuwckICdKdSMRiOrlm+TxXyssS6frJTEZGHPwiRSAV5hQqri+4ddagMF3vRWNQXTR8TCfPymVxsGVSaORqg+fkY1JSZcIuBNV5/FuHi31BE0Ph98Py/tbBBybXlYN1AnYnvV9qwY9Gbxo6EwxCWyeV6c4ggr5FHBgwsh+84o5/0jvWPhXmv5AVIj3Yoi2Mn49f/ksSzvcEDygZswyzESzDiQoIA2s1uc9bNSltuLvV/Jy1WF5dOrhLrpdEvwuhrkSoBmX5dJiHpp0m0YAQ==.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1mYWJsZS01LjEtMjAyNjA4MzF8YW50aHJvcGljIn0\",\"format\":\"anthropic-claude-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"This image\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" app\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ears to be a solid block\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" of color\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" — a war\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"m\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"length\",\"native_finish_reason\":\"max_tokens\"}]}\n\ndata: {\"id\":\"gen-1790960668-R3UzwZXJlQQr5lorXpME\",\"object\":\"chat.completion.chunk\",\"created\":1790960668,\"model\":\"anthropic/claude-fable-5.1\",\"provider\":\"Anthropic\",\"service_tier\":\"default\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"length\",\"native_finish_reason\":\"max_tokens\"}],\"usage\":{\"prompt_tokens\":14,\"completion_tokens\":64,\"total_tokens\":78,\"cost\":0.00334,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.00334,\"upstream_inference_prompt_cost\":0.00014,\"upstream_inference_completions_cost\":0.0032},\"completion_tokens_details\":{\"reasoning_tokens\":48,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+  "rawTruncated": false,
+  "request": {
+    "model": "anthropic/claude-fable-5.1",
+    "provider": {
+      "order": [
+        "anthropic"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true
+    },
+    "stream": true,
+    "usage": {
+      "include": true
+    },
+    "max_tokens": 64,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": ""
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSU...[154 chars, png sha256 0d9cc10556d669b8]"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

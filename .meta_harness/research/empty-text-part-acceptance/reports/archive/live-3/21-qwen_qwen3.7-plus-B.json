@@ -1,0 +1,73 @@
+{
+  "index": 21,
+  "route": "qwen/qwen3.7-plus",
+  "providerRequested": "alibaba",
+  "variant": "B",
+  "startedAt": "2026-10-02T17:08:33.243Z",
+  "finishedAt": "2026-10-02T17:08:34.881Z",
+  "durationMs": 1638,
+  "reservationUsd": "0.006611840000000000",
+  "costUsd": "0.000106240000",
+  "costReported": true,
+  "providerMismatch": true,
+  "status": 200,
+  "usage": {
+    "prompt_tokens": 76,
+    "completion_tokens": 64,
+    "total_tokens": 140,
+    "cost": "0.00010624",
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00010624,
+      "upstream_inference_prompt_cost": 0.00002432,
+      "upstream_inference_completions_cost": 0.00008192
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 64,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "provider": "Alibaba",
+  "upstreamModel": "qwen/qwen3.7-plus",
+  "requestId": "gen-1790960913-K6pWHMmwPQ8XERpxfJRM",
+  "finish": "length",
+  "outputPreview": "The user has provided an image that is a solid block of color.\n1.  **Identify the color:** It looks like a shade of red. Specifically, a medium-dark red, perhaps a \"brick red\" or \"Indian red\". Let's c",
+  "outcome": "accepted",
+  "rawResponse": "data: {\"id\":\"gen-1790960913-K6pWHMmwPQ8XERpxfJRM\",\"object\":\"chat.completion.chunk\",\"created\":1790960913,\"model\":\"qwen/qwen3.7-plus\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"The\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"The\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960913-K6pWHMmwPQ8XERpxfJRM\",\"object\":\"chat.completion.chunk\",\"created\":1790960913,\"model\":\"qwen/qwen3.7-plus\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" user has\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" user has\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960913-K6pWHMmwPQ8XERpxfJRM\",\"object\":\"chat.completion.chunk\",\"created\":1790960913,\"model\":\"qwen/qwen3.7-plus\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" provided an image that is a solid block of color\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" provided an image that is a solid block of color\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960913-K6pWHMmwPQ8XERpxfJRM\",\"object\":\"chat.completion.chunk\",\"created\":1790960913,\"model\":\"qwen/qwen3.7-plus\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\".\\n1.  **Identify the color:**\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\".\\n1.  **Identify the color:**\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960913-K6pWHMmwPQ8XERpxfJRM\",\"object\":\"chat.completion.chunk\",\"created\":1790960913,\"model\":\"qwen/qwen3.7-plus\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" It looks like a shade of red. Specifically, a\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" It looks like a shade of red. Specifically, a\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960913-K6pWHMmwPQ8XERpxfJRM\",\"object\":\"chat.completion.chunk\",\"created\":1790960913,\"model\":\"qwen/qwen3.7-plus\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" medium-dark red, perhaps a \\\"brick red\\\" or\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" medium-dark red, perhaps a \\\"brick red\\\" or\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960913-K6pWHMmwPQ8XERpxfJRM\",\"object\":\"chat.completion.chunk\",\"created\":1790960913,\"model\":\"qwen/qwen3.7-plus\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" \\\"Indian red\\\". Let's check the hex code if\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" \\\"Indian red\\\". Let's check the hex code if\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960913-K6pWHMmwPQ8XERpxfJRM\",\"object\":\"chat.completion.chunk\",\"created\":1790960913,\"model\":\"qwen/qwen3.7-plus\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" possible, or just describe it generally\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" possible, or just describe it generally\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960913-K6pWHMmwPQ8XERpxfJRM\",\"object\":\"chat.completion.chunk\",\"created\":1790960913,\"model\":\"qwen/qwen3.7-plus\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"length\",\"native_finish_reason\":\"length\"}]}\n\ndata: {\"id\":\"gen-1790960913-K6pWHMmwPQ8XERpxfJRM\",\"object\":\"chat.completion.chunk\",\"created\":1790960913,\"model\":\"qwen/qwen3.7-plus\",\"provider\":\"Alibaba\",\"service_tier\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"length\",\"native_finish_reason\":\"length\"}],\"usage\":{\"prompt_tokens\":76,\"completion_tokens\":64,\"total_tokens\":140,\"cost\":0.00010624,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.00010624,\"upstream_inference_prompt_cost\":0.00002432,\"upstream_inference_completions_cost\":0.00008192},\"completion_tokens_details\":{\"reasoning_tokens\":64,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+  "rawTruncated": false,
+  "request": {
+    "model": "qwen/qwen3.7-plus",
+    "provider": {
+      "order": [
+        "alibaba"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true
+    },
+    "stream": true,
+    "usage": {
+      "include": true
+    },
+    "max_tokens": 64,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSU...[154 chars, png sha256 0d9cc10556d669b8]"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

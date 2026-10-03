@@ -1,0 +1,77 @@
+{
+  "index": 14,
+  "route": "qwen/qwen3.8-flash",
+  "providerRequested": "alibaba",
+  "variant": "A2",
+  "startedAt": "2026-10-02T17:07:48.276Z",
+  "finishedAt": "2026-10-02T17:07:49.982Z",
+  "durationMs": 1706,
+  "reservationUsd": "0.003095030000000000",
+  "costUsd": "0.000049130000",
+  "costReported": true,
+  "providerMismatch": true,
+  "status": 200,
+  "usage": {
+    "prompt_tokens": 127,
+    "completion_tokens": 64,
+    "total_tokens": 191,
+    "cost": "0.00004913",
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00004913,
+      "upstream_inference_prompt_cost": 0.00001905,
+      "upstream_inference_completions_cost": 0.00003008
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 64,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "provider": "Alibaba",
+  "upstreamModel": "qwen/qwen3.8-flash",
+  "requestId": "gen-1790960868-CMQ0Dhz8pINMO0diXMjY",
+  "finish": "length",
+  "outputPreview": "The user has provided an image that appears to be a solid color square. There's no text, no prompt, just an image. I need to look carefully at what's actually in the image.\n\nLet me look. The image is ",
+  "outcome": "accepted",
+  "rawResponse": "data: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"The\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"The\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" user has provided\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" user has provided\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" an image that appears\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" an image that appears\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" to be a solid\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" to be a solid\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" color square\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" color square\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\". There\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\". There\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"'s no text,\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"'s no text,\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" no prompt, just\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" no prompt, just\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" an image. I\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" an image. I\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" need to look carefully\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" need to look carefully\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" at what's actually\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" at what's actually\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" in the image.\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" in the image.\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"\\n\\nLet\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"\\n\\nLet\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" me look.\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" me look.\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" The image is\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" The image is\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" a square\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" a square\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" filled with a single\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" filled with a single\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" solid\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" solid\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" color. It looks\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" color. It looks\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" like a muted red\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" like a muted red\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\",\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\",\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"length\",\"native_finish_reason\":\"length\"}]}\n\ndata: {\"id\":\"gen-1790960868-CMQ0Dhz8pINMO0diXMjY\",\"object\":\"chat.completion.chunk\",\"created\":1790960868,\"model\":\"qwen/qwen3.8-flash\",\"provider\":\"Alibaba\",\"service_tier\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"length\",\"native_finish_reason\":\"length\"}],\"usage\":{\"prompt_tokens\":127,\"completion_tokens\":64,\"total_tokens\":191,\"cost\":0.00004913,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.00004913,\"upstream_inference_prompt_cost\":0.00001905,\"upstream_inference_completions_cost\":0.00003008},\"completion_tokens_details\":{\"reasoning_tokens\":64,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+  "rawTruncated": false,
+  "request": {
+    "model": "qwen/qwen3.8-flash",
+    "provider": {
+      "order": [
+        "alibaba"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true
+    },
+    "stream": true,
+    "usage": {
+      "include": true
+    },
+    "max_tokens": 64,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": ""
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSU...[154 chars, png sha256 0d9cc10556d669b8]"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

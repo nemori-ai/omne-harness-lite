@@ -7,6 +7,10 @@
     {
       "revision": 2,
       "sha256": "bae908652bd0cf555fed3b4711adeccfcd7eb6a296edca7c13b3924d71cc5545"
+    },
+    {
+      "revision": 3,
+      "sha256": "91f699352ff4677951659e9fa3974eca13464ab4d40bad20a4c59eb6a753ac6d"
     }
   ],
   "leaves": [
@@ -69,14 +73,14 @@
     {
       "modelId": "moonshotai/kimi-k2.7-code",
       "definition": "3",
-      "implementation": "pi-ai:moonshot@mp4-18",
+      "implementation": "pi-ai:moonshot@mp4-19",
       "algorithm": "moonshot-k27-jinja-image-4",
       "factory": "createMoonshotInputMeter"
     },
     {
       "modelId": "moonshotai/kimi-k3",
       "definition": "3",
-      "implementation": "pi-ai:moonshot@mp4-18",
+      "implementation": "pi-ai:moonshot@mp4-19",
       "algorithm": "moonshot-k3-xtml-image-5",
       "factory": "createMoonshotInputMeter"
     },

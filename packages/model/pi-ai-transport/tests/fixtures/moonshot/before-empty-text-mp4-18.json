@@ -1,0 +1,61 @@
+{
+  "result": "PASS",
+  "commit": "d9c9bc9b9fa889809f71253d7c2244321fead2db",
+  "sourceHashes": {
+    "src/plan.ts": "3da333245b9f92a510b98e9e2940784462c0bd0933877147d33b04156f419ddf",
+    "src/official-models/moonshot.ts": "38e1a96385c91885a3aa3a6ca8f5ff1eff06f924d0a43a94d837d9de2c09e87d",
+    "src/input-meters/moonshot.ts": "6b4a385e8a4e81b29c36c36080f597cfd20836370e97de27b3b6b302760487d6"
+  },
+  "networkRequests": 0,
+  "scope": "Actual old planner request-input fixtures for later prefix/basis regression; no upstream response or billing claim.",
+  "cases": [
+    {
+      "modelId": "moonshotai/kimi-k3",
+      "provider": "moonshotai/mxfp4",
+      "emptyTail": false,
+      "definitionRevision": "3",
+      "implementation": {
+        "name": "pi-ai:moonshot",
+        "revision": "mp4-18"
+      },
+      "serialized": "{\"model\":\"moonshotai/kimi-k3\",\"provider\":{\"order\":[\"moonshotai/mxfp4\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"A local unchanged prefix.\"}]}],\"reasoning\":{\"effort\":\"high\"},\"max_tokens\":512}",
+      "requestInputJson": "{\"kind\":\"known\",\"projectionRevision\":\"openrouter-input-projection/3\",\"prefixBoundary\":1,\"prefixDigest\":\"066e1b41dc191bc6c8fe45311787f6fad7bbf970374d8abb0222698b4c6d2975\",\"inputEnvelopeDigest\":\"f9434a35cfaee8028224fe079de4f17dea5fe3a70c2f66e72b5225ac8f54e156\",\"countingBasis\":{\"binding\":{\"implementation\":{\"name\":\"pi-ai:moonshot\",\"revision\":\"mp4-18\"},\"definition\":{\"modelId\":\"moonshotai/kimi-k3\",\"revision\":\"3\"},\"configuration\":{\"revision\":\"1\",\"values\":{\"cache\":{\"mode\":\"automatic\"}}}},\"model\":\"moonshotai/kimi-k3\",\"provider\":\"moonshotai/mxfp4\",\"tokenizerRevision\":\"tokenizer-basis/moonshot-k3-xtml-image-4\",\"meterRevision\":\"moonshot-k3-xtml-image-5\",\"replayRevision\":\"unsupported-marginal/1\",\"transformRevision\":\"openrouter-wire/2\",\"projectionRevision\":\"openrouter-input-projection/3\"}}"
+    },
+    {
+      "modelId": "moonshotai/kimi-k3",
+      "provider": "moonshotai/mxfp4",
+      "emptyTail": true,
+      "definitionRevision": "3",
+      "implementation": {
+        "name": "pi-ai:moonshot",
+        "revision": "mp4-18"
+      },
+      "serialized": "{\"model\":\"moonshotai/kimi-k3\",\"provider\":{\"order\":[\"moonshotai/mxfp4\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"A local unchanged prefix.\"},{\"type\":\"text\",\"text\":\"\"}]}],\"reasoning\":{\"effort\":\"high\"},\"max_tokens\":512}",
+      "requestInputJson": "{\"kind\":\"known\",\"projectionRevision\":\"openrouter-input-projection/3\",\"prefixBoundary\":1,\"prefixDigest\":\"a881eeb73a0a97e87c9d48a947106ad93d15ba8d6010564c68e00a519dc90eb8\",\"inputEnvelopeDigest\":\"f9434a35cfaee8028224fe079de4f17dea5fe3a70c2f66e72b5225ac8f54e156\",\"countingBasis\":{\"binding\":{\"implementation\":{\"name\":\"pi-ai:moonshot\",\"revision\":\"mp4-18\"},\"definition\":{\"modelId\":\"moonshotai/kimi-k3\",\"revision\":\"3\"},\"configuration\":{\"revision\":\"1\",\"values\":{\"cache\":{\"mode\":\"automatic\"}}}},\"model\":\"moonshotai/kimi-k3\",\"provider\":\"moonshotai/mxfp4\",\"tokenizerRevision\":\"tokenizer-basis/moonshot-k3-xtml-image-4\",\"meterRevision\":\"moonshot-k3-xtml-image-5\",\"replayRevision\":\"unsupported-marginal/1\",\"transformRevision\":\"openrouter-wire/2\",\"projectionRevision\":\"openrouter-input-projection/3\"}}"
+    },
+    {
+      "modelId": "moonshotai/kimi-k2.7-code",
+      "provider": "moonshotai/int4",
+      "emptyTail": false,
+      "definitionRevision": "3",
+      "implementation": {
+        "name": "pi-ai:moonshot",
+        "revision": "mp4-18"
+      },
+      "serialized": "{\"model\":\"moonshotai/kimi-k2.7-code\",\"provider\":{\"order\":[\"moonshotai/int4\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"A local unchanged prefix.\"}]}],\"max_tokens\":512}",
+      "requestInputJson": "{\"kind\":\"known\",\"projectionRevision\":\"openrouter-input-projection/3\",\"prefixBoundary\":1,\"prefixDigest\":\"066e1b41dc191bc6c8fe45311787f6fad7bbf970374d8abb0222698b4c6d2975\",\"inputEnvelopeDigest\":\"1778f6d727cd62e8df9eb1fddbe45401ae50035a8c7226c740632c093c2988a8\",\"countingBasis\":{\"binding\":{\"implementation\":{\"name\":\"pi-ai:moonshot\",\"revision\":\"mp4-18\"},\"definition\":{\"modelId\":\"moonshotai/kimi-k2.7-code\",\"revision\":\"3\"},\"configuration\":{\"revision\":\"1\",\"values\":{\"cache\":{\"mode\":\"automatic\"}}}},\"model\":\"moonshotai/kimi-k2.7-code\",\"provider\":\"moonshotai/int4\",\"tokenizerRevision\":\"tokenizer-basis/moonshot-k27-jinja-image-3\",\"meterRevision\":\"moonshot-k27-jinja-image-4\",\"replayRevision\":\"unsupported-marginal/1\",\"transformRevision\":\"openrouter-wire/2\",\"projectionRevision\":\"openrouter-input-projection/3\"}}"
+    },
+    {
+      "modelId": "moonshotai/kimi-k2.7-code",
+      "provider": "moonshotai/int4",
+      "emptyTail": true,
+      "definitionRevision": "3",
+      "implementation": {
+        "name": "pi-ai:moonshot",
+        "revision": "mp4-18"
+      },
+      "serialized": "{\"model\":\"moonshotai/kimi-k2.7-code\",\"provider\":{\"order\":[\"moonshotai/int4\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"A local unchanged prefix.\"},{\"type\":\"text\",\"text\":\"\"}]}],\"max_tokens\":512}",
+      "requestInputJson": "{\"kind\":\"known\",\"projectionRevision\":\"openrouter-input-projection/3\",\"prefixBoundary\":1,\"prefixDigest\":\"a881eeb73a0a97e87c9d48a947106ad93d15ba8d6010564c68e00a519dc90eb8\",\"inputEnvelopeDigest\":\"1778f6d727cd62e8df9eb1fddbe45401ae50035a8c7226c740632c093c2988a8\",\"countingBasis\":{\"binding\":{\"implementation\":{\"name\":\"pi-ai:moonshot\",\"revision\":\"mp4-18\"},\"definition\":{\"modelId\":\"moonshotai/kimi-k2.7-code\",\"revision\":\"3\"},\"configuration\":{\"revision\":\"1\",\"values\":{\"cache\":{\"mode\":\"automatic\"}}}},\"model\":\"moonshotai/kimi-k2.7-code\",\"provider\":\"moonshotai/int4\",\"tokenizerRevision\":\"tokenizer-basis/moonshot-k27-jinja-image-3\",\"meterRevision\":\"moonshot-k27-jinja-image-4\",\"replayRevision\":\"unsupported-marginal/1\",\"transformRevision\":\"openrouter-wire/2\",\"projectionRevision\":\"openrouter-input-projection/3\"}}"
+    }
+  ]
+}
