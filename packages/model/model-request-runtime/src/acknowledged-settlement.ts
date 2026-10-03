@@ -8,6 +8,62 @@ import type { SettleReplyInput, SettleReplyResult } from './service-types.ts'
 
 const malformed = Object.freeze({ invalidInput: { reason: 'malformed' } } as const)
 
+function matchesRetainedIdentity(
+  retainedResult: PendingModelResponse,
+  decided: AcknowledgedCallFacts['attempts'][number],
+  request: SettleReplyInput,
+  origin: NonNullable<AcknowledgedCallFacts['record']['accountingWitness']>['origin'],
+): boolean {
+  return !(
+    retainedResult.id !== decided.response ||
+    retainedResult.call.callId !== request.callId ||
+    ExactDecimal.from(retainedResult.dispatch).compare(ExactDecimal.from(decided.dispatch)) !== 0 ||
+    retainedResult.call.runId !== origin.run ||
+    (retainedResult.attemptId === undefined) !== (origin.attempt === undefined) ||
+    (retainedResult.attemptId !== undefined &&
+      origin.attempt !== undefined &&
+      ExactDecimal.from(retainedResult.attemptId).compare(ExactDecimal.from(origin.attempt)) !== 0)
+  )
+}
+function retainedAccountingFacts(retainedResult: PendingModelResponse) {
+  return {
+    usage: retainedResult.usage,
+    cost: retainedResult.cost,
+    credentialScope: retainedResult.route.credentialScope,
+    provider: retainedResult.route.provider,
+    ...(retainedResult.route.upstreamRequestId === undefined
+      ? {}
+      : { upstreamRequestId: retainedResult.route.upstreamRequestId }),
+    timing: retainedResult.timing,
+    outcome: retainedResult.outcome,
+    ...(retainedResult.outcome === 'interrupted' ? { initiator: retainedResult.initiator } : {}),
+  }
+}
+function witnessedAccountingFacts(expected: ReturnType<typeof attemptFromWitness>) {
+  return {
+    usage: expected.usage,
+    cost: expected.cost,
+    credentialScope: expected.credentialScope,
+    provider: expected.provider,
+    ...(expected.upstreamRequestId === undefined
+      ? {}
+      : { upstreamRequestId: expected.upstreamRequestId }),
+    timing: expected.timing,
+    outcome: expected.outcome,
+    ...(expected.outcome === 'interrupted' ? { initiator: expected.initiator } : {}),
+  }
+}
+
+function recognizeFinal(
+  decided: AcknowledgedCallFacts['attempts'][number],
+  request: SettleReplyInput,
+  state: 'interrupted' | 'complete',
+): SettleReplyResult {
+  return decided.replyDisposition !== undefined &&
+    modelLogJsonEqual(decided.replyDisposition, request.disposition)
+    ? { callId: request.callId, state }
+    : { alreadyEnded: true }
+}
 /**
  * RT12 S-99 ③④⑥⑦ for a call whose model-side copy may already be released. A durable final
  * decides by the original same/different disposition rule without any full value. Without a
@@ -31,10 +87,7 @@ export function judgeAcknowledgedSettlement(
   if (decided === undefined) return { wrongPhase: { phase: facts.terminalState } }
   if (decided.disposition === 'final') {
     // S-99⑦: the same committed disposition recognizes the original final.
-    return decided.replyDisposition !== undefined &&
-      modelLogJsonEqual(decided.replyDisposition, request.disposition)
-      ? { callId: request.callId, state }
-      : { alreadyEnded: true }
+    return recognizeFinal(decided, request, state)
   }
   if (retainedResult === undefined) return { wrongPhase: { phase: facts.terminalState } }
   const witness = record.accountingWitness
@@ -43,15 +96,7 @@ export function judgeAcknowledgedSettlement(
   const expected = attemptFromWitness(witness)
   const origin = witness.origin
   if (
-    retainedResult.id !== decided.response ||
-    retainedResult.call.callId !== request.callId ||
-    ExactDecimal.from(retainedResult.dispatch).compare(ExactDecimal.from(decided.dispatch)) !== 0 ||
-    retainedResult.call.runId !== origin.run ||
-    (retainedResult.attemptId === undefined) !== (origin.attempt === undefined) ||
-    (retainedResult.attemptId !== undefined &&
-      origin.attempt !== undefined &&
-      ExactDecimal.from(retainedResult.attemptId).compare(ExactDecimal.from(origin.attempt)) !==
-        0) ||
+    !matchesRetainedIdentity(retainedResult, decided, request, origin) ||
     !(
       'ok' in
       judgeModelCallSemanticDigest(
@@ -65,30 +110,8 @@ export function judgeAcknowledgedSettlement(
   // The digest covers the whole Pending; the witness is checked field by field as well so a
   // contradiction between the two fixed ACK facts cannot be hidden.
   // Absent members stay absent: strict JSON comparison has no `undefined` value.
-  const smallFacts = {
-    usage: retainedResult.usage,
-    cost: retainedResult.cost,
-    credentialScope: retainedResult.route.credentialScope,
-    provider: retainedResult.route.provider,
-    ...(retainedResult.route.upstreamRequestId === undefined
-      ? {}
-      : { upstreamRequestId: retainedResult.route.upstreamRequestId }),
-    timing: retainedResult.timing,
-    outcome: retainedResult.outcome,
-    ...(retainedResult.outcome === 'interrupted' ? { initiator: retainedResult.initiator } : {}),
-  }
-  const witnessed = {
-    usage: expected.usage,
-    cost: expected.cost,
-    credentialScope: expected.credentialScope,
-    provider: expected.provider,
-    ...(expected.upstreamRequestId === undefined
-      ? {}
-      : { upstreamRequestId: expected.upstreamRequestId }),
-    timing: expected.timing,
-    outcome: expected.outcome,
-    ...(expected.outcome === 'interrupted' ? { initiator: expected.initiator } : {}),
-  }
+  const smallFacts = retainedAccountingFacts(retainedResult)
+  const witnessed = witnessedAccountingFacts(expected)
   if (!modelLogJsonEqual(smallFacts, witnessed)) return malformed
   return { validated: retainedResult }
 }
