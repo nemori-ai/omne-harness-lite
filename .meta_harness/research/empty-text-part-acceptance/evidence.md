@@ -279,3 +279,19 @@ python3 .meta_harness/research/empty-text-part-acceptance/reports/sources/price_
 
 
 离线复核修复记录：首次核价因原 `a.txt` 未被旧会话保全而退出 1。现在从精确保全的原探针 `ROUTES` 表恢复全部 31 行到 `reports/archive/a.txt`，来源 SHA 与派生 SHA 单列在 archive/provenance.json，未冒充原 `a.txt` 字节。核价脚本第二次退出 0；费用合计由全部 97 原记录独立相加得到 `0.232026600000`。
+
+
+## E12 当前生产请求的修后发送
+
+- 取得方式：实际公共 planner／invoke／send，固定候选 `56c446ab842e2e2e69a120755019e2ad553e09e1`；2026-10-03T09:29:59.668Z～09:30:05.247Z。
+- 来源：[完整运行、输入、脚本与 SHA](reports/2026-10-03-current-planner-kimi-k3/README.md)。
+- 观察：仅一次 Kimi K3／mxfp4 的当前 mp4-19 调用；原图＋空文本变为固定 image_url，请求完整结束，费用 0.001179 USD。原97费用与新费合计0.2332056。
+- 支持范围：这一当前规划字节的单样本接受；不支持第二叶、全空串、历史位置或误差界。
+
+## E13 Anthropic 当前本地缓存选靶反例
+
+- 取得方式：同一冻结候选的当前公共 planner，Sonnet 5 官方默认缓存、真实图片准备与计量器；网络 0。
+- 来源：[输入脚本与三结果](reports/2026-10-03-current-planner-kimi-k3/anthropic-local-50.json)。
+- 观察：末条用户图＋空文本两个排列 unavailable；纯图对照规划成功。
+- 支持范围：一条当前官方叶的本地行为；原四叶的最小线上探针由原E3覆盖，两者分别消费。
+- 独立消费者：[86](https://github.com/nemori-ai/omne-harness-lite/issues/86)。不把该问题的修复塞进 Moonshot 采用范围。

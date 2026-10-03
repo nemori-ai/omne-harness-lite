@@ -182,3 +182,10 @@ OpenAI 六条 `-pro` 路由在 −50 到 +53 之间来回，三种请求之间�
 
 2026-10-03：[窄修复提案](../../design/record/proposals/moonshot-empty-text/README.md)与 [D-115](../../design/record/decisions/moonshot-empty-text-adoption/README.md)消费本轮观察；没有新增上游行为结论。
 上游供应商与 OpenRouter 的行为没有版本号可钉，重测时以实测窗口的时间戳为旧版本 token；结论若变，按[演进事件词](../README.md#演进事件词)记 `changelog.md` 再改正文。
+
+
+## C-9 修后当前 Kimi K3 生产字节的单样本被接受
+
+事实：E12 的公共 planner／invoke／send 在当前 mp4-19 完成一次请求；源 image＋空文本的用户数组变成 image_url，send 严格核对同一固定序列化字节，上游完整结束，费用0.001179 USD。预算累计0.2332056。
+
+适用范围仅这一时间、绑定和输入；不外推另一叶的上游接受、纯空串或历史位置。原 C-1～C-8 的实测窗口及31路由事实保持原范围。E13另验证一条当前Anthropic本地缓存反例，上游原接受性观察不能代替本地plan。
