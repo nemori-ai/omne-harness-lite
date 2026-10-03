@@ -21,6 +21,7 @@ import {
   prepareRunnerConclusion,
   inspectRunnerConclusion,
   type RunnerExecution,
+  type InspectedRunnerConclusion,
 } from './conclusion-codec.ts'
 import { composeEffect, type RunnerEffect } from './effect.ts'
 import { passKeys, type RunnerOccurrence } from './keys.ts'
@@ -337,13 +338,11 @@ async function resolveEffect(
     if (piece === undefined || piece.definition.name !== value.extension) return replayInconsistent
     if (piece.fallback === 'admission') return { effect: { kind: 'vetoed', by: value.extension } }
     if (piece.fallback === 'modality') {
-      const before = composeEffect(initial, finals.slice(0, index))
-      if ('invalidInput' in before || before.effect.kind !== 'proceed') return replayInconsistent
-      const positioned = judgePositionedSubject({ ...initial, subject: before.effect.subject })
-      if (!('ok' in positioned)) return replayInconsistent
+      const positioned = modalitySubject(initial, finals.slice(0, index))
+      if (positioned === undefined) return replayInconsistent
       let needed: Awaited<ReturnType<RunnerPorts['fallbackNeedsProjection']>>
       try {
-        needed = await ports.fallbackNeedsProjection(positioned.ok)
+        needed = await ports.fallbackNeedsProjection(positioned)
       } catch {
         return unavailable
       }
@@ -354,6 +353,17 @@ async function resolveEffect(
   }
   const combined = composeEffect(initial, finals)
   return 'invalidInput' in combined ? replayInconsistent : combined
+}
+
+function modalitySubject(
+  initial: PositionedSubject,
+  finals: readonly Conclusion[],
+): PositionedSubject | undefined {
+  const before = composeEffect(initial, finals)
+  if ('invalidInput' in before || before.effect.kind !== 'proceed') return undefined
+  const positioned = judgePositionedSubject({ ...initial, subject: before.effect.subject })
+  if (!('ok' in positioned)) return undefined
+  return positioned.ok
 }
 
 function failureIdentity(initial: PositionedSubject): Record<string, unknown> {
@@ -454,14 +464,7 @@ function entryFromRecord(
   if (
     'invalid' in inspected ||
     'unrelated' in inspected ||
-    record.entry.dedupeKey !== expected ||
-    inspected.anchor !== pass.anchor ||
-    inspected.conclusion.extension !== piece.definition.name ||
-    inspected.conclusion.power !== piece.power ||
-    !samePosition(pass.initial, inspected.conclusion) ||
-    (pass.execution.kind === 'noRun' && inspected.execution.kind !== 'noRun') ||
-    (pass.execution.kind === 'withRun' &&
-      (inspected.execution.kind !== 'withRun' || inspected.execution.run !== pass.execution.run))
+    !matchesRecordedPass(record.entry, inspected, expected, pass, piece)
   )
     throw new RunnerFailureSignal(replayInconsistent)
   return {
@@ -470,6 +473,25 @@ function entryFromRecord(
     occurrence: inspected.occurrence,
     reminders: inspected.reminders,
   }
+}
+
+function matchesRecordedPass(
+  entry: LogEntry,
+  inspected: InspectedRunnerConclusion,
+  expected: string,
+  pass: RunnerPass,
+  piece: RunnerPiece,
+): boolean {
+  return !(
+    entry.dedupeKey !== expected ||
+    inspected.anchor !== pass.anchor ||
+    inspected.conclusion.extension !== piece.definition.name ||
+    inspected.conclusion.power !== piece.power ||
+    !samePosition(pass.initial, inspected.conclusion) ||
+    (pass.execution.kind === 'noRun' && inspected.execution.kind !== 'noRun') ||
+    (pass.execution.kind === 'withRun' &&
+      (inspected.execution.kind !== 'withRun' || inspected.execution.run !== pass.execution.run))
+  )
 }
 
 async function persistReminders(
@@ -709,21 +731,11 @@ async function runPassInternal(
           }
           try {
             checkControl(signal, ports)
-            const rawInput = {
-              ...subject,
-              earlier: finals,
-              log: handles.log,
-              environment: handles.environment,
-              ...(subject.position === 'before_persist_message' || pass.execution.kind === 'noRun'
-                ? {}
-                : { run: pass.execution.run, attempt: pass.execution.attempt }),
-            }
-            const judged = judgeInput(rawInput)
-            if (!('ok' in judged)) throw new RunnerFailureSignal(invalidInput)
-            input = judged.ok
+            const invocation = invocationInput(subject, finals, handles, pass.execution)
+            input = invocation
             let work: Promise<RunnerInvocationResult>
             try {
-              work = ports.invoke(piece, judged.ok, signal, mode)
+              work = ports.invoke(piece, invocation, signal, mode)
             } catch {
               throw new RunnerFailureSignal(unavailable)
             }
@@ -735,16 +747,7 @@ async function runPassInternal(
               if (control !== 'valid') throw new RunnerFailureSignal(unavailable)
             }
             checkControl(signal, ports)
-            if (invoked.kind === 'replayInconsistent')
-              throw new RunnerFailureSignal(replayInconsistent)
-            if (invoked.kind === 'controlUnavailable') throw new RunnerFailureSignal(unavailable)
-            if (invoked.kind === 'notStartedUnavailable') unavailablePiece = true
-            else if (invoked.kind === 'errored') candidateError = invoked
-            else if (invoked.kind === 'output') {
-              const output = judgeOutput(invoked.value)
-              if ('rejected' in output) candidateError = { error: output.rejected }
-              else candidateOutput = output.ok
-            } else throw new RunnerFailureSignal(unavailable)
+            ;({ unavailablePiece, candidateError, candidateOutput } = invocationCandidate(invoked))
           } finally {
             handles.release()
           }
@@ -810,86 +813,28 @@ async function runPassInternal(
             }
           }
           if (rawConclusion === undefined) {
-            const effective =
-              candidateError?.classification !== undefined &&
-              candidateError.classification !== 'ordinary' &&
-              piece.definition.implementation.kind === 'command'
-                ? 'ignore'
-                : policy(piece, initial.position)
-            if (effective === 'record' && !nested && initial.position !== 'after_terminal') {
-              const id = ports.mintReminder()
-              if (typeof id !== 'string' || !identity(id))
-                throw new RunnerFailureSignal(unavailable)
-              const proposed = judgeMessage({
-                id,
-                type: 'system_reminder',
-                blocks: [
-                  {
-                    id: `${id}-text`,
-                    kind: 'text',
-                    text: 'Extension failed during this pass.',
-                    visibility: { toHuman: true, toModel: true },
-                  },
-                ],
-                createdAt: at,
-                nature: 'event',
-                source: { kind: 'extension', extension: piece.definition.name },
-              })
-              if (!('ok' in proposed) || proposed.ok.type !== 'system_reminder')
-                throw new RunnerFailureSignal(invalidInput)
-              reminders = [proposed.ok]
-            }
-            const output = errorOutput(effective, initial.position, reminders[0])
-            rawConclusion = {
-              ...base,
-              skipped: 'errored',
-              error: candidateError?.error ?? 'extension_execution_failed',
-              output,
-            }
+            ;({ rawConclusion, reminders } = errorConclusion(
+              base,
+              candidateError,
+              piece,
+              initial.position,
+              ports,
+              nested,
+              at,
+            ))
           }
         }
         const conclusionJudged = judgeConclusionForCurrent(rawConclusion, subject, piece)
         if ('failure' in conclusionJudged) throw new RunnerFailureSignal(conclusionJudged)
-        const finalOutput = conclusionJudged.conclusion.output
-        if (
-          finalOutput?.kind === 'ask' &&
-          (initial.position === 'before_persist_message' || initial.position === 'after_terminal')
-        )
-          throw new RunnerFailureSignal(invalidInput)
-        const occurrence: RunnerOccurrence =
-          finalOutput?.kind === 'ask'
-            ? {
-                kind: 'ask',
-                ordinal: ExactDecimal.from(
-                  last?.occurrence.kind === 'ask' ? last.occurrence.ordinal : 0,
-                )
-                  .add(ExactDecimal.from(1))
-                  .toJsonNumber(),
-              }
-            : { kind: 'final' }
-        const prepared = prepareRunnerConclusion({
-          session: ports.binding.session,
-          tenant: ports.binding.tenant,
-          execution: pass.execution,
-          anchor: pass.anchor,
-          occurrence,
-          value: conclusionJudged.conclusion,
+        const { prepared, expectedKey } = prepareOccurrence(
+          conclusionJudged.conclusion,
+          initial,
+          last,
+          pass,
+          piece,
+          ports.binding,
           reminders,
-        })
-        if ('invalidInput' in prepared) throw new RunnerFailureSignal(invalidInput)
-        const keys = passKeys({
-          position: initial.position,
-          ...(initial.dimension === undefined ? {} : { dimension: initial.dimension }),
-          anchor: pass.anchor,
-          extension: piece.definition.name,
-          occurrence,
-          ...(initial.position === 'after_model_call' && 'dispatches' in initial.subject
-            ? { modelCallId: initial.subject.dispatches[0]?.call }
-            : {}),
-        })
-        if ('invalidInput' in keys) throw new RunnerFailureSignal(invalidInput)
-        const expectedKey = occurrence.kind === 'ask' ? keys.ask : keys.final
-        if (expectedKey === undefined) throw new RunnerFailureSignal(invalidInput)
+        )
         checkControl(signal, ports)
         let work: Promise<RunnerRecordResult>
         try {
@@ -935,4 +880,156 @@ async function runPassInternal(
   } finally {
     releaseFailure?.()
   }
+}
+
+function invocationInput(
+  subject: PositionedSubject,
+  finals: readonly Conclusion[],
+  handles: RunnerHandles,
+  execution: RunnerExecution,
+): ExtensionInput {
+  const rawInput = {
+    ...subject,
+    earlier: finals,
+    log: handles.log,
+    environment: handles.environment,
+    ...(subject.position === 'before_persist_message' || execution.kind === 'noRun'
+      ? {}
+      : { run: execution.run, attempt: execution.attempt }),
+  }
+  const judged = judgeInput(rawInput)
+  if (!('ok' in judged)) throw new RunnerFailureSignal(invalidInput)
+  return judged.ok
+}
+
+type CandidateError = {
+  readonly error: string
+  readonly classification?: 'ordinary' | 'nonzero_exit' | 'timeout' | 'bad_output'
+}
+function invocationCandidate(invoked: RunnerInvocationResult): {
+  readonly unavailablePiece: boolean
+  readonly candidateError: CandidateError | undefined
+  readonly candidateOutput: ExtensionOutput | undefined
+} {
+  if (invoked.kind === 'replayInconsistent') throw new RunnerFailureSignal(replayInconsistent)
+  if (invoked.kind === 'controlUnavailable') throw new RunnerFailureSignal(unavailable)
+  if (invoked.kind === 'notStartedUnavailable')
+    return { unavailablePiece: true, candidateError: undefined, candidateOutput: undefined }
+  else if (invoked.kind === 'errored')
+    return { unavailablePiece: false, candidateError: invoked, candidateOutput: undefined }
+  else if (invoked.kind === 'output') {
+    const output = judgeOutput(invoked.value)
+    return 'rejected' in output
+      ? {
+          unavailablePiece: false,
+          candidateError: { error: output.rejected },
+          candidateOutput: undefined,
+        }
+      : { unavailablePiece: false, candidateError: undefined, candidateOutput: output.ok }
+  } else throw new RunnerFailureSignal(unavailable)
+}
+
+function errorConclusion(
+  base: Record<string, unknown>,
+  candidateError: CandidateError | undefined,
+  piece: RunnerPiece,
+  position: PositionedSubject['position'],
+  ports: RunnerPorts,
+  nested: boolean,
+  at: string,
+) {
+  let reminders: SystemReminderMessage[] = []
+  const effective =
+    candidateError?.classification !== undefined &&
+    candidateError.classification !== 'ordinary' &&
+    piece.definition.implementation.kind === 'command'
+      ? 'ignore'
+      : policy(piece, position)
+  if (effective === 'record' && !nested && position !== 'after_terminal') {
+    const id = ports.mintReminder()
+    if (typeof id !== 'string' || !identity(id)) throw new RunnerFailureSignal(unavailable)
+    const proposed = judgeMessage({
+      id,
+      type: 'system_reminder',
+      blocks: [
+        {
+          id: `${id}-text`,
+          kind: 'text',
+          text: 'Extension failed during this pass.',
+          visibility: { toHuman: true, toModel: true },
+        },
+      ],
+      createdAt: at,
+      nature: 'event',
+      source: { kind: 'extension', extension: piece.definition.name },
+    })
+    if (!('ok' in proposed) || proposed.ok.type !== 'system_reminder')
+      throw new RunnerFailureSignal(invalidInput)
+    reminders = [proposed.ok]
+  }
+  const output = errorOutput(effective, position, reminders[0])
+  const rawConclusion = {
+    ...base,
+    skipped: 'errored',
+    error: candidateError?.error ?? 'extension_execution_failed',
+    output,
+  }
+  return { rawConclusion, reminders }
+}
+
+function prepareOccurrence(
+  conclusion: Conclusion,
+  initial: PositionedSubject,
+  last: Historical | undefined,
+  pass: RunnerPass,
+  piece: RunnerPiece,
+  binding: RunnerLogBinding,
+  reminders: readonly SystemReminderMessage[],
+) {
+  const finalOutput = conclusion.output
+  validateAskOutput(finalOutput, initial.position)
+  const occurrence: RunnerOccurrence =
+    finalOutput?.kind === 'ask'
+      ? {
+          kind: 'ask',
+          ordinal: ExactDecimal.from(last?.occurrence.kind === 'ask' ? last.occurrence.ordinal : 0)
+            .add(ExactDecimal.from(1))
+            .toJsonNumber(),
+        }
+      : { kind: 'final' }
+  const prepared = prepareRunnerConclusion({
+    session: binding.session,
+    tenant: binding.tenant,
+    execution: pass.execution,
+    anchor: pass.anchor,
+    occurrence,
+    value: conclusion,
+    reminders,
+  })
+  if ('invalidInput' in prepared) throw new RunnerFailureSignal(invalidInput)
+  const keys = passKeys({
+    position: initial.position,
+    ...(initial.dimension === undefined ? {} : { dimension: initial.dimension }),
+    anchor: pass.anchor,
+    extension: piece.definition.name,
+    occurrence,
+    ...(initial.position === 'after_model_call' && 'dispatches' in initial.subject
+      ? { modelCallId: initial.subject.dispatches[0]?.call }
+      : {}),
+  })
+  if ('invalidInput' in keys) throw new RunnerFailureSignal(invalidInput)
+  const expectedKey = occurrence.kind === 'ask' ? keys.ask : keys.final
+  if (expectedKey === undefined) throw new RunnerFailureSignal(invalidInput)
+  return { prepared, expectedKey }
+}
+
+function validateAskOutput(
+  finalOutput: Conclusion['output'],
+  position: PositionedSubject['position'],
+): void {
+  if (
+    finalOutput?.kind === 'ask' &&
+    (position === 'before_persist_message' || position === 'after_terminal')
+  )
+    throw new RunnerFailureSignal(invalidInput)
 }
