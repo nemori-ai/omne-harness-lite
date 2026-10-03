@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   actualArchitectureOf,
   compareActualArchitectures,
@@ -17,6 +22,31 @@ import { buildReport } from '../src/metrics/report.ts'
 import { GROUP_DIRECTION_POLICY } from '../src/rules/group-direction.ts'
 
 const bands = { green: 8, yellow: 12, red: 20 }
+it('rejects JSON output paths that would overwrite report artifacts before writing', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'n2-output-'))
+  try {
+    for (const name of ['report.html', 'graph.json', 'summary.md']) {
+      const result = spawnSync(
+        process.execPath,
+        [
+          '--experimental-strip-types',
+          fileURLToPath(new URL('../src/arch/cli.ts', import.meta.url)),
+          '--report',
+          dir,
+          '--out',
+          join(dir, name),
+        ],
+        { encoding: 'utf8' },
+      )
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('--out must not overwrite a report file')
+      expect(result.stdout).toBe('')
+      expect(readdirSync(dir)).toEqual([])
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
 const selection: ViewSelection = {
   group: '',
   focus: '',

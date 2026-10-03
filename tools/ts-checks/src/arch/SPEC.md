@@ -47,6 +47,7 @@ SVG 的节点组和关系路径保留 `data-node-id` 和 `data-edge-id`，用于
 ## CLI 与失败
 
 architecture 默认继续向 stdout 输出 N1 JSON。`--out` 仍写同一 JSON。
+`--out` 与报告的 HTML、图数据或摘要路径冲突时，在写入前拒绝参数。
 `--report <dir>` 另生成 `report.html`、`graph.json`、`actual.json` 和 `summary.md`。
 metrics 的 `review.html` 使用同一总览和关系浏览组件，保留原输出文件。
 无效参数、读取、投影和写入失败使 CLI 非零退出，不能产出假成功结论。

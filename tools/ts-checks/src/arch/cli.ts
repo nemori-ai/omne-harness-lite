@@ -37,6 +37,12 @@ function argumentsOf(args: readonly string[]): {
     base = values.get('--base'),
     out = values.get('--out'),
     report = values.get('--report')
+  if (
+    out !== undefined &&
+    report !== undefined &&
+    ['report.html', 'graph.json', 'summary.md'].some(name => resolve(out) === resolve(report, name))
+  )
+    throw new Error('--out must not overwrite a report file')
   return {
     root: resolve(values.get('--root') ?? '.'),
     ...(revision === undefined ? {} : { revision }),
