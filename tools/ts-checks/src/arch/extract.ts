@@ -297,154 +297,151 @@ class Extractor {
         this.registeredObjects.add(value)
     })
   }
-  discover(tree: ts.SourceFile): void {
-    const member = memberOf(this.resolver.path(tree))?.path
-    if (member === undefined) return
-    const context = this.empty(member)
-    visitSyntax(tree, node => {
-      if (ts.isObjectLiteralExpression(node)) {
-        const name = expression(property(node, 'name')),
-          apply = expression(property(node, 'apply'))
-        const wrapped =
-          ts.isCallExpression(node.parent) &&
-          this.resolver.imported(
-            node.parent.expression,
-            'definePlugin',
-            '@omne-harness-lite/kernel-basis',
-          )
-        if (apply === undefined || (!wrapped && name === undefined)) return
-        const body = this.resolver.callable(apply)
-        if (!wrapped && !this.pluginObject(node, body)) {
-          this.unconfirmedPlugin(node, context)
-          return
-        }
-        const key = this.key('plugin', name, context)
-        const inject = expression(property(node, 'inject'))
-        if (key !== undefined || body !== undefined)
-          this.plugins.push({
-            name: key ?? `unresolved:${name?.getText() ?? '?'}`,
-            member,
-            node,
-            ...(inject === undefined ? {} : { inject }),
-            ...(body === undefined ? {} : { apply: body }),
-          })
-      }
-      if (ts.isClassDeclaration(node) && this.serviceBase(node) !== undefined) {
-        const ownKey = node.members.find(
-          item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'provide',
-        )
-        const key = this.classKey(node)
-        // Inherited keys are providers; own static keys and legacy super keys are declarations.
-        if (
-          ownKey !== undefined ||
-          this.resolver.imported(this.serviceBase(node) ?? node, 'Service', '@deepseek-ai/cordis')
-        )
-          this.key('defines', key, context, {
-            ...this.tags(node),
-            definitionForm: 'service-class',
-            symbol: node.name?.text ?? 'default',
-          })
-        if (!node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.AbstractKeyword)) {
-          const name = node.members.find(
-            item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'name',
-          )
-          const pluginName =
-            name !== undefined && ts.isPropertyDeclaration(name)
-              ? this.resolver.string(name.initializer)?.value
-              : node.name?.text
-          if (pluginName !== undefined) {
-            this.add('plugin', pluginName, node, context)
-            const inject = node.members.find(
-              item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'inject',
-            )
-            this.plugins.push({
-              name: pluginName,
-              member,
-              node,
-              serviceClass: node,
-              ...(inject !== undefined &&
-              ts.isPropertyDeclaration(inject) &&
-              inject.initializer !== undefined
-                ? { inject: inject.initializer }
-                : {}),
-            })
-          }
-        }
-      }
-      if (
-        ts.isClassDeclaration(node) &&
-        this.serviceBase(node) === undefined &&
-        node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.ExportKeyword) &&
-        node.members.some(
-          item => ts.isConstructorDeclaration(item) && this.contextType(item.parameters[0]?.type),
-        )
-      ) {
-        const metadataName = node.members.find(
-          item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'name',
-        )
-        const name =
-          metadataName !== undefined && ts.isPropertyDeclaration(metadataName)
-            ? this.resolver.string(metadataName.initializer)?.value
-            : node.name?.text
+  discoverObject(node: ts.ObjectLiteralExpression, context: WalkContext): void {
+    const member = context.member
+
+    const name = expression(property(node, 'name')),
+      apply = expression(property(node, 'apply'))
+    const wrapped =
+      ts.isCallExpression(node.parent) &&
+      this.resolver.imported(
+        node.parent.expression,
+        'definePlugin',
+        '@omne-harness-lite/kernel-basis',
+      )
+    if (apply === undefined || (!wrapped && name === undefined)) return
+    const body = this.resolver.callable(apply)
+    if (!wrapped && !this.pluginObject(node, body)) {
+      this.unconfirmedPlugin(node, context)
+      return
+    }
+    const key = this.key('plugin', name, context)
+    const inject = expression(property(node, 'inject'))
+    if (key !== undefined || body !== undefined)
+      this.plugins.push({
+        name: key ?? `unresolved:${name?.getText() ?? '?'}`,
+        member,
+        node,
+        ...(inject === undefined ? {} : { inject }),
+        ...(body === undefined ? {} : { apply: body }),
+      })
+  }
+  discoverService(node: ts.ClassDeclaration, context: WalkContext): void {
+    const member = context.member
+
+    const ownKey = node.members.find(
+      item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'provide',
+    )
+    const key = this.classKey(node)
+    // Inherited keys are providers; own static keys and legacy super keys are declarations.
+    if (
+      ownKey !== undefined ||
+      this.resolver.imported(this.serviceBase(node) ?? node, 'Service', '@deepseek-ai/cordis')
+    )
+      this.key('defines', key, context, {
+        ...this.tags(node),
+        definitionForm: 'service-class',
+        symbol: node.name?.text ?? 'default',
+      })
+    if (!node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.AbstractKeyword)) {
+      const name = node.members.find(
+        item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'name',
+      )
+      const pluginName =
+        name !== undefined && ts.isPropertyDeclaration(name)
+          ? this.resolver.string(name.initializer)?.value
+          : node.name?.text
+      if (pluginName !== undefined) {
+        this.add('plugin', pluginName, node, context)
         const inject = node.members.find(
           item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'inject',
         )
-        if (name !== undefined) {
-          this.add('plugin', name, node, context)
-          this.plugins.push({
-            name,
-            member,
-            node,
-            serviceClass: node,
-            ...(inject !== undefined &&
-            ts.isPropertyDeclaration(inject) &&
-            inject.initializer !== undefined
-              ? { inject: inject.initializer }
-              : {}),
-          })
-        }
+        this.plugins.push({
+          name: pluginName,
+          member,
+          node,
+          serviceClass: node,
+          ...(inject !== undefined &&
+          ts.isPropertyDeclaration(inject) &&
+          inject.initializer !== undefined
+            ? { inject: inject.initializer }
+            : {}),
+        })
       }
-      if (
-        ts.isInterfaceDeclaration(node) &&
-        (node.name.text === 'Context' || node.name.text === 'Events')
-      ) {
-        let module: ts.Node | undefined = node.parent
-        while (module !== undefined && !ts.isModuleDeclaration(module)) module = module.parent
-        if (
-          module === undefined ||
-          !ts.isStringLiteral(module.name) ||
-          module.name.text !== '@deepseek-ai/cordis'
-        )
-          return
-        for (const item of this.interfaceMembers(node)) {
-          const name = nodeName(item.name)
-          if (
-            name === undefined &&
-            item.name !== undefined &&
-            ts.isComputedPropertyName(item.name)
-          ) {
-            this.key(
-              node.name.text === 'Context' ? 'defines' : 'event-declaration',
-              item.name.expression,
-              context,
-              {
-                ...this.tags(item),
-                ...(node.name.text === 'Context' ? { definitionForm: 'context-augmentation' } : {}),
-              },
-            )
-            continue
-          }
-          if (name === undefined) continue
-          const kind = node.name.text === 'Context' ? 'defines' : 'event-declaration'
-          if (kind === 'defines')
-            this.attempts.add(`${this.resolver.path(item)}|${item.pos}|defines`)
-          this.add(kind, name, item, context, {
+    }
+  }
+  discoverClassPlugin(node: ts.ClassDeclaration, context: WalkContext): void {
+    const member = context.member
+    if (!(
+      this.serviceBase(node) === undefined &&
+      node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.ExportKeyword) &&
+      node.members.some(
+        item => ts.isConstructorDeclaration(item) && this.contextType(item.parameters[0]?.type),
+      )
+    ))
+      return
+
+    const metadataName = node.members.find(
+      item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'name',
+    )
+    const name =
+      metadataName !== undefined && ts.isPropertyDeclaration(metadataName)
+        ? this.resolver.string(metadataName.initializer)?.value
+        : node.name?.text
+    const inject = node.members.find(
+      item => ts.isPropertyDeclaration(item) && nodeName(item.name) === 'inject',
+    )
+    if (name !== undefined) {
+      this.add('plugin', name, node, context)
+      this.plugins.push({
+        name,
+        member,
+        node,
+        serviceClass: node,
+        ...(inject !== undefined &&
+        ts.isPropertyDeclaration(inject) &&
+        inject.initializer !== undefined
+          ? { inject: inject.initializer }
+          : {}),
+      })
+    }
+  }
+  discoverAugmentation(node: ts.InterfaceDeclaration, context: WalkContext): void {
+    if (node.name.text !== 'Context' && node.name.text !== 'Events') return
+
+    let module: ts.Node | undefined = node.parent
+    while (module !== undefined && !ts.isModuleDeclaration(module)) module = module.parent
+    if (
+      module === undefined ||
+      !ts.isStringLiteral(module.name) ||
+      module.name.text !== '@deepseek-ai/cordis'
+    )
+      return
+    for (const item of this.interfaceMembers(node)) {
+      const name = nodeName(item.name)
+      if (name === undefined && item.name !== undefined && ts.isComputedPropertyName(item.name)) {
+        this.key(
+          node.name.text === 'Context' ? 'defines' : 'event-declaration',
+          item.name.expression,
+          context,
+          {
             ...this.tags(item),
-            ...(kind === 'defines' ? { definitionForm: 'context-augmentation' } : {}),
-          })
-        }
+            ...(node.name.text === 'Context' ? { definitionForm: 'context-augmentation' } : {}),
+          },
+        )
+        continue
       }
-    })
+      if (name === undefined) continue
+      const kind = node.name.text === 'Context' ? 'defines' : 'event-declaration'
+      if (kind === 'defines') this.attempts.add(`${this.resolver.path(item)}|${item.pos}|defines`)
+      this.add(kind, name, item, context, {
+        ...this.tags(item),
+        ...(kind === 'defines' ? { definitionForm: 'context-augmentation' } : {}),
+      })
+    }
+  }
+  discoverNative(tree: ts.SourceFile, context: WalkContext): void {
+    const member = context.member
     const apply = tree.statements.find(
       node => ts.isFunctionDeclaration(node) && node.name?.text === 'apply',
     )
@@ -474,6 +471,20 @@ class Extractor {
           ...(inject === undefined ? {} : { inject }),
         })
     }
+  }
+  discover(tree: ts.SourceFile): void {
+    const member = memberOf(this.resolver.path(tree))?.path
+    if (member === undefined) return
+    const context = this.empty(member)
+    visitSyntax(tree, node => {
+      if (ts.isObjectLiteralExpression(node)) this.discoverObject(node, context)
+      if (ts.isClassDeclaration(node)) {
+        if (this.serviceBase(node) !== undefined) this.discoverService(node, context)
+        else this.discoverClassPlugin(node, context)
+      }
+      if (ts.isInterfaceDeclaration(node)) this.discoverAugmentation(node, context)
+    })
+    this.discoverNative(tree, context)
   }
   dependencies(plugin: Plugin, context: WalkContext): WalkContext {
     const required = new Set<string>()

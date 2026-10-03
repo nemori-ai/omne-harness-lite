@@ -74,6 +74,79 @@ function sourceLocationState(readme: string | undefined): 'built' | 'not-built' 
   return 'unknown'
 }
 
+function compareImports(
+  extraction: Extraction,
+  byMember: ReadonlyMap<string, IntentNode>,
+): Pick<ComparisonResult, 'comparisons' | 'exceptions'> {
+  const comparisons: Comparison[] = []
+  const exceptions: ComparisonResult['exceptions'][number][] = []
+  for (const imported of extraction.imports) {
+    if (
+      imported.member.startsWith('apps/') ||
+      imported.target.startsWith('packages/core/') ||
+      imported.target.startsWith('packages/util/')
+    )
+      continue
+    const exception = byMember
+      .get(imported.member)
+      ?.assembly?.importExceptions.find(
+        item =>
+          item.target === imported.target &&
+          item.symbols.includes(imported.symbol) &&
+          imported.symbol !== '*' &&
+          byMember.has(item.target),
+      )
+    if (exception !== undefined)
+      exceptions.push({
+        import: imported,
+        declaration: {
+          path: byMember.get(imported.member)?.path ?? '',
+          source: exception.source,
+          sharedStorage: exception.sharedStorage,
+        },
+      })
+    else
+      comparisons.push({
+        id: `import|${imported.id}`,
+        state: 'deviation',
+        member: imported.member,
+        kind: 'import',
+        key: `${imported.target}#${imported.symbol}${imported.type ? ' (type)' : ''}`,
+        implementation: { path: imported.path, line: imported.line },
+        reason:
+          'IC-5: cross-member import outside core/util has no exact-symbol baseline exception',
+      })
+  }
+  return { comparisons, exceptions }
+}
+function lifecycleOf(
+  members: ReadonlySet<string>,
+  nodes: readonly IntentNode[],
+  byMember: ReadonlyMap<string, IntentNode>,
+): ComparisonResult['lifecycle'] {
+  const lifecycle: ComparisonResult['lifecycle'][number][] = []
+  for (const member of members) {
+    const node = byMember.get(member)
+    if (node === undefined) lifecycle.push({ member: member, kind: 'no-design' })
+    else {
+      if (node.assembly === undefined && node.composition === undefined)
+        lifecycle.push({ member: member, kind: 'undeclared', path: node.path })
+    }
+  }
+  for (const node of nodes) {
+    const exists = members.has(node.member)
+    if (!exists) lifecycle.push({ member: node.member, kind: 'not-built', path: node.path })
+    const state = sourceLocationState(node.readme)
+    if ((exists && state === 'not-built') || (!exists && state === 'built'))
+      lifecycle.push({
+        member: node.member,
+        kind: 'source-location-mismatch',
+        path: node.path.replace(/bindings\.yaml$/u, 'README.md'),
+      })
+  }
+  return lifecycle
+}
+
 /** Static presence comparison; unknown values never provide evidence of absence. */
 export function compareArchitecture(
   extraction: Extraction,
@@ -130,68 +203,13 @@ export function compareArchitecture(
       ...(uncertain ? { reason: 'Unresolved source may contain this relationship' } : {}),
     })
   }
-  const exceptions: ComparisonResult['exceptions'][number][] = []
-  for (const imported of extraction.imports) {
-    if (
-      imported.member.startsWith('apps/') ||
-      imported.target.startsWith('packages/core/') ||
-      imported.target.startsWith('packages/util/')
-    )
-      continue
-    const exception = byMember
-      .get(imported.member)
-      ?.assembly?.importExceptions.find(
-        item =>
-          item.target === imported.target &&
-          item.symbols.includes(imported.symbol) &&
-          imported.symbol !== '*' &&
-          byMember.has(item.target),
-      )
-    if (exception !== undefined)
-      exceptions.push({
-        import: imported,
-        declaration: {
-          path: byMember.get(imported.member)?.path ?? '',
-          source: exception.source,
-          sharedStorage: exception.sharedStorage,
-        },
-      })
-    else
-      comparisons.push({
-        id: `import|${imported.id}`,
-        state: 'deviation',
-        member: imported.member,
-        kind: 'import',
-        key: `${imported.target}#${imported.symbol}${imported.type ? ' (type)' : ''}`,
-        implementation: { path: imported.path, line: imported.line },
-        reason:
-          'IC-5: cross-member import outside core/util has no exact-symbol baseline exception',
-      })
-  }
-  const lifecycle: ComparisonResult['lifecycle'][number][] = []
-  for (const member of extraction.members) {
-    const node = byMember.get(member.path)
-    if (node === undefined) lifecycle.push({ member: member.path, kind: 'no-design' })
-    else {
-      if (node.assembly === undefined && node.composition === undefined)
-        lifecycle.push({ member: member.path, kind: 'undeclared', path: node.path })
-    }
-  }
-  for (const node of nodes) {
-    const exists = members.has(node.member)
-    if (!exists) lifecycle.push({ member: node.member, kind: 'not-built', path: node.path })
-    const state = sourceLocationState(node.readme)
-    if ((exists && state === 'not-built') || (!exists && state === 'built'))
-      lifecycle.push({
-        member: node.member,
-        kind: 'source-location-mismatch',
-        path: node.path.replace(/bindings\.yaml$/u, 'README.md'),
-      })
-  }
+  const imports = compareImports(extraction, byMember)
+  comparisons.push(...imports.comparisons)
+  const lifecycle = lifecycleOf(members, nodes, byMember)
   return {
     comparisons: comparisons.sort((a, b) => a.id.localeCompare(b.id)),
     lifecycle,
-    exceptions,
+    exceptions: imports.exceptions,
   }
 }
 export interface IntentChange {
