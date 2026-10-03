@@ -5,7 +5,11 @@ import { readFileSync, renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { readActualArchitecture, type ActualArchitectureDocument } from '../src/arch/actual.ts'
+import {
+  readActualArchitecture,
+  readArchitectureSource,
+  type ActualArchitectureDocument,
+} from '../src/arch/actual.ts'
 import {
   commit,
   git,
@@ -41,6 +45,153 @@ function output(json: string): ActualArchitectureDocument {
   return JSON.parse(json) as ActualArchitectureDocument
 }
 describe('independent actual architecture protocol', { timeout: 60_000 }, () => {
+  it('retains every helper invocation when argument strings contain memo delimiters', () => {
+    const root = workspace()
+    member(
+      root,
+      'packages/live',
+      '@test/live',
+      `import type {Context} from '@deepseek-ai/cordis';
+function register(ctx:Context,left:string,right:string){ctx.provide(left,{});ctx.provide(right,{})}
+export const live={name:'live',apply(ctx:Context){register(ctx,'a,false:b','c');register(ctx,'a','b,false:c')}}`,
+    )
+    commit(root, 'helper argument identities')
+    const actual = readActualArchitecture({ root }).current
+    expect(
+      actual.facts
+        .filter(f => f.kind === 'provides')
+        .map(f => f.key)
+        .sort(),
+    ).toEqual(['a', 'a,false:b', 'b,false:c', 'c'])
+    expect(actual.candidateProviders.map(f => f.key).sort()).toEqual([
+      'a',
+      'a,false:b',
+      'b,false:c',
+      'c',
+    ])
+    expect(actual.unknown).toEqual([])
+  })
+  it('records empty ESM clauses and TypeScript import types as source dependencies', () => {
+    const root = workspace()
+    member(
+      root,
+      'packages/live',
+      '@test/live',
+      `import {} from './shape.js'; export {} from './shape.js';
+type T = import('./shape.js').Shape; type M = typeof import('./shape.js');`,
+    )
+    write(root, 'packages/live/src/shape.ts', 'export interface Shape{}; export const value=1')
+    commit(root, 'empty clauses and import types')
+    const actual = readActualArchitecture({ root }).current
+    expect(
+      actual.imports
+        .filter(f => f.specifier === './shape.js')
+        .map(f => [f.symbol, f.type, f.form])
+        .sort(),
+    ).toEqual(
+      [
+        ['*', true, 'import'],
+        ['(module)', false, 'export'],
+        ['(module)', false, 'import'],
+        ['Shape', true, 'import'],
+      ].sort(),
+    )
+    expect(
+      actual.imports
+        .filter(f => f.specifier === './shape.js')
+        .every(f => f.target.kind === 'workspace' && f.target.member === 'packages/live'),
+    ).toBe(true)
+    expect(actual.unknown).toEqual([])
+  })
+  it('keeps declared members and src directories named tmp, dist and coverage', () => {
+    const root = workspace()
+    for (const name of ['tmp', 'dist', 'coverage']) {
+      member(root, `packages/${name}`, `@test/${name}`, native(name, `ctx.provide('${name}',{})`))
+      write(
+        root,
+        `packages/${name}/src/tmp/helper.ts`,
+        native(`nested_${name}`, `ctx.provide('nested-${name}',{})`),
+      )
+      write(
+        root,
+        `packages/${name}/dist/artifact.ts`,
+        native(`artifact_${name}`, "ctx.provide('build-artifact',{})"),
+      )
+    }
+    const head = commit(root, 'legal member names')
+    for (const revision of [undefined, head]) {
+      const actual = readActualArchitecture({
+        root,
+        ...(revision === undefined ? {} : { revision }),
+      }).current
+      expect(actual.members.map(m => m.path)).toEqual([
+        'packages/coverage',
+        'packages/dist',
+        'packages/tmp',
+      ])
+      expect(
+        actual.facts
+          .filter(f => f.kind === 'provides')
+          .map(f => f.key)
+          .sort(),
+      ).toEqual(['coverage', 'dist', 'nested-coverage', 'nested-dist', 'nested-tmp', 'tmp'])
+      expect(actual.scope.analyzedFiles).toHaveLength(6)
+      const source = readArchitectureSource(root, revision)
+      for (const name of ['tmp', 'dist', 'coverage']) {
+        expect(source.snapshot.texts.has(`packages/${name}/dist/artifact.ts`)).toBe(false)
+        expect(source.snapshot.texts.has(`packages/${name}/src/tmp/helper.ts`)).toBe(true)
+      }
+    }
+  })
+  it('marks ignored source and configuration inputs without misreporting Git status', () => {
+    const root = workspace()
+    member(root, 'packages/live', '@test/live', native('tracked', "ctx.provide('tracked',{})"))
+    write(root, '.gitignore', 'packages/live/src/ignored.ts\npackages/live/tsconfig.json\n')
+    const head = commit(root, 'ignore declarations')
+    write(root, 'packages/live/src/ignored.ts', native('ignored', "ctx.provide('ignored',{})"))
+    write(root, 'packages/live/tsconfig.json', '{"compilerOptions":{}}')
+    expect(git(root, 'status', '--porcelain')).toBe('')
+    const current = readActualArchitecture({ root }).current
+    expect(current.source).toMatchObject({
+      commit: head,
+      dirty: false,
+      inputDirty: true,
+      unversionedInputs: ['packages/live/src/ignored.ts', 'packages/live/tsconfig.json'],
+    })
+    expect(
+      current.facts
+        .filter(f => f.kind === 'provides')
+        .map(f => f.key)
+        .sort(),
+    ).toEqual(['ignored', 'tracked'])
+    const version = readActualArchitecture({ root, revision: head }).current
+    expect(version.source).toMatchObject({ dirty: false, inputDirty: false, unversionedInputs: [] })
+    expect(version.facts.filter(f => f.kind === 'provides').map(f => f.key)).toEqual(['tracked'])
+  })
+  it('does not match an unresolved manifest reference to an absent class field', () => {
+    const root = workspace()
+    member(root, 'packages/live', '@test/live', native('live', "ctx.provide('known',{})"))
+    member(
+      root,
+      'apps/host',
+      '@test/host',
+      `import {live} from '@test/live';
+export const manifest=[{id:'known',plugin:live},{id:'dynamic',plugin:resolveRuntimePlugin()}]`,
+    )
+    commit(root, 'dynamic composition')
+    const actual = readActualArchitecture({ root }).current
+    expect(actual.facts.filter(f => f.kind === 'composition').map(f => f.key)).toEqual(['known'])
+    expect(
+      actual.unknown.some(f =>
+        f.occurrences.some(
+          o =>
+            o.kind === 'composition' &&
+            o.expression.includes('resolveRuntimePlugin()') &&
+            o.path === 'apps/host/src/index.ts',
+        ),
+      ),
+    ).toBe(true)
+  })
   it('uses workspace manifests without realization, retains data members, and separates development scope', () => {
     const root = workspace(['packages/*', 'packages/live', 'apps/*', 'examples/*', 'tools/*'])
     member(
@@ -67,7 +218,14 @@ describe('independent actual architecture protocol', { timeout: 60_000 }, () => 
     )
     const head = commit(root, 'workspace'),
       result = readActualArchitecture({ root }).current
-    expect(result.source).toEqual({ root, kind: 'worktree', commit: head, dirty: false })
+    expect(result.source).toEqual({
+      root,
+      kind: 'worktree',
+      commit: head,
+      dirty: false,
+      inputDirty: false,
+      unversionedInputs: [],
+    })
     expect(result.members.map(item => item.path)).toEqual([
       'apps/shell',
       'examples/demo',

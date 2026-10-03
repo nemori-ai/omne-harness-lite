@@ -21,6 +21,9 @@ export interface SourceCoordinates {
   readonly kind: 'worktree' | 'revision'
   readonly commit: string
   readonly dirty: boolean
+  /** Git changes or read inputs absent from the recorded commit. */
+  readonly inputDirty: boolean
+  readonly unversionedInputs: readonly string[]
 }
 export interface ArchitectureSource {
   readonly snapshot: Snapshot
@@ -30,15 +33,9 @@ export interface ArchitectureSource {
   /** Naming-based discovery only; the resolver records applied config and extends files separately. */
   readonly discoveredConfigurationFiles: readonly string[]
 }
-const ignored = new Set([
-  'node_modules',
-  'dist',
-  'coverage',
-  '.git',
-  '.worktrees',
-  'tmp',
-  '.meta_harness',
-])
+const ignored = new Set(['node_modules', '.git', '.worktrees', 'tmp', '.meta_harness'])
+const ignoredPath = (path: string) =>
+  ignored.has(path.split('/')[0] ?? '') || path.split('/').includes('node_modules')
 const retained = (path: string) =>
   path === 'pnpm-workspace.yaml' || /\.[cm]?tsx?$/u.test(path) || path.endsWith('.json')
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -57,7 +54,7 @@ function sourceTree(
   const paths: string[] = []
   if (commit !== undefined) {
     for (const path of git(root, ['ls-tree', '-r', '--name-only', '-z', commit]).split('\0')) {
-      if (path === '' || path.split('/').some(part => ignored.has(part))) continue
+      if (path === '' || ignoredPath(path)) continue
       paths.push(path)
       if (!retained(path)) continue
       // This path came from the fixed tree. A failed read is an error, never an absent file.
@@ -68,11 +65,11 @@ function sourceTree(
   } else {
     const walk = (dir: string): void => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        if (ignored.has(entry.name)) continue
         const full = join(dir, entry.name)
+        const path = relative(root, full).replaceAll('\\', '/')
+        if (ignoredPath(path)) continue
         if (entry.isDirectory()) walk(full)
         else if (entry.isFile()) {
-          const path = relative(root, full).replaceAll('\\', '/')
           paths.push(path)
           if (retained(path)) texts.set(path, readFileSync(full, 'utf8'))
         }
@@ -179,6 +176,20 @@ export function readArchitectureSource(root: string, revision?: string): Archite
   const { texts, paths: inventory } = sourceTree(root, revision === undefined ? undefined : commit)
   const patterns = patternsOf(texts),
     members = membersOf(texts, inventory, patterns)
+  // Build directories belong to a member. A member or src directory named dist is still source.
+  for (const path of texts.keys()) {
+    const owner = ownerOf(path, members)?.path
+    if (owner !== undefined && /^(dist|coverage)\//u.test(path.slice(owner.length + 1)))
+      texts.delete(path)
+  }
+  const dirty = revision === undefined && git(root, ['status', '--porcelain']) !== ''
+  const versioned = new Set(git(root, ['ls-tree', '-r', '--name-only', '-z', commit]).split('\0'))
+  const unversionedInputs =
+    revision === undefined
+      ? [...new Set([...texts.keys(), ...members.flatMap(member => member.dataFiles)])]
+          .filter(path => !versioned.has(path))
+          .sort()
+      : []
   const indexed: Member[] = members.map(item => ({
     path: item.path,
     name: item.name,
@@ -197,7 +208,9 @@ export function readArchitectureSource(root: string, revision?: string): Archite
       root,
       kind: revision === undefined ? 'worktree' : 'revision',
       commit,
-      dirty: revision === undefined && git(root, ['status', '--porcelain']) !== '',
+      dirty,
+      inputDirty: dirty || unversionedInputs.length > 0,
+      unversionedInputs,
     },
     patterns,
     members,

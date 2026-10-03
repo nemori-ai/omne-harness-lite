@@ -259,7 +259,8 @@ CLI 的 stdout 只有 JSON。`--out` 另写同一份 JSON。参数、Git、works
 结果为 `schemaVersion: 1`、`kind: actual-architecture`、`generatedAt` 与 `current`。给 `base`
 时另有 `baseline` 与 `difference`。不传 `revision` 读取当前文件系统；传入的 revision 和 BASE
 各自先解析成不可变 commit，后续只读该 Git 树。BASE 不取合并点、不从当前工作树补文件。
-`source` 记录仓库、commit、读取方式与 Git dirty；工作树 dirty 产物不能当作该提交的静态快照。
+`source` 记录仓库、commit、读取方式与 Git `dirty`。`inputDirty` 还标记已读输入中没有进入该 commit 的文件，
+包括被 Git 忽略的源码或配置；路径在 `unversionedInputs` 中。工作树输入脏时不能当作该提交的静态快照。
 
 成员来自该版本的 workspace 和 manifest。`packages/`、`apps/` 下的成员属于产品范围；其余成员
 作为 development 单列。名称取 `manifest.name`，不由目录猜包名。空成员保留；`sources` 只列成员
@@ -271,7 +272,9 @@ CLI 的 stdout 只有 JSON。`--out` 另写同一份 JSON。参数、Git、works
 标准库或安装包的 extends，也不运行 project references。workspace dist exports 静态映射到 src。
 
 `facts` 保留服务定义、候选提供、必需与可选取用、事件、插件和静态装配；`imports` 区分类型与运行导入，
-含 ESM import/export/dynamic import、外部包和成员内导入。CommonJS require 不在本抽取器范围内。
+含 ESM import/export/dynamic import、空 named 子句、TypeScript `import()` 类型、外部包和成员内导入。
+CommonJS require 不在本抽取器范围内。根任务容器与 node_modules 不读取；成员根的 dist/coverage 构建目录不参与解析，
+成员本身或 src 子目录采用 tmp/dist/coverage 名称不会被忽略。
 `unknown` 保留无法还原的表达式、原因与所有出处，不能用空集合证明不存在。每项事实和导入的
 `occurrences` 保留所有来源；同一成员间、同一符号的关系可有多个出处。`candidateProviders` 保留
 全部候选事实，`runtimeSelection` 为 `not-observed`，不选择未经运行观察的提供者。

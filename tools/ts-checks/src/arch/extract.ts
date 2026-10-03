@@ -548,13 +548,11 @@ class Extractor {
       context.member,
       context.plugin,
       context.scope,
-      [...context.required].sort().join(','),
-      fn.parameters
-        .map(parameter => {
-          const symbol = this.resolver.symbol(parameter.name)
-          return symbol === undefined ? '' : `${contexts.has(symbol)}:${keys.get(symbol) ?? ''}`
-        })
-        .join(','),
+      [...context.required].sort(),
+      fn.parameters.map(parameter => {
+        const symbol = this.resolver.symbol(parameter.name)
+        return symbol === undefined ? null : [contexts.has(symbol), keys.get(symbol) ?? null]
+      }),
     ])
     if (this.visited.has(identity)) return
     this.visited.add(identity)
@@ -780,6 +778,8 @@ class Extractor {
             clause.name.text,
           )
         const bindings = clause?.namedBindings
+        if (bindings !== undefined && ts.isNamedImports(bindings) && bindings.elements.length === 0)
+          this.recordImport(node, specifier, '(module)', clause?.isTypeOnly ?? false, 'import')
         if (bindings !== undefined && ts.isNamespaceImport(bindings))
           this.recordImport(
             node,
@@ -804,6 +804,12 @@ class Extractor {
         node.moduleSpecifier !== undefined &&
         ts.isStringLiteral(node.moduleSpecifier)
       ) {
+        if (
+          node.exportClause !== undefined &&
+          ts.isNamedExports(node.exportClause) &&
+          node.exportClause.elements.length === 0
+        )
+          this.recordImport(node, node.moduleSpecifier.text, '(module)', node.isTypeOnly, 'export')
         if (node.exportClause !== undefined && ts.isNamedExports(node.exportClause))
           for (const item of node.exportClause.elements)
             this.recordImport(
@@ -815,6 +821,18 @@ class Extractor {
               item.name.text,
             )
         else this.recordImport(node, node.moduleSpecifier.text, '*', node.isTypeOnly, 'export')
+      } else if (
+        ts.isImportTypeNode(node) &&
+        ts.isLiteralTypeNode(node.argument) &&
+        ts.isStringLiteral(node.argument.literal)
+      ) {
+        this.recordImport(
+          node,
+          node.argument.literal.text,
+          node.qualifier?.getText() ?? '*',
+          true,
+          'import',
+        )
       } else if (
         ts.isCallExpression(node) &&
         node.expression.kind === ts.SyntaxKind.ImportKeyword
@@ -848,11 +866,12 @@ class Extractor {
       const value = this.resolver.value(reference)
       const definition =
         value !== undefined && ts.isCallExpression(value) ? value.arguments[0] : value
+      const declaration = this.resolver.declaration(reference)
       const plugin = this.plugins.find(
         item =>
-          item.node === definition ||
-          item.serviceClass === definition ||
-          item.serviceClass === this.resolver.declaration(reference),
+          (definition !== undefined &&
+            (item.node === definition || item.serviceClass === definition)) ||
+          (declaration !== undefined && item.serviceClass === declaration),
       )
       const targetNode = this.resolver.declaration(reference)
       const target =
