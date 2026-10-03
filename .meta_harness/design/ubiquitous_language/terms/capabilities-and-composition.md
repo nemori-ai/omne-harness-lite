@@ -142,7 +142,7 @@
 > it automatically load all of its attachments.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Skill](../../product/PF-002-assets-settings-and-permissions/design.md#skill)（rev 32） · [PF-006 §4 技能的说明](../../product/PF-006-tools-and-skills/design.md#技能的说明)（rev 23）
+- **出处**：[PF-002 §4 Skill](../../product/PF-002-assets-settings-and-permissions/design.md#skill)（rev 32） · [PF-006 §4 技能的说明](../../product/PF-006-tools-and-skills/design.md#技能的说明)（rev 24）
 - **别混**：Skill 说**怎么做**，[Tool](#ul-tool--工具--tool) 是**做的那个动作**。「代码审查该看哪些地方」是 skill，「读文件」是 tool
 - **注意**：它的**说明**是触发与路由的依据——[常驻](reach-and-availability.md#ul-residency--常驻--residency)时进系统提示词的是 name 与说明，`Skills().search` 按它找，替换件换掉的也是它；正文与资源按需取
 - **能组合**：Tool
@@ -186,7 +186,7 @@
 > **recomputed before each run attempt together with availability; lawful explicit refresh may update later uses while known identities remain and each started call keeps its inputs**.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 25） · [PF-002 §4 MCP](../../product/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 23）
+- **出处**：[PF-001 §4 资产的种类](../../product/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 25） · [PF-002 §4 MCP](../../product/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](../../product/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24）
 - **别混**：Tool 是**一个动作**，MCP 是**一批动作的来源**——**MCP 本身不可被调用**
 - **注意**：它连对端用的是 [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)，挂在持有上，不是[模型凭据](#ul-model-credential--模型凭据--model-credential)
 - **能组合**：**不组合任何资产**
@@ -639,7 +639,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](../../product/PF-006-tools-and-skills/design.md#槽位)（rev 23） · [PF-007 §5.4](../../product/PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)（rev 23）
+- **出处**：[PF-006 §4 槽位](../../product/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [PF-007 §5.4](../../product/PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)（rev 23）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 

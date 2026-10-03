@@ -179,28 +179,28 @@
 - **宿主**：—
 - **身份**：正文未述；每个具体的执行环境要声明自己提供哪几种设施
 - **生灭**：总体正文未述，按各种分别规定。「执行环境永远存在」说的是**每次执行都算得出一个落点或明确被拒**，不是某个实例永生
-- **依据**：[PF-005 §4 执行环境](../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 8）；[PF-005 §5.1](../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 8）；[PF-005 §6.1](../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 8）；[PF-004 §4 执行环境](../product/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 20）
+- **依据**：[PF-005 §4 执行环境](../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 9）；[PF-005 §5.1](../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 9）；[PF-005 §6.1](../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 9）；[PF-004 §4 执行环境](../product/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 20）
 
 ### UL-sandbox-implementation · 沙箱实现
 
 - **宿主**：正文未述——正文只说它是**装配时可选装配**的，没说装配之后它的寿命跟着谁
 - **身份**：正文未述；只要求它**自报提供哪几种设施、可绑定哪几个层级**，运行时据此匹配
 - **生灭**：装配时装进来（可选，可以一个都不装）→ 在场，按声明被匹配到就起出一个沙箱。撤下与替换正文未述
-- **依据**：[PF-005 §4 沙箱实现](../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱实现)（rev 8）；[PF-005 §6.1](../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 8）
+- **依据**：[PF-005 §4 沙箱实现](../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱实现)（rev 9）；[PF-005 §6.1](../product/PF-005-execution-environments-and-sandboxes/design.md#61-宿主机始终在场沙箱实现装配时可选装配)（rev 9）
 
 ### UL-stateless-sandbox · 无状态沙箱
 
 - **宿主**：一次[工具执行](#ul-tool-execution--工具执行)
 - **身份**：正文未述
 - **生灭**：一次调用开始 → 存在 → 调用结束即无；没有闲置态，没有回收问题
-- **依据**：[PF-005 §5.1](../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 8）；[PF-005 flows §3.1](../product/PF-005-execution-environments-and-sandboxes/flows.md#31-无状态沙箱)（rev 8）
+- **依据**：[PF-005 §5.1](../product/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 9）；[PF-005 flows §3.1](../product/PF-005-execution-environments-and-sandboxes/flows.md#31-无状态沙箱)（rev 9）
 
 ### UL-session-sandbox · 会话级沙箱
 
 - **宿主**：[会话](#ul-session--会话)
 - **身份**：正文未述；同一会话先后、同时都可有多个，同时并存的理由是设施不同
 - **生灭**：会话首次需要时创建、开始计时 → 存在 → 到最大连续存活时间直接销毁，数据不留存；仍有动作在跑则按退役方式收口 → 下次要用重建一个空的、重新计时，并以一条提醒告知 agent
-- **依据**：[PF-005 §6.3](../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 8）；[PF-005 flows §3.2](../product/PF-005-execution-environments-and-sandboxes/flows.md#32-会话级沙箱)（rev 8）
+- **依据**：[PF-005 §6.3](../product/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）；[PF-005 flows §3.2](../product/PF-005-execution-environments-and-sandboxes/flows.md#32-会话级沙箱)（rev 9）
 - **未裁**：会话归档时连不连带处置它，正文未述。归 PF-005 与 PF-015
 
 ### UL-tenant-sandbox · 租户级沙箱
@@ -208,14 +208,14 @@
 - **宿主**：[租户](#ul-tenant--租户)
 - **身份**：正文未述；一个租户可否有多个未明说
 - **生灭**：首次需要 → 运行中 ⇄ 停机 / 换节点 → 在别处重新起来。数据迁移失败不算迁移完成，不以空数据冒充成功。终结正文未述
-- **依据**：[PF-005 §5.2](../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 8）；[PF-005 §6.4](../product/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 8）
+- **依据**：[PF-005 §5.2](../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 9）；[PF-005 §6.4](../product/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 9）
 
 ### UL-sandbox-data · 沙箱数据
 
 - **宿主**：[租户](#ul-tenant--租户)（寿命上）；[租户级沙箱](#ul-tenant-sandbox--租户级沙箱)（归属上）
 - **身份**：正文未述；是整体一份还是可细分寻址，未述
 - **生灭**：随使用积累；沙箱本体停机或迁移期间必须仍可取回，之后接回；须可备份、可迁移。终结正文未述
-- **依据**：[PF-005 §4 沙箱内的数据](../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱内的数据)（rev 8）；[PF-005 §5.2](../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 8）
+- **依据**：[PF-005 §4 沙箱内的数据](../product/PF-005-execution-environments-and-sandboxes/design.md#沙箱内的数据)（rev 9）；[PF-005 §5.2](../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事)（rev 9）
 
 ### UL-terminal-session · 终端会话
 
@@ -247,7 +247,7 @@
 - **宿主**：[会话](#ul-session--会话)（前后台都是；它有自己独立的 runtime）——前台只说明当前步骤仍须等它的结果，[agent runtime](#ul-agent-runtime--agent-runtime) 在场时通过句柄等待，那一笔记在 Run 里
 - **身份**：可持久恢复的执行身份，关联会话、原发起 Run／尝试及实际输入依据；具体标识格式未述
 - **生灭**：发起（同一会话里同一工具同时在执行的超过并发上限时，超出的先排队、按发起先后轮到）→ 前台/后台 × 执行中/等待（本版要等应答的只在前台等）→ 完成 · 失败 · 被中断 · 等不到应答。前台到后台单向，「转后台」是前台那次调用的收场，后台那段另有收场；发起时就在后台的，前台那次调用当场以转后台收场。agent runtime 被回收、销毁或替换及句柄释放不影响它；工具自己的 runtime 失去连续性即停机、不重来、算失败，不设例外。被中断的来处：用户叫停（含插队）、这次运行被取消时它还在前台、agent 掐掉自己发起的后台执行、不许后台的跑到前台上限、会话被归档（不论前后台，不可逆）。参数说完了却解析不了的调用**不起执行**，那一次调用直接以失败回给 agent
-- **依据**：[PF-006 §4 Tool Execution](../product/PF-006-tools-and-skills/design.md#tool-execution)（rev 23）；[PF-006 §5.5](../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 23）；[PF-006 §6.5](../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 23）；[PF-006 §6.6](../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 23）；[PF-006 §6.12](../product/PF-006-tools-and-skills/design.md#612-工具执行的运行时可以被单独控制而它停了就不重来)（rev 23）；[PF-012 §6.13](../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 21）
+- **依据**：[PF-006 §4 Tool Execution](../product/PF-006-tools-and-skills/design.md#tool-execution)（rev 24）；[PF-006 §5.5](../product/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)（rev 24）；[PF-006 §6.5](../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 24）；[PF-006 §6.6](../product/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 24）；[PF-006 §6.12](../product/PF-006-tools-and-skills/design.md#612-工具执行的运行时可以被单独控制而它停了就不重来)（rev 24）；[PF-012 §6.13](../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 21）
 - **并入**：「工具执行运行时」「一次工具调用」——正文当同一物用
 
 ### UL-model-call · 一次模型调用
@@ -272,7 +272,7 @@
 - **宿主**：产出它的那次[工具执行](#ul-tool-execution--工具执行)；实际存放在工具定义声明的那个存储里
 - **身份**：靠地址——消息里告诉 agent 地址，由它自己去取；地址形态与唯一范围正文未述
 - **生灭**：工具执行跑完时产出并存进存储；留存与清理正文未述
-- **依据**：[PF-006 §4 工具的产出](../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 23）；[PF-006 §6.4](../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 23）
+- **依据**：[PF-006 §4 工具的产出](../product/PF-006-tools-and-skills/design.md#工具的产出)（rev 24）；[PF-006 §6.4](../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 24）
 - **未裁**：它存进的那个[存储](pending.md#存储)全系统没有定义；宿主因此也只是推断
 
 ### UL-offloaded-result · 被卸载的原始结果
@@ -280,7 +280,7 @@
 - **宿主**：正文未述。它由一次[工具执行](#ul-tool-execution--工具执行)产出，却从来没进过[会话日志](#ul-session-log--会话日志)——日志里只有那条占位；物理存放归属未述；原始全文持续可回取，不因卸载、压缩、Run 结束或会话归档过期
 - **身份**：正文未述。只要求占位里写得出「有多大、怎么取全文」，agent 据此分页取回
 - **生灭**：工具结果落成消息之前判定太大 → 原始结果存起来，消息里换成带摘要的占位；之后可被分页取回，取回是往后追加两条新消息，不把占位换回去。当前没有删除或到期回收规则，不能自行缩短全文可回取承诺
-- **依据**：[PF-006 §4 卸载](../product/PF-006-tools-and-skills/design.md#卸载)（rev 23）；[PF-006 §6.10](../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 23）；[PF-012 §5.10](../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 21）
+- **依据**：[PF-006 §4 卸载](../product/PF-006-tools-and-skills/design.md#卸载)（rev 24）；[PF-006 §6.10](../product/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 24）；[PF-012 §5.10](../product/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 21）
 - **并入**：「原始结果」「全文」——正文当同一物用。「工具原件」只在 PF-015 出现一次，且「原件」在 PF-013 另有所指，词条已列为弃用
 - **未裁**：它存进的[存储](pending.md#存储)同样没有定义
 

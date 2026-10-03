@@ -762,7 +762,7 @@
 > **EN**: All three runtime types belong to the session for lifetime governance; a run governs its associated work. Cancellation propagates by an explicit session, run, or call target. Model/tool handles held by an agent runtime confer no lifetime ownership: releasing or destroying that agent runtime does not cancel those executions. Archiving a session cancels its executions; cancelling a run cancels its model calls and foreground tools, while background tools continue under existing rules and calls outside that run are unaffected.
 
 - **形态**：规则
-- **出处**：[PF-012 §6.13](../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 21）；[PF-006 §6.5](../../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 23）
+- **出处**：[PF-012 §6.13](../../product/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 21）；[PF-006 §6.5](../../product/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 24）
 - **别混**：宿主在此指治理归属，不是调用栈父协程。归档、休眠和加载位置变化不是同一动作；句柄降到零也不构成取消。取消请求不保证不可撤销效果消失。
 - **弃用说法**：~~模型运行时永远挂在 Agent runtime 上~~、~~等模型时不能回收 Agent runtime~~、~~转后台就是换宿主~~。2026-09-29 的产品要求取代 [UL-D-3](../decisions.md#ul-d-3--runtime-与活体--2026-09-20) 中旧模型宿主表述，历史记录保留。
 - **注意**：`spawn`／`delegate` 子会话仍按归档规则递归停止；`handoff` 的独立主会话不在该递归范围。
