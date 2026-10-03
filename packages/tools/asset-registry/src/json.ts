@@ -38,13 +38,18 @@ export function equal(left: unknown, right: unknown): boolean {
       ExactDecimal.from(left).compare(ExactDecimal.from(right)) === 0
     )
   if (left === right) return true
-  if (Array.isArray(left) || Array.isArray(right))
-    return (
-      Array.isArray(left) &&
-      Array.isArray(right) &&
-      left.length === right.length &&
-      left.every((item, index) => equal(item, right[index]))
-    )
+  if (Array.isArray(left) || Array.isArray(right)) return equalArrays(left, right)
+  return equalObjects(left, right)
+}
+function equalArrays(left: unknown, right: unknown): boolean {
+  return (
+    Array.isArray(left) &&
+    Array.isArray(right) &&
+    left.length === right.length &&
+    left.every((item, index) => equal(item, right[index]))
+  )
+}
+function equalObjects(left: unknown, right: unknown): boolean {
   return (
     object(left) &&
     object(right) &&
