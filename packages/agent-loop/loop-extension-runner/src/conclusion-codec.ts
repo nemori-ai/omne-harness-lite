@@ -21,6 +21,7 @@ import { judgeMessage, type SystemReminderMessage } from '@omne-harness-lite/mes
 import { encodeModelLogKey, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import {
   checkAppendInput,
+  type AppendFence,
   type LogEntry,
   type LogEntryInput,
 } from '@omne-harness-lite/session-log-jsonl'
@@ -365,4 +366,11 @@ function matchesConclusionKeys(owned: LogEntryInput, parsed: InspectedRunnerConc
   )
     return false
   return true
+}
+
+/** Project the captured execution into the fence used by both runner log adapters. */
+export function executionFence(execution: RunnerExecution): AppendFence {
+  return execution.kind === 'withRun'
+    ? { kind: 'fenced', run: execution.run, attempt: execution.attempt }
+    : { kind: 'unfenced' }
 }

@@ -11,7 +11,7 @@ import {
 } from '@omne-harness-lite/loop-extension'
 import { passKeys } from './keys.ts'
 import { inspectRunnerConclusion } from './conclusion-codec.ts'
-import type { RunnerExecution } from './conclusion-codec.ts'
+import { executionFence, type RunnerExecution } from './conclusion-codec.ts'
 import type { RunnerPass, RunnerPorts, RunnerRecordResult } from './run-pass.ts'
 import type { RunnerLogBinding, RunnerTaskOwner } from './task-owner.ts'
 
@@ -110,14 +110,7 @@ export function createRunnerLogAdapter(input: {
       kind: 'append',
       candidate: { binding, entry, subject },
       execute: () =>
-        log.append(
-          sessionRef,
-          [entry],
-          execution.kind === 'withRun'
-            ? { kind: 'fenced', run: execution.run, attempt: execution.attempt }
-            : { kind: 'unfenced' },
-          { kind: 'unconditional' },
-        ),
+        log.append(sessionRef, [entry], executionFence(execution), { kind: 'unconditional' }),
       unknown: result => 'failure' in result && result.failure === 'unavailable',
     })
     if ('unavailable' in started) return { kind: 'unavailable' }

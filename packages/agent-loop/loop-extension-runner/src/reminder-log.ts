@@ -8,7 +8,7 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
-import type { RunnerExecution } from './conclusion-codec.ts'
+import { executionFence, type RunnerExecution } from './conclusion-codec.ts'
 import type { RunnerReminderAppend, RunnerReminderRead } from './run-pass.ts'
 import type { RunnerLogBinding, RunnerTaskOwner } from './task-owner.ts'
 
@@ -102,14 +102,7 @@ export function createRunnerReminderLogAdapter(input: {
         messagePrefix: currentPrefix,
       },
       execute: () =>
-        log.append(
-          sessionRef,
-          [prepared.ok],
-          execution.kind === 'withRun'
-            ? { kind: 'fenced', run: execution.run, attempt: execution.attempt }
-            : { kind: 'unfenced' },
-          { kind: 'unconditional' },
-        ),
+        log.append(sessionRef, [prepared.ok], executionFence(execution), { kind: 'unconditional' }),
       unknown: result => 'failure' in result && result.failure === 'unavailable',
     })
     if ('unavailable' in started) return { kind: 'unavailable' }
