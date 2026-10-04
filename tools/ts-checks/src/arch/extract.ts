@@ -457,7 +457,6 @@ class Extractor {
         this.serviceBase(declaration) !== undefined
           ? {
               ...this.resolver.site(declaration),
-              member: this.resolver.member(this.resolver.path(declaration))?.path,
             }
           : undefined
       const definition = {
