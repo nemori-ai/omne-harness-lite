@@ -8,14 +8,14 @@ import type {
   SettlementPrefix,
   SelectionProjection,
   SelectionCompatibility,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   captureModelLogValue,
   decodeModelLogKey,
   inspectModelLogEntry,
   interpretCallHistory,
   modelLogJsonEqual,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
 import { inspectRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'

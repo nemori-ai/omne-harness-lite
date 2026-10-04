@@ -27,6 +27,12 @@ export interface Fact extends Site {
   readonly contract?: string
   readonly owner?: string
   readonly definitionForm?: 'context-augmentation' | 'service-class'
+  /** Class provenance links a Context property to its Service definition. */
+  readonly serviceDefinition?: Site & {
+    readonly member?: string
+    readonly symbol: string
+    readonly offset: number
+  }
   readonly provideForm?: 'ctx.provide' | 'service-instance' | 'class-plugin'
   readonly expression?: string
   readonly expressionShape?: string

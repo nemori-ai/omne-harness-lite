@@ -18,7 +18,10 @@ import {
   type Conclusion,
 } from '@omne-harness-lite/loop-extension'
 import { judgeMessage, type SystemReminderMessage } from '@omne-harness-lite/messages'
-import { encodeModelLogKey, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import {
+  encodeModelLogKey,
+  modelLogJsonEqual,
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   checkAppendInput,
   type AppendFence,

@@ -22,7 +22,7 @@ import {
   type CanDispatchAgainResult,
   type SettlementLogBinding,
   type SettlementRegistration,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { AssemblyManifestStore } from '@omne-harness-lite/assembly-manifest-store'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy-table'

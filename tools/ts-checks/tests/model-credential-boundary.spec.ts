@@ -165,7 +165,7 @@ test.each([
   `import type { ModelReplicaCustodian as Replica } from '@omne-harness-lite/credential-custodian-local/model-replica'; const replica: Replica = supplied; replica.close();`,
   `import type {ReadBoundReplicaIn} from '@omne-harness-lite/model-profile-directory/tx-reads'; const read: ReadBoundReplicaIn = supplied; read(unit,tenant,ref);`,
 ])('ordinary product modules cannot import or consume restricted values', text =>
-  expect(check(text, 'packages/model/model-request-runtime/src/runtime.ts')).not.toEqual([]),
+  expect(check(text, 'packages/model/model-request-runtime-local/src/runtime.ts')).not.toEqual([]),
 )
 test.each([
   `import type {ModelReplicaCustodian} from '@omne-harness-lite/credential-custodian-local/model-replica'; export const localCredentialLookupPlugin = definePlugin({ async apply(ctx, config) { const replica: ModelReplicaCustodian = supplied; await replica.close(); } });`,

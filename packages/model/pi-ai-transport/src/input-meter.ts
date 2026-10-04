@@ -12,7 +12,7 @@ import type {
   PlanCalibration,
   PlanOutputHistoryGroup,
   TokenMargin,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { CountingBasis } from '@omne-harness-lite/model-response'
 import type { ModelDefinition } from './definitions.ts'
 import type { InputProjection } from './projection.ts'
@@ -93,7 +93,7 @@ export type TokenMeasurement =
   | { readonly kind: 'exact' | 'upperBound' | 'estimated'; readonly tokens: JsonNumber }
   | { readonly kind: 'unavailable' }
 
-export type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
+export type { TokenMargin } from '@omne-harness-lite/model-request-runtime-local'
 const meterSources = new WeakMap<InputMeter, object>()
 export function meterSource(meter: InputMeter): object {
   return meterSources.get(meter) ?? meter

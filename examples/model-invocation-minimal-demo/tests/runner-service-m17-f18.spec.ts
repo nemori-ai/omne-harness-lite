@@ -30,8 +30,12 @@ async function block(readme: string, marker: string): Promise<string> {
 describe('F18-V7/M17-V12 README consumption literals are the compiled and executed code', () => {
   it('keeps each literal byte-identical in the English and Chinese package READMEs', async () => {
     const literals = [
-      ['packages/model/model-request-runtime', 'inspectFailure', 'inspect-failure.ts'],
-      ['packages/model/model-request-runtime', 'registerDefaultRetry', 'register-default-retry.ts'],
+      ['packages/model/model-request-runtime-local', 'inspectFailure', 'inspect-failure.ts'],
+      [
+        'packages/model/model-request-runtime-local',
+        'registerDefaultRetry',
+        'register-default-retry.ts',
+      ],
       ['packages/agent-loop/loop-extension-runner', 'failurePort', 'failure-port.ts'],
     ] as const
     for (const [pkg, marker, file] of literals) {

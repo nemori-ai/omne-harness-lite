@@ -48,7 +48,7 @@ import type {
 import {
   openRouterCredentialRedactionConfig,
   type PlanInput,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 
@@ -320,7 +320,7 @@ definitions 必填，缺席、undefined、非数组或不完整定义在建立�
 
 ```ts
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
-import type { PlanInput, ReadFacts } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput, ReadFacts } from '@omne-harness-lite/model-request-runtime-local'
 import type { PiAiTransport } from '@omne-harness-lite/pi-ai-transport'
 
 // 只用于提前结束未读完的 reader，从不作为读取事实上报。

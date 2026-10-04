@@ -256,6 +256,20 @@ function rowsOf(
   }
   function checkDefinitions(): void {
     const definitions = extraction.facts.filter(fact => fact.kind === 'defines')
+    const serviceDefinition = (fact: Fact): Fact | undefined =>
+      fact.definitionForm === 'context-augmentation' && fact.serviceDefinition !== undefined
+        ? definitions.find(
+            item =>
+              item.definitionForm === 'service-class' &&
+              item.key === fact.key &&
+              item.member === fact.member &&
+              item.serviceDefinition?.path === fact.serviceDefinition?.path &&
+              item.serviceDefinition?.line === fact.serviceDefinition?.line &&
+              item.serviceDefinition?.offset === fact.serviceDefinition?.offset &&
+              item.serviceDefinition?.symbol === fact.serviceDefinition?.symbol,
+          )
+        : undefined
+    const declarations = definitions.filter(fact => serviceDefinition(fact) === undefined)
     const factRow = (rule: RuleId, fact: Fact, state: ConformanceRow['state'], reason: string) =>
       add(
         JSON.stringify([rule, fact.path, fact.plugin, fact.kind, fact.key, fact.scope]),
@@ -272,9 +286,14 @@ function rowsOf(
           'IC-1',
           fact,
           !fact.member.startsWith('packages/core/') ||
-            definitions.filter(item => item.key === fact.key && item.id !== fact.id).length > 0 ||
+            declarations.filter(
+              item => item.key === fact.key && item.id !== (serviceDefinition(fact) ?? fact).id,
+            ).length > 0 ||
             extraction.factOccurrences.filter(
-              item => item.kind === 'defines' && item.key === fact.key,
+              item =>
+                item.kind === 'defines' &&
+                item.key === fact.key &&
+                serviceDefinition(item) === undefined,
             ).length > 1
             ? 'deviation'
             : 'converged',
@@ -291,8 +310,10 @@ function rowsOf(
         factRow(
           'IC-3',
           fact,
-          fact.definitionForm === 'context-augmentation' ||
-            (fact.contract === undefined && fact.owner === undefined)
+          (fact.definitionForm === 'context-augmentation' &&
+            serviceDefinition(fact) === undefined) ||
+            ((serviceDefinition(fact) ?? fact).contract === undefined &&
+              (serviceDefinition(fact) ?? fact).owner === undefined)
             ? 'deviation'
             : 'converged',
           'Service 形状及 contract/owner 元数据子集；不证明签名或行为',

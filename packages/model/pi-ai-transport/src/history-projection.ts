@@ -1,4 +1,4 @@
-import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime-local'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { judgeContentBlock } from '@omne-harness-lite/content-blocks'
 import { copyInputCalibration } from '@omne-harness-lite/model-response'

@@ -1,5 +1,5 @@
-import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
-import { inspectModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime-local'
+import { inspectModelLogEntry } from '@omne-harness-lite/model-request-runtime-local'
 import type { LogPrefixView, SystemReminderMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import {

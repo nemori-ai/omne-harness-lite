@@ -4,7 +4,10 @@ import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { describe, expect, it } from 'vitest'
 import { getEncoding } from 'js-tiktoken'
 import { writeJsonLossless, toOpaqueJson } from '@omne-harness-lite/content-blocks'
-import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlanInput,
+  PlanOutputHistoryGroup,
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { Message } from '@omne-harness-lite/messages'
 import { projectAssistant } from '../src/assistant-projection.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'

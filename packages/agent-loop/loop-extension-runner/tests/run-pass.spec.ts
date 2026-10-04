@@ -8,7 +8,7 @@ import {
   type PositionedSubject,
 } from '@omne-harness-lite/loop-extension'
 import { judgeMessage } from '@omne-harness-lite/messages'
-import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime-local'
 import { openJsonlSessionLog, type SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import {
   createRunnerLogAdapter,

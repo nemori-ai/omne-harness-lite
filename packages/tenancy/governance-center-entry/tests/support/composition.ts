@@ -25,10 +25,8 @@ import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
 import { type Assembly, bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
-import {
-  organizationGovernanceMigrations,
-  organizationGovernancePlugin,
-} from '@omne-harness-lite/organization-governance'
+import { organizationGovernanceMigrations } from '@omne-harness-lite/organization-governance-sql'
+import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
 import {
   type ReadTx,
   type Storage,

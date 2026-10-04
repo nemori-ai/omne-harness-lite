@@ -1,4 +1,4 @@
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { googleCertificationRequest, googleCertificationTool } from './cases.ts'

@@ -4,7 +4,7 @@ import {
   invokeModel,
   type PlanInput,
   type PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { readStream } from '@omne-harness-lite/pi-ai-transport'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'

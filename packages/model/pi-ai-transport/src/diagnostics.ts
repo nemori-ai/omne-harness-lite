@@ -4,7 +4,7 @@ import type {
   DiagnosticEvent,
   TransportDiagnosticFact,
   TransportExecutionDiagnostics,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 
 /** The assembly binds scope and service generation; the registry only borrows record. */
 export function registryDiagnosticReporter(sink?: Pick<DiagnosticEmitter, 'record'>): {

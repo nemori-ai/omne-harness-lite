@@ -1,7 +1,7 @@
 import { imagePreparation } from './image-transport-support.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import type { PlanInput, ReadFacts } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput, ReadFacts } from '@omne-harness-lite/model-request-runtime-local'
 import {
   openaiDefinitions,
   createOpenAiInputMeter,

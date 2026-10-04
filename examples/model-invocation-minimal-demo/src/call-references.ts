@@ -16,7 +16,7 @@ import {
   type CallSource,
   type ModelLogSettlementTarget,
   type SettlementLogBinding,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { PlannedRequest, RawResponse } from '@omne-harness-lite/pi-ai-transport'
 
 type DemoContainer = CallContainer<PlannedRequest, RawResponse>

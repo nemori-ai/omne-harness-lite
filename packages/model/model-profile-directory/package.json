@@ -48,10 +48,11 @@
   },
   "devDependencies": {
     "@omne-harness-lite/clock": "workspace:*",
-    "@omne-harness-lite/organization-governance": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness-lite/organization-governance-sql": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*"
   }
 }

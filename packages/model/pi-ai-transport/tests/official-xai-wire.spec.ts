@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import {
   createOfficialProfileContent,

@@ -18,7 +18,7 @@ import {
 import {
   openRouterCredentialRedactionConfig,
   type PlanInput,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   createDeepSeekV4ProInputMeter,
   createDeepSeekV41FlashInputMeter,

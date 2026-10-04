@@ -39,11 +39,13 @@ import { type Assembly, bootAssembly } from '@omne-harness-lite/kernel-basis/tes
 import {
   ORGANIZATION_PURGE_SERVICE,
   ORGANIZATIONS_SERVICE,
+} from '@omne-harness-lite/organization-governance/cordis'
+import {
   type OrganizationPurgeService,
   type OrganizationsService,
-  organizationGovernanceMigrations,
-  organizationGovernancePlugin,
 } from '@omne-harness-lite/organization-governance'
+import { organizationGovernanceMigrations } from '@omne-harness-lite/organization-governance-sql'
+import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
 import {
   type ReadTx,
   type Storage,

@@ -3,7 +3,7 @@ import { directFull } from './direct-full-input.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import sharp, { type Sharp } from 'sharp'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
 import { createPiAiTransport } from '@omne-harness-lite/pi-ai-transport'
 import {

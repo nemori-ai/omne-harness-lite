@@ -3,7 +3,7 @@
 import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, it, expect, vi } from 'vitest'
 import { LosslessNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { canonicalProjection, INPUT_PROJECTION_REVISION, projectOutput } from '../src/projection.ts'
 import { createReadFactsAccumulator } from '../src/read-facts.ts'

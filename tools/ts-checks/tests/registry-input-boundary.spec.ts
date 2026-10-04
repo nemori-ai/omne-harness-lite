@@ -12,7 +12,7 @@ test.each([
   expect(registryInputBoundary.check([{ path, text: named }])).toEqual([])
 })
 test.each([
-  'packages/model/model-request-runtime/src/runtime.ts',
+  'packages/model/model-request-runtime-local/src/runtime.ts',
   'packages/model/pi-ai-transport/src/index.ts',
   'packages/tools/other/src/input.ts',
   'examples/model-invocation-minimal-demo/src/runtime.ts',

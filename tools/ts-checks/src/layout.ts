@@ -25,7 +25,8 @@ export const ACCOUNT_IDENTITY_PLUGIN_MODULE = `${ACCOUNT_IDENTITY_SRC}plugin.ts`
 export const ACCOUNT_REGISTRATION = 'tenancy/account-registration/'
 export const ACCOUNT_REGISTRATION_SRC = `${ACCOUNT_REGISTRATION}src/`
 export const CREDENTIAL_VERIFICATION = 'tenancy/credential-verification/'
-export const ORGANIZATION_GOVERNANCE = 'tenancy/organization-governance/'
+export const ORGANIZATION_GOVERNANCE = 'tenancy/organization-governance-sql/'
+export const ORGANIZATION_GOVERNANCE_DEFINITION = 'core/organization-governance/'
 export const OFFER_EXPIRY = 'core/offer-expiry/'
 
 /** 产品源码（非测试）且位于 `dir` 之下。 */

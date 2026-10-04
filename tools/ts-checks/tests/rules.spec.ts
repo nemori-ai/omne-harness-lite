@@ -26,10 +26,13 @@ describe('no-wall-clock', () => {
   })
 
   it('产品源码用 Date.now() ⇒ 报出；infra/clock 与测试豁免', () => {
-    const bad = file('tenancy/organization-governance/src/offers.ts', 'const t = Date.now()\n')
+    const bad = file('tenancy/organization-governance-sql/src/offers.ts', 'const t = Date.now()\n')
     const clockImpl = file('infra/clock/src/clock.ts', 'wall: () => Date.now()\n')
-    const test = file('tenancy/organization-governance/tests/x.spec.ts', 'Date.now()\n')
-    const clean = file('tenancy/organization-governance/src/offers.ts', 'const t = clock.now()\n')
+    const test = file('tenancy/organization-governance-sql/tests/x.spec.ts', 'Date.now()\n')
+    const clean = file(
+      'tenancy/organization-governance-sql/src/offers.ts',
+      'const t = clock.now()\n',
+    )
     expect(noWallClock.check([bad])).toMatchObject([
       { rule: 'no-wall-clock', path: bad.path, line: 1 },
     ])
@@ -49,7 +52,7 @@ describe('no-bail-control', () => {
 describe('restricted-call-sites', () => {
   it('account-registration 之外调 accounts.produce( 或解析 organization-purge ⇒ 报出', () => {
     const badProduce = file(
-      'tenancy/organization-governance/src/x.ts',
+      'tenancy/organization-governance-sql/src/x.ts',
       'await accounts.produce(id, cred)\n',
     )
     const badPurge = file(
@@ -61,7 +64,7 @@ describe('restricted-call-sites', () => {
       "accounts.produce(a, b); ctx.get('organization-purge')\n",
     )
     const okOwner = file(
-      'tenancy/organization-governance/src/index.ts',
+      'tenancy/organization-governance-sql/src/index.ts',
       "export const ORGANIZATION_PURGE_SERVICE = 'organization-purge' as const\n",
     )
     const okAiOwner = file('tenancy/account-identity/src/accounts.ts', 'produce(a, b) { }\n')

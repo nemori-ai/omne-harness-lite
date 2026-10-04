@@ -82,7 +82,7 @@ console.log(result.effect.kind) // proceed
 宿主已将模型 runtime 的 `ModelFailureSource` 与本 runner 绑定配对后，可原样转交实际 execution。无 Run 的 execution 在此拒绝；另一 Run 由来源自身拒绝。
 
 ```ts
-import type { ModelFailureSource } from '@omne-harness-lite/model-request-runtime'
+import type { ModelFailureSource } from '@omne-harness-lite/model-request-runtime-local'
 import type { RunnerLogBinding, RunnerPorts } from '@omne-harness-lite/loop-extension-runner'
 
 export function failurePort(

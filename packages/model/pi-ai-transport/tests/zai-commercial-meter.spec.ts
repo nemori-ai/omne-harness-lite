@@ -12,8 +12,8 @@ import {
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
-import { invokeModel } from '@omne-harness-lite/model-request-runtime'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import {
