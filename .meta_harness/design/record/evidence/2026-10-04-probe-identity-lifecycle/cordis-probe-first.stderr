@@ -1,0 +1,12 @@
+node:assert:641
+    throw new ERR_INVALID_ARG_TYPE(
+          ^
+
+TypeError [ERR_INVALID_ARG_TYPE]: The "promiseFn" argument must be of type function or an instance of Promise. Received an instance of Fiber
+    at waitForActual (node:assert:641:11)
+    at strict.rejects (node:assert:769:31)
+    at file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-d0/cordis-probe.mjs:23:15 {
+  code: 'ERR_INVALID_ARG_TYPE'
+}
+
+Node.js v24.21.0

@@ -1,0 +1,7 @@
+{"name":"config-and-ready","validations":2,"received":{"n":2},"wrapperDiffers":true}
+{"name":"async-schema-rejected","passed":true}
+{"name":"wrapper-disposal","before":{"completed":false,"disposalReturned":false},"after":{"completed":true,"disposalReturned":true}}
+{"name":"explicit-reverse-await","order":["second-start","second-end","first-close"],"passed":true}
+{"name":"negative-dispose-errors-do-not-propagate","rejected":false,"order":["other","throw"]}
+{"name":"negative-inject-no-drain-barrier","before":["provider-close","consumer-stop"],"after":["provider-close","consumer-stop","consumer-done"]}
+{"name":"summary","checks":6,"allAssertionsPassed":true}
