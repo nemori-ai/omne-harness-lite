@@ -1,0 +1,30 @@
+{
+  "original_wrapper_exit": 1,
+  "original_unmatched": [
+    "Validity_Reachability",
+    "bad-no-protection"
+  ],
+  "rerun": false,
+  "source_or_configuration_changed": false,
+  "positive_configurations": 5,
+  "mutation_configurations": 16,
+  "reachability_configurations": 1,
+  "reachable_branches": [
+    "NeverDefect",
+    "NeverGatePassed",
+    "NeverHealth",
+    "NeverInvalidInput",
+    "NeverLateInvalidation",
+    "NeverRejected",
+    "NeverResult",
+    "NeverUnavailable",
+    "NeverVersionMismatch"
+  ],
+  "negative_trace": "Check t1, Switch t2, Commit t2; both expected and checked are t1",
+  "classification": "Original finite model obligations observed",
+  "facility_corrections": [
+    "bad-no-protection violated AppliedExpected first; final state also violates CheckedSameCommit",
+    "TLC -continue returned 0 after reporting all nine expected violated Never invariants"
+  ],
+  "limits": "No product, arbitrary-state, SQL refinement, or resource-quiescence proof"
+}

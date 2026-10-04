@@ -2,6 +2,8 @@
 
 # 决定
 
+[身份与治理能力的限定产品接受](identity-capabilities-delivery/README.md)：R1-T2 公共定义、纯工厂、正式 Service 和真实宿主管理生命周期；业务及数据身份保持，T3/T4 与领域完成门继续开放。
+
 [kernel-basis 公共入口分面的限定采用](kernel-basis-entry-split-adoption/README.md)：R1-T1a 精确候选的纯根、Cordis 绑定及消费者迁移；业务语义保持，其他领域整改和验证设施缺口继续保留。
 
 [D-115：实际架构视图与就近薄规格](actual-architecture-and-thin-spec/README.md)：接受全局视图目标、维护边界及逐步退役方向，部分取代 D-112/113/114 的表达与路径前提；实际实现及迁移分别验收。

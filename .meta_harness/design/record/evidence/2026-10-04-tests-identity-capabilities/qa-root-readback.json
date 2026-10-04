@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-04T22:15:55.497555+00:00",
+  "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+  "manifest_sha256": "c1942dff8f0243d566ed45dff477fd4c34d9fc0a44afee2930e4be1f58c508f5",
+  "candidate_count": 1403,
+  "mismatches": [],
+  "external": [
+    {
+      "manifest": "qa-baseline/manifest.json",
+      "count": 1646,
+      "manifest_matches": true,
+      "mismatches": []
+    },
+    {
+      "manifest": "qa-startup-positive/manifest.json",
+      "count": 32,
+      "manifest_matches": true,
+      "mismatches": []
+    }
+  ],
+  "facility_incident": "First inline readback stopped with KeyError: 'files' at the startup manifest, whose documented key is items. No input changed or pass was reported; this script uses each owner's exact format.",
+  "scope": "Independent root byte readback; QA freeze/release notification is a separate input."
+}

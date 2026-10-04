@@ -1,0 +1,962 @@
+{
+  "verifier": "implementation-reviewer; independent file readback, no rerun",
+  "observed_at": "2026-10-04T21:48:05.536830+00:00",
+  "base": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+  "candidate": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+  "actual_head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+  "tracked_status": "",
+  "preserved_first_report_sha256": "b045b3dd81bfa75a8baf17f67d3b250df730dd8d35eb8e72285788e5cf09d164",
+  "strict_hard_lines": {
+    "cycles": [],
+    "direction": [],
+    "acceptanceLock": {
+      "status": "judged",
+      "violations": []
+    },
+    "cardRetire": {
+      "status": "judged",
+      "violations": []
+    },
+    "sensors": {
+      "status": "judged",
+      "silent": [],
+      "off": []
+    }
+  },
+  "strict_meta": {
+    "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+    "branch": "panqiwei/identity-capabilities-r1-t2",
+    "dirty": false,
+    "base": {
+      "ref": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+      "mergeBase": "67eecc1ae53be30efec473206e5d1926dd5d500f"
+    },
+    "generatedAt": "2026-10-04T21:19:58.924Z",
+    "home": "/data/qiwei/repos/omne-harness-lite/tmp/clean-loop",
+    "trend": {
+      "path": "/data/qiwei/repos/omne-harness-lite/tmp/clean-loop/trend.jsonl",
+      "badLines": [],
+      "snapshot": {
+        "write": false,
+        "reason": "严格模式只读趋势，不写快照"
+      }
+    }
+  },
+  "fixed_architecture_source": {
+    "root": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent",
+    "kind": "revision",
+    "commit": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+    "dirty": false,
+    "inputDirty": false,
+    "unversionedInputs": []
+  },
+  "dispositions_source_sha_match": true,
+  "disposition_multisets": [
+    {
+      "group": "complexity",
+      "actual_count": 3,
+      "disposition_count": 3,
+      "exact_multiset_equal": true
+    },
+    {
+      "group": "existing-complexity",
+      "actual_count": 23,
+      "disposition_count": 23,
+      "exact_multiset_equal": true
+    },
+    {
+      "group": "clone",
+      "actual_count": 25,
+      "disposition_count": 25,
+      "exact_multiset_equal": true
+    },
+    {
+      "group": "dependency",
+      "actual_count": 49,
+      "disposition_count": 49,
+      "exact_multiset_equal": true
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "actual_count": 130,
+      "disposition_count": 130,
+      "exact_multiset_equal": true
+    },
+    {
+      "group": "global-architecture",
+      "actual_count": 22,
+      "disposition_count": 22,
+      "exact_multiset_equal": true
+    }
+  ],
+  "unknown_readback": {
+    "actual_count": 17,
+    "disposition_count": 17,
+    "ids_equal": true,
+    "all_sites_are_actual": true
+  },
+  "closure_facility": {
+    "three_functions_byte_identical": true,
+    "original_module_sha256": "843d26afa53d4fe06b137f1812bbe17ff357e76e9fcfe96206d4bcc2099a25fd",
+    "reused_module_sha256": "b0a696551861f6e41e0c1a19cd4047c3ccf3ac1ceff4dbb2be63d02fe06d593a",
+    "controls": [
+      {
+        "name": "Node ESM selects import condition",
+        "pass": true
+      },
+      {
+        "name": "Node CJS selects require condition and extensionless js",
+        "pass": true
+      },
+      {
+        "name": "source closure follows js-to-ts and anchored native require transitively",
+        "pass": true
+      },
+      {
+        "name": "declaration closure maps ts extension to d.ts",
+        "pass": true
+      },
+      {
+        "name": "direct ESM kernel rejection",
+        "pass": true
+      },
+      {
+        "name": "declaration import-type kernel rejection",
+        "pass": true
+      },
+      {
+        "name": "transitive CommonJS kernel rejection",
+        "pass": true
+      },
+      {
+        "name": "public binding specifier rejection",
+        "pass": true
+      },
+      {
+        "name": "relative binding target rejection",
+        "pass": true
+      },
+      {
+        "name": "unresolved dependency refuses success",
+        "pass": true
+      }
+    ],
+    "surfaces": [
+      {
+        "name": "assembly-lifecycle",
+        "kind": "source",
+        "files": 3,
+        "edges": 3
+      },
+      {
+        "name": "assembly-lifecycle",
+        "kind": "declarations",
+        "files": 3,
+        "edges": 3
+      },
+      {
+        "name": "account-identity",
+        "kind": "source",
+        "files": 329,
+        "edges": 1159
+      },
+      {
+        "name": "account-identity",
+        "kind": "declarations",
+        "files": 312,
+        "edges": 1102
+      },
+      {
+        "name": "account-registration",
+        "kind": "source",
+        "files": 333,
+        "edges": 1169
+      },
+      {
+        "name": "account-registration",
+        "kind": "declarations",
+        "files": 316,
+        "edges": 1112
+      },
+      {
+        "name": "organization-governance",
+        "kind": "source",
+        "files": 327,
+        "edges": 1154
+      },
+      {
+        "name": "organization-governance",
+        "kind": "declarations",
+        "files": 310,
+        "edges": 1097
+      },
+      {
+        "name": "governance-center-entry",
+        "kind": "source",
+        "files": 1,
+        "edges": 0
+      },
+      {
+        "name": "governance-center-entry",
+        "kind": "declarations",
+        "files": 1,
+        "edges": 0
+      },
+      {
+        "name": "account-identity-sql",
+        "kind": "source",
+        "files": 436,
+        "edges": 1453
+      },
+      {
+        "name": "account-identity-sql",
+        "kind": "declarations",
+        "files": 415,
+        "edges": 1359
+      },
+      {
+        "name": "credential-verification-scrypt",
+        "kind": "source",
+        "files": 429,
+        "edges": 1407
+      },
+      {
+        "name": "credential-verification-scrypt",
+        "kind": "declarations",
+        "files": 412,
+        "edges": 1348
+      },
+      {
+        "name": "account-registration-sequential",
+        "kind": "source",
+        "files": 431,
+        "edges": 1413
+      },
+      {
+        "name": "account-registration-sequential",
+        "kind": "declarations",
+        "files": 414,
+        "edges": 1354
+      },
+      {
+        "name": "organization-governance-sql",
+        "kind": "source",
+        "files": 439,
+        "edges": 1467
+      },
+      {
+        "name": "organization-governance-sql",
+        "kind": "declarations",
+        "files": 420,
+        "edges": 1379
+      }
+    ],
+    "limit": "Readback of root qualification; does not substitute independent QA execution."
+  },
+  "formal_inputs": {
+    "count": 47,
+    "all_match": true,
+    "rows": [
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ai/LoginCommit.tla",
+        "expected_sha256": "630830bf93640a50d64cc9f5dfd7d56c70f5044e601a6a978134189a9ea69735",
+        "actual_sha256": "630830bf93640a50d64cc9f5dfd7d56c70f5044e601a6a978134189a9ea69735",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ai/revision-bad.cfg",
+        "expected_sha256": "c4d1edf538a6706aa5793cfbbd582fa35b68b9d2094b96cf253aa314c45ce257",
+        "actual_sha256": "c4d1edf538a6706aa5793cfbbd582fa35b68b9d2094b96cf253aa314c45ce257",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ai/CredentialRevision.tla",
+        "expected_sha256": "c1ea03e2cddb93379ad8fcdc2a569258b95256ed622ab7d16adec78428876b60",
+        "actual_sha256": "c1ea03e2cddb93379ad8fcdc2a569258b95256ed622ab7d16adec78428876b60",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ai/bad-admission.cfg",
+        "expected_sha256": "9bc6937fdec089720a3438ab998e476cd991085c2b486ae91e49c76b82db9f76",
+        "actual_sha256": "9bc6937fdec089720a3438ab998e476cd991085c2b486ae91e49c76b82db9f76",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ai/commit-bad-observer.cfg",
+        "expected_sha256": "2c56d2a77c1c1e5588c2ef7ed431ae70e76c485d676d59a0710bde39d4f668f9",
+        "actual_sha256": "2c56d2a77c1c1e5588c2ef7ed431ae70e76c485d676d59a0710bde39d4f668f9",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ai/commit-valid.cfg",
+        "expected_sha256": "9ddfa3b5727b25d883c49ea84cf6eb88cbf7d233f5356c8fb54a1e4f61b9868e",
+        "actual_sha256": "9ddfa3b5727b25d883c49ea84cf6eb88cbf7d233f5356c8fb54a1e4f61b9868e",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ai/README.md",
+        "expected_sha256": "ed307368826855ad70779f143f2b4cd3d722317dc5a25e561471705431ae8f1b",
+        "actual_sha256": "ed307368826855ad70779f143f2b4cd3d722317dc5a25e561471705431ae8f1b",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ai/LoginLifetime.tla",
+        "expected_sha256": "ce7947b9f92e555bbae026f0080f0c25495a51357021e563225454f0d7298d90",
+        "actual_sha256": "ce7947b9f92e555bbae026f0080f0c25495a51357021e563225454f0d7298d90",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ai/valid.cfg",
+        "expected_sha256": "5a9923e55d376c5a92f6eb268ff71109c70bf4cffc9baf72c3207860185f9b09",
+        "actual_sha256": "5a9923e55d376c5a92f6eb268ff71109c70bf4cffc9baf72c3207860185f9b09",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ai/revision-valid.cfg",
+        "expected_sha256": "b732616cd6996603c39ee7c160babdab7c3b05ddf07ef7a8315002b7daee9827",
+        "actual_sha256": "b732616cd6996603c39ee7c160babdab7c3b05ddf07ef7a8315002b7daee9827",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/og/Membership.cfg",
+        "expected_sha256": "abaa8fa24bf14e8c8fa7e7bed0858197a78bd532c56887f27d462c42e1195734",
+        "actual_sha256": "abaa8fa24bf14e8c8fa7e7bed0858197a78bd532c56887f27d462c42e1195734",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/og/Affiliation.als",
+        "expected_sha256": "1a72efa2f9b7c8199ae3aac797154120cf714a9b6dc674961621c8187cd1526f",
+        "actual_sha256": "1a72efa2f9b7c8199ae3aac797154120cf714a9b6dc674961621c8187cd1526f",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/og/Membership.tla",
+        "expected_sha256": "5c7656a47c3b827e638a24f781c4039ccb6d7a669e37799e8580101043bde436",
+        "actual_sha256": "5c7656a47c3b827e638a24f781c4039ccb6d7a669e37799e8580101043bde436",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/og/Membership_NoSerialization.cfg",
+        "expected_sha256": "8b0631823173848c527d32a9685470184a46a881440cd33fa5a55c19ba990159",
+        "actual_sha256": "8b0631823173848c527d32a9685470184a46a881440cd33fa5a55c19ba990159",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/og/README.md",
+        "expected_sha256": "154bd8cd1a12ef429fbee4f83bb4825902c76900cd0a59ad6d33e2fc70ba3023",
+        "actual_sha256": "154bd8cd1a12ef429fbee4f83bb4825902c76900cd0a59ad6d33e2fc70ba3023",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ar/progress.cfg",
+        "expected_sha256": "6c1a4b3da5fe329b4db766559b1a0905002d050c8af71ad42fe1574b75c90cca",
+        "actual_sha256": "6c1a4b3da5fe329b4db766559b1a0905002d050c8af71ad42fe1574b75c90cca",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ar/basic.cfg",
+        "expected_sha256": "38198123c96a2704908a72b8df4ea8a76cdf1fac1b05a4622c3b3e178915d64d",
+        "actual_sha256": "38198123c96a2704908a72b8df4ea8a76cdf1fac1b05a4622c3b3e178915d64d",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ar/Registration.tla",
+        "expected_sha256": "83bc2f8c54bd5057e5831f638bd41d25fe8d908bb5fd43db937d2ee324230f20",
+        "actual_sha256": "83bc2f8c54bd5057e5831f638bd41d25fe8d908bb5fd43db937d2ee324230f20",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ar/crash.cfg",
+        "expected_sha256": "2a77296a8915042cf5f53d0f92a476b2e568e61a68d36044b78282125fff7ffc",
+        "actual_sha256": "2a77296a8915042cf5f53d0f92a476b2e568e61a68d36044b78282125fff7ffc",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/formal-base/inputs/ar/README.md",
+        "expected_sha256": "c3fc3281dc7b400310119536f2a50fe276db81e874f40c15b608d917d9997d9a",
+        "actual_sha256": "c3fc3281dc7b400310119536f2a50fe276db81e874f40c15b608d917d9997d9a",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/MaintenanceValidity_unknownSuccess.cfg",
+        "expected_sha256": "09cbe9c0e075af7934db8ddaf4a62caffcc1b148f093dad4ea7e7ab0cd79b8b8",
+        "actual_sha256": "09cbe9c0e075af7934db8ddaf4a62caffcc1b148f093dad4ea7e7ab0cd79b8b8",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/Validity_authBeforeEnvelope.cfg",
+        "expected_sha256": "5cc1551fd8e8a3570ee76dfde9eec870739e5fd63a18198224a4edaf69abd66f",
+        "actual_sha256": "5cc1551fd8e8a3570ee76dfde9eec870739e5fd63a18198224a4edaf69abd66f",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/Validity_defectAsResult.cfg",
+        "expected_sha256": "4b24226cd2cea2848bb5000b3fbddf1e28b5ef0aa35c0319d0435d375c9fab85",
+        "actual_sha256": "4b24226cd2cea2848bb5000b3fbddf1e28b5ef0aa35c0319d0435d375c9fab85",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/maintenance-progress.cfg",
+        "expected_sha256": "59f9047095bdc0db592ae461f525690c30e0c93b8b5fc48fada649925ba56985",
+        "actual_sha256": "59f9047095bdc0db592ae461f525690c30e0c93b8b5fc48fada649925ba56985",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/MaintenanceValidity_removeProtection.cfg",
+        "expected_sha256": "c27982e51723ccc7a307d2eb8a2a30842f706b976a93e75de48519cea9054102",
+        "actual_sha256": "c27982e51723ccc7a307d2eb8a2a30842f706b976a93e75de48519cea9054102",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/EntryCommit.tla",
+        "expected_sha256": "a5a6d6d541df63cdb11de68a13a1066efea487cd1944b0faba12e13516e63a4b",
+        "actual_sha256": "a5a6d6d541df63cdb11de68a13a1066efea487cd1944b0faba12e13516e63a4b",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/Validity_inputBeforeAuth.cfg",
+        "expected_sha256": "6bf84e19e7149d7eab2e5fcb3cce1f79ebf53e4fba44347a5b7e67322bc252b7",
+        "actual_sha256": "6bf84e19e7149d7eab2e5fcb3cce1f79ebf53e4fba44347a5b7e67322bc252b7",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/Validity_Reachability.cfg",
+        "expected_sha256": "0856b356efcd077b75dca1ba47eb328970fad2e2d46d1418802b797f0be7b213",
+        "actual_sha256": "0856b356efcd077b75dca1ba47eb328970fad2e2d46d1418802b797f0be7b213",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/commit-bad-catch.cfg",
+        "expected_sha256": "fd418e884d839b4ad6582945100bd3382b235f1d13f848b3e4815f5869597ce6",
+        "actual_sha256": "fd418e884d839b4ad6582945100bd3382b235f1d13f848b3e4815f5869597ce6",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/MaintenanceValidity_releaseEarly.cfg",
+        "expected_sha256": "7e6743e98311b7a488d69f8f86c6c31c4278ba2ce155346ee11a14423f95f7d5",
+        "actual_sha256": "7e6743e98311b7a488d69f8f86c6c31c4278ba2ce155346ee11a14423f95f7d5",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/Maintenance.tla",
+        "expected_sha256": "c922c6fbe2abfe4e4d55f3bf6d067ef7c69bfdeafc04386eb9ff20b8d6043065",
+        "actual_sha256": "c922c6fbe2abfe4e4d55f3bf6d067ef7c69bfdeafc04386eb9ff20b8d6043065",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/EntryDecision.tla",
+        "expected_sha256": "7930957bec954d75e12fc0639d9909a016ff8e07fd93f910a919f25a63dd6d13",
+        "actual_sha256": "7930957bec954d75e12fc0639d9909a016ff8e07fd93f910a919f25a63dd6d13",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/maintenance-valid.cfg",
+        "expected_sha256": "85d69ec6395ad4a75441a4c85812e31a13d28c7f76e12930f63e387741aa7069",
+        "actual_sha256": "85d69ec6395ad4a75441a4c85812e31a13d28c7f76e12930f63e387741aa7069",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/bad-no-compare.cfg",
+        "expected_sha256": "a3e4fbfd986f211e8fbf42ccf0d416443575bb4899de9e9f9fd0a8abbc049f70",
+        "actual_sha256": "a3e4fbfd986f211e8fbf42ccf0d416443575bb4899de9e9f9fd0a8abbc049f70",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/Validity_deriveBeforePayload.cfg",
+        "expected_sha256": "723d0964fb3bae8c6ae57bcc2a4cba9875f186ff413f9ead4f3e631acfa81e0a",
+        "actual_sha256": "723d0964fb3bae8c6ae57bcc2a4cba9875f186ff413f9ead4f3e631acfa81e0a",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/EntryDecision.cfg",
+        "expected_sha256": "bced6928a5c4768c08253cf8698d560483ffd540217d02dd09ddbe976234039e",
+        "actual_sha256": "bced6928a5c4768c08253cf8698d560483ffd540217d02dd09ddbe976234039e",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/Validity_gateUnavailableAsDenied.cfg",
+        "expected_sha256": "1688c09cf6d34db4747ee6cb3dd5f125d7e232ec9c3d4898f5a9a93b0170c619",
+        "actual_sha256": "1688c09cf6d34db4747ee6cb3dd5f125d7e232ec9c3d4898f5a9a93b0170c619",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/ExpectedTenant.tla",
+        "expected_sha256": "b8783298a31d01234b4eeb8e732e2f63442b98e25137a80f85a4993968f12ace",
+        "actual_sha256": "b8783298a31d01234b4eeb8e732e2f63442b98e25137a80f85a4993968f12ace",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/Validity_unavailableAsRejected.cfg",
+        "expected_sha256": "45ca79b649f7267dcf33980d1ba12d648d3ed546d373409fa35b3476f0052a5c",
+        "actual_sha256": "45ca79b649f7267dcf33980d1ba12d648d3ed546d373409fa35b3476f0052a5c",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/Validity_passthroughStateNotValid.cfg",
+        "expected_sha256": "058d768496f41e03962cf5ef5adcda253c9aecf8e60ec0cee4a935a5e1571c7b",
+        "actual_sha256": "058d768496f41e03962cf5ef5adcda253c9aecf8e60ec0cee4a935a5e1571c7b",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/bad-no-protection.cfg",
+        "expected_sha256": "e57ec72957bb10018b397452fac1e744a02dbbf847d332331cef8060868c5a26",
+        "actual_sha256": "e57ec72957bb10018b397452fac1e744a02dbbf847d332331cef8060868c5a26",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/commit-valid.cfg",
+        "expected_sha256": "fb581fe4ad53206a61c177a2bb7640fe0360048dc30f7d84edcf6ecdbb0037e3",
+        "actual_sha256": "fb581fe4ad53206a61c177a2bb7640fe0360048dc30f7d84edcf6ecdbb0037e3",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/MaintenanceValidity_plaintextEarly.cfg",
+        "expected_sha256": "37b36c715599aa8b86f1714842d0b2d9f5613e61568a3a6e2ed6a7b481205c04",
+        "actual_sha256": "37b36c715599aa8b86f1714842d0b2d9f5613e61568a3a6e2ed6a7b481205c04",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/README.md",
+        "expected_sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+        "actual_sha256": "93007f90cbd867b85e5ad504d467452aa26103d034d6985ccb3eee4f7f780731",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/valid.cfg",
+        "expected_sha256": "2ea3b96b183cdb3d307a99962dc2cb031ff22c2bf73a787327dbc7450bcb3ea6",
+        "actual_sha256": "2ea3b96b183cdb3d307a99962dc2cb031ff22c2bf73a787327dbc7450bcb3ea6",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/Validity_readPresentationBeforeVersion.cfg",
+        "expected_sha256": "261488bbd6877fff10a8ce5a6d28a8a5d7eadc73e6fea0eb322cc6a60f1a040b",
+        "actual_sha256": "261488bbd6877fff10a8ce5a6d28a8a5d7eadc73e6fea0eb322cc6a60f1a040b",
+        "match": true
+      },
+      {
+        "path": "tmp/arch-intent/remediation/r1-t2/entry-formal-base/inputs/ec/commit-bad-notify.cfg",
+        "expected_sha256": "32dc90ef63105ed61a52ff88fedde906d216aafb996de84d42a737f7514769a3",
+        "actual_sha256": "32dc90ef63105ed61a52ff88fedde906d216aafb996de84d42a737f7514769a3",
+        "match": true
+      }
+    ]
+  },
+  "final_root_receipts": [
+    {
+      "label": "s4-build-cf4",
+      "command": [
+        "pnpm",
+        "run",
+        "build"
+      ],
+      "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+      "working_tree": [],
+      "elapsed_seconds": 58.599,
+      "exit_code": 0
+    },
+    {
+      "label": "s4-types-cf4",
+      "command": [
+        "pnpm",
+        "run",
+        "typecheck"
+      ],
+      "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+      "working_tree": [],
+      "elapsed_seconds": 69.286,
+      "exit_code": 0
+    },
+    {
+      "label": "s4-host-cf4",
+      "command": [
+        "env",
+        "LANG=C.UTF-8",
+        "LC_ALL=C.UTF-8",
+        "VITEST_MAX_WORKERS=1",
+        "pnpm",
+        "--filter",
+        "@omne-harness-lite/tenancy-host",
+        "test"
+      ],
+      "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+      "working_tree": [],
+      "elapsed_seconds": 183.854,
+      "exit_code": 0
+    },
+    {
+      "label": "s4-format-cf4",
+      "command": [
+        "pnpm",
+        "run",
+        "format:check"
+      ],
+      "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+      "working_tree": [],
+      "elapsed_seconds": 41.232,
+      "exit_code": 0
+    },
+    {
+      "label": "s4-cli-acceptance-cf4",
+      "command": [
+        "env",
+        "LC_ALL=C.UTF-8",
+        "LANG=C.UTF-8",
+        "node",
+        "--experimental-strip-types",
+        "tools/ts-checks/src/testing/cli.ts",
+        "run",
+        "--base",
+        "67eecc1ae53be30efec473206e5d1926dd5d500f",
+        "--script",
+        "acceptance",
+        "--no-build"
+      ],
+      "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+      "working_tree": [],
+      "elapsed_seconds": 4.832,
+      "exit_code": 0
+    },
+    {
+      "label": "s4-closure-facility",
+      "command": [
+        "node",
+        "tmp/arch-intent/remediation/r1-t2/closure-facility/qualify.mjs",
+        "tmp/arch-intent/remediation/r1-t2/closure-facility/qualification",
+        "tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/packed-final"
+      ],
+      "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+      "working_tree": [],
+      "elapsed_seconds": 9.996,
+      "exit_code": 0
+    }
+  ],
+  "sql_failure_and_fix": [
+    {
+      "path": "qa-candidate/evidence/member-suites/host.vitest.json",
+      "numTotalTests": 113,
+      "numPassedTests": 14,
+      "numFailedTests": 99,
+      "numPendingTests": 0,
+      "success": false
+    },
+    {
+      "path": "qa-candidate/evidence/host-sql-fix.vitest.json",
+      "numTotalTests": 113,
+      "numPassedTests": 113,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    }
+  ],
+  "eight_bindings": {
+    "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+    "observation": "Imported built exports and dependency metadata only; this does not observe service availability or start resources.",
+    "result": [
+      {
+        "member": "infra/storage-sql",
+        "name": "managedStorageSqlPlugin",
+        "pluginName": "storage-sql-managed",
+        "assemblyLifecycle": 1,
+        "expected": [
+          "assemblyLifetime"
+        ],
+        "positions": [
+          {
+            "index": 0,
+            "own": true,
+            "type": "string",
+            "value": "assemblyLifetime"
+          }
+        ],
+        "pass": true
+      },
+      {
+        "member": "infra/clock-lease",
+        "name": "managedClockPlugin",
+        "pluginName": "clock-lease-managed",
+        "assemblyLifecycle": 1,
+        "expected": [
+          "storage",
+          "assemblyLifetime"
+        ],
+        "positions": [
+          {
+            "index": 0,
+            "own": true,
+            "type": "string",
+            "value": "storage"
+          },
+          {
+            "index": 1,
+            "own": true,
+            "type": "string",
+            "value": "assemblyLifetime"
+          }
+        ],
+        "pass": true
+      },
+      {
+        "member": "tenancy/credential-verification-scrypt",
+        "name": "managedCredentialsPlugin",
+        "pluginName": "credential-verification-scrypt-managed",
+        "assemblyLifecycle": 1,
+        "expected": [
+          "assemblyLifetime"
+        ],
+        "positions": [
+          {
+            "index": 0,
+            "own": true,
+            "type": "string",
+            "value": "assemblyLifetime"
+          }
+        ],
+        "pass": true
+      },
+      {
+        "member": "tenancy/account-identity-sql",
+        "name": "managedAccountIdentityPlugin",
+        "pluginName": "account-identity-sql-managed",
+        "assemblyLifecycle": 1,
+        "expected": [
+          "storage",
+          "clock",
+          "assemblyLifetime"
+        ],
+        "positions": [
+          {
+            "index": 0,
+            "own": true,
+            "type": "string",
+            "value": "storage"
+          },
+          {
+            "index": 1,
+            "own": true,
+            "type": "string",
+            "value": "clock"
+          },
+          {
+            "index": 2,
+            "own": true,
+            "type": "string",
+            "value": "assemblyLifetime"
+          }
+        ],
+        "pass": true
+      },
+      {
+        "member": "tenancy/organization-governance-sql",
+        "name": "managedOrganizationGovernancePlugin",
+        "pluginName": "organization-governance-sql-managed",
+        "assemblyLifecycle": 1,
+        "expected": [
+          "storage",
+          "clock",
+          "accounts",
+          "logins",
+          "assemblyLifetime"
+        ],
+        "positions": [
+          {
+            "index": 0,
+            "own": true,
+            "type": "string",
+            "value": "storage"
+          },
+          {
+            "index": 1,
+            "own": true,
+            "type": "string",
+            "value": "clock"
+          },
+          {
+            "index": 2,
+            "own": true,
+            "type": "string",
+            "value": "accounts"
+          },
+          {
+            "index": 3,
+            "own": true,
+            "type": "string",
+            "value": "logins"
+          },
+          {
+            "index": 4,
+            "own": true,
+            "type": "string",
+            "value": "assemblyLifetime"
+          }
+        ],
+        "pass": true
+      },
+      {
+        "member": "tenancy/account-registration-sequential",
+        "name": "managedRegistrationPlugin",
+        "pluginName": "account-registration-sequential-managed",
+        "assemblyLifecycle": 1,
+        "expected": [
+          "accounts",
+          "organizations",
+          "organizationPurge",
+          "assemblyLifetime"
+        ],
+        "positions": [
+          {
+            "index": 0,
+            "own": true,
+            "type": "string",
+            "value": "accounts"
+          },
+          {
+            "index": 1,
+            "own": true,
+            "type": "string",
+            "value": "organizations"
+          },
+          {
+            "index": 2,
+            "own": true,
+            "type": "string",
+            "value": "organizationPurge"
+          },
+          {
+            "index": 3,
+            "own": true,
+            "type": "string",
+            "value": "assemblyLifetime"
+          }
+        ],
+        "pass": true
+      },
+      {
+        "member": "tenancy/governance-center-entry-node",
+        "name": "managedGovernanceCenterOpsPlugin",
+        "pluginName": "governance-center-entry-node-ops-managed",
+        "assemblyLifecycle": 1,
+        "expected": [
+          "storage",
+          "clock",
+          "entryOpening",
+          "assemblyLifetime"
+        ],
+        "positions": [
+          {
+            "index": 0,
+            "own": true,
+            "type": "string",
+            "value": "storage"
+          },
+          {
+            "index": 1,
+            "own": true,
+            "type": "string",
+            "value": "clock"
+          },
+          {
+            "index": 2,
+            "own": true,
+            "type": "string",
+            "value": "entryOpening"
+          },
+          {
+            "index": 3,
+            "own": true,
+            "type": "string",
+            "value": "assemblyLifetime"
+          }
+        ],
+        "pass": true
+      },
+      {
+        "member": "tenancy/governance-center-entry-node",
+        "name": "managedGovernanceCenterEntryPlugin",
+        "pluginName": "governance-center-entry-node-managed",
+        "assemblyLifecycle": 1,
+        "expected": [
+          "storage",
+          "clock",
+          "credentials",
+          "logins",
+          "accounts",
+          "registration",
+          "organizations",
+          "memberships",
+          "offers",
+          "entryOpening",
+          "assemblyLifetime"
+        ],
+        "positions": [
+          {
+            "index": 0,
+            "own": true,
+            "type": "string",
+            "value": "storage"
+          },
+          {
+            "index": 1,
+            "own": true,
+            "type": "string",
+            "value": "clock"
+          },
+          {
+            "index": 2,
+            "own": true,
+            "type": "string",
+            "value": "credentials"
+          },
+          {
+            "index": 3,
+            "own": true,
+            "type": "string",
+            "value": "logins"
+          },
+          {
+            "index": 4,
+            "own": true,
+            "type": "string",
+            "value": "accounts"
+          },
+          {
+            "index": 5,
+            "own": true,
+            "type": "string",
+            "value": "registration"
+          },
+          {
+            "index": 6,
+            "own": true,
+            "type": "string",
+            "value": "organizations"
+          },
+          {
+            "index": 7,
+            "own": true,
+            "type": "string",
+            "value": "memberships"
+          },
+          {
+            "index": 8,
+            "own": true,
+            "type": "string",
+            "value": "offers"
+          },
+          {
+            "index": 9,
+            "own": true,
+            "type": "string",
+            "value": "entryOpening"
+          },
+          {
+            "index": 10,
+            "own": true,
+            "type": "string",
+            "value": "assemblyLifetime"
+          }
+        ],
+        "pass": true
+      }
+    ]
+  }
+}

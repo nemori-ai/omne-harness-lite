@@ -1,0 +1,144 @@
+# R1-T2 独立 L3 实施审阅：首轮与修复增量
+
+状态：源码审阅和有界独立复核已完成；最终 S4 与干净 QA 证据尚未交齐。本报告不构成接受。
+
+## 对象与范围
+
+执行仓库为 `/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent`。
+BASE 为 `67eecc1ae53be30efec473206e5d1926dd5d500f`。
+首个交付为 `e6e2b9c1eeedf2e5fa2379afd41de744fc32c906`。
+审阅期间，主会话依次提交关闭竞态修复 `9587dd5c8b107429ef32b311c08b6dcb1320cbc6`、
+约束定位修正 `ebc4b88d7dfb0e516586449c86aadde57f4cbbbf` 和 SQL 注入修复 `cf4ce5874100c4271bd3b01327da7b81c443a39a`。
+后一个提交只有 SQL 注入源数组变化。主树 SQL dist 尚未重建，不能按新 HEAD 解释旧 dist 运行。
+
+职责和写入范围以 [review-brief.md](../review-brief.md) 为准。
+本次只写本目录。路径限制是指令约束，宿主没有按路径设置写保护。
+未安装依赖、修改产品/测试/冻结 QA、提交、合并或接受。未运行 make check、队列、基准或付费模型。
+后续产品提交由主会话写入，不是评审者改动。
+
+实施依据为 identity-integration 的已采用 design、behavior、preservation、retirement、delivery，
+两个 T2 补充决定及模块旁 SPEC。AI3、OG2、AR2、EC3/HT3 的业务条款仍有效。
+审阅不把公共接口迁移当作旧业务契约整体退役，也不判定 T3/T4/R1-T5 已完成。
+
+## 工具一览
+
+以下路径相对本目录；`../checks/` 和 QA 路径为其他证据拥有者的实际运行输出。
+每个本次执行的常规检查在同名前缀 `.execution.json` 中记录命令、退出码和交付坐标。
+
+| 入口 | 命令或观察 | 结果与范围 | 输出 |
+|---|---|---|---|
+| 变更/署名 | `git diff --name-status --find-renames BASE e6e…`；`git log --format=fuller --stat BASE..e6e…`；完整 diff | exit 0；首交付 292 文件；后续增量逐一核对，未发现范围外产品修改 | `changes.*`、`commits.*`、`diff.*`、`fix-delta.*`、`sql-inject-fix-delta.*` |
+| 测试/验收变更 | rename-aware diff；`make acceptance-lock BASE=67ee…`；`make card-retire BASE=67ee…` | 锁/删卡 exit 0；没有修改受锁验收文件；既有测试迁移另按采用语义审阅 | `acceptance-lock.*`、`card-retire.*`、`test-assertion-diff.log` |
+| 仓库规则 | `pnpm run lint:rules` | e6e exit 0；27 包规则、8 仓库路径规则、1 验收覆盖规则、1011 提交；规则绿未捕获 SQL 数组空位 | `rules.*` |
+| 协调机制 | 在 core/assembly-lifecycle 执行 `pnpm exec vitest run --maxWorkers=1 --reporter=verbose` | 9587 exit 0；3 文件、12 项、类型无错误 | `lifecycle-tests.*` |
+| 精确观察例外 | tools/ts-checks 的 assembly-observation、entry-rules、consumer-rules 三文件，同上 worker=1 | 9587 exit 0；69 项；覆盖实际 provides 表及能力获取、调用、inject、表逃逸负控 | `observation-tests.*` |
+| 同步重入关闭反例/复验 | `node --experimental-import-meta-resolve reentrant-close*.mjs REPO OUT` | e6e 反例成立；9587 同样真实 SQLite/scrypt 夹具不再复现；各 exit 0 表示各自 oracle 成立 | `reentrant-close*` |
+| 八管理导出运行值 | `node --experimental-import-meta-resolve inject-arrays.mjs REPO OUT` | ebc4 exit 0；SQL 实际空位转为 `undefined` 依赖并 PENDING；其余七个数组密集且都是正确字符串键 | `inject-arrays-before.*` |
+| 原函数体/公开导出 | 审读后复制两个比较器到本目录，固定 BASE 并改变输出路径，再 `node compare-business.mjs` / `node export-ledger.mjs` | 9587 各 exit 0；105 原函数体限定归一化相同；75 原具名根导出都有唯一迁移位置 | `compare-business.*`、`business-body-preservation.json`、`export-ledger.*` |
+| 持久数据身份 | 从 BASE 与 9587 的 Git blob 分别算 SHA-256 | 8 文件逐字相同，且与实施者账本一致；不外推为所有行为等价 | `data-identity-independent.json` |
+| 结构/关系 | 读取主会话固定 9587 的 actual/conformance/metrics 与 loop 输出 | 方向/环 0；3 个新增或匹配不确定的 CC 红项、25 对触及变更文件的克隆；最终处置尚待 | `../architecture-9587/summary.md`、`../loop-9587/status.{md,json}` |
+| 全量范围/其他检查 | 读取 `make test-affected BASE=67ee… PLAN=1` 与 S4 receipts | 计划选中全 52 成员快慢层、pytest、全构建/类型、CLI；截至本报告未取得该完整执行账本 | `../checks/s4-affected-plan/`、`../checks/s4-*/` |
+| 原形式资源 | 只读 TLC/Alloy 原输入、命令、raw stdout、receipt 及负控反例 | 11 AI/OG/AR TLC 配置、22 EC TLC 配置、4 Alloy 执行组；保留原 wrapper 两个误判并核实际输出，不重跑 | `formal-readback.json`、`../formal-base/`、`../entry-formal-base/`、`../alloy-base/` |
+
+S4 全类型检查和 docs 的 e6e clean receipt 为 exit 0。全构建/agents/design 的早先 receipt
+处于提交前 dirty BASE 坐标，不能仅凭退出码写成新提交全构建。主会话已承诺在最终源上补全构建。
+主会话 20:43 的 host 绿测早于 20:47、20:52 重构建，不覆盖后来含 SQL 空位的制品。
+QA 在干净候选上发现的真实失败不能由这份旧绿测抵消。
+
+## 阻断
+
+### IR-T2-INJECT-2：SQL 管理绑定声明了不存在的依赖
+
+状态：由独立 QA 首先发现；主会话已修源，真实修复制品和 host 复验尚待。
+检查表 #2、#5、#9、#15。位置：首候选至 ebc4 的
+`packages/infra/storage-sql/src/plugin.ts:47`，`inject: [, AssemblyLifetimeService.provide]`。
+
+独立运行证据 [inject-arrays-before.json](inject-arrays-before.json) 显示：数组 length=2，
+ownIndexes 只有 `1`；Cordis 4.0.4 的实际 fiber.inject 为 `['undefined', 'assemblyLifetime']`，
+fiber.state=0，即 PENDING。显式提供 assemblyLifetime 仍不能使该 SQL 插件进入 apply。
+普通有效宿主配置因此不能启动。此结果违反 T2-S3/T2-Q0 的真实管理装配和 ready/ACTIVE 双屏障前提。
+QA 的 host 首轮 14 Pass/99 Fail 为父会话已交回的结果，最终计数须从 QA 正文和原账本读回。
+
+`cf4ce5874100c4271bd3b01327da7b81c443a39a` 将数组改为 `[AssemblyLifetimeService.provide]`。
+必须用该源实际构建的 SQL 及 host 完成启动、资源就绪、撤除和故障复验，再关闭本项。
+其余七个数组的独立值核对只能排除此种空位，不证明七个提供者已完成真实组合验收。
+
+评审者先前逐行读过这处数组，但没有把空位对应到 Cordis 的实际依赖键，这是本轮漏检。
+本报告保留 QA 的发现来源，不将后续独立复核写成评审者首次发现。
+
+### IR-T2-CLOSE-1：已准入操作尚未登记，close 可以先完成
+
+状态：e6e 的实际阻断；9587 已修，并经本次独立反例复验关闭此具体缺陷。
+检查表 #5、#14、#15。位置：e6e 的
+`packages/tenancy/account-identity-sql/src/factory.ts:47–50,75–79`。
+
+原 `run` 先执行 `work()`，再把其 Promise 放进 inFlight。
+账号 produce 在首次 await 前调用显式 `resolveCredentials`。
+该合法同步回调请求 `instance.close()`，close 此时取到空集合并完成。
+反例使用真实 SQLite 和实际 scrypt，只暂存 derive 的实际结果。
+[原结果](reentrant-close/result.json) 为：结果仍被暂存时 closed=true、produced=false；
+随后放行，produce 真正提交并成功。这违反 AI SQL SPEC 的完整 Promise 排空承诺，
+也会使装配在迟到写入前释放依赖。
+
+9587 对 AI/OG/AR/CV 改为先登记 deferred Promise，再同步执行工作并接住其结果或同步异常。
+业务步骤没有延迟到新任务中。三个原工厂正常关闭场景保留，并各增加同步重入分支。
+主会话 6 场景通过，本次另用原独立 SQLite/scrypt 夹具复跑：
+[修复结果](reentrant-close-fixed/result.json) 在暂存期间 closed=false、produced=false；
+放行后 committed=true，最后 close 完成。旧证据未改写。
+
+该复验只关闭此已给出的竞态，不替代全部提供者、实际宿主和干净 QA。
+
+## 非阻断
+
+截至本报告，没有另立能够给出具体反例的非阻断产品发现。
+结构红项已经识别，最终逐项说明尚待，列入未覆盖，不预判主会话的后续处置。
+
+## 范围外待裁决
+
+本批不关闭 A5 原 45 秒冷恢复的因果问题、PostgreSQL 整体性、完整 W6/QA-FAC-1、
+T3 公共操作、T4 插件树/EC 纯根与剩余资源服务化、N5/N6 旧映射/登记退役或 R2 模型机制。
+EC 根的 Cordis 闭包仍有实际偏离，不能用包改名、登记说明或本报告将它计为 R1 领域已达标。
+
+## 检查表读法与热点证据
+
+- #1–3：基线与逐提交差异、实际任务范围、作者 trailer 已核。约束定位增量只迁移四个旧路径，
+  增补三个公共定义和精确装配文件，未把业务提供者整包标为 assembly。IC-4 根闭包规则仍独立运行。
+- #4–7：既有测试中，事件名/公开导入迁移保持断言含义。host 局部换代改为整个管理代际关闭，
+  注册在第一步 scrypt 期间停止后答 interrupted 并保留未激活账号，符合已采用的代际边界。
+  30 秒只报告仍在停止的原阈值保持。IR-CC-1 的三字符 oracle 修订有原保密条款和固定编码碰撞依据，
+  但仅合成泄漏观察器通过不能代替真实存储/事件/诊断边界 QA。原红项不被重试抹除。
+- #8–10：公共定义与限定提供者、单一服务键/正式 Service、可选 credentials 逐调用捕获已核。
+  provides 例外仅匹配实际 host 路径、不可逃逸的表和 `scope.get(key) === undefined`；69 项含正负控。
+  这些静态工具不证明任意动态代码都安全。SQL 空位另作为已实证阻断处理。
+- #11–13：9587 的 CC 17 assemble、CC 14 createHostAssembly、AR register 重名匹配不确定及25克隆已定位。
+  未新增业务重试次数或政策默认值；算法内既有登录时限、scrypt 边界及宿主已有诊断时限未在本批重定。
+  最终结构说明仍需逐条核对，不能以总量下降覆盖本次红项。
+- #14–16：逐行读取 lifetime、helper、八绑定、两网络面、host assembly/boot 的所有权路径。
+  管理 apply 同步、ready 被立即观察、取得资源后发布前检查、资源→fiber→port→guard 的次序已对照。
+  四工厂的同步重入反例实际触发并修复。异常结果须保留失败，不能由日志代替完成。
+- #17–19：逐行读取身份 produce/login/prepared ticket、OG withParticipation/withOperation、AR各步骤，
+  以及 EC authenticate/expectedTenant/授权/共同提交路径。参与面继续携带同一 StorageUnit 并核实例身份；
+  prepared ticket 单次消费和 G 重核保持；注册仍是三次提交。通知仍在提交后，不提前发送临时成功。
+  双面直接读取 EntryOpening，isolate 未用于替代租户授权。105 个原函数体的限定比较和8份数据文件 SHA
+  是辅助读数，不是这些不变量的形式化证明。
+- #20：原模型实际执行输出存在。EC bad-no-protection 首先报 AppliedExpected，其最终 trace 同时违反
+  CheckedSameCommit；Reachability 使用 -continue，exit 0 仍实际报出九组 Never 不变量反例。
+  两个 wrapper 原误判保留。模型只证明其有限假设，不证明 SQL 实现、外部资源静止或无条件进展。
+
+另有两个读出后排除的疑点，不计发现：EC 独立 async apply 的 effect 在 Cordis `_reload` 等待 setup
+结束后才进入 `_unload`，不会在 bind 尚未返回时先完成清理；两面业务集合虽也是先调用再登记，
+但 close 在快照集合前先 await 网络排空，不能直接套用四工厂的同步快照反例。
+
+## 未覆盖与后续补审输入
+
+1. SQL 注入修复实际制品、八管理绑定与 host 的独立 QA 正控。主树新 HEAD 加旧 dist 不能构成证据。
+2. 最终提交上的 architecture/conformance/metrics；相对 BASE 的预期变化须单列。
+   9587 的18 unknown 中 SQL hole 是真实缺陷，不能全称抽取限制；其余逐项以实际运行绑定对照。
+3. 最终结构处置：3个CC红项、25克隆、49新增跨包边、130旧装配映射差分、EC根22新增路径，
+   以及旧预算/工作树风险；计数以后续精确提交重新产生的读数为准。
+4. 全52成员快慢层、pytest、最终构建/类型、CLI及严格回路的实际账本或明确未执行项。
+   CLI 5/5 的隔离输出路径仍需被传感器按正确提交/完整集读取；旧 STRICT 缺数据不算通过。
+5. 干净 QA 最终正文、资源/证据 manifest 读回，以及真实 tarball 的源码/声明/运行/外部消费四层闭包。
+   已见零散 QA 输出不等于取得其最终判定，也不由实施评审替代 QA。
+
+后续补审应追加报告，保留本轮失败、发现来源、旧输入和本报告。

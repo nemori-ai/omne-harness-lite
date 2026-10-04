@@ -1,0 +1,25 @@
+{
+  "commit": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+  "base": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+  "run_id": "r1-t2-reopen-actual-base-data",
+  "verifier": "qa",
+  "exit_code": 0,
+  "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-baseline/evidence/business-qualified/1-register-and-login.sqlite",
+  "source_before_sha256": "7780737d006340f7a2b36db58675fc0ee305c97fa609f464b7be2682a808bff2",
+  "source_after_sha256": "7780737d006340f7a2b36db58675fc0ee305c97fa609f464b7be2682a808bff2",
+  "database": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/qa-candidate/evidence/reopen-actual-base-data/preserved-base.sqlite",
+  "observed": {
+    "account_read": "activated",
+    "original_login": "same account",
+    "memberships": [
+      {
+        "organization": "lvedi6gvirlnyflvdcw4c7ehem",
+        "account": "uyeqdg53gylt4ay7ejngtpwl5i"
+      }
+    ],
+    "account_id": "uyeqdg53gylt4ay7ejngtpwl5i",
+    "login_state_id": "4a22ea0c3c249b6dd8dca12f0deddbb46f8e75c7a4b36c1ec22a82656389a6c8"
+  },
+  "records_exactly_equal": true,
+  "limit": "Actual frozen BASE case1 account/login/personal membership reopened by candidate; no claim of production data or every historical schema."
+}

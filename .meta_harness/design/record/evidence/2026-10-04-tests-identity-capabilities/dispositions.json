@@ -1,0 +1,5217 @@
+{
+  "base": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+  "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+  "source": "tmp/arch-intent/remediation/r1-t2/loop-strict-cf4/status.json",
+  "source_sha256": "3d8de71e91f5733165067de1c6b0d973bd77bfa0a891ee9f7a32b2226ccaa6ff",
+  "state": "delivery explanations; not technical acceptance",
+  "counts": {
+    "clone": 25,
+    "complexity": 3,
+    "dependency": 49,
+    "existing-complexity": 23,
+    "global-architecture": 22,
+    "legacy-assembly-projection": 130
+  },
+  "items": [
+    {
+      "group": "complexity",
+      "item": {
+        "path": "apps/tenancy-host/src/boot.ts",
+        "member": "apps/tenancy-host",
+        "name": "assemble",
+        "line": 302,
+        "endLine": 451,
+        "complexity": 17,
+        "score": 17,
+        "level": "alert",
+        "grade": 2.6875,
+        "changed": true,
+        "againstBase": {
+          "kind": "worse",
+          "baseline": 15
+        }
+      },
+      "status": "保留并说明",
+      "reason": "CC15→17来自管理装配就绪、确认后资格及收尾分支；保留直接顺序以便核对guard，真实失败路径由host/QA覆盖。",
+      "next_owner": "R1-T2实施评审；T4替换手写装配时重新读数"
+    },
+    {
+      "group": "complexity",
+      "item": {
+        "path": "packages/tenancy/account-registration-sequential/src/registration.ts",
+        "member": "packages/tenancy/account-registration-sequential",
+        "name": "createRegistrationService.register",
+        "line": 203,
+        "endLine": 255,
+        "complexity": 16,
+        "score": 16,
+        "level": "alert",
+        "grade": 3.25,
+        "changed": true,
+        "againstBase": {
+          "kind": "unsure",
+          "reason": "同一文件里同名函数现在 2 个、基线上 1 个，对不上"
+        }
+      },
+      "status": "保留并说明",
+      "reason": "名字匹配不确定；s4-business-body-preservation.json独立核对原register方法体未改。新增包装是寿命跟踪，不据同名读数认定业务复杂度增加。",
+      "next_owner": "R1-T2实施评审；T4替换手写装配时重新读数"
+    },
+    {
+      "group": "complexity",
+      "item": {
+        "path": "apps/tenancy-host/src/assembly.ts",
+        "member": "apps/tenancy-host",
+        "name": "createHostAssembly",
+        "line": 71,
+        "endLine": 217,
+        "complexity": 14,
+        "score": 14,
+        "level": "alert",
+        "grade": 4.375,
+        "changed": true,
+        "againstBase": {
+          "kind": "new",
+          "reason": "new-file"
+        }
+      },
+      "status": "保留并说明",
+      "reason": "新增CC14集中表达单代接管、逐行登记/ready/ACTIVE/服务存在性及收尾；不是业务规则。",
+      "next_owner": "R1-T2实施评审；T4替换手写装配时重新读数"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "authenticatedCaller",
+        "line": 364,
+        "endLine": 464,
+        "complexity": 22,
+        "score": 22,
+        "level": "alert",
+        "grade": 1,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 22
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/governance-center-entry-node/src/routing/caller.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "authenticate",
+        "line": 43,
+        "endLine": 87,
+        "complexity": 19,
+        "score": 19,
+        "level": "alert",
+        "grade": 1.5625,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 19
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/governance-center-entry-node/src/maintenance/catalog.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "observeBackups",
+        "line": 43,
+        "endLine": 112,
+        "complexity": 18,
+        "score": 18,
+        "level": "alert",
+        "grade": 2.125,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 18
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "decide",
+        "line": 108,
+        "endLine": 167,
+        "complexity": 18,
+        "score": 18,
+        "level": "alert",
+        "grade": 2.125,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 18
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/account-identity-sql/src/accounts.ts",
+        "member": "packages/tenancy/account-identity-sql",
+        "name": "AccountsImpl.#produceOnce",
+        "line": 92,
+        "endLine": 143,
+        "complexity": 17,
+        "score": 17,
+        "level": "alert",
+        "grade": 2.6875,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 17
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/governance-center-entry-node/src/json.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "Reader.#string",
+        "line": 242,
+        "endLine": 295,
+        "complexity": 17,
+        "score": 17,
+        "level": "alert",
+        "grade": 2.6875,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 17
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/governance-center-entry-node/src/ops/maintenance-wire.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "readOpsRequest",
+        "line": 17,
+        "endLine": 44,
+        "complexity": 17,
+        "score": 17,
+        "level": "alert",
+        "grade": 2.6875,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 17
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "changeCredential",
+        "line": 215,
+        "endLine": 286,
+        "complexity": 17,
+        "score": 17,
+        "level": "alert",
+        "grade": 2.6875,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 17
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/organization-governance-sql/src/offers.ts",
+        "member": "packages/tenancy/organization-governance-sql",
+        "name": "issueInvitation",
+        "line": 179,
+        "endLine": 251,
+        "complexity": 17,
+        "score": 17,
+        "level": "alert",
+        "grade": 2.6875,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 17
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/account-identity-sql/src/logins.ts",
+        "member": "packages/tenancy/account-identity-sql",
+        "name": "LoginsImpl.prepareCredentialChange",
+        "line": 346,
+        "endLine": 391,
+        "complexity": 14,
+        "score": 14,
+        "level": "alert",
+        "grade": 4.375,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 14
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/account-registration-sequential/src/registration.ts",
+        "member": "packages/tenancy/account-registration-sequential",
+        "name": "createRegistrationService.produce",
+        "line": 159,
+        "endLine": 201,
+        "complexity": 14,
+        "score": 14,
+        "level": "alert",
+        "grade": 4.375,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 14
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/credential-verification-scrypt/src/scrypt.ts",
+        "member": "packages/tenancy/credential-verification-scrypt",
+        "name": "decodeMaterial",
+        "line": 130,
+        "endLine": 161,
+        "complexity": 14,
+        "score": 14,
+        "level": "alert",
+        "grade": 4.375,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 14
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/governance-center-entry-node/src/ops/http1.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "RequestFramer.#scanHead",
+        "line": 126,
+        "endLine": 159,
+        "complexity": 14,
+        "score": 14,
+        "level": "alert",
+        "grade": 4.375,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 14
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/organization-governance-sql/src/memberships.ts",
+        "member": "packages/tenancy/organization-governance-sql",
+        "name": "changeRole",
+        "line": 76,
+        "endLine": 118,
+        "complexity": 14,
+        "score": 14,
+        "level": "alert",
+        "grade": 4.375,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 14
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/organization-governance-sql/src/offers.ts",
+        "member": "packages/tenancy/organization-governance-sql",
+        "name": "acceptInvitation",
+        "line": 288,
+        "endLine": 354,
+        "complexity": 14,
+        "score": 14,
+        "level": "alert",
+        "grade": 4.375,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 14
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/account-identity-sql/src/accounts.ts",
+        "member": "packages/tenancy/account-identity-sql",
+        "name": "AccountsImpl.purge",
+        "line": 287,
+        "endLine": 335,
+        "complexity": 13,
+        "score": 13,
+        "level": "alert",
+        "grade": 4.9375,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 13
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/governance-center-entry-node/src/maintenance/input.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "BackupInputFile.use",
+        "line": 57,
+        "endLine": 98,
+        "complexity": 13,
+        "score": 13,
+        "level": "alert",
+        "grade": 4.9375,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 13
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/governance-center-entry-node/src/json.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "Reader.#value",
+        "line": 134,
+        "endLine": 154,
+        "complexity": 12,
+        "score": 12,
+        "level": "warn",
+        "grade": 5.5,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 12
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/governance-center-entry-node/src/maintenance/offline.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "createOfflineMaintenance.restoreIsolated",
+        "line": 56,
+        "endLine": 152,
+        "complexity": 12,
+        "score": 12,
+        "level": "warn",
+        "grade": 5.5,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 12
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "normalize",
+        "line": 561,
+        "endLine": 580,
+        "complexity": 12,
+        "score": 12,
+        "level": "warn",
+        "grade": 5.5,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 12
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/organization-governance-sql/src/memberships.ts",
+        "member": "packages/tenancy/organization-governance-sql",
+        "name": "remove",
+        "line": 120,
+        "endLine": 160,
+        "complexity": 12,
+        "score": 12,
+        "level": "warn",
+        "grade": 5.5,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 12
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/organization-governance-sql/src/purge.ts",
+        "member": "packages/tenancy/organization-governance-sql",
+        "name": "purgePersonalOrganization",
+        "line": 29,
+        "endLine": 84,
+        "complexity": 12,
+        "score": 12,
+        "level": "warn",
+        "grade": 5.5,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 12
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "existing-complexity",
+      "item": {
+        "path": "packages/tenancy/credential-verification-scrypt/src/scrypt.ts",
+        "member": "packages/tenancy/credential-verification-scrypt",
+        "name": "scryptParametersValid",
+        "line": 36,
+        "endLine": 51,
+        "complexity": 11,
+        "score": 11,
+        "level": "warn",
+        "grade": 6.625,
+        "changed": true,
+        "againstBase": {
+          "kind": "not-worse",
+          "baseline": 11
+        }
+      },
+      "status": "保留，未恶化",
+      "reason": "该函数原已在线外，本次未增加；业务体按迁移保持义务保留。读数不代表结构已达标。",
+      "next_owner": "所属能力后续演进；本批不开展独立算法重写"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "apps/tenancy-host",
+        "to": "packages/core/account-identity",
+        "site": {
+          "path": "apps/tenancy-host/src/assembly.ts",
+          "line": 1,
+          "specifier": "@omne-harness-lite/account-identity/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "apps/tenancy-host",
+        "to": "packages/core/account-registration",
+        "site": {
+          "path": "apps/tenancy-host/src/assembly.ts",
+          "line": 6,
+          "specifier": "@omne-harness-lite/account-registration/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "apps/tenancy-host",
+        "to": "packages/core/assembly-lifecycle",
+        "site": {
+          "path": "apps/tenancy-host/src/assembly.ts",
+          "line": 16,
+          "specifier": "@omne-harness-lite/assembly-lifecycle"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "apps/tenancy-host",
+        "to": "packages/core/governance-center-entry",
+        "site": {
+          "path": "apps/tenancy-host/src/assembly.ts",
+          "line": 23,
+          "specifier": "@omne-harness-lite/governance-center-entry"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "apps/tenancy-host",
+        "to": "packages/core/organization-governance",
+        "site": {
+          "path": "apps/tenancy-host/src/assembly.ts",
+          "line": 9,
+          "specifier": "@omne-harness-lite/organization-governance/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "apps/tenancy-host",
+        "to": "packages/tenancy/account-identity-sql",
+        "site": {
+          "path": "apps/tenancy-host/src/manifest.ts",
+          "line": 10,
+          "specifier": "@omne-harness-lite/account-identity-sql/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "apps/tenancy-host",
+        "to": "packages/tenancy/account-registration-sequential",
+        "site": {
+          "path": "apps/tenancy-host/src/manifest.ts",
+          "line": 11,
+          "specifier": "@omne-harness-lite/account-registration-sequential/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "apps/tenancy-host",
+        "to": "packages/tenancy/credential-verification-scrypt",
+        "site": {
+          "path": "apps/tenancy-host/src/manifest.ts",
+          "line": 13,
+          "specifier": "@omne-harness-lite/credential-verification-scrypt/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "apps/tenancy-host",
+        "to": "packages/tenancy/governance-center-entry-node",
+        "site": {
+          "path": "apps/tenancy-host/src/boot.ts",
+          "line": 12,
+          "specifier": "@omne-harness-lite/governance-center-entry-node"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "examples/model-invocation-minimal-demo",
+        "to": "packages/core/account-identity",
+        "site": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "line": 166,
+          "specifier": "@omne-harness-lite/account-identity/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "examples/model-invocation-minimal-demo",
+        "to": "packages/core/account-registration",
+        "site": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "line": 169,
+          "specifier": "@omne-harness-lite/account-registration/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "examples/model-invocation-minimal-demo",
+        "to": "packages/tenancy/account-identity-sql",
+        "site": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "line": 165,
+          "specifier": "@omne-harness-lite/account-identity-sql/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "examples/model-invocation-minimal-demo",
+        "to": "packages/tenancy/account-registration-sequential",
+        "site": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "line": 168,
+          "specifier": "@omne-harness-lite/account-registration-sequential/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "examples/model-invocation-minimal-demo",
+        "to": "packages/tenancy/credential-verification-scrypt",
+        "site": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "line": 180,
+          "specifier": "@omne-harness-lite/credential-verification-scrypt/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "实际装配/示例同步消费公共定义或选择限定名提供者；没有把普通业务模块改成装配入口。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/core/account-identity",
+        "to": "packages/core/identity-values",
+        "site": {
+          "path": "packages/core/account-identity/src/credentials.ts",
+          "line": 1,
+          "specifier": "@omne-harness-lite/identity-values"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/core/account-identity",
+        "to": "packages/core/kernel-basis",
+        "site": {
+          "path": "packages/core/account-identity/src/types.ts",
+          "line": 8,
+          "specifier": "@omne-harness-lite/kernel-basis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/core/account-identity",
+        "to": "packages/core/offer-expiry",
+        "site": {
+          "path": "packages/core/account-identity/src/types.ts",
+          "line": 7,
+          "specifier": "@omne-harness-lite/offer-expiry"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/core/account-identity",
+        "to": "packages/core/storage",
+        "site": {
+          "path": "packages/core/account-identity/src/types.ts",
+          "line": 9,
+          "specifier": "@omne-harness-lite/storage"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/core/account-registration",
+        "to": "packages/core/account-identity",
+        "site": {
+          "path": "packages/core/account-registration/src/types.ts",
+          "line": 3,
+          "specifier": "@omne-harness-lite/account-identity"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/core/account-registration",
+        "to": "packages/core/identity-values",
+        "site": {
+          "path": "packages/core/account-registration/src/types.ts",
+          "line": 4,
+          "specifier": "@omne-harness-lite/identity-values"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/core/account-registration",
+        "to": "packages/core/organization-governance",
+        "site": {
+          "path": "packages/core/account-registration/src/types.ts",
+          "line": 5,
+          "specifier": "@omne-harness-lite/organization-governance"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/infra/clock-lease",
+        "to": "packages/core/assembly-lifecycle",
+        "site": {
+          "path": "packages/infra/clock-lease/src/plugin.ts",
+          "line": 1,
+          "specifier": "@omne-harness-lite/assembly-lifecycle/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "仅管理绑定消费统一生命周期协议/helper；纯根不由这条绑定边加载Cordis。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/infra/storage-sql",
+        "to": "packages/core/assembly-lifecycle",
+        "site": {
+          "path": "packages/infra/storage-sql/src/plugin.ts",
+          "line": 1,
+          "specifier": "@omne-harness-lite/assembly-lifecycle/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "仅管理绑定消费统一生命周期协议/helper；纯根不由这条绑定边加载Cordis。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/account-identity-sql",
+        "to": "packages/core/account-identity",
+        "site": {
+          "path": "packages/tenancy/account-identity-sql/src/accounts.ts",
+          "line": 3,
+          "specifier": "@omne-harness-lite/account-identity"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/account-identity-sql",
+        "to": "packages/core/assembly-lifecycle",
+        "site": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "line": 1,
+          "specifier": "@omne-harness-lite/assembly-lifecycle/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "仅管理绑定消费统一生命周期协议/helper；纯根不由这条绑定边加载Cordis。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/account-identity-sql",
+        "to": "packages/core/identity-values",
+        "site": {
+          "path": "packages/tenancy/account-identity-sql/src/accounts.ts",
+          "line": 8,
+          "specifier": "@omne-harness-lite/identity-values"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/account-identity-sql",
+        "to": "packages/core/kernel-basis",
+        "site": {
+          "path": "packages/tenancy/account-identity-sql/src/accounts.ts",
+          "line": 17,
+          "specifier": "@omne-harness-lite/kernel-basis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/account-identity-sql",
+        "to": "packages/core/offer-expiry",
+        "site": {
+          "path": "packages/tenancy/account-identity-sql/src/accounts.ts",
+          "line": 18,
+          "specifier": "@omne-harness-lite/offer-expiry"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/account-identity-sql",
+        "to": "packages/core/storage",
+        "site": {
+          "path": "packages/tenancy/account-identity-sql/src/accounts.ts",
+          "line": 19,
+          "specifier": "@omne-harness-lite/storage"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/account-registration-sequential",
+        "to": "packages/core/account-identity",
+        "site": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 6,
+          "specifier": "@omne-harness-lite/account-identity/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/account-registration-sequential",
+        "to": "packages/core/account-registration",
+        "site": {
+          "path": "packages/tenancy/account-registration-sequential/src/config.ts",
+          "line": 3,
+          "specifier": "@omne-harness-lite/account-registration"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/account-registration-sequential",
+        "to": "packages/core/assembly-lifecycle",
+        "site": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 1,
+          "specifier": "@omne-harness-lite/assembly-lifecycle/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "仅管理绑定消费统一生命周期协议/helper；纯根不由这条绑定边加载Cordis。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/account-registration-sequential",
+        "to": "packages/core/identity-values",
+        "site": {
+          "path": "packages/tenancy/account-registration-sequential/src/config.ts",
+          "line": 2,
+          "specifier": "@omne-harness-lite/identity-values"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/account-registration-sequential",
+        "to": "packages/core/kernel-basis",
+        "site": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 9,
+          "specifier": "@omne-harness-lite/kernel-basis/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/account-registration-sequential",
+        "to": "packages/core/organization-governance",
+        "site": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 10,
+          "specifier": "@omne-harness-lite/organization-governance/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/credential-verification-scrypt",
+        "to": "packages/core/account-identity",
+        "site": {
+          "path": "packages/tenancy/credential-verification-scrypt/src/policy.ts",
+          "line": 4,
+          "specifier": "@omne-harness-lite/account-identity"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/credential-verification-scrypt",
+        "to": "packages/core/assembly-lifecycle",
+        "site": {
+          "path": "packages/tenancy/credential-verification-scrypt/src/plugin.ts",
+          "line": 2,
+          "specifier": "@omne-harness-lite/assembly-lifecycle/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "仅管理绑定消费统一生命周期协议/helper；纯根不由这条绑定边加载Cordis。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/credential-verification-scrypt",
+        "to": "packages/core/identity-values",
+        "site": {
+          "path": "packages/tenancy/credential-verification-scrypt/src/service.ts",
+          "line": 4,
+          "specifier": "@omne-harness-lite/identity-values"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/credential-verification-scrypt",
+        "to": "packages/core/kernel-basis",
+        "site": {
+          "path": "packages/tenancy/credential-verification-scrypt/src/plugin.ts",
+          "line": 6,
+          "specifier": "@omne-harness-lite/kernel-basis/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/governance-center-entry-node",
+        "to": "packages/core/account-identity",
+        "site": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 12,
+          "specifier": "@omne-harness-lite/account-identity/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/governance-center-entry-node",
+        "to": "packages/core/account-registration",
+        "site": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 17,
+          "specifier": "@omne-harness-lite/account-registration/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/governance-center-entry-node",
+        "to": "packages/core/assembly-lifecycle",
+        "site": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 1,
+          "specifier": "@omne-harness-lite/assembly-lifecycle/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "仅管理绑定消费统一生命周期协议/helper；纯根不由这条绑定边加载Cordis。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/governance-center-entry-node",
+        "to": "packages/core/governance-center-entry",
+        "site": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 5,
+          "specifier": "@omne-harness-lite/governance-center-entry"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/governance-center-entry-node",
+        "to": "packages/core/identity-values",
+        "site": {
+          "path": "packages/tenancy/governance-center-entry-node/src/routing/caller.ts",
+          "line": 10,
+          "specifier": "@omne-harness-lite/identity-values"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/governance-center-entry-node",
+        "to": "packages/core/kernel-basis",
+        "site": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 16,
+          "specifier": "@omne-harness-lite/kernel-basis/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/governance-center-entry-node",
+        "to": "packages/core/offer-expiry",
+        "site": {
+          "path": "packages/tenancy/governance-center-entry-node/src/maintenance/metadata.ts",
+          "line": 1,
+          "specifier": "@omne-harness-lite/offer-expiry"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/governance-center-entry-node",
+        "to": "packages/core/organization-governance",
+        "site": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 7,
+          "specifier": "@omne-harness-lite/organization-governance/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/governance-center-entry-node",
+        "to": "packages/core/storage",
+        "site": {
+          "path": "packages/tenancy/governance-center-entry-node/src/center-id/migrations.ts",
+          "line": 4,
+          "specifier": "@omne-harness-lite/storage"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "定义/提供者消费唯一公共类型或必要纯函数。提供者改名令已有直接依赖显示为新增边。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "dependency",
+      "item": {
+        "from": "packages/tenancy/organization-governance-sql",
+        "to": "packages/core/assembly-lifecycle",
+        "site": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 1,
+          "specifier": "@omne-harness-lite/assembly-lifecycle/cordis"
+        }
+      },
+      "status": "保留，已核对责任",
+      "reason": "仅管理绑定消费统一生命周期协议/helper；纯根不由这条绑定边加载Cordis。",
+      "next_owner": "四层公开入口QA及域内消费者复验"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "packages/tenancy/credential-verification-scrypt/src/plugin.ts",
+          "member": "packages/tenancy/credential-verification-scrypt",
+          "start": 71,
+          "end": 88
+        },
+        "b": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "member": "packages/tenancy/account-identity-sql",
+          "start": 57,
+          "end": 74
+        },
+        "lines": 18,
+        "crossMember": true,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "各绑定显式声明自身注入和拥有资源；共同启动/停止机制已由startAssemblyWork拥有。保留小段绑定形状，不添加掩盖资源类型的通用装配工厂。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "member": "packages/tenancy/organization-governance-sql",
+          "start": 89,
+          "end": 106
+        },
+        "b": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "member": "packages/tenancy/account-identity-sql",
+          "start": 57,
+          "end": 74
+        },
+        "lines": 18,
+        "crossMember": true,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "各绑定显式声明自身注入和拥有资源；共同启动/停止机制已由startAssemblyWork拥有。保留小段绑定形状，不添加掩盖资源类型的通用装配工厂。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "packages/tenancy/organization-governance-sql/src/factory.ts",
+          "member": "packages/tenancy/organization-governance-sql",
+          "start": 34,
+          "end": 48
+        },
+        "b": {
+          "path": "packages/tenancy/account-identity-sql/src/factory.ts",
+          "member": "packages/tenancy/account-identity-sql",
+          "start": 48,
+          "end": 62
+        },
+        "lines": 15,
+        "crossMember": true,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "完整Promise登记代码相似；不同工厂的停后结果、同步操作、参与面和票据销毁责任不同。IR-T2-CLOSE-1已统一修复登记顺序，三组正常/重入回归及独立反例复验支持，暂不引入另一项公共生命周期政策。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "packages/tenancy/account-registration-sequential/src/registration.ts",
+          "member": "packages/tenancy/account-registration-sequential",
+          "start": 112,
+          "end": 125
+        },
+        "b": {
+          "path": "packages/tenancy/account-identity-sql/src/factory.ts",
+          "member": "packages/tenancy/account-identity-sql",
+          "start": 49,
+          "end": 62
+        },
+        "lines": 14,
+        "crossMember": true,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "完整Promise登记代码相似；不同工厂的停后结果、同步操作、参与面和票据销毁责任不同。IR-T2-CLOSE-1已统一修复登记顺序，三组正常/重入回归及独立反例复验支持，暂不引入另一项公共生命周期政策。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "packages/tenancy/governance-center-entry-node/src/maintenance/failure.ts",
+          "member": "packages/tenancy/governance-center-entry-node",
+          "start": 69,
+          "end": 82
+        },
+        "b": {
+          "path": "packages/infra/storage-sql/src/maintenance/failure.ts",
+          "member": "packages/infra/storage-sql",
+          "start": 51,
+          "end": 64
+        },
+        "lines": 14,
+        "crossMember": true,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "既有事务/路由/维护路径的相似片段随原业务保持。本批没有合并这些算法或改变原失败与资源边界。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "packages/tenancy/organization-governance-sql/src/config.ts",
+          "member": "packages/tenancy/organization-governance-sql",
+          "start": 22,
+          "end": 27
+        },
+        "b": {
+          "path": "packages/tenancy/account-registration-sequential/src/config.ts",
+          "member": "packages/tenancy/account-registration-sequential",
+          "start": 11,
+          "end": 16
+        },
+        "lines": 6,
+        "crossMember": true,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "各提供者严格校验自己的签名/参数配置，六行形状相近不构成共享业务权威；保留配置拥有者。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2589,
+          "end": 2603
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 443,
+          "end": 458
+        },
+        "lines": 15,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2670,
+          "end": 2683
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 467,
+          "end": 481
+        },
+        "lines": 14,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "packages/tenancy/governance-center-entry-node/src/maintenance/publication.ts",
+          "member": "packages/tenancy/governance-center-entry-node",
+          "start": 37,
+          "end": 48
+        },
+        "b": {
+          "path": "packages/tenancy/governance-center-entry-node/src/maintenance/input.ts",
+          "member": "packages/tenancy/governance-center-entry-node",
+          "start": 64,
+          "end": 74
+        },
+        "lines": 12,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "既有事务/路由/维护路径的相似片段随原业务保持。本批没有合并这些算法或改变原失败与资源边界。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+          "member": "packages/tenancy/governance-center-entry-node",
+          "start": 350,
+          "end": 361
+        },
+        "b": {
+          "path": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+          "member": "packages/tenancy/governance-center-entry-node",
+          "start": 237,
+          "end": 248
+        },
+        "lines": 12,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "既有事务/路由/维护路径的相似片段随原业务保持。本批没有合并这些算法或改变原失败与资源边界。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2272,
+          "end": 2282
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 481,
+          "end": 492
+        },
+        "lines": 11,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2001,
+          "end": 2009
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1932,
+          "end": 1940
+        },
+        "lines": 9,
+        "crossMember": false,
+        "bEndEstimated": true
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "member": "packages/tenancy/governance-center-entry-node",
+          "start": 393,
+          "end": 401
+        },
+        "b": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "member": "packages/tenancy/governance-center-entry-node",
+          "start": 335,
+          "end": 343
+        },
+        "lines": 9,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "各绑定显式声明自身注入和拥有资源；共同启动/停止机制已由startAssemblyWork拥有。保留小段绑定形状，不添加掩盖资源类型的通用装配工厂。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1990,
+          "end": 1997
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1926,
+          "end": 1933
+        },
+        "lines": 8,
+        "crossMember": false,
+        "bEndEstimated": true
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "packages/tenancy/organization-governance-sql/src/offers.ts",
+          "member": "packages/tenancy/organization-governance-sql",
+          "start": 696,
+          "end": 703
+        },
+        "b": {
+          "path": "packages/tenancy/organization-governance-sql/src/offers.ts",
+          "member": "packages/tenancy/organization-governance-sql",
+          "start": 658,
+          "end": 665
+        },
+        "lines": 8,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "既有事务/路由/维护路径的相似片段随原业务保持。本批没有合并这些算法或改变原失败与资源边界。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1875,
+          "end": 1881
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1826,
+          "end": 1832
+        },
+        "lines": 7,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2800,
+          "end": 2806
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2791,
+          "end": 2797
+        },
+        "lines": 7,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1907,
+          "end": 1912
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1827,
+          "end": 1832
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1966,
+          "end": 1971
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1926,
+          "end": 1931
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1972,
+          "end": 1977
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1932,
+          "end": 1937
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2311,
+          "end": 2316
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2074,
+          "end": 2080
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2553,
+          "end": 2558
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2537,
+          "end": 2542
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2722,
+          "end": 2727
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2288,
+          "end": 2293
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2810,
+          "end": 2815
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2075,
+          "end": 2081
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "本批仅调整该真实消费者的公开导入；重复业务编排没有重写。Session/模型协调迁移明确由R2接续。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "clone",
+      "item": {
+        "a": {
+          "path": "packages/tenancy/organization-governance-sql/src/offers.ts",
+          "member": "packages/tenancy/organization-governance-sql",
+          "start": 383,
+          "end": 388
+        },
+        "b": {
+          "path": "packages/tenancy/organization-governance-sql/src/offers.ts",
+          "member": "packages/tenancy/organization-governance-sql",
+          "start": 223,
+          "end": 228
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "status": "保留并说明",
+      "reason": "既有事务/路由/维护路径的相似片段随原业务保持。本批没有合并这些算法或改变原失败与资源边界。",
+      "next_owner": "R2（示例）或原能力拥有者；不以此关闭后继整改"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "apps/tenancy-host||top|plugin|HostEntryOpening|||",
+        "member": "apps/tenancy-host",
+        "kind": "plugin",
+        "key": "HostEntryOpening",
+        "state": "deviation",
+        "implementation": {
+          "path": "apps/tenancy-host/src/assembly.ts",
+          "line": 59
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "apps/tenancy-host||top|plugin|HostLifetimePort|||",
+        "member": "apps/tenancy-host",
+        "kind": "plugin",
+        "key": "HostLifetimePort",
+        "state": "deviation",
+        "implementation": {
+          "path": "apps/tenancy-host/src/assembly.ts",
+          "line": 48
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "apps/tenancy-host||top|provides|assemblyLifetime|||",
+        "member": "apps/tenancy-host",
+        "kind": "provides",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 6
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "apps/tenancy-host||top|provides|entryOpening|||",
+        "member": "apps/tenancy-host",
+        "kind": "provides",
+        "key": "entryOpening",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/governance-center-entry/src/cordis.ts",
+          "line": 6
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "apps/tenancy-host|HostEntryOpening|top|provides|entryOpening|||",
+        "member": "apps/tenancy-host",
+        "kind": "provides",
+        "key": "entryOpening",
+        "state": "deviation",
+        "plugin": "HostEntryOpening",
+        "implementation": {
+          "path": "packages/core/governance-center-entry/src/cordis.ts",
+          "line": 6
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "apps/tenancy-host|HostLifetimePort|top|provides|assemblyLifetime|||",
+        "member": "apps/tenancy-host",
+        "kind": "provides",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "HostLifetimePort",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 6
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/core/account-identity||top|defines|accounts|||",
+        "member": "packages/core/account-identity",
+        "kind": "defines",
+        "key": "accounts",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 58
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/core/account-identity||top|defines|accounts|||",
+        "member": "packages/core/account-identity",
+        "kind": "defines",
+        "key": "accounts",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 11
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/core/account-identity||top|defines|credentials|||",
+        "member": "packages/core/account-identity",
+        "kind": "defines",
+        "key": "credentials",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 60
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/core/account-identity||top|defines|credentials|||",
+        "member": "packages/core/account-identity",
+        "kind": "defines",
+        "key": "credentials",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 44
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/core/account-identity||top|defines|logins|||",
+        "member": "packages/core/account-identity",
+        "kind": "defines",
+        "key": "logins",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 59
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/core/account-identity||top|defines|logins|||",
+        "member": "packages/core/account-identity",
+        "kind": "defines",
+        "key": "logins",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 26
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/core/account-registration||top|defines|registration|||",
+        "member": "packages/core/account-registration",
+        "kind": "defines",
+        "key": "registration",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/account-registration/src/cordis.ts",
+          "line": 17
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/core/account-registration||top|defines|registration|||",
+        "member": "packages/core/account-registration",
+        "kind": "defines",
+        "key": "registration",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/account-registration/src/cordis.ts",
+          "line": 6
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/core/assembly-lifecycle||top|defines|assemblyLifetime|||",
+        "member": "packages/core/assembly-lifecycle",
+        "kind": "defines",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 55
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/core/assembly-lifecycle||top|defines|assemblyLifetime|||",
+        "member": "packages/core/assembly-lifecycle",
+        "kind": "defines",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 6
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/core/governance-center-entry||top|defines|entryOpening|||",
+        "member": "packages/core/governance-center-entry",
+        "kind": "defines",
+        "key": "entryOpening",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/governance-center-entry/src/cordis.ts",
+          "line": 17
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/core/governance-center-entry||top|defines|entryOpening|||",
+        "member": "packages/core/governance-center-entry",
+        "kind": "defines",
+        "key": "entryOpening",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/governance-center-entry/src/cordis.ts",
+          "line": 6
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/infra/clock-lease||top|plugin|clock-lease-managed|||",
+        "member": "packages/infra/clock-lease",
+        "kind": "plugin",
+        "key": "clock-lease-managed",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/infra/clock-lease/src/plugin.ts",
+          "line": 34
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/infra/clock-lease|clock-lease-managed|top|contributes|assemblyLifetime|||",
+        "member": "packages/infra/clock-lease",
+        "kind": "contributes",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "clock-lease-managed",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 22
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AST记录register形态；此处实际是OwnedWork登记到本行assemblyLifetime，不是新增领域贡献注册表。责任归retirement.md及assembly-lifecycle/SPEC.md。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/infra/clock-lease|clock-lease-managed|top|injects|assemblyLifetime|||",
+        "member": "packages/infra/clock-lease",
+        "kind": "injects",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "clock-lease-managed",
+        "implementation": {
+          "path": "packages/infra/clock-lease/src/plugin.ts",
+          "line": 35
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/infra/clock-lease|clock-lease-managed|top|injects|storage|||",
+        "member": "packages/infra/clock-lease",
+        "kind": "injects",
+        "key": "storage",
+        "state": "deviation",
+        "plugin": "clock-lease-managed",
+        "implementation": {
+          "path": "packages/infra/clock-lease/src/plugin.ts",
+          "line": 35
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/infra/clock-lease|clock-lease-managed|top|provides|clock|||",
+        "member": "packages/infra/clock-lease",
+        "kind": "provides",
+        "key": "clock",
+        "state": "deviation",
+        "plugin": "clock-lease-managed",
+        "implementation": {
+          "path": "packages/core/offer-expiry/src/cordis.ts",
+          "line": 6
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/infra/storage-sql||top|plugin|storage-sql-managed|||",
+        "member": "packages/infra/storage-sql",
+        "kind": "plugin",
+        "key": "storage-sql-managed",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/infra/storage-sql/src/plugin.ts",
+          "line": 45
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/infra/storage-sql|storage-sql-managed|top|contributes|assemblyLifetime|||",
+        "member": "packages/infra/storage-sql",
+        "kind": "contributes",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "storage-sql-managed",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 22
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AST记录register形态；此处实际是OwnedWork登记到本行assemblyLifetime，不是新增领域贡献注册表。责任归retirement.md及assembly-lifecycle/SPEC.md。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/infra/storage-sql|storage-sql-managed|top|injects|assemblyLifetime|||",
+        "member": "packages/infra/storage-sql",
+        "kind": "injects",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "storage-sql-managed",
+        "implementation": {
+          "path": "packages/infra/storage-sql/src/plugin.ts",
+          "line": 46
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/infra/storage-sql|storage-sql-managed|top|provides|storage|||",
+        "member": "packages/infra/storage-sql",
+        "kind": "provides",
+        "key": "storage",
+        "state": "deviation",
+        "plugin": "storage-sql-managed",
+        "implementation": {
+          "path": "packages/core/storage/src/cordis.ts",
+          "line": 6
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql||top|plugin|account-identity-sql-managed|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "plugin",
+        "key": "account-identity-sql-managed",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "line": 55
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql||top|plugin|account-identity-sql|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "plugin",
+        "key": "account-identity-sql",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "line": 43
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql||top|plugin|AccountsSqlService|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "plugin",
+        "key": "AccountsSqlService",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/provided-services.ts",
+          "line": 7
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql||top|plugin|LoginsSqlService|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "plugin",
+        "key": "LoginsSqlService",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/provided-services.ts",
+          "line": 23
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql-managed|top|contributes|assemblyLifetime|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "contributes",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "account-identity-sql-managed",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 22
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AST记录register形态；此处实际是OwnedWork登记到本行assemblyLifetime，不是新增领域贡献注册表。责任归retirement.md及assembly-lifecycle/SPEC.md。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql-managed|top|emits|account-identity/account-activated|emit||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "emits",
+        "key": "account-identity/account-activated",
+        "state": "deviation",
+        "plugin": "account-identity-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/notifier.ts",
+          "line": 21
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AI/OG事件按已采用事件映射改名，旧名不双发；载荷、提交后时点和失败诊断保持，原业务测试/QA接续。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql-managed|top|emits|account-identity/account-expired|emit||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "emits",
+        "key": "account-identity/account-expired",
+        "state": "deviation",
+        "plugin": "account-identity-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/notifier.ts",
+          "line": 29
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AI/OG事件按已采用事件映射改名，旧名不双发；载荷、提交后时点和失败诊断保持，原业务测试/QA接续。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql-managed|top|emits|account-identity/login-revoked|emit||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "emits",
+        "key": "account-identity/login-revoked",
+        "state": "deviation",
+        "plugin": "account-identity-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/notifier.ts",
+          "line": 25
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AI/OG事件按已采用事件映射改名，旧名不双发；载荷、提交后时点和失败诊断保持，原业务测试/QA接续。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql-managed|top|injects|assemblyLifetime|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "injects",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "account-identity-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "line": 56
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql-managed|top|injects|clock|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "injects",
+        "key": "clock",
+        "state": "deviation",
+        "plugin": "account-identity-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "line": 56
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql-managed|top|injects|storage|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "injects",
+        "key": "storage",
+        "state": "deviation",
+        "plugin": "account-identity-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "line": 56
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql-managed|top|optional|credentials|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "optional",
+        "key": "credentials",
+        "state": "deviation",
+        "plugin": "account-identity-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "line": 32
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AI逐调用credentials可选解析保持AI3语义；入口credentials仍必需，未把二者混同。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql-managed|top|provides|accounts|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "provides",
+        "key": "accounts",
+        "state": "deviation",
+        "plugin": "account-identity-sql-managed",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 11
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql-managed|top|provides|logins|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "provides",
+        "key": "logins",
+        "state": "deviation",
+        "plugin": "account-identity-sql-managed",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 26
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql|top|emits|account-identity/account-activated|emit||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "emits",
+        "key": "account-identity/account-activated",
+        "state": "deviation",
+        "plugin": "account-identity-sql",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/notifier.ts",
+          "line": 21
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AI/OG事件按已采用事件映射改名，旧名不双发；载荷、提交后时点和失败诊断保持，原业务测试/QA接续。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql|top|emits|account-identity/account-expired|emit||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "emits",
+        "key": "account-identity/account-expired",
+        "state": "deviation",
+        "plugin": "account-identity-sql",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/notifier.ts",
+          "line": 29
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AI/OG事件按已采用事件映射改名，旧名不双发；载荷、提交后时点和失败诊断保持，原业务测试/QA接续。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql|top|emits|account-identity/login-revoked|emit||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "emits",
+        "key": "account-identity/login-revoked",
+        "state": "deviation",
+        "plugin": "account-identity-sql",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/notifier.ts",
+          "line": 25
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AI/OG事件按已采用事件映射改名，旧名不双发；载荷、提交后时点和失败诊断保持，原业务测试/QA接续。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql|top|injects|clock|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "injects",
+        "key": "clock",
+        "state": "deviation",
+        "plugin": "account-identity-sql",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "line": 44
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql|top|injects|storage|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "injects",
+        "key": "storage",
+        "state": "deviation",
+        "plugin": "account-identity-sql",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "line": 44
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql|top|optional|credentials|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "optional",
+        "key": "credentials",
+        "state": "deviation",
+        "plugin": "account-identity-sql",
+        "implementation": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "line": 32
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AI逐调用credentials可选解析保持AI3语义；入口credentials仍必需，未把二者混同。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql|top|provides|accounts|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "provides",
+        "key": "accounts",
+        "state": "deviation",
+        "plugin": "account-identity-sql",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 11
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|account-identity-sql|top|provides|logins|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "provides",
+        "key": "logins",
+        "state": "deviation",
+        "plugin": "account-identity-sql",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 26
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|AccountsSqlService|top|provides|accounts|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "provides",
+        "key": "accounts",
+        "state": "deviation",
+        "plugin": "AccountsSqlService",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 11
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-identity-sql|LoginsSqlService|top|provides|logins|||",
+        "member": "packages/tenancy/account-identity-sql",
+        "kind": "provides",
+        "key": "logins",
+        "state": "deviation",
+        "plugin": "LoginsSqlService",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 26
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-registration-sequential||top|plugin|account-registration-sequential-managed|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "plugin",
+        "key": "account-registration-sequential-managed",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 50
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-registration-sequential||top|plugin|account-registration-sequential|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "plugin",
+        "key": "account-registration-sequential",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 38
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-registration-sequential||top|plugin|SequentialRegistration|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "plugin",
+        "key": "SequentialRegistration",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/account-registration-sequential/src/provided-services.ts",
+          "line": 5
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-registration-sequential|account-registration-sequential-managed|top|contributes|assemblyLifetime|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "contributes",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "account-registration-sequential-managed",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 22
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AST记录register形态；此处实际是OwnedWork登记到本行assemblyLifetime，不是新增领域贡献注册表。责任归retirement.md及assembly-lifecycle/SPEC.md。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-registration-sequential|account-registration-sequential-managed|top|injects|assemblyLifetime|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "injects",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "account-registration-sequential-managed",
+        "implementation": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 53
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-registration-sequential|account-registration-sequential-managed|top|provides|registration|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "provides",
+        "key": "registration",
+        "state": "deviation",
+        "plugin": "account-registration-sequential-managed",
+        "implementation": {
+          "path": "packages/core/account-registration/src/cordis.ts",
+          "line": 6
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-registration-sequential|account-registration-sequential|top|injects|accounts|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "injects",
+        "key": "accounts",
+        "state": "deviation",
+        "plugin": "account-registration-sequential",
+        "implementation": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 39
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-registration-sequential|account-registration-sequential|top|injects|organizationPurge|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "injects",
+        "key": "organizationPurge",
+        "state": "deviation",
+        "plugin": "account-registration-sequential",
+        "implementation": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 39
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-registration-sequential|account-registration-sequential|top|injects|organizations|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "injects",
+        "key": "organizations",
+        "state": "deviation",
+        "plugin": "account-registration-sequential",
+        "implementation": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 39
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-registration-sequential|account-registration-sequential|top|provides|registration|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "provides",
+        "key": "registration",
+        "state": "deviation",
+        "plugin": "account-registration-sequential",
+        "implementation": {
+          "path": "packages/core/account-registration/src/cordis.ts",
+          "line": 6
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/account-registration-sequential|SequentialRegistration|top|provides|registration|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "provides",
+        "key": "registration",
+        "state": "deviation",
+        "plugin": "SequentialRegistration",
+        "implementation": {
+          "path": "packages/core/account-registration/src/cordis.ts",
+          "line": 6
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/credential-verification-scrypt||top|plugin|credential-verification-scrypt-managed|||",
+        "member": "packages/tenancy/credential-verification-scrypt",
+        "kind": "plugin",
+        "key": "credential-verification-scrypt-managed",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/credential-verification-scrypt/src/plugin.ts",
+          "line": 69
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/credential-verification-scrypt||top|plugin|credential-verification-scrypt|||",
+        "member": "packages/tenancy/credential-verification-scrypt",
+        "kind": "plugin",
+        "key": "credential-verification-scrypt",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/credential-verification-scrypt/src/plugin.ts",
+          "line": 58
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/credential-verification-scrypt||top|plugin|ScryptCredentials|||",
+        "member": "packages/tenancy/credential-verification-scrypt",
+        "kind": "plugin",
+        "key": "ScryptCredentials",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/credential-verification-scrypt/src/provided-services.ts",
+          "line": 5
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/credential-verification-scrypt|credential-verification-scrypt-managed|top|contributes|assemblyLifetime|||",
+        "member": "packages/tenancy/credential-verification-scrypt",
+        "kind": "contributes",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "credential-verification-scrypt-managed",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 22
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AST记录register形态；此处实际是OwnedWork登记到本行assemblyLifetime，不是新增领域贡献注册表。责任归retirement.md及assembly-lifecycle/SPEC.md。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/credential-verification-scrypt|credential-verification-scrypt-managed|top|injects|assemblyLifetime|||",
+        "member": "packages/tenancy/credential-verification-scrypt",
+        "kind": "injects",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "credential-verification-scrypt-managed",
+        "implementation": {
+          "path": "packages/tenancy/credential-verification-scrypt/src/plugin.ts",
+          "line": 70
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/credential-verification-scrypt|credential-verification-scrypt-managed|top|provides|credentials|||",
+        "member": "packages/tenancy/credential-verification-scrypt",
+        "kind": "provides",
+        "key": "credentials",
+        "state": "deviation",
+        "plugin": "credential-verification-scrypt-managed",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 44
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/credential-verification-scrypt|credential-verification-scrypt|top|provides|credentials|||",
+        "member": "packages/tenancy/credential-verification-scrypt",
+        "kind": "provides",
+        "key": "credentials",
+        "state": "deviation",
+        "plugin": "credential-verification-scrypt",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 44
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/credential-verification-scrypt|ScryptCredentials|top|provides|credentials|||",
+        "member": "packages/tenancy/credential-verification-scrypt",
+        "kind": "provides",
+        "key": "credentials",
+        "state": "deviation",
+        "plugin": "ScryptCredentials",
+        "implementation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 44
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node||top|plugin|governance-center-entry-node-managed|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "plugin",
+        "key": "governance-center-entry-node-managed",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 388
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node||top|plugin|governance-center-entry-node-ops-managed|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "plugin",
+        "key": "governance-center-entry-node-ops-managed",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 325
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node||top|plugin|governance-center-entry-node-ops|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "plugin",
+        "key": "governance-center-entry-node-ops",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 313
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node||top|plugin|governance-center-entry-node|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "plugin",
+        "key": "governance-center-entry-node",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 376
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|contributes|assemblyLifetime|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "contributes",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 22
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AST记录register形态；此处实际是OwnedWork登记到本行assemblyLifetime，不是新增领域贡献注册表。责任归retirement.md及assembly-lifecycle/SPEC.md。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|emits|governance-center-entry/defect|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/defect",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 252
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|emits|governance-center-entry/serving|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/serving",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 245
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|emits|governance-center-entry/stopped|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/stopped",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 268
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|injects|assemblyLifetime|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 389
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|listens|governance-center-ops/listening|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-ops/listening",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 348
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|contributes|assemblyLifetime|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "contributes",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 22
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AST记录register形态；此处实际是OwnedWork登记到本行assemblyLifetime，不是新增领域贡献注册表。责任归retirement.md及assembly-lifecycle/SPEC.md。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|emits|governance-center-ops/listening|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-ops/listening",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 289
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|injects|assemblyLifetime|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 330
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|injects|clock|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "clock",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 328
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|injects|entryOpening|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "entryOpening",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 329
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|injects|storage|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "storage",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 327
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|listens|governance-center-entry/defect|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/defect",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 275
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|listens|governance-center-entry/serving|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/serving",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 273
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|listens|governance-center-entry/stopped|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/stopped",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 274
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops|top|emits|governance-center-ops/listening|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-ops/listening",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 289
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops|top|injects|clock|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "clock",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 314
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops|top|injects|entryOpening|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "entryOpening",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 314
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops|top|injects|storage|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "storage",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 314
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops|top|listens|governance-center-entry/defect|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/defect",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 275
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops|top|listens|governance-center-entry/serving|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/serving",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 273
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops|top|listens|governance-center-entry/stopped|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/stopped",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 274
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|emits|governance-center-entry/defect|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/defect",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 252
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|emits|governance-center-entry/serving|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/serving",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 245
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|emits|governance-center-entry/stopped|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/stopped",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 268
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|injects|accounts|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "accounts",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 367
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|injects|clock|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "clock",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 364
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|injects|credentials|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "credentials",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 365
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|injects|entryOpening|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "entryOpening",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 372
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|injects|logins|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "logins",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 366
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|injects|memberships|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "memberships",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 370
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|injects|offers|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "offers",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 371
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|injects|organizations|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "organizations",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 369
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|injects|registration|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "registration",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 368
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|injects|storage|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "storage",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 363
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|listens|governance-center-ops/listening|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-ops/listening",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 348
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "EC原事件名字/载荷/时点随提供者改名保持，独立及managed出口都可观察；事件公开定义最终迁移仍在T4。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql||top|plugin|organization-governance-sql-managed|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "plugin",
+        "key": "organization-governance-sql-managed",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 84
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql||top|plugin|organization-governance-sql|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "plugin",
+        "key": "organization-governance-sql",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 72
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "限定名独立/managed出口或host私有Service，按retirement.md精确绑定表/装配责任采用。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|contributes|assemblyLifetime|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "contributes",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 22
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AST记录register形态；此处实际是OwnedWork登记到本行assemblyLifetime，不是新增领域贡献注册表。责任归retirement.md及assembly-lifecycle/SPEC.md。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|injects|assemblyLifetime|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "injects",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 87
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|optional|accounts|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "optional",
+        "key": "accounts",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 45
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AST把get读面列作optional；实际插件inject仍必需声明storage/clock/accounts/logins。依赖必需性以公开插件元数据及真实缺依赖观察为准。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|optional|clock|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "optional",
+        "key": "clock",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 44
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AST把get读面列作optional；实际插件inject仍必需声明storage/clock/accounts/logins。依赖必需性以公开插件元数据及真实缺依赖观察为准。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|optional|logins|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "optional",
+        "key": "logins",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 46
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AST把get读面列作optional；实际插件inject仍必需声明storage/clock/accounts/logins。依赖必需性以公开插件元数据及真实缺依赖观察为准。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|optional|storage|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "optional",
+        "key": "storage",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 39
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "AST把get读面列作optional；实际插件inject仍必需声明storage/clock/accounts/logins。依赖必需性以公开插件元数据及真实缺依赖观察为准。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|provides|memberships|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "provides",
+        "key": "memberships",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/core/organization-governance/src/cordis.ts",
+          "line": 54
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|provides|offers|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "provides",
+        "key": "offers",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/core/organization-governance/src/cordis.ts",
+          "line": 30
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|provides|organizationPurge|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "provides",
+        "key": "organizationPurge",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/core/organization-governance/src/cordis.ts",
+          "line": 73
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|provides|organizations|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "provides",
+        "key": "organizations",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/core/organization-governance/src/cordis.ts",
+          "line": 12
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql|top|injects|accounts|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "injects",
+        "key": "accounts",
+        "state": "deviation",
+        "plugin": "organization-governance-sql",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 73
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql|top|injects|clock|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "injects",
+        "key": "clock",
+        "state": "deviation",
+        "plugin": "organization-governance-sql",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 73
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql|top|injects|logins|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "injects",
+        "key": "logins",
+        "state": "deviation",
+        "plugin": "organization-governance-sql",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 73
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql|top|injects|storage|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "injects",
+        "key": "storage",
+        "state": "deviation",
+        "plugin": "organization-governance-sql",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 73
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "按已采用绑定表的必需依赖；真实8出口数组及缺依赖/重复apply由独立QA核对，不能由本AST记录推断可运行。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql|top|provides|memberships|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "provides",
+        "key": "memberships",
+        "state": "deviation",
+        "plugin": "organization-governance-sql",
+        "implementation": {
+          "path": "packages/core/organization-governance/src/cordis.ts",
+          "line": 54
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql|top|provides|offers|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "provides",
+        "key": "offers",
+        "state": "deviation",
+        "plugin": "organization-governance-sql",
+        "implementation": {
+          "path": "packages/core/organization-governance/src/cordis.ts",
+          "line": 30
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql|top|provides|organizationPurge|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "provides",
+        "key": "organizationPurge",
+        "state": "deviation",
+        "plugin": "organization-governance-sql",
+        "implementation": {
+          "path": "packages/core/organization-governance/src/cordis.ts",
+          "line": 73
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "legacy-assembly-projection",
+      "item": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql|top|provides|organizations|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "provides",
+        "key": "organizations",
+        "state": "deviation",
+        "plugin": "organization-governance-sql",
+        "implementation": {
+          "path": "packages/core/organization-governance/src/cordis.ts",
+          "line": 12
+        }
+      },
+      "status": "保留原读数，逐项接续新源",
+      "reason": "新公共Service/限定名提供者按identity-integration/design.md归属；旧realization投影未表达这组定义与实现坐标。",
+      "next_owner": "T2限定接受/实际QA尚待；未迁业务约束继续有效，N5/N6接续退役旧映射"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/account-identity/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Context",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/account-identity/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/account-identity",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/core/account-identity\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/account-identity",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Context",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/core/account-identity\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Context"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/account-identity/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Service",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/account-identity/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/account-identity",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Service",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/core/account-identity\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Service"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/account-identity/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/account-identity",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Service",
+          "type": false,
+          "form": "import",
+          "id": "[\"packages/core/account-identity\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Service"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/account-registration/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Context",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/account-registration/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/account-registration",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/core/account-registration\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/account-registration/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/account-registration",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Context",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/core/account-registration\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Context"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/account-registration/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Service",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/account-registration/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/account-registration",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Service",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/core/account-registration\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Service"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/account-registration/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/account-registration",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Service",
+          "type": false,
+          "form": "import",
+          "id": "[\"packages/core/account-registration\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Service"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/assembly-lifecycle/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Context",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/assembly-lifecycle",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/core/assembly-lifecycle\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/assembly-lifecycle",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Context",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/core/assembly-lifecycle\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Context"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/assembly-lifecycle/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Service",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/assembly-lifecycle",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Service",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/core/assembly-lifecycle\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Service"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/assembly-lifecycle",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Service",
+          "type": false,
+          "form": "import",
+          "id": "[\"packages/core/assembly-lifecycle\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Service"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/governance-center-entry/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Context",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/governance-center-entry/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/governance-center-entry",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/core/governance-center-entry\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/governance-center-entry/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/governance-center-entry",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Context",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/core/governance-center-entry\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Context"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/governance-center-entry/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Service",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/governance-center-entry/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/governance-center-entry",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Service",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/core/governance-center-entry\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Service"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/governance-center-entry/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/governance-center-entry",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Service",
+          "type": false,
+          "form": "import",
+          "id": "[\"packages/core/governance-center-entry\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Service"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/kernel-basis/src/fiber-state.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Context",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/kernel-basis/src/fiber-state.ts",
+            "line": 1,
+            "member": "packages/core/kernel-basis",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/core/kernel-basis\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/kernel-basis/src/fiber-state.ts",
+          "line": 1,
+          "member": "packages/core/kernel-basis",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Context",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/core/kernel-basis\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Context"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/kernel-basis/src/plugin.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Context",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/kernel-basis/src/plugin.ts",
+            "line": 1,
+            "member": "packages/core/kernel-basis",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/core/kernel-basis\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/kernel-basis/src/plugin.ts",
+          "line": 1,
+          "member": "packages/core/kernel-basis",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Context",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/core/kernel-basis\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Context"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/kernel-basis/src/plugin.ts\",\"@deepseek-ai/cordis\",\"Inject\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Inject",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/kernel-basis/src/plugin.ts",
+            "line": 1,
+            "member": "packages/core/kernel-basis",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Inject",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/core/kernel-basis\",\"@deepseek-ai/cordis\",\"Inject\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Inject"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/kernel-basis/src/plugin.ts",
+          "line": 1,
+          "member": "packages/core/kernel-basis",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Inject",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/core/kernel-basis\",\"@deepseek-ai/cordis\",\"Inject\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Inject"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/kernel-basis/src/plugin.ts\",\"@deepseek-ai/cordis\",\"Plugin\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Plugin",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/kernel-basis/src/plugin.ts",
+            "line": 1,
+            "member": "packages/core/kernel-basis",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Plugin",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/core/kernel-basis\",\"@deepseek-ai/cordis\",\"Plugin\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Plugin"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/kernel-basis/src/plugin.ts",
+          "line": 1,
+          "member": "packages/core/kernel-basis",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Plugin",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/core/kernel-basis\",\"@deepseek-ai/cordis\",\"Plugin\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Plugin"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/offer-expiry/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Context",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/offer-expiry/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/offer-expiry",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/core/offer-expiry\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/offer-expiry/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/offer-expiry",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Context",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/core/offer-expiry\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Context"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/offer-expiry/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Service",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/offer-expiry/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/offer-expiry",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Service",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/core/offer-expiry\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Service"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/offer-expiry/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/offer-expiry",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Service",
+          "type": false,
+          "form": "import",
+          "id": "[\"packages/core/offer-expiry\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Service"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/organization-governance/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Context",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/organization-governance/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/organization-governance",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/core/organization-governance\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/organization-governance/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/organization-governance",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Context",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/core/organization-governance\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Context"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/organization-governance/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Service",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/organization-governance/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/organization-governance",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Service",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/core/organization-governance\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Service"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/organization-governance/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/organization-governance",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Service",
+          "type": false,
+          "form": "import",
+          "id": "[\"packages/core/organization-governance\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Service"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/storage/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Context",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/storage/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/storage",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/core/storage\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/storage/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/storage",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Context",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/core/storage\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Context"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/core/storage/src/cordis.ts\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Service",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/core/storage/src/cordis.ts",
+            "line": 1,
+            "member": "packages/core/storage",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Service",
+            "type": false,
+            "form": "import",
+            "id": "[\"packages/core/storage\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Service"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/core/storage/src/cordis.ts",
+          "line": 1,
+          "member": "packages/core/storage",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Service",
+          "type": false,
+          "form": "import",
+          "id": "[\"packages/core/storage\",\"@deepseek-ai/cordis\",\"Service\",false,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Service"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/tenancy/governance-center-entry-node/src/ops/plugin.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Context",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+            "line": 12,
+            "member": "packages/tenancy/governance-center-entry-node",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/tenancy/governance-center-entry-node\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 12,
+          "member": "packages/tenancy/governance-center-entry-node",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Context",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/tenancy/governance-center-entry-node\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Context"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/tenancy/governance-center-entry-node/src/ops/plugin.ts\",\"@deepseek-ai/cordis\",\"Logger\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Logger",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+            "line": 12,
+            "member": "packages/tenancy/governance-center-entry-node",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Logger",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/tenancy/governance-center-entry-node\",\"@deepseek-ai/cordis\",\"Logger\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Logger"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 12,
+          "member": "packages/tenancy/governance-center-entry-node",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Logger",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/tenancy/governance-center-entry-node\",\"@deepseek-ai/cordis\",\"Logger\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Logger"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/tenancy/governance-center-entry-node/src/plugin.ts\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Context",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+            "line": 23,
+            "member": "packages/tenancy/governance-center-entry-node",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Context",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/tenancy/governance-center-entry-node\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Context"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 23,
+          "member": "packages/tenancy/governance-center-entry-node",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Context",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/tenancy/governance-center-entry-node\",\"@deepseek-ai/cordis\",\"Context\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Context"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    },
+    {
+      "group": "global-architecture",
+      "item": {
+        "id": "[\"IC-4\",\"packages/tenancy/governance-center-entry-node/src/index.ts\",\"packages/tenancy/governance-center-entry-node/src/plugin.ts\",\"@deepseek-ai/cordis\",\"Logger\",true,\"import\"]",
+        "rule": "IC-4",
+        "state": "deviation",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "key": "@deepseek-ai/cordis#Logger",
+        "reason": "公开根 packages/tenancy/governance-center-entry-node/src/index.ts 的源码依赖闭包引入 Cordis 绑定",
+        "sites": [
+          {
+            "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+            "line": 23,
+            "member": "packages/tenancy/governance-center-entry-node",
+            "specifier": "@deepseek-ai/cordis",
+            "symbol": "Logger",
+            "type": true,
+            "form": "import",
+            "id": "[\"packages/tenancy/governance-center-entry-node\",\"@deepseek-ai/cordis\",\"Logger\",true,\"import\"]",
+            "target": {
+              "kind": "external"
+            },
+            "local": "Logger"
+          }
+        ],
+        "expected": ".meta_harness/design/realization/cordis-integration-conventions.md",
+        "age": "new",
+        "relation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 23,
+          "member": "packages/tenancy/governance-center-entry-node",
+          "specifier": "@deepseek-ai/cordis",
+          "symbol": "Logger",
+          "type": true,
+          "form": "import",
+          "id": "[\"packages/tenancy/governance-center-entry-node\",\"@deepseek-ai/cordis\",\"Logger\",true,\"import\"]",
+          "target": {
+            "kind": "external"
+          },
+          "local": "Logger"
+        }
+      },
+      "status": "未修复，明确后继责任",
+      "reason": "提供者纯根仍经Config/event类型可达Cordis绑定。T2只迁EntryOpening及管理寿命；不把该根标为装配、不放宽IC-4。",
+      "next_owner": "R1-T4：EC分面/其余公共事件与资源定义；R1-T5需全部兑现，不能靠本说明关闭"
+    }
+  ]
+}

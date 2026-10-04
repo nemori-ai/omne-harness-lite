@@ -1,0 +1,22 @@
+{
+  "inputs/ai/LoginCommit.tla": "630830bf93640a50d64cc9f5dfd7d56c70f5044e601a6a978134189a9ea69735",
+  "inputs/ai/revision-bad.cfg": "c4d1edf538a6706aa5793cfbbd582fa35b68b9d2094b96cf253aa314c45ce257",
+  "inputs/ai/CredentialRevision.tla": "c1ea03e2cddb93379ad8fcdc2a569258b95256ed622ab7d16adec78428876b60",
+  "inputs/ai/bad-admission.cfg": "9bc6937fdec089720a3438ab998e476cd991085c2b486ae91e49c76b82db9f76",
+  "inputs/ai/commit-bad-observer.cfg": "2c56d2a77c1c1e5588c2ef7ed431ae70e76c485d676d59a0710bde39d4f668f9",
+  "inputs/ai/commit-valid.cfg": "9ddfa3b5727b25d883c49ea84cf6eb88cbf7d233f5356c8fb54a1e4f61b9868e",
+  "inputs/ai/README.md": "ed307368826855ad70779f143f2b4cd3d722317dc5a25e561471705431ae8f1b",
+  "inputs/ai/LoginLifetime.tla": "ce7947b9f92e555bbae026f0080f0c25495a51357021e563225454f0d7298d90",
+  "inputs/ai/valid.cfg": "5a9923e55d376c5a92f6eb268ff71109c70bf4cffc9baf72c3207860185f9b09",
+  "inputs/ai/revision-valid.cfg": "b732616cd6996603c39ee7c160babdab7c3b05ddf07ef7a8315002b7daee9827",
+  "inputs/og/Membership.cfg": "abaa8fa24bf14e8c8fa7e7bed0858197a78bd532c56887f27d462c42e1195734",
+  "inputs/og/Affiliation.als": "1a72efa2f9b7c8199ae3aac797154120cf714a9b6dc674961621c8187cd1526f",
+  "inputs/og/Membership.tla": "5c7656a47c3b827e638a24f781c4039ccb6d7a669e37799e8580101043bde436",
+  "inputs/og/Membership_NoSerialization.cfg": "8b0631823173848c527d32a9685470184a46a881440cd33fa5a55c19ba990159",
+  "inputs/og/README.md": "154bd8cd1a12ef429fbee4f83bb4825902c76900cd0a59ad6d33e2fc70ba3023",
+  "inputs/ar/progress.cfg": "6c1a4b3da5fe329b4db766559b1a0905002d050c8af71ad42fe1574b75c90cca",
+  "inputs/ar/basic.cfg": "38198123c96a2704908a72b8df4ea8a76cdf1fac1b05a4622c3b3e178915d64d",
+  "inputs/ar/Registration.tla": "83bc2f8c54bd5057e5831f638bd41d25fe8d908bb5fd43db937d2ee324230f20",
+  "inputs/ar/crash.cfg": "2a77296a8915042cf5f53d0f92a476b2e568e61a68d36044b78282125fff7ffc",
+  "inputs/ar/README.md": "c3fc3281dc7b400310119536f2a50fe276db81e874f40c15b608d917d9997d9a"
+}

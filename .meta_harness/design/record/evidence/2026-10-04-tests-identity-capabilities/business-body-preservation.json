@@ -1,0 +1,196 @@
+{
+  "base": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+  "verifier": "root implementation",
+  "scope": "Original function/method bodies after TS erasure, whitespace/object trailing comma normalization and accepted notification rename. AR outer factory lifecycle addition excluded; its original nested business bodies compared. New lifecycle methods not equivalent to old behavior and require separate tests.",
+  "results": [
+    {
+      "oldPath": "packages/tenancy/account-identity/src/accounts.ts",
+      "newPath": "packages/tenancy/account-identity-sql/src/accounts.ts",
+      "compared": [
+        "/AccountsImpl/produce",
+        "/AccountsImpl/#produceOnce",
+        "/AccountsImpl/#insertAccount",
+        "/AccountsImpl/#checkPolicy",
+        "/AccountsImpl/activate",
+        "/AccountsImpl/read",
+        "/AccountsImpl/participate",
+        "/AccountsImpl/purge",
+        "/newAccountId"
+      ],
+      "changed": []
+    },
+    {
+      "oldPath": "packages/tenancy/account-identity/src/logins.ts",
+      "newPath": "packages/tenancy/account-identity-sql/src/logins.ts",
+      "compared": [
+        "/LoginsImpl/issue",
+        "/LoginsImpl/#issueCommitted",
+        "/LoginsImpl/#ordinary",
+        "/LoginsImpl/exchange",
+        "/LoginsImpl/verify",
+        "/LoginsImpl/revoke",
+        "/LoginsImpl/listEffective",
+        "/LoginsImpl/participate",
+        "/LoginsImpl/prepareCredentialChange",
+        "/LoginsImpl/changeCredential"
+      ],
+      "changed": []
+    },
+    {
+      "oldPath": "packages/tenancy/account-identity/src/records.ts",
+      "newPath": "packages/tenancy/account-identity-sql/src/records.ts",
+      "compared": [
+        "/selectAccountByIdentifier",
+        "/selectAccountById",
+        "/classifyAccount",
+        "/sameOccupancy",
+        "/settleExpiry",
+        "/landExpiry",
+        "/loginDeadlines",
+        "/trustedNow",
+        "/loginValidAt",
+        "/judgeLoginState"
+      ],
+      "changed": []
+    },
+    {
+      "oldPath": "packages/tenancy/credential-verification/src/scrypt.ts",
+      "newPath": "packages/tenancy/credential-verification-scrypt/src/scrypt.ts",
+      "compared": [
+        "/scryptParametersValid",
+        "/memoryOf",
+        "/scryptAsync",
+        "/deriveMaterial",
+        "/encodeMaterial",
+        "/schemeOf",
+        "/strictBase64url",
+        "/decodeMaterial",
+        "/verifyMaterial"
+      ],
+      "changed": []
+    },
+    {
+      "oldPath": "packages/tenancy/credential-verification/src/policy.ts",
+      "newPath": "packages/tenancy/credential-verification-scrypt/src/policy.ts",
+      "compared": [
+        "/checkPasswordPolicy"
+      ],
+      "changed": []
+    },
+    {
+      "oldPath": "packages/tenancy/credential-verification/src/service.ts",
+      "newPath": "packages/tenancy/credential-verification-scrypt/src/service.ts",
+      "compared": [
+        "/parseCredential",
+        "/createPasswordCredentials"
+      ],
+      "changed": []
+    },
+    {
+      "oldPath": "packages/tenancy/account-registration/src/registration.ts",
+      "newPath": "packages/tenancy/account-registration-sequential/src/registration.ts",
+      "compared": [
+        "/classifyOrganizationPurge",
+        "/classifyAccountPurge",
+        "/purgeDefect",
+        "/createRegistrationService/runPurgeChain",
+        "/createRegistrationService/produce",
+        "/createRegistrationService/register",
+        "/createRegistrationService/purgeExpired"
+      ],
+      "changed": []
+    },
+    {
+      "oldPath": "packages/tenancy/organization-governance-sql/src/organizations.ts",
+      "newPath": "packages/tenancy/organization-governance-sql/src/organizations.ts",
+      "compared": [
+        "/created",
+        "/insertOrganizationWithSuperAdministrator",
+        "/createPersonal",
+        "/createTeam",
+        "/registerCreationKey",
+        "/read",
+        "/dissolveAffiliation",
+        "/clearParent",
+        "/ancestorChain",
+        "/shareAncestor",
+        "/scopeLayers",
+        "/createOrganizationsService"
+      ],
+      "changed": []
+    },
+    {
+      "oldPath": "packages/tenancy/organization-governance-sql/src/memberships.ts",
+      "newPath": "packages/tenancy/organization-governance-sql/src/memberships.ts",
+      "compared": [
+        "/standing",
+        "/mine",
+        "/leavesASuperAdministrator",
+        "/changeRole",
+        "/remove",
+        "/verifyLogin",
+        "/currentTenant",
+        "/switchCurrentTenant",
+        "/list",
+        "/sweepStaleSelections",
+        "/createMembershipsService"
+      ],
+      "changed": []
+    },
+    {
+      "oldPath": "packages/tenancy/organization-governance-sql/src/offers.ts",
+      "newPath": "packages/tenancy/organization-governance-sql/src/offers.ts",
+      "compared": [
+        "/resolveTtl",
+        "/readInvitationRecord",
+        "/readAffiliationRequestRecord",
+        "/invitationState",
+        "/requestState",
+        "/invitationReading",
+        "/requestReading",
+        "/existenceOne",
+        "/withdrawStep",
+        "/issueInvitation",
+        "/withdrawInvitation",
+        "/acceptInvitation",
+        "/issueAffiliationRequest",
+        "/withdrawAffiliationRequest",
+        "/childAndParent",
+        "/setParent",
+        "/acceptAffiliationRequest",
+        "/readInvitation",
+        "/readAffiliationRequest",
+        "/evaluateAll",
+        "/invitationsWhere",
+        "/requestsWhere",
+        "/listReceivedInvitations",
+        "/listIssued",
+        "/listReceivedAffiliationRequests",
+        "/declineInvitation",
+        "/declineAffiliationRequest",
+        "/createOffersService"
+      ],
+      "changed": []
+    },
+    {
+      "oldPath": "packages/tenancy/organization-governance-sql/src/purge.ts",
+      "newPath": "packages/tenancy/organization-governance-sql/src/purge.ts",
+      "compared": [
+        "/warrantFor",
+        "/purgePersonalOrganization",
+        "/createOrganizationPurgeService"
+      ],
+      "changed": []
+    },
+    {
+      "oldPath": "packages/tenancy/organization-governance-sql/src/runtime.ts",
+      "newPath": "packages/tenancy/organization-governance-sql/src/runtime.ts",
+      "compared": [
+        "/withParticipation",
+        "/withOperation",
+        "/readAccountFacts"
+      ],
+      "changed": []
+    }
+  ]
+}
