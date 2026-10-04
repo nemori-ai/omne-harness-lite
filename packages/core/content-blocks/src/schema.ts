@@ -1,53 +1,14 @@
-import schema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }
-import { Ajv2020 } from 'ajv/dist/2020.js'
+import { createRequire } from 'node:module'
 import { copyJsonValue, isNonNegativeJsonInteger, LosslessNumber, type JsonValue } from './json.ts'
-import { schemaPattern } from './schema-pattern.ts'
+import { schemaId, SCHEMA_DEF_NAMES } from './schema-inputs.ts'
+export { schemaId, SCHEMA_DEF_NAMES }
 
-export const schemaId = schema.$id
-export const SCHEMA_DEF_NAMES = [
-  'ContentBlock',
-  'BlockBase',
-  'TextBlock',
-  'ThinkingBlock',
-  'VoiceBlock',
-  'ImageBlock',
-  'FileBlock',
-  'ToolCallBlock',
-  'IncompleteToolCallBlock',
-  'ToolResultBlock',
-  'Visibility',
-  'DerivedRendering',
-  'AttachmentRef',
-  'InlineBytes',
-  'MediaType',
-  'Modality',
-  'ExecutionOutcome',
-  'PlaceholderReason',
-  'BlockId',
-  'CallId',
-  'CapabilityId',
-  'ModelToolName',
-] as const
 export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number]
 
-// Fixed owned Schema only; no caller schemas or mutable root validation cache.
-const ajv = new Ajv2020({
-  strict: true,
-  strictTypes: false,
-  strictRequired: false,
-  allErrors: false,
-  ownProperties: true,
-  code: { regExp: schemaPattern },
-})
-ajv.addSchema({ ...schema, $id: schemaId })
-const validators = Object.freeze(
-  SCHEMA_DEF_NAMES.map(name => {
-    const validator = ajv.getSchema(`${schemaId}#/$defs/${name}`)
-    if (validator === undefined) throw new Error(`missing Schema definition: ${name}`)
-    return Object.freeze({ name, validator })
-  }),
-)
-
+const require = createRequire(new URL('../package.json', import.meta.url))
+interface FixedValidator {
+  (value: unknown): unknown
+}
 export interface SchemaValidation {
   readonly valid: boolean
 }
@@ -57,9 +18,10 @@ export function validate(defName: SchemaDefName, value: unknown): SchemaValidati
   const copied = copyJsonValue(value)
   if ('failed' in copied) return Object.freeze({ valid: false })
   const projected = schemaProjection(copied.ok)
-  const entry = validators.find(item => item.name === defName)
-  if (entry === undefined) throw new Error(`unknown Schema definition: ${defName}`)
-  const valid = entry.validator(projected) === true && exactBytes(defName, copied.ok)
+  const name = SCHEMA_DEF_NAMES.find(item => item === defName)
+  if (name === undefined) throw new Error(`unknown Schema definition: ${defName}`)
+  const generated = require('./generated/ordinary.cjs') as Record<SchemaDefName, FixedValidator>
+  const valid = generated[name](projected) === true && exactBytes(defName, copied.ok)
   return Object.freeze({ valid })
 }
 

@@ -1,0 +1,36 @@
+{
+  "candidate": "b03945d7ea2ed341e37569f6b0a30078a9aaca39",
+  "failure": "AE128\u6162\u5c42\u4e2d127\u901a\u8fc7\uff0c4\u4e2a\u65e7port\u8eab\u4efd\u65ad\u8a00\u4e2d\u7684\u7b2c\u4e00\u4e2a\u5931\u8d25\uff1b\u590d\u5236\u5feb\u7167\u4e0e\u4fdd\u6301port\u8eab\u4efd\u4e0d\u76f8\u5bb9\u3002",
+  "files": [
+    {
+      "source": "packages/core/asset-evaluation/tests/body-domain.spec.ts",
+      "file": "0-body-domain.spec.ts",
+      "sha256": "abca4dc2a3b8c428aff716636ff4bbed5b08a5f405e120b3aed15261e35ebba1"
+    },
+    {
+      "source": ".meta_harness/design/record/decisions/fixed-schema-precompile/decision.md",
+      "file": "1-decision.md",
+      "sha256": "3a93ede5195969faf52f3d268313183f04c5ed51f06870e0feb920942cd07cf5"
+    },
+    {
+      "source": ".meta_harness/design/record/proposals/fixed-schema-precompile/design.md",
+      "file": "2-design.md",
+      "sha256": "54d069efacb255a27975467ce8027bd6f62a9c19e7dd4f81114eb76887fadadd"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/construction-65-plan-r4.md",
+      "file": "3-construction-65-plan-r4.md",
+      "sha256": "7224896bae9954b91875592187d9b2d19a39d7f879a9f97347705121a246c7b2"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/default-owners-self-r3/packages__core__asset-evaluation-slow.json",
+      "file": "4-packages__core__asset-evaluation-slow.json",
+      "sha256": "9dfc2c33e86fda4ff382d943f09c159737bfb13c3b9db42d4a9b0f217495acd3"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/default-owners-self-r3/packages__core__asset-evaluation-slow.log",
+      "file": "5-packages__core__asset-evaluation-slow.log",
+      "sha256": "40e5fa59ed085642d5a2735902a9b45dcb49567e74ff28d27bc1a887388b7c43"
+    }
+  ]
+}

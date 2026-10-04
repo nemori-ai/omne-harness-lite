@@ -17,14 +17,25 @@
       "types": "./dist/schema-runtime.d.ts",
       "import": "./dist/schema-runtime.js"
     },
-    "./schema/v2": "./schema/content-blocks.v2.schema.json"
+    "./schema/v2": "./schema/content-blocks.v2.schema.json",
+    "./code-runtime": {
+      "types": "./dist/code-runtime.d.ts",
+      "import": "./dist/code-runtime.js",
+      "require": "./dist/code-runtime.js"
+    },
+    "./schema-codegen": {
+      "types": "./dist/schema-codegen.d.ts",
+      "import": "./dist/schema-codegen.js",
+      "require": "./dist/schema-codegen.js"
+    }
   },
   "files": [
     "dist",
-    "schema"
+    "schema",
+    "generated"
   ],
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "build": "node ../../../scripts/build-fixed-schemas.mjs",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run"
   },

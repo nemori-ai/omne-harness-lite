@@ -10,7 +10,7 @@ import { skillDependencies, type SkillPackage } from '@omne-harness-lite/skill-p
 import type { LoopExtensionDefinition } from '@omne-harness-lite/loop-extension'
 import { equal, own, requiredOwn } from './json.ts'
 import {
-  assetJudge,
+  getAssetJudge,
   capability,
   compositionFor,
   effective,
@@ -45,7 +45,7 @@ export function selectBody(
   if (
     matches.length !== 1 ||
     definition === undefined ||
-    !('ok' in assetJudge.judgeAssetValue('AssetDefinition', definition))
+    !('ok' in getAssetJudge().judgeAssetValue('AssetDefinition', definition))
   )
     return undefined
   const versions = definition.versions.filter(version => equal(version.number, asset.version))

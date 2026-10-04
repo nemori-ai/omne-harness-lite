@@ -1,0 +1,147 @@
+{
+  "status": "PASS",
+  "comparisons": [
+    {
+      "copy": "candidate",
+      "old_commit": "28dd49e0018f455c53b278bc3309b9c80c2ef2f7",
+      "new_commit": "aa1329cc0af575bbb4557360043c663873d9c513",
+      "equal_files": 1261,
+      "equal_generated_cjs": 26,
+      "equal_sources_and_resources": 270,
+      "allowed_changed_inputs": [
+        {
+          "path": "packages/core/identity-values/generated/manifest.json",
+          "before": "d5abef9d1df360553ee515e66b1a24122e9e00e451f7d52447bf2d9861e0a808",
+          "after": "384df530807f7ec8ca685794e1a0ae1b0c92f45f390f1ca91ae2eb5656a04651"
+        },
+        {
+          "path": "packages/core/content-blocks/generated/manifest.json",
+          "before": "1d1fe392b7d242609ddf66fc34e69e7340533fdbc67400778c7850383d3396ca",
+          "after": "5664407027688532a2800b4f10a26cd30b552494111080a929b852902c9cdc1b"
+        },
+        {
+          "path": "packages/core/messages/generated/manifest.json",
+          "before": "f825013c21b856d188e11cec19b16ae0e167870a91d80831e5173e3399c8f363",
+          "after": "0a2a9bc899c6d77e50a1af9fbddd0f205a804508404b2998e0f4db970d6c72e7"
+        },
+        {
+          "path": "packages/core/offer-expiry/generated/manifest.json",
+          "before": "fbc95d1e6a79773acc96eeac367312d9bec6eba73806aac55b26ed1035733e7e",
+          "after": "6288c37722373665c6d05073c4303d96e426d4428af80c5b723d0e463f0e8b45"
+        },
+        {
+          "path": "packages/core/agent-definition/generated/manifest.json",
+          "before": "ed9d2752075a8c48088a563bc5a210e7a6f568d8c8b7fc62aac90e71a6a21d8e",
+          "after": "b469eb259054f0c8f1454bcc9004f53a703eb520733c1e40da73edf8ed332481"
+        },
+        {
+          "path": "packages/core/arrival-events/generated/manifest.json",
+          "before": "44b30da63a67441f968651700117bc99b4ec64f070be26c66beaefd1f6027e88",
+          "after": "e137a383f8361588304316c01a46536121cef7a4155d5e00a143c524c2ceba06"
+        },
+        {
+          "path": "packages/core/tool-definition/generated/manifest.json",
+          "before": "2bcb60f959b6fbc06fbbb930f7cde9e94bcae5ca2ff5558d67174129ab6be254",
+          "after": "00425f5412ad8fb979e0ad15db6da58e78faedebc6ce667ef4e8a9468bd7b47c"
+        },
+        {
+          "path": "packages/core/loop-extension/generated/manifest.json",
+          "before": "7f79aa328ca6e5994c228c6634ed46bac59f6320076a29a92854b56472bcd2c5",
+          "after": "dab6c69489968cd4edd98a19f1349a394dd9f8b610ad417367d281adf4f536ac"
+        },
+        {
+          "path": "packages/core/model-response/generated/manifest.json",
+          "before": "dedee9bdba33e19094489d601e4bb7f9347cc718bf297abb2136558dfb6c43cb",
+          "after": "454f692c6be3fa23b3551053d5ae15168671e15285f6f61e2e48e71e9c9e394f"
+        },
+        {
+          "path": "packages/core/model-profile/generated/manifest.json",
+          "before": "18a33d48c9d7eaf07681f533124d5e5a5a369a5b1d76c0357098a6865bed853d",
+          "after": "d8a3fb0731d2a29c03fc70cbb8af7c6c4f0377a18f0b889586fc4fd2a3c8f15c"
+        },
+        {
+          "path": "packages/core/skill-package/generated/manifest.json",
+          "before": "d92a6ad87b096170a71dcd333a6c237329c476af37ac2af2ccec6e0c72661572",
+          "after": "c66edd6f7d3b30503d770c9dc90c9f0d3c346700d2edf73592309cf5aeb11361"
+        },
+        {
+          "path": "packages/core/call-accounts/generated/manifest.json",
+          "before": "43f1f4fc3f172950b47c0ba6d155b248cda5c8c8264b0e915a2a7d509d80f776",
+          "after": "e2068fed488069a715a4fcf5a142c395482cf512371c68830c54a418218d1b6f"
+        },
+        {
+          "path": "packages/core/mcp-endpoint/generated/manifest.json",
+          "before": "283fefcb285a4f52a6855543786d7a228b38b712c24b6a823692dd063969beee",
+          "after": "4b6b52382592e811041ae07605aa5c630fe1d302324f1f1243a9321919223020"
+        },
+        {
+          "path": "packages/core/slash-command/generated/manifest.json",
+          "before": "eec3b08ffc501cf1bb7a2457585d32a34854af406fa762a23f5be24ded4a502d",
+          "after": "e1a607f869e318d49700e12697b1c69c61c1b34273d5be7b5d7d360506b5fb4f"
+        },
+        {
+          "path": "packages/session/session-tenancy-table/generated/manifest.json",
+          "before": "d9cc608b392ab8c970121d4893ec819391b3e9f8f2d91e670c20b97c331e6cfc",
+          "after": "21fec9e721e9667214d2f196654b94acabc13dd330086bf3448c0c2353412dd8"
+        },
+        {
+          "path": "packages/tenancy/governance-center-entry/generated/manifest.json",
+          "before": "20ce6d347e6843dc132df770cd3538d0cc0ca7f01d217a050213506b1c33de8a",
+          "after": "1ca3438e54ef9670865d9605219551658f5ecde22a2bd3ef5a1892f1093915e5"
+        },
+        {
+          "path": "packages/frontend/client-local-state/generated/manifest.json",
+          "before": "d6aa0842791c7ab9d3c0501b8681445128eb2b1a7139623dc7f9af0452ac87c5",
+          "after": "882b2a9286c05cbc532cf0681d39dd35960edb69c7b4981cad332861d3be8e43"
+        },
+        {
+          "path": "packages/frontend/governance-center-client/generated/manifest.json",
+          "before": "0382a5bbc10e90438bb225f5f4a605ab78ef569e7138319f0e3b096307f02cfe",
+          "after": "49cbd9ae442384d0b875095bd65cbaf4694557b02541da3856bc315165649ffe"
+        },
+        {
+          "path": "packages/frontend/governance-client-operations/generated/manifest.json",
+          "before": "52233f735dc6f4bd681bc24cc2320900b953a08e4a19cbe17df94901479ebeef",
+          "after": "e6475aec8028dd1458402a7e3bb9401eb89259aa15e03eaf27738185425f4936"
+        },
+        {
+          "path": "apps/cli/generated/manifest.json",
+          "before": "b69ec84f3e25b6e1d22a0d1c20365bfbb0ccca8ba3d8b70f43e7b78e03cfe79d",
+          "after": "3f92694cab595f3e24d2aceb22e494a170b64874c911805b0acde07041d8b4ef"
+        },
+        {
+          "path": "scripts/build-fixed-schemas.mjs",
+          "before": "5fd7d4e8f8924bb24e77cda7994f8e7480381bdfe135e659375f826a8d702849",
+          "after": "e97aad5b3db8ba8e0eb022fb70b8bcf074c79b897c8ff2993bc0e7bdd012e7e0"
+        }
+      ],
+      "unexpected_changes": [],
+      "git_status": ""
+    },
+    {
+      "copy": "baseline",
+      "old_commit": "9e5a141bef120be42b5a92364fc71378815fa090",
+      "new_commit": "f226b4cca0c1a2ae78f0d7ea36b004eb1a27288f",
+      "equal_files": 1085,
+      "equal_generated_cjs": 0,
+      "equal_sources_and_resources": 240,
+      "allowed_changed_inputs": [],
+      "unexpected_changes": [],
+      "git_status": ""
+    }
+  ],
+  "old_reports_sha256": {
+    "report.md": "46a69ac67bb77ab7954eb264a24f83dbd0dcf2357ea00531b8977d72f435eb54",
+    "report.json": "53ad8bcc6c9f4dd026e23f324fb2ba15268a3e1e986dda003180496b8c777514",
+    "checkout-integrity.json": "ae7212ca6e46e9e6e58bdc9baa654223440e269f217283ee9ae6195762de03bb"
+  },
+  "reused_criteria": [
+    1,
+    2,
+    4,
+    6,
+    7
+  ],
+  "reused_boundary": "unchanged owner source/resource/helper/compiled CJS and AM/CLI behavior at original report coordinates",
+  "invalidated_boundary": "driver acceptance and generated input manifests; refreshed by this narrow run, old fault scenarios retain their historical coordinates"
+}

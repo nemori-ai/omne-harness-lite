@@ -253,10 +253,23 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
         'slash_command',
         'tool',
       ])
-      assert.equal(defaultBodyContracts.tool, toolBodyContract)
-      assert.equal(defaultBodyContracts.skill, skillBodyContract)
+      for (const [category, original] of [
+        ['tool', toolBodyContract],
+        ['skill', skillBodyContract],
+        ['mcp', mcpBodyContract],
+        ['slash_command', slashCommandBodyContract],
+      ] as const) {
+        const published = defaultBodyContracts[category]
+        assert.notEqual(published, original)
+        assert.equal(published.category, original.category)
+        assert.notEqual(published.schema, original.schema)
+        assert.deepEqual(published.schema, original.schema)
+        for (const responsibility of ['judge', 'deriveDeclarations', 'references'] as const)
+          assert.equal(published[responsibility], original[responsibility])
+      }
       const loopPort = defaultBodyContracts.loop_extension
-      assert.equal(loopPort.schema, loopDeclarationSchema)
+      assert.notEqual(loopPort.schema, loopDeclarationSchema)
+      assert.deepEqual(loopPort.schema, loopDeclarationSchema)
       assert.equal(loopPort.deriveDeclarations, loopExtensionBodyContract.deriveDeclarations)
       assert.equal(loopPort.references, loopExtensionBodyContract.references)
       const loopBody = bodies[2]
@@ -265,8 +278,6 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
         ok: true,
       })
       assert.throws(() => loopPort.judge({}, { definition: 'ModelRetryConclusion' }), TypeError)
-      assert.equal(defaultBodyContracts.mcp, mcpBodyContract)
-      assert.equal(defaultBodyContracts.slash_command, slashCommandBodyContract)
       for (const definition of definitions)
         assert.deepEqual(judge.judgeAssetValue('AssetDefinition', definition), { ok: true })
       const result = assembled(input)
@@ -401,7 +412,7 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
     run() {
       const manifest = parseWorkspaceManifestText(
         '{"format":1,"assets":[{"capability":{"category":"skill","name":"review"},"source":"skills/review"}],"assignments":[{"capability":{"category":"skill","name":"review"},"item":"tone","value":"workspace","immutable":true},{"capability":{"category":"skill","name":"review"},"item":"usableBy","value":{"allowed":["member"]}},{"capability":{"category":"tool","name":"shell"},"item":"timeout","value":"PT10S"}],"disabled":[]}',
-        defaultBodyContracts,
+        judge,
       )
       assert.ok('ok' in manifest)
       assert.ok(isManifest(manifest.ok))
@@ -441,7 +452,7 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
       )
       const broken = parseWorkspaceManifestText(
         '{"format":1,"format":1,"assets":[],"assignments":[],"disabled":[]}',
-        defaultBodyContracts,
+        judge,
       )
       assert.deepEqual(broken, { rejected: 'malformed' })
     },
@@ -550,10 +561,9 @@ const cases: readonly { id: (typeof ASSET_CASE_IDS)[number]; run(): void }[] = [
       const plugin = { category: 'plugin', name: 'bundle' } as const
       const entry = record('ast_bundle', plugin, { category: 'plugin', members: [tool] })
       assert.deepEqual(judge.judgeAssetValue('AssetDefinition', entry), { ok: true })
-      assert.deepEqual(
-        attributeDeclarationsOf({ category: 'plugin', members: [tool] }, defaultBodyContracts),
-        { underivable: 'plugin' },
-      )
+      assert.deepEqual(attributeDeclarationsOf({ category: 'plugin', members: [tool] }, judge), {
+        underivable: 'plugin',
+      })
       const result = evaluate({
         ...input,
         definitions: [...definitions, entry],

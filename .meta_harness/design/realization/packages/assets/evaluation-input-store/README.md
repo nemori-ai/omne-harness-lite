@@ -59,3 +59,16 @@
 ## 2026-09-27 历史正文组件实现检查
 
 受限历史读面与对应 AST 入口守卫已实现；EIS 全组件 68 项测试、工具 428 项测试、构建/类型检查及实际源码规则扫描通过。[运行与限度](../../../../record/evidence/2026-09-27-probe-model-request-runtime/eis-history-component-checks.md)保存真实版本发布/移除持有/换表/重开、当前资格竞争及零 MF IO 场景。MF 表项仍是明确的组件 fixture，真实 AR producer 与旧报告恢复、装配退化查询/OS 权限/独立制品消费未验证；HI-G1/AR4-G3/SI-G1 继续开放，bindings0。
+
+## 2026-10-03 Schema构造与消费补充
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)技术采用：AM声明/manifest复用绑定owner，作者临时编译保持；AE发布捕获深冻结生产Schema，AE/evaluation-input-store/asset-registry三个默认owner首用构造分后续PR；MRR的固定图缺陷归相应MS/MR/CA构建失败，缺产物首次实际消费原抛。仅各自相关条款适用；本机制实施/验证尚待，不改变契约和原历史run。
+
+## 2026-10-03 D-116 主体实施与有限验收
+
+本包作为主体的受影响消费者已完成验证；默认判定器首次使用构造仍归后续 PR，本次未交付。实际源码坐标、输入复用及验证边界见[主体原始运行与有限签收](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。本段仅更新以上已交付范围，不提升历史未验能力或后续默认装配的状态。
+
+
+## 2026-10-03 D-116 默认 owner 实施与有限验收
+
+三个默认判定owner均已改为首次实际使用时构造，成功后复用、失败原抛且可重试。AE发布五份深冻结生产Schema并捕获职责函数，三个消费者共享这份发布快照。显式工厂和作者临时编译保持。独立L2六标准、真实src/dist与SQLite业务基线对拍通过；九处旧身份断言按已接受复制边界迁移。[实际运行与有限签收](../../../../record/evidence/2026-10-03-tests-default-schema-owners/README.md)保留原失败、MRR一次未定因观察和验证范围，不提升本节点其他历史未验能力的状态。

@@ -8,7 +8,7 @@ import { validate as messageValidate } from '@omne-harness-lite/messages'
 import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { narrow, StorageUnavailable, type ReadTx } from '@omne-harness-lite/storage'
 import {
-  assetJudge,
+  getAssetJudge,
   ownDependencies,
   factoryMatches,
   decodeHoldings,
@@ -66,7 +66,7 @@ function publication(value: unknown): LocalPublication | undefined {
     if (
       entry.holder.layer === 'factory'
         ? Object.keys(entry.holder).length !== 1
-        : !('ok' in assetJudge.judgeAssetValue('HoldingScope', entry.holder))
+        : !('ok' in getAssetJudge().judgeAssetValue('HoldingScope', entry.holder))
     )
       return undefined
     const holder = entry.holder as unknown as HoldingScope
@@ -75,7 +75,7 @@ function publication(value: unknown): LocalPublication | undefined {
     scopes.add(key)
     const capabilities = new Set<string>()
     for (const item of entry.holdings) {
-      if (!('ok' in assetJudge.judgeAssetValue('AssetHolding', item))) return undefined
+      if (!('ok' in getAssetJudge().judgeAssetValue('AssetHolding', item))) return undefined
       const holding = item as unknown as AssetHolding
       const capability = capabilityCanonicalString(holding.capability)
       if (!equal(holding.holder, holder) || capabilities.has(capability)) return undefined
@@ -352,7 +352,7 @@ export async function captureSessionRecipe(
     ) ||
     typeof copied.session !== 'string' ||
     !messageValidate('SessionRef', copied.session).valid ||
-    !('ok' in assetJudge.judgeAssetValue('CapabilityId', copied.rootDefinition)) ||
+    !('ok' in getAssetJudge().judgeAssetValue('CapabilityId', copied.rootDefinition)) ||
     !object(copied.rootDefinition) ||
     copied.rootDefinition.category !== 'agent_definition'
   )
@@ -365,7 +365,7 @@ export async function captureSessionRecipe(
     return { failure: 'invalidInput' }
   if (
     Object.hasOwn(copied, 'workspace') &&
-    (!('ok' in assetJudge.judgeAssetValue('WorkspaceKey', copied.workspace)) ||
+    (!('ok' in getAssetJudge().judgeAssetValue('WorkspaceKey', copied.workspace)) ||
       !object(copied.workspace) ||
       !equal(copied.workspace.tenant, tenant.ok))
   )

@@ -1,5 +1,6 @@
 import {
   createAssetModelJudge,
+  type AssetModelJudge,
   capabilityCanonicalString,
   BodyProviderUnavailableError,
   type AssetDefinition,
@@ -41,7 +42,10 @@ import {
 import { narrow, type ReadTx } from '@omne-harness-lite/storage'
 import type { DeployedOfficialEntry, InputSourceDependencies, SourceDb } from './types.ts'
 
-export const assetJudge = createAssetModelJudge(defaultBodyContracts)
+let assetJudge: AssetModelJudge | undefined
+export function getAssetJudge(): AssetModelJudge {
+  return (assetJudge ??= createAssetModelJudge(defaultBodyContracts))
+}
 export class SourceUnavailable extends Error {
   constructor(readonly stage: string) {
     super(`current evaluation input unavailable at ${stage}`)
@@ -108,7 +112,7 @@ function content(value: AssetContent): AssetContent {
     : value
 }
 export function definition(value: unknown): NonConnectorAssetDefinition {
-  if (!('ok' in assetJudge.judgeAssetValue('AssetDefinition', value)))
+  if (!('ok' in getAssetJudge().judgeAssetValue('AssetDefinition', value)))
     throw new SourceUnavailable('asset_definition')
   const wire = json(value) as unknown as AssetDefinition
   if (wire.capability.category === 'connector') throw new SourceUnavailable('connector_body')
@@ -145,7 +149,7 @@ export function decodeHoldings(value: unknown, holder: HoldingScope): readonly A
   if (!Array.isArray(value)) throw new SourceUnavailable('scope_shape')
   const seen = new Set<string>()
   for (const item of value) {
-    if (!('ok' in assetJudge.judgeAssetValue('AssetHolding', item)))
+    if (!('ok' in getAssetJudge().judgeAssetValue('AssetHolding', item)))
       throw new SourceUnavailable('holding')
     const holding = item as AssetHolding
     const key = capabilityCanonicalString(holding.capability)
@@ -187,7 +191,7 @@ export function checkDependencies(deps: InputSourceDependencies): void {
       !object(entry) ||
       Object.keys(entry).length !== 2 ||
       typeof entry.meta !== 'boolean' ||
-      !('ok' in assetJudge.judgeAssetValue('CapabilityId', entry.capability))
+      !('ok' in getAssetJudge().judgeAssetValue('CapabilityId', entry.capability))
     )
       throw new TypeError('invalid deployed official manifest')
     const key = capabilityCanonicalString(
@@ -223,7 +227,7 @@ export function deploymentEquals(
       !object(entry) ||
       Object.keys(entry).length !== 2 ||
       typeof entry.meta !== 'boolean' ||
-      !('ok' in assetJudge.judgeAssetValue('CapabilityId', entry.capability))
+      !('ok' in getAssetJudge().judgeAssetValue('CapabilityId', entry.capability))
     )
       return false
     const key = capabilityCanonicalString(
@@ -264,7 +268,7 @@ export function recipeFromRow(row: SourceDb['evaluation_input_recipe']): Recipe 
     !('ok' in tenant) ||
     !('ok' in standing) ||
     standing.ok.standing !== 'effective' ||
-    !('ok' in assetJudge.judgeAssetValue('CapabilityId', root)) ||
+    !('ok' in getAssetJudge().judgeAssetValue('CapabilityId', root)) ||
     !object(root) ||
     root.category !== 'agent_definition'
   )
@@ -276,7 +280,10 @@ export function recipeFromRow(row: SourceDb['evaluation_input_recipe']): Recipe 
   if (session !== undefined && !Array.isArray(session))
     throw new SourceUnavailable('recipe_assignments')
   const workspace = row.workspace === null ? undefined : parsed(row.workspace, 'recipe_workspace')
-  if (workspace !== undefined && !('ok' in assetJudge.judgeAssetValue('WorkspaceKey', workspace)))
+  if (
+    workspace !== undefined &&
+    !('ok' in getAssetJudge().judgeAssetValue('WorkspaceKey', workspace))
+  )
     throw new SourceUnavailable('recipe_workspace')
   return {
     tenant: tenant.ok,

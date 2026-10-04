@@ -1,0 +1,1052 @@
+{
+  "head": "aa1329cc0af575bbb4557360043c663873d9c513",
+  "base": {
+    "ref": "f226b4cca0c1a2ae78f0d7ea36b004eb1a27288f",
+    "mergeBase": "f226b4cca0c1a2ae78f0d7ea36b004eb1a27288f"
+  },
+  "phase": "slow",
+  "scope": "Manual affected plan; serial CPU7, one worker and one member. No slot wrapper.",
+  "steps": [
+    {
+      "name": "packages__agent-loop__loop-extension-runner",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__agent-loop__loop-extension-runner.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/agent-loop/loop-extension-runner",
+      "exit_code": 0,
+      "wall_seconds": 49.7471696450375,
+      "tests": {
+        "numTotalTests": 417,
+        "numPassedTests": 417,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__assets__assembly-manifest-store",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__assets__assembly-manifest-store.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/assets/assembly-manifest-store",
+      "exit_code": 0,
+      "wall_seconds": 6.559317404986359,
+      "tests": {
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__assets__evaluation-input-store",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__assets__evaluation-input-store.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/assets/evaluation-input-store",
+      "exit_code": 0,
+      "wall_seconds": 8.356317431025673,
+      "tests": {
+        "numTotalTests": 19,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 17
+      }
+    },
+    {
+      "name": "packages__core__agent-definition",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__agent-definition.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/agent-definition",
+      "exit_code": 0,
+      "wall_seconds": 0.792308164993301,
+      "tests": {
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__arrival-events",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__arrival-events.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/arrival-events",
+      "exit_code": 0,
+      "wall_seconds": 5.266114245983772,
+      "tests": {
+        "numTotalTests": 3,
+        "numPassedTests": 3,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__asset-evaluation",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__asset-evaluation.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/asset-evaluation",
+      "exit_code": 0,
+      "wall_seconds": 107.70803019596497,
+      "tests": {
+        "numTotalTests": 128,
+        "numPassedTests": 128,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__asset-model",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__asset-model.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/asset-model",
+      "exit_code": 0,
+      "wall_seconds": 6.030338157026563,
+      "tests": {
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__call-accounts",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__call-accounts.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/call-accounts",
+      "exit_code": 0,
+      "wall_seconds": 4.650061386986636,
+      "tests": {
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__content-blocks",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__content-blocks.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/content-blocks",
+      "exit_code": 0,
+      "wall_seconds": 5.256939639977645,
+      "tests": {
+        "numTotalTests": 4,
+        "numPassedTests": 4,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__identity-values",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__identity-values.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/identity-values",
+      "exit_code": 0,
+      "wall_seconds": 3.751772601972334,
+      "tests": {
+        "numTotalTests": 5,
+        "numPassedTests": 5,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__loop-extension",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__loop-extension.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/loop-extension",
+      "exit_code": 0,
+      "wall_seconds": 9.008729354012758,
+      "tests": {
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__mcp-endpoint",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__mcp-endpoint.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/mcp-endpoint",
+      "exit_code": 0,
+      "wall_seconds": 4.915570679004304,
+      "tests": {
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__messages",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__messages.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/messages",
+      "exit_code": 0,
+      "wall_seconds": 6.584593735984527,
+      "tests": {
+        "numTotalTests": 5,
+        "numPassedTests": 5,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__model-profile",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__model-profile.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/model-profile",
+      "exit_code": 0,
+      "wall_seconds": 4.315805429010652,
+      "tests": {
+        "numTotalTests": 3,
+        "numPassedTests": 3,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__model-response",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__model-response.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/model-response",
+      "exit_code": 0,
+      "wall_seconds": 6.332053158024792,
+      "tests": {
+        "numTotalTests": 9,
+        "numPassedTests": 9,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__offer-expiry",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__offer-expiry.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/offer-expiry",
+      "exit_code": 0,
+      "wall_seconds": 3.5340291429893114,
+      "tests": {
+        "numTotalTests": 4,
+        "numPassedTests": 4,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__skill-package",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__skill-package.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/skill-package",
+      "exit_code": 0,
+      "wall_seconds": 4.906723680032883,
+      "tests": {
+        "numTotalTests": 9,
+        "numPassedTests": 9,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__slash-command",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__slash-command.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/slash-command",
+      "exit_code": 0,
+      "wall_seconds": 4.588420493004378,
+      "tests": {
+        "numTotalTests": 3,
+        "numPassedTests": 3,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__core__stream-assembly",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__stream-assembly.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/stream-assembly",
+      "exit_code": 0,
+      "wall_seconds": 7.992083621036727,
+      "tests": {
+        "numTotalTests": 209,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 207
+      }
+    },
+    {
+      "name": "packages__core__tool-definition",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__core__tool-definition.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/core/tool-definition",
+      "exit_code": 0,
+      "wall_seconds": 4.932936713972595,
+      "tests": {
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__frontend__client-local-state",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__frontend__client-local-state.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/frontend/client-local-state",
+      "exit_code": 0,
+      "wall_seconds": 6.67997950600693,
+      "tests": {
+        "numTotalTests": 10,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 9
+      }
+    },
+    {
+      "name": "packages__frontend__governance-center-client",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__frontend__governance-center-client.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/frontend/governance-center-client",
+      "exit_code": 0,
+      "wall_seconds": 3.24523225100711,
+      "tests": {
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__frontend__governance-client-operations",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__frontend__governance-client-operations.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/frontend/governance-client-operations",
+      "exit_code": 0,
+      "wall_seconds": 0.7312855640193447,
+      "tests": {
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__infra__clock",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__infra__clock.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/infra/clock",
+      "exit_code": 0,
+      "wall_seconds": 0.6659792059799656,
+      "tests": {
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__infra__credential-custodian-local",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__infra__credential-custodian-local.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/infra/credential-custodian-local",
+      "exit_code": 0,
+      "wall_seconds": 4.422103366989177,
+      "tests": {
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__model__model-profile-directory",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__model__model-profile-directory.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/model/model-profile-directory",
+      "exit_code": 0,
+      "wall_seconds": 4.687554700998589,
+      "tests": {
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__model__model-request-runtime",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__model__model-request-runtime.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/model/model-request-runtime",
+      "exit_code": 0,
+      "wall_seconds": 81.81794607202755,
+      "tests": {
+        "numTotalTests": 148,
+        "numPassedTests": 148,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__model__pi-ai-transport",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__model__pi-ai-transport.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/model/pi-ai-transport",
+      "exit_code": 0,
+      "wall_seconds": 316.6751722909976,
+      "tests": {
+        "numTotalTests": 1186,
+        "numPassedTests": 1185,
+        "numFailedTests": 0,
+        "numPendingTests": 1
+      }
+    },
+    {
+      "name": "packages__session__session-log-jsonl",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__session__session-log-jsonl.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/session/session-log-jsonl",
+      "exit_code": 0,
+      "wall_seconds": 9.564211571007036,
+      "tests": {
+        "numTotalTests": 26,
+        "numPassedTests": 26,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__session__session-tenancy-table",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__session__session-tenancy-table.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/session/session-tenancy-table",
+      "exit_code": 0,
+      "wall_seconds": 0.5222643929882906,
+      "tests": {
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__tenancy__account-identity",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__tenancy__account-identity.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/tenancy/account-identity",
+      "exit_code": 0,
+      "wall_seconds": 5.678182736970484,
+      "tests": {
+        "numTotalTests": 19,
+        "numPassedTests": 19,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__tenancy__account-registration",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__tenancy__account-registration.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/tenancy/account-registration",
+      "exit_code": 0,
+      "wall_seconds": 20.92242807499133,
+      "tests": {
+        "numTotalTests": 15,
+        "numPassedTests": 8,
+        "numFailedTests": 0,
+        "numPendingTests": 7
+      }
+    },
+    {
+      "name": "packages__tenancy__credential-verification",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__tenancy__credential-verification.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/tenancy/credential-verification",
+      "exit_code": 0,
+      "wall_seconds": 3.1811650919844396,
+      "tests": {
+        "numTotalTests": 5,
+        "numPassedTests": 5,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__tenancy__governance-center-entry",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__tenancy__governance-center-entry.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/tenancy/governance-center-entry",
+      "exit_code": 0,
+      "wall_seconds": 58.62415060598869,
+      "tests": {
+        "numTotalTests": 45,
+        "numPassedTests": 9,
+        "numFailedTests": 0,
+        "numPendingTests": 36
+      }
+    },
+    {
+      "name": "packages__tenancy__organization-governance",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__tenancy__organization-governance.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/tenancy/organization-governance",
+      "exit_code": 0,
+      "wall_seconds": 5.957712373987306,
+      "tests": {
+        "numTotalTests": 25,
+        "numPassedTests": 25,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__tools__asset-registry",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/packages__tools__asset-registry.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/tools/asset-registry",
+      "exit_code": 0,
+      "wall_seconds": 8.53626493504271,
+      "tests": {
+        "numTotalTests": 21,
+        "numPassedTests": 21,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "apps__cli",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/apps__cli.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/apps/cli",
+      "exit_code": 0,
+      "wall_seconds": 0.7691526539856568,
+      "tests": {
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "apps__tenancy-host",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/apps__tenancy-host.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/apps/tenancy-host",
+      "exit_code": 0,
+      "wall_seconds": 157.58528329100227,
+      "tests": {
+        "numTotalTests": 93,
+        "numPassedTests": 84,
+        "numFailedTests": 0,
+        "numPendingTests": 9
+      }
+    },
+    {
+      "name": "tools__ts-checks",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/tools__ts-checks.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/tools/ts-checks",
+      "exit_code": 0,
+      "wall_seconds": 185.59688853501575,
+      "tests": {
+        "numTotalTests": 137,
+        "numPassedTests": 40,
+        "numFailedTests": 0,
+        "numPendingTests": 97
+      }
+    },
+    {
+      "name": "tools__core-verification",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/final65-main-integration/final-slow-r1/tools__core-verification.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/tools/core-verification",
+      "exit_code": 0,
+      "wall_seconds": 31.270979651017115,
+      "tests": {
+        "numTotalTests": 27,
+        "numPassedTests": 27,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    }
+  ],
+  "complete": true
+}

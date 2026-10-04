@@ -1,0 +1,26 @@
+{
+  "released_by": "ROOT",
+  "scope": "N1 affected shared gate reentry only. Not final L3 acceptance.",
+  "parent": "28dd49e0018f455c53b278bc3309b9c80c2ef2f7",
+  "driver_sha256": "e97aad5b3db8ba8e0eb022fb70b8bcf074c79b897c8ff2993bc0e7bdd012e7e0",
+  "mechanical_codegen_transaction_fingerprint_body_unchanged": true,
+  "old_rejection": "before.json",
+  "relocated_success": "after.json",
+  "regression": "regression-r1.json",
+  "all20": "checks-result.json",
+  "identical_generated_code": "output-delta.json",
+  "five_faults_recovery": "faults/result.json",
+  "real_stryker_build_initial_run_report": "stryker-smoke/result.json",
+  "instrument_limit": "Smoke statuses NoCoverage2/Survived6 establish completion only, not detection quality. Existing #50 false-survival counterexample remains open as an instrument boundary.",
+  "reused_evidence": {
+    "exact_native_ordinary_AM": "Old frozen QA and root probes remain applicable to unchanged package source/resources/helpers and byte-identical generated code. Only owner recognition changed in build driver.",
+    "pending": "Independent fix review and scoped QA, final affected tests/common hard lines, performance and PR integration remain required."
+  },
+  "frozen_candidate": "aa1329cc0af575bbb4557360043c663873d9c513",
+  "integration_base": "f226b4cca0c1a2ae78f0d7ea36b004eb1a27288f",
+  "generated_count_clarification": {
+    "official_owner_artifacts": 26,
+    "extra_retired_root_probe": 1,
+    "source": "independent reviewer readback; original27 comparisons retained; clones-r1/candidate-sandbox-fix-build.json compares only20owners/26artifacts"
+  }
+}

@@ -97,3 +97,11 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 2026-09-28：[D-098](../../../../record/decisions/model-input-limit-provider-adoption/decision.md)在独立架构评审无阻断后技术采用 v4 增量。MP4 契约由 D-097 接受；源码与验证另行推进，旧正文的 candidate 为起草状态。
 
 2026-09-29：[D-110](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)已采用本节点 T29 精确增量；原候选正文保留受审字节，新增实现与验收尚待。
+
+## 2026-10-03 固定Schema技术采用
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。
+
+## 2026-10-03 D-116 主体实施与有限验收
+
+本节点固定图已实施构建期生成与首次实际消费时的同步原生装载。全部定义、公开结果/errors、构建失败清理、恢复、新鲜性及制品消费的实际范围见[主体原始运行与有限签收](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。本段取代上文 D-116 补充中关于固定图实施/验证尚待的状态；原契约、其他能力与历史运行的边界不变。

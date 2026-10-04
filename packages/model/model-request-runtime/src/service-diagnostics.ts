@@ -8,6 +8,24 @@ import type {
 } from './diagnostics-types.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 
+function recordedReference(result: unknown): DiagnosticReference | undefined {
+  if (result !== null && typeof result === 'object' && 'recorded' in result) {
+    const recorded = result.recorded
+    if (
+      recorded !== null &&
+      typeof recorded === 'object' &&
+      'collectorId' in recorded &&
+      'sequence' in recorded &&
+      typeof recorded.collectorId === 'string' &&
+      typeof recorded.sequence === 'string'
+    ) {
+      const reference = { collectorId: recorded.collectorId, sequence: recorded.sequence }
+      return reference
+    }
+  }
+  return undefined
+}
+
 /** One verified service operation owns this emitter and the actual recorded parent reference. */
 export function operationDiagnostics(
   collector: Pick<DiagnosticCollector, 'emitter'> | undefined,
@@ -54,20 +72,10 @@ export function operationDiagnostics(
       if (!emitter || !recordEnabled) return undefined
       try {
         const result: unknown = emitter.record(event)
-        if (result !== null && typeof result === 'object' && 'recorded' in result) {
-          const recorded = result.recorded
-          if (
-            recorded !== null &&
-            typeof recorded === 'object' &&
-            'collectorId' in recorded &&
-            'sequence' in recorded &&
-            typeof recorded.collectorId === 'string' &&
-            typeof recorded.sequence === 'string'
-          ) {
-            const reference = { collectorId: recorded.collectorId, sequence: recorded.sequence }
-            onRecorded?.(reference)
-            return reference
-          }
+        const reference = recordedReference(result)
+        if (reference) {
+          onRecorded?.(reference)
+          return reference
         }
         if (drainDiagnosticThenable(result)) {
           recordEnabled = false

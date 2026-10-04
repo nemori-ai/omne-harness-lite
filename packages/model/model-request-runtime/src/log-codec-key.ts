@@ -81,44 +81,50 @@ function quote(value: string): string {
 function encode(parts: readonly string[]): string {
   return `${modelLogFormat}/[${parts.map(quote).join(',')}]`
 }
-function parts(key: JsonObject): readonly string[] | ModelLogInvalidValue {
-  const kind = key.kind
-  if (kind === 'all' || kind === 'messages' || kind === 'selection') {
-    return Object.keys(key).length === 1 ? [kind] : invalidValue('identity')
-  }
-  if (
+function singletonKind(kind: JsonValue | undefined) {
+  return kind === 'all' || kind === 'messages' || kind === 'selection'
+}
+function callKind(kind: JsonValue | undefined) {
+  return (
     kind === 'call' ||
     kind === 'created' ||
     kind === 'intent' ||
     kind === 'ended' ||
     kind === 'acknowledged'
-  ) {
-    return Object.keys(key).length === 2 && identity(key.call)
-      ? [kind, key.call]
-      : invalidValue('identity')
+  )
+}
+function dispatchKind(kind: JsonValue | undefined) {
+  return kind === 'dispatch' || kind === 'dispatched' || kind === 'opened'
+}
+function responseKind(kind: JsonValue | undefined) {
+  return kind === 'response' || kind === 'ready' || kind === 'settlement'
+}
+function identityParts(
+  key: JsonObject,
+  kind: string,
+  field: 'call' | 'response' | 'message' | 'creationKey' | 'run',
+): readonly string[] | ModelLogInvalidValue {
+  return Object.keys(key).length === 2 && identity(key[field])
+    ? [kind, key[field]]
+    : invalidValue('identity')
+}
+function dispatchParts(key: JsonObject, kind: string): readonly string[] | ModelLogInvalidValue {
+  if (Object.keys(key).length !== 3 || !identity(key.call)) return invalidValue('identity')
+  return positiveInteger(key.dispatch)
+    ? [kind, key.call, integerSource(key.dispatch)]
+    : invalidValue('dispatch')
+}
+function parts(key: JsonObject): readonly string[] | ModelLogInvalidValue {
+  const kind = key.kind
+  if (singletonKind(kind)) {
+    return Object.keys(key).length === 1 ? [kind] : invalidValue('identity')
   }
-  if (kind === 'dispatch' || kind === 'dispatched' || kind === 'opened') {
-    if (Object.keys(key).length !== 3 || !identity(key.call)) return invalidValue('identity')
-    return positiveInteger(key.dispatch)
-      ? [kind, key.call, integerSource(key.dispatch)]
-      : invalidValue('dispatch')
-  }
-  if (kind === 'response' || kind === 'ready' || kind === 'settlement')
-    return Object.keys(key).length === 2 && identity(key.response)
-      ? [kind, key.response]
-      : invalidValue('identity')
-  if (kind === 'message')
-    return Object.keys(key).length === 2 && identity(key.message)
-      ? [kind, key.message]
-      : invalidValue('identity')
-  if (kind === 'creation')
-    return Object.keys(key).length === 2 && identity(key.creationKey)
-      ? [kind, key.creationKey]
-      : invalidValue('identity')
-  if (kind === 'run')
-    return Object.keys(key).length === 2 && identity(key.run)
-      ? [kind, key.run]
-      : invalidValue('identity')
+  if (callKind(kind)) return identityParts(key, kind, 'call')
+  if (dispatchKind(kind)) return dispatchParts(key, kind)
+  if (responseKind(kind)) return identityParts(key, kind, 'response')
+  if (kind === 'message') return identityParts(key, kind, 'message')
+  if (kind === 'creation') return identityParts(key, kind, 'creationKey')
+  if (kind === 'run') return identityParts(key, kind, 'run')
   return invalidValue('identity')
 }
 export function encodeModelLogKey(
@@ -145,42 +151,41 @@ export function decodeModelLogKey(
     return fail
   const copied = copyJsonValue(decoded)
   if ('failed' in copied || !Array.isArray(copied.ok)) return fail
-  const [kind, id, numeric] = copied.ok
-  let key: ModelLogKey
-  if ((kind === 'all' || kind === 'messages' || kind === 'selection') && decoded.length === 1)
-    key = { kind }
-  else if (
-    (kind === 'call' ||
-      kind === 'created' ||
-      kind === 'intent' ||
-      kind === 'ended' ||
-      kind === 'acknowledged') &&
-    typeof id === 'string' &&
-    decoded.length === 2
-  )
-    key = { kind, call: id }
-  else if (
-    (kind === 'dispatch' || kind === 'dispatched' || kind === 'opened') &&
-    typeof id === 'string' &&
-    typeof numeric === 'string' &&
-    decoded.length === 3
-  ) {
-    if (!/^[1-9][0-9]*e(?:0|[1-9][0-9]*)$/u.test(numeric)) return fail
-    key = { kind, call: id, dispatch: new LosslessNumber(numeric) }
-  } else if (
-    (kind === 'response' || kind === 'ready' || kind === 'settlement') &&
-    typeof id === 'string' &&
-    decoded.length === 2
-  )
-    key = { kind, response: id }
-  else if (kind === 'message' && typeof id === 'string' && decoded.length === 2)
-    key = { kind, message: id }
-  else if (kind === 'creation' && typeof id === 'string' && decoded.length === 2)
-    key = { kind, creationKey: id }
-  else if (kind === 'run' && typeof id === 'string' && decoded.length === 2) key = { kind, run: id }
-  else return fail
+  const key = keyFromParts(copied.ok, decoded.length)
+  if (key === undefined) return fail
   const encoded = encodeModelLogKey(key)
   return 'ok' in encoded && encoded.ok === input ? Object.freeze({ ok: Object.freeze(key) }) : fail
+}
+
+function identityKey(kind: JsonValue | undefined, id: string): ModelLogKey | undefined {
+  if (callKind(kind)) return { kind, call: id }
+  if (responseKind(kind)) return { kind, response: id }
+  if (kind === 'message') return { kind, message: id }
+  if (kind === 'creation') return { kind, creationKey: id }
+  if (kind === 'run') return { kind, run: id }
+  return undefined
+}
+function keyFromParts(parts: readonly JsonValue[], length: number): ModelLogKey | undefined {
+  const [kind, id, numeric] = parts
+  if (singletonKind(kind) && length === 1) return { kind }
+  if (typeof id !== 'string') return undefined
+  if (length === 2) return identityKey(kind, id)
+  return dispatchKey(kind, id, numeric, length)
+}
+function dispatchKey(
+  kind: JsonValue | undefined,
+  id: string,
+  numeric: JsonValue | undefined,
+  length: number,
+): ModelLogKey | undefined {
+  if (
+    !dispatchKind(kind) ||
+    typeof numeric !== 'string' ||
+    length !== 3 ||
+    !/^[1-9][0-9]*e(?:0|[1-9][0-9]*)$/u.test(numeric)
+  )
+    return undefined
+  return { kind, call: id, dispatch: new LosslessNumber(numeric) }
 }
 
 /** Copies strict JSON at the public boundary; undefined denotes an absent member. */

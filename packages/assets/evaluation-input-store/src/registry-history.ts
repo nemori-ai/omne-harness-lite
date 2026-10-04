@@ -22,7 +22,7 @@ import type { MembershipsService } from '@omne-harness-lite/organization-governa
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy-table'
 import { narrow, StorageUnavailable, type AtomicStorage } from '@omne-harness-lite/storage'
 import {
-  assetJudge,
+  getAssetJudge,
   equal,
   json,
   object,
@@ -84,10 +84,10 @@ function request(value: unknown): RegistryHistoryRequest | undefined {
     !('ok' in parseOpaqueIdentifier(copy.session, 'SessionRef')) ||
     !categories.some(category => category === copy.category) ||
     !('ok' in instantFromEpochMs(copy.filledAt)) ||
-    !('ok' in assetJudge.judgeAssetValue('CapabilityId', copy.capability)) ||
+    !('ok' in getAssetJudge().judgeAssetValue('CapabilityId', copy.capability)) ||
     !object(copy.capability) ||
     copy.capability.category !== copy.category ||
-    !('ok' in assetJudge.judgeAssetValue('AssetRecordId', copy.asset)) ||
+    !('ok' in getAssetJudge().judgeAssetValue('AssetRecordId', copy.asset)) ||
     !positiveInteger(copy.version)
   )
     return undefined
@@ -130,8 +130,8 @@ function binding(
   for (const entry of table.composition) {
     if (
       !object(entry) ||
-      !('ok' in assetJudge.judgeAssetValue('CapabilityId', entry.capability)) ||
-      !('ok' in assetJudge.judgeAssetValue('AssetRecordId', entry.asset)) ||
+      !('ok' in getAssetJudge().judgeAssetValue('CapabilityId', entry.capability)) ||
+      !('ok' in getAssetJudge().judgeAssetValue('AssetRecordId', entry.asset)) ||
       !positiveInteger(entry.version)
     )
       throw new HistoryUnavailable('history_binding')
@@ -310,7 +310,7 @@ export function createRegistryHistoryReader(
           ...metadata,
           versions: snapshot.rows.map(row => parsed(row.version, 'history_version')),
         })
-        if (!('ok' in assetJudge.judgeAssetValue('AssetDefinition', definition)))
+        if (!('ok' in getAssetJudge().judgeAssetValue('AssetDefinition', definition)))
           throw new HistoryUnavailable('source')
         const asset = definition as unknown as AssetDefinition
         const versions = asset.versions.filter(version => equal(version.number, requested.version))

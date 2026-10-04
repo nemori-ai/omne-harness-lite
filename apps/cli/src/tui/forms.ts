@@ -1,5 +1,4 @@
 import { createRequire } from 'node:module'
-import { Ajv2020 } from 'ajv/dist/2020.js'
 import type { ActionIntent, PromptResult } from '@omne-harness-lite/governance-client-operations'
 import { InputFailure } from '../diagnostic.ts'
 import { readInputFile } from '../input.ts'
@@ -32,9 +31,10 @@ export interface Form {
   readonly payloadSchema?: string
 }
 const require = createRequire(import.meta.url)
-const check = new Ajv2020({ strict: true, strictRequired: false }).compile<readonly Form[]>(
-  require('../../forms/tui-forms.schema.json'),
-)
+const builtRequire = createRequire(new URL('../../package.json', import.meta.url))
+const { Forms: check } = builtRequire('./generated/forms.cjs') as {
+  Forms(value: unknown): value is readonly Form[]
+}
 const metadata: unknown = require('../../forms/forms.json')
 if (!check(metadata)) throw new Error('invalid bundled forms')
 export const forms = metadata

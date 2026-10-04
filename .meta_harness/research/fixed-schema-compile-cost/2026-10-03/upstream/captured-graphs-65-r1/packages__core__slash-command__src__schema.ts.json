@@ -1,0 +1,3189 @@
+{
+  "path": "packages/core/slash-command/src/schema.ts",
+  "sourceSha256": "98933467f38007590f2c15a2f7b34d3f0275ecb6df0450ef4e2610cf5f49354c",
+  "inputs": [
+    {
+      "path": "packages/core/slash-command/src/schema.ts",
+      "bytes": 1466,
+      "sha256": "98933467f38007590f2c15a2f7b34d3f0275ecb6df0450ef4e2610cf5f49354c"
+    },
+    {
+      "path": "packages/core/slash-command/schema/slash-command.schema.json",
+      "bytes": 18012,
+      "sha256": "595e5662cf7ebd5d84c5ba3edee7b4dd8a6e817a4738343bfa86c318cc1ac40e"
+    },
+    {
+      "path": "packages/core/asset-model/schema/asset-model.v2.schema.json",
+      "bytes": 42427,
+      "sha256": "3b4a9302a51f902f89f6bb567f2b91b0533f323d8f315853e35ac15a679f5890"
+    },
+    {
+      "path": "packages/core/content-blocks/schema/content-blocks.v2.schema.json",
+      "bytes": 31593,
+      "sha256": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21"
+    },
+    {
+      "path": "packages/core/slash-command/src/json.ts",
+      "bytes": 675,
+      "sha256": "8ad42fa88286b38fe66269ab9cd711cc750ae576140690e8b63e6114462b740b"
+    },
+    {
+      "path": "packages/core/content-blocks/src/json.ts",
+      "bytes": 8314,
+      "sha256": "c08bd65914b354daa8ced326c8a8a6094f064077870bd0f49f4a632349545d95"
+    }
+  ],
+  "skippedNonInitializationImports": [],
+  "graphs": [
+    {
+      "ordinal": 0,
+      "kind": "exact-runtime",
+      "options": {},
+      "keywords": [],
+      "resources": [
+        {
+          "meta": false,
+          "value": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
+            "title": "data.content-blocks v2",
+            "description": "内容块的规范形状。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.content-blocks/v2 内有效。",
+            "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状；表示层拒绝值（S-26）的具名与优先级、块标识在一条消息内唯一（S-3）、引用形状下两处媒体类型逐字相同（S-10）、落盘后不变（S-22）等由契约条款定，Schema 管不到，逐条列在 contract.md「Schema 管得到什么」。正反实例在同目录 examples.md。不透明标识（BlockId、CallId、AttachmentRef 的 storage 与 key）的交换表示按 data.identity-values/v1#S-31 的散文在本文件写出形状（不跨契约 $ref 那份已冻结契约的 OpaqueIdentifier，它自述不单独被引用；主线裁定，见 D-060 §一 S1-a）；pattern 照 S-31 逐个列出的空白码点写否定字符类，以 (?![\\s\\S]) 判绝对结尾，不用 \\s 与 $——理由与回归用例见 data.identity-values/v1#S-31。",
+            "$defs": {
+              "BlockId": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+                "title": "BlockId",
+                "description": "S-3：一个内容块的标识。在一条消息之内唯一——唯一范围是这条消息里出现的全部块，含工具结果块 blocks 里任意层的块与派生表示 blocks 里的块；会话日志里靠 (messageId, id) 指认一个块，messageId 归 data.messages。交换表示与相等按 data.identity-values/v1#S-31 的散文：非空、首尾不属于那个显式空白码点集合、逐码点精确相等、消费者不解析。执行帧里的块由工具侧宿主的帧入口编号（S-3）。它是规格层的名字，不是统一语言词条。",
+                "$comment": "「消息内唯一」Schema 表达不了（跨嵌套层的唯一性不是 uniqueItems 能管的），由 S-3 与接收边界的校验兑现。词法形式是缺口 G-4。pattern 的写法见文件头 $comment。",
+                "examples": [
+                  "b_01",
+                  "blk-7f3c"
+                ]
+              },
+              "CallId": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+                "title": "CallId",
+                "description": "S-14：一次工具调用的标识。在一份会话日志之内，完整的工具调用块（complete: true，含标了 unparseable 的那一种）里它唯一；不嵌在别的工具结果块里的工具结果块，callId 指回那一个——嵌套的工具结果块的 callId 记的是那次执行内部的一次调用，不进这个唯一范围、不指回任何工具调用块。同一个 CallId 可以出现在不止一个工具结果块上（占位与后来到达的真实结果），它们之间的关系归 data.messages。半截的工具调用块上的 callId 只是收到的原值，不是一次已登记调用的标识，任何工具结果块都不指向它。交换表示与相等按 data.identity-values/v1#S-31 的散文。它是规格层的名字，不是统一语言词条。",
+                "$comment": "唯一性由登记这次调用的一方保证，Schema 管不到。词法形式是缺口 G-4。pattern 的写法见文件头 $comment。data.call-accounts v2 的 ToolCallAccount.callId 与 CostCorrection 的工具执行目标引用本定义。",
+                "examples": [
+                  "call_01"
+                ]
+              },
+              "ModelToolName": {
+                "title": "模型面名字",
+                "description": "S-12：完整工具调用块 tool 的取值——模型面上的工具名，定义名里每一个 : 换成 __；只含 A–Z a–z 0–9 _ -，1～128 个字符。家在 data.tool-definition v2 S-6 的 ModelToolName；本定义是它的逐字副本。",
+                "$comment": "互引成环的登记口径（registry README；D-060 §七 M2、M8）：data.tool-definition v2 以 $ref 取本契约的块与附件引用，本契约不反向 $ref 它，在这里逐字写出同一个 type 与 pattern、不登 catalog 依赖；两处逐字对齐是 verification「对齐义务」里的一条。别的契约 $ref data.tool-definition 那一份，不 $ref 这一份。",
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}(?![\\s\\S])",
+                "examples": [
+                  "read_file",
+                  "mcp__github__create_issue"
+                ]
+              },
+              "Visibility": {
+                "title": "块标注 · Block Annotation",
+                "description": "S-4：每个内容块上的两个标注（UL-block-annotation）。toHuman：组装面向人的那一份时取不取它；toModel：组装面向 agent 的那一份时取不取它。两位都必填、互不决定，四种组合都合法。它只说取不取，不说长什么样。由产生这个块的一方在落盘那一刻写下，此后不改（S-22）。缺任一位即表示层拒绝 visibility_missing（S-26），不补默认值。",
+                "$comment": "「此刻还给不给模型看」是算出来的——toModel 为真且没被排在前面的压缩记录点名——那一半归 data.messages 与 PF-010，本定义不存它。嵌套块按合取取用见 S-5。",
+                "type": "object",
+                "properties": {
+                  "toHuman": {
+                    "type": "boolean"
+                  },
+                  "toModel": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "toHuman",
+                  "toModel"
+                ],
+                "additionalProperties": false,
+                "examples": [
+                  {
+                    "toHuman": true,
+                    "toModel": true
+                  },
+                  {
+                    "toHuman": false,
+                    "toModel": false
+                  }
+                ]
+              },
+              "MediaType": {
+                "title": "MediaType",
+                "description": "S-7：媒体类型的规范形式——小写的 type/subtype，type 与 subtype 各按 RFC 6838 的 restricted-name 字符集；其后可带若干参数，每个写成紧挨着的 ;name=value，name 小写、value 是 token，不带空白、不带引号。相等只在需要时按整串逐字比较。块的模态只读 type 那一段（S-6），参数原样携带、本契约不解释。",
+                "$comment": "要求小写是为了让 S-6 的判定在任何实现上结果相同：大小写不敏感的比较交给各实现，就会出现 TEXT/plain 在一处算文本、在另一处算无模态。产生者写入前自己规范化；接收方不替它改写（S-27）。结尾用 (?![\\s\\S]) 而不是 $，理由同 data.identity-values/v1#S-31：Python 的 $ 会匹配到末尾换行之前。",
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]{0,126}/[a-z0-9][a-z0-9!#$&^_.+-]{0,126}(?:;[a-z0-9!#$%&'*+.^_`|~-]+=[A-Za-z0-9!#$%&'*+.^_`|~-]+)*(?![\\s\\S])",
+                "examples": [
+                  "image/png",
+                  "audio/pcm;rate=24000",
+                  "video/mp4",
+                  "application/pdf"
+                ]
+              },
+              "Modality": {
+                "title": "模态 · Modality",
+                "description": "S-6：一类内容的形态（UL-modality），恰四种。token 与词条的对应：text ↔ 文本 Text，image ↔ 图 Image，audio ↔ 语音 Voice，video ↔ 视频 Video。块上不存模态——它由块的类型与媒体类型按 S-6 算出；本定义是模态的唯一定义，需要写出模态的消费者（工具定义的模态声明、模型档案的输入输出模态、模态投影）一律 $ref 它，不另列一份。「无模态」不是第五个取值，也不写成 null。",
+                "type": "string",
+                "enum": [
+                  "text",
+                  "image",
+                  "audio",
+                  "video"
+                ]
+              },
+              "CapabilityId": {
+                "title": "能力标识 · Capability Identifier",
+                "description": "S-20：资产的身份——类别加 name（UL-capability-identifier）。category 恰八类，闭合。相等按两个分量逐码点比较。它是能力标识形状与相等的唯一定义，其他契约一律 $ref 它（本契约自己的块上本版不出现它：DerivedRendering.producedBy 本版恒为 system，S-20）。",
+                "$comment": "name 的词法（不含空白与 '/'，冒号允许）归 data.asset-model v2 的 S-2（它以 allOf 在本定义之上收紧 name）；本定义只约束到非空字符串——本契约不反向引用那份契约，以免成环（S-20）。",
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "skill",
+                      "tool",
+                      "mcp",
+                      "connector",
+                      "loop_extension",
+                      "slash_command",
+                      "plugin",
+                      "agent_definition"
+                    ]
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "category",
+                  "name"
+                ],
+                "additionalProperties": false,
+                "examples": [
+                  {
+                    "category": "loop_extension",
+                    "name": "image-describer"
+                  }
+                ]
+              },
+              "AttachmentRef": {
+                "title": "AttachmentRef",
+                "description": "S-21：指向某个存储里的一份字节的引用——引用，不是内容。storage 指认是哪一个存储，key 是那份字节在该存储里的键，二者合起来就是相等依据：两个引用相等当且仅当 storage 与 key 都逐码点相等；mediaType、bytes、name 不参与相等。bytes 若给出，是被引用那份字节的长度，只作说明；name 是给人看的名字，不是身份。storage 与 key 对存储之外的任何一方不透明，不得被解析出归属或资格（data.identity-values/v1#S-34：地址不是身份）。它被文件块、语音块与图块的引用形状、以及工具结果块的 offloaded 共用。",
+                "$comment": "存储本身全系统尚未定义——storage 取哪些值、引用能否跨节点解引用、解引用时由谁按调用方的租户身份判定能不能读，都等缺口 G-1（owner PF-006）。本定义只定引用的形状与相等。storage 与 key 按 data.identity-values/v1#S-31 的散文表示（pattern 写法见文件头 $comment）。一个只给了引用的附件落成哪一类块见 S-34。",
+                "type": "object",
+                "properties": {
+                  "storage": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+                  },
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+                  },
+                  "mediaType": {
+                    "$ref": "#/$defs/MediaType"
+                  },
+                  "bytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "storage",
+                  "key",
+                  "mediaType"
+                ],
+                "additionalProperties": false,
+                "examples": [
+                  {
+                    "storage": "attachments",
+                    "key": "obj_5f2c",
+                    "mediaType": "image/png",
+                    "bytes": 20480
+                  },
+                  {
+                    "storage": "attachments",
+                    "key": "obj_91aa",
+                    "mediaType": "video/mp4",
+                    "name": "demo.mp4"
+                  }
+                ]
+              },
+              "InlineBytes": {
+                "title": "InlineBytes",
+                "description": "S-10：内联在值里的一份字节的 base64 串——标准字母表（RFC 4648 §4）、带填充、非空、不含换行与空白。语音块与图块的内联形状是 { inline: InlineBytes }；别的契约需要在值里内联一份字节（例如工具定义里卸载的内联原始结果）时，承载它的那一成员一律 $ref 本定义，不另写一份编码规则。它是规格层的名字，不是统一语言词条。",
+                "$comment": "只定编码规则，不带媒体类型——媒体类型由承载它的那一处给出（语音块、图块的 mediaType；卸载原始结果旁的 mediaType）。结尾用 (?![\\s\\S]) 而不是 $，理由同 MediaType。",
+                "type": "string",
+                "contentEncoding": "base64",
+                "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)(?![\\s\\S])",
+                "examples": [
+                  "iVBORw0KGgo="
+                ]
+              },
+              "DerivedRendering": {
+                "title": "派生表示 · Derived Rendering",
+                "description": "S-19、S-20：模态转换件从一个块产出、挂在那个原块上的一组别的模态的块（UL-derived-rendering）。它是原块的属性，不是消息里另外的块；在落盘之前写好，之后不变。blocks 至少一块，只能是文本块、图块或语音块——不能是文件块（PF-013 转换件契约），也不能是思考、工具调用或工具结果块；这些块自己不再带派生表示或 transcript。producedBy 是产出它的那一件：本版恒为字面量 system——转换件本版不是资产，只由系统装配层登记（S-20；PF-013 §4 转换件、PF-012 §4 拓展件的例外）。每一块的模态都不同于原块的模态（原块没有模态时不受此限），这一条跨成员比较，Schema 管不到（S-19）。",
+                "$comment": "这些块照样带 id 与 visibility：id 与消息里其余块共用一个唯一范围（S-3），visibility 与原块按合取生效（S-5）。组装时取哪一份归 PF-010，本定义不给它们排优先级。",
+                "type": "object",
+                "properties": {
+                  "producedBy": {
+                    "const": "system"
+                  },
+                  "blocks": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "allOf": [
+                        {
+                          "$ref": "#/$defs/ContentBlock"
+                        },
+                        {
+                          "properties": {
+                            "kind": {
+                              "enum": [
+                                "text",
+                                "image",
+                                "voice"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        },
+                        {
+                          "not": {
+                            "anyOf": [
+                              {
+                                "required": [
+                                  "renderings"
+                                ]
+                              },
+                              {
+                                "required": [
+                                  "transcript"
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "producedBy",
+                  "blocks"
+                ],
+                "additionalProperties": false
+              },
+              "BlockBase": {
+                "title": "块底座",
+                "description": "S-2：每一类块共有的成员。id（S-3）与 visibility（S-4）必填；renderings 与 transcript 是模态转换件写在原块上的两样属性（S-19），只有语音块、图块、文件块可以带——其余四类由各自的定义拒绝。二者同有同无（转换件每次都交出至少一块派生表示外加 transcript）；都在落盘前写好、之后不变（S-22）。",
+                "$comment": "判别成员 kind 由各类块自己声明。本定义不带 additionalProperties: false——各类块以 allOf 引用它，并以 unevaluatedProperties: false 闭合自己的成员集合。",
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/$defs/BlockId"
+                  },
+                  "visibility": {
+                    "$ref": "#/$defs/Visibility"
+                  },
+                  "renderings": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "$ref": "#/$defs/DerivedRendering"
+                    }
+                  },
+                  "transcript": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "id",
+                  "visibility"
+                ],
+                "dependentRequired": {
+                  "renderings": [
+                    "transcript"
+                  ],
+                  "transcript": [
+                    "renderings"
+                  ]
+                }
+              },
+              "TextBlock": {
+                "title": "文本块",
+                "description": "S-8：给人和模型看的一段话。text 可以是空串。origin 是可选的来路标记（统一语言 UL-origin-tag；不是来源标记），恰四种：slash_command_args 表示这块是人敲斜杠命令时附带的参数；skill_body 表示这块是 ② 型（技能型）斜杠命令逐字展开的那个 skill 的正文；slash_command_expansion 表示这块是 ① 型（提示词型）斜杠命令展开模板得到的文字；slash_command_record 表示这块是一次 ①／② 型斜杠命令的留痕——text 是人敲下的那段原文，逐字。command 与 skill 是相应的命令名与 skill 名。来路标记只陈述出处，不授予任何资格，也不改变这块的标注。不带派生表示与 transcript。",
+                "type": "object",
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/BlockBase"
+                  }
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "text"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "origin": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "slash_command_args",
+                          "skill_body",
+                          "slash_command_expansion",
+                          "slash_command_record"
+                        ]
+                      },
+                      "command": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "skill": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "kind",
+                  "text"
+                ],
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "renderings"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "transcript"
+                      ]
+                    }
+                  ]
+                },
+                "unevaluatedProperties": false
+              },
+              "ThinkingBlock": {
+                "title": "思考块",
+                "description": "S-9：模型的推理过程，与它给人看的话分开。text 可以是空串（上游只给了不透明数据的情形）。opaque 可选、可以是任意 JSON 值（含 null）：由传输适配层写、只由它读；其余每一层都不透明地对待它、不解释它、原样保存并原样回传。缺席与 null 是两件事，各自原样保留。不带派生表示与 transcript。",
+                "$comment": "「原样」指同一个 JSON 值，数值不得在任何一跳丢精度。opaque 的内部形状归传输适配，本契约刻意不给结构。",
+                "type": "object",
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/BlockBase"
+                  }
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "thinking"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "opaque": {}
+                },
+                "required": [
+                  "kind",
+                  "text"
+                ],
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "renderings"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "transcript"
+                      ]
+                    }
+                  ]
+                },
+                "unevaluatedProperties": false
+              },
+              "VoiceBlock": {
+                "title": "语音块",
+                "description": "S-10：说出来的话。mediaType 必填且其 type 必须是 audio（模态为 audio）。data 恰为两种可判别形状之一：内联字节 { inline: InlineBytes }，或一个 AttachmentRef——后者的 mediaType 同样必须是 audio/*，并且与块的 mediaType 逐字相同（后一半 Schema 管不到，见 S-10）。可以带派生表示与 transcript。",
+                "$comment": "内联形状 { inline } 的串是 $defs/InlineBytes，与 ImageBlock 相同。「执行帧里的媒体块只许引用」是 data.arrival-events 的规则，本定义只把两种形状做成可判别。",
+                "type": "object",
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/BlockBase"
+                  }
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "voice"
+                  },
+                  "mediaType": {
+                    "$ref": "#/$defs/MediaType",
+                    "pattern": "^audio/"
+                  },
+                  "data": {
+                    "oneOf": [
+                      {
+                        "title": "内联字节",
+                        "type": "object",
+                        "properties": {
+                          "inline": {
+                            "$ref": "#/$defs/InlineBytes"
+                          }
+                        },
+                        "required": [
+                          "inline"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "title": "引用",
+                        "$ref": "#/$defs/AttachmentRef",
+                        "properties": {
+                          "mediaType": {
+                            "pattern": "^audio/"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "mediaType",
+                  "data"
+                ],
+                "unevaluatedProperties": false
+              },
+              "ImageBlock": {
+                "title": "图块",
+                "description": "S-10：图片本身。mediaType 必填且其 type 必须是 image（模态为 image）。data 恰为两种可判别形状之一：内联字节 { inline: InlineBytes }，或一个 AttachmentRef——后者的 mediaType 同样必须是 image/*，并且与块的 mediaType 逐字相同（后一半 Schema 管不到，见 S-10）。可以带派生表示与 transcript。",
+                "$comment": "内联形状 { inline } 的串是 $defs/InlineBytes，与 VoiceBlock 相同。",
+                "type": "object",
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/BlockBase"
+                  }
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "image"
+                  },
+                  "mediaType": {
+                    "$ref": "#/$defs/MediaType",
+                    "pattern": "^image/"
+                  },
+                  "data": {
+                    "oneOf": [
+                      {
+                        "title": "内联字节",
+                        "type": "object",
+                        "properties": {
+                          "inline": {
+                            "$ref": "#/$defs/InlineBytes"
+                          }
+                        },
+                        "required": [
+                          "inline"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "title": "引用",
+                        "$ref": "#/$defs/AttachmentRef",
+                        "properties": {
+                          "mediaType": {
+                            "pattern": "^image/"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "mediaType",
+                  "data"
+                ],
+                "unevaluatedProperties": false
+              },
+              "FileBlock": {
+                "title": "文件块",
+                "description": "S-11：一个附件的引用，不是文件内容。attachment 必填。块的模态看 attachment.mediaType（S-6）：是视频它就是视频模态，是一份文档（type 不在四种之内）它就没有模态、只是一个引用。视频没有自己的块类型，装在这里。可以带派生表示与 transcript。",
+                "type": "object",
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/BlockBase"
+                  }
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "file"
+                  },
+                  "attachment": {
+                    "$ref": "#/$defs/AttachmentRef"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "attachment"
+                ],
+                "unevaluatedProperties": false
+              },
+              "ToolCallBlock": {
+                "title": "工具调用块（完整）",
+                "description": "S-12：模型要调哪个工具、传什么参数，参数已经收齐、在封口那一下解析过一次。complete 恒为 true。callId（S-14）、tool（模型面名字 ModelToolName——模型面那个工具条目的 name；多命令工具的子命令在参数里）必填；参数恰为两种之一：解析成功——arguments（解析得到的 JSON 值，任意类型），不带原始参数串；解析不了——rawArguments（收齐的原文）与 unparseable: true 两者同现，不带 arguments。标了 unparseable 的调用同样是一次已登记的调用（callId 进 S-14 的唯一范围），它不被执行，由宿主紧接一条收场为 failed 的结果回给模型；任何一方都不再解析它的 rawArguments。四种标注组合都合法。不带派生表示与 transcript。",
+                "$comment": "unparseable 这一种：参数收齐却解析不了的调用保留原文、不执行、结果记 failed 并回给模型（PF-006 §5.5；形状见 D-060 §一 S1-e）。rawArguments 与 unparseable 缺一，或与 arguments 同现，都是 malformed（S-26）。",
+                "type": "object",
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/BlockBase"
+                  },
+                  {
+                    "oneOf": [
+                      {
+                        "title": "解析成功",
+                        "required": [
+                          "arguments"
+                        ],
+                        "not": {
+                          "anyOf": [
+                            {
+                              "required": [
+                                "rawArguments"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "unparseable"
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "title": "解析不了",
+                        "required": [
+                          "rawArguments",
+                          "unparseable"
+                        ],
+                        "not": {
+                          "required": [
+                            "arguments"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "tool_call"
+                  },
+                  "complete": {
+                    "const": true
+                  },
+                  "callId": {
+                    "$ref": "#/$defs/CallId"
+                  },
+                  "tool": {
+                    "$ref": "#/$defs/ModelToolName"
+                  },
+                  "arguments": {},
+                  "rawArguments": {
+                    "type": "string"
+                  },
+                  "unparseable": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "kind",
+                  "complete",
+                  "callId",
+                  "tool"
+                ],
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "renderings"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "transcript"
+                      ]
+                    }
+                  ]
+                },
+                "unevaluatedProperties": false
+              },
+              "IncompleteToolCallBlock": {
+                "title": "工具调用块（半截）",
+                "description": "S-13：参数没收齐的工具调用——记下来，但两边都不给看。complete 恒为 false；rawArguments 是收到的那段原始参数串（可以是空串），任何一方都不解析它；callId 与 tool 是收到的原值，没到就缺席。visibility 必须是 { toHuman: false, toModel: false }，任一位为真即表示层拒绝 incomplete_call_visible（S-26）。它不是一次已登记的调用，任何工具结果块都不指向它。不带派生表示与 transcript。",
+                "type": "object",
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/BlockBase"
+                  }
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "tool_call"
+                  },
+                  "complete": {
+                    "const": false
+                  },
+                  "callId": {
+                    "$ref": "#/$defs/CallId"
+                  },
+                  "tool": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "rawArguments": {
+                    "type": "string"
+                  },
+                  "visibility": {
+                    "properties": {
+                      "toHuman": {
+                        "const": false
+                      },
+                      "toModel": {
+                        "const": false
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "kind",
+                  "complete",
+                  "rawArguments"
+                ],
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "renderings"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "transcript"
+                      ]
+                    }
+                  ]
+                },
+                "unevaluatedProperties": false
+              },
+              "ExecutionOutcome": {
+                "title": "执行收场 · Execution Outcome",
+                "description": "S-17：一次工具执行的终局，恰六种（UL-execution-outcome），闭合。token 与词条的对应：completed ↔ 完成 Completed，failed ↔ 失败 Failed，unavailable ↔ 不可用 Unavailable，backgrounded ↔ 转后台 Moved to Background，interrupted ↔ 被中断 Interrupted，no_answer ↔ 等不到应答 No Reply。",
+                "type": "string",
+                "enum": [
+                  "completed",
+                  "failed",
+                  "unavailable",
+                  "backgrounded",
+                  "interrupted",
+                  "no_answer"
+                ]
+              },
+              "PlaceholderReason": {
+                "title": "PlaceholderReason",
+                "description": "S-18：占位原因（统一语言 UL-placeholder-reason），恰十一个；各自落在哪一种收场是写死的：backgrounded_auto、backgrounded_by_user、backgrounded_by_preemption、backgrounded_at_start → backgrounded；user_interrupted、interrupted_by_preemption、human_declined、session_archived、run_cancelled、foreground_timeout → interrupted；abnormal_interruption → failed。取值名是规格层的；它们对应 PF-006 §6.7「占位消息一律要说清原因」表里的行。本定义只描述占位那一侧（D-060 §七 M22）：工具结果块 reason.code 的 Schema 取值是这十一个外加 terminated_by_agent；同一组 token 写在后台那段执行收场的提醒的结果块上时，说的是那段执行为什么这样收场、不是占位原因，那一侧哪几个值合法归 capability.tool-execution-runtime v2 S-10；terminated_by_agent 只在那一侧出现（S-18）。",
+                "type": "string",
+                "enum": [
+                  "user_interrupted",
+                  "backgrounded_auto",
+                  "backgrounded_by_user",
+                  "backgrounded_by_preemption",
+                  "interrupted_by_preemption",
+                  "human_declined",
+                  "session_archived",
+                  "abnormal_interruption",
+                  "backgrounded_at_start",
+                  "run_cancelled",
+                  "foreground_timeout"
+                ]
+              },
+              "ToolResultBlock": {
+                "title": "工具结果块",
+                "description": "S-15～S-18：一次工具调用的结果，收场带在块上。callId 指回那次调用（S-14）；outcome 是这次收场的唯一依据（S-17），缺席即表示层拒绝，从不当作 completed；reason 在占位上是占位原因、在后台收场提醒的结果块上是那段执行的收场原因（那一侧哪几个值合法归 capability.tool-execution-runtime v2 S-10）——backgrounded 与 interrupted 必带、failed 可带且只能是 abnormal_interruption、其余三种不带，code 必须落在它那一格（S-18）；blocks 是进上下文的内容，它自己又是一串块（可以是空数组，次序有意义），任意一层都不得含工具调用块（S-16）；offloaded 可选，指向被卸载的原始结果——此时 blocks 装的是摘要与取全文的办法，这一块就是那次调用的结果，不是占位（data.messages v2 S-11）。不带派生表示与 transcript——它里面的块各自可以带。",
+                "type": "object",
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/BlockBase"
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "outcome": {
+                          "const": "backgrounded"
+                        }
+                      },
+                      "required": [
+                        "outcome"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "reason"
+                      ],
+                      "properties": {
+                        "reason": {
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "backgrounded_auto",
+                                "backgrounded_by_user",
+                                "backgrounded_by_preemption",
+                                "backgrounded_at_start"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "outcome": {
+                          "const": "interrupted"
+                        }
+                      },
+                      "required": [
+                        "outcome"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "reason"
+                      ],
+                      "properties": {
+                        "reason": {
+                          "properties": {
+                            "code": {
+                              "enum": [
+                                "user_interrupted",
+                                "interrupted_by_preemption",
+                                "human_declined",
+                                "session_archived",
+                                "run_cancelled",
+                                "terminated_by_agent",
+                                "foreground_timeout"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "outcome": {
+                          "const": "failed"
+                        }
+                      },
+                      "required": [
+                        "outcome"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "reason": {
+                          "properties": {
+                            "code": {
+                              "const": "abnormal_interruption"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "outcome": {
+                          "enum": [
+                            "completed",
+                            "unavailable",
+                            "no_answer"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "outcome"
+                      ]
+                    },
+                    "then": {
+                      "not": {
+                        "required": [
+                          "reason"
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "tool_result"
+                  },
+                  "callId": {
+                    "$ref": "#/$defs/CallId"
+                  },
+                  "outcome": {
+                    "$ref": "#/$defs/ExecutionOutcome"
+                  },
+                  "reason": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "$comment": "S-18：十一个 token（写在占位上时是占位原因），外加只落后台收场提醒结果块的 terminated_by_agent（不是占位原因）。块自己看不出它在哪一侧，由写入方兑现；后台收场提醒那一侧的取值域归 capability.tool-execution-runtime v2 S-10。",
+                        "anyOf": [
+                          {
+                            "$ref": "#/$defs/PlaceholderReason"
+                          },
+                          {
+                            "const": "terminated_by_agent"
+                          }
+                        ]
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "blocks": {
+                    "type": "array",
+                    "items": {
+                      "allOf": [
+                        {
+                          "$ref": "#/$defs/ContentBlock"
+                        },
+                        {
+                          "not": {
+                            "properties": {
+                              "kind": {
+                                "const": "tool_call"
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "offloaded": {
+                    "$ref": "#/$defs/AttachmentRef"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "callId",
+                  "outcome",
+                  "blocks"
+                ],
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "renderings"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "transcript"
+                      ]
+                    }
+                  ]
+                },
+                "unevaluatedProperties": false
+              },
+              "ContentBlock": {
+                "title": "内容块 · Content Block",
+                "description": "S-1：一条消息装的那串块里的一块（UL-content-block）。按 kind 判别，恰七类：text、thinking、voice、image、file、tool_call、tool_result；tool_call 再按 complete 分完整与半截两种形状，所以一共八个形状、每个值恰合其一。kind 取值闭合：视频不另立块，装在 file 里；未知取值是表示层拒绝 kind_unknown（S-26），不降级成最接近的一类。",
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/TextBlock"
+                  },
+                  {
+                    "$ref": "#/$defs/ThinkingBlock"
+                  },
+                  {
+                    "$ref": "#/$defs/VoiceBlock"
+                  },
+                  {
+                    "$ref": "#/$defs/ImageBlock"
+                  },
+                  {
+                    "$ref": "#/$defs/FileBlock"
+                  },
+                  {
+                    "$ref": "#/$defs/ToolCallBlock"
+                  },
+                  {
+                    "$ref": "#/$defs/IncompleteToolCallBlock"
+                  },
+                  {
+                    "$ref": "#/$defs/ToolResultBlock"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "meta": false,
+          "value": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v2/asset-model.schema.json",
+            "title": "data.asset-model v2",
+            "description": "资产领域的静态数据形状：能力标识的词法、资产记录与版本线、八类正文的外壳、属性声明与属性配值、持有范围与工作区键、资产持有、复制血缘、工作区承载清单。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.asset-model/v2 内有效。",
+            "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；Schema 表达不了的跨成员与跨对象约束（版本编号连续、同一持有上 item 不重复、作者与所有者同属一个组织、持有与记录的能力标识一致、同一范围同一能力标识至多一份持有、血缘号只挂在一份记录上等）由 contract.md S-27 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是十个拒绝值里的哪一个按 S-27 的次序定。外部引用：CapabilityId 与类别取值集取自 data.content-blocks v2（S-20）；TenantId、OrganizationId、ScopeLayerIdentity 取自 data.identity-values v1（S-5、S-3、S-11）；Instant 取自 data.offer-expiry v1（S-22）。六类正文 $ref 各自的正文契约（data.tool-definition、data.loop-extension、data.skill-package、data.mcp-endpoint、data.slash-command、data.connector，均 v1，S-10）；那几份契约反过来引用本文件的定义，Schema 之间成环是 $ref 的正常用法，catalog 只登那几份 → 本契约的方向。正反实例在同目录 examples.md。",
+            "$defs": {
+              "AssetCategory": {
+                "title": "资产类别",
+                "description": "S-1：资产恰八类，闭合——skill、tool、mcp、connector、loop_extension、slash_command、plugin、agent_definition（UL-asset「恰有八类，这八类是穷尽的」）。取值集就是 data.content-blocks v2 的 CapabilityId.category，本定义直接引用它，不另抄一份枚举。",
+                "$comment": "未知取值（含大小写不同）在本契约的上下文里拒绝值是 category_unknown（S-27）。",
+                "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CapabilityId/properties/category"
+              },
+              "CapabilityName": {
+                "title": "能力标识名",
+                "description": "S-2：能力标识的 name 分量。非空；任何位置都不含 data.identity-values v1 S-31 逐个列出的空白码点；不含 '/'（U+002F），冒号允许；区分大小写，相等是逐码点精确相等，不做 Unicode 规范化、大小写折叠或裁剪。各类正文契约可以在本规则之内再收窄，不得放宽。",
+                "$comment": "pattern 是 S-31 那个显式空白码点集合加上 '/' 的否定字符类，以 (?![\\s\\S]) 作绝对结尾——不用 \\s 与 $，理由与回归用例见 data.identity-values v1 S-31（Python 的 $ 会匹配到末尾换行之前）。禁 '/' 是为了让 S-3 的规范串 <category>/<name> 单射（主线裁定 2026-09-23，待产品负责人确认）。",
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF/]+(?![\\s\\S])",
+                "examples": [
+                  "read_file",
+                  "code-review",
+                  "image-describer",
+                  "omne-official:reload-skill"
+                ]
+              },
+              "CapabilityId": {
+                "title": "能力标识 · Capability Identifier",
+                "description": "S-3：资产的身份——类别加 name（UL-capability-identifier）。形状与相等规则是 data.content-blocks v2 的 CapabilityId（S-20：两个分量、逐码点相等、类别恰八个），本契约在它之上只加 name 的词法（S-2）。它回答「是不是同一个东西」；「哪一份实现」由 AssetRecordId 回答（S-4）。",
+                "$comment": "content-blocks S-20 把 name 的词法留给资产领域的契约（它的缺口 G-5）；本定义用 allOf 收紧 name，不复制那边的形状。<category>/<name> 规范串不是 CapabilityId 的交换表示，交换表示恒为两分量对象。",
+                "allOf": [
+                  {
+                    "$ref": "../../content-blocks/v2/content-blocks.schema.json#/$defs/CapabilityId"
+                  },
+                  {
+                    "properties": {
+                      "name": {
+                        "$ref": "#/$defs/CapabilityName"
+                      }
+                    }
+                  }
+                ],
+                "examples": [
+                  {
+                    "category": "tool",
+                    "name": "read_file"
+                  }
+                ]
+              },
+              "AssetRecordId": {
+                "title": "资产记录号",
+                "description": "S-4：一份具体资产（某个所有者的某一份实现，或一份 official）的标识。不透明、部署内唯一、在产生这份记录时由存储生成、不回收不复用；不来自运行时对象。交换表示按 data.identity-values v1 S-31 的散文：非空字符串，首字符与末字符都不属于该条逐个列出的空白码点集合，逐码点相等；消费者不解析其内容，不得从中读出所有者、类别或创建次序。",
+                "$comment": "按 S-31 的散文自定义，不跨契约 $ref identity-values 的 OpaqueIdentifier（那一版已冻结且自述不单独被引用）。具体词法（长度、字符集）归实现。",
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+                "examples": [
+                  "ast_7c11"
+                ]
+              },
+              "AssetOrigin": {
+                "title": "资产来源 · Asset Origin",
+                "description": "S-5：official 或 customized（UL-asset-origin 的两值），闭合。产生这份记录时定死，此后不变；不得靠任何请求自报。",
+                "$comment": "未知取值的拒绝值是 origin_unknown（S-27）。",
+                "type": "string",
+                "enum": [
+                  "official",
+                  "customized"
+                ]
+              },
+              "AssetOwner": {
+                "title": "资产所有者",
+                "description": "S-6：一份 customized 资产的定义所有者（UL-definition-ownership）——一个组织，或一个租户。official 资产没有所有者值（平台不是一个身份对象，data.identity-values v1 S-11），该成员缺席。所有者至多变一次：从租户变到该租户所在的组织，不可逆（S-7）。",
+                "$comment": "判别成员 kind 的未知取值拒绝值是 owner_kind_unknown（S-27）。",
+                "type": "object",
+                "oneOf": [
+                  {
+                    "title": "组织所有",
+                    "properties": {
+                      "kind": {
+                        "const": "organization"
+                      },
+                      "organization": {
+                        "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/OrganizationId"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "organization"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "租户所有",
+                    "properties": {
+                      "kind": {
+                        "const": "tenant"
+                      },
+                      "tenant": {
+                        "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "tenant"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "AssetContent": {
+                "title": "一份资产的正文外壳",
+                "description": "S-10：按 category 判别的八个变体。tool、loop_extension、skill、mcp、slash_command、connector 六类的正文 $ref 各自的正文契约；agent_definition 本版是不透明壳 { body }，body 的形状归 PF-004 的契约（G-6），在那之前任何一方不得解释它；plugin 的正文是成员能力标识的列表（S-11）。",
+                "$comment": "八个变体内联在 oneOf 里，本版不给壳单独的 $defs 名。category 未知的拒绝值是 category_unknown；plugin 成员里有 plugin 的拒绝值是 plugin_member_is_plugin；正文不合它那份正文契约时，拒绝值取那份契约的值、原名携带（S-27）。",
+                "type": "object",
+                "oneOf": [
+                  {
+                    "title": "tool",
+                    "properties": {
+                      "category": {
+                        "const": "tool"
+                      },
+                      "definition": {
+                        "$ref": "../../tool-definition/v2/tool-definition.schema.json#/$defs/ToolDefinition"
+                      }
+                    },
+                    "required": [
+                      "category",
+                      "definition"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "loop_extension",
+                    "properties": {
+                      "category": {
+                        "const": "loop_extension"
+                      },
+                      "extension": {
+                        "$ref": "../../loop-extension/v2/loop-extension.schema.json#/$defs/LoopExtensionDefinition"
+                      }
+                    },
+                    "required": [
+                      "category",
+                      "extension"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "skill",
+                    "properties": {
+                      "category": {
+                        "const": "skill"
+                      },
+                      "body": {
+                        "$ref": "../../skill-package/v2/skill-package.schema.json#/$defs/SkillPackage"
+                      }
+                    },
+                    "required": [
+                      "category",
+                      "body"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "mcp",
+                    "properties": {
+                      "category": {
+                        "const": "mcp"
+                      },
+                      "body": {
+                        "$ref": "../../mcp-endpoint/v2/mcp-endpoint.schema.json#/$defs/McpEndpoint"
+                      }
+                    },
+                    "required": [
+                      "category",
+                      "body"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "slash_command",
+                    "properties": {
+                      "category": {
+                        "const": "slash_command"
+                      },
+                      "body": {
+                        "$ref": "../../slash-command/v2/slash-command.schema.json#/$defs/SlashCommandDefinition"
+                      }
+                    },
+                    "required": [
+                      "category",
+                      "body"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "connector",
+                    "properties": {
+                      "category": {
+                        "const": "connector"
+                      },
+                      "body": {
+                        "$ref": "../../connector/v2/connector.schema.json#/$defs/ConnectorDefinition"
+                      }
+                    },
+                    "required": [
+                      "category",
+                      "body"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "agent_definition（不透明壳）",
+                    "properties": {
+                      "category": {
+                        "const": "agent_definition"
+                      },
+                      "body": {
+                        "$comment": "不透明：Agent Definition 的正文归 PF-004 的契约（G-6）。"
+                      }
+                    },
+                    "required": [
+                      "category",
+                      "body"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "plugin",
+                    "properties": {
+                      "category": {
+                        "const": "plugin"
+                      },
+                      "members": {
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                          "allOf": [
+                            {
+                              "$ref": "#/$defs/CapabilityId"
+                            },
+                            {
+                              "not": {
+                                "properties": {
+                                  "category": {
+                                    "enum": [
+                                      "plugin",
+                                      "agent_definition"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "category"
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "category",
+                      "members"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "AssetVersion": {
+                "title": "资产版本 · Asset Version",
+                "description": "S-9：一份资产在某一次发布时定下的那份内容（UL-asset-version）。number 从 1 起、在这份记录的版本线上连续编号；发布之后整条不变。publishedBy 是发布它的租户——customized 资产必有，official 资产必无（由 AssetDefinition 按 origin 约束）。",
+                "type": "object",
+                "properties": {
+                  "number": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "content": {
+                    "$ref": "#/$defs/AssetContent"
+                  },
+                  "publishedAt": {
+                    "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+                  },
+                  "publishedBy": {
+                    "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  }
+                },
+                "required": [
+                  "number",
+                  "content",
+                  "publishedAt"
+                ],
+                "additionalProperties": false
+              },
+              "LineageId": {
+                "title": "血缘号",
+                "description": "S-22：一条复制血缘的标识。系统在首次复制时发出；不透明、部署内唯一、不回收不复用；它的值不是源记录号、源组织标识或二者的任何可逆编码，对目标组织的任何读面都不提供从它到源的解引用。交换表示按 data.identity-values v1 S-31 的散文。",
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+                "examples": [
+                  "lin_40e9"
+                ]
+              },
+              "CopyLineage": {
+                "title": "复制血缘 · Copy Lineage",
+                "description": "S-21：目标侧这份资产与它的来源之间的对应关系（UL-copy-lineage）。lineage 在首次复制时产生，此后不变——这就是词条说的「此后不变」的那条对应；sourceVersion、importedBy、importedAt 是最近一次送入的事实（源侧第几版、落地一侧哪个租户、何时），imports 是送入次数，这四项只随一次重复复制改写。它挂在落进目标组织某一层的那一份上，按（源, 落进的那一层）各算各的。importedBy 是最近一次落地的行为人在落点组织里的租户身份——本人型是本人，组织型是确认的那位超管——不是他在源侧的那个。流转语义归 capability.asset-transfer v2，本定义只承载形状（R2-10）。",
+                "type": "object",
+                "properties": {
+                  "lineage": {
+                    "$ref": "#/$defs/LineageId"
+                  },
+                  "sourceVersion": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "importedBy": {
+                    "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  },
+                  "importedAt": {
+                    "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+                  },
+                  "imports": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "lineage",
+                  "sourceVersion",
+                  "importedBy",
+                  "importedAt",
+                  "imports"
+                ],
+                "additionalProperties": false
+              },
+              "AssetDefinition": {
+                "title": "资产记录",
+                "description": "S-8：一份具体资产。id 是记录号；capability 是它实现的那个能力标识，记录的一生中不变；origin 产生时定死；customized 的必有 owner、author 与 byAgent（作者与所有者分记，PF-001 §6.7；byAgent 标这份记录是不是本系统里一次 agent 运行产出的，缺席不读作 false），official 的三者都缺席（data.identity-values v1 CS-2）；lineage 只在复制产生的记录上有，产生时就有，此后不增不删；draft 可反复改；versions 是已发布、不可变、从 1 连续编号的版本线。草稿与每一版正文的 category 都等于 capability.category。属性声明不存在这里——它们由正文按类别推出（S-12）。",
+                "$comment": "版本编号连续（version_sequence_broken）、作者与所有者同属一个组织、importedBy 的组织等于所有者所在的组织、所有者是租户时 importedBy 就是它，Schema 表达不了，由 S-27 在 Schema 之外判。",
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/$defs/AssetRecordId"
+                  },
+                  "capability": {
+                    "$ref": "#/$defs/CapabilityId"
+                  },
+                  "origin": {
+                    "$ref": "#/$defs/AssetOrigin"
+                  },
+                  "owner": {
+                    "$ref": "#/$defs/AssetOwner"
+                  },
+                  "author": {
+                    "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  },
+                  "byAgent": {
+                    "type": "boolean"
+                  },
+                  "lineage": {
+                    "$ref": "#/$defs/CopyLineage"
+                  },
+                  "draft": {
+                    "$ref": "#/$defs/AssetContent"
+                  },
+                  "versions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/AssetVersion"
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "capability",
+                  "origin",
+                  "versions"
+                ],
+                "additionalProperties": false,
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "origin": {
+                          "const": "customized"
+                        }
+                      },
+                      "required": [
+                        "origin"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "owner",
+                        "author",
+                        "byAgent"
+                      ],
+                      "properties": {
+                        "versions": {
+                          "items": {
+                            "required": [
+                              "publishedBy"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "origin": {
+                          "const": "official"
+                        }
+                      },
+                      "required": [
+                        "origin"
+                      ]
+                    },
+                    "then": {
+                      "not": {
+                        "anyOf": [
+                          {
+                            "required": [
+                              "owner"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "author"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "byAgent"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "lineage"
+                            ]
+                          }
+                        ]
+                      },
+                      "properties": {
+                        "versions": {
+                          "items": {
+                            "not": {
+                              "required": [
+                                "publishedBy"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "required": [
+                        "lineage"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "origin": {
+                          "const": "customized"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "draft"
+                        ]
+                      },
+                      {
+                        "properties": {
+                          "versions": {
+                            "minItems": 1
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "capability": {
+                          "properties": {
+                            "category": {
+                              "const": "skill"
+                            }
+                          },
+                          "required": [
+                            "category"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "capability"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "draft": {
+                          "properties": {
+                            "category": {
+                              "const": "skill"
+                            }
+                          }
+                        },
+                        "versions": {
+                          "items": {
+                            "properties": {
+                              "content": {
+                                "properties": {
+                                  "category": {
+                                    "const": "skill"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "capability": {
+                          "properties": {
+                            "category": {
+                              "const": "tool"
+                            }
+                          },
+                          "required": [
+                            "category"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "capability"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "draft": {
+                          "properties": {
+                            "category": {
+                              "const": "tool"
+                            }
+                          }
+                        },
+                        "versions": {
+                          "items": {
+                            "properties": {
+                              "content": {
+                                "properties": {
+                                  "category": {
+                                    "const": "tool"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "capability": {
+                          "properties": {
+                            "category": {
+                              "const": "mcp"
+                            }
+                          },
+                          "required": [
+                            "category"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "capability"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "draft": {
+                          "properties": {
+                            "category": {
+                              "const": "mcp"
+                            }
+                          }
+                        },
+                        "versions": {
+                          "items": {
+                            "properties": {
+                              "content": {
+                                "properties": {
+                                  "category": {
+                                    "const": "mcp"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "capability": {
+                          "properties": {
+                            "category": {
+                              "const": "connector"
+                            }
+                          },
+                          "required": [
+                            "category"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "capability"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "draft": {
+                          "properties": {
+                            "category": {
+                              "const": "connector"
+                            }
+                          }
+                        },
+                        "versions": {
+                          "items": {
+                            "properties": {
+                              "content": {
+                                "properties": {
+                                  "category": {
+                                    "const": "connector"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "capability": {
+                          "properties": {
+                            "category": {
+                              "const": "loop_extension"
+                            }
+                          },
+                          "required": [
+                            "category"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "capability"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "draft": {
+                          "properties": {
+                            "category": {
+                              "const": "loop_extension"
+                            }
+                          }
+                        },
+                        "versions": {
+                          "items": {
+                            "properties": {
+                              "content": {
+                                "properties": {
+                                  "category": {
+                                    "const": "loop_extension"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "capability": {
+                          "properties": {
+                            "category": {
+                              "const": "slash_command"
+                            }
+                          },
+                          "required": [
+                            "category"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "capability"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "draft": {
+                          "properties": {
+                            "category": {
+                              "const": "slash_command"
+                            }
+                          }
+                        },
+                        "versions": {
+                          "items": {
+                            "properties": {
+                              "content": {
+                                "properties": {
+                                  "category": {
+                                    "const": "slash_command"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "capability": {
+                          "properties": {
+                            "category": {
+                              "const": "plugin"
+                            }
+                          },
+                          "required": [
+                            "category"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "capability"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "draft": {
+                          "properties": {
+                            "category": {
+                              "const": "plugin"
+                            }
+                          }
+                        },
+                        "versions": {
+                          "items": {
+                            "properties": {
+                              "content": {
+                                "properties": {
+                                  "category": {
+                                    "const": "plugin"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "capability": {
+                          "properties": {
+                            "category": {
+                              "const": "agent_definition"
+                            }
+                          },
+                          "required": [
+                            "category"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "capability"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "draft": {
+                          "properties": {
+                            "category": {
+                              "const": "agent_definition"
+                            }
+                          }
+                        },
+                        "versions": {
+                          "items": {
+                            "properties": {
+                              "content": {
+                                "properties": {
+                                  "category": {
+                                    "const": "agent_definition"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "AttributeKind": {
+                "title": "属性种类",
+                "description": "S-12：一个属性项是设置还是权限（UL-setting、UL-permission），闭合。",
+                "type": "string",
+                "enum": [
+                  "setting",
+                  "permission"
+                ]
+              },
+              "SettingCategory": {
+                "title": "设置项类别 · Setting Category",
+                "description": "S-13：资产声明每一项设置时必须标上的类别（UL-setting-category），恰四个：preference（偏好）、binding（绑定）、placement_identity（落点与身份）、governance（治理），闭合。类别决定这项值能从哪些层来：placement_identity 与 governance 不从工作区来。治理类是本契约保留的 disabled（S-15）加各正文契约推出的治理类项（本版有 data.connector 的触发会话的默认运行模式一项）。",
+                "type": "string",
+                "enum": [
+                  "preference",
+                  "binding",
+                  "placement_identity",
+                  "governance"
+                ]
+              },
+              "AttributeDomain": {
+                "title": "属性项的取值域",
+                "description": "S-12：设置的取值域开放，由一份 JSON Schema 描述（kind: open，只有锁与不锁两态）；权限的取值域是一个枚举（kind: enum，能收窄成子集，PF-002 §5.4）。values 非空、各不相同。",
+                "$comment": "schema 须是一份合法的 Draft 2020-12 JSON Schema（对象或布尔）；元校验 Schema 表达不了，由接收边界兑现（S-27 malformed）。",
+                "type": "object",
+                "oneOf": [
+                  {
+                    "title": "开放取值域（设置）",
+                    "properties": {
+                      "kind": {
+                        "const": "open"
+                      },
+                      "schema": {
+                        "type": [
+                          "object",
+                          "boolean"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "schema"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "枚举取值域（权限）",
+                    "properties": {
+                      "kind": {
+                        "const": "enum"
+                      },
+                      "values": {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "values"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "AttributeDeclaration": {
+                "title": "属性声明",
+                "description": "S-12：一份资产自带的一个属性项——项名、是设置还是权限、设置的类别、取值域、作者给的默认值。它由这份资产的正文按类别推出（推出规则归各类正文契约），不作为一个成员存在资产记录上。设置项必带 category、取值域为 open、default 合那份 schema；权限项不带 category、取值域为 enum、default 是 values 里的一个。default 是这一项在设置层序最外一格（出厂默认）上的值；只有 placement_identity 与 governance 类设置项可以不带 default——缺席即没有作者默认，各格都没配时求值得到缺席、读作「未配」（S-12；governance 那一半随 PF-002 rev 20：连接件的触发会话的默认运行模式「作者声明的默认也不算数」）；保留项 disabled 恒带 default: false。项名 disabled 与 usableBy 由本契约保留（S-15、S-36），它们的声明只能是本定义里写死的那一份。",
+                "$comment": "「default 合 schema」「权限 default ∈ values」「同一资产内 item 互不相同」Schema 表达不了，由 S-27 在 Schema 之外判为 malformed。",
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "kind": {
+                    "$ref": "#/$defs/AttributeKind"
+                  },
+                  "category": {
+                    "$ref": "#/$defs/SettingCategory"
+                  },
+                  "domain": {
+                    "$ref": "#/$defs/AttributeDomain"
+                  },
+                  "default": true
+                },
+                "required": [
+                  "item",
+                  "kind",
+                  "domain"
+                ],
+                "additionalProperties": false,
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "kind": {
+                          "const": "setting"
+                        },
+                        "category": {
+                          "enum": [
+                            "placement_identity",
+                            "governance"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "category"
+                      ]
+                    },
+                    "else": {
+                      "required": [
+                        "default"
+                      ]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "kind": {
+                          "const": "setting"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "category"
+                      ],
+                      "properties": {
+                        "domain": {
+                          "properties": {
+                            "kind": {
+                              "const": "open"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "kind": {
+                          "const": "permission"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    },
+                    "then": {
+                      "not": {
+                        "required": [
+                          "category"
+                        ]
+                      },
+                      "properties": {
+                        "domain": {
+                          "properties": {
+                            "kind": {
+                              "const": "enum"
+                            }
+                          }
+                        },
+                        "default": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "item": {
+                          "const": "disabled"
+                        }
+                      },
+                      "required": [
+                        "item"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "default"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "const": "setting"
+                        },
+                        "category": {
+                          "const": "governance"
+                        },
+                        "domain": {
+                          "const": {
+                            "kind": "open",
+                            "schema": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "default": {
+                          "const": false
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "item": {
+                          "const": "usableBy"
+                        }
+                      },
+                      "required": [
+                        "item"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "kind": {
+                          "const": "permission"
+                        },
+                        "domain": {
+                          "const": {
+                            "kind": "enum",
+                            "values": [
+                              "superAdministrator",
+                              "member",
+                              "self"
+                            ]
+                          }
+                        },
+                        "default": {
+                          "const": "self"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "PermissionValue": {
+                "title": "权限的配值",
+                "description": "S-14：一层给一个权限项配下的允许集合。它是该项取值域的一个子集，可以为空（收窄为空集，PF-002 §5.3）；选定一个值就是收窄成单元素集。元素各不相同。",
+                "type": "object",
+                "properties": {
+                  "allowed": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "required": [
+                  "allowed"
+                ],
+                "additionalProperties": false
+              },
+              "AttributeAssignment": {
+                "title": "属性配值 · Attribute Assignment",
+                "description": "S-14：某一级在一份资产持有上、为一个属性项配下的一个值（UL-attribute-assignment）。设置项的 value 是一个合该项取值域的 JSON 值；权限项的 value 是一个 PermissionValue。immutable 是不可覆盖标记——true 即「必须这样」，更具体的层改不了；它必填，缺席不当作 false。since 是这条配值此刻的值被写下的时刻，只加锁解锁不改它。item 为 disabled 时 value 只能是布尔、immutable 只能是 false（S-15）。",
+                "$comment": "value 该是设置值还是 PermissionValue、是否合取值域，要看这份持有所指资产推出的声明，Schema 表达不了（S-27 malformed）；项已不在当前声明里的配值是合法的留存（S-14）。",
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "value": true,
+                  "immutable": {
+                    "type": "boolean"
+                  },
+                  "since": {
+                    "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+                  }
+                },
+                "required": [
+                  "item",
+                  "value",
+                  "immutable",
+                  "since"
+                ],
+                "additionalProperties": false,
+                "if": {
+                  "properties": {
+                    "item": {
+                      "const": "disabled"
+                    }
+                  },
+                  "required": [
+                    "item"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "value": {
+                      "type": "boolean"
+                    },
+                    "immutable": {
+                      "const": false
+                    }
+                  }
+                }
+              },
+              "WorkspaceKey": {
+                "title": "工作区键",
+                "description": "S-17：在一个租户之内指认一份工作区（UL-workspace）的键：(tenant, directory)。tenant 是持有它的租户；directory 是承载目录的绝对路径的规范形式（规范化归实现，本版单机），相等按分量、directory 按字面逐码点。directory 是指认，不是资格（PF-001 §6.5；data.identity-values v1 S-22）。本键闭合 data.identity-values v1 G-07 的「目录那一半」。",
+                "$comment": "「绝对、规范形式」与平台相关，Schema 只管到非空字符串；由写下这个键的一方在写入前兑现。",
+                "type": "object",
+                "properties": {
+                  "tenant": {
+                    "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/TenantId"
+                  },
+                  "directory": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "tenant",
+                  "directory"
+                ],
+                "additionalProperties": false
+              },
+              "HoldingScope": {
+                "title": "持有范围",
+                "description": "S-16：持有与配值的归属格，四格闭合：factory（出厂默认，不带任何身份值）、organization 与 tenant（就是 data.identity-values v1 的 ScopeLayerIdentity 两个变体，原样引用）、workspace（带一个 WorkspaceKey）。它是资产归属那条层序的四格，不是作用域层身份——workspace 与 factory 两格都不是一重身份。会话不是持有层。",
+                "$comment": "判别成员统一是 layer；未知取值拒绝值是 malformed（S-27）。不压平成几个可空字段（data.identity-values v1 S-16）。",
+                "type": "object",
+                "oneOf": [
+                  {
+                    "title": "出厂默认",
+                    "properties": {
+                      "layer": {
+                        "const": "factory"
+                      }
+                    },
+                    "required": [
+                      "layer"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "$ref": "../../identity-values/v1/identity-values.schema.json#/$defs/ScopeLayerIdentity"
+                  },
+                  {
+                    "title": "工作区",
+                    "properties": {
+                      "layer": {
+                        "const": "workspace"
+                      },
+                      "workspace": {
+                        "$ref": "#/$defs/WorkspaceKey"
+                      }
+                    },
+                    "required": [
+                      "layer",
+                      "workspace"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "SharingId": {
+                "title": "分享号",
+                "description": "S-22：一段确认之后的资产分享（UL-asset-sharing）的标识。由 capability.asset-transfer 在分享被确认时产生；那段分享的含义、状态与生灭归那份契约，本契约只定它的交换表示，供 HoldingBasis 引用。不透明、部署内唯一、不回收不复用；表示按 data.identity-values v1 S-31 的散文。",
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+                "examples": [
+                  "shr_0b17"
+                ]
+              },
+              "HoldingBasis": {
+                "title": "使用权来路",
+                "description": "S-19：这份持有的资格从哪来，五支闭合。owned：持有方就是这份资产的定义所有者（组织、租户格）；organization：外层某一格持有同一份实现，本格为配值或加锁而持有（租户、工作区格）；official：它是 official 资产，不需要授权（任一格）；shared：经一段确认之后的分享获得使用权，带那段分享的 SharingId（组织格或租户格：接收方是组织落组织格，是租户落那个租户的格；此刻生不生效归 capability.asset-transfer）；carrier：工作区从承载目录提供的资产（工作区格）。",
+                "$comment": "判别成员 kind 的未知取值拒绝值是 malformed（S-27）。",
+                "type": "object",
+                "oneOf": [
+                  {
+                    "title": "拥有",
+                    "properties": {
+                      "kind": {
+                        "const": "owned"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "外层持有",
+                    "properties": {
+                      "kind": {
+                        "const": "organization"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "官方件",
+                    "properties": {
+                      "kind": {
+                        "const": "official"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "经分享",
+                    "properties": {
+                      "kind": {
+                        "const": "shared"
+                      },
+                      "sharing": {
+                        "$ref": "#/$defs/SharingId"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "sharing"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "工作区提供",
+                    "properties": {
+                      "kind": {
+                        "const": "carrier"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "VersionSelection": {
+                "title": "版本选用",
+                "description": "S-18：这一格用所指记录的哪一版（UL-version-selection）。current 跟随此刻的最新已发布版；pinned 固定在第 number 版（≥ 1）。新版发布不改任何一份 pinned 持有。",
+                "$comment": "判别成员 kind 的未知取值拒绝值是 malformed（S-26、S-27）。pinned 的版本在所指记录的版本线上存在，Schema 表达不了。",
+                "type": "object",
+                "oneOf": [
+                  {
+                    "title": "跟随当前",
+                    "properties": {
+                      "kind": {
+                        "const": "current"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "固定一版",
+                    "properties": {
+                      "kind": {
+                        "const": "pinned"
+                      },
+                      "number": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "number"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "AssetHolding": {
+                "title": "资产持有 · Asset Holding",
+                "description": "S-18：一个持有范围与一份资产之间的持有关系（UL-asset-holding）。键是 (holder, capability)，同一个键至多一份持有；asset 是这一格用的那份实现，它的 capability 必须等于本持有的 capability；basis 是资格来路；versionSelection 是这一格用哪一版；immutable 是锁替换——持有它的这一格以下不许再替换这个能力标识（PF-002 §5.5）；assignments 是这一格为它配下的值，item 互不相同，禁用就是其中名为 disabled 的那一项；since 是这份持有成立的时刻。出厂格只持有 official、不带配值、不加锁；工作区格不加锁、配值不加锁；owned 只在组织与租户格，organization 只在租户与工作区格，shared 只在组织与租户格，carrier 只在工作区格；shared 与 carrier 只选 current；official 的持有上没有 disabled 项（S-20、S-19、S-18、S-15）。",
+                "$comment": "同一个键至多一份、asset 与 capability 一致、item 不重复（assignment_item_duplicate）、owned 时所有者等于持有方、organization 时外层确有同一份持有、carrier 时记录是那份工作区提供的、pinned 的版本存在——都要看记录或整个存储，Schema 表达不了（S-27）。工作区格上的权限、落点与身份类、治理类配值形状合法、不是 malformed，由 capability.asset-evaluation 在求值第 4 步滤掉并留痕（S-20，R2-11）。",
+                "type": "object",
+                "properties": {
+                  "holder": {
+                    "$ref": "#/$defs/HoldingScope"
+                  },
+                  "capability": {
+                    "$ref": "#/$defs/CapabilityId"
+                  },
+                  "asset": {
+                    "$ref": "#/$defs/AssetRecordId"
+                  },
+                  "basis": {
+                    "$ref": "#/$defs/HoldingBasis"
+                  },
+                  "versionSelection": {
+                    "$ref": "#/$defs/VersionSelection"
+                  },
+                  "immutable": {
+                    "type": "boolean"
+                  },
+                  "assignments": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/AttributeAssignment"
+                    }
+                  },
+                  "since": {
+                    "$ref": "../../offer-expiry/v1/offer-expiry.schema.json#/$defs/Instant"
+                  }
+                },
+                "required": [
+                  "holder",
+                  "capability",
+                  "asset",
+                  "basis",
+                  "versionSelection",
+                  "immutable",
+                  "assignments",
+                  "since"
+                ],
+                "additionalProperties": false,
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "holder": {
+                          "properties": {
+                            "layer": {
+                              "const": "factory"
+                            }
+                          },
+                          "required": [
+                            "layer"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "holder"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "basis": {
+                          "properties": {
+                            "kind": {
+                              "const": "official"
+                            }
+                          }
+                        },
+                        "assignments": {
+                          "maxItems": 0
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "holder": {
+                          "properties": {
+                            "layer": {
+                              "const": "workspace"
+                            }
+                          },
+                          "required": [
+                            "layer"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "holder"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "immutable": {
+                          "const": false
+                        },
+                        "assignments": {
+                          "items": {
+                            "properties": {
+                              "immutable": {
+                                "const": false
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "basis": {
+                          "properties": {
+                            "kind": {
+                              "const": "shared"
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "basis"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "holder": {
+                          "properties": {
+                            "layer": {
+                              "enum": [
+                                "organization",
+                                "tenant"
+                              ]
+                            }
+                          }
+                        },
+                        "versionSelection": {
+                          "properties": {
+                            "kind": {
+                              "const": "current"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "basis": {
+                          "properties": {
+                            "kind": {
+                              "const": "owned"
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "basis"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "holder": {
+                          "properties": {
+                            "layer": {
+                              "enum": [
+                                "organization",
+                                "tenant"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "basis": {
+                          "properties": {
+                            "kind": {
+                              "const": "organization"
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "basis"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "holder": {
+                          "properties": {
+                            "layer": {
+                              "enum": [
+                                "tenant",
+                                "workspace"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "basis": {
+                          "properties": {
+                            "kind": {
+                              "const": "carrier"
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "basis"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "holder": {
+                          "properties": {
+                            "layer": {
+                              "const": "workspace"
+                            }
+                          }
+                        },
+                        "versionSelection": {
+                          "properties": {
+                            "kind": {
+                              "const": "current"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "basis": {
+                          "properties": {
+                            "kind": {
+                              "const": "official"
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "basis"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "assignments": {
+                          "not": {
+                            "contains": {
+                              "properties": {
+                                "item": {
+                                  "const": "disabled"
+                                }
+                              },
+                              "required": [
+                                "item"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "CredentialRef": {
+                "title": "凭据引用",
+                "description": "S-23：凭据类设置项（MCP 凭据，UL-mcp-credential）的配值值——指向凭据本体的一个不透明引用，不是凭据本身；部署内唯一、不回收不复用。不得为明文；只在它被配上去的那一份持有上有效，抄到另一份持有上不产生取用资格；它本身也不作为呈现内容。凭据本体存在哪、怎么加密、怎么续期归提供者设计。表示按 data.identity-values v1 S-31 的散文。",
+                "$comment": "「不是明文」「与那份持有绑定」都是行为约束，Schema 只管到非空、首尾无空白的字符串。",
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+                "examples": [
+                  "cred_5a0e"
+                ]
+              },
+              "WorkspaceCarrierManifest": {
+                "title": "工作区承载清单",
+                "description": "S-24：承载目录里那份特定命名的文件 <目录>/.omne/workspace.json 的形状——一份清单显式列举，不扫目录、不猜文件。format 恒为 1；assets 列出目录内提供的资产包（能力标识 + 相对承载目录的来路）；assignments 是这一级的配值；disabled 是这一级配的禁用（只对本目录提供的资产生效，读入规则归 capability.asset-evaluation）。三个列表都必须在，可以为空。assignments 里写了 immutable、权限项或落点与身份类设置项，不在形状层拒——读入时滤掉并留痕，那是读入方的义务。",
+                "$comment": "format 在但不等于 1 的拒绝值是 manifest_format_unsupported，且先于其余一切判定；source 越出承载目录（绝对路径、盘符前缀、含 .. 段、含反斜杠）的拒绝值是 manifest_source_escapes；assets 同一能力标识出现两次是 malformed；assignments 同一 (capability, item) 出现两次是 assignment_item_duplicate（S-27）。",
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "const": 1
+                  },
+                  "assets": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "capability": {
+                          "$ref": "#/$defs/CapabilityId"
+                        },
+                        "source": {
+                          "$comment": "相对承载目录的路径，分隔符只用 '/'；每一段非空；不以 '/' 开头或结尾；没有 '..' 段；不含反斜杠；不以盘符（如 C:）开头。末尾用 (?![\\s\\S]) 判绝对结尾，不用 $。",
+                          "type": "string",
+                          "minLength": 1,
+                          "pattern": "^(?![A-Za-z]:)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|(?![\\s\\S])))[^/\\\\]+(?:/[^/\\\\]+)*(?![\\s\\S])"
+                        }
+                      },
+                      "required": [
+                        "capability",
+                        "source"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "assignments": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "capability": {
+                          "$ref": "#/$defs/CapabilityId"
+                        },
+                        "item": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "value": true,
+                        "immutable": {
+                          "type": "boolean",
+                          "$comment": "允许出现，只为让读入方能看见它、滤掉它并留痕；工作区那一级配不了 immutable（PF-002 §5.2）。"
+                        }
+                      },
+                      "required": [
+                        "capability",
+                        "item",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "disabled": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/$defs/CapabilityId"
+                    }
+                  }
+                },
+                "required": [
+                  "format",
+                  "assets",
+                  "assignments",
+                  "disabled"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "meta": false,
+          "value": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json",
+            "title": "data.slash-command v2",
+            "description": "斜杠命令的静态数据形状：一份 slash_command 资产的正文（命令定义、绑定目标、参数声明、命令名）、交付面上识别出的一次命令尝试（CommandInvocation），以及按命令定义解析它得到的结果（ParseResult）。本文件只登记共享定义，由消费者以 $ref 引用；根模式不约束任何文档。条款编号 S-n 指同目录的 contract.md，仅在 data.slash-command/v2 内有效。",
+            "$comment": "状态 candidate，未接受、未冻结。Schema 只管形状与一部分组合约束；识别文法（S-12～S-15）与解析规则（S-16～S-23）是函数，不是形状，Schema 表达不了，由 contract.md 的条款与 examples.md 的判定用例集约束。Schema 表达不了的跨成员与跨对象约束（参数名不重复、位置参数排在具名参数之前、必填位置参数不排在可选位置参数之后、模板占位符对得上声明、CommandInvocation 与 raw 重新识别的结果一致、所在资产记录的 capability.name 与绑定种类对得上保留区、customized 记录不带 command 绑定）由 contract.md S-28 归入具名拒绝值或 malformed，由接收边界在 Schema 之外兑现。Schema 校验失败只说明「拒绝」，是六个拒绝值里的哪一个按 S-28 的次序定。「空白」恒是 data.identity-values v1 S-31 逐个列出的码点集合，pattern 用显式字符类与 (?![\\s\\S]) 作绝对结尾，不用 \\s 与 $（理由与回归用例见那一条）。外部引用：CapabilityName 与 CapabilityId 取自 data.asset-model v2（S-2、S-3）。正反实例与判定用例集在同目录 examples.md。",
+            "$defs": {
+              "CommandName": {
+                "title": "命令名",
+                "description": "S-2、S-3：斜杠命令的名字，也就是它所在资产记录的能力标识的 name 分量——data.asset-model v2 的 CapabilityName（非空、不含空白、不含 '/'、允许 ':'、区分大小写），本契约只在其上加保留区一条：前 14 个码点按 ASCII 不区分大小写等于 'omne-official:' 的名字在保留区里；保留区里的名字前 14 个码点必须恰是小写的 'omne-official:'，且其后至少还有一个码点。名字在不在保留区与绑定目标的对应（S-4）要看所在记录，由接收边界判。",
+                "$comment": "allOf 第一项是 data.asset-model 的名字词法，第二项是保留区的唯一拼法（「不在保留区，或者恰以小写保留前缀开头且后面还有东西」）。不合这两项的拒绝值都是 name_invalid（S-28）。",
+                "allOf": [
+                  {
+                    "$ref": "../../asset-model/v2/asset-model.schema.json#/$defs/CapabilityName"
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "not": {
+                          "pattern": "^[Oo][Mm][Nn][Ee]-[Oo][Ff][Ff][Ii][Cc][Ii][Aa][Ll]:"
+                        }
+                      },
+                      {
+                        "pattern": "^omne-official:[\\s\\S]"
+                      }
+                    ]
+                  }
+                ],
+                "examples": [
+                  "review",
+                  "fix-issue",
+                  "team:review",
+                  "omne-official:reload-skill"
+                ]
+              },
+              "ServiceName": {
+                "title": "系统业务流程名",
+                "description": "S-7：command 型绑定所指的那一条系统业务流程（无词条）的名字。不透明：非空字符串，首字符与末字符都不属于 data.identity-values v1 S-31 的空白码点集合，相等是逐码点精确相等；消费者不解析它。它解到哪一个命令服务或查询服务的哪一个动作、此刻办不办得了，归系统业务流程的登记处（contract.md G-7），不归本契约。",
+                "$comment": "按 data.identity-values v1 S-31 的散文自定义，不跨契约 $ref 那边的 OpaqueIdentifier（那一版已冻结且自述不单独被引用）。具体词法归实现。",
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])",
+                "examples": [
+                  "registry.reload.skill"
+                ]
+              },
+              "CommandBinding": {
+                "title": "绑定目标",
+                "description": "S-6：一条命令恰绑一个目标，按 kind 判别，恰三种：prompt（自定义提示词，template 是它自带的正文）、skill（装配里的一个技能，skill 是它的能力标识，类别必为 skill）、command（一条系统业务流程，service 是它的名字）。kind 出现了但不是三者之一的拒绝值是 binding_unknown；kind 缺席是 malformed。",
+                "$comment": "skill 指向能力标识而不是某一份具体资产记录（PF-002 §6.3）：换一份同标识的实现，绑定跟着指到新的那份。template 的占位符规则与合法性约束归 S-10，Schema 只管非空。",
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "oneOf": [
+                  {
+                    "title": "prompt",
+                    "properties": {
+                      "kind": {
+                        "const": "prompt"
+                      },
+                      "template": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "template"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "skill",
+                    "properties": {
+                      "kind": {
+                        "const": "skill"
+                      },
+                      "skill": {
+                        "allOf": [
+                          {
+                            "$ref": "../../asset-model/v2/asset-model.schema.json#/$defs/CapabilityId"
+                          },
+                          {
+                            "properties": {
+                              "category": {
+                                "const": "skill"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "skill"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "command",
+                    "properties": {
+                      "kind": {
+                        "const": "command"
+                      },
+                      "service": {
+                        "$ref": "#/$defs/ServiceName"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "service"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "ParameterDeclaration": {
+                "title": "参数声明",
+                "description": "S-8：命令声明的一个参数。name 是参数名（小写 ASCII 字母起头，其后是小写 ASCII 字母、数字、'_'、'-'）；kind 恰四种：string、integer、boolean、enum，enum 必带 values（非空、各不相同的非空字符串），其余三种不带；required 必填；positional 只取 true，缺席即具名参数（以 --name 给出）。hint 是可选的参数提示：给人看的一句话，交付面据以提示怎样填，不进任何给模型的内容。没有 default：没给的参数在解析结果里缺席，不补值。",
+                "$comment": "同一份定义里参数名不重复（parameter_duplicate）、位置参数排在具名参数之前（positional_after_named）、必填位置参数不排在可选位置参数之后（malformed），都要看整个数组，Schema 管不到，见 S-9。",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]*(?![\\s\\S])"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "string",
+                      "integer",
+                      "boolean",
+                      "enum"
+                    ]
+                  },
+                  "values": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "positional": {
+                    "const": true
+                  },
+                  "hint": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "name",
+                  "kind",
+                  "required"
+                ],
+                "additionalProperties": false,
+                "if": {
+                  "properties": {
+                    "kind": {
+                      "const": "enum"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "values"
+                  ]
+                },
+                "else": {
+                  "not": {
+                    "required": [
+                      "values"
+                    ]
+                  }
+                }
+              },
+              "SlashCommandDefinition": {
+                "title": "斜杠命令定义",
+                "description": "S-1：一份 slash_command 资产的正文。description 是给人看的一句说明，不是身份、不给模型；binding 是它恰绑的那一个目标（S-6）；parameters 是参数声明（S-8）——缺席表示没有声明（命令名之后的整段文字作一个自由参数），空数组表示声明了「不收任何参数」。正文里没有名字：命令名就是所在资产记录的 capability.name（S-1、S-2）。名字在保留区里当且仅当绑定目标是 command（S-4），这一条要看所在记录，由接收边界判。",
+                "$comment": "不带 name：身份与名字只在所在资产记录的 capability（data.asset-model v2 S-10），正文不重复一份。S-4 的三行都要看所在记录（capability.name 与 origin），Schema 管不到（S-28）。",
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "binding": {
+                    "$ref": "#/$defs/CommandBinding"
+                  },
+                  "parameters": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/ParameterDeclaration"
+                    }
+                  }
+                },
+                "required": [
+                  "description",
+                  "binding"
+                ],
+                "additionalProperties": false
+              },
+              "Span": {
+                "title": "位置区间",
+                "description": "S-14：一段文字在 raw 里的位置——以 Unicode 码点计、从 0 起、左闭右开，相对 raw。不是 UTF-16 码元，也不是字节。CommandInvocation 的 span 与 ParseResult 里 failed 的 at 都是它。",
+                "$comment": "start ≤ end ≤ raw 的码点数要看 raw，Schema 管不到（S-14）。",
+                "type": "object",
+                "properties": {
+                  "start": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "end": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "start",
+                  "end"
+                ],
+                "additionalProperties": false
+              },
+              "CommandInvocation": {
+                "title": "一次命令尝试",
+                "description": "S-14：识别文法（S-13）从经交付面提交的一段输入里认出的那一次命令尝试。raw 是那段输入原样（以一个 '/' 开头、第二个码点不是 '/'）；name 是 '/' 之后到第一个空白之前的那一段（非空、不含空白与 '/'；它不一定是一个合法的命令名，也不一定在会话斜杠命令集里）；argumentText 是名字之后的其余文字，去掉首尾空白；span 是 '/name' 这一段在 raw 里的位置，恒为 {start: 0, end: 1 + name 的码点数}。位置一律以 Unicode 码点计、从 0 起、左闭右开，相对 raw。",
+                "$comment": "「raw 重新识别的结果与 name、argumentText、span 逐成员相等」「start ≤ end ≤ raw 的码点数」要看成员之间的关系，Schema 管不到，由接收边界判（S-14）。",
+                "type": "object",
+                "properties": {
+                  "raw": {
+                    "type": "string",
+                    "pattern": "^/(?!/)"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF/]+(?![\\s\\S])"
+                  },
+                  "argumentText": {
+                    "type": "string",
+                    "pattern": "^(?:[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?)?(?![\\s\\S])"
+                  },
+                  "span": {
+                    "$ref": "#/$defs/Span"
+                  }
+                },
+                "required": [
+                  "raw",
+                  "name",
+                  "argumentText",
+                  "span"
+                ],
+                "additionalProperties": false,
+                "examples": [
+                  {
+                    "raw": "/fix-issue 42 main",
+                    "name": "fix-issue",
+                    "argumentText": "42 main",
+                    "span": {
+                      "start": 0,
+                      "end": 10
+                    }
+                  }
+                ]
+              },
+              "Recognition": {
+                "title": "识别结果",
+                "description": "S-13：识别文法对一段经交付面提交的输入得出的结果，按 kind 判别，恰三种：text（普通文字，text 就是输入原样）、literal（字面发送，text 是输入去掉第一个码点）、invocation（一次命令尝试）。plain 与 literal 交出去的文字一个码点不改。",
+                "$comment": "三种结果都只由输入文字决定；是哪一种、text 是否恰如 S-13 所写，Schema 管不到，由判定用例集约束。",
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "oneOf": [
+                  {
+                    "title": "text",
+                    "properties": {
+                      "kind": {
+                        "const": "text"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "literal",
+                    "properties": {
+                      "kind": {
+                        "const": "literal"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "invocation",
+                    "properties": {
+                      "kind": {
+                        "const": "invocation"
+                      },
+                      "invocation": {
+                        "$ref": "#/$defs/CommandInvocation"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "invocation"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "ParseResult": {
+                "title": "解析结果",
+                "description": "S-20：按会话斜杠命令集与命令定义解析一次命令尝试的结果，按 kind 判别，恰四支：expanded（prompt 型展开后的文字）、skill（skill 型所指的技能）、command（command 型所指的系统业务流程与按声明解析出的参数；arguments 出现当且仅当该命令声明了参数）、failed（解析没通过：reason 恰六种之一，at 是出错那一段在 raw 里的位置，explanation 是给人看的说明）。它恒与产生它的那个 CommandInvocation 一起用，不重复携带原文与参数文字。failed 是一个判定结果值，不是表示层拒绝（S-29）。",
+                "$comment": "skill 支的形状以 JSON Pointer 引 CommandBinding 的 skill 支；at 引 Span。arguments 的值恰是 string、integer（在 ±(2^53−1) 之内）或 boolean。",
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "oneOf": [
+                  {
+                    "title": "expanded",
+                    "properties": {
+                      "kind": {
+                        "const": "expanded"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "skill",
+                    "properties": {
+                      "kind": {
+                        "const": "skill"
+                      },
+                      "skill": {
+                        "$ref": "#/$defs/CommandBinding/oneOf/1/properties/skill"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "skill"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "command",
+                    "properties": {
+                      "kind": {
+                        "const": "command"
+                      },
+                      "service": {
+                        "$ref": "#/$defs/ServiceName"
+                      },
+                      "arguments": {
+                        "type": "object",
+                        "propertyNames": {
+                          "$ref": "#/$defs/ParameterDeclaration/properties/name"
+                        },
+                        "additionalProperties": {
+                          "type": [
+                            "string",
+                            "integer",
+                            "boolean"
+                          ],
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "service"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "title": "failed",
+                    "properties": {
+                      "kind": {
+                        "const": "failed"
+                      },
+                      "reason": {
+                        "type": "string",
+                        "enum": [
+                          "unknown_command",
+                          "unterminated_quote",
+                          "missing_required",
+                          "type_mismatch",
+                          "unexpected_argument",
+                          "enum_out_of_range"
+                        ]
+                      },
+                      "at": {
+                        "$ref": "#/$defs/Span"
+                      },
+                      "explanation": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "reason",
+                      "explanation"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "definitions": [
+        {
+          "method": "runtime.compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json#/$defs/CommandName"
+          }
+        },
+        {
+          "method": "runtime.compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json#/$defs/ServiceName"
+          }
+        },
+        {
+          "method": "runtime.compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json#/$defs/CommandBinding"
+          }
+        },
+        {
+          "method": "runtime.compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json#/$defs/ParameterDeclaration"
+          }
+        },
+        {
+          "method": "runtime.compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json#/$defs/SlashCommandDefinition"
+          }
+        },
+        {
+          "method": "runtime.compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json#/$defs/Span"
+          }
+        },
+        {
+          "method": "runtime.compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json#/$defs/CommandInvocation"
+          }
+        },
+        {
+          "method": "runtime.compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json#/$defs/Recognition"
+          }
+        },
+        {
+          "method": "runtime.compile",
+          "schema": {
+            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json#/$defs/ParseResult"
+          }
+        }
+      ],
+      "unvalidatedInvocations": []
+    }
+  ]
+}

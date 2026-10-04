@@ -1,0 +1,30 @@
+{
+  "path": "tools/core-verification/src/w6-asset-consumer.ts",
+  "before": "fc46009d66ece5c8c0e0c273bf3d60684cb66fe7023ad21487cb617a7f35eb6c",
+  "after": "5615ad135fa70946ce71884af6cdda429ece5562b8beb1eb03cd922b11280c77",
+  "canonical_ast_sha256": "f5ab679be60cbee710326ad456a2ad85dd617cff6ee396a94b0ef6b1d19ab6be",
+  "same_ast": true,
+  "change": "Only one assert.deepEqual call layout; assertion matcher, inputs and expected value unchanged.",
+  "failed_invocations": [
+    {
+      "command": "pnpm run format -- tools/core-verification/src/w6-asset-consumer.ts",
+      "exit_code": 1,
+      "error": "ERR_PNPM_NO_SCRIPT Missing script: format",
+      "product_writes": false
+    },
+    {
+      "command": "node --input-type=module, root import typescript",
+      "exit_code": 1,
+      "error": "ERR_MODULE_NOT_FOUND: typescript is a member dependency, not a root dependency"
+    },
+    {
+      "command": "node compare.mjs with five parent directory traversals",
+      "exit_code": 1,
+      "error": "ERR_MODULE_NOT_FOUND: local probe import needed four parent directory traversals"
+    }
+  ],
+  "successful_invocation": {
+    "command": "bash scripts/format.sh write tools/core-verification/src/w6-asset-consumer.ts",
+    "exit_code": 0
+  }
+}

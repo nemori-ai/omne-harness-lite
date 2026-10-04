@@ -1,5 +1,4 @@
 import { createRequire } from 'node:module'
-import { Ajv2020 } from 'ajv/dist/2020.js'
 import { GovernanceClientConfigurationError, type PublicHealthOptions } from './config.ts'
 import type { EntryAnswer, HealthUnavailableReason } from './protocol.ts'
 import { sendRequest } from './transport.ts'
@@ -13,20 +12,13 @@ export type GovernanceOutcome = (
   | { readonly kind: 'unavailable'; readonly reason: HealthUnavailableReason }
 ) & { readonly sendAttempted: boolean }
 
-const require = createRequire(import.meta.url)
-const schema: { readonly $id: string } = require('../schema/governance-center-entry.schema.json')
-const ajv = new Ajv2020({
-  strict: true,
-  strictTypes: false,
-  strictRequired: false,
-  validateFormats: false,
-})
-ajv.addKeyword('x-counterexamples')
-ajv.addSchema(require('@omne-harness-lite/identity-values/schema'))
-ajv.addSchema(require('@omne-harness-lite/offer-expiry/schema'))
-ajv.addSchema(schema)
-const envelopeSchema = ajv.compile({ $ref: `${schema.$id}#/$defs/Envelope` })
-const exchangeSchema = ajv.compile({ $ref: `${schema.$id}#/$defs/Exchange` })
+const require = createRequire(new URL('../package.json', import.meta.url))
+function fixedSchemas() {
+  return require('./generated/ordinary.cjs') as Record<
+    'Envelope' | 'Exchange',
+    (value: unknown) => boolean
+  >
+}
 const VERSION_MISMATCH = Buffer.from('"version-mismatch"')
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -88,7 +80,11 @@ export async function exchangeGovernance(
   } catch {
     throw new GovernanceClientConfigurationError('governance envelope cannot be encoded')
   }
-  if (!record(envelope) || envelope['protocolVersion'] !== '2' || !envelopeSchema(envelope)) {
+  if (
+    !record(envelope) ||
+    envelope['protocolVersion'] !== '2' ||
+    !fixedSchemas().Envelope(envelope)
+  ) {
     throw new GovernanceClientConfigurationError('governance envelope does not conform to EC2')
   }
   const operation = envelope['operation']
@@ -108,7 +104,7 @@ export async function exchangeGovernance(
       sendAttempted,
     }
   const reply = read.value
-  if (!exchangeSchema({ operation, reply }))
+  if (!fixedSchemas().Exchange({ operation, reply }))
     return { kind: 'unavailable', reason: 'response-invalid', sendAttempted }
   if (reply === 'login-state-rejected' || reply === 'invalid-input' || reply === 'unavailable')
     return { kind: 'entry-answer', answer: reply, sendAttempted }

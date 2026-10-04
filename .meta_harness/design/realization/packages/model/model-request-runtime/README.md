@@ -189,3 +189,11 @@ D-100 实施接续另采用 [mrr/3 当前承载字节](v8-current-codec-design.m
 [图片准备 scope 清理附页](image-preparation-scope-cleanup-candidate.md) 补齐既有显式资源清理的跨包端口；不覆盖已采用 v15/v21。候选未采用、未实现；独立定点评审已完成，精确主线后继接受及工程验证待完成。
 
 2026-09-29：[D-110](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)已采用本节点 T29 精确增量；原候选正文保留受审字节，新增实现与验收尚待。
+
+## 2026-10-03 Schema构造与消费补充
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)技术采用：AM声明/manifest复用绑定owner，作者临时编译保持；AE发布捕获深冻结生产Schema，AE/evaluation-input-store/asset-registry三个默认owner首用构造分后续PR；MRR的固定图缺陷归相应MS/MR/CA构建失败，缺产物首次实际消费原抛。仅各自相关条款适用；本机制实施/验证尚待，不改变契约和原历史run。
+
+## 2026-10-03 D-116 主体实施与有限验收
+
+本调用链已消费对应成员的构建期固定图；固定图缺陷归相应拥有者构建失败，缺少制品仍在首次实际消费时抛出原错误。显式动态 owner 的运行时编译仍保留。实际源码坐标、输入复用及验证边界见[主体原始运行与有限签收](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。本段仅更新以上已交付范围，不提升历史未验能力或后续默认装配的状态。

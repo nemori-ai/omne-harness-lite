@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness-lite/content-blocks'
 import {
+  createAssetModelJudge,
   attributeDeclarationsOf,
   schemaId,
   type AttributeDeclaration,
@@ -93,7 +94,11 @@ function protocolResult(snapshot: JsonValue | undefined): DeclarationResult<'mcp
 }
 function invalidMcpResult(raw: unknown, snapshot?: JsonValue): unknown {
   const invalid = { ...bodies, mcp: { ...bodies.mcp, deriveDeclarations: () => raw } }
-  return Reflect.apply(attributeDeclarationsOf, undefined, [content, invalid, snapshot])
+  return Reflect.apply(attributeDeclarationsOf, undefined, [
+    content,
+    Reflect.apply(createAssetModelJudge, undefined, [invalid]),
+    snapshot,
+  ])
 }
 
 describe('MCP partial knowledge across the actual AM port and wrapper', () => {
@@ -115,10 +120,12 @@ describe('MCP partial knowledge across the actual AM port and wrapper', () => {
         },
       },
     }
+    const portsJudge = createAssetModelJudge(ports)
+
     const result =
       snapshot === undefined
-        ? attributeDeclarationsOf(content, ports)
-        : attributeDeclarationsOf(content, ports, snapshot)
+        ? attributeDeclarationsOf(content, portsJudge)
+        : attributeDeclarationsOf(content, portsJudge, snapshot)
     expect(received).toBe(snapshot)
     expect(Object.hasOwn(result, 'actionSnapshotKind')).toBe(true)
     expect(result.actionSnapshotKind).toBe(marker)
@@ -140,7 +147,9 @@ describe('MCP partial knowledge across the actual AM port and wrapper', () => {
       ...bodies,
       mcp: { ...bodies.mcp, deriveDeclarations: (_body, snapshot) => protocolResult(snapshot) },
     }
-    const result = attributeDeclarationsOf(content, ports, undefined)
+    const portsJudge = createAssetModelJudge(ports)
+
+    const result = attributeDeclarationsOf(content, portsJudge, undefined)
     expect(Object.hasOwn(result, 'actionSnapshotKind')).toBe(true)
     expect(result.actionSnapshotKind).toBeUndefined()
     expect(result.declarations).toHaveLength(6)
@@ -192,7 +201,10 @@ describe('port defects cannot forge partial MCP knowledge', () => {
             ? { category, extension: {} }
             : { category, body: {} }
       expect(() =>
-        Reflect.apply(attributeDeclarationsOf, undefined, [nonMcpContent, invalid]),
+        Reflect.apply(attributeDeclarationsOf, undefined, [
+          nonMcpContent,
+          Reflect.apply(createAssetModelJudge, undefined, [invalid]),
+        ]),
       ).toThrow(TypeError)
     },
   )
@@ -207,7 +219,7 @@ describe('port defects cannot forge partial MCP knowledge', () => {
     expect(() =>
       Reflect.apply(attributeDeclarationsOf, undefined, [
         { category: 'connector', body: {} },
-        invalid,
+        Reflect.apply(createAssetModelJudge, undefined, [invalid]),
       ]),
     ).toThrow(TypeError)
   })
@@ -215,7 +227,11 @@ describe('port defects cannot forge partial MCP knowledge', () => {
     'does not invent a discriminant for an invalid explicit snapshot',
     snapshot => {
       expect(() =>
-        Reflect.apply(attributeDeclarationsOf, undefined, [content, bodies, snapshot]),
+        Reflect.apply(attributeDeclarationsOf, undefined, [
+          content,
+          Reflect.apply(createAssetModelJudge, undefined, [bodies]),
+          snapshot,
+        ]),
       ).toThrow(TypeError)
     },
   )
@@ -230,6 +246,8 @@ describe('port defects cannot forge partial MCP knowledge', () => {
         },
       },
     }
-    expect(() => attributeDeclarationsOf(content, ports)).toThrow(defect)
+    const portsJudge = createAssetModelJudge(ports)
+
+    expect(() => attributeDeclarationsOf(content, portsJudge)).toThrow(defect)
   })
 })

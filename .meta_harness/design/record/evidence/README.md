@@ -1,5 +1,7 @@
 # 运行证据
 
+**2026-10-03 固定 Schema 主体**：[实际运行与有限技术签收](2026-10-03-tests-fixed-schema-main/README.md)。20 成员的固定图构建期生成和首次原生装载、AM 同 owner 消费迁移；性能按冻结输入和单 CPU 前提读取，三默认 owner 后续交付仍待。
+
 **2026-10-03 Moonshot空文本窄修复**：[独立验收与有限技术签收](2026-10-03-moonshot-empty-text/README.md)。两成员快2227／慢1204、公开42场景、34构建及共同硬线通过，10标准Pass with issues；CC与带位保留，真实上游仅当前Kimi一条，不提升37模型认证。
 
 **2026-09-30 ACK 接缝 v-next 暂存行模型**：[两正配置与十份变异的 TLC 运行](2026-09-30-ack-seam-vnext-tlc/README.md)。v-next candidate 模型，不是 v12 冻结模型重跑；正配置无反例、十份变异各命中目标不变量；不登记 formal task，不构成接受。
@@ -223,3 +225,5 @@ evidence/
 [2026-09-29 优先两家认证工具交付](2026-09-29-tests-priority-model-gate-tools/README.md)：HUB 44 public、16型号各3轮真实本机service及六类服务/入口负控通过；关闭工具交付，不替代逐模型线上认证。
 
 [2026-09-29 模型双语文档与独立检查](2026-09-29-tests-model-readme-independent-gates/README.md)：19包及demo双语文档收齐、关键实际示例与本机回归通过；八类独立检查通过，不代替后继公共接口迁移、最终产品与37型号线上认证。
+
+[2026-10-03 默认Schema owner](2026-10-03-tests-default-schema-owners/README.md)：三包首用/重试、五生产快照、独立L2六标准与真实业务/类型对拍；有限身份断言迁移、主体产物纠正和未复现MRR失败分别保留，不提升完整产品或正常并发性能状态。

@@ -1,0 +1,53 @@
+# #65 主实现独立验收
+
+**判决：Pass with issues。** 七条派发标准全部通过，独立产品缺陷 0 项。设施修正过程保留了失败日志。ROOT 另行报告的 Stryker sandbox 构建集成问题尚不在本轮独立复现范围内。判决不代表接受，也不代表整份 #65 完成。
+
+候选提交：`28dd49e0018f455c53b278bc3309b9c80c2ef2f7`。基线提交：`9e5a141bef120be42b5a92364fc71378815fa090`。验证者：`qa`，实例 `/root/qa65_main`。Run ID：`qa65-main-r1-20261003`。日期：2026-10-03 UTC。完成状态：全部规定场景执行完成。最终验收退出码：`0`，包含的五次故障注入预期退出码为 `1`。
+
+交付面是 20 个固定 owner 的公开包入口与有限生成图、CB 两个技术子入口、AM owner API，以及既有 CLI validation/help。候选由 ROOT 在干净 detached 副本构建。46 个成员中，41 个已完成构建的输入在三行 AM 消费者迁移后未变，5 个失败或尚未执行成员在新提交补建成功。该准备记录不作为本报告的独立验收通过依据。本轮另外在 QA 副本独立执行了无 dist/generated 的真实 CB 自举构建。
+
+执行环境：Node `v24.21.0`，CPU `7`，nice `5`，worker/member/workspace concurrency 均为 `1`，locale `C.UTF-8`，外部 TMP `/tmp/omne-s65-c-jhig53a9`。src 使用 `--experimental-transform-types`。所有产品执行串行，没有机器槽位包装器、`make check` 或固定 sleep。各场景等待进程结束，超时上限 120–360 秒。
+
+逐条对照表：
+
+| 标准来源 | 独立场景 | 机器证据 | 结果与次数 | 备注 |
+| --- | --- | --- | --- | --- |
+| [派发标准](structure/dispatched-brief.md)第 1 条；D-116；owner FS65-1/2/5 | [finite.mjs](../scenarios/finite.mjs) | [基线](finite-baseline.log)、[dist](finite-candidate-dist.log)、[src](finite-candidate-src-r2.log)、[第二进程](finite-second-process.log)、[对拍](structure/finite-comparison.json)、[src 对拍](structure/finite-source-r2-comparison.json) | **Pass**。20 owner；434 个非 meta 定义全部执行，加 1 个 meta 导出。每进程 14,199 条记录，3 个候选进程共 42,597 条与基线逐条相等。runtime compiler 加载 0 次 | 每进程包括 7,378 次真实生成函数调用、6,804 次公开 validator 调用和 17 次 CLI validation。19 个包根均从 src/dist 导入。frontend/session 的私有图调用实际生成函数，未宣称后端服务验收 |
+| 第 2 条；D-116 native identity 与 exact/meta oracle | [exact.mjs](../scenarios/exact.mjs)、[messages-numeric.mjs](../scenarios/messages-numeric.mjs)、[分域反控](../scenarios/identity-countercontrol.mjs) | [exact 输出](exact-native-r2.log)、[messages 输出](messages-numeric-r2.log)、[身份反控](structure/identity-countercontrol-result.json) | **Pass**。16 个关键词；35 个独立 exact 用例 × src/dist = 70 次布尔与完整 errors 对拍；18 次 meta；真实 messages 21 次精确 dispatch 边界；分域反控 1/1 命中 | 覆盖高精度整数/小数、正负大小指数、边界/倍数/const/enum/uniqueItems、六种 cardinality、escaped/nested keys、propertyNames、refs/dynamicRefs、交错 errors 快照。作者 Schema 与调用者原值不变 |
+| 第 3 条；D-116 事务构建与 FS65-4 | [fixtures.py faults](../scenarios/fixtures.py) | [汇总](structure/fault-summary.json)及 `fault-*.log` | **Pass**。无产物自举 1/1；五类故障 5/5 非零、两目录清除 5/5；恢复构建 5/5 | tsc、tsc 后缺资源、坏标准 meta、后续定义缺失、真实写盘 EISDIR。每次故障都从成功旧产物进入，旧产物也被移除。未改干净候选 |
+| 第 4 条；D-116 首用失败与发布 | [fixtures.py loading/pack](../scenarios/fixtures.py) | [缺生成模块](load-missing-generated.log)、[缺 helper](load-missing-helper.log)、[真实 pack](pack-real.log)、[tarball 消费](pack-consume.log)、[制品列表](structure/pack-files.json) | **Pass**。两次首用原 `MODULE_NOT_FOUND`；同进程恢复重试 2/2；实际打包制品 1 个；新增 exports 2/2 可消费 | 没有 valid:false 降级或旧产物回退。打包后消费真实 generated/dist；只链接已安装的外部依赖 |
+| 第 5 条；D-116 新鲜性与 FS65-3/6 | [freshness.mjs](../scenarios/freshness.mjs) | [新鲜性结果](structure/freshness-result.json)、[修改后构建](freshness-rebuild.log)、[实际行为](freshness-rebuilt-behavior.log)、[恢复构建](freshness-restored-build.log)、MR `mr-mutation-*.log` | **Pass**。14 类当前输入变化 14/14 检出；有效修改重建 1/1 改变实际行为；恢复原 fingerprint/输出摘要 1/1；MR 首用前 JSON 变异 src/dist 2/2 保持原图 | 重算当前原始资源、source/helper/JSON/transform/pattern、Ajv version/options、finite definitions 与 helper resolution。manifest 仅作交付参照，不代替当前输入读取。此项是设计指定的开发新鲜性检查 |
+| 第 6 条；AM owner 与受限公开变更 | [am.mjs](../scenarios/am.mjs)、[am-types.ts](../scenarios/am-types.ts) | AM 三份 `am-*-r2.log`、[基线对拍](structure/am-baseline-comparison.json)、[公开类型检查](am-public-types-r2.log) | **Pass**。候选 src/dist 2/2；无效 supply 每通道 2/2 当场抛；原 owner 主图 25 次请求只建 1 次；2 次作者临时编译；旧 supply 参数类型负例 3 个；泛型类别正例 2 个；拒绝顺序 3 项/通道；异常身份 2 项/通道 | 替换 supply 中的 port，以及原 port 的函数和 Schema 后，owner 仍使用捕获值。两次声明与 manifest 复用原 owner。注入 body ports 是外部依赖替身，只证明到此边界 |
+| 第 7 条；CLI 与 GCE own domain | [cli-metadata.mjs](../scenarios/cli-metadata.mjs)、既有 CLI acceptance | [metadata 结果](structure/cli-metadata-result.json)、help/forms 日志、[CLI acceptance](cli-affected-acceptance.log) | **Pass**。help 2/2；own GCE metadata 107/107 与基线相等；包括 own aliases；继承原型名拒绝 2/2；forms 正常/故障导入各 2/2；CLI acceptance 5/5 | `__proto__`、`constructor` 不属于自身 107-definition domain。没有承诺 incidental prototype lookup。没有新 TUI 发布声明 |
+
+原始命令、cwd、每次退出码、墙钟与输出 SHA 在 [commands.json](commands.json)。语义记录在 [semantic/](semantic/)，结构快照在 [structure/](structure/)，原始输出字节在 [raw/](raw/)。输入与制品摘要在 [checkout-integrity.json](checkout-integrity.json)。机器版报告为 [report.json](report.json)。
+
+缺陷清单：独立产品缺陷为空。建议去向：本轮不派 developer/tui-debugger。ROOT 已转述 reviewer 的随机 sandbox 目录 guard 反例，准备独立复现与修复；本报告不把该转述当作 QA 实测结果。后续 driver 变更应补验构建事务、新鲜性和真实 sandbox 入口。
+
+设施问题与重试：
+
+| 场景 | 尝试次数 | 前次失败原因 | 最终结果 |
+| --- | --- | --- | --- |
+| src finite、exact | 各 2 次 | Node strip-only 不支持仓库已有 parameter property | transform-types 下原断言通过 |
+| AM 三种入口 | 各 2 次 | QA 包装器赋值到 Ajv 继承 getter | 只包装实际构造/compile 后原断言通过 |
+| AM 类型 | 2 次 | TypeScript 在成员依赖中，根没有该入口 | 使用真实成员 compiler 后通过 |
+| tarball 消费 | 2 次 | 宿主 Python 不支持 tar `filter` 参数 | 复用同一实际 tarball，核对路径后解包并消费通过 |
+| CLI forms fixture | 2 次 | QA 副本漏了既有 commands resource | 完整副本中原 forms 断言通过 |
+| messages numeric | 2 次 | QA 使用了不在有限集合内的 `Interrupted` 名 | 实际 `InterruptedSource` 精确边界通过 |
+| receiver 分域反控 | 3 次 | 首次缺 consumer 解析坐标；第二次 minimum-only Schema 不要求 numeric 类型 | type-constrained huge integer 反控命中 |
+
+以上是确定性的启动、取证设施或场景修正。失败输出全部保留，没有随机产品失败，也没有通过静默重试隐去不稳定结果。原始包测试、golden 和断言未改。唯一超出三个尝试的循环没有发生。第一条 shell 命令使用了不存在的 `python`，在场景启动前以 `127` 退出；随即改用宿主的 `python3`，该启动错误也不计作产品结果。
+
+未覆盖与残余风险：
+
+- 三处默认 owner 的后续 lazy construction/AE publication snapshot timing 明确留给下一 PR。
+- 性能采用、全成员 gates 归 ROOT。此报告不判断它们。
+- 非 TUI 交付面，终端矩阵、非 TTY、宽字符、resize、退出还原、scrollback、粘贴与机读纯净八关不适用。既有 CLI suite 只作受影响消费者检查。
+- 没有真实后端或网络 body implementation 验收。AM 只证明到 supplied-port boundary。
+- 故障事务取证是代表性 CB 构建器取证，没有在每个 owner 重复五类故障。
+- 有限 unknown 矩阵没有穷举全部 JSON 与 frontend 服务流程。可执行数值/identity 证据不是无条件形式化证明。
+- 新鲜性是声明的开发检查，没有将运行期 Schema 变异检测冒充产品承诺。任何相关 driver/helper/Schema/options/definitions/resolution/emitted file 改动都需按输入摘要补验，不能沿用本提交的判决。
+
+探索观察：数值关键词对非数值不施加约束。因此只用 minimum 判断 JSON 品牌分域不是有效反控。带 exact type 的巨大整数可以实际暴露 receiver/keyword 品牌不同。该观察不改变数值 oracle。
+
+清理声明：未启动后端服务、终端复用器或独立终端。所有产品子进程已结束，终端模式未改。candidate/baseline 的 git status 都为空，提交及相关 source/dist/generated 摘要已记录。只写 QA-owned `scenarios/` 和 `evidence/`；未装依赖、未改产品源码/既有测试/lockfile/config，未提交或委派。故障副本、打包制品和 CLI 副本保留供复跑；CB 副本结束时已恢复原输入，fingerprint 与输出摘要匹配原状态。执行通道已经明确释放给 ROOT。

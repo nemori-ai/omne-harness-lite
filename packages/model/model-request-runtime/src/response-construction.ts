@@ -86,24 +86,22 @@ export function constructAssistantReply(input: ResponseConstructionInput): Assis
   })
   return 'ok' in judged && judged.ok.type === 'assistant' ? judged.ok : null
 }
-/** Preserve every transport fact before the reply writer selects a disposition. */
-function responseFacts(
-  input: ResponseConstructionInput,
-  disposition?: ReplyDisposition | null,
-  systemStopWithoutReply = false,
-): Record<string, unknown> | null {
-  const { dispatched: d, result: r, firstTokenAt } = input
+function responseTimingValid(r: ModelInvocationResult, firstTokenAt: string | null): boolean {
   if (
     (firstTokenAt === null && r.timing.firstTokenAt !== undefined) ||
     !ordered(r.timing.sentAt, r.timing.endedAt) ||
     (firstTokenAt !== null &&
       (!ordered(r.timing.sentAt, firstTokenAt) || !ordered(firstTokenAt, r.timing.endedAt)))
   )
-    return null
-  const reply = systemStopWithoutReply ? null : constructAssistantReply(input)
-  const outcome = systemStopWithoutReply ? 'interrupted' : r.outcome
-  const outputSource =
-    reply !== null ? 'reply' : firstTokenAt !== null && r.blocks.length > 0 ? 'delivered' : 'none'
+    return false
+  return true
+}
+
+function responseCalibration(
+  input: ResponseConstructionInput,
+  r: ModelInvocationResult,
+  outputSource: 'reply' | 'delivered' | 'none',
+): InputCalibration | null {
   let inputCalibration: InputCalibration = r.inputCalibration
   const priorGroup = inputCalibration.outputGroup
   if (priorGroup.kind === 'known' && priorGroup.source !== outputSource) {
@@ -122,28 +120,38 @@ function responseFacts(
           : { kind: 'unavailable', reason: 'not_retained' },
     }
   }
-  const candidate: Record<string, unknown> = {
-    id: d.response,
-    dispatch: d.dispatch,
-    call: { callId: d.call, ...(input.run === undefined ? {} : { runId: input.run }) },
-    ...(input.attempt === undefined ? {} : { attemptId: input.attempt }),
-    route: {
-      adaptation: d.adaptation,
-      profile: d.profile,
-      profileSnapshot: d.profileSnapshot,
-      selectedBy: d.selectedBy,
-      provider: d.provider,
-      credentialScope: d.credentialScope,
-      parameters: r.parameters,
-      ...(r.parameterAdjustments === undefined
-        ? {}
-        : { parameterAdjustments: r.parameterAdjustments }),
-      ...(r.droppedParameters === undefined ? {} : { droppedParameters: r.droppedParameters }),
-      ...(r.upstreamModel === undefined ? {} : { upstreamModel: r.upstreamModel }),
-      ...(r.servingProvider === undefined ? {} : { servingProvider: r.servingProvider }),
-      ...(r.upstreamRequestId === undefined ? {} : { upstreamRequestId: r.upstreamRequestId }),
-    },
-    outcome,
+  return inputCalibration
+}
+
+function invocationRoute(d: ModelCallDispatchedRecord, r: ModelInvocationResult) {
+  return {
+    adaptation: d.adaptation,
+    profile: d.profile,
+    profileSnapshot: d.profileSnapshot,
+    selectedBy: d.selectedBy,
+    provider: d.provider,
+    credentialScope: d.credentialScope,
+    parameters: r.parameters,
+    ...(r.parameterAdjustments === undefined
+      ? {}
+      : { parameterAdjustments: r.parameterAdjustments }),
+    ...(r.droppedParameters === undefined ? {} : { droppedParameters: r.droppedParameters }),
+    ...(r.upstreamModel === undefined ? {} : { upstreamModel: r.upstreamModel }),
+    ...(r.servingProvider === undefined ? {} : { servingProvider: r.servingProvider }),
+    ...(r.upstreamRequestId === undefined ? {} : { upstreamRequestId: r.upstreamRequestId }),
+  }
+}
+
+function responseOutcome(
+  input: ResponseConstructionInput,
+  r: ModelInvocationResult,
+  outcome: ModelInvocationResult['outcome'],
+  systemStopWithoutReply: boolean,
+  reply: AssistantMessage | null,
+  disposition: ReplyDisposition | null | undefined,
+  firstTokenAt: string | null,
+) {
+  return {
     ...(outcome === 'interrupted'
       ? {
           initiator: systemStopWithoutReply
@@ -160,6 +168,39 @@ function responseFacts(
     ...(reply === null && firstTokenAt !== null && r.blocks.length > 0
       ? { delivered: r.blocks }
       : {}),
+  }
+}
+
+function invocationMetadata(r: ModelInvocationResult) {
+  return {
+    ...(r.trims === undefined ? {} : { trims: r.trims }),
+    ...(r.stopReason === undefined ? {} : { stopReason: r.stopReason }),
+    ...(r.rawHeaders === undefined ? {} : { raw: { headers: r.rawHeaders } }),
+  }
+}
+
+/** Preserve every transport fact before the reply writer selects a disposition. */
+function responseFacts(
+  input: ResponseConstructionInput,
+  disposition?: ReplyDisposition | null,
+  systemStopWithoutReply = false,
+): Record<string, unknown> | null {
+  const { dispatched: d, result: r, firstTokenAt } = input
+  if (!responseTimingValid(r, firstTokenAt)) return null
+  const reply = systemStopWithoutReply ? null : constructAssistantReply(input)
+  const outcome = systemStopWithoutReply ? 'interrupted' : r.outcome
+  const outputSource =
+    reply !== null ? 'reply' : firstTokenAt !== null && r.blocks.length > 0 ? 'delivered' : 'none'
+  const inputCalibration = responseCalibration(input, r, outputSource)
+  if (inputCalibration === null) return null
+  const candidate: Record<string, unknown> = {
+    id: d.response,
+    dispatch: d.dispatch,
+    call: { callId: d.call, ...(input.run === undefined ? {} : { runId: input.run }) },
+    ...(input.attempt === undefined ? {} : { attemptId: input.attempt }),
+    route: invocationRoute(d, r),
+    outcome,
+    ...responseOutcome(input, r, outcome, systemStopWithoutReply, reply, disposition, firstTokenAt),
     timing: {
       sentAt: r.timing.sentAt,
       ...(firstTokenAt === null ? {} : { firstTokenAt }),
@@ -168,9 +209,7 @@ function responseFacts(
     usage: r.usage,
     cost: r.cost,
     inputCalibration,
-    ...(r.trims === undefined ? {} : { trims: r.trims }),
-    ...(r.stopReason === undefined ? {} : { stopReason: r.stopReason }),
-    ...(r.rawHeaders === undefined ? {} : { raw: { headers: r.rawHeaders } }),
+    ...invocationMetadata(r),
   }
   return candidate
 }
@@ -201,67 +240,105 @@ export function constructModelResponse(
   return { response: captured.ok.value, captured: captured.ok }
 }
 
+function anchoredPlanMatches(
+  parameters: Exclude<ReturnType<typeof reconstructAdaptedParameters>, undefined>,
+  d: ModelCallDispatchedRecord,
+  planned: AnchoredInterruptionInput['planned'],
+): boolean {
+  return !(
+    planned !== undefined &&
+    (!modelLogJsonEqual(parameters, planned.parameters) ||
+      !modelLogJsonEqual(d.parameterAdjustments, planned.parameterAdjustments) ||
+      !modelLogJsonEqual(d.droppedParameters, planned.droppedParameters))
+  )
+}
+
+function observedCalibration(observed: InvocationObservedFacts): InputCalibration {
+  return {
+    requestInput: observed.inputCalibration.requestInput,
+    observedInput: observed.inputCalibration.observedInput,
+    outputGroup:
+      observed.inputCalibration.outputGroup.kind === 'known' &&
+      observed.inputCalibration.outputGroup.source === 'none'
+        ? observed.inputCalibration.outputGroup
+        : { kind: 'unavailable', reason: 'not_retained' },
+  }
+}
+
+function unobservedCalibration(
+  input: Extract<AnchoredInterruptionInput, { observed: null }>,
+): InputCalibration {
+  return {
+    // Only the original owner may establish not_sent; a cold absent owner is unknown.
+    requestInput: { kind: 'unavailable', reason: input.sendState },
+    observedInput: { kind: 'unavailable', reason: input.sendState },
+    outputGroup: { kind: 'unavailable', reason: input.sendState },
+  }
+}
+
+function interruptionRoute(
+  d: ModelCallDispatchedRecord,
+  parameters: Exclude<ReturnType<typeof reconstructAdaptedParameters>, undefined>,
+  observed: InvocationObservedFacts | null,
+) {
+  return {
+    adaptation: d.adaptation,
+    profile: d.profile,
+    profileSnapshot: d.profileSnapshot,
+    selectedBy: d.selectedBy,
+    provider: d.provider,
+    credentialScope: d.credentialScope,
+    parameters,
+    ...(d.parameterAdjustments === undefined
+      ? {}
+      : { parameterAdjustments: d.parameterAdjustments }),
+    ...(d.droppedParameters === undefined ? {} : { droppedParameters: d.droppedParameters }),
+    ...(observed?.upstreamModel === undefined ? {} : { upstreamModel: observed.upstreamModel }),
+    ...(observed?.servingProvider === undefined
+      ? {}
+      : { servingProvider: observed.servingProvider }),
+    ...(observed?.upstreamRequestId === undefined
+      ? {}
+      : { upstreamRequestId: observed.upstreamRequestId }),
+  }
+}
+
+function observedMetadata(observed: InvocationObservedFacts | null) {
+  return {
+    ...(observed?.trims === undefined ? {} : { trims: observed.trims }),
+    ...(observed?.stopReason === undefined ? {} : { stopReason: observed.stopReason }),
+    ...(observed?.rawHeaders === undefined ? {} : { raw: { headers: observed.rawHeaders } }),
+  }
+}
+
+function interruptionTimingValid(
+  sentAt: string | null,
+  firstTokenAt: string | null,
+  endedAt: string,
+): boolean {
+  return !(
+    (sentAt !== null && !ordered(sentAt, firstTokenAt ?? endedAt)) ||
+    (firstTokenAt !== null && !ordered(firstTokenAt, endedAt))
+  )
+}
+
 /** MR8/RT9: settle an anchored interruption without fabricating a normal invocation result. */
 export function constructAnchoredInterruption(
   input: AnchoredInterruptionInput,
 ): ResponseConstructionResult {
   const { dispatched: d, planned, observed, firstTokenAt, endedAt } = input
   const parameters = reconstructAdaptedParameters(d)
-  if (
-    parameters === undefined ||
-    (planned !== undefined &&
-      (!modelLogJsonEqual(parameters, planned.parameters) ||
-        !modelLogJsonEqual(d.parameterAdjustments, planned.parameterAdjustments) ||
-        !modelLogJsonEqual(d.droppedParameters, planned.droppedParameters)))
-  )
+  if (parameters === undefined || !anchoredPlanMatches(parameters, d, planned))
     return { rejected: 'invalidInput' }
   const sentAt = observed?.sentAt ?? null
-  const inputCalibration: InputCalibration = observed
-    ? {
-        requestInput: observed.inputCalibration.requestInput,
-        observedInput: observed.inputCalibration.observedInput,
-        outputGroup:
-          observed.inputCalibration.outputGroup.kind === 'known' &&
-          observed.inputCalibration.outputGroup.source === 'none'
-            ? observed.inputCalibration.outputGroup
-            : { kind: 'unavailable', reason: 'not_retained' },
-      }
-    : {
-        // Only the original owner may establish not_sent; a cold absent owner is unknown.
-        requestInput: { kind: 'unavailable', reason: input.sendState },
-        observedInput: { kind: 'unavailable', reason: input.sendState },
-        outputGroup: { kind: 'unavailable', reason: input.sendState },
-      }
-  if (
-    (sentAt !== null && !ordered(sentAt, firstTokenAt ?? endedAt)) ||
-    (firstTokenAt !== null && !ordered(firstTokenAt, endedAt))
-  )
-    return { rejected: 'invalidInput' }
+  const inputCalibration = observed ? observedCalibration(observed) : unobservedCalibration(input)
+  if (!interruptionTimingValid(sentAt, firstTokenAt, endedAt)) return { rejected: 'invalidInput' }
   const candidate = {
     id: d.response,
     dispatch: d.dispatch,
     call: { callId: d.call, ...(input.run === undefined ? {} : { runId: input.run }) },
     ...(input.attempt === undefined ? {} : { attemptId: input.attempt }),
-    route: {
-      adaptation: d.adaptation,
-      profile: d.profile,
-      profileSnapshot: d.profileSnapshot,
-      selectedBy: d.selectedBy,
-      provider: d.provider,
-      credentialScope: d.credentialScope,
-      parameters,
-      ...(d.parameterAdjustments === undefined
-        ? {}
-        : { parameterAdjustments: d.parameterAdjustments }),
-      ...(d.droppedParameters === undefined ? {} : { droppedParameters: d.droppedParameters }),
-      ...(observed?.upstreamModel === undefined ? {} : { upstreamModel: observed.upstreamModel }),
-      ...(observed?.servingProvider === undefined
-        ? {}
-        : { servingProvider: observed.servingProvider }),
-      ...(observed?.upstreamRequestId === undefined
-        ? {}
-        : { upstreamRequestId: observed.upstreamRequestId }),
-    },
+    route: interruptionRoute(d, parameters, observed),
     outcome: 'interrupted',
     initiator: input.initiator,
     timing: { sentAt, ...(firstTokenAt === null ? {} : { firstTokenAt }), endedAt },
@@ -274,9 +351,7 @@ export function constructAnchoredInterruption(
     },
     cost: observed?.cost ?? { cost_usd: 'unknown', source: 'none' },
     inputCalibration,
-    ...(observed?.trims === undefined ? {} : { trims: observed.trims }),
-    ...(observed?.stopReason === undefined ? {} : { stopReason: observed.stopReason }),
-    ...(observed?.rawHeaders === undefined ? {} : { raw: { headers: observed.rawHeaders } }),
+    ...observedMetadata(observed),
   }
   if (!response(candidate)) return { rejected: 'invalidInput' }
   const captured = captureModelLogValue({

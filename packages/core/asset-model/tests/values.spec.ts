@@ -110,7 +110,7 @@ describe('S-4/S-17/S-19 deterministic literal algorithms', () => {
 })
 describe('S-12/S-15/S-36 explicit declaration responsibility', () => {
   it('adds exactly the two shared reserved declarations', () => {
-    expect(attributeDeclarationsOf({ category: 'tool', definition: {} }, bodies)).toEqual({
+    expect(attributeDeclarationsOf({ category: 'tool', definition: {} }, judge)).toEqual({
       declarations: [DISABLED_DECLARATION, USABLE_BY_DECLARATION],
     })
     expect(Object.isFrozen(DISABLED_DECLARATION.domain)).toBe(true)
@@ -125,13 +125,13 @@ describe('S-12/S-15/S-36 explicit declaration responsibility', () => {
     expect(
       attributeDeclarationsOf(
         { category: 'agent_definition', body: toOpaqueJson({ hostile: true }) },
-        bodies,
+        judge,
       ),
     ).toEqual({ underivable: 'agent_definition' })
-    expect(attributeDeclarationsOf({ category: 'plugin', members: [] }, bodies)).toEqual({
+    expect(attributeDeclarationsOf({ category: 'plugin', members: [] }, judge)).toEqual({
       underivable: 'plugin',
     })
-    expect(attributeDeclarationsOf({ category: 'connector', body: {} }, bodies)).toEqual({
+    expect(attributeDeclarationsOf({ category: 'connector', body: {} }, judge)).toEqual({
       underivable: 'connector',
     })
   })
@@ -144,9 +144,11 @@ describe('S-12/S-15/S-36 explicit declaration responsibility', () => {
       ...bodies,
       tool: { ...bodies.tool, deriveDeclarations: () => ({ declarations }) },
     }
-    expect(() => attributeDeclarationsOf({ category: 'tool', definition: {} }, contracts)).toThrow(
-      TypeError,
-    )
+    const contractsJudge = createAssetModelJudge(contracts)
+
+    expect(() =>
+      attributeDeclarationsOf({ category: 'tool', definition: {} }, contractsJudge),
+    ).toThrow(TypeError)
   })
   it('passes the explicit snapshot only to MCP', () => {
     let received: unknown
@@ -160,14 +162,16 @@ describe('S-12/S-15/S-36 explicit declaration responsibility', () => {
         },
       },
     }
+    const contractsJudge = createAssetModelJudge(contracts)
+
     const snapshot = json('{"kind":"fetched","actions":[]}')
-    attributeDeclarationsOf({ category: 'mcp', body: {} }, contracts, snapshot)
+    attributeDeclarationsOf({ category: 'mcp', body: {} }, contractsJudge, snapshot)
     expect(received).toBe(snapshot)
     expect(() =>
-      attributeDeclarationsOf({ category: 'tool', definition: {} }, contracts, snapshot),
+      attributeDeclarationsOf({ category: 'tool', definition: {} }, contractsJudge, snapshot),
     ).toThrow(TypeError)
     expect(() =>
-      attributeDeclarationsOf({ category: 'plugin', members: [] }, contracts, snapshot),
+      attributeDeclarationsOf({ category: 'plugin', members: [] }, contractsJudge, snapshot),
     ).toThrow(TypeError)
   })
   it('calls the connector port and treats an invented partial set as a body defect', () => {
@@ -182,17 +186,19 @@ describe('S-12/S-15/S-36 explicit declaration responsibility', () => {
         },
       },
     }
-    expect(attributeDeclarationsOf({ category: 'connector', body: {} }, contracts)).toEqual({
+    const contractsJudge = createAssetModelJudge(contracts)
+
+    expect(attributeDeclarationsOf({ category: 'connector', body: {} }, contractsJudge)).toEqual({
       underivable: 'connector',
     })
     expect(called).toBe(true)
     expect(() =>
       attributeDeclarationsOf(
         { category: 'connector', body: {} },
-        {
+        createAssetModelJudge({
           ...bodies,
           connector: { ...bodies.connector, deriveDeclarations: () => ({ declarations: [] }) },
-        },
+        }),
       ),
     ).toThrow(TypeError)
   })
@@ -210,7 +216,9 @@ describe('S-12/S-15/S-36 explicit declaration responsibility', () => {
       ...bodies,
       tool: { ...bodies.tool, deriveDeclarations: () => ({ declarations: [declaration] }) },
     }
-    const result = attributeDeclarationsOf({ category: 'tool', definition: {} }, contracts)
+    const contractsJudge = createAssetModelJudge(contracts)
+
+    const result = attributeDeclarationsOf({ category: 'tool', definition: {} }, contractsJudge)
     expect('declarations' in result && result.declarations[0]).toEqual(declaration)
     domain.type = 'string'
     originalDefault.n = new LosslessNumber('1')
@@ -292,16 +300,16 @@ describe('S-24/S-28 strict text and lossless untouched values', () => {
     '{"format":1,"assets":[],"assignments":[],"disabled":[],"\\u0061ssets":[]}',
     '{"format":1,"assets":[],"assignments":[{"value":{"a":1,"\\u0061":2}}],"disabled":[]}',
   ])('rejects decoded duplicate member text', text =>
-    expect(parseWorkspaceManifestText(text, bodies)).toEqual({ rejected: 'malformed' }),
+    expect(parseWorkspaceManifestText(text, judge)).toEqual({ rejected: 'malformed' }),
   )
   it('retains long decimals, overflow literals, null and immutable manifest fields without repairs', () => {
     const text =
       '{"format":1,"assets":[],"assignments":[{"capability":{"category":"tool","name":"x"},"item":"n","value":[9007199254740993,1.000000000000000000001,1e400,null],"immutable":true}],"disabled":[]}'
-    const result = parseWorkspaceManifestText(text, bodies)
+    const result = parseWorkspaceManifestText(text, judge)
     expect('ok' in result && writeJsonLossless(result.ok)).toBe(text)
-    expect(parseWorkspaceManifestText('{"format":1,"assets":[],"assignments":[]}', bodies)).toEqual(
-      { rejected: 'malformed' },
-    )
+    expect(parseWorkspaceManifestText('{"format":1,"assets":[],"assignments":[]}', judge)).toEqual({
+      rejected: 'malformed',
+    })
   })
   it('exports frozen bytes without modifying the accepted Schema', () =>
     expect(readFileSync(new URL('../schema/asset-model.schema.json', import.meta.url))).toEqual(
