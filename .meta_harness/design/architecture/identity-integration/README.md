@@ -20,6 +20,7 @@ T2 的精确管理绑定坐标及 entry 提前物理改名由
 | 服务定义、包、依赖和 Cordis 投影 | [目标设计](design.md) |
 | 跨消费者排空、关闭结果及开闸代际 | [有序收尾](retirement.md) |
 | 新插件树及具名运行资源的精确候选 | [装配协议](plugin-tree.md) |
+| T3 精确工厂、绑定、Schema 和 CLI 关闭投影 | [客户端集成](client-integration.md) |
 | 类型外承诺及薄规格落点 | [行为迁移](behavior.md) |
 | 实施顺序、验证和释放条件 | [施工与验收](delivery.md) |
 
