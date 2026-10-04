@@ -42,7 +42,8 @@ export interface HookReadings {
   readonly alert: number
 }
 
-const site = (at: ImportSite | undefined) => (at === undefined ? '' : `（${at.path}:${at.line}）`)
+const site = (at: Pick<ImportSite, 'path' | 'line'> | undefined) =>
+  at === undefined ? '' : `（${at.path}:${at.line}）`
 
 function hardLineFinding(kind: string, finding: DirectionFinding): Finding {
   const edges = finding.edges.map(edge => `${edge.from}→${edge.to}`).join(',')
@@ -67,6 +68,30 @@ export function findingsOf(readings: HookReadings): Finding[] {
     ...hardLines.direction.map(finding => hardLineFinding('方向违规', finding)),
     ...hardLines.cycles.map(finding => hardLineFinding('环', finding)),
   ]
+  if (explain.conformance?.status === 'data') {
+    for (const row of explain.conformance.data.changes)
+      out.push({
+        key: `intent\u0000${row.id}\u0000${row.before}\u0000${row.after}`,
+        text: `架构预期改动：${row.id}（${row.path}）；与新增偏离分别核对`,
+      })
+    for (const row of explain.conformance.data.rows.filter(row => row.age === 'new'))
+      out.push({
+        key: `conformance\u0000${row.id}`,
+        text: `新增架构偏离 · ${row.rule}：${row.member} ${row.key}${site(row.sites[0])}；${row.reason}`,
+      })
+  }
+  if (explain.assemblyChanges?.status === 'data')
+    for (const row of explain.assemblyChanges.data)
+      out.push({
+        key: `legacy-intent\u0000${row.member}\u0000${row.before}\u0000${row.after}`,
+        text: `原节点装配预期改动：${row.member}（${row.path}）`,
+      })
+  if (explain.newDeviations?.status === 'data')
+    for (const row of explain.newDeviations.data)
+      out.push({
+        key: `legacy-conformance\u0000${row.id}`,
+        text: `新增原节点装配偏离：${row.member} ${row.kind} ${row.key}${site(row.implementation)}`,
+      })
   for (const row of explain.functions)
     if (row.level === 'alert')
       out.push({

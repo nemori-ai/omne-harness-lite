@@ -137,6 +137,56 @@ function difference(): ActualArchitectureDocument {
   }
 }
 describe('architecture view projection', () => {
+  it('keeps endpoint conformance rows through encoded group identities and member focus', () => {
+    const graph = buildArchitectureView(document(), bands)
+    const a = 'packages/infra/sql',
+      b = 'packages/core/storage'
+    const rows = [
+      {
+        id: 'entry',
+        rule: 'LAYER-ENTRY' as const,
+        state: 'deviation' as const,
+        age: 'stock' as const,
+        member: a,
+        targetMember: b,
+        key: 'storage',
+        reason: 'bypass',
+        expected: 'accepted.md',
+        sites: [{ path: a + '/src/index.ts', line: 1 }],
+      },
+    ]
+    const conformance = {
+      schemaVersion: 1 as const,
+      kind: 'architecture-conformance' as const,
+      current: { path: 'constraints.json', source: graph.source, value: null },
+      comparedWith: 'current' as const,
+      rows,
+      changes: [],
+      changeState: 'no-baseline' as const,
+      coverage: [],
+      limitations: [],
+    }
+    const review = { ...graph, conformance }
+    expect(selectArchitectureView(review, selection).conformance?.rows).toEqual(rows)
+    expect(
+      selectArchitectureView(review, { ...selection, group: 'packages/core', neighbors: false })
+        .conformance?.rows,
+    ).toEqual(rows)
+    expect(
+      selectArchitectureView(review, {
+        ...selection,
+        focus: JSON.stringify(['member', b]),
+        neighbors: false,
+      }).conformance?.rows,
+    ).toEqual(rows)
+    expect(
+      selectArchitectureView(review, {
+        ...selection,
+        focus: JSON.stringify(['member', 'packages/infra/memory']),
+        neighbors: false,
+      }).conformance?.rows,
+    ).toEqual([])
+  })
   it('keeps function-free members in the overview and preserves static candidate multiplicity', () => {
     const graph = buildArchitectureView(document(), bands)
     expect(

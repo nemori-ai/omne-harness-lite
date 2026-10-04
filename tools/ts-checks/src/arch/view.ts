@@ -51,6 +51,7 @@ export interface ViewEdge {
   }[]
 }
 export interface ArchitectureView {
+  readonly conformance?: import('./conformance-model.ts').Conformance
   readonly schemaVersion: 1
   readonly kind: 'architecture-view'
   readonly source: SourceCoordinates
@@ -65,6 +66,7 @@ export interface ArchitectureView {
   readonly measurement: { readonly bands: Bands; readonly configSource: string }
 }
 export interface ViewSelection {
+  readonly conformance?: boolean
   readonly group: string
   readonly focus: string
   readonly neighbors: boolean
@@ -74,6 +76,7 @@ export interface ViewSelection {
   readonly coupling: boolean
 }
 export interface SelectedArchitecture {
+  readonly conformance?: import('./conformance-model.ts').Conformance
   readonly schemaVersion: 1
   readonly kind: 'architecture-selection'
   readonly source: SourceCoordinates
@@ -378,9 +381,31 @@ export function selectArchitectureView(
     const ids = new Set(nodes.map(node => node.id))
     selectedEdges = selectedEdges.filter(edge => ids.has(edge.from) && ids.has(edge.to))
   }
+  const visibleIds = new Set(
+    nodes.flatMap(node =>
+      node.kind === 'group'
+        ? (graph.groups.find(group => group.id === node.id)?.members ?? [])
+        : [node.id],
+    ),
+  )
+  const visibleMembers = new Set(
+    graph.nodes
+      .filter(node => visibleIds.has(node.id))
+      .flatMap(node => (node.member === undefined ? [] : [node.member])),
+  )
   return {
     schemaVersion: 1,
     kind: 'architecture-selection',
+    ...(graph.conformance === undefined
+      ? {}
+      : {
+          conformance: {
+            ...graph.conformance,
+            rows: graph.conformance.rows.filter(
+              row => visibleMembers.has(row.member) || visibleMembers.has(row.targetMember ?? ''),
+            ),
+          },
+        }),
     source: graph.source,
     ...(graph.baseline === undefined ? {} : { baseline: graph.baseline }),
     selection,

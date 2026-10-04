@@ -4,6 +4,7 @@ import { architectureBrowser } from './browser.ts'
 import { architectureLayoutInput } from './layout.ts'
 import { architectureViewport } from './viewport.ts'
 import { architectureMatrix } from './matrix.ts'
+import { conformanceBrowser } from './conformance-browser.ts'
 import { selectArchitectureView, type ArchitectureView } from './view.ts'
 
 export function architectureMarkup(graph: ArchitectureView): string {
@@ -58,11 +59,17 @@ button:focus-visible,select:focus-visible { outline:3px solid var(--changed); ou
 #arch-detail ul { padding-left:18px; } #arch-unknown li { overflow-wrap:anywhere; }
 .arch-notice { padding:9px 12px; border:1px solid var(--line); border-radius:6px; background:var(--panel); font-size:12px; margin-top:12px; }
 .arch-notice summary { cursor:pointer; }
+.conformance-domains { display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:10px; }
+.conformance-domain-card,.conformance-row { padding:12px; border:1px solid var(--line); border-radius:8px; margin:8px 0; overflow-wrap:anywhere; }
+.conformance-domain-card p,.conformance-row p { font-size:12px; }
+.conformance-row[data-state=deviation] { border-left:4px solid #ad6100; }
+.conformance-row code { display:block; font-size:11px; }
+#conformance-pane pre { white-space:pre-wrap; overflow-wrap:anywhere; }
 @media(min-width:1700px) { .arch-workspace { grid-template-columns:220px minmax(0,1fr) 330px; } }
 @media(max-width:1050px) { .arch-workspace { grid-template-columns:155px minmax(0,1fr) 245px; } .arch-sidebar { padding:9px; } }
 @media(max-width:760px) { .arch-workspace { display:block; height:auto; } .arch-navigation { max-height:180px; border-bottom:1px solid var(--line); } .arch-canvas { height:65vh; min-height:360px; } .arch-inspector { max-height:420px; border-top:1px solid var(--line); } }
 </style>
-<nav class="arch-nav" aria-label="评审视图"><button id="arch-tab">架构视图</button><button id="metrics-tab">复杂度与风险</button></nav>
+<nav class="arch-nav" aria-label="评审视图"><button id="arch-tab">架构视图</button><button id="conformance-tab">责任与符合性</button><button id="metrics-tab">复杂度与风险</button></nav>
 <section id="architecture-pane">
 <div class="arch-heading"><h1>全局实际架构</h1><p id="arch-counts"></p></div>
 <p id="arch-coordinate" class="meta mono"></p>
@@ -77,6 +84,7 @@ button:focus-visible,select:focus-visible { outline:3px solid var(--changed); ou
 <label>变化范围 <select id="arch-changes"><option value="current">当前</option><option value="all">当前与已删除</option><option value="changed">新增与删除</option><option value="added">新增</option><option value="removed">删除</option></select></label>
 <label><input id="arch-complexity" type="checkbox">叠加圈复杂度</label>
 <label><input id="arch-coupling" type="checkbox">叠加耦合</label>
+<label><input id="arch-conformance" type="checkbox">叠加符合性</label>
 <button id="arch-export-svg" disabled>导出 SVG</button><button id="arch-export-json" disabled>导出 JSON</button>
 </div>
 <fieldset><legend>关系种类</legend><div id="arch-kinds"></div></fieldset>
@@ -91,17 +99,26 @@ button:focus-visible,select:focus-visible { outline:3px solid var(--changed); ou
 <aside class="arch-sidebar arch-inspector" aria-label="架构详情"><h2>所选节点或关系</h2><div id="arch-detail"></div><h2>关系清单</h2><div id="arch-relations"></div></aside>
 </div>
 <details class="arch-notice" open><summary>图例与证据范围</summary>
-<p>静态声明视图。目录聚合不表示运行、部署、事务或租户边界。服务/事件同名连接不证明实际绑定。装配条目是源码声明；确认配置选择与实际运行绑定：未观测。架构预期与规划：未提供。</p>
+<p>静态声明视图。目录聚合不表示运行、部署、事务或租户边界。服务/事件同名连接不证明实际绑定。装配条目是源码声明；确认配置选择与实际运行绑定：未观测。架构预期及静态子集见“责任与符合性”；橙色标记表示所选预期下存在静态偏离。</p>
 <p class="legend">蓝框/蓝线＝新增；红色虚框/虚线＝BASE 已删除。类型导入和可选服务使用虚线。耦合入/出为全部当前静态关系的去重邻接数，不是运行调用量。</p>
 <p id="arch-measurement" class="meta"></p>
 </details>
 <details class="arch-notice"><summary>未知与未覆盖范围</summary><div id="arch-unknown"></div></details>
 <details class="arch-notice"><summary>六问导航与尚未确认的边界</summary><div id="arch-guidance"></div></details>
 </section>
+<section id="conformance-pane" hidden>
+<h1>系统责任与架构符合性</h1><p id="conformance-coordinate" class="meta"></p>
+<div id="conformance-expected-path" class="arch-notice"></div>
+<details class="arch-notice"><summary>已认可责任方向与候选实现映射</summary><div id="conformance-responsibility" class="conformance-domains"></div></details>
+<div class="arch-toolbar"><label>结果 <select id="conformance-state"><option value="deviation">静态偏离</option><option value="new">新增偏离</option><option value="stock">存量偏离</option><option value="unknown">未知</option><option value="converged">有限静态检查符合</option><option value="all">全部</option></select></label><label>责任 <select id="conformance-domain"></select></label><label>成员 <select id="conformance-member"></select></label></div>
+<p id="conformance-counts"></p><p id="conformance-selection" class="meta"></p><div id="conformance-rows"></div>
+<details class="arch-notice" open><summary>预期语义变化</summary><div id="conformance-changes"></div></details>
+<details class="arch-notice"><summary>机械、人工与行为证据边界</summary><div id="conformance-coverage"></div></details>
+</section>
 <script type="application/json" id="architecture-data">${data}</script>
 <script>${bundle.replaceAll('</script', '<\\/script')}</script>`
 }
 
 export function architectureScript(): string {
-  return `(${architectureBrowser.toString()})(${selectArchitectureView.toString()},${architectureLayoutInput.toString()},${architectureViewport.toString()},${architectureMatrix.toString()},new ELK());`
+  return `(${architectureBrowser.toString()})(${selectArchitectureView.toString()},${architectureLayoutInput.toString()},${architectureViewport.toString()},${architectureMatrix.toString()},new ELK(),${conformanceBrowser.toString()});`
 }

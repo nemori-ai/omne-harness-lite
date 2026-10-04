@@ -5,6 +5,9 @@
 采用依据：[D-115](../record/decisions/actual-architecture-and-thin-spec/decision.md)；
 全局规格要求：[SYS-SPEC](../foundation/cross-system-constraints/requirements.md#sys-spec)。
 
+现行全局方向见[系统责任与关系预期](system-intent.md)。
+[机读约束](constraints.json)区分已采用入口、候选映射和未知；实际源码结构仍由工具生成。
+
 ## 一份承诺，一个拥有者
 
 | 内容 | 唯一拥有者 |
