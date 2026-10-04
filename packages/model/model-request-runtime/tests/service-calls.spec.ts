@@ -15,6 +15,7 @@ import { createServiceCalls, ownOpenCallInput, UnknownAppendTracker } from '../s
 import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { interpretCallHistory } from '../src/call-history.ts'
+import { createModelCallFacts } from '../src/reference-facts.ts'
 import type {
   CurrentHistoryReaders,
   OpenCallInput,
@@ -298,6 +299,7 @@ test('observer association rejects a wrong call before catalog reads or transpor
   const catalogRead = vi.fn()
   const binding = {
     log: logBinding,
+    sourceVersions: { fixture: 'observer-creation-v1' },
     selection: { binding: logBinding, owner: { admission: () => 'open' } },
     observers: { authorize },
     catalog: { listProfiles: catalogRead },
@@ -308,6 +310,7 @@ test('observer association rejects a wrong call before catalog reads or transpor
     identities: { call: () => 'observer-call' },
     maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },
+    callFacts: { creation: async () => ({ callNotFound: true }) },
     calls,
     transport: { clearReuseScope() {}, acquire },
   } as unknown as RuntimeConstruction<PlannedSemantics, never>
@@ -472,7 +475,11 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
     }
     const runtime = {
       maxScopes: 4,
-      callFacts: { content },
+      callFacts: createModelCallFacts({
+        content,
+        presence: { read: async () => ({ unavailable: true }) },
+        maxScopes: 4,
+      }),
       sessions: { bind: async () => ({ binding }) },
       calls,
       transport: {
