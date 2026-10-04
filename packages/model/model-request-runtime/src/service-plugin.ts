@@ -36,6 +36,19 @@ const methodNames = [
   'acknowledgeCall',
 ] as const satisfies readonly (keyof ModelRuntimeService)[]
 
+function validAssembly(assembled: ModelRuntimeAssembly): boolean {
+  return !(
+    assembled === null ||
+    typeof assembled !== 'object' ||
+    assembled.owner === null ||
+    typeof assembled.owner !== 'object' ||
+    typeof assembled.owner.close !== 'function' ||
+    typeof assembled.owner.release !== 'function' ||
+    assembled.service === null ||
+    typeof assembled.service !== 'object'
+  )
+}
+
 /** P-2: the application supplies the one real A/B/C service composition per fiber run. */
 export function createModelRuntimePlugin(input: {
   readonly construct: () => Promise<ModelRuntimeAssembly>
@@ -56,17 +69,7 @@ export function createModelRuntimePlugin(input: {
       if (ctx.get(MODEL_RUNTIME_SERVICE) !== undefined)
         throw new Error('duplicate model runtime service provider')
       const assembled = await input.construct()
-      if (
-        assembled === null ||
-        typeof assembled !== 'object' ||
-        assembled.owner === null ||
-        typeof assembled.owner !== 'object' ||
-        typeof assembled.owner.close !== 'function' ||
-        typeof assembled.owner.release !== 'function' ||
-        assembled.service === null ||
-        typeof assembled.service !== 'object'
-      )
-        throw new TypeError('invalid model runtime assembly')
+      if (!validAssembly(assembled)) throw new TypeError('invalid model runtime assembly')
       const { owner } = assembled
       let released = false
       async function closeOwner(): Promise<RuntimeCloseResult> {
