@@ -10,6 +10,8 @@
 // - 端点没有框的边跳过（提交 2f532e27）；线画在成员框下面，不盖住名字（提交 8e1c88d4）；
 //   成员名只显示最后一段（提交 70fffa0c）。
 import type { Report } from './report.ts'
+import type { ArchitectureView } from '../arch/view.ts'
+import { architectureMarkup, architectureScript } from '../arch/render.ts'
 
 export interface PageContext {
   readonly head: string
@@ -245,6 +247,17 @@ function select(path) {
   history.replaceState(null, '', selected === null ? location.pathname : '#' + selected)
   drawEdges(); renderDetail()
 }
+window.addEventListener('architecture-member', event => {
+  if (!memberByPath.has(event.detail)) {
+    selected = null
+    drawEdges()
+    detail.replaceChildren($('h2', { text: event.detail }), $('p', { text: '该成员没有可供既有度量面板分析的 TypeScript 函数；架构成员清单仍记录其存在。' }))
+    return
+  }
+  selected = null
+  filter = 'all'
+  select(event.detail)
+})
 function siteList(sites) {
   return $('ul', { class: 'plain mono' }, ...sites.map(site => $('li', { text: site.path + ':' + site.line + '  ' + site.specifier })))
 }
@@ -301,7 +314,11 @@ requestAnimationFrame(drawEdges)
 `
 
 /** 自包含、离线可开的审讯页：数据内联，无外部资源。 */
-export function renderPage(report: Report, context: PageContext): string {
+export function renderPage(
+  report: Report,
+  context: PageContext,
+  architecture?: ArchitectureView,
+): string {
   const metric = report.coverageEnabled
     ? 'CRAP（没有覆盖率数据的函数用圈复杂度）'
     : '圈复杂度（未开覆盖率）'
@@ -312,10 +329,12 @@ export function renderPage(report: Report, context: PageContext): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>结构度量 ${context.shortHead}</title>
+<title>${architecture === undefined ? '结构度量' : '实际架构与结构度量'} ${escapeHtml(context.shortHead)}</title>
 <style>${STYLE}</style>
 </head>
 <body>
+${architecture === undefined ? '' : architectureMarkup(architecture)}
+<section id="metrics-pane"${architecture === undefined ? '' : ' hidden'}>
 <h1>结构度量 <span class="mono">${context.shortHead}</span>${context.dirty ? '<span class="badge bad">工作树不干净，不能当作该提交的度量</span>' : ''}</h1>
 <div class="meta">分支 <span class="mono">${escapeHtml(context.branch)}</span> · ${escapeHtml(base)} · 评级用 ${metric} · 函数 warn ${thresholds.warn} / alert ${thresholds.alert} · 成员色带 ${bands.green} / ${bands.yellow} / ${bands.red} · 生成于 ${context.generatedAt}</div>
 <pre class="summary">${escapeHtml(context.summary.join('\n'))}</pre>
@@ -341,8 +360,10 @@ export function renderPage(report: Report, context: PageContext): string {
 <h2>已登记的例外</h2>
 <div id="exceptions"></div>
 <div id="detail"></div>
+</section>
 <script type="application/json" id="data">${embed({ report, page: { changedEdgeLimit: context.changedEdgeLimit } })}</script>
 <script>${SCRIPT}</script>
+${architecture === undefined ? '' : `<script>${architectureScript()}</script>`}
 </body>
 </html>
 `

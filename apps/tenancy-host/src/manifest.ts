@@ -13,7 +13,7 @@ import {
   governanceCenterEntryPlugin,
   governanceCenterOpsPlugin,
 } from '@omne-harness-lite/governance-center-entry'
-import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance'
+import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
 import type { PreflightCheck } from '@omne-harness-lite/storage'
 import {
   type StorageSqlConfig,

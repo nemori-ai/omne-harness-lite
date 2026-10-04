@@ -237,7 +237,7 @@ describe('calibration engineering facts through the real JSONL journal', () => {
         .toBe(0)
       for (const name of ['README.md', 'README_ZH.md']) {
         const doc = await fs.readFile(
-          resolve(import.meta.dirname, '../../../packages/model/model-request-runtime', name),
+          resolve(import.meta.dirname, '../../../packages/model/model-request-runtime-local', name),
           'utf8',
         )
         const block = doc.match(/```ts\n(\/\/ calibration-diagnostics-query[\s\S]*?)\n```/)?.[1]

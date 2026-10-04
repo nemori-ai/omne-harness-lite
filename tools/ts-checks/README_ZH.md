@@ -1,6 +1,6 @@
 # ts-checks
 
-`evaluation-publication-boundary` 仅允许 EIS 自身、受信验收 bootstrap/tests，以及精确的 `packages/model/model-request-runtime/tests/session-selection-fixture.ts` 通过静态公开入口访问发布面。该 fixture 为选择测试构造真实 SQL／治理／EIS 来源；许可不扩展到 runtime 产品源码或相邻测试文件，转导出、动态转发和私有发布入口仍拒绝。正反验证命令：`pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`。
+`evaluation-publication-boundary` 仅允许 EIS 自身、受信验收 bootstrap/tests，以及精确的 `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` 通过静态公开入口访问发布面。该 fixture 为选择测试构造真实 SQL／治理／EIS 来源；许可不扩展到 runtime 产品源码或相邻测试文件，转导出、动态转发和私有发布入口仍拒绝。正反验证命令：`pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`。
 
 产品源码与开发示例（`packages/`、`apps/` 与 `examples/`）的结构检查：契约与 realization 节点 verification 点名的静态检查，
 规则检查文本、路径与 TypeScript 语法，不做跨文件类型分析。类型层的检查（失败集合闭合等）
@@ -287,12 +287,44 @@ CommonJS require 不在本抽取器范围内。根任务容器与 node_modules �
 独立场景见 [`tests/actual-architecture.spec.ts`](tests/actual-architecture.spec.ts)。
 旧装配意图对照消费单独的 `IntentImplementation` 投影；其阈值、strict 和声明差分通道保持原义。
 
+## 全局实际架构视图
+
+```sh
+node --experimental-strip-types tools/ts-checks/src/arch/cli.ts --root "$PWD" --base <精确提交> --report tmp/architecture > tmp/architecture.stdout.json
+```
+
+`--report` 生成 `report.html`、`graph.json`、`actual.json` 和 `summary.md`。
+stdout 仍只有实际架构 JSON，报告路径写到 stderr。构建后也可用 `omne-architecture`。
+直接用浏览器打开 HTML，无需服务器或网络。
+
+页面默认显示应用和目录组总览。展开后可筛选类型/运行导入、必需/可选服务、事件和装配声明。
+总览默认使用依赖矩阵，行发起、列目标。数字为输入事实身份数；可切换到 ELK 关系图。
+跨组边只汇总直接导入和装配声明。组内关系需展开，服务同名不推断组间绑定。
+聚焦组件可显示最多两跳的邻接，排除邻居之间无关关系。点击关系查看全部出处和提交。
+选择变化范围可保留精确 BASE 已删除的节点与来源。叠加圈复杂度、静态耦合后，
+可进入同页的原复杂度与风险面板。SVG/JSON 导出反映当前选择，未展开时导出总览。
+画布可平移、缩放及适应全图，出处在右侧栏。视口变化不裁剪 SVG 导出。
+绘制期间和失败时禁用导出，失败原因在页面显示；旧布局不得覆盖新选择。
+
+视图只消费 N1 实际数据。目录组不表示运行边界；服务与事件同名不表示实际绑定。
+所有提供者均为候选，确认配置选择及实际运行绑定显示“未观测”。规划与架构预期显示“未提供”。
+具体 unknown 和未覆盖范围可展开查看，未知条数不能代表全部缺口。
+外部代码导入不作为外部运行资源。无函数成员保留，覆盖率缺席不记为零。
+
+公开投影为 `buildArchitectureView(document, bands)` 和 `selectArchitectureView(graph, selection)`，
+经同一个 architecture 入口导出。数据类型归 [view.ts](src/arch/view.ts)，
+类型表达不出的行为归 [薄规格](src/arch/SPEC.md)，回归见 [视图测试](tests/architecture-view.spec.ts)。
+布局与导航的采用理由见 [ADR](src/arch/ADR.md)，社区事实与有限探针归其中链接的调查。
+复杂度算法和色带复用现有度量，色带读取运行工具版本的配置，页内说明来源。
+architecture 报告的函数变化和关系变化都用精确 BASE；metrics 报告的函数变化仍用 merge-base，
+架构变化用精确 BASE。页面分别显示两个坐标，非祖先 BASE 时也不混称同一范围。
+
 ## 结构度量
 
 `make metrics` 是本包的第二入口（`src/metrics/`）。它**只报告、不判失败**，不在 `make check` 里；能让检查失败的只有上面的方向规则与提交署名。
 
 ```sh
-make metrics                          # 全仓，秒级：圈复杂度、依赖图、方向与环
+make metrics                          # 全仓：实际架构、圈复杂度、依赖图、方向与环
 make metrics BASE=<基线提交或分支>      # 另标出基线以来变更的成员、函数、导入与提交形状
 make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，取覆盖率并合成 CRAP（先构建）
 ```
@@ -304,10 +336,12 @@ make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，�
 | `summary.md` | 不超过 12 行，同时打印到标准输出；交付说明原样附它 |
 | `metrics.json` | 每个成员与每个函数的圈复杂度、覆盖率、CRAP、是否变更 |
 | `graph.json` | 成员间的边与导入处、方向发现、环、已登记例外 |
-| `review.html` | 自包含、离线可开的审讯页：按层的结构图、度量着色、点成员看依赖与函数表 |
+| `review.html` | 自包含的共同入口：默认实际架构总览，可进入原结构图、风险与函数表 |
+| `actual.json` | N1 完整实际架构数据及精确两版差分 |
+| `architecture.json` | 总览、关系与来源的派生浏览投影；与旧 graph.json 分开 |
 | `coverage/` | 开了覆盖率时各成员的原始 `<成员>/coverage-final.json` 与测试输出 `<成员>.vitest.log`；每个成员的耗时与退出码另记在 `metrics.json` 的 `meta` 里，运行时逐个打到标准错误 |
 
-审讯页的网址后带成员路径可直接定位，例如 `review.html#packages/model/model-request-runtime`。
+审讯页的网址后带成员路径可直接定位，例如 `review.html#packages/model/model-request-runtime-local`。
 
 怎么算的：
 
@@ -557,10 +591,11 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 1. `OMNE_LOOP_HOOK=off` → 什么都不做；输入解析不了、不是对象 → 不反馈。
 2. `stop_hook_active` 为 `true`（这次收工已经因钩子续跑过）→ 不反馈。**每次收工至多拦一次。**
 3. 工作目录取输入的 `cwd`，没有就用进程的当前目录；不在 git 仓库里 → 不反馈。`loop.config.json` 的 `hook.enabled` 为 `false` → 不反馈。
-4. 这次变更（相对与 `primaryBranch` 的合并点，求不出就只看未提交的；已提交、未提交、未跟踪都算）没碰 `packages/`、`apps/` 成员的被度量源码（与度量同一个判定）→ 不反馈。
+4. 这次变更（相对与 `primaryBranch` 的合并点，求不出就只看未提交的；已提交、未提交、未跟踪都算）没碰产品源码、全局 `constraints.json` 或原 realization 的 `bindings.yaml` → 不反馈。
 5. 量**静态那部分**读数：变更函数里超 alert、且比基线涨了或新出现的（与 `make loop-status` 同一个判法，见上「要解释的函数与基线比」，基线是这里的合并点；
    反馈的那一行末尾补「原 N」「新出现」或拿不准的原因，原来就超线、这次没变差的不反馈）、新增的跨成员依赖、其中稳定依赖不稳定的、改动过的测试文件里没有断言的用例，加方向违规与环两条硬线（全仓的）。
    不跑重复代码（全仓二十多秒）、覆盖率、工作树与 topic 那几项。量在 worker 线程里跑，超过 `hook.timeoutSeconds`（初值 40；宿主那侧另配 60）就放弃。
+   同时按 BASE 的架构预期判断新增偏离，分别报告全局及原节点预期的语义改动；机械范围见 [CONFORMANCE](src/arch/CONFORMANCE.md)。仅修改预期也可产生反馈，未发布新全局预期的节点继续由原声明传感器消费。
 6. 没有红项 → 不反馈。同一分支上同一组读数已经反馈过 → 不反馈：每条取「类别＋位置（路径与函数名、或成员对）」，**不含行号**，排序后求哈希，
    连同分支名记进回路目录的 `hook-state.json`，最多记 `hook.stateLimit`（初值 200）组，超了丢最旧的。多了一项、换了分支都算新的一组。
 7. 反馈的文字列前 `hook.maxItems`（初值 12）条，多的写「另有 N 条」，整段不超过 `hook.maxChars`（初值 4000）个字符；硬线排最前，截断时截掉的是报告项。
@@ -579,7 +614,7 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 加一个分支、反馈一条的 2.5 秒；多出的一次 `git diff -M --name-status` 与每个文件一次 `git show` 合计十几毫秒，再加只解析那几个文件的基线文本。
 
 **不能声称**：反馈过的读数被处理了——它只提醒一次，交代与否由交付说明与接受的人核对；没被反馈等于没有红项——
-没碰产品源码、钩子关了、出错或超时、`stop_hook_active` 为真时都不反馈，重复代码与覆盖率不在其中，
+没碰产品源码、全局约束或原节点声明，或者钩子关了、出错或超时、`stop_hook_active` 为真时都不反馈，重复代码与覆盖率不在其中，
 **改动落在会话当前目录之外的另一棵工作树里时也不反馈**（它只量输入的 `cwd` 所在的那一棵检出；一个会话只用一棵工作树、先 `cd` 进去再干活，见 `worktree-discipline` skill）；宿主真的调用了它——
 生成配置不等于宿主已加载、已信任，要在真实会话里另行核实（Claude Code 一端 2026-10-02 见过一次真实调用；Codex 一端还没有）；
 警告一定到了用户眼前——`systemMessage` 怎样显示由宿主定，两端都只按文档核对过，没有在真实会话里看过它显示出来的样子。

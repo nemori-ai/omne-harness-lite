@@ -48,7 +48,7 @@ import type {
 import {
   openRouterCredentialRedactionConfig,
   type PlanInput,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 
@@ -320,7 +320,7 @@ This path adopts [D095](../../../.meta_harness/design/record/decisions/model-cre
 
 ```ts
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
-import type { PlanInput, ReadFacts } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput, ReadFacts } from '@omne-harness-lite/model-request-runtime-local'
 import type { PiAiTransport } from '@omne-harness-lite/pi-ai-transport'
 
 // Only completes an unfinished reader early; it is never reported as a read fact.

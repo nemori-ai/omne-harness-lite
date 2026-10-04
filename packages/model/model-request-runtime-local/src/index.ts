@@ -10,8 +10,6 @@ export type {
   DispatchGuardInput,
   DispatchGuardResult,
 } from './dispatch-guard.ts'
-export type { RetryDelayInput, RetryDelayResult } from './retry-delay-types.ts'
-export { retryDelay } from './retry-delay.ts'
 export { decideRetry } from './decide-retry.ts'
 export { createDefaultRetryImplementation, DEFAULT_RETRY_BUILTIN } from './default-retry.ts'
 export type { DefaultRetryConfiguration, DefaultRetryResult } from './default-retry.ts'

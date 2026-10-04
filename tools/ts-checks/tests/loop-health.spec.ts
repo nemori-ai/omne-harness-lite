@@ -563,6 +563,7 @@ describe('入口', { timeout: 60_000 }, () => {
     for (const title of Object.values(SECTION_TITLES)) expect(page).toContain(`<h2>${title}</h2>`)
     const json: unknown = JSON.parse(readFileSync(join(out, 'health.json'), 'utf8'))
     expect(Object.keys(json as object)).toEqual([
+      'conformance',
       'meta',
       'cards',
       'weekly',
@@ -573,6 +574,7 @@ describe('入口', { timeout: 60_000 }, () => {
       'catalogue',
       'sensors',
     ])
+    expect((json as { conformance: { status: string } }).conformance.status).toBe('no-data')
     expect(readFileSync(join(out, 'summary.md'), 'utf8')).toBe(result.stdout)
   })
 

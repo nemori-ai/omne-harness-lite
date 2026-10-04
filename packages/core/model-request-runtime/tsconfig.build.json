@@ -1,11 +1,10 @@
 {
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
+    "resolveJsonModule": true,
     "rootDir": "src",
     "outDir": "dist",
     "rewriteRelativeImportExtensions": true
   },
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }

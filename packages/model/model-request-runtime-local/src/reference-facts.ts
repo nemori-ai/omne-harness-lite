@@ -11,10 +11,11 @@ import type {
   ModelCallDispatchedRecord,
   ModelCallOpenedRecord,
   ModelCallPayloadRef,
+  ModelCallCreatedPayload,
 } from '@omne-harness-lite/messages'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { LogEntry, ReadResult } from '@omne-harness-lite/session-log'
-import { encodeModelLogKey, inspectModelLogEntry } from '@omne-harness-lite/model-request-runtime'
+import { encodeModelLogKey, inspectModelLogEntry, type CapturedModelLogValue } from '@omne-harness-lite/model-request-runtime'
 import { settlementGenerationCurrent } from './settlement-prefix.ts'
 import {
   acknowledgedAttempts,
@@ -31,8 +32,12 @@ import type {
   ModelCallContentStore,
   CallResultFact,
   CallLifecycleState,
+  ModelCallContentValue,
+  CallPresenceFact,
+  CallSource,
 } from './reference-types.ts'
 import type { SettlementLogBinding } from './settlement-types.ts'
+import type { ServiceInvalidInput, ServiceUnavailable } from './service-types.ts'
 
 type RelevantRecord =
   | ModelCallAcknowledgedRecord
@@ -113,13 +118,12 @@ function relevant(record: unknown): record is RelevantRecord {
       record.kind === 'model_call_acknowledged')
   )
 }
-function project(
-  entry: LogEntry,
-  existing: ProjectedCall | undefined,
-):
+type Projection =
   | { readonly call: string; readonly next: ProjectedCall; readonly creationKey?: CreationKey }
   | undefined
-  | typeof unavailable {
+  | typeof unavailable
+
+function project(entry: LogEntry, existing: ProjectedCall | undefined): Projection {
   if (!object(entry.payload) || entry.payload.format !== 'mrr/3') return undefined
   const category = entry.payload.category
   if (category !== 'record' && category !== 'response') return undefined
@@ -132,21 +136,36 @@ function project(
   })
   if (!('ok' in inspected)) return unavailable
   const captured = inspected.ok.captured
-  if (category === 'response') {
-    if (!isModelResponse(captured.value) || captured.response === null) return unavailable
-    const call = captured.value.call.callId
-    if (existing?.ready !== undefined && existing.ready.response !== captured.value.id)
-      return unavailable
-    const value = captured.value
-    const attempts = existing?.attempts?.map(item =>
-      item.response === value.id ? { ...item, final: attemptFromFinal(value, entry) } : item,
-    )
-    const next = { ...existing, ...(attempts === undefined ? {} : { attempts }) }
-    // After ACK a later final (RT12 S-99) only adds its small facts; no full value is kept.
-    return { call, next: existing?.acknowledged === undefined ? { ...next, final: value } : next }
-  }
+  if (category === 'response') return projectResponse(entry, captured, existing)
+
   const record = captured.record
   if (!relevant(record) || !('call' in record)) return undefined
+  return projectRecord(entry, record, existing)
+}
+
+function projectResponse(
+  entry: LogEntry,
+  captured: CapturedModelLogValue,
+  existing: ProjectedCall | undefined,
+): Projection {
+  if (!isModelResponse(captured.value) || captured.response === null) return unavailable
+  const call = captured.value.call.callId
+  if (existing?.ready !== undefined && existing.ready.response !== captured.value.id)
+    return unavailable
+  const value = captured.value
+  const attempts = existing?.attempts?.map(item =>
+    item.response === value.id ? { ...item, final: attemptFromFinal(value, entry) } : item,
+  )
+  const next = { ...existing, ...(attempts === undefined ? {} : { attempts }) }
+  // After ACK a later final (RT12 S-99) only adds its small facts; no full value is kept.
+  return { call, next: existing?.acknowledged === undefined ? { ...next, final: value } : next }
+}
+
+function projectRecord(
+  entry: LogEntry,
+  record: RelevantRecord,
+  existing: ProjectedCall | undefined,
+): Projection {
   const call = record.call
   if (record.kind === 'model_call_acknowledged') {
     if (existing?.acknowledged !== undefined) return unavailable
@@ -157,43 +176,68 @@ function project(
     if (existing?.created !== undefined || existing?.rejected !== undefined) return unavailable
     return { call, next: { ...existing, created: record }, creationKey: record.creationKey }
   }
-  if (record.kind === 'model_call_ended') {
-    if (
-      existing?.ended !== undefined ||
-      (record.creationKey !== undefined &&
-        (existing?.created !== undefined || existing?.rejected !== undefined))
-    )
-      return unavailable
-    if (
-      record.ending === 'undispatched' &&
-      record.creationKey !== undefined &&
-      record.payload !== undefined
-    )
-      return {
-        call,
-        next: { ...existing, ended: record, rejected: record },
-        creationKey: record.creationKey,
-      }
-    return { call, next: { ...existing, ended: record } }
-  }
-  if (record.kind === 'model_call_dispatched') {
-    const { opened: _opened, ready: _ready, final: _final, ...remaining } = existing ?? {}
-    const attempts = [
-      ...(existing?.attempts ?? []),
-      { response: record.response, dispatch: record.dispatch, final: null },
-    ]
-    return { call, next: { ...remaining, dispatched: record, attempts } }
-  }
-  if (record.kind === 'model_call_opened') {
-    if (
-      existing?.dispatched === undefined ||
-      ExactDecimal.from(existing.dispatched.dispatch).compare(
-        ExactDecimal.from(record.dispatch),
-      ) !== 0
-    )
-      return unavailable
-    return { call, next: { ...existing, opened: record } }
-  }
+  if (record.kind === 'model_call_ended') return projectEnded(record, existing, call)
+  if (record.kind === 'model_call_dispatched') return projectDispatched(record, existing, call)
+  if (record.kind === 'model_call_opened') return projectOpened(record, existing, call)
+  return projectReady(record, existing, call)
+}
+
+function projectEnded(
+  record: ModelCallEndedRecord,
+  existing: ProjectedCall | undefined,
+  call: string,
+): Projection {
+  if (
+    existing?.ended !== undefined ||
+    (record.creationKey !== undefined &&
+      (existing?.created !== undefined || existing?.rejected !== undefined))
+  )
+    return unavailable
+  if (
+    record.ending === 'undispatched' &&
+    record.creationKey !== undefined &&
+    record.payload !== undefined
+  )
+    return {
+      call,
+      next: { ...existing, ended: record, rejected: record },
+      creationKey: record.creationKey,
+    }
+  return { call, next: { ...existing, ended: record } }
+}
+
+function projectDispatched(
+  record: ModelCallDispatchedRecord,
+  existing: ProjectedCall | undefined,
+  call: string,
+): Projection {
+  const { opened: _opened, ready: _ready, final: _final, ...remaining } = existing ?? {}
+  const attempts = [
+    ...(existing?.attempts ?? []),
+    { response: record.response, dispatch: record.dispatch, final: null },
+  ]
+  return { call, next: { ...remaining, dispatched: record, attempts } }
+}
+
+function projectOpened(
+  record: ModelCallOpenedRecord,
+  existing: ProjectedCall | undefined,
+  call: string,
+): Projection {
+  if (
+    existing?.dispatched === undefined ||
+    ExactDecimal.from(existing.dispatched.dispatch).compare(ExactDecimal.from(record.dispatch)) !==
+      0
+  )
+    return unavailable
+  return { call, next: { ...existing, opened: record } }
+}
+
+function projectReady(
+  record: ModelCallReplyReadyRecord,
+  existing: ProjectedCall | undefined,
+  call: string,
+): Projection {
   if (
     existing?.dispatched === undefined ||
     existing.dispatched.response !== record.response ||
@@ -203,6 +247,143 @@ function project(
   )
     return unavailable
   return { call, next: { ...existing, ready: record } }
+}
+
+function entryCall(entry: LogEntry): string | undefined {
+  const raw = object(entry.payload) && object(entry.payload.value) ? entry.payload.value : undefined
+  return raw !== undefined && typeof raw.call === 'string'
+    ? raw.call
+    : raw !== undefined && object(raw.call) && typeof raw.call.callId === 'string'
+      ? raw.call.callId
+      : undefined
+}
+
+function projectEntry(
+  entry: LogEntry,
+  calls: Map<string, ProjectedCall>,
+  creations: Map<CreationKey, string>,
+): boolean {
+  const callId = entryCall(entry)
+  const next = project(entry, callId === undefined ? undefined : calls.get(callId))
+  if (next === undefined) return true
+  if ('unavailable' in next) return false
+  if (next.call !== callId) return false
+  if (next.creationKey !== undefined) {
+    const prior = creations.get(next.creationKey)
+    if (prior !== undefined && prior !== next.call) return false
+    creations.set(next.creationKey, next.call)
+  }
+  calls.set(next.call, next.next)
+  return true
+}
+
+function projectPage(
+  scope: Scope,
+  page: Extract<ReadResult, { readonly entries: readonly LogEntry[] }>,
+): { readonly current: true } | typeof unavailable {
+  const calls = new Map(scope.calls),
+    creations = new Map(scope.creations)
+  for (const entry of page.entries) {
+    if (!projectEntry(entry, calls, creations)) return unavailable
+  }
+  scope.calls.clear()
+  for (const [key, value] of calls) scope.calls.set(key, value)
+  scope.creations.clear()
+  for (const [key, value] of creations) scope.creations.set(key, value)
+  scope.cursor = page.tail
+  return { current: true } as const
+}
+
+type ContentRead = Awaited<ReturnType<ModelCallContentStore['read']>>
+type CreationMarker = NonNullable<ProjectedCall['created'] | ProjectedCall['rejected']>
+
+function validCreationRead(original: ReadResult, scope: Scope): boolean {
+  return !(
+    !('entries' in original) ||
+    original.entries.length !== 1 ||
+    original.entries[0]?.session !== scope.binding.session ||
+    !tenantIdEquals(original.entries[0].tenant, scope.binding.tenant) ||
+    !settlementGenerationCurrent(scope.binding)
+  )
+}
+
+function isCreationContent(
+  content: ContentRead,
+): content is { readonly content: Extract<ModelCallContentValue, { readonly kind: 'created' }> } {
+  return !(!('content' in content) || content.content.kind !== 'created')
+}
+
+function matchesCreation(
+  created: ModelCallCreatedPayload,
+  ref: CallKey,
+  marker: CreationMarker,
+  projected: ProjectedCall,
+  scope: Scope,
+): boolean {
+  return !(
+    created.ref.session !== ref.session ||
+    created.ref.callId !== ref.callId ||
+    created.creationKey !== marker.creationKey ||
+    !tenantIdEquals(created.origin.tenant, scope.binding.tenant) ||
+    created.origin.session !== scope.binding.session ||
+    (projected.created !== undefined && created.status !== 'accepted') ||
+    (projected.rejected !== undefined && created.status !== 'rejected')
+  )
+}
+
+function matchesReadyContent(
+  pending: ContentRead,
+  response: string,
+  ref: CallKey,
+): pending is {
+  readonly content: Extract<ModelCallContentValue, { readonly kind: 'reply_ready' }>
+} {
+  return !(
+    !('content' in pending) ||
+    pending.content.kind !== 'reply_ready' ||
+    pending.content.value.id !== response ||
+    pending.content.value.call.callId !== ref.callId
+  )
+}
+
+function currentPresence(
+  observed: { readonly read: CallPresenceFact } | ServiceInvalidInput | ServiceUnavailable,
+  scope: Scope,
+  source: CallSource,
+): observed is { readonly read: Exclude<CallPresenceFact, { readonly kind: 'notFound' }> } {
+  return !(
+    !('read' in observed) ||
+    observed.read.kind === 'notFound' ||
+    observed.read.source.generation !== source.generation ||
+    ExactDecimal.from(observed.read.source.progress).compare(ExactDecimal.from(source.progress)) !==
+      0 ||
+    !settlementGenerationCurrent(scope.binding)
+  )
+}
+
+function callState(
+  projected: ProjectedCall,
+  result: CallResultFact | undefined,
+): CallLifecycleState {
+  return projected.ended?.ending === 'interrupted'
+    ? 'interrupted'
+    : projected.ended !== undefined
+      ? 'handed_up'
+      : result !== undefined
+        ? 'pending' in result
+          ? result.pending.outcome === 'interrupted'
+            ? 'interrupted'
+            : 'complete'
+          : result.response.outcome === 'failed'
+            ? 'awaiting_decision'
+            : result.response.outcome === 'interrupted'
+              ? 'interrupted'
+              : 'complete'
+        : projected.dispatched === undefined
+          ? 'open'
+          : projected.opened === undefined
+            ? 'in_flight'
+            : 'speaking'
 }
 
 /** Runtime-owned bounded index. A cold source rebuild scans once; a current lookup reads only
@@ -272,34 +453,7 @@ export function createModelCallFacts(input: {
         !settlementGenerationCurrent(binding)
       )
         return unavailable
-      const calls = new Map(scope.calls),
-        creations = new Map(scope.creations)
-      for (const entry of page.entries) {
-        const raw =
-          object(entry.payload) && object(entry.payload.value) ? entry.payload.value : undefined
-        const callId =
-          raw !== undefined && typeof raw.call === 'string'
-            ? raw.call
-            : raw !== undefined && object(raw.call) && typeof raw.call.callId === 'string'
-              ? raw.call.callId
-              : undefined
-        const next = project(entry, callId === undefined ? undefined : calls.get(callId))
-        if (next === undefined) continue
-        if ('unavailable' in next) return unavailable
-        if (next.call !== callId) return unavailable
-        if (next.creationKey !== undefined) {
-          const prior = creations.get(next.creationKey)
-          if (prior !== undefined && prior !== next.call) return unavailable
-          creations.set(next.creationKey, next.call)
-        }
-        calls.set(next.call, next.next)
-      }
-      scope.calls.clear()
-      for (const [key, value] of calls) scope.calls.set(key, value)
-      scope.creations.clear()
-      for (const [key, value] of creations) scope.creations.set(key, value)
-      scope.cursor = page.tail
-      return { current: true } as const
+      return projectPage(scope, page)
     })()
     scope.updating = task
     try {
@@ -346,6 +500,28 @@ export function createModelCallFacts(input: {
       }),
     }
   }
+  function prepareView(
+    scope: Scope,
+    ref: CallKey,
+  ):
+    | { readonly result: Awaited<ReturnType<CallFacts['lookup']>> }
+    | {
+        readonly projected: ProjectedCall
+        readonly marker: CreationMarker
+        readonly contentRef: ModelCallPayloadRef
+        readonly key: string
+      } {
+    const projected = scope.calls.get(ref.callId)
+    if (projected === undefined) return { result: notFound }
+    if (projected.acknowledged !== undefined)
+      return { result: acknowledgedFacts(scope, ref, projected) }
+    const marker = projected.created ?? projected.rejected
+    if (marker === undefined) return { result: unavailable }
+    const contentRef = marker.payload
+    const keyed = encodeModelLogKey({ kind: 'creation', creationKey: marker.creationKey })
+    if (!('ok' in keyed)) return { result: unavailable }
+    return { projected, marker, contentRef, key: keyed.ok }
+  }
   async function view(
     scope: Scope,
     ref: CallKey,
@@ -355,45 +531,24 @@ export function createModelCallFacts(input: {
     | typeof notFound
     | typeof unavailable
   > {
-    const projected = scope.calls.get(ref.callId)
-    if (projected === undefined) return notFound
-    if (projected.acknowledged !== undefined) return acknowledgedFacts(scope, ref, projected)
-    const marker = projected.created ?? projected.rejected
-    if (marker === undefined) return unavailable
-    const contentRef = marker.payload
-    const keyed = encodeModelLogKey({ kind: 'creation', creationKey: marker.creationKey })
-    if (!('ok' in keyed)) return unavailable
+    const prepared = prepareView(scope, ref)
+    if ('result' in prepared) return prepared.result
+    const { projected, marker, contentRef, key } = prepared
     let original: ReadResult
     try {
-      original = await scope.binding.log.readByKey(scope.binding.session, keyed.ok)
+      original = await scope.binding.log.readByKey(scope.binding.session, key)
     } catch {
       return unavailable
     }
-    if (
-      !('entries' in original) ||
-      original.entries.length !== 1 ||
-      original.entries[0]?.session !== scope.binding.session ||
-      !tenantIdEquals(original.entries[0].tenant, scope.binding.tenant) ||
-      !settlementGenerationCurrent(scope.binding)
-    )
-      return unavailable
+    if (!validCreationRead(original, scope)) return unavailable
     const content = await input.content.read({
       binding: scope.binding,
       call: ref.callId,
       ref: contentRef,
     })
-    if (!('content' in content) || content.content.kind !== 'created') return unavailable
+    if (!isCreationContent(content)) return unavailable
     const created = content.content.value
-    if (
-      created.ref.session !== ref.session ||
-      created.ref.callId !== ref.callId ||
-      created.creationKey !== marker.creationKey ||
-      !tenantIdEquals(created.origin.tenant, scope.binding.tenant) ||
-      created.origin.session !== scope.binding.session ||
-      (projected.created !== undefined && created.status !== 'accepted') ||
-      (projected.rejected !== undefined && created.status !== 'rejected')
-    )
-      return unavailable
+    if (!matchesCreation(created, ref, marker, projected, scope)) return unavailable
     const source = { generation: scope.binding.generation, progress: scope.cursor }
     let result: CallResultFact | undefined
     if (projected.final !== undefined) result = { disposition: 'final', response: projected.final }
@@ -403,50 +558,16 @@ export function createModelCallFacts(input: {
         call: ref.callId,
         ref: projected.ready.payload,
       })
-      if (
-        !('content' in pending) ||
-        pending.content.kind !== 'reply_ready' ||
-        pending.content.value.id !== projected.ready.response ||
-        pending.content.value.call.callId !== ref.callId
-      )
-        return unavailable
+      if (!matchesReadyContent(pending, projected.ready.response, ref)) return unavailable
       result = { disposition: 'disposition_pending', pending: pending.content.value }
     }
-    const state: CallLifecycleState =
-      projected.ended?.ending === 'interrupted'
-        ? 'interrupted'
-        : projected.ended !== undefined
-          ? 'handed_up'
-          : result !== undefined
-            ? 'pending' in result
-              ? result.pending.outcome === 'interrupted'
-                ? 'interrupted'
-                : 'complete'
-              : result.response.outcome === 'failed'
-                ? 'awaiting_decision'
-                : result.response.outcome === 'interrupted'
-                  ? 'interrupted'
-                  : 'complete'
-            : projected.dispatched === undefined
-              ? 'open'
-              : projected.opened === undefined
-                ? 'in_flight'
-                : 'speaking'
+    const state = callState(projected, result)
     const origin: CallOrigin = created.origin
     const observed = await input.presence.read(
       { ref, origin, source, executionGeneration: null },
       async fact => fact,
     )
-    if (
-      !('read' in observed) ||
-      observed.read.kind === 'notFound' ||
-      observed.read.source.generation !== source.generation ||
-      ExactDecimal.from(observed.read.source.progress).compare(
-        ExactDecimal.from(source.progress),
-      ) !== 0 ||
-      !settlementGenerationCurrent(scope.binding)
-    )
-      return unavailable
+    if (!currentPresence(observed, scope, source)) return unavailable
     return {
       view: Object.freeze({
         ref,

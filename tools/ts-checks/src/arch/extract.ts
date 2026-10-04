@@ -68,6 +68,7 @@ class Extractor {
   readonly plugins: Plugin[] = []
   readonly registeredObjects = new Set<ts.ObjectLiteralExpression>()
   readonly visited = new Set<string>()
+  readonly ownedFunctions = new Set<ts.FunctionLikeDeclaration>()
   readonly snapshot: Snapshot
   constructor(snapshot: Snapshot) {
     this.snapshot = snapshot
@@ -377,6 +378,12 @@ class Extractor {
       this.key('defines', key, context, {
         ...this.tags(node),
         definitionForm: 'service-class',
+        serviceDefinition: {
+          ...this.resolver.site(node),
+          member,
+          symbol: node.name?.text ?? 'default',
+          offset: node.getStart(),
+        },
         symbol: node.name?.text ?? 'default',
       })
     if (!node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.AbstractKeyword)) {
@@ -443,6 +450,28 @@ class Extractor {
       return
     for (const item of this.interfaceMembers(node)) {
       const name = nodeName(item.name)
+      const type = ts.isPropertySignature(item) ? item.type : undefined
+      const declaration =
+        type !== undefined && ts.isTypeReferenceNode(type)
+          ? this.resolver.declaration(type.typeName)
+          : undefined
+      const serviceDefinition =
+        node.name.text === 'Context' &&
+        declaration !== undefined &&
+        ts.isClassDeclaration(declaration) &&
+        this.serviceBase(declaration) !== undefined
+          ? {
+              ...this.resolver.site(declaration),
+              symbol: declaration.name?.text ?? 'default',
+              offset: declaration.getStart(),
+            }
+          : undefined
+      const definition = {
+        ...(node.name.text === 'Context'
+          ? { definitionForm: 'context-augmentation' as const }
+          : {}),
+        ...(serviceDefinition === undefined ? {} : { serviceDefinition }),
+      }
       if (name === undefined && item.name !== undefined && ts.isComputedPropertyName(item.name)) {
         this.key(
           node.name.text === 'Context' ? 'defines' : 'event-declaration',
@@ -450,7 +479,7 @@ class Extractor {
           context,
           {
             ...this.tags(item),
-            ...(node.name.text === 'Context' ? { definitionForm: 'context-augmentation' } : {}),
+            ...definition,
           },
         )
         continue
@@ -460,7 +489,7 @@ class Extractor {
       if (kind === 'defines') this.attempts.add(`${this.resolver.path(item)}|${item.pos}|defines`)
       this.add(kind, name, item, context, {
         ...this.tags(item),
-        ...(kind === 'defines' ? { definitionForm: 'context-augmentation' } : {}),
+        ...definition,
       })
     }
   }
@@ -523,6 +552,7 @@ class Extractor {
     implicit = false,
   ): void {
     if (fn.body === undefined || active.has(fn)) return
+    if (context.plugin !== undefined) this.ownedFunctions.add(fn)
     const contexts = new Set(context.contexts),
       keys = new Map(context.keys)
     fn.parameters.forEach((parameter, index) => {
@@ -735,6 +765,7 @@ class Extractor {
           ? { kind: specifier.startsWith('.') ? 'unresolved-local' : 'external' }
           : { kind: 'workspace', member: target },
       ...(local === undefined ? {} : { local }),
+      ...(resolved === undefined ? {} : { resolvedPath: resolved }),
     })
     if (resolved === undefined && (target !== undefined || specifier.startsWith('.')))
       this.importUnknown.push({
@@ -927,15 +958,13 @@ class Extractor {
     }
     for (const tree of this.resolver.trees()) this.manifest(tree)
     // Context-typed public helpers not reached from a plugin remain explicitly unowned.
-    const ownedPaths = new Set(
-      [...this.facts.values()].filter(fact => fact.plugin !== undefined).map(fact => fact.path),
-    )
     for (const tree of this.resolver.trees()) {
       const member = this.resolver.member(this.resolver.path(tree))?.path
-      if (member === undefined || ownedPaths.has(this.resolver.path(tree))) continue
+      if (member === undefined) continue
       visitSyntax(tree, node => {
         if (
           ts.isFunctionDeclaration(node) &&
+          !this.ownedFunctions.has(node) &&
           node.parameters.some(parameter => this.contextType(parameter.type))
         )
           this.enter(node, this.empty(member), [], new Set())

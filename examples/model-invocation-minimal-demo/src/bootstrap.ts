@@ -1,4 +1,4 @@
-import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance/cordis'
+import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
 import { registrationPlugin } from '@omne-harness-lite/account-registration/cordis'
 import { accountIdentityPlugin } from '@omne-harness-lite/account-identity/cordis'
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification/cordis'
@@ -14,12 +14,7 @@ import {
 } from '@omne-harness-lite/model-profile'
 import {createSessionModelSelection, createCallContainerStore, createModelCallContentStore, createModelCallFacts, createModelRuntime, modelCallContentMigrations, interpretCallHistory, readSettlementPrefix, type ModelRuntimeService, type ModelCallHost, type ModelObserverRequest, type DispatchResult, type OpenCallResult, type OpenCallRun, type RuntimeConstruction, type SessionRuntimeBinding, type ModelObserverEndpoint, type RuntimeCloseResult, type SessionObserverAccess, type SettlementResult, type SettlementOwner, type SettlementCoordinator, type SessionModelSelection, type SessionModelSelectionInput, type SettlementLogBinding, type RunHistoryReader, type CurrentHistoryReaders, type SessionSelectModelResult, type LegalTargetsResult, type SessionEffectiveModelResult, type ServiceEffectiveModelResult, type ServiceLegalTargetsResult, type ServiceSelectModelResult, type DisplayListResult, type ServiceDisplayListResult, type ReconcileResult, type CallContainer, type AnchoredInvocationHandle, type ObserverDiagnostic, type SettlementDiagnostic, type FailureConsumableOperation, type FailureConsumption} from '@omne-harness-lite/model-request-runtime-local'
 import { type ModelLogSettlementTarget, type DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
-import {
-  captureModelLogValue,
-  decodeModelLogKey,
-  prepareModelLogEntry,
-  modelLogJsonEqual,
-} from '@omne-harness-lite/model-request-runtime'
+import { captureModelLogValue, decodeModelLogKey, prepareModelLogEntry, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import {
   validate as validateMessage,
   judgeMessage,
@@ -143,10 +138,8 @@ import { type ReadResult } from '@omne-harness-lite/session-log'
 import { sessionLogContribution, prepareSessionLogDeployment } from './session-log-owner.ts'
 import { seedHoldingTenant } from '@omne-harness-lite/session-tenancy-table/seed'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
-import {
-  MEMBERSHIPS_SERVICE,
-  type MembershipsService,
-} from '@omne-harness-lite/organization-governance'
+import { MEMBERSHIPS_SERVICE } from '@omne-harness-lite/organization-governance/cordis'
+import { type MembershipsService } from '@omne-harness-lite/organization-governance'
 import {
   composeMigrations,
   StorageDefect,

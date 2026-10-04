@@ -45,6 +45,9 @@ catalogs:
     ajv:
       specifier: 8.20.0
       version: 8.20.0
+    elkjs:
+      specifier: 0.12.0
+      version: 0.12.0
     image-size:
       specifier: 2.0.4
       version: 2.0.4
@@ -155,9 +158,9 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../packages/core/offer-expiry
-      '@omne-harness-lite/organization-governance':
+      '@omne-harness-lite/organization-governance-sql':
         specifier: workspace:*
-        version: link:../../packages/tenancy/organization-governance
+        version: link:../../packages/tenancy/organization-governance-sql
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../packages/core/storage
@@ -177,6 +180,9 @@ importers:
       '@omne-harness-lite/artifact-builder':
         specifier: workspace:*
         version: link:../../tools/artifact-builder
+      '@omne-harness-lite/organization-governance':
+        specifier: workspace:*
+        version: link:../../packages/core/organization-governance
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -278,7 +284,10 @@ importers:
         version: link:../../packages/core/offer-expiry
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../../packages/tenancy/organization-governance
+        version: link:../../packages/core/organization-governance
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../../packages/tenancy/organization-governance-sql
       '@omne-harness-lite/pi-ai-transport':
         specifier: workspace:*
         version: link:../../packages/model/pi-ai-transport
@@ -388,7 +397,10 @@ importers:
         version: link:../../tenancy/credential-verification
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../../tenancy/organization-governance
+        version: link:../../core/organization-governance
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../../tenancy/organization-governance-sql
       '@omne-harness-lite/session-log-jsonl':
         specifier: workspace:*
         version: link:../../session/session-log-jsonl
@@ -503,7 +515,7 @@ importers:
         version: link:../../core/offer-expiry
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../../tenancy/organization-governance
+        version: link:../../core/organization-governance
       '@omne-harness-lite/session-tenancy':
         specifier: workspace:*
         version: link:../../core/session-tenancy
@@ -532,6 +544,9 @@ importers:
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../../tenancy/credential-verification
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../../tenancy/organization-governance-sql
       '@omne-harness-lite/session-tenancy-table':
         specifier: workspace:*
         version: link:../../session/session-tenancy-table
@@ -1198,6 +1213,34 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
+  packages/core/organization-governance:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../kernel-basis
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../storage
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
   packages/core/runtime-context:
     dependencies:
       '@omne-harness-lite/content-blocks':
@@ -1751,7 +1794,10 @@ importers:
         version: link:../../infra/clock
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../../tenancy/organization-governance
+        version: link:../../core/organization-governance
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../../tenancy/organization-governance-sql
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
@@ -1860,7 +1906,10 @@ importers:
         version: link:../model-profile-directory-local
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../../tenancy/organization-governance
+        version: link:../../core/organization-governance
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../../tenancy/organization-governance-sql
       '@omne-harness-lite/session-log-jsonl':
         specifier: workspace:*
         version: link:../../session/session-log-jsonl
@@ -2141,7 +2190,7 @@ importers:
         version: link:../../core/kernel-basis
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../organization-governance
+        version: link:../../core/organization-governance
       kysely:
         specifier: 'catalog:'
         version: 0.29.6
@@ -2155,6 +2204,9 @@ importers:
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../credential-verification
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../organization-governance-sql
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
@@ -2224,7 +2276,7 @@ importers:
         version: link:../../core/offer-expiry
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../organization-governance
+        version: link:../../core/organization-governance
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
@@ -2238,6 +2290,9 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../organization-governance-sql
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
@@ -2251,7 +2306,7 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
-  packages/tenancy/organization-governance:
+  packages/tenancy/organization-governance-sql:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
@@ -2268,6 +2323,9 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../core/offer-expiry
+      '@omne-harness-lite/organization-governance':
+        specifier: workspace:*
+        version: link:../../core/organization-governance
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
@@ -2526,6 +2584,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      elkjs:
+        specifier: 'catalog:'
+        version: 0.12.0
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -3352,6 +3413,9 @@ packages:
 
   electron-to-chromium@1.5.444:
     resolution: {integrity: sha512-5ss/uJfoDYDHT0lfJzT6FbcskIzROIOPf0BbbFkGcvDzoJU7i//9GDrwwIHQVmIsrAGiF3ihpADBRIsrEFt1rQ==}
+
+  elkjs@0.12.0:
+    resolution: {integrity: sha512-YZcKynxVxYoKIOEpywEPwCFdg+BTbxQRNf3pbwdDCvc8O3kQD8bmIwSxKU1eOTVc4Xo+VG9Te+575mlfvOrhEQ==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -4835,6 +4899,8 @@ snapshots:
       gopd: 1.2.0
 
   electron-to-chromium@1.5.444: {}
+
+  elkjs@0.12.0: {}
 
   emoji-regex@10.6.0: {}
 

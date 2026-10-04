@@ -7,9 +7,9 @@ import {
 } from '@omne-harness-lite/loop-extension'
 import type { Duration } from '@omne-harness-lite/tool-definition'
 import { decideRetry } from './decide-retry.ts'
-import { retryDelay } from './retry-delay.ts'
+import { retryDelay } from '@omne-harness-lite/model-request-runtime'
 import type { RetryBackoffPolicy } from '@omne-harness-lite/model-request-runtime'
-import { policyKind, policyJitter } from './retry-policy-shape.ts'
+import { policyKind, policyJitter } from '@omne-harness-lite/model-request-runtime'
 
 export const DEFAULT_RETRY_BUILTIN = 'omne-official:default-retry'
 

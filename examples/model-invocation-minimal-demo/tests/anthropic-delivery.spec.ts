@@ -22,10 +22,8 @@ import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
 import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import { anthropicDefinitions, createAnthropicInputMeter, createOfficialProfileContent } from '@omne-harness-lite/pi-ai-transport'
 import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
-import {
-  MEMBERSHIPS_SERVICE,
-  type MembershipsService,
-} from '@omne-harness-lite/organization-governance'
+import { MEMBERSHIPS_SERVICE } from '@omne-harness-lite/organization-governance/cordis'
+import { type MembershipsService } from '@omne-harness-lite/organization-governance'
 import { SESSION_TENANCY as SESSION_TENANCY_SERVICE } from '@omne-harness-lite/session-tenancy/cordis'
 import { type SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
@@ -269,7 +267,8 @@ describe('Anthropic controlled TLS service delivery (not upstream certification)
           CURRENT_EVALUATION_INPUTS_SERVICE,
         )
         const tenancy = context.get(SESSION_TENANCY_SERVICE)
-        const memberships: MembershipsService = context.get(MEMBERSHIPS_SERVICE)
+        const memberships = context.get(MEMBERSHIPS_SERVICE)
+        if (memberships === undefined) throw Error('membership service not ready in fixture')
         const clock = context.get('clock')
         if (
           typeof currentInputs?.read !== 'function' ||

@@ -276,6 +276,17 @@ function requiresRetention(content: ModelCallContentValue): boolean {
 function ownedBinding(binding: SettlementLogBinding): SettlementLogBinding {
   return Object.freeze({ ...binding, tenant: Object.freeze({ ...binding.tenant }) })
 }
+function matchesContentBinding(
+  content: ModelCallContentValue,
+  binding: SettlementLogBinding,
+): boolean {
+  return !(
+    content.kind === 'created' &&
+    (!tenantIdEquals(content.value.origin.tenant, binding.tenant) ||
+      content.value.ref.session !== binding.session ||
+      content.value.origin.session !== binding.session)
+  )
+}
 function acknowledgementOf(text: string | null): ModelCallAcknowledgedRecord | undefined {
   if (text === null) return undefined
   const parsed = readJsonStrict(text)
@@ -313,13 +324,7 @@ function decodeRow(
   if (!('ok' in parsed)) return undefined
   const content = judgedContent({ kind: ref.kind, value: parsed.ok })
   if (content === undefined || ownerCall(content) !== call) return undefined
-  if (
-    content.kind === 'created' &&
-    (!tenantIdEquals(content.value.origin.tenant, binding.tenant) ||
-      content.value.ref.session !== binding.session ||
-      content.value.origin.session !== binding.session)
-  )
-    return undefined
+  if (!matchesContentBinding(content, binding)) return undefined
   return content
 }
 const unavailable = Object.freeze({ unavailable: true } as const)
@@ -327,6 +332,70 @@ const malformed = Object.freeze({ invalidInput: { reason: 'malformed' } } as con
 /** A transaction outcome that is neither a commit nor a rollback the caller may rely on. */
 class Refused {
   constructor(readonly result: ServiceInvalidInput | ServiceUnavailable) {}
+}
+
+function validPutRequest(request: Parameters<ModelCallContentStore['put']>[0]): boolean {
+  return !(
+    request === null ||
+    typeof request !== 'object' ||
+    !validBinding(request.binding) ||
+    !validRef({
+      kind: request.content?.kind,
+      locator: request.locator,
+      version: request.version,
+      digest: '0'.repeat(64),
+    })
+  )
+}
+
+function requireSameContent(
+  existing: ContentRow,
+  call: string,
+  ref: ModelCallPayloadRef,
+  bytes: Uint8Array,
+): void {
+  if (
+    existing.call !== call ||
+    existing.kind !== ref.kind ||
+    existing.digest !== ref.digest ||
+    !Buffer.from(existing.bytes).equals(bytes)
+  )
+    throw new Refused(malformed)
+}
+
+function fixedAcknowledgement(row: RetentionRow, call: string): ModelCallAcknowledgedRecord {
+  const fixed = acknowledgementOf(row.acknowledgement)
+  if (fixed === undefined || fixed.call !== call) throw new Refused(unavailable)
+  return fixed
+}
+
+function preparedAcknowledgement(
+  built: ReturnType<Parameters<ModelCallContentStore['prepareAcknowledgement']>[0]['build']>,
+  call: string,
+  payloads: readonly ModelCallPayloadRef[],
+): { readonly record: ModelCallAcknowledgedRecord; readonly text: string } {
+  if (!('record' in built)) throw new Refused(built)
+  const record = built.record
+  if (
+    record.call !== call ||
+    !record.releasablePayloads.every(ref =>
+      payloads.some(candidate => modelLogJsonEqual(candidate, ref)),
+    )
+  )
+    throw new Refused(malformed)
+  const text = writeJsonLossless(record)
+  if (acknowledgementOf(text) === undefined) throw new Refused(malformed)
+  return { record, text }
+}
+
+function requireCompatibleAcknowledgement(
+  row: RetentionRow,
+  fixed: ModelCallAcknowledgedRecord | undefined,
+  record: ModelCallAcknowledgedRecord,
+): void {
+  if (row.acknowledgement !== null && fixed === undefined) throw new Refused(unavailable)
+  // The log is the ACK authority; a differing fixed batch is a broken invariant.
+  if (fixed !== undefined && !modelLogJsonEqual(fixed, record)) throw new Refused(unavailable)
 }
 
 /**
@@ -504,18 +573,7 @@ export function createModelCallContentStore(input: {
   return Object.freeze<ModelCallContentStore>({
     async put(request) {
       if (closed || tasks.size >= policy.maxConcurrentWrites) return unavailable
-      if (
-        request === null ||
-        typeof request !== 'object' ||
-        !validBinding(request.binding) ||
-        !validRef({
-          kind: request.content?.kind,
-          locator: request.locator,
-          version: request.version,
-          digest: '0'.repeat(64),
-        })
-      )
-        return malformed
+      if (!validPutRequest(request)) return malformed
       if (!settlementGenerationCurrent(request.binding)) return unavailable
       // Capture all content synchronously before the first storage await.
       const content = judgedContent(request.content)
@@ -523,13 +581,7 @@ export function createModelCallContentStore(input: {
       // This factory has no external content-retention provider. Never publish bare locators.
       if (requiresRetention(content)) return unavailable
       const binding = ownedBinding(request.binding)
-      if (
-        content.kind === 'created' &&
-        (!tenantIdEquals(content.value.origin.tenant, binding.tenant) ||
-          content.value.ref.session !== binding.session ||
-          content.value.origin.session !== binding.session)
-      )
-        return malformed
+      if (!matchesContentBinding(content, binding)) return malformed
       const call = ownerCall(content)
       if (!validCall(call)) return malformed
       const bytes = new TextEncoder().encode(writeJsonLossless(content.value))
@@ -549,7 +601,7 @@ export function createModelCallContentStore(input: {
         digest: ref.digest,
         bytes: Buffer.from(bytes),
       }
-      return await owned(async () => {
+      async function completePublication(): ReturnType<ModelCallContentStore['put']> {
         const committed = await writeOwned(async tx => {
           const row = await lockRetention(tx, binding, call)
           // RT12 S-98: retiring closes new publication; the original bytes stay unchanged.
@@ -571,13 +623,7 @@ export function createModelCallContentStore(input: {
               .insertInto('model_call_content')
               .values(candidate)
               .execute()
-          } else if (
-            existing.call !== call ||
-            existing.kind !== ref.kind ||
-            existing.digest !== ref.digest ||
-            !Buffer.from(existing.bytes).equals(bytes)
-          )
-            throw new Refused(malformed)
+          } else requireSameContent(existing, call, ref, bytes)
           await narrow<ContentDatabase>(tx)
             .insertInto('model_call_retention_use')
             .values({
@@ -627,7 +673,8 @@ export function createModelCallContentStore(input: {
             },
           }),
         }
-      })
+      }
+      return await owned(completePublication)
     },
     async read(request) {
       if (
@@ -683,8 +730,7 @@ export function createModelCallContentStore(input: {
             const row = await lockRetention(tx, binding, call)
             if (row.phase !== 'retained') {
               // The original batch was fixed before; never rebuild or replace it.
-              const fixed = acknowledgementOf(row.acknowledgement)
-              if (fixed === undefined || fixed.call !== call) throw new Refused(unavailable)
+              const fixed = fixedAcknowledgement(row, call)
               return { record: fixed, phase: row.phase }
             }
             const contents: ModelCallContentValue[] = []
@@ -696,17 +742,7 @@ export function createModelCallContentStore(input: {
               contents.push(decoded)
             }
             const built = build(Object.freeze(contents))
-            if (!('record' in built)) throw new Refused(built)
-            const record = built.record
-            if (
-              record.call !== call ||
-              !record.releasablePayloads.every(ref =>
-                payloads.some(candidate => modelLogJsonEqual(candidate, ref)),
-              )
-            )
-              throw new Refused(malformed)
-            const text = writeJsonLossless(record)
-            if (acknowledgementOf(text) === undefined) throw new Refused(malformed)
+            const { record, text } = preparedAcknowledgement(built, call, payloads)
             await narrow<ContentDatabase>(tx)
               .updateTable('model_call_retention')
               .set({ phase: 'retiring', acknowledgement: text })
@@ -772,10 +808,7 @@ export function createModelCallContentStore(input: {
           return await writeOwned(async tx => {
             const row = await lockRetention(tx, binding, call)
             const fixed = acknowledgementOf(row.acknowledgement)
-            if (row.acknowledgement !== null && fixed === undefined) throw new Refused(unavailable)
-            // The log is the ACK authority; a differing fixed batch is a broken invariant.
-            if (fixed !== undefined && !modelLogJsonEqual(fixed, record))
-              throw new Refused(unavailable)
+            requireCompatibleAcknowledgement(row, fixed, record)
             if (row.phase === 'acknowledged' || row.phase === 'released')
               return { phase: row.phase }
             // RT12 S-98 (a lawful ACK only): a batch this store never fixed must agree with the

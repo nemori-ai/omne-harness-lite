@@ -45,10 +45,8 @@
     "@omne-harness-lite/messages": "workspace:*",
     "@omne-harness-lite/model-profile": "workspace:*",
     "@omne-harness-lite/model-profile-directory": "workspace:*",
-    "@omne-harness-lite/model-request-runtime": "workspace:*",
     "@omne-harness-lite/model-response": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
-    "@omne-harness-lite/organization-governance": "workspace:*",
     "@omne-harness-lite/pi-ai-transport": "workspace:*",
     "@omne-harness-lite/session-log-jsonl": "workspace:*",
     "@omne-harness-lite/session-tenancy-table": "workspace:*",
@@ -57,18 +55,22 @@
     "@omne-harness-lite/stream-assembly": "workspace:*",
     "@omne-harness-lite/tool-definition": "workspace:*",
     "sharp": "catalog:",
-    "@omne-harness-lite/model-profile-directory-local": "workspace:*",
     "@omne-harness-lite/model-request-runtime-local": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*",
+    "@omne-harness-lite/model-request-runtime": "workspace:*",
+    "@omne-harness-lite/model-profile-directory-local": "workspace:*",
     "@omne-harness-lite/session-tenancy": "workspace:*",
     "@omne-harness-lite/session-log": "workspace:*",
     "@omne-harness-lite/loop-extension-runner-local": "workspace:*",
     "@omne-harness-lite/asset-registry-local": "workspace:*",
     "@omne-harness-lite/assembly-manifest": "workspace:*",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@omne-harness-lite/organization-governance-sql": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness-lite/model-request-runtime": "workspace:*"
   }
 }

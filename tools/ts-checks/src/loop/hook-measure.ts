@@ -9,6 +9,8 @@ import { collectMemberSources } from '../metrics/sources.ts'
 import type { LoopConfig } from './config.ts'
 import type { HookReadings } from './hook.ts'
 import { noData } from './reading.ts'
+import { readArchitectureSensors } from './sensors/conformance.ts'
+import { CONSTRAINT_PATH } from '../arch/constraints.ts'
 import {
   changeSince,
   directionLines,
@@ -36,7 +38,14 @@ export function touchedBase(root: string, primaryBranch: string): string | undef
   } catch {
     // 求不出合并点：只看未提交的改动。
   }
-  return changedFiles(root, base).some(isProductSource) ? base : undefined
+  return changedFiles(root, base).some(
+    path =>
+      isProductSource(path) ||
+      path === CONSTRAINT_PATH ||
+      (path.startsWith('.meta_harness/design/realization/') && path.endsWith('/bindings.yaml')),
+  )
+    ? base
+    : undefined
 }
 
 export function measureForHook(
@@ -61,5 +70,19 @@ export function measureForHook(
     },
     change,
   )
-  return { explain, hardLines: directionLines(report), alert: metrics.thresholds.alert }
+  const { conformance, reflexion, intentChanges } = readArchitectureSensors(
+    root,
+    config.sensors.reflexion,
+    change.mergeBase,
+  )
+  return {
+    explain: {
+      ...explain,
+      conformance,
+      assemblyChanges: intentChanges,
+      newDeviations: reflexion.status === 'data' ? reflexion.data.newDeviations : reflexion,
+    },
+    hardLines: directionLines(report),
+    alert: metrics.thresholds.alert,
+  }
 }

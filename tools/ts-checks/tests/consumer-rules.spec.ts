@@ -12,7 +12,7 @@ import {
   type SourceFile,
 } from '../src/index.ts'
 
-const OG = 'tenancy/organization-governance/src/'
+const OG = 'tenancy/organization-governance-sql/src/'
 const AI = 'tenancy/account-identity/src/'
 const AR = 'tenancy/account-registration/src/'
 const file = (path: string, text: string): SourceFile => ({ path, text })
@@ -52,7 +52,7 @@ describe('sc-oe-1', () => {
 
   it('变异核对：真实的 OG records.ts 原文无违反；把 settled 改成 OfferState ⇒ 报出', () => {
     const original = real(`${OG}records.ts`)
-    expect(scOe1.check([original, real(`${OG}types.ts`)])).toEqual([])
+    expect(scOe1.check([original, real('core/organization-governance/src/types.ts')])).toEqual([])
     const anchor = 'readonly settled: SettledState | null'
     expect(original.text).toContain(anchor)
     const mutated = file(
@@ -263,7 +263,7 @@ describe('og-s42-dynamic-resolve', () => {
       'governance-center-entry:2',
       'governance-center-entry:3',
       'governance-center-entry:4',
-      'organization-governance:1',
+      'organization-governance-sql:1',
     ])
   })
 
@@ -277,7 +277,7 @@ describe('og-s42-dynamic-resolve', () => {
       "export const ORGANIZATION_PURGE_SERVICE = 'organization-purge' as const\nctx.provide(ORGANIZATION_PURGE_SERVICE, svc)",
     )
     const test = file(
-      'tenancy/organization-governance/tests/purge.spec.ts',
+      'tenancy/organization-governance-sql/tests/purge.spec.ts',
       "ctx.get('organization-purge')",
     )
     expect(ogS42DynamicResolve.check([ar, og, test])).toEqual([])
@@ -286,7 +286,7 @@ describe('og-s42-dynamic-resolve', () => {
   it('变异核对：真实的 OG plugin.ts 原文无违反；让它自己解析一次 ⇒ 报出', () => {
     const original = real(`${OG}plugin.ts`)
     expect(ogS42DynamicResolve.check([original])).toEqual([])
-    const anchor = 'ctx.provide(ORGANIZATION_PURGE_SERVICE,'
+    const anchor = 'new OrganizationPurgeSqlService(ctx,'
     expect(original.text).toContain(anchor)
     const mutated = file(
       original.path,
@@ -326,7 +326,7 @@ describe('no-dialect-bypass', () => {
       ].join('\n'),
     )
     const test = file(
-      'tenancy/organization-governance/tests/support.ts',
+      'tenancy/organization-governance-sql/tests/support.ts',
       "import { openStorage } from '@omne-harness-lite/storage-sql'\nnew Kysely({ dialect })",
     )
     const infra = file('infra/storage-sql/src/open.ts', 'const db = new Kysely({ dialect })')

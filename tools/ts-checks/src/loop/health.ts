@@ -460,6 +460,7 @@ export function sensorsBlock(debt: Reading<DebtBlock>): Reading<readonly SensorL
 // ---- 汇总 ----
 
 export interface Health {
+  readonly conformance?: Reading<import('../arch/conformance-model.ts').Conformance>
   readonly meta: {
     readonly head: string
     readonly shortHead: string

@@ -38,8 +38,9 @@ const faults = vi.hoisted(() => ({
   invalidHeaders: false,
   onProcess: undefined as (() => void) | undefined,
 }))
-vi.mock('@omne-harness-lite/model-request-runtime', async importOriginal => {
-  const original = await importOriginal<typeof import('@omne-harness-lite/model-request-runtime')>()
+vi.mock('@omne-harness-lite/model-request-runtime-local', async importOriginal => {
+  const original =
+    await importOriginal<typeof import('@omne-harness-lite/model-request-runtime-local')>()
   const reject = { rejected: 'invalidInput' } as const
   return {
     ...original,
@@ -98,7 +99,7 @@ beforeAll(() => {
 })
 afterAll(() => cert.dispose())
 afterAll(() => {
-  vi.doUnmock('@omne-harness-lite/model-request-runtime')
+  vi.doUnmock('@omne-harness-lite/model-request-runtime-local')
   vi.resetModules()
 })
 afterEach(() => {

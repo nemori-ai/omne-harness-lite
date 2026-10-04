@@ -7,10 +7,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import type {
-  PlanCalibration,
-  PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
+import type { PlanCalibration, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { projectAssistant } from '../assistant-projection.ts'
 import { canonicalProjection, projectionDigest, INPUT_PROJECTION_REVISION } from '../projection.ts'
 import { type InputProjection } from '@omne-harness-lite/model-request-runtime'

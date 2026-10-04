@@ -9,6 +9,8 @@ import {
   type ModelCallAcknowledgedRecord,
   type ModelCallPayloadRef,
   type ModelCallReplyReadyRecord,
+  type ModelInvocationRecord,
+  type ModelCallEndedRecord,
 } from '@omne-harness-lite/messages'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import type { AppendResult, LogEntry } from '@omne-harness-lite/session-log'
@@ -34,6 +36,7 @@ import type {
   SettlementLogBinding,
   SettlementRegistration,
   SettlementTask,
+  SettlementOwner,
 } from './settlement-types.ts'
 import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
 import { requestStopAndWait } from './settlement-stop.ts'
@@ -47,11 +50,28 @@ function negative(value: JsonNumber): JsonNumber {
 }
 
 function ownInput(input: AcknowledgeCallInput): AcknowledgeCallInput | typeof malformed {
-  if (
+  if (!validInputShape(input) || !validInputRef(input)) return malformed
+  const target = input.expectedResult
+  if (target === null || typeof target !== 'object' || Array.isArray(target)) return malformed
+  const owned = ownedTarget(target)
+  if (owned === undefined) return malformed
+  return Object.freeze({
+    ref: Object.freeze({ session: input.ref.session, callId: input.ref.callId }),
+    expectedResult: owned,
+  })
+}
+
+function validInputShape(input: AcknowledgeCallInput): boolean {
+  return !(
     input === null ||
     typeof input !== 'object' ||
     Array.isArray(input) ||
-    Object.keys(input).length !== 2 ||
+    Object.keys(input).length !== 2
+  )
+}
+
+function validInputRef(input: AcknowledgeCallInput): boolean {
+  return !(
     input.ref === null ||
     typeof input.ref !== 'object' ||
     Array.isArray(input.ref) ||
@@ -59,16 +79,15 @@ function ownInput(input: AcknowledgeCallInput): AcknowledgeCallInput | typeof ma
     !('ok' in parseOpaqueIdentifier(input.ref.session, 'SessionRef')) ||
     !('ok' in judgeAccountValue('ModelCallId', input.ref.callId))
   )
-    return malformed
-  const target = input.expectedResult
-  if (target === null || typeof target !== 'object' || Array.isArray(target)) return malformed
-  let owned: AckTarget
+}
+
+function ownedTarget(target: AckTarget): AckTarget | undefined {
   if (
     target.kind === 'response' &&
     Object.keys(target).length === 2 &&
     'ok' in parseOpaqueIdentifier(target.response, 'ResponseId')
   )
-    owned = Object.freeze({ kind: 'response', response: target.response })
+    return Object.freeze({ kind: 'response', response: target.response })
   else if (
     target.kind === 'ended' &&
     Object.keys(target).length === 2 &&
@@ -76,12 +95,8 @@ function ownInput(input: AcknowledgeCallInput): AcknowledgeCallInput | typeof ma
       target.ending === 'released' ||
       target.ending === 'interrupted')
   )
-    owned = Object.freeze({ kind: 'ended', ending: target.ending })
-  else return malformed
-  return Object.freeze({
-    ref: Object.freeze({ session: input.ref.session, callId: input.ref.callId }),
-    expectedResult: owned,
-  })
+    return Object.freeze({ kind: 'ended', ending: target.ending })
+  else return undefined
 }
 
 /** The model-owned copies and entries of one call, read from the same owned full prefix. */
@@ -109,11 +124,7 @@ function sourcesOf(prefix: SettlementPrefix, callId: string): CallSources | unde
     if (record.kind === 'model_call_created') {
       creation = entry
       creationPayload = record.payload
-    } else if (
-      record.kind === 'model_call_ended' &&
-      record.creationKey !== undefined &&
-      record.payload !== undefined
-    ) {
+    } else if (hasCreationPayload(record)) {
       creation = entry
       creationPayload = record.payload
     } else if (record.kind === 'model_call_reply_ready') {
@@ -123,6 +134,17 @@ function sourcesOf(prefix: SettlementPrefix, callId: string): CallSources | unde
   return creation === undefined || creationPayload === undefined
     ? undefined
     : { creation, creationPayload, ready }
+}
+
+function hasCreationPayload(record: ModelInvocationRecord): record is ModelCallEndedRecord & {
+  readonly creationKey: string
+  readonly payload: ModelCallPayloadRef & { readonly kind: 'created' }
+} {
+  return (
+    record.kind === 'model_call_ended' &&
+    record.creationKey !== undefined &&
+    record.payload !== undefined
+  )
 }
 
 /** RT12 S-95: the one real terminal target, or the non-terminal phase. */
@@ -139,25 +161,41 @@ function terminalOf(known: CallHistoryKnown, sources: CallSources): Terminal {
   const phase = known.phase
   const final = last?.response?.projection
   if (last !== undefined && final !== undefined && final.outcome !== 'failed') {
-    if (phase !== 'complete' && phase !== 'interrupted' && phase !== 'handed_up')
-      return { nonTerminal: phase ?? 'in_flight' }
+    if (!isTerminalPhase(phase)) return { nonTerminal: phase ?? 'in_flight' }
     return { target: { kind: 'response', response: last.record.response }, state: phase }
   }
   if (last !== undefined && final === undefined) {
-    const ready = sources.ready.find(item => item.record.response === last.record.response)
-    // A ready reply is terminal; a later ending fixes the call's state, else the reply does.
-    if (ready !== undefined && phase === 'reply_pending')
-      return { target: { kind: 'response', response: last.record.response }, ready }
-    if (ready !== undefined && known.ending !== null && phase === 'interrupted')
-      return {
-        target: { kind: 'response', response: last.record.response },
-        ready,
-        state: 'interrupted',
-      }
+    const ready = readyTerminal(known, sources, last, phase)
+    if (ready !== undefined) return ready
   }
   if (known.ending !== null && (phase === 'handed_up' || phase === 'interrupted'))
     return { target: { kind: 'ended', ending: known.ending.ending }, state: phase }
   return { nonTerminal: phase ?? 'in_flight' }
+}
+
+function isTerminalPhase(
+  phase: CallHistoryKnown['phase'],
+): phase is 'complete' | 'interrupted' | 'handed_up' {
+  return !(phase !== 'complete' && phase !== 'interrupted' && phase !== 'handed_up')
+}
+
+function readyTerminal(
+  known: CallHistoryKnown,
+  sources: CallSources,
+  last: CallHistoryKnown['dispatches'][number],
+  phase: CallHistoryKnown['phase'],
+): Terminal | undefined {
+  const ready = sources.ready.find(item => item.record.response === last.record.response)
+  // A ready reply is terminal; a later ending fixes the call's state, else the reply does.
+  if (ready !== undefined && phase === 'reply_pending')
+    return { target: { kind: 'response', response: last.record.response }, ready }
+  if (ready !== undefined && known.ending !== null && phase === 'interrupted')
+    return {
+      target: { kind: 'response', response: last.record.response },
+      ready,
+      state: 'interrupted',
+    }
+  return undefined
 }
 
 /** MS8 S-57: the minimal original accounting witness of a ready reply. */
@@ -265,30 +303,17 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
   ): Promise<'appended' | 'present' | 'unavailable' | 'conflict' | 'withdrawn'> {
     const binding = session.log
     const owner = session.selection.owner
-    const captured = captureModelLogValue({
-      category: 'record',
-      input: { kind: 'value', value: record },
-    })
-    if (!('ok' in captured)) return 'unavailable'
-    const prepared = prepareModelLogEntry({
-      session: binding.session,
-      shell,
-      captured: captured.ok,
-      purpose: { kind: 'record' },
-      messagePrefix: null,
-    })
-    if (!('ok' in prepared)) return 'unavailable'
+    const prepared = prepareAcknowledgementEntry(binding, shell, record)
+    if (prepared === undefined || !('ok' in prepared)) return 'unavailable'
     let current = prefix
     let submissions = 0
     let tailConflicts = 0
     let previousWaitMs: JsonNumber = 0
     const started = runtime.settlementScheduler.nowMonotonicMs()
     for (;;) {
-      if (closed || owner.admission() !== 'open' || !settlementGenerationCurrent(binding))
-        return 'unavailable'
-      const found = recordedAcknowledgement(current, ref.callId)
-      if (found === 'conflict' || found === 'unavailable') return found
-      if (found !== undefined) return modelLogJsonEqual(found, record) ? 'present' : 'conflict'
+      if (appendUnavailable(closed, owner, binding)) return 'unavailable'
+      const found = recognizeAcknowledgement(current, ref.callId, record)
+      if (found !== undefined) return found
       const grant = owner.acquire(runtime.settlementContention.limits.concurrent)
       if (!('registration' in grant)) return 'unavailable'
       const registration = grant.registration
@@ -297,8 +322,7 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
       let task: SettlementTask<AppendResult>
       try {
         task = registration.start('controlAppend', async () => {
-          if (closed || owner.admission() !== 'open' || !settlementGenerationCurrent(binding))
-            return { failure: 'unavailable' } as const
+          if (appendUnavailable(closed, owner, binding)) return { failure: 'unavailable' } as const
           attempted = true
           // RT12 S-96④: unfenced, conditioned on the same full prefix just checked.
           return await binding.log.append(
@@ -319,10 +343,7 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
       } catch {
         receipt = null
       }
-      if (
-        attempted &&
-        (receipt === null || ('failure' in receipt && receipt.failure === 'unavailable'))
-      ) {
+      if (unknownAcknowledgement(attempted, receipt)) {
         // The original batch may land later: keep its writer, never rebuild the batch.
         retained.set(keyOf(ref), { registration, task })
         report('append', ref, { receipt: 'unknown' })
@@ -353,9 +374,8 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
         if (reread === undefined) return 'unavailable'
         current = reread
         // Re-reading may recognize the original batch; only the same batch is ever resent.
-        const again = recordedAcknowledgement(current, ref.callId)
-        if (again === 'conflict' || again === 'unavailable') return again
-        if (again !== undefined) return modelLogJsonEqual(again, record) ? 'present' : 'conflict'
+        const again = recognizeAcknowledgement(current, ref.callId, record)
+        if (again !== undefined) return again
         // This batch wrote nothing (tailChanged/alreadyRecorded), its writer stopped, the fresh
         // complete prefix has no ACK, and the explicit policy ends: the preparation may retreat.
         if ('stop' in decision) return 'withdrawn'
@@ -389,22 +409,9 @@ export function createServiceAcknowledge<P extends PlannedSemantics, R>(
     if ('failure' in bound) return bound.failure === 'invalidInput' ? malformed : unavailable
     const session = bound.binding
     const binding = session.log
-    if (
-      binding.session !== ref.session ||
-      session.selection.binding.session !== ref.session ||
-      !tenantIdEquals(binding.tenant, session.selection.binding.tenant) ||
-      binding.generation !== session.selection.binding.generation ||
-      !settlementGenerationCurrent(binding) ||
-      custody === undefined
-    )
-      return unavailable
+    if (!validAcknowledgementBinding(binding, session, ref, custody)) return unavailable
     const first = await runtime.callFacts.lookup({ binding, ref })
-    let origin =
-      'view' in first
-        ? first.view.origin
-        : 'acknowledged' in first
-          ? first.acknowledged.origin
-          : undefined
+    let origin = acknowledgementOrigin(first)
     if (origin === undefined && !('callNotFound' in first)) {
       // RT12 S-96⑧/S-98: a batch fixed before an unconfirmed append closed the copy reads, so the
       // facts view is unavailable; the original creation shell in the log still names the
@@ -625,7 +632,7 @@ function recordedAcknowledgement(
  * MS8 S-56～S-58: the one ACK batch, built under the retention lock from the exact original
  * contents. Digests come only from the messages package; the witness from the ready marker.
  */
-function buildAcknowledgement(input: {
+interface AcknowledgementInput {
   readonly ref: CallKey
   readonly contents: readonly ModelCallContentValue[]
   readonly payloads: readonly ModelCallPayloadRef[]
@@ -635,7 +642,22 @@ function buildAcknowledgement(input: {
     { readonly entry: LogEntry; readonly record: ModelCallReplyReadyRecord } | undefined
   readonly readyRef: ModelCallPayloadRef | undefined
   readonly acknowledgedAt: string
-}): { readonly record: ModelCallAcknowledgedRecord } | typeof malformed | typeof unavailable {
+}
+
+function buildAcknowledgement(
+  input: AcknowledgementInput,
+): { readonly record: ModelCallAcknowledgedRecord } | typeof malformed | typeof unavailable {
+  const base = acknowledgementBase(input)
+  if ('invalidInput' in base) return base
+  const record = acknowledgementRecord(input, base)
+  if ('invalidInput' in record || 'unavailable' in record) return record
+  const judged = judgeModelInvocationRecord(record)
+  return 'ok' in judged && judged.ok.kind === 'model_call_acknowledged'
+    ? { record: judged.ok }
+    : malformed
+}
+
+function acknowledgementBase(input: AcknowledgementInput) {
   const created = input.contents[0]
   if (
     created?.kind !== 'created' ||
@@ -649,7 +671,7 @@ function buildAcknowledgement(input: {
   )
   if (!('ok' in creation) || creation.ok.role !== 'model-call-creation-semantic-sha256/v1')
     return malformed
-  const base = {
+  return {
     kind: 'model_call_acknowledged' as const,
     call: input.ref.callId,
     creationKey: created.value.creationKey,
@@ -657,9 +679,13 @@ function buildAcknowledgement(input: {
     acknowledgedAt: input.acknowledgedAt,
     releasablePayloads: input.payloads,
   }
-  let record: unknown
+}
+
+type AcknowledgementBase = Exclude<ReturnType<typeof acknowledgementBase>, typeof malformed>
+
+function acknowledgementRecord(input: AcknowledgementInput, base: AcknowledgementBase) {
   if (input.target.kind === 'ended') {
-    record = {
+    return {
       ...base,
       target: input.target,
       terminalState: input.target.ending === 'interrupted' ? 'interrupted' : 'handed_up',
@@ -667,37 +693,115 @@ function buildAcknowledgement(input: {
   } else if (input.ready === undefined) {
     // A durable final is independently readable: no witness is fixed.
     if (input.state === undefined) return unavailable
-    record = { ...base, target: input.target, terminalState: input.state }
+    return { ...base, target: input.target, terminalState: input.state }
   } else {
-    const index = input.payloads.findIndex(item => modelLogJsonEqual(item, input.readyRef))
-    const content = index < 0 ? undefined : input.contents[index]
-    if (content?.kind !== 'reply_ready') return malformed
-    const pending = content.value
-    if (
-      pending.id !== input.target.response ||
-      pending.call.callId !== input.ref.callId ||
-      ExactDecimal.from(pending.dispatch).compare(
-        ExactDecimal.from(input.ready.record.dispatch),
-      ) !== 0
-    )
-      return malformed
-    const retained = createModelCallSemanticDigest(
-      'model-call-retained-result-semantic-sha256/v1',
-      pending,
-    )
-    if (!('ok' in retained) || retained.ok.role !== 'model-call-retained-result-semantic-sha256/v1')
-      return malformed
-    record = {
-      ...base,
-      target: input.target,
-      terminalState:
-        input.state ?? (pending.outcome === 'interrupted' ? 'interrupted' : 'complete'),
-      retainedResultDigest: { role: retained.ok.role, hex: retained.ok.hex },
-      accountingWitness: witnessOf(pending, input.ready),
-    }
+    // Both fields are narrowed above. TS does not narrow the containing object; preserve
+    // that object instead of reading its fields again to construct a narrowed copy.
+    return readyAcknowledgement(input as ReadyAcknowledgementInput, base)
   }
-  const judged = judgeModelInvocationRecord(record)
-  return 'ok' in judged && judged.ok.kind === 'model_call_acknowledged'
-    ? { record: judged.ok }
-    : malformed
+}
+
+type ReadyAcknowledgementInput = AcknowledgementInput & {
+  readonly target: Extract<AckTarget, { readonly kind: 'response' }>
+  readonly ready: NonNullable<AcknowledgementInput['ready']>
+}
+
+function readyAcknowledgement(input: ReadyAcknowledgementInput, base: AcknowledgementBase) {
+  const index = input.payloads.findIndex(item => modelLogJsonEqual(item, input.readyRef))
+  const content = index < 0 ? undefined : input.contents[index]
+  if (content?.kind !== 'reply_ready') return malformed
+  const pending = content.value
+  if (
+    pending.id !== input.target.response ||
+    pending.call.callId !== input.ref.callId ||
+    ExactDecimal.from(pending.dispatch).compare(ExactDecimal.from(input.ready.record.dispatch)) !==
+      0
+  )
+    return malformed
+  const retained = createModelCallSemanticDigest(
+    'model-call-retained-result-semantic-sha256/v1',
+    pending,
+  )
+  if (!('ok' in retained) || retained.ok.role !== 'model-call-retained-result-semantic-sha256/v1')
+    return malformed
+  return {
+    ...base,
+    target: input.target,
+    terminalState: input.state ?? (pending.outcome === 'interrupted' ? 'interrupted' : 'complete'),
+    retainedResultDigest: { role: retained.ok.role, hex: retained.ok.hex },
+    accountingWitness: witnessOf(pending, input.ready),
+  }
+}
+
+function prepareAcknowledgementEntry(
+  binding: SettlementLogBinding,
+  shell: ModelLogShell,
+  record: ModelCallAcknowledgedRecord,
+): ReturnType<typeof prepareModelLogEntry> | undefined {
+  const captured = captureModelLogValue({
+    category: 'record',
+    input: { kind: 'value', value: record },
+  })
+  if (!('ok' in captured)) return undefined
+  return prepareModelLogEntry({
+    session: binding.session,
+    shell,
+    captured: captured.ok,
+    purpose: { kind: 'record' },
+    messagePrefix: null,
+  })
+}
+
+function appendUnavailable(
+  closed: boolean,
+  owner: SettlementOwner,
+  binding: SettlementLogBinding,
+): boolean {
+  return closed || owner.admission() !== 'open' || !settlementGenerationCurrent(binding)
+}
+
+function recognizeAcknowledgement(
+  prefix: SettlementPrefix,
+  callId: string,
+  record: ModelCallAcknowledgedRecord,
+): 'present' | 'conflict' | 'unavailable' | undefined {
+  const found = recordedAcknowledgement(prefix, callId)
+  if (found === 'conflict' || found === 'unavailable') return found
+  if (found !== undefined) return modelLogJsonEqual(found, record) ? 'present' : 'conflict'
+  return undefined
+}
+
+function unknownAcknowledgement(
+  attempted: boolean,
+  receipt: ReturnType<typeof settlementAppendReceipt>,
+): boolean {
+  return (
+    attempted && (receipt === null || ('failure' in receipt && receipt.failure === 'unavailable'))
+  )
+}
+
+function validAcknowledgementBinding(
+  binding: SettlementLogBinding,
+  session: SessionRuntimeBinding,
+  ref: CallKey,
+  custody: AcknowledgementCustody | undefined,
+): custody is AcknowledgementCustody {
+  return !(
+    binding.session !== ref.session ||
+    session.selection.binding.session !== ref.session ||
+    !tenantIdEquals(binding.tenant, session.selection.binding.tenant) ||
+    binding.generation !== session.selection.binding.generation ||
+    !settlementGenerationCurrent(binding) ||
+    custody === undefined
+  )
+}
+
+function acknowledgementOrigin(
+  first: Awaited<ReturnType<RuntimeConstruction<PlannedSemantics, unknown>['callFacts']['lookup']>>,
+) {
+  return 'view' in first
+    ? first.view.origin
+    : 'acknowledged' in first
+      ? first.acknowledged.origin
+      : undefined
 }

@@ -16,11 +16,9 @@ import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
 import { clockMigrations, clockPlugin } from '@omne-harness-lite/clock'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
-import {
-  organizationGovernanceMigrations,
-  organizationGovernancePlugin,
-  type MembershipsService,
-} from '@omne-harness-lite/organization-governance'
+import { organizationGovernanceMigrations } from '@omne-harness-lite/organization-governance-sql'
+import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
+import { type MembershipsService } from '@omne-harness-lite/organization-governance'
 import { composeMigrations, narrow } from '@omne-harness-lite/storage'
 import {
   createAssemblyManifestStore,

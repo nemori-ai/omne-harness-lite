@@ -23,11 +23,9 @@ import {
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
 import { type Assembly, bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
-import {
-  ORGANIZATION_PURGE_SERVICE,
-  type OrganizationPurgeService,
-  organizationGovernancePlugin,
-} from '@omne-harness-lite/organization-governance'
+import { ORGANIZATION_PURGE_SERVICE } from '@omne-harness-lite/organization-governance/cordis'
+import { type OrganizationPurgeService } from '@omne-harness-lite/organization-governance'
+import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
 import {
   type ReadTx,
   type Storage,

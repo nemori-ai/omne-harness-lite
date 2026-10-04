@@ -451,7 +451,7 @@ function kinds(entries: readonly LogEntry[]): (string | undefined)[] {
       }
     }, 60_000)
 
-    it('control: a same-creationKey openCall on a call that is NOT acknowledged is refused the same way (the refusal is not ACK-specific)', async () => {
+    it('S-85: an unacknowledged same-creationKey call recognizes its original reference without new work', async () => {
       const host = await selectionHost(true, true)
       try {
         const built = buildRuntime(host)
@@ -461,10 +461,18 @@ function kinds(entries: readonly LogEntry[]): (string | undefined)[] {
         })
         const first = await openOne(host, built, 'review_create_ctl')
         if (!('ref' in first.opened)) throw new Error('open')
+        const before = await readEntries(host)
+        const leasesBefore = built.acquired() - built.released()
+        const sendsBefore = built.wire.sends()
         const again = await built.runtime.service.openCall(first.input)
-        // Recorded for the report: RT10..RT12 ask for original-ref recognition on equal input,
-        // which this build does not do for un-acknowledged calls either.
-        expect(again).toEqual({ unavailable: true })
+        expect(again).toEqual({
+          ref: first.opened.ref,
+          callId: first.opened.ref.callId,
+          state: 'open',
+        })
+        expect(await readEntries(host)).toEqual(before)
+        expect(built.acquired() - built.released()).toBe(leasesBefore)
+        expect(built.wire.sends()).toBe(sendsBefore)
         await built.runtime.close()
       } finally {
         await host.close()

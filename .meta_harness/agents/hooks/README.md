@@ -10,7 +10,8 @@ Codex 的 `.codex/hooks.json`。两端在 `Stop`、`SubagentStop` 上读同一�
 现在只有一条：`loop-stop-facts`，在会话收工（`Stop`）与 developer、verification-developer、
 tui-developer 子代理收工（`SubagentStop`）时跑执行仓库的收工钩子（`tools/ts-checks/src/loop/stop-hook.ts`，
 说明在 `tools/ts-checks/README_ZH.md`「收工钩子」一节）。
-它只在这次变更碰了 `packages/`、`apps/` 的产品源码、且有要解释的红项时，把那几条读数作为事实反馈回去，
+它在这次变更碰了产品源码、全局架构 `constraints.json` 或原 realization 的 `bindings.yaml`，且有要报告的读数时反馈。
+新增偏离对 BASE 的预期判断，预期语义改动另列。机械范围归执行仓库的 `tools/ts-checks/src/arch/CONFORMANCE.md`。
 同一分支上同一组读数只反馈一次；钩子自己出错从不拦人，只给用户一句警告。
 
 命令先定跑哪一份脚本：会话所在的工作树里有这份脚本且装了依赖，跑它自己的；否则跑主检出里的那一份

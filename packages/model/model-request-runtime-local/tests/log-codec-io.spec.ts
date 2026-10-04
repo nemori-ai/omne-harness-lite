@@ -2,10 +2,7 @@ import { mkdtemp, readdir, readlink, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import {
-  modelLogJsonEqual,
-  inspectSettlementMembers,
-} from '@omne-harness-lite/model-request-runtime'
+import { modelLogJsonEqual, inspectSettlementMembers } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { openJsonlSessionLog, type JsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { type LogEntry, type ReadResult } from '@omne-harness-lite/session-log'

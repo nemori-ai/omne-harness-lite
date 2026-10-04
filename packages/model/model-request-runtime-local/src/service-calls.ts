@@ -7,6 +7,7 @@ import {
   copyJsonValue,
   isJsonNumber,
   isNonNegativeJsonInteger,
+  type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import {
@@ -59,8 +60,10 @@ import type { CallKey } from './service-types.ts'
 import type { CurrentHistoryReaders } from './service-types.ts'
 import type { SettlementLogBinding } from './settlement-types.ts'
 import type {PlannedSemantics} from '@omne-harness-lite/model-request-runtime'
-import type { ModelCallPublishPermit } from './reference-types.ts'
+import type { AcknowledgedCallFacts, ModelCallPublishPermit } from './reference-types.ts'
 import { requestStopAndWait } from './settlement-stop.ts'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import { CreationPublication } from './creation-publication.ts'
 
 function observeAcquireRefusal<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
@@ -551,13 +554,42 @@ function creationInputOf(
   }
 }
 
-/**
- * RT12 S-100/S-101: after a legal ACK the created content may be released, so the same
- * creationKey is recognized by the ACK's creation digest and the original association alone;
- * the latest adoption basis is never re-read. Returns undefined when the key is not
- * acknowledged, leaving the pre-ACK path unchanged.
- */
-async function recognizeAcknowledgedCreation<P extends PlannedSemantics, R>(
+function creationValueOf(request: OpenCallInput, session: SessionRuntimeBinding) {
+  return {
+    origin: {
+      tenant: session.log.tenant,
+      session: session.log.session,
+      ...(request.run === undefined ? {} : { run: request.run, attempt: request.attempt }),
+    },
+    input: creationInputOf(request, session),
+  }
+}
+
+interface CreationAttempt {
+  readonly binding: SessionRuntimeBinding
+  readonly value: JsonValue
+  busy: boolean
+  publication?: CreationPublication
+}
+
+function sameCreationAssociation(
+  origin: ModelCallCreatedPayload['origin'],
+  session: SessionRuntimeBinding,
+  request: OpenCallInput,
+): boolean {
+  return (
+    origin.session === session.log.session &&
+    tenantIdEquals(origin.tenant, session.log.tenant) &&
+    origin.run === request.run &&
+    (origin.attempt === undefined) === (request.attempt === undefined) &&
+    (origin.attempt === undefined ||
+      request.attempt === undefined ||
+      ExactDecimal.from(origin.attempt).compare(ExactDecimal.from(request.attempt)) === 0)
+  )
+}
+
+/** S-85/S-101: only authoritative absence permits a new creation and adoption. */
+async function recognizeCreation<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
   custody: AcknowledgementCustody | undefined,
   session: SessionRuntimeBinding,
@@ -570,22 +602,31 @@ async function recognizeAcknowledgedCreation<P extends PlannedSemantics, R>(
       creationKey: request.creationKey,
     })
   } catch {
-    // Unknown here is not a recognition. The pre-ACK path still refuses a second creation of
-    // this key from the same full log prefix before publishing anything.
-    return undefined
+    return { unavailable: true }
   }
-  if (!('acknowledged' in found)) return undefined
-  const facts = found.acknowledged
-  const origin = facts.origin
+  if ('callNotFound' in found) return undefined
+  if ('unavailable' in found) return found
+  if ('payload' in found) {
+    const { payload, view } = found
+    if (
+      !sameCreationAssociation(payload.origin, session, request) ||
+      !modelLogJsonEqual(payload.input, creationInputOf(request, session))
+    )
+      return { creationConflict: true }
+    return { ref: view.ref, callId: view.ref.callId, state: view.state }
+  }
+  return await recognizeAcknowledgedCreation(custody, session, request, found.acknowledged)
+}
+
+/** S-101: released creation content is replaced by the original ACK digest, never re-adopted. */
+async function recognizeAcknowledgedCreation(
+  custody: AcknowledgementCustody | undefined,
+  session: SessionRuntimeBinding,
+  request: OpenCallInput,
+  facts: AcknowledgedCallFacts,
+): Promise<OpenCallResult> {
   const sameAssociation =
-    facts.ref.session === request.session &&
-    origin.session === session.log.session &&
-    tenantIdEquals(origin.tenant, session.log.tenant) &&
-    origin.run === request.run &&
-    (origin.attempt === undefined) === (request.attempt === undefined) &&
-    (origin.attempt === undefined ||
-      request.attempt === undefined ||
-      ExactDecimal.from(origin.attempt).compare(ExactDecimal.from(request.attempt)) === 0)
+    facts.ref.session === request.session && sameCreationAssociation(facts.origin, session, request)
   const digest = judgeModelCallSemanticDigest(
     'model-call-creation-semantic-sha256/v1',
     creationInputOf(request, session),
@@ -629,6 +670,7 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
   const unknownWrites = new UnknownAppendTracker()
   const preparations = new Set<CallPreparationOwner<P, R>>()
   const planningTasks = new Set<Promise<void>>()
+  const creations = new Map<string, CreationAttempt>()
   let closing = false
   async function historyFor(
     session: SessionRuntimeBinding,
@@ -684,17 +726,10 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
     const owned = ownOpenCallInput(input)
     if ('invalidInput' in owned) return owned
     const request = owned.request
-    let callId = request.callId
-    if (callId === undefined) {
-      try {
-        callId = runtime.identities.call()
-      } catch {
-        return { unavailable: true }
-      }
-      if (!('ok' in judgeAccountValue('ModelCallId', callId))) return { unavailable: true }
-    }
-    const key = { session: request.session, callId }
-    const existing = request.callId === undefined ? undefined : runtime.calls.find(key)
+    const existing =
+      request.callId === undefined
+        ? undefined
+        : runtime.calls.find({ session: request.session, callId: request.callId })
     const prepared =
       existing === undefined ? createCallPreparationOwner<P, R>(request.host) : undefined
     if (prepared !== undefined && !('owner' in prepared)) return prepared
@@ -702,6 +737,9 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
     if (preparation !== undefined) preparations.add(preparation)
     let preparationAttached = false
     let published = false
+    let creation: CreationAttempt | undefined
+    let creationSlot: string | undefined
+    let creationSession: SessionRuntimeBinding | undefined
     const execute = async (): Promise<OpenCallResult> => {
       let bound: Awaited<ReturnType<RuntimeConstruction<P, R>['sessions']['bind']>>
       try {
@@ -718,11 +756,66 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       if (!boundSession(session, request)) return { unavailable: true }
       if (session.selection.owner.admission() !== 'open') return { runtimeStopped: true }
       if (request.callId === undefined) {
-        const recognized = await recognizeAcknowledgedCreation(runtime, custody, session, request)
-        if (recognized !== undefined) return recognized
+        creationSession = session
+        const slot = JSON.stringify([
+          session.log.tenant.organization,
+          session.log.tenant.account,
+          session.log.session,
+          request.creationKey,
+        ])
+        const prior = creations.get(slot)
+        if (prior?.busy) return { unavailable: true }
+        const value = creationValueOf(request, session)
+        if (prior !== undefined && !modelLogJsonEqual(prior.value, value))
+          return { creationConflict: true }
+        if (prior !== undefined && prior.binding.log.generation !== session.log.generation)
+          return { unavailable: true }
+        const copied = copyJsonValue(value)
+        if (!('ok' in copied)) return { unavailable: true }
+        creation = prior ?? { binding: session, value: copied.ok, busy: false }
+        creationSlot = slot
+        creation.busy = true
+        creations.set(slot, creation)
+        // Unknown ownership precedes even a visible marker: completion is not actual stop.
+        if (creation.publication !== undefined) {
+          const recovered = await creation.publication.retry(
+            () =>
+              !closing &&
+              !preparation?.stopping() &&
+              !request.host.signal.aborted &&
+              !request.host.stopping() &&
+              boundSession(session, request),
+          )
+          if (!('published' in recovered)) return { unavailable: true }
+        }
+        const recognized = await recognizeCreation(runtime, custody, session, request)
+        if (
+          closing ||
+          preparation?.stopping() ||
+          request.host.signal.aborted ||
+          request.host.stopping()
+        )
+          return { runtimeStopped: true }
+        if (!boundSession(session, request)) return { unavailable: true }
+        if (session.selection.owner.admission() !== 'open') return { runtimeStopped: true }
+        if (recognized !== undefined) {
+          if (!('unavailable' in recognized)) delete creation.publication
+          return recognized
+        }
+        if (creation.publication !== undefined) return { unavailable: true }
       }
       if (preparation?.stopping() || request.host.signal.aborted || request.host.stopping())
         return { runtimeStopped: true }
+      let callId = request.callId
+      if (callId === undefined) {
+        try {
+          callId = runtime.identities.call()
+        } catch {
+          return { unavailable: true }
+        }
+        if (!('ok' in judgeAccountValue('ModelCallId', callId))) return { unavailable: true }
+      }
+      const key = { session: request.session, callId }
       let observer: Omit<CallObserverBinding, 'queue'> | undefined
       if (existing === undefined && request.observer !== undefined) {
         const authorized = authorizeObserver(session, request, callId)
@@ -1126,8 +1219,17 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
             version: 'v1',
             at: runtime.policy.now(),
             trackTask: task => appends.track(task),
-            retainUnknown(registration, task, permit) {
-              unknownWrites.keep(key, session.log, owner, registration, task, permit)
+            retainUnknown(registration, task, permit, entry) {
+              if (creation === undefined) throw new Error('creation owner missing')
+              creation.publication = new CreationPublication({
+                binding: session.log,
+                owner,
+                registration,
+                task,
+                permit,
+                entry,
+                callId: key.callId,
+              })
             },
           })
           if (!('published' in publication)) return { unavailable: true }
@@ -1173,6 +1275,11 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       result = await execute()
     } catch {
       result = { unavailable: true }
+    } finally {
+      if (creation !== undefined && creationSlot !== undefined) {
+        creation.busy = false
+        if (creation.publication === undefined) creations.delete(creationSlot)
+      }
     }
     if (preparation !== undefined && !published) {
       const cleaned = preparationAttached ? await preparation.close() : await preparation.discard()
@@ -1180,6 +1287,11 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
     }
     if (preparation !== undefined) preparations.delete(preparation)
     if (request.host.signal.aborted || request.host.stopping()) return { runtimeStopped: true }
+    if (creationSession !== undefined) {
+      if (closing || creationSession.selection.owner.admission() !== 'open')
+        return { runtimeStopped: true }
+      if (!boundSession(creationSession, request)) return { unavailable: true }
+    }
     return result
   }
   const close = async () => {
@@ -1204,10 +1316,19 @@ export function createServiceCalls<P extends PlannedSemantics, R>(
       concurrent: runtime.settlementContention.limits.concurrent,
       call: runtime.history.call,
     })
+    const creationWrites = await Promise.all(
+      [...creations.entries()].map(async ([slot, attempt]) => {
+        if (attempt.publication === undefined) return { unavailable: true } as const
+        const result = await attempt.publication.close()
+        if ('released' in result) creations.delete(slot)
+        return result
+      }),
+    )
     const custodyResult = ownCustody === undefined ? undefined : await ownCustody.close()
     return 'released' in reads &&
       'released' in appendResult &&
       'released' in writes &&
+      creationWrites.every(result => 'released' in result) &&
       (custodyResult === undefined || 'released' in custodyResult) &&
       prepared.every(result => 'released' in result) &&
       preparations.size === 0 &&

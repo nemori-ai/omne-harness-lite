@@ -1,15 +1,12 @@
 {
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
+    "resolveJsonModule": true,
     "noEmit": true,
     "declaration": false,
     "declarationMap": false,
     "sourceMap": false,
     "rewriteRelativeImportExtensions": true
   },
-  "include": [
-    "src/**/*.ts",
-    "tests/**/*.ts",
-    "vitest.config.ts"
-  ]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
 }

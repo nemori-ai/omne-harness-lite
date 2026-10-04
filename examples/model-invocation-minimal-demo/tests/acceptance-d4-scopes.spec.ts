@@ -21,6 +21,8 @@ import {
   ORGANIZATIONS_SERVICE,
   OFFERS_SERVICE,
   MEMBERSHIPS_SERVICE,
+} from '@omne-harness-lite/organization-governance/cordis'
+import {
   type OrganizationsService,
   type OffersService,
   type MembershipsService,
