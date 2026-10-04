@@ -9,12 +9,14 @@ import { productSource } from './resolve.ts'
 import { buildReport, type Report } from '../metrics/report.ts'
 import { GROUP_DIRECTION_POLICY } from '../rules/group-direction.ts'
 import type { MetricsConfig } from '../metrics/config.ts'
+import { conformanceOf } from './conformance.ts'
+import type { Conformance } from './conformance-model.ts'
 
 /** Read each version once. Architecture and function differences use the exact same snapshots. */
 export function readArchitectureReport(
   input: ActualArchitectureInput,
   config: MetricsConfig,
-): { document: ActualArchitectureDocument; report: Report } {
+): { document: ActualArchitectureDocument; report: Report; conformance: Conformance } {
   const currentSource = readArchitectureSource(input.root, input.revision)
   const baselineSource =
     input.base === undefined ? undefined : readArchitectureSource(input.root, input.base)
@@ -51,6 +53,7 @@ export function readArchitectureReport(
   }
   return {
     document,
+    conformance: conformanceOf(input.root, currentSource, baselineSource),
     report: buildReport({
       files,
       policy: GROUP_DIRECTION_POLICY,

@@ -341,6 +341,24 @@ ${section(SECTION_TITLES.tests, health.tests, testsHtml)}
 ${section(SECTION_TITLES.debt, health.debt, debtHtml)}
 ${section(SECTION_TITLES.catalogue, health.catalogue, catalogueHtml)}
 ${section(SECTION_TITLES.sensors, health.sensors, sensorsHtml)}
+${
+  health.conformance === undefined
+    ? ''
+    : section(
+        '系统架构符合性',
+        health.conformance,
+        block =>
+          `<p>对照 ${esc(block.comparedWith)}；偏离 ${block.rows.filter(row => row.state === 'deviation').length}；未知 ${block.rows.filter(row => row.state === 'unknown').length}；预期改动 ${block.changes.length}。静态子集，不证明行为。</p><ul>${block.rows
+            .filter(row => row.state === 'deviation')
+            .map(
+              row =>
+                `<li>${esc(row.rule)} · ${esc(row.member)} · ${esc(row.key)} · ${esc(row.expected)} · ${row.sites.map(site => esc(`${site.path}:${site.line}`)).join('、')}</li>`,
+            )
+            .join(
+              '',
+            )}</ul><ul>${block.coverage.map(row => `<li>${esc(row.id)} · ${esc(row.evidence)} · ${esc(row.scope)}</li>`).join('')}</ul>`,
+      )
+}
 </body>
 </html>
 `
@@ -412,6 +430,16 @@ export function healthSummary(health: Health, pagePath: string): string[] {
         ? '每个指标都有过数据'
         : `从没有过数据的 ${never.length} 项：${never.map(sensor => labelOf(sensor.id)).join('、')}`
     }),
+    ...(health.conformance === undefined
+      ? []
+      : [
+          line(
+            '系统架构符合性',
+            health.conformance,
+            block =>
+              `偏离 ${block.rows.filter(row => row.state === 'deviation').length}，未知 ${block.rows.filter(row => row.state === 'unknown').length}；新旧 ${block.changeState === 'no-baseline' ? '未判' : '已比较'}；静态子集，IC-17 待设计、LSP 缺行为证据`,
+          ),
+        ]),
     `页面：${pagePath}`,
   ]
 }

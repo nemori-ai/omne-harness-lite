@@ -5,6 +5,7 @@ import type { ELK, ElkNode, ElkExtendedEdge } from 'elkjs'
 import type { architectureLayoutInput } from './layout.ts'
 import type { architectureViewport } from './viewport.ts'
 import type { architectureMatrix } from './matrix.ts'
+import type { conformanceBrowser } from './conformance-browser.ts'
 
 /** Embedded after TypeScript erasure. Only the supplied projection function crosses this boundary. */
 export function architectureBrowser(
@@ -13,6 +14,7 @@ export function architectureBrowser(
   attachViewport: typeof architectureViewport,
   drawMatrix: typeof architectureMatrix,
   engine: Pick<ELK, 'layout'>,
+  attachConformance: typeof conformanceBrowser,
 ): void {
   const required = (id: string): HTMLElement => {
     const element = document.getElementById(id)
@@ -137,9 +139,20 @@ export function architectureBrowser(
       relations: [...relations].filter(([, input]) => input.checked).map(([key]) => key),
       complexity: complexity.checked,
       coupling: coupling.checked,
+      conformance: checkbox('arch-conformance').checked,
     }
   }
   let shown = selectView(graph, selection())
+  const intent = attachConformance(
+    graph,
+    member => {
+      showArchitecture()
+      const node = graph.nodes.find(item => item.member === member)
+      if (node !== undefined) focusNode(node)
+    },
+    () => shown,
+  )
+  const conformance = checkbox('arch-conformance')
   function download(name: string, content: string, type: string): void {
     const url = URL.createObjectURL(new Blob([content], { type }))
     const link = document.createElement('a')
@@ -150,6 +163,7 @@ export function architectureBrowser(
   }
   function showMetrics(member?: string): void {
     required('architecture-pane').hidden = true
+    required('conformance-pane').hidden = true
     required('metrics-pane').hidden = false
     window.dispatchEvent(new Event('resize'))
     if (member !== undefined)
@@ -158,6 +172,7 @@ export function architectureBrowser(
   function showArchitecture(): void {
     required('metrics-pane').hidden = true
     required('architecture-pane').hidden = false
+    required('conformance-pane').hidden = true
   }
   function focusNode(node: ViewNode): void {
     if (node.kind === 'group') {
@@ -195,6 +210,16 @@ export function architectureBrowser(
       )
     if (node.member !== undefined && node.change !== 'removed')
       detail.append(button('查看此成员的复杂度', () => showMetrics(node.member)))
+    if (node.member !== undefined) {
+      const rows = intent.forMember(node.member)
+      detail.append(
+        element(
+          'p',
+          `静态符合性：偏离 ${rows.filter(row => row.state === 'deviation').length}，未知 ${rows.filter(row => row.state === 'unknown').length}；范围有限，不证明行为。`,
+        ),
+        button('查看此成员的符合性', () => intent.open(node.member)),
+      )
+    }
     const versions =
       node.change === 'removed' && graph.document.baseline !== undefined
         ? graph.document.baseline
@@ -233,6 +258,10 @@ export function architectureBrowser(
     }
   }
   function showEdge(edge: ViewEdge): void {
+    const findings =
+      graph.conformance?.rows.filter(
+        row => row.relation !== undefined && edge.evidence.some(e => e.id === row.relation?.id),
+      ) ?? []
     detail.replaceChildren(
       element('h2', graph.relations[edge.kind]),
       element(
@@ -241,6 +270,13 @@ export function architectureBrowser(
       ),
     )
     detail.append(element('p', '静态源码关系。候选声明不表示最终配置选择或实际运行。'))
+    for (const row of findings)
+      detail.append(
+        element(
+          'p',
+          `${row.rule} · ${row.state} · ${row.age} · ${row.reason} · 预期 ${row.expected}`,
+        ),
+      )
     for (const evidence of edge.evidence) {
       const commit = evidence.version === 'baseline' ? graph.baseline?.commit : graph.source.commit
       detail.append(
@@ -260,6 +296,20 @@ export function architectureBrowser(
   }
   const nodeWidth = 270,
     nodeHeight = 100
+  function violationsFor(node: ViewNode): number {
+    const members = new Set(
+      (graph.groups.find(group => group.id === node.id)?.members ?? []).map(
+        id => nodeById.get(id)?.member,
+      ),
+    )
+    const rows =
+      node.member === undefined
+        ? (graph.conformance?.rows.filter(
+            row => members.has(row.member) || members.has(row.targetMember),
+          ) ?? [])
+        : intent.forMember(node.member)
+    return rows.filter(row => row.state === 'deviation').length
+  }
   function edgeShape(edge: ViewEdge, routed: ElkExtendedEdge): SVGElement {
     if (routed.sections === undefined || routed.sections.length === 0)
       throw new Error('Missing edge route')
@@ -371,7 +421,19 @@ export function architectureBrowser(
         title.length > 34 ? title.slice(0, 31) + '…' : title,
       ),
     )
+    const violations = violationsFor(node)
+    if (conformance.checked && violations > 0)
+      g.append(
+        svgElement('circle', {
+          cx: String(nodeWidth - 12),
+          cy: '12',
+          r: '6',
+          fill: '#ad6100',
+          'data-conformance': 'deviation',
+        }),
+      )
     const annotations = [
+      conformance.checked && violations > 0 ? `偏离 ${violations}` : '',
       node.kind === 'group' ? `${node.count ?? 0} 个当前成员` : '',
       complexity.checked && node.complexity !== undefined
         ? node.complexity.functions === 0
@@ -550,6 +612,7 @@ export function architectureBrowser(
   }
   function render(): void {
     shown = selectView(graph, selection())
+    intent.refresh()
     for (const [id, mode] of [
       ['arch-matrix', 'matrix'],
       ['arch-graph', 'graph'],
@@ -599,7 +662,9 @@ export function architectureBrowser(
       ),
       element(
         'p',
-        '架构预期与规划：未提供；符合性尚未判定。生命周期、租户隔离、事务和恢复需要行为证据。',
+        graph.conformance === undefined
+          ? '架构预期未提供；符合性未判定。'
+          : '符合性只判断已采用的静态子集。未知责任与行为义务见“责任与符合性”；生命周期、租户隔离、事务和恢复仍需行为证据。',
       ),
     )
     for (const limitation of graph.document.current.scope.limitations)
@@ -607,6 +672,7 @@ export function architectureBrowser(
   }
   for (const control of [changes, neighbors, complexity, coupling])
     control.addEventListener('change', render)
+  conformance.addEventListener('change', render)
   group.addEventListener('change', () => {
     focus.value = ''
     render()
@@ -655,7 +721,7 @@ export function architectureBrowser(
   required('arch-guidance').append(
     element(
       'p',
-      '六问导航：①总览看应用与目录组；②装配声明看源码候选，最终配置与运行状态未观测；③运行/类型导入看直接耦合；④服务与事件筛选看静态连接；⑤变化范围看新增删除，架构预期未提供；⑥叠加耦合与圈复杂度，或进入复杂度与风险查看环和热点。',
+      '六问导航：①总览看应用与目录组；②装配声明看源码候选，最终配置与运行状态未观测；③运行/类型导入看直接耦合；④服务与事件筛选看静态连接；⑤责任与符合性看新增、存量、未知及预期变化；⑥叠加耦合、复杂度与符合性，或进入复杂度与风险。',
     ),
   )
   renderUnknowns()
