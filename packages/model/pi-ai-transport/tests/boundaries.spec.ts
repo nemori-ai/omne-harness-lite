@@ -11,7 +11,7 @@ import {
   invokeModel,
   type StreamEnd,
   type TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import {
   createModelTransportService,

@@ -10,7 +10,7 @@ import {
 import type {
   PlanCalibration,
   PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { projectAssistant } from '../assistant-projection.ts'
 import {
   canonicalProjection,

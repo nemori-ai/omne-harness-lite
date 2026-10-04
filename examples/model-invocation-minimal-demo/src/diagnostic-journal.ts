@@ -23,7 +23,7 @@ import type {
   DiagnosticRecord,
   DiagnosticReference,
   DiagnosticScope,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 
 type FileHandle = Awaited<ReturnType<typeof nodeFs.open>>
 type FileSystem = Pick<typeof nodeFs, 'mkdir' | 'lstat' | 'readdir' | 'unlink' | 'open'>

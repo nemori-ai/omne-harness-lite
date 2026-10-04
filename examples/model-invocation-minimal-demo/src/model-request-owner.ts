@@ -5,7 +5,7 @@ import type {
   SettlementTask,
   SettlementRegistration,
   SettlementTaskKind,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
 
 function appendReceipt(value: unknown): AppendResult {

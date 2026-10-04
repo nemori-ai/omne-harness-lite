@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-本示例是一个可运行的 **Cordis 模型调用 loop**，不是正式业务应用。单个宿主进程在同一个 Cordis context 里接线 `@omne-harness-lite/model-request-runtime` 的公开面，组合真实本地存储（SQLite）、JSONL 会话日志、加密凭据副本、账号与成员资格检查以及 OpenRouter 传输。它不实现 Session、Run、Inbound 或 Agent Loop 领域，也不是生产治理。凡需要受信提供者之处，本示例只提供单进程、单宿主的证据并如实说明，不能当作跨进程权威的模板。可复用能力留在 `packages/`；本示例只做装配。
+本示例是一个可运行的 **Cordis 模型调用 loop**，不是正式业务应用。单个宿主进程在同一个 Cordis context 里接线 `@omne-harness-lite/model-request-runtime-local` 的公开面，组合真实本地存储（SQLite）、JSONL 会话日志、加密凭据副本、账号与成员资格检查以及 OpenRouter 传输。它不实现 Session、Run、Inbound 或 Agent Loop 领域，也不是生产治理。凡需要受信提供者之处，本示例只提供单进程、单宿主的证据并如实说明，不能当作跨进程权威的模板。可复用能力留在 `packages/`；本示例只做装配。
 
 它有两个入口：
 

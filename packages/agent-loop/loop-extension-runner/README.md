@@ -93,7 +93,7 @@ binding can forward the actual execution unchanged. A no-Run execution is reject
 the source itself rejects another Run.
 
 ```ts
-import type { ModelFailureSource } from '@omne-harness-lite/model-request-runtime'
+import type { ModelFailureSource } from '@omne-harness-lite/model-request-runtime-local'
 import type { RunnerLogBinding, RunnerPorts } from '@omne-harness-lite/loop-extension-runner'
 
 export function failurePort(

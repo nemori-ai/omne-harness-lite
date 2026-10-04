@@ -5,7 +5,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { inspect } from 'node:util'
-import type { Fiber } from '@deepseek-ai/cordis'
+import { symbols, type Fiber } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AccountsService, LoginsService } from '@omne-harness-lite/account-identity'
 import { LEASE_WIDTH_MS, clockPlugin } from '@omne-harness-lite/clock'
@@ -85,7 +85,7 @@ describe('assembly.manifest-shape', () => {
     ).toThrow('currently requires SQLite')
   })
 
-  it('清单：恰一个 storageSqlPlugin、恰一个 clockPlugin；inject organization-purge 的恰为 AR；运维面与入口层是最后两项且运维面在前；运维面 config 里没有服务句柄', async () => {
+  it('清单：恰一个 storageSqlPlugin、恰一个 clockPlugin；inject organizationPurge 的恰为 AR；运维面与入口层是最后两项且运维面在前；运维面 config 里没有服务句柄', async () => {
     const d = await deployment('manifest')
     const config = await readHostConfig(asEnv(d))
     const entries = buildManifest(config, {
@@ -110,7 +110,7 @@ describe('assembly.manifest-shape', () => {
     expect(entries.filter(e => e.plugin === clockPlugin)).toHaveLength(1)
     const injecting = entries.filter(e => {
       const inject = (e.plugin as { inject?: unknown }).inject
-      return Array.isArray(inject) && inject.includes('organization-purge')
+      return Array.isArray(inject) && inject.includes('organizationPurge')
     })
     expect(injecting.map(e => e.name)).toEqual(['account-registration'])
     expect(entries.slice(-2).map(e => e.name)).toEqual([
@@ -435,7 +435,8 @@ describe('assembly.credentials-swap-no-rerun（CV 换代演练）', () => {
     await registerOverWire(d, 'swap@example.invalid')
     const accounts = host.context.get('accounts') as AccountsService
     const logins = host.context.get('logins') as LoginsService
-    const organizations = host.context.get('organizations')
+    // Cordis creates a caller-context proxy on each get. Compare the underlying instance.
+    const organizations = Reflect.get(host.context.get('organizations')!, symbols.original)
     const [row] = query<{ account_id: string }>(d.file, 'SELECT account_id FROM account')
 
     await host.fibers['credential-verification']?.dispose()
@@ -462,7 +463,7 @@ describe('assembly.credentials-swap-no-rerun（CV 换代演练）', () => {
     try {
       expect(host.context.get('accounts')).toBe(accounts)
       expect(host.context.get('logins')).toBe(logins)
-      expect(host.context.get('organizations')).toBe(organizations)
+      expect(Reflect.get(host.context.get('organizations')!, symbols.original)).toBe(organizations)
       expect(await logins.issue('swap@example.invalid', PASSWORD)).toHaveProperty('ok')
       // 入口层重跑后就绪即开门（openSignal 早已兑现，快照早已确认）
       await expect

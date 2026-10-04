@@ -12,13 +12,13 @@ import {
   type DiagnosticMeasurementFact,
   type DiagnosticRecord,
   type InputMeasurement,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   adapter,
   fixturePlan,
   policy,
   request,
-} from '../../../packages/model/model-request-runtime/tests/invoke-policy-fixture.ts'
+} from '../../../packages/model/model-request-runtime-local/tests/invoke-policy-fixture.ts'
 import {
   createDiagnosticJournal,
   openDiagnosticJournalReader,
@@ -249,7 +249,7 @@ describe('calibration engineering facts through the real JSONL journal', () => {
         .toBe(0)
       for (const name of ['README.md', 'README_ZH.md']) {
         const doc = await fs.readFile(
-          resolve(import.meta.dirname, '../../../packages/model/model-request-runtime', name),
+          resolve(import.meta.dirname, '../../../packages/model/model-request-runtime-local', name),
           'utf8',
         )
         const block = doc.match(/```ts\n(\/\/ calibration-diagnostics-query[\s\S]*?)\n```/)?.[1]

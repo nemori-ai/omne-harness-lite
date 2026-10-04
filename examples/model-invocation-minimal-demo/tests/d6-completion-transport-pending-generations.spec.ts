@@ -6,7 +6,7 @@ import {
   invokeModel,
   openRouterCredentialRedactionConfig,
   type InvocationPolicy,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   createDeepSeekV41FlashInputMeter,
   createModelTransportService,

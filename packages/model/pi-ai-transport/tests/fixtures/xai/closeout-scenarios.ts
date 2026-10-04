@@ -4,7 +4,7 @@ import type {
   ModelInvocationResult,
   PlanInput,
   PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { createOfficialProfileContent, xaiDefinitions } from '@omne-harness-lite/pi-ai-transport'
 
 /** Credential-free scenario construction. The caller alone owns paid execution. */

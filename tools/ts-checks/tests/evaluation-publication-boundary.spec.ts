@@ -7,17 +7,17 @@ test.each([
   'examples/model-invocation-minimal-demo/tests/bootstrap.spec.ts',
   'packages/assets/evaluation-input-store/tests/crash-worker.mjs',
   'packages/assets/evaluation-input-store/tests/source.spec.ts',
-  'packages/model/model-request-runtime/tests/session-selection-fixture.ts',
+  'packages/model/model-request-runtime-local/tests/session-selection-fixture.ts',
   'packages/agent-loop/loop-extension-runner/tests/runner-chain-support.ts',
 ])('allowed publisher %s', path => {
   expect(evaluationPublicationBoundary.check([{ path, text: imported }])).toEqual([])
 })
 test.each([
-  'packages/model/model-request-runtime/src/runtime.ts',
+  'packages/model/model-request-runtime-local/src/runtime.ts',
   'packages/agent-loop/loop-extension-runner/src/runner-chain.ts',
   'packages/agent-loop/loop-extension-runner/tests/unapproved-publication.ts',
-  'packages/model/model-request-runtime/src/session-selection-fixture.ts',
-  'packages/model/model-request-runtime/tests/unapproved-publication.ts',
+  'packages/model/model-request-runtime-local/src/session-selection-fixture.ts',
+  'packages/model/model-request-runtime-local/tests/unapproved-publication.ts',
   'packages/tools/asset-registry/src/index.ts',
   'examples/model-invocation-minimal-demo/src/runtime.ts',
   'apps/model-request-acceptance/src/bootstrap.ts',
@@ -47,7 +47,10 @@ test.each([
 ])('named source fixture cannot forward or use private publication: %s', text => {
   expect(
     evaluationPublicationBoundary.check([
-      { path: 'packages/model/model-request-runtime/tests/session-selection-fixture.ts', text },
+      {
+        path: 'packages/model/model-request-runtime-local/tests/session-selection-fixture.ts',
+        text,
+      },
     ]),
   ).not.toEqual([])
 })
@@ -55,7 +58,7 @@ test('an actual resolved alias cannot hide publication access', () => {
   expect(
     evaluationPublicationBoundary.check([
       {
-        path: 'packages/model/model-request-runtime/src/runtime.ts',
+        path: 'packages/model/model-request-runtime-local/src/runtime.ts',
         text: "import { publishLocalInputs } from 'publishAlias';",
         resolvedModules: {
           publishAlias: 'packages/assets/evaluation-input-store/src/publication.ts',

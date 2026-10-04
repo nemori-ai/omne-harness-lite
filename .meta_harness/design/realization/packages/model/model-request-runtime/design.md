@@ -1,3 +1,6 @@
+> N4 迁移读法：retryDelay 函数与 local 公开入口；其他运行时协议/投影未迁已采用[模块旁现行源](../../../../architecture/pilots/n4-ownership.md)。
+> 下文原当前投影不再约束已迁任务。未迁协议、未来增量与证据义务保持原精确范围；历史实现/运行坐标不改写。
+
 # model-request-runtime 实现设计
 
 > 本批设计已接受（2026-09-26，[D-062](../../../../record/decisions/assets-runtimes-node-acceptance/decision.md)／[D-065](../../../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。此状态不表示实现或实际验证完成。

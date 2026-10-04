@@ -1,0 +1,68 @@
+{
+  "name": "@omne-harness-lite/model-request-runtime-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone model invocation, pure policies, log codec and durable model runtime service",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README_ZH.md",
+    "SPEC.md"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/arrival-events": "workspace:*",
+    "@omne-harness-lite/asset-evaluation": "workspace:*",
+    "@omne-harness-lite/asset-model": "workspace:*",
+    "@omne-harness-lite/asset-registry": "workspace:*",
+    "@omne-harness-lite/call-accounts": "workspace:*",
+    "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/evaluation-input-store": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/kernel-basis": "workspace:*",
+    "@omne-harness-lite/loop-extension": "workspace:*",
+    "@omne-harness-lite/messages": "workspace:*",
+    "@omne-harness-lite/model-profile": "workspace:*",
+    "@omne-harness-lite/model-profile-directory": "workspace:*",
+    "@omne-harness-lite/model-response": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/session-log-jsonl": "workspace:*",
+    "@omne-harness-lite/session-tenancy-table": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/stream-assembly": "workspace:*",
+    "@omne-harness-lite/tool-definition": "workspace:*",
+    "zod": "catalog:",
+    "@omne-harness-lite/model-request-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness-lite/account-identity": "workspace:*",
+    "@omne-harness-lite/account-registration": "workspace:*",
+    "@omne-harness-lite/clock": "workspace:*",
+    "@omne-harness-lite/credential-verification": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@omne-harness-lite/organization-governance-sql": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*"
+  }
+}

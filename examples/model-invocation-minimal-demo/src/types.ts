@@ -26,7 +26,7 @@ import type {
   ObserverDiagnostic,
   SettlementDiagnostic,
   DefaultRetryConfiguration,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { HoldingTenantResult } from '@omne-harness-lite/session-tenancy-table'
 import type { AtomicStorage, MigrationFragment } from '@omne-harness-lite/storage'
 import type {

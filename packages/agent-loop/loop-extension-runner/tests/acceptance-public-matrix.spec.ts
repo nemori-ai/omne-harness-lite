@@ -13,8 +13,8 @@ import {
   type Power,
 } from '@omne-harness-lite/loop-extension'
 import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
-import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
-import { createModelDefaultRetryPlugin } from '@omne-harness-lite/model-request-runtime/default-retry-plugin'
+import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime-local'
+import { createModelDefaultRetryPlugin } from '@omne-harness-lite/model-request-runtime-local/cordis'
 import { openJsonlSessionLog, type SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import {
   runPass,

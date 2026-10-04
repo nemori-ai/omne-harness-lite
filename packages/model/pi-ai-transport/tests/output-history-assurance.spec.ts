@@ -5,7 +5,7 @@ import type {
   PlanCalibration,
   PlanInput,
   PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'

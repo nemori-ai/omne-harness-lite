@@ -20,7 +20,7 @@
 | `infra/clock` | `clock` 服务：每次现读墙钟、与存储里写在前的租约和用过的最晚时刻比对，回拨 ⇒ `'unavailable'`；自带 `clock_lease` 迁移片段与迁移前核对 `clockPreflight` | 实现完整 |
 | `tenancy/credential-verification` | `credentials` 服务面（解析、派生材料、比对、政策判定；密码 scrypt） | 实现完整 |
 | `tenancy/account-identity` | `capability.account-identity` v1 与 v2 的 `accounts`／`logins` 服务面（v2：出示物与 `LoginStateId` 分离、`logins.exchange`）、`account` 与登录状态表的迁移片段 | 实现完整 |
-| `tenancy/organization-governance` | `capability.organization-governance` v1 的四个服务面、迁移片段工厂（跨 owner 外键的目标与名字由装配给） | 实现完整 |
+| `tenancy/organization-governance-sql` | `capability.organization-governance` v1 的四个服务面、迁移片段工厂（跨 owner 外键的目标与名字由装配给） | 实现完整 |
 | `tenancy/account-registration` | `composition.account-registration` v1 的 `registration` 服务面 | 实现完整 |
 | `tenancy/governance-center-entry` | `composition.governance-center-entry` v1 的入口层，落在传输绑定 `…-https-json` v1 上：插件 `governance-center-entry`（TLS 客户端一面、判定次序、27 条路由）与 `governance-center-ops`（本机套接字完整体检）、迁移片段、迁移前核对 | 实现完整；包内常量见包 [README](tenancy/governance-center-entry/README.md) |
 
@@ -40,3 +40,5 @@
 原件在 Git 历史（`git log --oneline -- packages/session/session`）。2026-09-22 起按
 [D-023](../.meta_harness/design/record/decisions/tenant-domain-design-acceptance/README.md)
 接受的租户领域规格重新建包。
+
+N4 公共形状与纯计算分别归 [core/organization-governance](core/organization-governance/SPEC.md) 和 [core/model-request-runtime](core/model-request-runtime/SPEC.md)。SQL 治理和 local 模型提供者的现行范围由模块旁 SPEC 明确。

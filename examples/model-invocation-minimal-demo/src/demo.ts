@@ -15,7 +15,7 @@ import {
   type UsageSummary,
 } from '@omne-harness-lite/call-accounts'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import { decodeModelLogKey, type TokenMargin } from '@omne-harness-lite/model-request-runtime'
+import { decodeModelLogKey, type TokenMargin } from '@omne-harness-lite/model-request-runtime-local'
 import { createAcceptanceApplication, type AcceptanceApplication } from './bootstrap.ts'
 import {
   DemoDiagnosticStartupFailure,

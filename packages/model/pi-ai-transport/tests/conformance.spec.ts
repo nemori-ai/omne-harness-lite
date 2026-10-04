@@ -21,7 +21,7 @@ import {
   invokeModel,
   type PlanInput,
   type StreamEnd,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   type RawResponse,
   type PlannedRequest,

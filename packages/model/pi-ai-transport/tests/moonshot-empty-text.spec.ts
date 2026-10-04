@@ -7,7 +7,7 @@ import {
   type ContentBlock,
 } from '@omne-harness-lite/content-blocks'
 import { copyInputCalibration } from '@omne-harness-lite/model-response'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createMoonshotInputMeter } from '../src/input-meters/moonshot.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'

@@ -1,0 +1,188 @@
+{
+  "candidate": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b",
+  "baseline": "92b4e7dec8c066655992662820b38b0eb96ea089",
+  "scope_sha256": "219fa17a1fb66d531800b5e36c1f2a0419d061f8e6b99aef03f86193d165f018",
+  "qa_verdict": "Pass with issues",
+  "qa_manifest_sha256": "ba67e826681389fd47d5443f255fae5286c13050d5576b7ac1d6c7deaff1ed1d",
+  "inputs": {
+    ".meta_harness/design/architecture/pilots/n4-ownership.md": {
+      "sha256": "6d86562b884bbab14b8d8e710559e6b01227be3592435e07ede8093707ee3fc1",
+      "revision": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b"
+    },
+    ".meta_harness/design/architecture/pilots/session-plugin-scope.md": {
+      "sha256": "7afc42f866c44f58c19dae8522c543b62bf041621babfc52f4dba01dc95bc5fd",
+      "revision": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b"
+    },
+    ".meta_harness/design/architecture/constraints.json": {
+      "sha256": "c9224737eef0bfe0aef7a318007ba812c8c769d1f5f4c2c58d85fab7a70b1b83",
+      "revision": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b"
+    },
+    ".meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md": {
+      "sha256": "04354717282c68a99a8d61cbccb656163cf6a1976cead92ba0014118daf65ae1",
+      "revision": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b"
+    },
+    "packages/core/organization-governance/SPEC.md": {
+      "sha256": "7c664ecf9368ceb579cb9ce3b89e63bdcbf6243867419a41f6e3e387460e756d",
+      "revision": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b"
+    },
+    "packages/core/organization-governance/src/index.ts": {
+      "sha256": "7a491105a041fcb2935267f5cb32e20784fb8aee8f9a649af03dee641f40b4f7",
+      "revision": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b"
+    },
+    "packages/core/organization-governance/src/cordis.ts": {
+      "sha256": "cb2e9b5d6e0147d810b102f523bc9e5d7e52862181bef74dbedd663272977edd",
+      "revision": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b"
+    },
+    "packages/tenancy/organization-governance-sql/SPEC.md": {
+      "sha256": "58e349b6cc807744f99d7f1b958f0a0be1287cb576850aeed73bbf9a8d58df40",
+      "revision": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b"
+    },
+    "packages/tenancy/organization-governance-sql/adr/service-faces.md": {
+      "sha256": "d5884b500934fa35bfc42ceb08d2b1ed058d03eb32ee60584a528bc2bfabdef9",
+      "revision": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b"
+    },
+    "packages/core/model-request-runtime/SPEC.md": {
+      "sha256": "166a30f3cc4c3e12045bb0ff70597e498287717f4cb2e98c2ea3d23f81028e37",
+      "revision": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b"
+    },
+    "packages/model/model-request-runtime-local/SPEC.md": {
+      "sha256": "76254141ad684987e82f8b938d234f91ad974fc18e5ce35af514ee942347438c",
+      "revision": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b"
+    },
+    "apps/tenancy-host/SPEC.md": {
+      "sha256": "f0d3520a87a80c2fc7d7e8573052abf8fcc0a2483c2889e4575b0e314a8a371a",
+      "revision": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b"
+    }
+  },
+  "outputs": {
+    "loop-status.txt": {
+      "sha256": "728908615caa5e83a508f0af77707ae58cc3b7adc15f56497e64da9ff037a443",
+      "bytes": 10877
+    },
+    "qa-manifest.json": {
+      "sha256": "ba67e826681389fd47d5443f255fae5286c13050d5576b7ac1d6c7deaff1ed1d",
+      "bytes": 258871
+    },
+    "architecture-summary.txt": {
+      "sha256": "9b84238a773bbc4e48f991c9a2c1c64c8b74fe7d02bb777f67622f36e0f0f99d",
+      "bytes": 1295
+    },
+    "qa-report.txt": {
+      "sha256": "8a095e184a4e553b9bac318703af913cc1cff4e193d71576d76c825555c605d9",
+      "bytes": 9161
+    },
+    "verification-closeout.txt": {
+      "sha256": "80db8eebdf0ead72e6e9f0d5e4788a04692fff6aa40cf5d655f5af33ba9b1467",
+      "bytes": 4917
+    },
+    "implementation-review.txt": {
+      "sha256": "2de6c68fed146034cd7ba704ef5e363cc3e3a36b5b0b6fb15980eff810738bab",
+      "bytes": 10535
+    },
+    "red-dispositions.json": {
+      "sha256": "0aa7cd5d83c543aee7dfc404731beb4f1b41a02edcb528bebb8e5d0e19de7f67",
+      "bytes": 304117
+    },
+    "qa-report.json": {
+      "sha256": "2aec16e91ca18192d3a06dd12c3c809f8df11b89944a24d56db17b83ea6e2702",
+      "bytes": 11973
+    },
+    "implementation-supplement.txt": {
+      "sha256": "461711e087336deac6f6d39eb5102cfe8ce745589a0bb7bc0d1ef20986f3f741",
+      "bytes": 5139
+    },
+    "formal/AckProgress.log": {
+      "sha256": "c9653f17b390bc442fb1c2094414bd386303955a671d7d5e5391e9f7c512cfc3",
+      "bytes": 2288
+    },
+    "formal/Ack-atomic.log": {
+      "sha256": "649906ea23bdfd38d67ad92a9da20efcc8069c1b643da00e17dad7acd7b64332",
+      "bytes": 4847
+    },
+    "formal/Membership-NoSerialization.log": {
+      "sha256": "200f2a5eaec4ea30da04708709ba9dd6b4f62ee2cbff9f3365eac91b15cf57da",
+      "bytes": 2712
+    },
+    "formal/formal.json": {
+      "sha256": "4acaec5ff5c978d84e94d78b906713e9bb3f1503b91e80970298cfcdbfe98257",
+      "bytes": 7571
+    },
+    "formal/Membership.log": {
+      "sha256": "b2ed5eb824c7b707be5ffb62d4e9762a9125ae0efbf40a4e7ee9c4d4bc90db54",
+      "bytes": 1740
+    },
+    "formal/AckLifecycle.log": {
+      "sha256": "7a58306702a895896263fa2c515566bef5674ac8d5f5bc372d9aee68fa233047",
+      "bytes": 1907
+    },
+    "formal/inputs/Membership.cfg": {
+      "sha256": "abaa8fa24bf14e8c8fa7e7bed0858197a78bd532c56887f27d462c42e1195734",
+      "bytes": 494
+    },
+    "formal/inputs/AckLifecycle.cfg": {
+      "sha256": "19c5946060487c08edcc062b25f14e5c92fec24fbe08908873d83ad5d9eb1f34",
+      "bytes": 334
+    },
+    "formal/inputs/Ack-atomic.cfg": {
+      "sha256": "f0e9327826f435041e7b858de21c056068e7cead57db7b94c6217fc1cc27496d",
+      "bytes": 196
+    },
+    "formal/inputs/Membership.tla": {
+      "sha256": "5c7656a47c3b827e638a24f781c4039ccb6d7a669e37799e8580101043bde436",
+      "bytes": 8141
+    },
+    "formal/inputs/AckProgress.cfg": {
+      "sha256": "320c7a380a9d0570a1186cfdbea5165e85a772276bacf7520d6317bab8f45792",
+      "bytes": 387
+    },
+    "formal/inputs/Membership_NoSerialization.cfg": {
+      "sha256": "8b0631823173848c527d32a9685470184a46a881440cd33fa5a55c19ba990159",
+      "bytes": 895
+    },
+    "formal/inputs/AckLifecycle.tla": {
+      "sha256": "daa4fca8cc001d6522544a42a4bda73aba133e03ec21ee27ba9a80f59b268444",
+      "bytes": 7802
+    }
+  },
+  "preservation": {
+    "source": {
+      "candidate": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b",
+      "baseline": "92b4e7dec8c066655992662820b38b0eb96ea089",
+      "verified_snapshot_blobs": 13460,
+      "gitlinks_not_embedded": {
+        "docs/blogs": "20e959b848e81d5a0ab5d70cb8f8fcaba2c3c31c"
+      },
+      "bundle_requires_baseline": true,
+      "files": {
+        "source-snapshot.tar.gz": {
+          "sha256": "234e20e1193ee3b5a41989013bab77c294c35304708858a9d318c2247a13f41b",
+          "bytes": 435105337
+        },
+        "source-range.bundle": {
+          "sha256": "1f1066392cd75c2f208c1336f09fc2a782d9069ece901559538952bad184ec21",
+          "bytes": 685850
+        }
+      }
+    },
+    "root": {
+      "candidate": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b",
+      "baseline": "92b4e7dec8c066655992662820b38b0eb96ea089",
+      "archive": "/data/qiwei/repos/omne-harness-lite/tmp/arch-intent/n4-delivery/5d0d402f/root-evidence.tar.gz",
+      "archive_sha256": "30ccea86720924a7acca67ec7b01ef8bd007ac4086cdfe376dec934eb18429cf",
+      "archive_bytes": 44986055,
+      "readback_verified_files": 282,
+      "retention": "Local main checkout ignored storage; no remote backup claimed. Original reports and failures retained. Generated caches excluded; source snapshot separately retained."
+    },
+    "qa": {
+      "candidate": "5d0d402fce4d24406daf4d2a5ffa81ca9e70cf2b",
+      "baseline": "92b4e7dec8c066655992662820b38b0eb96ea089",
+      "archive": "/data/qiwei/repos/omne-harness-lite/tmp/arch-intent/n4-delivery/5d0d402f/qa-evidence.tar.gz",
+      "archive_sha256": "6ed1bbc99f418812af91f94fe45fe809c0b77265b946ea81ac7c178cf5406dd7",
+      "archive_bytes": 19142024,
+      "readback_verified_files": 1397,
+      "retention": "Local main checkout ignored storage; no remote backup claimed. Original reports and failures retained. Generated caches excluded; source snapshot separately retained."
+    },
+    "location": "/data/qiwei/repos/omne-harness-lite/tmp/arch-intent/n4-delivery/5d0d402f",
+    "remote_backup": false
+  }
+}

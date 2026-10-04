@@ -25,7 +25,7 @@ import {
   type AcknowledgementCleanupPolicy,
   type TokenMargin,
   type DefaultRetryConfiguration,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { AcceptanceConfig, AuthenticatedActor, ModelInputSource } from './types.ts'
 import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 

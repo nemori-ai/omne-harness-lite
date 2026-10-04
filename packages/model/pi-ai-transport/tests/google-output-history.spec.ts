@@ -13,7 +13,10 @@ import {
   type JsonObject,
 } from '@omne-harness-lite/content-blocks'
 import type { Message } from '@omne-harness-lite/messages'
-import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlanInput,
+  PlanOutputHistoryGroup,
+} from '@omne-harness-lite/model-request-runtime-local'
 import { projectAssistant } from '../src/assistant-projection.ts'
 import type { FullMeterInput, InputMeter } from '../src/input-meter.ts'
 import { createGoogleInputMeter } from '../src/input-meters/google.ts'

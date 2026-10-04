@@ -5,7 +5,10 @@ import {
   writeJsonLossless,
 } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { invokeModel, type ModelInvocationHandle } from '@omne-harness-lite/model-request-runtime'
+import {
+  invokeModel,
+  type ModelInvocationHandle,
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import {
   certificate,

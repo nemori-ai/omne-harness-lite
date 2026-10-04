@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import { interpretCallHistory, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import {
+  interpretCallHistory,
+  modelLogJsonEqual,
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { RunnerDispatchRequest } from '@omne-harness-lite/loop-extension-runner'
 import { createAcceptanceApplication, type ControlledRunFixturePort } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'

@@ -73,7 +73,7 @@ agent 在这里的位置是评审与反驳——派 design-reviewer 判「选择
 产物开头写明封存在哪个提交。这三样都用领域与能力的语言写：Cordis 是装配时要满足的契约规范，到提供者设计才出场。
 
 规格与实现映射仍有 drafter，服务于 `harness-design-handbook` 主线里**能独立成稿的那几段**；哪几段归主线、哪几段派角色，
-权威表在手册的[工作区上下文](../skills/harness-design-handbook/canonical/references/workspace-context.md#实现设计与交付)，
+权威表在手册的[工作区上下文](../skills/harness-design-handbook/canonical/references/legacy-workspace-context.md#实现设计与交付)，
 这里只写派发时要给什么。两者都不做对账、不选产品政策、不接受，也都不派评审。
 
 **这两个角色不合并**（2026-10-01 定）：一个写「契约承诺什么性质」，一个写「用 Cordis 怎么兑现」，这条分界正是领域建模独立于 Cordis 的落点；

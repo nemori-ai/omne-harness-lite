@@ -20,7 +20,7 @@ import type {
   PlannedSemantics,
   PlanExecutionContext,
   PlanFailure,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   judgeModelProfileDocument,
   type ModelRequestParameters,

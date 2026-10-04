@@ -7,7 +7,7 @@ import {
   type InvocationOutcome,
   type ModelInvocationResult,
   type PlanInput,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { createPiAiTransport } from '../src/transport.ts'
 import type { InputMeter } from '../src/input-meter.ts'
 import {

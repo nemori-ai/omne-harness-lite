@@ -17,7 +17,7 @@ import type {
   StreamEnd,
   TransportFailure,
   TransportExecutionDiagnostics,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { parseSSE, SseProtocolError } from './sse.ts'
 import { strictObject, object } from './json.ts'
 import { processedText, processedObject, CredentialProcessingFailure } from './credential-policy.ts'

@@ -1,7 +1,10 @@
 import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it, vi } from 'vitest'
 import type { Message } from '@omne-harness-lite/messages'
-import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlanInput,
+  PlanOutputHistoryGroup,
+} from '@omne-harness-lite/model-request-runtime-local'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { NewMeterInput, ReplayMeterInput } from '../src/input-meter.ts'
 import { measureFull, measureNew, measureReplay } from '../src/input-meter.ts'

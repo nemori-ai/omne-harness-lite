@@ -14,7 +14,7 @@ test.each([
 })
 test.each([
   registry,
-  'packages/model/model-request-runtime/src/index.ts',
+  'packages/model/model-request-runtime-local/src/index.ts',
   'packages/model/pi-ai-transport/src/index.ts',
   'apps/other/tests/chain.ts',
   'tools/probe/src/index.ts',

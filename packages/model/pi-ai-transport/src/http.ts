@@ -8,7 +8,7 @@ import {
   type TransportFailure,
   type SendResult,
   type TransportExecutionDiagnostics,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { isPlannedRequest, type PlannedRequest } from './plan.ts'
 import { strictObject } from './json.ts'
 import {

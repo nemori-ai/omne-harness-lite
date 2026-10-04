@@ -6,7 +6,7 @@ import {
   type ModelAdaptationBinding,
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
-import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime-local'
 import { ownCalibration } from '../calibration.ts'
 import { object } from '../json.ts'
 import { ownBasis } from '../meter-transform.ts'

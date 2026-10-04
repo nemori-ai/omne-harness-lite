@@ -3,7 +3,7 @@ import { planRequest } from './synthetic-input-meter.ts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import {
   configurationSchema,
   createOfficialProfileContent,

@@ -8,7 +8,7 @@ import {
   type LoggedMessage,
   type SystemReminderMessage,
 } from '@omne-harness-lite/messages'
-import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime-local'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import {
   createRunnerReminderLogAdapter,
