@@ -1,3 +1,5 @@
+import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
@@ -22,8 +24,7 @@ import type {
 export const MODEL_CATALOG_SERVICE = 'modelCatalog'
 export const MODEL_CATALOG_READ_SERVICE = 'modelCatalogRead'
 export const CREDENTIAL_LOOKUP_SERVICE = 'credentialLookup'
-export const STORAGE_SERVICE = 'storage'
-export const CLOCK_SERVICE = 'clock'
+
 export const MEMBERSHIPS_SERVICE = 'memberships'
 
 declare module '@deepseek-ai/cordis' {

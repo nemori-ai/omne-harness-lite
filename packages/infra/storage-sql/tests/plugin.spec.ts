@@ -6,13 +6,9 @@ import type { Migration, MigrationProvider } from 'kysely/migration'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import { StorageUnavailable, type StorageInstance } from '@omne-harness-lite/storage'
-import {
-  STORAGE_SERVICE,
-  StorageSqlConfig,
-  createUpgradeGuard,
-  openStorage,
-  storageSqlPlugin,
-} from '../src/index.ts'
+import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
+import { StorageSqlConfig, createUpgradeGuard, openStorage } from '../src/index.ts'
+import { storageSqlPlugin } from '../src/cordis.ts'
 import { tempSqliteFile } from './support.ts'
 
 const migrations: MigrationProvider = {
@@ -46,7 +42,7 @@ describe('storage-sql 插件', () => {
         },
       ],
     })
-    const storage = assembly.ctx.get(STORAGE_SERVICE) as StorageInstance
+    const storage = assembly.ctx.get(STORAGE_SERVICE) as StorageService & StorageInstance
     expect(storage).toBeDefined()
     const rows = await storage.read(
       async tx =>

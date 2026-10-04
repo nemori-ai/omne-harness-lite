@@ -17,5 +17,5 @@ export {
   type ClockLeaseTable,
 } from './lease.ts'
 export { clockPreflight, CLOCK_PREFLIGHT_CHECK } from './preflight.ts'
-export { clockPlugin, ClockConfig, CLOCK_SERVICE } from './plugin.ts'
+export { ClockConfig } from './config.ts'
 export { clockSnapshotCheck, CLOCK_SNAPSHOT_TABLES } from './snapshot.ts'

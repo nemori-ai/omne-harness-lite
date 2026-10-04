@@ -1,0 +1,371 @@
+{
+  "head": "a18ed435bcc244b50ffd4070e805a560e0912044",
+  "at": "2026-10-04T15:36:06.425281+00:00",
+  "base": "9cad470a9e48897c40d56582febfe3e20ce083a5",
+  "files": [
+    {
+      "source_path": "packages/core/storage/src/maintenance.ts",
+      "candidate_path": "packages/core/storage/src/maintenance.ts",
+      "expected": "3444b2545f7667d94058f31dd3c46a080acbc43e94db478285435f5f2378c305",
+      "actual": "3444b2545f7667d94058f31dd3c46a080acbc43e94db478285435f5f2378c305",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/storage/src/protocol.ts",
+      "candidate_path": "packages/core/storage/src/protocol.ts",
+      "expected": "119ae6e26613c590c2799ee0ba64f90eb417283cc615a5a0e8009da4eace9ebf",
+      "actual": "119ae6e26613c590c2799ee0ba64f90eb417283cc615a5a0e8009da4eace9ebf",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/storage/src/snapshot-check.ts",
+      "candidate_path": "packages/core/storage/src/snapshot-check.ts",
+      "expected": "46f0ae520bc9a6299998cdfd064dcf63a881355bcfff3f779a055fa79007eab6",
+      "actual": "46f0ae520bc9a6299998cdfd064dcf63a881355bcfff3f779a055fa79007eab6",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/storage/src/errors.ts",
+      "candidate_path": "packages/core/storage/src/errors.ts",
+      "expected": "ee16db0443c8970ecb71a756d7d7c0eb4b2935afd26f1a188b4629ce0bae11b7",
+      "actual": "ee16db0443c8970ecb71a756d7d7c0eb4b2935afd26f1a188b4629ce0bae11b7",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/storage/src/migration.ts",
+      "candidate_path": "packages/core/storage/src/migration.ts",
+      "expected": "6d87a7dd9f563f487a8fc30ae680d1b290f966666d933efc6bea4edf3cdc1ab7",
+      "actual": "6d87a7dd9f563f487a8fc30ae680d1b290f966666d933efc6bea4edf3cdc1ab7",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/storage/src/map.ts",
+      "candidate_path": "packages/core/storage/src/map.ts",
+      "expected": "67ccb147fc6fbf4aef0e40adc6af411369632944196821f5a66a5c8b83d9936a",
+      "actual": "67ccb147fc6fbf4aef0e40adc6af411369632944196821f5a66a5c8b83d9936a",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/storage/src/index.ts",
+      "candidate_path": "packages/core/storage/src/index.ts",
+      "expected": "78e5a131e12e1ff71de41a21794ee3e7796cdad167a5c36226f988118bfeaddb",
+      "actual": "78e5a131e12e1ff71de41a21794ee3e7796cdad167a5c36226f988118bfeaddb",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/storage/src/preflight.ts",
+      "candidate_path": "packages/core/storage/src/preflight.ts",
+      "expected": "e18b87b514435a08ceaa6bb2d5a3eff597b2a96b8731d1817a858525f50a3116",
+      "actual": "e18b87b514435a08ceaa6bb2d5a3eff597b2a96b8731d1817a858525f50a3116",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/storage/src/conformance/atomic.ts",
+      "candidate_path": "packages/core/storage/src/conformance/atomic.ts",
+      "expected": "c6e38b933bb3151ee6e8fe68cebf1a38cd42ab1e2181b83a5b7b46a2d0bbc7e2",
+      "actual": "c6e38b933bb3151ee6e8fe68cebf1a38cd42ab1e2181b83a5b7b46a2d0bbc7e2",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/storage/src/conformance/index.ts",
+      "candidate_path": "packages/core/storage/src/conformance/index.ts",
+      "expected": "8c0e15fb86961dfb6519549ac6f399083b2cf84f26a52a631a8a5160cc7bc930",
+      "actual": "8c0e15fb86961dfb6519549ac6f399083b2cf84f26a52a631a8a5160cc7bc930",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/offer-expiry/src/time.ts",
+      "candidate_path": "packages/core/offer-expiry/src/time.ts",
+      "expected": "478edcc0ab6c9ff395ace2028139cd082845f27c0645c10fc62ac379af384ed2",
+      "actual": "478edcc0ab6c9ff395ace2028139cd082845f27c0645c10fc62ac379af384ed2",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/offer-expiry/src/offer.ts",
+      "candidate_path": "packages/core/offer-expiry/src/offer.ts",
+      "expected": "8a3df8bfd0c9e903f44992304033ab637c395768a2454b4856f75b9db5c21af7",
+      "actual": "8a3df8bfd0c9e903f44992304033ab637c395768a2454b4856f75b9db5c21af7",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/offer-expiry/src/validate.ts",
+      "candidate_path": "packages/core/offer-expiry/src/validate.ts",
+      "expected": "32596601399bd35e28b28d2f971c6284e80cd20508ad97df4b46bb28800c3ea7",
+      "actual": "32596601399bd35e28b28d2f971c6284e80cd20508ad97df4b46bb28800c3ea7",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/offer-expiry/src/rfc3339-order.ts",
+      "candidate_path": "packages/core/offer-expiry/src/rfc3339-order.ts",
+      "expected": "f2f02142ac6bbc16ad5e4b8d3cea4d43e641da442408845ac14bc91601c8870c",
+      "actual": "f2f02142ac6bbc16ad5e4b8d3cea4d43e641da442408845ac14bc91601c8870c",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/offer-expiry/src/schema-inputs.ts",
+      "candidate_path": "packages/core/offer-expiry/src/schema-inputs.ts",
+      "expected": "a09bc8a0c71cadc5901e9b46c56f1d8623e27bdbe9894a94844ea685cf38560b",
+      "actual": "a09bc8a0c71cadc5901e9b46c56f1d8623e27bdbe9894a94844ea685cf38560b",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/offer-expiry/src/index.ts",
+      "candidate_path": "packages/core/offer-expiry/src/index.ts",
+      "expected": "79217719d53b8e2016a676d19e0b875a9b502063673ff35ad4cb17a30490911f",
+      "actual": "79217719d53b8e2016a676d19e0b875a9b502063673ff35ad4cb17a30490911f",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/offer-expiry/src/testing/index.ts",
+      "candidate_path": "packages/core/offer-expiry/src/testing/index.ts",
+      "expected": "c6cf8ebf0720e7c1b53fa46774e8b65baee33dccb1f9993529cd7c0104d3b00e",
+      "actual": "c6cf8ebf0720e7c1b53fa46774e8b65baee33dccb1f9993529cd7c0104d3b00e",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/offer-expiry/schema/offer-expiry.schema.json",
+      "candidate_path": "packages/core/offer-expiry/schema/offer-expiry.schema.json",
+      "expected": "2fa7b9bcd5ba528ef4dafc6812cc087c839c0a45a5e0f465747ad44a7230d05b",
+      "actual": "2fa7b9bcd5ba528ef4dafc6812cc087c839c0a45a5e0f465747ad44a7230d05b",
+      "equal": true
+    },
+    {
+      "source_path": "packages/core/offer-expiry/schema/offer-expiry.v1.schema.json",
+      "candidate_path": "packages/core/offer-expiry/schema/offer-expiry.v1.schema.json",
+      "expected": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+      "actual": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/open.ts",
+      "candidate_path": "packages/infra/storage-sql/src/open.ts",
+      "expected": "bdb8cc3600fb2f247fef9ae3a97d673f08c40ec755509daa640b07cf3f7275fe",
+      "actual": "bdb8cc3600fb2f247fef9ae3a97d673f08c40ec755509daa640b07cf3f7275fe",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/provider.ts",
+      "candidate_path": "packages/infra/storage-sql/src/provider.ts",
+      "expected": "96c2a74bca4e02f3a94ec95a3a290496e121d7c12478345daacea85c7adee1cc",
+      "actual": "96c2a74bca4e02f3a94ec95a3a290496e121d7c12478345daacea85c7adee1cc",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/config.ts",
+      "candidate_path": "packages/infra/storage-sql/src/config.ts",
+      "expected": "78a2a7927d4a5e2d78a73c53f21f9babff2b7fcfc55f1486557c7b2b1bb5b170",
+      "actual": "78a2a7927d4a5e2d78a73c53f21f9babff2b7fcfc55f1486557c7b2b1bb5b170",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/maintenance/workspace.ts",
+      "candidate_path": "packages/infra/storage-sql/src/maintenance/workspace.ts",
+      "expected": "9cef029748921b2bdc4efdfc391fdc19251a6fd5f9b8cd6a015b223f56250d37",
+      "actual": "9cef029748921b2bdc4efdfc391fdc19251a6fd5f9b8cd6a015b223f56250d37",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/maintenance/registry-structure.ts",
+      "candidate_path": "packages/infra/storage-sql/src/maintenance/registry-structure.ts",
+      "expected": "53d356e71d53bad77aa58584419e4d6913940ac3211fe577531356dab609089f",
+      "actual": "53d356e71d53bad77aa58584419e4d6913940ac3211fe577531356dab609089f",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/maintenance/structure.ts",
+      "candidate_path": "packages/infra/storage-sql/src/maintenance/structure.ts",
+      "expected": "4c781c86f3bab5d6f70138d6cdaedb58a58c580875f3e3be4d170baa08dc3df3",
+      "actual": "4c781c86f3bab5d6f70138d6cdaedb58a58c580875f3e3be4d170baa08dc3df3",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/maintenance/view.ts",
+      "candidate_path": "packages/infra/storage-sql/src/maintenance/view.ts",
+      "expected": "c8263b76d37f2bb2828f21b86e30568b238f2d3151a08df4695027ce88de72bf",
+      "actual": "c8263b76d37f2bb2828f21b86e30568b238f2d3151a08df4695027ce88de72bf",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/maintenance/engine.ts",
+      "candidate_path": "packages/infra/storage-sql/src/maintenance/engine.ts",
+      "expected": "c1952f90cc377f8ef6ea80a337cdb22b33f2dffc6370c4aa04ec7ff61317b57d",
+      "actual": "c1952f90cc377f8ef6ea80a337cdb22b33f2dffc6370c4aa04ec7ff61317b57d",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/maintenance/inspection-worker.ts",
+      "candidate_path": "packages/infra/storage-sql/src/maintenance/inspection-worker.ts",
+      "expected": "4fd73eb3655670f1a31da00dd70f9dfb02f3353c5d0404106616fa4d21b590b2",
+      "actual": "4fd73eb3655670f1a31da00dd70f9dfb02f3353c5d0404106616fa4d21b590b2",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/maintenance/physical-check.ts",
+      "candidate_path": "packages/infra/storage-sql/src/maintenance/physical-check.ts",
+      "expected": "e2a8636eed39308770f7e9d3f293918e34a94725d5e48101e683b0e53d1cfdfc",
+      "actual": "e2a8636eed39308770f7e9d3f293918e34a94725d5e48101e683b0e53d1cfdfc",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/maintenance/failure.ts",
+      "candidate_path": "packages/infra/storage-sql/src/maintenance/failure.ts",
+      "expected": "93aac289b31c5054d8687df14447bbe3df75f49c9c99f06ec75a3e908d0d61db",
+      "actual": "93aac289b31c5054d8687df14447bbe3df75f49c9c99f06ec75a3e908d0d61db",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/maintenance/registry-check.ts",
+      "candidate_path": "packages/infra/storage-sql/src/maintenance/registry-check.ts",
+      "expected": "9c898bdf43f3db71d708e0623168e8a6e240c270afa1a4370241ed032a199fa4",
+      "actual": "9c898bdf43f3db71d708e0623168e8a6e240c270afa1a4370241ed032a199fa4",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/maintenance/source.ts",
+      "candidate_path": "packages/infra/storage-sql/src/maintenance/source.ts",
+      "expected": "3fbd34d652b02c6839be3f6f83be8f189ff3c94092461f407a5db1c08f8572fb",
+      "actual": "3fbd34d652b02c6839be3f6f83be8f189ff3c94092461f407a5db1c08f8572fb",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/maintenance/read-db.ts",
+      "candidate_path": "packages/infra/storage-sql/src/maintenance/read-db.ts",
+      "expected": "01f5262a466d8fd69c31ac40e6613afe097664384335ab785c5f2fb02051bb96",
+      "actual": "01f5262a466d8fd69c31ac40e6613afe097664384335ab785c5f2fb02051bb96",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/maintenance/resources.ts",
+      "candidate_path": "packages/infra/storage-sql/src/maintenance/resources.ts",
+      "expected": "9b5daa382848645455d10fa02b1c217d22deedad32a0141b02d616a29eac77cd",
+      "actual": "9b5daa382848645455d10fa02b1c217d22deedad32a0141b02d616a29eac77cd",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/postgres/owner.ts",
+      "candidate_path": "packages/infra/storage-sql/src/postgres/owner.ts",
+      "expected": "2cecb2439a754da42f4a89d6dede7766a96bea872392969008d55597df6a12fe",
+      "actual": "2cecb2439a754da42f4a89d6dede7766a96bea872392969008d55597df6a12fe",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/postgres/index.ts",
+      "candidate_path": "packages/infra/storage-sql/src/postgres/index.ts",
+      "expected": "a3014d764ba5670c272f740ebffa9a45f39e2e95722d6227a20a1eff5150ea3c",
+      "actual": "a3014d764ba5670c272f740ebffa9a45f39e2e95722d6227a20a1eff5150ea3c",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/sqlite/lock.ts",
+      "candidate_path": "packages/infra/storage-sql/src/sqlite/lock.ts",
+      "expected": "02a63a3a388db714b6f8dbfe68320729e42287b77d6474720216ba6a63a1d42f",
+      "actual": "02a63a3a388db714b6f8dbfe68320729e42287b77d6474720216ba6a63a1d42f",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/sqlite/errors.ts",
+      "candidate_path": "packages/infra/storage-sql/src/sqlite/errors.ts",
+      "expected": "c15a6957ecd44f0cdedb5ce2d70a967b170a9a61ff6ca0869f7824954d17240a",
+      "actual": "c15a6957ecd44f0cdedb5ce2d70a967b170a9a61ff6ca0869f7824954d17240a",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/sqlite/constraints.ts",
+      "candidate_path": "packages/infra/storage-sql/src/sqlite/constraints.ts",
+      "expected": "3c66199eaa38a77e27f6b948111f0d37257f9436dd9436bdf623a20f32da4b96",
+      "actual": "3c66199eaa38a77e27f6b948111f0d37257f9436dd9436bdf623a20f32da4b96",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/sqlite/driver.ts",
+      "candidate_path": "packages/infra/storage-sql/src/sqlite/driver.ts",
+      "expected": "fde07462f7e89d899b26815286109d9c92d2153c2ee6fb46aba852b225adfdfb",
+      "actual": "fde07462f7e89d899b26815286109d9c92d2153c2ee6fb46aba852b225adfdfb",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/sqlite/owner.ts",
+      "candidate_path": "packages/infra/storage-sql/src/sqlite/owner.ts",
+      "expected": "47f3bbf9548c0f9b1d5313769efa67defe49724dfab61d5cf8514b7ff91d89dd",
+      "actual": "47f3bbf9548c0f9b1d5313769efa67defe49724dfab61d5cf8514b7ff91d89dd",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/sqlite/index.ts",
+      "candidate_path": "packages/infra/storage-sql/src/sqlite/index.ts",
+      "expected": "952009cb267ed68b09d734d6ac4d04b204219218679ea6046c2f67cfba93a00f",
+      "actual": "952009cb267ed68b09d734d6ac4d04b204219218679ea6046c2f67cfba93a00f",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/sqlite/protection.ts",
+      "candidate_path": "packages/infra/storage-sql/src/sqlite/protection.ts",
+      "expected": "13fe334aa89ddecb2a2ecadf62d9628192f526058d53b84f6be0e201e047efd5",
+      "actual": "13fe334aa89ddecb2a2ecadf62d9628192f526058d53b84f6be0e201e047efd5",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/upgrade/guard.ts",
+      "candidate_path": "packages/infra/storage-sql/src/upgrade/guard.ts",
+      "expected": "12648cdc86797dc2ec4bfc2f5f3e75d80232ef1f490041c9a0daba71404174a3",
+      "actual": "12648cdc86797dc2ec4bfc2f5f3e75d80232ef1f490041c9a0daba71404174a3",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/upgrade/registry.ts",
+      "candidate_path": "packages/infra/storage-sql/src/upgrade/registry.ts",
+      "expected": "c542ead30902ac31b0f01381248cc3ed4a20342dc13ab9d77cd937ea923daac6",
+      "actual": "c542ead30902ac31b0f01381248cc3ed4a20342dc13ab9d77cd937ea923daac6",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/upgrade/files.ts",
+      "candidate_path": "packages/infra/storage-sql/src/upgrade/files.ts",
+      "expected": "3ace1b3995845b615a7e22b10573990101cb7d83ea5ab389385f9ca596134978",
+      "actual": "3ace1b3995845b615a7e22b10573990101cb7d83ea5ab389385f9ca596134978",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/storage-sql/src/upgrade/owner.ts",
+      "candidate_path": "packages/infra/storage-sql/src/upgrade/owner.ts",
+      "expected": "6121b7197c13bc4da14f1c11c12c293560c486646d17dc525c5852f039b3a31d",
+      "actual": "6121b7197c13bc4da14f1c11c12c293560c486646d17dc525c5852f039b3a31d",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/clock/src/snapshot-structure.ts",
+      "candidate_path": "packages/infra/clock-lease/src/snapshot-structure.ts",
+      "expected": "95f57d663b4a5d214b4594c0b68ac207e94aba0c265d46f78652cd2b09bbaf04",
+      "actual": "95f57d663b4a5d214b4594c0b68ac207e94aba0c265d46f78652cd2b09bbaf04",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/clock/src/lease.ts",
+      "candidate_path": "packages/infra/clock-lease/src/lease.ts",
+      "expected": "ae7cda47a73ca895382111ba5858584e81cead51867fdd1970fcca48d0a1a0da",
+      "actual": "ae7cda47a73ca895382111ba5858584e81cead51867fdd1970fcca48d0a1a0da",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/clock/src/snapshot.ts",
+      "candidate_path": "packages/infra/clock-lease/src/snapshot.ts",
+      "expected": "9daca5b745e4f36ccc9808381572d87baa184f3c6d08d0aac096f7a985509d8d",
+      "actual": "9daca5b745e4f36ccc9808381572d87baa184f3c6d08d0aac096f7a985509d8d",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/clock/src/clock.ts",
+      "candidate_path": "packages/infra/clock-lease/src/clock.ts",
+      "expected": "33e95524f8a7160f2d014e1aebb496f022ef755cb11daa93077a88e3b3163156",
+      "actual": "33e95524f8a7160f2d014e1aebb496f022ef755cb11daa93077a88e3b3163156",
+      "equal": true
+    },
+    {
+      "source_path": "packages/infra/clock/src/preflight.ts",
+      "candidate_path": "packages/infra/clock-lease/src/preflight.ts",
+      "expected": "805245ea204aac7035519dc78b69e0bd8dd25d4b963eb71c2e903bbb6da582af",
+      "actual": "805245ea204aac7035519dc78b69e0bd8dd25d4b963eb71c2e903bbb6da582af",
+      "equal": true
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import { z } from 'zod'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { AssemblyManifestService } from '@omne-harness-lite/assembly-manifest-store'
@@ -16,7 +17,7 @@ const port = <T>() =>
   )
 export const assetRegistryPlugin = definePlugin({
   name: 'asset-registry',
-  inject: ['assemblyManifest', 'clock'],
+  inject: ['assemblyManifest', CLOCK_SERVICE],
   Config: z
     .object({
       deployedMeta: z.custom<RegistryDependencies['deployedMeta']>(Array.isArray),
@@ -46,7 +47,7 @@ export const assetRegistryPlugin = definePlugin({
       conflictPolicy: config.conflictPolicy,
       maxInFlight: config.maxInFlight,
       manifest: ctx.get('assemblyManifest') as AssemblyManifestService,
-      clock: ctx.get('clock') as Clock,
+      clock: ctx.get(CLOCK_SERVICE) as Clock,
       sessionTenancy: {
         async holdingTenant(session) {
           const service = ctx.get('sessionTenancy') as SessionTenancyService | undefined

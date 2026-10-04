@@ -205,7 +205,7 @@ describe('assembly.upgrade-restore-on-boot-failure：确认之前的任何启动
       fragment('upgrade_probe'),
       fragment('future_clock'),
     ])
-    expect(refused.failure).toMatchObject({ stage: 'plugin', item: 'clock' })
+    expect(refused.failure).toMatchObject({ stage: 'plugin', item: 'clock-lease' })
     expect(refused.failure.message).toContain('ClockRollbackDetected')
     await oldVersionStillStarts(d, centerId)
   })

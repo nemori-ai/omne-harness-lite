@@ -1,5 +1,7 @@
 # @omne-harness-lite/storage
 
+The root remains independent of Cordis. `./cordis` exposes the shared Service and its key. See [integration commitments](SPEC.md).
+
 [中文](README_ZH.md)
 
 A storage protocol for consumers and providers: Kysely transaction views, explicit locking, classified failures, migration composition, preflight and snapshot interfaces, and provider conformance suites. This package does not open a database or implement a storage provider.

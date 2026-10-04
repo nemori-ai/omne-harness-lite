@@ -5,7 +5,7 @@ import { hostSnapshotChecks } from './snapshot-checks.ts'
 import type { Plugin } from '@deepseek-ai/cordis'
 import { accountIdentityPlugin } from '@omne-harness-lite/account-identity'
 import { registrationPlugin } from '@omne-harness-lite/account-registration'
-import { clockPlugin } from '@omne-harness-lite/clock'
+import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
 import {
   type GovernanceCenterEntryConfig,
@@ -15,11 +15,8 @@ import {
 } from '@omne-harness-lite/governance-center-entry'
 import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
 import type { PreflightCheck } from '@omne-harness-lite/storage'
-import {
-  type StorageSqlConfig,
-  type UpgradeGuard,
-  storageSqlPlugin,
-} from '@omne-harness-lite/storage-sql'
+import { type StorageSqlConfig, type UpgradeGuard } from '@omne-harness-lite/storage-sql'
+import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
 import type { MigrationProvider } from 'kysely/migration'
 import type { HostConfig } from './config.ts'
 import { HOST_VERSION } from './version.ts'
@@ -27,7 +24,7 @@ import { HOST_VERSION } from './version.ts'
 /** 八条 fiber 的名字（= 各插件的 `name`），按装载次序。 */
 export const HOST_PLUGIN_NAMES = [
   'storage-sql',
-  'clock',
+  'clock-lease',
   'credential-verification',
   'account-identity',
   'organization-governance',
@@ -112,7 +109,7 @@ export function buildManifest(
   }
   return [
     { name: 'storage-sql', plugin: storageSqlPlugin, config: storage },
-    { name: 'clock', plugin: clockPlugin, config: {} },
+    { name: 'clock-lease', plugin: clockPlugin, config: {} },
     // scrypt 参数取 credential-verification 的缺省（OWASP 最低建议）；本版没有来源变量
     { name: 'credential-verification', plugin: credentialsPlugin, config: {} },
     {

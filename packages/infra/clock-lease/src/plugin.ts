@@ -1,20 +1,18 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { z } from 'zod'
+import type { z } from 'zod'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Storage } from '@omne-harness-lite/storage'
+import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
 import { LeaseClock } from './clock.ts'
-
-export const CLOCK_SERVICE = 'clock' as const
-
-/** 本版无 config：租约宽度与续约周期是包内常量。 */
-export const ClockConfig = z.object({}).strict()
+import { ClockConfig } from './config.ts'
+import { LeaseClockService } from './service.ts'
 
 export const clockPlugin = definePlugin<z.infer<typeof ClockConfig>>({
-  name: 'clock',
-  inject: ['storage'],
+  name: 'clock-lease',
+  inject: [STORAGE_SERVICE],
   Config: ClockConfig,
   async apply(ctx: Context) {
-    const storage = ctx.get('storage') as Storage
+    const storage = ctx.get(STORAGE_SERVICE) as Storage
     const clock = new LeaseClock({ storage, logger: ctx.logger })
     await clock.start()
     try {
@@ -23,6 +21,6 @@ export const clockPlugin = definePlugin<z.infer<typeof ClockConfig>>({
       await clock.close()
       throw error
     }
-    ctx.provide(CLOCK_SERVICE, clock)
+    new LeaseClockService(ctx, clock)
   },
 })

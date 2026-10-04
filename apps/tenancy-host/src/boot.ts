@@ -7,7 +7,7 @@
 //   [任一次逆序撤完之后] guard.pending()：仍有快照 ⇒「升级未确认，快照在 X」；仅此观察不能判定恢复是否尝试。
 // 本节点无领域状态、无提交点、无锁；没有缓存、池、队列、重试。
 import { Context, type Fiber, type Logger } from '@deepseek-ai/cordis'
-import { clockPreflight } from '@omne-harness-lite/clock'
+import { clockPreflight } from '@omne-harness-lite/clock-lease'
 import {
   GovernanceCenterClockTimeoutError,
   SERVING_EVENT,
