@@ -1,6 +1,6 @@
 // boot() 的测试封装：记下起来的中心供收尾撤除；启动失败时收下拒绝与观察到的 fiber。
 import type { Fiber } from '@deepseek-ai/cordis'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   type BootHooks,
   type HostPluginName,

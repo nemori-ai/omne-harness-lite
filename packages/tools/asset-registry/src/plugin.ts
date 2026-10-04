@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { AssemblyManifestService } from '@omne-harness-lite/assembly-manifest-store'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import type { CurrentEvaluationInputs } from '@omne-harness-lite/evaluation-input-store'

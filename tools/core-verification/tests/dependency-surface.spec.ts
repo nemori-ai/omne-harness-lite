@@ -35,9 +35,18 @@ it('w1.consumer.adopted-dependency-exceptions', async () => {
   const kernelSource = await dependencySurface(root('kernel-basis', 'src/index.ts'))
   const kernelDeclarations = await dependencySurface(root('kernel-basis', 'dist/index.d.ts'), true)
   const kernelRuntime = await dependencySurface(root('kernel-basis', 'dist/index.js'))
-  expect(kernelSource.external).toEqual(['@deepseek-ai/cordis', '@standard-schema/spec'])
+  expect(kernelSource.external).toEqual([])
   expect(kernelDeclarations.external).toEqual(kernelSource.external)
   expect(kernelRuntime.external).toEqual([])
+  const kernelCordisSource = await dependencySurface(root('kernel-basis', 'src/cordis.ts'))
+  const kernelCordisDeclarations = await dependencySurface(
+    root('kernel-basis', 'dist/cordis.d.ts'),
+    true,
+  )
+  const kernelCordisRuntime = await dependencySurface(root('kernel-basis', 'dist/cordis.js'))
+  expect(kernelCordisSource.external).toEqual(['@deepseek-ai/cordis', '@standard-schema/spec'])
+  expect(kernelCordisDeclarations.external).toEqual(kernelCordisSource.external)
+  expect(kernelCordisRuntime.external).toEqual([])
   const kernelTesting = await dependencySurface(root('kernel-basis', 'dist/testing/index.js'))
   expect(kernelTesting.external).toEqual(['@deepseek-ai/cordis'])
 
@@ -61,6 +70,9 @@ it('w1.consumer.adopted-dependency-exceptions', async () => {
         kernelSource,
         kernelDeclarations,
         kernelRuntime,
+        kernelCordisSource,
+        kernelCordisDeclarations,
+        kernelCordisRuntime,
         kernelTesting,
         storageSource,
         storageDeclarations,

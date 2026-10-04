@@ -1,4 +1,4 @@
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import { openClientLocalState, type OpenClientLocalStateOptions } from './open.ts'
 import { CLIENT_LOCAL_STATE_SERVICE } from './surface.ts'

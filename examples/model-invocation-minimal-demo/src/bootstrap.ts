@@ -185,7 +185,7 @@ import {
   type TenantId,
   tenantIdEquals,
 } from '@omne-harness-lite/identity-values'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   type ModelCatalog,
   type ProfileRow,

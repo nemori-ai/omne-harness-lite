@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Storage } from '@omne-harness-lite/storage'
 import { LeaseClock } from './clock.ts'
 

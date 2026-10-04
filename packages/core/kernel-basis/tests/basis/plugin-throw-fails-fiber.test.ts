@@ -4,7 +4,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { plugin } from './support.ts'
 import { z } from 'zod'
-import { FIBER_STATE, definePlugin } from '../../src/index.ts'
+import { FIBER_STATE, definePlugin } from '../../src/cordis.ts'
 
 describe('plugin-throw-fails-fiber', () => {
   it('插件体抛出 ⇒ FAILED', async () => {

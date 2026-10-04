@@ -5,7 +5,7 @@ import { chmodSync, existsSync, lstatSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   GovernanceCenterOpsConfigSchema,
   OPS_SOCKET_NAME,

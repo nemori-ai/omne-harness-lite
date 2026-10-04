@@ -2,7 +2,7 @@
 // 插件体在第二个 provide 之后抛出时，已 provide 的第一个服务随 fiber 一起撤掉，不会留下半个服务面。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { FIBER_STATE } from '../../src/index.ts'
+import { FIBER_STATE } from '../../src/cordis.ts'
 import { plugin } from './support.ts'
 
 describe('provide-is-effect-managed', () => {

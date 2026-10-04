@@ -1,6 +1,6 @@
 import { sql } from 'kysely'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { StorageUnavailable, type Storage, type StorageInstance } from '@omne-harness-lite/storage'

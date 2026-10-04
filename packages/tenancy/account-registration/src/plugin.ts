@@ -5,7 +5,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { ACCOUNTS_SERVICE, type AccountsService } from '@omne-harness-lite/account-identity'
 import { isOk, loadSigningKey } from '@omne-harness-lite/identity-values'
-import { definePlugin, fiberIsActive } from '@omne-harness-lite/kernel-basis'
+import { definePlugin, fiberIsActive } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   ORGANIZATIONS_SERVICE,
   ORGANIZATION_PURGE_SERVICE,

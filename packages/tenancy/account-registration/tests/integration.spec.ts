@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { LEASE_WIDTH_MS } from '@omne-harness-lite/clock'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   AccountRegistrationConfigSchema,
   TERMINAL_OUTCOMES,

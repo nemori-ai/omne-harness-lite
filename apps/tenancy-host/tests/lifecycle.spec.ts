@@ -11,7 +11,7 @@ import type { AccountsService, LoginsService } from '@omne-harness-lite/account-
 import { LEASE_WIDTH_MS, clockPlugin } from '@omne-harness-lite/clock'
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
 import { GovernanceCenterClockTimeoutError } from '@omne-harness-lite/governance-center-entry'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { storageSqlPlugin } from '@omne-harness-lite/storage-sql'
 import {
   HOST_PLUGIN_NAMES,

@@ -2,7 +2,7 @@
 // 撤除只让服务消失，在途的 scrypt 计算跑完、结果照常交给调用方（本包的方法不依赖 fiber 状态）。
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { scryptParametersValid } from './scrypt.ts'
 import { createPasswordCredentials } from './service.ts'
 

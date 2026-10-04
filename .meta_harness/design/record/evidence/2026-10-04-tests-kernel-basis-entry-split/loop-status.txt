@@ -1,0 +1,49 @@
+node --experimental-strip-types tools/ts-checks/src/loop/cli.ts --base "9f8c09517dccb8f870eeac1ad960650810730f2e"  --out "tmp/arch-intent/remediation/r1-t1a/loop-final-retry" --strict
+回路状态 c78205b1c · 分支 panqiwei/identity-model-r1-t1a · 基线 9f8c09517dccb8f870eeac1ad960650810730f2e（合并点 9f8c09517）
+基线快照：没有（取基线 9f8c09517dccb8f870eeac1ad960650810730f2e 的合并点），「不比基线差」这一类本次未判
+趋势：/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1a/loop-home/trend.jsonl；上一次的带位：没有更早的快照；严格模式只读趋势，不写快照
+产物：/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1a/loop-final-retry/status.md 与 status.json
+## 硬线
+  方向违规 0
+  环 0
+  验收锁 没破
+  删卡记录 齐
+  传感器有数据 是
+## 各项指标的带位
+  红色成员数 20 · 正常 · 与基线比 未判
+  超 alert 的函数数 284 · 正常 · 与基线比 未判
+  稳定依赖不稳定的边数 0 · 正常 · 与基线比 未判
+  一起改却分属两组的成员对数 0 · 正常 · 不与基线比
+  新增跨成员依赖数 0 · 不分带 · 不与基线比
+  没有断言的测试数 0 · 正常 · 与基线比 未判
+  全仓重复行占比（%） 2.7 · 正常 · 与基线比 未判
+  单个 topic 窗口内 rev 翻动次数 12 · 处置 · 不与基线比；达到提醒线的：PF-002 12、PF-001 8、PF-006 8、PF-013 8、PF-004 7、PF-005 7、PF-012 7、PF-015 7、PF-016 7、PF-007 6、PF-014 6
+  并行工作树数 3 · 提醒 · 不与基线比
+  被多棵工作树同时改的成员数 16 · 处置 · 不与基线比；packages/model/model-request-runtime-local（3 棵）、examples/model-invocation-minimal-demo（2 棵）、packages/agent-loop/loop-extension-runner（2 棵） 等，各是哪几棵见 status.json
+  验收总耗时（秒） 3 · 正常 · 不与基线比；1 份（1 个成员），记录开始于 2026-10-04T12:56:56.743Z
+  最慢一份验收的耗时（秒） 1.9 · 正常 · 不与基线比；apps/cli/acceptance/PF-016.no-screen-points-to-machine-entry.acceptance.ts
+  新增装配偏离数 0 · 不分带 · 不与基线比
+  装配声明改动数 0 · 不分带 · 不与基线比
+  装配缺失数 0 · 正常 · 与基线比 未判
+  未解析服务标识符数 5 · 正常 · 与基线比 未判
+## 这次变更里要解释的红项
+  有一端落在改动文件里的克隆 15 条：
+    packages/tenancy/organization-governance-sql/src/config.ts:22-27 ↔ packages/tenancy/account-registration/src/plugin.ts:30-35（6 行）
+    examples/model-invocation-minimal-demo/src/bootstrap.ts:2586-2600 ↔ examples/model-invocation-minimal-demo/src/bootstrap.ts:441-456（15 行）
+    examples/model-invocation-minimal-demo/src/bootstrap.ts:2667-2680 ↔ examples/model-invocation-minimal-demo/src/bootstrap.ts:465-479（14 行）
+    examples/model-invocation-minimal-demo/src/bootstrap.ts:2269-2279 ↔ examples/model-invocation-minimal-demo/src/bootstrap.ts:479-490（11 行）
+    examples/model-invocation-minimal-demo/src/bootstrap.ts:1998-2006 ↔ examples/model-invocation-minimal-demo/src/bootstrap.ts:1929-1937（9 行；后一端止行按前一端行数推算）
+    examples/model-invocation-minimal-demo/src/bootstrap.ts:1987-1994 ↔ examples/model-invocation-minimal-demo/src/bootstrap.ts:1923-1930（8 行；后一端止行按前一端行数推算）
+    examples/model-invocation-minimal-demo/src/bootstrap.ts:1872-1878 ↔ examples/model-invocation-minimal-demo/src/bootstrap.ts:1823-1829（7 行）
+    examples/model-invocation-minimal-demo/src/bootstrap.ts:2797-2803 ↔ examples/model-invocation-minimal-demo/src/bootstrap.ts:2788-2794（7 行）
+    examples/model-invocation-minimal-demo/src/bootstrap.ts:1904-1909 ↔ examples/model-invocation-minimal-demo/src/bootstrap.ts:1824-1829（6 行）
+    examples/model-invocation-minimal-demo/src/bootstrap.ts:1963-1968 ↔ examples/model-invocation-minimal-demo/src/bootstrap.ts:1923-1928（6 行）
+    其余 5 条见 status.json
+装配对照（.meta_harness/design/realization）：converged 3、deviation 359、missing 0、unknown 0；undeclared 40、no-design 4、not-built 11、source-location-mismatch 24
+  服务标识符 125 次解析，未知 5；源码与声明逐项出处见 status.json
+  范围：Static TypeScript AST and version-local workspace exports; tests/examples excluded; no dynamic loading, isolation or same-commit guarantee proved
+## 超预算的成员
+  1 个，其中结构问题 0 个；草稿在 /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1a/loop-final-retry/proposals/
+  packages/model/model-request-runtime-local：超 alert 的函数数 59（与基线比未判：没有基线快照） → 草稿 packages-model-model-request-runtime-local.md
+  比基线变差的成员：未判：没有基线快照
+对照表（docs/clean-loop.md）：传感器 40、评审问法 25、归人 25、不适用 47、不采 6；不合约定 0 行；对回全表：全表有而对照表缺 0、对照表有而全表没有 0、对照表比全表多出 0
