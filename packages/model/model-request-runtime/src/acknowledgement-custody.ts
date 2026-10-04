@@ -25,6 +25,16 @@ import type {
 } from './settlement-types.ts'
 import type { PlannedSemantics } from './types.ts'
 
+function cleanupWaitAllowed(
+  decision: ReturnType<AcknowledgementCleanupPolicy['next']>,
+): decision is Exclude<ReturnType<AcknowledgementCleanupPolicy['next']>, { readonly stop: true }> {
+  return !(
+    'stop' in decision ||
+    !isNonNegativeJsonInteger(decision.waitMs) ||
+    ExactDecimal.from(decision.waitMs).compare(ExactDecimal.from(0)) < 0
+  )
+}
+
 /**
  * RT12 S-98 runtime custody of acknowledged calls. After a confirmed ACK the runtime, not the
  * consumer, owns cleanup: it records the confirmation on the retention row, releases the
@@ -222,11 +232,7 @@ export function createAcknowledgementCustody<P extends PlannedSemantics, R>(inpu
     } catch {
       decision = { stop: true }
     }
-    if (
-      'stop' in decision ||
-      !isNonNegativeJsonInteger(decision.waitMs) ||
-      ExactDecimal.from(decision.waitMs).compare(ExactDecimal.from(0)) < 0
-    ) {
+    if (!cleanupWaitAllowed(decision)) {
       // The durable row remains; a later read, repeat or restart resumes it.
       report('retry_stopped', ref, { item: key, attempts: entry.attempts })
       scheduled.delete(key)
