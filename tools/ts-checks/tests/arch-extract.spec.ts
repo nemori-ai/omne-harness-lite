@@ -79,6 +79,38 @@ const contextCases: readonly {
 ]
 
 describe('static architecture extraction', () => {
+  it.each(['@omne-harness-lite/kernel-basis', '@omne-harness-lite/kernel-basis/cordis'])(
+    'recognizes binding helpers from current and historical public entry %s',
+    entry => {
+      const result = extract(`
+import { definePlugin as plugin, resolveOptional as optional } from '${entry}'
+export const p = plugin({ name: 'p', inject: ['required'], apply(ctx) {
+  optional(ctx, 'optional-service')
+  ctx.provide('provided-service', {})
+} })
+`)
+      expect(result.facts).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: 'injects', key: 'required', plugin: 'p' }),
+          expect.objectContaining({ kind: 'optional', key: 'optional-service', plugin: 'p' }),
+          expect.objectContaining({ kind: 'provides', key: 'provided-service', plugin: 'p' }),
+        ]),
+      )
+      expect(result.unknown).toEqual([])
+    },
+  )
+
+  it.each([
+    '@omne-harness-lite/kernel-basis-other/cordis',
+    '@omne-harness-lite/kernel-basis/private',
+  ])('does not trust helpers from %s', entry => {
+    const result = extract(`
+import { definePlugin as plugin, resolveOptional as optional } from '${entry}'
+export const p = plugin({ apply(ctx) { optional(ctx, 'optional-service') } })
+`)
+    expect(result.facts.some(fact => fact.key === 'optional-service')).toBe(false)
+  })
+
   it('keeps unowned helpers beside manifests and plugins without duplicating reached helpers', () => {
     const appSource = 'apps/host/src/index.ts'
     const result = extract('', {

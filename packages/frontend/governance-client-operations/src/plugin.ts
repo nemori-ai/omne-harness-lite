@@ -1,4 +1,4 @@
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   CLIENT_LOCAL_STATE_SERVICE,
   type ClientLocalState,

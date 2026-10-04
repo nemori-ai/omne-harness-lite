@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { StorageDefect, type AtomicStorage } from '@omne-harness-lite/storage'
 import { invalid, object, parseManifest } from './input.ts'

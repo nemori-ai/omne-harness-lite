@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { sql } from 'kysely'
 import type { Migration, MigrationProvider } from 'kysely/migration'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import { StorageUnavailable, type StorageInstance } from '@omne-harness-lite/storage'
 import {

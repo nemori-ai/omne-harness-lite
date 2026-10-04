@@ -3,7 +3,7 @@ import type { Fiber } from '@deepseek-ai/cordis'
 import { LOGINS_SERVICE, type LoginsService } from '@omne-harness-lite/account-identity'
 import type { ModelCatalog, OfficialManifest } from '@omne-harness-lite/model-profile-directory'
 import { MODEL_CATALOG_SERVICE } from '@omne-harness-lite/model-profile-directory/plugin'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { createSessionTenancyReader } from '@omne-harness-lite/session-tenancy-table'
 import {
   MEMBERSHIPS_SERVICE,

@@ -1,4 +1,4 @@
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { ExtensionInput } from '@omne-harness-lite/loop-extension'
 import { z } from 'zod'
 import {

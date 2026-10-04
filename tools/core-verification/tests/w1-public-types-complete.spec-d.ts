@@ -38,12 +38,8 @@ import type {
   SchemaDefName as OfferSchemaDefName,
   SchemaValidation as OfferSchemaValidation,
 } from '@omne-harness-lite/offer-expiry'
-import type {
-  Outcome,
-  Ack,
-  FiberStateValue,
-  PluginDefinition,
-} from '@omne-harness-lite/kernel-basis'
+import type { Outcome, Ack } from '@omne-harness-lite/kernel-basis'
+import type { FiberStateValue, PluginDefinition } from '@omne-harness-lite/kernel-basis/cordis'
 import type {
   ReferenceViolationKind,
   StorageFailure,
@@ -113,7 +109,7 @@ import type {
   SchemaDefName as ContentSchemaDefName,
   SchemaValidation as ContentSchemaValidation,
 } from '@omne-harness-lite/content-blocks'
-import { FIBER_STATE, definePlugin } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE, definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   generateHandoffKeyPair,
   issueHandoffWarrant,

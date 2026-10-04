@@ -5,15 +5,13 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
+import { fail, isSuccess, succeed } from '@omne-harness-lite/kernel-basis'
 import {
   FIBER_STATE,
   definePlugin,
-  fail,
   fiberIsActive,
-  isSuccess,
   resolveOptional,
-  succeed,
-} from '@omne-harness-lite/kernel-basis'
+} from '@omne-harness-lite/kernel-basis/cordis'
 import { bootAssembly, settle } from '@omne-harness-lite/kernel-basis/testing'
 import {
   IDENTITY_BRAND_NAMES,

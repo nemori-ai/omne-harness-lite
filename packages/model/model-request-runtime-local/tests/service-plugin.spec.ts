@@ -1,5 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { describe, expect, it } from 'vitest'
