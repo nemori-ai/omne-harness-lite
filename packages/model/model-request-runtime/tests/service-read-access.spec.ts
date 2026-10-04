@@ -1,6 +1,11 @@
 // @module-tag slow
 // Real SQLite/JSONL runtime and tenant setup for current read-access regressions.
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { getEventListeners } from 'node:events'
+import { captureModelLogValue, prepareModelLogEntry } from '../src/log-codec.ts'
+import { interpretCallHistory } from '../src/call-history.ts'
+import { dispatched } from './log-codec-fixture.ts'
+import { responseV5 } from './log-codec-v2-fixture.ts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { CallAccessEvidence } from '../src/reference-types.ts'
 import { createRuntimeReads } from '../src/service-reads.ts'
@@ -288,6 +293,114 @@ describe('RT12 S-34/S-87/S-100 current read admission', () => {
       } finally {
         armed = false
         resume.resolve()
+        expect(await world.runtime.close()).toEqual({ released: true })
+        await world.host.close()
+      }
+    },
+  )
+  it.each(['native', 'before', 'after'] as const)(
+    'releases an undelivered failure source when listener registration fails %s installation',
+    async timing => {
+      const world = await acknowledgementHost({ readAccess: access => access })
+      const grant = world.grant('owner', ['read'])
+      const ref = { session: world.host.session, callId: 'listener-failure-call' }
+      const run = 'listener-failure-run'
+      const at = '2026-09-29T00:00:00Z'
+      const shell = { tenant: world.host.tenant, run, attempt: 1 }
+      async function append(category: 'message' | 'record' | 'response', value: unknown) {
+        const captured = captureModelLogValue({ category, input: { kind: 'value', value } })
+        if (!('ok' in captured)) throw new Error('listener fixture capture failed')
+        const prepared = prepareModelLogEntry({
+          session: ref.session,
+          shell,
+          captured: captured.ok,
+          purpose: { kind: category },
+          messagePrefix: [],
+        })
+        if (!('ok' in prepared)) throw new Error('listener fixture entry failed')
+        const appended = await world.host.log.append(
+          ref.session,
+          [prepared.ok],
+          category === 'response' ? { kind: 'unfenced' } : { kind: 'fenced', run, attempt: 1 },
+          { kind: 'unconditional' },
+        )
+        expect(appended).toHaveProperty('positions')
+      }
+      const reads = createRuntimeReads({
+        ...world.construction,
+        history: {
+          ...world.construction.history,
+          failure(prefix, callId) {
+            const history = interpretCallHistory({ prefix, callId })
+            if (!('known' in history)) return { unavailable: true }
+            const records = history.known.dispatches.map(item => item.record)
+            const original = records[0]
+            if (original === undefined) return { unavailable: true }
+            return {
+              subject: {
+                failure: 'upstream_unavailable',
+                statusCode: 503,
+                profile: original.profileSnapshot,
+                dispatches: [original, ...records.slice(1)] as const,
+                retryConclusions: [],
+              },
+            }
+          },
+        },
+      })
+      const nativeAdd = grant.signal.addEventListener.bind(grant.signal)
+      const add = vi.spyOn(grant.signal, 'addEventListener').mockImplementation((...args) => {
+        if (timing === 'before') throw new Error('listener registration before native install')
+        nativeAdd(...args)
+        if (timing === 'after') throw new Error('listener registration after native install')
+      })
+      const remove = vi.spyOn(grant.signal, 'removeEventListener')
+      try {
+        await append('message', {
+          id: 'listener-attempt-start',
+          type: 'system_reminder',
+          nature: 'event',
+          source: { kind: 'attempt_started', attempt: 1, reason: 'first', at },
+          blocks: [],
+          createdAt: at,
+        })
+        await append('record', { ...dispatched, call: ref.callId, response: 'listener-response' })
+        const { reply: _reply, replyDisposition: _disposition, ...body } = responseV5
+        await append('response', {
+          ...body,
+          id: 'listener-response',
+          call: { callId: ref.callId, runId: run },
+          attemptId: 1,
+          outcome: 'failed',
+          failure: { cause: 'upstream_unavailable', statusCode: 503 },
+          timing: { sentAt: at, endedAt: at },
+        })
+        const answer = await reads.methods.readAttempts(ref, { consumeFailure: true })
+        expect(add).toHaveBeenCalledTimes(1)
+        if (timing === 'native') {
+          if (!('consumption' in answer) || answer.consumption.kind !== 'failure')
+            throw new Error('real failure source missing')
+          expect(answer.result).toHaveProperty('state', 'awaiting_decision')
+          expect(getEventListeners(grant.signal, 'abort')).toHaveLength(1)
+          const source = answer.consumption.source
+          expect(source.verify(source.subject, { run, attempt: 1 })).toHaveProperty(
+            'authoritativeSubject',
+          )
+          source.release()
+        } else {
+          expect(answer).toEqual({
+            result: { unavailable: true },
+            consumption: { kind: 'notApplicable' },
+          })
+        }
+        expect(getEventListeners(grant.signal, 'abort')).toHaveLength(0)
+        expect(remove).toHaveBeenCalledTimes(1)
+        expect(await reads.close()).toEqual({ released: true })
+        expect(remove).toHaveBeenCalledTimes(1)
+      } finally {
+        await reads.close()
+        add.mockRestore()
+        remove.mockRestore()
         expect(await world.runtime.close()).toEqual({ released: true })
         await world.host.close()
       }

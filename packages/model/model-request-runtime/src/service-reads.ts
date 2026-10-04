@@ -433,6 +433,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
               !localView?.request.host.stopping() &&
               !localView?.request.host.signal.aborted,
             retain: value => {
+              createdSource = value
               sources.add(value)
               evidence.revoked.addEventListener('abort', revoke, { once: true })
             },
