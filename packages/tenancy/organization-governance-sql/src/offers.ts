@@ -242,7 +242,7 @@ async function issueInvitation(
   })
   if ('failure' in outcome) return outcome
   // ⑨ 必发（通知）：提交之后派发一次
-  deps.notify('invitation.issued', {
+  deps.notify('organization-governance/invitation-issued', {
     invitationId: outcome.ok,
     issuer: issuer.ok.organization,
     invitedAccount: target.ok,
@@ -349,7 +349,7 @@ async function acceptInvitation(
     return succeed(tenant)
   })
   if ('failure' in outcome) return outcome
-  deps.notify('membership.changed', { tenant, effective: true })
+  deps.notify('organization-governance/membership-changed', { tenant, effective: true })
   return outcome
 }
 

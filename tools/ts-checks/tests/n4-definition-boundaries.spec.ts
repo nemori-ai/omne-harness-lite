@@ -45,7 +45,7 @@ describe('N4 migrated public boundaries', () => {
       'tenancy/organization-governance-sql/src/plugin.ts',
       'core/organization-governance/src/cordis.ts',
       'core/organization-governance/src/other.ts',
-      'tenancy/governance-center-entry/src/routing/x.ts',
+      'tenancy/governance-center-entry-node/src/routing/x.ts',
     ]) {
       for (const key of ['organizationPurge', 'organization-purge']) {
         expect(ogS42DynamicResolve.check([file(path, `ctx.get('${key}')`)])).toHaveLength(1)
@@ -56,7 +56,10 @@ describe('N4 migrated public boundaries', () => {
     }
     expect(
       ogS42DynamicResolve.check([
-        file('tenancy/account-registration/src/plugin.ts', "ctx.get('organizationPurge')"),
+        file(
+          'tenancy/account-registration-sequential/src/plugin.ts',
+          "ctx.get('organizationPurge')",
+        ),
       ]),
     ).toEqual([])
     expect(
@@ -97,7 +100,7 @@ describe('N4 migrated public boundaries', () => {
     expect(
       restrictedCallSites.check([
         file(
-          'tenancy/governance-center-entry/src/x.ts',
+          'tenancy/governance-center-entry-node/src/x.ts',
           "ctx.get('organizationPurge'); createPersonal(x)",
         ),
       ]),

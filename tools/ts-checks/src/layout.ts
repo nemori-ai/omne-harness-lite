@@ -6,7 +6,7 @@ import { isTestPath } from './rule.ts'
 
 export const TENANCY = 'tenancy/'
 
-export const ENTRY_PACKAGE = 'tenancy/governance-center-entry/'
+export const ENTRY_PACKAGE = 'tenancy/governance-center-entry-node/'
 export const ENTRY_SRC = `${ENTRY_PACKAGE}src/`
 /** 运维面源码目录（SC-2 白名单的键）。 */
 export const ENTRY_OPS = `${ENTRY_SRC}ops/`
@@ -15,16 +15,17 @@ export const ENTRY_EVENTS = `${ENTRY_SRC}events.ts`
 /** 客户端面（TLS 监听与 HTTP 落地）。 */
 export const ENTRY_TRANSPORT = `${ENTRY_SRC}transport/`
 
-export const ACCOUNT_IDENTITY = 'tenancy/account-identity/'
+export const ACCOUNT_IDENTITY = 'tenancy/account-identity-sql/'
 export const ACCOUNT_IDENTITY_SRC = `${ACCOUNT_IDENTITY}src/`
 /** 出示物的产生与派生所在模块：本包里 `node:crypto` 随机源只许在这里出现（AI design S-45 行）。 */
 export const ACCOUNT_IDENTITY_RANDOM_MODULE = `${ACCOUNT_IDENTITY_SRC}presentation.ts`
 /** 插件体所在模块（构造服务实现类的地方）。 */
 export const ACCOUNT_IDENTITY_PLUGIN_MODULE = `${ACCOUNT_IDENTITY_SRC}plugin.ts`
 
-export const ACCOUNT_REGISTRATION = 'tenancy/account-registration/'
+export const ACCOUNT_REGISTRATION = 'tenancy/account-registration-sequential/'
 export const ACCOUNT_REGISTRATION_SRC = `${ACCOUNT_REGISTRATION}src/`
-export const CREDENTIAL_VERIFICATION = 'tenancy/credential-verification/'
+export const ACCOUNT_REGISTRATION_DEFINITION_SRC = 'core/account-registration/src/'
+export const CREDENTIAL_VERIFICATION = 'tenancy/credential-verification-scrypt/'
 export const ORGANIZATION_GOVERNANCE = 'tenancy/organization-governance-sql/'
 export const ORGANIZATION_GOVERNANCE_DEFINITION = 'core/organization-governance/'
 export const OFFER_EXPIRY = 'core/offer-expiry/'

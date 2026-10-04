@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Storage 协议的 Kysely 提供者：方言由配置切 sqlite（node:sqlite，自写 Driver）/ postgres（pg，本程只接线），迁移运行器，四型错误映射",
+  "description": "Storage \u534f\u8bae\u7684 Kysely \u63d0\u4f9b\u8005\uff1a\u65b9\u8a00\u7531\u914d\u7f6e\u5207 sqlite\uff08node:sqlite\uff0c\u81ea\u5199 Driver\uff09/ postgres\uff08pg\uff0c\u672c\u7a0b\u53ea\u63a5\u7ebf\uff09\uff0c\u8fc1\u79fb\u8fd0\u884c\u5668\uff0c\u56db\u578b\u9519\u8bef\u6620\u5c04",
   "engines": {
     "node": ">=24 <25"
   },
@@ -31,7 +31,8 @@
     "@omne-harness-lite/storage": "workspace:*",
     "kysely": "catalog:",
     "pg": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

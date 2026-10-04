@@ -36,7 +36,7 @@ export function tangled(a: number, b: number) {
 `
 const storage = file('packages/core/storage/src/index.ts', SOURCE)
 const consumer = file(
-  'packages/tenancy/account-identity/src/index.ts',
+  'packages/tenancy/account-identity-sql/src/index.ts',
   "import { simple } from '@omne-harness-lite/storage'\nexport const x = simple()\n",
 )
 const base = { files: [storage, consumer], policy: GROUP_DIRECTION_POLICY, thresholds, bands }
@@ -157,7 +157,7 @@ describe('buildReport', () => {
     expect(report.coverageEnabled).toBe(false)
     expect(report.edges).toMatchObject([
       {
-        from: 'packages/tenancy/account-identity',
+        from: 'packages/tenancy/account-identity-sql',
         to: 'packages/core/storage',
         count: 1,
         violating: false,
@@ -173,7 +173,7 @@ describe('buildReport', () => {
     expect(report.functions.filter(row => row.changed).map(row => row.name)).toEqual(['tangled'])
     expect(report.members.map(member => [member.path, member.changed])).toEqual([
       ['packages/core/storage', true],
-      ['packages/tenancy/account-identity', false],
+      ['packages/tenancy/account-identity-sql', false],
     ])
   })
 
@@ -207,7 +207,7 @@ describe('buildReport', () => {
     expect(tenancy).toMatchObject({ fanIn: 0, fanOut: 1, instability: 1 })
     expect(report.layout.map(layer => layer.map(group => [group.group, group.members]))).toEqual([
       [['packages/core', ['packages/core/storage']]],
-      [['packages/tenancy', ['packages/tenancy/account-identity']]],
+      [['packages/tenancy', ['packages/tenancy/account-identity-sql']]],
       [],
     ])
   })
@@ -228,7 +228,7 @@ describe('buildReport', () => {
       ]),
       members: new Map([
         ['packages/core/storage', 0],
-        ['packages/tenancy/account-identity', 1],
+        ['packages/tenancy/account-identity-sql', 1],
       ]),
       staleDist: [],
     }
@@ -239,7 +239,7 @@ describe('buildReport', () => {
     expect(tangled?.level).toBe('alert')
     expect(report.members.map(member => member.coverage)).toEqual(['measured', 'no-data'])
     expect(report.functions.find(row => row.member.endsWith('account-identity'))).toBeUndefined()
-    expect(report.failedTests).toEqual(['packages/tenancy/account-identity'])
+    expect(report.failedTests).toEqual(['packages/tenancy/account-identity-sql'])
   })
 })
 

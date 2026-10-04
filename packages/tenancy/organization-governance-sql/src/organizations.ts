@@ -293,7 +293,7 @@ async function dissolveAffiliation(
     return succeed({ child: record.id, formerParent: record.parent })
   })
   if ('failure' in outcome) return outcome
-  deps.notify('affiliation.dissolved', outcome.ok)
+  deps.notify('organization-governance/affiliation-dissolved', outcome.ok)
   return 'ok'
 }
 

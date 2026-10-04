@@ -46,13 +46,15 @@
     "@omne-harness-lite/account-registration": "workspace:*",
     "@omne-harness-lite/asset-registry": "workspace:*",
     "@omne-harness-lite/clock-lease": "workspace:*",
-    "@omne-harness-lite/credential-verification": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness-lite/organization-governance-sql": "workspace:*",
-    "@omne-harness-lite/organization-governance": "workspace:*"
+    "@omne-harness-lite/organization-governance": "workspace:*",
+    "@omne-harness-lite/credential-verification-scrypt": "workspace:*",
+    "@omne-harness-lite/account-identity-sql": "workspace:*",
+    "@omne-harness-lite/account-registration-sequential": "workspace:*"
   }
 }

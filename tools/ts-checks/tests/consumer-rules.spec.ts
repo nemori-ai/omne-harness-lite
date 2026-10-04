@@ -13,8 +13,8 @@ import {
 } from '../src/index.ts'
 
 const OG = 'tenancy/organization-governance-sql/src/'
-const AI = 'tenancy/account-identity/src/'
-const AR = 'tenancy/account-registration/src/'
+const AI = 'tenancy/account-identity-sql/src/'
+const AR = 'tenancy/account-registration-sequential/src/'
 const file = (path: string, text: string): SourceFile => ({ path, text })
 const real = (path: string): SourceFile =>
   file(path, readFileSync(new URL(`../../../packages/${path}`, import.meta.url), 'utf8'))
@@ -153,7 +153,7 @@ describe('sc-cv-1', () => {
       ].join('\n'),
     )
     const cv = file(
-      'tenancy/credential-verification/src/scrypt.ts',
+      'tenancy/credential-verification-scrypt/src/scrypt.ts',
       "const parts = material.split('$')",
     )
     expect(scCv1.check([clean, cv])).toEqual([])
@@ -232,8 +232,8 @@ describe('terminal-outcome-closed', () => {
   })
 
   it('变异核对：真实的 AR 源码原文无违反；追加一个返回第五个值的 register ⇒ 报出', () => {
-    // 常量在 types.ts（实现后的布局），index.ts 只再导出；规则看整包，所以两份都喂
-    const types = real(`${AR}types.ts`)
+    // 常量属于公共定义，方法属于提供者；规则同时核对两者，不丢失第五值反例。
+    const types = real('core/account-registration/src/types.ts')
     const original = real(`${AR}index.ts`)
     expect(terminalOutcomeClosed.check([types, original])).toEqual([])
     const mutated = file(
@@ -247,7 +247,7 @@ describe('terminal-outcome-closed', () => {
 describe('og-s42-dynamic-resolve', () => {
   it('AR 之外经 ctx.get、resolveOptional、inject 解析 organization-purge，或引用常量 ⇒ 报出（OG 自己解析也算）', () => {
     const entry = file(
-      'tenancy/governance-center-entry/src/x.ts',
+      'tenancy/governance-center-entry-node/src/x.ts',
       [
         "import { ORGANIZATION_PURGE_SERVICE } from '@omne-harness-lite/organization-governance'", // 1
         'const p = ctx.get(ORGANIZATION_PURGE_SERVICE)', // 2（常量引用也在这一行）
@@ -258,11 +258,11 @@ describe('og-s42-dynamic-resolve', () => {
     const og = file(`${OG}plugin.ts`, 'const self = ctx.get(ORGANIZATION_PURGE_SERVICE)')
     const found = ogS42DynamicResolve.check([entry, og])
     expect(found.map(v => `${v.path.split('/')[1]}:${v.line}`).sort()).toEqual([
-      'governance-center-entry:1',
-      'governance-center-entry:2',
-      'governance-center-entry:2',
-      'governance-center-entry:3',
-      'governance-center-entry:4',
+      'governance-center-entry-node:1',
+      'governance-center-entry-node:2',
+      'governance-center-entry-node:2',
+      'governance-center-entry-node:3',
+      'governance-center-entry-node:4',
       'organization-governance-sql:1',
     ])
   })

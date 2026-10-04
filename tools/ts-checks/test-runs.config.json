@@ -41,7 +41,7 @@
         "why": "core-verification 的 dependency-surface、public-type-surface 读核心成员的 src 与 dist"
       },
       {
-        "paths": ["packages/tenancy/governance-center-entry/tests/fixtures/tls/**"],
+        "paths": ["packages/tenancy/governance-center-entry-node/tests/fixtures/tls/**"],
         "members": ["packages/frontend/governance-client-operations"],
         "why": "governance-client-operations tests/prepared.spec.ts 读 governance-center-entry 的 TLS 夹具，没有声明依赖"
       },

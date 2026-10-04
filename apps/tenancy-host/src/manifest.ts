@@ -1,27 +1,29 @@
+import {
+  managedGovernanceCenterEntryPlugin,
+  managedGovernanceCenterOpsPlugin,
+} from '@omne-harness-lite/governance-center-entry-node/cordis'
 // 装载清单与顺序（design「装载清单与顺序」「选择与动作链」）：一个根 Context、八条 fiber，顺序 = 依赖序，
 // 运维面与入口层在最后、运维面在前（撤除时入口层先撤，它发的 `stopped` 运维面还在听）。每一项都指回 design 选择表的一行。
 import { join } from 'node:path'
 import { hostSnapshotChecks } from './snapshot-checks.ts'
 import type { Plugin } from '@deepseek-ai/cordis'
-import { accountIdentityPlugin } from '@omne-harness-lite/account-identity'
-import { registrationPlugin } from '@omne-harness-lite/account-registration'
-import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
-import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
+import { managedAccountIdentityPlugin } from '@omne-harness-lite/account-identity-sql/cordis'
+import { managedRegistrationPlugin } from '@omne-harness-lite/account-registration-sequential/cordis'
+import { managedClockPlugin } from '@omne-harness-lite/clock-lease/cordis'
+import { managedCredentialsPlugin } from '@omne-harness-lite/credential-verification-scrypt/cordis'
 import {
   type GovernanceCenterEntryConfig,
   type GovernanceCenterOpsConfig,
-  governanceCenterEntryPlugin,
-  governanceCenterOpsPlugin,
-} from '@omne-harness-lite/governance-center-entry'
-import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
+} from '@omne-harness-lite/governance-center-entry-node'
+import { managedOrganizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
 import type { PreflightCheck } from '@omne-harness-lite/storage'
 import { type StorageSqlConfig, type UpgradeGuard } from '@omne-harness-lite/storage-sql'
-import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
+import { managedStorageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
 import type { MigrationProvider } from 'kysely/migration'
 import type { HostConfig } from './config.ts'
 import { HOST_VERSION } from './version.ts'
 
-/** 八条 fiber 的名字（= 各插件的 `name`），按装载次序。 */
+/** 八个职责的稳定行 id，按依赖次序；与具体插件 name 分别维护。 */
 export const HOST_PLUGIN_NAMES = [
   'storage-sql',
   'clock-lease',
@@ -45,7 +47,7 @@ export interface ManifestEntry {
 export const DRAIN_TIMEOUT_MS = 10_000
 /** 停止诊断阈值：只记录still-stopping，随后继续等待真实撤除。 */
 export const DISPOSE_TIMEOUT_MS = 30_000
-/** 兑现 `openSignal` 之后等 `serving` 的余量：上界 = `clockReadyTimeoutMs` + 它（盖住入口层开闸时那一次再读钟）。 */
+/** 确认 EntryOpening 之后等 `serving` 的余量：上界 = `clockReadyTimeoutMs` + 它（盖住入口层开闸时那一次再读钟）。 */
 export const SERVING_GRACE_MS = 1_000
 
 /** 装配运行时对象：只能由 `boot()` 在装载时构造，不来自环境变量。 */
@@ -53,7 +55,6 @@ export interface ManifestRuntime {
   readonly migrations: MigrationProvider
   readonly checks: readonly PreflightCheck[]
   readonly guard: UpgradeGuard
-  readonly openSignal: PromiseLike<unknown>
   readonly maintenance: {
     readonly backupDirectory: string
     readonly sourceBuildId: string | null
@@ -105,16 +106,15 @@ export function buildManifest(
     version: HOST_VERSION,
     drainTimeoutMs: DRAIN_TIMEOUT_MS,
     clockReadyTimeoutMs: config.clockReadyTimeoutMs,
-    openSignal: runtime.openSignal,
   }
   return [
-    { name: 'storage-sql', plugin: storageSqlPlugin, config: storage },
-    { name: 'clock-lease', plugin: clockPlugin, config: {} },
+    { name: 'storage-sql', plugin: managedStorageSqlPlugin, config: storage },
+    { name: 'clock-lease', plugin: managedClockPlugin, config: {} },
     // scrypt 参数取 credential-verification 的缺省（OWASP 最低建议）；本版没有来源变量
-    { name: 'credential-verification', plugin: credentialsPlugin, config: {} },
+    { name: 'credential-verification', plugin: managedCredentialsPlugin, config: {} },
     {
       name: 'account-identity',
-      plugin: accountIdentityPlugin,
+      plugin: managedAccountIdentityPlugin,
       config: {
         // 缺席也显式写出键、值为 undefined：AI 的 Config 在键不存在时报「expected nonoptional」而拒启动（已报主线），
         // 键在、值为 undefined 才是契约 S-27 的「取不到 ⇒ credential-rejected」
@@ -126,7 +126,7 @@ export function buildManifest(
     },
     {
       name: 'organization-governance',
-      plugin: organizationGovernancePlugin,
+      plugin: managedOrganizationGovernancePlugin,
       config: {
         invitationTtlDefault: config.parameters.invitationTtlDefault,
         affiliationRequestTtlDefault: config.parameters.affiliationRequestTtlDefault,
@@ -136,10 +136,10 @@ export function buildManifest(
     },
     {
       name: 'account-registration',
-      plugin: registrationPlugin,
+      plugin: managedRegistrationPlugin,
       config: { activationSigningKeyPem: config.keys.activationSigningKeyPem },
     },
-    { name: 'governance-center-ops', plugin: governanceCenterOpsPlugin, config: ops },
-    { name: 'governance-center-entry', plugin: governanceCenterEntryPlugin, config: entry },
+    { name: 'governance-center-ops', plugin: managedGovernanceCenterOpsPlugin, config: ops },
+    { name: 'governance-center-entry', plugin: managedGovernanceCenterEntryPlugin, config: entry },
   ]
 }

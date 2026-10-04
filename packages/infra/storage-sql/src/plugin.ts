@@ -1,3 +1,7 @@
+import {
+  AssemblyLifetimeService,
+  startAssemblyWork,
+} from '@omne-harness-lite/assembly-lifecycle/cordis'
 // storage-sql 插件：config 校验 → 打开（开了升级守卫时走属主路径①～⑦）→ provide('storage')；
 // 撤除（一个 effect）：守卫置为已撤、关准入 → 等在途 → 关句柄 → 恢复未确认的快照 → 放排他。
 import type { Context } from '@deepseek-ai/cordis'
@@ -35,3 +39,27 @@ export const storageSqlPlugin = definePlugin<StorageSqlConfig>({
     new SqlStorageService(ctx, storage)
   },
 })
+
+export const managedStorageSqlPlugin = Object.assign(
+  definePlugin<StorageSqlConfig>({
+    name: 'storage-sql-managed',
+    inject: [, AssemblyLifetimeService.provide],
+    Config: StorageSqlConfig,
+    apply(ctx: Context, config) {
+      let resource: SqlStorage | undefined
+      startAssemblyWork(
+        ctx,
+        async () => {
+          resource = await openStorage(config, { logger: ctx.logger('storage-sql') })
+          ctx.fiber.assertActive()
+          if (!ctx.assemblyLifetime.isCurrent()) throw new Error('Assembly work has stopped')
+          new SqlStorageService(ctx, resource)
+        },
+        async () => {
+          await resource?.close()
+        },
+      )
+    },
+  }),
+  { assemblyLifecycle: 1 as const },
+)

@@ -23,7 +23,7 @@ const owners = new Set([
   'packages/core/mcp-endpoint',
   'packages/core/slash-command',
   'packages/session/session-tenancy-table',
-  'packages/tenancy/governance-center-entry',
+  'packages/tenancy/governance-center-entry-node',
   'packages/frontend/client-local-state',
   'packages/frontend/governance-center-client',
   'packages/frontend/governance-client-operations',

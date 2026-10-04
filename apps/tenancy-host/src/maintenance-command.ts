@@ -6,7 +6,7 @@ import {
   OPS_SOCKET_NAME,
   readOpsReplyBody,
   validMaintenanceLocation,
-} from '@omne-harness-lite/governance-center-entry'
+} from '@omne-harness-lite/governance-center-entry-node'
 import { openSnapshotInspection } from '@omne-harness-lite/storage-sql'
 import { hostSnapshotChecks } from './snapshot-checks.ts'
 import { composedMigrationNames, hostMigrationFragments } from './migrations.ts'

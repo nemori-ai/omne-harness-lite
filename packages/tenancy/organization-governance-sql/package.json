@@ -36,7 +36,8 @@
     "@omne-harness-lite/storage": "workspace:*",
     "kysely": "catalog:",
     "zod": "catalog:",
-    "@omne-harness-lite/organization-governance": "workspace:*"
+    "@omne-harness-lite/organization-governance": "workspace:*",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/clock-lease": "workspace:*",

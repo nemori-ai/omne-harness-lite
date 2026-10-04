@@ -49,8 +49,8 @@
     "vitest": "catalog:",
     "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/account-registration": "workspace:*",
-    "@omne-harness-lite/credential-verification": "workspace:*",
     "@omne-harness-lite/clock-lease": "workspace:*",
-    "@omne-harness-lite/organization-governance-sql": "workspace:*"
+    "@omne-harness-lite/organization-governance-sql": "workspace:*",
+    "@omne-harness-lite/credential-verification-scrypt": "workspace:*"
   }
 }

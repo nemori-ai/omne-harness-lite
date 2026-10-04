@@ -15,3 +15,8 @@ export {
 export { StoredRecordMalformed } from './records.ts'
 export { ParentChainCycle } from './organizations.ts'
 export { organizationGovernanceSnapshotCheck, ORGANIZATION_SNAPSHOT_TABLES } from './snapshot.ts'
+export {
+  createOrganizationGovernance,
+  OrganizationGovernanceStopped,
+  type OrganizationGovernanceInstance,
+} from './factory.ts'

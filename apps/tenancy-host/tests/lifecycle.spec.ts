@@ -1,3 +1,7 @@
+import { holdDerivation } from './support/managed.ts'
+import type { CredentialsService } from '@omne-harness-lite/account-identity'
+import { AccountIdentityStopped } from '@omne-harness-lite/account-identity-sql'
+import { startAssemblyWork } from '@omne-harness-lite/assembly-lifecycle/cordis'
 // 装载、开闸与撤除（verification：assembly.manifest-shape、assembly.pending-is-manifest-error、assembly.entry-loads-last、
 // assembly.no-commit-before-open ①③④、assembly.dispose-reverse-order、assembly.dispose-with-inflight、
 // assembly.keys-only-in-owner-config、assembly.credentials-swap-no-rerun、assembly.clock-write-failure-fails-boot、
@@ -12,11 +16,10 @@ import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage
 import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import type { AccountsService, LoginsService } from '@omne-harness-lite/account-identity'
 import { LEASE_WIDTH_MS } from '@omne-harness-lite/clock-lease'
-import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
-import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
-import { GovernanceCenterClockTimeoutError } from '@omne-harness-lite/governance-center-entry'
+import { managedClockPlugin } from '@omne-harness-lite/clock-lease/cordis'
+import { GovernanceCenterClockTimeoutError } from '@omne-harness-lite/governance-center-entry-node'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
-import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
+import { managedStorageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
 import {
   HOST_PLUGIN_NAMES,
   type HostPluginName,
@@ -76,7 +79,6 @@ describe('assembly.manifest-shape', () => {
           migrations: { getMigrations: async () => ({}) },
           checks: [],
           guard,
-          openSignal: Promise.resolve(),
           maintenance: {
             backupDirectory: join(d.root, 'backups'),
             sourceBuildId: null,
@@ -96,7 +98,6 @@ describe('assembly.manifest-shape', () => {
       migrations: { getMigrations: async () => ({}) },
       checks: [],
       guard: (await import('@omne-harness-lite/storage-sql')).createUpgradeGuard(),
-      openSignal: Promise.resolve(),
       maintenance: {
         backupDirectory: join(d.root, 'backups'),
         sourceBuildId: null,
@@ -106,12 +107,12 @@ describe('assembly.manifest-shape', () => {
       },
     })
     expect(entries.map(e => e.name)).toEqual([...HOST_PLUGIN_NAMES])
-    expect(entries.filter(e => e.plugin === storageSqlPlugin)).toHaveLength(1)
-    expect(entries.find(e => e.plugin === storageSqlPlugin)?.config).toMatchObject({
+    expect(entries.filter(e => e.plugin === managedStorageSqlPlugin)).toHaveLength(1)
+    expect(entries.find(e => e.plugin === managedStorageSqlPlugin)?.config).toMatchObject({
       dialect: 'sqlite',
       synchronous: 'full',
     })
-    expect(entries.filter(e => e.plugin === clockPlugin)).toHaveLength(1)
+    expect(entries.filter(e => e.plugin === managedClockPlugin)).toHaveLength(1)
     const injecting = entries.filter(e => {
       const inject = (e.plugin as { inject?: unknown }).inject
       return Array.isArray(inject) && inject.includes('organizationPurge')
@@ -221,8 +222,18 @@ describe('assembly.clock-failure-classification：N-18 按错误类型点名', (
             entry.name === 'governance-center-entry'
               ? {
                   ...entry,
-                  plugin: () => {
-                    throw cause
+                  plugin: {
+                    assemblyLifecycle: 1,
+                    inject: ['assemblyLifetime'],
+                    apply(ctx: import('@deepseek-ai/cordis').Context) {
+                      startAssemblyWork(
+                        ctx,
+                        async () => {
+                          throw cause
+                        },
+                        async () => {},
+                      )
+                    },
                   },
                 }
               : entry,
@@ -356,13 +367,12 @@ describe('assembly.no-commit-before-open 与 assembly.entry-loads-last', () => {
     expect(answers.length).toBeGreaterThan(0)
   })
 
-  it('运维面只在 serving 与 stopped 之间作答：入口层撤完（发了 stopped）运维面还在但不答；入口层先于运维面撤', async () => {
+  it('撤除入口层关闭整个管理代际，两面停答，资源与 fiber 依逆序收场', async () => {
     const d = await deployment('ops-window')
     const { host, log } = await hosts.start(d)
     expect(bodyOf(await unixExchange(d.socketPath))).toMatchObject({ reachable: true })
     await host.fibers['governance-center-entry']?.dispose()
     expect(await portAccepting(d.port)).toBe(false)
-    expect(existsSync(d.socketPath)).toBe(true)
     const ops = await unixExchange(d.socketPath, 3_000)
     expect(ops.bytes.length).toBe(0)
     await hosts.stop(host)
@@ -394,18 +404,23 @@ describe('assembly.dispose-reverse-order 与 assembly.dispose-with-inflight', ()
     expect(again.host.serving.centerId).toBe(host.serving.centerId)
   })
 
-  it('撤除时在途的一次注册：排空上界内答完的照常答、按自己那一次提交收场；撤除开始后新到的连接得不到答复', async () => {
+  it('撤除时等待 scrypt 的注册观察第一步提交后返回 interrupted，不交下一步；新连接不答', async () => {
     const d = await deployment('inflight')
     const { host } = await hosts.start(d)
+    const held = holdDerivation(
+      Reflect.get(host.context.credentials, symbols.original) as CredentialsService,
+    )
     const inflight = tlsExchange(
       d.port,
       envelope(REGISTER, { loginIdentifier: 'late@example.invalid', credential: PASSWORD }),
       15_000,
     )
-    // 缺省 scrypt 参数下一次派生需要数百毫秒：等请求确实到达、正在执行
-    await new Promise(resolve => setTimeout(resolve, 120))
+    // The actual scrypt result is held before the first account commit, not guessed from a timer.
+    await held.reached
     const disposing = hosts.stop(host)
     const newcomer = await tlsExchange(d.port, PUBLIC_HEALTH_BODY, 3_000)
+    expect(host.context.entryOpening.isOpen()).toBe(false)
+    held.release()
     expect(newcomer.bytes.length).toBe(0)
     const reply = await inflight
     const disposal = await disposing
@@ -414,9 +429,10 @@ describe('assembly.dispose-reverse-order 与 assembly.dispose-with-inflight', ()
       d.file,
       "SELECT activated FROM account WHERE login_identifier = 'late@example.invalid'",
     )
-    // 排空上界 10 s 内这次注册跑得完：照常答复，且它的提交都在
-    expect(bodyOf(reply)).toEqual({ result: 'registered' })
-    expect(rows).toEqual([{ activated: 1 }])
+    // Adopted AR2 generation stop: observe the first commit, refuse the next handoff.
+    expect(bodyOf(reply)).toEqual({ failure: 'interrupted' })
+    expect(rows).toEqual([{ activated: 0 }])
+    expect(query(d.file, 'SELECT * FROM organization')).toEqual([])
   })
 })
 
@@ -466,53 +482,44 @@ describe('assembly.keys-only-in-owner-config（窄形式：它不证同进程别
   })
 })
 
-describe('assembly.credentials-swap-no-rerun（CV 换代演练）', () => {
-  it('撤掉 credentials 的 fiber、装另一实现：AI 与 OG 的插件体不重跑（服务实例不变、fiber 一直 ACTIVE）；期间 logins.issue 得 storage-unavailable、accounts.read 照常；入口层随之关门再开门', async () => {
+describe('assembly.credentials-replacement-generation', () => {
+  it('管理提供者撤除关闭旧代，换参数由新 boot 接续，账号身份与已存凭据不变', async () => {
     const d = await deployment('cv-swap')
-    const { host, log } = await hosts.start(d)
+    const { host } = await hosts.start(d)
     await registerOverWire(d, 'swap@example.invalid')
-    const accounts = host.context.get('accounts') as AccountsService
-    const logins = host.context.get('logins') as LoginsService
-    // Cordis creates a caller-context proxy on each get. Compare the underlying instance.
-    const organizations = Reflect.get(host.context.get('organizations')!, symbols.original)
+    const accounts = host.context.accounts
+    const logins = host.context.logins
     const [row] = query<{ account_id: string }>(d.file, 'SELECT account_id FROM account')
-
     await host.fibers['credential-verification']?.dispose()
-    expect(host.fibers['account-identity']?.state as number).toBe(FIBER_STATE.ACTIVE)
-    expect(host.fibers['organization-governance']?.state as number).toBe(FIBER_STATE.ACTIVE)
-    expect(await logins.issue('swap@example.invalid', PASSWORD)).toEqual({
-      failure: 'storage-unavailable',
+    expect(await hosts.stop(host)).toEqual({ complete: true, unfinished: [] })
+    await expect(logins.issue('swap@example.invalid', PASSWORD)).rejects.toBeInstanceOf(
+      AccountIdentityStopped,
+    )
+    await expect(accounts.read(row?.account_id)).rejects.toBeInstanceOf(AccountIdentityStopped)
+    const replacement = await hosts.start(d, {
+      manifest: entries =>
+        entries.map(entry =>
+          entry.name === 'credential-verification'
+            ? {
+                ...entry,
+                config: {
+                  cost: 2 ** 14,
+                  blockSize: 8,
+                  parallelization: 1,
+                  saltBytes: 16,
+                  keyBytes: 32,
+                },
+              }
+            : entry,
+        ),
     })
-    expect(await accounts.read(row?.account_id)).toEqual({
+    expect(replacement.host.serving.centerId).toBe(host.serving.centerId)
+    expect(
+      await replacement.host.context.logins.issue('swap@example.invalid', PASSWORD),
+    ).toHaveProperty('ok')
+    expect(await replacement.host.context.accounts.read(row?.account_id)).toEqual({
       ok: { activated: true, retentionExpired: false },
     })
-    // 入口层必需 inject credentials：关门
-    expect((await tlsExchange(d.port, PUBLIC_HEALTH_BODY, 3_000)).bytes.length).toBe(0)
-
-    // 另一实现：同一插件、另一组派生参数
-    const replacement = host.context.plugin(credentialsPlugin, {
-      cost: 2 ** 14,
-      blockSize: 8,
-      parallelization: 1,
-      saltBytes: 16,
-      keyBytes: 32,
-    })
-    await replacement
-    try {
-      expect(host.context.get('accounts')).toBe(accounts)
-      expect(host.context.get('logins')).toBe(logins)
-      expect(Reflect.get(host.context.get('organizations')!, symbols.original)).toBe(organizations)
-      expect(await logins.issue('swap@example.invalid', PASSWORD)).toHaveProperty('ok')
-      // 入口层重跑后就绪即开门（openSignal 早已兑现，快照早已确认）
-      await expect
-        .poll(async () => bodyOf(await tlsExchange(d.port, PUBLIC_HEALTH_BODY, 2_000)), {
-          timeout: 15_000,
-        })
-        .toMatchObject({ centerId: host.serving.centerId })
-      expect(log.events('serving').length).toBeGreaterThanOrEqual(2)
-    } finally {
-      await replacement.dispose()
-    }
   })
 })
 

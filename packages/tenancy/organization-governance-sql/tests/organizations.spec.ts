@@ -347,9 +347,11 @@ describe('S-32／S-33／S-34 隶属与上级链', () => {
       },
     )
     expect(await h.organizations.dissolveAffiliation(parent.owner, child.organization)).toBe('ok')
-    expect(h.events.filter(e => e.name === 'affiliation.dissolved')).toEqual([
+    expect(
+      h.events.filter(e => e.name === 'organization-governance/affiliation-dissolved'),
+    ).toEqual([
       {
-        name: 'affiliation.dissolved',
+        name: 'organization-governance/affiliation-dissolved',
         payload: { child: child.organization, formerParent: parent.organization },
       },
     ])

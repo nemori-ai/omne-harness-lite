@@ -162,14 +162,12 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
+import { accountIdentityPlugin } from '@omne-harness-lite/account-identity-sql/cordis'
+import { LOGINS_SERVICE } from '@omne-harness-lite/account-identity/cordis'
+import { type LoginsService } from '@omne-harness-lite/account-identity'
+import { registrationPlugin } from '@omne-harness-lite/account-registration-sequential/cordis'
+import { REGISTRATION_SERVICE } from '@omne-harness-lite/account-registration/cordis'
 import {
-  accountIdentityPlugin,
-  LOGINS_SERVICE,
-  type LoginsService,
-} from '@omne-harness-lite/account-identity'
-import {
-  registrationPlugin,
-  REGISTRATION_SERVICE,
   type RegistrationService,
   type TerminalOutcome,
 } from '@omne-harness-lite/account-registration'
@@ -179,7 +177,7 @@ import {
   createModelReplicaCustodian,
   type ModelReplicaCustodian,
 } from '@omne-harness-lite/credential-custodian-local/model-replica'
-import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
+import { credentialsPlugin } from '@omne-harness-lite/credential-verification-scrypt/cordis'
 import sessionSchema from '@omne-harness-lite/messages/schema/v2' with { type: 'json' }
 import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 import {

@@ -75,7 +75,10 @@ async function purgePersonalOrganization(
   })
   if ('failure' in outcome) return outcome
   if (outcome.ok !== undefined) {
-    deps.notify('organization.purged', { organization: outcome.ok, ownerAccount: account })
+    deps.notify('organization-governance/organization-purged', {
+      organization: outcome.ok,
+      ownerAccount: account,
+    })
   }
   return warrantFor(deps, account)
 }

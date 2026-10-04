@@ -1,1 +1,1 @@
-export { clockPlugin } from './plugin.ts'
+export { clockPlugin, managedClockPlugin } from './plugin.ts'

@@ -18,7 +18,7 @@ describe('no-wall-clock', () => {
       'new Date()',
     )
     const action = file('frontend/governance-client-operations/src/actions.ts', 'new Date()')
-    const domain = file('tenancy/account-identity/src/observation-time.ts', 'new Date()')
+    const domain = file('tenancy/account-identity-sql/src/observation-time.ts', 'new Date()')
     expect(noWallClock.check([observation, action, domain]).map(x => x.path)).toEqual([
       action.path,
       domain.path,
@@ -42,8 +42,11 @@ describe('no-wall-clock', () => {
 
 describe('no-bail-control', () => {
   it('ctx.bail( ⇒ 报出；serial 不报', () => {
-    const bad = file('tenancy/account-identity/src/plugin.ts', "const vetoed = ctx.bail('x', 1)\n")
-    const clean = file('tenancy/account-identity/src/plugin.ts', "await ctx.serial('x', 1)\n")
+    const bad = file(
+      'tenancy/account-identity-sql/src/plugin.ts',
+      "const vetoed = ctx.bail('x', 1)\n",
+    )
+    const clean = file('tenancy/account-identity-sql/src/plugin.ts', "await ctx.serial('x', 1)\n")
     expect(noBailControl.check([bad])).toHaveLength(1)
     expect(noBailControl.check([clean])).toEqual([])
   })
@@ -56,18 +59,18 @@ describe('restricted-call-sites', () => {
       'await accounts.produce(id, cred)\n',
     )
     const badPurge = file(
-      'apps-ish/tenancy/account-identity/src/x.ts',
+      'apps-ish/tenancy/account-identity-sql/src/x.ts',
       "ctx.get('organization-purge')\n",
     )
     const okRegistration = file(
-      'tenancy/account-registration/src/register.ts',
+      'tenancy/account-registration-sequential/src/register.ts',
       "accounts.produce(a, b); ctx.get('organization-purge')\n",
     )
     const okOwner = file(
       'tenancy/organization-governance-sql/src/index.ts',
       "export const ORGANIZATION_PURGE_SERVICE = 'organization-purge' as const\n",
     )
-    const okAiOwner = file('tenancy/account-identity/src/accounts.ts', 'produce(a, b) { }\n')
+    const okAiOwner = file('tenancy/account-identity-sql/src/accounts.ts', 'produce(a, b) { }\n')
     expect(restrictedCallSites.check([badProduce, badPurge])).toHaveLength(2)
     expect(restrictedCallSites.check([okRegistration, okOwner, okAiOwner])).toEqual([])
   })
@@ -76,15 +79,15 @@ describe('restricted-call-sites', () => {
 describe('no-testing-import', () => {
   it('产品源码 import ./testing ⇒ 报出；测试文件豁免', () => {
     const bad = file(
-      'tenancy/account-identity/src/plugin.ts',
+      'tenancy/account-identity-sql/src/plugin.ts',
       "import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'\n",
     )
     const test = file(
-      'tenancy/account-identity/tests/x.spec.ts',
+      'tenancy/account-identity-sql/tests/x.spec.ts',
       "import { testClock } from '@omne-harness-lite/offer-expiry/testing'\n",
     )
     const clean = file(
-      'tenancy/account-identity/src/plugin.ts',
+      'tenancy/account-identity-sql/src/plugin.ts',
       "import { definePlugin } from '@omne-harness-lite/kernel-basis'\n",
     )
     expect(noTestingImport.check([bad])).toHaveLength(1)

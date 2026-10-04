@@ -1,20 +1,20 @@
+import { createHostAssembly } from './assembly.ts'
 // 治理中心的启动与撤除（design「装载清单与顺序」「升级的整体性」「两步开闸」「成对的装载与撤除」）。
 //   [起插件之前] config 解析、密钥配对自检                                  —— 失败：不碰数据
 //   [逐条装载]   storage-sql（升级守卫：独占、遗留恢复、只读核对、快照、迁移）→ clock → … → 运维面 → 入口层
 //                每条：同步查 PENDING（清单错误）→ await（FAILED ⇒ 逆序全撤，storage 撤除时恢复快照）
 //   [全部 ACTIVE] guard.confirm()，断言 snapshotTaken ⇒ snapshotRemoved；migrated ∧ ¬snapshotTaken ⇒ 记「本次升级不可撤回（U-3）」
-//   [确认之后]   兑现 openSignal ⇒ 入口层开闸、发 serving ⇒ 有界地等到 serving，boot() 才返回
+//   [确认之后]   确认 EntryOpening ⇒ 入口层开闸、发 serving ⇒ 有界地等到 serving，boot() 才返回
 //   [任一次逆序撤完之后] guard.pending()：仍有快照 ⇒「升级未确认，快照在 X」；仅此观察不能判定恢复是否尝试。
 // 本节点无领域状态、无提交点、无锁；没有缓存、池、队列、重试。
 import { Context, type Fiber, type Logger } from '@deepseek-ai/cordis'
-import { clockPreflight } from '@omne-harness-lite/clock-lease'
+import { clockPreflight, ClockRollbackDetected } from '@omne-harness-lite/clock-lease'
 import {
   GovernanceCenterClockTimeoutError,
   SERVING_EVENT,
   type ServingNotice,
   governanceCenterPreflight,
-} from '@omne-harness-lite/governance-center-entry'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
+} from '@omne-harness-lite/governance-center-entry-node'
 import {
   SnapshotFailure,
   type MigrationFragment,
@@ -22,6 +22,7 @@ import {
 } from '@omne-harness-lite/storage'
 import {
   StorageStartupFailure,
+  UpgradeGuardNotAttached,
   type UpgradeConfirmation,
   type UpgradeGuard,
   createUpgradeGuard,
@@ -150,11 +151,10 @@ function fiberFailure(name: HostPluginName, error: unknown): HostStartupFailure 
         `maintenance work root derived from OMNE_TENANCY_BACKUP_DIR (.quarantine): ${error.kind}; check the directory owner, permissions, marker, free space and other maintenance processes`,
         { item: ENV.backupDirectory, cause: error },
       )
-    return new HostStartupFailure(
-      'storage-open',
-      `the storage could not be opened: ${thrown.type}: ${thrown.message}`,
-      { item: name, cause: error },
-    )
+    return new HostStartupFailure('storage-open', 'the storage could not be opened', {
+      item: name,
+      cause: error,
+    })
   }
   if (name === 'governance-center-entry' && error instanceof GovernanceCenterClockTimeoutError)
     return new HostStartupFailure(
@@ -164,23 +164,12 @@ function fiberFailure(name: HostPluginName, error: unknown): HostStartupFailure 
     )
   return new HostStartupFailure(
     'plugin',
-    `${name} failed to start: ${thrown.type}: ${thrown.message}`,
+    `${name} failed to start${error instanceof ClockRollbackDetected ? ': ClockRollbackDetected' : ''}`,
     {
       item: name,
       cause: error,
     },
   )
-}
-
-/** 清单错误时点名缺的服务：插件声明的 inject 里此刻解析不到的那些。 */
-function missingServices(context: Context, entry: ManifestEntry): string[] {
-  const inject: unknown = (entry.plugin as { readonly inject?: unknown }).inject
-  const names = Array.isArray(inject)
-    ? inject.filter((name): name is string => typeof name === 'string')
-    : typeof inject === 'object' && inject !== null
-      ? Object.keys(inject)
-      : []
-  return names.filter(name => context.get(name) === undefined)
 }
 
 interface Loaded {
@@ -196,6 +185,7 @@ async function disposeInReverse(
   loaded: readonly Loaded[],
   log: Logger,
   finalization: MaintenanceFinalization,
+  assembly: ReturnType<typeof createHostAssembly>,
 ): Promise<HostDisposal> {
   const remaining = [...loaded].reverse()
   const failed = new Set<HostPluginName>()
@@ -204,20 +194,16 @@ async function disposeInReverse(
     DISPOSE_TIMEOUT_MS,
   )
   try {
-    while (remaining.length > 0) {
-      const item = remaining[0]!
-      try {
-        await item.fiber.dispose()
-      } catch (error) {
-        failed.add(item.name)
-        log.error({
-          event: 'fiber-dispose-failed',
-          plugin: item.name,
-          error: describeThrown(error).type,
-        })
+    const report = await assembly.dispose()
+    for (const row of report.rows) {
+      if (row.result.kind === 'failed') {
+        failed.add(row.id as HostPluginName)
+        log.error({ event: 'resource-close-failed', plugin: row.id, codes: row.result.codes })
       }
-      remaining.shift()
-      log.info({ event: 'fiber-disposed', plugin: item.name })
+    }
+    if (report.assemblyErrors.length > 0) {
+      for (const row of loaded) failed.add(row.name)
+      log.error({ event: 'assembly-close-failed', codes: report.assemblyErrors })
     }
   } finally {
     clearTimeout(timer)
@@ -259,8 +245,7 @@ function recordFailure(log: Logger, failure: HostStartupFailure): HostStartupFai
 
 function asFailure(error: unknown): HostStartupFailure {
   if (error instanceof HostStartupFailure) return error
-  const thrown = describeThrown(error)
-  return new HostStartupFailure('plugin', `unexpected failure: ${thrown.type}: ${thrown.message}`, {
+  return new HostStartupFailure('plugin', 'unexpected plugin failure', {
     cause: error,
   })
 }
@@ -276,9 +261,6 @@ export async function boot(options: BootOptions = {}): Promise<TenancyHost> {
   const log = attachLog(context, options.log ?? stderrSink)
 
   const guard = createUpgradeGuard()
-  const open = deferred<void>()
-  // 入口层吸收拒绝；它没装上时拒绝也不能成为未处理的拒绝
-  open.promise.catch(() => undefined)
   try {
     const config = await readHostConfig(options.env ?? process.env)
     verifyKeyPairing(config.keys)
@@ -294,7 +276,6 @@ export async function boot(options: BootOptions = {}): Promise<TenancyHost> {
         governanceCenterPreflight,
       ],
       guard,
-      openSignal: open.promise,
       maintenance: {
         backupDirectory,
         sourceBuildId,
@@ -309,7 +290,6 @@ export async function boot(options: BootOptions = {}): Promise<TenancyHost> {
       log,
       manifest,
       guard,
-      open,
       config.clockReadyTimeoutMs,
       hooks,
       finalization,
@@ -324,20 +304,19 @@ async function assemble(
   log: Logger,
   manifest: readonly ManifestEntry[],
   guard: UpgradeGuard,
-  open: Deferred<void>,
   clockReadyTimeoutMs: number,
   hooks: BootHooks,
   finalization: MaintenanceFinalization,
 ): Promise<TenancyHost> {
+  const assembly = createHostAssembly(context, manifest, log)
   const loaded: Loaded[] = []
   const serving = deferred<ServingNotice>()
   let stopWatching: (() => void) | undefined
 
-  /** 失败收场：拒绝 openSignal → 逆序全撤 → 撤后核查未确认的快照。 */
+  /** 失败收场：关闭代际准入 → 逆序排空资源和 fibers → 撤后核查未确认的快照。 */
   const abort = async (failure: HostStartupFailure): Promise<HostStartupFailure> => {
-    open.reject(failure)
     stopWatching?.()
-    await disposeInReverse(loaded, log, finalization)
+    await disposeInReverse(loaded, log, finalization, assembly)
     const pending = await guard.pending()
     if (typeof pending === 'object' && failure.stage !== 'restore')
       return new HostStartupFailure(
@@ -371,34 +350,31 @@ async function assemble(
           }
         })
       }
-      const fiber = context.plugin(entry.plugin, entry.config)
-      loaded.push({ name: entry.name, fiber })
-      hooks.observeFiber?.(entry.name, fiber)
-      // PENDING 是结构判定，不是等待：它需要的服务不在前面装的插件里
-      if ((fiber.state as number) === FIBER_STATE.PENDING)
-        throw new HostStartupFailure(
-          'manifest',
-          `${entry.name} is PENDING: ${missingServices(context, entry).join(', ') || 'a required service'} not provided by the plugins loaded before it`,
-          { item: entry.name },
-        )
       try {
-        await fiber
+        await assembly.load(entry, fiber => {
+          loaded.push({ name: entry.name, fiber })
+          hooks.observeFiber?.(entry.name, fiber)
+        })
       } catch (error) {
+        if (error instanceof HostStartupFailure) throw error
         throw fiberFailure(entry.name, error)
       }
     }
+    assembly.assertReady()
     log.info({ event: 'manifest-active', plugins: loaded.map(l => l.name) })
 
     await hooks.beforeConfirm?.(context)
+    assembly.assertCurrent()
     const confirmer = hooks.confirmWith?.(guard) ?? guard
     try {
       confirmation = await confirmer.confirm()
     } catch (error) {
-      const thrown = describeThrown(error)
       throw new HostStartupFailure(
         'upgrade-confirm',
-        `the upgrade confirmation failed: ${thrown.type}: ${thrown.message}`,
-        { cause: error },
+        `the upgrade confirmation failed${error instanceof UpgradeGuardNotAttached ? ': UpgradeGuardNotAttached' : ''}`,
+        {
+          cause: error,
+        },
       )
     }
     if (confirmation.snapshotTaken && !confirmation.snapshotRemoved)
@@ -406,6 +382,7 @@ async function assemble(
         'upgrade-confirm',
         'the upgrade confirmation did not remove the snapshot it took',
       )
+    assembly.assertCurrent()
     log.info({ event: 'upgrade-confirmed', ...confirmation })
     if (confirmation.migrated && !confirmation.snapshotTaken)
       log.warn({
@@ -413,14 +390,19 @@ async function assemble(
         gap: 'U-3',
         message: '本次升级不可撤回（U-3）：迁移已提交且没有快照，此后的失败不会把数据撤回到升级前',
       })
+    assembly.confirm()
+    log.info({ event: 'open-signal' })
   } catch (error) {
     throw await abort(asFailure(error))
   }
 
   // 确认之后才放行开闸；等不到 serving ⇒ 启动失败、逆序全撤，快照已确认、不恢复（缺口 U-4）
-  open.resolve()
-  log.info({ event: 'open-signal' })
-  const notice = await within(serving.promise, clockReadyTimeoutMs + SERVING_GRACE_MS)
+  const notice = await within(
+    Promise.race([serving.promise, assembly.stopped.then(() => 'stopped' as const)]),
+    clockReadyTimeoutMs + SERVING_GRACE_MS,
+  )
+  if (notice === 'stopped')
+    throw await abort(new HostStartupFailure('plugin', 'the assembly stopped before serving'))
   if (notice === 'timeout')
     throw await abort(
       new HostStartupFailure(
@@ -430,18 +412,25 @@ async function assemble(
       ),
     )
 
+  try {
+    assembly.assertCurrent()
+  } catch (error) {
+    throw await abort(asFailure(error))
+  }
   const fibers: Partial<Record<HostPluginName, Fiber>> = {}
   for (const { name, fiber } of loaded) fibers[name] = fiber
   let disposal: Promise<HostDisposal> | undefined
-  return {
+  const host: TenancyHost = {
     context,
     fibers,
     serving: notice,
     confirmation,
     dispose() {
+      // Close admission synchronously, before observers and any asynchronous cleanup.
+      void assembly.dispose()
       disposal ??= (async () => {
         stopWatching?.()
-        const result = await disposeInReverse(loaded, log, finalization)
+        const result = await disposeInReverse(loaded, log, finalization, assembly)
         const pending = await guard.pending()
         if (pending !== 'clear') {
           const unfinished = [...new Set([...result.unfinished, 'storage-sql' as const])]
@@ -455,4 +444,8 @@ async function assemble(
       return disposal
     },
   }
+  void assembly.stopped
+    .then(() => host.dispose())
+    .catch(() => log.error({ event: 'host-close-observer-failed' }))
+  return host
 }

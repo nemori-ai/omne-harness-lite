@@ -28,6 +28,33 @@ Cordis 不提供跨消费者排空屏障，也不向 dispose 调用者传播 eff
 装配必须先停止并排空消费者，再关闭依赖。该模式不宣称任意强制撤除有跨组件排空保证。
 真实 tenancy-host 与 CLI 必须采用协调器，不能退回该前提逃避组合验收。
 
+### T2 绑定的精确装载坐标
+
+管理版与独立版共享同一纯引擎。管理版额外必需 inject `assemblyLifetime`，
+按本页登记并等待有序关闭；独立版的调用方先排空消费者，再撤除提供者。
+两者是不同的生命周期入口，不是旧包兼容别名。纯根不导出插件。
+
+下表包路径均加 `@omne-harness-lite/` 前缀。插件的 `name` 取表中限定名称。
+本表已由[限定补充采用](../../record/decisions/identity-t2-binding-coordinates/decision.md)接受，
+作为 QA 和实际手写宿主的加载坐标；T4 复用，不再改名。
+
+| 包入口 | 独立导出／name | 管理导出／name |
+|---|---|---|
+| storage-sql/cordis | storageSqlPlugin／storage-sql | managedStorageSqlPlugin／storage-sql-managed |
+| clock-lease/cordis | clockPlugin／clock-lease | managedClockPlugin／clock-lease-managed |
+| credential-verification-scrypt/cordis | credentialsPlugin／credential-verification-scrypt | managedCredentialsPlugin／credential-verification-scrypt-managed |
+| account-identity-sql/cordis | accountIdentityPlugin／account-identity-sql | managedAccountIdentityPlugin／account-identity-sql-managed |
+| organization-governance-sql/cordis | organizationGovernancePlugin／organization-governance-sql | managedOrganizationGovernancePlugin／organization-governance-sql-managed |
+| account-registration-sequential/cordis | registrationPlugin／account-registration-sequential | managedRegistrationPlugin／account-registration-sequential-managed |
+| governance-center-entry-node/cordis | governanceCenterOpsPlugin／governance-center-entry-node-ops | managedGovernanceCenterOpsPlugin／governance-center-entry-node-ops-managed |
+| governance-center-entry-node/cordis | governanceCenterEntryPlugin／governance-center-entry-node | managedGovernanceCenterEntryPlugin／governance-center-entry-node-managed |
+
+管理导出声明 `assemblyLifecycle: 1`。两版使用相同配置 Schema 和原业务依赖。
+`EntryOpening` 是两张网络面的共同必需依赖，两版都检查同一信号；独立版由其装配提供。
+管理版缺少 assemblyLifetime 时不得偷偷退回独立模式，也不把生命周期对象塞回 Config。
+管理版的其他运行资源在 T2 保持已采用的阶段边界，T4 再完成其余 Config→服务切换。
+宿主稳定行 id 表示八个既有职责，不用插件 name 代替；显式映射连接行与具体导出。
+
 ## 公共形状
 
 根的协议不含 Cordis 类型：
@@ -91,6 +118,46 @@ AssemblyCloseReport.complete 只在所有已登记资源都静止且 setup/close
 以新的完整报告合并协议/fiber/端口错误，绝不改写已经返回的协调器报告。
 树的 closed/dispose 返回后一报告；宿主最后另核 guard 和完成回调。
 任何一步仍未结束就不能报告宿主关闭完成。
+
+## 管理绑定的两种就绪
+
+所有 `assemblyLifecycle: 1` 管理导出的 apply 必须同步返回 void，不能返回或等待 setup Promise。
+装配不能仅用 `await fiber` 判资源就绪。一个管理行就绪须同时满足：
+已登记、OwnedWork.ready 成功、实际 fiber ACTIVE、provides 可见且仍有资格。
+手写宿主与后续 loader 的逐行端口实现捕获登记的 ready，立即观察失败，并等待其真正完成。
+该观察只在装配内部，不给行端口增加查询或整体关闭权限。
+
+`assembly-lifecycle/cordis` 增加共用绑定函数：
+
+```ts
+function startAssemblyWork(
+  ctx: Context,
+  setup: () => Promise<void>,
+  close: () => Promise<void>,
+): void
+```
+
+函数必需取得 `assemblyLifetime`。它先创建 ready 占位并 register，再安装同 fiber effect。
+effect 同步 requestStop，并等待 registration.closed，不调用 close。
+只有上述步骤成功才异步调用 setup。setup 前检查本 fiber 尚未撤除以及 lifetime.isCurrent。
+setup 成功返回后再次检查这两个资格，然后才能兑现 ready。
+各提供者在跨 await 后提供 Service 或开放网络之前也须核对本行资格，避免已停止代际重新开放。
+已经取得的资源仍由 close 处理，不从资格失效推断外部效果没有发生。
+
+setup 拒绝、资格失效或 effect 安装失败均拒绝 ready，并 requestStop。
+函数自己立即观察异步任务的拒绝，不向全局留下无人观察的 Promise。
+effect 安装失败时不调用 setup；登记失败则同步抛出使用错误，不创建资源。
+effect 之后的失败通过 ready 与原关闭报告交付，不在 Cordis logger 中再输出原错误文本。
+setup 原异常只进入受控进程内 ready；公共诊断继续只输出安全分类。
+
+close 必须处理任意资源前缀，并等本行业务静止才兑现或拒绝。
+所有资源仍只有这一处实际关闭者。整体关闭顺序、一次接管及不可复用约束不变。
+setup 若失去响应，报告保持 pending；停止资格仍应先失效。
+独立版绑定没有自动获得此组合保证，其调用方排空前提不变。
+
+
+本补差由[启动期投影采用](../../record/decisions/identity-startup-lifecycle/decision.md)接续。
+async apply 的原反例保留，不能作为管理绑定实现。
 
 ## 注册、部分启动与关闭算法
 

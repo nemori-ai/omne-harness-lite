@@ -120,11 +120,11 @@ describe('S-23 发出邀请', () => {
     expect(i1).not.toBe(i2)
     expect(h.events.slice(before)).toEqual([
       {
-        name: 'invitation.issued',
+        name: 'organization-governance/invitation-issued',
         payload: { invitationId: i1, issuer: team.organization, invitedAccount: user.account },
       },
       {
-        name: 'invitation.issued',
+        name: 'organization-governance/invitation-issued',
         payload: { invitationId: i2, issuer: team.organization, invitedAccount: user.account },
       },
     ])
@@ -134,7 +134,7 @@ describe('S-23 发出邀请', () => {
     const h = await boot()
     const team = await teamWith(h)
     const user = await registeredUser(h)
-    h.assembly.ctx.on('invitation.issued', () => {
+    h.assembly.ctx.on('organization-governance/invitation-issued', () => {
       throw new Error('listener exploded')
     })
     const issued = await h.offers.issueInvitation(team.owner, user.account)
@@ -316,9 +316,17 @@ describe('S-25 接受邀请', () => {
         role: 'member',
       },
     ])
-    expect(h.events.filter(e => e.name === 'membership.changed').slice(-2)).toEqual([
-      { name: 'membership.changed', payload: { tenant: member, effective: false } },
-      { name: 'membership.changed', payload: { tenant: member, effective: true } },
+    expect(
+      h.events.filter(e => e.name === 'organization-governance/membership-changed').slice(-2),
+    ).toEqual([
+      {
+        name: 'organization-governance/membership-changed',
+        payload: { tenant: member, effective: false },
+      },
+      {
+        name: 'organization-governance/membership-changed',
+        payload: { tenant: member, effective: true },
+      },
     ])
   })
 })

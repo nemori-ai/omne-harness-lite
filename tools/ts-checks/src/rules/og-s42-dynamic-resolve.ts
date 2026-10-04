@@ -1,3 +1,4 @@
+import { assemblyObservationReferences } from '../assembly-observation.ts'
 import { isTestPath, type Rule, type Violation } from '../rule.ts'
 import {
   ACCOUNT_REGISTRATION,
@@ -13,6 +14,7 @@ const PURGE_KEY = `(?:['"\`](?:organizationPurge|organization-purge)['"\`]|\\bOR
  * `organization-purge` 服务只在 account-registration 解析——`ctx.get(…)`、`resolveOptional(ctx, …)`、
  * `inject: [...]`／`inject: {...}` 与 `ctx.inject([...], …)` 里出现这个服务名（字面量或 `ORGANIZATION_PURGE_SERVICE` 常量）
  * 都算解析；定义它的 organization-governance 自己也不许解析（它只 provide）。
+ * T2 手写宿主只允许不传出服务的 provides 存在性观察；AST 逐处核对，不能按装配目录豁免。
  * 另：`ORGANIZATION_PURGE_SERVICE` 常量出现在 AR 与 OG 之外即报出——经常量解析时字面量规则看不到服务名。
  */
 export const ogS42DynamicResolve: Rule = {
@@ -25,6 +27,7 @@ export const ogS42DynamicResolve: Rule = {
     const out: Violation[] = []
     for (const file of files) {
       if (isTestPath(file.path) || file.path.startsWith(ACCOUNT_REGISTRATION)) continue
+      const observations = assemblyObservationReferences(file)
       const views = viewsOf(file)
       const push = (index: number, message: string) =>
         out.push({ rule: this.id, path: file.path, line: lineAt(file.text, index), message })
@@ -47,6 +50,7 @@ export const ogS42DynamicResolve: Rule = {
         file.path !== `${ORGANIZATION_GOVERNANCE_DEFINITION}src/cordis.ts`
       ) {
         for (const m of codeMatches(views, /\bORGANIZATION_PURGE_SERVICE\b/)) {
+          if (observations.has(m.index)) continue
           push(
             m.index,
             '引用了 ORGANIZATION_PURGE_SERVICE；这个服务名只有注册组合（与定义它的包）用得着',

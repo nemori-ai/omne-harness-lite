@@ -148,7 +148,9 @@ PluginTreeDescription 是 describePluginTree 的安全 DTO，每行只有 positi
 closed 在仍运行时保持未完成；dispose 是取消启动和请求停止的唯一树级入口，不另设 AbortSignal。
 调用方必须保留句柄到 closed；loader 也必须持有全部行 handle 和任务，不因 ready 拒绝丢弃责任。
 
-loader 按准备后的顺序建行端口、调用 ctx.plugin、登记 handle，再等待实际 fiber 就绪。
+loader 按准备后的顺序建行端口、调用 ctx.plugin、登记 handle。
+每行端口捕获本行 OwnedWork.ready；loader 同时等待它成功和实际 fiber 就绪。
+管理 apply 同步返回，fiber ACTIVE 不能单独表示资源准备完成；随后还须核对服务可见与资格。
 每行必须先 register OwnedWork 再产生副作用；未登记、登记失败或 setup 拒绝使 ready 拒绝，
 并立即请求本代停止。未开始后缀不再启动。已登记前缀按 lifetime 的实际 close 处理。
 loader 在行端口登记时就观察 OwnedWork.ready 的失败，不等 Cordis 完成失败卸载后才交付启动错误。

@@ -628,7 +628,7 @@ function unrelated(path: FilePath) {}`,
 })
 
 describe('identity SC-2 账号记录', () => {
-  const path = 'tenancy/account-identity/src/schema.ts'
+  const path = 'tenancy/account-identity-sql/src/schema.ts'
   it('两个AccountId字段（含改名与品牌别名）必红；登录状态引用与合法账号记录不报', () => {
     const source = file(
       path,

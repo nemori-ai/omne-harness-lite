@@ -20,7 +20,7 @@ import {
   type SourceFile,
 } from '../src/index.ts'
 
-const E = 'tenancy/governance-center-entry/'
+const E = 'tenancy/governance-center-entry-node/'
 const file = (path: string, text: string): SourceFile => ({ path, text })
 const events = file(
   `${E}src/events.ts`,
@@ -56,6 +56,11 @@ describe('ops-import-whitelist', () => {
     ['@omne-harness-lite/kernel-basis/testing', 1],
     ['@omne-harness-lite/kernel-basis/unknown', 1],
     ['@omne-harness-lite/storage/cordis', 0],
+    ['@omne-harness-lite/governance-center-entry', 0],
+    ['@omne-harness-lite/governance-center-entry/cordis', 0],
+    ['@omne-harness-lite/governance-center-entry/private', 1],
+    ['@omne-harness-lite/assembly-lifecycle/cordis', 0],
+    ['@omne-harness-lite/assembly-lifecycle/private', 1],
     ['@omne-harness-lite/offer-expiry/cordis', 0],
     ['@omne-harness-lite/storage/cordis/private', 1],
     ['@omne-harness-lite/offer-expiry/cordis/private', 1],
@@ -110,7 +115,7 @@ describe('ops-import-whitelist', () => {
 
   it('入口层包不存在 ⇒ 静默通过；包在而运维面目录或事件声明模块缺席 ⇒ 报布局偏离', () => {
     expect(
-      opsImportWhitelist.check([file('tenancy/account-identity/src/a.ts', "import 'zod'")]),
+      opsImportWhitelist.check([file('tenancy/account-identity-sql/src/a.ts', "import 'zod'")]),
     ).toEqual([])
     const onlyRouting = file(`${E}src/routing/table.ts`, 'export const ROUTES = {}')
     const drift = opsImportWhitelist.check([onlyRouting])
@@ -303,7 +308,7 @@ describe('single-table-entry', () => {
   it('入口层包之外不查', () => {
     expect(
       singleTableEntry.check([
-        file('tenancy/account-identity/src/x.ts', "db.selectFrom('account')"),
+        file('tenancy/account-identity-sql/src/x.ts', "db.selectFrom('account')"),
       ]),
     ).toEqual([])
   })
@@ -416,7 +421,7 @@ describe('no-network-listen-in-tenancy', () => {
   it('入口层包 transport/ops 之外、其他 tenancy 包 ⇒ 导入 node:http/https/net/tls 或 .listen( 报出', () => {
     const inRouting = file(`${E}src/routing/x.ts`, "import { createServer } from 'node:https'")
     const inAi = file(
-      'tenancy/account-identity/src/x.ts',
+      'tenancy/account-identity-sql/src/x.ts',
       "import net from 'net'\nserver.listen(0)",
     )
     const found = noNetworkListenInTenancy.check([inRouting, inAi])
@@ -437,7 +442,10 @@ describe('no-network-listen-in-tenancy', () => {
       "import { createServer } from 'node:http'\nserver.listen(path)",
     )
     const infra = file('infra/storage-sql/src/x.ts', "import net from 'node:net'")
-    const test = file('tenancy/account-identity/tests/x.spec.ts', "import http from 'node:http'")
+    const test = file(
+      'tenancy/account-identity-sql/tests/x.spec.ts',
+      "import http from 'node:http'",
+    )
     expect(noNetworkListenInTenancy.check([transport, ops, infra, test])).toEqual([])
   })
 })
@@ -466,11 +474,11 @@ describe('restricted-call-sites：入口 SC-1 新增的四个方法', () => {
         'async function createPersonal(d, a) {}\nsweepStaleSelections(deps, 1)',
       ),
       file(
-        'tenancy/account-identity/src/accounts.ts',
+        'tenancy/account-identity-sql/src/accounts.ts',
         'async activate(a, w) {}\nasync purge(a, w) {}',
       ),
       file(
-        'tenancy/account-registration/src/register.ts',
+        'tenancy/account-registration-sequential/src/register.ts',
         'await organizations.createPersonal(a)\nawait accounts.activate(a, w)\nawait accounts.purge(a, w)',
       ),
       file(

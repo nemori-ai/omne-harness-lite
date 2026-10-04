@@ -330,18 +330,24 @@ export interface OrganizationGovernanceConfig {
 
 /** 五个通知事件：提交后 `ctx.emit`；不开控制事件、不开扩展点（S-41）。 */
 export interface OrganizationGovernanceEvents {
-  'invitation.issued'(payload: {
+  'organization-governance/invitation-issued'(payload: {
     readonly invitationId: InvitationId
     readonly issuer: OrganizationId
     readonly invitedAccount: AccountId
   }): void
-  'membership.changed'(payload: { readonly tenant: TenantId; readonly effective: boolean }): void
-  'role.changed'(payload: { readonly tenant: TenantId; readonly role: TenantRole }): void
-  'affiliation.dissolved'(payload: {
+  'organization-governance/membership-changed'(payload: {
+    readonly tenant: TenantId
+    readonly effective: boolean
+  }): void
+  'organization-governance/role-changed'(payload: {
+    readonly tenant: TenantId
+    readonly role: TenantRole
+  }): void
+  'organization-governance/affiliation-dissolved'(payload: {
     readonly child: OrganizationId
     readonly formerParent: OrganizationId
   }): void
-  'organization.purged'(payload: {
+  'organization-governance/organization-purged'(payload: {
     readonly organization: OrganizationId
     readonly ownerAccount: AccountId
   }): void
