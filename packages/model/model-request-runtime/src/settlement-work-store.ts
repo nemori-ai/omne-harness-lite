@@ -94,6 +94,34 @@ function validWork(workId: unknown, generation?: unknown): boolean {
   )
 }
 
+function isStagedCurrent(current: unknown): boolean {
+  return (
+    current === null ||
+    (object(current) && typeof current.messageId === 'string' && current.disposition !== undefined)
+  )
+}
+function isStagedCondition(condition: unknown): boolean {
+  return (
+    object(condition) &&
+    (condition.kind === 'unconditional' ||
+      (condition.kind === 'tailEquals' && isJsonNumber(condition.tail)))
+  )
+}
+function matchesStagedRow(
+  row: WorkRow | undefined | null,
+  workId: string,
+  generation: number,
+  text: string,
+): boolean {
+  return (
+    row !== undefined &&
+    row !== null &&
+    row.work_id === workId &&
+    Number(row.generation) === generation &&
+    row.staged === text
+  )
+}
+
 function isStaged(
   value: Record<string, unknown>,
   key: ModelCallSettlementWorkKey,
@@ -105,18 +133,13 @@ function isStaged(
     target.call === key.call &&
     target.response === key.response &&
     isJsonNumber(target.dispatch) &&
-    (current === null ||
-      (object(current) &&
-        typeof current.messageId === 'string' &&
-        current.disposition !== undefined)) &&
+    isStagedCurrent(current) &&
     Array.isArray(entries) &&
     entries.length > 0 &&
     entries.every(
       entry => object(entry) && object(entry.tenant) && Array.isArray(entry.readKeys),
     ) &&
-    object(condition) &&
-    (condition.kind === 'unconditional' ||
-      (condition.kind === 'tailEquals' && isJsonNumber(condition.tail)))
+    isStagedCondition(condition)
   )
 }
 
@@ -142,6 +165,16 @@ function decode(
   return Object.freeze({ workId: row.work_id, generation, owner: row.owner, staged })
 }
 
+function stagedOrOccupied(
+  row: WorkRow | undefined,
+  key: ModelCallSettlementWorkKey,
+  matches: (row: WorkRow) => boolean,
+): Awaited<ReturnType<ModelCallSettlementWorkStore['stage']>> {
+  if (row === undefined) return unavailable
+  if (matches(row)) return { staged: { generation: 1 } }
+  const occupied = decode(row, key)
+  return occupied === undefined ? unavailable : { occupied }
+}
 /**
  * RT12 S-99⑧ staging rows in the same Storage as the call's content and retention rows. Every
  * statement names the exact CallKey and ResponseId; changes also name the work and generation.
@@ -206,12 +239,7 @@ export function createSettlementWorkStore(input: {
       const text = writeJsonLossless(staged)
       const workId = request.workId
       const owner = request.owner
-      const matches = (row: WorkRow | undefined | null) =>
-        row !== undefined &&
-        row !== null &&
-        row.work_id === workId &&
-        Number(row.generation) === 1 &&
-        row.staged === text
+      const matches = (row: WorkRow | undefined | null) => matchesStagedRow(row, workId, 1, text)
       return await owned(async () => {
         let row: WorkRow | undefined
         try {
@@ -230,10 +258,7 @@ export function createSettlementWorkStore(input: {
           if (found === undefined || found === null) return unavailable
           row = found
         }
-        if (row === undefined) return unavailable
-        if (matches(row)) return { staged: { generation: 1 } }
-        const occupied = decode(row, key)
-        return occupied === undefined ? unavailable : { occupied }
+        return stagedOrOccupied(row, key, matches)
       })
     },
     async replace(request) {
@@ -273,14 +298,7 @@ export function createSettlementWorkStore(input: {
           })
         } catch {
           const found = await readRow(key)
-          if (
-            found !== undefined &&
-            found !== null &&
-            found.work_id === workId &&
-            Number(found.generation) === next &&
-            found.staged === text
-          )
-            return { staged: { generation: next } }
+          if (matchesStagedRow(found, workId, next, text)) return { staged: { generation: next } }
           return unavailable
         }
         return outcome === 'replaced' ? { staged: { generation: next } } : { rejected: true }

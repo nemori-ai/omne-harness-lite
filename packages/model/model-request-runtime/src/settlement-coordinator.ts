@@ -12,6 +12,7 @@ import {
   captureModelLogValue,
   inspectSettlementMembers,
   prepareModelLogEntry,
+  type CapturedModelLogValue,
   type ModelLogSettlementCurrent,
   type ModelLogSettlementTarget,
 } from './log-codec.ts'
@@ -25,6 +26,9 @@ import {
   interpretSettlementPrefix,
   interpretRunAtPrefix,
   settlementGenerationCurrent,
+  type SettlementPrefix,
+  type SettlementPrefixResult,
+  type SettlementInterpretation,
 } from './settlement-prefix.ts'
 import type {
   SettlementContention,
@@ -98,6 +102,69 @@ function object(value: unknown): value is JsonObject {
     value !== null && typeof value === 'object' && !Array.isArray(value) && !isJsonNumber(value)
   )
 }
+function validLimits(limits: JsonObject): limits is JsonObject & SettlementContention['limits'] {
+  return !(
+    Object.keys(limits).length !== 4 ||
+    !isNonNegativeJsonInteger(limits.submissions) ||
+    !nonnegative(limits.elapsedMs) ||
+    !isNonNegativeJsonInteger(limits.retainedBytes) ||
+    !isNonNegativeJsonInteger(limits.concurrent) ||
+    ExactDecimal.from(limits.concurrent).compare(ExactDecimal.from(0)) === 0
+  )
+}
+function validRequestCopies(
+  target: ReturnType<typeof copyJsonValue>,
+  current: ReturnType<typeof copyJsonValue>,
+): boolean {
+  return !(
+    'failed' in target ||
+    'failed' in current ||
+    !object(target.ok) ||
+    Object.keys(target.ok).length !== 3 ||
+    (current.ok !== null && (!object(current.ok) || Object.keys(current.ok).length !== 2))
+  )
+}
+function captureRequestMetadata(request: SettlementRequest, candidate: CapturedModelLogValue) {
+  // Candidate metadata cannot change while IO waits.
+  const response = candidate.response
+  if (
+    response === null ||
+    response.id !== request.target.response ||
+    response.call.callId !== request.target.call
+  )
+    return null
+  const projection = response
+  const stableTarget = Object.freeze({
+    call: request.target.call,
+    dispatch: request.target.dispatch,
+    response: request.target.response,
+  })
+  const stableCurrent =
+    request.current === null
+      ? null
+      : Object.freeze({
+          messageId: request.current.messageId,
+          disposition: request.current.disposition,
+        })
+  const staging = request.staging
+  if (staging !== undefined && typeof staging.hold !== 'function') return null
+  return { projection, stableTarget, stableCurrent, staging }
+}
+function decisionWait(decision: ReturnType<SettlementContention['decide']>): JsonNumber | null {
+  const copied = copyJsonValue(decision)
+  if ('failed' in copied || !object(copied.ok)) return null
+  const value = copied.ok
+  if (Object.keys(value).length === 1 && value.stop === true) return null
+  const proceed = value.proceed
+  if (
+    Object.keys(value).length !== 1 ||
+    !object(proceed) ||
+    Object.keys(proceed).length !== 1 ||
+    !nonnegative(proceed.waitMs)
+  )
+    return null
+  return proceed.waitMs
+}
 function capturePolicy(
   input: SettlementCoordinatorInput,
 ): { readonly policy: SettlementContention; readonly scheduler: SettlementScheduler } | null {
@@ -109,12 +176,7 @@ function capturePolicy(
     throw new TypeError('Invalid settlementContention limits')
   const limits = copied.ok
   if (
-    Object.keys(limits).length !== 4 ||
-    !isNonNegativeJsonInteger(limits.submissions) ||
-    !nonnegative(limits.elapsedMs) ||
-    !isNonNegativeJsonInteger(limits.retainedBytes) ||
-    !isNonNegativeJsonInteger(limits.concurrent) ||
-    ExactDecimal.from(limits.concurrent).compare(ExactDecimal.from(0)) === 0 ||
+    !validLimits(limits) ||
     typeof raw.name !== 'string' ||
     !raw.name.trim() ||
     typeof raw.decide !== 'function' ||
@@ -294,40 +356,12 @@ export function createSettlementCoordinator(
     })
     const target = copyJsonValue(request.target),
       current = copyJsonValue(request.current)
-    if (
-      'invalidValue' in captured ||
-      'failed' in target ||
-      'failed' in current ||
-      !object(target.ok) ||
-      Object.keys(target.ok).length !== 3 ||
-      (current.ok !== null && (!object(current.ok) || Object.keys(current.ok).length !== 2))
-    )
+    if ('invalidValue' in captured || !validRequestCopies(target, current))
       return failedHandle('candidate')
-    // Candidate metadata cannot change while IO waits.
     const candidate = captured.ok
-    const response = candidate.response
-    if (
-      response === null ||
-      response.id !== request.target.response ||
-      response.call.callId !== request.target.call
-    )
-      return failedHandle('candidate')
-    const projection = response
-    const stableTarget = Object.freeze({
-      call: request.target.call,
-      dispatch: request.target.dispatch,
-      response: request.target.response,
-    })
-    const stableCurrent =
-      request.current === null
-        ? null
-        : Object.freeze({
-            messageId: request.current.messageId,
-            disposition: request.current.disposition,
-          })
-    const staging = request.staging
-    if (staging !== undefined && typeof staging.hold !== 'function')
-      return failedHandle('candidate')
+    const metadata = captureRequestMetadata(request, candidate)
+    if (metadata === null) return failedHandle('candidate')
+    const { projection, stableTarget, stableCurrent, staging } = metadata
     // Resolve the original retained handle instead of starting a competing writer for it.
     for (const entry of retainedUnknowns)
       if (sameTarget(entry.target, stableTarget)) return resolutionHandle(entry, policy.name)
@@ -396,6 +430,16 @@ export function createSettlementCoordinator(
         .add(ExactDecimal.from(negative(initial)))
         .toJsonNumber()
     }
+    function budgetExceeded(append: boolean): boolean {
+      return (
+        ExactDecimal.from(elapsed()).compare(ExactDecimal.from(policy.limits.elapsedMs)) >= 0 ||
+        ExactDecimal.from(retained).compare(ExactDecimal.from(policy.limits.retainedBytes)) > 0 ||
+        (append &&
+          ExactDecimal.from(counter(submissions)).compare(
+            ExactDecimal.from(policy.limits.submissions),
+          ) >= 0)
+      )
+    }
     function guard(append = false): SettlementUnavailableReason | null {
       if (closed || owner.admission() !== 'open') return 'closed'
       if (controller.signal.aborted) return 'cancelled'
@@ -404,15 +448,7 @@ export function createSettlementCoordinator(
       if (append && (unknownWrites.size !== 0 || owner.unresolvedWrites().length !== 0))
         return 'write_unknown'
       try {
-        if (
-          ExactDecimal.from(elapsed()).compare(ExactDecimal.from(policy.limits.elapsedMs)) >= 0 ||
-          ExactDecimal.from(retained).compare(ExactDecimal.from(policy.limits.retainedBytes)) > 0 ||
-          (append &&
-            ExactDecimal.from(counter(submissions)).compare(
-              ExactDecimal.from(policy.limits.submissions),
-            ) >= 0)
-        )
-          return 'budget'
+        if (budgetExceeded(append)) return 'budget'
       } catch {
         return 'policy'
       }
@@ -438,19 +474,8 @@ export function createSettlementCoordinator(
       } catch {
         return 'policy'
       }
-      const copied = copyJsonValue(decision)
-      if ('failed' in copied || !object(copied.ok)) return 'policy'
-      const value = copied.ok
-      if (Object.keys(value).length === 1 && value.stop === true) return 'policy'
-      const proceed = value.proceed
-      if (
-        Object.keys(value).length !== 1 ||
-        !object(proceed) ||
-        Object.keys(proceed).length !== 1 ||
-        !nonnegative(proceed.waitMs)
-      )
-        return 'policy'
-      const waitMs = proceed.waitMs
+      const waitMs = decisionWait(decision)
+      if (waitMs === null) return 'policy'
       previousWait = waitMs
       if (ExactDecimal.from(waitMs).compare(ExactDecimal.from(0)) === 0) return guard()
       diagnostic('settlement.wait')
@@ -473,6 +498,209 @@ export function createSettlementCoordinator(
       }
       return guard()
     }
+    type PrefixFacts = Extract<SettlementInterpretation, { readonly facts: unknown }>['facts']
+    type Finished = { readonly finished: SettlementResult }
+    function preparePrefix(
+      read: SettlementPrefixResult,
+    ): Finished | { readonly prefix: SettlementPrefix; readonly facts: PrefixFacts } {
+      if ('unavailable' in read) return { finished: unavailable(read.reason) }
+      retained =
+        bytes(candidate.value) + bytes({ entries: read.prefix.entries, tail: read.prefix.tail })
+      const afterRead = guard()
+      if (afterRead !== null) return { finished: unavailable(afterRead) }
+      const interpreted = interpretSettlementPrefix({
+        prefix: read.prefix,
+        target: stableTarget,
+        current: stableCurrent,
+      })
+      if ('unavailable' in interpreted) return { finished: unavailable(interpreted.reason) }
+      const facts = interpreted.facts
+      if ('completeMembers' in facts.members) {
+        diagnostic('settlement.recognized')
+        return { finished: { settled: facts.members.completeMembers, origin: 'recognized' } }
+      }
+      if (unknownWrites.size !== 0 || owner.unresolvedWrites().length !== 0) {
+        diagnostic('settlement.unknown_retained')
+        return { finished: unavailable('write_unknown') }
+      }
+      if (facts.ended !== null) return { finished: unavailable('anchor') }
+      const beforePrepare = guard(true)
+      if (beforePrepare !== null) return { finished: unavailable(beforePrepare) }
+      return { prefix: read.prefix, facts }
+    }
+    function matchesOriginalAttempt(
+      originalAttempt: JsonNumber | undefined,
+      facts: PrefixFacts,
+    ): originalAttempt is JsonNumber {
+      return !(
+        originalAttempt === undefined ||
+        projection.call.runId !== facts.anchors.dispatched.run ||
+        !isJsonNumber(projection.attemptId) ||
+        ExactDecimal.from(projection.attemptId).compare(ExactDecimal.from(originalAttempt)) !== 0
+      )
+    }
+    function prepareRun(
+      prefix: SettlementPrefix,
+      facts: PrefixFacts,
+    ):
+      | Finished
+      | {
+          readonly settlementCandidate: CapturedModelLogValue
+          readonly shell: {
+            readonly tenant: typeof binding.tenant
+            readonly run?: string
+            readonly attempt?: JsonNumber
+          }
+        } {
+      let settlementCandidate = candidate
+      let shell: {
+        readonly tenant: typeof binding.tenant
+        readonly run?: string
+        readonly attempt?: JsonNumber
+      } = { tenant: binding.tenant }
+      if (facts.anchors.dispatched.run !== undefined) {
+        const originalAttempt = facts.anchors.dispatched.attempt
+        if (!matchesOriginalAttempt(originalAttempt, facts))
+          return { finished: unavailable('candidate') }
+        const run = interpretRunAtPrefix({
+          prefix,
+          run: facts.anchors.dispatched.run,
+          attempt: originalAttempt,
+          source: input.run,
+        })
+        if ('unavailable' in run) return { finished: unavailable('run_history_unavailable') }
+        const { late: _originalLate, ...original } = projection
+        const revised = captureModelLogValue({
+          category: 'response',
+          input: {
+            kind: 'value',
+            value: { ...original, ...(run.known.late ? { late: true } : {}) },
+          },
+        })
+        if (!('ok' in revised)) return { finished: unavailable('candidate') }
+        settlementCandidate = revised.ok
+        shell = { tenant: binding.tenant, run: run.known.run, attempt: run.known.latestAttempt }
+      } else if (
+        projection.call.runId !== undefined ||
+        projection.attemptId !== undefined ||
+        projection.late !== undefined
+      )
+        return { finished: unavailable('candidate') }
+      return { settlementCandidate, shell }
+    }
+    function prepareBatch(
+      prefix: SettlementPrefix,
+      facts: PrefixFacts,
+    ):
+      | Finished
+      | {
+          readonly batch: OwnedLogEntry[]
+          readonly condition: AppendCondition
+          readonly complete: SettlementComplete
+        } {
+      const run = prepareRun(prefix, facts)
+      if ('finished' in run) return run
+      const { settlementCandidate, shell } = run
+      const prepared = prepareModelLogEntry({
+        session: binding.session,
+        shell,
+        captured: settlementCandidate,
+        purpose: { kind: 'response' },
+        messagePrefix: facts.messagePrefix,
+      })
+      if (!('ok' in prepared)) return { finished: unavailable('candidate') }
+      const batch: OwnedLogEntry[] = []
+      if (projection.replyDisposition === 'persisted') {
+        const reply = captureModelLogValue({
+          category: 'message',
+          input: { kind: 'value', value: projection.reply },
+        })
+        if (!('ok' in reply)) return { finished: unavailable('candidate') }
+        const message = prepareModelLogEntry({
+          session: binding.session,
+          shell,
+          captured: reply.ok,
+          purpose: { kind: 'persistedMessage', response: settlementCandidate },
+          messagePrefix: facts.messagePrefix,
+        })
+        if (!('ok' in message)) return { finished: unavailable('candidate') }
+        batch.push(message.ok)
+      }
+      batch.push(prepared.ok)
+      const verified = inspectSettlementMembers({
+        mode: 'write',
+        session: binding.session,
+        tenant: binding.tenant,
+        prefix,
+        target: stableTarget,
+        anchors: facts.anchors,
+        current: stableCurrent,
+        candidates: batch,
+      })
+      if (!('completeMembers' in verified)) return { finished: unavailable('members') }
+      retained += bytes(batch)
+      const beforeAppend = guard(true)
+      if (beforeAppend !== null) return { finished: unavailable(beforeAppend) }
+      const condition: AppendCondition =
+        facts.anchors.dispatched.run === undefined
+          ? { kind: 'unconditional' }
+          : { kind: 'tailEquals', tail: prefix.tail }
+      return { batch, condition, complete: verified.completeMembers }
+    }
+    function afterHold(
+      held: Awaited<ReturnType<SettlementStaging['hold']>>,
+    ): SettlementUnavailableReason | null {
+      if (!('held' in held)) {
+        diagnostic('settlement.staging_unavailable')
+        return 'staging'
+      }
+      return guard(true)
+    }
+    function afterAppend(
+      appended: AppendResult,
+      task: SettlementTask<AppendResult>,
+      complete: SettlementComplete,
+    ): Finished | { readonly retry: 'tailChanged' | 'collision' } {
+      if (!('failure' in appended)) {
+        diagnostic('settlement.committed')
+        return { finished: { settled: complete, origin: 'appended' } }
+      }
+      if (appended.failure === 'unavailable') {
+        unknownWrites.add(task)
+        ownUnknownWrites.add(task)
+        diagnostic('settlement.unknown_retained')
+        return { finished: unavailable('write_unknown') }
+      }
+      if (appended.failure === 'alreadyRecorded' || appended.failure === 'tailChanged') {
+        if (appended.failure === 'tailChanged') conflicts++
+        diagnostic(
+          appended.failure === 'tailChanged'
+            ? 'settlement.tail_changed_this'
+            : 'settlement.collision',
+        )
+        const stage = appended.failure === 'tailChanged' ? 'tailChanged' : 'collision'
+        retained = bytes(candidate.value)
+        return { retry: stage }
+      }
+      return { finished: unavailable('log') }
+    }
+    function appendOperation(batch: OwnedLogEntry[], condition: AppendCondition) {
+      return async (signal: AbortSignal): Promise<AppendResult> => {
+        if (
+          signal.aborted ||
+          guard() !== null ||
+          unknownWrites.size !== 0 ||
+          owner.unresolvedWrites().length !== 0
+        )
+          return { failure: 'unavailable' }
+        return await binding.log.append(
+          binding.session,
+          Object.freeze(batch),
+          { kind: 'unfenced' },
+          condition,
+        )
+      }
+    }
     async function advance(): Promise<SettlementResult> {
       diagnostic('settlement.enter')
       let stage: 'initial' | 'tailChanged' | 'collision' = 'initial'
@@ -482,113 +710,11 @@ export function createSettlementCoordinator(
         const beforeRead = guard()
         if (beforeRead !== null) return unavailable(beforeRead)
         const read = await readSettlementPrefix({ binding, registration })
-        if ('unavailable' in read) return unavailable(read.reason)
-        retained =
-          bytes(candidate.value) + bytes({ entries: read.prefix.entries, tail: read.prefix.tail })
-        const afterRead = guard()
-        if (afterRead !== null) return unavailable(afterRead)
-        const interpreted = interpretSettlementPrefix({
-          prefix: read.prefix,
-          target: stableTarget,
-          current: stableCurrent,
-        })
-        if ('unavailable' in interpreted) return unavailable(interpreted.reason)
-        const facts = interpreted.facts
-        if ('completeMembers' in facts.members) {
-          diagnostic('settlement.recognized')
-          return { settled: facts.members.completeMembers, origin: 'recognized' }
-        }
-        if (unknownWrites.size !== 0 || owner.unresolvedWrites().length !== 0) {
-          diagnostic('settlement.unknown_retained')
-          return unavailable('write_unknown')
-        }
-        if (facts.ended !== null) return unavailable('anchor')
-        const beforePrepare = guard(true)
-        if (beforePrepare !== null) return unavailable(beforePrepare)
-        let settlementCandidate = candidate
-        let shell: {
-          readonly tenant: typeof binding.tenant
-          readonly run?: string
-          readonly attempt?: JsonNumber
-        } = { tenant: binding.tenant }
-        if (facts.anchors.dispatched.run !== undefined) {
-          const originalAttempt = facts.anchors.dispatched.attempt
-          if (
-            originalAttempt === undefined ||
-            projection.call.runId !== facts.anchors.dispatched.run ||
-            !isJsonNumber(projection.attemptId) ||
-            ExactDecimal.from(projection.attemptId).compare(ExactDecimal.from(originalAttempt)) !==
-              0
-          )
-            return unavailable('candidate')
-          const run = interpretRunAtPrefix({
-            prefix: read.prefix,
-            run: facts.anchors.dispatched.run,
-            attempt: originalAttempt,
-            source: input.run,
-          })
-          if ('unavailable' in run) return unavailable('run_history_unavailable')
-          const { late: _originalLate, ...original } = projection
-          const revised = captureModelLogValue({
-            category: 'response',
-            input: {
-              kind: 'value',
-              value: { ...original, ...(run.known.late ? { late: true } : {}) },
-            },
-          })
-          if (!('ok' in revised)) return unavailable('candidate')
-          settlementCandidate = revised.ok
-          shell = { tenant: binding.tenant, run: run.known.run, attempt: run.known.latestAttempt }
-        } else if (
-          projection.call.runId !== undefined ||
-          projection.attemptId !== undefined ||
-          projection.late !== undefined
-        )
-          return unavailable('candidate')
-        const prepared = prepareModelLogEntry({
-          session: binding.session,
-          shell,
-          captured: settlementCandidate,
-          purpose: { kind: 'response' },
-          messagePrefix: facts.messagePrefix,
-        })
-        if (!('ok' in prepared)) return unavailable('candidate')
-        const batch: OwnedLogEntry[] = []
-        if (projection.replyDisposition === 'persisted') {
-          const reply = captureModelLogValue({
-            category: 'message',
-            input: { kind: 'value', value: projection.reply },
-          })
-          if (!('ok' in reply)) return unavailable('candidate')
-          const message = prepareModelLogEntry({
-            session: binding.session,
-            shell,
-            captured: reply.ok,
-            purpose: { kind: 'persistedMessage', response: settlementCandidate },
-            messagePrefix: facts.messagePrefix,
-          })
-          if (!('ok' in message)) return unavailable('candidate')
-          batch.push(message.ok)
-        }
-        batch.push(prepared.ok)
-        const verified = inspectSettlementMembers({
-          mode: 'write',
-          session: binding.session,
-          tenant: binding.tenant,
-          prefix: read.prefix,
-          target: stableTarget,
-          anchors: facts.anchors,
-          current: stableCurrent,
-          candidates: batch,
-        })
-        if (!('completeMembers' in verified)) return unavailable('members')
-        retained += bytes(batch)
-        const beforeAppend = guard(true)
-        if (beforeAppend !== null) return unavailable(beforeAppend)
-        const condition: AppendCondition =
-          facts.anchors.dispatched.run === undefined
-            ? { kind: 'unconditional' }
-            : { kind: 'tailEquals', tail: read.prefix.tail }
+        const reading = preparePrefix(read)
+        if ('finished' in reading) return reading.finished
+        const preparedBatch = prepareBatch(reading.prefix, reading.facts)
+        if ('finished' in preparedBatch) return preparedBatch.finished
+        const { batch, condition, complete } = preparedBatch
         if (staging !== undefined) {
           // RT12 S-99⑧: the very batch below is durable before this append may take effect.
           // No earlier append of this request is unresolved here (guard above), so replacing a
@@ -606,33 +732,15 @@ export function createSettlementCoordinator(
           } catch {
             held = { unavailable: true }
           }
-          if (!('held' in held)) {
-            diagnostic('settlement.staging_unavailable')
-            return unavailable('staging')
-          }
-          const afterHold = guard(true)
-          if (afterHold !== null) return unavailable(afterHold)
+          const holdDenied = afterHold(held)
+          if (holdDenied !== null) return unavailable(holdDenied)
         }
         // Keep the exact submitted members, late shell and condition before the first IO.
         originalBatch = Object.freeze({ batch: Object.freeze([...batch]), condition })
         submissions++
         diagnostic('settlement.append')
         let appended: AppendResult
-        const task = registration.start('append', async (signal): Promise<AppendResult> => {
-          if (
-            signal.aborted ||
-            guard() !== null ||
-            unknownWrites.size !== 0 ||
-            owner.unresolvedWrites().length !== 0
-          )
-            return { failure: 'unavailable' }
-          return await binding.log.append(
-            binding.session,
-            Object.freeze(batch),
-            { kind: 'unfenced' },
-            condition,
-          )
-        })
+        const task = registration.start('append', appendOperation(batch, condition))
         try {
           const receipt = settlementAppendReceipt(await task.completion, batch.length)
           if (receipt === null) {
@@ -648,28 +756,9 @@ export function createSettlementCoordinator(
           diagnostic('settlement.unknown_retained')
           return unavailable('write_unknown')
         }
-        if (!('failure' in appended)) {
-          diagnostic('settlement.committed')
-          return { settled: verified.completeMembers, origin: 'appended' }
-        }
-        if (appended.failure === 'unavailable') {
-          unknownWrites.add(task)
-          ownUnknownWrites.add(task)
-          diagnostic('settlement.unknown_retained')
-          return unavailable('write_unknown')
-        }
-        if (appended.failure === 'alreadyRecorded' || appended.failure === 'tailChanged') {
-          if (appended.failure === 'tailChanged') conflicts++
-          diagnostic(
-            appended.failure === 'tailChanged'
-              ? 'settlement.tail_changed_this'
-              : 'settlement.collision',
-          )
-          stage = appended.failure === 'tailChanged' ? 'tailChanged' : 'collision'
-          retained = bytes(candidate.value)
-          continue
-        }
-        return unavailable('log')
+        const outcome = afterAppend(appended, task, complete)
+        if ('finished' in outcome) return outcome.finished
+        stage = outcome.retry
       }
     }
     let finishStopped: (() => void) | undefined
