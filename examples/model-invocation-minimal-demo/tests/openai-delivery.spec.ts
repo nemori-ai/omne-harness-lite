@@ -227,7 +227,8 @@ describe('OpenAI controlled TLS delivery through actual Cordis providers', () =>
           CURRENT_EVALUATION_INPUTS_SERVICE,
         )
         const tenancy: SessionTenancyService = context.get(SESSION_TENANCY_SERVICE)
-        const memberships: MembershipsService = context.get(MEMBERSHIPS_SERVICE)
+        const memberships: MembershipsService | undefined = context.get(MEMBERSHIPS_SERVICE)
+        if (memberships === undefined) throw Error('membership service not ready in fixture')
         const clock = context.get('clock')
         if (
           typeof currentInputs?.read !== 'function' ||
