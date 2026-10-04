@@ -207,11 +207,9 @@ export const governanceCenterOpsPlugin = definePlugin<GovernanceCenterOpsConfig>
   async apply(ctx: Context, config) {
     const logger = ctx.logger('governance-center-ops')
     // inject 保证必需服务已就位；维护扩展仍按原判据核验。
-    const storage: Storage & { readonly maintenance?: SnapshotMaintenance } = ctx.get(
-      STORAGE_SERVICE,
-    ) as Storage & { readonly maintenance?: SnapshotMaintenance }
+    const storage: Storage & { readonly maintenance?: SnapshotMaintenance } = ctx.storage
     if (storage.maintenance === undefined) throw new Error('owned snapshot maintenance is required')
-    const clock: Clock = ctx.get(CLOCK_SERVICE) as Clock
+    const clock: Clock = ctx.clock
     const controller: { status: 'pending' | 'clean' | 'error' } = { status: 'pending' }
     const maintenance = new OnlineMaintenance({
       ...config.maintenance,

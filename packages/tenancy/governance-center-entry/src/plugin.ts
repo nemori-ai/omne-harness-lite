@@ -292,8 +292,8 @@ export const governanceCenterEntryPlugin = definePlugin<GovernanceCenterEntryCon
   async apply(ctx: Context, config) {
     const logger = ctx.logger('governance-center-entry')
     // inject 保证必需服务已就位；AtomicStorage 扩展仍按原判据核验。
-    const clock: Clock = ctx.get(CLOCK_SERVICE) as Clock
-    const storage: AtomicStorage = ctx.get(STORAGE_SERVICE) as StorageService & AtomicStorage
+    const clock: Clock = ctx.clock
+    const storage: AtomicStorage = ctx.storage as StorageService & AtomicStorage
     if (typeof storage.atomic !== 'function') throw new TypeError('entry2 requires AtomicStorage')
     const services: EntryServices = {
       accounts: ctx.get('accounts'),
