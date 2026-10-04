@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Storage } from '@omne-harness-lite/storage'
 import { createAssemblyManifestStore } from './store.ts'
 import type { ManifestOptions, AssemblyManifestService } from './types.ts'

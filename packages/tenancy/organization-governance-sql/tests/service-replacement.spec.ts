@@ -7,7 +7,7 @@ import {
   OFFERS_SERVICE,
   ORGANIZATION_PURGE_SERVICE,
 } from '@omne-harness-lite/organization-governance/cordis'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { organizationGovernancePlugin } from '../src/cordis.ts'
 import { bootOg, registeredUser } from './support.ts'
 

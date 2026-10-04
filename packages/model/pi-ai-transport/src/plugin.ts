@@ -1,5 +1,5 @@
 import type { Plugin } from '@deepseek-ai/cordis'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import { ownDefinitions, type ModelDefinition } from './definitions.ts'
 import {

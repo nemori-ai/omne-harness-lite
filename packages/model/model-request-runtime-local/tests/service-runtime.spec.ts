@@ -1,7 +1,7 @@
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 JSONL 会话日志。
 import { Context } from '@deepseek-ai/cordis'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import { createModelRuntimePlugin, MODEL_RUNTIME_SERVICE } from '../src/service-plugin.ts'
 import { describe, expect, it } from 'vitest'

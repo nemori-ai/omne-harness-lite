@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { definePlugin, fail, isSuccess, succeed } from '../src/index.ts'
+import { fail, isSuccess, succeed } from '../src/index.ts'
+import { definePlugin } from '../src/cordis.ts'
 import { FIBER_STATE, bootAssembly } from '../src/testing/index.ts'
 
 describe('bootAssembly', () => {

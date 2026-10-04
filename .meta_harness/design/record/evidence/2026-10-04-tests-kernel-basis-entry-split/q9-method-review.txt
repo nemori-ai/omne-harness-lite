@@ -1,0 +1,80 @@
+# Q9 的验收方法与必需观察
+
+裁定者：原验收资源冻结者 qa。日期：2026-10-04。
+被判读候选：`c78205b1ce36bdb7db8b80ce6a4380e78b6e4721`。
+BASE：`9f8c09517dccb8f870eeac1ad960650810730f2e`。
+范围：只解释冻结 Q9 的验收方法与结果关系。不判候选通过，不接受交付。
+
+## 裁定
+
+**本切片不要求先修复全 20 成员的历史 w6 验证设施。独立 QA 可以新增驱动，用实际 tarball 完成 Q9 的全部适用观察及相关负控。**
+
+条件是：输入、预期、能力范围、原断言和负控保持；实际消费边界与证据信道保持独立。
+原 w6 失败必须完整保留，单列为未解决验证设施缺陷，不能声称原命令通过或完整 W6 打包验证通过。
+补驱动缺少下表任何适用项时，Q9 仍未完成。设施缺陷归属不能代替缺失证据。
+
+## 冻结依据
+
+`../qa-acceptance/README.md:8` 已明确允许后续独立 QA 在自己的证据目录编写驱动，要求保留清单的输入、预期和负控。
+第 38 行 Q9 的必需结果是：原 103 个具名类型覆盖、kernel 的 root 2 + ./cordis 2、实际打包新增 ./cordis 且保留 ./testing、治理根原四个 IC-4 闭包偏离消除，以及其他未迁偏离继续显示。
+Q9 的“运行方式与证据”列将 w6 与 public-type-surface、dependency-surface、w1 等列为取证入口。
+该列没有将全 20 成员的全部 schema、stream 与历史版本验收并入本切片的业务范围。
+第 70 行仍要求全部适用证据，不能仅以某个新脚本 exit 0 关闭 Q9。
+
+`../brief.md` 的验收范围是 kernel-basis 入口分面、受影响消费者及工具。
+简报明确不修改持久化/模型/Schema，w6 的允许变更是 kernel exports 清单增加 ./cordis。
+因此全 20 成员 w6 是原计划所选的广泛取证方法，其历史设施故障不会自动扩大本切片的产品整改范围。
+也不能反过来把与本切片直接相关的打包、类型或治理闭包故障移出 Q9。
+
+冻结 README 当前 SHA256 为 `ea324d45f54088f5b38af447de9d92f5a1d9f7c5308db2812fdb24438b67eb8c`，与原 `manifest.json` 条目一致。
+本报告新增于原冻结集合之外；不修改原 README、脚本、manifest 或预期。
+
+## 设施失败事实与局限
+
+原始运行证据：`../qa-candidate/evidence/w6-packed.stderr.log`。
+实际失败为 `AssertionError: asset-model: approved exports`，因为 actual 包含 `./schema/connector/v2`，固定清单没有它。
+`tools/core-verification/src/w6-packed-consumer.ts:18` 的清单确实遗漏该路径。
+BASE 与候选的 `packages/core/asset-model/package.json` 都公开该路径；该产品目录在本切片 diff 为空。
+本切片对 w6 源文件的实际变更仅为 kernel 清单增加 ./cordis。
+这些事实支持“原工具与已有公开面不一致”，不支持“候选删除或新增了 asset-model 语义”。
+
+单独增加路径清单也不足以证明全量 w6 已修复。
+`tools/core-verification/fixtures/packed-consumer.mjs:69` 对所有公开 schema 子路径继续套用成员自己的坐标。
+该逻辑对 `./schema/connector/v2` 会要求 `spec/data/asset-model/v3/asset-model.schema.json`。
+实际 Connector 资源的 `$id` 对应 `spec/data/connector/v2/connector.schema.json`。
+这是源码条件与真实资源形成的具体反例。原执行已在打包前断言中止，未实际运行这一后续分支，不能把它报告成第二个实跑失败。
+
+原 w6 是否还存在其他缺陷，本次未验证。补驱动不得声称修复或覆盖整个 W6。
+设施修复若另行开展，应由其开发责任人接手并独立验收，不由本报告修改其清单或 golden。
+
+## Q9 完整覆盖义务
+
+| 义务 | 新驱动或已有独立证据必须包含的结果 | 不能用来替代的证据 |
+|---|---|---|
+| 公开类型身份与数量 | BASE 的原具名类型逐名覆盖，不能仅凑满 103。identity-values 24、offer-expiry 10、kernel root 2、kernel ./cordis 2、storage 27、content-blocks 38。kernel root 精确为 Outcome/Ack，./cordis 精确为 PluginDefinition/FiberStateValue。严格 TS 实际消费这些声明 | 候选自动枚举出的总数、只运行 TS AST 库存、减少原期望数量 |
+| 实际 tarball 与公开入口 | 干净候选构建物打包，记录命令/exit/归档 SHA。tarball 提取或安装后的 kernel root、./cordis、./testing 均经 package exports 实际解析到独立消费者自己的 node_modules；记录真实解析路径、JS/d.ts SHA 与具名出口 | 工作区软链接、直接加载 src/dist 路径、只看 package.json |
+| 根与绑定分面 | 打包根只公开三个函数和两种具名类型。旧四个绑定值及两种绑定类型无根兼容出口。./cordis 的原绑定全部可用；源码、声明和运行闭包按冻结标准保持。相关根类型消费不靠祖先目录依赖掩盖泄漏 | 类型编译成功但未追声明来源、空导入、未观测到导入的 package exports |
+| ./testing 与绑定真实消费 | 从实际 tarball 消费 ./testing 的 bootAssembly/settle/FIBER_STATE 与公开类型；完成既有启动/失败/逆序撤除观察。实际打包 ./cordis 的原生命周期观察可以复用已满足 Q2～4 的独立证据，必须注明同一候选、同一归档及准确证据路径 | 只在 workspace 原测试通过、只成功导入函数、证明保留 exports 键 |
+| 边界负控 | 保留原 Q1/Q2 的 BASE 纯根与缺 ./cordis 负控、root 不再有绑定的 TS/运行结果。若新驱动承担 w6 的 kernel 打包边界项，还必须逐个验证其对应 kernel 非公开路径：src/index.ts、dist/index.js、neighbor、schema、schema/v1、schema/v2、schema/v3、schema/v999。TS 需为路径解析拒绝，Node 需为 ERR_PACKAGE_PATH_NOT_EXPORTED，不能用任意异常、超时或缺依赖代替 | 只跑正例、删负控、把打包消费者写错造成的编译失败计作命中 |
+| 原公开消费者及断言 | 原 w1 正常和 outcome 负控、public-type-surface、dependency-surface、w1 public types 的适用结果完整保留；架构适配 diff 独立逐行核对。正常业务输入及副作用观察可以引用 Q1～8 的有效证据，不要求重复运行，但不得缺项 | 改断言/跳测求绿、仅新增的弱断言、把总退出码当逐项结果 |
+| 治理四个原 IC-4 行 | 生成候选实际视图与 IC 读数，对照 r0。明确原治理根闭包经 kernel fiber-state 的 Context，以及经 plugin 的 Context/Inject/Plugin 四行已消除；源码与声明闭包都有取证。历史 BASE 仍可被 candidate 工具读出，不把解析变 unknown 计作修复 | 四行简单不见、放宽 IC 规则、粗标装配、缺失扫描输入 |
+| 其他偏离与证据追溯 | 完整列出相关读数变化及仍未迁偏离，不隐藏红项。报告逐条关联 Q9 预期、脚本、实际输入、结果、raw、SHA、commit/run_id/verifier/退出码。证明 driver 独立，未改原测试或冻结预期 | 只报“补驱动全绿”、只给截图或 summary、借用不匹配 commit/归档的证据 |
+
+103 类型可由已完成的独立原类型消费者证明身份、数量和使用性，再与打包声明库存逐名/散列对应。
+若某份类型证据仅来自工作区 dist，它仍不能单独证明打包可外部消费；打包驱动必须补实际解析与 TS 使用。
+Q1～8 结果由当前 QA 自己依据机器证据判定。本报告未复验它们，只规定可复用证据的条件。
+
+asset-model 及其他未受影响成员的完整 Schema/版本/闭包与 Stream 业务验收没有被 Q9 新增为本切片义务。
+如果某成员是打包消费者的实际必要依赖，则仍必须在真实依赖闭包中可用；不能用替身替换本次被测包的边界。
+这不等于要求把该成员全部历史业务场景再验一遍。
+
+## 最终报告如何陈述
+
+Q9 的冻结观察全部有有效证据时，当前 QA 可以将 Q9 标记为已验证，并引用补驱动。
+报告仍须列明原 w6 命令失败、已证实的设施缺陷、未执行的全量 W6 部分及后续设施修复责任。
+如全部本切片适用标准完成且没有产品缺陷，可使用 **Pass with issues** 表达尚存的设施问题；不能声称原 w6 或系统级 W6 通过。
+缺少任何本切片必需观察时，根据实际原因使用 Fail 或 Unable to verify，不得以本方法裁定关闭缺口。
+这是验证方法的解释，最终验收判决由当前 QA 根据实际证据给出；技术接受仍归派发者或负责人。
+
+只读核对后，tracked status 干净，分支/HEAD 未变。
+唯一新增文件为本报告。没有改原冻结集合，没有改产品/既有测试，没有启动进程或安装依赖。

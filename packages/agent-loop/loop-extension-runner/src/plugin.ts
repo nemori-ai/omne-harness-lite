@@ -1,4 +1,4 @@
-import { definePlugin, fiberIsActive } from '@omne-harness-lite/kernel-basis'
+import { definePlugin, fiberIsActive } from '@omne-harness-lite/kernel-basis/cordis'
 import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { z } from 'zod'
 import { createLoopExtensionRunner } from './service.ts'

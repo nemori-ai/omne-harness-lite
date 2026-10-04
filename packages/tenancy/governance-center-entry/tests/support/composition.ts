@@ -23,7 +23,7 @@ import {
 import { registrationPlugin } from '@omne-harness-lite/account-registration'
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { type Assembly, bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import { organizationGovernanceMigrations } from '@omne-harness-lite/organization-governance-sql'
 import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'

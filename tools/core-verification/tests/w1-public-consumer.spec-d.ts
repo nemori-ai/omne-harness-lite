@@ -1,6 +1,7 @@
 import { expectTypeOf, test } from 'vitest'
 import { z } from 'zod'
-import { definePlugin, isSuccess, type Ack, type Outcome } from '@omne-harness-lite/kernel-basis'
+import { isSuccess, type Ack, type Outcome } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   type AccountId,
   type LoginIdentifier,

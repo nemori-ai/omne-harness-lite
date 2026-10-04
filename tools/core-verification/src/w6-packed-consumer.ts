@@ -19,7 +19,7 @@ const surfaces: Readonly<Record<string, readonly string[]>> = {
   'call-accounts': ['.', './schema'],
   'content-blocks': ['.', './schema', './schema-runtime', './schema/v2'],
   'identity-values': ['.', './schema'],
-  'kernel-basis': ['.', './testing'],
+  'kernel-basis': ['.', './cordis', './testing'],
   'loop-extension': ['.', './schema', './schema/v2'],
   'mcp-endpoint': ['.', './schema'],
   messages: ['.', './schema', './schema/v2'],

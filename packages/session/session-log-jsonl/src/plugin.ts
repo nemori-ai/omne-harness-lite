@@ -1,4 +1,4 @@
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { isAbsolute } from 'node:path'
 import { z } from 'zod'
 import { applySessionLog } from './plugin-owner.ts'

@@ -2,7 +2,7 @@
 // 全部是真实组合：真实 AI／OG／AR 插件、真实 storage-sql（临时 sqlite 文件）、真实 clock（需要前推时间的用包内替身）；
 // 凭据是真实 credential-verification（测试参数）。
 import { afterEach, describe, expect, it } from 'vitest'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { TERMINAL_OUTCOMES, type TerminalOutcome } from '../src/index.ts'
 import {
   type Composition,

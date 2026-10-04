@@ -3,7 +3,7 @@
 // 插件体只做到「就绪」：端口绑好不受理、中心标识读或铸好、钟可读，然后返回；开门挂在装配传入的 `openSignal` 上。
 import type { Context, Logger } from '@deepseek-ai/cordis'
 import { z } from 'zod'
-import { definePlugin, fiberIsActive } from '@omne-harness-lite/kernel-basis'
+import { definePlugin, fiberIsActive } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Clock, Instant } from '@omne-harness-lite/offer-expiry'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import { readOrMintCenterId } from './center-id/read-or-mint.ts'

@@ -1,7 +1,7 @@
 // storage-sql 插件：config 校验 → 打开（开了升级守卫时走属主路径①～⑦）→ provide('storage')；
 // 撤除（一个 effect）：守卫置为已撤、关准入 → 等在途 → 关句柄 → 恢复未确认的快照 → 放排他。
 import type { Context } from '@deepseek-ai/cordis'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { StorageSqlConfig } from './config.ts'
 import { openStorage } from './open.ts'
 import type { SqlStorage } from './provider.ts'

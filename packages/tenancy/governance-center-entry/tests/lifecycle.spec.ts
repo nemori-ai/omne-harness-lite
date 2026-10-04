@@ -6,7 +6,7 @@ import { createServer as createNetServer, connect as netConnect } from 'node:net
 import { DatabaseSync } from 'node:sqlite'
 import type { Plugin } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import {

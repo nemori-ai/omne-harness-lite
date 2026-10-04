@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { MembershipsService } from '@omne-harness-lite/organization-governance'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy-table'

@@ -2,7 +2,7 @@
 // 并核对 FIBER_STATE 镜像的每个数值与 4.0.4 真实状态一致，包括异步撤除中的 UNLOADING。
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { FIBER_STATE, fiberIsActive } from '../../src/index.ts'
+import { FIBER_STATE, fiberIsActive } from '../../src/cordis.ts'
 import { plugin } from './support.ts'
 
 describe('fiber-state-readable', () => {

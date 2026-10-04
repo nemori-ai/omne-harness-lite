@@ -8,7 +8,7 @@ import {
   type CredentialsService,
 } from '@omne-harness-lite/credential-verification'
 import { isOk, loadVerificationKey } from '@omne-harness-lite/identity-values'
-import { definePlugin, resolveOptional } from '@omne-harness-lite/kernel-basis'
+import { definePlugin, resolveOptional } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Clock, Duration } from '@omne-harness-lite/offer-expiry'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import { AccountsImpl } from './accounts.ts'

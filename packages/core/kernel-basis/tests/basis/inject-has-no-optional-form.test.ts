@@ -3,7 +3,7 @@
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { plugin } from './support.ts'
-import { FIBER_STATE, resolveOptional } from '../../src/index.ts'
+import { FIBER_STATE, resolveOptional } from '../../src/cordis.ts'
 
 describe('inject-has-no-optional-form', () => {
   it('可选读取过滤 PENDING、LOADING 与 UNLOADING，只在提供者 ACTIVE 时返回服务', async () => {

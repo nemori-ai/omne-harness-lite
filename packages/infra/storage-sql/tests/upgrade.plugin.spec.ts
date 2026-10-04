@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
-import { FIBER_STATE, definePlugin } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE, definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import { StorageUnavailable } from '@omne-harness-lite/storage'
 import {

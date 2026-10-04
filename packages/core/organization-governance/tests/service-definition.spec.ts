@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { OrganizationPurge, ORGANIZATION_PURGE_SERVICE } from '../src/cordis.ts'
 import type { OrganizationPurgeService } from '../src/index.ts'
 

@@ -14,7 +14,7 @@ import {
   type ServingNotice,
   governanceCenterPreflight,
 } from '@omne-harness-lite/governance-center-entry'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   SnapshotFailure,
   type MigrationFragment,
