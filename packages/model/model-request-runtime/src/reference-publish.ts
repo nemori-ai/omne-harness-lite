@@ -122,43 +122,89 @@ async function admitMarker(
     prefix,
   })
   if (!('ok' in inspected)) return undefined
-  const sameCall = inspected.ok.filter(
+  const sameCall = recordsForCall(inspected.ok, marker)
+  const priorEntry = priorMarker(sameCall, marker)
+  const prior = priorEntry?.captured.record
+  if (prior !== undefined && prior !== null) return admitPrior(prefix, prior, marker)
+  return marker.kind === 'model_call_created'
+    ? admitCreation(prefix, inspected.ok, sameCall, marker)
+    : admitReply(prefix, inspected.ok, sameCall, marker)
+}
+
+type MarkerIdentity = ReturnType<typeof markerIdentity>
+type PrefixEntries = Extract<
+  ReturnType<typeof inspectCurrentModelLogPrefix>,
+  { readonly ok: unknown }
+>['ok']
+type MarkerRecord = ModelCallCreatedRecord | ModelCallReplyReadyRecord
+
+function recordsForCall(entries: PrefixEntries, marker: MarkerIdentity): PrefixEntries {
+  return entries.filter(
     item =>
       item.captured.record !== null &&
       'call' in item.captured.record &&
       item.captured.record.call === marker.call,
   )
-  const priorEntry = sameCall.find(
+}
+
+function priorMarker(
+  sameCall: PrefixEntries,
+  marker: MarkerIdentity,
+): PrefixEntries[number] | undefined {
+  return sameCall.find(
     item =>
       item.captured.record?.kind === marker.kind &&
       (marker.kind === 'model_call_created' ||
         (item.captured.record.kind === 'model_call_reply_ready' &&
           item.captured.record.response === marker.response)),
   )
-  const prior = priorEntry?.captured.record
-  if (prior !== undefined && prior !== null) {
-    if (prior.kind !== 'model_call_created' && prior.kind !== 'model_call_reply_ready')
-      return undefined
-    if (marker.kind === 'model_call_created' && prior.kind === 'model_call_created')
-      return prior.creationKey === marker.creationKey ? { prefix, prior } : undefined
-    return { prefix, prior }
-  }
-  if (marker.kind === 'model_call_created') {
-    const sameCreation = inspected.ok.some(
-      item =>
-        item.captured.record?.kind === 'model_call_created' &&
-        item.captured.record.creationKey === marker.creationKey,
-    )
-    return sameCall.length !== 0 || sameCreation ? undefined : { prefix, prior: undefined }
-  }
-  const dispatch = sameCall.find(
+}
+
+function admitPrior(
+  prefix: SettlementPrefix,
+  prior: NonNullable<PrefixEntries[number]['captured']['record']>,
+  marker: MarkerIdentity,
+): MarkerAdmission | undefined {
+  if (prior.kind !== 'model_call_created' && prior.kind !== 'model_call_reply_ready')
+    return undefined
+  if (marker.kind === 'model_call_created' && prior.kind === 'model_call_created')
+    return prior.creationKey === marker.creationKey ? { prefix, prior } : undefined
+  return { prefix, prior }
+}
+
+function admitCreation(
+  prefix: SettlementPrefix,
+  entries: PrefixEntries,
+  sameCall: PrefixEntries,
+  marker: Extract<MarkerIdentity, { readonly kind: 'model_call_created' }>,
+): MarkerAdmission | undefined {
+  const sameCreation = entries.some(
     item =>
-      item.captured.record?.kind === 'model_call_dispatched' &&
-      item.captured.record.response === marker.response &&
-      ExactDecimal.from(item.captured.record.dispatch).compare(
-        ExactDecimal.from(marker.dispatch),
-      ) === 0,
+      item.captured.record?.kind === 'model_call_created' &&
+      item.captured.record.creationKey === marker.creationKey,
   )
+  return sameCall.length !== 0 || sameCreation ? undefined : { prefix, prior: undefined }
+}
+
+function matchesDispatch(
+  item: PrefixEntries[number],
+  marker: Extract<MarkerIdentity, { readonly kind: 'model_call_reply_ready' }>,
+): boolean {
+  return (
+    item.captured.record?.kind === 'model_call_dispatched' &&
+    item.captured.record.response === marker.response &&
+    ExactDecimal.from(item.captured.record.dispatch).compare(ExactDecimal.from(marker.dispatch)) ===
+      0
+  )
+}
+
+function admitReply(
+  prefix: SettlementPrefix,
+  entries: PrefixEntries,
+  sameCall: PrefixEntries,
+  marker: Extract<MarkerIdentity, { readonly kind: 'model_call_reply_ready' }>,
+): MarkerAdmission | undefined {
+  const dispatch = sameCall.find(item => matchesDispatch(item, marker))
   if (
     dispatch === undefined ||
     dispatch.entry.run !== marker.run ||
@@ -171,7 +217,7 @@ async function admitMarker(
         // RT12 S-98: an acknowledged call admits no new model-copy publication.
         item.captured.record?.kind === 'model_call_acknowledged',
     ) ||
-    inspected.ok.some(item => item.captured.response?.id === marker.response)
+    entries.some(item => item.captured.response?.id === marker.response)
   )
     return undefined
   return { prefix, prior: undefined }
@@ -187,44 +233,12 @@ async function publishMarker(
   const { binding, content, owner } = input
   const { prefix, prior } = admitted
   const marker = markerIdentity(content)
-  let record: ModelCallCreatedRecord | ModelCallReplyReadyRecord
-  if (marker.kind === 'model_call_created') {
-    if (ref.kind !== 'created') return unavailable
-    record = {
-      kind: marker.kind,
-      call: marker.call,
-      creationKey: marker.creationKey,
-      payload: { ...ref, kind: 'created' },
-      createdAt: input.at,
-    }
-  } else {
-    if (ref.kind !== 'reply_ready') return unavailable
-    record = {
-      kind: marker.kind,
-      call: marker.call,
-      dispatch: marker.dispatch,
-      response: marker.response,
-      payload: { ...ref, kind: 'reply_ready' },
-      readyAt: input.at,
-    }
-  }
+  const record = publicationRecord(marker, ref, input)
+  if (record === undefined) return unavailable
   // The same original marker recognizes only with the very same payload reference.
-  if (prior !== undefined)
-    return modelLogJsonEqual(prior.payload, record.payload) ? { published: true } : unavailable
-  const { run, attempt } = marker
-  const captured = captureModelLogValue({
-    category: 'record',
-    input: { kind: 'value', value: record },
-  })
-  if (!('ok' in captured)) return unavailable
-  const prepared = prepareModelLogEntry({
-    session: binding.session,
-    shell: { tenant: binding.tenant, ...(run === undefined ? {} : { run, attempt }) },
-    captured: captured.ok,
-    purpose: { kind: 'record' },
-    messagePrefix: null,
-  })
-  if (!('ok' in prepared)) return unavailable
+  if (prior !== undefined) return recognizePublication(prior, record, unavailable)
+  const prepared = preparePublication(marker, record, binding)
+  if (prepared === undefined || !('ok' in prepared)) return unavailable
   const grant = owner.acquire(input.concurrent)
   if (!('registration' in grant)) return unavailable
   const registration = grant.registration
@@ -254,10 +268,7 @@ async function publishMarker(
     } catch {
       receipt = null
     }
-    if (
-      started &&
-      (receipt === null || ('failure' in receipt && receipt.failure === 'unavailable'))
-    ) {
+    if (unknownPublication(started, receipt)) {
       retainUnknown(registration, task)
       return unavailable
     }
@@ -268,10 +279,80 @@ async function publishMarker(
       return unavailable
     }
     registration.release()
-    return started && receipt !== null && !('failure' in receipt)
-      ? { published: true }
-      : unavailable
+    return publicationResult(started, receipt, unavailable)
   } finally {
     untrack?.()
   }
+}
+
+function publicationRecord(
+  marker: MarkerIdentity,
+  ref: ModelCallPayloadRef,
+  input: Parameters<typeof publishModelCallContent>[0],
+): MarkerRecord | undefined {
+  if (marker.kind === 'model_call_created') {
+    if (ref.kind !== 'created') return undefined
+    return {
+      kind: marker.kind,
+      call: marker.call,
+      creationKey: marker.creationKey,
+      payload: { ...ref, kind: 'created' },
+      createdAt: input.at,
+    }
+  } else {
+    if (ref.kind !== 'reply_ready') return undefined
+    return {
+      kind: marker.kind,
+      call: marker.call,
+      dispatch: marker.dispatch,
+      response: marker.response,
+      payload: { ...ref, kind: 'reply_ready' },
+      readyAt: input.at,
+    }
+  }
+}
+
+function preparePublication(
+  marker: MarkerIdentity,
+  record: MarkerRecord,
+  binding: SettlementLogBinding,
+): ReturnType<typeof prepareModelLogEntry> | undefined {
+  const { run, attempt } = marker
+  const captured = captureModelLogValue({
+    category: 'record',
+    input: { kind: 'value', value: record },
+  })
+  if (!('ok' in captured)) return undefined
+  return prepareModelLogEntry({
+    session: binding.session,
+    shell: { tenant: binding.tenant, ...(run === undefined ? {} : { run, attempt }) },
+    captured: captured.ok,
+    purpose: { kind: 'record' },
+    messagePrefix: null,
+  })
+}
+
+function unknownPublication(
+  started: boolean,
+  receipt: ReturnType<typeof settlementAppendReceipt>,
+): boolean {
+  return (
+    started && (receipt === null || ('failure' in receipt && receipt.failure === 'unavailable'))
+  )
+}
+
+function publicationResult(
+  started: boolean,
+  receipt: ReturnType<typeof settlementAppendReceipt>,
+  unavailable: { readonly unavailable: true },
+): { readonly published: true } | { readonly unavailable: true } {
+  return started && receipt !== null && !('failure' in receipt) ? { published: true } : unavailable
+}
+
+function recognizePublication(
+  prior: MarkerRecord,
+  record: MarkerRecord,
+  unavailable: { readonly unavailable: true },
+): { readonly published: true } | { readonly unavailable: true } {
+  return modelLogJsonEqual(prior.payload, record.payload) ? { published: true } : unavailable
 }

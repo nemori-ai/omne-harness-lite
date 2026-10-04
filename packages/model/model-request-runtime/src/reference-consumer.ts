@@ -28,6 +28,30 @@ function bucketOf(container: object): Set<Listener> {
   return created
 }
 
+function waitInput(
+  request: Parameters<CallConsumer['wait']>[0],
+): { readonly signal: AbortSignal | undefined } | { readonly result: CallWaitResult } {
+  if (request === null || typeof request !== 'object') return { result: { unavailable: true } }
+  const signal = request.signal
+  if (
+    signal !== undefined &&
+    (typeof signal.aborted !== 'boolean' ||
+      typeof signal.addEventListener !== 'function' ||
+      typeof signal.removeEventListener !== 'function')
+  )
+    return { result: { unavailable: true } }
+  if (signal?.aborted) return { result: { aborted: true } }
+  return { signal }
+}
+
+function hasWaitResult(result: { readonly view: CallReadView }): boolean {
+  return (
+    result.view.acknowledged !== undefined ||
+    result.view.result !== undefined ||
+    result.view.presence.kind !== 'live'
+  )
+}
+
 /** Receiver ownership only. This module has no invocation, cancel, settle or recovery handle. */
 export function createIndependentCallConsumer(options: {
   readonly container: object
@@ -142,6 +166,21 @@ export function createIndependentCallConsumer(options: {
     }
   }
 
+  function readCurrent(): boolean {
+    if (!input.valid() || input.revoked.aborted) {
+      revoked()
+      return false
+    }
+    return true
+  }
+
+  function waitingStatus(signal: AbortSignal | undefined): CallWaitResult | undefined {
+    if (terminal !== undefined) return terminal
+    if (signal?.aborted) return { aborted: true }
+    if (!readCurrent()) return { unavailable: true }
+    return undefined
+  }
+
   return Object.freeze<CallConsumer>({
     stopped,
     release: () => {
@@ -151,16 +190,9 @@ export function createIndependentCallConsumer(options: {
     },
     async wait(request) {
       if (terminal !== undefined) return terminal
-      if (request === null || typeof request !== 'object') return { unavailable: true }
-      const signal = request.signal
-      if (
-        signal !== undefined &&
-        (typeof signal.aborted !== 'boolean' ||
-          typeof signal.addEventListener !== 'function' ||
-          typeof signal.removeEventListener !== 'function')
-      )
-        return { unavailable: true }
-      if (signal?.aborted) return { aborted: true }
+      const captured = waitInput(request)
+      if ('result' in captured) return captured.result
+      const { signal } = captured
       let abort = () => {}
       const aborted = new Promise<CallWaitResult>(resolve => {
         abort = () => resolve({ aborted: true })
@@ -169,12 +201,8 @@ export function createIndependentCallConsumer(options: {
       })
       try {
         for (;;) {
-          if (terminal !== undefined) return terminal
-          if (signal?.aborted) return { aborted: true }
-          if (!input.valid() || input.revoked.aborted) {
-            revoked()
-            return { unavailable: true }
-          }
+          const status = waitingStatus(signal)
+          if (status !== undefined) return status
           const before = revision
           activeReads++
           // A caller's abort stops only this wait; the owned source read is still drained.
@@ -188,17 +216,9 @@ export function createIndependentCallConsumer(options: {
           const result = await Promise.race([reading, closed, aborted])
           if (terminal !== undefined) return terminal
           if (!('view' in result)) return result
-          if (!input.valid() || input.revoked.aborted) {
-            revoked()
-            return { unavailable: true }
-          }
+          if (!readCurrent()) return { unavailable: true }
           // RT12 S-86/S-97: an acknowledged view is final for this handle; never re-read content.
-          if (
-            result.view.acknowledged !== undefined ||
-            result.view.result !== undefined ||
-            result.view.presence.kind !== 'live'
-          )
-            return result
+          if (hasWaitResult(result)) return result
           if (revision !== before) continue
           let wake = () => {}
           const changedResult = new Promise<'changed'>(resolve => {
