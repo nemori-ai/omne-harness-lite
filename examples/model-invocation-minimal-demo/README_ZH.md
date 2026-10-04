@@ -29,13 +29,13 @@ node dist/cli.js --data ../../tmp/my-model-demo --token-margin-multiplier 1.1 --
 
 `node dist/cli.js --help` 列出全部选项。两个 token 余量选项必填，其余选项默认值如下：
 
-| 选项 | 默认值 | 含义 |
-| --- | --- | --- |
-| `--max-output-tokens <n>` | `16384` | 每次响应的输出上限，包含上游计入输出用量的推理 tokens。所选档案仍校验其上限；示例从不截小过大的值。 |
-| `--transport-retirement-wait-ms <n>` | `10000` | 撤除传输贡献时的正整数等待；命令行始终设 `force=false`。等待超时仍保留 owner，不冒称清理完毕。 |
-| `--ipc-max-message-bytes <n>` | `1048576` | 每条完整 IPC 消息的字节上限，父子两端都生效。 |
-| `--ipc-max-commands <n>` | `1` | 主管与 worker 之间待处理 IPC 请求的上限。 |
-| `--key-file <路径>` | 无 | 仅所有者可读（0600）的文件，只含密钥原始字节，不解析 `.env` 格式；末尾一个换行会被忽略。与 `OPENROUTER_API_KEY` 二选一。 |
+| 选项                                 | 默认值    | 含义                                                                                                                     |
+| ------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `--max-output-tokens <n>`            | `16384`   | 每次响应的输出上限，包含上游计入输出用量的推理 tokens。所选档案仍校验其上限；示例从不截小过大的值。                      |
+| `--transport-retirement-wait-ms <n>` | `10000`   | 撤除传输贡献时的正整数等待；命令行始终设 `force=false`。等待超时仍保留 owner，不冒称清理完毕。                           |
+| `--ipc-max-message-bytes <n>`        | `1048576` | 每条完整 IPC 消息的字节上限，父子两端都生效。                                                                            |
+| `--ipc-max-commands <n>`             | `1`       | 主管与 worker 之间待处理 IPC 请求的上限。                                                                                |
+| `--key-file <路径>`                  | 无        | 仅所有者可读（0600）的文件，只含密钥原始字节，不解析 `.env` 格式；末尾一个换行会被忽略。与 `OPENROUTER_API_KEY` 二选一。 |
 
 新对话请使用**尚不存在**的 `--data` 目录；示例以仅所有者可访问的权限创建它。`/exit` 或输入结束后，仍用相同路径继续。既有目录只有在认证会话及耐久日志可读、可对账时才接受；归属未知的未完工作会被拒绝。不要在命令行传密钥值。密钥发布进加密副本之后，正常重启可省略环境变量和 `--key-file`；再次提供密钥会通过真实凭据发布 API 替换。
 
@@ -97,14 +97,14 @@ Closed. Start again with the same --data path to resume.
 
 `createModelRuntime(construction)` 除传输、历史 reader 与政策外，还需要只有宿主才能提供的受信端口。`src/bootstrap.ts` 的 `createAcceptanceApplication` 用真实组件提供它们（不用内存替身，也不发布恒答 `unavailable` 的端口）：
 
-| runtime 输入 | 本示例提供 |
-| --- | --- |
-| `callAccess.check` | `createDemoCallAccess`（`src/call-references.ts`）。每次 `read`、`wait`、`settle`、`cancel` 与 `ack` 都重新核验认证入口捕获的登录状态、有效成员资格和 Session 到租户的持有关系，检查借用的日志绑定与调用的原关联，然后才在带撤权信号的证据下运行准入回调。应用开始关闭时该信号被中止。调用者不能传入 `allowed` 标志。 |
-| `callPresence.read` | `createDemoCallPresence`。只有原容器仍持有执行资源时才报告 `live`；只有容器已释放其精确租约且该 Session 结算 owner 上没有未知写者时，或受覆盖的冷 worker 依据宿主见证的退出证据建成恢复 scope 之后，才报告 `stopped`。登记表为空绝不是停止证明，其余一律 `unknown`。 |
-| `callFacts` | runtime 的 `createModelCallFacts` 与 `createModelCallContentStore`，落在本示例自己的 SQLite 存储上。内容表由 `modelCallContentMigrations('sqlite')` 提供，并入示例的迁移序列。预算来自 `modelRequest.callReferences`（`maxScopes` 与内容的 `maxConcurrentWrites`／`maxContentBytes`）；runtime 不提供默认值。 |
-| `SessionRuntimeBinding.sourceVersions` | 部署期不可变标识：官方清单序号与已部署的官方能力集合。示例没有逐次调用的修订读取器，因此不引用可变路径或档案名。 |
-| `acknowledgementCleanup` | `modelRequest.acknowledgementCleanup` 中显式、有限的重试计划：`createExplicitCleanupSchedule([200, 1_000, 5_000, 30_000])`。它是必填项、没有默认值，可换成任何政策对象。中止一轮不会丢弃耐久的清理责任。 |
-| `openCall` 的 `creationKey` | `deriveCreationKey`：对 Session、用户消息身份及显式 call／Run 坐标做纯哈希，跨进程稳定，绝不是随机值。 |
+| runtime 输入                           | 本示例提供                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `callAccess.check`                     | `createDemoCallAccess`（`src/call-references.ts`）。每次 `read`、`wait`、`settle`、`cancel` 与 `ack` 都重新核验认证入口捕获的登录状态、有效成员资格和 Session 到租户的持有关系，检查借用的日志绑定与调用的原关联，然后才在带撤权信号的证据下运行准入回调。应用开始关闭时该信号被中止。调用者不能传入 `allowed` 标志。 |
+| `callPresence.read`                    | `createDemoCallPresence`。只有原容器仍持有执行资源时才报告 `live`；只有容器已释放其精确租约且该 Session 结算 owner 上没有未知写者时，或受覆盖的冷 worker 依据宿主见证的退出证据建成恢复 scope 之后，才报告 `stopped`。登记表为空绝不是停止证明，其余一律 `unknown`。                                                  |
+| `callFacts`                            | runtime 的 `createModelCallFacts` 与 `createModelCallContentStore`，落在本示例自己的 SQLite 存储上。内容表由 `modelCallContentMigrations('sqlite')` 提供，并入示例的迁移序列。预算来自 `modelRequest.callReferences`（`maxScopes` 与内容的 `maxConcurrentWrites`／`maxContentBytes`）；runtime 不提供默认值。         |
+| `SessionRuntimeBinding.sourceVersions` | 部署期不可变标识：官方清单序号与已部署的官方能力集合。示例没有逐次调用的修订读取器，因此不引用可变路径或档案名。                                                                                                                                                                                                      |
+| `acknowledgementCleanup`               | `modelRequest.acknowledgementCleanup` 中显式、有限的重试计划：`createExplicitCleanupSchedule([200, 1_000, 5_000, 30_000])`。它是必填项、没有默认值，可换成任何政策对象。中止一轮不会丢弃耐久的清理责任。                                                                                                              |
+| `openCall` 的 `creationKey`            | `deriveCreationKey`：对 Session、用户消息身份及显式 call／Run 坐标做纯哈希，跨进程稳定，绝不是随机值。                                                                                                                                                                                                                |
 
 ```ts
 // app.bindModelRuntime(actor, session) 返回的 service 限定在该 Session。
@@ -244,7 +244,7 @@ const app = createAcceptanceApplication(imageConfig, {
 
 每次构造 transport 前先预留一个代际。其注册表只借用绑定本机 collector 与固定 `transport:<generation>` 执行标识的 record 端口；注册与退役事件来自真实注册表，不进入租户日志。确认未取得资源的构造中止会留下代际缺口；状态未知的构造保留其预留。service 的 `inspect()` 把注册表投递失败与丢弃同网络诊断、collector 健康分开报告。当前、构造中、仍存活的旧代际与终态 transport 代际共用一个保留上限（`createDemoDiagnosticConfig` 中为四）；活跃 owner 占满时拒绝新构造。
 
-`openDemo(...).diagnostics.tenant` 与 `.local` 向受信本机宿主提供有界 `query`、`exportPage` 与 `health`。`close()` 先停止业务，再关闭诊断写端，返回 `complete`、`businessComplete`、诊断关闭结果和 transport 健康状态。未完成时保留同一 owner 并重试；关闭后读句柄仍可用。业务关闭后诊断 sink 仍在执行时，结果保持未完成并报告待处理数量。接受、写入、刷盘是不同水位：同步失败不声称已刷盘，也不撤销已持久化的会话回复。`DemoDiagnosticConfig.journalFileSystem` 允许受信程序宿主为日志提供文件系统以做故障注入；命令行没有该选项。诊断墙钟读取 `@omne-harness-lite/clock` 导出的宿主时间源；时钟不可读或倒退时，保留期查询不可用。
+`openDemo(...).diagnostics.tenant` 与 `.local` 向受信本机宿主提供有界 `query`、`exportPage` 与 `health`。`close()` 先停止业务，再关闭诊断写端，返回 `complete`、`businessComplete`、诊断关闭结果和 transport 健康状态。未完成时保留同一 owner 并重试；关闭后读句柄仍可用。业务关闭后诊断 sink 仍在执行时，结果保持未完成并报告待处理数量。接受、写入、刷盘是不同水位：同步失败不声称已刷盘，也不撤销已持久化的会话回复。`DemoDiagnosticConfig.journalFileSystem` 允许受信程序宿主为日志提供文件系统以做故障注入；命令行没有该选项。诊断墙钟读取 `@omne-harness-lite/clock-lease` 导出的宿主时间源；时钟不可读或倒退时，保留期查询不可用。
 
 计量诊断只保存封闭投影：模式、回退、精度、预测与准入 tokens、有符号贡献、安全的 basis 修订及保留的来源前缀摘要，不含 `configuration.values`。collector 的 `planning` 耗时涵盖整个规划边界，不只是 tokenizer 耗时。估算值从不进入累计实际用量或账单。
 
@@ -304,21 +304,21 @@ python3 examples/model-invocation-minimal-demo/tests/pty-check.py
 
 所有测试都使用受控本机 TLS 端点与合成上游响应。它们验证服务组合、耐久历史与账务路径；不认证 tokenizer 精度、effort 映射、缓存保留、私有预处理或真实路由接受。
 
-| 测试文件 | 经授权服务验证的内容 |
-| --- | --- |
-| `tests/call-reference-service.spec.ts` | creation key、`acquireCall`、确认（已结算与只有 ready）、ACK 后带 `retainedResult` 的 `settleReply`、重复处分，以及关闭时撤回访问 |
-| `tests/model-service-settlement.spec.ts`、`tests/model-service-retry-control.spec.ts` | 回复处分、由宿主释放的登记、重试控制，以及已确认 ready 读为 `complete`＋`disposition_pending` |
-| `tests/d6-completion-*.spec.ts` | 关闭归属、sink 隔离与失败、脱敏、HTTP 503，以及 `reply_handoff`／`settlement.committed` 证据 |
-| `tests/deepseek-marginal-service.spec.ts` | 两条 DeepSeek 路由：三轮耐久对话的边际校准，以及零 HTTP 的超限余量拒绝 |
-| `tests/openai-sol-luna-images-service.spec.ts` | GPT-6 Sol／Luna 及对应 Pro（`pi-ai:openai` `mp4-18`，definition 6／7，Pro 为 6）：图片历史、恰好 4 MiB 边界（Sol）、4 MiB + 1 字节的 D-109 准备，以及 token 余量拒绝 |
-| `tests/openai-pro-images-service.spec.ts` | 三个 GPT-5.6 Pro 绑定与 GPT-6 Astra Pro：三轮图片历史，`scope_unknown` 下的全量估算准入 |
-| `tests/openai-output-history-service.spec.ts` | 三个 GPT-5.6 非 Pro 型号：中间回复输出已知、输入用量未知，随后复用锚或全量计量 |
+| 测试文件                                                                                                                                                      | 经授权服务验证的内容                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/call-reference-service.spec.ts`                                                                                                                        | creation key、`acquireCall`、确认（已结算与只有 ready）、ACK 后带 `retainedResult` 的 `settleReply`、重复处分，以及关闭时撤回访问                                         |
+| `tests/model-service-settlement.spec.ts`、`tests/model-service-retry-control.spec.ts`                                                                         | 回复处分、由宿主释放的登记、重试控制，以及已确认 ready 读为 `complete`＋`disposition_pending`                                                                             |
+| `tests/d6-completion-*.spec.ts`                                                                                                                               | 关闭归属、sink 隔离与失败、脱敏、HTTP 503，以及 `reply_handoff`／`settlement.committed` 证据                                                                              |
+| `tests/deepseek-marginal-service.spec.ts`                                                                                                                     | 两条 DeepSeek 路由：三轮耐久对话的边际校准，以及零 HTTP 的超限余量拒绝                                                                                                    |
+| `tests/openai-sol-luna-images-service.spec.ts`                                                                                                                | GPT-6 Sol／Luna 及对应 Pro（`pi-ai:openai` `mp4-18`，definition 6／7，Pro 为 6）：图片历史、恰好 4 MiB 边界（Sol）、4 MiB + 1 字节的 D-109 准备，以及 token 余量拒绝      |
+| `tests/openai-pro-images-service.spec.ts`                                                                                                                     | 三个 GPT-5.6 Pro 绑定与 GPT-6 Astra Pro：三轮图片历史，`scope_unknown` 下的全量估算准入                                                                                   |
+| `tests/openai-output-history-service.spec.ts`                                                                                                                 | 三个 GPT-5.6 非 Pro 型号：中间回复输出已知、输入用量未知，随后复用锚或全量计量                                                                                            |
 | `tests/google-effort-service.spec.ts`、`tests/xai-effort-service.spec.ts`、`tests/zai-prime-effort-service.spec.ts`、`tests/qwen-open-effort-service.spec.ts` | 三轮耐久对话下的请求 effort（Google 与 xAI 为 `low`／`medium`／`high`，Z.ai Prime 为 `low`／`high`／`max`，两个开源 Qwen 叶为 `high`／`max`），以及零 HTTP 的超限余量拒绝 |
-| `tests/qwen-visible-service.spec.ts` | 六个商业 Qwen 叶在各自声明的缓存配置下，每轮全量计量 |
-| `tests/xai-closeout-service.spec.ts`、`tests/moonshot-three-round-service.spec.ts` | xAI 不透明回复的持久化与原样重发；Moonshot 有／无工具的三轮 |
-| `tests/refusal-service.spec.ts` | 拒答文字的提交、关闭重开后的精确回放，以及被宿主取消或停滞时限停止 |
-| `tests/model-transport-service.spec.ts`、`tests/model-hotupdate-integration.spec.ts` | 精确传输贡献、新贡献发布时旧调用排空，以及无法解释配置的 `invalidInput` |
-| `tests/cold-supervisor.spec.ts`、`tests/crash-reopen.spec.ts`、`tests/control-writer-uncertainty.spec.ts`、`tests/response-writer-cold-recovery.spec.ts` | 受管 worker、SIGKILL、崩溃重开、未知控制与响应写者，以及不再发 HTTP 的冷恢复 |
-| `tests/runner-host.spec.ts` | 已认证 runner pass、提醒持久化、重放、关闭后重开与文件系统故障注入 |
+| `tests/qwen-visible-service.spec.ts`                                                                                                                          | 六个商业 Qwen 叶在各自声明的缓存配置下，每轮全量计量                                                                                                                      |
+| `tests/xai-closeout-service.spec.ts`、`tests/moonshot-three-round-service.spec.ts`                                                                            | xAI 不透明回复的持久化与原样重发；Moonshot 有／无工具的三轮                                                                                                               |
+| `tests/refusal-service.spec.ts`                                                                                                                               | 拒答文字的提交、关闭重开后的精确回放，以及被宿主取消或停滞时限停止                                                                                                        |
+| `tests/model-transport-service.spec.ts`、`tests/model-hotupdate-integration.spec.ts`                                                                          | 精确传输贡献、新贡献发布时旧调用排空，以及无法解释配置的 `invalidInput`                                                                                                   |
+| `tests/cold-supervisor.spec.ts`、`tests/crash-reopen.spec.ts`、`tests/control-writer-uncertainty.spec.ts`、`tests/response-writer-cold-recovery.spec.ts`      | 受管 worker、SIGKILL、崩溃重开、未知控制与响应写者，以及不再发 HTTP 的冷恢复                                                                                              |
+| `tests/runner-host.spec.ts`                                                                                                                                   | 已认证 runner pass、提醒持久化、重放、关闭后重开与文件系统故障注入                                                                                                        |
 
 服务、选择、观察端、恢复、确认与校准的映射遵循已接受的 [RT12](../../.meta_harness/design/spec/capabilities/model-request-runtime/v12/contract.md) 与 [MR11](../../.meta_harness/design/spec/data/model-response/v11/contract.md)，校准由 [D107](../../.meta_harness/design/record/decisions/model-input-usage-calibration-adoption/decision.md) 采用，图片准备由 [D-109](../../.meta_harness/design/record/decisions/model-request-image-preparation-adoption/decision.md) 采用；提供者状态见 [runtime realization](../../.meta_harness/design/realization/packages/model/model-request-runtime/README.md)。统一服务装配的真实 OpenRouter PTY 有界证据见 [2026-09-28 示例服务证据](../../.meta_harness/design/record/evidence/2026-09-28-tests-model-invocation-demo-service/README.md)，经本示例服务入口的真实逐叶三轮运行列在 [transport 验证](../../.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md)。命令行的模型切换本身只在受控本机 TLS 与 PTY 检查下验证。

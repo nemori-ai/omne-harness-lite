@@ -13,7 +13,8 @@ import {
   type RegistrationService,
 } from '@omne-harness-lite/account-registration'
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
-import { clockMigrations, clockPlugin } from '@omne-harness-lite/clock'
+import { clockMigrations } from '@omne-harness-lite/clock-lease'
+import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import { organizationGovernanceMigrations } from '@omne-harness-lite/organization-governance-sql'

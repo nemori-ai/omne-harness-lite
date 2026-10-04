@@ -1,5 +1,6 @@
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import type { Context } from '@deepseek-ai/cordis'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { RuntimeContextService } from '@omne-harness-lite/runtime-context/cordis'
 import type {
   RuntimeContextOperations,
@@ -42,10 +43,10 @@ class Provider extends RuntimeContextService {
 }
 export const runtimeContextLocal = definePlugin({
   name: 'runtime-context-local',
-  inject: [SESSION_LOG, SESSION_ACCESS, 'clock'],
+  inject: [SESSION_LOG, SESSION_ACCESS, CLOCK_SERVICE],
   Config: z.object({}).strict(),
   apply(ctx) {
-    const time: unknown = ctx.get('clock')
+    const time: unknown = ctx.get(CLOCK_SERVICE)
     if (!time || typeof time !== 'object' || !('now' in time) || typeof time.now !== 'function')
       throw new TypeError('runtime context requires Clock')
     const clock = time as Clock

@@ -1,3 +1,4 @@
+import ts from 'typescript'
 import { productSourceIn } from '../layout.ts'
 import type { Rule, Violation } from '../rule.ts'
 import { lineAt, resolveRelative } from '../source-text.ts'
@@ -5,6 +6,8 @@ import { syntaxImports, syntaxOf } from '../syntax.ts'
 
 /** 当前已接受节点 design 的依赖表；工具依赖（如 content-blocks 无损写）也明确登记。 */
 export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>> = {
+  storage: [],
+  'offer-expiry': ['identity-values'],
   'organization-governance': ['storage', 'identity-values', 'offer-expiry', 'kernel-basis'],
   // Tool runtime stage 2: m1/b1 accepted signature closure, plus N4 retry ownership.
   'model-request-runtime': [
@@ -180,6 +183,7 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
 }
 
 const BUILTINS: Readonly<Record<string, readonly string[]>> = {
+  storage: ['node:util'],
   // S-17：只规范化显式绝对路径的字面形状，不从 cwd 补齐、也不读文件系统。
   'asset-model': ['node:crypto', 'node:buffer', 'node:path'],
   'arrival-events': ['node:buffer'],
@@ -190,6 +194,8 @@ const BUILTINS: Readonly<Record<string, readonly string[]>> = {
 }
 
 const CORDIS_DEFINITION_OWNERS = new Set([
+  'storage',
+  'offer-expiry',
   'organization-governance',
   'model-request-runtime',
   'asset-evaluation',
@@ -246,6 +252,9 @@ export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
 // D-116 native loading/build assembly: finite technical sites only. This does not
 // grant module loading to value judges or the compiler-free code-runtime.
 const FIXED_SCHEMA_MODULE_SITES = new Set([
+  'core/tool-execution-runtime/src/journal-values.ts',
+  'core/offer-expiry/src/validate.ts',
+  'core/offer-expiry/src/schema-inputs.ts',
   'core/content-blocks/src/schema.ts',
   'core/content-blocks/src/exact-schema.ts',
   'core/content-blocks/src/schema-runtime.ts',
@@ -297,6 +306,8 @@ function allowedExternal(
   if (pkg === 'skill-package' && specifier === '@omne-harness-lite/skill-package/schema/v2')
     return true
   if (SCHEMA_JUDGE_OWNERS.has(pkg) && specifier === `@omne-harness-lite/${pkg}/schema`) return true
+  // tool-runtime/1 is a fixed graph owned by the public journal codec, not a dynamic compiler.
+  if (path === 'core/tool-execution-runtime/src/schema-inputs.ts' && specifier === '@omne-harness-lite/tool-execution-runtime/journal-schema') return true
   if (
     dependencies.some(
       name =>
@@ -310,6 +321,7 @@ function allowedExternal(
     return true
   if (BUILTINS[pkg]?.includes(specifier.startsWith('node:') ? specifier : `node:${specifier}`))
     return true
+  if (pkg === 'storage') return specifier === 'kysely' || specifier === 'kysely/migration'
   // tk1 / core/loop-extension-runner SPEC TLT-3: deterministic SHA-256 at this one codec site.
   // This import allowance does not establish purity of arbitrary crypto calls.
   if (
@@ -324,11 +336,11 @@ function allowedExternal(
   return pkg === 'tool-definition' && specifier === '@eslint-community/regexpp'
 }
 
-/** 一条规则同时承载十五个纯模块边界、SA SC-2 与 AE SC-1 的 import 面。 */
+/** 核对已登记纯模块边界及精确的 Cordis 绑定例外。 */
 export const corePureImports: Rule = {
   id: 'core-pure-imports',
   source:
-    '十五个新 core 节点 design「公开面／依赖」 · stream-assembly SC-2 · asset-evaluation SC-1',
+    'core 节点公开面／依赖 · storage/offer-expiry SPEC · stream-assembly SC-2 · asset-evaluation SC-1',
   description: '纯 core 模块只从节点登记的公开入口、本包源码/Schema 与已采用纯构件导入',
   check(files) {
     const out: Violation[] = []
@@ -350,7 +362,23 @@ export const corePureImports: Rule = {
           ((resolved.startsWith(`core/${pkg}/src/`) &&
             !(CORDIS_DEFINITION_OWNERS.has(pkg) && resolved === `core/${pkg}/src/cordis.ts`)) ||
             (resolved.startsWith(`core/${pkg}/schema/`) && resolved.endsWith('.json')))
+        // Existing APIs use these types without loading a test runner or schema compiler.
+        const boundaryType =
+          ((pkg === 'storage' &&
+          [
+            'core/storage/src/conformance/index.ts',
+            'core/storage/src/conformance/atomic.ts',
+          ].includes(file.path) &&
+          specifier === 'vitest') ||
+            (file.path === 'core/offer-expiry/src/validate.ts' && specifier === 'ajv')) &&
+          syntaxOf(file).statements.some(
+            statement =>
+              ts.isImportDeclaration(statement) &&
+              statement.getStart(syntaxOf(file)) === ref.index &&
+              statement.importClause?.isTypeOnly === true,
+          )
         if (
+          boundaryType ||
           local ||
           (specifier !== undefined && allowedExternal(pkg, dependencies, specifier, file.path))
         )

@@ -13,11 +13,14 @@ This is an experimental, private workspace package, currently not published on n
 | Entry        | Public API                                                  |
 | ------------ | ----------------------------------------------------------- |
 | Package root | `Outcome<T, F>`, `Ack<F>`, `succeed`, `fail`, `isSuccess`   |
-| Package root | `PluginDefinition<C>`, `definePlugin`, `resolveOptional<T>` |
-| Package root | `FIBER_STATE`, `FiberStateValue`, `fiberIsActive`           |
+| `./cordis`   | `PluginDefinition<C>`, `definePlugin`, `resolveOptional<T>` |
+| `./cordis`   | `FIBER_STATE`, `FiberStateValue`, `fiberIsActive`           |
 | `./testing`  | `bootAssembly`, `settle`, assembly types and `FIBER_STATE`  |
 
 Import `Context`, `Fiber` and other Cordis primitives from `@deepseek-ai/cordis` directly. This package does not re-export them or register a service. `Config` accepts Standard Schema v1 validators; the examples use Zod.
+
+The root entry has no Cordis dependency in its source, declarations or runtime imports.
+Use `./cordis` for plugin and Fiber helpers. Their behavior is unchanged.
 
 ## Examples
 
@@ -28,7 +31,7 @@ Each TypeScript example is self-contained and uses the built public exports.
 ```ts
 import { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
-import { definePlugin, fiberIsActive, resolveOptional } from '@omne-harness-lite/kernel-basis'
+import { definePlugin, fiberIsActive, resolveOptional } from '@omne-harness-lite/kernel-basis/cordis'
 
 const greeting = definePlugin({
   name: 'greeting',
@@ -68,7 +71,7 @@ else console.log(result.failure) // unavailable
 
 ```ts
 import { z } from 'zod'
-import { definePlugin, resolveOptional } from '@omne-harness-lite/kernel-basis'
+import { definePlugin, resolveOptional } from '@omne-harness-lite/kernel-basis/cordis'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 
 const plugin = definePlugin({

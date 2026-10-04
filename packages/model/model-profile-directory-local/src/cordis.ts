@@ -1,7 +1,9 @@
+import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { StorageDefect, type AtomicStorage } from '@omne-harness-lite/storage'
 import { invalid, object, parseManifest } from '@omne-harness-lite/model-profile-directory'
@@ -13,8 +15,6 @@ import type { FactoryCredential, MembershipsRead, ModelProfileDirectoryConfig, L
 
 import { ModelCatalogService, ModelCatalogReadService, CredentialLookupService, MODEL_CATALOG, MODEL_CATALOG_READ, CREDENTIAL_LOOKUP, BOUND_CREDENTIAL_REPLICA_READER, MODEL_DIRECTORY_DIAGNOSTICS, FACTORY_MODEL_CREDENTIAL } from '@omne-harness-lite/model-profile-directory/cordis'
 import type { ModelCatalog, ModelCatalogRead } from '@omne-harness-lite/model-profile-directory'
-export const STORAGE_SERVICE = 'storage'
-export const CLOCK_SERVICE = 'clock'
 export const MEMBERSHIPS_SERVICE = 'memberships'
 
 function manifest(value: unknown): value is OfficialManifest {

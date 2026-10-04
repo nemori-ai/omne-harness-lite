@@ -1,10 +1,12 @@
+import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 // 一个插件、一条 fiber；四个 Service 定义由公共包拥有。行为与装卸承诺见 SPEC.md。
 import type { Context } from '@deepseek-ai/cordis'
 import type { z } from 'zod'
 import { OrganizationGovernanceConfigSchema } from './config.ts'
 import { ACCOUNTS_SERVICE, LOGINS_SERVICE } from '@omne-harness-lite/account-identity'
 import { loadSigningKey, unwrap } from '@omne-harness-lite/identity-values'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { StorageDefect, type AtomicStorage } from '@omne-harness-lite/storage'
 import { createMembershipsService } from './memberships.ts'
@@ -19,9 +21,6 @@ import {
   OffersSqlService,
   OrganizationPurgeSqlService,
 } from './provided-services.ts'
-
-export const STORAGE_SERVICE = 'storage' as const
-export const CLOCK_SERVICE = 'clock' as const
 
 type ParsedConfig = z.output<typeof OrganizationGovernanceConfigSchema>
 
@@ -40,7 +39,7 @@ export const organizationGovernancePlugin = definePlugin<ParsedConfig>({
     // 公共定义的模块增补拥有五个事件的签名；
     // TS 不能把泛型 K 下的 Events[K] 与 OrganizationGovernanceEvents[K] 对上，这里只收窄调用形状，不改运行行为
     const emit = ctx.emit.bind(ctx) as (name: string, payload: unknown) => void
-    const storage = ctx.get(STORAGE_SERVICE) as AtomicStorage
+    const storage = ctx.get(STORAGE_SERVICE) as StorageService & AtomicStorage
     if (typeof storage.atomic !== 'function')
       throw new StorageDefect('organization-governance requires AtomicStorage')
     const deps: Deps = {

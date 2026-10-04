@@ -1,0 +1,151 @@
+变异范围：基线 e22311713b1a94d2e54e9976483d2f94f9a12ea6（合并点 e22311713）以来改动碰到的产品源码行；只跑快层（OMNE_TEST_TIER=fast）；提交 a18ed435b
+apps/tenancy-host：变异体 2 个——被杀 2、超时 0、存活 0、无覆盖 0、编译错误 0、运行错误 0；分数 100%
+packages/assets/assembly-manifest-store：变异体 1 个——被杀 0、超时 0、存活 1、无覆盖 0、编译错误 0、运行错误 0；分数 0%
+  存活 packages/assets/assembly-manifest-store/src/plugin.ts:10 ArrayDeclaration（static） `[STORAGE_SERVICE]` → `[]`
+packages/assets/evaluation-input-store：变异体 3 个——被杀 2、超时 0、存活 1、无覆盖 0、编译错误 0、运行错误 0；分数 66.7%
+  存活 packages/assets/evaluation-input-store/src/plugin.ts:16 ArrayDeclaration `[STORAGE_SERVICE, 'memberships', 'sessionTenancy']` → `[]`
+packages/core/offer-expiry：变异体 1 个——被杀 0、超时 0、存活 1、无覆盖 0、编译错误 0、运行错误 0；分数 0%
+  存活 packages/core/offer-expiry/src/cordis.ts:6 StringLiteral `'clock'` → `""`
+packages/core/storage：变异体 1 个——被杀 0、超时 0、存活 1、无覆盖 0、编译错误 0、运行错误 0；分数 0%
+  存活 packages/core/storage/src/cordis.ts:6 StringLiteral `'storage'` → `""`
+packages/infra/clock-lease：变异体 286 个——被杀 153、超时 5、存活 64、无覆盖 64、编译错误 0、运行错误 0；分数 55.2%
+  存活 packages/infra/clock-lease/src/clock.ts:16 StringLiteral `'ClockRollbackDetected'` → `""`
+  存活 packages/infra/clock-lease/src/clock.ts:21 StringLiteral ``wall clock ${wall} is behind the last persisted clock write ${writtenAt}`` → ````
+  存活 packages/infra/clock-lease/src/clock.ts:44 ArrowFunction（static） `() => process.hrtime.bigint()` → `() => undefined`
+  存活 packages/infra/clock-lease/src/clock.ts:63 BlockStatement `{ return error instanceof Error ? error.message : String(error) }` → `{}`
+  存活 packages/infra/clock-lease/src/clock.ts:83 BooleanLiteral `true` → `false`
+  存活 packages/infra/clock-lease/src/clock.ts:102 ObjectLiteral `{ hw: this.#hw, since: w }` → `{}`
+  存活 packages/infra/clock-lease/src/clock.ts:115 ArithmeticOperator `w - this.#behind.since` → `w + this.#behind.since`
+  存活 packages/infra/clock-lease/src/clock.ts:129 ObjectLiteral `{ id: 1 }` → `{}`
+  存活 packages/infra/clock-lease/src/clock.ts:135 ConditionalExpression `existing !== undefined` → `false`
+  存活 packages/infra/clock-lease/src/clock.ts:136 ArithmeticOperator `w + LEASE_WIDTH_MS` → `w - LEASE_WIDTH_MS`
+  存活 packages/infra/clock-lease/src/clock.ts:151 BooleanLiteral `true` → `false`
+  存活 packages/infra/clock-lease/src/clock.ts:166 CallExpression `this.#timer.unref()` → `;`
+  存活 packages/infra/clock-lease/src/clock.ts:171 ConditionalExpression `this.#renewing` → `false`
+  存活 packages/infra/clock-lease/src/clock.ts:172 BooleanLiteral `true` → `false`
+  存活 packages/infra/clock-lease/src/clock.ts:178 OptionalChaining `this.#logger?.error` → `this.#logger.error`
+  存活 packages/infra/clock-lease/src/clock.ts:179 StringLiteral `'clock: lease renewal hit a storage defect; the clock is latched unavailable: %s…` → `""`
+  存活 packages/infra/clock-lease/src/clock.ts:183 OptionalChaining `this.#logger?.warn` → `this.#logger.warn`
+  存活 packages/infra/clock-lease/src/clock.ts:194 ConditionalExpression `this.#timer !== undefined` → `true`
+  存活 packages/infra/clock-lease/src/clock.ts:200 ConditionalExpression `this.#latched` → `false`
+  存活 packages/infra/clock-lease/src/clock.ts:205 ObjectLiteral `{ id: 1 }` → `{}`
+  存活 packages/infra/clock-lease/src/clock.ts:212 ConditionalExpression `(result.numUpdatedRows ?? 0n) > 0n` → `true`
+  存活 packages/infra/clock-lease/src/clock.ts:212 EqualityOperator `(result.numUpdatedRows ?? 0n) > 0n` → `(result.numUpdatedRows ?? 0n) >= 0n`
+  存活 packages/infra/clock-lease/src/clock.ts:214 ConditionalExpression `pushed` → `true`
+  存活 packages/infra/clock-lease/src/clock.ts:217 ConditionalExpression `target > this.#leaseUntil` → `true`
+  存活 packages/infra/clock-lease/src/clock.ts:217 ConditionalExpression `target > this.#leaseUntil` → `false`
+  存活 packages/infra/clock-lease/src/clock.ts:217 EqualityOperator `target > this.#leaseUntil` → `target >= this.#leaseUntil`
+  存活 packages/infra/clock-lease/src/clock.ts:217 EqualityOperator `target > this.#leaseUntil` → `target <= this.#leaseUntil`
+  存活 packages/infra/clock-lease/src/clock.ts:228 ConditionalExpression `this.#timer !== undefined` → `true`
+  存活 packages/infra/clock-lease/src/clock.ts:231 ConditionalExpression `this.#latched` → `false`
+  存活 packages/infra/clock-lease/src/clock.ts:234 ConditionalExpression `mine === 0` → `false`
+  存活 packages/infra/clock-lease/src/clock.ts:239 ObjectLiteral `{ id: 1 }` → `{}`
+  存活 packages/infra/clock-lease/src/clock.ts:247 BlockStatement `{ this.#logger?.warn('clock: reclaiming the lease on dispose failed: %s', descri…` → `{}`
+  存活 packages/infra/clock-lease/src/clock.ts:248 OptionalChaining `this.#logger?.warn` → `this.#logger.warn`
+  存活 packages/infra/clock-lease/src/clock.ts:248 StringLiteral `'clock: reclaiming the lease on dispose failed: %s'` → `""`
+  存活 packages/infra/clock-lease/src/clock.ts:249 CallExpression `this.#onRenewFailure(error)` → `;`
+  存活 packages/infra/clock-lease/src/lease.ts:27 ConditionalExpression `typeof value === 'number'` → `true`
+  存活 packages/infra/clock-lease/src/lease.ts:27 ConditionalExpression `typeof value === 'number'` → `false`
+  存活 packages/infra/clock-lease/src/lease.ts:27 EqualityOperator `typeof value === 'number'` → `typeof value !== 'number'`
+  存活 packages/infra/clock-lease/src/lease.ts:27 StringLiteral `'number'` → `""`
+  存活 packages/infra/clock-lease/src/lease.ts:28 ConditionalExpression `!Number.isSafeInteger(n)` → `false`
+  存活 packages/infra/clock-lease/src/lease.ts:64 StringLiteral（static） `'clock_lease'` → `""`
+  存活 packages/infra/clock-lease/src/plugin.ts:11 StringLiteral（static） `'clock-lease'` → `""`
+  存活 packages/infra/clock-lease/src/plugin.ts:12 ArrayDeclaration（static） `[STORAGE_SERVICE]` → `[]`
+  存活 packages/infra/clock-lease/src/preflight.ts:23 ObjectLiteral `{ ok: true }` → `{}`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:5 ArrayDeclaration（static） `[ { name: 'clock_lease', definition: 'CREATE TABLE "clock_lease" ("id" integer p…` → `[]`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:6 ObjectLiteral（static） `{ name: 'clock_lease', definition: 'CREATE TABLE "clock_lease" ("id" integer pri…` → `{}`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:7 StringLiteral（static） `'clock_lease'` → `""`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:9 StringLiteral（static） `'CREATE TABLE "clock_lease" ("id" integer primary key check (id = 1), "lease_unt…` → `""`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:10 ArrayDeclaration（static） `[ { name: 'id', type: 'INTEGER', notNull: false, primaryKeyPosition: 1, }, { nam…` → `[]`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:11 ObjectLiteral（static） `{ name: 'id', type: 'INTEGER', notNull: false, primaryKeyPosition: 1, }` → `{}`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:12 StringLiteral（static） `'id'` → `""`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:13 StringLiteral（static） `'INTEGER'` → `""`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:14 BooleanLiteral（static） `false` → `true`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:17 ObjectLiteral（static） `{ name: 'lease_until', type: 'bigint', notNull: true, primaryKeyPosition: 0, }` → `{}`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:18 StringLiteral（static） `'lease_until'` → `""`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:19 StringLiteral（static） `'bigint'` → `""`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:20 BooleanLiteral（static） `true` → `false`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:23 ObjectLiteral（static） `{ name: 'written_at', type: 'bigint', notNull: true, primaryKeyPosition: 0, }` → `{}`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:24 StringLiteral（static） `'written_at'` → `""`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:25 StringLiteral（static） `'bigint'` → `""`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:26 BooleanLiteral（static） `true` → `false`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:30 ArrayDeclaration（static） `[]` → `["Stryker was here"]`
+  存活 packages/infra/clock-lease/src/snapshot-structure.ts:31 ArrayDeclaration（static） `[]` → `["Stryker was here"]`
+  存活 packages/infra/clock-lease/src/snapshot.ts:5 ArrowFunction（static） `table => table.name` → `() => undefined`
+  无覆盖 packages/infra/clock-lease/src/clock.ts:140 BlockStatement `{ if (!(error instanceof UniqueViolation)) throw error const raced = await db .s…` → `{}`
+  无覆盖 packages/infra/clock-lease/src/clock.ts:141 BooleanLiteral `!(error instanceof UniqueViolation)` → `error instanceof UniqueViolation`
+  无覆盖 packages/infra/clock-lease/src/clock.ts:141 ConditionalExpression `!(error instanceof UniqueViolation)` → `true`
+  无覆盖 packages/infra/clock-lease/src/clock.ts:141 ConditionalExpression `!(error instanceof UniqueViolation)` → `false`
+  无覆盖 packages/infra/clock-lease/src/clock.ts:145 StringLiteral `'id'` → `""`
+  无覆盖 packages/infra/clock-lease/src/clock.ts:145 StringLiteral `'='` → `""`
+  无覆盖 packages/infra/clock-lease/src/clock.ts:147 ObjectLiteral `{ row: leaseRow(raced), fresh: false }` → `{}`
+  无覆盖 packages/infra/clock-lease/src/clock.ts:147 BooleanLiteral `false` → `true`
+  无覆盖 packages/infra/clock-lease/src/clock.ts:161 BlockStatement `{ this.#latched = true // 启动失败的实例不再答任何时刻 throw error }` → `{}`
+  无覆盖 packages/infra/clock-lease/src/clock.ts:162 BooleanLiteral `true` → `false`
+  无覆盖 packages/infra/clock-lease/src/clock.ts:217 BlockStatement `{ // 行上的界已 ≥ target（另一个写者推得更远）：本实例只认到 target 为止，不冒领对方的租约 this.#leaseUntil = targ…` → `{}`
+  无覆盖 packages/infra/clock-lease/src/lease.ts:28 BlockStatement `{ throw new TypeError(`clock_lease column is not a safe integer: ${String(value)…` → `{}`
+  无覆盖 packages/infra/clock-lease/src/lease.ts:29 StringLiteral ``clock_lease column is not a safe integer: ${String(value)}`` → ````
+  无覆盖 packages/infra/clock-lease/src/lease.ts:54 BlockStatement `{ await db.schema.dropTable(CLOCK_LEASE_TABLE).ifExists().execute() }` → `{}`
+  无覆盖 packages/infra/clock-lease/src/plugin.ts:20 BlockStatement `{ await clock.close() throw error }` → `{}`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:6 BlockStatement `{ const structure = checkSnapshotTables(view, snapshotTables, 'clock-snapshot-st…` → `{}`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:7 StringLiteral `'clock-snapshot-structure'` → `""`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:8 BooleanLiteral `!structure.ok` → `structure.ok`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:8 ConditionalExpression `!structure.ok` → `true`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:8 ConditionalExpression `!structure.ok` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:17 StringLiteral ``SELECT typeof(id) AS idType,typeof(lease_until) AS untilType,typeof(written_at)…` → ````
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:25 OptionalChaining `row?.until` → `row.until`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:26 OptionalChaining `row?.written` → `row.written`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 ConditionalExpression `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTyp…` → `true`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 ConditionalExpression `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTyp…` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 LogicalOperator `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTyp…` → `(rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTy…`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 ConditionalExpression `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTyp…` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 LogicalOperator `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTyp…` → `(rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTy…`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 ConditionalExpression `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTyp…` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 LogicalOperator `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTyp…` → `(rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTy…`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 ConditionalExpression `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTyp…` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 LogicalOperator `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTyp…` → `(rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTy…`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 ConditionalExpression `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTyp…` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 LogicalOperator `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer' || row.untilTyp…` → `(rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer') && row.untilT…`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 ConditionalExpression `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer'` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 LogicalOperator `rows.length !== 1 || row?.id !== '1' || row.idType !== 'integer'` → `(rows.length !== 1 || row?.id !== '1') && row.idType !== 'integer'`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 ConditionalExpression `rows.length !== 1 || row?.id !== '1'` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 LogicalOperator `rows.length !== 1 || row?.id !== '1'` → `rows.length !== 1 && row?.id !== '1'`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 ConditionalExpression `rows.length !== 1` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:28 EqualityOperator `rows.length !== 1` → `rows.length === 1`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:29 ConditionalExpression `row?.id !== '1'` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:29 EqualityOperator `row?.id !== '1'` → `row?.id === '1'`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:29 OptionalChaining `row?.id` → `row.id`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:29 StringLiteral `'1'` → `""`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:30 ConditionalExpression `row.idType !== 'integer'` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:30 EqualityOperator `row.idType !== 'integer'` → `row.idType === 'integer'`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:30 StringLiteral `'integer'` → `""`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:31 ConditionalExpression `row.untilType !== 'integer'` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:31 EqualityOperator `row.untilType !== 'integer'` → `row.untilType === 'integer'`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:31 StringLiteral `'integer'` → `""`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:32 ConditionalExpression `row.writtenType !== 'integer'` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:32 EqualityOperator `row.writtenType !== 'integer'` → `row.writtenType === 'integer'`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:32 StringLiteral `'integer'` → `""`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:33 BooleanLiteral `!Number.isSafeInteger(until)` → `Number.isSafeInteger(until)`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:34 BooleanLiteral `!Number.isSafeInteger(written)` → `Number.isSafeInteger(written)`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:35 ConditionalExpression `written > until` → `false`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:35 EqualityOperator `written > until` → `written >= until`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:35 EqualityOperator `written > until` → `written <= until`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:37 ObjectLiteral `{ ok: false, check: 'clock-snapshot-floor', detail: 'snapshot clock floor is mis…` → `{}`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:38 BooleanLiteral `false` → `true`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:39 StringLiteral `'clock-snapshot-floor'` → `""`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:40 StringLiteral `'snapshot clock floor is missing or malformed'` → `""`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:42 ObjectLiteral `{ ok: true }` → `{}`
+  无覆盖 packages/infra/clock-lease/src/snapshot.ts:42 BooleanLiteral `true` → `false`
+packages/infra/storage-sql：变异体 19 个——被杀 18、超时 0、存活 1、无覆盖 0、编译错误 0、运行错误 0；分数 94.7%
+  存活 packages/infra/storage-sql/src/service-identity.ts:14 BlockStatement `{ // The unit's original mismatch path must poison even if the caller catches th…` → `{}`
+packages/model/model-profile-directory：变异体 0 个——被杀 0、超时 0、存活 0、无覆盖 0、编译错误 0、运行错误 0；分数 —
+packages/model/model-request-runtime-local：变异体 0 个——被杀 0、超时 0、存活 0、无覆盖 0、编译错误 0、运行错误 0；分数 —
+packages/session/session-tenancy-table：变异体 1 个——被杀 0、超时 0、存活 1、无覆盖 0、编译错误 0、运行错误 0；分数 0%
+  存活 packages/session/session-tenancy-table/src/plugin.ts:10 ArrayDeclaration（static） `[STORAGE_SERVICE]` → `[]`
+packages/tenancy/account-identity：变异体 1 个——被杀 1、超时 0、存活 0、无覆盖 0、编译错误 0、运行错误 0；分数 100%
+packages/tenancy/governance-center-entry：变异体 1 个——被杀 1、超时 0、存活 0、无覆盖 0、编译错误 0、运行错误 0；分数 100%
+packages/tenancy/organization-governance-sql：变异体 0 个——被杀 0、超时 0、存活 0、无覆盖 0、编译错误 0、运行错误 0；分数 —
+出错 packages/tools/asset-registry：Stryker 退出码 1，没有写出报告，日志 /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/mutation-final/packages__tools__asset-registry.log
+存活、无覆盖只是线索：判定会抖，要复跑确认；static 变异体只能跑全部测试；没改的代码不在范围内。
+账本与各成员日志：/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/mutation-final

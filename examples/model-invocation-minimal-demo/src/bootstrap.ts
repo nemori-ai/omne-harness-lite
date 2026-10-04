@@ -1,8 +1,9 @@
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
 import { registrationPlugin } from '@omne-harness-lite/account-registration/cordis'
 import { accountIdentityPlugin } from '@omne-harness-lite/account-identity/cordis'
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification/cordis'
-import { clockPlugin } from '@omne-harness-lite/clock/cordis'
+import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
 import { StorageBacking, borrowedStorage as borrowedStoragePlugin } from './borrowed-storage.ts'
 import { controlledModelTransport } from './controlled-model-transport.ts'
 import { TransportTls } from './assembly-inputs.ts'
@@ -183,7 +184,7 @@ import {
   type RegistrationService,
   type TerminalOutcome,
 } from '@omne-harness-lite/account-registration'
-import { clockPreflight } from '@omne-harness-lite/clock'
+import { clockPreflight } from '@omne-harness-lite/clock-lease'
 import {
   createModelReplicaCustodian,
   type ModelReplicaCustodian,
@@ -195,7 +196,7 @@ import {
   type TenantId,
   tenantIdEquals,
 } from '@omne-harness-lite/identity-values'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   type ModelCatalog,
   type ProfileRow,
@@ -1140,7 +1141,7 @@ export function createAcceptanceApplication(
       await load('registration', registrationPlugin, prepared.registration)
       phase = 'clockReady'
       category = 'clockUnavailable'
-      const clock: unknown = context.get('clock')
+      const clock: unknown = context.get(CLOCK_SERVICE)
       if (!clockFace(clock)) throw new Error('acceptance clock absent')
       activeClock = clock
       const deadline = config.wait.monotonicNow() + config.wait.clockTimeoutMs

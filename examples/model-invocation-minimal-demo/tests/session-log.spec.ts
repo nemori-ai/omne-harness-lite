@@ -10,7 +10,7 @@ import { type SessionLog } from '@omne-harness-lite/session-log'
 import { SessionLogService } from '@omne-harness-lite/session-log/cordis'
 import { createSessionTenancyReader } from '@omne-harness-lite/session-tenancy-table'
 import { isOk, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   MEMBERSHIPS_SERVICE,
   OFFERS_SERVICE,

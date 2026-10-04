@@ -12,7 +12,8 @@ import {
   UniqueViolation,
   composedMigrationName,
 } from '@omne-harness-lite/storage'
-import { STORAGE_SERVICE, storageSqlPlugin } from '@omne-harness-lite/storage-sql'
+import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
+import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
 import {
   ACCOUNTS_SERVICE,
   ACCOUNT_ID_COLUMN,
@@ -80,7 +81,7 @@ async function boot(
     assembly,
     accounts: assembly.ctx.get(ACCOUNTS_SERVICE) as AccountsService,
     logins: assembly.ctx.get(LOGINS_SERVICE) as LoginsService,
-    storage: assembly.ctx.get(STORAGE_SERVICE) as StorageInstance,
+    storage: assembly.ctx.get(STORAGE_SERVICE) as StorageService & StorageInstance,
   }
 }
 

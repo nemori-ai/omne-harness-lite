@@ -41,6 +41,7 @@ interface Grant {
   readonly actions: ReadonlySet<CallAccessAction>
   readonly tenant: TenantId
   readonly revoked: AbortController
+  readonly version: string
 }
 
 /**
@@ -59,6 +60,8 @@ export interface HostOptions {
   readonly settlementContention?: SettlementContention
   /** The settlement owner of this runtime's selection; the host default otherwise. */
   readonly owner?: SettlementOwner
+  /** Optional current read authority, independent of the legacy full-facts lookup. */
+  readonly readAccess?: (trusted: CallAccess) => CallAccess
 }
 
 export async function acknowledgementHost(options: HostOptions = {}) {
@@ -72,6 +75,7 @@ export async function acknowledgementHost(options: HostOptions = {}) {
   }
   let nextCall = 0
   let nextResponse = 0
+  let nextGrant = 0
 
   /**
    * One runtime instance over the shared real SQLite Storage and JSONL log: its own selection
@@ -132,6 +136,30 @@ export async function acknowledgementHost(options: HostOptions = {}) {
         return { allowed: await admitted(evidence), evidence }
       },
     }
+    const readAccess = runtimeOptions.readAccess?.({
+      async check(input, admitted) {
+        const grant = grants.get(principal)
+        const held = await host.tenancy.holdingTenant(input.ref.session)
+        if (
+          grant === undefined ||
+          input.action !== 'read' ||
+          input.ref.session !== input.binding.session ||
+          !('tenant' in held) ||
+          !tenantIdEquals(held.tenant, input.binding.tenant) ||
+          !tenantIdEquals(grant.tenant, input.binding.tenant)
+        )
+          return { unavailable: true }
+        const evidence = {
+          action: input.action,
+          ref: input.ref,
+          source: { generation: input.binding.generation, progress: 0 },
+          sourceVersion: grant.version,
+          revoked: grant.revoked.signal,
+        }
+        if (!grant.actions.has('read')) return { denied: true, evidence }
+        return { allowed: await admitted(evidence), evidence }
+      },
+    })
     const bindingWith = (
       sourceVersions: Readonly<Record<string, string>>,
     ): SessionRuntimeBinding => ({
@@ -163,7 +191,12 @@ export async function acknowledgementHost(options: HostOptions = {}) {
     let binding = original
     const construction: RuntimeConstruction<TestPlan, object> = {
       ...ports,
-      callAccess,
+      callAccess: {
+        check: (input, admitted) =>
+          input.action === 'read' && readAccess !== undefined
+            ? readAccess.check(input, admitted)
+            : callAccess.check(input, admitted),
+      },
       maxScopes: 4,
       sessions: { bind: async () => ({ binding }) },
       calls,
@@ -219,6 +252,7 @@ export async function acknowledgementHost(options: HostOptions = {}) {
     }
     const runtime = createModelRuntime(construction)
     return {
+      construction,
       runtime,
       service: runtime.service,
       calls,
@@ -278,11 +312,17 @@ export async function acknowledgementHost(options: HostOptions = {}) {
   }
   function grant(name: string, actions: readonly CallAccessAction[], tenant = host.tenant) {
     const revoked = new AbortController()
-    grants.set(name, { actions: new Set(actions), tenant, revoked })
+    grants.set(name, {
+      actions: new Set(actions),
+      tenant,
+      revoked,
+      version: `read-grant-${++nextGrant}`,
+    })
     return revoked
   }
   return {
     host,
+    construction: primary.construction,
     runtime: primary.runtime,
     service,
     calls: primary.calls,

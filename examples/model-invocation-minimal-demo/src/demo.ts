@@ -29,7 +29,7 @@ import { createDemoConfig, MODEL } from './deployment.ts'
 import type { RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 import type { TenantId } from '@omne-harness-lite/identity-values'
-import { systemTimeSources } from '@omne-harness-lite/clock'
+import { systemTimeSources } from '@omne-harness-lite/clock-lease'
 
 interface LocalState {
   readonly version: 1

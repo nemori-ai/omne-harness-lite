@@ -1,5 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type {
   AfterModelCallFailureSubject,

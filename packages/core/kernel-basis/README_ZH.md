@@ -13,11 +13,13 @@
 | 入口        | 公开 API                                                    |
 | ----------- | ----------------------------------------------------------- |
 | 包根入口    | `Outcome<T, F>`、`Ack<F>`、`succeed`、`fail`、`isSuccess`   |
-| 包根入口    | `PluginDefinition<C>`、`definePlugin`、`resolveOptional<T>` |
-| 包根入口    | `FIBER_STATE`、`FiberStateValue`、`fiberIsActive`           |
+| `./cordis`  | `PluginDefinition<C>`、`definePlugin`、`resolveOptional<T>` |
+| `./cordis`  | `FIBER_STATE`、`FiberStateValue`、`fiberIsActive`           |
 | `./testing` | `bootAssembly`、`settle`、装配类型及 `FIBER_STATE`          |
 
 `Context`、`Fiber` 等 Cordis 原语直接从 `@deepseek-ai/cordis` 导入。本包不重新导出它们，也不注册服务。`Config` 接受 Standard Schema v1 校验器；示例使用 Zod。
+
+根入口的源码、声明和运行导入闭包均不依赖 Cordis。插件与 Fiber 助手从 `./cordis` 导入，行为保持不变。
 
 ## 使用示例
 
@@ -28,7 +30,7 @@
 ```ts
 import { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
-import { definePlugin, fiberIsActive, resolveOptional } from '@omne-harness-lite/kernel-basis'
+import { definePlugin, fiberIsActive, resolveOptional } from '@omne-harness-lite/kernel-basis/cordis'
 
 const greeting = definePlugin({
   name: 'greeting',
@@ -68,7 +70,7 @@ else console.log(result.failure) // unavailable
 
 ```ts
 import { z } from 'zod'
-import { definePlugin, resolveOptional } from '@omne-harness-lite/kernel-basis'
+import { definePlugin, resolveOptional } from '@omne-harness-lite/kernel-basis/cordis'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 
 const plugin = definePlugin({

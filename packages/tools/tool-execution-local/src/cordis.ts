@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import { ToolRuntimeRegistryService, ToolImplementationsService } from '@omne-harness-lite/tool-execution-runtime/cordis'
 import type { ToolRuntimeOperations, ToolImplementationOperations } from '@omne-harness-lite/tool-execution-runtime'

@@ -1,3 +1,10 @@
+## 2026-10-04 公共集成接续
+
+本批共享 Storage/Clock 定义与提供者绑定按[承诺归属表](../../../../architecture/pilots/shared-storage-clock-ownership.md)接续。
+该表及成员旁 SPEC 只取代原公开键、根入口和 raw 发布投影；事务、租约、维护及消费者业务的未迁承诺仍有效。
+旧路径、实现状态和运行结论按下文原日期读取。Clock 当前候选源码改为 `packages/infra/clock-lease`；历史节点保留。
+独立 L3 验收和产品技术接受尚未完成，不以源码改接或设计采用提升状态。
+
 # clock
 
 - kind：`provider`

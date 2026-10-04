@@ -140,9 +140,9 @@ importers:
       '@omne-harness-lite/account-registration':
         specifier: workspace:*
         version: link:../../packages/tenancy/account-registration
-      '@omne-harness-lite/clock':
+      '@omne-harness-lite/clock-lease':
         specifier: workspace:*
-        version: link:../../packages/infra/clock
+        version: link:../../packages/infra/clock-lease
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../../packages/tenancy/credential-verification
@@ -228,9 +228,9 @@ importers:
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../packages/core/call-accounts
-      '@omne-harness-lite/clock':
+      '@omne-harness-lite/clock-lease':
         specifier: workspace:*
-        version: link:../../packages/infra/clock
+        version: link:../../packages/infra/clock-lease
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../packages/core/content-blocks
@@ -416,9 +416,9 @@ importers:
       '@omne-harness-lite/asset-registry-local':
         specifier: workspace:*
         version: link:../../tools/asset-registry-local
-      '@omne-harness-lite/clock':
+      '@omne-harness-lite/clock-lease':
         specifier: workspace:*
-        version: link:../../infra/clock
+        version: link:../../infra/clock-lease
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../../tenancy/credential-verification
@@ -565,9 +565,9 @@ importers:
       '@omne-harness-lite/assembly-manifest-store':
         specifier: workspace:*
         version: link:../assembly-manifest-store
-      '@omne-harness-lite/clock':
+      '@omne-harness-lite/clock-lease':
         specifier: workspace:*
-        version: link:../../infra/clock
+        version: link:../../infra/clock-lease
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../../tenancy/credential-verification
@@ -1229,6 +1229,9 @@ importers:
 
   packages/core/offer-expiry:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../identity-values
@@ -1410,13 +1413,13 @@ importers:
 
   packages/core/storage:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       kysely:
         specifier: 'catalog:'
         version: 0.29.6
     devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: 'catalog:'
-        version: 4.0.4
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1674,7 +1677,7 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
-  packages/infra/clock:
+  packages/infra/clock-lease:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
@@ -1846,9 +1849,9 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@omne-harness-lite/clock':
+      '@omne-harness-lite/clock-lease':
         specifier: workspace:*
-        version: link:../../infra/clock
+        version: link:../../infra/clock-lease
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
         version: link:../../core/organization-governance
@@ -1949,9 +1952,9 @@ importers:
       '@omne-harness-lite/asset-registry-local':
         specifier: workspace:*
         version: link:../../tools/asset-registry-local
-      '@omne-harness-lite/clock':
+      '@omne-harness-lite/clock-lease':
         specifier: workspace:*
-        version: link:../../infra/clock
+        version: link:../../infra/clock-lease
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../../tenancy/credential-verification
@@ -2255,9 +2258,9 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@omne-harness-lite/clock':
+      '@omne-harness-lite/clock-lease':
         specifier: workspace:*
-        version: link:../../infra/clock
+        version: link:../../infra/clock-lease
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../credential-verification

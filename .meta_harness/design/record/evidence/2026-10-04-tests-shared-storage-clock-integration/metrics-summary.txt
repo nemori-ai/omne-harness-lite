@@ -1,0 +1,8 @@
+结构度量 a18ed435b · 分支 panqiwei/identity-model-r1-t1b · 基线 e22311713b1a94d2e54e9976483d2f94f9a12ea6（函数变化 merge-base e22311713b1a94d2e54e9976483d2f94f9a12ea6）
+范围：变更 18 个成员、42 个函数；提交 3 个，每提交文件数中位 3、最大 105
+结构：方向违规 0，环 0，已登记例外 1，变更触及的跨成员导入 24 条；成员风险 红 20、黄 9、绿 17
+圈复杂度（warn 10／alert 12）：变更函数超 alert 1、超 warn 0；存量超 alert 268、超 warn 277
+覆盖率：未开启，只报圈复杂度
+变更函数里超阈值的前 1 个：
+  examples/model-invocation-minimal-demo/src/bootstrap.ts:996 createAcceptanceApplication.start CC 47
+审讯页：/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/metrics-final/review.html

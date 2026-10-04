@@ -1,6 +1,6 @@
 import { isActionDispatch } from './action-request.ts'
 import type { Context } from '@deepseek-ai/cordis'
-import { definePlugin, fiberIsActive } from '@omne-harness-lite/kernel-basis'
+import { definePlugin, fiberIsActive } from '@omne-harness-lite/kernel-basis/cordis'
 import { SESSION_LOG } from '@omne-harness-lite/session-log/cordis'
 import { SESSION_ACCESS } from '@omne-harness-lite/session-tenancy/cordis'
 import { ToolAdmissionPassSourceService } from '@omne-harness-lite/tool-admission/cordis'

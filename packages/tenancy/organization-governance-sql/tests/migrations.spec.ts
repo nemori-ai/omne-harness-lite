@@ -10,7 +10,8 @@ import {
   UniqueViolation,
   composedMigrationName,
 } from '@omne-harness-lite/storage'
-import { NodeSqliteDialect, openStorage, storageSqlPlugin } from '@omne-harness-lite/storage-sql'
+import { NodeSqliteDialect, openStorage } from '@omne-harness-lite/storage-sql'
+import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
 import {
   OG_TABLES,
   organizationGovernanceMigrations,

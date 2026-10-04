@@ -1,4 +1,6 @@
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 // account-identity 插件：一条 fiber、两个服务面。必需 inject `storage`、`clock`；`credentials` 是可选依赖，调用时解析——
 // 认证换代时本插件不重跑，治理不受波及（节点设计「S-15 归本节点，credentials 作可选依赖、在调用时解析」）。
 // 无连接池/后台任务；消费者须排空含事务外凭据准备的业务后撤除，不能以运输连接关闭代替业务静止。
@@ -9,7 +11,7 @@ import {
   type CredentialsService,
 } from '@omne-harness-lite/credential-verification'
 import { isOk, loadVerificationKey } from '@omne-harness-lite/identity-values'
-import { definePlugin, resolveOptional } from '@omne-harness-lite/kernel-basis'
+import { definePlugin, resolveOptional } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Clock, Duration } from '@omne-harness-lite/offer-expiry'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import { AccountsImpl } from './accounts.ts'
@@ -45,7 +47,7 @@ export const AccountIdentityConfigSchema: z.ZodType<AccountIdentityConfig, unkno
 
 export const accountIdentityPlugin = definePlugin<AccountIdentityConfig>({
   name: 'account-identity',
-  inject: ['storage', 'clock'],
+  inject: [STORAGE_SERVICE, CLOCK_SERVICE],
   Config: AccountIdentityConfigSchema,
   apply(ctx: Context, config) {
     const activationKey = loadVerificationKey(config.activationVerificationKeyPem)
@@ -54,13 +56,13 @@ export const accountIdentityPlugin = definePlugin<AccountIdentityConfig>({
       // config 校验已挡住；到这里说明校验与装载不一致，按启动失败处理
       throw new Error('account-identity: verification keys failed to load after validation')
     }
-    const storage = ctx.get('storage') as AtomicStorage
+    const storage = ctx.get(STORAGE_SERVICE) as StorageService & AtomicStorage
     if (typeof storage.atomic !== 'function')
       throw new Error('account-identity: explicit atomic storage is required')
     const diagnostics = loggerDiagnostics(ctx.logger('account-identity'))
     const deps: ServiceDeps = {
       storage,
-      clock: ctx.get('clock') as Clock,
+      clock: ctx.get(CLOCK_SERVICE) as Clock,
       resolveCredentials: () => resolveOptional<CredentialsService>(ctx, CREDENTIALS_SERVICE),
       credentialPolicy: config.credentialPolicy,
       unactivatedRetention: config.unactivatedRetention,

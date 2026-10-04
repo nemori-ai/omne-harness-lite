@@ -1,4 +1,4 @@
-# @omne-harness-lite/clock
+# @omne-harness-lite/clock-lease
 
 [中文](README_ZH.md)
 
@@ -17,15 +17,15 @@ for the Node and pnpm toolchain. The provider uses the shared
 
 ## Public API
 
-| Purpose                    | Exports                                                                                  |
-| -------------------------- | ---------------------------------------------------------------------------------------- |
-| Direct provider            | `LeaseClock`, `LeaseClockOptions`, `ClockLogger`                                         |
-| Time-source injection      | `TimeSources`, `systemTimeSources`                                                       |
-| Startup rollback detection | `ClockRollbackDetected`, `isRolledBack`                                                  |
-| Owned schema               | `clockMigrations`, `clockLeaseMigration`, `CLOCK_LEASE_TABLE`, `ClockLeaseTable`         |
-| Lease settings             | `LEASE_WIDTH_MS` (10,000), `RENEW_PERIOD_MS` (3,333)                                     |
-| Cordis integration         | `clockPlugin`, `ClockConfig`, `CLOCK_SERVICE` (`'clock'`)                                |
-| Read-only validation       | `clockPreflight`, `CLOCK_PREFLIGHT_CHECK`, `clockSnapshotCheck`, `CLOCK_SNAPSHOT_TABLES` |
+| Purpose                    | Exports                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Direct provider            | `LeaseClock`, `LeaseClockOptions`, `ClockLogger`                                                      |
+| Time-source injection      | `TimeSources`, `systemTimeSources`                                                                    |
+| Startup rollback detection | `ClockRollbackDetected`, `isRolledBack`                                                               |
+| Owned schema               | `clockMigrations`, `clockLeaseMigration`, `CLOCK_LEASE_TABLE`, `ClockLeaseTable`                      |
+| Lease settings             | `LEASE_WIDTH_MS` (10,000), `RENEW_PERIOD_MS` (3,333)                                                  |
+| Cordis integration         | `clockPlugin` (`./cordis`), `ClockConfig` (root), `CLOCK_SERVICE` (`offer-expiry/cordis`) (`'clock'`) |
+| Read-only validation       | `clockPreflight`, `CLOCK_PREFLIGHT_CHECK`, `clockSnapshotCheck`, `CLOCK_SNAPSHOT_TABLES`              |
 
 ## Use the provider with a controlled time source
 
@@ -39,7 +39,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { LeaseClock, clockMigrations, type TimeSources } from '@omne-harness-lite/clock'
+import { LeaseClock, clockMigrations, type TimeSources } from '@omne-harness-lite/clock-lease'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import { openStorage, type SqlStorage } from '@omne-harness-lite/storage-sql'
 
@@ -89,10 +89,13 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
-import { CLOCK_SERVICE, clockMigrations, clockPlugin } from '@omne-harness-lite/clock'
+import { clockMigrations } from '@omne-harness-lite/clock-lease'
+import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { composeMigrations } from '@omne-harness-lite/storage'
-import { createUpgradeGuard, storageSqlPlugin } from '@omne-harness-lite/storage-sql'
+import { createUpgradeGuard } from '@omne-harness-lite/storage-sql'
+import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
 
 const directory = await mkdtemp(join(tmpdir(), 'omne-clock-plugin-example-'))
 const ctx = new Context()

@@ -2,9 +2,9 @@
 // I-7、I-8、I-10 用真实 clock 插件；I-6 用时间替身。真实组合，含真实 credential-verification。
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { LEASE_WIDTH_MS } from '@omne-harness-lite/clock'
+import { LEASE_WIDTH_MS } from '@omne-harness-lite/clock-lease'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   AccountRegistrationConfigSchema,
   TERMINAL_OUTCOMES,

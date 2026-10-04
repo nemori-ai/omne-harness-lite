@@ -37,7 +37,7 @@
     "@omne-harness-lite/asset-model": "workspace:*",
     "@omne-harness-lite/asset-registry": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
-    "@omne-harness-lite/clock": "workspace:*",
+    "@omne-harness-lite/clock-lease": "workspace:*",
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/credential-custodian-local": "workspace:*",
     "@omne-harness-lite/credential-verification": "workspace:*",

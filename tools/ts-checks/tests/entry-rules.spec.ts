@@ -51,6 +51,19 @@ describe('ops-import-whitelist', () => {
     expect(opsImportWhitelist.check([events, cleanOps])).toEqual([])
   })
 
+  it.each([
+    ['@omne-harness-lite/kernel-basis/cordis', 0],
+    ['@omne-harness-lite/kernel-basis/testing', 1],
+    ['@omne-harness-lite/kernel-basis/unknown', 1],
+    ['@omne-harness-lite/storage/cordis', 0],
+    ['@omne-harness-lite/offer-expiry/cordis', 0],
+    ['@omne-harness-lite/storage/cordis/private', 1],
+    ['@omne-harness-lite/offer-expiry/cordis/private', 1],
+  ])('kernel 子入口按精确路径判断：%s', (specifier, violations) => {
+    const input = file(`${E}src/ops/binding.ts`, `import { helper } from '${specifier}'`)
+    expect(opsImportWhitelist.check([events, cleanOps, input])).toHaveLength(violations)
+  })
+
   it('运维面导入治理包、本包别处、第三方、白名单包的子入口、动态说明符 ⇒ 逐条报出', () => {
     const bad = file(
       `${E}src/ops/bad.ts`,

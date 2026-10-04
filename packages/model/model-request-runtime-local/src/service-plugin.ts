@@ -1,4 +1,6 @@
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import type {
   ModelRuntimeService,
@@ -36,6 +38,19 @@ const methodNames = [
   'acknowledgeCall',
 ] as const satisfies readonly (keyof ModelRuntimeService)[]
 
+function validAssembly(assembled: ModelRuntimeAssembly): boolean {
+  return !(
+    assembled === null ||
+    typeof assembled !== 'object' ||
+    assembled.owner === null ||
+    typeof assembled.owner !== 'object' ||
+    typeof assembled.owner.close !== 'function' ||
+    typeof assembled.owner.release !== 'function' ||
+    assembled.service === null ||
+    typeof assembled.service !== 'object'
+  )
+}
+
 /** P-2: the application supplies the one real A/B/C service composition per fiber run. */
 export function createModelRuntimePlugin(input: {
   readonly construct: () => Promise<ModelRuntimeAssembly>
@@ -48,25 +63,15 @@ export function createModelRuntimePlugin(input: {
       'modelCatalogRead',
       'credentialLookup',
       'modelTransport',
-      'storage',
-      'clock',
+      STORAGE_SERVICE,
+      CLOCK_SERVICE,
     ],
     Config: z.object({}).strict(),
     async apply(ctx) {
       if (ctx.get(MODEL_RUNTIME_SERVICE) !== undefined)
         throw new Error('duplicate model runtime service provider')
       const assembled = await input.construct()
-      if (
-        assembled === null ||
-        typeof assembled !== 'object' ||
-        assembled.owner === null ||
-        typeof assembled.owner !== 'object' ||
-        typeof assembled.owner.close !== 'function' ||
-        typeof assembled.owner.release !== 'function' ||
-        assembled.service === null ||
-        typeof assembled.service !== 'object'
-      )
-        throw new TypeError('invalid model runtime assembly')
+      if (!validAssembly(assembled)) throw new TypeError('invalid model runtime assembly')
       const { owner } = assembled
       let released = false
       async function closeOwner(): Promise<RuntimeCloseResult> {

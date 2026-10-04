@@ -1,0 +1,65 @@
+[
+  {
+    "config": "valid",
+    "command": [
+      "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+      "-cp",
+      "/opt/tlaplus/tla2tools.jar",
+      "tlc2.TLC",
+      "-metadir",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/formal-candidate/valid",
+      "-workers",
+      "1",
+      "-config",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/formal-candidate/inputs/valid.cfg",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/formal-candidate/inputs/OfferSettlement.tla"
+    ],
+    "start_utc": "2026-10-04T14:47:58.961351+00:00",
+    "end_utc": "2026-10-04T14:47:59.788512+00:00",
+    "elapsed_seconds": 0.827,
+    "exit_code": 0,
+    "expected_exit_code": 0
+  },
+  {
+    "config": "bad-late",
+    "command": [
+      "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+      "-cp",
+      "/opt/tlaplus/tla2tools.jar",
+      "tlc2.TLC",
+      "-metadir",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/formal-candidate/bad-late",
+      "-workers",
+      "1",
+      "-config",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/formal-candidate/inputs/bad-late.cfg",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/formal-candidate/inputs/OfferSettlement.tla"
+    ],
+    "start_utc": "2026-10-04T14:47:59.788697+00:00",
+    "end_utc": "2026-10-04T14:48:00.680467+00:00",
+    "elapsed_seconds": 0.892,
+    "exit_code": 12,
+    "expected_exit_code": 12
+  },
+  {
+    "config": "bad-overwrite",
+    "command": [
+      "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+      "-cp",
+      "/opt/tlaplus/tla2tools.jar",
+      "tlc2.TLC",
+      "-metadir",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/formal-candidate/bad-overwrite",
+      "-workers",
+      "1",
+      "-config",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/formal-candidate/inputs/bad-overwrite.cfg",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t1b/formal-candidate/inputs/OfferSettlement.tla"
+    ],
+    "start_utc": "2026-10-04T14:48:00.680641+00:00",
+    "end_utc": "2026-10-04T14:48:01.492385+00:00",
+    "elapsed_seconds": 0.812,
+    "exit_code": 12,
+    "expected_exit_code": 12
+  }
+]

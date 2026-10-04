@@ -1,3 +1,5 @@
+import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 // 运维面插件 `governance-center-ops`（入口契约 S-25、S-26；https-json/1 S-20、S-21；入口节点 design「成对的装载与撤除」）。
 // 只 inject `storage`、`clock`；不引用任何治理服务（导入白名单与事件订阅白名单，SC-2）。
 // HT3请求由独立opsVersion解析，full-health/backup/backup-status三动作；只在 `serving` 与 `stopped` 之间应答——与客户端一面同起同停。
@@ -5,7 +7,7 @@ import type { Context, Logger } from '@deepseek-ai/cordis'
 import type { Server, Socket } from 'node:net'
 import { isAbsolute, join } from 'node:path'
 import { z } from 'zod'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import type { Storage, SnapshotMaintenance, SnapshotCheck } from '@omne-harness-lite/storage'
 import { withCleanup } from '../maintenance/failure.ts'
@@ -200,14 +202,14 @@ class OpsFace {
 
 export const governanceCenterOpsPlugin = definePlugin<GovernanceCenterOpsConfig>({
   name: 'governance-center-ops',
-  inject: ['storage', 'clock'],
+  inject: [STORAGE_SERVICE, CLOCK_SERVICE],
   Config: GovernanceCenterOpsConfigSchema,
   async apply(ctx: Context, config) {
     const logger = ctx.logger('governance-center-ops')
-    // 服务实例经 inject 取得（`ctx.get` 不带类型）；按各 owner 公开的服务面类型收下
-    const storage: Storage & { readonly maintenance?: SnapshotMaintenance } = ctx.get('storage')
+    // inject 保证必需服务已就位；维护扩展仍按原判据核验。
+    const storage: Storage & { readonly maintenance?: SnapshotMaintenance } = ctx.storage
     if (storage.maintenance === undefined) throw new Error('owned snapshot maintenance is required')
-    const clock: Clock = ctx.get('clock')
+    const clock: Clock = ctx.clock
     const controller: { status: 'pending' | 'clean' | 'error' } = { status: 'pending' }
     const maintenance = new OnlineMaintenance({
       ...config.maintenance,

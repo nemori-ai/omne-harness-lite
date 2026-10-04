@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { ExecutionEnvironmentsService, EXECUTION_ENVIRONMENTS, RESOURCE_RECOVERY_AUTHORITY } from '@omne-harness-lite/execution-environments/cordis'
 import type { ExecutionEnvironmentOperations, EnvironmentProviderRegistrations } from '@omne-harness-lite/execution-environments'
 import { SESSION_ACCESS } from '@omne-harness-lite/session-tenancy/cordis'

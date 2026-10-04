@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import { ModelTransportService, MODEL_TRANSPORT, MODEL_TRANSPORT_SUPPORT, MODEL_INPUT_METERS } from '@omne-harness-lite/model-request-runtime/cordis'
 import type { ModelTransportService as Operations, ModelDefinition, MeterCoordinates, RetirementPolicy } from '@omne-harness-lite/model-request-runtime'

@@ -1,4 +1,4 @@
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { MODEL_TRANSPORT_SUPPORT, DEVELOPMENT_TRANSPORT_TLS } from '@omne-harness-lite/model-request-runtime/cordis'
 import { createModelTransportService } from '@omne-harness-lite/pi-ai-transport'
 import { TransportProvider, transportConfig } from '@omne-harness-lite/pi-ai-transport/cordis'

@@ -1,5 +1,5 @@
 {
-  "name": "@omne-harness-lite/clock",
+  "name": "@omne-harness-lite/clock-lease",
   "version": "0.0.0",
   "private": true,
   "type": "module",

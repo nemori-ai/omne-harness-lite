@@ -1,6 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import { expect, test, vi } from 'vitest'
-import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
+import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   LOOP_EXTENSION_IMPLEMENTATIONS,
   RunnerHostService,

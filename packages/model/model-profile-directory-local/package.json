@@ -48,7 +48,7 @@
     "@omne-harness-lite/model-profile-directory": "workspace:*"
   },
   "devDependencies": {
-    "@omne-harness-lite/clock": "workspace:*",
+    "@omne-harness-lite/clock-lease": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",

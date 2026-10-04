@@ -2,7 +2,7 @@ import { lstat } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { Config as SessionLogConfig } from '@omne-harness-lite/session-log-jsonl/plugin'
 import type { SessionLogBackingOperations } from '@omne-harness-lite/session-log'
 import {

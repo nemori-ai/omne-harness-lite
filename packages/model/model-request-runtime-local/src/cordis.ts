@@ -1,4 +1,4 @@
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { LOOP_EXTENSION_IMPLEMENTATIONS } from '@omne-harness-lite/loop-extension-runner/cordis'
 import { MODEL_RETRY_SAMPLE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'

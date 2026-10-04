@@ -1,4 +1,4 @@
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { RUNTIME_CONTEXT } from '@omne-harness-lite/runtime-context/cordis'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { z } from 'zod'

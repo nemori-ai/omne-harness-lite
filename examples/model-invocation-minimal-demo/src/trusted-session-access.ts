@@ -1,5 +1,5 @@
 import { type Context } from '@deepseek-ai/cordis'
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { SessionAccessService, SESSION_ACCESS_AUTHORITY } from '@omne-harness-lite/session-tenancy/cordis'
 import type { AccessIdentity, SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
 import { z } from 'zod'
