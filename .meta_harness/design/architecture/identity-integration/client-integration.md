@@ -66,15 +66,14 @@ CLI 的 storage 工厂桥为应用私有 Service 子类，不增加 infra 或 co
 ## CLI 接入与接受边界
 
 CLI/TUI 通过同一应用装配入口使用 storage 工厂→CLS→transport→CG，复用 T2 协调器。
-停机先停止新业务并取消原输入，保留原完整动作直至网络/CAS/查证实际结束，依次关闭 CG、transport、CLS，最后撤工厂桥和 fiber。
-startup failure 同样观察已登记前缀，ready 与 fiber ACTIVE 两门都通过才返回业务面。
-内部应用句柄必须保留 close report，不能只等 Cordis dispose 后丢失关闭失败。
+CG关闭拒绝、未登记启动前缀和恢复后CLS释放的精确责任由[CLI生命周期](cli-lifecycle.md)接续。
+该修正补入 managed CG 的必需 governanceClientCloseObserver 资源；独立版不注入它。
+应用保留同步装配句柄、原关闭尝试和整体关闭报告，不能把任意 close 拒绝当作静止许可。
 
-应用装配将提供者的 ClientStateOpenFailure 投影到应用原有的 state-unavailable/state-invalid 及返回码；普通表示/控制模块不 import 具体提供者来判断错误。
-原未声明异常、打开与清理双失败仍走 internal-defect，不能静默转成普通打开失败。
-TUI 的终端恢复仍由终端拥有者执行。CG 完整动作已结束后才能恢复输入；CLS 资源释放失败不能被误当作 CG 工作未结束而跳过原本应执行的恢复。
-原 client-close-failed/state-close-failed 和 machine 输出/退出码语义保持，报告不能带原异常文本。
-这些是现有承诺的组合要求，不接受新终端政策或提前引入插件树。
+应用装配将提供者的 ClientStateOpenFailure 投影到原 state-unavailable/state-invalid 及返回码。
+表示/控制模块不 import 具体提供者来判断错误。未声明异常和打开/清理双失败仍走 internal-defect。
+原 client-close-failed/state-close-failed、machine 输出/退出码保持，诊断不带原异常文本。
+不接受新终端政策或提前引入插件树。
 
 ## 必需验证与释放
 

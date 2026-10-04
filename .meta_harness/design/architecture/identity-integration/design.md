@@ -75,6 +75,7 @@ CLI 装配桥接 storage-sql.openStorage。纯提供者不再 import storage-sql
 | ClientStateStorage/clientStateStorage | 无（CLI 装配提供） | 工厂关闭不剥夺已交给 CLS 的实例；应用逆序等待 CLS 后撤此桥 |
 | GovernanceTransportService/governanceTransport | 无 | 传输实例停止新请求并等已有请求完成；请求取消沿原 signal；不自动重发 |
 | GovernanceClientOperationsService/governanceClientOperations | clientLocalState、governanceTransport | 提供者撤除执行原 close，等待 input/use/network/CAS 真收场 |
+| GovernanceClientCloseObserver/governanceClientCloseObserver | 仅 managed CG 必需，应用按行提供 | 分配前接管原关闭尝试；原拒绝不许可撤CLS，详见[CLI生命周期](cli-lifecycle.md) |
 | AssemblyLifetimeService/assemblyLifetime | 装配按行提供 | 精确实现根 AssemblyLifetimePort，仅 isCurrent/register；逐行隔离此键；实际资源只由协调器按逆序关闭 |
 | StorageStartup/storageStartup、StorageCompletion/storageCompletion | 宿主装配提供 | 形状归 core/storage，细节见装配协议 |
 | EntryOpening/entryOpening、EntryMaintenance/entryMaintenance | 宿主装配提供 | 形状归 core/governance-center-entry，细节见装配协议 |
