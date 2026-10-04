@@ -31,7 +31,7 @@
 
 原 raw 实例的严格对象比较会拒绝同一存储的 Cordis 调用方代理；仅包装 Service.atomic 回调又遗漏真实模型示例由 raw.atomic 发起的参与。
 提供者内部的确切实例投影同时保留两个方向，不改变提交点或放宽到同文件实例。
-[SQL 提供者 ADR](../../../../../packages/infra/storage-sql/adr/service-faces.md)保留选择、代价与复核条件。
+SQL 提供者 ADR `packages/infra/storage-sql/adr/service-faces.md`保留选择、代价与复核条件。
 
 最终私有标记的不可修改性、读取失败污染及检查优先次序，必须由实际候选证明；可写 Symbol.for 探针不能替代。
 资源启动/重复键失败、拥有/借用撤除、Clock 换代、正式 Service 符合性、四层纯闭包与真实打包消费须独立验收。
