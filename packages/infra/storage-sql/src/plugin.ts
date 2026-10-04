@@ -43,7 +43,7 @@ export const storageSqlPlugin = definePlugin<StorageSqlConfig>({
 export const managedStorageSqlPlugin = Object.assign(
   definePlugin<StorageSqlConfig>({
     name: 'storage-sql-managed',
-    inject: [, AssemblyLifetimeService.provide],
+    inject: [AssemblyLifetimeService.provide],
     Config: StorageSqlConfig,
     apply(ctx: Context, config) {
       let resource: SqlStorage | undefined
