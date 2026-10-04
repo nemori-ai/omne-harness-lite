@@ -6,3 +6,5 @@
 - [承诺归属](../../../architecture/pilots/shared-storage-clock-ownership.md)：新集成源与未迁业务源。
 
 不关闭身份治理、模型请求或后继退役阶段。
+
+后续事件：2026-10-04 的[产品限定接受](../shared-storage-clock-delivery/decision.md)记录实际候选与证据。本页保留原设计采用时的状态。

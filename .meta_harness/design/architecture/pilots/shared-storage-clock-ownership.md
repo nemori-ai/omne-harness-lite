@@ -1,9 +1,9 @@
 # R1-T1b：共享存储与时钟的承诺归属
 
 本页接续 D-114/D-115 与[限定设计采用](../../record/decisions/shared-storage-clock-integration/decision.md)。
-新源只拥有本批迁入的集成承诺。产品独立验收与技术接受尚未完成；旧行为源和证据义务继续有效。
+新源只拥有本批迁入的集成承诺。本批产品已完成[独立验收与限定技术接受](../../record/decisions/shared-storage-clock-delivery/decision.md)；旧行为源和证据义务继续有效。
 
-| 范围                                         | 唯一现行源或本批候选源                                                                                                               | 保留责任                                           |
+| 范围                                         | 唯一现行源                                                                                                               | 保留责任                                           |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
 | Storage 协议形状、错误、迁移、预检及维护类型 | `packages/core/storage/src/index.ts` 与既有公开子入口                                                                                | 原形状、Schema 身份及数据语义不变                  |
 | StorageService、服务键与集成行为             | `packages/core/storage/src/cordis.ts`、`packages/core/storage/SPEC.md`                                                               | 只要求 read/write；atomic/close/maintenance 非强制 |

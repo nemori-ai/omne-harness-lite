@@ -1,0 +1,27 @@
+{
+  "head": "894e2d1877fc46cea0c6e5199619fe84a792be2d",
+  "members": 48,
+  "total": 13549,
+  "pass": 13512,
+  "fail": 2,
+  "skip": 35,
+  "duration_seconds": 1472.518,
+  "failed_cases": [
+    {
+      "member": "packages/tenancy/governance-center-entry",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/packages/tenancy/governance-center-entry/tests/decide.spec.ts",
+      "test": "T-1 路由表封闭（S-17、S-24；SC-3） SC-3：本包源码不按名字解析服务或方法（没有 services[…]、没有以变量为参数的 ctx.get）",
+      "messages": [
+        "AssertionError: /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/packages/tenancy/governance-center-entry/src/plugin.ts: expected 'import { STORAGE_SERVICE, type Storag…' not to match /ctx\\.get\\(\\s*[^'\"\\s)]/\n    at /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/packages/tenancy/governance-center-entry/tests/decide.spec.ts:241:30\n    at file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)\n    at file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64"
+      ]
+    },
+    {
+      "member": "apps/tenancy-host",
+      "file": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/apps/tenancy-host/tests/e2e/e2e.spec.ts",
+      "test": "e2e：治理中心作为可部署应用的黑盒旅程（部署方式起进程，另一进程只凭线上契约驱动） 六、重启、强行结束、搬家、重立、换钥、改参数、备份 [PF-017 §一 第 19、22～24、27～31、34、42 行；§二 第 7、8、17 行；§三] [PF-017 §一「强行结束再起来」「崩掉之后马上重启，钟没动过」「停机那一刻邀请刚发出」；§三「停机」；HB S-16、S-20（闸未开不答）] SIGKILL 后马上 serve：等钟那段两张面都问不到、一个字节不写；不报时钟错，工程记录里看得见等待；已答复成功的注册、邀请、撤销都在；回执没到的那份邀请要么完整在、要么不在",
+      "messages": [
+        "AssertionError: 工程记录里看得见开闸之前的等钟: expected 0 to be greater than 0\n    at /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/apps/tenancy-host/tests/e2e/e2e.spec.ts:1778:49\n    at file:///data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+      ]
+    }
+  ]
+}

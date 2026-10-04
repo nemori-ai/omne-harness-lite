@@ -1,5 +1,7 @@
 # 运行证据
 
+**2026-10-04 Storage/Clock 公共集成**：[R1-T1b 实际运行与限定接受](2026-10-04-tests-shared-storage-clock-integration/README.md)。独立 B1～B8、真实制品与生命周期、双向同提交及四共享成员边界完成；原失败、全局未迁路径、变异限制与冷恢复因果责任保留。
+
 **2026-10-04 kernel-basis 公共入口分面**：[R1-T1a 实际运行与限定接受](2026-10-04-tests-kernel-basis-entry-split/README.md)。独立 Q1～Q9、真实制品和生命周期、103 类型及治理四项闭包偏离关闭；原凭据判据失败、W6 设施问题和变异限制保留，不关闭领域验收。
 
 **2026-10-03 固定 Schema 主体**：[实际运行与有限技术签收](2026-10-03-tests-fixed-schema-main/README.md)。20 成员的固定图构建期生成和首次原生装载、AM 同 owner 消费迁移；性能按冻结输入和单 CPU 前提读取，三默认 owner 后续交付仍待。

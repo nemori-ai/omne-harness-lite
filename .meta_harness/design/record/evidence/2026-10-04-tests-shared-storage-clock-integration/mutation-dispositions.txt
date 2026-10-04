@@ -1,0 +1,19 @@
+# R1-T1b 变异读数与复验处置
+
+BASE `e22311713b1a94d2e54e9976483d2f94f9a12ea6`；HEAD `a18ed435bcc244b50ffd4070e805a560e0912044`。使用仓库原差分变异 CLI，单 worker、只跑原快层；没有修改产品、测试层次、空测试拒绝或 Stryker 阈值。
+
+首轮墙钟 523.428 秒，14 个成员中 13 个产生报告；这些报告共 177 killed、5 timeout、70 survived、64 no-coverage。asset-registry 快层没有用例，初跑 exit 1、没有报告，因此整体命令 exit 1。原 `mutation-final/summary.md` 逐项原样保留，不能报告“变异全通过”或给零 mutant 成员赋满分。
+
+按原 70 个存活变异体所在源码行进行一次限定复验，7 成员、238.698 秒，70 个均再次存活，没有缺失观察。复验复用仓库原 runStryker，范围、命令资源与每项原/新结果见 `recheck-survivors.mjs` 和 `mutation-survivor-recheck/recheck.json`。同一行的其它变异可能一起执行，原无覆盖和空快层问题没有被复验结果覆盖。
+
+| 读数范围 | 判断与实际补充证据 | 保留限制 |
+|---|---|---|
+| Clock 原算法的 62 survived、63 no-coverage | 目录改名使原 clock、lease、preflight、snapshot、snapshot-structure 被作为新路径纳入；这些业务源码的 BASE/HEAD 字节保护见 `protected-source-readback-final.json`。没有为本次绑定迁移改租约或时间算法 | 原快层保护不完整，不能写成新实现已消除或总分提升。本批仍实跑原全部用例、受控时间及独立真实组合；原算法覆盖责任保留 |
+| 三个原插件 inject 数组清空仍存活：assembly-manifest-store、evaluation-input-store、session-tenancy-table | 本批这些插件的业务 token 在精确键归一化后相同，数组中的原服务键改从公共定义取值；快层主要测独立工厂，未覆盖该绑定元数据。源码/实际公共依赖和范围内消费者另由 B7/B8 核对 | 快层不会自动发现这三处 inject 被删除。后继 R2 必需公共定义/绑定迁移须补对应缺席/换代检查，当前不能把存活变异说成 killed |
+| 两个 core Service 的 provide 字符串变空仍存活 | 跨成员 `shared-service-types.spec-d.ts` 对两个字面量类型有精确断言；完整类型检查通过。独立实际 tarball 记录键仍为 storage/clock，真实必需注入/宿主与 Clock 组合通过 | Stryker 只跑被变异成员快层，没有运行这些跨成员类型和装配观察。此处是覆盖范围差异，不表述为该工具已保护公开键 |
+| Clock 插件名变空、inject 清空仍存活 | 实际制品精确断言 clockPlugin.name 为 clock-lease；原真实宿主 SIGKILL 日志按该名核对。QA C1 的缺席 PENDING、C3/C4 的共享及换代实际验证原 inject 责任 | 原 Clock 成员快层对插件名及全部换代路径保护不足；独立场景仍须作为本批可恢复证据保留 |
+| SQL 身份读取 catch 体变空仍存活 | 唯一内部消费者为 unit.ts 的 `!isStorageInstance(...)`。空 catch 得到 undefined，原 false 与它在该单一布尔拒绝分支都触发原 mismatch/污染；没有公共导出可观察这个内部返回值。原 AT getter 抛错/污染/优先次序已独立实跑 | 在当前使用边界内是等效变异，不为区分内部 false/undefined 新增无行为价值断言。将来公开该函数或改变消费者时须重判 |
+| Clock 新启动路径 effect 登记失败的清理 catch 无覆盖 | 已要求独立 QA C7，用真实最小 StorageService/SQLite 写 barrier 使 start 在途后撤除；首轮实际 exit 0，INACTIVE_EFFECT、未发布、原 timer 清除、真实租约收回及全部 promise 完成均有记录，见 `qa-candidate/evidence/clock-startup-withdrawal/` | C7 是新取得的实际行为证据，没有改写原 mutation 的 no-coverage 或声称原快层已覆盖；需独立实施审阅核对最终报告 |
+| asset-registry 没有快层用例 | 原配置将其用例归慢层；完整受影响快慢层已执行该成员，原变异快层初跑据实失败 | 没有变异报告或分数。保留原设施缺口，不改分层求绿；后继该提供者整改时重验 |
+
+无覆盖不自动等于产品缺陷，存活也不自动等于等效。这里只对上述有具体使用边界的 SQL catch 判等效；其他存活保持为实际测试覆盖限制。原每条记录和有限行为依据随本批保全，最终接受由主线结合独立 QA 与审阅作出。
