@@ -63,15 +63,25 @@ export function referencePorts<P extends PlannedSemantics, R>(
   const callAccess: Ports<P, R>['callAccess'] = {
     async check(input, admitted) {
       const held = await host.tenancy.holdingTenant(input.ref.session)
-      if (!('tenant' in held) || !tenantIdEquals(held.tenant, input.binding.tenant))
+      if (
+        input.ref.session !== input.binding.session ||
+        !('tenant' in held) ||
+        !tenantIdEquals(held.tenant, input.binding.tenant)
+      )
         return { unavailable: true }
-      const found = await callFacts.lookup({ binding: input.binding, ref: input.ref })
+      // This host grants read access to its bound Session, including absent calls.
+      const found =
+        input.action === 'read'
+          ? undefined
+          : await callFacts.lookup({ binding: input.binding, ref: input.ref })
       const source =
-        'view' in found
-          ? found.view.source
-          : 'acknowledged' in found
-            ? found.acknowledged.source
-            : undefined
+        found === undefined
+          ? { generation: input.binding.generation, progress: 0 }
+          : 'view' in found
+            ? found.view.source
+            : 'acknowledged' in found
+              ? found.acknowledged.source
+              : undefined
       if (source === undefined) return { unavailable: true }
       const evidence = {
         action: input.action,

@@ -7,7 +7,11 @@ import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-c
 import { projectCallState, type LocalCallResponsibility } from './call-state.ts'
 import { dispatchGuard, type DispatchGuardFact } from './dispatch-guard.ts'
 import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
-import { readSettlementPrefix, type SettlementPrefix } from './settlement-prefix.ts'
+import {
+  readSettlementPrefix,
+  settlementGenerationCurrent,
+  type SettlementPrefix,
+} from './settlement-prefix.ts'
 import type {
   SessionModelSelection,
   SessionModelSelectionInput,
@@ -29,7 +33,7 @@ import type {
   SettlementTask,
 } from './settlement-types.ts'
 import type { CallHistoryDispatch } from './call-history.ts'
-import type { CallFacts } from './reference-types.ts'
+import type { CallAccessEvidence, CallFacts } from './reference-types.ts'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import type { PlannedSemantics } from './types.ts'
 import { requestStopAndWait } from './settlement-stop.ts'
@@ -53,6 +57,24 @@ function validCall(input: CallKey): boolean {
   return (
     'ok' in parseOpaqueIdentifier(input.session, 'SessionRef') &&
     'ok' in parseOpaqueIdentifier(input.callId, 'ModelCallId')
+  )
+}
+function currentReadEvidence(
+  evidence: CallAccessEvidence,
+  input: CallKey,
+  binding: SettlementLogBinding,
+): boolean {
+  return (
+    evidence.action === 'read' &&
+    evidence.ref.session === input.session &&
+    evidence.ref.callId === input.callId &&
+    evidence.source.generation === binding.generation &&
+    typeof evidence.sourceVersion === 'string' &&
+    evidence.sourceVersion.length > 0 &&
+    evidence.revoked.aborted === false &&
+    typeof evidence.revoked.addEventListener === 'function' &&
+    typeof evidence.revoked.removeEventListener === 'function' &&
+    settlementGenerationCurrent(binding)
   )
 }
 function sameSelection(a: SessionModelSelectionInput, b: SessionModelSelectionInput): boolean {
@@ -88,6 +110,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     readonly stop: () => void
   }>()
   const sources = new Set<ModelFailureSource>()
+  const admissions = new Set<Promise<void>>()
   let closed = false
   let readCleanupFailed = false
   let closing: Promise<RuntimeCloseResult> | undefined
@@ -158,15 +181,68 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     }
   }
 
+  async function withReadAccess<T>(
+    input: CallKey,
+    work: (
+      binding: SessionRuntimeBinding,
+      current: () => boolean,
+      evidence: CallAccessEvidence,
+    ) => Promise<T>,
+  ): Promise<T | ReturnType<typeof unavailable> | ReturnType<typeof malformed>> {
+    if (!validCall(input)) return malformed()
+    if (closed) return unavailable()
+    const ref = Object.freeze({ session: input.session, callId: input.callId })
+    let finish = () => {}
+    const done = new Promise<void>(resolve => {
+      finish = resolve
+    })
+    admissions.add(done)
+    try {
+      const bound = await bind(ref.session)
+      if (!('binding' in bound)) return bound
+      if (closed) return unavailable()
+      const { binding } = bound
+      let current = () => false
+      let admittedEvidence: CallAccessEvidence | undefined
+      const admitted = await construction.callAccess.check(
+        { binding: binding.log, ref, action: 'read' },
+        async evidence => {
+          admittedEvidence = evidence
+          current = () => !closed && currentReadEvidence(evidence, ref, binding.log)
+          if (!current()) return unavailable()
+          return await work(binding, current, evidence)
+        },
+      )
+      return 'allowed' in admitted &&
+        current() &&
+        currentReadEvidence(admitted.evidence, ref, binding.log) &&
+        admitted.evidence.sourceVersion === admittedEvidence?.sourceVersion &&
+        admitted.evidence.revoked === admittedEvidence?.revoked
+        ? admitted.allowed
+        : unavailable()
+    } catch {
+      return unavailable()
+    } finally {
+      admissions.delete(done)
+      finish()
+    }
+  }
+
   async function withPrefix<T>(
     input: CallKey,
     work: (prefix: SettlementPrefix, binding: SessionRuntimeBinding) => T,
-  ): Promise<T | ReturnType<typeof unavailable> | ReturnType<typeof malformed>> {
-    if (!validCall(input)) return malformed()
-    const bound = await bind(input.session)
-    if (!('binding' in bound)) return bound
-    if (closed) return unavailable()
-    const { binding } = bound
+  ) {
+    return await withReadAccess(
+      input,
+      async (binding, current) => await readAuthorizedPrefix(binding, current, work),
+    )
+  }
+
+  async function readAuthorizedPrefix<T>(
+    binding: SessionRuntimeBinding,
+    current: () => boolean,
+    work: (prefix: SettlementPrefix, binding: SessionRuntimeBinding) => T,
+  ): Promise<T | ReturnType<typeof unavailable>> {
     const owner = binding.selection.owner
     let acquired: ReturnType<typeof owner.acquire>
     try {
@@ -206,9 +282,9 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     active.add(operation)
     let result: T | ReturnType<typeof unavailable> = unavailable()
     try {
-      if (!closed) {
+      if (current()) {
         const read = await readSettlementPrefix({ binding: binding.log, registration })
-        if ('prefix' in read && !closed) result = work(read.prefix, binding)
+        if ('prefix' in read && current()) result = work(read.prefix, binding)
       }
     } catch {
       result = unavailable()
@@ -235,7 +311,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
       }
       finish()
     }
-    return result
+    return current() ? result : unavailable()
   }
 
   /** Reads each ready-only dispatch's immutable content row; any gap is unavailable, not partial. */
@@ -243,10 +319,12 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     input: CallKey,
     dispatches: readonly CallHistoryDispatch[],
     log: SettlementLogBinding,
+    current: () => boolean,
   ): Promise<ReadAttemptsResult> {
     const attempts: ReadAttemptDispatch[] = []
     let last: PendingModelResponse | undefined
     for (const item of dispatches) {
+      if (!current()) return unavailable()
       if (item.ready === null || item.response !== null) {
         attempts.push(item)
         continue
@@ -291,94 +369,114 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     const requested = options?.consumeFailure === true
     if (options !== undefined && (!requested || Object.keys(options).length !== 1))
       return malformed()
+    input = Object.freeze({ session: input.session, callId: input.callId })
     let createdSource: ModelFailureSource | undefined
-    const read = await withPrefix(input, (prefix, binding) => {
-      const raw = construction.history.call(prefix, input.callId)
-      if ('known' in raw && raw.known.acknowledged !== null) {
-        // RT12 S-100: the S-97 small sequence; no full dispatch record or failure subject.
-        const facts = acknowledgedFactsFromHistory(input, raw.known, {
-          generation: binding.log.generation,
-          progress: prefix.tail,
-        })
-        return facts === undefined
-          ? { result: unavailable() }
-          : { acknowledged: { facts, log: binding.log } }
-      }
-      const history = rejectAcknowledgedHistory(raw)
-      const localView = construction.calls.find(input)?.view()
-      const local: LocalCallResponsibility | undefined =
-        localView?.operation.phase === 'ready'
-          ? { session: input.session, callId: input.callId, phase: 'open' }
-          : localView?.operation.phase === 'reply_pending'
-            ? {
-                session: input.session,
-                callId: input.callId,
-                phase: 'reply_pending',
-                responseId: localView.operation.pending.id,
-              }
-            : undefined
-      const state = projectCallState({
-        session: input.session,
-        callId: input.callId,
-        history,
-        ...(local === undefined ? {} : { local }),
-      })
-      if (!('phase' in state)) return { result: state }
-      if (state.phase === 'open')
-        return { result: { state: 'open' as const, dispatches: [] as const } }
-      if (!('known' in history)) return { result: unavailable() }
-      const dispatches = history.known.dispatches
-      if (state.phase === 'awaiting_decision') {
-        const subject = readFailureSubject({
-          prefix,
-          callId: input.callId,
-          dispatches,
-          source: construction.history.failure,
-        })
-        if (!('subject' in subject)) return { result: unavailable() }
-        const result = {
-          state: 'awaiting_decision' as const,
-          dispatches,
-          failureSubject: subject.subject,
+    const read = await withReadAccess(input, async (binding, current, evidence) => {
+      const projected = await readAuthorizedPrefix(binding, current, (prefix, binding) => {
+        const raw = construction.history.call(prefix, input.callId)
+        if ('known' in raw && raw.known.acknowledged !== null) {
+          // RT12 S-100: the S-97 small sequence; no full dispatch record or failure subject.
+          const facts = acknowledgedFactsFromHistory(input, raw.known, {
+            generation: binding.log.generation,
+            progress: prefix.tail,
+          })
+          return facts === undefined
+            ? { result: unavailable() }
+            : { acknowledged: { facts, log: binding.log } }
         }
-        if (!requested) return { result }
-        const source = createModelFailureSource({
-          prefix,
+        const history = rejectAcknowledgedHistory(raw)
+        const localView = construction.calls.find(input)?.view()
+        const local: LocalCallResponsibility | undefined =
+          localView?.operation.phase === 'ready'
+            ? { session: input.session, callId: input.callId, phase: 'open' }
+            : localView?.operation.phase === 'reply_pending'
+              ? {
+                  session: input.session,
+                  callId: input.callId,
+                  phase: 'reply_pending',
+                  responseId: localView.operation.pending.id,
+                }
+              : undefined
+        const state = projectCallState({
+          session: input.session,
           callId: input.callId,
-          owner: binding.selection.owner,
-          subject: subject.subject,
-          usable: () =>
-            !closed &&
-            !localView?.request.host.stopping() &&
-            !localView?.request.host.signal.aborted,
-          retain: value => {
-            sources.add(value)
-          },
-          forget: value => {
-            sources.delete(value)
-          },
+          history,
+          ...(local === undefined ? {} : { local }),
         })
-        if (source === null) return { result: unavailable() }
-        createdSource = source
-        return { result: { ...result, failureSubject: source.subject }, source }
+        if (!('phase' in state)) return { result: state }
+        if (state.phase === 'open')
+          return { result: { state: 'open' as const, dispatches: [] as const } }
+        if (!('known' in history)) return { result: unavailable() }
+        const dispatches = history.known.dispatches
+        if (state.phase === 'awaiting_decision') {
+          const subject = readFailureSubject({
+            prefix,
+            callId: input.callId,
+            dispatches,
+            source: construction.history.failure,
+          })
+          if (!('subject' in subject)) return { result: unavailable() }
+          const result = {
+            state: 'awaiting_decision' as const,
+            dispatches,
+            failureSubject: subject.subject,
+          }
+          if (!requested) return { result }
+          const revoke = () => createdSource?.release()
+          const source = createModelFailureSource({
+            prefix,
+            callId: input.callId,
+            owner: binding.selection.owner,
+            subject: subject.subject,
+            usable: () =>
+              current() &&
+              !localView?.request.host.stopping() &&
+              !localView?.request.host.signal.aborted,
+            retain: value => {
+              sources.add(value)
+              evidence.revoked.addEventListener('abort', revoke, { once: true })
+            },
+            forget: value => {
+              sources.delete(value)
+              evidence.revoked.removeEventListener('abort', revoke)
+            },
+          })
+          if (source === null) return { result: unavailable() }
+          createdSource = source
+          if (!current()) {
+            source.release()
+            return { result: unavailable() }
+          }
+          return { result: { ...result, failureSubject: source.subject }, source }
+        }
+        // RT11/RT12 S-86: the durable ready is the complete/interrupted terminal fact with
+        // disposition_pending; its outcome and full original value live in the content row.
+        if (state.source === 'durable' && state.phase === 'reply_pending')
+          return { ready: { dispatches, log: binding.log } }
+        return { result: { state: state.phase, dispatches } }
+      })
+      if (!current()) return unavailable()
+      // The prefix reader has actually stopped. Access admission still protects the async view.
+      if ('ready' in projected && projected.ready !== undefined) {
+        return {
+          result: await readyAttempts(
+            input,
+            projected.ready.dispatches,
+            projected.ready.log,
+            current,
+          ),
+        }
       }
-      // RT11/RT12 S-86: the durable ready is the complete/interrupted terminal fact with
-      // disposition_pending; its outcome and full original value live in the content row.
-      if (state.source === 'durable' && state.phase === 'reply_pending')
-        return { ready: { dispatches, log: binding.log } }
-      return { result: { state: state.phase, dispatches } }
+      if ('acknowledged' in projected && projected.acknowledged !== undefined) {
+        const { facts, log } = projected.acknowledged
+        const view = custody === undefined ? undefined : await custody.view(log, facts)
+        return {
+          result:
+            view === undefined || 'unavailable' in view ? unavailable() : { acknowledged: view },
+        }
+      }
+      return projected
     })
-    if ('ready' in read && read.ready !== undefined) {
-      const result = await readyAttempts(input, read.ready.dispatches, read.ready.log)
-      return requested ? { result, consumption: { kind: 'notApplicable' } } : result
-    }
-    if ('acknowledged' in read && read.acknowledged !== undefined) {
-      const { facts, log } = read.acknowledged
-      const view = custody === undefined ? undefined : await custody.view(log, facts)
-      const result: ReadAttemptsResult =
-        view === undefined || 'unavailable' in view ? unavailable() : { acknowledged: view }
-      return requested ? { result, consumption: { kind: 'notApplicable' } } : result
-    }
     if (!('result' in read)) {
       createdSource?.release()
       return requested ? { result: read, consumption: { kind: 'notApplicable' } } : read
@@ -417,6 +515,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
     readAttempts,
     async canDispatchAgain(input) {
       if (!validateLoop('RetryPlan', input.plan).valid) return malformed()
+      input = Object.freeze({ ...input, session: input.session, callId: input.callId })
       return await withPrefix(input, (prefix, _binding) => {
         // RT12 S-100: an acknowledged call is its real terminal state (S-50⑥ alreadyEnded).
         const history = acknowledgedAsTerminal(construction.history.call(prefix, input.callId))
@@ -499,6 +598,7 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
       for (const operation of active) operation.stop()
       closing = (async () => {
         try {
+          await Promise.all([...admissions])
           await Promise.all([...active].map(item => item.done))
           await Promise.all([...selectionLocks.values()])
           const ended = await Promise.all([
