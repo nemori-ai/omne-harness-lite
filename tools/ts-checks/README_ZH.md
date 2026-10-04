@@ -287,12 +287,44 @@ CommonJS require 不在本抽取器范围内。根任务容器与 node_modules �
 独立场景见 [`tests/actual-architecture.spec.ts`](tests/actual-architecture.spec.ts)。
 旧装配意图对照消费单独的 `IntentImplementation` 投影；其阈值、strict 和声明差分通道保持原义。
 
+## 全局实际架构视图
+
+```sh
+node --experimental-strip-types tools/ts-checks/src/arch/cli.ts --root "$PWD" --base <精确提交> --report tmp/architecture > tmp/architecture.stdout.json
+```
+
+`--report` 生成 `report.html`、`graph.json`、`actual.json` 和 `summary.md`。
+stdout 仍只有实际架构 JSON，报告路径写到 stderr。构建后也可用 `omne-architecture`。
+直接用浏览器打开 HTML，无需服务器或网络。
+
+页面默认显示应用和目录组总览。展开后可筛选类型/运行导入、必需/可选服务、事件和装配声明。
+总览默认使用依赖矩阵，行发起、列目标。数字为输入事实身份数；可切换到 ELK 关系图。
+跨组边只汇总直接导入和装配声明。组内关系需展开，服务同名不推断组间绑定。
+聚焦组件可显示最多两跳的邻接，排除邻居之间无关关系。点击关系查看全部出处和提交。
+选择变化范围可保留精确 BASE 已删除的节点与来源。叠加圈复杂度、静态耦合后，
+可进入同页的原复杂度与风险面板。SVG/JSON 导出反映当前选择，未展开时导出总览。
+画布可平移、缩放及适应全图，出处在右侧栏。视口变化不裁剪 SVG 导出。
+绘制期间和失败时禁用导出，失败原因在页面显示；旧布局不得覆盖新选择。
+
+视图只消费 N1 实际数据。目录组不表示运行边界；服务与事件同名不表示实际绑定。
+所有提供者均为候选，确认配置选择及实际运行绑定显示“未观测”。规划与架构预期显示“未提供”。
+具体 unknown 和未覆盖范围可展开查看，未知条数不能代表全部缺口。
+外部代码导入不作为外部运行资源。无函数成员保留，覆盖率缺席不记为零。
+
+公开投影为 `buildArchitectureView(document, bands)` 和 `selectArchitectureView(graph, selection)`，
+经同一个 architecture 入口导出。数据类型归 [view.ts](src/arch/view.ts)，
+类型表达不出的行为归 [薄规格](src/arch/SPEC.md)，回归见 [视图测试](tests/architecture-view.spec.ts)。
+布局与导航的采用理由见 [ADR](src/arch/ADR.md)，社区事实与有限探针归其中链接的调查。
+复杂度算法和色带复用现有度量，色带读取运行工具版本的配置，页内说明来源。
+architecture 报告的函数变化和关系变化都用精确 BASE；metrics 报告的函数变化仍用 merge-base，
+架构变化用精确 BASE。页面分别显示两个坐标，非祖先 BASE 时也不混称同一范围。
+
 ## 结构度量
 
 `make metrics` 是本包的第二入口（`src/metrics/`）。它**只报告、不判失败**，不在 `make check` 里；能让检查失败的只有上面的方向规则与提交署名。
 
 ```sh
-make metrics                          # 全仓，秒级：圈复杂度、依赖图、方向与环
+make metrics                          # 全仓：实际架构、圈复杂度、依赖图、方向与环
 make metrics BASE=<基线提交或分支>      # 另标出基线以来变更的成员、函数、导入与提交形状
 make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，取覆盖率并合成 CRAP（先构建）
 ```
@@ -304,7 +336,9 @@ make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，�
 | `summary.md` | 不超过 12 行，同时打印到标准输出；交付说明原样附它 |
 | `metrics.json` | 每个成员与每个函数的圈复杂度、覆盖率、CRAP、是否变更 |
 | `graph.json` | 成员间的边与导入处、方向发现、环、已登记例外 |
-| `review.html` | 自包含、离线可开的审讯页：按层的结构图、度量着色、点成员看依赖与函数表 |
+| `review.html` | 自包含的共同入口：默认实际架构总览，可进入原结构图、风险与函数表 |
+| `actual.json` | N1 完整实际架构数据及精确两版差分 |
+| `architecture.json` | 总览、关系与来源的派生浏览投影；与旧 graph.json 分开 |
 | `coverage/` | 开了覆盖率时各成员的原始 `<成员>/coverage-final.json` 与测试输出 `<成员>.vitest.log`；每个成员的耗时与退出码另记在 `metrics.json` 的 `meta` 里，运行时逐个打到标准错误 |
 
 审讯页的网址后带成员路径可直接定位，例如 `review.html#packages/model/model-request-runtime`。

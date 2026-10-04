@@ -5,7 +5,7 @@ import type {
   ModelCallPayloadRef,
   ModelCallReplyReadyRecord,
 } from '@omne-harness-lite/messages'
-import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
+import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log-jsonl'
 import { captureModelLogValue, prepareModelLogEntry, modelLogJsonEqual } from './log-codec.ts'
 import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
 import {
@@ -44,6 +44,7 @@ export async function publishModelCallContent(input: {
     registration: SettlementRegistration,
     task: SettlementTask<AppendResult>,
     permit: ModelCallPublishPermit,
+    entry: OwnedLogEntry,
   ) => void
   readonly trackTask?: (task: SettlementTask<AppendResult>) => () => void
 }): Promise<{ readonly published: true } | { readonly unavailable: true }> {
@@ -66,9 +67,9 @@ export async function publishModelCallContent(input: {
   // writer's owner, which releases it only after recognizing the original batch.
   let retained = false
   try {
-    return await publishMarker(input, admitted, stored.ref, (registration, task) => {
+    return await publishMarker(input, admitted, stored.ref, (registration, task, entry) => {
       retained = true
-      input.retainUnknown(registration, task, stored.permit)
+      input.retainUnknown(registration, task, stored.permit, entry)
     })
   } finally {
     if (!retained) await stored.permit.release()
@@ -227,7 +228,11 @@ async function publishMarker(
   input: Parameters<typeof publishModelCallContent>[0],
   admitted: MarkerAdmission,
   ref: ModelCallPayloadRef,
-  retainUnknown: (registration: SettlementRegistration, task: SettlementTask<AppendResult>) => void,
+  retainUnknown: (
+    registration: SettlementRegistration,
+    task: SettlementTask<AppendResult>,
+    entry: OwnedLogEntry,
+  ) => void,
 ): Promise<{ readonly published: true } | { readonly unavailable: true }> {
   const unavailable = { unavailable: true } as const
   const { binding, content, owner } = input
@@ -269,13 +274,13 @@ async function publishMarker(
       receipt = null
     }
     if (unknownPublication(started, receipt)) {
-      retainUnknown(registration, task)
+      retainUnknown(registration, task, prepared.ok)
       return unavailable
     }
     try {
       await requestStopAndWait(task)
     } catch {
-      retainUnknown(registration, task)
+      retainUnknown(registration, task, prepared.ok)
       return unavailable
     }
     registration.release()
