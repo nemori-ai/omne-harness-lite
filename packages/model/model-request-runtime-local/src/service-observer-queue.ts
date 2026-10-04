@@ -52,6 +52,15 @@ function numeric(value: ExactDecimal): JsonNumber {
   return new LosslessNumber(value.toString())
 }
 
+function validReceiveTask(task: ObserverReceiveTask): boolean {
+  return !(
+    task === null ||
+    typeof task !== 'object' ||
+    !(task.completion instanceof Promise) ||
+    !(task.stopped instanceof Promise)
+  )
+}
+
 /** Per-dispatch, single-receiver delivery. Accepted means queued, never read by a person. */
 export function createModelObserverQueue(input: ModelObserverQueueInput): ModelObserverQueue {
   const { scope, authorization, receiver, diagnostic } = input
@@ -217,13 +226,7 @@ export function createModelObserverQueue(input: ModelObserverQueueInput): ModelO
     let task: ObserverReceiveTask
     try {
       task = receiver.receive(item.serialized, abort.signal)
-      if (
-        task === null ||
-        typeof task !== 'object' ||
-        !(task.completion instanceof Promise) ||
-        !(task.stopped instanceof Promise)
-      )
-        throw new TypeError('observer receive task missing')
+      if (!validReceiveTask(task)) throw new TypeError('observer receive task missing')
     } catch {
       current = undefined
       uncount(item)

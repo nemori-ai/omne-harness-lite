@@ -77,14 +77,12 @@ function validWaitPolicy(policy: ReservationWaitPolicy): boolean {
   return positive(policy.maxWaitersPerCall) && positive(policy.timeoutMs)
 }
 
-/** Captures process resources only. Log facts and authorization remain with their providers. */
-export function createCallContainer<P extends PlannedSemantics, R>(
-  input: CreateCallContainerInput<P, R>,
-): CallContainer<P, R> {
-  const { key, session, binding, owner, coordinator } = input
-  const executionGeneration = Object.freeze({})
-  let request = input.request
-  if (
+function containerOwnershipMatches<P extends PlannedSemantics, R>(
+  key: CallKey,
+  session: CreateCallContainerInput<P, R>['session'],
+  request: OpenCallInput,
+): boolean {
+  return !(
     key.session !== request.session ||
     key.session !== session.log.session ||
     key.session !== session.selection.binding.session ||
@@ -92,6 +90,158 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     session.log.generation !== session.selection.binding.generation ||
     (request.callId !== undefined && request.callId !== key.callId)
   )
+}
+
+function requestRunMalformed(next: OpenCallInput): boolean {
+  return (
+    (next.run === undefined && (next.attempt !== undefined || next.report !== undefined)) ||
+    (next.run !== undefined && (next.attempt === undefined || next.report === undefined))
+  )
+}
+
+function validObserverQueue(queue: ModelObserverQueue): boolean {
+  return !(
+    queue === null ||
+    typeof queue !== 'object' ||
+    typeof queue.offer !== 'function' ||
+    typeof queue.start !== 'function' ||
+    typeof queue.close !== 'function'
+  )
+}
+
+function validPreparationHost(host: ModelCallHost): boolean {
+  return !(
+    host === null ||
+    typeof host !== 'object' ||
+    !(host.signal instanceof AbortSignal) ||
+    typeof host.stopping !== 'function' ||
+    typeof host.register !== 'function'
+  )
+}
+
+function closeResourceTasks(
+  attached: AnchoredInvocationHandle | undefined,
+  queue: ModelObserverQueue | undefined,
+  authorization: AuthorizedCallObserver | undefined,
+  orphaned: readonly AuthorizedCallObserver[],
+  coordinator: CreateCallContainerInput<PlannedSemantics, unknown>['coordinator'],
+) {
+  return [
+    ...(attached === undefined ? [] : [Promise.resolve().then(() => attached.close())]),
+    ...(queue === undefined ? [] : [Promise.resolve().then(() => queue.close())]),
+    ...(authorization === undefined ? [] : [Promise.resolve().then(() => authorization.close())]),
+    ...orphaned.map(item => Promise.resolve().then(() => item.close())),
+    Promise.resolve().then(() => coordinator.close()),
+  ]
+}
+
+function orphanReceiptOffset(
+  attached: AnchoredInvocationHandle | undefined,
+  queue: ModelObserverQueue | undefined,
+  authorization: AuthorizedCallObserver | undefined,
+): number {
+  return (
+    (attached === undefined ? 0 : 1) +
+    (queue === undefined ? 0 : 1) +
+    (authorization === undefined ? 0 : 1)
+  )
+}
+
+function closeReceiptsFailed(
+  semantic: readonly PromiseSettledResult<RuntimeCloseResult>[],
+  results: readonly PromiseSettledResult<unknown>[],
+): boolean {
+  return (
+    semantic.some(result => result.status === 'rejected') ||
+    semantic.some(result => result.status === 'fulfilled' && 'unavailable' in result.value) ||
+    results.some(result => result.status === 'rejected') ||
+    results.some(
+      result =>
+        result.status === 'fulfilled' &&
+        typeof result.value === 'object' &&
+        result.value !== null &&
+        'unavailable' in result.value,
+    )
+  )
+}
+
+function validWaitStart(
+  closed: boolean,
+  policy: ReservationWaitPolicy,
+  signal: AbortSignal,
+  scheduler: SettlementScheduler,
+): boolean {
+  return !(
+    closed ||
+    !validWaitPolicy(policy) ||
+    signal.aborted ||
+    typeof scheduler.nowMonotonicMs !== 'function' ||
+    typeof scheduler.wait !== 'function'
+  )
+}
+
+function readWaitStart(scheduler: SettlementScheduler): JsonNumber | undefined {
+  try {
+    const started = scheduler.nowMonotonicMs()
+    if (!nonnegative(started)) return undefined
+    return started
+  } catch {
+    return undefined
+  }
+}
+
+function remainingWait(
+  scheduler: SettlementScheduler,
+  started: JsonNumber,
+  policy: ReservationWaitPolicy,
+): ExactDecimal | undefined {
+  let now: JsonNumber
+  try {
+    now = scheduler.nowMonotonicMs()
+    if (!nonnegative(now) || ExactDecimal.from(now).compare(ExactDecimal.from(started)) < 0)
+      return undefined
+  } catch {
+    return undefined
+  }
+  const elapsed = ExactDecimal.from(now).add(ExactDecimal.from(negative(started)))
+  const remaining = ExactDecimal.from(policy.timeoutMs).add(
+    ExactDecimal.from(negative(elapsed.toJsonNumber())),
+  )
+  if (remaining.compare(ExactDecimal.from(0)) <= 0) return undefined
+  return remaining
+}
+
+function watchWaitCancellation(signal: AbortSignal) {
+  const controller = new AbortController()
+  const abort = () => controller.abort()
+  let notifyAbort: (() => void) | undefined
+  const cancelled = new Promise<'cancelled'>(resolve => {
+    notifyAbort = () => resolve('cancelled')
+    signal.addEventListener('abort', notifyAbort, { once: true })
+  })
+  signal.addEventListener('abort', abort, { once: true })
+  if (signal.aborted) {
+    controller.abort()
+    notifyAbort?.()
+  }
+  return {
+    controller,
+    cancelled,
+    release() {
+      signal.removeEventListener('abort', abort)
+      if (notifyAbort !== undefined) signal.removeEventListener('abort', notifyAbort)
+    },
+  }
+}
+
+/** Captures process resources only. Log facts and authorization remain with their providers. */
+export function createCallContainer<P extends PlannedSemantics, R>(
+  input: CreateCallContainerInput<P, R>,
+): CallContainer<P, R> {
+  const { key, session, binding, owner, coordinator } = input
+  const executionGeneration = Object.freeze({})
+  let request = input.request
+  if (!containerOwnershipMatches(key, session, request))
     throw new TypeError('call container ownership mismatch')
 
   const ownedKey = Object.freeze({ session: key.session, callId: key.callId })
@@ -126,16 +276,61 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     stopped.set(token, tracked)
   }
 
+  function finishRelease(): RuntimeCloseResult {
+    const hook = releaseHooks.get(container)
+    const result = hook?.() ?? { released: true }
+    if (!('released' in result)) return { unavailable: true }
+    released = true
+    return { released: true }
+  }
+  function releaseLeaseAndContainer(): RuntimeCloseResult {
+    try {
+      releaseAttempted = true
+      if (!leaseReleased) {
+        if (leaseReleaseAttempted) return { unavailable: true }
+        leaseReleaseAttempted = true
+        binding.lease.release()
+        leaseReleased = true
+      }
+      return finishRelease()
+    } catch {
+      return { unavailable: true }
+    }
+  }
+  function closeResponsibilitiesHeld(outstanding: boolean): boolean {
+    return (
+      stopped.size > 0 ||
+      stopFailed ||
+      operation.phase !== 'ready' ||
+      outstanding ||
+      pendingObserverCleanup.size > 0 ||
+      observerReplacementInFlight ||
+      releaseAttempted
+    )
+  }
+  function releaseOrphanedObservers(
+    orphaned: readonly AuthorizedCallObserver[],
+    results: readonly PromiseSettledResult<unknown>[],
+    offset: number,
+  ): void {
+    orphaned.forEach((item, index) => {
+      const result = results[offset + index]
+      if (
+        result?.status === 'fulfilled' &&
+        typeof result.value === 'object' &&
+        result.value !== null &&
+        'released' in result.value
+      )
+        pendingObserverCleanup.delete(item)
+    })
+  }
+
   async function closeOnce(): Promise<RuntimeCloseResult> {
     if (released) return { released: true }
     if (releaseAttempted) {
       if (!leaseReleased) return { unavailable: true }
       try {
-        const hook = releaseHooks.get(container)
-        const result = hook?.() ?? { released: true }
-        if (!('released' in result)) return { unavailable: true }
-        released = true
-        return { released: true }
+        return finishRelease()
       } catch {
         return { unavailable: true }
       }
@@ -172,69 +367,20 @@ export function createCallContainer<P extends PlannedSemantics, R>(
     // lawful S-86 closure (or a no-op over an already finished handle).
     const attached = operation.phase === 'reply_pending' ? undefined : invocation
     const orphaned = [...pendingObserverCleanup]
-    const results = await Promise.allSettled([
-      ...(attached === undefined ? [] : [Promise.resolve().then(() => attached.close())]),
-      ...(queue === undefined ? [] : [Promise.resolve().then(() => queue.close())]),
-      ...(authorization === undefined ? [] : [Promise.resolve().then(() => authorization.close())]),
-      ...orphaned.map(item => Promise.resolve().then(() => item.close())),
-      Promise.resolve().then(() => coordinator.close()),
-    ])
-    const orphanOffset =
-      (attached === undefined ? 0 : 1) +
-      (queue === undefined ? 0 : 1) +
-      (authorization === undefined ? 0 : 1)
-    orphaned.forEach((item, index) => {
-      const result = results[orphanOffset + index]
-      if (
-        result?.status === 'fulfilled' &&
-        typeof result.value === 'object' &&
-        result.value !== null &&
-        'released' in result.value
-      )
-        pendingObserverCleanup.delete(item)
-    })
+    const results = await Promise.allSettled(
+      closeResourceTasks(attached, queue, authorization, orphaned, coordinator),
+    )
+    const orphanOffset = orphanReceiptOffset(attached, queue, authorization)
+    releaseOrphanedObservers(orphaned, results, orphanOffset)
     let outstanding: boolean
     try {
       outstanding = 'unknown' in owner.opened() || owner.unresolvedWrites().length !== 0
     } catch {
       outstanding = true
     }
-    if (
-      semantic.some(result => result.status === 'rejected') ||
-      semantic.some(result => result.status === 'fulfilled' && 'unavailable' in result.value) ||
-      results.some(result => result.status === 'rejected') ||
-      results.some(
-        result =>
-          result.status === 'fulfilled' &&
-          typeof result.value === 'object' &&
-          result.value !== null &&
-          'unavailable' in result.value,
-      ) ||
-      stopped.size > 0 ||
-      stopFailed ||
-      operation.phase !== 'ready' ||
-      outstanding ||
-      pendingObserverCleanup.size > 0 ||
-      observerReplacementInFlight ||
-      releaseAttempted
-    )
+    if (closeReceiptsFailed(semantic, results) || closeResponsibilitiesHeld(outstanding))
       return { unavailable: true }
-    try {
-      releaseAttempted = true
-      if (!leaseReleased) {
-        if (leaseReleaseAttempted) return { unavailable: true }
-        leaseReleaseAttempted = true
-        binding.lease.release()
-        leaseReleased = true
-      }
-      const hook = releaseHooks.get(container)
-      const result = hook?.() ?? { released: true }
-      if (!('released' in result)) return { unavailable: true }
-      released = true
-      return { released: true }
-    } catch {
-      return { unavailable: true }
-    }
+    return releaseLeaseAndContainer()
   }
 
   const container: CallContainer<P, R> = {
@@ -330,26 +476,50 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       return { attached: next }
     },
   })
-  requestSlots.set(container, next => {
-    if (released || releaseAttempted || admissionClosed || operation.phase !== 'ready')
-      throw new TypeError('call container cannot update request')
-    if (
+  function requestOwnershipMismatch(next: OpenCallInput): boolean {
+    return (
       next.session !== ownedKey.session ||
       next.callId !== ownedKey.callId ||
       next.host !== request.host ||
       next.run !== request.run ||
-      (next.run === undefined && (next.attempt !== undefined || next.report !== undefined)) ||
-      (next.run !== undefined && (next.attempt === undefined || next.report === undefined)) ||
+      requestRunMalformed(next) ||
       'unknown' in owner.opened() ||
       owner.unresolvedWrites().length !== 0
     )
-      throw new TypeError('call request ownership mismatch')
+  }
+  function observerBindingBlocked(
+    incoming: AuthorizedCallObserver | undefined,
+    valid: () => boolean,
+  ): boolean {
+    return (
+      admissionClosed ||
+      released ||
+      releaseAttempted ||
+      operation.phase !== 'ready' ||
+      !valid() ||
+      observerReplacementInFlight ||
+      oldObserverStopping ||
+      pendingObserverCleanup.size > (incoming === undefined ? 0 : 1)
+    )
+  }
+  function observerCloseFailed(
+    result: RuntimeCloseResult,
+    prior: CallObserverBinding,
+    valid: () => boolean,
+  ): boolean {
+    return !('released' in result) || admissionClosed || observer !== prior || !valid()
+  }
+  function updateRequest(next: OpenCallInput): void {
+    if (released || releaseAttempted || admissionClosed || operation.phase !== 'ready')
+      throw new TypeError('call container cannot update request')
+    if (requestOwnershipMismatch(next)) throw new TypeError('call request ownership mismatch')
     request = Object.freeze({
       ...next,
       messages: Object.freeze([...next.messages]),
       tools: Object.freeze([...next.tools]),
     })
-  })
+  }
+  requestSlots.set(container, updateRequest)
   observerSlots.set(container, {
     async refresh() {
       if (observerReplacementInFlight) return { unavailable: true }
@@ -390,30 +560,20 @@ export function createCallContainer<P extends PlannedSemantics, R>(
         }
         return { unavailable: true }
       }
-      if (
-        admissionClosed ||
-        released ||
-        releaseAttempted ||
-        operation.phase !== 'ready' ||
-        !valid() ||
-        observerReplacementInFlight ||
-        oldObserverStopping ||
-        pendingObserverCleanup.size > (incoming === undefined ? 0 : 1)
-      )
-        return await reject()
+      if (observerBindingBlocked(incoming, valid)) return await reject()
       observerReplacementInFlight = true
       const prior = observer
       try {
         if (prior?.queue !== undefined) {
           const result = await prior.queue.close()
-          if (!('released' in result) || admissionClosed || observer !== prior || !valid()) {
+          if (observerCloseFailed(result, prior, valid)) {
             oldObserverStopping = true
             return await reject()
           }
         }
         if (prior !== undefined) {
           const result = await prior.authorization.close()
-          if (!('released' in result) || admissionClosed || observer !== prior || !valid()) {
+          if (observerCloseFailed(result, prior, valid)) {
             oldObserverStopping = true
             return await reject()
           }
@@ -436,8 +596,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
         return { unavailable: true }
       if (prior.queue !== undefined) {
         const result = await prior.queue.close()
-        if (!('released' in result) || admissionClosed || observer !== prior || !valid())
-          return { unavailable: true }
+        if (observerCloseFailed(result, prior, valid)) return { unavailable: true }
       }
       let queue: ModelObserverQueue
       try {
@@ -445,14 +604,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
       } catch {
         return { unavailable: true }
       }
-      if (
-        queue === null ||
-        typeof queue !== 'object' ||
-        typeof queue.offer !== 'function' ||
-        typeof queue.start !== 'function' ||
-        typeof queue.close !== 'function'
-      )
-        return { unavailable: true }
+      if (!validObserverQueue(queue)) return { unavailable: true }
       observer = Object.freeze({ ...prior, queue })
       return { queue }
     },
@@ -464,14 +616,7 @@ export function createCallContainer<P extends PlannedSemantics, R>(
 export function createCallPreparationOwner<P extends PlannedSemantics, R>(
   host: ModelCallHost,
 ): CallPreparationResult<P, R> {
-  if (
-    host === null ||
-    typeof host !== 'object' ||
-    !(host.signal instanceof AbortSignal) ||
-    typeof host.stopping !== 'function' ||
-    typeof host.register !== 'function'
-  )
-    return { invalidInput: { reason: 'malformed' } }
+  if (!validPreparationHost(host)) return { invalidInput: { reason: 'malformed' } }
   const abort = new AbortController()
   let registration: { readonly unregister: () => void } | undefined
   let container: CallContainer<P, R> | undefined
@@ -482,6 +627,10 @@ export function createCallPreparationOwner<P extends PlannedSemantics, R>(
   let closing: Promise<RuntimeCloseResult> | undefined
   let nextStop = 0
   const stopped = new Map<number, Promise<void>>()
+
+  function resourceStillHeld(resource: RuntimeCloseResult): boolean {
+    return !('released' in resource) || stopped.size !== 0 || stopFailed
+  }
 
   async function closeOnce(): Promise<RuntimeCloseResult> {
     if (released) return { released: true }
@@ -505,8 +654,7 @@ export function createCallPreparationOwner<P extends PlannedSemantics, R>(
       if (discarded) resource = { released: true }
     }
     if (released) return { released: true }
-    if (!('released' in resource) || stopped.size !== 0 || stopFailed || registration === undefined)
-      return { unavailable: true }
+    if (resourceStillHeld(resource) || registration === undefined) return { unavailable: true }
     try {
       registration.unregister()
       host.signal.removeEventListener('abort', onHostAbort)
@@ -683,6 +831,20 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
     if (call?.size === 0) session?.delete(key.callId)
     if (session?.size === 0) waiters.delete(key.session)
   }
+  function admitWait(
+    key: CallKey,
+    policy: ReservationWaitPolicy,
+    scheduler: SettlementScheduler,
+    signal: AbortSignal,
+  ): JsonNumber | undefined {
+    if (!validWaitStart(closed, policy, signal, scheduler)) return undefined
+    const started = readWaitStart(scheduler)
+    if (started === undefined) return undefined
+    const existing = waiters.get(key.session)?.get(key.callId)?.size ?? 0
+    if (ExactDecimal.from(existing).compare(ExactDecimal.from(policy.maxWaitersPerCall)) >= 0)
+      return undefined
+    return started
+  }
 
   function current(key: CallKey): CallContainer<P, R> | undefined {
     return containers.get(key.session)?.get(key.callId)
@@ -758,15 +920,17 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
         } catch {
           return { unavailable: true } as const
         }
-        if (
-          !('released' in stopped) ||
-          stopped.released !== true ||
-          closed ||
-          owns(reservation) === undefined ||
-          current(ownedKey) !== container ||
-          !slot.eligible(old)
-        )
-          return { unavailable: true } as const
+        const replacementLost = (): boolean => {
+          return (
+            !('released' in stopped) ||
+            stopped.released !== true ||
+            closed ||
+            owns(reservation) === undefined ||
+            current(ownedKey) !== container ||
+            !slot.eligible(old)
+          )
+        }
+        if (replacementLost()) return { unavailable: true } as const
         return slot.replace(old, create)
       },
       updateRequest(request: OpenCallInput): void {
@@ -858,20 +1022,8 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
       },
     ) {
       const { policy, scheduler, signal } = input
-      if (closed || !validWaitPolicy(policy) || signal.aborted)
-        return { unavailable: true } as const
-      if (typeof scheduler.nowMonotonicMs !== 'function' || typeof scheduler.wait !== 'function')
-        return { unavailable: true } as const
-      let started: JsonNumber
-      try {
-        started = scheduler.nowMonotonicMs()
-        if (!nonnegative(started)) return { unavailable: true } as const
-      } catch {
-        return { unavailable: true } as const
-      }
-      const existing = waiters.get(key.session)?.get(key.callId)?.size ?? 0
-      if (ExactDecimal.from(existing).compare(ExactDecimal.from(policy.maxWaitersPerCall)) >= 0)
-        return { unavailable: true } as const
+      const started = admitWait(key, policy, scheduler, signal)
+      if (started === undefined) return { unavailable: true } as const
       const callbacks = waiting(key)
       let wake: (() => void) | undefined
       let stopTimer: (() => void) | undefined
@@ -887,6 +1039,16 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
           }
         },
       }
+      function unsubscribe(): void {
+        if (wake !== undefined) removeWaiter(key, wake)
+      }
+      function releaseWaiter(): void {
+        unsubscribe()
+        if (!stopFailed) activeWaiters.delete(waiter)
+      }
+      function waitStopped(): boolean {
+        return closed || signal.aborted
+      }
       function subscribe(): void {
         notified = new Promise<void>(resolve => {
           wake = resolve
@@ -897,44 +1059,22 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
       activeWaiters.add(waiter)
       try {
         for (;;) {
-          if (closed || signal.aborted) return { unavailable: true } as const
+          if (waitStopped()) return { unavailable: true } as const
           const attempt = reserve(key)
           if ('reservation' in attempt) return attempt
           if ('closed' in attempt) return { unavailable: true } as const
-          let now: JsonNumber
+          const remaining = remainingWait(scheduler, started, policy)
+          if (remaining === undefined) return { unavailable: true } as const
+          const cancellation = watchWaitCancellation(signal)
           try {
-            now = scheduler.nowMonotonicMs()
-            if (!nonnegative(now) || ExactDecimal.from(now).compare(ExactDecimal.from(started)) < 0)
-              return { unavailable: true } as const
-          } catch {
-            return { unavailable: true } as const
-          }
-          const elapsed = ExactDecimal.from(now).add(ExactDecimal.from(negative(started)))
-          const remaining = ExactDecimal.from(policy.timeoutMs).add(
-            ExactDecimal.from(negative(elapsed.toJsonNumber())),
-          )
-          if (remaining.compare(ExactDecimal.from(0)) <= 0) return { unavailable: true } as const
-          const controller = new AbortController()
-          const abort = () => controller.abort()
-          let notifyAbort: (() => void) | undefined
-          const cancelled = new Promise<'cancelled'>(resolve => {
-            notifyAbort = () => resolve('cancelled')
-            signal.addEventListener('abort', notifyAbort, { once: true })
-          })
-          signal.addEventListener('abort', abort, { once: true })
-          if (signal.aborted) {
-            controller.abort()
-            notifyAbort?.()
-          }
-          try {
-            const timer = scheduler.wait(remaining.toJsonNumber(), controller.signal)
+            const timer = scheduler.wait(remaining.toJsonNumber(), cancellation.controller.signal)
             stopTimer = () => timer.requestStop()
             if (closed) waiter.stop()
             try {
               const result = await Promise.race([
                 notified.then(() => 'released' as const),
                 timer.completion,
-                cancelled,
+                cancellation.cancelled,
               ])
               if (result !== 'released') return { unavailable: true } as const
             } finally {
@@ -951,15 +1091,13 @@ export function createCallContainerStore<P extends PlannedSemantics, R>(): CallC
           } catch {
             return { unavailable: true } as const
           } finally {
-            signal.removeEventListener('abort', abort)
-            if (notifyAbort !== undefined) signal.removeEventListener('abort', notifyAbort)
+            cancellation.release()
           }
-          if (wake !== undefined) removeWaiter(key, wake)
+          unsubscribe()
           subscribe()
         }
       } finally {
-        if (wake !== undefined) removeWaiter(key, wake)
-        if (!stopFailed) activeWaiters.delete(waiter)
+        releaseWaiter()
       }
     },
     insert(reservation: CallReservation<P, R>, prepared: CallContainer<P, R>): boolean {
