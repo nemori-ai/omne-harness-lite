@@ -328,6 +328,46 @@ export function old(ctx: Context) { ctx.provide('direct', {}) }
       ]),
     )
   })
+  it('pairs typed Context augmentation with its exact Service, retaining mismatches and duplicates', () => {
+    const { root, base } = setup()
+    write(
+      root,
+      `${storage}/src/cordis.ts`,
+      `import {Service} from '@deepseek-ai/cordis'
+/** @contract accepted.storage */
+export abstract class Data extends Service { static readonly provide = 'data' }
+export abstract class Untagged extends Service { static readonly provide = 'untagged' }
+declare module '@deepseek-ai/cordis' {
+  interface Context { data: Data; wrongKey: Data; untyped: {}; untagged: Untagged }
+}
+`,
+    )
+    let rows = readConformance({ root, base }).rows
+    for (const rule of ['IC-1', 'IC-3']) {
+      const data = rows.filter(row => row.rule === rule && row.key === 'data')
+      expect(data).toHaveLength(2)
+      expect(data.every(row => row.state === 'converged')).toBe(true)
+    }
+    for (const key of ['wrongKey', 'untyped', 'untagged'])
+      expect(
+        rows.some(row => row.rule === 'IC-3' && row.key === key && row.state === 'deviation'),
+      ).toBe(true)
+    write(
+      root,
+      `${policy}/src/duplicate.ts`,
+      `import {Service} from '@deepseek-ai/cordis'
+/** @contract accepted.storage */
+export abstract class Duplicate extends Service { static readonly provide = 'data' }
+`,
+    )
+    rows = readConformance({ root, base }).rows
+    expect(rows.filter(row => row.rule === 'IC-1' && row.key === 'data')).toHaveLength(3)
+    expect(
+      rows
+        .filter(row => row.rule === 'IC-1' && row.key === 'data')
+        .every(row => row.state === 'deviation'),
+    ).toBe(true)
+  })
   it('BASE exact-symbol IC-5 exceptions remain scoped and a layer conflict stays pending', () => {
     const { root } = setup()
     const declaration = `.meta_harness/design/realization/${ui}/bindings.yaml`

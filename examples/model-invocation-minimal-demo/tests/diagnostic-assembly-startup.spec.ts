@@ -11,8 +11,8 @@ const controlled = vi.hoisted(() => ({
   collector: vi.fn(),
 }))
 vi.mock('../src/diagnostic-journal.ts', () => ({ createDiagnosticJournal: controlled.journal }))
-vi.mock('@omne-harness-lite/model-request-runtime', async importOriginal => ({
-  ...(await importOriginal<typeof import('@omne-harness-lite/model-request-runtime')>()),
+vi.mock('@omne-harness-lite/model-request-runtime-local', async importOriginal => ({
+  ...(await importOriginal<typeof import('@omne-harness-lite/model-request-runtime-local')>()),
   createDiagnosticCollector: controlled.collector,
 }))
 

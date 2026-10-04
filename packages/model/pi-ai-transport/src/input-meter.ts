@@ -93,7 +93,7 @@ export type TokenMeasurement =
   | { readonly kind: 'exact' | 'upperBound' | 'estimated'; readonly tokens: JsonNumber }
   | { readonly kind: 'unavailable' }
 
-export type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
+export type { TokenMargin } from '@omne-harness-lite/model-request-runtime-local'
 const meterSources = new WeakMap<InputMeter, object>()
 export function meterSource(meter: InputMeter): object {
   return meterSources.get(meter) ?? meter

@@ -378,6 +378,7 @@ class Extractor {
       this.key('defines', key, context, {
         ...this.tags(node),
         definitionForm: 'service-class',
+        serviceDefinition: { ...this.resolver.site(node), member },
         symbol: node.name?.text ?? 'default',
       })
     if (!node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.AbstractKeyword)) {
@@ -444,6 +445,27 @@ class Extractor {
       return
     for (const item of this.interfaceMembers(node)) {
       const name = nodeName(item.name)
+      const type = ts.isPropertySignature(item) ? item.type : undefined
+      const declaration =
+        type !== undefined && ts.isTypeReferenceNode(type)
+          ? this.resolver.declaration(type.typeName)
+          : undefined
+      const serviceDefinition =
+        node.name.text === 'Context' &&
+        declaration !== undefined &&
+        ts.isClassDeclaration(declaration) &&
+        this.serviceBase(declaration) !== undefined
+          ? {
+              ...this.resolver.site(declaration),
+              member: this.resolver.member(this.resolver.path(declaration))?.path,
+            }
+          : undefined
+      const definition = {
+        ...(node.name.text === 'Context'
+          ? { definitionForm: 'context-augmentation' as const }
+          : {}),
+        ...(serviceDefinition === undefined ? {} : { serviceDefinition }),
+      }
       if (name === undefined && item.name !== undefined && ts.isComputedPropertyName(item.name)) {
         this.key(
           node.name.text === 'Context' ? 'defines' : 'event-declaration',
@@ -451,7 +473,7 @@ class Extractor {
           context,
           {
             ...this.tags(item),
-            ...(node.name.text === 'Context' ? { definitionForm: 'context-augmentation' } : {}),
+            ...definition,
           },
         )
         continue
@@ -461,7 +483,7 @@ class Extractor {
       if (kind === 'defines') this.attempts.add(`${this.resolver.path(item)}|${item.pos}|defines`)
       this.add(kind, name, item, context, {
         ...this.tags(item),
-        ...(kind === 'defines' ? { definitionForm: 'context-augmentation' } : {}),
+        ...definition,
       })
     }
   }
