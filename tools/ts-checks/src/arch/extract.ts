@@ -737,6 +737,7 @@ class Extractor {
           ? { kind: specifier.startsWith('.') ? 'unresolved-local' : 'external' }
           : { kind: 'workspace', member: target },
       ...(local === undefined ? {} : { local }),
+      ...(resolved === undefined ? {} : { resolvedPath: resolved }),
     })
     if (resolved === undefined && (target !== undefined || specifier.startsWith('.')))
       this.importUnknown.push({

@@ -59,7 +59,8 @@ import {
   type SnapshotDecision,
 } from './trend.ts'
 
-import { readReflexion, type Reflexion } from './sensors/reflexion.ts'
+import { type Reflexion } from './sensors/reflexion.ts'
+import { readArchitectureSensors } from './sensors/conformance.ts'
 import type { IntentChange } from '../arch/compare.ts'
 
 const OFF = '配置里关了'
@@ -86,6 +87,7 @@ export interface RunResult {
 
 /** 各传感器的原始结果；status.json 原样收下。 */
 interface Sensors {
+  readonly conformance: Reading<import('../arch/conformance-model.ts').Conformance>
   readonly stability: Reading<readonly StabilityEdge[]>
   readonly cochange: Reading<CochangeResult>
   readonly duplication: Reading<DuplicationResult>
@@ -201,8 +203,13 @@ async function readSensors(
 ): Promise<Sensors> {
   const { sensors } = config
   const windowStart = new Date(Date.now() - sensors.topicChurn.windowDays * 24 * 60 * 60 * 1000)
-  const { reflexion, intentChanges } = readReflexion(root, sensors.reflexion, change?.mergeBase)
+  const { reflexion, intentChanges, conformance } = readArchitectureSensors(
+    root,
+    sensors.reflexion,
+    change?.mergeBase,
+  )
   return {
+    conformance,
     stability: readStability(report, sensors.stability),
     cochange: readCochange(root, sensors.cochange),
     duplication: await readDuplication(files, sensors.duplication),
@@ -638,6 +645,7 @@ export async function runLoopStatus(
               ? sensors.reflexion
               : sensors.reflexion.data.newDeviations,
           assemblyChanges: sensors.assemblyChanges,
+          conformance: sensors.conformance,
         }
   const lines = renderStatus({
     shortHead: at.shortHead,

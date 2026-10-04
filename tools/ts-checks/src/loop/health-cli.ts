@@ -26,6 +26,7 @@ import { loopHome } from './home.ts'
 import { noData, type Reading } from './reading.ts'
 import { cardIndex, readStories } from '../product/stories.ts'
 import { readTrend } from './trend.ts'
+import { readConformanceSensor } from './sensors/conformance.ts'
 
 const USAGE = '用法：loop-health [--out <dir>] [--root <检出目录>]'
 const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
@@ -121,6 +122,7 @@ function main(argv: readonly string[]): number {
   ]
   const debt = debtBlock(trend.snapshots, config, trendPath)
   const health: Health = {
+    conformance: readConformanceSensor(root, config.sensors.reflexion.enabled),
     meta: {
       head: at.head,
       shortHead: at.shortHead,

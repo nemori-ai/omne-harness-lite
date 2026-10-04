@@ -62,6 +62,8 @@ export interface PackageImport extends Site {
   readonly specifier: string
   readonly symbol: string
   readonly local?: string
+  /** Version-local resolved module source, including imports inside the same member. */
+  readonly resolvedPath?: string
   readonly type: boolean
   readonly form: ImportFact['form']
   readonly target:
