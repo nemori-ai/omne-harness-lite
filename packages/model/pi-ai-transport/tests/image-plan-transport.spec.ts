@@ -9,7 +9,7 @@ import {
 } from '@omne-harness-lite/pi-ai-transport/plugin'
 import { createHash } from 'node:crypto'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import {
   createPiAiTransport,
   createModelTransportService,

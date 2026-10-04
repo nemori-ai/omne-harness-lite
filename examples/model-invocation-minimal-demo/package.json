@@ -46,10 +46,8 @@
     "@omne-harness-lite/messages": "workspace:*",
     "@omne-harness-lite/model-profile": "workspace:*",
     "@omne-harness-lite/model-profile-directory": "workspace:*",
-    "@omne-harness-lite/model-request-runtime": "workspace:*",
     "@omne-harness-lite/model-response": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
-    "@omne-harness-lite/organization-governance": "workspace:*",
     "@omne-harness-lite/pi-ai-transport": "workspace:*",
     "@omne-harness-lite/session-log-jsonl": "workspace:*",
     "@omne-harness-lite/session-tenancy-table": "workspace:*",
@@ -57,11 +55,15 @@
     "@omne-harness-lite/storage-sql": "workspace:*",
     "@omne-harness-lite/stream-assembly": "workspace:*",
     "@omne-harness-lite/tool-definition": "workspace:*",
-    "sharp": "catalog:"
+    "sharp": "catalog:",
+    "@omne-harness-lite/organization-governance-sql": "workspace:*",
+    "@omne-harness-lite/model-request-runtime-local": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness-lite/model-request-runtime": "workspace:*"
   }
 }

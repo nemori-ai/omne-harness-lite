@@ -12,7 +12,7 @@ import type {
   PlanCalibration,
   PlanOutputHistoryGroup,
   TokenMargin,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { CountingBasis } from '@omne-harness-lite/model-response'
 import type { ModelDefinition } from './definitions.ts'
 import type { InputProjection } from './projection.ts'

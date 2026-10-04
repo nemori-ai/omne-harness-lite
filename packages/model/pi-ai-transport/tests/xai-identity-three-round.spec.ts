@@ -6,7 +6,7 @@ import {
   type InvocationOutcome,
   type ModelInvocationResult,
   type PlanInput,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { createXaiInputMeter } from '../src/input-meters/xai.ts'
 import { xaiDefinitions } from '../src/official-models/xai.ts'
 import { MODEL_TRANSPORT_SERVICE, createModelPlugin } from '../src/plugin.ts'

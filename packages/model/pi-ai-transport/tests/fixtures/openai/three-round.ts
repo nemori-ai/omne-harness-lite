@@ -4,7 +4,7 @@ import type {
   ModelInvocationResult,
   PlanInput,
   PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import {
   createOfficialProfileContent,

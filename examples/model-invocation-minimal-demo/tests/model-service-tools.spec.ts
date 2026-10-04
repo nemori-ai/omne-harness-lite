@@ -22,10 +22,8 @@ import {
   type RegistryHistoryReader,
 } from '@omne-harness-lite/evaluation-input-store/registry-history'
 import { judgeMessage } from '@omne-harness-lite/messages'
-import {
-  MEMBERSHIPS_SERVICE,
-  type MembershipsService,
-} from '@omne-harness-lite/organization-governance'
+import { MEMBERSHIPS_SERVICE } from '@omne-harness-lite/organization-governance/cordis'
+import { type MembershipsService } from '@omne-harness-lite/organization-governance'
 import {
   SESSION_TENANCY_SERVICE,
   type SessionTenancyService,

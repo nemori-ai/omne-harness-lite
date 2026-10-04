@@ -1,7 +1,7 @@
 import { imagePreparation } from './image-transport-support.ts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import { createReadFactsAccumulator } from '../src/read-facts.ts'
 import { usageScope, PRO_READER_REVISION } from '../src/usage-scope.ts'
 import { openaiDefinitions, openaiConfiguration } from '../src/official-models/openai.ts'

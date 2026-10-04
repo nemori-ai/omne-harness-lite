@@ -2,7 +2,7 @@ import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it, vi } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import type { PlanCalibration, PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PlanCalibration, PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import {
   planRequest,
   projectOutput,

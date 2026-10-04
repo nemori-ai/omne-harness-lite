@@ -24,6 +24,8 @@ import {
   ORGANIZATIONS_SERVICE,
   OFFERS_SERVICE,
   MEMBERSHIPS_SERVICE,
+} from '@omne-harness-lite/organization-governance/cordis'
+import {
   type OrganizationsService,
   type OffersService,
   type MembershipsService,
@@ -39,7 +41,7 @@ import {
 import {
   decodeModelLogKey,
   openRouterCredentialRedactionConfig,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { actor, ref, duration, activateModelFixture } from './support.ts'
 import { ROOT, publication, demoRetirement } from './model-request-support.ts'

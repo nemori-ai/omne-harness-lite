@@ -23,7 +23,7 @@ import {
   type LoopExtensionDefinition,
   type Power,
 } from '@omne-harness-lite/loop-extension'
-import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime-local'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy-table'
 import type { RunnerPiece } from './run-pass.ts'
 import type { RunnerLogBinding } from './task-owner.ts'

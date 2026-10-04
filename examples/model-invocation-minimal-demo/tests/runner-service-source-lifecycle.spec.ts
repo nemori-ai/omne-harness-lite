@@ -11,7 +11,7 @@ import type {
   ModelFailureSource,
   ModelRuntimeService,
   SettlementLogBinding,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { createDemoRunnerHost } from '../src/runner-host.ts'
 import {

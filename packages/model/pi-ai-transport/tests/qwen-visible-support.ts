@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs'
 import type { Message } from '@omne-harness-lite/messages'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import type { ModelDefinition } from '../src/definitions.ts'
 import type { InputMeter } from '../src/input-meter.ts'

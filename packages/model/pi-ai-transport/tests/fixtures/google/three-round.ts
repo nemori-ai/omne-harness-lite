@@ -4,7 +4,7 @@ import type {
   ModelInvocationResult,
   PlanInput,
   PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { ModelDefinition } from '@omne-harness-lite/pi-ai-transport'
 import { googleCertificationRequest, googleCertificationTool } from './cases.ts'
 import { judgedMessage, message } from '../../support.ts'

@@ -5,7 +5,7 @@ import { judgeMessage } from '@omne-harness-lite/messages'
 import {
   createAnchoredModelInvocation,
   type SettlementCoordinatorInput,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { harness, payload } from '../../model-request-runtime/tests/anchored-invocation-fixture.ts'
 import { certificate, content, finish, fixture, input, policy, sse } from './support.ts'

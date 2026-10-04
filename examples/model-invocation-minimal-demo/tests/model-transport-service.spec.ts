@@ -5,7 +5,7 @@ import { judgeMessage } from '@omne-harness-lite/messages'
 import { LOGINS_SERVICE, type LoginsService } from '@omne-harness-lite/account-identity'
 import { MODEL_CATALOG_SERVICE } from '@omne-harness-lite/model-profile-directory/plugin'
 import type { ModelCatalog } from '@omne-harness-lite/model-profile-directory'
-import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime-local'
 import {
   createDeepSeekV41FlashInputMeter,
   createOfficialProfileContent,

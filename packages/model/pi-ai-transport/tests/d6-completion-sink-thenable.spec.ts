@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { jsonNumberSource } from '@omne-harness-lite/content-blocks'
-import { invokeModel } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { certificate, content, fixture, input, policy, sse } from './support.ts'
 
 describe('D6 diagnostic thenable isolation across real HTTPS', () => {

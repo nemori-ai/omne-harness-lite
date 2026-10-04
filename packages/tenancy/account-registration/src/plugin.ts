@@ -9,6 +9,8 @@ import { definePlugin, fiberIsActive } from '@omne-harness-lite/kernel-basis'
 import {
   ORGANIZATIONS_SERVICE,
   ORGANIZATION_PURGE_SERVICE,
+} from '@omne-harness-lite/organization-governance/cordis'
+import {
   type OrganizationPurgeService,
   type OrganizationsService,
 } from '@omne-harness-lite/organization-governance'

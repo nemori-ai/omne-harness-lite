@@ -394,7 +394,7 @@ describe('presentation-only-authn', () => {
     )
     expect(presentationOnlyAuthn.check([clean])).toEqual([])
     // 入口层包之外（组织治理 inject accounts）不查
-    const og = file('tenancy/organization-governance/src/plugin.ts', "inject: ['accounts']")
+    const og = file('tenancy/organization-governance-sql/src/plugin.ts', "inject: ['accounts']")
     expect(presentationOnlyAuthn.check([og])).toEqual([])
   })
 })
@@ -435,7 +435,7 @@ describe('restricted-call-sites：入口 SC-1 新增的四个方法', () => {
       `${E}src/routing/leak.ts`,
       'organizations.createPersonal(a)\naccounts.activate(a, w)\naccounts.purge(a, w)\nmemberships.sweepStaleSelections(10)',
     )
-    const og = file('tenancy/organization-governance/src/x.ts', 'await accounts.activate(a, w)')
+    const og = file('tenancy/organization-governance-sql/src/x.ts', 'await accounts.activate(a, w)')
     const found = restrictedCallSites.check([entry, og])
     expect(found.map(v => `${v.path}:${v.line}`)).toEqual([
       `${entry.path}:1`,
@@ -449,7 +449,7 @@ describe('restricted-call-sites：入口 SC-1 新增的四个方法', () => {
   it('合规：owner 包定义与自调、注册组合调用、注释里提到、相似名字', () => {
     const owners = [
       file(
-        'tenancy/organization-governance/src/organizations.ts',
+        'tenancy/organization-governance-sql/src/organizations.ts',
         'async function createPersonal(d, a) {}\nsweepStaleSelections(deps, 1)',
       ),
       file(

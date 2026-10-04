@@ -24,17 +24,15 @@ import {
   type RegistryHistoryReader,
 } from '@omne-harness-lite/evaluation-input-store/registry-history'
 import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
-import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
+import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime-local'
 import {
   anthropicDefinitions,
   createAnthropicInputMeter,
   createOfficialProfileContent,
   type InputMeter,
 } from '@omne-harness-lite/pi-ai-transport'
-import {
-  MEMBERSHIPS_SERVICE,
-  type MembershipsService,
-} from '@omne-harness-lite/organization-governance'
+import { MEMBERSHIPS_SERVICE } from '@omne-harness-lite/organization-governance/cordis'
+import { type MembershipsService } from '@omne-harness-lite/organization-governance'
 import {
   SESSION_TENANCY_SERVICE,
   type SessionTenancyService,

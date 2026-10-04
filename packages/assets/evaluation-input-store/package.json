@@ -49,9 +49,9 @@
     "@omne-harness-lite/agent-definition": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
     "@omne-harness-lite/session-tenancy-table": "workspace:*",
-    "@omne-harness-lite/organization-governance": "workspace:*",
     "@omne-harness-lite/assembly-manifest-store": "workspace:*",
-    "@omne-harness-lite/offer-expiry": "workspace:*"
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/account-identity": "workspace:*",
@@ -61,6 +61,7 @@
     "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness-lite/organization-governance-sql": "workspace:*"
   }
 }

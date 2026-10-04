@@ -18,7 +18,7 @@ import {
   type InvocationOutcome,
   type PlanInput,
   type PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   measureFull,
   type FullMeterInput,

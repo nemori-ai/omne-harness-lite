@@ -5,7 +5,7 @@ import {
   inspectModelLogEntry,
   modelLogJsonEqual,
   prepareModelLogEntry,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { executionFence, type RunnerExecution } from './conclusion-codec.ts'

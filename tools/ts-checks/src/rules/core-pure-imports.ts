@@ -5,6 +5,8 @@ import { syntaxImports, syntaxOf } from '../syntax.ts'
 
 /** 当前已接受节点 design 的依赖表；工具依赖（如 content-blocks 无损写）也明确登记。 */
 export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>> = {
+  'organization-governance': ['storage', 'identity-values', 'offer-expiry', 'kernel-basis'],
+  'model-request-runtime': ['content-blocks', 'call-accounts', 'tool-definition'],
   'content-blocks': ['identity-values'],
   'asset-model': ['identity-values', 'offer-expiry', 'content-blocks'],
   'agent-definition': [
@@ -139,6 +141,9 @@ function allowedExternal(
   specifier: string,
   path: string,
 ): boolean {
+  // IC-4: only the explicitly exported Cordis face may load the kernel.
+  if (path === 'core/organization-governance/src/cordis.ts' && specifier === '@deepseek-ai/cordis')
+    return true
   if (
     (specifier === 'node:module' || specifier === 'module') &&
     FIXED_SCHEMA_MODULE_SITES.has(path)
@@ -211,7 +216,8 @@ export const corePureImports: Rule = {
         const resolved = specifier === undefined ? undefined : resolveRelative(file.path, specifier)
         const local =
           resolved !== undefined &&
-          (resolved.startsWith(`core/${pkg}/src/`) ||
+          ((resolved.startsWith(`core/${pkg}/src/`) &&
+            !(pkg === 'organization-governance' && resolved === `core/${pkg}/src/cordis.ts`)) ||
             (resolved.startsWith(`core/${pkg}/schema/`) && resolved.endsWith('.json')))
         if (
           local ||

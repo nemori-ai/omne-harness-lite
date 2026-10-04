@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { planRequest } from './synthetic-input-meter.ts'
 import { readOpaqueJson, toOpaqueJson } from '@omne-harness-lite/content-blocks'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import {
   configurationSchema,
   createOfficialProfileContent,

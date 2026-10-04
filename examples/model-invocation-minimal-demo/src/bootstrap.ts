@@ -48,13 +48,13 @@ import {
   type DiagnosticEvent,
   type FailureConsumableOperation,
   type FailureConsumption,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   captureModelLogValue,
   decodeModelLogKey,
   prepareModelLogEntry,
   modelLogJsonEqual,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   judgeMessage,
   judgePairing,
@@ -88,7 +88,7 @@ import {
   type RunnerReplayFailure,
   type RunnerReplayRequest,
 } from '@omne-harness-lite/loop-extension-runner'
-import { createModelDefaultRetryPlugin } from '@omne-harness-lite/model-request-runtime/default-retry-plugin'
+import { createModelDefaultRetryPlugin } from '@omne-harness-lite/model-request-runtime-local/cordis'
 import {
   createDemoRunnerServiceHost,
   readDemoRunnerFailure,
@@ -211,11 +211,9 @@ import {
 import { sessionLogContribution, prepareSessionLogDeployment } from './session-log-owner.ts'
 import { seedHoldingTenant } from '@omne-harness-lite/session-tenancy-table/seed'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
-import {
-  organizationGovernancePlugin,
-  MEMBERSHIPS_SERVICE,
-  type MembershipsService,
-} from '@omne-harness-lite/organization-governance'
+import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
+import { MEMBERSHIPS_SERVICE } from '@omne-harness-lite/organization-governance/cordis'
+import { type MembershipsService } from '@omne-harness-lite/organization-governance'
 import {
   composeMigrations,
   StorageDefect,

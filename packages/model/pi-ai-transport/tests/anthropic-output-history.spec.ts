@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { Message } from '@omne-harness-lite/messages'
-import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlanInput,
+  PlanOutputHistoryGroup,
+} from '@omne-harness-lite/model-request-runtime-local'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'
 import originalInputs from './fixtures/anthropic/original-request-inputs.json' with { type: 'json' }

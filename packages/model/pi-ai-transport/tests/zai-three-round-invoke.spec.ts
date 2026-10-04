@@ -12,7 +12,7 @@ import {
   type ModelInvocationResult,
   type PlanInput,
   type PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import {
   createModelTransportService,

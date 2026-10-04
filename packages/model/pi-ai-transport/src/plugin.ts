@@ -10,7 +10,7 @@ import {
 } from './registry.ts'
 import { ownCredentialConfiguration } from './credential-policy.ts'
 import type { Diagnostic } from './http.ts'
-import type { DiagnosticEmitter } from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticEmitter } from '@omne-harness-lite/model-request-runtime-local'
 import { inputMeterValid, type InputMeter } from './input-meter.ts'
 import type { ImagePreparePolicy, LoadedImageCodec } from './image-preparation/types.ts'
 

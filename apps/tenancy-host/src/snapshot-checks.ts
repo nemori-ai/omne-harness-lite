@@ -7,7 +7,7 @@ import {
 import {
   organizationGovernanceSnapshotCheck,
   ORGANIZATION_SNAPSHOT_TABLES,
-} from '@omne-harness-lite/organization-governance'
+} from '@omne-harness-lite/organization-governance-sql'
 import { clockSnapshotCheck, CLOCK_SNAPSHOT_TABLES } from '@omne-harness-lite/clock'
 import {
   governanceCenterSnapshotCheck,

@@ -10,12 +10,12 @@ import { join } from 'node:path'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
+import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime-local'
 import type {
   PlanInput,
   InvocationPolicy,
   InvocationOutcome,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   createPiAiTransport,
   type PiAiTransport,

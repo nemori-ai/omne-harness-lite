@@ -6,7 +6,7 @@ import {
   type DiagnosticEvent,
   type DiagnosticJournalStore,
   type DiagnosticRecord,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   createModelTransportService,
   type ModelDefinition,

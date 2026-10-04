@@ -6,7 +6,7 @@ import {
   invokeModel,
   openRouterCredentialRedactionConfig,
   type StreamEnd,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {

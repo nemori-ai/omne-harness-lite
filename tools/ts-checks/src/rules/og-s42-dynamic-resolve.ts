@@ -1,8 +1,12 @@
 import { isTestPath, type Rule, type Violation } from '../rule.ts'
-import { ACCOUNT_REGISTRATION, ORGANIZATION_GOVERNANCE } from '../layout.ts'
+import {
+  ACCOUNT_REGISTRATION,
+  ORGANIZATION_GOVERNANCE,
+  ORGANIZATION_GOVERNANCE_DEFINITION,
+} from '../layout.ts'
 import { codeMatches, lineAt, matchClose, viewsOf } from '../source-text.ts'
 
-const PURGE_KEY = `(?:['"\`]organization-purge['"\`]|\\bORGANIZATION_PURGE_SERVICE\\b)`
+const PURGE_KEY = `(?:['"\`](?:organizationPurge|organization-purge)['"\`]|\\bORGANIZATION_PURGE_SERVICE\\b)`
 
 /**
  * OG S-42 第 4 行「S-53 只由清除链调用」（AI S-30 同类纪律；OG 节点 verification S-42 行）：
@@ -38,7 +42,10 @@ export const ogS42DynamicResolve: Rule = {
           push(m.index, 'inject 声明里有 organization-purge；只有注册组合能依赖它')
         }
       }
-      if (!file.path.startsWith(ORGANIZATION_GOVERNANCE)) {
+      if (
+        !file.path.startsWith(ORGANIZATION_GOVERNANCE) &&
+        file.path !== `${ORGANIZATION_GOVERNANCE_DEFINITION}src/cordis.ts`
+      ) {
         for (const m of codeMatches(views, /\bORGANIZATION_PURGE_SERVICE\b/)) {
           push(
             m.index,

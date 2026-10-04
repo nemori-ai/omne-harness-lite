@@ -7,7 +7,7 @@ import {
   invokeModel,
   type PlanInput,
   type PlanCalibration,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   anthropicDefinitions,
   createAnthropicInputMeter,

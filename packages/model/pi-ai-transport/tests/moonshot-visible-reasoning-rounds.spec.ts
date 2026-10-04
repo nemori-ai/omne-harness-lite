@@ -15,7 +15,7 @@ import {
   invokeModel,
   type PlanInput,
   type TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { RawResponse } from '../src/http.ts'
 import { admissionTokens } from '../src/input-meter.ts'
 import { createMoonshotInputMeter } from '../src/input-meters/moonshot.ts'

@@ -11,11 +11,9 @@ import { bootAssembly, type Assembly } from '@omne-harness-lite/kernel-basis/tes
 import { composeMigrations, type MigrationFragment } from '@omne-harness-lite/storage'
 import { openStorage, type SqlStorage } from '@omne-harness-lite/storage-sql'
 import { clockMigrations, clockPlugin } from '@omne-harness-lite/clock'
-import {
-  organizationGovernanceMigrations,
-  organizationGovernancePlugin,
-  type MembershipsService,
-} from '@omne-harness-lite/organization-governance'
+import { organizationGovernanceMigrations } from '@omne-harness-lite/organization-governance-sql'
+import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance-sql/cordis'
+import { type MembershipsService } from '@omne-harness-lite/organization-governance'
 import type { ModelProfileContent, ModelProfileRef } from '@omne-harness-lite/model-profile'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory/migrations'

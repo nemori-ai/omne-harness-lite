@@ -8,7 +8,7 @@ import { createServer } from 'node:https'
 import type { ServerResponse } from 'node:http'
 import { resolve, join } from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import {
   anthropicDefinitions,

@@ -49,11 +49,12 @@
     "@omne-harness-lite/messages": "workspace:*",
     "@omne-harness-lite/tool-definition": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
-    "@omne-harness-lite/model-request-runtime": "workspace:*",
     "@omne-harness-lite/model-response": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
     "zod": "catalog:",
-    "sharp": "catalog:"
+    "sharp": "catalog:",
+    "@omne-harness-lite/model-request-runtime-local": "workspace:*",
+    "@omne-harness-lite/model-request-runtime": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:"

@@ -9,7 +9,7 @@ import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-value
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
 import { judgePositionedSubject } from '@omne-harness-lite/loop-extension'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
-import { createModelDefaultRetryPlugin } from '@omne-harness-lite/model-request-runtime/default-retry-plugin'
+import { createModelDefaultRetryPlugin } from '@omne-harness-lite/model-request-runtime-local/cordis'
 import {
   createRunnerTaskOwner,
   loopExtensionRunnerPlugin,
