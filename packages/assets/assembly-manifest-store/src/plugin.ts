@@ -1,3 +1,4 @@
+import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
 import { z } from 'zod'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Storage } from '@omne-harness-lite/storage'
@@ -6,7 +7,7 @@ import type { ManifestOptions, AssemblyManifestService } from './types.ts'
 export const ASSEMBLY_MANIFEST_SERVICE = 'assemblyManifest' as const
 export const assemblyManifestStorePlugin = definePlugin({
   name: 'assembly-manifest-store',
-  inject: ['storage'],
+  inject: [STORAGE_SERVICE],
   Config: z
     .object({
       presenceSource: z
@@ -28,7 +29,7 @@ export const assemblyManifestStorePlugin = definePlugin({
     })
     .strict(),
   apply(ctx, config) {
-    const store = createAssemblyManifestStore(ctx.get('storage') as Storage, {
+    const store = createAssemblyManifestStore(ctx.get(STORAGE_SERVICE) as Storage, {
       ...(config.presenceSource === undefined ? {} : { presenceSource: config.presenceSource }),
       ...(config.diagnostic === undefined ? {} : { diagnostic: config.diagnostic }),
       ...(config.diagnosticFailure === undefined

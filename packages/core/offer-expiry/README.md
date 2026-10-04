@@ -1,5 +1,7 @@
 # @omne-harness-lite/offer-expiry
 
+The root remains independent of Cordis. `./cordis` exposes the shared Service and its key. See [integration commitments](SPEC.md).
+
 [中文](README_ZH.md)
 
 Pure time values and offer-state evaluation. Parse a positive TTL, construct a read-only `OfferTiming` value, and derive its current state from explicit time, settlement and target-existence inputs.
@@ -10,15 +12,15 @@ This is an experimental, private workspace package, currently not published on n
 
 ## Public API
 
-| Public API                                                     | Purpose                                                              |
-| -------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `Instant`, `Duration`, instant conversion/comparison functions | Branded integer milliseconds and RFC 3339 exchange strings           |
-| `parseOfferTtl`, `timingFrom`, `parseOfferTiming`              | Positive durations and ordered issue/expiry times                    |
-| `deriveState`, `acceptable`, state constants/types             | Derived state and a single acceptance predicate                      |
-| `Clock`                                                        | `now(): Instant \| 'unavailable'` interface; no clock implementation |
-| `validate`, `schemaId`; `./schema`, `./schema/v1`              | Current v2 Schema and retained v1 Schema resource                    |
-| `compareRfc3339Instants` | Exact conditional ordering of original RFC 3339 strings; static invalid input returns `Parsed.invalidInput` |
-| `./testing`                                                    | `testClock` and `TestClock` for tests                                |
+| Public API                                                     | Purpose                                                                                                     |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `Instant`, `Duration`, instant conversion/comparison functions | Branded integer milliseconds and RFC 3339 exchange strings                                                  |
+| `parseOfferTtl`, `timingFrom`, `parseOfferTiming`              | Positive durations and ordered issue/expiry times                                                           |
+| `deriveState`, `acceptable`, state constants/types             | Derived state and a single acceptance predicate                                                             |
+| `Clock`                                                        | `now(): Instant \| 'unavailable'` interface; no clock implementation                                        |
+| `validate`, `schemaId`; `./schema`, `./schema/v1`              | Current v2 Schema and retained v1 Schema resource                                                           |
+| `compareRfc3339Instants`                                       | Exact conditional ordering of original RFC 3339 strings; static invalid input returns `Parsed.invalidInput` |
+| `./testing`                                                    | `testClock` and `TestClock` for tests                                                                       |
 
 ## Examples
 

@@ -1,3 +1,4 @@
+import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
 import { z } from 'zod'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
@@ -12,7 +13,7 @@ export function createEvaluationInputStorePlugin(
 ) {
   return definePlugin({
     name: 'evaluation-input-store',
-    inject: ['storage', 'memberships', 'sessionTenancy'],
+    inject: [STORAGE_SERVICE, 'memberships', 'sessionTenancy'],
     Config: z
       .object({ storeKey: z.string().min(1), deployedOfficial: z.array(z.unknown()) })
       .strict(),
@@ -21,7 +22,7 @@ export function createEvaluationInputStorePlugin(
         ...ports,
         storeKey: config.storeKey,
         deployedOfficial: config.deployedOfficial as DeployedOfficialEntry[],
-        storage: ctx.get('storage') as AtomicStorage,
+        storage: ctx.get(STORAGE_SERVICE) as StorageService & AtomicStorage,
         memberships: ctx.get('memberships') as MembershipsService,
         sessionTenancy: ctx.get('sessionTenancy') as SessionTenancyService,
       })

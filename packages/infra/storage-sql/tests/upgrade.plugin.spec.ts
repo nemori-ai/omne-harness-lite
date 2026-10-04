@@ -6,16 +6,15 @@ import { FIBER_STATE, definePlugin } from '@omne-harness-lite/kernel-basis/cordi
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import { StorageUnavailable } from '@omne-harness-lite/storage'
 import {
-  type SqlStorage,
-  STORAGE_SERVICE,
   StorageSqlConfig,
   StorageStartupFailure,
   UpgradeGuardNotAttached,
   createUpgradeGuard,
   openStorage,
-  storageSqlPlugin,
   type UpgradeGuard,
 } from '../src/index.ts'
+import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
+import { storageSqlPlugin, type SqlStorageService } from '../src/cordis.ts'
 import { migrationsOf } from './fixtures/migrations.ts'
 import {
   canDropWritePermission,
@@ -126,7 +125,7 @@ describe('upgrade.guard-binding（交错 f；A-1 取证）', () => {
       plugins: [{ plugin: storageSqlPlugin, config: ownerConfig(file, guard, ['t1', 't2']) }],
     })
     // 一个在途写事务把撤除卡在「等在途」：确认一定落在撤除进行中
-    const storage = assembly.ctx.get(STORAGE_SERVICE) as SqlStorage
+    const storage = assembly.ctx.get(STORAGE_SERVICE) as SqlStorageService
     let release = () => undefined as void
     const inflight = storage.write(
       () =>

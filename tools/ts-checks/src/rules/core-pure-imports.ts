@@ -1,3 +1,4 @@
+import ts from 'typescript'
 import { productSourceIn } from '../layout.ts'
 import type { Rule, Violation } from '../rule.ts'
 import { lineAt, resolveRelative } from '../source-text.ts'
@@ -5,6 +6,8 @@ import { syntaxImports, syntaxOf } from '../syntax.ts'
 
 /** 当前已接受节点 design 的依赖表；工具依赖（如 content-blocks 无损写）也明确登记。 */
 export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>> = {
+  storage: [],
+  'offer-expiry': ['identity-values'],
   'organization-governance': ['storage', 'identity-values', 'offer-expiry', 'kernel-basis'],
   'model-request-runtime': ['content-blocks', 'call-accounts', 'tool-definition'],
   'content-blocks': ['identity-values'],
@@ -85,6 +88,7 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
 }
 
 const BUILTINS: Readonly<Record<string, readonly string[]>> = {
+  storage: ['node:util'],
   // S-17：只规范化显式绝对路径的字面形状，不从 cwd 补齐、也不读文件系统。
   'asset-model': ['node:crypto', 'node:buffer', 'node:path'],
   'arrival-events': ['node:buffer'],
@@ -117,6 +121,8 @@ export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
 // D-116 native loading/build assembly: finite technical sites only. This does not
 // grant module loading to value judges or the compiler-free code-runtime.
 const FIXED_SCHEMA_MODULE_SITES = new Set([
+  'core/offer-expiry/src/validate.ts',
+  'core/offer-expiry/src/schema-inputs.ts',
   'core/content-blocks/src/schema.ts',
   'core/content-blocks/src/exact-schema.ts',
   'core/content-blocks/src/schema-runtime.ts',
@@ -142,7 +148,12 @@ function allowedExternal(
   path: string,
 ): boolean {
   // IC-4: only the explicitly exported Cordis face may load the kernel.
-  if (path === 'core/organization-governance/src/cordis.ts' && specifier === '@deepseek-ai/cordis')
+  if (
+    ['storage', 'offer-expiry', 'organization-governance'].some(
+      owner => path === `core/${owner}/src/cordis.ts`,
+    ) &&
+    specifier === '@deepseek-ai/cordis'
+  )
     return true
   if (
     (specifier === 'node:module' || specifier === 'module') &&
@@ -182,6 +193,7 @@ function allowedExternal(
     return true
   if (BUILTINS[pkg]?.includes(specifier.startsWith('node:') ? specifier : `node:${specifier}`))
     return true
+  if (pkg === 'storage') return specifier === 'kysely' || specifier === 'kysely/migration'
   // 数据节点的既定校验器采用。两个纯 capability 节点不采用 Ajv。
   if (
     pkg !== 'stream-assembly' &&
@@ -193,11 +205,11 @@ function allowedExternal(
   return pkg === 'tool-definition' && specifier === '@eslint-community/regexpp'
 }
 
-/** 一条规则同时承载十五个纯模块边界、SA SC-2 与 AE SC-1 的 import 面。 */
+/** 核对已登记纯模块边界及精确的 Cordis 绑定例外。 */
 export const corePureImports: Rule = {
   id: 'core-pure-imports',
   source:
-    '十五个新 core 节点 design「公开面／依赖」 · stream-assembly SC-2 · asset-evaluation SC-1',
+    'core 节点公开面／依赖 · storage/offer-expiry SPEC · stream-assembly SC-2 · asset-evaluation SC-1',
   description: '纯 core 模块只从节点登记的公开入口、本包源码/Schema 与已采用纯构件导入',
   check(files) {
     const out: Violation[] = []
@@ -217,9 +229,27 @@ export const corePureImports: Rule = {
         const local =
           resolved !== undefined &&
           ((resolved.startsWith(`core/${pkg}/src/`) &&
-            !(pkg === 'organization-governance' && resolved === `core/${pkg}/src/cordis.ts`)) ||
+            !(
+              ['storage', 'offer-expiry', 'organization-governance'].includes(pkg) &&
+              resolved === `core/${pkg}/src/cordis.ts`
+            )) ||
             (resolved.startsWith(`core/${pkg}/schema/`) && resolved.endsWith('.json')))
+        // The existing conformance API accepts a runner; Vitest remains a type-only dependency.
+        const runnerType =
+          pkg === 'storage' &&
+          [
+            'core/storage/src/conformance/index.ts',
+            'core/storage/src/conformance/atomic.ts',
+          ].includes(file.path) &&
+          specifier === 'vitest' &&
+          syntaxOf(file).statements.some(
+            statement =>
+              ts.isImportDeclaration(statement) &&
+              statement.getStart(syntaxOf(file)) === ref.index &&
+              statement.importClause?.isTypeOnly === true,
+          )
         if (
+          runnerType ||
           local ||
           (specifier !== undefined && allowedExternal(pkg, dependencies, specifier, file.path))
         )

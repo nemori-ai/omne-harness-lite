@@ -1,5 +1,7 @@
 # @omne-harness-lite/storage
 
+根入口保持纯定义。`./cordis` 公开共享 Service 与唯一服务键，行为见[集成承诺](SPEC.md)。
+
 [English](README.md)
 
 面向消费者与提供者的存储协议：Kysely 事务视图、显式锁、分类失败、迁移组合、预检与快照接口，以及提供者符合性套件。本包不打开数据库，也不实现存储提供者。

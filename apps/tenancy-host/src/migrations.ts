@@ -5,7 +5,7 @@ import {
   ACCOUNT_TABLE,
   accountIdentityMigrations,
 } from '@omne-harness-lite/account-identity'
-import { clockMigrations } from '@omne-harness-lite/clock'
+import { clockMigrations } from '@omne-harness-lite/clock-lease'
 import { governanceCenterMigrations } from '@omne-harness-lite/governance-center-entry'
 import { organizationGovernanceMigrations } from '@omne-harness-lite/organization-governance-sql'
 import {

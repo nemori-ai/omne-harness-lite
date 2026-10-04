@@ -1,3 +1,5 @@
+import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 // 入口层插件 `governance-center-entry`（入口契约全篇；入口节点 design「插件边界」「就绪与开门为什么分两步」「成对的装载与撤除」）。
 // 独立、不 provide 的 fiber；必需 inject 它消费的全部面——任一缺席即 PENDING，客户端一面整体不应答（S-34 起来即整体）。
 // 插件体只做到「就绪」：端口绑好不受理、中心标识读或铸好、钟可读，然后返回；开门挂在装配传入的 `openSignal` 上。
@@ -276,8 +278,8 @@ class EntryRuntime {
 export const governanceCenterEntryPlugin = definePlugin<GovernanceCenterEntryConfig>({
   name: 'governance-center-entry',
   inject: [
-    'storage',
-    'clock',
+    STORAGE_SERVICE,
+    CLOCK_SERVICE,
     'credentials',
     'logins',
     'accounts',
@@ -289,9 +291,9 @@ export const governanceCenterEntryPlugin = definePlugin<GovernanceCenterEntryCon
   Config: GovernanceCenterEntryConfigSchema,
   async apply(ctx: Context, config) {
     const logger = ctx.logger('governance-center-entry')
-    // 服务实例经 inject 取得（`ctx.get` 不带类型）；按各 owner 公开的服务面类型收下
-    const clock: Clock = ctx.get('clock')
-    const storage: AtomicStorage = ctx.get('storage')
+    // inject 保证必需服务已就位；AtomicStorage 扩展仍按原判据核验。
+    const clock: Clock = ctx.get(CLOCK_SERVICE) as Clock
+    const storage: AtomicStorage = ctx.get(STORAGE_SERVICE) as StorageService & AtomicStorage
     if (typeof storage.atomic !== 'function') throw new TypeError('entry2 requires AtomicStorage')
     const services: EntryServices = {
       accounts: ctx.get('accounts'),

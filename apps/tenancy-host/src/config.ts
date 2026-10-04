@@ -3,7 +3,7 @@
 // 跨插件的配对归 keys.ts。任一不成 ⇒ `HostStartupFailure('config')`，说明点名变量、不含值。
 import { open } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
-import { LEASE_WIDTH_MS } from '@omne-harness-lite/clock'
+import { LEASE_WIDTH_MS } from '@omne-harness-lite/clock-lease'
 import { isOk } from '@omne-harness-lite/identity-values'
 import { parseOfferTtl } from '@omne-harness-lite/offer-expiry'
 import { HostStartupFailure } from './failure.ts'

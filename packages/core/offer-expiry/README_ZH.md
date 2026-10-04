@@ -1,5 +1,7 @@
 # @omne-harness-lite/offer-expiry
 
+根入口保持纯定义。`./cordis` 公开共享 Service 与唯一服务键，行为见[集成承诺](SPEC.md)。
+
 [English](README.md)
 
 时间值与邀约状态的纯求值。解析正时长，构造只读的 `OfferTiming` 值，并根据显式提供的时刻、终结记录与目标存在性推导当前状态。
@@ -10,15 +12,15 @@
 
 ## 公开 API
 
-| 公开 API                                          | 用途                                                   |
-| ------------------------------------------------- | ------------------------------------------------------ |
-| `Instant`、`Duration`、时刻转换与比较函数         | 品牌化整数毫秒与 RFC 3339 交换字符串                   |
-| `parseOfferTtl`、`timingFrom`、`parseOfferTiming` | 正时长与先发出、后到期的时间值                         |
-| `deriveState`、`acceptable`、状态常量及类型       | 派生状态与统一的可接受谓词                             |
-| `Clock`                                           | `now(): Instant \| 'unavailable'` 接口；不提供时钟实现 |
-| `validate`、`schemaId`；`./schema`、`./schema/v1` | 当前 v2 Schema 与保留的 v1 Schema 资源                 |
-| `compareRfc3339Instants` | 原始 RFC 3339 字符串的精确条件排序；静态非法返回 `Parsed.invalidInput` |
-| `./testing`                                       | 测试用 `testClock` 与 `TestClock`                      |
+| 公开 API                                          | 用途                                                                   |
+| ------------------------------------------------- | ---------------------------------------------------------------------- |
+| `Instant`、`Duration`、时刻转换与比较函数         | 品牌化整数毫秒与 RFC 3339 交换字符串                                   |
+| `parseOfferTtl`、`timingFrom`、`parseOfferTiming` | 正时长与先发出、后到期的时间值                                         |
+| `deriveState`、`acceptable`、状态常量及类型       | 派生状态与统一的可接受谓词                                             |
+| `Clock`                                           | `now(): Instant \| 'unavailable'` 接口；不提供时钟实现                 |
+| `validate`、`schemaId`；`./schema`、`./schema/v1` | 当前 v2 Schema 与保留的 v1 Schema 资源                                 |
+| `compareRfc3339Instants`                          | 原始 RFC 3339 字符串的精确条件排序；静态非法返回 `Parsed.invalidInput` |
+| `./testing`                                       | 测试用 `testClock` 与 `TestClock`                                      |
 
 ## 使用示例
 

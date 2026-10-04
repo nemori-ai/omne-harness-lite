@@ -1,3 +1,6 @@
+import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
+import { SqlStorageService } from '@omne-harness-lite/storage-sql/cordis'
 import { copyJsonValue, isJsonNumber, type JsonValue } from '@omne-harness-lite/content-blocks'
 import {
   judgeModelProfileDocument,
@@ -170,7 +173,8 @@ import {
   type RegistrationService,
   type TerminalOutcome,
 } from '@omne-harness-lite/account-registration'
-import { clockPlugin, clockPreflight } from '@omne-harness-lite/clock'
+import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
+import { clockPreflight } from '@omne-harness-lite/clock-lease'
 import {
   createModelReplicaCustodian,
   type ModelReplicaCustodian,
@@ -1072,8 +1076,9 @@ export function createAcceptanceApplication(
         {
           name: 'acceptance-storage',
           apply(ctx: Context) {
-            if (ctx.get('storage') !== undefined) throw new Error('duplicate acceptance storage')
-            ctx.provide('storage', borrowedStorage)
+            if (ctx.get(STORAGE_SERVICE) !== undefined)
+              throw new Error('duplicate acceptance storage')
+            new SqlStorageService(ctx, borrowedStorage)
           },
         },
         undefined,
@@ -1085,7 +1090,7 @@ export function createAcceptanceApplication(
       await load('registration', registrationPlugin, prepared.registration)
       phase = 'clockReady'
       category = 'clockUnavailable'
-      const clock: unknown = context.get('clock')
+      const clock: unknown = context.get(CLOCK_SERVICE)
       if (!clockFace(clock)) throw new Error('acceptance clock absent')
       activeClock = clock
       const deadline = config.wait.monotonicNow() + config.wait.clockTimeoutMs

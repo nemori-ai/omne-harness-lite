@@ -28,7 +28,8 @@ import {
   accountIdentityMigrations,
   accountIdentityPlugin,
 } from '@omne-harness-lite/account-identity'
-import { clockMigrations, clockPlugin } from '@omne-harness-lite/clock'
+import { clockMigrations } from '@omne-harness-lite/clock-lease'
+import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
 import {
   type AccountId,

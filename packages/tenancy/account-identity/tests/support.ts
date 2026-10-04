@@ -31,7 +31,8 @@ import {
   type WriteTx,
   composeMigrations,
 } from '@omne-harness-lite/storage'
-import { STORAGE_SERVICE, storageSqlPlugin } from '@omne-harness-lite/storage-sql'
+import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
+import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
 import { AccountsImpl } from '../src/accounts.ts'
 import { type Diagnostics, type Notifier, loggerDiagnostics } from '../src/diagnostics.ts'
 import { LoginsImpl } from '../src/logins.ts'
@@ -279,7 +280,7 @@ export async function openHarness(options: HarnessOptions = {}): Promise<Harness
     ],
   })
   const storage = new FaultyStorage(
-    assembly.ctx.get(STORAGE_SERVICE) as StorageInstance & AtomicStorage,
+    assembly.ctx.get(STORAGE_SERVICE) as StorageService & StorageInstance & AtomicStorage,
   )
   const realCredentials = assembly.ctx.get(CREDENTIALS_SERVICE) as CredentialsService
   const probe: CredentialProbe = {

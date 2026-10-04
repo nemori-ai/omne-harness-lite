@@ -1,4 +1,4 @@
-# @omne-harness-lite/clock
+# @omne-harness-lite/clock-lease
 
 [English](README.md)
 
@@ -8,15 +8,15 @@
 
 ## 公开 API
 
-| 用途           | 导出                                                                                     |
-| -------------- | ---------------------------------------------------------------------------------------- |
-| 直接提供者     | `LeaseClock`, `LeaseClockOptions`, `ClockLogger`                                         |
-| 时间源注入     | `TimeSources`, `systemTimeSources`                                                       |
-| 启动回拨检测   | `ClockRollbackDetected`, `isRolledBack`                                                  |
-| 本包拥有的结构 | `clockMigrations`, `clockLeaseMigration`, `CLOCK_LEASE_TABLE`, `ClockLeaseTable`         |
-| 租约设置       | `LEASE_WIDTH_MS` (10,000), `RENEW_PERIOD_MS` (3,333)                                     |
-| Cordis 接入    | `clockPlugin`, `ClockConfig`, `CLOCK_SERVICE` (`'clock'`)                                |
-| 只读核对       | `clockPreflight`, `CLOCK_PREFLIGHT_CHECK`, `clockSnapshotCheck`, `CLOCK_SNAPSHOT_TABLES` |
+| 用途           | 导出                                                                                                  |
+| -------------- | ----------------------------------------------------------------------------------------------------- |
+| 直接提供者     | `LeaseClock`, `LeaseClockOptions`, `ClockLogger`                                                      |
+| 时间源注入     | `TimeSources`, `systemTimeSources`                                                                    |
+| 启动回拨检测   | `ClockRollbackDetected`, `isRolledBack`                                                               |
+| 本包拥有的结构 | `clockMigrations`, `clockLeaseMigration`, `CLOCK_LEASE_TABLE`, `ClockLeaseTable`                      |
+| 租约设置       | `LEASE_WIDTH_MS` (10,000), `RENEW_PERIOD_MS` (3,333)                                                  |
+| Cordis 接入    | `clockPlugin` (`./cordis`), `ClockConfig` (root), `CLOCK_SERVICE` (`offer-expiry/cordis`) (`'clock'`) |
+| 只读核对       | `clockPreflight`, `CLOCK_PREFLIGHT_CHECK`, `clockSnapshotCheck`, `CLOCK_SNAPSHOT_TABLES`              |
 
 ## 使用提供者与可控时间源
 
@@ -27,7 +27,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { LeaseClock, clockMigrations, type TimeSources } from '@omne-harness-lite/clock'
+import { LeaseClock, clockMigrations, type TimeSources } from '@omne-harness-lite/clock-lease'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import { openStorage, type SqlStorage } from '@omne-harness-lite/storage-sql'
 
@@ -71,10 +71,13 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
-import { CLOCK_SERVICE, clockMigrations, clockPlugin } from '@omne-harness-lite/clock'
+import { clockMigrations } from '@omne-harness-lite/clock-lease'
+import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { composeMigrations } from '@omne-harness-lite/storage'
-import { createUpgradeGuard, storageSqlPlugin } from '@omne-harness-lite/storage-sql'
+import { createUpgradeGuard } from '@omne-harness-lite/storage-sql'
+import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
 
 const directory = await mkdtemp(join(tmpdir(), 'omne-clock-plugin-example-'))
 const ctx = new Context()

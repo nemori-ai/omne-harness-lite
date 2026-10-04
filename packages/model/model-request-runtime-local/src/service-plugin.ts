@@ -1,3 +1,5 @@
+import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import type {
@@ -61,8 +63,8 @@ export function createModelRuntimePlugin(input: {
       'modelCatalogRead',
       'credentialLookup',
       'modelTransport',
-      'storage',
-      'clock',
+      STORAGE_SERVICE,
+      CLOCK_SERVICE,
     ],
     Config: z.object({}).strict(),
     async apply(ctx) {

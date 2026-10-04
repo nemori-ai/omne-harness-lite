@@ -1,5 +1,7 @@
 # @omne-harness-lite/storage-sql
 
+The root exposes the independent SQL provider. `./cordis` exports `storageSqlPlugin` and `SqlStorageService`; the latter publishes a borrowed instance. The storage key belongs to `@omne-harness-lite/storage/cordis`. See [integration commitments](SPEC.md).
+
 [中文](README_ZH.md)
 
 A Kysely provider for the shared [storage protocol](../../core/storage/README.md),
@@ -18,7 +20,7 @@ import, such as `kysely` and `@omne-harness-lite/storage`.
 | Purpose                        | Exports                                                                                                                                                                      |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Direct provider                | `openStorage`, `OpenStorageOptions`, `SqlStorage`, `StorageSqlConfig` (runtime schema and type)                                                                              |
-| Cordis service                 | `storageSqlPlugin`, `STORAGE_SERVICE` (`'storage'`)                                                                                                                          |
+| Cordis service                 | `./cordis`: `storageSqlPlugin`, `SqlStorageService`; `storage/cordis`: `STORAGE_SERVICE`                                                                                     |
 | Owned upgrade                  | `createUpgradeGuard`, `UpgradeGuard`, `UpgradeConfirmation`, `UpgradePending`, `UpgradeGuardNotAttached`, `StorageStartupFailure`, `StorageStartupStage`, `StorageSqlLogger` |
 | Lower-level SQLite integration | `NodeSqliteDialect`, `NodeSqliteDriver`, `NodeSqliteDialectOptions`                                                                                                          |
 | Error translation              | `translateSqliteError`, `translatePgError`                                                                                                                                   |
@@ -151,12 +153,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { sql } from 'kysely'
-import {
-  STORAGE_SERVICE,
-  createUpgradeGuard,
-  storageSqlPlugin,
-  type SqlStorage,
-} from '@omne-harness-lite/storage-sql'
+import { createUpgradeGuard } from '@omne-harness-lite/storage-sql'
+import { storageSqlPlugin, type SqlStorageService } from '@omne-harness-lite/storage-sql/cordis'
+import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
 
 const directory = await mkdtemp(join(tmpdir(), 'omne-sql-owner-example-'))
 const ctx = new Context()
@@ -171,7 +170,7 @@ try {
     upgrade: { checks: [], guard },
   })
   await fiber
-  const storage = ctx.get(STORAGE_SERVICE) as SqlStorage | undefined
+  const storage = ctx.get(STORAGE_SERVICE) as SqlStorageService | undefined
   assert.ok(storage)
   const rows = await storage.read(
     async tx => (await sql<{ ready: number }>`SELECT 1 AS ready`.execute(tx.db)).rows,

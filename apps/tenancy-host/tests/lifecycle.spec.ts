@@ -6,13 +6,17 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { inspect } from 'node:util'
 import { symbols, type Fiber } from '@deepseek-ai/cordis'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { AtomicStorage } from '@omne-harness-lite/storage'
+import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import type { AccountsService, LoginsService } from '@omne-harness-lite/account-identity'
-import { LEASE_WIDTH_MS, clockPlugin } from '@omne-harness-lite/clock'
+import { LEASE_WIDTH_MS } from '@omne-harness-lite/clock-lease'
+import { clockPlugin } from '@omne-harness-lite/clock-lease/cordis'
 import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
 import { GovernanceCenterClockTimeoutError } from '@omne-harness-lite/governance-center-entry'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
-import { storageSqlPlugin } from '@omne-harness-lite/storage-sql'
+import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
 import {
   HOST_PLUGIN_NAMES,
   type HostPluginName,
@@ -140,23 +144,57 @@ describe('assembly.manifest-shape', () => {
   it('运行中：五个消费 storage 的插件解析到同一个实例，consumers of clock 同一个实例；governance_center 与治理事实同库', async () => {
     const d = await deployment('same-storage')
     const { host } = await hosts.start(d)
-    const storage = host.context.get('storage')
-    const clock = host.context.get('clock')
-    for (const name of [
-      'clock',
-      'account-identity',
-      'organization-governance',
-      'governance-center-ops',
-      'governance-center-entry',
-    ] as const)
-      expect(host.fibers[name]?.ctx.get('storage'), name).toBe(storage)
-    for (const name of [
-      'account-identity',
-      'organization-governance',
-      'governance-center-ops',
-      'governance-center-entry',
-    ] as const)
-      expect(host.fibers[name]?.ctx.get('clock'), name).toBe(clock)
+    const storage = host.context.get(STORAGE_SERVICE) as StorageService & AtomicStorage
+    const clock = host.context.get(CLOCK_SERVICE)
+    if (clock === undefined) throw new Error('clock unavailable')
+    const storageRegistration = host.context.reflect._getImpl(STORAGE_SERVICE)
+    const clockRegistration = host.context.reflect._getImpl(CLOCK_SERVICE)
+    expect(storageRegistration).toBeDefined()
+    expect(clockRegistration).toBeDefined()
+    await storage.atomic(async unit => {
+      for (const name of [
+        'clock-lease',
+        'account-identity',
+        'organization-governance',
+        'governance-center-ops',
+        'governance-center-entry',
+      ] as const) {
+        const consumer = host.fibers[name]?.ctx
+        if (consumer === undefined) throw new Error(`missing consumer ${name}`)
+        const registration = consumer.reflect._getImpl(STORAGE_SERVICE)
+        expect(registration?.value, name).toBe(storageRegistration?.value)
+        expect(registration?.fiber, name).toBe(storageRegistration?.fiber)
+        const face = consumer.get(STORAGE_SERVICE)
+        if (face === undefined) throw new Error(`missing storage for ${name}`)
+        unit.assertStorage(face)
+        const rows = await unit.query(tx => tx.db.selectFrom('account').selectAll().execute())
+        expect(rows, name).toEqual([])
+      }
+    })
+    const wall = Date.now()
+    const now = vi.spyOn(Date, 'now').mockReturnValue(wall)
+    try {
+      for (const offset of [0, 1, -5_000, 1]) {
+        now.mockReturnValue(wall + offset)
+        const expected = offset < 0 ? 'unavailable' : wall + offset
+        expect(clock.now()).toBe(expected)
+        for (const name of [
+          'account-identity',
+          'organization-governance',
+          'governance-center-ops',
+          'governance-center-entry',
+        ] as const) {
+          const consumer = host.fibers[name]?.ctx
+          if (consumer === undefined) throw new Error(`missing consumer ${name}`)
+          const registration = consumer.reflect._getImpl(CLOCK_SERVICE)
+          expect(registration?.value, name).toBe(clockRegistration?.value)
+          expect(registration?.fiber, name).toBe(clockRegistration?.fiber)
+          expect(consumer.get(CLOCK_SERVICE)?.now(), name).toBe(expected)
+        }
+      }
+    } finally {
+      now.mockRestore()
+    }
     const tables = query<{ name: string }>(
       d.file,
       "SELECT name FROM sqlite_master WHERE type = 'table'",
@@ -223,7 +261,7 @@ describe('assembly.pending-is-manifest-error：PENDING 是清单错误，同步�
     expect(refused.failure.message).toContain('accounts')
     expect(refused.fibers.map(f => f.name)).toEqual([
       'storage-sql',
-      'clock',
+      'clock-lease',
       'credential-verification',
       'account-registration',
     ])
@@ -405,7 +443,7 @@ describe('assembly.keys-only-in-owner-config（窄形式：它不证同进程别
     }
     expect(placement).toEqual({
       'storage-sql': [],
-      clock: [],
+      'clock-lease': [],
       'credential-verification': [],
       'account-identity': ['activationVerificationKeyPem', 'purgeVerificationKeyPem'],
       'organization-governance': ['purgeSigningKeyPem'],
@@ -488,8 +526,8 @@ describe('assembly.clock-write-failure-fails-boot', () => {
       "CREATE TRIGGER block_lease BEFORE UPDATE ON clock_lease BEGIN SELECT RAISE(ABORT, 'injected lease write failure'); END",
     )
     const refused = await hosts.refuse(d)
-    expect(refused.failure).toMatchObject({ stage: 'plugin', item: 'clock' })
-    expect(refused.fibers.map(f => f.name)).toEqual(['storage-sql', 'clock'])
+    expect(refused.failure).toMatchObject({ stage: 'plugin', item: 'clock-lease' })
+    expect(refused.fibers.map(f => f.name)).toEqual(['storage-sql', 'clock-lease'])
     expect(allDisposed(refused.fibers)).toBe(true)
   })
 })

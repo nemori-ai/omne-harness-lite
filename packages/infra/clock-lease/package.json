@@ -1,5 +1,5 @@
 {
-  "name": "@omne-harness-lite/clock",
+  "name": "@omne-harness-lite/clock-lease",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
     }
   },
   "files": [

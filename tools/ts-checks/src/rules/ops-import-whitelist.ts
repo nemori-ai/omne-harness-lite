@@ -9,7 +9,9 @@ const OPS_PACKAGES = new Set([
   // 原根入口的同一组 Cordis 助手；只跟随入口迁移，不开放其他子路径。
   '@omne-harness-lite/kernel-basis/cordis',
   '@omne-harness-lite/storage',
+  '@omne-harness-lite/storage/cordis',
   '@omne-harness-lite/offer-expiry',
+  '@omne-harness-lite/offer-expiry/cordis',
   ...THIRD_PARTY,
 ])
 const MAINTENANCE = `${ENTRY_SRC}maintenance/`
@@ -34,7 +36,7 @@ const EVENTS_MODULE = withoutExtension(ENTRY_EVENTS)
 
 /**
  * 入口 verification 契约 SC-2 与 design「本节点约束」第 5 条：运维面源码目录只按白名单导入——
- * `kernel-basis` 的根与 `./cordis`、`storage` 与 `offer-expiry` 的根、`@deepseek-ai/cordis`、`zod`
+ * `kernel-basis` 的根与 `./cordis`、`storage` 与 `offer-expiry` 的根和 `./cordis`、`@deepseek-ai/cordis`、`zod`
  * （非治理的第三方，主线 2026-09-23 裁决纳入）、Node 内置（`node:*`）、本包事件声明模块，
  * 以及运维面目录自己的文件（白名单要让传递导入图有界，目录内互引不越界）。
  * 事件声明模块只许导入 Node 内置、`@deepseek-ai/cordis` 与 `zod`：不导入任何 `@omne-harness-lite/*`，
@@ -102,7 +104,7 @@ function judgeOpsImport(path: string, specifier: string | undefined): string | u
       return undefined
     return `运维面导入了 ${specifier}（${resolved}）；本包内只许事件、严格JSON、维护与运维目录`
   }
-  return `运维面导入了 ${specifier}；白名单只有 kernel-basis 根与 ./cordis、storage 根、offer-expiry 根、@deepseek-ai/cordis、zod、node:* 与本包事件声明模块`
+  return `运维面导入了 ${specifier}；白名单只有 kernel-basis 根与 ./cordis、storage 根与 ./cordis、offer-expiry 根与 ./cordis、@deepseek-ai/cordis、zod、node:* 与本包事件声明模块`
 }
 
 function judgeEventsImport(specifier: string | undefined): string | undefined {

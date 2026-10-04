@@ -4,8 +4,11 @@ import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { StorageUnavailable, type Storage, type StorageInstance } from '@omne-harness-lite/storage'
-import { STORAGE_SERVICE, storageSqlPlugin } from '@omne-harness-lite/storage-sql'
-import { CLOCK_SERVICE, LEASE_WIDTH_MS, RENEW_PERIOD_MS, clockPlugin } from '../src/index.ts'
+import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
+import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
+import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
+import { LEASE_WIDTH_MS, RENEW_PERIOD_MS } from '../src/index.ts'
+import { clockPlugin } from '../src/cordis.ts'
 import { drain, migrations, settle, tempFile } from './support.ts'
 
 beforeEach(() => {
@@ -16,8 +19,8 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function bootClock(label: string) {
-  return bootAssembly({
+async function bootClock(label: string) {
+  const assembly = await bootAssembly({
     plugins: [
       {
         plugin: storageSqlPlugin,
@@ -26,6 +29,12 @@ function bootClock(label: string) {
       { plugin: clockPlugin, config: {} },
     ],
   })
+  const registered = assembly.ctx.reflect._getImpl(CLOCK_SERVICE)
+  if (registered === undefined) throw new Error('clock registration absent')
+  return {
+    ...assembly,
+    clockRegistration: { value: registered.value as unknown, fiber: registered.fiber },
+  }
 }
 
 describe('clock 插件', () => {
@@ -73,7 +82,10 @@ describe('clock.no-self-dispose：运行期的不可用只是返回值，fiber �
 
   function assertStillServing(assembly: Awaited<ReturnType<typeof bootClock>>, clock: Clock) {
     expect(assembly.fibers[1]?.state as number).toBe(FIBER_STATE.ACTIVE)
-    expect(assembly.ctx.get(CLOCK_SERVICE)).toBe(clock)
+    const registered = assembly.ctx.reflect._getImpl(CLOCK_SERVICE)
+    expect(registered?.value).toBe(assembly.clockRegistration.value)
+    expect(registered?.fiber).toBe(assembly.clockRegistration.fiber)
+    expect(assembly.ctx.get(CLOCK_SERVICE)?.now()).toBe(clock.now())
   }
 
   it('运行中回拨', async () => {
@@ -93,7 +105,7 @@ describe('clock.no-self-dispose：运行期的不可用只是返回值，fiber �
     const now = vi.spyOn(Date, 'now').mockReturnValue(T)
     const assembly = await bootClock('no-self-dispose-unavailable')
     const clock = assembly.ctx.get(CLOCK_SERVICE) as Clock
-    const storage = assembly.ctx.get(STORAGE_SERVICE) as StorageInstance
+    const storage = assembly.ctx.get(STORAGE_SERVICE) as StorageService & StorageInstance
     // Cordis 4.0.4 的日志等级 ERROR 0 < INFO 1 < WARN 2 < DEBUG 3，默认只导出到 INFO：warn 要显式放开才看得见
     const warnings: string[] = []
     assembly.ctx.logger.exporter({
@@ -117,7 +129,7 @@ describe('clock.no-self-dispose：运行期的不可用只是返回值，fiber �
     const now = vi.spyOn(Date, 'now').mockReturnValue(T)
     const assembly = await bootClock('no-self-dispose-defect')
     const clock = assembly.ctx.get(CLOCK_SERVICE) as Clock
-    const storage = assembly.ctx.get(STORAGE_SERVICE) as StorageInstance
+    const storage = assembly.ctx.get(STORAGE_SERVICE) as StorageService & StorageInstance
     await storage.write(async tx => {
       await sql`DROP TABLE clock_lease`.execute(tx.db)
     })

@@ -27,7 +27,7 @@
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/account-registration": "workspace:*",
-    "@omne-harness-lite/clock": "workspace:*",
+    "@omne-harness-lite/clock-lease": "workspace:*",
     "@omne-harness-lite/credential-verification": "workspace:*",
     "@omne-harness-lite/governance-center-entry": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
