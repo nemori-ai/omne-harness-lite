@@ -24,6 +24,25 @@ function construction(
   if (!('ok' in message)) throw new Error('reply message identity')
   return {
     ...unavailableReferencePorts<PlannedSemantics, unknown>(),
+    // These history tests explicitly grant read; unavailable reference ports grant nothing.
+    callAccess: {
+      async check(input, admitted) {
+        if (
+          input.action !== 'read' ||
+          input.binding !== binding.log ||
+          input.ref.session !== binding.log.session
+        )
+          return { unavailable: true }
+        const evidence = {
+          action: input.action,
+          ref: input.ref,
+          source: { generation: binding.log.generation, progress: 0 },
+          sourceVersion: 'service-reads-current-grant',
+          revoked: new AbortController().signal,
+        }
+        return { allowed: await admitted(evidence), evidence }
+      },
+    },
     maxScopes: 4,
     sessions: {
       async bind(session) {
