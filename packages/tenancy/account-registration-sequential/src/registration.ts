@@ -108,12 +108,18 @@ export function createRegistrationService(dependencies: RegistrationDeps): Regis
     ...dependencies,
     isActive: () => live && dependencies.isActive(),
   }
-  function track<T>(result: Promise<T>): Promise<T> {
+  function track<T>(work: () => Promise<T>): Promise<T> {
+    const { promise: result, resolve, reject } = Promise.withResolvers<T>()
     inFlight.add(result)
     result.then(
       () => inFlight.delete(result),
       () => inFlight.delete(result),
     )
+    try {
+      resolve(work())
+    } catch (error) {
+      reject(error)
+    }
     return result
   }
   /** S-34：① S-53 → ② S-38。依据由 ① 产出、② 核实，本链只逐字携带；② 的入参只有 ① 的返回值。 */
@@ -256,8 +262,8 @@ export function createRegistrationService(dependencies: RegistrationDeps): Regis
   }
 
   return {
-    register: (...args) => track(register(...args)),
-    purgeExpired: (...args) => track(purgeExpired(...args)),
+    register: (...args) => track(() => register(...args)),
+    purgeExpired: (...args) => track(() => purgeExpired(...args)),
     close() {
       if (closing) return closing
       live = false

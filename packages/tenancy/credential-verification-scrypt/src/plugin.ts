@@ -22,12 +22,17 @@ function bind(
   }
   const track = <T>(work: () => Promise<T>): Promise<T> => {
     if (!live) return Promise.reject(new Error('Credential provider has stopped'))
-    const job = work()
+    const { promise: job, resolve, reject } = Promise.withResolvers<T>()
     inFlight.add(job)
     job.then(
       () => inFlight.delete(job),
       () => inFlight.delete(job),
     )
+    try {
+      resolve(work())
+    } catch (error) {
+      reject(error)
+    }
     return job
   }
   own(() => {

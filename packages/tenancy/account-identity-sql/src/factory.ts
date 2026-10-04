@@ -46,12 +46,17 @@ export function createAccountIdentity(
   let closing: Promise<void> | undefined
   function run<T>(work: () => Promise<T>): Promise<T> {
     if (stopped) return Promise.reject(new AccountIdentityStopped())
-    const result = work()
+    const { promise: result, resolve, reject } = Promise.withResolvers<T>()
     inFlight.add(result)
     result.then(
       () => inFlight.delete(result),
       () => inFlight.delete(result),
     )
+    try {
+      resolve(work())
+    } catch (error) {
+      reject(error)
+    }
     return result
   }
   return {

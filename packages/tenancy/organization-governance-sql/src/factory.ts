@@ -32,12 +32,17 @@ export function createOrganizationGovernance(deps: Deps): OrganizationGovernance
   let closing: Promise<void> | undefined
   function run<T>(work: () => Promise<T>): Promise<T> {
     if (stopped) return Promise.reject(new OrganizationGovernanceStopped())
-    const result = work()
+    const { promise: result, resolve, reject } = Promise.withResolvers<T>()
     inFlight.add(result)
     result.then(
       () => inFlight.delete(result),
       () => inFlight.delete(result),
     )
+    try {
+      resolve(work())
+    } catch (error) {
+      reject(error)
+    }
     return result
   }
   const organizations = createOrganizationsService(deps)
