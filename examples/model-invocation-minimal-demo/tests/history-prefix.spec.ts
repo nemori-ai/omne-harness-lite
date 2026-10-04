@@ -1,25 +1,13 @@
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
-import {
-  readSettlementPrefix,
-  type SettlementRegistration,
-} from '@omne-harness-lite/model-request-runtime'
+import {readSettlementPrefix, type SettlementRegistration} from '@omne-harness-lite/model-request-runtime-local'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import {
-  createOfficialProfileContent,
-  deepseekV4Pro0813Definition,
-  deepseekV4Pro0813Configuration,
-  defineInputMeter,
-  planRequest,
-  createImagePreparer,
-  createSharpImageCodec,
-  modelImageBalancedV1,
-  type ModelDefinition,
-} from '@omne-harness-lite/pi-ai-transport'
+import {createOfficialProfileContent, deepseekV4Pro0813Definition, deepseekV4Pro0813Configuration, defineInputMeter, planRequest, createImagePreparer, createSharpImageCodec, modelImageBalancedV1} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelDefinition} from '@omne-harness-lite/model-request-runtime'
 import {
   historyProjection,
   messagePrefix,

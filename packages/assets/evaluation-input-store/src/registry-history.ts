@@ -1,25 +1,16 @@
-import {
-  BodyProviderUnavailableError,
-  type AssetDefinition,
-  type AssetVersion,
-  type CapabilityId,
-} from '@omne-harness-lite/asset-model'
+import { type RegistryHistoryRequest, type RegistryHistoryStage, type RegistryHistoryResult } from '@omne-harness-lite/asset-evaluation'
+import { BodyProviderUnavailableError, type AssetDefinition, type CapabilityId } from '@omne-harness-lite/asset-model'
 import {
   isNonNegativeJsonInteger,
   type JsonNumber,
   type JsonObject,
 } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import {
-  parseOpaqueIdentifier,
-  parseTenantId,
-  tenantIdEquals,
-  type TenantId,
-} from '@omne-harness-lite/identity-values'
-import { instantFromEpochMs, type Instant } from '@omne-harness-lite/offer-expiry'
-import type { AssemblyManifestService } from '@omne-harness-lite/assembly-manifest-store'
+import { parseOpaqueIdentifier, parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
+import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
+import type { AssemblyManifestService } from '@omne-harness-lite/assembly-manifest'
 import type { MembershipsService } from '@omne-harness-lite/organization-governance'
-import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy-table'
+import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 import { narrow, StorageUnavailable, type AtomicStorage } from '@omne-harness-lite/storage'
 import {
   getAssetJudge,
@@ -31,31 +22,6 @@ import {
   SourceUnavailable,
 } from './data.ts'
 import type { SourceDb } from './types.ts'
-
-export type RegistryHistoryCategory =
-  'plugin' | 'tool' | 'skill' | 'loop_extension' | 'mcp' | 'slash_command'
-export interface RegistryHistoryRequest {
-  readonly session: string
-  readonly tenant: TenantId
-  readonly category: RegistryHistoryCategory
-  readonly filledAt: Instant
-  readonly capability: CapabilityId
-  readonly asset: string
-  readonly version: JsonNumber
-}
-export type RegistryHistoryStage =
-  | 'stopped'
-  | 'session_tenancy'
-  | 'manifest'
-  | 'history_binding'
-  | 'current_membership'
-  | 'source'
-  | 'body_provider'
-  | 'storage'
-export type RegistryHistoryResult =
-  | { readonly version: AssetVersion }
-  | { readonly failure: 'invalidInput' }
-  | { readonly failure: 'unavailable'; readonly stage: RegistryHistoryStage }
 export interface RegistryHistoryReader {
   read(request: unknown): Promise<RegistryHistoryResult>
   close(): Promise<void>

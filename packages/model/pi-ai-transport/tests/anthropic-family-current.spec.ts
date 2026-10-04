@@ -10,27 +10,21 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { Message } from '@omne-harness-lite/messages'
-import {
-  invokeModel,
-  type InputMeasurement,
-  type InvocationOutcome,
-  type PlanInput,
-  type PlanOutputHistoryGroup,
-  type TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
+import {type InvocationOutcome, type PlanInput, type TransportAdapter} from '@omne-harness-lite/model-request-runtime'
+import { type InputMeasurement, type PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'
 import { anthropicDefinitions } from '../src/official-models/anthropic.ts'
 import { createPiAiTransport } from '../src/transport.ts'
-import {
-  createModelTransportService,
-  type ModelTransportService,
-  type RetirementPolicy,
-} from '../src/registry.ts'
-import { MODEL_TRANSPORT_SERVICE, createModelPlugin } from '../src/plugin.ts'
-import type { PlannedRequest } from '../src/plan.ts'
-import type { RawResponse } from '../src/http.ts'
-import type { ModelDefinition } from '../src/definitions.ts'
+import {createModelTransportService} from '../src/registry.ts'
+import {type ModelTransportService} from '@omne-harness-lite/model-request-runtime'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import type {PlannedRequest} from '@omne-harness-lite/model-request-runtime'
+import type {RawResponse} from '@omne-harness-lite/model-request-runtime'
+import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
 import { directFull } from './direct-full-input.ts'
 import { imagePreparation } from './image-transport-support.ts'
 import {
@@ -536,10 +530,7 @@ describe('Anthropic three rounds through the Cordis transport service lease', ()
       })
       if (!provided) throw Error('service unavailable')
       expect(ctx.get(MODEL_TRANSPORT_SERVICE)).toBe(provided)
-      const contribution = ctx.plugin(
-        createModelPlugin(definition, createAnthropicInputMeter(definition), retirement),
-        {},
-      )
+      const contribution = createModelPlugin(ctx, definition, createAnthropicInputMeter(definition), retirement)
       await contribution
       const request = firstRequest(definition, withTools)
       const acquired = provided.acquire(request.snapshot.adaptation, definition.modelId)

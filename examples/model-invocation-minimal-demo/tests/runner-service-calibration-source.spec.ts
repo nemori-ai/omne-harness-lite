@@ -1,9 +1,6 @@
 import { expect, test } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
-import {
-  readSettlementPrefix,
-  type SettlementRegistration,
-} from '@omne-harness-lite/model-request-runtime'
+import {readSettlementPrefix, type SettlementRegistration} from '@omne-harness-lite/model-request-runtime-local'
 import { readDemoCalibrationHistory } from '../src/model-request-text.ts'
 
 test('the default no-Run calibration reader refuses an unproved Run source', async () => {

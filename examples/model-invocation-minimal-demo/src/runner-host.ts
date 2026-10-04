@@ -1,22 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import {
-  createRunnerTaskOwner,
-  createRunnerLogAdapter,
-  createRunnerReminderLogAdapter,
-  runPass,
-  type RunnerPass,
-  type RunnerPiece,
-  type RunnerPorts,
-  type RunnerPassResult,
-  type RunnerLogBinding,
-  type RunnerTaskOwner,
-  type RunnerRecoveryResult,
-} from '@omne-harness-lite/loop-extension-runner'
-import {
-  readSettlementPrefix,
-  type SettlementLogBinding,
-  type SettlementRegistration,
-} from '@omne-harness-lite/model-request-runtime'
+import {createRunnerTaskOwner, createRunnerLogAdapter, createRunnerReminderLogAdapter, runPass} from '@omne-harness-lite/loop-extension-runner-local'
+import { type RunnerPass, type RunnerPiece, type RunnerPorts, type RunnerPassResult, type RunnerLogBinding, type RunnerTaskOwner, type RunnerRecoveryResult } from '@omne-harness-lite/loop-extension-runner'
+import {readSettlementPrefix, type SettlementLogBinding, type SettlementRegistration} from '@omne-harness-lite/model-request-runtime-local'
 import {
   openJsonlSessionLog,
   type JsonlSessionLog,

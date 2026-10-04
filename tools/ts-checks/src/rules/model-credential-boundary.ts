@@ -6,7 +6,7 @@ import { lineAt } from '../source-text.ts'
 import { nodeName, syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
 
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
-const directory = 'packages/model/model-profile-directory/src/'
+const directory = 'packages/model/model-profile-directory-local/src/'
 const custodian = 'packages/infra/credential-custodian-local/src/'
 const bindingEntry = '@omne-harness-lite/model-profile-directory/tx-reads'
 const replicaEntry = '@omne-harness-lite/credential-custodian-local/model-replica'
@@ -222,7 +222,7 @@ export const modelCredentialBoundary: Rule = {
           path.startsWith(custodian) &&
           (resolved === '@omne-harness-lite/model-profile-directory' ||
             resolved.startsWith('@omne-harness-lite/model-profile-directory/') ||
-            resolved.startsWith('packages/model/model-profile-directory/'))
+            resolved.startsWith('packages/model/model-profile-directory-local/'))
         ) {
           violations.push({
             rule: this.id,

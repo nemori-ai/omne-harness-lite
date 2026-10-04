@@ -2,14 +2,10 @@ import { lstat } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { Config as SessionLogConfig } from '@omne-harness-lite/session-log-jsonl/plugin'
-import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { SessionLog } from '@omne-harness-lite/session-log'
 import type { SessionLogDeployment } from './types.ts'
 
-declare module '@deepseek-ai/cordis' {
-  interface Context {
-    sessionLog: SessionLog
-  }
-}
+import { BorrowedSessionLog } from './assembly-inputs.ts'
 
 /** The deployment supplies ownership evidence; this checks its shape, not its truth. */
 export async function prepareSessionLogDeployment(
@@ -57,7 +53,7 @@ export function sessionLogContribution(log: SessionLog): Plugin.Object<Record<st
     name: 'acceptance-session-log',
     apply(ctx: Context) {
       if (ctx.get('sessionLog') !== undefined) throw new Error('duplicate acceptance log')
-      ctx.provide('sessionLog', borrowed)
+      new BorrowedSessionLog(ctx, borrowed)
     },
   }
 }

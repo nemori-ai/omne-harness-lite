@@ -13,19 +13,17 @@ import {
 } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { ArrivalEvent, OpenEvent } from '@omne-harness-lite/arrival-events'
-import type {
-  StreamEnd,
-  TransportFailure,
-  TransportExecutionDiagnostics,
-} from '@omne-harness-lite/model-request-runtime'
+import type {StreamEnd, TransportFailure, TransportExecutionDiagnostics} from '@omne-harness-lite/model-request-runtime'
 import { parseSSE, SseProtocolError } from './sse.ts'
 import { strictObject, object } from './json.ts'
 import { processedText, processedObject, CredentialProcessingFailure } from './credential-policy.ts'
 import { reportDiagnostic, reportExecutionDiagnostic } from './diagnostics.ts'
 import { usageScope } from './usage-scope.ts'
 import { createReadFactsAccumulator, emptyReadFacts } from './read-facts.ts'
-import { claimResponse, type RawResponse, type Diagnostic } from './http.ts'
-import type { PlannedRequest } from './plan.ts'
+import {claimResponse} from './http.ts'
+import {type RawResponse} from '@omne-harness-lite/model-request-runtime'
+import { type Diagnostic } from '@omne-harness-lite/model-request-runtime'
+import type {PlannedRequest} from '@omne-harness-lite/model-request-runtime'
 
 export function canonicalInteger(value: JsonNumber): string {
   if (!isNonNegativeJsonInteger(value)) throw new TypeError('nonnegative integer required')

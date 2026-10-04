@@ -8,8 +8,8 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import type { ModelDefinition } from '../definitions.ts'
-import type { InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import type { InputMeter, TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
 import { object } from '../json.ts'
 import { moonshotDefinitions } from '../official-models/moonshot.ts'
 import { countSegments, moonshotTokenizer } from './moonshot-tokenizer.ts'

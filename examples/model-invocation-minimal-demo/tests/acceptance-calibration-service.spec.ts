@@ -1,12 +1,9 @@
 import sharp from 'sharp'
 import { createServer } from 'node:https'
-import { MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/pi-ai-transport/plugin'
-import type { ModelTransportService } from '@omne-harness-lite/pi-ai-transport'
-import {
-  anthropicDefinitions,
-  createAnthropicInputMeter,
-  type InputMeter,
-} from '@omne-harness-lite/pi-ai-transport'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
+import type {ModelTransportService} from '@omne-harness-lite/model-request-runtime'
+import { anthropicDefinitions, createAnthropicInputMeter } from '@omne-harness-lite/pi-ai-transport'
+import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { ModelResponse } from '@omne-harness-lite/model-response'
 import { randomBytes } from 'node:crypto'
@@ -36,7 +33,7 @@ import {
   deepseekV4Pro0813Definition,
   deepseekV4Pro0813Configuration,
 } from '@omne-harness-lite/pi-ai-transport'
-import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
+import {openRouterCredentialRedactionConfig} from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { actor, ref, duration, activateModelFixture } from './support.ts'
 import { ROOT, publication, demoRetirement } from './model-request-support.ts'

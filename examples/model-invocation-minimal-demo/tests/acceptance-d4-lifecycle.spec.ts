@@ -1,16 +1,10 @@
 import { deriveCreationKey } from '../src/call-references.ts'
 import sharp from 'sharp'
 import type { Fiber } from '@deepseek-ai/cordis'
-import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
-import {
-  createDeepSeekV41FlashInputMeter,
-  deepseekV41FlashDefinition,
-  officialCatalog,
-  type ModelTransportService,
-} from '@omne-harness-lite/pi-ai-transport'
+import { loadModelContribution as createModelPlugin } from '../../../packages/model/pi-ai-transport/tests/cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
+import {createDeepSeekV41FlashInputMeter, deepseekV41FlashDefinition, officialCatalog} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelTransportService} from '@omne-harness-lite/model-request-runtime'
 import {
   createDemoSupervisor,
   createDemoConfig,
@@ -38,7 +32,7 @@ import {
   deepseekV4Pro0813Definition,
   deepseekV4Pro0813Configuration,
 } from '@omne-harness-lite/pi-ai-transport'
-import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
+import {openRouterCredentialRedactionConfig} from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { actor, ref, duration, activateModelFixture } from './support.ts'
 import { ROOT, publication, demoRetirement } from './model-request-support.ts'
@@ -289,14 +283,7 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
         state: 'awaiting_decision',
       })
       expect(registry.inspect()).toMatchObject({ registrations: 1, references: 1, executions: 0 })
-      const next = provider.ctx.plugin(
-        createModelPlugin(
-          deepseekV41FlashDefinition,
-          createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition),
-          demoRetirement(),
-        ),
-        {},
-      )
+      const next = createModelPlugin(provider.ctx, deepseekV41FlashDefinition, createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition), demoRetirement())
       await next
       let retired = false
       const retirement = old.dispose().then(() => {
@@ -524,10 +511,7 @@ describe('D4 independent runtime retained leases and historical reacquisition', 
       expect(await app.readSessionLog(who, session)).toEqual(before)
       expect(registry.inspect()).toMatchObject({ registrations: bRegistrations, references: 0 })
       expect(tls.requests).toHaveLength(1)
-      const restored = provider.ctx.plugin(
-        createModelPlugin(model, originalMeter, demoRetirement()),
-        {},
-      )
+      const restored = createModelPlugin(provider.ctx, model, originalMeter, demoRetirement())
       await restored
       expect(await service.openCall(resume)).toEqual({
         ref: { session, callId },

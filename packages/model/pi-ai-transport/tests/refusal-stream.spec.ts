@@ -7,7 +7,7 @@ import {
 import { getEventListeners } from 'node:events'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { readStream } from '@omne-harness-lite/pi-ai-transport'
-import { invokeModel } from '@omne-harness-lite/model-request-runtime'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import { certificate, fixture, finish, input, invocation, planned, policy, sse } from './support.ts'
 

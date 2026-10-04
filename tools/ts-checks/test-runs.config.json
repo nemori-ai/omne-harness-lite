@@ -93,10 +93,10 @@
       },
       {
         "paths": [
-          "packages/model/model-profile-directory/README.md",
-          "packages/model/model-profile-directory/README_ZH.md"
+          "packages/model/model-profile-directory-local/README.md",
+          "packages/model/model-profile-directory-local/README_ZH.md"
         ],
-        "members": ["packages/model/model-profile-directory"],
+        "members": ["packages/model/model-profile-directory-local"],
         "why": "tests/readme.spec.ts 运行两份 README 里的代码块"
       }
     ],

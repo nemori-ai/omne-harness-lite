@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
     }
   },
   "files": [
@@ -29,10 +33,10 @@
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
     "kysely": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@omne-harness-lite/content-blocks": "workspace:*"
   },
   "devDependencies": {
-    "@omne-harness-lite/clock": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",

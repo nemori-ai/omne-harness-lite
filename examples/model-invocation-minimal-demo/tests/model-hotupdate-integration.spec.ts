@@ -11,32 +11,13 @@ import type {
   CredentialLookup,
   ProfileRow,
 } from '@omne-harness-lite/model-profile-directory'
-import {
-  CREDENTIAL_LOOKUP_SERVICE,
-  MODEL_CATALOG_SERVICE,
-} from '@omne-harness-lite/model-profile-directory/plugin'
-import {
-  openRouterCredentialRedactionConfig,
-  type PlanInput,
-} from '@omne-harness-lite/model-request-runtime'
-import {
-  createDeepSeekV4ProInputMeter,
-  createDeepSeekV41FlashInputMeter,
-  createModelTransportService,
-  createSharpImageCodec,
-  modelImageBalancedV1,
-  createOfficialProfileContent,
-  deepseekV4Pro0813Configuration,
-  deepseekV4Pro0813Definition,
-  deepseekV41FlashDefinition,
-  type ModelDefinition,
-  type ModelTransportService,
-  type RetirementPolicy,
-} from '@omne-harness-lite/pi-ai-transport'
-import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+import { CREDENTIAL_LOOKUP as CREDENTIAL_LOOKUP_SERVICE, MODEL_CATALOG as MODEL_CATALOG_SERVICE } from '@omne-harness-lite/model-profile-directory/cordis'
+import {openRouterCredentialRedactionConfig, type PlanInput} from '@omne-harness-lite/model-request-runtime'
+import {createDeepSeekV4ProInputMeter, createDeepSeekV41FlashInputMeter, createModelTransportService, createSharpImageCodec, modelImageBalancedV1, createOfficialProfileContent, deepseekV4Pro0813Configuration, deepseekV4Pro0813Definition, deepseekV41FlashDefinition} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelDefinition, type ModelTransportService} from '@omne-harness-lite/model-request-runtime'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { loadModelContribution as createModelPlugin } from '../../../packages/model/pi-ai-transport/tests/cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createLocalTls } from './local-tls.ts'
 import { actor, ref } from './support.ts'
@@ -271,10 +252,7 @@ describe('D4 real-provider hot update slice', () => {
       const actual: unknown = context.get(MODEL_TRANSPORT_SERVICE)
       if (!transportFace(actual)) throw new Error('actual transport service absent')
       const service = actual
-      const contribution1 = context.plugin(
-        createModelPlugin(v1, createDeepSeekV4ProInputMeter(v1), retirement()),
-        {},
-      )
+      const contribution1 = createModelPlugin(context, v1, createDeepSeekV4ProInputMeter(v1), retirement())
       await contribution1
       v1Credential = Buffer.from('controlled-rotation-v1-secret')
       const firstBody = v1Credential
@@ -322,10 +300,7 @@ describe('D4 real-provider hot update slice', () => {
         profile(v2, 'configuration-v2'),
       )
       if ('failure' in second) throw new Error(`second profile rejected: ${second.failure}`)
-      const contribution2 = context.plugin(
-        createModelPlugin(v2, createDeepSeekV41FlashInputMeter(v2), retirement()),
-        {},
-      )
+      const contribution2 = createModelPlugin(context, v2, createDeepSeekV41FlashInputMeter(v2), retirement())
       await contribution2
       v2Credential = Buffer.from('controlled-rotation-v2-secret')
       const secondBody = v2Credential

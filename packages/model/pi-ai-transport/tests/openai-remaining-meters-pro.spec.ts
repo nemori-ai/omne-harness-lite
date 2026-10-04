@@ -11,7 +11,8 @@ import {
   writeJsonLossless,
   type JsonObject,
 } from '@omne-harness-lite/content-blocks'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
+import {type PlanInput} from '@omne-harness-lite/model-request-runtime'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { openaiDefinitions, openaiConfiguration } from '../src/official-models/openai.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'

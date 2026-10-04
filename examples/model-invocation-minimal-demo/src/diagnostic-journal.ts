@@ -11,19 +11,8 @@ import {
   writeJsonLossless,
 } from '@omne-harness-lite/content-blocks'
 import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import type {
-  DiagnosticCloseResult,
-  DiagnosticCollectorConfig,
-  DiagnosticCoverage,
-  DiagnosticExportLimits,
-  DiagnosticExportResult,
-  DiagnosticJournalStore,
-  DiagnosticQuery,
-  DiagnosticQueryResult,
-  DiagnosticRecord,
-  DiagnosticReference,
-  DiagnosticScope,
-} from '@omne-harness-lite/model-request-runtime'
+import type {DiagnosticCloseResult, DiagnosticCollectorConfig, DiagnosticCoverage, DiagnosticExportLimits, DiagnosticExportResult, DiagnosticJournalStore, DiagnosticQuery, DiagnosticQueryResult, DiagnosticRecord, DiagnosticScope} from '@omne-harness-lite/model-request-runtime-local'
+import type { DiagnosticReference } from '@omne-harness-lite/model-request-runtime'
 
 type FileHandle = Awaited<ReturnType<typeof nodeFs.open>>
 type FileSystem = Pick<typeof nodeFs, 'mkdir' | 'lstat' | 'readdir' | 'unlink' | 'open'>

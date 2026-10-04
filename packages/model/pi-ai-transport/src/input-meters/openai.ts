@@ -20,8 +20,8 @@ import {
 import { getEncoding } from 'js-tiktoken'
 import { imageTokens, type ImageRule } from './openai-images.ts'
 import { object } from '../json.ts'
-import type { ModelDefinition } from '../definitions.ts'
-import type { FullMeterInput, InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import type { FullMeterInput, InputMeter, TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
 
 // The OpenAI tiktoken source maps gpt-5* to o200k_base. This exact allowlist
 // does not establish a GPT-6 mapping. The separately calibrated GPT-6 path below

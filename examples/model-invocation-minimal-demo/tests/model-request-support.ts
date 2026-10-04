@@ -4,19 +4,9 @@ import sharp from 'sharp'
 import { toOpaqueJson, type JsonObject } from '@omne-harness-lite/content-blocks'
 import type { AssetDefinition, AssetHolding, CapabilityId } from '@omne-harness-lite/asset-model'
 import type { LocalPublication } from '@omne-harness-lite/evaluation-input-store/publication'
-import {
-  deepseekV4Pro0813Definition,
-  createDeepSeekV4ProInputMeter,
-  deepseekV4Pro0813Configuration,
-  deepseekV41FlashDefinition,
-  createDeepSeekV41FlashInputMeter,
-  deepseekV41FlashConfiguration,
-  createOfficialProfileContent,
-  createSharpImageCodec,
-  modelImageBalancedV1,
-  type RetirementPolicy,
-} from '@omne-harness-lite/pi-ai-transport'
-import { openRouterCredentialRedactionConfig } from '@omne-harness-lite/model-request-runtime'
+import { deepseekV4Pro0813Definition, createDeepSeekV4ProInputMeter, deepseekV4Pro0813Configuration, deepseekV41FlashDefinition, createDeepSeekV41FlashInputMeter, deepseekV41FlashConfiguration, createOfficialProfileContent, createSharpImageCodec, modelImageBalancedV1 } from '@omne-harness-lite/pi-ai-transport'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import {openRouterCredentialRedactionConfig} from '@omne-harness-lite/model-request-runtime'
 import { createDemoDefaultRetryConfiguration } from '../src/index.ts'
 import type { AcceptanceConfig, AuthenticatedActor, ModelRequestDeployment } from '../src/index.ts'
 import { deployment } from './support.ts'

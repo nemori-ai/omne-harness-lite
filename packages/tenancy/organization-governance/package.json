@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
     }
   },
   "files": [
@@ -32,7 +36,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@omne-harness-lite/clock": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",

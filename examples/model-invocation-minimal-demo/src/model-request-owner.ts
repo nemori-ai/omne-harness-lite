@@ -1,12 +1,7 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
-import type {
-  SettlementOwner,
-  SettlementTask,
-  SettlementRegistration,
-  SettlementTaskKind,
-} from '@omne-harness-lite/model-request-runtime'
-import type { AppendResult } from '@omne-harness-lite/session-log-jsonl'
+import type {SettlementOwner, SettlementTask, SettlementRegistration, SettlementTaskKind} from '@omne-harness-lite/model-request-runtime-local'
+import type { AppendResult } from '@omne-harness-lite/session-log'
 
 function appendReceipt(value: unknown): AppendResult {
   if (value !== null && typeof value === 'object') {

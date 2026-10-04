@@ -10,11 +10,7 @@ import {
   type JsonlSessionLog,
   type SessionLogOptions,
 } from '@omne-harness-lite/session-log-jsonl'
-import {
-  readSettlementPrefix,
-  interpretCallHistory,
-  type SettlementLogBinding,
-} from '@omne-harness-lite/model-request-runtime'
+import {readSettlementPrefix, interpretCallHistory, type SettlementLogBinding} from '@omne-harness-lite/model-request-runtime-local'
 import { createDemoRunnerHost, type DemoRunnerRequest } from '../src/runner-host.ts'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createRequestOwner } from '../src/model-request-owner.ts'

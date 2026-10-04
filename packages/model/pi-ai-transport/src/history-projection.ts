@@ -6,14 +6,10 @@ import {
   judgeModelProfileDocument,
   validate as validateProfile,
 } from '@omne-harness-lite/model-profile'
-import {
-  canonicalProjection,
-  INPUT_PROJECTION_REVISION,
-  outputBlockDigestAtRevision,
-  type InputProjection,
-} from './projection.ts'
-import type { HistorySelectionSpan } from './input-meter.ts'
-import type { ReplayMeterInput } from './input-meter.ts'
+import { canonicalProjection, INPUT_PROJECTION_REVISION, outputBlockDigestAtRevision } from './projection.ts'
+import { type InputProjection } from '@omne-harness-lite/model-request-runtime'
+import type { HistorySelectionSpan } from '@omne-harness-lite/model-request-runtime'
+import type { ReplayMeterInput } from '@omne-harness-lite/model-request-runtime'
 
 export interface MessageSpan {
   readonly start: number

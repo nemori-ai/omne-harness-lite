@@ -1,0 +1,55 @@
+{
+  "name": "@omne-harness-lite/model-request-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist",
+    "SPEC.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/messages": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*",
+    "@omne-harness-lite/call-accounts": "workspace:*",
+    "@omne-harness-lite/model-response": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/tool-definition": "workspace:*",
+    "@omne-harness-lite/arrival-events": "workspace:*",
+    "@omne-harness-lite/model-profile": "workspace:*",
+    "@omne-harness-lite/stream-assembly": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@deepseek-ai/cordis": "catalog:"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    }
+  }
+}

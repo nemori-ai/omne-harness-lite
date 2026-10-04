@@ -13,19 +13,10 @@ import {
   type RunnerReplayRequest,
   type RunnerServiceHost,
 } from '@omne-harness-lite/loop-extension-runner'
-import {
-  interpretCallHistory,
-  readSettlementPrefix,
-  type CurrentHistoryReaders,
-  type SettlementPrefix,
-  type ModelRuntimeService,
-  type CanDispatchAgainResult,
-  type SettlementLogBinding,
-  type SettlementRegistration,
-} from '@omne-harness-lite/model-request-runtime'
+import {interpretCallHistory, readSettlementPrefix, type CurrentHistoryReaders, type SettlementPrefix, type ModelRuntimeService, type CanDispatchAgainResult, type SettlementLogBinding, type SettlementRegistration} from '@omne-harness-lite/model-request-runtime-local'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { AssemblyManifestStore } from '@omne-harness-lite/assembly-manifest-store'
-import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy-table'
+import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 import { messagePrefix, type ControlledSingleRunSelection } from './model-request-text.ts'
 import type { AuthenticatedActor } from './types.ts'
 import type { createDemoRunnerHost } from './runner-host.ts'

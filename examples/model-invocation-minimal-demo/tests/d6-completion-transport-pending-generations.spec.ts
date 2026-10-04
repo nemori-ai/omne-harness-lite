@@ -2,19 +2,10 @@ import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
-import {
-  invokeModel,
-  openRouterCredentialRedactionConfig,
-  type InvocationPolicy,
-} from '@omne-harness-lite/model-request-runtime'
-import {
-  createDeepSeekV41FlashInputMeter,
-  createModelTransportService,
-  createOfficialProfileContent,
-  deepseekV41FlashConfiguration,
-  deepseekV41FlashDefinition,
-  type ModelTransportService,
-} from '@omne-harness-lite/pi-ai-transport'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
+import {openRouterCredentialRedactionConfig, type InvocationPolicy} from '@omne-harness-lite/model-request-runtime'
+import {createDeepSeekV41FlashInputMeter, createModelTransportService, createOfficialProfileContent, deepseekV41FlashConfiguration, deepseekV41FlashDefinition} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelTransportService} from '@omne-harness-lite/model-request-runtime'
 import { createDemoTransportRetention } from '../src/diagnostic-assembly.ts'
 import { createLocalTls, deferred } from './local-tls.ts'
 import { callDeployment, demoRetirement } from './model-request-support.ts'

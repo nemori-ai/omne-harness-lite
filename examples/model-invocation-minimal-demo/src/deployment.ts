@@ -8,24 +8,13 @@ import { parseOfferTtl } from '@omne-harness-lite/offer-expiry'
 import { toOpaqueJson, type JsonObject } from '@omne-harness-lite/content-blocks'
 import type { CapabilityId, AssetDefinition, AssetHolding } from '@omne-harness-lite/asset-model'
 import { judgeDefinition } from '@omne-harness-lite/loop-extension'
-import {
-  createOfficialCatalogProfile,
-  createSharpImageCodec,
-  modelImageBalancedV1,
-  deepseekV4Pro0813Definition,
-  officialCatalog,
-  officialCatalogRevision,
-  type InputMeter,
-  type ModelDefinition,
-  type RetirementPolicy,
-} from '@omne-harness-lite/pi-ai-transport'
+import {createOfficialCatalogProfile, createSharpImageCodec, modelImageBalancedV1, deepseekV4Pro0813Definition, officialCatalog, officialCatalogRevision} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import { type InputMeter, type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import type { ModelProfileContent } from '@omne-harness-lite/model-profile'
-import {
-  openRouterCredentialRedactionConfig,
-  type AcknowledgementCleanupPolicy,
-  type TokenMargin,
-  type DefaultRetryConfiguration,
-} from '@omne-harness-lite/model-request-runtime'
+import {openRouterCredentialRedactionConfig} from '@omne-harness-lite/model-request-runtime'
+import {type AcknowledgementCleanupPolicy, type DefaultRetryConfiguration} from '@omne-harness-lite/model-request-runtime-local'
+import { type TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import type { AcceptanceConfig, AuthenticatedActor, ModelInputSource } from './types.ts'
 import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 

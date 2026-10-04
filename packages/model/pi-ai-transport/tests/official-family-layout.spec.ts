@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { readModelDefinition, type ModelDefinition, type ModelRoute } from '../src/definitions.ts'
+import {readModelDefinition} from '../src/definitions.ts'
+import {type ModelDefinition, type ModelRoute} from '@omne-harness-lite/model-request-runtime'
 import { officialModelIds } from '../src/official.ts'
 import { anthropicDefinitions, anthropicModelRoutes } from '../src/official-models/anthropic.ts'
 import {

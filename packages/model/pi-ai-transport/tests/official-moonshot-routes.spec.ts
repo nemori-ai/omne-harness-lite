@@ -2,16 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { planRequest } from './synthetic-input-meter.ts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
-import {
-  configurationSchema,
-  createOfficialProfileContent,
-  interpretConfiguration,
-  readModelDefinition,
-  type ModelDefinition,
-  type ModelRoute,
-} from '@omne-harness-lite/pi-ai-transport'
+import {configurationSchema, createOfficialProfileContent, interpretConfiguration, readModelDefinition} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelDefinition, type ModelRoute} from '@omne-harness-lite/model-request-runtime'
 import { kimiK3MoonshotRoute, kimiK27CodeMoonshotRoute } from '../src/official-models/moonshot.ts'
 
 const provider = 'moonshotai/test-route'

@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { object } from './input.ts'
+import { object } from '@omne-harness-lite/session-log'
 import { IoFailure, isMissing, syncDirectory, type FileIo } from './file-io.ts'
 import type { ProcessExit, ProcessOwnership, SessionLogDiagnostic } from './policy.ts'
 

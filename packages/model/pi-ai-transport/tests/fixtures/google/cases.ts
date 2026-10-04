@@ -1,11 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
-import {
-  createOfficialProfileContent,
-  type ModelDefinition,
-} from '@omne-harness-lite/pi-ai-transport'
+import {createOfficialProfileContent} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelDefinition} from '@omne-harness-lite/model-request-runtime'
 import { googleDefinitions } from '../../../src/official-models/google.ts'
 import { judgedMessage, message } from '../../support.ts'
 

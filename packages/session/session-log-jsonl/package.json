@@ -33,7 +33,8 @@
     "@omne-harness-lite/call-accounts": "workspace:*",
     "@omne-harness-lite/messages": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@omne-harness-lite/session-log": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:"

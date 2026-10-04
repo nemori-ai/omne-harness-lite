@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { invokeModel } from '@omne-harness-lite/model-request-runtime'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createPiAiTransport } from '../src/transport.ts'
 import { createDeepSeekV4ProInputMeter } from '../src/input-meters/deepseek-v4-pro.ts'

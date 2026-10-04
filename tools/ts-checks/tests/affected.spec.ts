@@ -46,7 +46,7 @@ const MEMBERS = [
   member('packages/infra/plain'),
   member('packages/infra/credential-custodian-local'),
   member('packages/infra/custodian-user', ['@x/credential-custodian-local']),
-  member('packages/model/model-profile-directory'),
+  member('packages/model/model-profile-directory-local'),
   member('packages/frontend/governance-client-operations'),
   member('packages/tenancy/governance-center-entry'),
   member('apps/top', ['@x/mid'], { acceptance: 'vitest run --dir acceptance' }),

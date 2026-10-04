@@ -5,7 +5,7 @@ import { directFull } from './direct-full-input.ts'
 import { describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { invokeModel } from '@omne-harness-lite/model-request-runtime'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
 import {
   createModelTransportService,
   createPiAiTransport,

@@ -12,14 +12,9 @@ import {
 } from '@omne-harness-lite/model-profile'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
-import {
-  configurationSchema,
-  createOfficialProfileContent,
-  interpretConfiguration,
-  readModelDefinition,
-  type PlannedRequest,
-} from '@omne-harness-lite/pi-ai-transport'
+import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
+import {configurationSchema, createOfficialProfileContent, interpretConfiguration, readModelDefinition} from '@omne-harness-lite/pi-ai-transport'
+import {type PlannedRequest} from '@omne-harness-lite/model-request-runtime'
 import {
   deepseekV4Pro0813Definition as definition,
   deepseekV4Pro0813Configuration as configuration,

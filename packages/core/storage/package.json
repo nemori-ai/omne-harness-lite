@@ -15,6 +15,10 @@
     "./conformance": {
       "types": "./dist/conformance/index.d.ts",
       "import": "./dist/conformance/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
     }
   },
   "files": [
@@ -31,6 +35,15 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@deepseek-ai/cordis": "catalog:"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    }
   }
 }

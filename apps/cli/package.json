@@ -26,10 +26,10 @@
     "@earendil-works/pi-tui": "catalog:",
     "@omne-harness-lite/client-local-state": "workspace:*",
     "@omne-harness-lite/governance-client-operations": "workspace:*",
-    "@omne-harness-lite/governance-center-client": "workspace:*",
+    "ajv": "catalog:",
     "@omne-harness-lite/identity-values": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
-    "ajv": "catalog:"
+    "@omne-harness-lite/governance-center-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

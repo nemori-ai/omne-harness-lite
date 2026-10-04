@@ -1,9 +1,5 @@
-import {
-  ownDefinitions,
-  type ModelDefinition,
-  type ModelRoute,
-  type ParameterRules,
-} from '../definitions.ts'
+import {ownDefinitions} from '../definitions.ts'
+import {type ModelDefinition, type ModelRoute, type ParameterRules} from '@omne-harness-lite/model-request-runtime'
 import type { QwenTemplateSettings } from '../input-meters/qwen.ts'
 
 // A supplied request subset. Dropped parameters remain visible in planning

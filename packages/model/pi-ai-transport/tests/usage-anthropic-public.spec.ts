@@ -1,6 +1,7 @@
 import { imagePreparation } from './image-transport-support.ts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
+import {type PlanInput} from '@omne-harness-lite/model-request-runtime'
 import {
   anthropicDefinitions,
   createAnthropicInputMeter,

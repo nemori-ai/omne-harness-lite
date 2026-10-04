@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CanDispatchAgainResult } from '@omne-harness-lite/model-request-runtime'
+import type {CanDispatchAgainResult} from '@omne-harness-lite/model-request-runtime-local'
 import type { RunnerCapabilityResult } from '@omne-harness-lite/loop-extension-runner'
 import { projectRunnerRetryGuard } from '../src/runner-service-host.ts'
 

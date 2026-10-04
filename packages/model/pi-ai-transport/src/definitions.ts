@@ -1,3 +1,4 @@
+import type {UnifiedParameterName, ParameterRule, ParameterRules, CacheBreakpoint, CacheDeclaration, CachePolicy, ModelCapabilities, ModelRoute, ModelDefinition, DefinitionCoordinates, DefinitionResult} from '@omne-harness-lite/model-request-runtime'
 import {
   copyJsonValue,
   isJsonNumber,
@@ -15,8 +16,6 @@ import {
   type ProviderName,
 } from '@omne-harness-lite/model-profile'
 import { object } from './json.ts'
-
-export type UnifiedParameterName = Exclude<keyof ModelRequestParameters, 'extra'>
 export const parameterOrder = Object.freeze([
   'reasoningEffort',
   'temperature',
@@ -27,59 +26,6 @@ export const parameterOrder = Object.freeze([
   'frequencyPenalty',
   'presencePenalty',
 ] as const satisfies readonly UnifiedParameterName[])
-export type ParameterRule<T> =
-  | { readonly kind: 'pass' }
-  | { readonly kind: 'drop' }
-  | {
-      readonly kind: 'select'
-      readonly accepted:
-        | { readonly values: readonly T[] }
-        | { readonly minimum: JsonNumber; readonly maximum: JsonNumber }
-      readonly otherwise: { readonly drop: true } | { readonly adjustTo: T }
-    }
-export type ParameterRules = {
-  readonly [K in UnifiedParameterName]: ParameterRule<NonNullable<ModelRequestParameters[K]>>
-}
-export type CacheBreakpoint = 'system' | 'last_tool' | 'last_message'
-export type CacheDeclaration =
-  | { readonly mode: 'automatic' }
-  | {
-      readonly mode: 'explicit'
-      readonly ttlValues: readonly string[]
-      readonly breakpointLayouts: readonly (readonly CacheBreakpoint[])[]
-    }
-export type CachePolicy =
-  | { readonly mode: 'automatic' }
-  | {
-      readonly mode: 'explicit'
-      readonly ttl: string
-      readonly breakpoints: readonly CacheBreakpoint[]
-    }
-export type ModelCapabilities = Pick<
-  ModelProfileContent,
-  | 'inputModalities'
-  | 'outputModalities'
-  | 'maxInputTokens'
-  | 'maxOutputTokens'
-  | 'inputConstraints'
-  | 'upstreamInputLimits'
->
-export interface ModelRoute {
-  readonly reminderRole: 'developer' | 'user'
-  readonly parameters: ParameterRules
-  readonly extra: Readonly<Record<string, ParameterRule<JsonValue>>>
-  readonly cache: CacheDeclaration
-}
-export interface ModelDefinition {
-  readonly modelId: string
-  readonly revision: string
-  readonly implementation: { readonly name: string; readonly revision: string }
-  readonly capabilities: ModelCapabilities
-  readonly routes: Readonly<Record<ProviderName, ModelRoute>>
-}
-export type DefinitionCoordinates = Pick<ModelAdaptationBinding, 'implementation' | 'definition'>
-export type DefinitionResult<T> =
-  { readonly ok: T } | { readonly rejected: 'invalidInput' | 'unavailable' }
 
 /** Unified aliases and request control fields cannot be registered as private parameters. */
 export const protectedParameterKeys = new Set<string>([
@@ -351,7 +297,7 @@ function parametersValid(parameters: JsonValue | undefined): boolean {
   )
 }
 /** Own every nested value before publication or network-resource construction. */
-export function ownDefinitions(values: readonly ModelDefinition[]): readonly ModelDefinition[] {
+export function ownDefinitions(values: readonly unknown[]): readonly ModelDefinition[] {
   if (!Array.isArray(values)) throw new TypeError('model definitions required')
   const copied = copyJsonValue(values)
   if ('failed' in copied || !Array.isArray(copied.ok))
@@ -373,7 +319,7 @@ export function ownDefinitions(values: readonly ModelDefinition[]): readonly Mod
     }),
   )
 }
-export function tryDefinition(value: ModelDefinition): ModelDefinition | undefined {
+export function tryDefinition(value: unknown): ModelDefinition | undefined {
   try {
     return ownDefinitions([value])[0]
   } catch (error) {

@@ -34,6 +34,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness-lite/identity-values": "workspace:*"
   }
 }

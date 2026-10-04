@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
     }
   },
   "files": [
@@ -25,13 +29,10 @@
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness-lite/identity-values": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
-    "@omne-harness-lite/storage": "workspace:*",
     "kysely": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@omne-harness-lite/clock": "workspace:*",
-    "@omne-harness-lite/storage-sql": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

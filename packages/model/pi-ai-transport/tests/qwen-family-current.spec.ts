@@ -3,31 +3,16 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
-import {
-  invokeModel,
-  type ModelInvocationResult,
-  type PlanInput,
-  type PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
+import {type ModelInvocationResult, type PlanInput} from '@omne-harness-lite/model-request-runtime'
+import { type PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import { writeJsonLossless, type JsonObject } from '@omne-harness-lite/content-blocks'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
-import {
-  createModelTransportService,
-  createOfficialProfileContent,
-  createPiAiTransport,
-  createQwenInputMeter,
-  qwenDefinitions,
-  type AdaptationLease,
-  type InputMeter,
-  type MeterContribution,
-  type ModelDefinition,
-  type PlannedRequest,
-  type RetirementPolicy,
-} from '@omne-harness-lite/pi-ai-transport'
-import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+import {createModelTransportService, createOfficialProfileContent, createPiAiTransport, createQwenInputMeter, qwenDefinitions} from '@omne-harness-lite/pi-ai-transport'
+import {type AdaptationLease, type ModelDefinition, type PlannedRequest} from '@omne-harness-lite/model-request-runtime'
+import { type InputMeter, type MeterContribution, type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import {
   at,
   certificate,
@@ -238,7 +223,7 @@ async function open(
   }
   try {
     await context.plugin(provider)
-    await context.plugin(createModelPlugin(definition, meter, retirement), {})
+    await createModelPlugin(context, definition, meter, retirement)
     expect(context.get(MODEL_TRANSPORT_SERVICE)).toBe(service)
     const acquired = service.acquire(adaptation, definition.modelId)
     if ('rejected' in acquired) throw new Error(acquired.rejected)

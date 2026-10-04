@@ -1,12 +1,8 @@
 import { testImagePreparerFor } from './image-transport-support.ts'
-import type { PlanInput, PlanResult } from '@omne-harness-lite/model-request-runtime'
-import {
-  defineInputMeter,
-  planRequest as planRequestWithMeter,
-  type InputMeter,
-  type ModelDefinition,
-  type PlannedRequest,
-} from '@omne-harness-lite/pi-ai-transport'
+import type {PlanInput, PlanResult} from '@omne-harness-lite/model-request-runtime'
+import {defineInputMeter, planRequest as planRequestWithMeter} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelDefinition, type PlannedRequest} from '@omne-harness-lite/model-request-runtime'
+import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 
 const meters = new WeakMap<ModelDefinition, Map<string, InputMeter>>()
 

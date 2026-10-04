@@ -7,27 +7,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { judgeAccountValue } from '@omne-harness-lite/call-accounts'
-import {
-  invokeModel,
-  type StreamEnd,
-  type TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
+import {type StreamEnd, type TransportAdapter} from '@omne-harness-lite/model-request-runtime'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
-import {
-  createModelTransportService,
-  readStream,
-  sendRequest,
-  type Diagnostic,
-  type NetworkResources,
-  type PlannedRequest,
-  type RawResponse,
-  type RetirementPolicy,
-  type ModelTransportService,
-} from '@omne-harness-lite/pi-ai-transport'
-import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+import {createModelTransportService, readStream, sendRequest, type NetworkResources} from '@omne-harness-lite/pi-ai-transport'
+import {type PlannedRequest, type RawResponse, type ModelTransportService} from '@omne-harness-lite/model-request-runtime'
+import { type Diagnostic, type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
+import { loadModelContribution as createModelPlugin } from './cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import {
   certificate,
   networkPolicy,
@@ -134,10 +121,7 @@ describe('host admission closes before references drain, with actual HTTPS', () 
           }
           const fiber = ctx.plugin(provider)
           await fiber
-          await ctx.plugin(
-            createModelPlugin(definition, syntheticInputMeter(definition, 'openai'), retirement()),
-            {},
-          )
+          await createModelPlugin(ctx, definition, syntheticInputMeter(definition, 'openai'), retirement())
           closure = undefined
           const replacement: Plugin.Object = {
             name: 'boundary-replacement-provider',

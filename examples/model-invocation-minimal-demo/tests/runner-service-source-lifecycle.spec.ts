@@ -7,11 +7,7 @@ import type {
   RunnerDispatchRequest,
   RunnerDispatchScope,
 } from '@omne-harness-lite/loop-extension-runner'
-import type {
-  ModelFailureSource,
-  ModelRuntimeService,
-  SettlementLogBinding,
-} from '@omne-harness-lite/model-request-runtime'
+import type {ModelFailureSource, ModelRuntimeService, SettlementLogBinding} from '@omne-harness-lite/model-request-runtime-local'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { createDemoRunnerHost } from '../src/runner-host.ts'
 import {

@@ -8,7 +8,7 @@ import { modelCredentialBoundary } from '../src/index.ts'
 import { collectRepositorySources, REPOSITORY_RULES } from '../src/repository.ts'
 
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
-const p1r = 'packages/model/model-profile-directory/src/plugin.ts'
+const p1r = 'packages/model/model-profile-directory-local/src/plugin.ts'
 const ccl = 'packages/infra/credential-custodian-local/src/model-replica.ts'
 const imports = `import { createCredentialBindingReader as makeReader } from '@omne-harness-lite/model-profile-directory/tx-reads';
 import { createModelReplicaCustodian as makeReplica, type ModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica';
@@ -165,7 +165,7 @@ test.each([
   `import type { ModelReplicaCustodian as Replica } from '@omne-harness-lite/credential-custodian-local/model-replica'; const replica: Replica = supplied; replica.close();`,
   `import type {ReadBoundReplicaIn} from '@omne-harness-lite/model-profile-directory/tx-reads'; const read: ReadBoundReplicaIn = supplied; read(unit,tenant,ref);`,
 ])('ordinary product modules cannot import or consume restricted values', text =>
-  expect(check(text, 'packages/model/model-request-runtime/src/runtime.ts')).not.toEqual([]),
+  expect(check(text, 'packages/model/model-request-runtime-local/src/runtime.ts')).not.toEqual([]),
 )
 test.each([
   `import type {ModelReplicaCustodian} from '@omne-harness-lite/credential-custodian-local/model-replica'; export const localCredentialLookupPlugin = definePlugin({ async apply(ctx, config) { const replica: ModelReplicaCustodian = supplied; await replica.close(); } });`,
@@ -186,7 +186,7 @@ test('TS-resolved aliases do not evade forbidden imports', () => {
         path: ccl,
         text: "import {createCredentialBindingReader as renamed} from '@readerAlias';",
         resolvedModules: {
-          '@readerAlias': 'packages/model/model-profile-directory/src/tx-reads.ts',
+          '@readerAlias': 'packages/model/model-profile-directory-local/src/tx-reads.ts',
         },
       },
     ]),
@@ -212,7 +212,7 @@ test('lexical shadowing preserves unrelated resources', () => {
 test('actual repository collector resolves an alias and installs the repository guard', () => {
   const root = mkdtempSync(join(tmpdir(), 'omne-model-credential-rule-'))
   try {
-    const directory = join(root, 'packages/model/model-profile-directory/src')
+    const directory = join(root, 'packages/model/model-profile-directory-local/src')
     const source = join(root, 'examples/model-invocation-minimal-demo/src')
     mkdirSync(directory, { recursive: true })
     mkdirSync(source, { recursive: true })
@@ -220,7 +220,7 @@ test('actual repository collector resolves an alias and installs the repository 
       join(root, 'tsconfig.json'),
       JSON.stringify({
         compilerOptions: {
-          paths: { '@reader': ['packages/model/model-profile-directory/src/tx-reads.ts'] },
+          paths: { '@reader': ['packages/model/model-profile-directory-local/src/tx-reads.ts'] },
         },
       }),
     )
@@ -234,7 +234,7 @@ test('actual repository collector resolves an alias and installs the repository 
     )
     const sources = collectRepositorySources(root)
     expect(sources.find(file => file.path === bootstrap)?.resolvedModules?.['@reader']).toBe(
-      'packages/model/model-profile-directory/src/tx-reads.ts',
+      'packages/model/model-profile-directory-local/src/tx-reads.ts',
     )
     expect(REPOSITORY_RULES).toContain(modelCredentialBoundary)
     expect(
@@ -482,7 +482,7 @@ test('expression-body operation results and unrelated returned close remain vali
 test('root configured aliases have collector and actual built CLI parity', () => {
   const root = mkdtempSync(join(tmpdir(), 'omne-model-credential-cli-'))
   try {
-    const directory = join(root, 'packages/model/model-profile-directory/src')
+    const directory = join(root, 'packages/model/model-profile-directory-local/src')
     const source = join(root, 'examples/model-invocation-minimal-demo/src')
     const tool = join(root, 'tools/ts-checks')
     mkdirSync(directory, { recursive: true })
@@ -494,7 +494,7 @@ test('root configured aliases have collector and actual built CLI parity', () =>
         compilerOptions: {
           module: 'NodeNext',
           moduleResolution: 'NodeNext',
-          paths: { '@binding': ['./packages/model/model-profile-directory/src/tx-reads.ts'] },
+          paths: { '@binding': ['./packages/model/model-profile-directory-local/src/tx-reads.ts'] },
         },
       }),
     )
@@ -512,7 +512,7 @@ test('root configured aliases have collector and actual built CLI parity', () =>
     const inputs = roots.map(collectRepositorySources)
     for (const files of inputs) {
       expect(files.find(file => file.path === bootstrap)?.resolvedModules?.['@binding']).toBe(
-        'packages/model/model-profile-directory/src/tx-reads.ts',
+        'packages/model/model-profile-directory-local/src/tx-reads.ts',
       )
       expect(
         modelCredentialBoundary

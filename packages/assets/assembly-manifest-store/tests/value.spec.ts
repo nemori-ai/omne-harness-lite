@@ -2,12 +2,7 @@ import { expect, test } from 'vitest'
 import { LosslessNumber, readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { validate as toolValidate } from '@omne-harness-lite/tool-definition'
 import v2 from '@omne-harness-lite/tool-definition/schema/v2' with { type: 'json' }
-import {
-  answerPresence,
-  checkManifestAppendInput,
-  judgeManifestAppend,
-  readEvaluationProjection,
-} from '../src/index.ts'
+import { answerPresence, checkManifestAppendInput, judgeManifestAppend, readEvaluationProjection } from '@omne-harness-lite/assembly-manifest'
 import { evaluated, input } from './support.ts'
 
 test.each([undefined, null, '', ' session', 'session\n', {}])(

@@ -1,3 +1,4 @@
+import { sessionTenancyTablePlugin } from '../src/cordis.ts'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,12 +14,8 @@ import {
   type StorageUnit,
 } from '@omne-harness-lite/storage'
 import { openStorage, type SqlStorage } from '@omne-harness-lite/storage-sql'
-import {
-  createSessionTenancyReader,
-  sessionTenancyMigrations,
-  sessionTenancyTablePlugin,
-  type SessionTenancyService,
-} from '../src/index.ts'
+import { createSessionTenancyReader, sessionTenancyMigrations } from '../src/index.ts'
+import { type SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 import type { SessionTenancyDb } from '../src/reader.ts'
 
 const tenant = unwrap(parseTenantId({ organization: 'org_a', account: 'acc_a' }))

@@ -30,12 +30,12 @@
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
     "@omne-harness-lite/loop-extension": "workspace:*",
-    "@omne-harness-lite/identity-values": "workspace:*",
     "ajv": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness-lite/identity-values": "workspace:*"
   }
 }

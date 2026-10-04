@@ -15,6 +15,10 @@
     "./seed": {
       "types": "./dist/seed.d.ts",
       "import": "./dist/seed.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
     }
   },
   "files": [
@@ -37,7 +41,8 @@
     "@deepseek-ai/cordis": "catalog:",
     "zod": "catalog:",
     "kysely": "catalog:",
-    "ajv": "catalog:"
+    "ajv": "catalog:",
+    "@omne-harness-lite/session-tenancy": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/storage-sql": "workspace:*",

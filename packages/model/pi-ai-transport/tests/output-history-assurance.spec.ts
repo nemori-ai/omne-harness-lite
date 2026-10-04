@@ -1,25 +1,17 @@
 import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, expect, it, vi } from 'vitest'
 import type { Message } from '@omne-harness-lite/messages'
-import type {
-  PlanCalibration,
-  PlanInput,
-  PlanOutputHistoryGroup,
-} from '@omne-harness-lite/model-request-runtime'
+import type { PlanCalibration, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'
 import { projectInput, projectOutput } from '../src/projection.ts'
-import { planRequest, type PlannedRequest } from '../src/plan.ts'
-import {
-  measureFull,
-  measureNew,
-  measureReplay,
-  type FullMeterInput,
-  type NewMeterInput,
-  type ReplayMeterInput,
-} from '../src/input-meter.ts'
+import {planRequest} from '../src/plan.ts'
+import {type PlannedRequest} from '@omne-harness-lite/model-request-runtime'
+import { measureFull, measureNew, measureReplay } from '../src/input-meter.ts'
+import { type FullMeterInput, type NewMeterInput, type ReplayMeterInput } from '@omne-harness-lite/model-request-runtime'
 import { at, input, judgedMessage, message } from './support.ts'
 import { testDefinitions } from './definitions.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'

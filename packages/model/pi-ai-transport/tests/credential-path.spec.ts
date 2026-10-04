@@ -1,12 +1,8 @@
 import { imagePreparation } from './image-transport-support.ts'
 import { Agent } from 'node:https'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import {
-  createCredentialRedactionPolicy,
-  invokeModel,
-  openRouterCredentialRedactionConfig,
-  type StreamEnd,
-} from '@omne-harness-lite/model-request-runtime'
+import {createCredentialRedactionPolicy, openRouterCredentialRedactionConfig, type StreamEnd} from '@omne-harness-lite/model-request-runtime'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
@@ -14,7 +10,7 @@ import {
   sendRequest,
   type NetworkResources,
 } from '@omne-harness-lite/pi-ai-transport'
-import { piAiTransportPlugin } from '@omne-harness-lite/pi-ai-transport/plugin'
+import { piAiTransportPlugin } from '@omne-harness-lite/pi-ai-transport/cordis'
 import { testDefinitions } from './definitions.ts'
 import {
   certificate,
@@ -421,7 +417,7 @@ describe('D095 actual credential path and single H', () => {
         inputMeters: [],
       }),
     ).toThrow()
-    const retirement = { waitMilliseconds: 1, force: false, schedule: () => () => {} }
+    const retirement = { waitMilliseconds: 1, force: false }
     const config = piAiTransportPlugin.Config
     if (!config) throw new Error('missing public plugin configuration')
     const valid = await config['~standard'].validate({ policy: networkPolicy, retirement })

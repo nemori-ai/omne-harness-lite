@@ -1,9 +1,9 @@
+import type { ReadBoundReplicaIn } from '@omne-harness-lite/model-profile-directory'
 import { expectTypeOf } from 'vitest'
 import { sealBody, openBody } from '@omne-harness-lite/credential-custodian-local'
 import {
   createModelReplicaCustodian,
   type ModelReplicaOptions,
-  type ReadBoundReplicaIn,
   type StoreBoundReplicaResult,
 } from '@omne-harness-lite/credential-custodian-local/model-replica'
 import { replicaMigrations } from '@omne-harness-lite/credential-custodian-local/migrations'

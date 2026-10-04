@@ -1,54 +1,19 @@
+import { organizationGovernancePlugin } from '@omne-harness-lite/organization-governance/cordis'
+import { registrationPlugin } from '@omne-harness-lite/account-registration/cordis'
+import { accountIdentityPlugin } from '@omne-harness-lite/account-identity/cordis'
+import { credentialsPlugin } from '@omne-harness-lite/credential-verification/cordis'
+import { clockPlugin } from '@omne-harness-lite/clock/cordis'
+import { StorageBacking, borrowedStorage as borrowedStoragePlugin } from './borrowed-storage.ts'
+import { controlledModelTransport } from './controlled-model-transport.ts'
+import { TransportTls } from './assembly-inputs.ts'
+import { DirectoryDiagnostics, ReplicaReader, EvaluationSupport, TransportSupport, InputMeters, RetrySample, BorrowedRunnerHost, BorrowedManifest, BorrowedAssetRegistry } from './assembly-inputs.ts'
 import { copyJsonValue, isJsonNumber, type JsonValue } from '@omne-harness-lite/content-blocks'
 import {
   judgeModelProfileDocument,
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
-import {
-  createSessionModelSelection,
-  createCallContainerStore,
-  createModelCallContentStore,
-  createModelCallFacts,
-  createModelRuntime,
-  modelCallContentMigrations,
-  interpretCallHistory,
-  readSettlementPrefix,
-  type ModelRuntimeService,
-  type ModelCallHost,
-  type ModelObserverRequest,
-  type DispatchResult,
-  type OpenCallResult,
-  type OpenCallRun,
-  type RuntimeConstruction,
-  type SessionRuntimeBinding,
-  type ModelObserverEndpoint,
-  type RuntimeCloseResult,
-  type SessionObserverAccess,
-  type SettlementResult,
-  type SettlementOwner,
-  type SettlementCoordinator,
-  type SessionModelSelection,
-  type SessionModelSelectionInput,
-  type SettlementLogBinding,
-  type RunHistoryReader,
-  type CurrentHistoryReaders,
-  type SessionSelectModelResult,
-  type LegalTargetsResult,
-  type SessionEffectiveModelResult,
-  type ServiceEffectiveModelResult,
-  type ServiceLegalTargetsResult,
-  type ServiceSelectModelResult,
-  type DisplayListResult,
-  type ServiceDisplayListResult,
-  type ReconcileResult,
-  type CallContainer,
-  type AnchoredInvocationHandle,
-  type ModelLogSettlementTarget,
-  type ObserverDiagnostic,
-  type SettlementDiagnostic,
-  type DiagnosticEvent,
-  type FailureConsumableOperation,
-  type FailureConsumption,
-} from '@omne-harness-lite/model-request-runtime'
+import {createSessionModelSelection, createCallContainerStore, createModelCallContentStore, createModelCallFacts, createModelRuntime, modelCallContentMigrations, interpretCallHistory, readSettlementPrefix, type ModelRuntimeService, type ModelCallHost, type ModelObserverRequest, type DispatchResult, type OpenCallResult, type OpenCallRun, type RuntimeConstruction, type SessionRuntimeBinding, type ModelObserverEndpoint, type RuntimeCloseResult, type SessionObserverAccess, type SettlementResult, type SettlementOwner, type SettlementCoordinator, type SessionModelSelection, type SessionModelSelectionInput, type SettlementLogBinding, type RunHistoryReader, type CurrentHistoryReaders, type SessionSelectModelResult, type LegalTargetsResult, type SessionEffectiveModelResult, type ServiceEffectiveModelResult, type ServiceLegalTargetsResult, type ServiceSelectModelResult, type DisplayListResult, type ServiceDisplayListResult, type ReconcileResult, type CallContainer, type AnchoredInvocationHandle, type ObserverDiagnostic, type SettlementDiagnostic, type FailureConsumableOperation, type FailureConsumption} from '@omne-harness-lite/model-request-runtime-local'
+import { type ModelLogSettlementTarget, type DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
   decodeModelLogKey,
@@ -56,6 +21,7 @@ import {
   modelLogJsonEqual,
 } from '@omne-harness-lite/model-request-runtime'
 import {
+  validate as validateMessage,
   judgeMessage,
   judgePairing,
   type SessionRef,
@@ -79,16 +45,10 @@ import {
   deriveCreationKey,
 } from './call-references.ts'
 import { createDemoRunnerHost, type DemoRunnerRequest } from './runner-host.ts'
-import {
-  LOOP_EXTENSION_RUNNER_SERVICE,
-  loopExtensionRunnerPlugin,
-  type LoopExtensionRunnerService,
-  type RunnerDispatchRequest,
-  type RunnerPassResult,
-  type RunnerReplayFailure,
-  type RunnerReplayRequest,
-} from '@omne-harness-lite/loop-extension-runner'
-import { createModelDefaultRetryPlugin } from '@omne-harness-lite/model-request-runtime/default-retry-plugin'
+import {LOOP_EXTENSION_RUNNER} from '@omne-harness-lite/loop-extension-runner/cordis'
+import {loopExtensionRunnerPlugin} from '@omne-harness-lite/loop-extension-runner-local/cordis'
+import { type LoopExtensionRunnerService, type RunnerDispatchRequest, type RunnerPassResult, type RunnerReplayFailure, type RunnerReplayRequest } from '@omne-harness-lite/loop-extension-runner'
+import {modelDefaultRetry} from '@omne-harness-lite/model-request-runtime-local/cordis'
 import {
   createDemoRunnerServiceHost,
   readDemoRunnerFailure,
@@ -110,11 +70,8 @@ import {
   createAssemblyManifestStore,
   type AssemblyManifestStore,
 } from '@omne-harness-lite/assembly-manifest-store'
-import {
-  createAssetRegistry,
-  type AssetRegistry,
-  type AvailabilityReport,
-} from '@omne-harness-lite/asset-registry'
+import { createAssetRegistry, type AssetRegistry } from '@omne-harness-lite/asset-registry-local'
+import { type AvailabilityReport } from '@omne-harness-lite/asset-registry'
 import {
   createRegistryHistoryReader,
   type RegistryHistoryReader,
@@ -123,31 +80,20 @@ import {
   createRegistryInputReader,
   type RegistryInputReader,
 } from '@omne-harness-lite/evaluation-input-store/registry-inputs'
-import {
-  createEvaluationInputStorePlugin,
-  evaluationInputMigrations,
-  CURRENT_EVALUATION_INPUTS_SERVICE,
-  type CurrentEvaluationInputs,
-  type InputSourceDependencies,
-} from '@omne-harness-lite/evaluation-input-store'
+import {evaluationInputStorePlugin} from '@omne-harness-lite/evaluation-input-store/cordis'
+import {evaluationInputMigrations, type InputSourceDependencies} from '@omne-harness-lite/evaluation-input-store'
+import {CURRENT_EVALUATION_INPUTS} from '@omne-harness-lite/asset-evaluation/cordis'
+import { type CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import {
   publishLocalInputs,
   captureSessionRecipe,
   type LocalPublication,
   type SessionRecipeInput,
 } from '@omne-harness-lite/evaluation-input-store/publication'
-import {
-  createModelTransportService,
-  type ModelTransportService,
-  type PlannedRequest,
-  type RawResponse,
-  type TransportOptions,
-} from '@omne-harness-lite/pi-ai-transport'
-import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-  piAiTransportPlugin,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+import {createModelTransportService, type TransportOptions} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelTransportService, type PlannedRequest, type RawResponse} from '@omne-harness-lite/model-request-runtime'
+import {modelContribution, piAiTransportPlugin} from '@omne-harness-lite/pi-ai-transport/cordis'
+import {MODEL_TRANSPORT} from '@omne-harness-lite/model-request-runtime/cordis'
 import { prepareModelRequestDeployment } from './model-request-deployment.ts'
 import type {
   DemoDiagnosticAssembly,
@@ -160,24 +106,19 @@ import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
 import {
-  accountIdentityPlugin,
   LOGINS_SERVICE,
   type LoginsService,
 } from '@omne-harness-lite/account-identity'
 import {
-  registrationPlugin,
   REGISTRATION_SERVICE,
   type RegistrationService,
   type TerminalOutcome,
 } from '@omne-harness-lite/account-registration'
-import { clockPlugin, clockPreflight } from '@omne-harness-lite/clock'
+import { clockPreflight } from '@omne-harness-lite/clock'
 import {
   createModelReplicaCustodian,
   type ModelReplicaCustodian,
 } from '@omne-harness-lite/credential-custodian-local/model-replica'
-import { credentialsPlugin } from '@omne-harness-lite/credential-verification'
-import sessionSchema from '@omne-harness-lite/messages/schema/v2' with { type: 'json' }
-import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
 import {
   isOk,
   parseOpaqueIdentifier,
@@ -191,28 +132,18 @@ import {
   type ProfileRow,
   type CredentialLookup,
 } from '@omne-harness-lite/model-profile-directory'
-import {
-  modelProfileDirectoryPlugin,
-  localCredentialLookupPlugin,
-  MODEL_CATALOG_SERVICE,
-  CREDENTIAL_LOOKUP_SERVICE,
-} from '@omne-harness-lite/model-profile-directory/plugin'
-import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory/tx-reads'
-import {
-  sessionTenancyTablePlugin,
-  SESSION_TENANCY_SERVICE,
-  type SessionTenancyService,
-} from '@omne-harness-lite/session-tenancy-table'
-import {
-  openJsonlSessionLog,
-  type JsonlSessionLog,
-  type ReadResult,
-} from '@omne-harness-lite/session-log-jsonl'
+import {modelProfileDirectoryPlugin, localCredentialLookupPlugin} from '@omne-harness-lite/model-profile-directory-local/cordis'
+import {MODEL_CATALOG, CREDENTIAL_LOOKUP} from '@omne-harness-lite/model-profile-directory/cordis'
+import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads'
+import {sessionTenancyTablePlugin} from '@omne-harness-lite/session-tenancy-table/cordis'
+import {SESSION_TENANCY} from '@omne-harness-lite/session-tenancy/cordis'
+import { type SessionTenancyService } from '@omne-harness-lite/session-tenancy'
+import { openJsonlSessionLog, type JsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
+import { type ReadResult } from '@omne-harness-lite/session-log'
 import { sessionLogContribution, prepareSessionLogDeployment } from './session-log-owner.ts'
 import { seedHoldingTenant } from '@omne-harness-lite/session-tenancy-table/seed'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import {
-  organizationGovernancePlugin,
   MEMBERSHIPS_SERVICE,
   type MembershipsService,
 } from '@omne-harness-lite/organization-governance'
@@ -257,9 +188,6 @@ import {
   type StartupPhase,
 } from './types.ts'
 
-const sessionValidator = createSchemaRuntime([sessionSchema]).compile({
-  $ref: `${sessionSchema.$id}#/$defs/SessionRef`,
-})
 
 type LoginFace = Pick<LoginsService, 'issue' | 'exchange' | 'verify'>
 type MembershipFace = Pick<MembershipsService, 'currentTenant' | 'standing'>
@@ -1068,18 +996,9 @@ export function createAcceptanceApplication(
       record({ event: 'stage', phase: 'migrations', outcome: 'complete' })
       await hooks?.storageOpened?.(storage, guard)
       assertNotClosing()
-      const borrowedStorage = storage
-      await load(
-        'storage',
-        {
-          name: 'acceptance-storage',
-          apply(ctx: Context) {
-            if (ctx.get('storage') !== undefined) throw new Error('duplicate acceptance storage')
-            ctx.provide('storage', borrowedStorage)
-          },
-        },
-        undefined,
-      )
+      new StorageBacking(context, storage)
+      await load('storage', borrowedStoragePlugin, {})
+
       await load('clock', clockPlugin, {})
       await load('credentials', credentialsPlugin, prepared.credentials)
       await load('accountIdentity', accountIdentityPlugin, prepared.identity)
@@ -1122,18 +1041,10 @@ export function createAcceptanceApplication(
       assertNotClosing()
       await hooks?.afterConfirm?.()
       assertNotClosing()
-      await load('directory', modelProfileDirectoryPlugin, {
-        ...prepared.directory,
-        diagnostics: {
-          record(event) {
-            record({
-              event: 'directory',
-              phase: event.operation,
-              outcome: event.outcome ?? event.phase,
-            })
-          },
-        },
-      })
+      new DirectoryDiagnostics(context, { record(event) {
+        record({ event: 'directory', phase: event.operation, outcome: event.outcome ?? event.phase })
+      } })
+      await load('directory', modelProfileDirectoryPlugin, prepared.directory)
       phase = 'replica'
       category = 'failed'
       await hooks?.beforeReplica?.()
@@ -1162,22 +1073,11 @@ export function createAcceptanceApplication(
       assertNotClosing()
       phase = 'lookup'
       await hooks?.beforeLookup?.()
-      await load('lookup', localCredentialLookupPlugin, {
-        mode: 'localCredentialOnly',
-        readBoundReplicaIn: replica.readBoundReplicaIn,
-        diagnostics: {
-          record(event) {
-            record({
-              event: 'directory',
-              phase: event.operation,
-              outcome: event.outcome ?? event.phase,
-            })
-          },
-        },
-      })
+      new ReplicaReader(context, { readIn: replica.readBoundReplicaIn })
+      await load('lookup', localCredentialLookupPlugin, { mode: 'localCredentialOnly' })
       if (preparationStage) {
         await load('sessionTenancy', sessionTenancyTablePlugin, {})
-        const value: unknown = context.get(SESSION_TENANCY_SERVICE)
+        const value: unknown = context.get(SESSION_TENANCY)
         if (!sessionTenancyFace(value)) throw new Error('acceptance session tenancy absent')
         sessionTenancy = value
       }
@@ -1201,8 +1101,8 @@ export function createAcceptanceApplication(
       }
       const loginValue: unknown = context.get(LOGINS_SERVICE),
         membershipValue: unknown = context.get(MEMBERSHIPS_SERVICE),
-        catalogValue: unknown = context.get(MODEL_CATALOG_SERVICE),
-        lookupValue: unknown = context.get(CREDENTIAL_LOOKUP_SERVICE),
+        catalogValue: unknown = context.get(MODEL_CATALOG),
+        lookupValue: unknown = context.get(CREDENTIAL_LOOKUP),
         registrationValue: unknown = context.get(REGISTRATION_SERVICE)
       if (
         !loginFace(loginValue) ||
@@ -1344,11 +1244,12 @@ export function createAcceptanceApplication(
             storeKey: requestDeployment.evaluationInputs.storeKey,
             deployedOfficial: requestDeployment.evaluationInputs.deployedOfficial,
           }
-          await load('evaluationInputs', createEvaluationInputStorePlugin(ports), {
+          new EvaluationSupport(context, ports)
+          await load('evaluationInputs', evaluationInputStorePlugin, {
             storeKey: inputSource.storeKey,
             deployedOfficial: [...inputSource.deployedOfficial],
           })
-          const value: unknown = context.get(CURRENT_EVALUATION_INPUTS_SERVICE)
+          const value: unknown = context.get(CURRENT_EVALUATION_INPUTS)
           if (!currentInputFace(value)) throw new Error('acceptance input service absent')
           currentInputs = value
           if (activeClock === undefined) throw new Error('acceptance clock absent')
@@ -1359,6 +1260,7 @@ export function createAcceptanceApplication(
               diagnosticFailures += 1
             },
           })
+          new BorrowedManifest(context, manifest)
           registryHistory = createRegistryHistoryReader({
             storage,
             storeKey: inputSource.storeKey,
@@ -1392,6 +1294,7 @@ export function createAcceptanceApplication(
             conflictPolicy: { maxRetries: requestDeployment.registryPolicy.maxRetries },
             maxInFlight: requestDeployment.registryPolicy.maxInFlight,
           })
+          new BorrowedAssetRegistry(context, assetRegistry)
           phase = 'transport'
           category = 'failed'
           assertNotClosing()
@@ -1411,43 +1314,34 @@ export function createAcceptanceApplication(
               return local.collector.record(event, local.scope, association)
             },
           })
+          new TransportSupport(context, {
+            retirementSchedule: transportConfiguration.retirement.schedule,
+            ...(transportConfiguration.imagePreparation ? { imageCodec: transportConfiguration.imagePreparation.codec } : {}),
+            onDiagnostic, registryDiagnostics,
+          })
+          new InputMeters(context, transportConfiguration.inputMeters)
           let committed = false
           try {
             if (options.developmentTransport === undefined) {
               await load('modelTransport', piAiTransportPlugin, {
                 policy: transportConfiguration.policy,
-                imagePreparation: transportConfiguration.imagePreparation,
-                retirement: transportConfiguration.retirement,
-                onDiagnostic,
-                registryDiagnostics,
+                ...(transportConfiguration.imagePreparation ? { imagePreparation: { policy: transportConfiguration.imagePreparation.policy } } : {}),
+                retirement: { waitMilliseconds: transportConfiguration.retirement.waitMilliseconds, force: transportConfiguration.retirement.force },
               })
             } else {
               const developmentTransport = options.developmentTransport
-              await load(
-                'modelTransport',
-                {
-                  name: 'acceptance-controlled-model-transport',
-                  apply(ctx: Context) {
-                    const service = createModelTransportService({
-                      ...developmentTransport,
-                      policy: transportConfiguration.policy,
-                      imagePreparation: transportConfiguration.imagePreparation,
-                      onDiagnostic,
-                      registryDiagnostics,
-                    })
-                    ctx.effect(() => async () => {
-                      const result = await service.close(transportConfiguration.retirement)
-                      if ('cleanup_failed' in result || 'rejected' in result)
-                        throw new Error('model transport cleanup failed')
-                      await service.closed
-                    })
-                    ctx.provide(MODEL_TRANSPORT_SERVICE, service)
-                  },
-                },
-                undefined,
-              )
+              const ca = developmentTransport.tls?.ca
+              const rawCa = ca === undefined ? [] : Array.isArray(ca) ? ca : [ca]
+              const certificates = Object.freeze(rawCa.map(value => typeof value === 'string' ? value : value.toString('utf8')))
+              new TransportTls(context, { readCa: () => certificates })
+              await load('modelTransport', controlledModelTransport, {
+                baseUrl: developmentTransport.baseUrl ?? 'https://openrouter.ai/api/v1/',
+                policy: transportConfiguration.policy,
+                ...(transportConfiguration.imagePreparation ? { imagePreparation: { policy: transportConfiguration.imagePreparation.policy } } : {}),
+                retirement: { waitMilliseconds: transportConfiguration.retirement.waitMilliseconds, force: transportConfiguration.retirement.force },
+              })
             }
-            const provided: unknown = context.get(MODEL_TRANSPORT_SERVICE)
+            const provided: unknown = context.get(MODEL_TRANSPORT)
             if (!modelTransportFace(provided)) throw new Error('model transport service absent')
             transportService = provided
             reservation.commit(provided)
@@ -1456,7 +1350,7 @@ export function createAcceptanceApplication(
             if (!committed) {
               let partial: unknown
               try {
-                partial = context.get(MODEL_TRANSPORT_SERVICE)
+                partial = context.get(MODEL_TRANSPORT)
               } catch {
                 // A fiber may still own a failed construction even if no service can be read.
               }
@@ -1477,8 +1371,12 @@ export function createAcceptanceApplication(
             if (meters.length !== 1 || meters[0] === undefined)
               throw new Error('one exact input meter per model contribution required')
             const fiber = context.plugin(
-              createModelPlugin(definition, meters[0], transportConfiguration.retirement),
-              {},
+              modelContribution,
+              {
+                definition,
+                meter: { modelId: meters[0].modelId, definitionRevision: meters[0].definitionRevision, implementation: meters[0].implementation, provider: meters[0].provider },
+                retirement: { waitMilliseconds: transportConfiguration.retirement.waitMilliseconds, force: transportConfiguration.retirement.force },
+              },
             )
             modelContributions.push(fiber)
             await hooks?.modelContributionCreated?.(definition, fiber)
@@ -1743,17 +1641,16 @@ export function createAcceptanceApplication(
               return now === 'unavailable' ? { unavailable: true } : new Date(now).toISOString()
             },
           })
-          runnerServiceFiber = context.plugin(loopExtensionRunnerPlugin, { host: () => host })
+          new BorrowedRunnerHost(context, host)
+          runnerServiceFiber = context.plugin(loopExtensionRunnerPlugin, {})
           await runnerServiceFiber
           if (runnerServiceFiber.state !== FIBER_STATE.ACTIVE)
             throw new Error('runner service not active')
-          const runnerValue: unknown = context.get(LOOP_EXTENSION_RUNNER_SERVICE)
+          const runnerValue: unknown = context.get(LOOP_EXTENSION_RUNNER)
           if (!runnerServiceFace(runnerValue)) throw new Error('runner service face absent')
           runnerService = runnerValue
-          defaultRetryFiber = context.plugin(
-            createModelDefaultRetryPlugin(deployment.defaultRetry),
-            {},
-          )
+          new RetrySample(context, { sample: deployment.defaultRetry.sample })
+          defaultRetryFiber = context.plugin(modelDefaultRetry, { policy: deployment.defaultRetry.policy })
           await defaultRetryFiber
           if (defaultRetryFiber.state !== FIBER_STATE.ACTIVE)
             throw new Error('default retry contribution not active')
@@ -1930,7 +1827,7 @@ export function createAcceptanceApplication(
         if (storage === undefined || sessionTenancy === undefined)
           throw new AcceptanceOperationDefect('prepareSession')
         const parsed = parseOpaqueIdentifier(session, 'SessionRef')
-        if (!isOk(parsed) || !sessionValidator.validate(parsed.ok))
+        if (!isOk(parsed) || !validateMessage('SessionRef', parsed.ok).valid)
           return { step: 'holdingTenant', result: { failure: 'invalidInput' } }
         if (recoveryAdmission.has(parsed.ok)) return { failure: 'stageClosed' }
         let held = await sessionTenancy.holdingTenant(parsed.ok)
@@ -1970,7 +1867,7 @@ export function createAcceptanceApplication(
         if (sessionTenancy === undefined || sessionLogOwner === undefined)
           throw new AcceptanceOperationDefect('readSessionLog')
         const parsed = parseOpaqueIdentifier(session, 'SessionRef')
-        if (!isOk(parsed) || !sessionValidator.validate(parsed.ok))
+        if (!isOk(parsed) || !validateMessage('SessionRef', parsed.ok).valid)
           return { step: 'holdingTenant', result: { failure: 'invalidInput' } }
         if (recoveryAdmission.has(parsed.ok)) return { failure: 'stageClosed' }
         const held = await sessionTenancy.holdingTenant(parsed.ok)
@@ -1999,7 +1896,7 @@ export function createAcceptanceApplication(
         )
           throw new AcceptanceOperationDefect('prepareModelInputs')
         const parsed = parseOpaqueIdentifier(session, 'SessionRef')
-        if (!isOk(parsed) || !sessionValidator.validate(parsed.ok))
+        if (!isOk(parsed) || !validateMessage('SessionRef', parsed.ok).valid)
           return { step: 'holdingTenant', result: { failure: 'invalidInput' } }
         if (recoveryAdmission.has(parsed.ok)) return { failure: 'stageClosed' }
         const held = await sessionTenancy.holdingTenant(parsed.ok)
@@ -2044,7 +1941,7 @@ export function createAcceptanceApplication(
     if (sessionTenancy === undefined || sessionLogOwner === undefined)
       throw new AcceptanceOperationDefect('modelRequest')
     const parsed = parseOpaqueIdentifier(session, 'SessionRef')
-    if (!isOk(parsed) || !sessionValidator.validate(parsed.ok))
+    if (!isOk(parsed) || !validateMessage('SessionRef', parsed.ok).valid)
       return { step: 'holdingTenant' as const, result: { failure: 'invalidInput' as const } }
     const held = await sessionTenancy.holdingTenant(parsed.ok)
     if ('failure' in held) return { step: 'holdingTenant' as const, result: held }

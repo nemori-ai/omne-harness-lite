@@ -17,31 +17,9 @@ import {
   type Storage,
   type ReadTx,
 } from '@omne-harness-lite/storage'
-import {
-  answerPresence,
-  checkManifestAppendInput,
-  checkManifestGivenReadInput,
-  judgeManifestAppend,
-  readEvaluationProjection,
-  sessionRef,
-  validNames,
-} from './value.ts'
-import type {
-  AppendFacts,
-  AppendResult,
-  AssemblyManifestStore,
-  CheckedAppend,
-  EvaluationRef,
-  EvaluationReadResult,
-  GivenReadResult,
-  ManifestDb,
-  ManifestDiagnostic,
-  ManifestOptions,
-  ManifestRecord,
-  ManifestSessionRef,
-  ManifestTable,
-  ReadFailure,
-} from './types.ts'
+import { answerPresence, checkManifestAppendInput, checkManifestGivenReadInput, judgeManifestAppend, readEvaluationProjection, sessionRef, validNames } from '@omne-harness-lite/assembly-manifest'
+import type { AppendFacts, AppendResult, CheckedAppend, EvaluationRef, EvaluationReadResult, GivenReadResult, ManifestRecord, ManifestSessionRef, ManifestTable, ReadFailure } from '@omne-harness-lite/assembly-manifest'
+import type { AssemblyManifestStore, ManifestDb, ManifestDiagnostic, ManifestOptions } from './types.ts'
 
 class ContentUnavailable extends StorageDefect {}
 /** A known malformed stored value, never a generic SQL/schema/programming defect. */

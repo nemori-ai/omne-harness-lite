@@ -1,3 +1,4 @@
+import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 // account-identity 插件：一条 fiber、两个服务面。必需 inject `storage`、`clock`；`credentials` 是可选依赖，调用时解析——
 // 认证换代时本插件不重跑，治理不受波及（节点设计「S-15 归本节点，credentials 作可选依赖、在调用时解析」）。
 // 无连接池/后台任务；消费者须排空含事务外凭据准备的业务后撤除，不能以运输连接关闭代替业务静止。
@@ -30,7 +31,7 @@ const verificationKeyPem = z
 export const AccountIdentityConfigSchema: z.ZodType<AccountIdentityConfig, unknown> = z
   .object({
     // 键缺席与值为 undefined 同义：契约 S-27「缺席不是启动失败」
-    credentialPolicy: z.unknown().optional(),
+    credentialPolicy: z.unknown().refine(value => 'ok' in copyJsonValue(value), 'credential policy must be JSON data').optional(),
     unactivatedRetention: z
       .number()
       .int()

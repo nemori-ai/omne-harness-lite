@@ -3,13 +3,7 @@ import { isAbsolute } from 'node:path'
 import { z } from 'zod'
 import { applySessionLog } from './plugin-owner.ts'
 import { isProcessOwnership, type ProcessOwnership, type SessionLogOptions } from './policy.ts'
-import type { SessionLog } from './types.ts'
-
-declare module '@deepseek-ai/cordis' {
-  interface Context {
-    sessionLog: SessionLog
-  }
-}
+import type { SessionLog } from '@omne-harness-lite/session-log'
 
 const limit = z
   .number()

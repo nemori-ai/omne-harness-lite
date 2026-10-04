@@ -1,3 +1,4 @@
+import type {PlannedRequest} from '@omne-harness-lite/model-request-runtime'
 import { attachAnthropicCache } from './anthropic-cache.ts'
 import { normalizeToolCallId, projectAssistant } from './assistant-projection.ts'
 import { projectInput, stableAnthropicRoute } from './projection.ts'
@@ -14,50 +15,25 @@ import {
   type JsonValue,
   type ContentBlock,
 } from '@omne-harness-lite/content-blocks'
-import type {
-  PlanInput,
-  PlanResult,
-  PlannedSemantics,
-  PlanExecutionContext,
-  PlanFailure,
-} from '@omne-harness-lite/model-request-runtime'
+import type {PlanInput, PlanResult, PlannedSemantics, PlanExecutionContext, PlanFailure} from '@omne-harness-lite/model-request-runtime'
 import {
   judgeModelProfileDocument,
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
-import {
-  ownDefinitions,
-  codePointOrder,
-  jsonEqual,
-  parameterOrder,
-  protectedParameterKeys,
-  ruleAccepts,
-  type ModelDefinition,
-  type ModelRoute,
-  type ParameterRule,
-} from './definitions.ts'
+import {ownDefinitions, codePointOrder, jsonEqual, parameterOrder, protectedParameterKeys, ruleAccepts} from './definitions.ts'
+import {type ModelDefinition, type ModelRoute, type ParameterRule} from '@omne-harness-lite/model-request-runtime'
 import { interpretConfiguration } from './configuration.ts'
 import { object, ownedObject } from './json.ts'
 import { ownPlanInput, preflightInputWithMissingLimits } from './input.ts'
-import { checkFinalInput, missingInputLimits, type FinalInputEvidence } from './input-limits.ts'
-import {
-  ownInputMeter,
-  meterSource,
-  meterMatches,
-  measureFull,
-  type InputMeter,
-} from './input-meter.ts'
+import {checkFinalInput, missingInputLimits} from './input-limits.ts'
+import {type FinalInputEvidence} from '@omne-harness-lite/model-request-runtime'
+import { ownInputMeter, meterSource, meterMatches, measureFull } from './input-meter.ts'
+import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { preparePlanImages } from './prepare-plan.ts'
 import type { ImagePreparer } from './image-preparation/types.ts'
 import { isImagePreparer } from './image-preparation/preparer.ts'
 import { inspectTransformRevision } from './meter-transform.ts'
 import { moonshotDefinitions } from './official-models/moonshot.ts'
-
-export interface PlannedRequest extends PlannedSemantics {
-  readonly body: JsonObject
-  readonly serialized: string
-  readonly inputLimitEvidence: FinalInputEvidence
-}
 const plans = new WeakSet<PlannedRequest>()
 const planDefinitions = new WeakMap<PlannedRequest, ModelDefinition>()
 const planMeters = new WeakMap<PlannedRequest, object>()

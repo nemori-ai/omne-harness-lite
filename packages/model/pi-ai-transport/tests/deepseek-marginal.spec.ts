@@ -2,7 +2,7 @@
 // 归慢层：网络＋重 CPU：经本地 HTTPS 服务（openssl 现生成证书）走真实传输与读取，输入计量用真实分词器。
 import { testImagePreparerFor, imagePreparation } from './image-transport-support.ts'
 import { basisFor, directFull, directNew, fullInputWithoutSource } from './direct-full-input.ts'
-import type { ReplayMeterInput } from '../src/input-meter.ts'
+import type { ReplayMeterInput } from '@omne-harness-lite/model-request-runtime'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { deepSeekBoundaries } from '../src/input-meters/deepseek-boundary.ts'
@@ -14,7 +14,8 @@ import {
 import { projectOutput } from '../src/projection.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
+import {type PlanInput} from '@omne-harness-lite/model-request-runtime'
 import { createDeepSeekV4ProInputMeter } from '../src/input-meters/deepseek-v4-pro.ts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import {

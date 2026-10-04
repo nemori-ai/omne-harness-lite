@@ -3,7 +3,8 @@
 // each family; the families pass it in.
 import { isJsonNumber, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { measureFull, measureNew, measureReplay, type InputMeter } from '../input-meter.ts'
+import { measureFull, measureNew, measureReplay } from '../input-meter.ts'
+import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { object } from '../json.ts'
 
 const visibleDetailKeys = ['type', 'text', 'format', 'index']

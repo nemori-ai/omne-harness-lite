@@ -5,9 +5,9 @@ import {
 } from '@omne-harness-lite/account-identity'
 import { clockMigrations } from '@omne-harness-lite/clock'
 import { replicaMigrations } from '@omne-harness-lite/credential-custodian-local/migrations'
-import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory/migrations'
+import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
 import { organizationGovernanceMigrations } from '@omne-harness-lite/organization-governance'
-import { sessionTenancyMigrations } from '@omne-harness-lite/session-tenancy-table'
+import {sessionTenancyMigrations} from '@omne-harness-lite/session-tenancy-table'
 import {
   composedMigrationName,
   type MigrationFragment,

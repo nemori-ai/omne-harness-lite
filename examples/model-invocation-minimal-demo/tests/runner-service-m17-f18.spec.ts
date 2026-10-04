@@ -2,10 +2,8 @@ import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { ExtensionInput } from '@omne-harness-lite/loop-extension'
-import {
-  createRunnerImplementationRegistry,
-  type RunnerLogBinding,
-} from '@omne-harness-lite/loop-extension-runner'
+import { createRunnerImplementationRegistry } from '@omne-harness-lite/loop-extension-runner-local'
+import { type RunnerLogBinding } from '@omne-harness-lite/loop-extension-runner'
 import { parseTenantId } from '@omne-harness-lite/identity-values'
 import { projectRunnerRetryGuard } from '../src/runner-service-host.ts'
 import { RUN, ready } from './runner-service-fixture.ts'

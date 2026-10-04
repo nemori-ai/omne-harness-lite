@@ -26,7 +26,7 @@ import {
 import { createDemoCallHost } from './model-call-host.ts'
 import type { AuthenticatedActor } from './types.ts'
 import { createDemoConfig, MODEL } from './deployment.ts'
-import type { RetirementPolicy } from '@omne-harness-lite/pi-ai-transport'
+import type { RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import type { ProcessOwnership } from '@omne-harness-lite/session-log-jsonl'
 import type { TenantId } from '@omne-harness-lite/identity-values'
 import { systemTimeSources } from '@omne-harness-lite/clock'

@@ -11,21 +11,11 @@ import {
   judgeModelProfileDocument,
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
-import {
-  createPiAiTransport,
-  createModelTransportService,
-  planRequest,
-  readModelDefinition,
-  configurationSchema,
-  interpretConfiguration,
-  createOfficialProfileContent,
-  officialModelIds,
-  type ModelDefinition,
-  type ParameterRules,
-  type RetirementPolicy,
-} from '@omne-harness-lite/pi-ai-transport'
+import {createPiAiTransport, createModelTransportService, planRequest, readModelDefinition, configurationSchema, interpretConfiguration, createOfficialProfileContent, officialModelIds} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelDefinition, type ParameterRules} from '@omne-harness-lite/model-request-runtime'
+import { type RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
 import * as publicApi from '@omne-harness-lite/pi-ai-transport'
-import { createModelPlugin } from '@omne-harness-lite/pi-ai-transport/plugin'
+import { modelContribution } from '../src/cordis.ts'
 import { testDefinitions, fixtureRules } from './definitions.ts'
 import { input, message, certificate, fixture, finish, networkPolicy } from './support.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
@@ -116,7 +106,14 @@ describe('D082 complete declarations and migration gates', () => {
         { policy: networkPolicy, definitions: [old] },
       ]),
     ).toThrow(TypeError)
-    expect(() => Reflect.apply(createModelPlugin, undefined, [old, retirement])).toThrow(TypeError)
+    const schema = modelContribution.Config
+    if (!schema || typeof schema === 'function' || !('~standard' in schema)) throw new Error('contribution schema missing')
+    const invalidContribution = await schema['~standard'].validate({
+      definition: old,
+      meter: { modelId: old.modelId, definitionRevision: old.revision, implementation: old.implementation, provider: 'openai' },
+      retirement: { waitMilliseconds: retirement.waitMilliseconds, force: retirement.force },
+    })
+    expect(invalidContribution.issues?.length).toBeGreaterThan(0)
     expect(await Reflect.apply(planRequest, undefined, [input(), officialModelIds])).toEqual({
       rejected: 'invalidInput',
       reason: 'malformed',

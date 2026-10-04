@@ -25,8 +25,8 @@ const clean = [core, sql, tenancy, host]
 
 describe('memberOf / memberGraph', () => {
   it('按路径前缀识别成员与组；根 tools/ 不是成员', () => {
-    expect(memberOf('packages/tools/asset-registry/src/a.ts')).toEqual({
-      path: 'packages/tools/asset-registry',
+    expect(memberOf('packages/tools/asset-registry-local/src/a.ts')).toEqual({
+      path: 'packages/tools/asset-registry-local',
       group: 'packages/tools',
       name: 'asset-registry',
     })

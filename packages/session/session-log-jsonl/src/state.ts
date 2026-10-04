@@ -1,16 +1,8 @@
 import { isOk, parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { checkAppendInput } from './input.ts'
-import { addInteger, compareInteger } from './numbers.ts'
-import type {
-  AppendRequest,
-  AppendRejection,
-  AppendSuccess,
-  LogCommit,
-  LogState,
-  JsonNumber,
-  RunId,
-  AttemptId,
-} from './types.ts'
+import { checkAppendInput } from '@omne-harness-lite/session-log'
+import { addInteger, compareInteger } from '@omne-harness-lite/session-log'
+import type { AppendRequest, AppendRejection, AppendSuccess } from '@omne-harness-lite/session-log'
+import type { LogCommit, LogState, JsonNumber, RunId, AttemptId } from './types.ts'
 
 export function emptyLogState(): LogState {
   return Object.freeze({

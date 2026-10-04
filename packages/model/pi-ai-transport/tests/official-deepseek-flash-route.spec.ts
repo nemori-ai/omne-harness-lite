@@ -3,14 +3,9 @@ import { planRequest } from './synthetic-input-meter.ts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
-import {
-  configurationSchema,
-  createOfficialProfileContent,
-  interpretConfiguration,
-  readModelDefinition,
-  type ModelDefinition,
-} from '@omne-harness-lite/pi-ai-transport'
+import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
+import {configurationSchema, createOfficialProfileContent, interpretConfiguration, readModelDefinition} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelDefinition} from '@omne-harness-lite/model-request-runtime'
 import { deepseekV41FlashDeepInfraRoute } from '../src/official-models/deepseek.ts'
 
 const provider = 'deepinfra/fp8'

@@ -1,12 +1,8 @@
 import { readFile, readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import {
-  anthropicDefinitions,
-  createAnthropicInputMeter,
-  createOfficialProfileContent,
-  type InputMeter,
-} from '@omne-harness-lite/pi-ai-transport'
+import { anthropicDefinitions, createAnthropicInputMeter, createOfficialProfileContent } from '@omne-harness-lite/pi-ai-transport'
+import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import type { ModelResponse } from '@omne-harness-lite/model-response'
 import { createAcceptanceApplication, type ControlledRunFixturePort } from '../src/bootstrap.ts'

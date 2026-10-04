@@ -19,8 +19,8 @@ import {
 import { imageSize } from 'image-size'
 import { Tiktoken } from 'js-tiktoken/lite'
 import { object } from '../json.ts'
-import type { ModelDefinition } from '../definitions.ts'
-import type { FullMeterInput, InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import type { FullMeterInput, InputMeter, TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
 
 // This archived Claude BPE is an Anthropic-described *very rough approximation*
 // for models since Claude 3. It is not the Claude 4.7+/5 tokenizer.

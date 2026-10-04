@@ -2,15 +2,7 @@ import type sharp from 'sharp'
 import type { Metadata, OutputInfo } from 'sharp'
 import { crc32 } from 'node:zlib'
 import { bytesSchema, dataOnly, encodeSchema, limitsSchema, metadataSchema } from './validation.ts'
-import type {
-  CodecResult,
-  DecodeLimits,
-  DecodedImage,
-  ImageEncodeSpec,
-  ImageMetadata,
-  ImageOutputFormat,
-  LoadedImageCodec,
-} from './types.ts'
+import type { CodecResult, DecodeLimits, DecodedImage, ImageEncodeSpec, ImageMetadata, ImageOutputFormat, LoadedImageCodec } from '@omne-harness-lite/model-request-runtime'
 
 function failure(error: unknown): { failure: 'bad_input' | 'unsupported' | 'internal' } {
   if (!(error instanceof Error)) return { failure: 'internal' }
@@ -158,10 +150,10 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
         let pixels: Buffer | undefined = data
         let closed = false
         let closing: Promise<void> | undefined
-        const active = new Set<Promise<CodecResult<import('./types.ts').EncodedImage>>>()
+        const active = new Set<Promise<CodecResult<import('@omne-harness-lite/model-request-runtime').EncodedImage>>>()
         async function encode(
           spec: ImageEncodeSpec,
-        ): Promise<CodecResult<import('./types.ts').EncodedImage>> {
+        ): Promise<CodecResult<import('@omne-harness-lite/model-request-runtime').EncodedImage>> {
           const source = pixels
           if (closed || !source) return { failure: 'unavailable' }
           if (!dataOnly(spec)) return { failure: 'bad_input' }
@@ -180,7 +172,7 @@ export function createSharpImageCodec(loadedSharp: typeof sharp): LoadedImageCod
             active.delete(task)
           }
 
-          async function encodePixels(): Promise<CodecResult<import('./types.ts').EncodedImage>> {
+          async function encodePixels(): Promise<CodecResult<import('@omne-harness-lite/model-request-runtime').EncodedImage>> {
             try {
               let image = loadedSharp(source, {
                 raw: { width: info.width, height: info.height, channels: 4 },

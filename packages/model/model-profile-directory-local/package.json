@@ -1,0 +1,58 @@
+{
+  "name": "@omne-harness-lite/model-profile-directory-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Adopted v3 model catalog, configuration history and restricted local credential lookup",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./tx-reads": {
+      "types": "./dist/tx-reads.d.ts",
+      "import": "./dist/tx-reads.js"
+    },
+    "./migrations": {
+      "types": "./dist/migrations.d.ts",
+      "import": "./dist/migrations.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README_ZH.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/asset-model": "workspace:*",
+    "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/kernel-basis": "workspace:*",
+    "@omne-harness-lite/model-profile": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*",
+    "kysely": "catalog:",
+    "zod": "catalog:",
+    "@omne-harness-lite/model-profile-directory": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness-lite/clock": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*",
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

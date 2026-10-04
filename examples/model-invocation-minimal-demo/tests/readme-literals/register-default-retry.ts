@@ -1,7 +1,4 @@
-import {
-  createDefaultRetryImplementation,
-  DEFAULT_RETRY_BUILTIN,
-} from '@omne-harness-lite/model-request-runtime'
+import {createDefaultRetryImplementation, DEFAULT_RETRY_BUILTIN} from '@omne-harness-lite/model-request-runtime-local'
 import type { RunnerImplementations } from '@omne-harness-lite/loop-extension-runner'
 
 export function registerDefaultRetry(registry: RunnerImplementations) {

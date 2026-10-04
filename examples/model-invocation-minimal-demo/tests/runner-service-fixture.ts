@@ -9,7 +9,7 @@ import {
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import type { AssetDefinition } from '@omne-harness-lite/asset-model'
-import type { SessionLog } from '@omne-harness-lite/session-log-jsonl'
+import type { SessionLog } from '@omne-harness-lite/session-log'
 import { createAcceptanceApplication, type ControlledRunFixturePort } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { messagePrefixWithSources, readDemoCalibrationHistory } from '../src/model-request-text.ts'

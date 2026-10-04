@@ -5,8 +5,8 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { object } from '../json.ts'
-import type { ModelDefinition } from '../definitions.ts'
-import type { FullMeterInput, InputMeter, TokenMeasurement } from '../input-meter.ts'
+import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import type { FullMeterInput, InputMeter, TokenMeasurement } from '@omne-harness-lite/model-request-runtime'
 import { createXaiInputMeter, createXaiVisibleBodyCounter } from './xai.ts'
 
 // xAI grok-build f0e3be1 uses UTF-8 bytes / 4 and 765 per image for its own

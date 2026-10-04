@@ -1,23 +1,11 @@
 import { modalityOf, type ContentBlock, type Modality } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { judgeMessage, type LoggedMessage, type Message } from '@omne-harness-lite/messages'
-import type {
-  CalibrationHistoryResult,
-  CurrentHistoryReaders,
-  LocatedCalibrationCandidate,
-  SettlementPrefix,
-  SelectionProjection,
-  SelectionCompatibility,
-} from '@omne-harness-lite/model-request-runtime'
-import {
-  captureModelLogValue,
-  decodeModelLogKey,
-  inspectModelLogEntry,
-  interpretCallHistory,
-  modelLogJsonEqual,
-} from '@omne-harness-lite/model-request-runtime'
+import type {CalibrationHistoryResult, CurrentHistoryReaders, LocatedCalibrationCandidate, SettlementPrefix, SelectionProjection, SelectionCompatibility} from '@omne-harness-lite/model-request-runtime-local'
+import { captureModelLogValue, decodeModelLogKey, inspectModelLogEntry, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import {interpretCallHistory} from '@omne-harness-lite/model-request-runtime-local'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import type { LogEntry } from '@omne-harness-lite/session-log-jsonl'
+import type { LogEntry } from '@omne-harness-lite/session-log'
 import { inspectRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
 
 /** This deliberately limited local fixture selects one actual fenced Run/attempt. */

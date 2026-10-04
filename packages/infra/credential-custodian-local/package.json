@@ -36,7 +36,8 @@
     "@omne-harness-lite/identity-values": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
-    "kysely": "catalog:"
+    "kysely": "catalog:",
+    "@omne-harness-lite/model-profile-directory": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/storage-sql": "workspace:*",

@@ -3,13 +3,14 @@
 import { testImagePreparerFor } from './image-transport-support.ts'
 import { describe, it, expect, vi } from 'vitest'
 import { LosslessNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { canonicalProjection, INPUT_PROJECTION_REVISION, projectOutput } from '../src/projection.ts'
 import { createReadFactsAccumulator } from '../src/read-facts.ts'
 import { anthropicDefinitions } from '../src/official-models/anthropic.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'
-import { planRequest, type PlannedRequest } from '../src/plan.ts'
+import {planRequest} from '../src/plan.ts'
+import {type PlannedRequest} from '@omne-harness-lite/model-request-runtime'
 import { input, message, at, judgedMessage } from './support.ts'
 import { testDefinitions } from './definitions.ts'
 import { syntheticInputMeter } from './synthetic-input-meter.ts'
@@ -84,7 +85,7 @@ describe('response calibration actual planner', () => {
   it('signed contributions and one margin; never tokenizes anchor; content/basis changes full', async () => {
     const base = syntheticInputMeter(testDefinitions[0]!, 'openai')
     const full = vi.fn(base.measureFull)
-    const delta = vi.fn((_input: import('../src/input-meter.ts').MarginalMeterInput) => ({
+    const delta = vi.fn((_input: import('@omne-harness-lite/model-request-runtime').MarginalMeterInput) => ({
       kind: 'estimated' as const,
       tokens: -3,
     }))

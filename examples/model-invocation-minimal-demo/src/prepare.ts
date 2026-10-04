@@ -12,7 +12,7 @@ import {
   parseAccountId,
   verifyHandoffWarrant,
 } from '@omne-harness-lite/identity-values'
-import { ModelProfileDirectoryConfigSchema } from '@omne-harness-lite/model-profile-directory/plugin'
+import {ModelProfileDirectoryConfigSchema} from '@omne-harness-lite/model-profile-directory-local/cordis'
 import { OrganizationGovernanceConfigSchema } from '@omne-harness-lite/organization-governance'
 import type { AcceptanceConfig } from './types.ts'
 

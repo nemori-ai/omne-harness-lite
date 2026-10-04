@@ -5,7 +5,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import type { MarginalMeterInput, MeterContribution } from '../input-meter.ts'
+import type { MarginalMeterInput, MeterContribution } from '@omne-harness-lite/model-request-runtime'
 import { object } from '../json.ts'
 import { visibleReasoningDetailText } from './shared.ts'
 

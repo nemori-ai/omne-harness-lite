@@ -3,22 +3,13 @@ import type { Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { LOGINS_SERVICE, type LoginsService } from '@omne-harness-lite/account-identity'
-import { MODEL_CATALOG_SERVICE } from '@omne-harness-lite/model-profile-directory/plugin'
+import { MODEL_CATALOG as MODEL_CATALOG_SERVICE } from '@omne-harness-lite/model-profile-directory/cordis'
 import type { ModelCatalog } from '@omne-harness-lite/model-profile-directory'
 import { decodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
-import {
-  createDeepSeekV41FlashInputMeter,
-  createOfficialProfileContent,
-  deepseekV41FlashConfiguration,
-  deepseekV41FlashDefinition,
-  deepseekV4Pro0813Configuration,
-  deepseekV4Pro0813Definition,
-  type ModelTransportService,
-} from '@omne-harness-lite/pi-ai-transport'
-import {
-  createModelPlugin,
-  MODEL_TRANSPORT_SERVICE,
-} from '@omne-harness-lite/pi-ai-transport/plugin'
+import {createDeepSeekV41FlashInputMeter, createOfficialProfileContent, deepseekV41FlashConfiguration, deepseekV41FlashDefinition, deepseekV4Pro0813Configuration, deepseekV4Pro0813Definition} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelTransportService} from '@omne-harness-lite/model-request-runtime'
+import { loadModelContribution as createModelPlugin } from '../../../packages/model/pi-ai-transport/tests/cordis-assembly.ts'
+import { MODEL_TRANSPORT as MODEL_TRANSPORT_SERVICE } from '@omne-harness-lite/model-request-runtime/cordis'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { createLocalTls } from './local-tls.ts'
@@ -282,14 +273,7 @@ describe('demo runtime with Cordis transport contributions', () => {
       await tls.contentSent.promise
       expect(registry.inspect()).toMatchObject({ registrations: 1, references: 1 })
 
-      replacement = providerFiber.ctx.plugin(
-        createModelPlugin(
-          deepseekV41FlashDefinition,
-          createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition),
-          demoRetirement(),
-        ),
-        {},
-      )
+      replacement = createModelPlugin(providerFiber.ctx, deepseekV41FlashDefinition, createDeepSeekV41FlashInputMeter(deepseekV41FlashDefinition), demoRetirement())
       await replacement
       expect(registry.inspect()).toMatchObject({ registrations: 2, references: 1 })
       let oldRetired = false

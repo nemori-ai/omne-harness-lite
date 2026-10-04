@@ -7,15 +7,8 @@ import {
   type ModelAdaptationBinding,
   type ModelProfileRejection,
 } from '@omne-harness-lite/model-profile'
-import {
-  tryDefinition,
-  members,
-  jsonEqual,
-  type ModelDefinition,
-  type DefinitionResult,
-  type CachePolicy,
-  type ModelRoute,
-} from './definitions.ts'
+import {tryDefinition, members, jsonEqual} from './definitions.ts'
+import {type ModelDefinition, type DefinitionResult, type CachePolicy, type ModelRoute} from '@omne-harness-lite/model-request-runtime'
 import { object } from './json.ts'
 
 export function configurationSchema(

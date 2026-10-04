@@ -14,12 +14,8 @@ import {
   type ReadTx,
 } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'
-import {
-  createAssemblyManifestStore,
-  assemblyManifestStorePlugin,
-  type ManifestDb,
-  type AssemblyManifestService,
-} from '../src/index.ts'
+import { createAssemblyManifestStore, assemblyManifestStorePlugin, type ManifestDb } from '../src/index.ts'
+import { type AssemblyManifestService } from '@omne-harness-lite/assembly-manifest'
 import { database, input, evaluated } from './support.ts'
 
 test('known empty, lossless record, history and evaluation survive real file reopen', async () => {

@@ -3,16 +3,11 @@ import { planRequest } from './synthetic-input-meter.ts'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeMessage, type Message } from '@omne-harness-lite/messages'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
+import {type PlanInput} from '@omne-harness-lite/model-request-runtime'
 import type { ModelRequestParameters } from '@omne-harness-lite/model-profile'
-import {
-  configurationSchema,
-  createOfficialProfileContent,
-  interpretConfiguration,
-  readModelDefinition,
-  type ModelDefinition,
-  type ModelRoute,
-} from '@omne-harness-lite/pi-ai-transport'
+import {configurationSchema, createOfficialProfileContent, interpretConfiguration, readModelDefinition} from '@omne-harness-lite/pi-ai-transport'
+import {type ModelDefinition, type ModelRoute} from '@omne-harness-lite/model-request-runtime'
 import {
   claudeOpus55AnthropicRoute,
   claudeOpus5AnthropicRoute,

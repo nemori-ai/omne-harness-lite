@@ -2,22 +2,9 @@ import { createHash } from 'node:crypto'
 import { ExactDecimal, type AttemptId, type RunId } from '@omne-harness-lite/call-accounts'
 import { isOk, parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type { CallKey, CreationKey, SessionRef } from '@omne-harness-lite/messages'
-import {
-  encodeModelLogKey,
-  type CallAccess,
-  type CallAccessEvidence,
-  type CallContainer,
-  type CallContainerStore,
-  type CallFacts,
-  type CallOrigin,
-  type CallPresence,
-  type CallPresenceFact,
-  type CallPresenceInput,
-  type CallSource,
-  type ModelLogSettlementTarget,
-  type SettlementLogBinding,
-} from '@omne-harness-lite/model-request-runtime'
-import type { PlannedRequest, RawResponse } from '@omne-harness-lite/pi-ai-transport'
+import { encodeModelLogKey, type ModelLogSettlementTarget } from '@omne-harness-lite/model-request-runtime'
+import {type CallAccess, type CallAccessEvidence, type CallContainer, type CallContainerStore, type CallFacts, type CallOrigin, type CallPresence, type CallPresenceFact, type CallPresenceInput, type CallSource, type SettlementLogBinding} from '@omne-harness-lite/model-request-runtime-local'
+import type {PlannedRequest, RawResponse} from '@omne-harness-lite/model-request-runtime'
 
 type DemoContainer = CallContainer<PlannedRequest, RawResponse>
 

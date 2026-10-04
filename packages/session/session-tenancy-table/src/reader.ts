@@ -1,3 +1,4 @@
+import { type HoldingTenantResult, type SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 import {
   narrow,
   StorageUnavailable,
@@ -6,17 +7,11 @@ import {
   type Storage,
   type StorageUnit,
 } from '@omne-harness-lite/storage'
-import type { TenantId } from '@omne-harness-lite/identity-values'
+
 import { sessionValue, decodeTenant } from './values.ts'
 
 export interface SessionTenancyDb {
   session_tenancy: { session: string; tenant: string }
-}
-export type HoldingTenantResult =
-  | { readonly tenant: TenantId }
-  | { readonly failure: 'invalidInput' | 'sessionNotFound' | 'unavailable' }
-export interface SessionTenancyService {
-  holdingTenant(session: unknown): Promise<HoldingTenantResult>
 }
 export interface SessionTenancyReader extends SessionTenancyService {
   participate(unit: StorageUnit): SessionTenancyService

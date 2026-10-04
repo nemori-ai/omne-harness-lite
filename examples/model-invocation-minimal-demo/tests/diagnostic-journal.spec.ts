@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
-import type { DiagnosticRecord, DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
+import type {DiagnosticRecord, DiagnosticScope} from '@omne-harness-lite/model-request-runtime-local'
 import { createDiagnosticJournal, openDiagnosticJournalReader } from '../src/diagnostic-journal.ts'
 import type { DiagnosticJournalConfig } from '../src/diagnostic-journal.ts'
 

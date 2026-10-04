@@ -1,10 +1,6 @@
-import type { Diagnostic } from './http.ts'
-import type {
-  DiagnosticEmitter,
-  DiagnosticEvent,
-  TransportDiagnosticFact,
-  TransportExecutionDiagnostics,
-} from '@omne-harness-lite/model-request-runtime'
+import type { Diagnostic } from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticEmitter, DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
+import type {TransportDiagnosticFact, TransportExecutionDiagnostics} from '@omne-harness-lite/model-request-runtime'
 
 /** The assembly binds scope and service generation; the registry only borrows record. */
 export function registryDiagnosticReporter(sink?: Pick<DiagnosticEmitter, 'record'>): {

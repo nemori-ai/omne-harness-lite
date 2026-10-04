@@ -10,30 +10,9 @@ import moonshotVisible from './fixtures/shared-reader/moonshot-visible-reasoning
 import qwenVisible from './fixtures/shared-reader/qwen-visible-reasoning.json' with { type: 'json' }
 import zaiVisible from './fixtures/shared-reader/zai-visible-reasoning.json' with { type: 'json' }
 import qwenCommercial from './fixtures/shared-reader/qwen-commercial-public-template.json' with { type: 'json' }
-import {
-  openaiDefinitions,
-  anthropicDefinitions,
-  deepseekDefinitions,
-  googleDefinitions,
-  xaiDefinitions,
-  qwenDefinitions,
-  moonshotDefinitions,
-  zaiDefinitions,
-  createOpenAiInputMeter,
-  createAnthropicInputMeter,
-  createDeepSeekV4ProInputMeter,
-  createDeepSeekV41FlashInputMeter,
-  createGoogleInputMeter,
-  createXaiInputMeter,
-  createQwenInputMeter,
-  createMoonshotInputMeter,
-  createGlm52InputMeter,
-  createGlm53InputMeter,
-  createZaiCommercialInputMeter,
-  createOfficialProfileContent,
-  type ModelDefinition,
-  type InputMeter,
-} from '../src/index.ts'
+import { openaiDefinitions, anthropicDefinitions, deepseekDefinitions, googleDefinitions, xaiDefinitions, qwenDefinitions, moonshotDefinitions, zaiDefinitions, createOpenAiInputMeter, createAnthropicInputMeter, createDeepSeekV4ProInputMeter, createDeepSeekV41FlashInputMeter, createGoogleInputMeter, createXaiInputMeter, createQwenInputMeter, createMoonshotInputMeter, createGlm52InputMeter, createGlm53InputMeter, createZaiCommercialInputMeter, createOfficialProfileContent } from '../src/index.ts'
+import { type ModelDefinition } from '@omne-harness-lite/model-request-runtime'
+import { type InputMeter } from '@omne-harness-lite/model-request-runtime'
 import { planRequest } from '../src/plan.ts'
 import { usageScope } from '../src/usage-scope.ts'
 import { input, message } from './support.ts'

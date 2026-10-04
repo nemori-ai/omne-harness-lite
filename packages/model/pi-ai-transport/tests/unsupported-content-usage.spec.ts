@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { invokeModel } from '@omne-harness-lite/model-request-runtime'
+import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import { certificate, fixture, finish, input, invocation, policy, sse } from './support.ts'
 

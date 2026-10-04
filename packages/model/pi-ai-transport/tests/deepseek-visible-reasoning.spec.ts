@@ -15,7 +15,8 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import type { Message } from '@omne-harness-lite/messages'
-import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type {PlanInput} from '@omne-harness-lite/model-request-runtime'
+import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
 import {
   createDeepSeekSupplemental,
   deepSeekBoundaries,
@@ -29,12 +30,7 @@ import {
   createDeepSeekV41FlashInputMeter,
   renderDeepSeekV41Prompt,
 } from '../src/input-meters/deepseek-v41-flash.ts'
-import type {
-  FullMeterInput,
-  InputMeter,
-  NewMeterInput,
-  ReplayMeterInput,
-} from '../src/input-meter.ts'
+import type { FullMeterInput, InputMeter, NewMeterInput, ReplayMeterInput } from '@omne-harness-lite/model-request-runtime'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import {
   deepseekV4Pro0813Configuration,

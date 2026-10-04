@@ -7,12 +7,8 @@ import {
   imageWireBytes,
   modelImageBalancedV1,
 } from '../src/image-preparation/index.ts'
-import type {
-  ImagePreparePolicy,
-  ImagePreparer,
-  LoadedImageCodec,
-  PrepareRequestImagesInput,
-} from '../src/image-preparation/index.ts'
+import type { ImagePreparePolicy, ImagePreparer, PrepareRequestImagesInput } from '../src/image-preparation/index.ts'
+import type { LoadedImageCodec } from '@omne-harness-lite/model-request-runtime'
 
 function ready(
   policy: ImagePreparePolicy = modelImageBalancedV1,
