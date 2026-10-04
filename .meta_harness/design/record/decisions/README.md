@@ -2,6 +2,8 @@
 
 # 决定
 
+[kernel-basis 公共入口分面的限定采用](kernel-basis-entry-split-adoption/README.md)：R1-T1a 精确候选的纯根、Cordis 绑定及消费者迁移；业务语义保持，其他领域整改和验证设施缺口继续保留。
+
 [D-115：实际架构视图与就近薄规格](actual-architecture-and-thin-spec/README.md)：接受全局视图目标、维护边界及逐步退役方向，部分取代 D-112/113/114 的表达与路径前提；实际实现及迁移分别验收。
 
 [D-108：OpenRouter refusal 文本映射](openrouter-refusal-mapping-adoption/README.md)：采用 transport v14 revision 2 及局部投影；共享规格不升版，RF-V1–V9 和实际交付待验。
