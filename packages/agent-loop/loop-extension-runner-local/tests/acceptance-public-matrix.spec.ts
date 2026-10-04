@@ -14,7 +14,10 @@ import {
 } from '@omne-harness-lite/loop-extension'
 import { judgeMessage, type LoggedMessage } from '@omne-harness-lite/messages'
 import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
-import { EffectImplementations, loadDefaultRetry } from '../../../model/model-request-runtime-local/tests/retry-assembly.ts'
+import {
+  EffectImplementations,
+  loadDefaultRetry,
+} from '../../../model/model-request-runtime-local/tests/retry-assembly.ts'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { type SessionLog } from '@omne-harness-lite/session-log'
 import { runPass } from '../src/run-pass.ts'
@@ -22,7 +25,15 @@ import { createRunnerLogAdapter } from '../src/run-log.ts'
 import { createRunnerReminderLogAdapter } from '../src/reminder-log.ts'
 import { createRunnerTaskOwner } from '../src/task-owner.ts'
 import { createRunnerImplementationRegistry } from '../src/implementation-registry.ts'
-import { passKeys, type RunnerPorts, type RunnerPiece, type RunnerPass, type RunnerAskAssociation, type RunnerInvocationResult, type RunnerBuiltinImplementation } from '@omne-harness-lite/loop-extension-runner'
+import {
+  passKeys,
+  type RunnerPorts,
+  type RunnerPiece,
+  type RunnerPass,
+  type RunnerAskAssociation,
+  type RunnerInvocationResult,
+  type RunnerBuiltinImplementation,
+} from '@omne-harness-lite/loop-extension-runner'
 
 // Controlled public-function scope. These are NOT production Run or waiting-owner facts.
 // Oracles below transcribe LC6 S20/S21 and Runner5 policies, not implementation tables.
@@ -1171,6 +1182,7 @@ describe('independent ownership and physical recovery', () => {
       name: 'actual-p5-registry',
       apply(inner) {
         new EffectImplementations(inner, {
+          registerAdmission: contribution => registry.registerAdmission(contribution),
           registerBuiltin(name: string, implementation: RunnerBuiltinImplementation) {
             const current = ++generation
             // Only delay result delivery; the actual P5 plugin performs all policy calculations.

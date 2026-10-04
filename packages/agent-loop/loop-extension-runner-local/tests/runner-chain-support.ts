@@ -48,7 +48,9 @@ export const root = { category: 'agent_definition', name: 'example:root' } as co
 export const a = { category: 'loop_extension', name: 'example:a' } as const
 export const b = { category: 'loop_extension', name: 'example:b' } as const
 const at = '2026-09-29T00:00:00Z'
-export async function chainHost() {
+export async function chainHost(
+  selected?: readonly import('@omne-harness-lite/loop-extension-runner').RunnerPiece[],
+) {
   const directory = await mkdtemp(join(tmpdir(), 'omne-runner-chain-'))
   const storage = await openStorage({
     dialect: 'sqlite',
@@ -116,28 +118,37 @@ export async function chainHost() {
   })
   const sessionTenancy = createSessionTenancyReader(storage)
   const manifest = createAssemblyManifestStore(storage)
-  const references = [b, a].map(capability => ({ capability }))
-  const extensions: NonConnectorEvaluationInput['definitions'] = [a, b].map(capability => {
-    const definition = judgeDefinition({
-      name: capability.name,
-      position: 'before_model_call',
-      power: 'observe',
-      implementation: { kind: 'builtin', builtinName: capability.name },
-    })
-    if ('rejected' in definition) throw new Error('fixture extension rejected')
-    return {
-      id: `ast_${capability.name.split(':')[1]}`,
-      capability,
-      origin: 'official',
-      versions: [
-        {
-          number: 1,
-          content: { category: 'loop_extension', extension: definition.ok },
-          publishedAt: at,
+  const order = selected?.map(item => ({
+    category: 'loop_extension' as const,
+    name: item.definition.name,
+  })) ?? [b, a]
+  const capabilities = selected ? order : [a, b]
+  const references = order.map(capability => ({ capability }))
+  const extensions: NonConnectorEvaluationInput['definitions'] = capabilities.map(
+    (capability, index) => {
+      const definition = judgeDefinition(
+        selected?.[index]?.definition ?? {
+          name: capability.name,
+          position: 'before_model_call',
+          power: 'observe',
+          implementation: { kind: 'builtin', builtinName: capability.name },
         },
-      ],
-    }
-  })
+      )
+      if ('rejected' in definition) throw new Error('fixture extension rejected')
+      return {
+        id: `ast_${capability.name.split(':')[1]}`,
+        capability,
+        origin: 'official',
+        versions: [
+          {
+            number: 1,
+            content: { category: 'loop_extension', extension: definition.ok },
+            publishedAt: at,
+          },
+        ],
+      }
+    },
+  )
   const definitions: NonConnectorEvaluationInput['definitions'] = [
     {
       id: 'ast_root',
@@ -182,7 +193,7 @@ export async function chainHost() {
   const deps: InputSourceDependencies = {
     storage,
     storeKey: 'runner-history',
-    deployedOfficial: [a, b].map(capability => ({ capability, meta: false })),
+    deployedOfficial: capabilities.map(capability => ({ capability, meta: false })),
     sessionTenancy,
     memberships,
     diagnostics() {},
@@ -227,7 +238,6 @@ export async function chainHost() {
   })
   const binding = { session, tenant, logGeneration: 'physical_runner_log' }
   const evaluation = evaluated.ok
-  const order = [b, a]
   const composition = order.map(capability => {
     const asset = evaluation.assets.find(item => item.capability.name === capability.name)
     if (!asset) throw new Error('missing asset')

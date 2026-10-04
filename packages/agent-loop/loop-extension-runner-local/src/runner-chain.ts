@@ -1,6 +1,14 @@
 import { type ReadRunnerChainInput } from '@omne-harness-lite/loop-extension-runner'
-import { checkManifestAppendInput, readEvaluationProjection, type ManifestRecord } from '@omne-harness-lite/assembly-manifest'
-import type { EffectiveAssembly, EffectiveAsset } from '@omne-harness-lite/asset-evaluation'
+import {
+  checkManifestAppendInput,
+  readEvaluationProjection,
+  type ManifestRecord,
+} from '@omne-harness-lite/assembly-manifest'
+import type {
+  EffectiveAssembly,
+  EffectiveAsset,
+  RegistryHistoryResult,
+} from '@omne-harness-lite/asset-evaluation'
 import {
   capabilityIdEquals,
   copyJsonValue,
@@ -8,7 +16,6 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import type { RegistryHistoryReader } from '@omne-harness-lite/evaluation-input-store/registry-history'
 import {
   parseOpaqueIdentifier,
   parseTenantId,
@@ -309,7 +316,7 @@ export async function readRunnerChain(
 }
 
 function versionPiece(
-  version: Awaited<ReturnType<RegistryHistoryReader['read']>>,
+  version: RegistryHistoryResult,
   asset: EffectiveAsset,
   evaluation: EffectiveAssembly,
 ): RunnerPiece | undefined {

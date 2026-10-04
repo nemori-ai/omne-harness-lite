@@ -6,7 +6,101 @@ import { syntaxImports, syntaxOf } from '../syntax.ts'
 /** 当前已接受节点 design 的依赖表；工具依赖（如 content-blocks 无损写）也明确登记。 */
 export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>> = {
   'organization-governance': ['storage', 'identity-values', 'offer-expiry', 'kernel-basis'],
-  'model-request-runtime': ['content-blocks', 'call-accounts', 'tool-definition'],
+  // Tool runtime stage 2: m1/b1 accepted signature closure, plus N4 retry ownership.
+  'model-request-runtime': [
+    'content-blocks',
+    'call-accounts',
+    'tool-definition',
+    'identity-values',
+    'messages',
+    'session-log',
+    'model-response',
+    'offer-expiry',
+    'arrival-events',
+    'model-profile',
+    'stream-assembly',
+  ],
+  'session-log': [
+    'call-accounts',
+    'content-blocks',
+    'identity-values',
+    'messages',
+    'session-tenancy',
+    'execution-environments',
+  ],
+  'session-tenancy': ['identity-values', 'messages'],
+  'assembly-manifest': [
+    'asset-model',
+    'asset-evaluation',
+    'content-blocks',
+    'identity-values',
+    'offer-expiry',
+    'call-accounts',
+    'tool-definition',
+  ],
+  'asset-registry': [
+    'asset-model',
+    'asset-evaluation',
+    'assembly-manifest',
+    'tool-definition',
+    'skill-package',
+    'loop-extension',
+    'content-blocks',
+    'call-accounts',
+    'offer-expiry',
+    'identity-values',
+  ],
+  'model-profile-directory': [
+    'asset-model',
+    'content-blocks',
+    'identity-values',
+    'model-profile',
+    'offer-expiry',
+    'storage',
+  ],
+  'loop-extension-runner': [
+    'asset-registry',
+    'tool-admission',
+    'loop-extension',
+    'messages',
+    'session-log',
+    'call-accounts',
+    'content-blocks',
+    'identity-values',
+    'model-request-runtime',
+    'assembly-manifest',
+    'asset-evaluation',
+    'session-tenancy',
+    'asset-model',
+  ],
+  'runtime-context': ['content-blocks', 'session-tenancy'],
+  'execution-environments': ['content-blocks', 'runtime-context', 'session-tenancy'],
+  'tool-execution-runtime': [
+    // Public tool-runtime/1 log codec owns its durable shell and value checks.
+    'session-log',
+    'identity-values',
+    'offer-expiry',
+    'content-blocks',
+    'call-accounts',
+    'arrival-events',
+    'tool-definition',
+    'stream-assembly',
+    'session-tenancy',
+    'runtime-context',
+    'execution-environments',
+    'tool-admission',
+    'messages',
+  ],
+  // Adopted ar3: ToolActionHistory consumes these definitions, never a concrete driver/provider.
+  'tool-admission': [
+    'content-blocks',
+    'loop-extension',
+    'session-tenancy',
+    'asset-registry',
+    'call-accounts',
+    'session-log',
+    'tool-definition',
+  ],
   'content-blocks': ['identity-values'],
   'asset-model': ['identity-values', 'offer-expiry', 'content-blocks'],
   'agent-definition': [
@@ -69,6 +163,7 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
   'slash-command': ['asset-model', 'content-blocks', 'identity-values', 'skill-package'],
   'stream-assembly': ['arrival-events', 'content-blocks', 'call-accounts'],
   'asset-evaluation': [
+    'offer-expiry',
     'agent-definition',
     'call-accounts',
     'model-profile',
@@ -93,6 +188,40 @@ const BUILTINS: Readonly<Record<string, readonly string[]>> = {
   // MS8 S-56 语义摘要喂 SHA-256：messages v8-acknowledgement-design「编码与依赖」。
   messages: ['node:crypto'],
 }
+
+const CORDIS_DEFINITION_OWNERS = new Set([
+  'organization-governance',
+  'model-request-runtime',
+  'asset-evaluation',
+  'session-log',
+  'session-tenancy',
+  'assembly-manifest',
+  'asset-registry',
+  'model-profile-directory',
+  'loop-extension-runner',
+  'runtime-context',
+  'execution-environments',
+  'tool-execution-runtime',
+  'tool-admission',
+])
+
+const SCHEMA_JUDGE_OWNERS = new Set([
+  'organization-governance',
+  'content-blocks',
+  'asset-model',
+  'agent-definition',
+  'model-profile',
+  'call-accounts',
+  'messages',
+  'tool-definition',
+  'loop-extension',
+  'skill-package',
+  'connector',
+  'mcp-endpoint',
+  'arrival-events',
+  'model-response',
+  'slash-command',
+])
 
 /** 精确子入口登记不替代上面的包依赖批准，也不准许相邻私有路径。 */
 export const PUBLIC_SUBPATHS: Readonly<Record<string, readonly string[]>> = {
@@ -142,7 +271,11 @@ function allowedExternal(
   path: string,
 ): boolean {
   // IC-4: only the explicitly exported Cordis face may load the kernel.
-  if (path === 'core/organization-governance/src/cordis.ts' && specifier === '@deepseek-ai/cordis')
+  if (
+    CORDIS_DEFINITION_OWNERS.has(pkg) &&
+    path === `core/${pkg}/src/cordis.ts` &&
+    specifier === '@deepseek-ai/cordis'
+  )
     return true
   if (
     (specifier === 'node:module' || specifier === 'module') &&
@@ -163,12 +296,7 @@ function allowedExternal(
   if (pkg === 'asset-model' && specifier === '@omne-harness-lite/asset-model/schema/v2') return true
   if (pkg === 'skill-package' && specifier === '@omne-harness-lite/skill-package/schema/v2')
     return true
-  if (
-    pkg !== 'stream-assembly' &&
-    pkg !== 'asset-evaluation' &&
-    specifier === `@omne-harness-lite/${pkg}/schema`
-  )
-    return true
+  if (SCHEMA_JUDGE_OWNERS.has(pkg) && specifier === `@omne-harness-lite/${pkg}/schema`) return true
   if (
     dependencies.some(
       name =>
@@ -182,12 +310,15 @@ function allowedExternal(
     return true
   if (BUILTINS[pkg]?.includes(specifier.startsWith('node:') ? specifier : `node:${specifier}`))
     return true
-  // 数据节点的既定校验器采用。两个纯 capability 节点不采用 Ajv。
+  // tk1 / core/loop-extension-runner SPEC TLT-3: deterministic SHA-256 at this one codec site.
+  // This import allowance does not establish purity of arbitrary crypto calls.
   if (
-    pkg !== 'stream-assembly' &&
-    pkg !== 'asset-evaluation' &&
-    (specifier === 'ajv' || specifier.startsWith('ajv/'))
+    path === 'core/loop-extension-runner/src/admission-digest.ts' &&
+    (specifier === 'node:crypto' || specifier === 'crypto')
   )
+    return true
+  // 数据节点的既定校验器采用。两个纯 capability 节点不采用 Ajv。
+  if (SCHEMA_JUDGE_OWNERS.has(pkg) && (specifier === 'ajv' || specifier.startsWith('ajv/')))
     return true
   if (pkg === 'skill-package' && specifier === 'yaml') return true
   return pkg === 'tool-definition' && specifier === '@eslint-community/regexpp'
@@ -217,7 +348,7 @@ export const corePureImports: Rule = {
         const local =
           resolved !== undefined &&
           ((resolved.startsWith(`core/${pkg}/src/`) &&
-            !(pkg === 'organization-governance' && resolved === `core/${pkg}/src/cordis.ts`)) ||
+            !(CORDIS_DEFINITION_OWNERS.has(pkg) && resolved === `core/${pkg}/src/cordis.ts`)) ||
             (resolved.startsWith(`core/${pkg}/schema/`) && resolved.endsWith('.json')))
         if (
           local ||

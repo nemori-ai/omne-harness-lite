@@ -28,7 +28,7 @@ describe('memberOf / memberGraph', () => {
     expect(memberOf('packages/tools/asset-registry-local/src/a.ts')).toEqual({
       path: 'packages/tools/asset-registry-local',
       group: 'packages/tools',
-      name: 'asset-registry',
+      name: 'asset-registry-local',
     })
     expect(memberOf('apps/cli/src/a.ts')?.group).toBe('apps')
     expect(memberOf('tools/ts-checks/src/cli.ts')).toBeUndefined()

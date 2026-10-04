@@ -1,10 +1,16 @@
+import { captureActionRequest, checkActionSource, isActionDispatch } from './action-request.ts'
+import { runActionBatch } from './action-batch.ts'
+import { createServicePorts } from './service-ports.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { copyJsonValue, isJsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { judgePositionedSubject, type PositionedSubject } from '@omne-harness-lite/loop-extension'
 import type { SessionLog } from '@omne-harness-lite/session-log'
+import type { SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
+import type { ToolAdmissionPassSourceOperations } from '@omne-harness-lite/tool-admission'
+import { createAdmissionPassSource } from './admission-pass-source.ts'
 import { createRunnerImplementationRegistry } from './implementation-registry.ts'
-import { type RunnerImplementationLease, type RunnerImplementations } from '@omne-harness-lite/loop-extension-runner'
+import { type RunnerImplementations } from '@omne-harness-lite/loop-extension-runner'
 import {
   RunnerFailureSignal,
   readPassConclusions,
@@ -12,15 +18,27 @@ import {
   validateHistoryScope,
 } from './pass-history.ts'
 import { passKeys } from '@omne-harness-lite/loop-extension-runner'
-import { createRunnerLogAdapter } from './run-log.ts'
-import { createRunnerReminderLogAdapter } from './reminder-log.ts'
 import { readRunnerChain } from './runner-chain.ts'
 import { runPass } from './run-pass.ts'
-import { type RunnerPass, type RunnerPiece, type RunnerInvocationResult } from '@omne-harness-lite/loop-extension-runner'
-import type { LoopExtensionRunnerService, RunnerDispatchRequest, RunnerReplayRequest, RunnerServiceHost, RunnerReadScope } from '@omne-harness-lite/loop-extension-runner'
+import {
+  type RunnerPass,
+  type RunnerPiece,
+  type RunnerInvocationResult,
+} from '@omne-harness-lite/loop-extension-runner'
+import type {
+  LoopExtensionRunnerService,
+  RunnerDispatchRequest,
+  RunnerReplayRequest,
+  RunnerServiceHost,
+  RunnerReadScope,
+  RunnerActionRequest,
+  RunnerActionResult,
+  RunnerPassResult,
+} from '@omne-harness-lite/loop-extension-runner'
 
 export interface RunnerServiceInstance {
   readonly runner: LoopExtensionRunnerService
+  readonly admissionPassSource: ToolAdmissionPassSourceOperations
   readonly implementations: RunnerImplementations
   readonly closeAdmission: () => void
   /** Waits for this instance's actual invocations; never drains/forgets the host's unknown log owner. */
@@ -57,7 +75,9 @@ function request(
   )
   if (Object.hasOwn(value, 'run') && value.run === undefined)
     throw new RunnerFailureSignal(invalidInput)
-  return { initial: initial.ok, request: value }
+  if (dispatch && initial.ok.position === 'before_action')
+    throw new RunnerFailureSignal(invalidInput)
+  return { initial: initial.ok, request: value as RunnerDispatchRequest }
 }
 function validateRequestShape(value: RunnerReplayRequest, dispatch: boolean): void {
   if (
@@ -113,6 +133,7 @@ function modelPosition(initial: PositionedSubject): boolean {
 export function createLoopExtensionRunner(input: {
   readonly log: SessionLog
   readonly host: RunnerServiceHost
+  readonly access: SessionAccessOperations
   readonly isActive: () => boolean
 }): RunnerServiceInstance {
   const { log, host, isActive } = input
@@ -122,6 +143,7 @@ export function createLoopExtensionRunner(input: {
   const tasks = new Set<Promise<unknown>>()
   const actualInvocations = new Set<Promise<unknown>>()
   const active = () => admitting && isActive()
+  const admissionPasses = createAdmissionPassSource({ access: input.access, isActive: active })
   function track<T>(set: Set<Promise<unknown>>, work: Promise<T>): Promise<T> {
     set.add(work)
     void work.then(
@@ -133,7 +155,7 @@ export function createLoopExtensionRunner(input: {
   function scopeActive(scope: RunnerReadScope): boolean {
     return active() && scope.isActive() && scope.sources.isActive()
   }
-  async function chain(scope: RunnerReadScope, requested: RunnerReplayRequest) {
+  async function chain(scope: RunnerReadScope, requested: { readonly manifest: string }) {
     if (scope.binding.session !== requested.manifest || !scopeActive(scope))
       throw new RunnerFailureSignal(unavailable)
     const result = await readRunnerChain({
@@ -155,7 +177,10 @@ export function createLoopExtensionRunner(input: {
     if ('unavailable' in read) throw new RunnerFailureSignal(unavailable)
     return read
   }
-  const runner: LoopExtensionRunnerService = Object.freeze<LoopExtensionRunnerService>({
+  const single = Object.freeze<{
+    dispatch: (request: RunnerDispatchRequest, signal: AbortSignal) => Promise<RunnerPassResult>
+    replay: LoopExtensionRunnerService['replay']
+  }>({
     dispatch(supplied, callerSignal) {
       return track(
         tasks,
@@ -185,84 +210,17 @@ export function createLoopExtensionRunner(input: {
               if (signal.aborted) return { failure: 'cancelled' as const }
               const all = await chain(scope, requested)
               if (!scopeActive(scope)) return unavailable
-              const leases = new Map<RunnerPiece, RunnerImplementationLease>()
-              const dependencyPresence = scope.sources.manifest.dependencyPresence.bind(
-                scope.sources.manifest,
-              )
-              const adapter = createRunnerLogAdapter({
-                log,
-                binding: scope.binding,
-                owner: scope.owner,
-                subjectForCandidate: scope.subjectForCandidate,
-              })
-              const reminders = createRunnerReminderLogAdapter({
-                log,
-                binding: scope.binding,
-                owner: scope.owner,
-                readMessagePrefix: scope.readMessagePrefix,
-              })
               const result = await runPass(
                 pass,
                 selected(all, parsed.initial),
-                {
-                  ...adapter,
-                  ...scope.ports,
-                  isActive: () => scopeActive(scope),
-                  async presence(piece) {
-                    if (!scopeActive(scope)) return 'unavailable'
-                    if (piece.definition.needs !== undefined) {
-                      const needs = piece.definition.needs
-                      const read = await dependencyPresence(requested.manifest, needs)
-                      if (!scopeActive(scope) || 'failure' in read) return 'unavailable'
-                      if (
-                        needs.some(
-                          name =>
-                            read.presence[name] !== 'present' && read.presence[name] !== 'absent',
-                        )
-                      )
-                        return 'unavailable'
-                      if (needs.some(name => read.presence[name] === 'absent')) return 'absent'
-                    }
-                    if (piece.definition.implementation.kind === 'command')
-                      return scope.ports.commandPresence(piece)
-                    const captured = registry.capture(piece.definition.implementation.builtinName)
-                    if ('absent' in captured) return 'absent'
-                    leases.set(piece, captured)
-                    return 'present'
-                  },
-                  invoke(
-                    piece,
-                    extensionInput,
-                    invocationSignal,
-                    mode,
-                  ): Promise<RunnerInvocationResult> {
-                    if (!scopeActive(scope)) return Promise.resolve({ kind: 'controlUnavailable' })
-                    if (piece.definition.implementation.kind === 'builtin') {
-                      const lease = leases.get(piece)
-                      return lease === undefined
-                        ? Promise.resolve({ kind: 'notStartedUnavailable' })
-                        : lease.invoke(extensionInput, invocationSignal, mode)
-                    }
-                    return track(
-                      actualInvocations,
-                      Promise.resolve().then(() =>
-                        scope.ports.invokeCommand(piece, extensionInput, invocationSignal, mode),
-                      ),
-                    )
-                  },
-                  reminders: {
-                    ...reminders,
-                    async nestedChain(message) {
-                      const subject = judgePositionedSubject({
-                        position: 'before_persist_message',
-                        subject: { producer: 'system', message },
-                      })
-                      return 'rejected' in subject || !scopeActive(scope)
-                        ? { unavailable: true }
-                        : selected(all, subject.ok)
-                    },
-                  },
-                },
+                createServicePorts({
+                  log,
+                  scope,
+                  all,
+                  registry,
+                  active: () => scopeActive(scope),
+                  trackInvocation: work => track(actualInvocations, work),
+                }),
                 signal,
               )
               return active() ? result : unavailable
@@ -283,7 +241,11 @@ export function createLoopExtensionRunner(input: {
           try {
             const parsed = request(supplied, false)
             const requested = parsed.request
-            if (!active() || !modelPosition(parsed.initial)) return unavailable
+            if (
+              !active() ||
+              (!modelPosition(parsed.initial) && parsed.initial.position !== 'before_action')
+            )
+              return unavailable
             const scope = await host.acquireReplay(requested, stop.signal)
             if ('failure' in scope) return scope
             try {
@@ -319,9 +281,68 @@ export function createLoopExtensionRunner(input: {
       )
     },
   })
+  async function dispatchAction(
+    supplied: RunnerActionRequest,
+    callerSignal: AbortSignal,
+  ): Promise<RunnerActionResult> {
+    const captured = captureActionRequest(supplied)
+    if ('failure' in captured) return captured
+    if (!active()) return unavailable
+    if (callerSignal.aborted) return { failure: 'cancelled' }
+    const requested = captured.request
+    const signal = AbortSignal.any([callerSignal, stop.signal])
+    try {
+      const scope = await host.acquireDispatch(requested, signal)
+      if ('failure' in scope) return scope
+      try {
+        if (!scopeActive(scope)) return unavailable
+        const checked = checkActionSource(requested, scope.action, scope.binding)
+        if ('failure' in checked) return checked
+        const authorized = await input.access.authorize(
+          checked.source.access,
+          checked.source.scope,
+          'run.advance',
+        )
+        if (authorized.kind !== 'authorized' || !scopeActive(scope)) return unavailable
+        const all = await chain(scope, requested)
+        return await runActionBatch({
+          request: requested,
+          source: checked.source,
+          log,
+          scope,
+          all,
+          registry,
+          passes: admissionPasses,
+          active: () => scopeActive(scope),
+          signal,
+          trackInvocation: work => track(actualInvocations, work),
+        })
+      } finally {
+        scope.release()
+      }
+    } catch (error) {
+      return error instanceof RunnerFailureSignal ? error.result : unavailable
+    }
+  }
+  function dispatch(request: RunnerDispatchRequest, signal: AbortSignal): Promise<RunnerPassResult>
+  function dispatch(request: RunnerActionRequest, signal: AbortSignal): Promise<RunnerActionResult>
+  function dispatch(
+    request: RunnerDispatchRequest | RunnerActionRequest,
+    signal: AbortSignal,
+  ): Promise<RunnerPassResult | RunnerActionResult> {
+    return isActionDispatch(request)
+      ? track(tasks, dispatchAction(request as RunnerActionRequest, signal))
+      : single.dispatch(request as RunnerDispatchRequest, signal)
+  }
+  const runner: LoopExtensionRunnerService = Object.freeze({ dispatch, replay: single.replay })
   return Object.freeze({
     runner,
+    admissionPassSource: admissionPasses.source,
     implementations: Object.freeze<RunnerImplementations>({
+      registerAdmission(contribution) {
+        if (!active()) throw new Error('Runner instance unavailable')
+        return registry.registerAdmission(contribution)
+      },
       registerBuiltin(name, implementation) {
         if (!active()) throw new Error('Runner instance unavailable')
         return registry.registerBuiltin(name, implementation)
@@ -330,6 +351,7 @@ export function createLoopExtensionRunner(input: {
     closeAdmission() {
       if (!admitting) return
       admitting = false
+      admissionPasses.closeAdmission()
       stop.abort()
       registry.closeAdmission()
     },
@@ -337,6 +359,7 @@ export function createLoopExtensionRunner(input: {
       await Promise.allSettled([...tasks])
       await Promise.allSettled([...actualInvocations])
       await registry.drain()
+      await admissionPasses.drain()
     },
   })
 }

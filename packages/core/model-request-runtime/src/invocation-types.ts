@@ -1,4 +1,9 @@
-import { type TokenMargin, type PlanCalibration, type PlanOutputHistoryGroup, type InputMeasurement } from '@omne-harness-lite/model-request-runtime'
+import type {
+  TokenMargin,
+  PlanCalibration,
+  PlanOutputHistoryGroup,
+  InputMeasurement,
+} from './planning-types.ts'
 import type { ArrivalEvent, ArrivalTarget } from '@omne-harness-lite/arrival-events'
 import type { ContentBlock, JsonNumber, JsonValue } from '@omne-harness-lite/content-blocks'
 import type { Cost, Usage, TrimSummary } from '@omne-harness-lite/call-accounts'
@@ -8,12 +13,22 @@ import type {
   ModelAdaptationBinding,
 } from '@omne-harness-lite/model-profile'
 import type { Message, AssistantEnding } from '@omne-harness-lite/messages'
-import type { Failure, Timing, ResponseOutcome, ParameterAdjustment, RawHeaders, RequestInputEvidence, ObservedInput, OutputGroupEvidence, InputCalibration } from '@omne-harness-lite/model-response'
+import type {
+  Failure,
+  Timing,
+  ResponseOutcome,
+  ParameterAdjustment,
+  RawHeaders,
+  RequestInputEvidence,
+  ObservedInput,
+  OutputGroupEvidence,
+  InputCalibration,
+} from '@omne-harness-lite/model-response'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
-import type {CredentialRedactionConfig} from './credential-redaction-types.ts'
-import type { DiagnosticEmitter, DiagnosticReference } from '@omne-harness-lite/model-request-runtime'
+import type { CredentialRedactionConfig } from './credential-redaction-types.ts'
+import type { DiagnosticEmitter, DiagnosticReference } from './diagnostic-events.ts'
 import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
-import type { DiagnosticFact, DiagnosticOutcome } from '@omne-harness-lite/model-request-runtime'
+import type { DiagnosticFact, DiagnosticOutcome } from './diagnostic-events.ts'
 export interface ReadFacts {
   readonly usage: Usage
   readonly cost: Cost

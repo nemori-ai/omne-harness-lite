@@ -1,4 +1,4 @@
-# @omne-harness-lite/asset-registry
+# @omne-harness-lite/asset-registry-local
 
 [中文](README_ZH.md)
 
@@ -6,7 +6,9 @@ Experimental session asset-table implementation. It is an unpublished ESM worksp
 
 Loop extension declarations use the current `@omne-harness-lite/loop-extension` public types.
 
-## Declared public surface
+The provider root exports `createAssetRegistry` and its construction types. Shared operations and pure projections belong to `@omne-harness-lite/asset-registry`; its `./cordis` entry owns the service definition. The demo constructs one registry and lends it through a subclass of that definition. The former experimental plugin with live configuration has been removed.
+
+## Provider and definition surfaces
 
 | Export | Purpose |
 | --- | --- |
@@ -15,7 +17,6 @@ Loop extension declarations use the current `@omne-harness-lite/loop-extension` 
 | `REGISTERED_CATEGORIES` | Inspect table categories |
 | `buildTableContents`, `buildSnapshots`, `computeAvailability`, `findInSnapshot`, `buildReport` | Separately exposed construction/projection helpers |
 | `extractRootSourceFromFullFillRecord` | Read original root source from a complete-fill record |
-| `assetRegistryPlugin`, `ASSET_REGISTRY_SERVICE` | Experimental Cordis provider declaration |
 
 ## Inspect the interface
 
@@ -33,7 +34,7 @@ The example shows the public call shape only; it requires a genuinely initialize
 Close the registry before releasing its borrowed dependencies. Full command notification and generic registry delivery are outside the current runtime increment. Build first, then run the current checks; retain failures.
 
 ```sh
-pnpm --filter @omne-harness-lite/asset-registry... run build
-pnpm --filter @omne-harness-lite/asset-registry run typecheck
-pnpm --filter @omne-harness-lite/asset-registry run test
+pnpm --filter @omne-harness-lite/asset-registry-local... run build
+pnpm --filter @omne-harness-lite/asset-registry-local run typecheck
+pnpm --filter @omne-harness-lite/asset-registry-local run test
 ```

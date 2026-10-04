@@ -14,14 +14,17 @@
     "./cordis": {
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
-    }
+    },
+    "./journal-schema": "./schema/tool-journal.schema.json"
   },
   "files": [
     "dist",
-    "SPEC.md"
+    "SPEC.md",
+    "schema",
+    "generated"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node ../../../scripts/build-fixed-schemas.mjs",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run"
   },
@@ -35,13 +38,17 @@
     "@omne-harness-lite/runtime-context": "workspace:*",
     "@omne-harness-lite/execution-environments": "workspace:*",
     "@omne-harness-lite/tool-admission": "workspace:*",
-    "@omne-harness-lite/messages": "workspace:*"
+    "@omne-harness-lite/messages": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "@deepseek-ai/cordis": "catalog:"
+    "@deepseek-ai/cordis": "catalog:",
+    "ajv": "catalog:"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:"

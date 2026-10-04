@@ -18,7 +18,8 @@
   "files": [
     "dist",
     "schema",
-    "generated"
+    "generated",
+    "SPEC.md"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",

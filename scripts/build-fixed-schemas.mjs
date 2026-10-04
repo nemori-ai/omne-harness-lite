@@ -15,6 +15,7 @@ const owners = new Set([
   'packages/core/agent-definition',
   'packages/core/arrival-events',
   'packages/core/tool-definition',
+  'packages/core/tool-execution-runtime',
   'packages/core/loop-extension',
   'packages/core/model-response',
   'packages/core/model-profile',
@@ -29,6 +30,7 @@ const owners = new Set([
   'packages/frontend/governance-center-client',
   'packages/frontend/governance-client-operations',
   'apps/cli',
+  'examples/model-invocation-minimal-demo',
 ])
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 const snapshot = value => {

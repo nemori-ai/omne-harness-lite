@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { LOGINS_SERVICE, type LoginsService } from '@omne-harness-lite/account-identity'
 import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { type SessionLog } from '@omne-harness-lite/session-log'
+import { SessionLogService } from '@omne-harness-lite/session-log/cordis'
 import { createSessionTenancyReader } from '@omne-harness-lite/session-tenancy-table'
 import { isOk, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis'
@@ -89,7 +90,7 @@ function start(
 }
 
 describe('A2a real JSONL owner and authorization', () => {
-  it('opens the exact ten-fiber gate and reads complete committed rows after actual close/reopen', async () => {
+  it('opens the declared log and access gate and reads complete committed rows after actual close/reopen', async () => {
     const config = await logDeployment('log-reopen'),
       events: AcceptanceEvent[] = []
     let log: SessionLog | undefined
@@ -105,7 +106,12 @@ describe('A2a real JSONL owner and authorization', () => {
           const value: unknown = fiber.ctx.get('sessionLog')
           if (!logFace(value)) throw new Error('real session log contribution absent')
           log = value
-          expect(Object.keys(value)).toEqual(['append', 'readByKey', 'readSince'])
+          expect(value).toBeInstanceOf(SessionLogService)
+          expect(
+            Object.getOwnPropertyNames(Object.getPrototypeOf(value)).filter(
+              key => key !== 'constructor',
+            ),
+          ).toEqual(['append', 'readByKey', 'readSince'])
         },
       },
       events,
@@ -114,7 +120,9 @@ describe('A2a real JSONL owner and authorization', () => {
     try {
       expect(Object.isFrozen(SESSION_LOG_FIBERS)).toBe(true)
       expect(Object.keys(app.status().fibers)).toEqual([...SESSION_LOG_FIBERS])
-      expect(Object.values(app.status().fibers)).toEqual(Array(10).fill(FIBER_STATE.ACTIVE))
+      expect(Object.values(app.status().fibers)).toEqual(
+        Array(SESSION_LOG_FIBERS.length).fill(FIBER_STATE.ACTIVE),
+      )
       const who = await actor(app)
       expect(await app.prepareSession(who, 's1')).toEqual({ session: 's1', tenant: who.tenant })
       if (log === undefined) throw new Error('real log absent')

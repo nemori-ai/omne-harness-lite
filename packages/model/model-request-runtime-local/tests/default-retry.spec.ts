@@ -301,6 +301,9 @@ describe('P-5 default retry contribution', () => {
         Config: z.object({}).strict(),
         apply(inner) {
           new EffectImplementations(inner, {
+            registerAdmission() {
+              throw new Error('Retry contributor must not register admission')
+            },
             registerBuiltin(name: string, implementation: unknown) {
               if (registry.has(name)) throw new Error('duplicate')
               registry.set(name, implementation)

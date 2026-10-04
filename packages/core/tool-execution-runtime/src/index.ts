@@ -1,3 +1,6 @@
 export * from './tool-execution.ts'
 export * from './tool-results.ts'
 export * from './tool-journal.ts'
+export * from './journal-codec.ts'
+export { captureToolJournalValue } from './journal-values.ts'
+export { projectToolJournal, type ToolJournalHistory } from './journal-history.ts'

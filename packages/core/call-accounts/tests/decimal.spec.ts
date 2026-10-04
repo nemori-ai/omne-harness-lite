@@ -135,3 +135,22 @@ describe('independent decimal oracle seed 0x6c41', () => {
     ).toBe(oracleScientific(a + b))
   })
 })
+
+it('canonical decimal spelling preserves exact equality and leaves exchange spelling unchanged', () => {
+  for (const values of [
+    ['100', '1e2', '1.000e+2'],
+    ['-0', '0.000', '0e400'],
+    ['1e4000000', '10e3999999'],
+  ]) {
+    const first = values[0]
+    if (!first) throw new Error('missing fixture')
+    for (const source of values) {
+      expect(exact(source).compare(exact(first))).toBe(0)
+      expect(exact(source).toCanonicalString()).toBe(exact(first).toCanonicalString())
+      expect(exact(source).toString()).toBe(source)
+    }
+  }
+  expect(exact('9007199254740992').toCanonicalString()).not.toBe(
+    exact('9007199254740993').toCanonicalString(),
+  )
+})

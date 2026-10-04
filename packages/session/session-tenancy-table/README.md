@@ -9,7 +9,8 @@ Read a session's persistent tenant identity through public Storage, either stand
 | `createSessionTenancyReader(storage)` | Provide `holdingTenant`, `participate` and `close` |
 | `participate(unit).holdingTenant(session)` | Borrow the actual storage transaction, retaining its rollback behavior |
 | `sessionTenancyMigrations` | Compose mapping-table migration fragments |
-| `sessionTenancyTablePlugin`, `SESSION_TENANCY_SERVICE` | Cordis reader provider and service identity |
+| `sessionTenancyTablePlugin` from `./cordis` | Cordis reader provider; the definition and `SESSION_TENANCY` key belong to core/session-tenancy |
+| `readSessionCatalogIn` from restricted `./maintenance` | Complete immutable holding catalog for the application recovery owner |
 
 ## Read the actual tenant
 
@@ -29,6 +30,10 @@ export async function readTenant(storage: Storage, session: string) {
 An unknown session returns `sessionNotFound`; invalid input and unavailable storage are distinct. A returned tenant does not authorize all operations on that session. The shared-transaction reader requires a unit from the same storage and lets transaction failures reach its owner.
 
 Compose migrations and establish mappings through the approved application bootstrap before reading. `./seed` is restricted to acceptance bootstrap/tests by repository guards; it is not a public product session-creation API.
+
+The restricted seed returns `created` or `alreadyPresent` from its write transaction. Callers must also obtain confirmation that the enclosing transaction committed.
+
+The restricted maintenance read uses a caller-owned ReadTx. It rejects malformed or incomplete catalog reads and grants no user authority. Its behavior is defined in [SPEC.md](SPEC.md).
 
 `close()` refuses new reads and waits for admitted reads. It neither closes caller-owned storage nor deletes mappings. Tests use temporary file SQLite and real Cordis; observed identity durability still depends on storage upgrade/admission.
 

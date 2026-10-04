@@ -8,13 +8,22 @@ import type { SessionRef } from '@omne-harness-lite/messages'
 import type { ModelCatalog, OfficialManifest } from '@omne-harness-lite/model-profile-directory'
 import type { OrganizationGovernanceConfig } from '@omne-harness-lite/organization-governance'
 import type { ProcessOwnership, SessionLogPolicy } from '@omne-harness-lite/session-log-jsonl'
-import type {DeployedOfficialEntry} from '@omne-harness-lite/evaluation-input-store'
+import type { DeployedOfficialEntry } from '@omne-harness-lite/evaluation-input-store'
 import type { ModelInputSource, PublishSourceFailure, CaptureRecipeFailure } from './bootstrap.ts'
-import type {TransportOptions} from '@omne-harness-lite/pi-ai-transport'
-import type {ModelDefinition} from '@omne-harness-lite/model-request-runtime'
+import type { TransportOptions } from '@omne-harness-lite/pi-ai-transport'
+import type { ModelDefinition } from '@omne-harness-lite/model-request-runtime'
 import type { RetirementPolicy } from '@omne-harness-lite/model-request-runtime'
-import type {AcknowledgementCleanupPolicy, SettlementContention, SettlementScheduler, ReservationWaitPolicy, ModelCallContentPolicy, ObserverDiagnostic, SettlementDiagnostic, DefaultRetryConfiguration} from '@omne-harness-lite/model-request-runtime-local'
-import type {InvocationPolicy} from '@omne-harness-lite/model-request-runtime'
+import type {
+  AcknowledgementCleanupPolicy,
+  SettlementContention,
+  SettlementScheduler,
+  ReservationWaitPolicy,
+  ModelCallContentPolicy,
+  ObserverDiagnostic,
+  SettlementDiagnostic,
+  DefaultRetryConfiguration,
+} from '@omne-harness-lite/model-request-runtime-local'
+import type { InvocationPolicy } from '@omne-harness-lite/model-request-runtime'
 import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import type { HoldingTenantResult } from '@omne-harness-lite/session-tenancy'
 import type { AtomicStorage, MigrationFragment } from '@omne-harness-lite/storage'
@@ -40,6 +49,9 @@ export const REQUEST_PREPARATION_FIBERS = Object.freeze([
 export const SESSION_LOG_FIBERS = Object.freeze([
   ...REQUEST_PREPARATION_FIBERS,
   'sessionLog',
+  'sessionAccess',
+  'runtimeContext',
+  'sessionContextSource',
 ] as const)
 export const MODEL_REQUEST_FIBERS = Object.freeze([
   ...SESSION_LOG_FIBERS,

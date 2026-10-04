@@ -9,7 +9,8 @@
 | `createSessionTenancyReader(storage)` | 提供 `holdingTenant`、`participate` 与 `close` |
 | `participate(unit).holdingTenant(session)` | 借用实际 storage 事务，保留其回滚行为 |
 | `sessionTenancyMigrations` | 合成归属表迁移片段 |
-| `sessionTenancyTablePlugin`、`SESSION_TENANCY_SERVICE` | Cordis 读取提供者和服务标识 |
+| `./cordis` 的 `sessionTenancyTablePlugin` | Cordis 读取提供者；定义及 `SESSION_TENANCY` 键归 core/session-tenancy |
+| 受限 `./maintenance` 的 `readSessionCatalogIn` | 向应用恢复 owner 提供完整的不可变持有目录 |
 
 ## 读取实际租户
 
@@ -29,6 +30,10 @@ export async function readTenant(storage: Storage, session: string) {
 会话不存在返回 `sessionNotFound`，输入非法与存储不可用分别保留。返回租户不意味着授权该会话上的所有操作。共享事务读取器要求 unit 来自同一 storage，让事务失败交给实际 owner。
 
 读取前先合成迁移，再由允许的应用 bootstrap 建立映射。仓库 guard 把 `./seed` 限在验收 bootstrap/tests，它不是产品会话创建 API。
+
+受限 seed 在写事务内返回 `created` 或 `alreadyPresent`。调用方还须确认外层事务已提交，才能据此承担新建责任。
+
+维护读口使用调用方的 ReadTx；坏行或不完整读取不能返回部分目录，也不授予用户访问权限。行为承诺见 [SPEC.md](SPEC.md)。
 
 `close()` 拒绝新读取并等待已准入读取，不关闭调用者 storage，也不删除映射。测试使用临时文件 SQLite 和真实 Cordis；身份的耐久性仍受 storage 升级和准入约束。
 

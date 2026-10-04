@@ -219,6 +219,8 @@ const app = createAcceptanceApplication(imageConfig, {
 
 ## 程序入口
 
+会话日志与模型请求阶段还装配 runtime-context 提供者及会话身份来源。`createToolSession(actor, session)` 新建带有持久必需身份块的会话，返回固定的协调及工具视图绑定。`bindToolSession(actor, session)` 只读取已有声明。两个入口都核验当前登录、成员及会话持有租户。已有会话缺声明时返回 `unavailable`，不会补默认声明。SQL 创建与 context 初始化使用不同存储，因此跨存储半完成创建在冷重启后仍可能不可用。这个入口还不执行工具，也不代表模型—工具闭环完成。
+
 包根导出 `createAcceptanceApplication` 及其配置与结果类型和固定阶段 fiber 名、`openDemo`、`createDemoSupervisor`、`runInteractive`、`createDemoConfig`、`createDemoDefaultRetryConfiguration`、`createExplicitCleanupSchedule`、`MODEL`，以及诊断日志与诊断装配入口和它们的类型。装配拥有自己的 Cordis context 与生命周期。它的 `currentTime()` 只读取已有的租约 Clock，供消息与调用时间戳使用；时钟不可用则禁止发送。`AcceptanceHooks` 与 `developmentTransport` 是可信测试控制，不是租户输入。仅认证阶段不发送模型请求。
 
 - `startServiceCall(actor, session, { user, parameters, host, observer?, tools?, callId?, run?, attempt?, report? })` 接收完整且已校验的 `UserMessage`（包括图片块），在打开调用前追加它，由所选模型与传输检查兼容性。

@@ -136,6 +136,8 @@ export function createDemoRunnerServiceHost(
       return 'failure' in acquired ? acquired : acquired.scope
     },
     async acquireDispatch(request, signal) {
+      // The action driver must supply a verified Run/adoption source before this branch can serve it.
+      if (request.position === 'before_action') return { failure: 'unavailable' }
       const acquired = await acquire(request)
       if ('failure' in acquired) return acquired
       const { scope, actor, settlement } = acquired

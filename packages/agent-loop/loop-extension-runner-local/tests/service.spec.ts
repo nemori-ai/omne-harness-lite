@@ -13,14 +13,22 @@ import { openJsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { loadDefaultRetry } from '../../../model/model-request-runtime-local/tests/retry-assembly.ts'
 import { createRunnerTaskOwner } from '../src/task-owner.ts'
 import { loopExtensionRunnerPlugin } from '../src/cordis.ts'
-import { type RunnerServiceHost, type RunnerImplementations, type LoopExtensionRunnerService, type RunnerDispatchRequest, type RunnerExecutionPorts } from '@omne-harness-lite/loop-extension-runner'
+import {
+  type RunnerServiceHost,
+  type RunnerImplementations,
+  type LoopExtensionRunnerService,
+  type RunnerDispatchRequest,
+  type RunnerExecutionPorts,
+} from '@omne-harness-lite/loop-extension-runner'
 import { chainHost, session } from './runner-chain-support.ts'
+import { DeniedAccess } from './denied-access.ts'
 
 const positioned = judgePositionedSubject({
   position: 'before_model_call',
   subject: { request: { target: 'example/model', parameters: {}, messages: [], tools: [] } },
 })
-if ('rejected' in positioned) throw new Error('fixture subject invalid')
+if ('rejected' in positioned || positioned.ok.position !== 'before_model_call')
+  throw new Error('fixture subject invalid')
 const initial = positioned.ok
 const request: RunnerDispatchRequest = {
   ...initial,
@@ -58,6 +66,12 @@ async function serviceHost() {
   }
   const owner = createRunnerTaskOwner(facts.binding)
   const ctx = new Context()
+  const accessProvider = await ctx.plugin({
+    name: 'model-only-access',
+    apply(inner) {
+      new DeniedAccess(inner)
+    },
+  })
   const provider = await ctx.plugin({
     name: 'actual-log',
     apply(inner) {
@@ -134,6 +148,7 @@ async function serviceHost() {
     async close() {
       await runnerFiber.dispose()
       await provider.dispose()
+      await accessProvider.dispose()
       await log.close()
       // Do not mask a failed recovery assertion with an indefinitely pending unknown drain.
       if (!owner.hasUnknown(facts.binding)) await owner.drain()
@@ -342,7 +357,8 @@ test('R8 service passes the owned actual execution to failure verification after
       retryConclusions: [],
     },
   })
-  if ('rejected' in failed) throw new Error(`failure fixture: ${failed.rejected}`)
+  if ('rejected' in failed || failed.ok.position !== 'after_model_call')
+    throw new Error('failure fixture invalid')
   const h = await serviceHost()
   const supplied = {
     ...failed.ok,
@@ -427,6 +443,7 @@ test('failure of the second service publication removes the first without closin
     name: 'collision-host',
     apply(inner) {
       inner.provide('sessionLog', h.log)
+      new DeniedAccess(inner)
       inner.provide('loopExtensionImplementations', { existing: true })
     },
   })
@@ -453,6 +470,7 @@ test('required log dependency removal invalidates retained service and restarts 
     await h.provider.dispose()
     expect(h.ctx.get('loopExtensionRunner')).toBeUndefined()
     expect(h.ctx.get('loopExtensionImplementations')).toBeUndefined()
+    expect(h.ctx.get('toolAdmissionPassSource')).toBeUndefined()
     expect(await h.runner.replay(replay)).toEqual({ failure: 'unavailable' })
     expect(() =>
       h.implementations.registerBuiltin('example:a', async () => ({
@@ -631,7 +649,16 @@ test('runner fiber can withdraw while the shared owner retains an already admitt
 })
 
 class TestHost extends RunnerHostService {
-  constructor(ctx: Context, private readonly operations: RunnerServiceHost) { super(ctx) }
-  acquireDispatch(...args: Parameters<RunnerServiceHost['acquireDispatch']>) { return this.operations.acquireDispatch(...args) }
-  acquireReplay(...args: Parameters<RunnerServiceHost['acquireReplay']>) { return this.operations.acquireReplay(...args) }
+  constructor(
+    ctx: Context,
+    private readonly operations: RunnerServiceHost,
+  ) {
+    super(ctx)
+  }
+  acquireDispatch(...args: Parameters<RunnerServiceHost['acquireDispatch']>) {
+    return this.operations.acquireDispatch(...args)
+  }
+  acquireReplay(...args: Parameters<RunnerServiceHost['acquireReplay']>) {
+    return this.operations.acquireReplay(...args)
+  }
 }

@@ -1,7 +1,8 @@
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
 import { judgeDefinition, judgePositionedSubject } from '@omne-harness-lite/loop-extension'
-import { checkAppendInput } from '@omne-harness-lite/session-log-jsonl'
-import { passKeys, runPass } from '@omne-harness-lite/loop-extension-runner'
+import { checkAppendInput } from '@omne-harness-lite/session-log'
+import { passKeys } from '@omne-harness-lite/loop-extension-runner'
+import { runPass } from '@omne-harness-lite/loop-extension-runner-local'
 
 function accepted(result) {
   if (!('ok' in result)) throw new Error('Example input is invalid')

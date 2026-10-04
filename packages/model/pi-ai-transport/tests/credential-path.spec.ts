@@ -1,8 +1,12 @@
 import { imagePreparation } from './image-transport-support.ts'
 import { Agent } from 'node:https'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import {createCredentialRedactionPolicy, openRouterCredentialRedactionConfig, type StreamEnd} from '@omne-harness-lite/model-request-runtime'
-import {invokeModel} from '@omne-harness-lite/model-request-runtime-local'
+import {
+  createCredentialRedactionPolicy,
+  openRouterCredentialRedactionConfig,
+  type StreamEnd,
+} from '@omne-harness-lite/model-request-runtime'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
@@ -38,9 +42,8 @@ const faults = vi.hoisted(() => ({
   invalidHeaders: false,
   onProcess: undefined as (() => void) | undefined,
 }))
-vi.mock('@omne-harness-lite/model-request-runtime-local', async importOriginal => {
-  const original =
-    await importOriginal<typeof import('@omne-harness-lite/model-request-runtime-local')>()
+vi.mock('@omne-harness-lite/model-request-runtime', async importOriginal => {
+  const original = await importOriginal<typeof import('@omne-harness-lite/model-request-runtime')>()
   const reject = { rejected: 'invalidInput' } as const
   return {
     ...original,
@@ -99,7 +102,7 @@ beforeAll(() => {
 })
 afterAll(() => cert.dispose())
 afterAll(() => {
-  vi.doUnmock('@omne-harness-lite/model-request-runtime-local')
+  vi.doUnmock('@omne-harness-lite/model-request-runtime')
   vi.resetModules()
 })
 afterEach(() => {

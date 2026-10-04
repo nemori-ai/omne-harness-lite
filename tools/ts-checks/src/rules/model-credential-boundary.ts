@@ -8,7 +8,8 @@ import { nodeName, syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 const directory = 'packages/model/model-profile-directory-local/src/'
 const custodian = 'packages/infra/credential-custodian-local/src/'
-const bindingEntry = '@omne-harness-lite/model-profile-directory/tx-reads'
+const bindingEntry = '@omne-harness-lite/model-profile-directory-local/tx-reads'
+const readerAdapter = 'examples/model-invocation-minimal-demo/src/assembly-inputs.ts'
 const replicaEntry = '@omne-harness-lite/credential-custodian-local/model-replica'
 type Token = string
 type Value = ReadonlySet<Token>
@@ -28,6 +29,8 @@ const restricted = new Set([
   'close',
   'options',
   'lookup-config',
+  'reader-port',
+  'reader-adapter',
 ])
 function sensitive(input: Value): boolean {
   return [...input].some(token => restricted.has(token.split(':').at(-1) ?? ''))
@@ -50,11 +53,11 @@ function target(file: SourceFile, specifier: string): string {
 function moduleKind(
   file: SourceFile,
   specifier: string,
-): 'binding' | 'replica' | 'directory' | undefined {
+): 'binding' | 'replica' | 'reader-adapter' | undefined {
   const resolved = target(file, specifier)
   if (
     resolved === bindingEntry ||
-    /^(?:packages\/model\/model-profile-directory\/(?:src|dist)\/|@omne-harness-lite\/model-profile-directory\/(?:src\/)?)tx-reads(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
+    /^(?:packages\/model\/model-profile-directory-local\/(?:src|dist)\/|@omne-harness-lite\/model-profile-directory-local\/(?:src\/)?)tx-reads(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
       resolved,
     )
   )
@@ -66,11 +69,7 @@ function moduleKind(
     )
   )
     return 'replica'
-  if (
-    resolved === '@omne-harness-lite/model-profile-directory/plugin' ||
-    resolved === `${directory}plugin.ts`
-  )
-    return 'directory'
+  if (resolved === readerAdapter) return 'reader-adapter'
   return undefined
 }
 function member(input: Value, key: string): Value {
@@ -81,6 +80,8 @@ function member(input: Value, key: string): Value {
       result.add(
         key === 'storeBoundReplica' ? 'store' : key === 'readBoundReplicaIn' ? 'read' : 'close',
       )
+    if (token === 'context' && key === 'boundCredentialReplicaReader') result.add('reader-port')
+    if (token === 'reader-port' && key === 'readIn') result.add('read')
     if (token === 'options' && key === 'readCredentialBindingIn') result.add('binding-reader')
     if (token === 'lookup-config' && key === 'readBoundReplicaIn') result.add('read')
   }
@@ -148,6 +149,40 @@ function inTypes(node: ts.Node): boolean {
   return false
 }
 
+function inReaderAdapter(node: ts.Node): boolean {
+  let current: ts.Node | undefined = node.parent
+  while (current !== undefined) {
+    if (ts.isClassDeclaration(current)) return current.name?.text === 'ReplicaReader'
+    current = current.parent
+  }
+  return false
+}
+function custodianReadTypeOnly(syntax: ts.SourceFile, path: string, specifier: string): boolean {
+  if (path !== `${custodian}types.ts` || specifier !== '@omne-harness-lite/model-profile-directory')
+    return false
+  return syntax.statements.every(statement => {
+    if (
+      !ts.isImportDeclaration(statement) ||
+      !ts.isStringLiteralLike(statement.moduleSpecifier) ||
+      statement.moduleSpecifier.text !== specifier
+    )
+      return true
+    const clause = statement.importClause
+    const bindings = clause?.namedBindings
+    return (
+      clause?.name === undefined &&
+      bindings !== undefined &&
+      ts.isNamedImports(bindings) &&
+      bindings.elements.length > 0 &&
+      bindings.elements.every(
+        element =>
+          (clause?.isTypeOnly || element.isTypeOnly) &&
+          (element.propertyName ?? element.name).text === 'ReadBoundReplicaIn',
+      )
+    )
+  })
+}
+
 /** Local lexical def-use only. Unknown transfers of recognized restricted values fail closed. */
 export const modelCredentialBoundary: Rule = {
   id: 'model-credential-boundary',
@@ -173,7 +208,9 @@ export const modelCredentialBoundary: Rule = {
       const component = path === `${custodian}model-replica.ts`
       const isApp = path === bootstrap
       const p1r = (node: ts.Node): boolean =>
-        path === `${directory}plugin.ts` && within(node, 'localCredentialLookupPlugin')
+        path === `${directory}cordis.ts` && within(node, 'localCredentialLookupPlugin')
+      const adapter = (node: ts.Node): boolean =>
+        path === readerAdapter && within(node, 'readIn') && inReaderAdapter(node)
       const app = (node: ts.Node, operation: string): boolean =>
         isApp && appOperation(node, operation)
       const bindings = new Map<ts.Node, Map<string, Set<string>>>()
@@ -208,6 +245,12 @@ export const modelCredentialBoundary: Rule = {
         const name =
           types.get(node.typeName.text) ??
           (component || directoryOwner ? node.typeName.text : undefined)
+        if (name === 'Context') return value('context')
+        if (
+          name === 'BoundCredentialReplicaReader' ||
+          name === 'BoundCredentialReplicaReaderService'
+        )
+          return value('reader-port')
         if (name === 'ModelReplicaCustodian') return value('replica')
         if (name === 'ReadCredentialBindingIn') return value('binding-reader')
         if (name === 'ReadBoundReplicaIn') return value('read')
@@ -222,7 +265,10 @@ export const modelCredentialBoundary: Rule = {
           path.startsWith(custodian) &&
           (resolved === '@omne-harness-lite/model-profile-directory' ||
             resolved.startsWith('@omne-harness-lite/model-profile-directory/') ||
-            resolved.startsWith('packages/model/model-profile-directory-local/'))
+            resolved === '@omne-harness-lite/model-profile-directory-local' ||
+            resolved.startsWith('@omne-harness-lite/model-profile-directory-local/') ||
+            resolved.startsWith('packages/model/model-profile-directory-local/')) &&
+          !custodianReadTypeOnly(syntax, path, ref.specifier)
         ) {
           violations.push({
             rule: this.id,
@@ -254,8 +300,8 @@ export const modelCredentialBoundary: Rule = {
               ? value('createCredentialBindingReader:binding-factory')
               : kind === 'replica'
                 ? value('createModelReplicaCustodian:replica-factory')
-                : kind === 'directory'
-                  ? value('localCredentialLookupPlugin:lookup-plugin')
+                : kind === 'reader-adapter'
+                  ? value('ReplicaReader:reader-adapter')
                   : empty
           if (clause?.name !== undefined && exports.size !== 0)
             report(node, 'restricted entry does not provide a default runtime import')
@@ -272,11 +318,18 @@ export const modelCredentialBoundary: Rule = {
                 [
                   '@omne-harness-lite/credential-custodian-local',
                   '@omne-harness-lite/model-profile-directory',
+                  '@omne-harness-lite/model-profile-directory/cordis',
+                  '@deepseek-ai/cordis',
                 ].includes(node.moduleSpecifier.text)
               )
                 types.set(spec.name.text, original)
               if (clause?.isTypeOnly || spec.isTypeOnly) continue
               const imported = member(exports, original)
+              if (
+                node.moduleSpecifier.text === '@omne-harness-lite/model-profile-directory/cordis' &&
+                original === 'BOUND_CREDENTIAL_REPLICA_READER'
+              )
+                declare(spec.name.text, spec).add('reader-key')
               if ((kind === 'binding' || kind === 'replica') && imported.size === 0)
                 report(spec, 'restricted entry runtime import is not an approved factory')
               for (const token of imported) declare(spec.name.text, spec).add(token)
@@ -312,6 +365,27 @@ export const modelCredentialBoundary: Rule = {
       const evaluate = (node: ts.Node | undefined): Value => {
         if (node === undefined) return empty
         if (ts.isIdentifier(node)) return symbol(node.text, node) ?? empty
+        if (node.kind === ts.SyntaxKind.ThisKeyword) {
+          let owner: ts.Node | undefined = node.parent
+          while (owner !== undefined && !ts.isClassDeclaration(owner)) owner = owner.parent
+          if (owner === undefined || !ts.isClassDeclaration(owner)) return empty
+          const tokens = new Set<string>()
+          for (const member of owner.members) {
+            const declarations = ts.isConstructorDeclaration(member)
+              ? member.parameters.filter(parameter =>
+                  ts.isParameterPropertyDeclaration(parameter, member),
+                )
+              : ts.isPropertyDeclaration(member)
+                ? [member]
+                : []
+            for (const declaration of declarations) {
+              const key = nodeName(declaration.name)
+              if (key === undefined) continue
+              for (const token of typeValue(declaration.type)) tokens.add(nested(key, token))
+            }
+          }
+          return tokens
+        }
         if (
           ts.isParenthesizedExpression(node) ||
           ts.isAwaitExpression(node) ||
@@ -326,6 +400,20 @@ export const modelCredentialBoundary: Rule = {
         }
         if (ts.isCallExpression(node)) {
           const called = evaluate(node.expression)
+          if (
+            (ts.isPropertyAccessExpression(node.expression) ||
+              ts.isElementAccessExpression(node.expression)) &&
+            property(node.expression) === 'get' &&
+            evaluate(node.expression.expression).has('context')
+          ) {
+            const key = node.arguments[0]
+            if (
+              key !== undefined &&
+              ((ts.isStringLiteralLike(key) && key.text === 'boundCredentialReplicaReader') ||
+                evaluate(key).has('reader-key'))
+            )
+              return value('reader-port')
+          }
           if (
             node.expression.getText(syntax) === 'Object.freeze' &&
             symbol('Object', node) === undefined
@@ -418,8 +506,8 @@ export const modelCredentialBoundary: Rule = {
                   p1r(node) &&
                   ts.isMethodDeclaration(node.parent) &&
                   nodeName(node.parent.name) === 'apply' &&
-                  node.parent.parameters[1] === node
-                  ? value('lookup-config')
+                  node.parent.parameters[0] === node
+                  ? value('context')
                   : empty,
               ),
             )
@@ -435,7 +523,7 @@ export const modelCredentialBoundary: Rule = {
         if (token === 'binding-factory') return directoryOwner || app(node, 'start')
         if (token === 'replica-factory') return app(node, 'start')
         if (token === 'binding-reader') return component || p1r(node)
-        if (token === 'read') return component || p1r(node)
+        if (token === 'read') return component || p1r(node) || adapter(node)
         if (token === 'store') return component || app(node, 'publishCredential')
         if (token === 'close') return component || app(node, 'closeResources')
         return false
@@ -448,22 +536,6 @@ export const modelCredentialBoundary: Rule = {
         const called = evaluate(node.expression)
         if (app(node, 'start') && called.has('replica-factory') && node.arguments[0] === argument)
           return [...input].every(token => token === 'readCredentialBindingIn:binding-reader')
-        if (app(node, 'start')) {
-          const directPlugin =
-            property(node.expression) === 'plugin' &&
-            evaluate(node.arguments[0]).has('lookup-plugin') &&
-            node.arguments[1] === argument
-          const localLoader =
-            ts.isIdentifier(node.expression) &&
-            node.expression.text === 'load' &&
-            node.arguments[0] !== undefined &&
-            ts.isStringLiteralLike(node.arguments[0]) &&
-            node.arguments[0].text === 'lookup' &&
-            evaluate(node.arguments[1]).has('lookup-plugin') &&
-            node.arguments[2] === argument
-          if (directPlugin || localLoader)
-            return [...input].every(token => token === 'readBoundReplicaIn:read')
-        }
         // The component may delegate its typed options to same-file private helpers.
         if (
           component &&
@@ -493,7 +565,8 @@ export const modelCredentialBoundary: Rule = {
           const kind = moduleKind(file, node.moduleSpecifier.text)
           if (
             (kind === 'binding' && !directoryOwner) ||
-            (kind === 'replica' && !path.startsWith(custodian))
+            (kind === 'replica' && !path.startsWith(custodian)) ||
+            kind === 'reader-adapter'
           )
             report(node, 'restricted model credential symbols cannot be re-exported')
         }
@@ -538,9 +611,23 @@ export const modelCredentialBoundary: Rule = {
           sensitive(evaluate(node.expression))
         )
           report(node, 'computed restricted member must be a statically known literal')
+        if (
+          ts.isNewExpression(node) &&
+          evaluate(node.expression).has('reader-adapter') &&
+          !app(node, 'start')
+        )
+          report(node, 'replica reader service construction is outside application start')
         if (ts.isNewExpression(node))
           for (const argument of node.arguments ?? [])
-            if (sensitive(evaluate(argument)))
+            if (
+              sensitive(evaluate(argument)) &&
+              !(
+                app(node, 'start') &&
+                evaluate(node.expression).has('reader-adapter') &&
+                node.arguments?.[1] === argument &&
+                [...evaluate(argument)].every(token => token === 'readIn:read')
+              )
+            )
               report(
                 argument,
                 'restricted closure or component escapes into an unapproved constructor',

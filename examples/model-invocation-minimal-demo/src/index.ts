@@ -3,6 +3,7 @@ export {
   AcceptanceStartupFailure,
   AcceptanceOperationDefect,
   type AcceptanceApplication,
+  type ToolSessionBinding,
 } from './bootstrap.ts'
 export type { DemoRunnerRequest } from './runner-host.ts'
 export {
@@ -64,3 +65,12 @@ export {
   type DemoTransportRetention,
   type DemoTransportHealth,
 } from './diagnostic-assembly.ts'
+export {
+  captureDriverValue,
+  driverKey,
+  prepareDriverEntry,
+  inspectDriverEntry,
+  toolDriverFormat,
+  toolDriverAll,
+} from './tool-driver-codec.ts'
+export type { DriverValue, DriverPayload } from './tool-driver-types.ts'

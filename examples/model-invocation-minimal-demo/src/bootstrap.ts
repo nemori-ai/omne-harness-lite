@@ -6,15 +6,76 @@ import { clockPlugin } from '@omne-harness-lite/clock/cordis'
 import { StorageBacking, borrowedStorage as borrowedStoragePlugin } from './borrowed-storage.ts'
 import { controlledModelTransport } from './controlled-model-transport.ts'
 import { TransportTls } from './assembly-inputs.ts'
-import { DirectoryDiagnostics, ReplicaReader, EvaluationSupport, TransportSupport, InputMeters, RetrySample, BorrowedRunnerHost, BorrowedManifest, BorrowedAssetRegistry } from './assembly-inputs.ts'
+import {
+  DirectoryDiagnostics,
+  ReplicaReader,
+  EvaluationSupport,
+  TransportSupport,
+  InputMeters,
+  RetrySample,
+  BorrowedRunnerHost,
+  BorrowedManifest,
+  BorrowedAssetRegistry,
+} from './assembly-inputs.ts'
 import { copyJsonValue, isJsonNumber, type JsonValue } from '@omne-harness-lite/content-blocks'
 import {
   judgeModelProfileDocument,
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
-import {createSessionModelSelection, createCallContainerStore, createModelCallContentStore, createModelCallFacts, createModelRuntime, modelCallContentMigrations, interpretCallHistory, readSettlementPrefix, type ModelRuntimeService, type ModelCallHost, type ModelObserverRequest, type DispatchResult, type OpenCallResult, type OpenCallRun, type RuntimeConstruction, type SessionRuntimeBinding, type ModelObserverEndpoint, type RuntimeCloseResult, type SessionObserverAccess, type SettlementResult, type SettlementOwner, type SettlementCoordinator, type SessionModelSelection, type SessionModelSelectionInput, type SettlementLogBinding, type RunHistoryReader, type CurrentHistoryReaders, type SessionSelectModelResult, type LegalTargetsResult, type SessionEffectiveModelResult, type ServiceEffectiveModelResult, type ServiceLegalTargetsResult, type ServiceSelectModelResult, type DisplayListResult, type ServiceDisplayListResult, type ReconcileResult, type CallContainer, type AnchoredInvocationHandle, type ObserverDiagnostic, type SettlementDiagnostic, type FailureConsumableOperation, type FailureConsumption} from '@omne-harness-lite/model-request-runtime-local'
-import { type ModelLogSettlementTarget, type DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
-import { captureModelLogValue, decodeModelLogKey, prepareModelLogEntry, modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import {
+  createSessionModelSelection,
+  createCallContainerStore,
+  createModelCallContentStore,
+  createModelCallFacts,
+  createModelRuntime,
+  modelCallContentMigrations,
+  interpretCallHistory,
+  readSettlementPrefix,
+  type ModelRuntimeService,
+  type ModelCallHost,
+  type ModelObserverRequest,
+  type DispatchResult,
+  type OpenCallResult,
+  type OpenCallRun,
+  type RuntimeConstruction,
+  type SessionRuntimeBinding,
+  type ModelObserverEndpoint,
+  type RuntimeCloseResult,
+  type SessionObserverAccess,
+  type SettlementResult,
+  type SettlementOwner,
+  type SettlementCoordinator,
+  type SessionModelSelection,
+  type SessionModelSelectionInput,
+  type SettlementLogBinding,
+  type RunHistoryReader,
+  type CurrentHistoryReaders,
+  type SessionSelectModelResult,
+  type LegalTargetsResult,
+  type SessionEffectiveModelResult,
+  type ServiceEffectiveModelResult,
+  type ServiceLegalTargetsResult,
+  type ServiceSelectModelResult,
+  type DisplayListResult,
+  type ServiceDisplayListResult,
+  type ReconcileResult,
+  type CallContainer,
+  type AnchoredInvocationHandle,
+  type ObserverDiagnostic,
+  type SettlementDiagnostic,
+  type FailureConsumableOperation,
+  type FailureConsumption,
+} from '@omne-harness-lite/model-request-runtime-local'
+import {
+  type ModelLogSettlementTarget,
+  type DiagnosticEvent,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  decodeModelLogKey,
+  prepareModelLogEntry,
+  modelLogJsonEqual,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   validate as validateMessage,
   judgeMessage,
@@ -40,10 +101,16 @@ import {
   deriveCreationKey,
 } from './call-references.ts'
 import { createDemoRunnerHost, type DemoRunnerRequest } from './runner-host.ts'
-import {LOOP_EXTENSION_RUNNER} from '@omne-harness-lite/loop-extension-runner/cordis'
-import {loopExtensionRunnerPlugin} from '@omne-harness-lite/loop-extension-runner-local/cordis'
-import { type LoopExtensionRunnerService, type RunnerDispatchRequest, type RunnerPassResult, type RunnerReplayFailure, type RunnerReplayRequest } from '@omne-harness-lite/loop-extension-runner'
-import {modelDefaultRetry} from '@omne-harness-lite/model-request-runtime-local/cordis'
+import { LOOP_EXTENSION_RUNNER } from '@omne-harness-lite/loop-extension-runner/cordis'
+import { loopExtensionRunnerPlugin } from '@omne-harness-lite/loop-extension-runner-local/cordis'
+import {
+  type LoopExtensionRunnerService,
+  type RunnerDispatchRequest,
+  type RunnerPassResult,
+  type RunnerReplayFailure,
+  type RunnerReplayRequest,
+} from '@omne-harness-lite/loop-extension-runner'
+import { modelDefaultRetry } from '@omne-harness-lite/model-request-runtime-local/cordis'
 import {
   createDemoRunnerServiceHost,
   readDemoRunnerFailure,
@@ -75,9 +142,12 @@ import {
   createRegistryInputReader,
   type RegistryInputReader,
 } from '@omne-harness-lite/evaluation-input-store/registry-inputs'
-import {evaluationInputStorePlugin} from '@omne-harness-lite/evaluation-input-store/cordis'
-import {evaluationInputMigrations, type InputSourceDependencies} from '@omne-harness-lite/evaluation-input-store'
-import {CURRENT_EVALUATION_INPUTS} from '@omne-harness-lite/asset-evaluation/cordis'
+import { evaluationInputStorePlugin } from '@omne-harness-lite/evaluation-input-store/cordis'
+import {
+  evaluationInputMigrations,
+  type InputSourceDependencies,
+} from '@omne-harness-lite/evaluation-input-store'
+import { CURRENT_EVALUATION_INPUTS } from '@omne-harness-lite/asset-evaluation/cordis'
 import { type CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import {
   publishLocalInputs,
@@ -85,10 +155,17 @@ import {
   type LocalPublication,
   type SessionRecipeInput,
 } from '@omne-harness-lite/evaluation-input-store/publication'
-import {createModelTransportService, type TransportOptions} from '@omne-harness-lite/pi-ai-transport'
-import {type ModelTransportService, type PlannedRequest, type RawResponse} from '@omne-harness-lite/model-request-runtime'
-import {modelContribution, piAiTransportPlugin} from '@omne-harness-lite/pi-ai-transport/cordis'
-import {MODEL_TRANSPORT} from '@omne-harness-lite/model-request-runtime/cordis'
+import {
+  createModelTransportService,
+  type TransportOptions,
+} from '@omne-harness-lite/pi-ai-transport'
+import {
+  type ModelTransportService,
+  type PlannedRequest,
+  type RawResponse,
+} from '@omne-harness-lite/model-request-runtime'
+import { modelContribution, piAiTransportPlugin } from '@omne-harness-lite/pi-ai-transport/cordis'
+import { MODEL_TRANSPORT } from '@omne-harness-lite/model-request-runtime/cordis'
 import { prepareModelRequestDeployment } from './model-request-deployment.ts'
 import type {
   DemoDiagnosticAssembly,
@@ -100,10 +177,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
-import {
-  LOGINS_SERVICE,
-  type LoginsService,
-} from '@omne-harness-lite/account-identity'
+import { LOGINS_SERVICE, type LoginsService } from '@omne-harness-lite/account-identity'
 import {
   REGISTRATION_SERVICE,
   type RegistrationService,
@@ -127,16 +201,36 @@ import {
   type ProfileRow,
   type CredentialLookup,
 } from '@omne-harness-lite/model-profile-directory'
-import {modelProfileDirectoryPlugin, localCredentialLookupPlugin} from '@omne-harness-lite/model-profile-directory-local/cordis'
-import {MODEL_CATALOG, CREDENTIAL_LOOKUP} from '@omne-harness-lite/model-profile-directory/cordis'
+import {
+  modelProfileDirectoryPlugin,
+  localCredentialLookupPlugin,
+} from '@omne-harness-lite/model-profile-directory-local/cordis'
+import { MODEL_CATALOG, CREDENTIAL_LOOKUP } from '@omne-harness-lite/model-profile-directory/cordis'
 import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads'
-import {sessionTenancyTablePlugin} from '@omne-harness-lite/session-tenancy-table/cordis'
-import {SESSION_TENANCY} from '@omne-harness-lite/session-tenancy/cordis'
+import { sessionTenancyTablePlugin } from '@omne-harness-lite/session-tenancy-table/cordis'
+import { SESSION_TENANCY } from '@omne-harness-lite/session-tenancy/cordis'
 import { type SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 import { openJsonlSessionLog, type JsonlSessionLog } from '@omne-harness-lite/session-log-jsonl'
 import { type ReadResult } from '@omne-harness-lite/session-log'
-import { sessionLogContribution, prepareSessionLogDeployment } from './session-log-owner.ts'
+import {
+  borrowedSessionLog,
+  SessionLogBacking,
+  prepareSessionLogDeployment,
+} from './session-log-owner.ts'
+import { createSessionLogBacking } from './log-backing.ts'
+import { AuthorizedLogOwner, createAuthorizedLogOwner } from './authorized-log-owner.ts'
+import { createSessionIngress, SessionIngressAuthority } from './session-ingress.ts'
+import { createSessionContextCreator } from './session-context-creation.ts'
+import { sessionIdentitySource } from './session-context-source.ts'
+import { runtimeContextLocal } from '@omne-harness-lite/runtime-context-local/cordis'
+import { createTrustedSessionAccessPlugin } from './trusted-session-access.ts'
+import type {
+  SessionAccess,
+  SessionScope,
+  AccessOperation,
+} from '@omne-harness-lite/session-tenancy'
 import { seedHoldingTenant } from '@omne-harness-lite/session-tenancy-table/seed'
+import { readSessionCatalogIn } from '@omne-harness-lite/session-tenancy-table/maintenance'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { MEMBERSHIPS_SERVICE } from '@omne-harness-lite/organization-governance/cordis'
 import { type MembershipsService } from '@omne-harness-lite/organization-governance'
@@ -180,7 +274,6 @@ import {
   type StageFiber,
   type StartupPhase,
 } from './types.ts'
-
 
 type LoginFace = Pick<LoginsService, 'issue' | 'exchange' | 'verify'>
 type MembershipFace = Pick<MembershipsService, 'currentTenant' | 'standing'>
@@ -281,7 +374,29 @@ function operationError(error: unknown, step: string): Error {
   return new AcceptanceOperationDefect(step)
 }
 
+/** Fixed demo grants; the tool function receives neither of these coordinator-held tokens. */
+export type ToolSessionBinding =
+  | {
+      readonly kind: 'bound'
+      readonly scope: SessionScope
+      readonly control: SessionAccess
+      readonly tool: SessionAccess
+    }
+  | {
+      readonly kind: 'rejected'
+      readonly reason: 'invalidInput' | 'notAuthorized' | 'unavailable' | 'ownerStopped'
+    }
+
 export interface AcceptanceApplication {
+  /** Creates the context-aware demo session. Existing sessions are never given default declarations. */
+  readonly createToolSession: (
+    actor: AuthenticatedActor,
+    session: unknown,
+  ) => Promise<ToolSessionBinding>
+  readonly bindToolSession: (
+    actor: AuthenticatedActor,
+    session: unknown,
+  ) => Promise<ToolSessionBinding>
   /** Explicit development host entry; storage and tenant scope remain application-owned. */
   runExtensionPass(
     actor: AuthenticatedActor,
@@ -476,6 +591,11 @@ export function createAcceptanceApplication(
   let storage: SqlStorage | undefined
   let replica: ModelReplicaCustodian | undefined
   let sessionLogOwner: JsonlSessionLog | undefined
+  let sessionLogBacking: ReturnType<typeof createSessionLogBacking> | undefined
+  let authorizedLogOwner: Awaited<ReturnType<typeof createAuthorizedLogOwner>> | undefined
+  let sessionIngress: ReturnType<typeof createSessionIngress> | undefined
+  let contextCreator: ReturnType<typeof createSessionContextCreator> | undefined
+  const trustedAccess = createTrustedSessionAccessPlugin()
   let runnerHost: ReturnType<typeof createDemoRunnerHost> | undefined
   let runnerService: LoopExtensionRunnerService | undefined
   let runnerServiceFiber: Fiber | undefined
@@ -750,6 +870,9 @@ export function createAcceptanceApplication(
     gateOpen = false
     accessRevocation.abort()
     runnerHost?.closeAdmission()
+    sessionLogBacking?.closeAdmission()
+    authorizedLogOwner?.closeAdmission()
+    contextCreator?.closeAdmission()
     record({ event: 'gate', phase: 'scenario', outcome: 'closed' })
     const attempt = (async () => {
       // Stop actual consumers before waiting admitted work: setup work cannot start a new call once closing.
@@ -808,6 +931,7 @@ export function createAcceptanceApplication(
         }
       }
       for (const borrow of sessionBorrows.values()) borrow.owner.release()
+      sessionIngress?.stop()
       runtimeActors.clear()
       coldStopped.clear()
       runtimeBindings.clear()
@@ -817,6 +941,9 @@ export function createAcceptanceApplication(
         | StageFiber
         | 'replica'
         | 'sessionLogOwner'
+        | 'sessionLogBorrows'
+        | 'authorizedLogOwner'
+        | 'contextCreator'
         | 'modelContributions'
         | 'assetRegistry'
         | 'registryHistory'
@@ -834,7 +961,18 @@ export function createAcceptanceApplication(
               'evaluationInputs',
             ] as const)
           : []),
-        ...(logStage ? (['sessionLogOwner', 'sessionLog'] as const) : []),
+        ...(logStage
+          ? ([
+              'contextCreator',
+              'sessionContextSource',
+              'runtimeContext',
+              'authorizedLogOwner',
+              'sessionAccess',
+              'sessionLogBorrows',
+              'sessionLogOwner',
+              'sessionLog',
+            ] as const)
+          : []),
         ...(preparationStage ? (['sessionTenancy'] as const) : []),
         'lookup',
         'directory',
@@ -854,7 +992,10 @@ export function createAcceptanceApplication(
             )
             if (retired.some(result => result.status === 'rejected'))
               throw new Error('model contribution cleanup failed')
-          } else if (name === 'sessionLogOwner') {
+          } else if (name === 'contextCreator') await contextCreator?.drain()
+          else if (name === 'authorizedLogOwner') await authorizedLogOwner?.drain()
+          else if (name === 'sessionLogBorrows') await sessionLogBacking?.drain()
+          else if (name === 'sessionLogOwner') {
             if (runnerHost !== undefined) {
               const result = await runnerHost.close()
               if (!result.complete) throw new Error('runner task recovery unfinished')
@@ -1034,9 +1175,15 @@ export function createAcceptanceApplication(
       assertNotClosing()
       await hooks?.afterConfirm?.()
       assertNotClosing()
-      new DirectoryDiagnostics(context, { record(event) {
-        record({ event: 'directory', phase: event.operation, outcome: event.outcome ?? event.phase })
-      } })
+      new DirectoryDiagnostics(context, {
+        record(event) {
+          record({
+            event: 'directory',
+            phase: event.operation,
+            outcome: event.outcome ?? event.phase,
+          })
+        },
+      })
       await load('directory', modelProfileDirectoryPlugin, prepared.directory)
       phase = 'replica'
       category = 'failed'
@@ -1089,8 +1236,10 @@ export function createAcceptanceApplication(
             }),
         }
         sessionLogOwner = await openJsonlSessionLog(ownedLogOptions)
+        sessionLogBacking = createSessionLogBacking(sessionLogOwner)
+        new SessionLogBacking(context, sessionLogBacking.operations)
         runnerHost = createDemoRunnerHost(sessionLogOwner, ownedLogOptions)
-        await load('sessionLog', sessionLogContribution(sessionLogOwner), {})
+        await load('sessionLog', borrowedSessionLog, {})
       }
       const loginValue: unknown = context.get(LOGINS_SERVICE),
         membershipValue: unknown = context.get(MEMBERSHIPS_SERVICE),
@@ -1110,6 +1259,53 @@ export function createAcceptanceApplication(
       catalog = catalogValue
       lookup = lookupValue
       registration = registrationValue
+      if (logStage) {
+        sessionIngress = createSessionIngress(async (actor, scope) => {
+          if (closing || sessionTenancy === undefined) return 'unavailable'
+          const checked = await checkActor(actor)
+          if (!('account' in checked)) return 'notAuthorized'
+          if (!tenantIdEquals(checked.tenant, scope.tenant)) return 'notAuthorized'
+          const held = await sessionTenancy.holdingTenant(scope.session)
+          if ('failure' in held)
+            return held.failure === 'unavailable' ? 'unavailable' : 'notAuthorized'
+          return tenantIdEquals(held.tenant, scope.tenant) ? 'authorized' : 'notAuthorized'
+        })
+        new SessionIngressAuthority(context, sessionIngress.operations)
+        await load('sessionAccess', trustedAccess.plugin, {})
+        if (!sessionLogBacking || !sessionTenancy || !logDeployment)
+          throw new Error('session log owner dependencies absent')
+        const catalogStorage = storage
+        const owner = await createAuthorizedLogOwner({
+          dir: logDeployment.dir,
+          backing: sessionLogBacking.operations,
+          access: context.sessionAccess,
+          tenancy: sessionTenancy,
+          catalog: () => catalogStorage.read(tx => readSessionCatalogIn(tx)),
+        })
+        authorizedLogOwner = owner
+        context.effect(() => () => owner.drain())
+        new AuthorizedLogOwner(context, owner.operations)
+        // No creation or user write is admitted until every existing physical prefix is checked.
+        const owned = await owner.operations.enumerate(owner.recovery)
+        if (owned.kind !== 'sessions') throw new Error('session log catalog unavailable')
+        for (const { scope } of owned.sessions) {
+          const prefix = await owner.operations.readPrefix(owner.recovery, scope)
+          if (prefix.kind !== 'prefix') throw new Error('session log prefix recovery unavailable')
+        }
+        await load('runtimeContext', runtimeContextLocal, {})
+        await load('sessionContextSource', sessionIdentitySource, {})
+        const creator = createSessionContextCreator({
+          backing: sessionLogBacking.operations,
+          tenancy: sessionTenancy,
+          clock,
+          createRow: scope =>
+            catalogStorage.atomic(unit =>
+              unit.mutate(tx => seedHoldingTenant(tx, scope.session, scope.tenant)),
+            ),
+        })
+        contextCreator = creator
+        context.effect(() => () => creator.drain())
+      }
       phase = 'admission'
       assertNotClosing()
       if (!allActive(stage === 'modelRequest' ? SESSION_LOG_FIBERS : requiredFibers))
@@ -1162,6 +1358,102 @@ export function createAcceptanceApplication(
       loginState,
       tenant: Object.freeze({ ...current.ok }),
     })
+  }
+  async function bindToolSession(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ToolSessionBinding> {
+    if (!logStage || !admit() || !sessionIngress)
+      return { kind: 'rejected', reason: 'ownerStopped' }
+    const parsed = parseOpaqueIdentifier(session, 'SessionRef'),
+      tenant = parseTenantId(actor?.tenant)
+    if (!isOk(parsed) || !isOk(tenant)) return { kind: 'rejected', reason: 'invalidInput' }
+    const scope = Object.freeze({ session: parsed.ok, tenant: Object.freeze(tenant.ok) })
+    const entered: string[] = []
+    const grants = [
+      {
+        consumer: 'coordinator' as const,
+        operations: [
+          'run.advance',
+          'session.log.coordinate',
+          'context.read',
+          'context.configure',
+          'context.publish',
+        ] satisfies AccessOperation[],
+      },
+      {
+        consumer: 'tool' as const,
+        operations: [
+          'tool.submit',
+          'tool.read',
+          'tool.stop',
+          'tool.answer',
+          'context.read',
+          'environment.describe',
+          'environment.acquire',
+          'result.read',
+        ] satisfies AccessOperation[],
+      },
+    ]
+    const accesses: SessionAccess[] = []
+    let completed = false
+    try {
+      for (const grant of grants) {
+        const ingress = await sessionIngress.enter(
+          actor,
+          scope,
+          grant.consumer,
+          ['session'],
+          grant.operations,
+        )
+        if (ingress.kind !== 'entered') return ingress
+        entered.push(ingress.identity.binding)
+        const issuer = trustedAccess.currentIssuer(ingress.identity)
+        if ('unavailable' in issuer) return { kind: 'rejected', reason: 'unavailable' }
+        const issued = await issuer.issue({ ...ingress.identity, operations: grant.operations })
+        if (issued.kind !== 'issued') return issued
+        accesses.push(issued.access)
+      }
+      const [control, tool] = accesses
+      if (!control || !tool) return { kind: 'rejected', reason: 'unavailable' }
+      const reader = await context.runtimeContext.bind(tool, scope, 'tool')
+      if (reader.kind !== 'bound') return { kind: 'rejected', reason: 'unavailable' }
+      const content = await reader.reader.read(['session'])
+      if (content.kind !== 'values' || content.values.length !== 1)
+        return { kind: 'rejected', reason: 'unavailable' }
+      const value = content.values[0]?.value
+      if (!object(value) || value.session !== scope.session)
+        return { kind: 'rejected', reason: 'unavailable' }
+      const actualTenant = parseTenantId(value.tenant)
+      if (!isOk(actualTenant) || !tenantIdEquals(actualTenant.ok, scope.tenant))
+        return { kind: 'rejected', reason: 'unavailable' }
+      completed = true
+      return { kind: 'bound', scope, control, tool }
+    } catch {
+      return { kind: 'rejected', reason: 'unavailable' }
+    } finally {
+      if (!completed) for (const binding of entered) sessionIngress.revoke(binding)
+    }
+  }
+  async function createToolSession(
+    actor: AuthenticatedActor,
+    session: unknown,
+  ): Promise<ToolSessionBinding> {
+    if (!logStage || !admit() || !contextCreator)
+      return { kind: 'rejected', reason: 'ownerStopped' }
+    const parsed = parseOpaqueIdentifier(session, 'SessionRef')
+    if (!isOk(parsed) || !validateMessage('SessionRef', parsed.ok).valid)
+      return { kind: 'rejected', reason: 'invalidInput' }
+    try {
+      const checked = await checkActor(actor)
+      if (!('account' in checked)) return { kind: 'rejected', reason: 'notAuthorized' }
+      const scope = { session: parsed.ok, tenant: checked.tenant }
+      const prepared = await contextCreator.prepare(scope)
+      if (prepared.kind === 'rejected') return prepared
+      return await bindToolSession(checked, parsed.ok)
+    } catch {
+      return { kind: 'rejected', reason: 'unavailable' }
+    }
   }
   function activateModelRequest(
     actor: AuthenticatedActor,
@@ -1309,8 +1601,11 @@ export function createAcceptanceApplication(
           })
           new TransportSupport(context, {
             retirementSchedule: transportConfiguration.retirement.schedule,
-            ...(transportConfiguration.imagePreparation ? { imageCodec: transportConfiguration.imagePreparation.codec } : {}),
-            onDiagnostic, registryDiagnostics,
+            ...(transportConfiguration.imagePreparation
+              ? { imageCodec: transportConfiguration.imagePreparation.codec }
+              : {}),
+            onDiagnostic,
+            registryDiagnostics,
           })
           new InputMeters(context, transportConfiguration.inputMeters)
           let committed = false
@@ -1318,20 +1613,32 @@ export function createAcceptanceApplication(
             if (options.developmentTransport === undefined) {
               await load('modelTransport', piAiTransportPlugin, {
                 policy: transportConfiguration.policy,
-                ...(transportConfiguration.imagePreparation ? { imagePreparation: { policy: transportConfiguration.imagePreparation.policy } } : {}),
-                retirement: { waitMilliseconds: transportConfiguration.retirement.waitMilliseconds, force: transportConfiguration.retirement.force },
+                ...(transportConfiguration.imagePreparation
+                  ? { imagePreparation: { policy: transportConfiguration.imagePreparation.policy } }
+                  : {}),
+                retirement: {
+                  waitMilliseconds: transportConfiguration.retirement.waitMilliseconds,
+                  force: transportConfiguration.retirement.force,
+                },
               })
             } else {
               const developmentTransport = options.developmentTransport
               const ca = developmentTransport.tls?.ca
               const rawCa = ca === undefined ? [] : Array.isArray(ca) ? ca : [ca]
-              const certificates = Object.freeze(rawCa.map(value => typeof value === 'string' ? value : value.toString('utf8')))
+              const certificates = Object.freeze(
+                rawCa.map(value => (typeof value === 'string' ? value : value.toString('utf8'))),
+              )
               new TransportTls(context, { readCa: () => certificates })
               await load('modelTransport', controlledModelTransport, {
                 baseUrl: developmentTransport.baseUrl ?? 'https://openrouter.ai/api/v1/',
                 policy: transportConfiguration.policy,
-                ...(transportConfiguration.imagePreparation ? { imagePreparation: { policy: transportConfiguration.imagePreparation.policy } } : {}),
-                retirement: { waitMilliseconds: transportConfiguration.retirement.waitMilliseconds, force: transportConfiguration.retirement.force },
+                ...(transportConfiguration.imagePreparation
+                  ? { imagePreparation: { policy: transportConfiguration.imagePreparation.policy } }
+                  : {}),
+                retirement: {
+                  waitMilliseconds: transportConfiguration.retirement.waitMilliseconds,
+                  force: transportConfiguration.retirement.force,
+                },
               })
             }
             const provided: unknown = context.get(MODEL_TRANSPORT)
@@ -1363,14 +1670,19 @@ export function createAcceptanceApplication(
             )
             if (meters.length !== 1 || meters[0] === undefined)
               throw new Error('one exact input meter per model contribution required')
-            const fiber = context.plugin(
-              modelContribution,
-              {
-                definition,
-                meter: { modelId: meters[0].modelId, definitionRevision: meters[0].definitionRevision, implementation: meters[0].implementation, provider: meters[0].provider },
-                retirement: { waitMilliseconds: transportConfiguration.retirement.waitMilliseconds, force: transportConfiguration.retirement.force },
+            const fiber = context.plugin(modelContribution, {
+              definition,
+              meter: {
+                modelId: meters[0].modelId,
+                definitionRevision: meters[0].definitionRevision,
+                implementation: meters[0].implementation,
+                provider: meters[0].provider,
               },
-            )
+              retirement: {
+                waitMilliseconds: transportConfiguration.retirement.waitMilliseconds,
+                force: transportConfiguration.retirement.force,
+              },
+            })
             modelContributions.push(fiber)
             await hooks?.modelContributionCreated?.(definition, fiber)
             await fiber
@@ -1643,7 +1955,9 @@ export function createAcceptanceApplication(
           if (!runnerServiceFace(runnerValue)) throw new Error('runner service face absent')
           runnerService = runnerValue
           new RetrySample(context, { sample: deployment.defaultRetry.sample })
-          defaultRetryFiber = context.plugin(modelDefaultRetry, { policy: deployment.defaultRetry.policy })
+          defaultRetryFiber = context.plugin(modelDefaultRetry, {
+            policy: deployment.defaultRetry.policy,
+          })
           await defaultRetryFiber
           if (defaultRetryFiber.state !== FIBER_STATE.ACTIVE)
             throw new Error('default retry contribution not active')
@@ -2677,6 +2991,14 @@ export function createAcceptanceApplication(
   }
   return {
     ready,
+    createToolSession: (actor, session) =>
+      closing
+        ? Promise.resolve({ kind: 'rejected', reason: 'ownerStopped' })
+        : trackSessionInput(session, () => createToolSession(actor, session)),
+    bindToolSession: (actor, session) =>
+      !admit()
+        ? Promise.resolve({ kind: 'rejected', reason: 'ownerStopped' })
+        : trackSessionInput(session, () => bindToolSession(actor, session)),
     dispatchRunner(actor, session, request, signal) {
       const service = runnerService
       if (stage !== 'modelRequest' || !admit() || service === undefined)

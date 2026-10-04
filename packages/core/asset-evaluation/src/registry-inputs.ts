@@ -1,11 +1,10 @@
-import { type EvaluationResult, type EvaluationRootSource, type NonConnectorEvaluationInput } from '@omne-harness-lite/asset-evaluation'
+import type {
+  EvaluationResult,
+  EvaluationRootSource,
+  NonConnectorEvaluationInput,
+} from './types.ts'
 
 import { type TenantId } from '@omne-harness-lite/identity-values'
-
-
-
-
-
 
 export interface RegistryInputRequest {
   readonly session: string

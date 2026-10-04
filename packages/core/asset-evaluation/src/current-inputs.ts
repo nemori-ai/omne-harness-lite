@@ -1,10 +1,4 @@
-
-import type { NonConnectorEvaluationInput } from '@omne-harness-lite/asset-evaluation'
-
-
-
-
-
+import type { NonConnectorEvaluationInput } from './types.ts'
 
 export type CurrentInputResult =
   | { readonly input: NonConnectorEvaluationInput }

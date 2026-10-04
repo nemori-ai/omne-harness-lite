@@ -1,10 +1,12 @@
-# `@omne-harness-lite/loop-extension-runner`
+# `@omne-harness-lite/loop-extension-runner-local`
 
 本包公开一个不依赖宿主的拓展件经过执行函数，以及 `runner/5` 结论纯构件。`runPass` 顺序执行拓展件链，每件结论确认写入后才推进；它通过受控等待来源接续耐久 ask，并返回完整结论历史与生效结果。纯构件仍负责结论编解码、经过键、重试结论和效果合成。
 
 本包同时公开独立函数与 Cordis 服务插件。宿主通过类型化端口提供已授权作用域、必要时的真实 Run、完整日志前缀、有序定义、拓展件执行、等待与卡片事实，以及能力判定。`runPass` 不创建 Run，也不决定模型能否重试发送。`readRunnerRetryConclusions` 检查条目和稠密位置，但单凭数组不能证明读取权限。
 
 采用范围见 [D-106](../../../.meta_harness/design/record/decisions/runner-current-pure-provider-adoption/decision.md)，依据 [Runner5](../../../.meta_harness/design/spec/capabilities/loop-extension-runner/v5/contract.md)、[LC6](../../../.meta_harness/design/spec/data/loop-extension/v6/contract.md) 和继承 [v5](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v5-current-design.md) 的 [v6 实现映射](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v6-run-pass-design.md)，服务接线沿已采用的 [v7](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v7-model-service-design.md)。[验证义务](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/verification.md)区分公共函数层与尚待接线的正式宿主。
+
+提供者根入口拥有独立执行函数；共用类型、纯 codec 和投影归 `@omne-harness-lite/loop-extension-runner`。插件从 `@omne-harness-lite/loop-extension-runner-local/cordis` 导出。
 
 ## 公开接口
 
@@ -82,7 +84,7 @@ console.log(result.effect.kind) // proceed
 宿主已将模型 runtime 的 `ModelFailureSource` 与本 runner 绑定配对后，可原样转交实际 execution。无 Run 的 execution 在此拒绝；另一 Run 由来源自身拒绝。
 
 ```ts
-import type { ModelFailureSource } from '@omne-harness-lite/model-request-runtime-local'
+import type {ModelFailureSource} from '@omne-harness-lite/model-request-runtime-local'
 import type { RunnerLogBinding, RunnerPorts } from '@omne-harness-lite/loop-extension-runner'
 
 export function failurePort(
@@ -129,24 +131,37 @@ export function failurePort(
 
 `RunnerServiceHost` 将 `acquireDispatch` 和 `acquireReplay` 分开，后者只能
 取得读取授权。这些装配端口由宿主持有，不是请求数据中的证明。`loopExtensionRunnerPlugin` 配置为
-`{host: RunnerHostFactory}`，仅必需 `sessionLog`；同一 fiber 提供
-`loopExtensionRunner` 和 `loopExtensionImplementations`。`dispatch(request, signal)`
+`{}`，必需注入定义服务 `sessionLog`、`runnerHost` 和 `sessionAccess`；同一 fiber 提供
+`loopExtensionRunner`、`loopExtensionImplementations` 和只读 `toolAdmissionPassSource`。`dispatch(request, signal)`
 消费真实链和 SL3 适配器。`replay(request)` 没有当前 attempt，不求值贡献、不调用
 守卫、句柄、时钟或提醒写入。共享日志宿主跨插件替换保留 unknown 责任；runner
 卸载等待实际调用停止，但不关闭借用的日志与历史 reader。
 
-编译后运行 `node examples/service-lifecycle.mjs`，可观察两个真实 Cordis 服务面，
+编译后运行 `node examples/service-lifecycle.mjs`，可观察实际 Cordis 服务面，
 以及未提供授权清单作用域时明确返回 unavailable。示例使用临时真实 JSONL 日志，
 由应用在撤除 runner 后关闭。
 
 本服务增量接入模型路径的 `before_model_call`、`after_model_call`、
-`before_persist_message` 和 `after_persist_message`。依赖尚未提供的动作／循环
+`before_persist_message` 和 `after_persist_message`。其他依赖尚未提供的循环
 环境的已知位置返回 `unavailable`，不会误报为未知位置。请求中的 `manifest`
 是已授权的会话指认，另携 LC6 定位主体与 `anchor`；dispatch 按需再带
 `run`／`attempt`。真实 Run、等待和环境事实仍由宿主供给，服务不创建这些 owner，
 也不把缺席事实解释为授权。
 
-`createLoopExtensionRunner({log, host, isActive})` 不启动插件，直接返回同一服务
-装配的执行面、登记面、`closeAdmission()` 与 `drain()`。关闭实例不会等待宿主
+`createLoopExtensionRunner({log, host, access, isActive})` 不启动插件，直接返回同一服务
+装配的执行面、登记面、经过读口、`closeAdmission()` 与 `drain()`。关闭实例不会等待宿主
 持有的 unknown 日志任务：宿主必须先停止物理写者、合法准入重开、按原 owner
 绑定对账，再 drain。
+
+私有经过源固定访问对象、scope、输入数据、宿主寿命与官方贡献代。每次读取先核当前
+run.advance，再查经过。
+
+`before_action` 使用 `RunnerActionRequest` 整批重载。宿主提供实际模型完整调用集、
+adoption/report、原稳定锚和已授权来源。各项前链先落结论，官方候选汇合后只调用一次
+`registerAdmission` 登记的贡献。提前否决和等待不会阻塞其他项到达会合；任何 asked
+都会扣住全批 admissions。已最终项从真实历史接续，不重新准入。单项 `replay` 可以
+读取动作历史；旧单项动作 dispatch 已移除。行为承诺归 [定义包薄规格](../../core/loop-extension-runner/SPEC.md)。
+
+当前有真实 SQL 清单、JSONL 和服务入口的组合证据。模型来源、访问和判断仍使用受控
+测试端口；demo 尚未提供实际动作宿主，正式等待答复、整批完成提交、持久 token 核验
+和工具 runtime 闭环尚未交付。

@@ -1,3 +1,5 @@
+import { assertContentSchemaTransition } from '../../content-blocks/tests/schema-transition.ts'
+import { assertToolSchemaTransition } from '../../tool-definition/tests/schema-transition.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
@@ -60,10 +62,14 @@ describe('M8-V1 exact public-definition resource closure', () => {
       const canonical = readFileSync(
         new URL(`../../../../.meta_harness/design/spec/data/${relative}`, import.meta.url),
       )
-      expect(bytes.equals(canonical)).toBe(true)
-      expect(createHash('sha256').update(bytes).digest('hex')).toBe(
-        createHash('sha256').update(canonical).digest('hex'),
-      )
+      if (publicPath === 'content-blocks/schema') assertContentSchemaTransition(bytes, canonical)
+      else if (publicPath === 'tool-definition/schema') assertToolSchemaTransition(bytes, canonical)
+      else {
+        expect(bytes.equals(canonical)).toBe(true)
+        expect(createHash('sha256').update(bytes).digest('hex')).toBe(
+          createHash('sha256').update(canonical).digest('hex'),
+        )
+      }
     })
     it(`removing ${resource.$id} fails with that exact missing URI`, () => {
       let failure: unknown

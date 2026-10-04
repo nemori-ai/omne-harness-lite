@@ -42,7 +42,10 @@
     "@omne-harness-lite/model-request-runtime": "workspace:*",
     "@omne-harness-lite/loop-extension-runner": "workspace:*",
     "@omne-harness-lite/session-log": "workspace:*",
-    "@omne-harness-lite/assembly-manifest": "workspace:*"
+    "@omne-harness-lite/assembly-manifest": "workspace:*",
+    "@omne-harness-lite/tool-admission": "workspace:*",
+    "@omne-harness-lite/session-tenancy": "workspace:*",
+    "@omne-harness-lite/asset-registry": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/account-identity": "workspace:*",

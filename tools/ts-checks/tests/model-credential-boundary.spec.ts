@@ -8,15 +8,16 @@ import { modelCredentialBoundary } from '../src/index.ts'
 import { collectRepositorySources, REPOSITORY_RULES } from '../src/repository.ts'
 
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
-const p1r = 'packages/model/model-profile-directory-local/src/plugin.ts'
+const p1r = 'packages/model/model-profile-directory-local/src/cordis.ts'
 const ccl = 'packages/infra/credential-custodian-local/src/model-replica.ts'
-const imports = `import { createCredentialBindingReader as makeReader } from '@omne-harness-lite/model-profile-directory/tx-reads';
+const imports = `import { createCredentialBindingReader as makeReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';
 import { createModelReplicaCustodian as makeReplica, type ModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica';
-import { localCredentialLookupPlugin as lookup } from '@omne-harness-lite/model-profile-directory/plugin';`
+import { localCredentialLookupPlugin as lookup } from '@omne-harness-lite/model-profile-directory-local/cordis';
+import { ReplicaReader } from './assembly-inputs.ts';`
 const app = (body: string) => `${imports}
 export function createAcceptanceApplication() {
  let replica: ModelReplicaCustodian | undefined;
- async function start() { const reader = makeReader(storage); replica = await makeReplica({ readCredentialBindingIn: reader }); ctx.plugin(lookup, { readBoundReplicaIn: replica.readBoundReplicaIn }); }
+ async function start() { const reader = makeReader(storage); replica = await makeReplica({ readCredentialBindingIn: reader }); new ReplicaReader(ctx, { readIn: replica.readBoundReplicaIn }); ctx.plugin(lookup, {}); }
  ${body}
 }`
 const check = (text: string, path = bootstrap) => modelCredentialBoundary.check([{ path, text }])
@@ -31,17 +32,17 @@ test.each([
   'model-invocation-minimal-demo/src/bootstrap.ts',
 ])('app-root and repository paths %s', path => expect(check(valid, path)).toEqual([]))
 test('namespace, literal computed members, destructuring and ordinary aliases keep the same permissions', () => {
-  const text = `import * as d from '@omne-harness-lite/model-profile-directory/tx-reads'; import * as c from '@omne-harness-lite/credential-custodian-local/model-replica'; import * as plugins from '@omne-harness-lite/model-profile-directory/plugin';
+  const text = `import * as d from '@omne-harness-lite/model-profile-directory-local/tx-reads'; import * as c from '@omne-harness-lite/credential-custodian-local/model-replica'; import * as plugins from '@omne-harness-lite/model-profile-directory-local/cordis'; import * as support from './assembly-inputs.ts';
  export function createAcceptanceApplication() {
  let replica;
- async function start() { const { ['createCredentialBindingReader']: f } = d; const alias = f; const reader = alias(storage); const reader2 = reader; const g = c['createModelReplicaCustodian']; replica = await g({readCredentialBindingIn: reader2}); const { readBoundReplicaIn: borrow } = replica; const config = {readBoundReplicaIn: borrow}; ctx.plugin(plugins.localCredentialLookupPlugin, config); }
+ async function start() { const { ['createCredentialBindingReader']: f } = d; const alias = f; const reader = alias(storage); const reader2 = reader; const g = c['createModelReplicaCustodian']; replica = await g({readCredentialBindingIn: reader2}); const { readBoundReplicaIn: borrow } = replica; const operations = {readIn: borrow}; new support.ReplicaReader(ctx, operations); ctx.plugin(plugins.localCredentialLookupPlugin, {}); }
  function publishCredential() { const {storeBoundReplica: save} = replica; return save(input); }
  async function closeResources() { const end = replica['close']; await end(); }
  }`
   expect(check(text)).toEqual([])
 })
-test('local lookup owns reader execution and the borrowed read, including its apply configuration', () => {
-  const text = `import {createCredentialBindingReader} from './tx-reads.ts'; export const localCredentialLookupPlugin = definePlugin({ async apply(ctx, config) { const reader = createCredentialBindingReader(storage); await reader(unit, tenant); await config.readBoundReplicaIn(unit, tenant, ref); } });`
+test('local lookup owns reader execution and the borrowed read, through its injected reader service', () => {
+  const text = `import {createCredentialBindingReader} from './tx-reads.ts'; export const localCredentialLookupPlugin = definePlugin({ async apply(ctx, config) { const reader = createCredentialBindingReader(storage); await reader(unit, tenant); await ctx.boundCredentialReplicaReader.readIn(unit, tenant, ref); } });`
   expect(check(text, p1r)).toEqual([])
 })
 test('CCL receives a reader dependency and may execute it without reverse imports', () => {
@@ -106,8 +107,8 @@ test.each([
   [
     'close transfer to borrower',
     valid.replace(
-      '{ readBoundReplicaIn: replica.readBoundReplicaIn }',
-      '{ readBoundReplicaIn: replica.readBoundReplicaIn, close: replica.close }',
+      '{ readIn: replica.readBoundReplicaIn }',
+      '{ readIn: replica.readBoundReplicaIn, close: replica.close }',
     ),
   ],
   [
@@ -116,7 +117,7 @@ test.each([
   ],
   [
     'read closure passed to unknown loader',
-    valid.replace('ctx.plugin(lookup,', 'unknownLoader(lookup,'),
+    valid.replace('new ReplicaReader(ctx,', 'unknownLoader(ctx,'),
   ],
   [
     'literal computed reader execution',
@@ -142,17 +143,17 @@ test.each([
   ['exported alias', `${imports} export const readerFactory = makeReader;`],
   [
     'namespace reexport',
-    `import * as ns from '@omne-harness-lite/model-profile-directory/tx-reads'; export { ns };`,
+    `import * as ns from '@omne-harness-lite/model-profile-directory-local/tx-reads'; export { ns };`,
   ],
   [
     'direct reexport',
-    `export {createCredentialBindingReader} from '@omne-harness-lite/model-profile-directory/tx-reads';`,
+    `export {createCredentialBindingReader} from '@omne-harness-lite/model-profile-directory-local/tx-reads';`,
   ],
   [
     'dynamic import',
-    `export function createAcceptanceApplication() { async function start() { const d = await import('@omne-harness-lite/model-profile-directory/tx-reads'); d.createCredentialBindingReader(storage); } }`,
+    `export function createAcceptanceApplication() { async function start() { const d = await import('@omne-harness-lite/model-profile-directory-local/tx-reads'); d.createCredentialBindingReader(storage); } }`,
   ],
-  ['require', `const d = require('@omne-harness-lite/model-profile-directory/tx-reads');`],
+  ['require', `const d = require('@omne-harness-lite/model-profile-directory-local/tx-reads');`],
   [
     'removed semantic outer function',
     valid.replace('createAcceptanceApplication', 'otherApplication'),
@@ -163,7 +164,7 @@ test.each([
 test.each([
   `import { createModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica'; const replica=createModelReplicaCustodian(config);`,
   `import type { ModelReplicaCustodian as Replica } from '@omne-harness-lite/credential-custodian-local/model-replica'; const replica: Replica = supplied; replica.close();`,
-  `import type {ReadBoundReplicaIn} from '@omne-harness-lite/model-profile-directory/tx-reads'; const read: ReadBoundReplicaIn = supplied; read(unit,tenant,ref);`,
+  `import type {ReadBoundReplicaIn} from '@omne-harness-lite/model-profile-directory-local/tx-reads'; const read: ReadBoundReplicaIn = supplied; read(unit,tenant,ref);`,
 ])('ordinary product modules cannot import or consume restricted values', text =>
   expect(check(text, 'packages/model/model-request-runtime-local/src/runtime.ts')).not.toEqual([]),
 )
@@ -174,10 +175,10 @@ test.each([
   expect(check(text, p1r)).not.toEqual([]),
 )
 test.each([
-  `import {createCredentialBindingReader} from '@omne-harness-lite/model-profile-directory/tx-reads';`,
-  `import * as renamed from '@omne-harness-lite/model-profile-directory/tx-reads';`,
-  `const reader = await import('@omne-harness-lite/model-profile-directory/tx-reads');`,
-  `const reader = require('@omne-harness-lite/model-profile-directory/tx-reads');`,
+  `import {createCredentialBindingReader} from '@omne-harness-lite/model-profile-directory-local/tx-reads';`,
+  `import * as renamed from '@omne-harness-lite/model-profile-directory-local/tx-reads';`,
+  `const reader = await import('@omne-harness-lite/model-profile-directory-local/tx-reads');`,
+  `const reader = require('@omne-harness-lite/model-profile-directory-local/tx-reads');`,
 ])('CCL cannot reverse import directory', text => expect(check(text, ccl)).not.toEqual([]))
 test('TS-resolved aliases do not evade forbidden imports', () => {
   expect(
@@ -334,8 +335,8 @@ test('CCL cannot lose a frozen options alias before unknown transfer', () =>
 
 test.each([
   "import type {ModelCatalog} from '@omne-harness-lite/model-profile-directory';",
-  "import {localCredentialLookupPlugin} from '@omne-harness-lite/model-profile-directory/plugin';",
-  "import {readBinding} from '../../../model/model-profile-directory/src/records.ts';",
+  "import {localCredentialLookupPlugin} from '@omne-harness-lite/model-profile-directory-local/cordis';",
+  "import {readBinding} from '../../../model/model-profile-directory-local/src/records.ts';",
 ])('CCL has no reverse directory package dependency, including root/type/private modules', text =>
   expect(check(text, ccl)).not.toEqual([]),
 )
@@ -414,7 +415,7 @@ test('namespace construction and a typed local arrow parameter cannot hide reade
   const text = valid
     .replace(
       imports,
-      `import * as binding from '@omne-harness-lite/model-profile-directory/tx-reads';\nimport type { ReadCredentialBindingIn as BindingRead } from '@omne-harness-lite/model-profile-directory/tx-reads';\n${imports}`,
+      `import * as binding from '@omne-harness-lite/model-profile-directory-local/tx-reads';\nimport type { ReadCredentialBindingIn as BindingRead } from '@omne-harness-lite/model-profile-directory-local/tx-reads';\n${imports}`,
     )
     .replace('makeReader(storage)', "binding['createCredentialBindingReader'](storage)")
     .replace(
@@ -502,7 +503,10 @@ test('root configured aliases have collector and actual built CLI parity', () =>
       join(directory, 'tx-reads.ts'),
       'export const createCredentialBindingReader = () => () => undefined;',
     )
-    const allowed = valid.replace('@omne-harness-lite/model-profile-directory/tx-reads', '@binding')
+    const allowed = valid.replace(
+      '@omne-harness-lite/model-profile-directory-local/tx-reads',
+      '@binding',
+    )
     const forbidden = allowed.replace(
       'ctx.plugin(lookup,',
       '\nawait reader(unit, tenant); // HERE\nctx.plugin(lookup,',
@@ -582,4 +586,71 @@ test('retired app and unrelated example cannot own model credential factories', 
       ]),
     ).not.toEqual([])
   }
+})
+
+test('application adapter can forward only its read method', () => {
+  const source = `import { BoundCredentialReplicaReaderService } from '@omne-harness-lite/model-profile-directory/cordis';
+import type { BoundCredentialReplicaReader as Operations } from '@omne-harness-lite/model-profile-directory';
+export class ReplicaReader extends BoundCredentialReplicaReaderService {
+ constructor(ctx: Context, private readonly operations: Operations) { super(ctx) }
+ readIn(...args) { return this.operations.readIn(...args) }
+}`
+  const path = 'examples/model-invocation-minimal-demo/src/assembly-inputs.ts'
+  expect(check(source, path)).toEqual([])
+  expect(check(source.replace('readIn(...args) {', 'wrong(...args) {'), path)).not.toEqual([])
+  expect(
+    check(source.replace('return this.operations.readIn(...args)', 'return this.operations'), path),
+  ).not.toEqual([])
+  expect(
+    check(
+      source.replace('return this.operations.readIn(...args)', 'consume(this.operations.readIn)'),
+      path,
+    ),
+  ).not.toEqual([])
+})
+
+test.each([
+  'const port = ctx.boundCredentialReplicaReader; port.readIn(unit, tenant, ref);',
+  "const port = ctx.get('boundCredentialReplicaReader'); port.readIn(unit, tenant, ref);",
+  "const port = ctx.get(READER); port['readIn'](unit, tenant, ref);",
+])('reader service retrieval does not grant execution: %s', body => {
+  const imports = `import type {Context} from '@deepseek-ai/cordis'; import {BOUND_CREDENTIAL_REPLICA_READER as READER} from '@omne-harness-lite/model-profile-directory/cordis';`
+  expect(check(`${imports} function wrong(ctx: Context) { ${body} }`)).not.toEqual([])
+  expect(
+    check(
+      `${imports} export const localCredentialLookupPlugin = {apply(ctx: Context) { ${body} }}`,
+      p1r,
+    ),
+  ).toEqual([])
+})
+
+test('read service cannot transfer into plugin config, wrong constructors or another scope', () => {
+  for (const text of [
+    valid.replace('new ReplicaReader(ctx,', 'new OtherService(ctx,'),
+    valid.replace(
+      'new ReplicaReader(ctx, { readIn: replica.readBoundReplicaIn });',
+      'ctx.plugin(lookup, {readBoundReplicaIn: replica.readBoundReplicaIn});',
+    ),
+    valid.replace(
+      'new ReplicaReader(ctx, { readIn: replica.readBoundReplicaIn });',
+      'new ReplicaReader(ctx, {other: replica.readBoundReplicaIn});',
+    ),
+    `${imports} function outside() { new ReplicaReader(ctx, {}); }`,
+    "export {ReplicaReader} from './assembly-inputs.ts';",
+  ])
+    expect(check(text)).not.toEqual([])
+})
+
+test('custodian may import its exact pure read type but no provider or other directory face', () => {
+  const path = 'packages/infra/credential-custodian-local/src/types.ts'
+  const allowed =
+    "import type {ReadBoundReplicaIn} from '@omne-harness-lite/model-profile-directory';"
+  expect(check(allowed, path)).toEqual([])
+  for (const statement of [
+    "import {ReadBoundReplicaIn} from '@omne-harness-lite/model-profile-directory';",
+    "import type {ModelCatalog} from '@omne-harness-lite/model-profile-directory';",
+    "import {createCredentialBindingReader} from '@omne-harness-lite/model-profile-directory-local/tx-reads';",
+    "import type {ReadBoundReplicaIn} from '@omne-harness-lite/model-profile-directory-local';",
+  ])
+    expect(check(`${allowed}\n${statement}`, path)).not.toEqual([])
 })

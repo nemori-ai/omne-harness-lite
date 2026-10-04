@@ -1,8 +1,8 @@
-# `@omne-harness-lite/loop-extension-runner`
+# `@omne-harness-lite/loop-extension-runner-local`
 
 Public, host-independent execution of one loop-extension pass, plus the pure `runner/5` conclusion building blocks. `runPass` executes an ordered chain, commits each conclusion before advancing, resumes a durable ask through an explicitly controlled waiting source, and returns the complete conclusion history and effective result. The package also derives pass keys, reads effective retry conclusions, and reconstructs effects.
 
-The package exposes standalone functions and a Cordis service plugin. The host supplies authenticated scope, the actual Run when needed, the complete log prefix, ordered definitions, contributor execution, waiting/card facts, and capability judgments through typed ports. `runPass` does not create a Run or decide whether a model retry may be sent. `readRunnerRetryConclusions` checks supplied entries and dense positions but cannot prove that the caller had permission to read them.
+The provider root exposes standalone execution functions. Shared types, pure codecs and projections belong to `@omne-harness-lite/loop-extension-runner`. The provider plugin is exported from `@omne-harness-lite/loop-extension-runner-local/cordis`. The host supplies authenticated scope, the actual Run when needed, the complete log prefix, ordered definitions, contributor execution, waiting/card facts, and capability judgments through typed ports. `runPass` does not create a Run or decide whether a model retry may be sent. `readRunnerRetryConclusions` checks supplied entries and dense positions but cannot prove that the caller had permission to read them.
 
 The adopted scope is [D-106](../../../.meta_harness/design/record/decisions/runner-current-pure-provider-adoption/decision.md), using [Runner5](../../../.meta_harness/design/spec/capabilities/loop-extension-runner/v5/contract.md), [LC6](../../../.meta_harness/design/spec/data/loop-extension/v6/contract.md), and the [v6 realization](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v6-run-pass-design.md) over [v5](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v5-current-design.md), with the adopted [v7 service projection](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v7-model-service-design.md). [Verification obligations](../../../.meta_harness/design/realization/packages/agent-loop/loop-extension-runner/verification.md) distinguish this function layer from the pending production host integration.
 
@@ -93,7 +93,7 @@ binding can forward the actual execution unchanged. A no-Run execution is reject
 the source itself rejects another Run.
 
 ```ts
-import type { ModelFailureSource } from '@omne-harness-lite/model-request-runtime-local'
+import type {ModelFailureSource} from '@omne-harness-lite/model-request-runtime-local'
 import type { RunnerLogBinding, RunnerPorts } from '@omne-harness-lite/loop-extension-runner'
 
 export function failurePort(
@@ -138,30 +138,49 @@ record. A legal same-order `reuse` deletion remains readable.
 
 `RunnerServiceHost` separates `acquireDispatch` from `acquireReplay`: the latter
 must only acquire read authority. These assembly ports belong to the host, not to
-request data. The `loopExtensionRunnerPlugin` config is `{host: RunnerHostFactory}`; it only
-requires `sessionLog` and provides `loopExtensionRunner` and
-`loopExtensionImplementations` from one fiber. `dispatch(request, signal)` uses
+request data. The `loopExtensionRunnerPlugin` config is `{}`. It requires `sessionLog`,
+`runnerHost`, and `sessionAccess`. One fiber provides `loopExtensionRunner`,
+`loopExtensionImplementations`, and the read-only `toolAdmissionPassSource`. `dispatch(request, signal)` uses
 the actual chain and SL3 adapters. `replay(request)` has no current attempt and
 never invokes contributions, guards, handles, clocks or reminder writers.
 The host retains unknown log work across plugin replacement; runner disposal
 waits for its real invocations but never closes the borrowed log or history reader.
 
-Run `node examples/service-lifecycle.mjs` after building to see both actual
-Cordis service faces and the explicit unavailable result when no authorized
+Run `node examples/service-lifecycle.mjs` after building to see the actual
+Cordis services and the explicit unavailable result when no authorized
 manifest scope is supplied. It uses a temporary real JSONL log and closes it in
 the application, after withdrawing the runner.
 
 The service increment accepts the model path's `before_model_call`,
 `after_model_call`, `before_persist_message`, and `after_persist_message`
-positions. Known positions requiring the unprovided action/loop environment
+positions. Other known positions requiring an unprovided loop environment
 return `unavailable`; they are not reported as unknown positions. Requests carry
 `manifest` as the authorized session reference, the LC6 positioned subject and
 `anchor`; dispatch additionally carries `run`/`attempt` when required. The host
 supplies actual Run, waiting and environment facts. The service does not create
 those owners or treat missing facts as permission.
 
-`createLoopExtensionRunner({log, host, isActive})` exposes the same service
-assembly without starting a plugin. It returns the runner and registration
+`createLoopExtensionRunner({log, host, access, isActive})` exposes the same service
+assembly without starting a plugin. It returns the runner, registration, and admission pass read
 faces plus `closeAdmission()` and `drain()`. Closing this instance does not drain
 the host's unknown log tasks: first close the physical writer, reopen under
 legitimate recovery admission, reconcile that owner's binding, then drain it.
+
+The private pass source fixes the caller object, scope, input data, host lifetime,
+and official contribution generation. Each read checks current `run.advance`
+authority before it looks up a pass.
+
+`before_action` uses the `RunnerActionRequest` batch overload. The host supplies
+the complete model batch, adoption report, stable anchors, and authorized source.
+Each action confirms its preceding conclusions before the official candidates
+join one call to the contribution registered through `registerAdmission`.
+An earlier veto or ask does not leave other candidates waiting for that action.
+Any asked action withholds admissions for the whole batch. Durable final actions
+are recovered without another judgment. Single-action `replay` reads this history.
+The old single-action dispatch is removed. The [definition spec](../../core/loop-extension-runner/SPEC.md)
+owns these behavior commitments.
+
+Composition tests use actual SQL manifests, JSONL, and the service entry point.
+Model origin, access, and judgment remain controlled test ports. The demo does not
+yet supply an action host. Official answer replay, batch completion commits,
+durable token verification, and the tool runtime loop remain undelivered.

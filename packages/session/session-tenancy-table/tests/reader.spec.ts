@@ -16,6 +16,7 @@ import {
 import { openStorage, type SqlStorage } from '@omne-harness-lite/storage-sql'
 import { createSessionTenancyReader, sessionTenancyMigrations } from '../src/index.ts'
 import { type SessionTenancyService } from '@omne-harness-lite/session-tenancy'
+import { SessionTenancyService as SessionTenancyDefinition } from '@omne-harness-lite/session-tenancy/cordis'
 import type { SessionTenancyDb } from '../src/reader.ts'
 
 const tenant = unwrap(parseTenantId({ organization: 'org_a', account: 'acc_a' }))
@@ -193,7 +194,12 @@ test('real Cordis service exposes one read and withdrawal closes old references 
     const fiber = ctx.plugin(sessionTenancyTablePlugin, {})
     await fiber
     const service = ctx.get('sessionTenancy') as SessionTenancyService
-    expect(Object.keys(service)).toEqual(['holdingTenant'])
+    expect(service).toBeInstanceOf(SessionTenancyDefinition)
+    expect(
+      Object.getOwnPropertyNames(Object.getPrototypeOf(service)).filter(
+        name => name !== 'constructor',
+      ),
+    ).toEqual(['holdingTenant'])
     expect(await service.holdingTenant('session_a')).toEqual({ tenant })
     await fiber.dispose()
     expect(await service.holdingTenant('session_a')).toEqual({ failure: 'unavailable' })

@@ -19,13 +19,18 @@
     "./cordis": {
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
+    },
+    "./maintenance": {
+      "types": "./dist/maintenance.d.ts",
+      "import": "./dist/maintenance.js"
     }
   },
   "files": [
     "dist",
     "README.md",
     "README_ZH.md",
-    "generated"
+    "generated",
+    "SPEC.md"
   ],
   "scripts": {
     "build": "node ../../../scripts/build-fixed-schemas.mjs",

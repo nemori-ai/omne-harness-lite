@@ -1,8 +1,14 @@
 import { lstat } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
-import type { Context, Plugin } from '@deepseek-ai/cordis'
+import type { Context } from '@deepseek-ai/cordis'
+import { z } from 'zod'
+import { definePlugin } from '@omne-harness-lite/kernel-basis'
 import { Config as SessionLogConfig } from '@omne-harness-lite/session-log-jsonl/plugin'
-import type { SessionLog } from '@omne-harness-lite/session-log'
+import type { SessionLogBackingOperations } from '@omne-harness-lite/session-log'
+import {
+  SessionLogBackingService,
+  SESSION_LOG_BACKING,
+} from '@omne-harness-lite/session-log/cordis'
 import type { SessionLogDeployment } from './types.ts'
 
 import { BorrowedSessionLog } from './assembly-inputs.ts'
@@ -42,18 +48,29 @@ export async function prepareSessionLogDeployment(
   })
 }
 
-/** A real contribution borrowing the sole owner; withdrawal never closes it. */
-export function sessionLogContribution(log: SessionLog): Plugin.Object<Record<string, never>> {
-  const borrowed = Object.freeze({
-    append: log.append,
-    readByKey: log.readByKey,
-    readSince: log.readSince,
-  })
-  return {
-    name: 'acceptance-session-log',
-    apply(ctx: Context) {
-      if (ctx.get('sessionLog') !== undefined) throw new Error('duplicate acceptance log')
-      new BorrowedSessionLog(ctx, borrowed)
-    },
+export class SessionLogBacking extends SessionLogBackingService {
+  constructor(
+    ctx: Context,
+    private readonly operations: SessionLogBackingOperations,
+  ) {
+    super(ctx)
+  }
+  get ownerGeneration() {
+    return this.operations.ownerGeneration
+  }
+  borrow() {
+    return this.operations.borrow()
   }
 }
+
+/** JSON configuration; the application retains failed borrows and the physical close right. */
+export const borrowedSessionLog = definePlugin({
+  name: 'acceptance-session-log',
+  inject: [SESSION_LOG_BACKING],
+  Config: z.object({}).strict(),
+  apply(ctx) {
+    const borrow = ctx.sessionLogBacking.borrow()
+    ctx.effect(() => borrow.release)
+    new BorrowedSessionLog(ctx, borrow.log)
+  },
+})

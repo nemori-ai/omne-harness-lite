@@ -854,10 +854,10 @@ pnpm 自带的 `--filter "...[<基线>]"` 只做反向依赖那一部分，而�
 | 符号 | 允许点 |
 | --- | --- |
 | `createCredentialBindingReader` | 目录 owner；精确 bootstrap 文件中 `createAcceptanceApplication` 的 `start` 构造，向 CCL 工厂传递 |
-| 返回的 binding reader | 目录 `plugin.ts` 的 `localCredentialLookupPlugin` 和 CCL `model-replica.ts` 执行；bootstrap 不执行、不返回 |
+| 返回的 binding reader | 目录 `cordis.ts` 的 `localCredentialLookupPlugin` 和 CCL `model-replica.ts` 执行；bootstrap 不执行、不返回 |
 | `createModelReplicaCustodian` | 同一 app 的 `start` 唯一构造点；目录不能重建 |
 | `storeBoundReplica` | app `publishCredential` 的真实来源写入路径；真实资格／来源真实性仍须运行验收 |
-| `readBoundReplicaIn` | app `start` 只借给 lookup 配置；P1r／CCL 执行 |
+| `readBoundReplicaIn` | app `start` 经 `ReplicaReader` 只借出读方法；lookup 消费定义服务，CCL 保留自身方法 |
 | 组件 `close` | app `closeResources` 和 CCL 所有者执行；借用者不得取得 |
 
 公开构建模块 `dist/index.js` 导出 `Rule/SourceFile/Violation`、`collectSources/runRules/RULES`、逐项规则与规则工厂；`dist/repository.js` 导出 `collectRepositorySources/REPOSITORY_RULES`。`SourceFile` 包含路径、文本及可选 `resolvedModules`，规则不加载或执行产品模块。包规则通常取 packages 根相对路径，仓库规则取仓库相对路径；模型守卫另兼容相应包根／app 根路径。包是私有 workspace 开发工具，不是 Cordis 插件或沙箱。
@@ -871,15 +871,17 @@ import { modelCredentialBoundary, type SourceFile } from './dist/index.js'
 const source: SourceFile = {
   path: 'examples/model-invocation-minimal-demo/src/bootstrap.ts',
   text: `
-    import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory/tx-reads';
+    import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';
     import { createModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica';
-    import { localCredentialLookupPlugin } from '@omne-harness-lite/model-profile-directory/plugin';
+    import { localCredentialLookupPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis';
+    import { ReplicaReader } from './assembly-inputs.ts';
     export function createAcceptanceApplication() {
       let replica;
       async function start() {
         const reader = createCredentialBindingReader(storage);
         replica = await createModelReplicaCustodian({ readCredentialBindingIn: reader });
-        ctx.plugin(localCredentialLookupPlugin, { readBoundReplicaIn: replica.readBoundReplicaIn });
+        new ReplicaReader(ctx, { readIn: replica.readBoundReplicaIn });
+        ctx.plugin(localCredentialLookupPlugin, { mode: 'localCredentialOnly' });
       }
       function publishCredential() { return replica.storeBoundReplica(input); }
       async function closeResources() { await replica.close(); }
@@ -903,7 +905,7 @@ import { REPOSITORY_RULES } from './dist/repository.js'
 
 const violations = runRules([{
   path: 'packages/model/example/src/runtime.ts',
-  text: "import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory/tx-reads';",
+  text: "import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';",
 }], REPOSITORY_RULES)
 assert(violations.some(v => v.rule === 'model-credential-boundary'))
 ```
@@ -912,4 +914,4 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 
 限制：不解释任意 JavaScript，不推导无类型的跨文件值，不证明真实来源对、共同事务、运行期唯一实例、反射隔离或资源实际关闭。模块别名解析定位 provider，不增加权限。缺席 app 的扫描通过不是 app 合规证据；最终冻结 app 仍须集成扫描和独立联合验收，工具自测不能单独关闭 MCR-V7 或 P3。
 
-精确路径 `packages/agent-loop/loop-extension-runner/tests/runner-chain-support.ts` 可通过 EIS 公开发布入口建立 D106 R7 验收的真实不可变历史。相邻 runner 测试和全部 runner 产品源码仍禁止发布。历史边界规则只允许 runner 产品源码导入 reader 类型，测试可构造真实 reader；不允许工厂转发，也不授予产品侧发布权。
+精确路径 `packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts` 可通过 EIS 公开发布入口建立 D106 R7 验收的真实不可变历史。相邻 runner 测试和全部 runner 产品源码仍禁止发布。历史边界规则只允许 runner 产品源码导入 reader 类型，测试可构造真实 reader；不允许工厂转发，也不授予产品侧发布权。

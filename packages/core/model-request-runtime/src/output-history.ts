@@ -8,9 +8,9 @@ import {
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
 import { copyInputCalibration, type InputCalibration } from '@omne-harness-lite/model-response'
-import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
-import {copyPlanContentBlocks, copyPlanMessages} from './plan-input-values.ts'
-import type { PlanCalibration, PlanOutputHistoryGroup, ReplaySelection } from '@omne-harness-lite/model-request-runtime'
+import { modelLogJsonEqual } from './log-codec-key.ts'
+import { copyPlanContentBlocks, copyPlanMessages } from './plan-input-values.ts'
+import type { PlanCalibration, PlanOutputHistoryGroup, ReplaySelection } from './planning-types.ts'
 
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)

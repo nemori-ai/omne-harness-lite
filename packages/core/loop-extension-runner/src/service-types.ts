@@ -1,4 +1,3 @@
-
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { Conclusion, PositionedSubject } from '@omne-harness-lite/loop-extension'
 import type { LogPrefixView } from '@omne-harness-lite/messages'
@@ -8,14 +7,18 @@ import type { RunnerChainSources } from './runner-chain-types.ts'
 import type { RunnerFailure, RunnerPassResult, RunnerPorts } from './run-pass-types.ts'
 import type { LogEntryInput } from '@omne-harness-lite/session-log'
 import type { RunnerLogBinding, RunnerTaskOwner } from './task-owner-types.ts'
-
+import type { RunnerActionRequest, RunnerActionResult, RunnerActionSource } from './action-types.ts'
 
 export type RunnerReplayRequest = PositionedSubject & {
   readonly manifest: string
   readonly anchor: string
   readonly run?: string
 }
-export type RunnerDispatchRequest = RunnerReplayRequest & { readonly attempt?: JsonNumber }
+export type RunnerDispatchRequest = Exclude<
+  RunnerReplayRequest,
+  { readonly position: 'before_action' }
+> & { readonly attempt?: JsonNumber }
+export type RunnerAnyDispatchRequest = RunnerDispatchRequest | RunnerActionRequest
 
 export interface RunnerReadScope {
   readonly binding: RunnerLogBinding
@@ -42,8 +45,12 @@ export type RunnerExecutionPorts = Pick<
   readonly commandPresence: RunnerPorts['presence']
 }
 export interface RunnerDispatchScope extends RunnerReadScope {
+  /** Required only for before_action. It is never taken from caller-supplied proof fields. */
+  readonly action?: RunnerActionSource
   readonly ports: RunnerExecutionPorts
-  readonly subjectForCandidate: (entry: LogEntryInput) => PositionedSubject | { readonly unavailable: true }
+  readonly subjectForCandidate: (
+    entry: LogEntryInput,
+  ) => PositionedSubject | { readonly unavailable: true }
   readonly readMessagePrefix: () => Promise<LogPrefixView | { readonly unavailable: true }>
 }
 export type RunnerScopeFailure = Extract<
@@ -54,9 +61,13 @@ export type RunnerScopeFailure = Extract<
 /** Trusted assembly boundary, not a request-carried proof. Methods capture actual same-call sources. */
 export interface RunnerServiceHost {
   readonly acquireDispatch: (
-    request: RunnerDispatchRequest,
+    request: RunnerAnyDispatchRequest,
     signal: AbortSignal,
-  ) => Promise<RunnerDispatchScope | RunnerScopeFailure>
+  ) => Promise<
+    | RunnerDispatchScope
+    | RunnerScopeFailure
+    | Extract<RunnerFailure, { readonly failure: 'attemptSuperseded' }>
+  >
   /** This branch must not acquire a failure-consumption right or execute/guard/write anything. */
   readonly acquireReplay: (
     request: RunnerReplayRequest,
@@ -64,10 +75,10 @@ export interface RunnerServiceHost {
   ) => Promise<RunnerReadScope | RunnerScopeFailure>
 }
 export interface LoopExtensionRunnerService {
-  readonly dispatch: (
-    request: RunnerDispatchRequest,
-    signal: AbortSignal,
-  ) => Promise<RunnerPassResult>
+  readonly dispatch: {
+    (request: RunnerDispatchRequest, signal: AbortSignal): Promise<RunnerPassResult>
+    (request: RunnerActionRequest, signal: AbortSignal): Promise<RunnerActionResult>
+  }
   readonly replay: (
     request: RunnerReplayRequest,
   ) => Promise<readonly Conclusion[] | RunnerReplayFailure>

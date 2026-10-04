@@ -1,10 +1,12 @@
-# @omne-harness-lite/asset-registry
+# @omne-harness-lite/asset-registry-local
 
 [English](README.md)
 
 实验性会话资产表实现。本包是未发布的 ESM workspace 骨架：已有声明和构建，但组件检查尚未通过，完整服务没有交付通过。model-runtime 纵线会先补齐所需投影。状态见[实现映射](../../../.meta_harness/design/realization/packages/tools/asset-registry/README.md)。
 
 扩展声明使用 `@omne-harness-lite/loop-extension` 当前公开类型。
+
+提供者根入口导出 `createAssetRegistry` 和构造类型。共用操作与纯投影归 `@omne-harness-lite/asset-registry`，服务定义归它的 `./cordis`。demo 只创建一个注册表，通过该定义的子类借出；原先使用活体配置的实验插件已删除。
 
 ## 已声明公开面
 
@@ -15,7 +17,6 @@
 | `REGISTERED_CATEGORIES` | 查看表类别 |
 | `buildTableContents`、`buildSnapshots`、`computeAvailability`、`findInSnapshot`、`buildReport` | 可单独取用的构造/投影函数 |
 | `extractRootSourceFromFullFillRecord` | 从完整填表记录读取原始根来源 |
-| `assetRegistryPlugin`、`ASSET_REGISTRY_SERVICE` | 实验性 Cordis 提供者声明 |
 
 ## 查看接口调用形式
 
@@ -33,7 +34,7 @@ export async function readTools(registry: AssetRegistryService, session: string,
 先关闭 registry，再释放借用的依赖。完整命令通知和通用 registry 交付不属于当前 runtime 增量。先构建再跑当前检查，并保留失败。
 
 ```sh
-pnpm --filter @omne-harness-lite/asset-registry... run build
-pnpm --filter @omne-harness-lite/asset-registry run typecheck
-pnpm --filter @omne-harness-lite/asset-registry run test
+pnpm --filter @omne-harness-lite/asset-registry-local... run build
+pnpm --filter @omne-harness-lite/asset-registry-local run typecheck
+pnpm --filter @omne-harness-lite/asset-registry-local run test
 ```

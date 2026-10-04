@@ -52,6 +52,7 @@ import type {
   WriteTx,
   Storage,
   StorageInstance,
+  StorageOwnerOperations,
   MigrationFragment,
   PreflightInput,
   PreflightResult,
@@ -87,6 +88,9 @@ import type {
   ModelToolName,
   Modality,
   ExecutionOutcome,
+  ToolCallOutcome,
+  AdmissionDenialCode,
+  ActionDenialReason,
   PlaceholderReason,
   Visibility,
   CapabilityId,
@@ -278,6 +282,47 @@ test('w1.types.complete.storage-atomic-and-maintenance', () => {
     view.write(0, new Uint8Array())
   }
   expectTypeOf(rejectMisuse).toBeFunction()
+})
+
+test('w1.types.complete.storage-borrow-does-not-transfer-physical-close', () => {
+  type Borrow = ReturnType<StorageOwnerOperations['borrow']>
+  expectTypeOf<Borrow['storage']>().toEqualTypeOf<AtomicStorage>()
+  expectTypeOf<ReturnType<Borrow['release']>>().toEqualTypeOf<Promise<void>>()
+  expectTypeOf<Extract<keyof Borrow, 'close'>>().toEqualTypeOf<never>()
+})
+
+test('w1.types.complete.denial-is-a-call-outcome-without-execution', () => {
+  expectTypeOf<Extract<ToolCallOutcome, 'denied'>>().toEqualTypeOf<'denied'>()
+  expectTypeOf<Extract<ExecutionOutcome, 'denied'>>().toEqualTypeOf<never>()
+  expectTypeOf<AdmissionDenialCode>().toEqualTypeOf<
+    | 'not_held'
+    | 'permission_forbidden'
+    | 'authorization_denied'
+    | 'run_mode_never'
+    | 'human_refused'
+    | 'human_declined'
+  >()
+  type Denied = Extract<ToolResultBlock, { readonly outcome: 'denied' }>
+  expectTypeOf<Denied['reason']>().toEqualTypeOf<ActionDenialReason>()
+  expectTypeOf<Denied['offloaded']>().toEqualTypeOf<undefined>()
+  const check = (
+    base: Pick<ToolResultBlock, 'id' | 'visibility' | 'callId' | 'blocks'>,
+    attachment: AttachmentRef,
+  ) => {
+    const reason: ActionDenialReason = {
+      kind: 'admission',
+      code: 'not_held',
+      by: 'admission',
+      conclusion: 'not held',
+    }
+    const denied: Denied = { ...base, kind: 'tool_result', outcome: 'denied', reason }
+    // @ts-expect-error A denied result must carry its reason.
+    const missingReason: Denied = { ...base, kind: 'tool_result', outcome: 'denied' }
+    // @ts-expect-error An unexecuted call cannot reference offloaded execution output.
+    const withOutput: Denied = { ...denied, offloaded: attachment }
+    void [missingReason, withOutput]
+  }
+  expectTypeOf(check).toBeFunction()
 })
 
 test('w1.types.complete.content-json-and-schema', () => {
