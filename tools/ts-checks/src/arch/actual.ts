@@ -13,6 +13,14 @@ import { actualFactIdentity } from './actual-model.ts'
 export type { ActualMember, SourceCoordinates, JsonValue, ArchitectureSource } from './source.ts'
 export { readArchitectureSource } from './source.ts'
 export type { Fact, FactKind, Site, PackageImport, Unknown, ImportUnknown } from './actual-model.ts'
+export { buildArchitectureView, selectArchitectureView, RELATIONS } from './view.ts'
+export type {
+  ArchitectureView,
+  ViewNode,
+  ViewEdge,
+  ViewSelection,
+  SelectedArchitecture,
+} from './view.ts'
 
 export interface ActualArchitectureInput {
   /** Git repository top-level directory. A pnpm workspace and named manifests are required. */

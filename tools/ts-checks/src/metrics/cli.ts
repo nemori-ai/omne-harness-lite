@@ -11,6 +11,8 @@ import { memberOf } from './graph.ts'
 import { renderPage } from './render.ts'
 import { buildReport, summaryLines, type CoverageInput } from './report.ts'
 import { baseTextsOf, collectMemberSources } from './sources.ts'
+import { readActualArchitecture } from '../arch/actual.ts'
+import { buildArchitectureView } from '../arch/view.ts'
 
 interface Options {
   readonly base?: string
@@ -98,7 +100,9 @@ function main(): void {
     dirty: at.dirty,
     reviewPath,
     top: config.summary.top,
-    ...(at.base === undefined ? {} : { baseRef: at.base.ref }),
+    ...(at.base === undefined
+      ? {}
+      : { baseRef: `${at.base.ref}（函数变化 merge-base ${at.base.mergeBase}）` }),
   })
   const page = {
     head: at.head,
@@ -108,7 +112,9 @@ function main(): void {
     generatedAt: new Date().toISOString(),
     summary,
     changedEdgeLimit: config.page.changedEdgeLimit,
-    ...(at.base === undefined ? {} : { baseRef: at.base.ref }),
+    ...(at.base === undefined
+      ? {}
+      : { baseRef: `${at.base.ref}（函数变化 merge-base ${at.base.mergeBase}）` }),
   }
   const meta = {
     head: at.head,
@@ -129,7 +135,14 @@ function main(): void {
     join(outDir, 'graph.json'),
     `${JSON.stringify({ meta, layout: report.layout, edges: report.edges, findings: report.findings, exceptions: report.exceptions }, null, 1)}\n`,
   )
-  writeFileSync(reviewPath, renderPage(report, page))
+  const actual = readActualArchitecture({
+    root,
+    ...(options.base === undefined ? {} : { base: options.base }),
+  })
+  const architecture = buildArchitectureView(actual, config.bands)
+  writeFileSync(join(outDir, 'actual.json'), JSON.stringify(actual, null, 2) + '\n')
+  writeFileSync(join(outDir, 'architecture.json'), JSON.stringify(architecture, null, 2) + '\n')
+  writeFileSync(reviewPath, renderPage(report, page, architecture))
   console.log(summary.join('\n'))
 }
 

@@ -68,6 +68,7 @@ class Extractor {
   readonly plugins: Plugin[] = []
   readonly registeredObjects = new Set<ts.ObjectLiteralExpression>()
   readonly visited = new Set<string>()
+  readonly ownedFunctions = new Set<ts.FunctionLikeDeclaration>()
   readonly snapshot: Snapshot
   constructor(snapshot: Snapshot) {
     this.snapshot = snapshot
@@ -523,6 +524,7 @@ class Extractor {
     implicit = false,
   ): void {
     if (fn.body === undefined || active.has(fn)) return
+    if (context.plugin !== undefined) this.ownedFunctions.add(fn)
     const contexts = new Set(context.contexts),
       keys = new Map(context.keys)
     fn.parameters.forEach((parameter, index) => {
@@ -927,15 +929,13 @@ class Extractor {
     }
     for (const tree of this.resolver.trees()) this.manifest(tree)
     // Context-typed public helpers not reached from a plugin remain explicitly unowned.
-    const ownedPaths = new Set(
-      [...this.facts.values()].filter(fact => fact.plugin !== undefined).map(fact => fact.path),
-    )
     for (const tree of this.resolver.trees()) {
       const member = this.resolver.member(this.resolver.path(tree))?.path
-      if (member === undefined || ownedPaths.has(this.resolver.path(tree))) continue
+      if (member === undefined) continue
       visitSyntax(tree, node => {
         if (
           ts.isFunctionDeclaration(node) &&
+          !this.ownedFunctions.has(node) &&
           node.parameters.some(parameter => this.contextType(parameter.type))
         )
           this.enter(node, this.empty(member), [], new Set())
