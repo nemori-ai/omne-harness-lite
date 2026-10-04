@@ -264,7 +264,9 @@ function rowsOf(
               item.key === fact.key &&
               item.member === fact.member &&
               item.serviceDefinition?.path === fact.serviceDefinition?.path &&
-              item.serviceDefinition?.line === fact.serviceDefinition?.line,
+              item.serviceDefinition?.line === fact.serviceDefinition?.line &&
+              item.serviceDefinition?.offset === fact.serviceDefinition?.offset &&
+              item.serviceDefinition?.symbol === fact.serviceDefinition?.symbol,
           )
         : undefined
     const declarations = definitions.filter(fact => serviceDefinition(fact) === undefined)

@@ -378,7 +378,12 @@ class Extractor {
       this.key('defines', key, context, {
         ...this.tags(node),
         definitionForm: 'service-class',
-        serviceDefinition: { ...this.resolver.site(node), member },
+        serviceDefinition: {
+          ...this.resolver.site(node),
+          member,
+          symbol: node.name?.text ?? 'default',
+          offset: node.getStart(),
+        },
         symbol: node.name?.text ?? 'default',
       })
     if (!node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.AbstractKeyword)) {
@@ -457,6 +462,8 @@ class Extractor {
         this.serviceBase(declaration) !== undefined
           ? {
               ...this.resolver.site(declaration),
+              symbol: declaration.name?.text ?? 'default',
+              offset: declaration.getStart(),
             }
           : undefined
       const definition = {

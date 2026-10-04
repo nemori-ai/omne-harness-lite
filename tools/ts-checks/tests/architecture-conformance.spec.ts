@@ -368,6 +368,40 @@ export abstract class Duplicate extends Service { static readonly provide = 'dat
         .every(row => row.state === 'deviation'),
     ).toBe(true)
   })
+  it.each([
+    {
+      declaration:
+        "/** @contract accepted.storage */\nexport abstract class A extends Service { static readonly provide = 'data' } export abstract class B extends Service { static readonly provide = 'data' }",
+      type: 'B',
+    },
+    {
+      declaration:
+        "export namespace A { /** @contract accepted.storage */\nexport abstract class Data extends Service { static readonly provide = 'data' } } export namespace B { export abstract class Data extends Service { static readonly provide = 'data' } }",
+      type: 'B.Data',
+    },
+  ])(
+    'does not borrow class metadata from a same-line definition ($type)',
+    ({ declaration, type }) => {
+      const { root, base } = setup()
+      write(
+        root,
+        `${storage}/src/cordis.ts`,
+        `import {Service} from '@deepseek-ai/cordis'
+${declaration}
+declare module '@deepseek-ai/cordis' { interface Context { data: ${type} } }
+`,
+      )
+      const rows = readConformance({ root, base }).rows
+      expect(
+        rows.filter(row => row.rule === 'IC-3' && row.key === 'data' && row.state === 'deviation'),
+      ).toHaveLength(2)
+      expect(
+        rows
+          .filter(row => row.rule === 'IC-1' && row.key === 'data')
+          .every(row => row.state === 'deviation'),
+      ).toBe(true)
+    },
+  )
   it('BASE exact-symbol IC-5 exceptions remain scoped and a layer conflict stays pending', () => {
     const { root } = setup()
     const declaration = `.meta_harness/design/realization/${ui}/bindings.yaml`

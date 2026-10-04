@@ -7,7 +7,10 @@ import {
   type SettlementCoordinatorInput,
 } from '@omne-harness-lite/model-request-runtime-local'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
-import { harness, payload } from '../../model-request-runtime/tests/anchored-invocation-fixture.ts'
+import {
+  harness,
+  payload,
+} from '../../model-request-runtime-local/tests/anchored-invocation-fixture.ts'
 import { certificate, content, finish, fixture, input, policy, sse } from './support.ts'
 
 // This fixture deliberately exercises noRun through the public runtime instance.
