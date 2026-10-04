@@ -1,0 +1,15 @@
+{
+  "base": "588628544ab92bd542f24efa1801634eb6eee56e",
+  "recordedAt": "2026-10-04T17:50:28.668264+00:00",
+  "node": "v24.21.0",
+  "command": "node tmp/arch-intent/remediation/r1-d0/start-control-probe.mjs",
+  "exit": 0,
+  "artifacts": {
+    "start-control-probe.mjs": "b4437782f9628c76fe1b200d660a2a6d1898aa74a7e683d48267c8007f67b67b",
+    "start-control-probe.stdout": "17cd73ef012df21cb04ff9c66664b050834058bb2c7959df9b9fbe424aadb194",
+    "start-control-probe.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lifetime-prototype.mjs": "d77e8b1322b15449c495a9f46208cbe1573c5cbbda9a1bd8b661af6ceaa2b888"
+  },
+  "lock": "2ff0a7e8fc9bae668c9e09ffb66eb75e42f4b56a33276df80cb7601095f33970",
+  "scope": "real Cordis startup-control projection with controlled resources; not product loader or declaration/schema implementation"
+}
