@@ -1,5 +1,5 @@
 import { testImagePreparerFor } from './image-transport-support.ts'
-import type { PlanInput, PlanResult } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput, PlanResult } from '@omne-harness-lite/model-request-runtime-local'
 import {
   defineInputMeter,
   planRequest as planRequestWithMeter,

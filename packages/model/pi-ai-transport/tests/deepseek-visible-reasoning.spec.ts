@@ -15,7 +15,10 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import type { Message } from '@omne-harness-lite/messages'
-import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlanInput,
+  PlanOutputHistoryGroup,
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   createDeepSeekSupplemental,
   deepSeekBoundaries,

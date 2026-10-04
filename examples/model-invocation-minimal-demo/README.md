@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-This example is a runnable **Cordis model-call loop**, not a formal business application. One host process wires the public surface of `@omne-harness-lite/model-request-runtime` around one Cordis context, composing real local storage (SQLite), a JSONL session log, an encrypted credential replica, account and membership checks, and the OpenRouter transport. It implements no Session, Run, Inbound or Agent Loop domain and no production governance. Where a trusted provider is needed, this demo supplies only single-process, single-host evidence and says so; it is not a template for cross-process authority. Reusable capabilities stay in `packages/`; this example only assembles them.
+This example is a runnable **Cordis model-call loop**, not a formal business application. One host process wires the public surface of `@omne-harness-lite/model-request-runtime-local` around one Cordis context, composing real local storage (SQLite), a JSONL session log, an encrypted credential replica, account and membership checks, and the OpenRouter transport. It implements no Session, Run, Inbound or Agent Loop domain and no production governance. Where a trusted provider is needed, this demo supplies only single-process, single-host evidence and says so; it is not a template for cross-process authority. Reusable capabilities stay in `packages/`; this example only assembles them.
 
 It offers two faces:
 

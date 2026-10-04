@@ -9,7 +9,7 @@ import type {
   PlanExecutionContext,
   PlanFailure,
   PlanInput,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { finiteLimits } from './input-limits.ts'
 import { object } from './json.ts'
 import { composeTransformRevision, type ImagePreparationRevision } from './meter-transform.ts'

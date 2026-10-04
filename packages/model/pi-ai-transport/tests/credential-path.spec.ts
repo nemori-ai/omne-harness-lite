@@ -6,7 +6,7 @@ import {
   invokeModel,
   openRouterCredentialRedactionConfig,
   type StreamEnd,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import type { ArrivalEvent } from '@omne-harness-lite/arrival-events'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import {
@@ -42,8 +42,9 @@ const faults = vi.hoisted(() => ({
   invalidHeaders: false,
   onProcess: undefined as (() => void) | undefined,
 }))
-vi.mock('@omne-harness-lite/model-request-runtime', async importOriginal => {
-  const original = await importOriginal<typeof import('@omne-harness-lite/model-request-runtime')>()
+vi.mock('@omne-harness-lite/model-request-runtime-local', async importOriginal => {
+  const original =
+    await importOriginal<typeof import('@omne-harness-lite/model-request-runtime-local')>()
   const reject = { rejected: 'invalidInput' } as const
   return {
     ...original,
@@ -102,7 +103,7 @@ beforeAll(() => {
 })
 afterAll(() => cert.dispose())
 afterAll(() => {
-  vi.doUnmock('@omne-harness-lite/model-request-runtime')
+  vi.doUnmock('@omne-harness-lite/model-request-runtime-local')
   vi.resetModules()
 })
 afterEach(() => {

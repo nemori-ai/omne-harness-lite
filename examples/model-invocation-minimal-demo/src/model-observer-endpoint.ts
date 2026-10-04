@@ -8,7 +8,7 @@ import type {
   ObserverReceiver,
   RuntimeCloseResult,
   SessionObserverAccess,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 
 interface EndpointGrant {
   readonly endpoint: ModelObserverEndpoint

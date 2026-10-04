@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { toOpaqueJson, writeJsonLossless, type JsonValue } from '@omne-harness-lite/content-blocks'
 import type { Message } from '@omne-harness-lite/messages'
-import type { PlanInput, PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type {
+  PlanInput,
+  PlanOutputHistoryGroup,
+} from '@omne-harness-lite/model-request-runtime-local'
 import { projectAssistant } from '../src/assistant-projection.ts'
 import { createXaiInputMeter } from '../src/input-meters/xai.ts'
 import { classifyXaiUnit } from '../src/input-meters/xai-family-policy.ts'

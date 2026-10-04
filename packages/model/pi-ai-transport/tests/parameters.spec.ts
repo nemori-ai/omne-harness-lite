@@ -15,7 +15,7 @@ import {
   judgeModelProfileDocument,
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import type { PlannedRequest } from '@omne-harness-lite/pi-ai-transport'
 import { planRequest } from './synthetic-input-meter.ts'
 import { certificate, finish, fixture, input, type CapturedRequest } from './support.ts'

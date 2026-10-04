@@ -15,7 +15,7 @@ import {
   type Power,
 } from '@omne-harness-lite/loop-extension'
 import { judgeMessage, type SystemReminderMessage } from '@omne-harness-lite/messages'
-import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime-local'
 import type { LogEntry, LogEntryInput, ReadResult } from '@omne-harness-lite/session-log-jsonl'
 import {
   prepareRunnerConclusion,

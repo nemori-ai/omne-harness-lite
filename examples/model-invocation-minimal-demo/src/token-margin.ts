@@ -1,6 +1,6 @@
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
+import type { TokenMargin } from '@omne-harness-lite/model-request-runtime-local'
 
 /** CLI configuration stays decimal-exact and has no implicit margin. */
 export function readTokenMargin(

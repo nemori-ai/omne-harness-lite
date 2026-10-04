@@ -11,7 +11,7 @@ import {
   type InputMeasurement,
   type PlanInput,
   type TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   createModelTransportService,
   createPiAiTransport,

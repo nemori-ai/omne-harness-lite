@@ -1,7 +1,7 @@
 import {
   createCredentialRedactionPolicy,
   createDefaultRetryImplementation,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { type RetirementPolicy, type TransportOptions } from '@omne-harness-lite/pi-ai-transport'
 import type { ModelRequestDeployment } from './types.ts'
 

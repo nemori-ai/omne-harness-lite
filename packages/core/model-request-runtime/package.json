@@ -1,0 +1,35 @@
+{
+  "name": "@omne-harness-lite/model-request-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Model runtime pure contract vocabulary: exact retry delay",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "SPEC.md"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/call-accounts": "workspace:*",
+    "@omne-harness-lite/tool-definition": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

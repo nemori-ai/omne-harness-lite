@@ -2,7 +2,10 @@ import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
-import type { DiagnosticRecord, DiagnosticScope } from '@omne-harness-lite/model-request-runtime'
+import type {
+  DiagnosticRecord,
+  DiagnosticScope,
+} from '@omne-harness-lite/model-request-runtime-local'
 import { createAcceptanceApplication } from '../src/bootstrap.ts'
 import { createDemoCallHost } from '../src/model-call-host.ts'
 import { callDeployment, publication, ROOT } from './model-request-support.ts'

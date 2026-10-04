@@ -17,7 +17,7 @@ import {
   type PlanInput,
   type PlanOutputHistoryGroup,
   type TransportAdapter,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'
 import { anthropicDefinitions } from '../src/official-models/anthropic.ts'

@@ -1,3 +1,6 @@
+> N4 迁移读法：retryDelay 函数与 local 公开入口；其他运行时协议/投影未迁已采用[模块旁现行源](../../../../architecture/pilots/n4-ownership.md)。
+> 下文原当前投影不再约束已迁任务。未迁协议、未来增量与证据义务保持原精确范围；历史实现/运行坐标不改写。
+
 ## 2026-09-30 ACK 后继精确采用
 
 - **语义接受**：[D-110 ACK 后继](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受 RT12/MS8/MR11/CA4，精确版本与摘要由 registry 和接受文件登记。

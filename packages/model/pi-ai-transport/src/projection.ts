@@ -13,7 +13,7 @@ import type {
   PlanInput,
   OutputProjectionInput,
   OutputProjectionResult,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { codePointOrder } from './definitions.ts'
 import { object, ownedObject } from './json.ts'
 import type { InputMeter } from './input-meter.ts'

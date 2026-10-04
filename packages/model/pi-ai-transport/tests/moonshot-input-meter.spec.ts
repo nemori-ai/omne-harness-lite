@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import {
   createMoonshotInputMeter,
   referenceMoonshotImageTokens,

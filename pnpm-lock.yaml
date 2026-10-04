@@ -158,9 +158,9 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../packages/core/offer-expiry
-      '@omne-harness-lite/organization-governance':
+      '@omne-harness-lite/organization-governance-sql':
         specifier: workspace:*
-        version: link:../../packages/tenancy/organization-governance
+        version: link:../../packages/tenancy/organization-governance-sql
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../packages/core/storage
@@ -180,6 +180,9 @@ importers:
       '@omne-harness-lite/artifact-builder':
         specifier: workspace:*
         version: link:../../tools/artifact-builder
+      '@omne-harness-lite/organization-governance':
+        specifier: workspace:*
+        version: link:../../packages/core/organization-governance
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -258,9 +261,9 @@ importers:
       '@omne-harness-lite/model-profile-directory':
         specifier: workspace:*
         version: link:../../packages/model/model-profile-directory
-      '@omne-harness-lite/model-request-runtime':
+      '@omne-harness-lite/model-request-runtime-local':
         specifier: workspace:*
-        version: link:../../packages/model/model-request-runtime
+        version: link:../../packages/model/model-request-runtime-local
       '@omne-harness-lite/model-response':
         specifier: workspace:*
         version: link:../../packages/core/model-response
@@ -269,7 +272,10 @@ importers:
         version: link:../../packages/core/offer-expiry
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../../packages/tenancy/organization-governance
+        version: link:../../packages/core/organization-governance
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../../packages/tenancy/organization-governance-sql
       '@omne-harness-lite/pi-ai-transport':
         specifier: workspace:*
         version: link:../../packages/model/pi-ai-transport
@@ -295,6 +301,9 @@ importers:
         specifier: 'catalog:'
         version: 0.35.3(@types/node@24.13.6)
     devDependencies:
+      '@omne-harness-lite/model-request-runtime':
+        specifier: workspace:*
+        version: link:../../packages/core/model-request-runtime
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -340,9 +349,9 @@ importers:
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../core/messages
-      '@omne-harness-lite/model-request-runtime':
+      '@omne-harness-lite/model-request-runtime-local':
         specifier: workspace:*
-        version: link:../../model/model-request-runtime
+        version: link:../../model/model-request-runtime-local
       '@omne-harness-lite/session-log-jsonl':
         specifier: workspace:*
         version: link:../../session/session-log-jsonl
@@ -370,7 +379,10 @@ importers:
         version: link:../../tenancy/credential-verification
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../../tenancy/organization-governance
+        version: link:../../core/organization-governance
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../../tenancy/organization-governance-sql
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
@@ -476,7 +488,7 @@ importers:
         version: link:../../core/offer-expiry
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../../tenancy/organization-governance
+        version: link:../../core/organization-governance
       '@omne-harness-lite/session-tenancy-table':
         specifier: workspace:*
         version: link:../../session/session-tenancy-table
@@ -502,6 +514,9 @@ importers:
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../../tenancy/credential-verification
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../../tenancy/organization-governance-sql
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
@@ -866,6 +881,28 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
+  packages/core/model-request-runtime:
+    dependencies:
+      '@omne-harness-lite/call-accounts':
+        specifier: workspace:*
+        version: link:../call-accounts
+      '@omne-harness-lite/content-blocks':
+        specifier: workspace:*
+        version: link:../content-blocks
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../tool-definition
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
   packages/core/model-response:
     dependencies:
       '@omne-harness-lite/call-accounts':
@@ -911,6 +948,34 @@ importers:
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/organization-governance:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../kernel-basis
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../offer-expiry
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../storage
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1280,7 +1345,10 @@ importers:
         version: link:../../infra/clock
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../../tenancy/organization-governance
+        version: link:../../core/organization-governance
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../../tenancy/organization-governance-sql
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
@@ -1294,7 +1362,7 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
-  packages/model/model-request-runtime:
+  packages/model/model-request-runtime-local:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
@@ -1338,6 +1406,9 @@ importers:
       '@omne-harness-lite/model-profile-directory':
         specifier: workspace:*
         version: link:../model-profile-directory
+      '@omne-harness-lite/model-request-runtime':
+        specifier: workspace:*
+        version: link:../../core/model-request-runtime
       '@omne-harness-lite/model-response':
         specifier: workspace:*
         version: link:../../core/model-response
@@ -1377,7 +1448,10 @@ importers:
         version: link:../../tenancy/credential-verification
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../../tenancy/organization-governance
+        version: link:../../core/organization-governance
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../../tenancy/organization-governance-sql
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
@@ -1419,7 +1493,10 @@ importers:
         version: link:../../core/model-profile
       '@omne-harness-lite/model-request-runtime':
         specifier: workspace:*
-        version: link:../model-request-runtime
+        version: link:../../core/model-request-runtime
+      '@omne-harness-lite/model-request-runtime-local':
+        specifier: workspace:*
+        version: link:../model-request-runtime-local
       '@omne-harness-lite/model-response':
         specifier: workspace:*
         version: link:../../core/model-response
@@ -1594,7 +1671,7 @@ importers:
         version: link:../../core/kernel-basis
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../organization-governance
+        version: link:../../core/organization-governance
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
@@ -1611,6 +1688,9 @@ importers:
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../credential-verification
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../organization-governance-sql
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
@@ -1686,7 +1766,7 @@ importers:
         version: link:../../core/offer-expiry
       '@omne-harness-lite/organization-governance':
         specifier: workspace:*
-        version: link:../organization-governance
+        version: link:../../core/organization-governance
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
@@ -1703,6 +1783,9 @@ importers:
       '@omne-harness-lite/clock':
         specifier: workspace:*
         version: link:../../infra/clock
+      '@omne-harness-lite/organization-governance-sql':
+        specifier: workspace:*
+        version: link:../organization-governance-sql
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql
@@ -1716,7 +1799,7 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
-  packages/tenancy/organization-governance:
+  packages/tenancy/organization-governance-sql:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
@@ -1733,6 +1816,9 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../core/offer-expiry
+      '@omne-harness-lite/organization-governance':
+        specifier: workspace:*
+        version: link:../../core/organization-governance
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
@@ -1825,9 +1911,9 @@ importers:
       '@omne-harness-lite/credential-verification':
         specifier: workspace:*
         version: link:../../tenancy/credential-verification
-      '@omne-harness-lite/organization-governance':
+      '@omne-harness-lite/organization-governance-sql':
         specifier: workspace:*
-        version: link:../../tenancy/organization-governance
+        version: link:../../tenancy/organization-governance-sql
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../infra/storage-sql

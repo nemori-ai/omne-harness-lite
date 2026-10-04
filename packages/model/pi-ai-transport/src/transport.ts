@@ -7,7 +7,7 @@ import type {
   PlanExecutionContext,
   PlanInput,
   PlanResult,
-} from '@omne-harness-lite/model-request-runtime'
+} from '@omne-harness-lite/model-request-runtime-local'
 import { planRequest, claimPlan, planAvailable, type PlannedRequest } from './plan.ts'
 import {
   sendRequest,

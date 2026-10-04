@@ -6,7 +6,7 @@ import {
   toOpaqueJson,
   type JsonObject,
 } from '@omne-harness-lite/content-blocks'
-import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime'
+import type { PlanOutputHistoryGroup } from '@omne-harness-lite/model-request-runtime-local'
 import {
   defineInputMeter,
   type FullMeterInput,

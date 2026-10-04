@@ -2,7 +2,7 @@ import { testImagePreparerFor, imagePreparation } from './image-transport-suppor
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import { createOpenAiInputMeter } from '../src/input-meters/openai.ts'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { openaiConfiguration, openaiDefinitions } from '../src/official-models/openai.ts'

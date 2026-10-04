@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import type { PlanInput } from '@omne-harness-lite/model-request-runtime'
+import type { PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import {
   createOfficialProfileContent,

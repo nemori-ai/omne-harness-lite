@@ -5,7 +5,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
-import type { ReadFacts } from '@omne-harness-lite/model-request-runtime'
+import type { ReadFacts } from '@omne-harness-lite/model-request-runtime-local'
 import type { ObservationProvenance, ObservedInput } from '@omne-harness-lite/model-response'
 import { accountFromUsage } from './accounts.ts'
 import { object, member } from './json.ts'

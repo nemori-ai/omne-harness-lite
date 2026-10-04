@@ -163,9 +163,9 @@
       "source": "system-intent.md#责任方向"
     },
     {
-      "id": "packages/tenancy/organization-governance",
+      "id": "packages/tenancy/organization-governance-sql",
       "paths": [
-        "packages/tenancy/organization-governance/src/**"
+        "packages/tenancy/organization-governance-sql/src/**"
       ],
       "layer": "unknown",
       "domains": [
@@ -415,9 +415,9 @@
       "source": "system-intent.md#责任方向"
     },
     {
-      "id": "packages/model/model-request-runtime",
+      "id": "packages/model/model-request-runtime-local",
       "paths": [
-        "packages/model/model-request-runtime/src/**"
+        "packages/model/model-request-runtime-local/src/**"
       ],
       "layer": "unknown",
       "domains": [
@@ -506,6 +506,30 @@
       "layer": "unknown",
       "domains": [
         "admission"
+      ],
+      "status": "candidate",
+      "source": "system-intent.md#责任方向"
+    },
+    {
+      "id": "packages/core/organization-governance",
+      "paths": [
+        "packages/core/organization-governance/src/**"
+      ],
+      "layer": "unknown",
+      "domains": [
+        "identity"
+      ],
+      "status": "candidate",
+      "source": "system-intent.md#责任方向"
+    },
+    {
+      "id": "packages/core/model-request-runtime",
+      "paths": [
+        "packages/core/model-request-runtime/src/**"
+      ],
+      "layer": "unknown",
+      "domains": [
+        "model"
       ],
       "status": "candidate",
       "source": "system-intent.md#责任方向"

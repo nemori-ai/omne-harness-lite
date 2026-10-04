@@ -1,0 +1,59 @@
+# N4：薄规格试点的承诺归属
+
+本批依据 D-114 的集成要求、[D-115](../../record/decisions/actual-architecture-and-thin-spec/decision.md)
+与负责人 2026-10-04 的 N4 实施/验收授权。形状与集成变化不新增业务政策。
+本批限定采用见[接受事件](../../record/decisions/thin-spec-pilots-adoption/decision.md)。
+下表明确唯一源和未迁范围。实现与验收状态归[本批证据](../../record/evidence/2026-10-04-thin-spec-pilots/README.md)。
+
+## 组织治理
+
+| 承诺/资源 | 当前拥有者 | 本批处置 |
+|---|---|---|
+| 四操作面、词汇、闭合失败类型、配置/事件形状 | `packages/core/organization-governance/src/index.ts` | 从旧提供者 types.ts 移入，旧实现源删除，不保留类型转导出 |
+| 四 Service、键、Context/Events 增补 | `packages/core/organization-governance/src/cordis.ts` | 采用 IC-1～4，清除键依 IC-7 变为 organizationPurge，无旧运行时别名 |
+| 共同参与/通知的集成责任 | `packages/core/organization-governance/SPEC.md` | 接续 OG2 S-63；与操作细则不同范围，不创建第二份操作表 |
+| SQL fiber、配置加载、工厂依赖/回滚绑定 | `packages/tenancy/organization-governance-sql/SPEC.md`、`packages/tenancy/organization-governance-sql/adr/service-faces.md` | 接替旧节点当前实现投影；迁移及真实测试随提供者 |
+| 身份、不变量、操作授权/次序/幂等/副作用及模型 | capability.organization-governance 的精确未迁协议 | OG1 的旧消费者与 OG2 的拒绝/参与消费者继续按 registry 钉选，不删冻结版本 |
+| OG3 时刻、资产依赖与未实现事务读面 | 同一未迁 OG3 协议及旧节点“v3 修订” | 已接受、未实现保持，不归 N4 已实现范围 |
+
+旧 realization 的当前四面实现投影不再是新/已迁任务的承诺源。
+原节点仍为历史接受、证据、OG3 与其他未迁义务的可达入口，不将混合文件整个删除。
+账号/登录定义分离、存储/时钟键重复及五个旧事件的命名偏差由 N5 批次处理。
+这些差距不被本批接受为新例外。
+实际视图还保留四个 IC-4 静态读数：治理根的类型依赖沿未迁 `kernel-basis` 公开根触及 Cordis。
+本批运行装载试验确认纯根不会加载 Cordis，但不能据此声称源码或声明闭包全部符合 IC-4。
+`kernel-basis` 的纯类型与绑定入口分面归 N5，保持原语义与公共类型身份。
+
+## 模型请求运行时
+
+| 承诺/资源 | 当前拥有者 | 本批处置 |
+|---|---|---|
+| retryDelay 类型、S-60 函数行为、精确实现与向量 | `packages/core/model-request-runtime/SPEC.md` | 迁入唯一公开源，原实现/类型/向量路径删除，默认策略改为公共消费者 |
+| Cordis 插件入口与 local 后端限定名 | `packages/model/model-request-runtime-local/SPEC.md` | 根与 ./cordis 分面，旧两个子入口取消，真实消费者同步 |
+| 十五操作及耐久生命周期/失败/控制/恢复/凭据/引用/保留 | 精确未迁 runtime 协议与相关模型 | 保持 registry 采用版本及冻结资源；公共类型闭包另列 N5，不借 current 实现改承诺 |
+| 提供者日志 codec、策略与耐久验证 | local 提供者现有公开类型、测试及未迁精确投影 | 源位置迁移，原运行证据保留原输入坐标，不声称重新运行 |
+| 完整生产 Session/Run 外部终结与恢复来源 | 相应会话/运行拥有者 | 保持未闭合责任，不归本批实现 |
+
+冻结 runtime v12 S-60 保留原字节供历史输入和未迁模型导航。
+已迁函数的现行行为源为模块 SPEC；其他条款及相关冻结义务继续有效。
+纯函数向量原内容保持，移动不自动提升全 runtime 验证状态。
+
+完整定义后续须收齐 session-log、model-profile-directory、evaluation-input-store、asset-registry、
+session-tenancy 的公共类型责任。不能把五个提供者整体移进 core。
+
+## 租户治理宿主
+
+| 范围 | 当前拥有者 | 本批处置 |
+|---|---|---|
+| 整体启动、共享事务域、确认/开闸与撤除性质 | `apps/tenancy-host/SPEC.md` | 接替当前实现的旧整体投影，既有未来增量仍未实现 |
+| 当前装配/配置/迁移/守卫形状 | 应用源码与公开类型 | 实际关系从源码抽取，不手写新 realization 图 |
+| 升级/预检/维护与存量验证资源 | 原精确协议、D-055/056、测试及历史运行 | 继续有效，N4 执行范围另记，不把历史绿测算本次运行 |
+| 插件树 IC-15/16、资产治理与目录中心增量、PG 整体恢复 | 系统 IC 和未迁源 | 目标仍有效；实现差距和受阻部署保持 |
+
+## 消费与退役标准
+
+本批退役的是旧公开源码路径、插件子入口和已替代的当前实现投影范围。
+旧业务协议/冻结目录、模型、例子与原事件坐标没有被宣称全部退役。
+代码、发布和工具不可读取已删除的公开源；历史引用仍可追到原节点并按本页定位现行源。
+最终源码散列、直接/间接消费者、门禁、红项处置和未运行范围记录在任务证据。
+N5/N6 继续按具名条款/资源批次退役，不能全局关闭旧检查器求绿。

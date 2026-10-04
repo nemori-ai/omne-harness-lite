@@ -9,7 +9,7 @@ import {
   writeJsonLossless,
   type JsonObject,
 } from '@omne-harness-lite/content-blocks'
-import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime'
+import { invokeModel, type PlanInput } from '@omne-harness-lite/model-request-runtime-local'
 import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'
 import { createOfficialProfileContent } from '../src/configuration.ts'
 import { createAnthropicInputMeter } from '../src/input-meters/anthropic.ts'
