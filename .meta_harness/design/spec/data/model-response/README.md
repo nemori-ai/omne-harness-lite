@@ -1,3 +1,16 @@
+2026-09-29：[D-107](../../../record/decisions/model-input-usage-calibration-adoption/decision.md) 接受并冻结 v9 全45条/5资源；当前规范采用不等于真实调用/持久或实现验收。以下按原版本与日期读取。
+
+2026-09-28：[D-104](../../../record/decisions/model-recovery-timing-adoption/decision.md) 接受本次恢复时序后继 v8 的全部规范资源；当前精确范围以该决定与 registry 为准。下文候选标签记录起草时状态，提供者迁移及真实恢复另验。
+
+> **历史起草记录（当时状态）**：**2026-09-28 新候选**：[v6](v6/contract.md)（S-1～S-40）引用 MP4/MS5，新增待提交回复表示；未接受、未冻结。完整输入限制快照、持久根/待提交边界与证据见 [v6 验证说明](verification.md#2026-09-28-v6-候选验证)。当前已接受 v5 保持原采用。
+
+2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v7 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
+
+**当前候选 `data.model-response/v7`**：[契约](v7/contract.md)与[变化及证据](verification.md#v7-发布前破坏性演进)。由已接受 v6 机械演进，只更新精确消费链并删除旧格式兼容过渡义务；当前代际在途与历史责任保持。未接受、未冻结；中央登记由本批唯一 owner 集成，旧冻结版本不改。下文既有进展按原版本和当时事件读取。
+
+
+**2026-09-27 当前规范接受（D-090）**：[v5](v5/contract.md) 全38条／3资源已接受并冻结；core 显式 v5 提供者采用与旧根保持见 [决定](../../../record/decisions/model-headers-v5-adoption/decision.md)。真实采集、脱敏、交接与持久链仍待，规范内 candidate 标签按起草时间读取。
+
 # 一次发出的完整模型响应体
 
 **一次[模型调用](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)每向上游[发出](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-upstream-send--一次发出--upstream-send)一次，留下的那一条[模型响应体](../../../ubiquitous_language/terms/execution-and-outcome.md#ul-model-response--模型响应体--model-response)**：
@@ -54,3 +67,36 @@ Schema 的条件约束逐格表达、正反实例逐格演示，在给定规模�
 ## 2026-09-26 D-068 当前 v3
 
 `data.model-response · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
+
+## 2026-09-27 v4 候选
+
+[v4 契约](v4/contract.md)、[Schema](v4/model-response.schema.json) 与[规范实例](v4/examples.md) 增加完整模型适配绑定及上游实际执行方，缓存事实继续由既有 usage 承载。[v4 验证说明](verification.md#2026-09-27-v4-候选验证) 记录差异、证据义务与实际状态。本版为 candidate，依赖 model-profile/v3、messages/v4 候选；当前已接受版本仍是上述 v3，旧消费者不自动升级。
+
+## 2026-09-27 v5 多值响应头候选
+
+本轮基线是 [D-078 承接接受的 v4](../../../record/decisions/model-main-integration-coordination/acceptance.json)，上节候选措辞保留其历史范围。新增 [v5 完整契约](v5/contract.md)、[Schema](v5/model-response.schema.json) 与[规范实例](v5/examples.md)，坐标为 `(omne-harness-lite-design-2026-09-15, data.model-response, 5)`，仍为 **candidate，未接受、未冻结**。
+
+v5 仅将 `raw.headers` 的值扩展为字符串或有序字符串数组，保存采得且脱敏后的值形状、数组顺序、重复和空值；其余 38 条约束的含义及七个精确依赖沿 v4。规范资源恰三份，无新操作、编号族或形式任务。catalog 新增候选坐标，covers 继承 28 条范围并保持 `reviewed: false`；不改变旧 accepted、frozen 或消费者精确采用。
+
+[v5 验证说明](verification.md#2026-09-27-v5-多值响应头候选验证) 列出 MR5-H1～MR5-H6、产品 rev 继承边界及消费传播。真实运输事实交接、写前脱敏、同次追加和重开读取均未验证；MR5 Schema 通过不关闭运行时 G-31。完整响应的新读写链须由运行时、core 提供者、transport 与验收装配分别显式采用。
+
+2026-09-28：[D-099](../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md)在独立复评闭合后技术接受 v6；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。
+
+
+## 2026-09-28 MR8 恢复时序候选
+
+[v8 契约](v8/contract.md) 为 candidate，未接受、未冻结；只补已确认锚点的中断结算中实际 sentAt 不可用表示。当前采用不自动升级，证据与消费者责任见[验证入口](verification.md#恢复时序候选)。
+
+
+## 2026-09-29 响应校准候选 v9
+
+[v9 contract](v9/contract.md) · [验证义务](v9/verification.md)。新增增量输入计量事实及其消费；candidate，未接受、未冻结，不自动升级现有消费者。
+
+
+## v10 candidate（本批）
+
+[v10完整规范](v10/contract.md)、[消费者影响](v10/consumer-impact.md)、[验证义务](v10/verification.md)。未接受、未冻结，不自动升级现有消费者。
+
+## v11 ACK后继候选
+
+[v11 contract](v11/contract.md) · [消费者影响](v11/consumer-impact.md) · [验证义务](v11/verification.md)。candidate，未接受；前驱v10接受状态不传递。ACK确认、真实处分与清理分别可见；本批证据未完成时不据目录存在宣称通过。

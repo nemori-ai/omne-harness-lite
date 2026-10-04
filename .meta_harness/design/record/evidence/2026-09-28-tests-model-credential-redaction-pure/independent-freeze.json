@@ -1,0 +1,135 @@
+{
+  "frozen_utc": "2026-09-28T00:44:02.204149+00:00",
+  "execution_checkout": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent",
+  "branch": "panqiwei/model-request-runtime-g6-independent",
+  "HEAD": "7f580351ec6dc5d09f32724e987135aea4e4f8cc",
+  "tracked_status": "",
+  "adopted_brief_sha256": "4842374f8036a5e5b5dcb01bda5a2a6a5ec7f76cede86a59040aa1eea07a0d40",
+  "adopted_inputs_sha256": "6de34cb4c95c1a7c21d1a68ea404e4404492ae00175909cc703eb03545cea21e",
+  "evidence_manifest_sha256": "c22c5968947b0314209efe9e69f6bcdea9cf0d912978455773d6f883980f4e0d",
+  "payload_file_count": 435,
+  "oracle_sha256": "32affbbc95d8107211a33c4e6547673ca8362b7a928c0a48aa8344491c4ea012",
+  "final_source_snapshot_sha256": "20b5d09b1243e80e13e4c4674cd02fb8d480f36dbc2f3f04c117bf5a8d66ba80",
+  "final_artifact_member_audit_sha256": "c4ace7ba33dc1b5b4ca78aad9bfa0ed020e1b648288abfbf662eb0e988866e1a",
+  "installed_file_manifest_sha256": "776c5cc05b378735ec684fccd4d3e347216b838a618c30739874941f069f340f",
+  "artifact_closure": [
+    {
+      "name": "@omne-harness-lite/arrival-events",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/arrival-events",
+      "archive": "omne-harness-lite-arrival-events-0.0.0.tgz",
+      "sha256": "29f9fab5e095d6377dc654148345e07f39758b94f2f9027c92b282777df5d882",
+      "bytes": 19590
+    },
+    {
+      "name": "@omne-harness-lite/asset-model",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/asset-model",
+      "archive": "omne-harness-lite-asset-model-0.0.0.tgz",
+      "sha256": "84afbe6a523593d91f76dee32104c41f211ed2cabcdbe1fc0a6fd63a86ad74d1",
+      "bytes": 50750
+    },
+    {
+      "name": "@omne-harness-lite/call-accounts",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/call-accounts",
+      "archive": "omne-harness-lite-call-accounts-0.0.0.tgz",
+      "sha256": "8d4864faa05af982e61018c9e7a340152a50327797c93e8c489a870b59343aa4",
+      "bytes": 27945
+    },
+    {
+      "name": "@omne-harness-lite/content-blocks",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/content-blocks",
+      "archive": "omne-harness-lite-content-blocks-0.0.0.tgz",
+      "sha256": "c2cc10a4abff1fbced9c51630e961e08cde64745f6192aa356148c3af6c23a6f",
+      "bytes": 37159
+    },
+    {
+      "name": "@omne-harness-lite/identity-values",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/identity-values",
+      "archive": "omne-harness-lite-identity-values-0.0.0.tgz",
+      "sha256": "c5b910d02642ff2aa2378802988604dd31e87723f65d79a3af897773ea2041a2",
+      "bytes": 24886
+    },
+    {
+      "name": "@omne-harness-lite/kernel-basis",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/kernel-basis",
+      "archive": "omne-harness-lite-kernel-basis-0.0.0.tgz",
+      "sha256": "94c33c3659c16b9b16a36eb5200b0f3b8bc28b517e75d4ca68ec353f4ba791ed",
+      "bytes": 8057
+    },
+    {
+      "name": "@omne-harness-lite/loop-extension",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/loop-extension",
+      "archive": "omne-harness-lite-loop-extension-0.0.0.tgz",
+      "sha256": "11df56c0c23e31de738f2feefc03e699b1ffeb143e1d21ef90221d7d7e22b6ad",
+      "bytes": 70924
+    },
+    {
+      "name": "@omne-harness-lite/messages",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/messages",
+      "archive": "omne-harness-lite-messages-0.0.0.tgz",
+      "sha256": "6caea54e29a24500d22e8d7c7c5e91c950f401dab68fd21e42efb135566e2de8",
+      "bytes": 64456
+    },
+    {
+      "name": "@omne-harness-lite/model-profile",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/model-profile",
+      "archive": "omne-harness-lite-model-profile-0.0.0.tgz",
+      "sha256": "2d2904a19cec4de75cf304f5106865182b30247decba2d77c04a9539a8eddc07",
+      "bytes": 24582
+    },
+    {
+      "name": "@omne-harness-lite/model-request-runtime",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/model/model-request-runtime",
+      "archive": "omne-harness-lite-model-request-runtime-0.0.0.tgz",
+      "sha256": "4c318627b40d4ab80dd529f41021028d6d32897a320e98895e24ef7367638a4c",
+      "bytes": 65426
+    },
+    {
+      "name": "@omne-harness-lite/model-response",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/model-response",
+      "archive": "omne-harness-lite-model-response-0.0.0.tgz",
+      "sha256": "9790e78e0d5f187e4f2dfd6a5a419e556407eda6c7813996bbbe0880f2bdd591",
+      "bytes": 52190
+    },
+    {
+      "name": "@omne-harness-lite/offer-expiry",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/offer-expiry",
+      "archive": "omne-harness-lite-offer-expiry-0.0.0.tgz",
+      "sha256": "111a06099d6d40a63cc62f4210c7e13c18713f6a463ae4759ffd53fe5cfd2b14",
+      "bytes": 17729
+    },
+    {
+      "name": "@omne-harness-lite/session-log-jsonl",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/session/session-log-jsonl",
+      "archive": "omne-harness-lite-session-log-jsonl-0.0.0.tgz",
+      "sha256": "5cc2aca2fb9dcb6274799fa3192d52f3244bb8e47762564a9fb857fe5c19b60e",
+      "bytes": 41864
+    },
+    {
+      "name": "@omne-harness-lite/stream-assembly",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/stream-assembly",
+      "archive": "omne-harness-lite-stream-assembly-0.0.0.tgz",
+      "sha256": "5dd9cfc999c260f84b7b3b7a1fb58fdd4bf1aa381298c11278190df637dab0d8",
+      "bytes": 17183
+    },
+    {
+      "name": "@omne-harness-lite/tool-definition",
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-g6-independent/packages/core/tool-definition",
+      "archive": "omne-harness-lite-tool-definition-0.0.0.tgz",
+      "sha256": "b4c5dde1bf4ec6cfebbe8c7df574bd45b541b79fe916bf5746b6ac18330f68e8",
+      "bytes": 33758
+    }
+  ],
+  "criterion_verdicts": {
+    "GI-1": "Pass",
+    "GI-2": "Pass",
+    "GI-3": "Pass",
+    "GI-4": "Pass",
+    "GI-5": "Pass",
+    "GI-6": "Pass",
+    "GI-7": "Pass"
+  },
+  "verdict_scope": "D093 limited pure component only; no independent architecture review or final acceptance",
+  "archive_omissions": [
+    "rebuildable node_modules; installed-file-manifest.json and actual product tgz files retained"
+  ]
+}

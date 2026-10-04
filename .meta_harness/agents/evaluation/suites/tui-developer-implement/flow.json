@@ -1,0 +1,177 @@
+{
+  "format": 1,
+  "id": "tui-developer-implement",
+  "version": 1,
+  "family": "implement",
+  "role": "tui-developer",
+  "reps": 2,
+  "host": {
+    "claude-code": {
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "allowed": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Edit",
+        "Write",
+        "Bash"
+      ]
+    }
+  },
+  "workspace": {
+    "kind": "checkout",
+    "base": "003561900adb27de6ebe776fa1cf1b228304c873",
+    "excludes": [
+      ".meta_harness/agents/evaluation",
+      ".meta_harness/design/record/evidence",
+      ".meta_harness/design_legacy",
+      ".gitmodules"
+    ],
+    "setup": [
+      [
+        "pnpm",
+        "install",
+        "--frozen-lockfile",
+        "--ignore-scripts",
+        "--prefer-offline"
+      ],
+      [
+        "pnpm",
+        "run",
+        "build"
+      ]
+    ],
+    "linked": [
+      "node_modules"
+    ],
+    "drop": [
+      ".claude",
+      ".agents",
+      ".codex"
+    ],
+    "commit": "single"
+  },
+  "brief_frame": "briefs/_implement.md",
+  "oracle": {
+    "member": "apps/cli",
+    "tests_dir": "tests",
+    "test": [
+      "pnpm",
+      "exec",
+      "vitest",
+      "run",
+      "--reporter=json",
+      "--outputFile={OUT}"
+    ],
+    "typecheck": [
+      "pnpm",
+      "run",
+      "typecheck"
+    ],
+    "format": [
+      "pnpm",
+      "exec",
+      "prettier",
+      "--check"
+    ],
+    "target_tests": "target-tests.json",
+    "timeout_s": {
+      "test": 600,
+      "typecheck": 900,
+      "format": 900
+    }
+  },
+  "metrics": [
+    {
+      "id": "success",
+      "kind": "binary",
+      "label": "成功"
+    },
+    {
+      "id": "target_pass",
+      "kind": "float",
+      "label": "目标测试通过率",
+      "scale": 1
+    },
+    {
+      "id": "write_scope",
+      "kind": "binary",
+      "label": "守写入范围"
+    },
+    {
+      "id": "tests_intact",
+      "kind": "binary",
+      "label": "原有测试未动"
+    },
+    {
+      "id": "only_allowed",
+      "kind": "binary",
+      "label": "只用放行工具"
+    }
+  ],
+  "signoffs": {
+    "cases": { "by": "panqiwei", "date": "2026-10-02", "version": 1 },
+    "grading": { "by": "panqiwei", "date": "2026-10-02", "version": 1 }
+  },
+  "materials": [
+    {
+      "id": "TD-1",
+      "target": "apps/cli/src/tui/mode-replies.ts：终端字节入口的有界控制答复拆分（ModeReplies）",
+      "brief": "briefs/TD-1.md",
+      "tags": [
+        "终端切片",
+        "单模块"
+      ],
+      "task": {
+        "stub": "stubs/TD-1",
+        "hidden_tests": [
+          "apps/cli/tests/tui-mode-replies.spec.ts"
+        ],
+        "allowed_write": [
+          "apps/cli/src/tui/mode-replies.ts",
+          "apps/cli/tests/"
+        ]
+      }
+    },
+    {
+      "id": "TD-2",
+      "target": "apps/cli/src/tui/screen.ts：治理 TUI 的整帧布局与帧写入",
+      "brief": "briefs/TD-2.md",
+      "tags": [
+        "终端切片",
+        "单模块"
+      ],
+      "task": {
+        "stub": "stubs/TD-2",
+        "hidden_tests": [
+          "apps/cli/tests/tui-screen.spec.ts"
+        ],
+        "allowed_write": [
+          "apps/cli/src/tui/screen.ts",
+          "apps/cli/tests/"
+        ]
+      }
+    },
+    {
+      "id": "TD-3",
+      "target": "apps/cli/src/tui/framer.ts：终端输入分帧（InputFramer）",
+      "brief": "briefs/TD-3.md",
+      "tags": [
+        "终端切片",
+        "单模块"
+      ],
+      "task": {
+        "stub": "stubs/TD-3",
+        "hidden_tests": [
+          "apps/cli/tests/tui-input.spec.ts",
+          "apps/cli/tests/tui-mode-replies.spec.ts"
+        ],
+        "allowed_write": [
+          "apps/cli/src/tui/framer.ts",
+          "apps/cli/tests/"
+        ]
+      }
+    }
+  ]
+}

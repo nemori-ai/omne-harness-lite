@@ -1,8 +1,10 @@
+// @module-tag slow
+// 归慢层：重 CPU：每条用例跑完整的 evaluate，正文判定在调用中真实编译 JSON Schema（不替换）。
 import { describe, expect, it } from 'vitest'
 import { createAssetModelJudge } from '@omne-harness-lite/asset-model'
 import { toOpaqueJson, writeJsonLossless, type JsonValue } from '@omne-harness-lite/content-blocks'
 import { toolBodyContract } from '@omne-harness-lite/tool-definition'
-import { loopExtensionBodyContract } from '@omne-harness-lite/loop-extension'
+import loopSchemaV3 from '@omne-harness-lite/loop-extension/schema/v3' with { type: 'json' }
 import { skillBodyContract } from '@omne-harness-lite/skill-package/v2'
 import { mcpBodyContract } from '@omne-harness-lite/mcp-endpoint'
 import { slashCommandBodyContract } from '@omne-harness-lite/slash-command'
@@ -48,11 +50,23 @@ describe('precise current body-provider domain', () => {
     ])
     expect(Object.isFrozen(defaultBodyContracts)).toBe(true)
     expect(Object.values(defaultBodyContracts).every(port => Object.isFrozen(port))).toBe(true)
-    expect(defaultBodyContracts.tool).toBe(toolBodyContract)
-    expect(defaultBodyContracts.loop_extension).toBe(loopExtensionBodyContract)
-    expect(defaultBodyContracts.skill).toBe(skillBodyContract)
-    expect(defaultBodyContracts.mcp).toBe(mcpBodyContract)
-    expect(defaultBodyContracts.slash_command).toBe(slashCommandBodyContract)
+    // D-116 publishes owned snapshots while preserving the real provider closures.
+    for (const [category, original] of [
+      ['tool', toolBodyContract],
+      ['skill', skillBodyContract],
+      ['mcp', mcpBodyContract],
+      ['slash_command', slashCommandBodyContract],
+    ] as const) {
+      const published = defaultBodyContracts[category]
+      expect(published).not.toBe(original)
+      expect(published.category).toBe(original.category)
+      expect(published.schema).not.toBe(original.schema)
+      expect(published.schema).toEqual(original.schema)
+      for (const responsibility of ['judge', 'deriveDeclarations', 'references'] as const)
+        expect(published[responsibility]).toBe(original[responsibility])
+    }
+    expect(defaultBodyContracts.loop_extension.schema).not.toBe(loopSchemaV3)
+    expect(defaultBodyContracts.loop_extension.schema).toEqual(loopSchemaV3)
   })
   const connector = { category: 'connector', name: 'external' } as const
   const actual = { category: 'connector', body: {} } as const
@@ -91,7 +105,12 @@ describe('precise current body-provider domain', () => {
     const base = simple()
     const result = assembled({
       ...base,
-      root: { definition: root, references: [{ capability: connector }] },
+      root: {
+        definition: root,
+        references: [{ capability: connector }],
+        attributes: [],
+        source: { asset: 'ast_root', version: 1 },
+      },
     })
     expect(result.composition).toEqual([])
     expect(result.unresolved).toEqual([{ capability: connector, referencedBy: root }])
@@ -185,6 +204,8 @@ describe('real five ports to AssetModel and evaluation', () => {
     root: {
       definition: root,
       references: [shell, skillId, mcpId, loopId, slashId].map(capability => ({ capability })),
+      attributes: [],
+      source: { asset: 'ast_root', version: 1 },
     },
     mcpActionSets: [
       {

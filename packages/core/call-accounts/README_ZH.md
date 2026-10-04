@@ -12,7 +12,7 @@
 
 | 公开 API                                           | 用途                                                                     |
 | -------------------------------------------------- | ------------------------------------------------------------------------ |
-| `judgeAccountValue`、`validate`；`./schema`        | 完整账值判定、形状校验与 v2 Schema                                       |
+| `judgeAccountValue`、`validate`；`./schema`        | 完整账值判定、形状校验与 v4 Schema                                       |
 | `ExactDecimal`                                     | 精确的 `from`、`add`、`compare`、`isInteger`、`toString`、`toJsonNumber` |
 | `prepareAccountGroup`、`AccountGroup`、`summarize` | 先准入完整自有账组，再投影权威费用                                       |
 | `effectiveCost`                                    | 对一个显式模型／工具目标应用只属于它的补账                               |
@@ -130,3 +130,21 @@ pnpm --filter @omne-harness-lite/call-accounts run test
 ```
 
 先构建 workspace 依赖。这些检查覆盖本包；组合行为需针对实际消费者与提供者验证。
+
+默认公开入口与 `./schema` 采用 `data.call-accounts/v4`。当前 loop-extension 的依赖图仍引用规范 CA2，故 `./schema/v2` 保留其原字节，但没有旧版执行入口。实际读面须在同一已授权 Session 来源前缀中按 ResponseId 只选一笔原账：先选已确认 final，其次选 ACK 原账见证，否则取完整 ready；来源矛盾必须拒绝。`summarize` 不查询日志、不按 CallKey 去重，也不代选来源；把同响应的两笔账交入会得到 `duplicate_account`。见证不是第二笔费用。补账仍指原 ResponseId，ACK 与释放后 unknown 仍是 unknown。未知授权或必需来源缺失由读面明确收口，不能省略或填零。
+
+### 导入当前与精确依赖 Schema
+
+```ts
+import assert from 'node:assert/strict'
+import current from '@omne-harness-lite/call-accounts/schema' with { type: 'json' }
+import pinned from '@omne-harness-lite/call-accounts/schema/v2' with { type: 'json' }
+import { schemaId } from '@omne-harness-lite/call-accounts'
+
+assert.equal(schemaId, current.$id)
+assert.ok(current.$id.includes('/call-accounts/v4/'))
+assert.ok(pinned.$id.includes('/call-accounts/v2/'))
+assert.deepEqual(current.$defs, pinned.$defs)
+```
+
+采用依据与映射：[ACK 决定](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)、[CA4](../../../.meta_harness/design/spec/data/call-accounts/v4/contract.md)、[提供者](../../../.meta_harness/design/realization/packages/core/call-accounts/v4-acknowledgement-design.md)。本包验证导航：[显式输入](tests/v3.spec.ts)与[规范实例](tests/examples.spec.ts)；真实来源选择、权限和持久恢复由组合验证承担。

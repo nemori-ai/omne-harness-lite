@@ -1,0 +1,13 @@
+{
+  "archive": "evidence.tar.gz",
+  "sha256": "326923543737c3146994004048a51db7f752eab8e317ee7a8e1b024de0512e2f",
+  "bytes": 542706,
+  "archive_file_count": 193,
+  "inventory_file_count": 192,
+  "readback_verified_count": 192,
+  "inventory_sha256": "128cbadbecc477a511fadfa1fb4f372ba3f8ae830777e660825e06950c8b8e2c",
+  "status": "Pass-limited-model-only",
+  "reason": "SANY and three positives complete; all six negatives violate exact designated invariants with inspected traces; contract body and product not accepted",
+  "run_model_hash": "d7f25d31fa24a25560bf67d4bc9adf0ccb9b7a9f66606f9a56023f9e2e9049f5",
+  "candidate_manifest_hash": "ce6c18d5884b24dbf81423becaa48f4672b7a45fd84a95ee5a474b8a1405bd64"
+}

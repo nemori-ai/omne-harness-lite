@@ -59,7 +59,12 @@
 
 [内容块实现接缝](content-blocks-implementation-seams/README.md)：无损数字进入 Schema 校验、普通与 pi 生产者的铸号策略协调；R2 的限定范围已由 D-068 接受；完整 pi 与其他消费者实施门仍未闭合。
 
+[模型调用引用与生命周期](model-runtime-reference-lifecycle/README.md)：比较既有模型服务扩面、独立定位服务、耐久动作协调器三候选；作者推荐在既有服务内补模型专属解析/消费面，四表已形成，尚未接受，不扩完整 Session/Run。
+
+[Moonshot 空串文本段](moonshot-empty-text/README.md)：精确两叶、全路由与公开配置三候选；独立选择无阻断，技术采用见 D-115。
+
+[固定Schema生成与装载](fixed-schema-precompile/README.md)：五条候选、现行26图与受限技术公开面；两项r2选择机制闭合，完整共享机制/正式采用/实现接受仍待。
+
 ## 外部产品投影实验
 
 - [Relay / AI助理SaaS完整投影](ai-assistant-saas-projection/README.md)：2026-09-30需求稿的165项功能、23旅程与外围三候选；按已承诺harness目标态分析，含执行拓扑、工程依赖及Claude Fable评审。候选报告，不提升框架接受/实现状态。
-

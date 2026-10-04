@@ -43,6 +43,83 @@ const purePackages = [
 ]
 
 describe('core-pure-imports', () => {
+  it('D-116 native loading is confined to declared fixed-schema and build sites', () => {
+    for (const path of [
+      'core/content-blocks/src/schema.ts',
+      'core/content-blocks/src/exact-schema.ts',
+      'core/content-blocks/src/schema-runtime.ts',
+      'core/content-blocks/src/schema-compiler.ts',
+      'core/content-blocks/src/schema-codegen.ts',
+      'core/messages/src/schema.ts',
+      'core/agent-definition/src/schema.ts',
+      'core/arrival-events/src/schema.ts',
+      'core/tool-definition/src/schema.ts',
+      'core/loop-extension/src/schema.ts',
+      'core/model-response/src/schema.ts',
+      'core/model-profile/src/schema.ts',
+      'core/skill-package/src/schema.ts',
+      'core/call-accounts/src/schema.ts',
+      'core/mcp-endpoint/src/schema.ts',
+      'core/slash-command/src/schema.ts',
+    ])
+      expect(
+        corePureImports.check([file(path, "import { createRequire } from 'node:module'")]),
+      ).toEqual([])
+    for (const path of [
+      'core/content-blocks/src/code-runtime.ts',
+      'core/content-blocks/src/content.ts',
+      'core/messages/src/judge.ts',
+      'core/asset-model/src/schema.ts',
+    ])
+      expect(
+        corePureImports.check([file(path, "import { createRequire } from 'node:module'")]),
+      ).toHaveLength(1)
+    expect(
+      corePureImports.check([file('core/messages/src/schema.ts', "import fs from 'node:fs'")]),
+    ).toHaveLength(1)
+    // The native generator binds receiver/keywords; handwritten product wrappers
+    // must not separately import either of the build-only/native technical ports.
+    for (const subpath of ['code-runtime', 'schema-codegen'])
+      expect(
+        corePureImports.check([
+          file(
+            'core/messages/src/schema.ts',
+            `import '@omne-harness-lite/content-blocks/${subpath}'`,
+          ),
+        ]),
+      ).toHaveLength(1)
+  })
+
+  it('current exact schemas do not retain retired executable or private paths', () => {
+    for (const [consumer, dependency, subpath] of [
+      ['messages', 'model-profile', 'schema/v3'],
+      ['model-response', 'asset-model', 'schema/connector/v2'],
+      ['loop-extension', 'skill-package', 'schema/v2'],
+    ]) {
+      const path = `core/${consumer}/src/schema.ts`
+      const allowed = `@omne-harness-lite/${dependency}/${subpath}`
+      expect(corePureImports.check([file(path, `import '${allowed}'`)])).toEqual([])
+      expect(corePureImports.check([file(path, `import '${allowed}/private'`)])).toHaveLength(1)
+      expect(
+        corePureImports.check([
+          file(path, `import '@omne-harness-lite/${dependency}/src/schema.ts'`),
+        ]),
+      ).toHaveLength(1)
+    }
+    for (const [consumer, retired] of [
+      ['model-response', 'messages/v3'],
+      ['messages', 'model-profile/v2'],
+      ['asset-evaluation', 'loop-extension/v3'],
+      ['loop-extension', 'model-response/v3'],
+    ]) {
+      expect(
+        corePureImports.check([
+          file(`core/${consumer}/src/index.ts`, `import '@omne-harness-lite/${retired}'`),
+        ]),
+      ).toHaveLength(1)
+    }
+  })
+
   it('OE1 精确资源入口只授予已登记依赖，不准许版本通配或私有路径', () => {
     for (const pkg of [
       'asset-model',
@@ -324,7 +401,8 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
     ).toEqual([])
   })
 
-  it('collectSources + CLI 真实临时包：坏依赖退出1，合法包退出0', () => {
+  // 归慢层：子进程＋重 CPU：两次起真实 CLI 子进程，每次都扫描整个仓库的执行模块。
+  it('collectSources + CLI 真实临时包：坏依赖退出1，合法包退出0', { tags: ['slow'] }, () => {
     const scratch = join(root, 'tmp')
     mkdirSync(scratch, { recursive: true })
     const dir = mkdtempSync(join(scratch, 'core-rules-'))

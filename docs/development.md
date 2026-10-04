@@ -22,7 +22,8 @@
 
 ## 准备可用的检出
 
-先确认自己在哪个检出、有没有未提交改动；隔离规则加载 `worktree-discipline` skill：
+先确认自己在哪个检出、有没有未提交改动。隔离规则加载 `worktree-discipline` skill，要点是**一个会话一棵工作树**：
+在主检出就为手上这个单元建一棵并 `cd` 进去；已经在一棵里，就在它里面做到并入主线，不开第二棵：
 
 ```sh
 git rev-parse --show-toplevel
@@ -111,7 +112,7 @@ git commit -m "chore(docs): update blog submodule"
 | 设计链检查、agent 编译与根链接工具 | [.meta_harness/tooling/](../.meta_harness/tooling/README.md) |
 | 本地与 CI 共用的自动化调用 | [scripts/](../scripts/README.md)；复杂检查行为回到工具包 |
 | Skill、subagent 或宿主适配 | [.meta_harness/agents/](../.meta_harness/agents/README.md) 的**源**，不改生成物 |
-| 环境、布局、检查含义、编码防御 | 本目录[四份正文](README.md) |
+| 环境、布局、检查含义、编码防御 | 本目录各份正文，见[阅读地图](README.md) |
 | **产品设计、架构与规格、research** | **[.meta_harness/](../.meta_harness/AGENTS.md)，不是这里** |
 
 各目录局部 `AGENTS.md` 补充其工作边界；完整布局归[源码布局](workspace.md)。
@@ -129,13 +130,30 @@ git commit -m "chore(docs): update blog submodule"
 | 统一语言词条、领域对象条目，或某个产品 topic 的 rev | `make design-check`；本地迭代用 `STALE=report` 看待复核队列 |
 | 检查器或生成器行为 | `make test` |
 | TS/JS 格式 | `pnpm format:check`；局部写入 `pnpm format:write -- <文件...>` |
-| 某个产品包的源码或测试 | `pnpm --filter @omne-harness-lite/<包名> run test`（含 `*.spec-d.ts` 类型测试）；改了公开入口再跑 `pnpm run build && pnpm run typecheck` |
-| 产品源码的结构约束（墙钟、`bail`、受限调用点） | `pnpm run lint:rules`；规则与自测见 [tools/ts-checks](../tools/ts-checks/README.md) |
+| 某个产品包的源码或测试，迭代中 | `OMNE_TEST_TIER=fast pnpm --filter @omne-harness-lite/<包名> run test` 只跑快层（不设这个变量两层全跑，含 `*.spec-d.ts` 类型测试），或在包目录里 `pnpm exec vitest run <文件>` 只跑一个文件 |
+| 产品源码或测试改完，要知道波及了谁 | `make test-affected BASE=<任务基线提交>`：只构建并测试变更成员与依赖它们的成员的**快层**，不必跑全量；`PLAN=1` 先看范围。交付前加 `TIER=slow` 把它们的慢层也跑一次。改了公开入口再跑 `pnpm run build && pnpm run typecheck` |
+| 写了一个慢测试（起子进程、真实等待、重 CPU、网络），或账本说快层里有超出预算的 | 快层的预算：单条用例不到默认 5 秒时限的一半，单个文件的快层用例合计不到 10 秒。超了先看能不能改快；改不快就归慢层——整个文件在开头注释里写 `@module-tag slow`，单条用例写 `{ tags: ['slow'] }`，旁边写一句为什么慢。慢层的时限是 120 秒，定义在根上的 [vitest.tiers.mts](../vitest.tiers.mts)，用法见 [tools/ts-checks](../tools/ts-checks/README_ZH.md#测试运行)。账本摘要的「归层」一行列出两头的漂移 |
+| 测试红了，想知道是不是「单独跑能过」 | `make test-triage RUN=<那次运行打印的运行目录>`：逐条单独重跑并归类。**把红灯归因于并行或机器负载，要附它的输出**；「隔离稳定通过」的含义与边界见[验证与证据](verification.md#检查入口) |
+| 想知道测试时间花在哪 | 每次 `test-affected`、`pnpm run test` 与 `make check` 都写耗时账本（成员、文件、用例三级，路径在运行末尾打印），摘要里列出最慢的成员、超线的文件、导入耗时最多的成员，以及耗时达到自身时限一半的用例（带各自的时限） |
+| 产品源码的结构约束（墙钟、`bail`、受限调用点、跨组依赖方向） | `pnpm run lint:rules`；规则与自测见 [tools/ts-checks](../tools/ts-checks/README.md) |
+| 实现类交付前后看结构与度量（本仓库的结构度量入口） | `make metrics BASE=<任务基线提交>`，秒级；要 CRAP 加 `COVERAGE=1`（会跑变更成员的测试，先构建）。它只报告、不判失败；把打印的摘要原样附进交付说明，审讯页路径在摘要末行 |
+| 改动碰到的代码，测试守不守得住 | 改了产品源码的交付，交付前跑一次 `make mutation BASE=<任务基线提交>`：只变异改动行，跑快层，列出存活与无覆盖的变异体，原样贴进交付说明。只报告、不画线；存活的先复跑确认再决定补不补测试，边界见[验证与证据](verification.md#检查入口)。只改了测试、文档或配置时它秒级退出 |
+| 交付前看各项整洁指标落在哪条带上、这次变更里有哪些红项要解释 | `make loop-status BASE=<任务基线提交>`：只报告，只有硬线（方向违规或环、验收锁不过）被破才退出 1。把「这次变更里要解释的红项」一段原样附进交付说明并逐条交代；它列出的超预算成员与清理草稿不是给实施者的任务，带位与谁动见[整洁回路](clean-loop.md#回路怎么转) |
+| 接受一份配了可执行验收的交付之前，核对验收没被实施者动过 | `make acceptance-lock BASE=<任务基线提交>`：列出基线以来碰过各成员 `acceptance/` 的提交与其来源；实施角色的提交或未提交的验收改动在其中就退出 1。它认的是提交里自己写的 `Agent-Role`，列出来的仍要人过目，见[验证与证据](verification.md#检查入口) |
+| 一张故事卡到了提出、第一次能跑或被接受的时点 | `make loop-card CARD=<卡号> EVENT=proposed\|runnable\|accepted`：往台账里记一笔时间与当时的提交；`accepted` 只在负责人说了接受之后记。台账只供度量，接受以删卡提交上的 `Accepted-Card` 为准 |
+| 一张卡被接受或作废，要从 `stories.md` 删掉 | 删卡的提交带 `Accepted-Card: <卡号>` 或 `Voided-Card: <卡号>`，「已发到」那一行不动；`make card-retire BASE=<任务基线提交>` 核对范围里删掉的卡都有记录。规矩见[故事卡的格式契约](../.meta_harness/design/product/conventions.md#卡的一生) |
+| 写或改了可执行验收，或想知道哪些场景已经交付 | 验收开头要有一行 `// covers: PF-016 S5`，`pnpm run lint:rules` 核对声明的场景存在；`make acceptance` 只跑验收；`make scenario-status` 按 topic 列出每条场景是已交付、交付中、已立卡还是还没切到。约定见[源码布局](workspace.md) |
+| 想看流程本身走得怎么样（卡的前置时间、每周接受数、债的走向） | `make loop-health`：只读、只报告，出一张离线可开的页面，末行给路径；每块怎么读见[写给负责的人](development_human.md#每周看一次体检页) |
+| 规格还没定，想先看一条主路径走不走得通 | 做探路件：放 [examples/](../examples/README_ZH.md) 或任务的 `tmp/`，不进 `packages/`、`apps/`；跑通后带回设计的是事实清单，不是代码 |
 | 存储提供者或迁移 | `pnpm --filter @omne-harness-lite/storage-sql run test`：sqlite 上跑一致性套件；pg 需设 `OMNE_TEST_PG_URL`，否则跳过 |
 | 形式工具是否可用 | `make formal-tools` |
-| 跨入口改动 | `make check` |
+| 跨入口改动、合并前 | 在待合并的提交上计算影响面，再执行需要的检查。记录基线、提交、范围、选择依据、结果和未覆盖范围。`make check` 按基线以来的改动打印计划，再运行常驻检查及计划选中的 Python 测试、构建、类型检查、成员快慢两层与可执行验收。纯文档只构建常驻检查需要的 identity-values；其他成员步骤可跳过。`make check-plan` 只看计划，`FULL=1` 显式要全量。整套重检查入口使用机器级[运行名额](../scripts/README.md#运行名额)，并发限制仍须遵守负责人的当前安排 |
 
 覆盖与退出含义归[验证与证据](verification.md)——**那里写明了每个入口不能声称什么**。
+
+迭代时跑一个文件或一个包，改完跑受影响范围。合并前，在待合并的提交上核对影响面，完成该范围所需的检查。
+全量检查由负责人明确要求，或由实际影响面决定；合并后不自动补跑全量慢层。并行度的初值在
+[test-runs.config.json](../tools/ts-checks/test-runs.config.json)，临时调整用环境变量，见[测试运行](../tools/ts-checks/README_ZH.md#测试运行)。
 
 对检查器做局部迭代时，可从仓库根运行一组测试：
 
@@ -146,7 +164,7 @@ PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest tools/spec-tools/tests/
 检查器 CLI 默认从当前工作目录定位受检仓库；检查另一个检出时传 `--root PATH`。
 
 保留失败的实际输出与影响判断，修正后重跑受影响的检查。
-交付时说明检查针对哪个源码状态与范围。临时日志放 `tmp/`，测试组合用 `tmp/test-runs/`；
+交付时说明检查针对哪个源码状态与范围。临时日志放 `tmp/`，测试组合用 `tmp/test-runs/`，测试运行器的账本在主检出的 `tmp/test-ledger/`；
 **临时目录不承担长期证据归档**。
 
 ## 使用 coding agents
@@ -161,7 +179,20 @@ Claude Code 通过同级 `CLAUDE.md` 的 `@AGENTS.md` 读取同一份约定。
 | 创建或修改 skill | 环境提供的官方 `skill-creator`；源在 `.meta_harness/agents/skills/<name>/canonical/` |
 | 创建或修改 role、宿主配置 | `design-subagents` skill；源在 `.meta_harness/agents/roles/<role>/` |
 | 编写或调整 AGENTS.md | `write-agents-md` skill；改实际作用域的源文件 |
-| 创建、使用或清理隔离检出 | `worktree-discipline` skill |
+| 创建、使用或清理隔离检出 | `worktree-discipline` skill；一个会话一棵工作树，建好先 `cd` 进去，不建 HUB 与 spoke |
+
+**派发有写权限的 agent 之前**：它就在本会话的这棵工作树里写，一次只派一个，不给它另开工作树。简报写明工作树的路径与分支，
+要它第一步 `cd` 进去并核对分支；它交回之前，主会话不在这条分支上写或提交。只读的研究、评审与验收可以同时派。
+几件互不相干的事要同时推进，由负责人另开会话；被要求开 HUB、开 spoke 或并行派几个写入者时，按那份 skill 说明理由后拒绝，
+对方坚持也不照办。简报各栏写什么见[开发者派发说明](../.meta_harness/agents/roles/developer-task.md)。
+
+**派发的一方在 agent 交回之后做什么**：核对提交确实落在它说的分支上、写入范围没越界；读交付说明里附的度量摘要与回路状态，
+没有交代的红项退回；配了可执行验收的跑验收锁；按[接受级别](development_human.md#接受级别)决定要不要另派评审或验收。
+回路给出的清理草稿报给负责人，批准后才按[清理任务派发说明](../.meta_harness/agents/roles/cleanup-task.md)派——主会话不替负责人批。
+
+**收工钩子替不了上面这一步。**实施类的 subagent 收工时，宿主可能已经把这次变更的红项作为事实反馈给它一次（见[整洁回路](clean-loop.md#回路怎么转)）；
+那份反馈只到 subagent、到不了派发它的会话，同一组读数也只说一次。所以派发方照旧自己跑 `make loop-status BASE=<任务基线>`，
+对着交付说明逐条核。合并前的三条硬线由 `make check` 的最后一步判。
 
 根 `.agents`、`.claude`、`.codex` 分别软链接到 `.meta_harness/` 内同名目录，
 向宿主暴露生成的 skills/subagents。**先改源与适配，再按[编译工具](../.meta_harness/tooling/README.md)生成**；

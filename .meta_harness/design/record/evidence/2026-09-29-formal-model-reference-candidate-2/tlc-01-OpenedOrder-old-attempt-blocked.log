@@ -1,0 +1,52 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 71 and seed -780852700530951512 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 3775] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/OpenedOrder.tla
+Parsing file /tmp/tlc-14283758232363106887/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-14283758232363106887/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module OpenedOrder
+Linting of module OpenedOrder
+Starting... (2026-09-29 12:48:09)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-29 12:48:10.
+Error: Invariant OldAttemptMayOpen is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ openedReceipt = "none"
+/\ writerStopped = FALSE
+/\ sends = 1
+/\ readPermit = FALSE
+/\ currentAttempt = 1
+/\ visible = FALSE
+/\ lost = FALSE
+/\ log = <<"dispatch-1">>
+/\ readTail = 0
+
+State 2: <NewAttempt line 12, col 15 to line 14, col 97 of module OpenedOrder>
+/\ openedReceipt = "none"
+/\ writerStopped = FALSE
+/\ sends = 1
+/\ readPermit = FALSE
+/\ currentAttempt = 2
+/\ visible = FALSE
+/\ lost = FALSE
+/\ log = <<"dispatch-1", "attempt-2">>
+/\ readTail = 0
+
+State 3: <ReadPrefix line 17, col 15 to line 20, col 96 of module OpenedOrder>
+/\ openedReceipt = "none"
+/\ writerStopped = FALSE
+/\ sends = 1
+/\ readPermit = TRUE
+/\ currentAttempt = 2
+/\ visible = FALSE
+/\ lost = FALSE
+/\ log = <<"dispatch-1", "attempt-2">>
+/\ readTail = 2
+
+7 states generated, 7 distinct states found, 4 states left on queue.
+The depth of the complete state graph search is 3.
+Finished in 01s at (2026-09-29 12:48:10)

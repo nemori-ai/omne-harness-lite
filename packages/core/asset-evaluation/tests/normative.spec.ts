@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：重 CPU：每条用例跑完整的 evaluate，正文判定在调用中真实编译 JSON Schema（不替换）。
 import { describe, expect, it } from 'vitest'
 import { carrierRecordId } from '@omne-harness-lite/asset-model'
 import { writeJsonLossless, toOpaqueJson } from '@omne-harness-lite/content-blocks'
@@ -197,7 +199,7 @@ describe('E1 complete real body projection and E3 read-to-evaluate chain', () =>
       disabled.values.find(entry => entry.capability.name === 'shell' && entry.item === 'execute')
         ?.tenantAutoWritable,
     ).toBe(false)
-  })
+  }, 120_000)
   it('E3 retains values, drops only locks/unknown references, with no since', () => {
     const manifest = {
       format: 1,
@@ -333,7 +335,12 @@ describe('E2 disable first, E6 usable before locks', () => {
       const input = {
         ...simple(),
         tenant: whose,
-        root: { definition: root, references: [{ capability: c }] },
+        root: {
+          definition: root,
+          references: [{ capability: c }],
+          attributes: [],
+          source: { asset: 'ast_root', version: 1 },
+        },
         definitions,
         holdings: [
           holding('factory', root, 'ast_root', [], false, whose),
@@ -514,7 +521,12 @@ describe('E7/E8 cycle and unsupported categories with fixed priority', () => {
     }
     const cycle = evaluate({
       ...base,
-      root: { definition: root, references: [{ capability: t }, { capability: root }] },
+      root: {
+        definition: root,
+        references: [{ capability: t }, { capability: root }],
+        attributes: [],
+        source: { asset: 'ast_root', version: 1 },
+      },
     })
     expect(plain(cycle)).toEqual({ compositionCycle: { cycle: [root] } })
     const success = ok(base)
@@ -557,7 +569,12 @@ describe('E7/E8 cycle and unsupported categories with fixed priority', () => {
         holding('factory', c, 'ast_skill'),
         holding('factory', t, 'ast_tool'),
       ],
-      root: { definition: root, references: [{ capability: t }, { capability: root }] },
+      root: {
+        definition: root,
+        references: [{ capability: t }, { capability: root }],
+        attributes: [],
+        source: { asset: 'ast_root', version: 1 },
+      },
     })
     sets(result, {
       root,
@@ -578,7 +595,12 @@ describe('E7/E8 cycle and unsupported categories with fixed priority', () => {
           : { category: 'agent_definition' as const, body: toOpaqueJson({}) }
       const input = {
         ...base,
-        root: { definition: root, references: [{ capability: shell }, { capability: c }] },
+        root: {
+          definition: root,
+          references: [{ capability: shell }, { capability: c }],
+          attributes: [],
+          source: { asset: 'ast_root', version: 1 },
+        },
         definitions: [...base.definitions, definition('ast_extra', c, content)],
         holdings: [...base.holdings, holding('factory', c, 'ast_extra')],
       }
@@ -587,7 +609,12 @@ describe('E7/E8 cycle and unsupported categories with fixed priority', () => {
         plain(
           evaluate({
             ...input,
-            root: { definition: root, references: [{ capability: c }, { capability: root }] },
+            root: {
+              definition: root,
+              references: [{ capability: c }, { capability: root }],
+              attributes: [],
+              source: { asset: 'ast_root', version: 1 },
+            },
           }),
         ),
       ).toEqual({ compositionCycle: { cycle: [root] } })
@@ -597,7 +624,12 @@ describe('E7/E8 cycle and unsupported categories with fixed priority', () => {
     const c = cap('plugin', 'bundle')
     const result = ok({
       ...base,
-      root: { definition: root, references: [{ capability: shell }, { capability: c }] },
+      root: {
+        definition: root,
+        references: [{ capability: shell }, { capability: c }],
+        attributes: [],
+        source: { asset: 'ast_root', version: 1 },
+      },
       definitions: [
         ...base.definitions,
         definition('ast_plugin', c, { category: 'plugin', members: [shell] }, 'customized'),

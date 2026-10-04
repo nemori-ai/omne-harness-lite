@@ -10,6 +10,7 @@ import {
 import {
   parseOpaqueIdentifier,
   parseScopeLayerIdentity,
+  parseTenantId,
   type OpaqueIdentifier,
   type ScopeLayerIdentity,
 } from '@omne-harness-lite/identity-values'
@@ -21,6 +22,7 @@ import type {
   PlainMessageBlock,
   AssistantMessage,
   ToolMessageResult,
+  ModelCallCreatedPayload,
 } from './types.ts'
 import { validate } from './schema.ts'
 
@@ -112,6 +114,46 @@ export function brandRecord(source: unknown): ModelInvocationRecord {
   if ('failed' in copied || !isWireRecord(copied.ok))
     throw new TypeError('ModelInvocationRecord Schema representation required')
   const value: Wire<ModelInvocationRecord> = copied.ok
+  if (value.kind === 'model_call_created')
+    return Object.freeze({ ...value, creationKey: id(value.creationKey, 'CreationKey') })
+  if (
+    value.kind === 'model_call_ended' &&
+    value.ending === 'undispatched' &&
+    value.creationKey !== undefined
+  )
+    return Object.freeze({ ...value, creationKey: id(value.creationKey, 'CreationKey') })
+  if (value.kind === 'model_call_acknowledged') {
+    if (value.target.kind === 'ended') {
+      const { accountingWitness, retainedResultDigest, ...common } = value
+      return Object.freeze({ ...common, creationKey: id(value.creationKey, 'CreationKey') })
+    }
+    const witness = value.accountingWitness
+    if (witness === undefined) {
+      const { accountingWitness, ...common } = value
+      return Object.freeze({ ...common, creationKey: id(value.creationKey, 'CreationKey') })
+    }
+    const tenant = parseTenantId(witness.origin.tenant)
+    if (!('ok' in tenant)) throw new Error('validated witness tenant failed branding')
+    const credentialScope =
+      witness.credentialScope.layer === 'factory'
+        ? Object.freeze({ layer: 'factory' as const })
+        : scope(witness.credentialScope)
+    if (credentialScope.layer !== witness.credentialScope.layer)
+      throw new Error('validated witness credential scope changed layer')
+    return Object.freeze({
+      ...value,
+      creationKey: id(value.creationKey, 'CreationKey'),
+      accountingWitness: Object.freeze({
+        ...witness,
+        origin: Object.freeze({
+          ...witness.origin,
+          tenant: tenant.ok,
+          session: id(witness.origin.session, 'SessionRef'),
+        }),
+        credentialScope,
+      }),
+    })
+  }
   if (value.kind !== 'model_call_dispatched') return Object.freeze(value)
   if (value.credentialScope.layer === 'factory')
     return Object.freeze({
@@ -247,4 +289,51 @@ export function brandMessage(representation: unknown): Message {
         ),
       })
   }
+}
+
+export function isWireCreatedPayload(
+  value: JsonValue,
+): value is JsonValue & Wire<ModelCallCreatedPayload> {
+  return validate('ModelCallCreatedPayload', value).valid
+}
+/** Shape-only adapter; cross-member predicates remain with the complete judge. */
+export function brandCreatedPayload(source: unknown): ModelCallCreatedPayload {
+  const copied = copyJsonValue(source)
+  if ('failed' in copied || !isWireCreatedPayload(copied.ok))
+    throw new TypeError('ModelCallCreatedPayload Schema representation required')
+  const value: Wire<ModelCallCreatedPayload> = copied.ok
+  const tenant = parseTenantId(value.origin.tenant)
+  if (!('ok' in tenant)) throw new Error('validated tenant failed branding')
+  const origin = Object.freeze({
+    ...value.origin,
+    tenant: tenant.ok,
+    session: id(value.origin.session, 'SessionRef'),
+  })
+  const { status, adopted, cause, ...common } = value
+  const base = {
+    ...common,
+    origin,
+    ref: Object.freeze({ ...value.ref, session: id(value.ref.session, 'SessionRef') }),
+    creationKey: id(value.creationKey, 'CreationKey'),
+    input: Object.freeze({
+      ...value.input,
+      basis: Object.freeze({
+        ...value.input.basis,
+        profile: profileRef(value.input.basis.profile),
+      }),
+      messages: Object.freeze(value.input.messages.map(brandMessage)),
+    }),
+  }
+  if (value.status === 'rejected')
+    return Object.freeze({ ...base, status: 'rejected', cause: value.cause })
+  const credential = value.adopted.profile
+  return Object.freeze({
+    ...base,
+    status: 'accepted',
+    adopted: Object.freeze({
+      ...value.adopted,
+      profile: profileRef(credential),
+      messages: Object.freeze(value.adopted.messages.map(brandMessage)),
+    }),
+  })
 }

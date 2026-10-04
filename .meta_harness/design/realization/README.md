@@ -1,5 +1,9 @@
 # 实现映射
 
+2026-09-27：[D085](../record/decisions/session-log-recovery-projection-adoption/decision.md)采用[SL3恢复识别增补rev2](packages/session/session-log-jsonl/v3-recovery-design.md)。补可靠active／clean标记和可信物理退出输入；真实观察、FS和调用者迁移仍未验收，bindings0，不提升日志或runtime交付状态。
+
+2026-09-27：model/pi-ai-transport revision7公共完整定义增量已[有限实施签收](../record/evidence/2026-09-27-tests-model-request-runtime-definitions/README.md)，旧默认删除，HUB175／6、独立制品／文档／真实排空及8行为负控保全；两model节点当前层次沿各自入口。不是完整P2、耐久十三操作或37模型认证。
+
 这里保存契约由谁兑现：插件提供者的设计、应用装配的选择，以及把承诺绑到实际证据上的绑定表。
 
 失效事件：实现换方案。需求没变、契约没变，但换了一个库、改了一处装配、
@@ -19,7 +23,7 @@ realization/
 ├── .templates/node/
 │   ├── README.md          节点入口与状态
 │   ├── architecture.md    应用的形状：拓扑、进程、交互面、分层、技术栈、分发——只有 assembly 节点有
-│   ├── design.md          实现路径、投影、依赖与装卸责任
+│   ├── design.md          实现路径、投影、依赖与装卸责任、Cordis 符合性核对
 │   ├── bindings.yaml      条款到证据的绑定表
 │   └── verification.md    符合性或集成证据的可变入口
 ├── packages/
@@ -32,6 +36,13 @@ realization/
 `packages/` 与 `apps/` 对应实际源码归属，不是又一层分类。节点名与它实现的包或应用同名，
 使「读设计」和「读源码」用同一个词。
 
+**Cordis 符合性核对表**（2026-10-01 起）：Cordis 是装配时要满足的契约规范，新写或修订的节点在 `design.md` 里按模板逐行填这张表——
+插件边界、服务声明、注入、装卸成对、在途工作、事件派发、内核不给的保证由谁兑现、作用域与可见性、上游语义的出处、机制没有回写契约、接缝角色、事件命名、配置，装配节点另有插件树。
+各行由 [Cordis 集成约定](cordis-integration-conventions.md)导出：本项目做出来的东西怎样接进 Cordis，规则与编号（`IC-`）的权威在那份约定。它只核节点对 Cordis 的符合性，
+不把机制写回契约。2026-10-01 之前接受的节点没有这张表，**不回填**；它们下次修订时补上。
+
+2026-09-28，原 `apps/model-request-acceptance` 的实现已迁到开发示例 `examples/model-invocation-minimal-demo`；同名产品 app 不再是当前交付节点。D-076、D-092 所采用的原技术投影移至[退出现行映射的历史节点](retired/model-request-acceptance/README.md)，保留原路径与 SHA 的采用时证据。现行 `apps/` 目录仅列产品应用；历史设计里仍出现的旧装配 owner 是当时读数，不表示现有示例已经承接完整十三操作、37 模型认证或相关生产责任。后续完整纵线必须逐个重新落实这些未承接责任。
+
 ## packages 的两层布局
 
 **这里的目录结构直接指导承载仓库根下 `packages/` 的目录结构**：节点路径 `packages/<group>/<node>` 就是将来源码包的路径，
@@ -39,14 +50,14 @@ realization/
 
 | 第一层                                                                                                                | 放什么                                                                                                                                  | 判据                                                                                                                                                                                 |
 | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `core/`                                                                                                               | **核心、共享、契约或底层协议相关**：`data.*` 数据契约的纯模块、跨领域复用的构造（身份值、交接凭证、过期判定、时间源形状）、内核层复用件 | 它没有自己的领域事实，**被两个以上领域消费**，或它兑现的是一份 `data.*` 契约                                                                                                         |
+| `core/`                                                                                                               | **核心、共享、契约或底层协议相关**：`data.*` 数据契约的纯模块、跨领域复用的构造（身份值、交接凭证、过期判定、时间源形状）、内核层复用件；**能力契约的 Cordis 服务定义**（每份以服务被消费的能力契约一个定义包，[Cordis 集成约定](cordis-integration-conventions.md) IC-1） | 它没有自己的领域事实，**被两个以上领域消费**，或它兑现的是一份 `data.*` 契约，或它是一份能力契约的服务定义（负责人 2026-10-02：服务定义全部放 `core`） |
 | `<domain>/`                                                                                                           | **按领域或限界上下文聚合**的能力与组合提供者                                                                                            | 它拥有该领域的事实或动作链；一个节点只属于一个领域。领域名由产品负责人拍板——租户领域是 `tenancy`（[D-024](../record/decisions/tenancy-domain-name/README.md)），新领域在拍板前标候选 |
 | `infra/`（组名由 [D-027](../record/decisions/infrastructure-names-and-sqlite-durability/README.md) 拍板，2026-09-23） | **基础设施提供者**：兑现 `core/` 里某个协议级构造的具体实现（SQL 存储、时钟），或据点／中心的**窄口基础设施契约**（密钥保管、进程起停、连接探测）的最小提供者，被装配层选用                                             | 它没有领域事实，也不定义协议，只兑现一个协议；选型受 [D-026](../record/decisions/infrastructure-persistence-choices/README.md) 约束（不提供 in-memory 实现）。协议本身留在 `core/`   |
 
 `util/` 由用户2026-09-26明确追加；[D-046](../record/decisions/core-formatter-adoption/decision.md)限定为无领域事实的[unix-format](packages/util/unix-format/README.md)、[xml-format](packages/util/xml-format/README.md)两格式化技术件。不是新限界上下文，也不把core扩成公共工具箱；本程timeout/brand不迁入。
 
 **怎么判一个节点归 `core` 还是某个领域**：问它兑现的契约是 `data.*` 还是 `capability.*`／`composition.*`——前者几乎总在 `core`；
-后者按契约拥有的事实归领域。拿不准的先按领域放，**被第二个领域消费的那天再搬进 `core`**，搬动是「实现换方案」，记 changelog 即可，不改契约。
+后者按契约拥有的事实归领域——但它的 Cordis 服务定义（服务键、`Service` 类、词汇类型）不跟着提供者走，一律在 `core` 的定义包里，提供者节点只写实现。拿不准的先按领域放，**被第二个领域消费的那天再搬进 `core`**，搬动是「实现换方案」，记 changelog 即可，不改契约。
 `core` 不是「公共工具箱」：一个只被一个领域用的辅助模块不因为「看起来通用」进 `core`。
 
 节点的相对链接因此多一层：`packages/<group>/<node>/` 下指向 `spec/`、`product/`、`record/` 的链接是 `../../../../`，
@@ -104,6 +115,53 @@ bindings:
 属于可解释的假成功。正确做法是退回把性质改写成有界形式；真退不回去，
 由需求方裁决改写还是撤销。
 
+### 装配声明：`assembly` 与 `composition`
+
+`bindings.yaml` 另有两个顶层键，写**这个节点在装配上打算怎样接进 Cordis**——意图对实现对照的「意图」那一侧，
+供检查器与开发工具机读。它们照节点正文写，**不从代码抄**；规则本身归 [Cordis 集成约定](cordis-integration-conventions.md)。
+
+```yaml
+# 示意：三段分别出自定义包、提供者、装配节点，合在一处只为看全字段
+assembly:                      # 本节点的 Cordis 插件与服务定义
+  defines:                     # 只有 core 里的定义包写：本包定义了哪些服务键
+    - key: sessionLog
+      contract: capability.session-log      # 只写 contract_id，不写版本
+      source: design.md#插件边界与服务面
+  plugins:
+    - name: session-tenancy-table           # 插件名，即 fiber 名
+      source: design.md#插件边界与服务面     # 指回正文里给出这条意图的小节
+      provides: [sessionTenancy]            # 提供的服务键
+      injects: [storage]                    # 必需依赖（写进 inject 的）
+      optional: []                          # 调用时取用的可选依赖
+      emits: []                             # 发的事件：{ event: <名>, mode: emit|parallel|serial|bail|waterfall }
+      listens: []                           # 监听的事件名
+      contributes: []                       # 向哪些注册表服务登记（写注册表的服务键）
+  importExceptions: []                       # IC-5 的同提交例外，缺省为空；条目形状见下表
+composition:                   # 只有装配节点写：Cordis 插件树挂哪些插件
+  plugins:
+    - id: storage                           # 插件树的行 id
+      node: packages/infra/storage-sql      # 提供这个插件的节点
+      plugin: storage-sql                   # 那个节点 assembly.plugins 里的名字
+      layer: distribution                   # distribution（发行层）或 operator（运维者层）
+      source: design.md#选择与动作链
+```
+
+| 字段 | 必填 | 含义 |
+|---|---|---|
+| `assembly.plugins[].name`、`source` | 是 | 插件名与它在正文里的出处；其余列表缺省为空 |
+| `assembly.defines[]` | 定义包才有 | 每项 `key`、`source`，外加 `contract`（契约 ID）或 `owner`（接缝出自协议形状、没有契约时，写拥有它的节点路径，如 `packages/core/storage`），二者恰有其一，与代码里的 `@contract`／`@owner` 对应（IC-3） |
+| `assembly.importExceptions[]` | 有 IC-5 例外时 | 每项 `target`（导入目标的节点路径，如 `packages/tenancy/account-identity`）、`symbols`（导出的事务内读函数名列表）、`sharedStorage`（两个写入者共同触碰的存储对象名称）、`source`（本节点说明同提交责任的小节） |
+| `emits[].mode` | 是 | 五种派发之一，与代码里该事件 JSDoc 的 `@mode` 一致（IC-11） |
+| `composition.plugins[]` | 装配节点才有 | 每项 `id`、`node`、`plugin`、`layer`、`source` |
+
+- **`source` 是硬的**：`<节点内文件>.md#<锚点>`，文件与锚点都要在。字段与正文冲突时**以字段为准**，正文改成只写理由。
+- **契约不另记**：本节点兑现哪些契约，从 `bindings` 的条款坐标推出；`defines` 里只写 `contract_id`。
+- **实施者不改它来消红**：对照报出的偏离由实施者交代；改这里是改设计，过设计评审（负责人 2026-10-02）。
+- **导入例外精确到符号**：`importExceptions` 只表达 IC-5 已允许的事务内读函数，`symbols` 非空、不能用 `*` 放行整个成员；同一目标的同一符号不重复。`sharedStorage` 必须在 `source` 所指正文里解释两个写入者如何共同触碰它；这里只点名，不另定义存储语义。源码对照只放行点名的导出符号，别的导入照常报告。检查器核目标节点存在、名称与出处完整，**不能证明它确实是事务内读函数或共享同一提交**，这两件事仍需设计评审。
+- **加这两个键算修订绑定**：碰到的节点同时按 [D-113](../record/decisions/spec-single-revision/README.md) 的过渡规矩把旧版条款行改绑到最新版（负责人 2026-10-02：「算」，记在 [D-114](../record/decisions/cordis-integration-conventions/decision.md#一裁定原话)）。
+- **过渡**：节点全过完成之前，这两个键可以缺——检查器不判失败，对照工具把那个节点报成「未声明」；全过的最后一批把有包节点的 `assembly` 翻成必填。
+- **检查器核什么**：顶层键只认 `version`、`node`、`kind`、`bindings`、`assembly`、`composition`；派发模式只认五种；同节点服务键不重复；`source` 锚点存在；装配节点挂的插件在被引用节点的 `assembly.plugins` 里——被引用节点还没声明时只提示。**它不核声明与代码是否一致**，那归开发工具。
+
 ### 两条可以机器判的检查
 
 - **事件派发一致**：绑定声明了异步控制语义，而源码里用的是 `ctx.bail(`，直接失败。
@@ -143,7 +201,7 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | [`packages/tenancy/organization-governance`](packages/tenancy/organization-governance/README.md) | `capability.organization-governance` v1                                                 | 插件，四个服务面（S-53 单列一个只给清除链）；跨 owner「同一提交」靠账号行上的过期事实加组织行对账号行的引用约束，无进程内锁。**2026-09-25 按 v2（accepted）修订、尚未实现**：两个时刻、v2 读面另起服务名、存量记录不补时刻、给资产提供者的事务内读入口与三项外部依赖 |
 | [`packages/tenancy/account-registration`](packages/tenancy/account-registration/README.md)       | `composition.account-registration` v1                                                   | 薄插件，无事实；两条动作链，签发激活依据；清扫提供者因缺枚举读面本版建不起来                                                                                                                                                                          |
 | [`packages/tenancy/governance-center-entry`](packages/tenancy/governance-center-entry/README.md) | `composition.governance-center-entry` v1（accepted，D-028）                             | 2026-09-23 首稿：两个插件都不 provide、同起同停——入口层（封闭路由表、判定次序、读或铸中心标识、路由上不提交）与运维面（本机套接字上只答完整体检）；认领契约 G-10（传输绑定）、G-11（防冒充）                                                          |
-| [`packages/core/kernel-basis`](packages/core/kernel-basis/README.md)                             | 无契约条款（D-025、basis 准入）                                                         | 纯模块：Cordis 4.0.4 的 8 条 probe、`definePlugin`／`Outcome`／`FIBER_STATE`、测试装配 `bootAssembly`                                                                                                                                                 |
+| [`packages/core/kernel-basis`](packages/core/kernel-basis/README.md)                             | 无契约条款（D-025、basis 准入）                                                         | 纯模块：Cordis 4.0.4 的 13 条 probe、`definePlugin`／`Outcome`／`FIBER_STATE`、测试装配 `bootAssembly`                                                                                                                                                 |
 | [`packages/core/storage`](packages/core/storage/README.md)                                       | 无契约条款（AI R-1～R-7／OG R-1～R-6 的规格化）                                         | 纯模块：存储协议（一次读／写事务、显式锁、四型失败）与一致性套件                                                                                                                                                                                      |
 | [`packages/infra/storage-sql`](packages/infra/storage-sql/README.md)                             | 无契约条款（D-026）                                                                     | 插件 `storage-sql`：Kysely 提供者，sqlite（`node:sqlite`）／pg 由配置切换，迁移运行器。**2026-09-23 修订**：升级整体性（显式 `upgrade` 守卫、属主独占锁、只读核对、快照与恢复、守卫对象 `createUpgradeGuard()` 的 `confirm()`／`pending()`）          |
 | [`packages/infra/clock`](packages/infra/clock/README.md)                                         | offer-expiry S-16 形状／S-17「`now` 不后退」的承接                                      | 插件 `clock`：写在前的租约。**2026-09-23 修订**：`now()` 每次现读墙钟并与最晚已用时刻比对（运行中回拨与启动窗口同一规则）、`clockPreflight` 导出                                                                                                      |
@@ -192,7 +250,7 @@ governance-center-entry 的设计由 [D-028](../record/decisions/governance-cent
 | [`packages/model/model-profile-directory`](packages/model/model-profile-directory/README.md) | `capability.model-profile-directory` v2 | 中心插件 P-1（三个服务键，取值问法单列），inject 存储、时钟、成员关系；另有只读副本插件 P-1r（租户那一把的据点副本经凭据保管方落地，M47），待未来资产/据点入口（版本未分配） 与保管方 |
 | [`packages/model/model-request-runtime`](packages/model/model-request-runtime/README.md) | `capability.model-request-runtime` v2 | 插件 P-2（inject 目录读面、凭据问法、会话日志、存储、时钟；在途表与连接池一个 effect；发起租户经会话持有租户读面）＋ 自带重试挂件 P-5（候选默认退避，M67）；传输按 D-019 fork；绑定 6 条（formal task） |
 | [`packages/model/modality-projection`](packages/model/modality-projection/README.md) | `capability.modality-projection` v2 | 纯计算＋转换器登记插件 P-3（不 inject 任何服务）、声明插件、各转换器插件 P-4*、系统自带转换件的零状态贡献者插件；不 inject 存储；模态转换这一件经执行环境句柄取 `tenant`，来路待 runner 契约 G-20 |
-| [`packages/model/pi-ai-transport`](packages/model/pi-ai-transport/README.md) | `capability.model-request-runtime` v2 的传输适配一层（S-38 十一条；[D-063 R-5](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)） | pi 0.86.1（`3390bd9`）传输一层的定向 fork，`node:https` 直发；公开函数面 `planRequest`／`sendRequest`／`readStream`／`createPiAiTransport`；插件登记 `modelTransport`（P-2 必需 inject，验收装配以脚本化传输登记同键）；无存储、不 inject；绑定 0 条；D-019 比较门未过 |
+| [`packages/model/pi-ai-transport`](packages/model/pi-ai-transport/README.md) | `capability.model-request-runtime` v2 的传输适配一层（S-38 十一条；[D-063 R-5](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)） | pi 1.0.0（`a13d35a`，2026-10-02 自 0.86.1 改锚）传输一层的定向 fork，`node:https` 直发；公开函数面 `planRequest`／`sendRequest`／`readStream`／`createPiAiTransport`；插件登记 `modelTransport`（P-2 必需 inject，验收装配以脚本化传输登记同键）；无存储、不 inject；绑定 0 条；D-019 比较门未过 |
 
 **2026-09-25 会话领域（`session`，领域名已由产品负责人接受，见 [D-064 ⑱](../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)）**——最小提供者节点（[D-063 R-1](../record/decisions/assets-runtimes-rulings-2026-09-25/README.md)：验收装配的替身改「接口契约 + 最小提供者」），节点设计状态 `accepted`，所兑现的接口契约 `accepted`，**尚未建包**；真提供者归 loop／会话那一程，出契约新版本时在此接续。
 
@@ -261,3 +319,5 @@ D045扩展[协议客户端](packages/frontend/governance-center-client/README.md
 ## 2026-09-26 core 最终签收与发布授权
 
 18 core与两util的本阶段责任已完成：当前221/221、U1另13项，由主调度技术签收；产品负责人给出的Skill完成后总体发布授权条件已满足。22包44份双语README、57个TS例子已验证。原217/221、SP3和人的总体门待签描述属于前一输入事件，由[当前运行与签收](../record/evidence/2026-09-26-tests-core-skill-v3/README.md)接续。Connector仅自身纵线延期，90外部义务及未来运行时未签；全仓make继承main三个失败，不是全仓绿灯。
+
+2026-09-27：[D-084](../record/decisions/session-log-jsonl-v3-projection-adoption/decision.md)采用[session-log-jsonl的SL3增量](packages/session/session-log-jsonl/v3-design.md)。四参数条件在同一entries.jsonl比较／整批确认，不可信态正常三操作拒绝；旧首稿V5该分支替代范围明确。当前尚未实现、bindings0，runtime精确版本和全部实际写方迁移／生产Run／真实恢复仍须原owner交付。

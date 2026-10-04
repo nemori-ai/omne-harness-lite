@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-definition/v1/agent-definition.schema.json",
+  "title": "data.agent-definition v1",
+  "description": "Agent Definition body 的 references 与 attributes 两槽位的窄约束，不是完整 Agent Definition 正文。根模式不约束任何文档，消费者显式引用 $defs。",
+  "$comment": "contract.md S-2/S-3/S-4/S-8/S-9 的同一所选版本、能力标识及项名唯一、重复 JSON 键拒绝、数无损与未知正文保留义务不能仅靠 Schema 兑现。AssetReference 是 capability.asset-evaluation/v3 S-6、S-7 C14 的同形投影。",
+  "$defs": {
+    "AgentDefinitionBody": {
+      "title": "Agent Definition 正文的两个槽位",
+      "type": "object",
+      "properties": {
+        "references": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/AssetReference" }
+        },
+        "attributes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "allOf": [
+              { "$ref": "../../asset-model/v3/asset-model.schema.json#/$defs/AttributeDeclaration" },
+              {
+                "required": ["item", "kind", "category", "domain", "default"],
+                "properties": { "kind": { "const": "setting" } },
+                "oneOf": [
+                  {
+                    "properties": {
+                      "item": { "enum": ["first_token_wait_limit", "post_first_token_stall_limit"] },
+                      "category": { "const": "preference" },
+                      "domain": {
+                        "const": {
+                          "kind": "open",
+                          "schema": {
+                            "allOf": [
+                              { "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v3/tool-definition.schema.json#/$defs/Duration" },
+                              { "pattern": "[1-9]" }
+                            ]
+                          }
+                        }
+                      },
+                      "default": {
+                        "allOf": [
+                          { "$ref": "../../tool-definition/v3/tool-definition.schema.json#/$defs/Duration" },
+                          { "pattern": "[1-9]" }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "item": { "const": "model" },
+                      "category": { "const": "binding" },
+                      "domain": {
+                        "const": {
+                          "kind": "open",
+                          "schema": {
+                            "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v3/model-profile.schema.json#/$defs/RouteName"
+                          }
+                        }
+                      },
+                      "default": { "$ref": "../../model-profile/v3/model-profile.schema.json#/$defs/RouteName" }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "required": ["references", "attributes"],
+      "additionalProperties": true
+    },
+    "AssetReference": {
+      "title": "AssetReference 的 data 投影",
+      "type": "object",
+      "properties": {
+        "capability": { "$ref": "../../asset-model/v3/asset-model.schema.json#/$defs/CapabilityId" },
+        "resident": { "type": "boolean" }
+      },
+      "required": ["capability"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "required": ["resident"] },
+          "then": {
+            "properties": {
+              "capability": { "properties": { "category": { "enum": ["tool", "skill"] } } }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

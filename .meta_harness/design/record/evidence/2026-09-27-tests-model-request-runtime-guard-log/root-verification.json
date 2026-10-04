@@ -1,0 +1,44 @@
+{
+  "scope": "Root evidence audit for W15 diagnostics isolation and public dispatchGuard only; not whole service/delivery acceptance",
+  "independentVersion": "W15-d7c44a2-r1",
+  "testedHead": "d7c44a262654e1237b5134badf25ea10087467b6",
+  "archiveSha256": "b69b10ecd2a890f339c3cb84006a577bb11ec35987c8478473f62713f3f6b090",
+  "manifestSha256": "9d1862321911a72c8b2508be60c3f6ea1c5302049c41e1d44f3f1404296f2480",
+  "archiveMembers": 33063,
+  "regularReadBack": 28893,
+  "allRegularHashesMatch": true,
+  "linksResolvedInsideArchive": 1140,
+  "allLinksInternal": true,
+  "directories": 3029,
+  "embeddedManifestBytesMatch": true,
+  "positiveActualWaitsVerified": 41,
+  "compiledBehaviorControlsVerified": 4,
+  "sourceDrift": 0,
+  "independentReportSha256": "a03109183e1b84be1e17b46f4330e4acb7a91ea95fa27895ed8969107c816851",
+  "independentSummarySha256": "7bc5bc07f6db1264c4eaa92b52dfa4d748e5d2f9a07a1ec96c1391d5f63152ab",
+  "measurementIssueRetained": {
+    "kind": "initial setup evidence capture limitation",
+    "details": "initial Git unsupported-option setup comparison and exact text retained via actual tool transcript copy; wrapper PID not separately retained, and raw common-dir stdout overwritten by retry. Initial child command PID/argv/exit preserved. All behavioral test first failures preserve original on-host stdout/stderr/result, argv/PID/wait.",
+    "evidence": "setup-v1-transcript-provenance.json"
+  },
+  "elapsedSeconds": 6.416068277321756,
+  "overallAccepted": false,
+  "frozenFilesPersonallyChecked": 1204,
+  "verifierPrivateFrozenInputs": [
+    "tmp/model-request-runtime/p2-guard-log-independent/INDEPENDENT-ACCEPTANCE-BRIEF.md"
+  ],
+  "currentHubHead": "b6833514f9b4d4ecd7dbc8dbc59d5bfd4602eb17",
+  "currentHubChangedFrozenPaths": [
+    "packages/model/model-request-runtime/README.md",
+    "packages/model/model-request-runtime/README_ZH.md",
+    "packages/model/model-request-runtime/package.json",
+    "packages/model/model-request-runtime/src/index.ts",
+    "packages/model/model-request-runtime/dist/index.js.map",
+    "packages/model/model-request-runtime/dist/index.d.ts.map",
+    "packages/model/model-request-runtime/dist/index.d.ts",
+    "packages/model/model-request-runtime/dist/index.js"
+  ],
+  "currentHubChangesLimitedToMergedPublicIndexAndDocumentation": true,
+  "productGuardAndLogBytesStillMatch": true,
+  "rootAcceptsLimitedProductSlices": true
+}

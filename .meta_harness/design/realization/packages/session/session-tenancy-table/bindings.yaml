@@ -7,3 +7,15 @@ node: "session-tenancy-table"
 kind: "provider"
 
 bindings: []
+
+# 2026-09-27 设计 rev 2 候选增量：新增 0 条绑定。
+# seed 精确路径守卫与 StorageUnit 参与读尚未实施，义务为 verification 的 V2-1～V2-6。
+
+# 装配声明：照 design.md「插件边界与服务面」写，字段与正文冲突时以这里为准。
+# 加这一段算修订绑定（D-114）；本节点 bindings 为空、没有旧版条款行，无需改绑。
+assembly:
+  plugins:
+    - name: "session-tenancy-table"
+      source: "design.md#插件边界与服务面"
+      provides: ["sessionTenancy"]
+      injects: ["storage"]

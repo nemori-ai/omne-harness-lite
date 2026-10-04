@@ -1,0 +1,310 @@
+{
+  "retrieved_full_catalog_sha256": "cca2c42a08a28baafd788be6e7059e75d5b2062ce38b5a5c37bfc3631d21aacc",
+  "data": [
+    {
+      "id": "qwen/qwen3.8-max-prime",
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Qwen",
+        "instruct_type": null
+      },
+      "context_length": 1000000,
+      "pricing": {
+        "prompt": "0.000004",
+        "completion": "0.000012",
+        "input_cache_read": "0.0000005"
+      },
+      "top_provider": {
+        "context_length": 1000000,
+        "max_completion_tokens": 131072,
+        "is_moderated": false
+      }
+    },
+    {
+      "id": "z-ai/glm-5.3-flashx",
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      },
+      "context_length": 1048576,
+      "pricing": {
+        "prompt": "0.00000037",
+        "completion": "0.00000125",
+        "input_cache_read": "0.00000009"
+      },
+      "top_provider": {
+        "context_length": 1048576,
+        "max_completion_tokens": 131072,
+        "is_moderated": false
+      }
+    },
+    {
+      "id": "qwen/qwen3.8-max-0902",
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Qwen",
+        "instruct_type": null
+      },
+      "context_length": 1000000,
+      "pricing": {
+        "prompt": "0.000002",
+        "completion": "0.000006",
+        "input_cache_read": "0.00000025",
+        "input_cache_write": "0.0000025"
+      },
+      "top_provider": {
+        "context_length": 1000000,
+        "max_completion_tokens": 131072,
+        "is_moderated": false
+      }
+    },
+    {
+      "id": "google/gemini-3.8-flash",
+      "architecture": {
+        "modality": "text+image+file+audio+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video",
+          "file",
+          "audio"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Gemini",
+        "instruct_type": null
+      },
+      "context_length": 1048576,
+      "pricing": {
+        "prompt": "0.00000075",
+        "completion": "0.00000375",
+        "image": "0.00000075",
+        "audio": "0.00000075",
+        "input_audio_cache": "0.000000075",
+        "web_search": "0.014",
+        "internal_reasoning": "0.00000375",
+        "input_cache_read": "0.000000075",
+        "input_cache_write": "0.0000000416666666666667"
+      },
+      "top_provider": {
+        "context_length": 1048576,
+        "max_completion_tokens": 65536,
+        "is_moderated": false
+      }
+    },
+    {
+      "id": "qwen/qwen3.8-flash",
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Qwen",
+        "instruct_type": null
+      },
+      "context_length": 1000000,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.00000047",
+        "input_cache_read": "0.000000016",
+        "input_cache_write": "0.0000002"
+      },
+      "top_provider": {
+        "context_length": 1000000,
+        "max_completion_tokens": 131072,
+        "is_moderated": false
+      }
+    },
+    {
+      "id": "z-ai/glm-5.3-flash",
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      },
+      "context_length": 1048576,
+      "pricing": {
+        "prompt": "0.00000015",
+        "completion": "0.0000005",
+        "input_cache_read": "0.00000003"
+      },
+      "top_provider": {
+        "context_length": 1048575,
+        "max_completion_tokens": 943717,
+        "is_moderated": false
+      }
+    },
+    {
+      "id": "qwen/qwen3.8-27b",
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Qwen",
+        "instruct_type": null
+      },
+      "context_length": 1000000,
+      "pricing": {
+        "prompt": "0.00000042",
+        "completion": "0.000003",
+        "input_cache_read": "0.000000085"
+      },
+      "top_provider": {
+        "context_length": 1000000,
+        "max_completion_tokens": 131072,
+        "is_moderated": false
+      }
+    },
+    {
+      "id": "google/gemini-3.7-flash",
+      "architecture": {
+        "modality": "text+image+file+audio+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video",
+          "file",
+          "audio"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Gemini",
+        "instruct_type": null
+      },
+      "context_length": 1048576,
+      "pricing": {
+        "prompt": "0.00000075",
+        "completion": "0.00000375",
+        "image": "0.00000075",
+        "audio": "0.00000075",
+        "input_audio_cache": "0.000000075",
+        "web_search": "0.014",
+        "internal_reasoning": "0.00000375",
+        "input_cache_read": "0.000000075",
+        "input_cache_write": "0.0000000416666666666667"
+      },
+      "top_provider": {
+        "context_length": 1048576,
+        "max_completion_tokens": 65536,
+        "is_moderated": false
+      }
+    },
+    {
+      "id": "qwen/qwen3.7-flash",
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Qwen",
+        "instruct_type": null
+      },
+      "context_length": 1000000,
+      "pricing": {
+        "prompt": "0.00000003",
+        "completion": "0.00000013",
+        "input_cache_read": "0.000000006",
+        "input_cache_write": "0.000000038",
+        "overrides": [
+          {
+            "min_prompt_tokens": 32000,
+            "prompt": "0.0000001",
+            "completion": "0.0000004",
+            "input_cache_read": "0.00000002",
+            "input_cache_write": "0.000000125"
+          },
+          {
+            "min_prompt_tokens": 256000,
+            "prompt": "0.0000002",
+            "completion": "0.0000008",
+            "input_cache_read": "0.00000004",
+            "input_cache_write": "0.00000025"
+          }
+        ]
+      },
+      "top_provider": {
+        "context_length": 1000000,
+        "max_completion_tokens": 65536,
+        "is_moderated": false
+      }
+    },
+    {
+      "id": "moonshotai/kimi-k3",
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      },
+      "context_length": 1048576,
+      "pricing": {
+        "prompt": "0.000003",
+        "completion": "0.000015",
+        "input_cache_read": "0.0000003"
+      },
+      "top_provider": {
+        "context_length": 1048576,
+        "max_completion_tokens": 943718,
+        "is_moderated": false
+      }
+    }
+  ]
+}

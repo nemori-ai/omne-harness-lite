@@ -1,0 +1,77 @@
+{
+  "index": 40,
+  "route": "google/gemini-3.7-flash",
+  "providerRequested": "google-ai-studio",
+  "variant": "A1",
+  "startedAt": "2026-10-02T17:04:46.738Z",
+  "finishedAt": "2026-10-02T17:04:48.222Z",
+  "durationMs": 1484,
+  "reservationUsd": "0.005075250000000000",
+  "costUsd": "0.001042500000",
+  "costReported": true,
+  "providerMismatch": true,
+  "status": 200,
+  "usage": {
+    "prompt_tokens": 1090,
+    "completion_tokens": 60,
+    "total_tokens": 1150,
+    "cost": "0.0010425",
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0010425,
+      "upstream_inference_prompt_cost": 0.0008175,
+      "upstream_inference_completions_cost": 0.000225
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 58,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "provider": "Google AI Studio",
+  "upstreamModel": "google/gemini-3.7-flash",
+  "requestId": "gen-1790960686-ErVmqt4prBpgi4NH5llZ",
+  "finish": "length",
+  "outputPreview": "This is",
+  "outcome": "accepted",
+  "rawResponse": "data: {\"id\":\"gen-1790960686-ErVmqt4prBpgi4NH5llZ\",\"object\":\"chat.completion.chunk\",\"created\":1790960686,\"model\":\"google/gemini-3.7-flash\",\"provider\":\"Google AI Studio\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"This is\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960686-ErVmqt4prBpgi4NH5llZ\",\"object\":\"chat.completion.chunk\",\"created\":1790960686,\"model\":\"google/gemini-3.7-flash\",\"provider\":\"Google AI Studio\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"signature\":\"EvQCCvECAWkUfRMe+JzpyjjllUQW2R+C5whwtVZyPpdy8N2wWp45FUO88zX6pfuwS+e2LuymaDtEKkA3crSLJNJHjVnszAksAe9FpuB+p8EMWI5YqyquVfU0AvrxT2iM3oDnF7vUrnj9pxPQyuq7U5RIZBd7SAzKDAg/Ytl1JaSrW818UJfyAwpjWANtbmPE/eOilPh9ZR8cg3nJfgJw3y+0ncfzwJGcfYtI9jN7q+j6zTXSTyKFnoJEy6TORAXHdxNYRqiOzQ3YVPNwcXuIx0ylJkXpJqaXtDTwu24F+XXB0N2Y4ehWQ5IKrsZcp0ZPS9GBibl7g7I01DQKnj3A/Q+OI8C31Ui6j3a/uYUYsedl3rheGke+bV+88ULWdjb5eBS12MV6WmUno2i9pHcD4axeOQYflNc/nIqVRDSh7ItQVFbjV+2awh32i51yz5mHX6Ze5JnY7XeH9plABkk8QadKjreQ7aqbFqBxPxWqjm+WRtxD64GM\",\"format\":\"google-gemini-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960686-ErVmqt4prBpgi4NH5llZ\",\"object\":\"chat.completion.chunk\",\"created\":1790960686,\"model\":\"google/gemini-3.7-flash\",\"provider\":\"Google AI Studio\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"length\",\"native_finish_reason\":\"MAX_TOKENS\"}]}\n\ndata: {\"id\":\"gen-1790960686-ErVmqt4prBpgi4NH5llZ\",\"object\":\"chat.completion.chunk\",\"created\":1790960686,\"model\":\"google/gemini-3.7-flash\",\"provider\":\"Google AI Studio\",\"service_tier\":\"default\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"length\",\"native_finish_reason\":\"MAX_TOKENS\"}],\"usage\":{\"prompt_tokens\":1090,\"completion_tokens\":60,\"total_tokens\":1150,\"cost\":0.0010425,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.0010425,\"upstream_inference_prompt_cost\":0.0008175,\"upstream_inference_completions_cost\":0.000225},\"completion_tokens_details\":{\"reasoning_tokens\":58,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+  "rawTruncated": false,
+  "request": {
+    "model": "google/gemini-3.7-flash",
+    "provider": {
+      "order": [
+        "google-ai-studio"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true
+    },
+    "stream": true,
+    "usage": {
+      "include": true
+    },
+    "max_tokens": 64,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSU...[154 chars, png sha256 0d9cc10556d669b8]"
+            }
+          },
+          {
+            "type": "text",
+            "text": ""
+          }
+        ]
+      }
+    ]
+  }
+}

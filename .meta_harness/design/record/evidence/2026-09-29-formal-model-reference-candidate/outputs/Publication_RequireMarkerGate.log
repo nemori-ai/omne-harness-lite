@@ -1,0 +1,63 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 44 and seed 450465545776640892 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 185892] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/Publication.tla
+Parsing file /tmp/tlc-15890655695498606691/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-15890655695498606691/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-15890655695498606691/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Publication
+Linting of module Publication
+Starting... (2026-09-29 12:16:42)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-29 12:16:43.
+Error: Invariant MarkerHasContent is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ finalReceipt = "none"
+/\ markers = {}
+/\ key = [created |-> 1, ready |-> 1]
+/\ writers = {}
+/\ finalWinner = 0
+/\ published = {}
+/\ attempts = 0
+/\ payload = [created |-> 1, ready |-> 1]
+/\ receipts = [created |-> "none", ready |-> "none"]
+/\ phase = "unpublished"
+/\ content = {}
+/\ pins = {}
+
+State 2: <Begin("created") line 18, col 13 to line 23, col 57 of module Publication>
+/\ finalReceipt = "none"
+/\ markers = {}
+/\ key = [created |-> 1, ready |-> 1]
+/\ writers = {"created"}
+/\ finalWinner = 0
+/\ published = {}
+/\ attempts = 0
+/\ payload = [created |-> 1, ready |-> 1]
+/\ receipts = [created |-> "unknown", ready |-> "none"]
+/\ phase = "unpublished"
+/\ content = {}
+/\ pins = {"created"}
+
+State 3: <Commit("created") line 24, col 14 to line 28, col 58 of module Publication>
+/\ finalReceipt = "none"
+/\ markers = {"created"}
+/\ key = [created |-> 1, ready |-> 1]
+/\ writers = {"created"}
+/\ finalWinner = 0
+/\ published = {}
+/\ attempts = 0
+/\ payload = [created |-> 1, ready |-> 1]
+/\ receipts = [created |-> "unknown", ready |-> "none"]
+/\ phase = "unpublished"
+/\ content = {}
+/\ pins = {"created"}
+
+9 states generated, 7 distinct states found, 3 states left on queue.
+The depth of the complete state graph search is 3.
+Finished in 01s at (2026-09-29 12:16:43)

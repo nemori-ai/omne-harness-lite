@@ -1,0 +1,445 @@
+
+ Clean Coder Blog
+ The Clean Code Blog
+by Robert C. Martin (Uncle Bob)
+ atom/rss feed
+ Functional Classes in Clojure
+ 01-19-2023
+ Functional Classes
+ 01-18-2023
+ Space War
+ 11-28-2021
+ Functional Duplications
+ 10-28-2021
+ Roots
+ 09-25-2021
+ More On Types
+ 06-29-2021
+ On Types
+ 06-25-2021
+ if-else-switch
+ 03-06-2021
+ Pairing Guidelines
+ 01-17-2021
+ Solid Relevance
+ 10-18-2020
+ Loopy
+ 09-30-2020
+ Conference Conduct
+ 09-23-2020
+ The Disinvitation
+ 09-12-2020
+ REPL Driven Design
+ 05-27-2020
+ A Little More Clojure
+ 04-09-2020
+ A Little Clojure
+ 04-06-2020
+ A New Hope
+ 04-05-2020
+ Open Letter to the Linux Foundation
+ 11-08-2019
+ What They Thought of Programmers.
+ 11-03-2019
+ Circulatory
+ 10-31-2019
+ Why Clojure?
+ 08-22-2019
+ Why won't it...
+ 07-22-2019
+ Classes vs. Data Structures
+ 06-16-2019
+ Types and Tests
+ 06-08-2019
+ 737 Max 8
+ 05-18-2019
+ FP vs. OO List Processing
+ 12-17-2018
+ We, The Unoffended
+ 12-16-2018
+ SJWJS
+ 12-14-2018
+ The Tragedy of Craftsmanship.
+ 08-28-2018
+ Too Clean?
+ 08-13-2018
+ Integers and Estimates
+ 06-21-2018
+ Pickled State
+ 06-06-2018
+ Craftsman, Craftswoman, Craftsperson
+ 05-02-2018
+ FP vs. OO
+ 04-13-2018
+ In The Large
+ 04-02-2018
+ We Programmers
+ 03-29-2018
+ Uncle Bob Fly-In.
+Have I got a deal for you!
+ 02-25-2018
+ The Citizenship Argument
+ 01-18-2018
+ Operating Behind the Power Curve
+ 01-15-2018
+ Excuses
+ 12-18-2017
+ Dbtails
+ 12-09-2017
+ Bobby Tables
+ 12-03-2017
+ Living on the Plateau
+ 11-18-2017
+ Women In Demand
+ 10-04-2017
+ Tools are not the Answer
+ 10-04-2017
+ Test Contra-variance
+ 10-03-2017
+ The Unscrupulous Meme
+ 09-29-2017
+ Sierra Juliet Foxtrot
+ 09-26-2017
+ Just Following Orders
+ 08-28-2017
+ Women in Tech
+ 08-14-2017
+ On the Diminished Capacity to Discuss Things Rationally
+ 08-10-2017
+ Thought Police
+ 08-09-2017
+ The Brain Problem
+ 07-28-2017
+ Drive me to Toronto, Hal.
+ 07-24-2017
+ Pragmatic Functional Programming
+ 07-11-2017
+ First-Class Tests.
+ 05-05-2017
+ Is Dr. Calvin in the Room?
+ 03-16-2017
+ Symmetry Breaking
+ 03-07-2017
+ Testing Like the TSA
+ 03-06-2017
+ TDD Harms Architecture
+ 03-03-2017
+ Necessary Comments
+ 02-23-2017
+ Types and Tests
+ 01-13-2017
+ The Dark Path
+ 01-11-2017
+ TDD Lesson - Terrain Generation
+ 01-09-2017
+ TDD Doesn't Work
+ 11-10-2016
+ Dijkstra's Algorithm
+ 10-26-2016
+ The Lurn
+ 09-01-2016
+ The Churn
+ 07-27-2016
+ Mutation Testing
+ 06-10-2016
+ Blue. No! Yellow!
+ 05-21-2016
+ Type Wars
+ 05-01-2016
+ Giving Up on TDD
+ 03-19-2016
+ Manhandled
+ 01-15-2016
+ Stabilization Phases
+ 01-14-2016
+ A Little Architecture
+ 01-04-2016
+ Prelude to a Profession
+ 11-27-2015
+ The Programmer's Oath
+ 11-18-2015
+ The Force of Pliers
+ 11-01-2015
+ Future Proof
+ 10-30-2015
+ Agile is not now, nor was it ever, Waterfall.
+ 10-16-2015
+ VW
+ 10-14-2015
+ WATS Line 54
+ 10-05-2015
+ A Little Structure
+ 09-23-2015
+ Make the Magic go away.
+ 08-06-2015
+ Pattern Pushers
+ 07-05-2015
+ The Little Singleton
+ 07-01-2015
+ The First Micro-service Architecture
+ 05-28-2015
+ Language Layers
+ 04-27-2015
+ Does Organization Matter?
+ 04-15-2015
+ The MODE-B Imperative
+ 02-21-2015
+ They Called them Computers.
+ 02-19-2015
+ 'Interface' Considered Harmful
+ 01-08-2015
+ The Cycles of TDD
+ 12-17-2014
+ OO vs FP
+ 11-24-2014
+ Thorns around the Gold
+ 11-19-2014
+ The Obligation of the Programmer.
+ 11-15-2014
+ One Hacker Way!
+ 11-12-2014
+ Laughter in the male dominated room.
+ 10-26-2014
+ GOML-1, Responsive Design
+ 10-08-2014
+ Clean Micro-service Architecture
+ 10-01-2014
+ Microservices and Jars
+ 09-19-2014
+ The More Things Change...
+ 09-18-2014
+ Test Time
+ 09-03-2014
+ A Little About Patterns.
+ 06-30-2014
+ My Lawn
+ 06-20-2014
+ Is TDD Dead?
+Final Thoughts about Teams.
+ 06-17-2014
+ First
+ 05-19-2014
+ The Little Mocker
+ 05-14-2014
+ The Open Closed Principle
+ 05-12-2014
+ Framework Bound[2]
+ 05-11-2014
+ When to Mock
+ 05-10-2014
+ The Single Responsibility Principle
+ 05-08-2014
+ Professionalism and TDD (Reprise)
+ 05-02-2014
+ Test Induced Design Damage?
+ 05-01-2014
+ When TDD doesn't work.
+ 04-30-2014
+ Monogamous TDD
+ 04-25-2014
+ Code Hoarders
+ 04-03-2014
+ The True Corruption of Agile
+ 03-28-2014
+ When Should You Think?
+ 03-11-2014
+ A Spectrum of Trust
+ 02-27-2014
+ Oh Foreman, Where art Thou?
+ 02-23-2014
+ Where is the Foreman?
+ 02-21-2014
+ The Domain Discontinuity
+ 01-27-2014
+ Coding in the Clink (9)
+ 01-20-2014
+ Extreme Programming, a Reflection
+ 12-10-2013
+ Novices. A Coda
+ 11-25-2013
+ Hordes Of Novices
+ 11-19-2013
+ Healthcare.gov
+ 11-12-2013
+ The Careless Ones
+ 10-24-2013
+ Dance you Imps!
+ 10-01-2013
+ A.T. FAIL!
+ 09-26-2013
+ Test First
+ 09-23-2013
+ Transformation Priority and Sorting
+ 05-27-2013
+ The Transformation Priority Premise
+ 05-27-2013
+ Flash - TPP
+ 05-27-2013
+ Fib. The T-P Premise.
+ 05-27-2013
+ There are Ladies Present
+ 03-22-2013
+ The Frenzied Panic of Rushing
+ 03-11-2013
+ An Open and Closed Case
+ 03-08-2013
+ The Pragmatics of TDD
+ 03-06-2013
+ The Start-Up Trap
+ 03-05-2013
+ The Principles of Craftsmanship
+ 02-10-2013
+ The Humble Craftsman
+ 02-01-2013
+ The Laborer and the Craftsman
+ 01-30-2013
+ FP Basics E4
+ 01-29-2013
+ FP Basics E3
+ 01-07-2013
+ FP Basics E2
+ 01-02-2013
+ Brave New Year
+ 12-29-2012
+ FP Basics E1
+ 12-22-2012
+ Three Paradigms
+ 12-19-2012
+ The New CTO
+ 09-06-2012
+ Functional Programming for the Object Oriented Programmer
+ 08-24-2012
+ The Clean Architecture
+ 08-13-2012
+ NO DB
+ 05-15-2012
+ Why is Estimating so Hard?
+ 04-20-2012
+ After the Disaster
+ 04-18-2012
+ Service Oriented Agony
+ 02-01-2012
+ The Ruby Colored Box
+ 01-31-2012
+ Fecophiles
+ 01-20-2012
+ The Letter
+ 01-12-2012
+ Flipping the Bit
+ 01-11-2012
+ The Barbarians are at the Gates
+ 12-11-2011
+ Clean Architecture
+ 11-22-2011
+ Double Entry Bookkeeping Dilemma. Should I Invest or Not?
+ 11-06-2011
+ Simple Hickey
+ 10-20-2011
+ Screaming Architecture
+ 09-30-2011
+ Bringing Balance to the Force
+ 01-19-2011
+ What Software Craftsmanship is about
+ 01-17-2011
+ Types and Tests
+ 08 June 2019
+ Mark Seeman (@ploeh) and I have been having a fun debate on twitter. It began with this tweet from me, which is part of a much longer tweet thread:
+There is no escape from this. Whether you use static, or dynamic typing, you must still demonstrate correctness by executing tests. Static typing does not reduce that number of tests, because those tests are behavioral and empirical.
+— Uncle Bob Martin (@unclebobmartin) June 4, 2019
+As is usual, on social networks, many people posted rude and/or insulting comments. Those people aren’t important. Mark, on the other hand, came back with respectful and substantive replies which you can see by following the whole thread. It began this way:
+I respectfully disagree with this. Some type systems allow null references. In those type systems, you must write tests that demonstrate how the SUT interacts with null input.
+In other type systems (e.g. Haskell) nulls don't exist. You can't meaningfully write an equivalent test
+— Mark Seemann (@ploeh) June 4, 2019
+A spirited debate ensued. You may find it entertaining and educational to follow all the various threads. However, I want to focus on one of Mark’s replies. He tweeted about a blog he had written back in 2018. I encourage you to read it. You’ll learn something about testing, static typing, and Haskell. You’ll also learn something about how to debate with someone in the future by posting your refutation in the past. ;-)
+The problem Mark proposed in his blog is a simple function: rndselect(n,list). It returns a list of n elements randomly selected from the input list. He walked through his strategy for developing this in Haskell, using types, QuickCheck, and after-the-fact tests.
+This piqued my interest. How would the process, and the end result, be different using a dynamically typed functional language like Clojure, and strict TDD disciplines.
+Let’s find out.
+We begin with the degenerate tests. We return an empty list if the input list is empty, or if the number of requested elements is zero.
+(deftest random-element-selection
+ (testing "degenerate case"
+ (is (= [] (random-elements 0 [])))
+ (is (= [] (random-elements 0 [1])))
+ (is (= [] (random-elements 1 [])))
+ ))
+(defn random-elements [n xs]
+ [])
+Early in Mark’s blog he noted that a consequence of The Free Theorem is that he would not have to test that the elements in the result list came from the elements in the source list. On the other hand, since I’m not using a static type system my tests make no sense if I don’t assume that the elements in the result set come from the source list.
+There is one trivial case. Let’s pull one element out of a list that has one element.
+(testing "trivial cases"
+ (is (= [1] (random-elements 1 [1]))))
+(defn random-elements [n xs]
+ (if (or (< n 1) (empty? xs))
+ []
+ [(first xs)]))
+Note that I am following the rule of gradually increasing complexity. Rather than worrying about the whole problem of random selection, I’m first focusing on tests that describe the periphery of the problem.
+We call this: Don’t go for the Gold”. Gradually increase the complexity of your tests by staying away from the center of the algorithm for as long as possible. Deal with the degenerate, trivial, and simple administrative tasks first.
+In that spirit, the next least complex thing to worry about is repetition. So let’s test that we can pull more than one element out of a single element list.
+(testing "repetitive case"
+ (is (= [1 1] (random-elements 2 [1]))))
+(defn generate-indices [n]
+ (repeat n 0))
+(defn random-elements [n xs]
+ (if (or (< n 1) (empty? xs))
+ []
+ (map #(nth xs %) (generate-indices n))))
+Some of you might complain that I got a bit ahead of myself there. I used that nth call instead of keeping the first call. Why did I change it if I didn’t have a test for that? Shrug.
+The next least complex thing to worry about are those indices. Right now they are all just zero. It would be good to make sure that indices other than zero work properly too. Testing this forces me to mock the function that generates the indices; and that forces me to change the design a bit. So I’ll break the generate-indices function up so that I can mock out a single index.
+The strange with-bindings call below temporarily replaces the implementation of the index function, such that it always returns the the index 1. The odd ^:dynamic attribute is necessary, in Clojure, if you want to mock out (re-bind) a function.
+(testing "singular random case"
+ (with-bindings {#'index (fn [] 1)}
+ (is (= [2] (random-elements 1 [1 2])))))
+(testing "repeated random case"
+ (with-bindings {#'index (fn [] 1)}
+ (is (= [2 2] (random-elements 2 [1 2])))))
+(defn ^:dynamic index []
+ 0)
+(defn generate-indices [n]
+ (repeatedly n index))
+(defn random-elements [n xs]
+ (if (or (< n 1) (empty? xs))
+ []
+ (map #(nth xs %) (generate-indices n))))
+Let’s check that rand-int is being called. We can do this by making sure that the sum of 10 random elements selected from [0 10 20 30] are greater than zero and less than 300.
+(testing "random selection"
+ (let [ns (random-elements 10 [0 10 20 30])
+ sum (reduce + ns)]
+ (is (< 0 sum 300))))
+(defn ^:dynamic index [limit]
+ (rand-int limit))
+(defn generate-indices [n limit]
+ (repeatedly n (partial index limit)))
+(defn random-elements [n xs]
+ (if (or (< n 1) (empty? xs))
+ []
+ (map #(nth xs %) (generate-indices n (count xs)))))
+The odds that this test will fail are on the order of a million to one. I could better those odds if I thought it necessary. If I wanted to eliminate those odds I could write a spy that ensures that the random-int function is being called correctly. But I didn’t think any of those machinations were worth it.
+So far I’ve used only integers in the tests. Most of the tests don’t really care about the type of the elements. So why not change those particular tests to make sure that many different types are handled properly.
+(testing "trivial cases"
+ (is (= [1] (random-elements 1 [1]))))
+(testing "repetitive case"
+ (is (= [:x :x] (random-elements 2 [:x]))))
+(testing "singular random case"
+ (with-bindings {#'index (fn [_] 1)}
+ (is (= ['b'] (random-elements 1 ['a' 'b'])))))
+(testing "repeated random case"
+ (with-bindings {#'index (fn [_] 1)}
+ (is (= ["two" "two"] (random-elements 2 ["one" "two"])))))
+And, with that, I think we are done.
+There are 8 assertions in my tests. However, most of those assertions were added in the process of TDD. Now that the function is working, how many assertions are actually necessary? Probably just the degenerate cases and the final test of randomness. Let’s call that 4 assertions. I’ll leave all the others in for documentation purposes; but they aren’t strictly necessary.
+What about invalid arguments? What if someone calls: (random-elements -23 nil)? Should I write tests for those cases?
+The function already handles negatives by returning an empty list for any count less than one. This isn’t tested; but the code is pretty clear. In the case of the nil, an exception will be thrown. That’s OK with me. This is a dynamically typed language. You get exceptions when you mess up the types.
+Is that a risk? Sure, but only if some other part of the system was written without tests. If you call this function from a module that you wrote with tests, using something as effective as the TDD discipline, you won’t be passing nil or negative numbers, or any other form of invalid arguments. So I’m not going to worry about that. It’s on you.
+The Crux
+This is the crux of the argument between Mark and I. I claim that the number of tests required are only those tests that are necessary to describe the correct behavior of the system. If the behavior of each element of the system is correct, then no element of the system will pass invalid arguments to any other. Invalid states will be unrepresented.
+Of course no suite of tests can completely show that a system is correct. Dijkstra said it best: “Testing shows the presence, not the absence of bugs.” Still, we have to at least try. So we demonstrate practical correctness with as comprehensive a suite of tests as we can muster.
+I assert that the set of tests that show practical correctness would be the same irrespective of whether the system was written in a statically, or a dynamically typed language.
+Mark asserts that you’ll need more tests when using a dynamically typed language because static type checking makes all illegal states unrepresentable, thus eliminating them from consideration. If you have a type that cannot be nil (for example) then you don’t have to (and simply cannot) write a test that checks for nil.
+My answer to that is that even using a dynamically typed language I don’t have to write the test for nil because I know that nil will never be passed. I don’t need to make states unrepresentable, if I know those states will never be represented.
+Anyway…
+Back to random-elements:
+If you compare the two functions that Mark and I wrote (and if you understand Haskell, which I don’t) I think you’ll find that the two implementations are somewhat similar. The testing strategies we employed were, however, very different.
+The tests I wrote show that I was concerned almost entirely with the desired behavior of the function. The tests walk that behavior forward one small step at a time using the TDD style.
+Mark, however, was far more concerned with expressing correctness in terms of generic types. The vast majority of his thought process was consumed with the type structure that properly represented the problem. He then verified behaviors with property-based QuickCheck style tests, and after-the-fact tests.
+Which is better?
+ “Answering that question with specificity is above my pay grade.” - Barack Obama.
+Which of us wound up with fewer tests? In either case I think the four base assertions are adequate. However, as part of the process I wrote 8 assertions and Mark wrote two property-based QuickCheck tests, and three after-the-fact regression tests. Does that amount to 5 vs. 8? Or do those QuickCheck tests count for more? I don’t know. I’ll let you decide.

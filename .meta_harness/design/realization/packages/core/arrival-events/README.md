@@ -1,3 +1,7 @@
+## 2026-09-30 源码依赖对账（A1 core 集成后）
+
+AR2 Schema 精确引用 CA2，依赖见 [design.md](design.md)「依赖、作用域与绑定」的 `data.call-accounts` v2 行。A1 把 call-accounts 根换为 CA4 后，本包从 owner 保留的 `@omne-harness-lite/call-accounts/schema/v2` 取 CA2 原字节，依据 [call-accounts v3-design](../call-accounts/v3-design.md)「本包 Schema 与元数据」行与迁移表 `arrival-events/src/schema.ts` 行（D-110 采用）；AR2 不因 CA4 自动升级（[call-accounts v4 ACK 映射](../call-accounts/v4-acknowledgement-design.md)迁移段）。包依赖边不变，`core-pure-imports` 表随此对齐；新增 binding 0。
+
 ## 最终 core 阶段签收（2026-09-26）
 
 本节点本阶段的 10 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
@@ -52,3 +56,11 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-10-03 固定Schema技术采用
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。
+
+## 2026-10-03 D-116 主体实施与有限验收
+
+本节点固定图已实施构建期生成与首次实际消费时的同步原生装载。全部定义、公开结果/errors、构建失败清理、恢复、新鲜性及制品消费的实际范围见[主体原始运行与有限签收](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。本段取代上文 D-116 补充中关于固定图实施/验证尚待的状态；原契约、其他能力与历史运行的边界不变。

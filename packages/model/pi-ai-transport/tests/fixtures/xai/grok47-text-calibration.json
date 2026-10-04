@@ -1,0 +1,185 @@
+[
+  {
+    "stage": "dry_plan",
+    "modelId": "x-ai/grok-4.7",
+    "scenario": "fit-short",
+    "partition": "fit",
+    "candidateRevision": "grok-build-wire-projection-candidate-1",
+    "estimatedTokens": 93,
+    "admissionTokens": 93,
+    "requestBytes": 373,
+    "images": 0,
+    "wireSha256": "883fc5cb797d476fb88e6c7ee63139fe8c2e3ab5e0924bb4171dc33600c124fb",
+    "totalPromptTokens": 1274,
+    "body": {
+      "model": "x-ai/grok-4.7",
+      "provider": {
+        "order": ["xai"],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "store": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Answer briefly."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Reply with one word: cedar.\nCalibration nonce: xai47-totalprompt-20260928-a/fit-short"
+            }
+          ]
+        }
+      ],
+      "max_tokens": 128
+    }
+  },
+  {
+    "stage": "dry_plan",
+    "modelId": "x-ai/grok-4.7",
+    "scenario": "fit-multilingual",
+    "partition": "fit",
+    "candidateRevision": "grok-build-wire-projection-candidate-1",
+    "estimatedTokens": 117,
+    "admissionTokens": 117,
+    "requestBytes": 469,
+    "images": 0,
+    "wireSha256": "c5e5b2863f1ca2e643d4e04ea1bf7a36b41dd6ee9c863cfbd0c1e97901d800ee",
+    "totalPromptTokens": 1297,
+    "body": {
+      "model": "x-ai/grok-4.7",
+      "provider": {
+        "order": ["xai"],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "store": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "回答要简短。Keep exact punctuation."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "请把「夏天的星空」翻译为英文，然后写一个十字以内的中文理由。\nCalibration nonce: xai47-totalprompt-20260928-a/fit-multilingual"
+            }
+          ]
+        }
+      ],
+      "max_tokens": 128
+    }
+  },
+  {
+    "stage": "dry_plan",
+    "modelId": "x-ai/grok-4.7",
+    "scenario": "holdout-tool-history",
+    "partition": "holdout",
+    "candidateRevision": "grok-build-wire-projection-candidate-1",
+    "estimatedTokens": 245,
+    "admissionTokens": 245,
+    "requestBytes": 982,
+    "images": 0,
+    "wireSha256": "04ed84a7e4d2d74088682350b23ecd8ad93498eaec85a54c3043b30f616927ab",
+    "totalPromptTokens": 1392,
+    "body": {
+      "model": "x-ai/grok-4.7",
+      "provider": {
+        "order": ["xai"],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "store": false,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Preserve the supplied tool history."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Find alpha, then summarize the value."
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_xai_1",
+              "type": "function",
+              "function": {
+                "name": "lookup__xai",
+                "arguments": "{\"key\":\"alpha\"}"
+              }
+            }
+          ],
+          "reasoning": "Lookup alpha."
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_xai_1",
+          "content": "alpha=42"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What was alpha?\nCalibration nonce: xai47-totalprompt-20260928-a/holdout-tool-history"
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "lookup__xai",
+            "description": "Look up a value by key",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                }
+              },
+              "required": ["key"],
+              "additionalProperties": false
+            }
+          }
+        }
+      ],
+      "reasoning": {
+        "effort": "high"
+      },
+      "max_tokens": 128
+    }
+  }
+]

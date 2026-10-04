@@ -1,0 +1,141 @@
+{
+  "status": "preserved-and-readback-verified",
+  "archive": "definition-projection-2026-09-27.tar.gz",
+  "sha256": "1784c3140d8a6172c85ea863f1c5f3fb6a4c684c7d1368138376a0b63e840368",
+  "files": [
+    {
+      "path": "candidate/v4-definition-design.md",
+      "sha256": "13f0bdfe97c885fd521da924b6c1d432577d1f669c22081ea5eafd147f61ceda",
+      "bytes": 38016
+    },
+    {
+      "path": "draft/rev1-definition-design.md",
+      "sha256": "226001dd3d7dda5055b334f9140e7e8392a5394d37ef7293242112b8cf58a65c",
+      "bytes": 29296
+    },
+    {
+      "path": "draft/rev2-definition-design.md",
+      "sha256": "a7ec2ca698a04f5adae9a5f5756e90419661fbbaabf613486c82eb6fb5cc0411",
+      "bytes": 37804
+    },
+    {
+      "path": "draft/rev1-input.json",
+      "sha256": "0a8da6edb83108fc010be80d18c3406220844108cdc8687908f510c70816e0df",
+      "bytes": 187
+    },
+    {
+      "path": "draft/result.json",
+      "sha256": "399513f7527f66e63a4a70ef0e87189574f7fbb202b72c08ab33e54bc85cb532",
+      "bytes": 709
+    },
+    {
+      "path": "draft/result-rev2.json",
+      "sha256": "31f290d7521b5d01e1a19e7eb4e7d533b0d70e653a96c827d0ee8070d68c97e1",
+      "bytes": 399
+    },
+    {
+      "path": "draft/check-design.log",
+      "sha256": "46a4d881d8d6757646c66463c1134fd4fa4b6f9b8f73f968084ac0ab8f634bcb",
+      "bytes": 3608
+    },
+    {
+      "path": "draft/check-design-rev2.log",
+      "sha256": "46a4d881d8d6757646c66463c1134fd4fa4b6f9b8f73f968084ac0ab8f634bcb",
+      "bytes": 3608
+    },
+    {
+      "path": "inputs/.meta_harness/design/realization/packages/model/pi-ai-transport/v3-design.md",
+      "sha256": "297d42b6eb6b8841169724d3922bd9be4f1114a8432c498aa27cba4b9f75e0cd",
+      "bytes": 27480
+    },
+    {
+      "path": "inputs/.meta_harness/design/record/decisions/model-runtime-delivery-adoption/decision.md",
+      "sha256": "9cb38a10e55fa50a67a4d2882752ff7319c163c81e1384e689748776e7ba289f",
+      "bytes": 2717
+    },
+    {
+      "path": "inputs/.meta_harness/design/record/decisions/model-main-integration-coordination/decision.md",
+      "sha256": "9c2fdcd69936d03bab5936e32d371ad81a7997b00b9cc34effee089cb7cd9d7e",
+      "bytes": 2190
+    },
+    {
+      "path": "inputs/.meta_harness/design/realization/packages/model/pi-ai-transport/verification.md",
+      "sha256": "ea1b7c06ea2db7adf5a890cf9f4a2c143dff593effbd7c24fcf468d6b81aa2a9",
+      "bytes": 33646
+    },
+    {
+      "path": "inputs/.meta_harness/design/spec/data/model-profile/v3/contract.md",
+      "sha256": "8bc4fbfe743b02586ccf582aecb4b5792e3e6582af9e48d5516c364b7251be23",
+      "bytes": 129939
+    },
+    {
+      "path": "inputs/.meta_harness/design/spec/capabilities/model-request-runtime/v3/contract.md",
+      "sha256": "9d73735d3c22033dd583f10f8c7ea61b5b6865769e25de652399a59e2949747a",
+      "bytes": 267550
+    },
+    {
+      "path": "inputs/.meta_harness/design/spec/data/messages/v4/contract.md",
+      "sha256": "a8ac82be707ae5d49ceb7ad057b42041f73f73a47e76cdfbea5cc37b9d1be89c",
+      "bytes": 181382
+    },
+    {
+      "path": "inputs/.meta_harness/design/spec/data/model-response/v4/contract.md",
+      "sha256": "b591476555136ef8e86fba235b95df23627aa930581ee13db2817079d5cbf566",
+      "bytes": 129560
+    },
+    {
+      "path": "inputs/.meta_harness/design/record/proposals/model-request-adaptation/design.md",
+      "sha256": "43deaba01f3b295f9738286a3226ff2bd76922af2d12ee3e48957d2e05e430cf",
+      "bytes": 11944
+    },
+    {
+      "path": "inputs/.meta_harness/design/record/decisions/cordis-adoption-version/decision.md",
+      "sha256": "f513840e203acdc0cb105b90178d0318df754e0a57342cba1762286bf8e5cfc1",
+      "bytes": 3870
+    },
+    {
+      "path": "inputs/.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md",
+      "sha256": "1eb2c7bf6e90761ae76811321687bf18bd8d86f7849ea123b9575c66f1f85186",
+      "bytes": 3165
+    },
+    {
+      "path": "inputs/.meta_harness/design/basis/cordis/inject-has-no-optional-form.md",
+      "sha256": "7bb63d7f57fc4bfc1685abcbcca0602471429a95fc199ffedad5a4e4973f1f45",
+      "bytes": 4406
+    },
+    {
+      "path": "inputs/.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md",
+      "sha256": "7cdc507b4c817100e9637373daf2c2ad10b68968b252065397695eec1a20baf3",
+      "bytes": 3258
+    },
+    {
+      "path": "inputs/.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md",
+      "sha256": "159b8a17fda97e2a78f1c93e710cec3fce6a2b6c14ba0d204d9c334ee0e0d638",
+      "bytes": 3483
+    },
+    {
+      "path": "inputs/.meta_harness/design/basis/cordis/isolate-hides-instances-not-data.md",
+      "sha256": "8c71a8d1eb25a6549508f9b75daf0f89c59155bb5f8183a745042a7039053272",
+      "bytes": 3492
+    },
+    {
+      "path": "inputs/.meta_harness/design/realization/apps/model-request-acceptance/README.md",
+      "sha256": "7e9d546d098749b88358f48e80e3bfb5552c7df07911d4d2af9caea117b647af",
+      "bytes": 3556
+    },
+    {
+      "path": "integration/post-merge-design-check.log",
+      "sha256": "07640042e4cc0ce586bfc6ce1dbac59b6593e4b32a5191d484a3334ef4818268",
+      "bytes": 3594
+    },
+    {
+      "path": "review/primary-summary.json",
+      "sha256": "490b5185c143a04cdd7763bc6c7a8a3efaf0b9f06a1dcd18b124a450daafc737",
+      "bytes": 1415
+    }
+  ],
+  "review_summary_authorship": "primary-authored summary of independent reviewer messages; not raw reviewer transcripts",
+  "formal_executed": false,
+  "product_tests_executed": false,
+  "paid_requests": 0
+}

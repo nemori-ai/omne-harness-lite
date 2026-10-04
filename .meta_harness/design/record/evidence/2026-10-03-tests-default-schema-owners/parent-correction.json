@@ -1,0 +1,20 @@
+{
+  "root_head": "a1174c8e38e7f05edd8e03307b9e10c62ae37c09",
+  "reference_head": "085b8769a0053fac824ea632b7e46b0a1ace4659",
+  "members_copied": [
+    "packages/agent-loop/loop-extension-runner",
+    "packages/infra/credential-custodian-local",
+    "packages/model/pi-ai-transport",
+    "packages/tools/asset-registry",
+    "tools/ts-checks"
+  ],
+  "source_inputs_identical": true,
+  "all_46_output_trees_match_reference": true,
+  "stale_archive": {
+    "path": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/parent65-artifact-correction-r1/original-stale-dist.tar.gz",
+    "bytes": 930820,
+    "sha256": "d66f6d4c5dbf2e9e2727f1cf949f2d49c2de33585b8a7de0bdc23ca0208b9a1b"
+  },
+  "limitation": "The prior current-main MRR/LER/PI supplement used stale workspace dist for the five listed members. Frozen full/performance/QA used the correct detached copy and remain valid. A new current-main supplement must verify the corrected actual composition.",
+  "count_correction": "Initial commentary counted six; actual inventory has five mismatched output owners."
+}

@@ -1,74 +1,87 @@
-import schema from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
-import contentSchema from '@omne-harness-lite/content-blocks/schema/v2' with { type: 'json' }
-import identitySchema from '@omne-harness-lite/identity-values/schema' with { type: 'json' }
-import expirySchema from '@omne-harness-lite/offer-expiry/schema/v1' with { type: 'json' }
 import { LosslessNumber, type JsonValue } from '@omne-harness-lite/content-blocks'
-import { Ajv2020 } from 'ajv/dist/2020.js'
+import { createRequire } from 'node:module'
+import { schemaId, SCHEMA_DEF_NAMES } from './schema-inputs.ts'
+export { schemaId, SCHEMA_DEF_NAMES }
 import { isObject, jsonValue } from './json.ts'
 import { isJsonInteger, isPositiveInteger } from './numbers.ts'
 import { parametersOutOfRange } from './parameters.ts'
 
-export const schemaId = schema.$id
-export const SCHEMA_DEF_NAMES = [
-  'ModelProfile',
-  'ModelProfileContent',
-  'ModelProfileSnapshot',
-  'ModelProfileRef',
-  'RouteName',
-  'ProfileOrigin',
-  'ProviderName',
-  'InputConstraints',
-  'Registration',
-  'ModelRequestParameters',
-  'ReasoningEffort',
-] as const
 export type SchemaDefName = (typeof SCHEMA_DEF_NAMES)[number]
 export interface SchemaValidation {
   readonly valid: boolean
 }
 
-// Only fixed owned schemas are compiled. No growing cache of caller schemas.
-const ajv = new Ajv2020({
-  strict: true,
-  strictTypes: false,
-  strictRequired: false,
-  validateFormats: false,
-  ownProperties: true,
-})
-ajv.addKeyword('x-counterexamples')
-for (const resource of [identitySchema, expirySchema, contentSchema, schema])
-  ajv.addSchema(resource)
-const validators = Object.freeze(
-  SCHEMA_DEF_NAMES.map(name => {
-    const validator = ajv.getSchema(`${schemaId}#/$defs/${name}`)
-    if (validator === undefined) throw new Error(`missing Schema definition: ${name}`)
-    return { name, validator }
-  }),
-)
+const require = createRequire(new URL('../package.json', import.meta.url))
 
 /** Shape only. In particular this does not check the S-18 cross-field relation. */
 export function validate(defName: SchemaDefName, value: unknown): SchemaValidation {
   const parsed = jsonValue(value)
   if (parsed === undefined) return Object.freeze({ valid: false })
-  const entry = validators.find(item => item.name === defName)
-  if (entry === undefined) throw new Error(`unknown Schema definition: ${defName}`)
+  const name = SCHEMA_DEF_NAMES.find(item => item === defName)
+  if (name === undefined) throw new Error(`unknown Schema definition: ${defName}`)
   // Exact original-number constraints precede projection. Ajv never sees number wrappers.
   if (!exactNumbers(defName, parsed)) return Object.freeze({ valid: false })
-  return Object.freeze({ valid: entry.validator(project(parsed)) === true })
+  const generated = require('./generated/ordinary.cjs') as Record<
+    SchemaDefName,
+    (value: unknown) => boolean
+  >
+  return Object.freeze({ valid: generated[name](project(parsed, defName)) === true })
 }
 
-function project(value: JsonValue, member?: string): unknown {
-  if (LosslessNumber.is(value))
-    return member === 'topP' ||
-      member === 'maxInputTokens' ||
-      member === 'maxOutputTokens' ||
-      member === 'maxImageBytes'
-      ? 1
-      : 0
-  if (Array.isArray(value)) return value.map(item => project(item))
+type NumericContext = SchemaDefName | 'generic'
+
+function project(value: JsonValue, context: NumericContext, member?: string): unknown {
+  if (LosslessNumber.is(value)) {
+    if (context === 'InputLimitFact' && member === 'value') return 1
+    if (
+      context === 'InputConstraints' &&
+      ['maxImageBytes', 'maxImages', 'maxRequestBytes'].includes(member ?? '')
+    )
+      return 1
+    if (context === 'ModelRequestParameters' && (member === 'topP' || member === 'maxOutputTokens'))
+      return 1
+    if (
+      (context === 'ModelProfile' ||
+        context === 'ModelProfileContent' ||
+        context === 'ModelProfileSnapshot') &&
+      (member === 'maxInputTokens' || member === 'maxOutputTokens')
+    )
+      return 1
+    return 0
+  }
+  if (Array.isArray(value)) return value.map(item => project(item, 'generic'))
   if (isObject(value))
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, project(item, key)]))
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        item === undefined ? undefined : project(item, childContext(context, key), key),
+      ]),
+    )
   return value
+}
+
+function childContext(context: NumericContext, key: string): NumericContext {
+  const profile =
+    context === 'ModelProfile' ||
+    context === 'ModelProfileContent' ||
+    context === 'ModelProfileSnapshot'
+  if (profile && key === 'inputConstraints') return 'InputConstraints'
+  if (profile && key === 'upstreamInputLimits') return 'UpstreamInputLimits'
+  if (profile && key === 'parameters') return 'ModelRequestParameters'
+  if (
+    context === 'UpstreamInputLimits' &&
+    ['maxInputTokens', 'maxRequestBytes', 'maxImageBytes', 'maxImages'].includes(key)
+  )
+    return 'InputLimitFact'
+  if (
+    (profile && ['maxInputTokens', 'maxOutputTokens'].includes(key)) ||
+    (context === 'InputConstraints' &&
+      ['maxImageBytes', 'maxImages', 'maxRequestBytes'].includes(key)) ||
+    (context === 'InputLimitFact' && key === 'value') ||
+    (context === 'ModelRequestParameters' && ['topP', 'maxOutputTokens'].includes(key))
+  )
+    return context
+  return 'generic'
 }
 
 function exactNumbers(defName: SchemaDefName, value: JsonValue): boolean {
@@ -78,7 +91,17 @@ function exactNumbers(defName: SchemaDefName, value: JsonValue): boolean {
     return !parametersOutOfRange(value)
   }
   if (defName === 'InputConstraints')
-    return !Object.hasOwn(value, 'maxImageBytes') || isPositiveInteger(value.maxImageBytes)
+    return ['maxImageBytes', 'maxImages', 'maxRequestBytes'].every(
+      name => !Object.hasOwn(value, name) || isPositiveInteger(value[name]),
+    )
+  if (defName === 'InputLimitFact')
+    return !Object.hasOwn(value, 'value') || isPositiveInteger(value.value)
+  if (defName === 'UpstreamInputLimits')
+    return ['maxInputTokens', 'maxRequestBytes', 'maxImageBytes', 'maxImages'].every(
+      name =>
+        !Object.hasOwn(value, name) ||
+        (value[name] !== undefined && exactNumbers('InputLimitFact', value[name])),
+    )
   if (
     defName === 'ModelProfile' ||
     defName === 'ModelProfileContent' ||
@@ -97,6 +120,12 @@ function exactNumbers(defName: SchemaDefName, value: JsonValue): boolean {
       Object.hasOwn(value, 'parameters') &&
       value.parameters !== undefined &&
       !exactNumbers('ModelRequestParameters', value.parameters)
+    )
+      return false
+    if (
+      Object.hasOwn(value, 'upstreamInputLimits') &&
+      value.upstreamInputLimits !== undefined &&
+      !exactNumbers('UpstreamInputLimits', value.upstreamInputLimits)
     )
       return false
   }

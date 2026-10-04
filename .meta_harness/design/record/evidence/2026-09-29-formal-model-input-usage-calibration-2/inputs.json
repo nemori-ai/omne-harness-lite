@@ -1,0 +1,436 @@
+{
+  "commit": "62ab2001",
+  "hubCommit": "1fef9c90",
+  "files": [
+    {
+      "path": ".meta_harness/design/spec/data/model-response/v9/examples.json",
+      "sha256": "8097c4c27e6fc0d0fcd7b13d2ec27cd8a3f237fd4b1cf643316acd9ea52a16e2",
+      "bytes": 117565
+    },
+    {
+      "path": ".meta_harness/design/spec/data/model-response/v9/verification.md",
+      "sha256": "54357c05ef016826eba0db16daf75c6a94ed57432d56e19c95fabe6dff5c13fc",
+      "bytes": 3031
+    },
+    {
+      "path": ".meta_harness/design/spec/data/model-response/v9/examples.md",
+      "sha256": "2aebd427b6bb0a68d726657d4a7d57b98e2db0a686e9b3390534542daaba276e",
+      "bytes": 345159
+    },
+    {
+      "path": ".meta_harness/design/spec/data/model-response/v9/contract.md",
+      "sha256": "fc4fe5f8092f1abff7efa6b27a228f7321575c5de8205c58de8ee8106ad3ebda",
+      "bytes": 148293
+    },
+    {
+      "path": ".meta_harness/design/spec/data/model-response/v9/model-response.schema.json",
+      "sha256": "f282244688fa9442787b94f11c02444923843c8d8ae471d323e42792c8ee457c",
+      "bytes": 57826
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/verification.md",
+      "sha256": "54a25dc2ec3c5d50b7e988faa7055a11af36cd31eabf6e61e064bedf2b7bee9b",
+      "bytes": 3481
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/examples.md",
+      "sha256": "a4c2b64844498f66b4dc5a45beb7e5c25fb7d20e1b8c252e7fe4a96aeb7697d1",
+      "bytes": 66001
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/contract.md",
+      "sha256": "add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c",
+      "bytes": 343255
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/consumer-impact.md",
+      "sha256": "56bbe3689382f12dd01fc1192c06136e0788efc6c17566dd024ca196f273beeb",
+      "bytes": 1287
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg",
+      "sha256": "54e69e3d3ca7a70803bc32e44c3edde9c1c8bde879e7711430a31774590026ea",
+      "bytes": 425
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/Adaptation.cfg",
+      "sha256": "ab563c44e090b185d77cd83af395f5feabf43d42e3ef4be035dd92ba1bdc01b8",
+      "bytes": 295
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ExactOrBound.cfg",
+      "sha256": "f47a336cbc3c08bca5878daa0d325e194631c3ca5ffb45874fa62fdb97ededb8",
+      "bytes": 425
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/AdaptationBinding.tla",
+      "sha256": "dcdc3fcf8615a533bf09645c1e3690f4dcb341af68f0e12a2e2a411b5c3d32f4",
+      "bytes": 3086
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/RetryHistory.tla",
+      "sha256": "1f04b92dd459b6e99f96503467375cae26644713e54e08a68b972e032b4eb0a2",
+      "bytes": 1580
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/FinalPlan_Public.cfg",
+      "sha256": "0d6ab7b40631ae3a3c2f552eb7b3bdc29613904bdbab8446867e73af679de4d7",
+      "bytes": 438
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/FinalPlan.tla",
+      "sha256": "405ec239fd3317ce4f5270867e9b923e8e3b6def8ac87163bd7712325a181ae6",
+      "bytes": 6338
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/RetryHistory.cfg",
+      "sha256": "16310940ce9bf1b91757fba860713c1e7641e9ecc5e2a063b1c6ba37a0dbf451",
+      "bytes": 132
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_UpperBound.cfg",
+      "sha256": "fb46f7a8fa6b559c58830acaf1a5f91630915f71b1c3ab7be710c7b15db2de25",
+      "bytes": 423
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/Settlement_EndedUnknown.cfg",
+      "sha256": "31f6a3012d1a501d271885d2d8e5207b76904a7ea7dd525d205f659eb16e1069",
+      "bytes": 439
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/Settlement.cfg",
+      "sha256": "53a7c6afd59786f2b610247a3fa095a7ef8a58a298edc0d6ff27606983ba62c4",
+      "bytes": 445
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/Settlement.tla",
+      "sha256": "d7f25d31fa24a25560bf67d4bc9adf0ccb9b7a9f66606f9a56023f9e2e9049f5",
+      "bytes": 8103
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/RecoveryTiming.tla",
+      "sha256": "fd62324b758d2429454819204271a8ce7bffe3f4a731d491f03fd924454ed27d",
+      "bytes": 3292
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/Settlement_NoRun.cfg",
+      "sha256": "acabfbc570df1c71796d8a9b0948e8d11a2f82b37e0ba9c8b730a47abe55c827",
+      "bytes": 445
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
+      "sha256": "18d9acad96865e38ea7a847bec3ebec78f937ae059bf511ff52aff3e951c9684",
+      "bytes": 11142
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/Adaptation.tla",
+      "sha256": "23472057c4d32b456c90de1301eddc59de1078ee9123e1a142aef1257f89ffe2",
+      "bytes": 6429
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/PendingReply.tla",
+      "sha256": "c9647a4cacb99ee575d0210ffb87857b29b22a742f073da8f0fc4043414312d0",
+      "bytes": 1730
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/ContentGate.tla",
+      "sha256": "3610b3ba7b7ec3b92d48190de90bd4155dc3b49f56ab4e7c024706ae06d2e95e",
+      "bytes": 2955
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Estimated.cfg",
+      "sha256": "7ae51f610c85436978beec1a68129573e63f3f6464c1e441adf7c61288f83ab5",
+      "bytes": 410
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/FinalPlan.cfg",
+      "sha256": "4bf02bb23fd8e8548abfa03398796414eb01f207ebed683e665f10e6573ee46e",
+      "bytes": 437
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ThreeCalls.cfg",
+      "sha256": "30bbce2bb2d998303787989ad61eabf9273088ed452191f4fd93c6ffff7452d0",
+      "bytes": 416
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/ContentGate.cfg",
+      "sha256": "4f27666a277acbf630a977919c6c7216d3f4cad24fcf8d8f81d1b2fca1ed795a",
+      "bytes": 237
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/README.md",
+      "sha256": "3ba80e6ad87561246827314d4815a3a788ef3b7ea4a35cfbeed1755fd1e1432c",
+      "bytes": 8516
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/RecoveryTiming.cfg",
+      "sha256": "3f741e62a3c340dcc5aa607f74d49200569fd225f265e6c875730d30e84bb455",
+      "bytes": 242
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/AdaptationBinding.cfg",
+      "sha256": "ae581bb8d669d1d7c144745e5d177c20120d3667df41d89eebf439accf6c6297",
+      "bytes": 219
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/PendingReply.cfg",
+      "sha256": "d8567213bd4516cacc03866ee667a9587a167c7599bf1d53ba6ad873b208f640",
+      "bytes": 163
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/FinalPlan_SkipBytes.cfg",
+      "sha256": "8fb4fea8c37ce66a64c97412c21189b6617fdafb74f368815e0740e1d295b41d",
+      "bytes": 290
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/RetryHistory_DispatchCount.cfg",
+      "sha256": "5b03dd7661eb5028e374b34426ef3a06842440617ceac7962d9d4a2fd0875d06",
+      "bytes": 108
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/Settlement_IgnoreOpened.cfg",
+      "sha256": "17dfb1150b157fff674acf126fbb41125e8dc86dba32fe372468e95c476aa719",
+      "bytes": 299
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_MissingZero.cfg",
+      "sha256": "6704de69cf19d88a2769bff6b4d415efa61502150f1a36b33b575fa3e2bfaf58",
+      "bytes": 248
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/AdaptationBinding_MissingFallback.cfg",
+      "sha256": "8ee71965023c9fa159550cd0ae749dfca2c806e0ecc96b44835dc9a9a1bdc12e",
+      "bytes": 121
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/AdaptationBinding_UseLatest.cfg",
+      "sha256": "971d1c3e719b1b7985cf219e676071439630f3dc2123b93337b0e94a7a77da0d",
+      "bytes": 120
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/RecoveryTiming_NullGrantsRetry.cfg",
+      "sha256": "86c241d668bf36e6a382e0754e7d9efa7b279e64f60170664894b4a68cb7ec42",
+      "bytes": 241
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimatedWindow.cfg",
+      "sha256": "357d0dda0db8e1c8b9fa96b1dfc0344ae1ff6007be9d721d64cb5d59a9e8ebf0",
+      "bytes": 247
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/FinalPlan_UnknownExceeded.cfg",
+      "sha256": "5dd3ba10ac7285d19fd401c7c16edf07fc3fe8e8c02f7256e63a0b14c5a8d896",
+      "bytes": 298
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/Adaptation_DisposeActive.cfg",
+      "sha256": "48123bdef7b19620f1401694a5e76c244f95cb6d02ba98bbcbd92982e1533aba",
+      "bytes": 138
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/Settlement_DropOwner.cfg",
+      "sha256": "1a8a3118a1506f8e3771e94eeed0963ff75c490bb39807b89752119c95a85547",
+      "bytes": 280
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/FinalPlan_RejectEstimate.cfg",
+      "sha256": "9fd2fb6e9013aa9165164f4353767e27ad7aaa9b291982a4f978092b95451b4c",
+      "bytes": 298
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/Settlement_PartialClaim.cfg",
+      "sha256": "20b9a65ab13bc80efdea5602e53513494da41380460f8841fa0e9f79ca4b1646",
+      "bytes": 284
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/ContentGate_NoWait.cfg",
+      "sha256": "a98f8122ac4ae2bb4ac8e2b0a04d599b6895d9155d7f5ee2294aadd079217181",
+      "bytes": 129
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_DoubleOutput.cfg",
+      "sha256": "0d72331f562487bdc0b47f22ed32652054a16ea37ba44e06ecf093d507ec99a2",
+      "bytes": 251
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/FinalPlan_EstimateAsActual.cfg",
+      "sha256": "555652c01b788d28c678f1db11b8a0f01fcd2d843d056c150ce272b032571e28",
+      "bytes": 297
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/FinalPlan_NoCheck.cfg",
+      "sha256": "c71bd9198d8d24c45a814c4e7b9778896399093ceaf5fe42b1928a5f6e1f7ff1",
+      "bytes": 300
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_LatestBranch.cfg",
+      "sha256": "7f3ee37bb75481084e54b1847c7a4d2a8c65d180bb64cbec023da48766afd84f",
+      "bytes": 249
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/FinalPlan_EstimateAsUsage.cfg",
+      "sha256": "11492196022c14c912135bffd27acbec464fa863c8c35f6e08346bce5f3b69da",
+      "bytes": 297
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_StalePlan.cfg",
+      "sha256": "e88bcd69d6317e6f2a472f7bc847e48814104ada34986b57a96a2934b8071038",
+      "bytes": 246
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PublishEarly.cfg",
+      "sha256": "2a55eb92aa3fd462e2bf6775097cd7ca310fac57758327a70d9391ab5c8afaa5",
+      "bytes": 251
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/PendingReply_Default.cfg",
+      "sha256": "aa949152f3d51094afd819949c8fcf67b775a6e64e730824ed20082736f666ca",
+      "bytes": 135
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/Adaptation_AcquireRetired.cfg",
+      "sha256": "577548732fb2fd20de6d6f74ce2a1d6a3c5a6b9d8f5023199eda9f1de936ec00",
+      "bytes": 136
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/FinalPlan_Mutable.cfg",
+      "sha256": "b2e5a477dbd55cb1eca5b0d19c2eb014676cc2e310ea19971cd0a38c811b1418",
+      "bytes": 293
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RecomputeRecovery.cfg",
+      "sha256": "6228834026d83751eb7a7404b55609d58ce007b81b43e544b8deebaee51c150a",
+      "bytes": 255
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnorePrefix.cfg",
+      "sha256": "b6087bfe2a1f2c0690723741d7a3b385ca111e982ef25537cc547827ce28cc9b",
+      "bytes": 248
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnoreBasis.cfg",
+      "sha256": "610cf73e8c0671ad4b39e616ab68377ca43f0c806ebeb518ddc68b17e8b0782c",
+      "bytes": 246
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/Settlement_PartialBatch.cfg",
+      "sha256": "c4f98db4130ae844c69ea542c6e290c79c91e916d3da6264d1ccf70081e973bd",
+      "bytes": 283
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PartialBatch.cfg",
+      "sha256": "aa8f4092fb10ec15f7d3e2277cf91cb25f6cc784fbbca11d0d6a031f3c5a3a6b",
+      "bytes": 246
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/FinalPlan_MissingLate.cfg",
+      "sha256": "5c90c9cd6309f336e0a930e896b7652a8bb646a9f7f25e775ea6171263b4d3a0",
+      "bytes": 295
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/Settlement_UnknownAsAbsent.cfg",
+      "sha256": "cbf40b958583869ec7a3f3269bda84128336cc185ec40b65afdc41f9d1c7275f",
+      "bytes": 283
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/ContentGate_IgnoreCancel.cfg",
+      "sha256": "917ff043f94e4972490a2d162fbb3ec29af58e6c60bbaa7379eb17119c62a88b",
+      "bytes": 128
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimateExact.cfg",
+      "sha256": "9e2226a477ce7f64b586f301719fd9d8a12ba9afcbb5267af571cde752a98500",
+      "bytes": 250
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_CacheZero.cfg",
+      "sha256": "bf2d8d42fc5b1f673e6454c212e0dd5ffcad63648dd5b585680245b0c88d7302",
+      "bytes": 246
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_ReleaseLease.cfg",
+      "sha256": "bee49d930003a8d1a43c3f1c2ac2f954098c63dfd300bc53176a53232a411c0a",
+      "bytes": 246
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/RecoveryTiming_RecoverySends.cfg",
+      "sha256": "1acf0f7c68f89ed64060aeaadb22a58b494c01cc32c0f1670b6598537a6540df",
+      "bytes": 241
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/PendingReply_DropFacts.cfg",
+      "sha256": "a5923c9cad9a5a3c7378d3100901cf178ef2bacdf1c9221cb9483c8237a7d4b7",
+      "bytes": 129
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/Settlement_NoCompare.cfg",
+      "sha256": "1b9e96c5b3c7de63cdc7184ee87df68163ba835757ed88c091a023d44a537351",
+      "bytes": 279
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RewriteHistory.cfg",
+      "sha256": "b9085e25f465c200498f40f396217dc9822d121dbb38ced0b2fde59005624424",
+      "bytes": 249
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/RecoveryTiming_DropKnown.cfg",
+      "sha256": "072ba2362a3c426651db9606f23a0c1eb98aaa983ae0c6eedde888be97ff8779",
+      "bytes": 241
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/RecoveryTiming_SynthesizeTime.cfg",
+      "sha256": "3527ed919c2be3ece4d7434f4aecd35541c52e766457d006aee1b3edf55e4ffd",
+      "bytes": 241
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/Adaptation_Rebind.cfg",
+      "sha256": "522416cd6e44095a53370393ef70dec6a72c22b343c5c35db9f2e558a91e3d26",
+      "bytes": 133
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/FinalPlan_IgnoreMargin.cfg",
+      "sha256": "4c58227c6869422a053501e592132df69edcdd7e4f43889b936a3d2d687bac6b",
+      "bytes": 293
+    },
+    {
+      "path": ".meta_harness/design/registry/catalog.json",
+      "sha256": "c4ff209a257a05e6495fb0c3dde9f7d8da957e26dd4b38df745a291b6d9dc071",
+      "bytes": 390614
+    },
+    {
+      "path": ".meta_harness/design/registry/covers.json",
+      "sha256": "14837e8f7b0f5b4f65a887ef43d95ff91e183f9083ea8ad3346233c772f90444",
+      "bytes": 1576602
+    },
+    {
+      "path": ".meta_harness/design/registry/formal-tasks.json",
+      "sha256": "21f2bda6302ecc0f1915c9db430f9af93ee4144a35bc742d72b90ec5be2f7131",
+      "bytes": 87307
+    },
+    {
+      "path": ".meta_harness/design/spec/data/model-response/README.md",
+      "sha256": "8f4b40b81cd9e0243297ea0ba1b66ee003d065beb95c016c2e74b0660b8881a3",
+      "bytes": 9694
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/README.md",
+      "sha256": "2e1bb397fd6aec1d3d1c2156272a5b4dc247b17a5944d40e0f12c9bf86d220b9",
+      "bytes": 12034
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ReanchorProgress.cfg",
+      "sha256": "6533a6f35bdbddd28b8f6f8bb04376714089739e5e0e1643613dd73e1d2a5f1a",
+      "bytes": 468
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_KeepOldAnchor.cfg",
+      "sha256": "cde60752c21cd4498cb905397df881f3d0c6bea934d655d0fb09c16c2e57a580",
+      "bytes": 241
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_NeverUseAnchor.cfg",
+      "sha256": "f73a4880f64c976766370f5de5d3e096a01d79a0a0f7069405bea836d7ce9658",
+      "bytes": 242
+    }
+  ]
+}

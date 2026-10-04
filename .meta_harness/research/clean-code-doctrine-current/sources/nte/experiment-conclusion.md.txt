@@ -1,0 +1,139 @@
+# Experiment conclusion
+
+Eight Hunt the Wumpus runs. Same product (`requirements.md`). Same stack. Same mutator. Same acceptance script. Each row started from an empty `src/htw` and ended with `bb accept` **25/0**. Source was moved to `runs/<discipline>-crap-<on|off>/`, not deleted.
+
+A prior pass of this grid had produced two programs copied eight times. That pass is discarded. This write-up is the independent re-run: eight distinct trees, eight notebooks.
+
+The comparison is suite vs suite on that row’s program. The implementations themselves are also part of the record.
+
+## Grid
+
+| # | Discipline | CRAP | Disc. ex. | Disc. assert. | Disc. spec lines | Disc. form% | Mut. ex. | Mut. assert. | Mut. spec lines | Covered killed | Accept |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|---|
+| 1 | Three laws | off | 39 | 154 | 234 | 84.13 | 63 | 164 | 337 | 50/52 | 25/0 |
+| 2 | Three laws | on | 74 | 169 | 437 | 97.51 | 52 | 171 | 357 | 68/69 | 25/0 |
+| 3 | Test-last | off | 15 | 115 | 226 | 96.76 | 21 | 152 | 256 | 66/67 | 25/0 |
+| 4 | Test-last | on | 5 | 189 | 236 | 97.58 | 9 | 133 | 256 | 95/97 | 25/0 |
+| 5 | Bundling | off | 110 | 229 | 587 | 97.04 | 36 | 180 | 300 | 52/55 | 25/0 |
+| 6 | Bundling | on | 206 | 277 | 878 | 98.56 | 21 | 257 | 407 | 83/84 | 25/0 |
+| 7 | None | off | 0 | 0 | 0 | 14.01 | 29 | 225 | 460 | 118/119 | 25/0 |
+| 8 | None | on | 40 | 150 | 314 | 97.54 | 27 | 178 | 232 | 85/86 | 25/0 |
+
+## Implementations
+
+Measured from `runs/*/src/htw` (`defn` / `defn-` counts; SHA-256 of the concatenated source files). **Eight distinct trees.** No pair shares a checksum.
+
+| # | Discipline | CRAP | Lines | Fns | Modules (lines) | sha12 |
+|---|---|---|---:|---:|---|---|
+| 1 | Three laws | off | 396 | 40 | tunnels 14, den 115, flags 73, console 183, main 11 | `2da4de2ca7a4` |
+| 2 | Three laws | on | 478 | 88 | cavern 13, hunt 175, opts 51, prompt 233, main 6 | `3e77ce53cd64` |
+| 3 | Test-last | off | 331 | 33 | world 100, drive 191, main 40 | `0381d2203923` |
+| 4 | Test-last | on | 549 | 86 | rooms 35, argv 61, session 447, main 6 | `1ee1f3b80b16` |
+| 5 | Bundling | off | 387 | 52 | mesh 38, parse 32, lair 159, talk 152, main 6 | `ff5115f863da` |
+| 6 | Bundling | on | 603 | 118 | links 35, switches 58, beast 225, dialog 279, main 6 | `9cef53539171` |
+| 7 | None | off | 340 | 41 | yob 335, main 5 | `0ac0ce662437` |
+| 8 | None | on | 524 | 95 | listing 81, boot 438, main 5 | `bee9b151a60a` |
+
+CRAP-off line counts: 396, 331, 387, 340. CRAP-on: 478, 549, 603, 524. Function counts likewise do not collapse: 40 / 33 / 52 / 41 off; 88 / 86 / 118 / 95 on. Discipline changed the source. CRAP then grew it further on the four “on” rows (more functions, more lines) without changing Yob behavior.
+
+## What the discipline axis did
+
+The four CRAP-off suites specify the same game at very different sizes and shapes. Example count and assertion count do not move together:
+
+- **Three laws** (39 examples / 154 assertions / 234 lines): names play — stay, refuse, pit, snatch, bump, crooked shot, CLI flags. Incremental API (`tunnels` / `den` / `flags` / `console`). About four assertions per example.
+- **Test-last** (15 / 115 / 226): fewer, fatter examples written against the finished API. Highest CRAP-off line coverage among the named suites (99.58%). Almost eight assertions per example.
+- **Bundling** (110 / 229 / 587): one `describe` per function. Largest CRAP-off suite by examples and spec lines, still ~100% lines. About two assertions per example — many small checks.
+- **None** (0 / 0 / 0): acceptance still passed. No unit specification at all (load-only coverage).
+
+So the discipline changes *how much* of the game is written down in unit tests, *and how densely* those tests check it, *and* (when rows are actually written independently) the shape of the program. Acceptance does not distinguish the four.
+
+## What the CRAP knob did
+
+CRAP after production did two things, and only those:
+
+1. **Split** high-CC functions until every function’s CC ≤ 3.
+2. **Add tests** when coverage left CRAP ≥ 4. For **None**, it had to add a whole suite — CRAP(m)=C²+C with no coverage is unusable.
+
+It did not change Yob behavior. Accept stayed 25/0 on every CRAP-on row.
+
+| Discipline | Off → on lines | Off → on fns | Disc. examples | Disc. assertions |
+|---|---|---|---|---|
+| Three laws | 396 → 478 (+82) | 40 → 88 (+48) | 39 → 74 | 154 → 169 |
+| Test-last | 331 → 549 (+218) | 33 → 86 (+53) | 15 → 5 | 115 → 189 |
+| Bundling | 387 → 603 (+216) | 52 → 118 (+66) | 110 → 206 | 229 → 277 |
+| None | 340 → 524 (+184) | 41 → 95 (+54) | 0 → 40 | 0 → 150 |
+
+Test-last+CRAP shrank *example count* (5 fat transcripts) while *raising* assertions (115 → 189) and exploding function count. Bundling+CRAP grew examples, assertions, and helpers, because each extracted function got its own `describe`. None+CRAP invented 150 assertions from nothing.
+
+## What mutation did
+
+Against a frozen program, mutation grew a **second** suite. It is not the same campaign every time, because the programs are not the same:
+
+| # | Sites | Covered killed | Uncovered | Survivors | Mut. examples | Mut. assertions |
+|---|---:|---|---:|---:|---:|---:|
+| 1 | 64 | 50/52 | 12 | 2 | 63 | 164 |
+| 2 | 69 | 68/69 | 0 | 1 | 52 | 171 |
+| 3 | 67 | 66/67 | 0 | 1 | 21 | 152 |
+| 4 | 99 | 95/97 | 2 | 2 | 9 | 133 |
+| 5 | 55 | 52/55 | 0 | 3 | 36 | 180 |
+| 6 | 84 | 83/84 | 0 | 1 | 21 | 257 |
+| 7 | 119 | 118/119 | 0 | 1 | 29 | 225 |
+| 8 | 86 | 85/86 | 0 | 1 | 27 | 178 |
+
+Leftovers were tool/equivalent: clj-mutate reports `1→0` (or a boolean flip) against a parent `if`/`cond` line while the literal lives on a later branch, so the text replace is a no-op. Hand-applying the real literal kills those tests.
+
+Mutation did not discover a different hunt. Extra tests pin operator flips (`if`/`if-not`, `=`/`not=`, `1`/`0`) that the discipline suites often never named. Assertion counts stay in a narrower band (133–257) than example counts (9–63): a fat test-last transcript and a skinny mutation example can check a similar amount. Wall time stayed ~0.06–0.09 s.
+
+“Same production ⇒ same mutation campaign” remains a claim about a *fixed* program. It is not what this grid shows, because the eight productions differ.
+
+## The eight programs
+
+Read from `runs/*/src/htw`, not inferred from the suite sizes.
+
+**Shape.** CRAP-off is four different architectures: row 1’s immutable five-file hunt (`tunnels`/`den`/`flags`/`console`); row 3’s three-file test-last (`world` rules, `drive` println loop, `main/pull` case); row 5’s bundled `mesh`/`parse`/`lair`/`talk` with `:echo` instead of printing from the domain; row 7’s single `yob.clj` with 1-indexed `S`, atoms `L`/`LL`/`A`/`TAPE`, and `fna`/`fnb`/`fnc`. CRAP-on never invented a new architecture. It split the one it was given: row 2 shards `prompt` into mutually recursive one-if fns and introduces keyword `:notes`; row 4 carves 73 helpers out of `session`; row 6 is 118 predicates (`smells?`, `struck?`) in front of a clean `out`/`in`; row 8 keeps row 7’s listing soul in `listing.clj` and explodes the rest of `boot` to 89 functions, but switches atoms for a map.
+
+**Hazard order.** Yob checks wumpus, then pit, then bats. Rows 3, 6, 7, and 8 do that. Rows 1 and 5 check bats first; row 4 checks bats, then pit, then wumpus. Acceptance never puts two hazards in one room, so all eight pass. The order is a real fork.
+
+**IO.** Rows 1, 4, and 6 inject `read`/`write` (or `out`/`in`). Rows 3, 5, 7, and 8 call `println`/`read-line` (row 5 at least keeps strings in `lair`’s `:echo`). Row 7 never stops; row 6’s outer `begin` loop never stops; row 8 throws `{:eof true}` and swallows it.
+
+**Seed.** Three RNGs: `java.util.Random` (rows 1, 3, 8), glibc LCG `1103515245`/`12345` (rows 2, 4), Numerical Recipes LCG `1664525`/`1013904223` (rows 5, 6, 7). `--seed` is not a portable contract across cells.
+
+**Instruction text.** Rows 1–4 and 6 print the usual Creative Computing pages. Rows 5, 7, and 8 paraphrase (headings, “YOU SHOOTING AN ARROW…”). Acceptance only looks for `WELCOME TO 'HUNT THE WUMPUS'` and `DODECAHEDRON`.
+
+**What CRAP does to code.** It does not simplify. It multiplies names. Row 2’s `whither`/`decide-dest`/`accept-dest` is one `WHERE TO?` loop. Row 6’s `land` is six functions. CC ≤ 3 is visible; the hunt is not.
+
+**What discipline does to code.** Three laws grew a map-shaped API. Test-last left a few fat functions (`pull` CC 23). Bundling left many small *public* functions without the CRAP recursion maze. None left a BASIC translation. Those fingerprints survive CRAP; the cap only adds helpers.
+
+## Ratings
+
+Scale 1–5, from the trees and the discipline suites (not mutation, not acceptance).
+
+- **Design** — does the split match the game (cave / rules / CLI / IO), can the rules run without `println`, and does hazard order follow Yob (wumpus, then pit, then bats).
+- **Coverage** — form/line coverage of the *discipline* suite. That is what the approach produced.
+- **Cleanliness** — can a reader follow a move or a shot in one sitting. CRAP shards, dead catches, and global atoms count against.
+
+| # | Approach | Design | Coverage | Cleanliness | Why |
+|---|---|---:|---:|---:|---|
+| 1 | Three laws, off | 4 | 3 | 4 | Immutable five-file hunt, injected IO. Console only lightly tested (84% / 86%). `flags/read` shadows core; dead `{:eof}` catch; bats-then-pit-then-wumpus. |
+| 2 | Three laws, on | 4 | 5 | 2 | Same bones, `:notes` vs strings is a better cut, 97% / 100%. `prompt` is a maze of one-if recursions (88 fns). |
+| 3 | Test-last, off | 3 | 5 | 4 | Smallest named tree, Yob hazard order, `world` is a real module. `drive` prints from the rules; `pull` is CC 23. 97% / 100%. |
+| 4 | Test-last, on | 3 | 5 | 2 | IO injected (better than row 3) but hazard order *flipped* to bats-first. 86 functions carved out of a 447-line `session`. 98% / 99.5%. |
+| 5 | Bundling, off | 4 | 5 | 4 | One public name per job; `:echo` keeps `lair` off stdout. 97% / 100%. Pages paraphrased; bats-first. No CRAP maze. |
+| 6 | Bundling, on | 4 | 5 | 1 | Cleanest domain/IO in the grid (`beast` has no `println`), Yob order, 99% / 100%. 118 predicates; `rustles?` prints one bat warning for two rooms; `begin` never exits. |
+| 7 | None, off | 3 | 1 | 3 | Honest BASIC listing (`L`/`A`/`TAPE`, `fna`). Yob order. Zero unit tests (14% / 24% load-only). One file, globals, paraphrased pages, no EOF. |
+| 8 | None, on | 3 | 5 | 2 | Same listing soul in `listing.clj`; CRAP invented 40 tests (98% / 100%) and 89 `boot` shards. Map world and swallowed EOF are improvements; the hunt is not easier to read. |
+
+CRAP never raised a design score. It bought coverage (especially None: 1 → 5) and spent cleanliness (every on-row is 1 or 2). Among CRAP-off rows, bundling and three-laws share the best design; test-last is the cleanest *small* program; none is a translation, not a design. The highest combined row without paying the cap is **bundling, CRAP off** (4 / 5 / 4). Three-laws off is the same design with a hole in the console suite (4 / 3 / 4).
+
+## Cross-cutting
+
+1. **Acceptance is cheap to satisfy and silent on suite quality.** All eight rows passed `bb accept` 25/0, including None with zero unit tests.
+2. **Coverage is a weak distinguisher among the three testing disciplines.** Test-last, bundling, and three-laws+CRAP all sat around 97–99% lines. Size and assertion style differed; line% did not. Three-laws without CRAP was the outlier (85.81% lines) because the console loop was only lightly driven.
+3. **Mutation is the only step that systematically grew tests after the program existed**, except when CRAP-on+None forced a suite into existence.
+4. **CRAP-on + None is not an empty discipline.** The plan’s “None ⇒ empty suite” is true only with CRAP off.
+5. **Discipline changes the program when the rows are actually independent.** The invalid prior pass hid that: one 442-line tree and one 546-line tree. Independently written, CRAP-off ranges 331–396 lines and 33–52 functions; CRAP-on ranges 478–603 lines and 86–118 functions.
+6. **Bundling writes the largest unit suite; test-last writes the smallest named one by examples, not by assertions; none writes nothing.** Test-last+CRAP has 5 examples and 189 assertions; bundling+CRAP has 206 examples and 277. Mutation size tracks the program and the leftover operators, not the discipline that built the first suite. Assertion count is the stabler mutation measure (133–257) once a program exists.
+
+## Bottom line
+
+For this product, changing the testing discipline changed the **shape and size of the unit suite** — how many examples, how many assertions, and how fat each example is — *and*, when each row was written from empty, the **shape and size of the program**. Changing CRAP changed **function size** and, when there were no tests, **forced a suite**; it raised coverage and lowered cleanliness and never raised design. Mutation, given *that* frozen HTW, produced a second suite aimed at operators — never a different Wumpus, and never the same campaign twice, because the eight Hunts were not the same source.

@@ -1,0 +1,97 @@
+[
+  {
+    "path": "README.md",
+    "sha256": "b42fdfef48d318c1a5274a9024724c586bfe59f0a38ce4f7a7b807ef1b27ac61",
+    "bytes": 8926
+  },
+  {
+    "path": "archive-p1.py",
+    "sha256": "e98425a9d92d6349bcd88a47b8db3993f245505d35e3218a20300dace8f8d65c",
+    "bytes": 7962
+  },
+  {
+    "path": "environment.json",
+    "sha256": "64741d0048b6201efebe5aa2fdc6192bbef6cdbeac0d31a27a07e19a60e7f06c",
+    "bytes": 1048
+  },
+  {
+    "path": "final-diff-check.txt",
+    "sha256": "d8362db5e940c3213f49f910a3a14da80f6c5048aa9dacc2d3ed3bb3f8f9ea34",
+    "bytes": 34
+  },
+  {
+    "path": "final-documentation-hashes.json",
+    "sha256": "4d69e33dd2fbe21e05cff565bb14fc09984bb2371b294cdd6e3e703c9e43b507",
+    "bytes": 5814
+  },
+  {
+    "path": "input-and-output-hashes.json",
+    "sha256": "b3738435fe6fe8ac98670f22b646d6c23fce34fd7f34fb69bfd8d1a032fa1cda",
+    "bytes": 226405
+  },
+  {
+    "path": "input-observations.json",
+    "sha256": "f41b9dbd123d7b117e2864b0e0a3aa11dc1b0f0b55f21e673947042b00295711",
+    "bytes": 14259
+  },
+  {
+    "path": "p1-archive-execution.txt",
+    "sha256": "dd9f14897f7685a98422019532fd1f4c52f9297cf990d5a442bd5589d14dc0d5",
+    "bytes": 948
+  },
+  {
+    "path": "p1-final-diff-after-record.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "p1-realization-baseline.json",
+    "sha256": "ec922b9c5249e91c2a249273d43048fe05b2b197f59cad0633400bbc187756ff",
+    "bytes": 5991
+  },
+  {
+    "path": "p1-realization-check.txt",
+    "sha256": "6216eab81549f965ba4a2083de59ed679810359bb3e90c68b096aa554cf273ca",
+    "bytes": 1627
+  },
+  {
+    "path": "p1-realization-scoped-check.json",
+    "sha256": "2047b939a95300e2b7edc96c5051ffcfef07011984f3a5571021722de3273758",
+    "bytes": 177
+  },
+  {
+    "path": "privacy.json",
+    "sha256": "7d088a4a78dd1ac81f2bc3f6c879d6142189db38493f14a22d005bf8cbe4a143",
+    "bytes": 379
+  },
+  {
+    "path": "public-artifact-r1.tar.gz",
+    "sha256": "b01635eb7535ab0cd95155afe4946803ae84b3abc9e18aed1240ab2da661a499",
+    "bytes": 930923
+  },
+  {
+    "path": "public-artifact-r2.tar.gz",
+    "sha256": "3ee9d2486f7af1bb8217cad7e3b66c60cfc2a1f49497455b40856a1fda1cd908",
+    "bytes": 930906
+  },
+  {
+    "path": "readme-completion.json",
+    "sha256": "93ee9de4a5f9e12161f3719a57343c2d1bf334eb2a1a0f2188cac649a8e2106c",
+    "bytes": 654
+  },
+  {
+    "path": "realization-and-final-checks.tar.gz",
+    "sha256": "0a468bf09d215bde681115bee50ac6114e118f90d04032a8e6b465e459c5e610",
+    "bytes": 176868
+  },
+  {
+    "path": "secret-scan.json",
+    "sha256": "e997af545c8a73b8b44bc81d407eb6bdc6d73091bece0c01ad0356bc8389eb97",
+    "bytes": 175
+  },
+  {
+    "path": "source-config-and-runs.tar.gz",
+    "sha256": "daf8dbefd7d7d74d892fcc11266a8fcc5024b79843554178bf23651bb900d50a",
+    "bytes": 6534351
+  }
+]

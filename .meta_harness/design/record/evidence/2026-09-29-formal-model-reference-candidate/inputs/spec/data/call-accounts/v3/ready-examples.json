@@ -1,0 +1,32 @@
+[
+  {
+    "name": "actual-large-exact-count",
+    "definition": "Usage",
+    "value": {
+      "input_tokens": 9007199254740993,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cache_write_tokens": 0,
+      "source": "upstream"
+    },
+    "schemaValid": true
+  },
+  {
+    "name": "actual-unknown-not-zero",
+    "definition": "Cost",
+    "value": {
+      "cost_usd": "unknown",
+      "source": "none"
+    },
+    "schemaValid": true
+  },
+  {
+    "name": "negative-cost-rejected",
+    "definition": "Cost",
+    "value": {
+      "cost_usd": -1,
+      "source": "upstream_usage"
+    },
+    "schemaValid": false
+  }
+]

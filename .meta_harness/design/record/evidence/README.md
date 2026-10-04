@@ -1,5 +1,35 @@
 # 运行证据
 
+**2026-10-03 固定 Schema 主体**：[实际运行与有限技术签收](2026-10-03-tests-fixed-schema-main/README.md)。20 成员的固定图构建期生成和首次原生装载、AM 同 owner 消费迁移；性能按冻结输入和单 CPU 前提读取，三默认 owner 后续交付仍待。
+
+**2026-10-03 Moonshot空文本窄修复**：[独立验收与有限技术签收](2026-10-03-moonshot-empty-text/README.md)。两成员快2227／慢1204、公开42场景、34构建及共同硬线通过，10标准Pass with issues；CC与带位保留，真实上游仅当前Kimi一条，不提升37模型认证。
+
+**2026-09-30 ACK 接缝 v-next 暂存行模型**：[两正配置与十份变异的 TLC 运行](2026-09-30-ack-seam-vnext-tlc/README.md)。v-next candidate 模型，不是 v12 冻结模型重跑；正配置无反例、十份变异各命中目标不变量；不登记 formal task，不构成接受。
+
+**2026-09-29 模型引用第二轮**：[新 OpenedOrder、四负控与 70 项形状案例](2026-09-29-formal-model-reference-candidate-2/README.md)。执行前输入摘要、独立日志与两份评审锁分别保留；仅有限模型/形状检查，不构成接受。
+
+**2026-09-29 模型引用候选**：[有限形式与 Schema 实际运行](2026-09-29-formal-model-reference-candidate/README.md)。3 个正配置无反例、9 个负控命中、57 个形状实例通过；运行时未采输入摘要及早期两项 Schema 失败原日志丢失的局限明确保留。不构成契约采用或实现验收。
+
+**2026-09-27 MR5 纯值核心**：[源码、制品和有限技术签收](2026-09-27-tests-model-response-v5-core/README.md)。77 规范块、387 包测试、两份作者制品消费者及独立优先级/制品/行为负控通过；原 Pass with issues 的文字问题已修，317 归档成员逐项核对。纯值范围不关闭 transport/真实写方责任。
+
+**2026-09-27 transport 不透明响应资源**：[实际 TLS 与有限技术签收](2026-09-27-tests-model-transport-opaque-response/README.md)。独立切片 Pass，真实反射/关闭/单 reader/延期读取及两个编译行为负控通过；原测量失败保留，294 归档成员逐项核对。G6、完整响应头交接和完整 PH-V9 未签收。
+
+**2026-09-27 模型目录与凭据副本联验**：[原失败、计时诊断与修正并发运行](2026-09-27-tests-model-credential-joint/README.md)。13个顺序/故障/关闭场景及修正后的三种真实SQLite双连接交错通过；原三次失败保全，V3-15/MCR-V4整体仍Partial，真实认证/runtime与37认证未覆盖。
+
+**2026-09-27 W15日志诊断与公开守卫**：[限定技术签收](2026-09-27-tests-model-request-runtime-guard-log/README.md)。独立产品slice Pass／证据Pass with issues，41最终命令、215主oracle、4真正编译负控及24双语模块执行；1204输入和33063归档成员逐项核对。只签收同步sink隔离与pure dispatchGuard，原804 Fail保留，十三操作、整体P2和37认证未完成。
+
+**2026-09-27 RT4结算有限形式**：[两轮独立执行与主线核对](2026-09-27-formal-model-request-settlement/README.md)。run1保留Fail／exit75，修复后run2新SANY／3正／6指定反例通过；403归档成员读回、102输入核对，最终24形式资源未变，不提升新版正文／实际IO或十三操作验证。
+
+**2026-09-27 model request runtime revision7公共完整定义**：[独立制品与有限实施签收](2026-09-27-tests-model-request-runtime-definitions/README.md)。HUB175／6、两仓库外制品共100次正向HTTPS、12双语TS块、真r6 A迁移／完整B排空与8指定行为负控，67520制品成员和2648源／运行文件逐字保全。旧默认删除，official完整定义、真实TTL／模态、耐久十三操作和37认证仍未完成；付费0。
+
+**2026-09-27 model request runtime revision6 传输边界**：[实际修复与独立制品有限验收](2026-09-27-tests-model-request-runtime-boundaries/README.md)。transport262／runtime6集成；两个仓库外副本各23场景，84次本机TLS，七类故障负控均检出；原始失败、5659输入及精确制品保全。付费0，不关闭完整定义迁移、耐久服务、全门或37认证。
+
+**2026-09-27 model request runtime revision 4 符合性补证**：[真实反例、修复与仓库外制品](2026-09-27-tests-model-request-runtime-conformance/README.md)。两个既有 T-16／T-8 失败修复后独立 13/13、最终 transport 209／runtime 6、双语 10 例及外部制品通过；旧 P2 run 保留，本轮付费 0。不关闭完整 P2、耐久服务或 37 模型认证。
+
+**2026-09-27 model request runtime P2 局部构件**：[37 窄定义、动态引用与真实 Cordis/TLS](2026-09-27-tests-model-request-runtime-p2/README.md)。transport 196、runtime 6 项，修改两包的 10 个双语示例及仓库外制品通过；本轮付费 0。完整 offer、耐久服务、全门和 37 认证仍未完成。
+
+**2026-09-27 model request runtime P1**：[公开生产函数、真实 TLS、仓库外制品与双语包文档](2026-09-27-tests-model-request-runtime-p1/README.md)。runtime 6、transport 39、预算门 37 项通过，13 包双语 README 的 44 例实际检查；r1/r2 两款代表模型共八次 OpenRouter 冷暖请求。十三操作、Cordis/租户装配、TTL 到期与完整 37 模型认证未完成。
+
 **2026-09-26 core最终交付与Skill3**：[新实际运行及逐项签收](2026-09-26-tests-core-skill-v3/README.md)接续此前217/221事件，当前221/221（六混合项只NonConnector）及U1另13项已技术接受，Skill完成后的用户发布授权条件满足；适用6534项回归、54独立行为、20真实tarball及44双语README／57例。原递归的一处冻结输入接线失败、main继承三个迁移失败和GitHub runner未启动均按实际范围保留，不声称全仓或Actions全绿。
 
 这里保存实际执行留下的配置、输入快照和原始结果：形式任务的 TLC 输出、
@@ -177,3 +207,23 @@ evidence/
 [2026-09-27 Docker 启动健康观察过期](2026-09-27-tests-docker-startup-expiry/README.md)：QA只阻塞健康进程，正式 helper 正常停止并核真实退出，start仍失败；不覆盖迁移故障。
 
 [2026-09-27 Docker 离线维护 TERM](2026-09-27-tests-docker-offline-cancel/README.md)：真实 known-ID helper取消、31秒后仍持资源、同根busy、释放后cancelled/exit2及永久隔离；三轮测量失败保留，SIGKILL／失联与异根并行仍待。
+
+[2026-09-27 revision5 参数与公开制品](2026-09-27-tests-model-request-runtime-parameters/README.md)：独立22项、非法空extra反例及不变判据修复、231项整包、两个外部制品目录和实际TLS/停止负控；无付费、TTL或37认证。
+
+[2026-09-27 W16 retryDelay有限签收](2026-09-27-tests-model-request-runtime-retry-delay/README.md)：双闭合制品、独立Fraction矩阵、严格输入与公开双语literal，两个真编译行为负控；保留早期测量记账局限，不签收实际调度／十三操作／整体P2。
+
+[2026-09-27 W17 core精确RFC3339比较](2026-09-27-tests-core-rfc3339-order/README.md)：D089 B/R1有限签收；150测试、两闭合公开根各9475oracle、12literal及两真编译行为负控，4542归档成员/198输入核对。保留首次测量记账缺项；TL-G1与runtime组合/十三操作/37认证未闭。
+
+[2026-09-28 G6共享脱敏纯构件](2026-09-28-tests-model-credential-redaction-pure/README.md)：D093限定实施签收，GI1–7独立Pass、1525原归档成员与实际HUB组合检查；生产接线、附件、G4及完整S20仍未完成。
+
+[2026-09-29 模型runner与响应校准组合](2026-09-29-tests-model-runner-calibration-closeout/README.md)：合法失败来源/P5、十三操作最终组合和代表域U4有限技术验收；保留原noRun反例与全部末轮失败，不含逐模型算法和37型号线上认证。
+
+[2026-09-29 Sonnet 工具与图片真实调用](2026-09-29-tests-sonnet-tool-image/README.md)：两个固定路由 public 场景通过，真实 usage 与费用结算齐；保留归档判据失败，不代替 service 或整个型号认证。
+
+[2026-09-29 Luna 加密历史真实 service 三轮](2026-09-29-tests-luna-encrypted-service/README.md)：三轮 complete/耐久/结算，full→marginal→marginal；保留估算误差与精确旧绑定范围，不替代全型号认证。
+
+[2026-09-29 优先两家认证工具交付](2026-09-29-tests-priority-model-gate-tools/README.md)：HUB 44 public、16型号各3轮真实本机service及六类服务/入口负控通过；关闭工具交付，不替代逐模型线上认证。
+
+[2026-09-29 模型双语文档与独立检查](2026-09-29-tests-model-readme-independent-gates/README.md)：19包及demo双语文档收齐、关键实际示例与本机回归通过；八类独立检查通过，不代替后继公共接口迁移、最终产品与37型号线上认证。
+
+[2026-10-03 默认Schema owner](2026-10-03-tests-default-schema-owners/README.md)：三包首用/重试、五生产快照、独立L2六标准与真实业务/类型对拍；有限身份断言迁移、主体产物纠正和未复现MRR失败分别保留，不提升完整产品或正常并发性能状态。

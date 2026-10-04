@@ -1,0 +1,3731 @@
+<!DOCTYPE html>
+<html dir='ltr' lang='en' xmlns='http://www.w3.org/1999/xhtml' xmlns:b='http://www.google.com/2005/gml/b' xmlns:data='http://www.google.com/2005/gml/data' xmlns:expr='http://www.google.com/2005/gml/expr'>
+<head>
+<meta content='width=device-width, initial-scale=1' name='viewport'/>
+<meta content='mvark,Tech, Tips, Tricks, Trivia, Microsoft, Azure, Book Reviews, Q9IjKAL3fXAJppZP5o9-hKyt8Jk' name='keywords'/>
+<meta content='@mvark' name='twitter:site'/>
+<meta content='095F51C3B60543E58D9DF35278623BB5' name='msvalidate.01'/>
+<meta content='true' name='MSSmartTagsPreventParsing'/>
+<title>Uncle Bob vs. Grady Booch: Rethinking Code Reviews in the Age of AI</title>
+<meta content='text/html; charset=UTF-8' http-equiv='Content-Type'/>
+<!-- Chrome, Firefox OS and Opera -->
+<meta content='#efefef' name='theme-color'/>
+<!-- Windows Phone -->
+<meta content='#efefef' name='msapplication-navbutton-color'/>
+<meta content='blogger' name='generator'/>
+<link href='http://mvark.blogspot.com/favicon.ico' rel='icon' type='image/x-icon'/>
+<link href='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' rel='canonical'/>
+<link rel="alternate" type="application/atom+xml" title="Tech Tips, Tricks &amp; Trivia - Atom" href="http://mvark.blogspot.com/feeds/posts/default" />
+<link rel="alternate" type="application/rss+xml" title="Tech Tips, Tricks &amp; Trivia - RSS" href="http://mvark.blogspot.com/feeds/posts/default?alt=rss" />
+<link rel="service.post" type="application/atom+xml" title="Tech Tips, Tricks &amp; Trivia - Atom" href="https://www.blogger.com/feeds/8211560/posts/default" />
+
+<link rel="alternate" type="application/atom+xml" title="Tech Tips, Tricks &amp; Trivia - Atom" href="http://mvark.blogspot.com/feeds/1976566337234110981/comments/default" />
+<!--Can't find substitution for tag [blog.ieCssRetrofitLinks]-->
+<link href='https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgSaudK5BQkqRkNj4lIArPzuDeEyd2UYVIYYfWDEF7vr230Posy51ydTkZt7HvZtWnIU9TxmBPewJU2zHWp_tgtu1ZUgzEXUdKfTpiL0TW4CxfJxmZoFFH2-gW6UUOgnnMc4ZnhcrZYLJhoimvqmwEz5nIrf03jbLVLL6YxOwe7eXMI_jubkPN0/s1600/uncle-bob.jpg' rel='image_src'/>
+<meta content='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' property='og:url'/>
+<meta content='Uncle Bob vs. Grady Booch: Rethinking Code Reviews in the Age of AI' property='og:title'/>
+<meta content='Tech Tips, Tricks &amp; Trivia (T4) covers how-to articles, book reviews, hacks on topics related to AI, Cloud, Web &amp; Microsoft technologies' property='og:description'/>
+<meta content='https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgSaudK5BQkqRkNj4lIArPzuDeEyd2UYVIYYfWDEF7vr230Posy51ydTkZt7HvZtWnIU9TxmBPewJU2zHWp_tgtu1ZUgzEXUdKfTpiL0TW4CxfJxmZoFFH2-gW6UUOgnnMc4ZnhcrZYLJhoimvqmwEz5nIrf03jbLVLL6YxOwe7eXMI_jubkPN0/w1200-h630-p-k-no-nu/uncle-bob.jpg' property='og:image'/>
+<style type='text/css'>@font-face{font-family:'Damion';font-style:normal;font-weight:400;font-display:swap;src:url(//fonts.gstatic.com/s/damion/v15/hv-XlzJ3KEUe_YZkamwz.ttf)format('truetype');}@font-face{font-family:'Playfair Display';font-style:normal;font-weight:900;font-display:swap;src:url(//fonts.gstatic.com/s/playfairdisplay/v40/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKfsunDXbtY.ttf)format('truetype');}@font-face{font-family:'Roboto';font-style:italic;font-weight:300;font-stretch:normal;font-display:swap;src:url(//fonts.gstatic.com/s/roboto/v51/KFOKCnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmOClHrs6ljXfMMLt_QuAj-lg.ttf)format('truetype');}@font-face{font-family:'Roboto';font-style:normal;font-weight:400;font-stretch:normal;font-display:swap;src:url(//fonts.gstatic.com/s/roboto/v51/KFOMCnqEu92Fr1ME7kSn66aGLdTylUAMQXC89YmC2DPNWubEbVmUiA8.ttf)format('truetype');}@font-face{font-family:'Roboto';font-style:normal;font-weight:700;font-stretch:normal;font-display:swap;src:url(//fonts.gstatic.com/s/roboto/v51/KFOMCnqEu92Fr1ME7kSn66aGLdTylUAMQXC89YmC2DPNWuYjalmUiA8.ttf)format('truetype');}</style>
+<style id='page-skin-1' type='text/css'><!--
+/*! normalize.css v8.0.0 | MIT License | github.com/necolas/normalize.css */html{line-height:1.15;-webkit-text-size-adjust:100%}body{margin:0}h1{font-size:2em;margin:.67em 0}hr{box-sizing:content-box;height:0;overflow:visible}pre{font-family:monospace,monospace;font-size:1em}a{background-color:transparent}abbr[title]{border-bottom:none;text-decoration:underline;text-decoration:underline dotted}b,strong{font-weight:bolder}code,kbd,samp{font-family:monospace,monospace;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-0.25em}sup{top:-0.5em}img{border-style:none}button,input,optgroup,select,textarea{font-family:inherit;font-size:100%;line-height:1.15;margin:0}button,input{overflow:visible}button,select{text-transform:none}button,[type="button"],[type="reset"],[type="submit"]{-webkit-appearance:button}button::-moz-focus-inner,[type="button"]::-moz-focus-inner,[type="reset"]::-moz-focus-inner,[type="submit"]::-moz-focus-inner{border-style:none;padding:0}button:-moz-focusring,[type="button"]:-moz-focusring,[type="reset"]:-moz-focusring,[type="submit"]:-moz-focusring{outline:1px dotted ButtonText}fieldset{padding:.35em .75em .625em}legend{box-sizing:border-box;color:inherit;display:table;max-width:100%;padding:0;white-space:normal}progress{vertical-align:baseline}textarea{overflow:auto}[type="checkbox"],[type="radio"]{box-sizing:border-box;padding:0}[type="number"]::-webkit-inner-spin-button,[type="number"]::-webkit-outer-spin-button{height:auto}[type="search"]{-webkit-appearance:textfield;outline-offset:-2px}[type="search"]::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}details{display:block}summary{display:list-item}template{display:none}[hidden]{display:none}
+/*!************************************************
+* Blogger Template Style
+* Name: Essential
+**************************************************/
+body{
+overflow-wrap:break-word;
+word-break:break-word;
+word-wrap:break-word
+}
+.hidden{
+display:none
+}
+.invisible{
+visibility:hidden
+}
+.container:after,.float-container:after{
+clear:both;
+content:"";
+display:table
+}
+.clearboth{
+clear:both
+}
+#comments .comment .comment-actions,.subscribe-popup .FollowByEmail .follow-by-email-submit,.widget.Profile .profile-link,.widget.Profile .profile-link.visit-profile{
+background:transparent;
+border:0;
+box-shadow:none;
+color:#2883f3;
+cursor:pointer;
+font-size:14px;
+font-weight:700;
+outline:none;
+text-decoration:none;
+text-transform:uppercase;
+width:auto
+}
+.dim-overlay{
+height:100vh;
+left:0;
+position:fixed;
+top:0;
+width:100%
+}
+#sharing-dim-overlay{
+background-color:transparent
+}
+input::-ms-clear{
+display:none
+}
+.blogger-logo,.svg-icon-24.blogger-logo{
+fill:#ff9800;
+opacity:1
+}
+.loading-spinner-large{
+-webkit-animation:mspin-rotate 1568.63ms linear infinite;
+animation:mspin-rotate 1568.63ms linear infinite;
+height:48px;
+overflow:hidden;
+position:absolute;
+width:48px;
+z-index:200
+}
+.loading-spinner-large>div{
+-webkit-animation:mspin-revrot 5332ms steps(4) infinite;
+animation:mspin-revrot 5332ms steps(4) infinite
+}
+.loading-spinner-large>div>div{
+-webkit-animation:mspin-singlecolor-large-film 1333ms steps(81) infinite;
+animation:mspin-singlecolor-large-film 1333ms steps(81) infinite;
+background-size:100%;
+height:48px;
+width:3888px
+}
+.mspin-black-large>div>div,.mspin-grey_54-large>div>div{
+background-image:url(https://www.blogblog.com/indie/mspin_black_large.svg)
+}
+.mspin-white-large>div>div{
+background-image:url(https://www.blogblog.com/indie/mspin_white_large.svg)
+}
+.mspin-grey_54-large{
+opacity:.54
+}
+@-webkit-keyframes mspin-singlecolor-large-film{
+0%{
+-webkit-transform:translateX(0);
+transform:translateX(0)
+}
+to{
+-webkit-transform:translateX(-3888px);
+transform:translateX(-3888px)
+}
+}
+@keyframes mspin-singlecolor-large-film{
+0%{
+-webkit-transform:translateX(0);
+transform:translateX(0)
+}
+to{
+-webkit-transform:translateX(-3888px);
+transform:translateX(-3888px)
+}
+}
+@-webkit-keyframes mspin-rotate{
+0%{
+-webkit-transform:rotate(0deg);
+transform:rotate(0deg)
+}
+to{
+-webkit-transform:rotate(1turn);
+transform:rotate(1turn)
+}
+}
+@keyframes mspin-rotate{
+0%{
+-webkit-transform:rotate(0deg);
+transform:rotate(0deg)
+}
+to{
+-webkit-transform:rotate(1turn);
+transform:rotate(1turn)
+}
+}
+@-webkit-keyframes mspin-revrot{
+0%{
+-webkit-transform:rotate(0deg);
+transform:rotate(0deg)
+}
+to{
+-webkit-transform:rotate(-1turn);
+transform:rotate(-1turn)
+}
+}
+@keyframes mspin-revrot{
+0%{
+-webkit-transform:rotate(0deg);
+transform:rotate(0deg)
+}
+to{
+-webkit-transform:rotate(-1turn);
+transform:rotate(-1turn)
+}
+}
+.skip-navigation{
+background-color:#fff;
+box-sizing:border-box;
+color:#000;
+display:block;
+height:0;
+left:0;
+line-height:50px;
+overflow:hidden;
+padding-top:0;
+position:fixed;
+text-align:center;
+top:0;
+-webkit-transition:box-shadow .3s,height .3s,padding-top .3s;
+transition:box-shadow .3s,height .3s,padding-top .3s;
+width:100%;
+z-index:900
+}
+.skip-navigation:focus{
+box-shadow:0 4px 5px 0 rgba(0,0,0,.14),0 1px 10px 0 rgba(0,0,0,.12),0 2px 4px -1px rgba(0,0,0,.2);
+height:50px
+}
+#main{
+outline:none
+}
+.main-heading{
+position:absolute;
+clip:rect(1px,1px,1px,1px);
+padding:0;
+border:0;
+height:1px;
+width:1px;
+overflow:hidden
+}
+.Attribution{
+margin-top:1em;
+text-align:center
+}
+.Attribution .blogger img,.Attribution .blogger svg{
+vertical-align:bottom
+}
+.Attribution .blogger img{
+margin-right:.5em
+}
+.Attribution div{
+line-height:24px;
+margin-top:.5em
+}
+.Attribution .copyright,.Attribution .image-attribution{
+font-size:.7em;
+margin-top:1.5em
+}
+.BLOG_mobile_video_class{
+display:none
+}
+.bg-photo{
+background-attachment:scroll!important
+}
+body .CSS_LIGHTBOX{
+z-index:900
+}
+.extendable .show-less,.extendable .show-more{
+border-color:#2883f3;
+color:#2883f3;
+margin-top:8px
+}
+.extendable .show-less.hidden,.extendable .show-more.hidden,.inline-ad{
+display:none
+}
+.inline-ad{
+max-width:100%;
+overflow:hidden
+}
+.adsbygoogle{
+display:block
+}
+#cookieChoiceInfo{
+bottom:0;
+top:auto
+}
+iframe.b-hbp-video{
+border:0
+}
+.post-body iframe,.post-body img{
+max-width:100%
+}
+.post-body a[imageanchor=\31]{
+display:inline-block
+}
+.byline{
+margin-right:1em
+}
+.byline:last-child{
+margin-right:0
+}
+.link-copied-dialog{
+max-width:520px;
+outline:0
+}
+.link-copied-dialog .modal-dialog-buttons{
+margin-top:8px
+}
+.link-copied-dialog .goog-buttonset-default{
+background:transparent;
+border:0
+}
+.link-copied-dialog .goog-buttonset-default:focus{
+outline:0
+}
+.paging-control-container{
+margin-bottom:16px
+}
+.paging-control-container .paging-control{
+display:inline-block
+}
+.paging-control-container .comment-range-text:after,.paging-control-container .paging-control{
+color:#2883f3
+}
+.paging-control-container .comment-range-text,.paging-control-container .paging-control{
+margin-right:8px
+}
+.paging-control-container .comment-range-text:after,.paging-control-container .paging-control:after{
+content:"\b7";
+cursor:default;
+padding-left:8px;
+pointer-events:none
+}
+.paging-control-container .comment-range-text:last-child:after,.paging-control-container .paging-control:last-child:after{
+content:none
+}
+.byline.reactions iframe{
+height:20px
+}
+.b-notification{
+color:#000;
+background-color:#fff;
+border-bottom:1px solid #000;
+box-sizing:border-box;
+padding:16px 32px;
+text-align:center
+}
+.b-notification.visible{
+-webkit-transition:margin-top .3s cubic-bezier(.4,0,.2,1);
+transition:margin-top .3s cubic-bezier(.4,0,.2,1)
+}
+.b-notification.invisible{
+position:absolute
+}
+.b-notification-close{
+position:absolute;
+right:8px;
+top:8px
+}
+.no-posts-message{
+line-height:40px;
+text-align:center
+}
+@media screen and (max-width:800px){
+body.item-view .post-body a[imageanchor=\31][style*=float\:\ left\;],body.item-view .post-body a[imageanchor=\31][style*=float\:\ right\;]{
+float:none!important;
+clear:none!important
+}
+body.item-view .post-body a[imageanchor=\31] img{
+display:block;
+height:auto;
+margin:0 auto
+}
+body.item-view .post-body>.separator:first-child>a[imageanchor=\31]:first-child{
+margin-top:20px
+}
+.post-body a[imageanchor]{
+display:block
+}
+body.item-view .post-body a[imageanchor=\31]{
+margin-left:0!important;
+margin-right:0!important
+}
+body.item-view .post-body a[imageanchor=\31]+a[imageanchor=\31]{
+margin-top:16px
+}
+}
+.item-control{
+display:none
+}
+#comments{
+border-top:1px dashed rgba(0,0,0,.54);
+margin-top:20px;
+padding:20px
+}
+#comments .comment-thread ol{
+margin:0;
+padding-left:0;
+padding-left:0
+}
+#comments .comment-thread .comment-replies,#comments .comment .comment-replybox-single{
+margin-left:60px
+}
+#comments .comment-thread .thread-count{
+display:none
+}
+#comments .comment{
+list-style-type:none;
+padding:0 0 30px;
+position:relative
+}
+#comments .comment .comment{
+padding-bottom:8px
+}
+.comment .avatar-image-container{
+position:absolute
+}
+.comment .avatar-image-container img{
+border-radius:50%
+}
+.avatar-image-container svg,.comment .avatar-image-container .avatar-icon{
+border-radius:50%;
+border:1px solid #767676;
+box-sizing:border-box;
+fill:#767676;
+height:35px;
+margin:0;
+padding:7px;
+width:35px
+}
+.comment .comment-block{
+margin-top:10px;
+margin-left:60px;
+padding-bottom:0
+}
+#comments .comment-author-header-wrapper{
+margin-left:40px
+}
+#comments .comment .thread-expanded .comment-block{
+padding-bottom:20px
+}
+#comments .comment .comment-header .user,#comments .comment .comment-header .user a{
+color:#2883f3;
+font-style:normal;
+font-weight:700
+}
+#comments .comment .comment-actions{
+bottom:0;
+margin-bottom:15px;
+position:absolute
+}
+#comments .comment .comment-actions>*{
+margin-right:8px
+}
+#comments .comment .comment-header .datetime{
+bottom:0;
+display:inline-block;
+font-size:13px;
+font-style:italic;
+margin-left:8px
+}
+#comments .comment .comment-footer .comment-timestamp a,#comments .comment .comment-header .datetime,#comments .comment .comment-header .datetime a{
+color:rgba(40,131,243,.54)
+}
+#comments .comment .comment-content,.comment .comment-body{
+margin-top:12px;
+word-break:break-word
+}
+.comment-body{
+margin-bottom:12px
+}
+#comments.embed[data-num-comments=\30]{
+border:0;
+margin-top:0;
+padding-top:0
+}
+#comment-editor-src,#comments.embed[data-num-comments=\30] #comment-post-message,#comments.embed[data-num-comments=\30] div.comment-form>p,#comments.embed[data-num-comments=\30] p.comment-footer{
+display:none
+}
+.comments .comments-content .loadmore.loaded{
+max-height:0;
+opacity:0;
+overflow:hidden
+}
+.extendable .remaining-items{
+height:0;
+overflow:hidden;
+-webkit-transition:height .3s cubic-bezier(.4,0,.2,1);
+transition:height .3s cubic-bezier(.4,0,.2,1)
+}
+.extendable .remaining-items.expanded{
+height:auto
+}
+.svg-icon-24,.svg-icon-24-button{
+cursor:pointer;
+height:24px;
+width:24px;
+min-width:24px
+}
+.touch-icon{
+margin:-12px;
+padding:12px
+}
+.touch-icon:active,.touch-icon:focus{
+background-color:hsla(0,0%,60%,.4);
+border-radius:50%
+}
+svg:not(:root).touch-icon{
+overflow:visible
+}
+html[dir=rtl] .rtl-reversible-icon{
+-webkit-transform:scaleX(-1);
+transform:scaleX(-1)
+}
+.svg-icon-24-button,.touch-icon-button{
+background:transparent;
+border:0;
+margin:0;
+outline:none;
+padding:0
+}
+.touch-icon-button .touch-icon:active,.touch-icon-button .touch-icon:focus{
+background-color:transparent
+}
+.touch-icon-button:active .touch-icon,.touch-icon-button:focus .touch-icon{
+background-color:hsla(0,0%,60%,.4);
+border-radius:50%
+}
+.Profile .default-avatar-wrapper .avatar-icon{
+border-radius:50%;
+border:1px solid #767676;
+box-sizing:border-box;
+fill:#767676;
+margin:0
+}
+.Profile .individual .default-avatar-wrapper .avatar-icon{
+padding:25px
+}
+.Profile .individual .avatar-icon,.Profile .individual .profile-img{
+height:120px;
+width:120px
+}
+.Profile .team .default-avatar-wrapper .avatar-icon{
+padding:8px
+}
+.Profile .team .avatar-icon,.Profile .team .default-avatar-wrapper,.Profile .team .profile-img{
+height:40px;
+width:40px
+}
+.snippet-container{
+margin:0;
+position:relative;
+overflow:hidden
+}
+.snippet-fade{
+bottom:0;
+box-sizing:border-box;
+position:absolute;
+width:96px;
+right:0
+}
+.snippet-fade:after{
+content:"\2026";
+float:right
+}
+.post-bottom{
+-webkit-box-align:center;
+align-items:center;
+display:-webkit-box;
+display:flex;
+flex-wrap:wrap
+}
+.post-footer{
+-webkit-box-flex:1;
+flex:1 1 auto;
+flex-wrap:wrap;
+-webkit-box-ordinal-group:2;
+order:1
+}
+.post-footer>*{
+-webkit-box-flex:0;
+flex:0 1 auto
+}
+.post-footer .byline:last-child{
+margin-right:1em
+}
+.jump-link{
+-webkit-box-flex:0;
+flex:0 0 auto;
+-webkit-box-ordinal-group:3;
+order:2
+}
+.centered-top-container.sticky{
+left:0;
+position:fixed;
+right:0;
+top:0;
+width:auto;
+z-index:50;
+-webkit-transition-property:opacity,-webkit-transform;
+transition-property:opacity,-webkit-transform;
+transition-property:transform,opacity;
+transition-property:transform,opacity,-webkit-transform;
+-webkit-transition-duration:.2s;
+transition-duration:.2s;
+-webkit-transition-timing-function:cubic-bezier(.4,0,.2,1);
+transition-timing-function:cubic-bezier(.4,0,.2,1)
+}
+.centered-top-placeholder{
+display:none
+}
+.collapsed-header .centered-top-placeholder{
+display:block
+}
+.centered-top-container .Header .replaced h1,.centered-top-placeholder .Header .replaced h1{
+display:none
+}
+.centered-top-container.sticky .Header .replaced h1{
+display:block
+}
+.centered-top-container.sticky .Header .header-widget{
+background:none
+}
+.centered-top-container.sticky .Header .header-image-wrapper{
+display:none
+}
+.centered-top-container img,.centered-top-placeholder img{
+max-width:100%
+}
+.collapsible{
+-webkit-transition:height .3s cubic-bezier(.4,0,.2,1);
+transition:height .3s cubic-bezier(.4,0,.2,1)
+}
+.collapsible,.collapsible>summary{
+display:block;
+overflow:hidden
+}
+.collapsible>:not(summary){
+display:none
+}
+.collapsible[open]>:not(summary){
+display:block
+}
+.collapsible:focus,.collapsible>summary:focus{
+outline:none
+}
+.collapsible>summary{
+cursor:pointer;
+display:block;
+padding:0
+}
+.collapsible:focus>summary,.collapsible>summary:focus{
+background-color:transparent
+}
+.collapsible>summary::-webkit-details-marker{
+display:none
+}
+.collapsible-title{
+-webkit-box-align:center;
+align-items:center;
+display:-webkit-box;
+display:flex
+}
+.collapsible-title .title{
+-webkit-box-flex:1;
+flex:1 1 auto;
+-webkit-box-ordinal-group:1;
+order:0;
+overflow:hidden;
+text-overflow:ellipsis;
+white-space:nowrap
+}
+.collapsible-title .chevron-down,.collapsible[open] .collapsible-title .chevron-up{
+display:block
+}
+.collapsible-title .chevron-up,.collapsible[open] .collapsible-title .chevron-down{
+display:none
+}
+.flat-button{
+font-weight:700;
+text-transform:uppercase;
+border-radius:2px;
+padding:8px;
+margin:-8px
+}
+.flat-button,.flat-icon-button{
+cursor:pointer;
+display:inline-block
+}
+.flat-icon-button{
+background:transparent;
+border:0;
+outline:none;
+margin:-12px;
+padding:12px;
+box-sizing:content-box;
+line-height:0
+}
+.flat-icon-button,.flat-icon-button .splash-wrapper{
+border-radius:50%
+}
+.flat-icon-button .splash.animate{
+-webkit-animation-duration:.3s;
+animation-duration:.3s
+}
+.overflowable-container{
+max-height:46px;
+overflow:hidden;
+position:relative
+}
+.overflow-button{
+cursor:pointer
+}
+#overflowable-dim-overlay{
+background:transparent
+}
+.overflow-popup{
+box-shadow:0 2px 2px 0 rgba(0,0,0,.14),0 3px 1px -2px rgba(0,0,0,.2),0 1px 5px 0 rgba(0,0,0,.12);
+background-color:#ffffff;
+left:0;
+max-width:calc(100% - 32px);
+position:absolute;
+top:0;
+visibility:hidden;
+z-index:101
+}
+.overflow-popup ul{
+list-style:none
+}
+.overflow-popup .tabs li,.overflow-popup li{
+display:block;
+height:auto
+}
+.overflow-popup .tabs li{
+padding-left:0;
+padding-right:0
+}
+.overflow-button.hidden,.overflow-popup .tabs li.hidden,.overflow-popup li.hidden{
+display:none
+}
+.pill-button{
+background:transparent;
+border:1px solid;
+border-radius:12px;
+cursor:pointer;
+display:inline-block;
+padding:4px 16px;
+text-transform:uppercase
+}
+.ripple{
+position:relative
+}
+.ripple>*{
+z-index:1
+}
+.splash-wrapper{
+bottom:0;
+left:0;
+overflow:hidden;
+pointer-events:none;
+position:absolute;
+right:0;
+top:0;
+z-index:0
+}
+.splash{
+background:#ccc;
+border-radius:100%;
+display:block;
+opacity:.6;
+position:absolute;
+-webkit-transform:scale(0);
+transform:scale(0)
+}
+.splash.animate{
+-webkit-animation:ripple-effect .4s linear;
+animation:ripple-effect .4s linear
+}
+@-webkit-keyframes ripple-effect{
+to{
+opacity:0;
+-webkit-transform:scale(2.5);
+transform:scale(2.5)
+}
+}
+@keyframes ripple-effect{
+to{
+opacity:0;
+-webkit-transform:scale(2.5);
+transform:scale(2.5)
+}
+}
+.search{
+display:-webkit-box;
+display:flex;
+line-height:24px;
+width:24px
+}
+.search.focused,.search.focused .section{
+width:100%
+}
+.search form{
+z-index:101
+}
+.search h3{
+display:none
+}
+.search form{
+display:-webkit-box;
+display:flex;
+-webkit-box-flex:1;
+flex:1 0 0;
+border-bottom:1px solid transparent;
+padding-bottom:8px
+}
+.search form>*{
+display:none
+}
+.search.focused form>*{
+display:block
+}
+.search .search-input label{
+display:none
+}
+.collapsed-header .centered-top-container .search.focused form{
+border-bottom-color:transparent
+}
+.search-expand{
+-webkit-box-flex:0;
+flex:0 0 auto
+}
+.search-expand-text{
+display:none
+}
+.search-close{
+display:inline;
+vertical-align:middle
+}
+.search-input{
+-webkit-box-flex:1;
+flex:1 0 1px
+}
+.search-input input{
+background:none;
+border:0;
+box-sizing:border-box;
+color:#ffffff;
+display:inline-block;
+outline:none;
+width:calc(100% - 48px)
+}
+.search-input input.no-cursor{
+color:transparent;
+text-shadow:0 0 0 #ffffff
+}
+.collapsed-header .centered-top-container .search-action,.collapsed-header .centered-top-container .search-input input{
+color:#2883f3
+}
+.collapsed-header .centered-top-container .search-input input.no-cursor{
+color:transparent;
+text-shadow:0 0 0 #2883f3
+}
+.collapsed-header .centered-top-container .search-input input.no-cursor:focus,.search-input input.no-cursor:focus{
+outline:none
+}
+.search-focused>*{
+visibility:hidden
+}
+.search-focused .search,.search-focused .search-icon{
+visibility:visible
+}
+.widget.Sharing .sharing-button{
+display:none
+}
+.widget.Sharing .sharing-buttons li{
+padding:0
+}
+.widget.Sharing .sharing-buttons li span{
+display:none
+}
+.post-share-buttons{
+position:relative
+}
+.sharing-open.touch-icon-button:active .touch-icon,.sharing-open.touch-icon-button:focus .touch-icon{
+background-color:transparent
+}
+.share-buttons{
+background-color:#ffffff;
+border-radius:2px;
+box-shadow:0 2px 2px 0 rgba(0,0,0,.14),0 3px 1px -2px rgba(0,0,0,.2),0 1px 5px 0 rgba(0,0,0,.12);
+color:#424242;
+list-style:none;
+margin:0;
+padding:8px 0;
+position:absolute;
+top:-11px;
+min-width:200px;
+z-index:101
+}
+.share-buttons.hidden{
+display:none
+}
+.sharing-button{
+background:transparent;
+border:0;
+margin:0;
+outline:none;
+padding:0;
+cursor:pointer
+}
+.share-buttons li{
+margin:0;
+height:48px
+}
+.share-buttons li:last-child{
+margin-bottom:0
+}
+.share-buttons li .sharing-platform-button{
+box-sizing:border-box;
+cursor:pointer;
+display:block;
+height:100%;
+margin-bottom:0;
+padding:0 16px;
+position:relative;
+width:100%
+}
+.share-buttons li .sharing-platform-button:focus,.share-buttons li .sharing-platform-button:hover{
+background-color:hsla(0,0%,50.2%,.1);
+outline:none
+}
+.share-buttons li svg[class*=sharing-],.share-buttons li svg[class^=sharing-]{
+position:absolute;
+top:10px
+}
+.share-buttons li span.sharing-platform-button{
+position:relative;
+top:0
+}
+.share-buttons li .platform-sharing-text{
+display:block;
+font-size:16px;
+line-height:48px;
+white-space:nowrap;
+margin-left:56px
+}
+.sidebar-container{
+background-color:#ffffff;
+max-width:284px;
+overflow-y:auto;
+-webkit-transition-property:-webkit-transform;
+transition-property:-webkit-transform;
+transition-property:transform;
+transition-property:transform,-webkit-transform;
+-webkit-transition-duration:.3s;
+transition-duration:.3s;
+-webkit-transition-timing-function:cubic-bezier(0,0,.2,1);
+transition-timing-function:cubic-bezier(0,0,.2,1);
+width:284px;
+z-index:101;
+-webkit-overflow-scrolling:touch
+}
+.sidebar-container .navigation{
+line-height:0;
+padding:16px
+}
+.sidebar-container .sidebar-back{
+cursor:pointer
+}
+.sidebar-container .widget{
+background:none;
+margin:0 16px;
+padding:16px 0
+}
+.sidebar-container .widget .title{
+color:#505050;
+margin:0
+}
+.sidebar-container .widget ul{
+list-style:none;
+margin:0;
+padding:0
+}
+.sidebar-container .widget ul ul{
+margin-left:1em
+}
+.sidebar-container .widget li{
+font-size:16px;
+line-height:normal
+}
+.sidebar-container .widget+.widget{
+border-top:1px dashed #cecece
+}
+.BlogArchive li{
+margin:16px 0
+}
+.BlogArchive li:last-child{
+margin-bottom:0
+}
+.Label li a{
+display:inline-block
+}
+.BlogArchive .post-count,.Label .label-count{
+float:right;
+margin-left:.25em
+}
+.BlogArchive .post-count:before,.Label .label-count:before{
+content:"("
+}
+.BlogArchive .post-count:after,.Label .label-count:after{
+content:")"
+}
+.widget.Translate .skiptranslate>div{
+display:block!important
+}
+.widget.Profile .profile-link{
+display:-webkit-box;
+display:flex
+}
+.widget.Profile .team-member .default-avatar-wrapper,.widget.Profile .team-member .profile-img{
+-webkit-box-flex:0;
+flex:0 0 auto;
+margin-right:1em
+}
+.widget.Profile .individual .profile-link{
+-webkit-box-orient:vertical;
+-webkit-box-direction:normal;
+flex-direction:column
+}
+.widget.Profile .team .profile-link .profile-name{
+align-self:center;
+display:block;
+-webkit-box-flex:1;
+flex:1 1 auto
+}
+.dim-overlay{
+background-color:rgba(0,0,0,.54);
+z-index:100
+}
+body.sidebar-visible{
+overflow-y:hidden
+}
+@media screen and (max-width:1439px){
+.sidebar-container{
+bottom:0;
+position:fixed;
+top:0;
+left:0;
+right:auto
+}
+.sidebar-container.sidebar-invisible{
+-webkit-transition-timing-function:cubic-bezier(.4,0,.6,1);
+transition-timing-function:cubic-bezier(.4,0,.6,1);
+-webkit-transform:translateX(-284px);
+transform:translateX(-284px)
+}
+}
+@media screen and (min-width:1440px){
+.sidebar-container{
+position:absolute;
+top:0;
+left:0;
+right:auto
+}
+.sidebar-container .navigation{
+display:none
+}
+}
+.dialog{
+box-shadow:0 2px 2px 0 rgba(0,0,0,.14),0 3px 1px -2px rgba(0,0,0,.2),0 1px 5px 0 rgba(0,0,0,.12);
+background:#ffffff;
+box-sizing:border-box;
+color:#7a7a7a;
+padding:30px;
+position:fixed;
+text-align:center;
+width:calc(100% - 24px);
+z-index:101
+}
+.dialog input[type=email],.dialog input[type=text]{
+background-color:transparent;
+border:0;
+border-bottom:1px solid rgba(122,122,122,.12);
+color:#7a7a7a;
+display:block;
+font-family:Roboto, sans-serif;
+font-size:16px;
+line-height:24px;
+margin:auto;
+padding-bottom:7px;
+outline:none;
+text-align:center;
+width:100%
+}
+.dialog input[type=email]::-webkit-input-placeholder,.dialog input[type=text]::-webkit-input-placeholder{
+color:#7a7a7a
+}
+.dialog input[type=email]::-moz-placeholder,.dialog input[type=text]::-moz-placeholder{
+color:#7a7a7a
+}
+.dialog input[type=email]:-ms-input-placeholder,.dialog input[type=text]:-ms-input-placeholder{
+color:#7a7a7a
+}
+.dialog input[type=email]::-ms-input-placeholder,.dialog input[type=text]::-ms-input-placeholder{
+color:#7a7a7a
+}
+.dialog input[type=email]::placeholder,.dialog input[type=text]::placeholder{
+color:#7a7a7a
+}
+.dialog input[type=email]:focus,.dialog input[type=text]:focus{
+border-bottom:2px solid #2883f3;
+padding-bottom:6px
+}
+.dialog input.no-cursor{
+color:transparent;
+text-shadow:0 0 0 #7a7a7a
+}
+.dialog input.no-cursor:focus{
+outline:none
+}
+.dialog input[type=submit]{
+font-family:Roboto, sans-serif
+}
+.dialog .goog-buttonset-default{
+color:#2883f3
+}
+.subscribe-popup{
+max-width:364px
+}
+.subscribe-popup h3{
+color:#2883f3;
+font-size:1.8em;
+margin-top:0
+}
+.subscribe-popup .FollowByEmail h3{
+display:none
+}
+.subscribe-popup .FollowByEmail .follow-by-email-submit{
+color:#2883f3;
+display:inline-block;
+margin:24px auto 0;
+width:auto;
+white-space:normal
+}
+.subscribe-popup .FollowByEmail .follow-by-email-submit:disabled{
+cursor:default;
+opacity:.3
+}
+@media (max-width:800px){
+.blog-name div.widget.Subscribe{
+margin-bottom:16px
+}
+body.item-view .blog-name div.widget.Subscribe{
+margin:8px auto 16px;
+width:100%
+}
+}
+.tabs{
+list-style:none
+}
+.tabs li,.tabs li a{
+display:inline-block
+}
+.tabs li a{
+cursor:pointer;
+font-weight:700;
+text-transform:uppercase;
+padding:12px 8px
+}
+.tabs .selected{
+border-bottom:4px solid #ffffff
+}
+.tabs .selected a{
+color:#ffffff
+}
+body#layout .bg-photo,body#layout .bg-photo-overlay{
+display:none
+}
+body#layout .page_body{
+padding:0;
+position:relative;
+top:0
+}
+body#layout .page{
+display:inline-block;
+left:inherit;
+position:relative;
+vertical-align:top;
+width:540px
+}
+body#layout .centered{
+max-width:954px
+}
+body#layout .navigation{
+display:none
+}
+body#layout .sidebar-container{
+display:inline-block;
+width:40%
+}
+body#layout .hamburger-menu,body#layout .search{
+display:none
+}
+.centered-top-container .svg-icon-24,body.collapsed-header .centered-top-placeholder .svg-icon-24{
+fill:#ffffff
+}
+.sidebar-container .svg-icon-24{
+fill:#767676
+}
+.centered-bottom .svg-icon-24,body.collapsed-header .centered-top-container .svg-icon-24{
+fill:#767676
+}
+.centered-bottom .share-buttons .svg-icon-24,.share-buttons .svg-icon-24{
+fill:#424242
+}
+body{
+background-color:#efefef;
+color:#7a7a7a;
+font:15px Roboto, sans-serif;
+margin:0;
+min-height:100vh
+}
+img{
+max-width:100%
+}
+h3{
+color:#7a7a7a;
+font-size:16px
+}
+a{
+text-decoration:none;
+color:#2883f3
+}
+a:visited{
+color:#2196f3
+}
+a:hover{
+color:#2196f3
+}
+blockquote{
+color:#515151;
+font:italic 300 15px Roboto, sans-serif;
+font-size:x-large;
+text-align:center
+}
+.pill-button{
+font-size:12px
+}
+.bg-photo-container{
+height:480px;
+overflow:hidden;
+position:absolute;
+width:100%;
+z-index:1
+}
+.bg-photo{
+background:#75a0d5 url(https://themes.googleusercontent.com/image?id=1_bStA4xU4a1ALNAqP7UP814bhfnsUau-0EDCQD7_XIw7aeX8-O9UfdTOTWT0FvRY_k6Q) no-repeat fixed top center /* Credit: Maliketh (http://www.istockphoto.com/portfolio/Maliketh?platform=blogger) */;
+background-attachment:scroll;
+background-size:cover;
+-webkit-filter:blur(0px);
+filter:blur(0px);
+height:calc(100% + 2 * 0px);
+left:0px;
+position:absolute;
+top:0px;
+width:calc(100% + 2 * 0px)
+}
+.bg-photo-overlay{
+background:rgba(61,61,61,0.259);
+background-size:cover;
+height:480px;
+position:absolute;
+width:100%;
+z-index:2
+}
+.hamburger-menu{
+float:left;
+margin-top:0
+}
+.sticky .hamburger-menu{
+float:none;
+position:absolute
+}
+.no-sidebar-widget .hamburger-menu{
+display:none
+}
+.footer .widget .title{
+margin:0;
+line-height:24px
+}
+.search{
+border-bottom:1px solid rgba(255, 255, 255, 0);
+float:right;
+position:relative;
+-webkit-transition-property:width;
+transition-property:width;
+-webkit-transition-duration:.5s;
+transition-duration:.5s;
+-webkit-transition-timing-function:cubic-bezier(.4,0,.2,1);
+transition-timing-function:cubic-bezier(.4,0,.2,1);
+z-index:101
+}
+.search .dim-overlay{
+background-color:transparent
+}
+.search form{
+height:36px;
+-webkit-transition:border-color .2s cubic-bezier(.4,0,.2,1) .5s;
+transition:border-color .2s cubic-bezier(.4,0,.2,1) .5s
+}
+.search.focused{
+width:calc(100% - 48px)
+}
+.search.focused form{
+display:-webkit-box;
+display:flex;
+-webkit-box-flex:1;
+flex:1 0 1px;
+border-color:#ffffff;
+margin-left:-24px;
+padding-left:36px;
+position:relative;
+width:auto
+}
+.item-view .search,.sticky .search{
+right:0;
+float:none;
+margin-left:0;
+position:absolute
+}
+.item-view .search.focused,.sticky .search.focused{
+width:calc(100% - 50px)
+}
+.item-view .search.focused form,.sticky .search.focused form{
+border-bottom-color:#757575
+}
+.centered-top-placeholder.cloned .search form{
+z-index:30
+}
+.search_button{
+-webkit-box-flex:0;
+flex:0 0 24px;
+-webkit-box-orient:vertical;
+-webkit-box-direction:normal;
+flex-direction:column
+}
+.search_button svg{
+margin-top:0
+}
+.search-input{
+height:48px
+}
+.search-input input{
+display:block;
+color:#000000;
+font:16px Roboto, sans-serif;
+height:48px;
+line-height:48px;
+padding:0;
+width:100%
+}
+.search-input input::-webkit-input-placeholder{
+color:#000000;
+opacity:.3
+}
+.search-input input::-moz-placeholder{
+color:#000000;
+opacity:.3
+}
+.search-input input:-ms-input-placeholder{
+color:#000000;
+opacity:.3
+}
+.search-input input::-ms-input-placeholder{
+color:#000000;
+opacity:.3
+}
+.search-input input::placeholder{
+color:#000000;
+opacity:.3
+}
+.search-action{
+background:transparent;
+border:0;
+color:#ffffff;
+cursor:pointer;
+display:none;
+height:48px;
+margin-top:0
+}
+.sticky .search-action{
+color:#757575
+}
+.search.focused .search-action{
+display:block
+}
+.search.focused .search-action:disabled{
+opacity:.3
+}
+.page_body{
+position:relative;
+z-index:20
+}
+.page_body .widget{
+margin-bottom:16px
+}
+.page_body .centered{
+box-sizing:border-box;
+display:-webkit-box;
+display:flex;
+-webkit-box-orient:vertical;
+-webkit-box-direction:normal;
+flex-direction:column;
+margin:0 auto;
+max-width:922px;
+min-height:100vh;
+padding:24px 0
+}
+.page_body .centered>*{
+-webkit-box-flex:0;
+flex:0 0 auto
+}
+.page_body .centered>.footer{
+margin-top:auto;
+text-align:center
+}
+.blog-name{
+margin:32px 0 16px
+}
+.item-view .blog-name,.sticky .blog-name{
+box-sizing:border-box;
+margin-left:36px;
+min-height:48px;
+opacity:1;
+padding-top:12px
+}
+.blog-name .subscribe-section-container{
+margin-bottom:32px;
+text-align:center;
+-webkit-transition-property:opacity;
+transition-property:opacity;
+-webkit-transition-duration:.5s;
+transition-duration:.5s
+}
+.item-view .blog-name .subscribe-section-container,.sticky .blog-name .subscribe-section-container{
+margin:0 0 8px
+}
+.blog-name .subscribe-empty-placeholder{
+margin-bottom:48px
+}
+.blog-name .PageList{
+margin-top:16px;
+padding-top:8px;
+text-align:center
+}
+.blog-name .PageList .overflowable-contents{
+width:100%
+}
+.blog-name .PageList h3.title{
+color:#ffffff;
+margin:8px auto;
+text-align:center;
+width:100%
+}
+.centered-top-container .blog-name{
+-webkit-transition-property:opacity;
+transition-property:opacity;
+-webkit-transition-duration:.5s;
+transition-duration:.5s
+}
+.item-view .return_link{
+margin-bottom:12px;
+margin-top:12px;
+position:absolute
+}
+.item-view .blog-name{
+display:-webkit-box;
+display:flex;
+flex-wrap:wrap;
+margin:0 48px 27px
+}
+.item-view .subscribe-section-container{
+-webkit-box-flex:0;
+flex:0 0 auto
+}
+.item-view #header,.item-view .Header{
+margin-bottom:5px;
+margin-right:15px
+}
+.item-view .sticky .Header{
+margin-bottom:0
+}
+.item-view .Header p{
+margin:10px 0 0;
+text-align:left
+}
+.item-view .post-share-buttons-bottom{
+margin-right:16px
+}
+.sticky{
+background:#ffffff;
+box-shadow:0 0 20px 0 rgba(0,0,0,.7);
+box-sizing:border-box;
+margin-left:0
+}
+.sticky #header{
+margin-bottom:8px;
+margin-right:8px
+}
+.sticky .centered-top{
+margin:4px auto;
+max-width:890px;
+min-height:48px
+}
+.sticky .blog-name{
+display:-webkit-box;
+display:flex;
+margin:0 48px
+}
+.sticky .blog-name #header{
+-webkit-box-flex:0;
+flex:0 1 auto;
+-webkit-box-ordinal-group:2;
+order:1;
+overflow:hidden
+}
+.sticky .blog-name .subscribe-section-container{
+-webkit-box-flex:0;
+flex:0 0 auto;
+-webkit-box-ordinal-group:3;
+order:2
+}
+.sticky .Header h1{
+overflow:hidden;
+text-overflow:ellipsis;
+white-space:nowrap;
+margin-right:-10px;
+margin-bottom:-10px;
+padding-right:10px;
+padding-bottom:10px
+}
+.sticky .Header p,.sticky .PageList{
+display:none
+}
+.search-focused .hamburger-menu,.search-focused>*{
+visibility:visible
+}
+.item-view .search-focused .blog-name,.sticky .search-focused .blog-name{
+opacity:0
+}
+.centered-bottom,.centered-top-container,.centered-top-placeholder{
+padding:0 16px
+}
+.centered-top{
+position:relative
+}
+.item-view .centered-top.search-focused .subscribe-section-container,.sticky .centered-top.search-focused .subscribe-section-container{
+opacity:0
+}
+.page_body.has-vertical-ads .centered .centered-bottom{
+display:inline-block;
+width:calc(100% - 176px)
+}
+.Header h1{
+font:bold 45px Roboto, sans-serif;
+line-height:normal;
+margin:0 0 13px;
+text-align:center;
+width:100%
+}
+.Header h1,.Header h1 a,.Header h1 a:hover,.Header h1 a:visited{
+color:#ffffff
+}
+.item-view .Header h1,.sticky .Header h1{
+font-size:24px;
+line-height:24px;
+margin:0;
+text-align:left
+}
+.sticky .Header h1,.sticky .Header h1 a,.sticky .Header h1 a:hover,.sticky .Header h1 a:visited{
+color:#757575
+}
+.Header p{
+color:#ffffff;
+margin:0 0 13px;
+opacity:.8;
+text-align:center
+}
+.widget .title{
+line-height:28px
+}
+.BlogArchive li{
+font-size:16px
+}
+.BlogArchive .post-count{
+color:#757575
+}
+#page_body .FeaturedPost,.Blog .blog-posts .post-outer-container{
+background:#ffffff;
+min-height:40px;
+padding:30px 40px;
+width:auto;
+box-shadow:0 1px 4px 0 rgba(61,61,61,0)
+}
+.Blog .blog-posts .post-outer-container:last-child{
+margin-bottom:0
+}
+.Blog .blog-posts .post-outer-container .post-outer{
+border:0;
+position:relative;
+padding-bottom:.25em
+}
+.post-outer-container{
+margin-bottom:16px
+}
+.post:first-child{
+margin-top:0
+}
+.post .thumb{
+float:left;
+height:20%;
+width:20%
+}
+.post-share-buttons-bottom,.post-share-buttons-top{
+float:right
+}
+.post-share-buttons-bottom{
+margin-right:24px
+}
+.post-footer,.post-header{
+clear:left;
+color:rgba(61,61,61,0.537);
+margin:0;
+width:inherit
+}
+.blog-pager{
+text-align:center
+}
+.blog-pager a{
+color:#2196f3
+}
+.blog-pager a:visited{
+color:#2196f3
+}
+.blog-pager a:hover{
+color:#2196f3
+}
+.post-title{
+font:bold 22px Roboto, sans-serif;
+float:left;
+margin:0 0 8px;
+max-width:calc(100% - 48px)
+}
+.post-title a{
+font:normal bold 30px Roboto, sans-serif
+}
+.post-title,.post-title a,.post-title a:hover,.post-title a:visited{
+color:#2883f3
+}
+.post-body{
+color:#757575;
+font:15px Roboto, sans-serif;
+line-height:1.6em;
+margin:1.5em 0 2em;
+display:block
+}
+.post-body img{
+height:inherit
+}
+.post-body .snippet-thumbnail{
+float:left;
+margin:0;
+margin-right:2em;
+max-height:128px;
+max-width:128px
+}
+.post-body .snippet-thumbnail img{
+max-width:100%
+}
+.main .FeaturedPost .widget-content{
+border:0;
+position:relative;
+padding-bottom:.25em
+}
+.FeaturedPost img{
+margin-top:2em
+}
+.FeaturedPost .snippet-container{
+margin:2em 0
+}
+.FeaturedPost .snippet-container p{
+margin:0
+}
+.FeaturedPost .snippet-thumbnail{
+float:none;
+height:auto;
+margin-bottom:2em;
+margin-right:0;
+overflow:hidden;
+max-height:calc(600px + 2em);
+max-width:100%;
+text-align:center;
+width:100%
+}
+.FeaturedPost .snippet-thumbnail img{
+max-width:100%;
+width:100%
+}
+.byline{
+color:rgba(61,61,61,0.537);
+display:inline-block;
+line-height:24px;
+margin-top:8px;
+vertical-align:top
+}
+.byline.post-author:first-child{
+margin-right:0
+}
+.byline.reactions .reactions-label{
+line-height:22px;
+vertical-align:top
+}
+.byline.post-share-buttons{
+position:relative;
+display:inline-block;
+margin-top:0;
+width:100%
+}
+.byline.post-share-buttons .sharing{
+float:right
+}
+.flat-button.ripple:hover{
+background-color:rgba(40,131,243,.12)
+}
+.flat-button.ripple .splash{
+background-color:rgba(40,131,243,.4)
+}
+a.timestamp-link,a:active.timestamp-link,a:visited.timestamp-link{
+color:inherit;
+font:inherit;
+text-decoration:inherit
+}
+.post-share-buttons{
+margin-left:0
+}
+.post-share-buttons.invisible{
+display:none
+}
+.clear-sharing{
+min-height:24px
+}
+.comment-link{
+color:#2883f3;
+position:relative
+}
+.comment-link .num_comments{
+margin-left:8px;
+vertical-align:top
+}
+#comment-holder .continue{
+display:none
+}
+#comment-editor{
+margin-bottom:20px;
+margin-top:20px
+}
+#comments .comment-form h4,#comments h3.title{
+position:absolute;
+clip:rect(1px,1px,1px,1px);
+padding:0;
+border:0;
+height:1px;
+width:1px;
+overflow:hidden
+}
+.post-filter-message{
+background-color:rgba(0,0,0,.7);
+color:#fff;
+display:table;
+margin-bottom:16px;
+width:100%
+}
+.post-filter-message div{
+display:table-cell;
+padding:15px 28px
+}
+.post-filter-message div:last-child{
+padding-left:0;
+text-align:right
+}
+.post-filter-message a{
+white-space:nowrap
+}
+.post-filter-message .search-label,.post-filter-message .search-query{
+font-weight:700;
+color:#2883f3
+}
+#blog-pager{
+margin:2em 0
+}
+#blog-pager a{
+color:#2196f3;
+font-size:14px
+}
+.subscribe-button{
+border-color:#ffffff;
+color:#ffffff
+}
+.sticky .subscribe-button{
+border-color:#757575;
+color:#757575
+}
+.tabs{
+margin:0 auto;
+padding:0
+}
+.tabs li{
+margin:0 8px;
+vertical-align:top
+}
+.tabs .overflow-button a,.tabs li a{
+color:#cecece;
+font:700 normal 15px Roboto, sans-serif;
+line-height:18px
+}
+.tabs .overflow-button a{
+padding:12px 8px
+}
+.overflow-popup .tabs li{
+text-align:left
+}
+.overflow-popup li a{
+color:#757575;
+display:block;
+padding:8px 20px
+}
+.overflow-popup li.selected a{
+color:#424242
+}
+.ReportAbuse.widget{
+margin-bottom:0
+}
+.ReportAbuse a.report_abuse{
+display:inline-block;
+margin-bottom:8px;
+font:15px Roboto, sans-serif;
+font-weight:400;
+line-height:24px
+}
+.ReportAbuse a.report_abuse,.ReportAbuse a.report_abuse:hover{
+color:#888
+}
+.byline.post-labels a,.Label li,.Label span.label-size{
+background-color:#f7f7f7;
+border:1px solid #f7f7f7;
+border-radius:15px;
+display:inline-block;
+margin:4px 4px 4px 0;
+padding:3px 8px
+}
+.byline.post-labels a,.Label a{
+color:#2196f3
+}
+.Label ul{
+list-style:none;
+padding:0
+}
+.PopularPosts{
+background-color:#f4f4f4;
+padding:30px 40px
+}
+.PopularPosts .item-content{
+color:#757575;
+margin-top:24px
+}
+.PopularPosts a,.PopularPosts a:hover,.PopularPosts a:visited{
+color:#2196f3
+}
+.PopularPosts .post-title,.PopularPosts .post-title a,.PopularPosts .post-title a:hover,.PopularPosts .post-title a:visited{
+color:#424242;
+font-size:18px;
+font-weight:700;
+line-height:24px
+}
+.PopularPosts,.PopularPosts h3.title a{
+color:#757575;
+font:15px Roboto, sans-serif
+}
+.main .PopularPosts{
+padding:16px 40px
+}
+.PopularPosts h3.title{
+font-size:14px;
+margin:0
+}
+.PopularPosts h3.post-title{
+margin-bottom:0
+}
+.PopularPosts .byline{
+color:#000000
+}
+.PopularPosts .jump-link{
+float:right;
+margin-top:16px
+}
+.PopularPosts .post-header .byline{
+font-size:.9em;
+font-style:italic;
+margin-top:6px
+}
+.PopularPosts ul{
+list-style:none;
+padding:0;
+margin:0
+}
+.PopularPosts .post{
+padding:20px 0
+}
+.PopularPosts .post+.post{
+border-top:1px dashed #cecece
+}
+.PopularPosts .item-thumbnail{
+float:left;
+margin-right:32px
+}
+.PopularPosts .item-thumbnail img{
+height:88px;
+padding:0;
+width:88px
+}
+.inline-ad{
+margin-bottom:16px
+}
+.desktop-ad .inline-ad{
+display:block
+}
+.adsbygoogle{
+overflow:hidden
+}
+.vertical-ad-container{
+float:right;
+margin-right:16px;
+width:128px
+}
+.vertical-ad-container .AdSense+.AdSense{
+margin-top:16px
+}
+.inline-ad-placeholder,.vertical-ad-placeholder{
+background:#ffffff;
+border:1px solid #000;
+opacity:.9;
+vertical-align:middle;
+text-align:center
+}
+.inline-ad-placeholder span,.vertical-ad-placeholder span{
+margin-top:290px;
+display:block;
+text-transform:uppercase;
+font-weight:700;
+color:#2883f3
+}
+.vertical-ad-placeholder{
+height:600px
+}
+.vertical-ad-placeholder span{
+margin-top:290px;
+padding:0 40px
+}
+.inline-ad-placeholder{
+height:90px
+}
+.inline-ad-placeholder span{
+margin-top:36px
+}
+.Attribution{
+display:inline-block;
+color:#757575
+}
+.Attribution a,.Attribution a:hover,.Attribution a:visited{
+color:#2196f3
+}
+.Attribution svg{
+display:none
+}
+.sidebar-container{
+box-shadow:1px 1px 3px rgba(0,0,0,.1)
+}
+.sidebar-container,.sidebar-container .sidebar_bottom{
+background-color:#ffffff
+}
+.sidebar-container .navigation,.sidebar-container .sidebar_top_wrapper{
+background-color:#f8f8f8
+}
+.sidebar-container .sidebar_top{
+overflow:auto
+}
+.sidebar-container .sidebar_bottom{
+width:100%;
+padding-top:16px
+}
+.sidebar-container .widget:first-child{
+padding-top:0
+}
+.no-sidebar-widget .sidebar-container,.preview .sidebar-container{
+display:none
+}
+.sidebar_top .widget.Profile{
+padding-bottom:16px
+}
+.widget.Profile{
+margin:0;
+width:100%
+}
+.widget.Profile h2{
+display:none
+}
+.widget.Profile h3.title{
+color:rgba(61,61,61,0.518);
+margin:16px 32px
+}
+.widget.Profile .individual{
+text-align:center
+}
+.widget.Profile .individual .profile-link{
+padding:1em
+}
+.widget.Profile .individual .default-avatar-wrapper .avatar-icon{
+margin:auto
+}
+.widget.Profile .team{
+margin-bottom:32px;
+margin-left:32px;
+margin-right:32px
+}
+.widget.Profile ul{
+list-style:none;
+padding:0
+}
+.widget.Profile li{
+margin:10px 0
+}
+.widget.Profile .profile-img{
+border-radius:50%;
+float:none
+}
+.widget.Profile .profile-link{
+color:#424242;
+font-size:.9em;
+margin-bottom:1em;
+opacity:.87;
+overflow:hidden
+}
+.widget.Profile .profile-link.visit-profile{
+border-style:solid;
+border-width:1px;
+border-radius:12px;
+cursor:pointer;
+font-size:12px;
+font-weight:400;
+padding:5px 20px;
+display:inline-block;
+line-height:normal
+}
+.widget.Profile dd{
+color:rgba(61,61,61,0.537);
+margin:0 16px
+}
+.widget.Profile location{
+margin-bottom:1em
+}
+.widget.Profile .profile-textblock{
+font-size:14px;
+line-height:24px;
+position:relative
+}
+body.sidebar-visible .bg-photo-container,body.sidebar-visible .page_body{
+overflow-y:scroll
+}
+@media screen and (min-width:1440px){
+.sidebar-container{
+min-height:100%;
+overflow:visible;
+z-index:32
+}
+.sidebar-container.show-sidebar-top{
+margin-top:480px;
+min-height:calc(100% - 480px)
+}
+.sidebar-container .sidebar_top_wrapper{
+background-color:#ffffff;
+height:480px;
+margin-top:-480px
+}
+.sidebar-container .sidebar_top{
+height:480px;
+max-height:480px
+}
+.sidebar-container .sidebar_bottom{
+max-width:284px;
+width:284px
+}
+body.collapsed-header .sidebar-container{
+z-index:15
+}
+.sidebar-container .sidebar_top:empty{
+display:none
+}
+.sidebar-container .sidebar_top>:only-child{
+-webkit-box-flex:0;
+flex:0 0 auto;
+align-self:center;
+width:100%
+}
+.sidebar_top_wrapper.no-items{
+display:none
+}
+}
+.post-snippet.snippet-container{
+max-height:120px
+}
+.post-snippet .snippet-item{
+line-height:24px
+}
+.post-snippet .snippet-fade{
+background:-webkit-linear-gradient(left,#ffffff 0,#ffffff 20%,rgba(255, 255, 255, 0) 100%);
+background:linear-gradient(to left,#ffffff 0,#ffffff 20%,rgba(255, 255, 255, 0) 100%);
+color:#7a7a7a;
+height:24px
+}
+.popular-posts-snippet.snippet-container{
+max-height:72px
+}
+.popular-posts-snippet .snippet-item{
+line-height:24px
+}
+.PopularPosts .popular-posts-snippet .snippet-fade{
+color:#7a7a7a;
+height:24px
+}
+.main .popular-posts-snippet .snippet-fade{
+background:-webkit-linear-gradient(left,#f4f4f4 0,#f4f4f4 20%,rgba(244, 244, 244, 0) 100%);
+background:linear-gradient(to left,#f4f4f4 0,#f4f4f4 20%,rgba(244, 244, 244, 0) 100%)
+}
+.sidebar_bottom .popular-posts-snippet .snippet-fade{
+background:-webkit-linear-gradient(left,#ffffff 0,#ffffff 20%,rgba(255, 255, 255, 0) 100%);
+background:linear-gradient(to left,#ffffff 0,#ffffff 20%,rgba(255, 255, 255, 0) 100%)
+}
+.profile-snippet.snippet-container{
+max-height:192px
+}
+.has-location .profile-snippet.snippet-container{
+max-height:144px
+}
+.profile-snippet .snippet-item{
+line-height:24px
+}
+.profile-snippet .snippet-fade{
+background:-webkit-linear-gradient(left,#f8f8f8 0,#f8f8f8 20%,rgba(248, 248, 248, 0) 100%);
+background:linear-gradient(to left,#f8f8f8 0,#f8f8f8 20%,rgba(248, 248, 248, 0) 100%);
+color:rgba(61,61,61,0.537);
+height:24px
+}
+@media screen and (min-width:1440px){
+.profile-snippet .snippet-fade{
+background:-webkit-linear-gradient(left,#ffffff 0,#ffffff 20%,rgba(255, 255, 255, 0) 100%);
+background:linear-gradient(to left,#ffffff 0,#ffffff 20%,rgba(255, 255, 255, 0) 100%)
+}
+}
+@media screen and (max-width:800px){
+.blog-name{
+margin-top:0
+}
+body.item-view .blog-name{
+margin:0 48px
+}
+.blog-name .subscribe-empty-placeholder{
+margin-bottom:0
+}
+.centered-bottom{
+padding:8px
+}
+body.item-view .centered-bottom{
+padding:0
+}
+body.item-view #header,body.item-view .widget.Header{
+margin-right:0
+}
+body.collapsed-header .centered-top-container .blog-name{
+display:block
+}
+body.collapsed-header .centered-top-container .widget.Header h1{
+text-align:center
+}
+.widget.Header header{
+padding:0
+}
+.widget.Header h1{
+font-size:$(blog.title.font.size * 24/45);
+line-height:$(blog.title.font.size * 24/45);
+margin-bottom:13px
+}
+body.item-view .widget.Header h1,body.item-view .widget.Header p{
+text-align:center
+}
+.blog-name .widget.PageList{
+padding:0
+}
+body.item-view .centered-top{
+margin-bottom:5px
+}
+.search-action,.search-input{
+margin-bottom:-8px
+}
+.search form{
+margin-bottom:8px
+}
+body.item-view .subscribe-section-container{
+margin:5px 0 0;
+width:100%
+}
+#page_body.section div.widget.FeaturedPost,.widget.Blog .blog-posts .post-outer-container,.widget.PopularPosts{
+padding:16px
+}
+.widget.Blog .blog-posts .post-outer-container .post-outer{
+padding:0
+}
+.post:first-child{
+margin:0
+}
+.post-body .snippet-thumbnail{
+margin:0 3vw 3vw 0
+}
+.post-body .snippet-thumbnail img{
+height:20vw;
+width:20vw;
+max-height:128px;
+max-width:128px
+}
+.widget.PopularPosts div.item-thumbnail{
+margin:0 3vw 3vw 0
+}
+.widget.PopularPosts div.item-thumbnail img{
+height:20vw;
+width:20vw;
+max-height:88px;
+max-width:88px
+}
+.post-title{
+line-height:1
+}
+.post-title,.post-title a{
+font-size:20px
+}
+#page_body.section div.widget.FeaturedPost h3 a{
+font-size:22px
+}
+.mobile-ad .inline-ad{
+display:block
+}
+.page_body.has-vertical-ads .vertical-ad-container,.page_body.has-vertical-ads .vertical-ad-container ins{
+display:none
+}
+.page_body.has-vertical-ads .centered .centered-bottom,.page_body.has-vertical-ads .centered .centered-top{
+display:block;
+width:auto
+}
+.post-filter-message div{
+padding:8px 16px
+}
+}
+@media screen and (min-width:1440px){
+body{
+position:relative
+}
+body.item-view .blog-name{
+margin-left:48px
+}
+.no-sidebar-widget .page_body,.preview .page_body{
+margin-left:0
+}
+.page_body{
+margin-left:284px
+}
+.search{
+margin-left:0
+}
+.search.focused{
+width:100%
+}
+.sticky{
+padding-left:284px
+}
+.hamburger-menu{
+display:none
+}
+body.collapsed-header .page_body .centered-top-container{
+padding-left:284px;
+padding-right:0;
+width:100%
+}
+body.collapsed-header .centered-top-container .search.focused{
+width:100%
+}
+body.collapsed-header .centered-top-container .blog-name{
+margin-left:0
+}
+body.collapsed-header.item-view .centered-top-container .search.focused{
+width:calc(100% - 50px)
+}
+body.collapsed-header.item-view .centered-top-container .blog-name{
+margin-left:40px
+}
+}
+
+--></style>
+<style id='template-skin-1' type='text/css'><!--
+body#layout .hidden,
+body#layout .invisible {
+display: inherit;
+}
+body#layout .navigation {
+display: none;
+}
+body#layout .page,
+body#layout .sidebar_top,
+body#layout .sidebar_bottom {
+display: inline-block;
+left: inherit;
+position: relative;
+vertical-align: top;
+}
+body#layout .page {
+float: right;
+margin-left: 20px;
+width: 55%;
+}
+body#layout .sidebar-container {
+float: right;
+width: 40%;
+}
+body#layout .hamburger-menu {
+display: none;
+}
+--></style>
+<style>
+    .bg-photo {background-image:url(https\:\/\/themes.googleusercontent.com\/image?id=1_bStA4xU4a1ALNAqP7UP814bhfnsUau-0EDCQD7_XIw7aeX8-O9UfdTOTWT0FvRY_k6Q);}
+    
+@media (max-width: 480px) { .bg-photo {background-image:url(https\:\/\/themes.googleusercontent.com\/image?id=1_bStA4xU4a1ALNAqP7UP814bhfnsUau-0EDCQD7_XIw7aeX8-O9UfdTOTWT0FvRY_k6Q&options=w480);}}
+@media (max-width: 640px) and (min-width: 481px) { .bg-photo {background-image:url(https\:\/\/themes.googleusercontent.com\/image?id=1_bStA4xU4a1ALNAqP7UP814bhfnsUau-0EDCQD7_XIw7aeX8-O9UfdTOTWT0FvRY_k6Q&options=w640);}}
+@media (max-width: 800px) and (min-width: 641px) { .bg-photo {background-image:url(https\:\/\/themes.googleusercontent.com\/image?id=1_bStA4xU4a1ALNAqP7UP814bhfnsUau-0EDCQD7_XIw7aeX8-O9UfdTOTWT0FvRY_k6Q&options=w800);}}
+@media (max-width: 1200px) and (min-width: 801px) { .bg-photo {background-image:url(https\:\/\/themes.googleusercontent.com\/image?id=1_bStA4xU4a1ALNAqP7UP814bhfnsUau-0EDCQD7_XIw7aeX8-O9UfdTOTWT0FvRY_k6Q&options=w1200);}}
+/* Last tag covers anything over one higher than the previous max-size cap. */
+@media (min-width: 1201px) { .bg-photo {background-image:url(https\:\/\/themes.googleusercontent.com\/image?id=1_bStA4xU4a1ALNAqP7UP814bhfnsUau-0EDCQD7_XIw7aeX8-O9UfdTOTWT0FvRY_k6Q&options=w1600);}}
+  </style>
+<script async='async' src='//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'></script>
+<script async='async' src='https://www.gstatic.com/external_hosted/clipboardjs/clipboard.min.js'></script>
+<link href='https://www.blogger.com/dyncss/8211560/authorization.css?zx=cd12982f-e685-4123-8d3d-62d794d299d0' media='none' onload='if(media!=&#39;all&#39;)media=&#39;all&#39;' rel='stylesheet'/><noscript><link href='https://www.blogger.com/dyncss/8211560/authorization.css?zx=cd12982f-e685-4123-8d3d-62d794d299d0' rel='stylesheet'/></noscript>
+<meta name='google-adsense-platform-account' content='ca-host-pub-1556223355139109'/>
+<meta name='google-adsense-platform-domain' content='blogspot.com'/>
+
+<!-- data-ad-client=ca-pub-9109889343080606 -->
+
+</head>
+<body class='item-view'>
+<a class='skip-navigation' href='#main' tabindex='0'>
+Skip to main content
+</a>
+<div class='page'>
+<div class='bg-photo-overlay'></div>
+<div class='bg-photo-container'>
+<div class='bg-photo'></div>
+</div>
+<div class='page_body'>
+<div class='centered'>
+<div class='centered-top-placeholder'></div>
+<header class='centered-top-container' role='banner'>
+<div class='centered-top'>
+<a class='return_link' href='http://mvark.blogspot.com/'>
+<button class='svg-icon-24-button back-button rtl-reversible-icon flat-icon-button ripple'>
+<svg class='svg-icon-24'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_arrow_back_black_24dp' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+</button>
+</a>
+<div class='search'>
+<button aria-label='Search' class='search-expand touch-icon-button'>
+<div class='flat-icon-button ripple'>
+<svg class='svg-icon-24 search-expand-icon'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_search_black_24dp' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+</div>
+</button>
+<div class='section' id='search_top' name='Search (Top)'><div class='widget BlogSearch' data-version='2' id='BlogSearch1'>
+<h3 class='title'>
+Search This Blog
+</h3>
+<div class='widget-content' role='search'>
+<form action='http://mvark.blogspot.com/search' target='_top'>
+<div class='search-input'>
+<input aria-label='Search this blog' autocomplete='off' name='q' placeholder='Search this blog' value=''/>
+</div>
+<input class='search-action flat-button' type='submit' value='Search'/>
+</form>
+</div>
+</div></div>
+</div>
+<div class='clearboth'></div>
+<div class='blog-name container'>
+<div class='container section' id='header' name='Header'><div class='widget Header' data-version='2' id='Header1'>
+<div class='header-widget'>
+<div>
+<h1>
+<a href='http://mvark.blogspot.com/'>
+Tech Tips, Tricks &amp; Trivia
+</a>
+</h1>
+</div>
+<p>
+</p>
+</div>
+</div></div>
+<nav role='navigation'>
+<div class='clearboth section' id='page_list_top' name='Page List (Top)'>
+</div>
+</nav>
+</div>
+</div>
+</header>
+<div>
+<div class='vertical-ad-container no-items section' id='ads' name='Ads'>
+</div>
+<main class='centered-bottom' id='main' role='main' tabindex='-1'>
+<div class='main section' id='page_body' name='Page Body'>
+<div class='widget Blog' data-version='2' id='Blog1'>
+<div class='blog-posts hfeed container'>
+<article class='post-outer-container'>
+<div class='post-outer'>
+<div class='post'>
+<script type='application/ld+json'>{
+  "@context": "http://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html"
+  },
+  "headline": "Uncle Bob vs. Grady Booch: Rethinking Code Reviews in the Age of AI","description": "In response to a question about the feasibility of effective code reviews for large (e.g., 500-line) AI-generated PRs like those from Claude...","datePublished": "2026-04-15T16:22:00+05:30",
+  "dateModified": "2026-08-05T23:11:06+05:30","image": {
+    "@type": "ImageObject","url": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgSaudK5BQkqRkNj4lIArPzuDeEyd2UYVIYYfWDEF7vr230Posy51ydTkZt7HvZtWnIU9TxmBPewJU2zHWp_tgtu1ZUgzEXUdKfTpiL0TW4CxfJxmZoFFH2-gW6UUOgnnMc4ZnhcrZYLJhoimvqmwEz5nIrf03jbLVLL6YxOwe7eXMI_jubkPN0/w1200-h630-p-k-no-nu/uncle-bob.jpg",
+    "height": 630,
+    "width": 1200},"publisher": {
+    "@type": "Organization",
+    "name": "Blogger",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://blogger.googleusercontent.com/img/b/U2hvZWJveA/AVvXsEgfMvYAhAbdHksiBA24JKmb2Tav6K0GviwztID3Cq4VpV96HaJfy0viIu8z1SSw_G9n5FQHZWSRao61M3e58ImahqBtr7LiOUS6m_w59IvDYwjmMcbq3fKW4JSbacqkbxTo8B90dWp0Cese92xfLMPe_tg11g/h60/",
+      "width": 206,
+      "height": 60
+    }
+  },"author": {
+    "@type": "Person",
+    "name": "RK"
+  }
+}</script>
+<a name='1976566337234110981'></a>
+<h3 class='post-title entry-title'>
+Uncle Bob vs. Grady Booch: Rethinking Code Reviews in the Age of AI
+</h3>
+<div class='post-share-buttons post-share-buttons-top'>
+<div class='byline post-share-buttons goog-inline-block'>
+<div aria-owns='sharing-popup-Blog1-byline-1976566337234110981' class='sharing' data-title='Uncle Bob vs. Grady Booch: Rethinking Code Reviews in the Age of AI'>
+<button aria-controls='sharing-popup-Blog1-byline-1976566337234110981' aria-label='Share' class='sharing-button touch-icon-button' id='sharing-button-Blog1-byline-1976566337234110981' role='button'>
+<div class='flat-icon-button ripple'>
+<svg class='svg-icon-24'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_share_black_24dp' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+</div>
+</button>
+<div class='share-buttons-container'>
+<ul aria-hidden='true' aria-label='Share' class='share-buttons hidden' id='sharing-popup-Blog1-byline-1976566337234110981' role='menu'>
+<li>
+<span aria-label='Get link' class='sharing-platform-button sharing-element-link' data-href='https://www.blogger.com/share-post.g?blogID=8211560&postID=1976566337234110981&target=' data-url='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' role='menuitem' tabindex='-1' title='Get link'>
+<svg class='svg-icon-24 touch-icon sharing-link'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_24_link_dark' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<span class='platform-sharing-text'>Get link</span>
+</span>
+</li>
+<li>
+<span aria-label='Share to Facebook' class='sharing-platform-button sharing-element-facebook' data-href='https://www.blogger.com/share-post.g?blogID=8211560&postID=1976566337234110981&target=facebook' data-url='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' role='menuitem' tabindex='-1' title='Share to Facebook'>
+<svg class='svg-icon-24 touch-icon sharing-facebook'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_24_facebook_dark' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<span class='platform-sharing-text'>Facebook</span>
+</span>
+</li>
+<li>
+<span aria-label='Share to X' class='sharing-platform-button sharing-element-twitter' data-href='https://www.blogger.com/share-post.g?blogID=8211560&postID=1976566337234110981&target=twitter' data-url='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' role='menuitem' tabindex='-1' title='Share to X'>
+<svg class='svg-icon-24 touch-icon sharing-twitter'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_24_twitter_dark' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<span class='platform-sharing-text'>X</span>
+</span>
+</li>
+<li>
+<span aria-label='Share to Pinterest' class='sharing-platform-button sharing-element-pinterest' data-href='https://www.blogger.com/share-post.g?blogID=8211560&postID=1976566337234110981&target=pinterest' data-url='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' role='menuitem' tabindex='-1' title='Share to Pinterest'>
+<svg class='svg-icon-24 touch-icon sharing-pinterest'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_24_pinterest_dark' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<span class='platform-sharing-text'>Pinterest</span>
+</span>
+</li>
+<li>
+<span aria-label='Email' class='sharing-platform-button sharing-element-email' data-href='https://www.blogger.com/share-post.g?blogID=8211560&postID=1976566337234110981&target=email' data-url='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' role='menuitem' tabindex='-1' title='Email'>
+<svg class='svg-icon-24 touch-icon sharing-email'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_24_email_dark' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<span class='platform-sharing-text'>Email</span>
+</span>
+</li>
+<li aria-hidden='true' class='hidden'>
+<span aria-label='Share to other apps' class='sharing-platform-button sharing-element-other' data-url='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' role='menuitem' tabindex='-1' title='Share to other apps'>
+<svg class='svg-icon-24 touch-icon sharing-sharingOther'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_more_horiz_black_24dp' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<span class='platform-sharing-text'>Other Apps</span>
+</span>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class='post-header'>
+<div class='post-header-line-1'>
+<span class='byline post-labels'>
+<span class='byline-label'>
+</span>
+<a href='http://mvark.blogspot.com/search/label/AI' rel='tag'>AI</a>
+<a href='http://mvark.blogspot.com/search/label/Claude' rel='tag'>Claude</a>
+</span>
+</div>
+</div>
+<div class='post-body entry-content float-container' id='post-body-1976566337234110981'>
+<p>In response to a question about the feasibility of effective code reviews for large (e.g., 500-line) AI-generated PRs like those from Claude, especially when reviewers lack deep codebase familiarity in new projects or fast-paced environments, Uncle Bob Martin and&nbsp;Grady Booch have contrasting views</p><p>Uncle Bob Martin advocates metrics-based oversight (test coverage, complexity, dependencies) and higher-level management over line-by-line AI code review, while Grady Booch stresses manual verification for vulnerabilities, dead code, and performance factors.</p><p><b></b></p><div class="separator" style="clear: both; text-align: center;"><b><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgSaudK5BQkqRkNj4lIArPzuDeEyd2UYVIYYfWDEF7vr230Posy51ydTkZt7HvZtWnIU9TxmBPewJU2zHWp_tgtu1ZUgzEXUdKfTpiL0TW4CxfJxmZoFFH2-gW6UUOgnnMc4ZnhcrZYLJhoimvqmwEz5nIrf03jbLVLL6YxOwe7eXMI_jubkPN0/s128/uncle-bob.jpg" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" data-original-height="128" data-original-width="128" height="128" loading="lazy" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgSaudK5BQkqRkNj4lIArPzuDeEyd2UYVIYYfWDEF7vr230Posy51ydTkZt7HvZtWnIU9TxmBPewJU2zHWp_tgtu1ZUgzEXUdKfTpiL0TW4CxfJxmZoFFH2-gW6UUOgnnMc4ZnhcrZYLJhoimvqmwEz5nIrf03jbLVLL6YxOwe7eXMI_jubkPN0/s1600-rw/uncle-bob.jpg" width="128" /></a></b></div><b>Uncle Bob Martin</b>: "<b>I don&#8217;t review code written by agents</b>. I measure things like test coverage, dependency structure, cyclomatic complexity, module sizes, mutation testing, etc.&nbsp;<p></p><p>Much can be inferred about the quality of the code from those metrics. The code itself I leave to the AI.&nbsp;</p><p>Humans are slow at code. To get productivity we humans need to disengage from code and manage from a higher level."</p><p><b></b></p><div class="separator" style="clear: both; text-align: center;"><b><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjymuLkttBH2jPVR3s5xxrR6kEZqSRqlwZMFzFrFs-eTBaN3rF9-5LFsG5GpyfzwToSaDElITLdhifHrWrJm_RkFXI2TOB9TCHGgS16ETfncdDzvvrYw9OoE29ahs87jUY9Hgwgrsq4saHVYV32WBn19YexfS8Wfn0EX3s8TGlvXrB1JS9rCqsw/s128/grady-booch.jpg" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" data-original-height="128" data-original-width="128" height="128" loading="lazy" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjymuLkttBH2jPVR3s5xxrR6kEZqSRqlwZMFzFrFs-eTBaN3rF9-5LFsG5GpyfzwToSaDElITLdhifHrWrJm_RkFXI2TOB9TCHGgS16ETfncdDzvvrYw9OoE29ahs87jUY9Hgwgrsq4saHVYV32WBn19YexfS8Wfn0EX3s8TGlvXrB1JS9rCqsw/s1600-rw/grady-booch.jpg" width="128" /></a></b></div><b>Grady Booch</b>: "Unlike Bob, <b>I review all code generated by agents</b>.<p></p><p>Test coverage and similar metrics will give me confidence of functionality, but they offer me no confidence whatsoever that those agents have not introduced <b>vulnerabilities</b>, that they have not introduced <b>dead code</b> that will diminish understandability in the future, that they have missed factorizations that would have significant impact upon performance.</p><p><b>Trust but verify.</b></p><p>As an experienced developer, I know the smell of what is good and what is not.</p><p>And no agent has either the experience or the context to know those things.</p><p>If you want to be sloppy and fast then I suggest you proceed with Bob&#8217;s advice."</p><p>Also see -&nbsp;<a href="https://mvark.blogspot.com/2024/12/grady-booch-life-in-code-from-fortran.html" rel="nofollow" target="_blank">Grady Booch: A Life in Code &#8211; From Fortran to AI, a Software Legend Reflects</a></p>
+</div>
+<div class='post-bottom'>
+<div class='post-footer float-container'>
+<div class='post-footer-line post-footer-line-1'>
+<span class='byline post-timestamp'>
+<meta content='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html'/>
+<a class='timestamp-link' href='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' rel='bookmark' title='permanent link'>
+<time class='published' datetime='2026-04-15T16:22:00+05:30' title='2026-04-15T16:22:00+05:30'>
+April 15, 2026
+</time>
+</a>
+</span>
+</div>
+</div>
+<div class='post-share-buttons post-share-buttons-bottom invisible'>
+<div class='byline post-share-buttons goog-inline-block'>
+<div aria-owns='sharing-popup-Blog1-byline-1976566337234110981' class='sharing' data-title='Uncle Bob vs. Grady Booch: Rethinking Code Reviews in the Age of AI'>
+<button aria-controls='sharing-popup-Blog1-byline-1976566337234110981' aria-label='Share' class='sharing-button touch-icon-button' id='sharing-button-Blog1-byline-1976566337234110981' role='button'>
+<div class='flat-icon-button ripple'>
+<svg class='svg-icon-24'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_share_black_24dp' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+</div>
+</button>
+<div class='share-buttons-container'>
+<ul aria-hidden='true' aria-label='Share' class='share-buttons hidden' id='sharing-popup-Blog1-byline-1976566337234110981' role='menu'>
+<li>
+<span aria-label='Get link' class='sharing-platform-button sharing-element-link' data-href='https://www.blogger.com/share-post.g?blogID=8211560&postID=1976566337234110981&target=' data-url='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' role='menuitem' tabindex='-1' title='Get link'>
+<svg class='svg-icon-24 touch-icon sharing-link'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_24_link_dark' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<span class='platform-sharing-text'>Get link</span>
+</span>
+</li>
+<li>
+<span aria-label='Share to Facebook' class='sharing-platform-button sharing-element-facebook' data-href='https://www.blogger.com/share-post.g?blogID=8211560&postID=1976566337234110981&target=facebook' data-url='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' role='menuitem' tabindex='-1' title='Share to Facebook'>
+<svg class='svg-icon-24 touch-icon sharing-facebook'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_24_facebook_dark' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<span class='platform-sharing-text'>Facebook</span>
+</span>
+</li>
+<li>
+<span aria-label='Share to X' class='sharing-platform-button sharing-element-twitter' data-href='https://www.blogger.com/share-post.g?blogID=8211560&postID=1976566337234110981&target=twitter' data-url='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' role='menuitem' tabindex='-1' title='Share to X'>
+<svg class='svg-icon-24 touch-icon sharing-twitter'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_24_twitter_dark' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<span class='platform-sharing-text'>X</span>
+</span>
+</li>
+<li>
+<span aria-label='Share to Pinterest' class='sharing-platform-button sharing-element-pinterest' data-href='https://www.blogger.com/share-post.g?blogID=8211560&postID=1976566337234110981&target=pinterest' data-url='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' role='menuitem' tabindex='-1' title='Share to Pinterest'>
+<svg class='svg-icon-24 touch-icon sharing-pinterest'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_24_pinterest_dark' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<span class='platform-sharing-text'>Pinterest</span>
+</span>
+</li>
+<li>
+<span aria-label='Email' class='sharing-platform-button sharing-element-email' data-href='https://www.blogger.com/share-post.g?blogID=8211560&postID=1976566337234110981&target=email' data-url='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' role='menuitem' tabindex='-1' title='Email'>
+<svg class='svg-icon-24 touch-icon sharing-email'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_24_email_dark' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<span class='platform-sharing-text'>Email</span>
+</span>
+</li>
+<li aria-hidden='true' class='hidden'>
+<span aria-label='Share to other apps' class='sharing-platform-button sharing-element-other' data-url='http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html' role='menuitem' tabindex='-1' title='Share to other apps'>
+<svg class='svg-icon-24 touch-icon sharing-sharingOther'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_more_horiz_black_24dp' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<span class='platform-sharing-text'>Other Apps</span>
+</span>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<section class='comments embed' data-num-comments='0' id='comments'>
+<a name='comments'></a>
+<h3 class='title'>Comments</h3>
+<div id='Blog1_comments-block-wrapper'>
+</div>
+<div class='footer'>
+<div class='comment-form'>
+<a name='comment-form'></a>
+<h4 id='comment-post-message'>Post a Comment</h4>
+<a href='https://www.blogger.com/comment/frame/8211560?po=1976566337234110981&hl=en&saa=85391&origin=http://mvark.blogspot.com&skin=essential' id='comment-editor-src'></a>
+<iframe allowtransparency='allowtransparency' class='blogger-iframe-colorize blogger-comment-from-post' frameborder='0' height='410px' id='comment-editor' name='comment-editor' src='' width='100%'></iframe>
+<script src='https://www.blogger.com/static/v1/jsbin/3790099508-comment_from_post_iframe.js' type='text/javascript'></script>
+<script type='text/javascript'>
+      BLOG_CMT_createIframe('https://www.blogger.com/rpc_relay.html');
+    </script>
+</div>
+</div>
+</section>
+<div class='desktop-ad mobile-ad'>
+<div class='inline-ad'>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9109889343080606&host=ca-host-pub-1556223355139109" crossorigin="anonymous"></script>
+<!-- mvark_page_body_Blog1_1x1_as -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-9109889343080606"
+     data-ad-host="ca-host-pub-1556223355139109"
+     data-ad-slot="5542521937"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+</div>
+</div>
+</article>
+</div>
+<style>
+    .post-body a.b-tooltip-container {
+      position: relative;
+      display: inline-block;
+    }
+
+    .post-body a.b-tooltip-container .b-tooltip {
+      display: block !important;
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translate(-20%, 1px);
+      visibility: hidden;
+      opacity: 0;
+      z-index: 1;
+      transition: opacity 0.2s ease-in-out;
+    }
+
+    .post-body a.b-tooltip-container .b-tooltip iframe {
+      width: 200px;
+      height: 198px;
+      max-width: none;
+      border: none;
+      border-radius: 20px;
+      box-shadow: 1px 1px 3px 1px rgba(0, 0, 0, 0.2);
+    }
+
+    @media (hover: hover) {
+      .post-body a.b-tooltip-container:hover .b-tooltip {
+        visibility: visible;
+        opacity: 1;
+      }
+    }
+  </style>
+</div><div class='widget PopularPosts' data-version='2' id='PopularPosts1'>
+<h3 class='title'>
+Popular posts from this blog
+</h3>
+<div class='widget-content'>
+<div role='feed'>
+<article class='post' role='article'>
+<h3 class='post-title'><a href='http://mvark.blogspot.com/2026/02/from-stiff-chatbot-to-savage-sidekick.html'>From Stiff Chatbot to Savage Sidekick: The UI/UX Glow-Up Story</a></h3>
+<div class='post-header'>
+<div class='post-header-line-1'>
+</div>
+</div>
+<div class='item-content float-container'>
+<div class='item-thumbnail'>
+<a href='http://mvark.blogspot.com/2026/02/from-stiff-chatbot-to-savage-sidekick.html'>
+<img alt='Image' sizes='72px' src='https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhtg6Uj4i_A5sKdu71cK8uugR656AyFfWofzdqo9VGZrg8gkDNLHwxAWgWT-Nfr_Xu4gVWBTU4TCwidoP_dNh9VkDwEc0R_rLISJTWX7eHrIGKhOCQhtk5T8KhG75cd-SaZ9zuLill_poes5HqPQkNn3Q4J6GEPW9ddH5DiakmZG7B4uaegWkkz/s1600/talk.jpg' srcset='https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhtg6Uj4i_A5sKdu71cK8uugR656AyFfWofzdqo9VGZrg8gkDNLHwxAWgWT-Nfr_Xu4gVWBTU4TCwidoP_dNh9VkDwEc0R_rLISJTWX7eHrIGKhOCQhtk5T8KhG75cd-SaZ9zuLill_poes5HqPQkNn3Q4J6GEPW9ddH5DiakmZG7B4uaegWkkz/w72-h72-p-k-no-nu/talk.jpg 72w, https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhtg6Uj4i_A5sKdu71cK8uugR656AyFfWofzdqo9VGZrg8gkDNLHwxAWgWT-Nfr_Xu4gVWBTU4TCwidoP_dNh9VkDwEc0R_rLISJTWX7eHrIGKhOCQhtk5T8KhG75cd-SaZ9zuLill_poes5HqPQkNn3Q4J6GEPW9ddH5DiakmZG7B4uaegWkkz/w144-h144-p-k-no-nu/talk.jpg 144w'/>
+</a>
+</div>
+<div class='popular-posts-snippet snippet-container r-snippet-container'>
+<div class='snippet-item r-snippetized'>
+It&#39;s interesting how the UI/UX of AI assistants has been evolving over time.&#160; The interaction options with each individual Chat and a Conversation thread have gradually expanded over time.&#160;               ChatGPT      Gemini      Grok                User Input      Add photos &amp; files Recent files Create image Deep research Web search OpenAI Platform Upload files Add from Drive Photos Notebooks Guided learning Create image Canvas Create Music Guided Learning Deep research More tools      Upload a file Recent Skills            Chat      Copy&#160; Good response Bad response Add to project sources (~8/26) Share&#160; Try Again View sources Branch in new Chat&#160; Read Aloud Report Message      Good response&#160; Bad response&#160; Copy response Double check response&#160; Listen&#160; Export to Docs Draft in Gmail Export to Replit&#160; Report Legal issue      Start Thread  (~2/26) Copy response Create share link&#160; Love it &#160;this Needs improvement&#160; Regenerate...
+</div>
+<a class='snippet-fade r-snippet-fade hidden' href='http://mvark.blogspot.com/2026/02/from-stiff-chatbot-to-savage-sidekick.html'></a>
+</div>
+<div class='jump-link flat-button ripple'>
+<a href='http://mvark.blogspot.com/2026/02/from-stiff-chatbot-to-savage-sidekick.html' title='From Stiff Chatbot to Savage Sidekick: The UI/UX Glow-Up Story'>
+Read more
+</a>
+</div>
+</div>
+</article>
+<article class='post' role='article'>
+<h3 class='post-title'><a href='http://mvark.blogspot.com/2024/01/how-to-turn-your-mobile-browser-into.html'>HOW TO Turn Your Mobile Browser into a Barcode Scanner for Web Apps</a></h3>
+<div class='post-header'>
+<div class='post-header-line-1'>
+</div>
+</div>
+<div class='item-content float-container'>
+<div class='item-thumbnail'>
+<a href='http://mvark.blogspot.com/2024/01/how-to-turn-your-mobile-browser-into.html'>
+<img alt='Image' sizes='72px' src='https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjzHWZRGP1HmhiUF4DLRK_513mkhs0TRfgqymZZBsGJK-CPcoyFPM3WZAvF98gDKYww8oDqf48kfEuluzpcv_UjGN-FaU1JINh4kqIJ_WGYnM2FbFy9qCKrD5yWdPB4RfxNiEtKWeVpPUI-gRGnNoxjEF0mKUWIh2wjtaCbT5feLwsJ4MOqrD52/w200-h200/bcc.jpeg' srcset='https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjzHWZRGP1HmhiUF4DLRK_513mkhs0TRfgqymZZBsGJK-CPcoyFPM3WZAvF98gDKYww8oDqf48kfEuluzpcv_UjGN-FaU1JINh4kqIJ_WGYnM2FbFy9qCKrD5yWdPB4RfxNiEtKWeVpPUI-gRGnNoxjEF0mKUWIh2wjtaCbT5feLwsJ4MOqrD52/w72-h72-p-k-no-nu/bcc.jpeg 72w, https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjzHWZRGP1HmhiUF4DLRK_513mkhs0TRfgqymZZBsGJK-CPcoyFPM3WZAvF98gDKYww8oDqf48kfEuluzpcv_UjGN-FaU1JINh4kqIJ_WGYnM2FbFy9qCKrD5yWdPB4RfxNiEtKWeVpPUI-gRGnNoxjEF0mKUWIh2wjtaCbT5feLwsJ4MOqrD52/w144-h144-p-k-no-nu/bcc.jpeg 144w'/>
+</a>
+</div>
+<div class='popular-posts-snippet snippet-container r-snippet-container'>
+<div class='snippet-item r-snippetized'>
+Smartphone barcode scanners typically require installing a dedicated app. But what if your web app could access the camera and scan codes directly &#8212; no app required, just HTML and JavaScript? I tried&#160;Minhaz&#39;s nifty HTML5 QR Code &amp; Barcode scanner  and I&#39;m bowled over by its simplicity. With hundreds of GitHub stars and forks , it&#39;s clear I&#39;m not the only one impressed! I adapted Minhaz&#39;s sample code into a minimalist web page that scans a product barcode and redirects to Open Food Facts to display its nutrition information.&#160;Here&#39;s the code : You can also try it out  live. Related:&#160; *&#160; Scanapp &#160; *&#160; HOW TO scan a barcode with an Android smartphone camera from a web page
+</div>
+<a class='snippet-fade r-snippet-fade hidden' href='http://mvark.blogspot.com/2024/01/how-to-turn-your-mobile-browser-into.html'></a>
+</div>
+<div class='jump-link flat-button ripple'>
+<a href='http://mvark.blogspot.com/2024/01/how-to-turn-your-mobile-browser-into.html' title='HOW TO Turn Your Mobile Browser into a Barcode Scanner for Web Apps'>
+Read more
+</a>
+</div>
+</div>
+</article>
+<article class='post' role='article'>
+<h3 class='post-title'><a href='http://mvark.blogspot.com/2008/06/20-sql-server-2005-keyboard-shortcuts_24.html'>20 SQL Server 2005 Keyboard Shortcuts</a></h3>
+<div class='post-header'>
+<div class='post-header-line-1'>
+</div>
+</div>
+<div class='item-content float-container'>
+<div class='popular-posts-snippet snippet-container r-snippet-container'>
+<div class='snippet-item r-snippetized'>
+What is the bored mother of a geek called? Motherboard There are a bunch of SQL Server 2005 Keyboard Shortcuts on MSDN , but I find these 20 super convenient &amp; use it very often. Description Shortcut Create a New File CTRL+N Toggle full screen mode SHIFT+ALT+ENTER Set or remove a bookmark at the current line CTRL+K, CTRL+K Next bookmark CTRL+K, CTRL+N Previous bookmark CTRL+K, CTRL+P Clear bookmarks CTRL+K, CTRL+L Make the selected text a comment CTRL+K, CTRL+C Uncomment the selected text CTRL+K, CTRL + U Make the selected text upper case CTRL+SHIFT+U Make the selected text lower case CTRL+SHIFT+L Toggle between query and results pane F6 Display Object Explorer F8 Output results in text format CTRL+D Output results in a grid CTRL+T Cancel the executing query ALT+BREAK Display the estimated execution plan CTRL+L Display the Replace dialog box CTRL+F Display the Find dialog box CTRL+H Start incremental search CTRL+I Find the next occurrence of the previous search text F3 Related link...
+</div>
+<a class='snippet-fade r-snippet-fade hidden' href='http://mvark.blogspot.com/2008/06/20-sql-server-2005-keyboard-shortcuts_24.html'></a>
+</div>
+<div class='jump-link flat-button ripple'>
+<a href='http://mvark.blogspot.com/2008/06/20-sql-server-2005-keyboard-shortcuts_24.html' title='20 SQL Server 2005 Keyboard Shortcuts'>
+Read more
+</a>
+</div>
+</div>
+</article>
+</div>
+</div>
+</div></div>
+</main>
+</div>
+<footer class='footer section' id='footer' name='Footer'><div class='widget Attribution' data-version='2' id='Attribution1'>
+<div class='widget-content'>
+<div class='blogger'>
+<a href='https://www.blogger.com' rel='nofollow'>
+<svg class='svg-icon-24'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_post_blogger_black_24dp' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+Powered by Blogger
+</a>
+</div>
+<div class='image-attribution'>
+Theme images by <a href="http://www.istockphoto.com/portfolio/Maliketh?platform=blogger">Maliketh</a>
+</div>
+<div class='copyright'>&#169; M.V. 'Anil' Radhakrishna<br>Tech Tips, Tricks &amp; Trivia (T4) - An architect&#39;s notes, experiments, discoveries and annotated bookmarks.</div>
+</div>
+</div>
+</footer>
+</div>
+</div>
+</div>
+<aside class='sidebar-container container sidebar-invisible' role='complementary'>
+<div class='navigation'>
+<button class='svg-icon-24-button flat-icon-button ripple sidebar-back'>
+<svg class='svg-icon-24'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_arrow_back_black_24dp' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+</button>
+</div>
+<div class='sidebar_top_wrapper no-items'>
+<div class='sidebar_top no-items section' id='sidebar_top' name='Sidebar (Top)'>
+</div>
+</div>
+<div class='sidebar_bottom section' id='sidebar_bottom' name='Sidebar (Bottom)'><div class='widget Text' data-version='2' id='Text2'>
+<div class='widget-content'>
+<b>Tech Tips, Tricks & Trivia (T4) </b><br />by <b>M.V. 'Anil' Radhakrishna (@mvark) -  An architect's notes, experiments, discoveries and annotated bookmarks.</b>
+</div>
+</div><div class='widget LinkList' data-version='2' id='LinkList1'>
+<div class='widget-content'>
+<ul>
+<li><a href='https://mvark.blogspot.com/p/contact_23.html'>* Contact</a></li>
+<li><a href='http://mvark.blogspot.com/feeds/posts/default?alt=rss'>* RSS Feed</a></li>
+<li><a href='http://www.twitter.com/mvark'>* Follow @mvark on Twitter/X</a></li>
+<li><a href='https://gist.github.com/mvark'>* Github - @mvark</a></li>
+<li><a href='http://www.codeproject.com/script/Articles/MemberArticles.aspx?amid=36212'>* My CodeProject</a></li>
+</ul>
+</div>
+</div><div class='widget Image' data-version='2' id='Image2'>
+<div class='widget-content'>
+<a href='http://stackexchange.com/users/127818'>
+<img alt='' height='58' id='Image2_img' src='http://stackexchange.com/users/flair/127818.png' width='208'>
+</img>
+</a>
+<br/>
+</div>
+</div><div class='widget Image' data-version='2' id='Image1'>
+<div class='widget-content'>
+<a href='http://mvark.blogspot.in/2017/06/delighted-to-be-part-of-mvp-reconnect.html'>
+<img alt='' height='55' id='Image1_img' src='https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEisxR__uLPbXux2NMB7OKzm279YTAgDePNoNERnJupuwnkPPgkqJOH3OxrNxl6rcpxN2R4UG9PkhV3Zr-nBncHmpi_PP-FIzh20CCZ2gln6WrwNiY-6b3Te9ONpZn2vGJBodyrS/s164/MVP_Reconnect164X55.png' srcset='https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEisxR__uLPbXux2NMB7OKzm279YTAgDePNoNERnJupuwnkPPgkqJOH3OxrNxl6rcpxN2R4UG9PkhV3Zr-nBncHmpi_PP-FIzh20CCZ2gln6WrwNiY-6b3Te9ONpZn2vGJBodyrS/s72/MVP_Reconnect164X55.png 72w, https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEisxR__uLPbXux2NMB7OKzm279YTAgDePNoNERnJupuwnkPPgkqJOH3OxrNxl6rcpxN2R4UG9PkhV3Zr-nBncHmpi_PP-FIzh20CCZ2gln6WrwNiY-6b3Te9ONpZn2vGJBodyrS/s128/MVP_Reconnect164X55.png 128w, https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEisxR__uLPbXux2NMB7OKzm279YTAgDePNoNERnJupuwnkPPgkqJOH3OxrNxl6rcpxN2R4UG9PkhV3Zr-nBncHmpi_PP-FIzh20CCZ2gln6WrwNiY-6b3Te9ONpZn2vGJBodyrS/s220/MVP_Reconnect164X55.png 220w, https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEisxR__uLPbXux2NMB7OKzm279YTAgDePNoNERnJupuwnkPPgkqJOH3OxrNxl6rcpxN2R4UG9PkhV3Zr-nBncHmpi_PP-FIzh20CCZ2gln6WrwNiY-6b3Te9ONpZn2vGJBodyrS/s400/MVP_Reconnect164X55.png 400w, https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEisxR__uLPbXux2NMB7OKzm279YTAgDePNoNERnJupuwnkPPgkqJOH3OxrNxl6rcpxN2R4UG9PkhV3Zr-nBncHmpi_PP-FIzh20CCZ2gln6WrwNiY-6b3Te9ONpZn2vGJBodyrS/s640/MVP_Reconnect164X55.png 640w, https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEisxR__uLPbXux2NMB7OKzm279YTAgDePNoNERnJupuwnkPPgkqJOH3OxrNxl6rcpxN2R4UG9PkhV3Zr-nBncHmpi_PP-FIzh20CCZ2gln6WrwNiY-6b3Te9ONpZn2vGJBodyrS/s800/MVP_Reconnect164X55.png 800w, https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEisxR__uLPbXux2NMB7OKzm279YTAgDePNoNERnJupuwnkPPgkqJOH3OxrNxl6rcpxN2R4UG9PkhV3Zr-nBncHmpi_PP-FIzh20CCZ2gln6WrwNiY-6b3Te9ONpZn2vGJBodyrS/s1024/MVP_Reconnect164X55.png 1024w, https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEisxR__uLPbXux2NMB7OKzm279YTAgDePNoNERnJupuwnkPPgkqJOH3OxrNxl6rcpxN2R4UG9PkhV3Zr-nBncHmpi_PP-FIzh20CCZ2gln6WrwNiY-6b3Te9ONpZn2vGJBodyrS/s1280/MVP_Reconnect164X55.png 1280w, https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEisxR__uLPbXux2NMB7OKzm279YTAgDePNoNERnJupuwnkPPgkqJOH3OxrNxl6rcpxN2R4UG9PkhV3Zr-nBncHmpi_PP-FIzh20CCZ2gln6WrwNiY-6b3Te9ONpZn2vGJBodyrS/s1600/MVP_Reconnect164X55.png 1600w' width='164'>
+</img>
+</a>
+<br/>
+</div>
+</div><div class='widget Stats' data-version='2' id='Stats1'>
+<h3 class='title'>
+Total Pageviews
+</h3>
+<div class='widget-content'>
+<div id='Stats1_content' style='display: none;'>
+<script src='https://www.gstatic.com/charts/loader.js' type='text/javascript'></script>
+<span id='Stats1_sparklinespan' style='display:inline-block; width:75px; height:30px'></span>
+<span class='counter-wrapper graph-counter-wrapper' id='Stats1_totalCount'>
+</span>
+</div>
+</div>
+</div><div class='widget Feed' data-version='2' id='Feed1'>
+<h3 class='title'>
+Recent Posts &gt;&gt;
+</h3>
+<div class='widget-content' id='Feed1_feedItemListDisplay'>
+<span style='filter: alpha(25); opacity: 0.25;'>
+<a href='https://mvark.blogspot.com/feeds/posts/default?alt=rss'>Loading...</a>
+</span>
+</div>
+</div><div class='widget Label' data-version='2' id='Label1'>
+<details class='collapsible extendable version-1-0-1'>
+<summary>
+<div class='collapsible-title'>
+<h3 class='title'>
+Labels &gt;&gt;
+</h3>
+<svg class='svg-icon-24 chevron-down'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_expand_more_black_24dp' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<svg class='svg-icon-24 chevron-up'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_expand_less_black_24dp' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+</div>
+</summary>
+<div class='widget-content list-label-widget-content'>
+<div class='first-items'>
+<ul>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/Azure'>Azure<span class='label-count'>605</span></a></li>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/AI'>AI<span class='label-count'>304</span></a></li>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/HOWTO'>HOWTO<span class='label-count'>282</span></a></li>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/Cartoons'>Cartoons<span class='label-count'>187</span></a></li>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/GenAI'>GenAI<span class='label-count'>185</span></a></li>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/Javascript'>Javascript<span class='label-count'>175</span></a></li>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/Browsers'>Browsers<span class='label-count'>171</span></a></li>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/Book%20Review'>Book Review<span class='label-count'>103</span></a></li>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/Data'>Data<span class='label-count'>66</span></a></li>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/HTML5'>HTML5<span class='label-count'>62</span></a></li>
+</ul>
+</div>
+<div class='remaining-items'>
+<ul>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/Architecture'>Architecture<span class='label-count'>38</span></a></li>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/DevTools'>DevTools<span class='label-count'>15</span></a></li>
+<li><a class='label-name' href='http://mvark.blogspot.com/search/label/Comparison'>Comparison<span class='label-count'>3</span></a></li>
+</ul>
+</div>
+<span class='show-more pill-button'>Show more</span>
+<span class='show-less hidden pill-button'>Show less</span>
+</div>
+</details>
+</div><div class='widget BlogArchive' data-version='2' id='BlogArchive1'>
+<details class='collapsible extendable'>
+<summary>
+<div class='collapsible-title'>
+<h3 class='title'>
+Archive
+</h3>
+<svg class='svg-icon-24 chevron-down'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_expand_more_black_24dp' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+<svg class='svg-icon-24 chevron-up'>
+<use xlink:href='/responsive/sprite_v1_6.css.svg#ic_expand_less_black_24dp' xmlns:xlink='http://www.w3.org/1999/xlink'></use>
+</svg>
+</div>
+</summary>
+<div class='widget-content'>
+<div id='ArchiveList'>
+<div id='BlogArchive1_ArchiveList'>
+<div class='first-items'>
+<ul class='flat'>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2026/09/'>September 2026<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2026/08/'>August 2026<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2026/07/'>July 2026<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2026/06/'>June 2026<span class='post-count'>17</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2026/05/'>May 2026<span class='post-count'>14</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2026/04/'>April 2026<span class='post-count'>17</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2026/03/'>March 2026<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2026/02/'>February 2026<span class='post-count'>19</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2026/01/'>January 2026<span class='post-count'>17</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2025/12/'>December 2025<span class='post-count'>15</span></a>
+</li>
+</ul>
+</div>
+<div class='remaining-items'>
+<ul class='flat'>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2025/11/'>November 2025<span class='post-count'>19</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2025/10/'>October 2025<span class='post-count'>14</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2025/09/'>September 2025<span class='post-count'>14</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2025/08/'>August 2025<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2025/07/'>July 2025<span class='post-count'>26</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2025/06/'>June 2025<span class='post-count'>25</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2025/05/'>May 2025<span class='post-count'>18</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2025/04/'>April 2025<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2025/03/'>March 2025<span class='post-count'>20</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2025/02/'>February 2025<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2025/01/'>January 2025<span class='post-count'>21</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2024/12/'>December 2024<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2024/11/'>November 2024<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2024/10/'>October 2024<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2024/09/'>September 2024<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2024/08/'>August 2024<span class='post-count'>20</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2024/07/'>July 2024<span class='post-count'>14</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2024/06/'>June 2024<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2024/05/'>May 2024<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2024/04/'>April 2024<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2024/03/'>March 2024<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2024/02/'>February 2024<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2024/01/'>January 2024<span class='post-count'>19</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2023/12/'>December 2023<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2023/11/'>November 2023<span class='post-count'>26</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2023/10/'>October 2023<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2023/09/'>September 2023<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2023/08/'>August 2023<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2023/07/'>July 2023<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2023/06/'>June 2023<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2023/05/'>May 2023<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2023/04/'>April 2023<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2023/03/'>March 2023<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2023/02/'>February 2023<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2023/01/'>January 2023<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2022/12/'>December 2022<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2022/11/'>November 2022<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2022/10/'>October 2022<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2022/09/'>September 2022<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2022/08/'>August 2022<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2022/07/'>July 2022<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2022/06/'>June 2022<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2022/05/'>May 2022<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2022/04/'>April 2022<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2022/03/'>March 2022<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2022/02/'>February 2022<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2022/01/'>January 2022<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2021/12/'>December 2021<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2021/11/'>November 2021<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2021/10/'>October 2021<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2021/09/'>September 2021<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2021/08/'>August 2021<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2021/07/'>July 2021<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2021/06/'>June 2021<span class='post-count'>4</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2021/05/'>May 2021<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2021/04/'>April 2021<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2021/03/'>March 2021<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2021/02/'>February 2021<span class='post-count'>4</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2021/01/'>January 2021<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2020/12/'>December 2020<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2020/11/'>November 2020<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2020/10/'>October 2020<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2020/09/'>September 2020<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2020/08/'>August 2020<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2020/07/'>July 2020<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2020/06/'>June 2020<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2020/05/'>May 2020<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2020/04/'>April 2020<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2020/03/'>March 2020<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2020/02/'>February 2020<span class='post-count'>14</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2020/01/'>January 2020<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2019/12/'>December 2019<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2019/11/'>November 2019<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2019/10/'>October 2019<span class='post-count'>14</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2019/09/'>September 2019<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2019/08/'>August 2019<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2019/07/'>July 2019<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2019/06/'>June 2019<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2019/05/'>May 2019<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2019/04/'>April 2019<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2019/03/'>March 2019<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2019/02/'>February 2019<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2019/01/'>January 2019<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2018/12/'>December 2018<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2018/11/'>November 2018<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2018/10/'>October 2018<span class='post-count'>14</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2018/09/'>September 2018<span class='post-count'>17</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2018/08/'>August 2018<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2018/07/'>July 2018<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2018/06/'>June 2018<span class='post-count'>21</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2018/05/'>May 2018<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2018/04/'>April 2018<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2018/03/'>March 2018<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2018/02/'>February 2018<span class='post-count'>17</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2018/01/'>January 2018<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2017/12/'>December 2017<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2017/11/'>November 2017<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2017/10/'>October 2017<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2017/09/'>September 2017<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2017/08/'>August 2017<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2017/07/'>July 2017<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2017/06/'>June 2017<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2017/05/'>May 2017<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2017/04/'>April 2017<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2017/03/'>March 2017<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2017/02/'>February 2017<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2017/01/'>January 2017<span class='post-count'>17</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2016/12/'>December 2016<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2016/11/'>November 2016<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2016/10/'>October 2016<span class='post-count'>17</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2016/09/'>September 2016<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2016/08/'>August 2016<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2016/07/'>July 2016<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2016/06/'>June 2016<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2016/05/'>May 2016<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2016/04/'>April 2016<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2016/03/'>March 2016<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2016/02/'>February 2016<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2016/01/'>January 2016<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2015/12/'>December 2015<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2015/11/'>November 2015<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2015/10/'>October 2015<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2015/09/'>September 2015<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2015/08/'>August 2015<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2015/07/'>July 2015<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2015/06/'>June 2015<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2015/05/'>May 2015<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2015/04/'>April 2015<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2015/03/'>March 2015<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2015/02/'>February 2015<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2015/01/'>January 2015<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2014/12/'>December 2014<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2014/11/'>November 2014<span class='post-count'>17</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2014/10/'>October 2014<span class='post-count'>23</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2014/09/'>September 2014<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2014/08/'>August 2014<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2014/07/'>July 2014<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2014/06/'>June 2014<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2014/05/'>May 2014<span class='post-count'>17</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2014/04/'>April 2014<span class='post-count'>21</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2014/03/'>March 2014<span class='post-count'>18</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2014/02/'>February 2014<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2014/01/'>January 2014<span class='post-count'>21</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2013/12/'>December 2013<span class='post-count'>20</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2013/11/'>November 2013<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2013/10/'>October 2013<span class='post-count'>19</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2013/09/'>September 2013<span class='post-count'>14</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2013/08/'>August 2013<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2013/07/'>July 2013<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2013/06/'>June 2013<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2013/05/'>May 2013<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2013/04/'>April 2013<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2013/03/'>March 2013<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2013/02/'>February 2013<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2013/01/'>January 2013<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2012/12/'>December 2012<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2012/11/'>November 2012<span class='post-count'>14</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2012/10/'>October 2012<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2012/09/'>September 2012<span class='post-count'>14</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2012/08/'>August 2012<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2012/07/'>July 2012<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2012/06/'>June 2012<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2012/05/'>May 2012<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2012/04/'>April 2012<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2012/03/'>March 2012<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2012/02/'>February 2012<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2012/01/'>January 2012<span class='post-count'>2</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2011/12/'>December 2011<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2011/11/'>November 2011<span class='post-count'>2</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2011/10/'>October 2011<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2011/09/'>September 2011<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2011/08/'>August 2011<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2011/07/'>July 2011<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2011/06/'>June 2011<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2011/05/'>May 2011<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2011/04/'>April 2011<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2011/03/'>March 2011<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2011/02/'>February 2011<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2011/01/'>January 2011<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2010/12/'>December 2010<span class='post-count'>14</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2010/11/'>November 2010<span class='post-count'>18</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2010/10/'>October 2010<span class='post-count'>19</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2010/09/'>September 2010<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2010/08/'>August 2010<span class='post-count'>17</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2010/07/'>July 2010<span class='post-count'>17</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2010/06/'>June 2010<span class='post-count'>20</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2010/05/'>May 2010<span class='post-count'>17</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2010/04/'>April 2010<span class='post-count'>19</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2010/03/'>March 2010<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2010/02/'>February 2010<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2010/01/'>January 2010<span class='post-count'>4</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2009/12/'>December 2009<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2009/11/'>November 2009<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2009/10/'>October 2009<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2009/09/'>September 2009<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2009/08/'>August 2009<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2009/07/'>July 2009<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2009/06/'>June 2009<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2009/05/'>May 2009<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2009/04/'>April 2009<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2009/03/'>March 2009<span class='post-count'>18</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2009/02/'>February 2009<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2009/01/'>January 2009<span class='post-count'>20</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2008/12/'>December 2008<span class='post-count'>16</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2008/11/'>November 2008<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2008/10/'>October 2008<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2008/09/'>September 2008<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2008/08/'>August 2008<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2008/07/'>July 2008<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2008/06/'>June 2008<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2008/05/'>May 2008<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2008/04/'>April 2008<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2008/03/'>March 2008<span class='post-count'>4</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2008/02/'>February 2008<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2008/01/'>January 2008<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2007/12/'>December 2007<span class='post-count'>12</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2007/11/'>November 2007<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2007/10/'>October 2007<span class='post-count'>7</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2007/09/'>September 2007<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2007/08/'>August 2007<span class='post-count'>4</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2007/07/'>July 2007<span class='post-count'>3</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2007/06/'>June 2007<span class='post-count'>3</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2007/05/'>May 2007<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2007/04/'>April 2007<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2007/03/'>March 2007<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2007/02/'>February 2007<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2007/01/'>January 2007<span class='post-count'>3</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2006/12/'>December 2006<span class='post-count'>3</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2006/11/'>November 2006<span class='post-count'>3</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2006/10/'>October 2006<span class='post-count'>3</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2006/09/'>September 2006<span class='post-count'>3</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2006/08/'>August 2006<span class='post-count'>4</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2006/07/'>July 2006<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2006/06/'>June 2006<span class='post-count'>4</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2006/05/'>May 2006<span class='post-count'>3</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2006/04/'>April 2006<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2006/03/'>March 2006<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2006/02/'>February 2006<span class='post-count'>3</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2006/01/'>January 2006<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2005/12/'>December 2005<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2005/10/'>October 2005<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2005/09/'>September 2005<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2005/08/'>August 2005<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2005/07/'>July 2005<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2005/06/'>June 2005<span class='post-count'>11</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2005/05/'>May 2005<span class='post-count'>6</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2005/04/'>April 2005<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2005/03/'>March 2005<span class='post-count'>5</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2005/02/'>February 2005<span class='post-count'>8</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2005/01/'>January 2005<span class='post-count'>10</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2004/12/'>December 2004<span class='post-count'>13</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2004/11/'>November 2004<span class='post-count'>15</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2004/10/'>October 2004<span class='post-count'>9</span></a>
+</li>
+<li class='archivedate'>
+<a href='http://mvark.blogspot.com/2004/09/'>September 2004<span class='post-count'>1</span></a>
+</li>
+</ul>
+</div>
+<span class='show-more pill-button'>Show more</span>
+<span class='show-less hidden pill-button'>Show less</span>
+</div>
+</div>
+</div>
+</details>
+</div><div class='widget HTML' data-version='2' id='HTML1'>
+<div class='widget-content'>
+<a href="http://my.statcounter.com/project/standard/stats.php?project_id=1125260&guest=1" target="_blank">Stats</a>
+<p align="center">
+<!-- Start of StatCounter Code -->
+<script async type="text/javascript">
+var sc_project=1125260; 
+var sc_invisible=0; 
+var sc_partition=10; 
+var sc_security="fb64d7b2"; 
+</script>
+<script async type="text/javascript" src="http://www.statcounter.com/counter/counter_xhtml.js"></script><noscript><div class="statcounter"><a class="statcounter" href="http://www.statcounter.com/"><img class="statcounter" src="http://c11.statcounter.com/counter.php?sc_project=1125260&java=0&security=fb64d7b2&invisible=0" alt="website stats" /></a></div></noscript></p>
+</div>
+</div></div>
+</aside>
+<script type="text/javascript" src="https://resources.blogblog.com/blogblog/data/res/217099483-strm_compiled.js" async="true"></script>
+
+<script type="text/javascript" src="https://www.blogger.com/static/v1/widgets/851759228-widgets.js"></script>
+<script type='text/javascript'>
+window['__wavt'] = 'AAPvtVlytukCn5ZuW7n79GwxRSU0:1790778516951';_WidgetManager._Init('//www.blogger.com/rearrange?blogID\x3d8211560','//mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html','8211560');
+_WidgetManager._SetDataContext([{'name': 'blog', 'data': {'blogId': '8211560', 'title': 'Tech Tips, Tricks \x26amp; Trivia', 'url': 'http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html', 'canonicalUrl': 'http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html', 'homepageUrl': 'http://mvark.blogspot.com/', 'searchUrl': 'http://mvark.blogspot.com/search', 'canonicalHomepageUrl': 'http://mvark.blogspot.com/', 'blogspotFaviconUrl': 'http://mvark.blogspot.com/favicon.ico', 'bloggerUrl': 'https://www.blogger.com', 'hasCustomDomain': false, 'httpsEnabled': true, 'enabledCommentProfileImages': true, 'gPlusViewType': 'FILTERED_POSTMOD', 'adultContent': false, 'analyticsAccountNumber': '', 'encoding': 'UTF-8', 'locale': 'en', 'localeUnderscoreDelimited': 'en', 'languageDirection': 'ltr', 'isPrivate': false, 'isMobile': false, 'isMobileRequest': false, 'mobileClass': '', 'isPrivateBlog': false, 'isDynamicViewsAvailable': true, 'feedLinks': '\x3clink rel\x3d\x22alternate\x22 type\x3d\x22application/atom+xml\x22 title\x3d\x22Tech Tips, Tricks \x26amp; Trivia - Atom\x22 href\x3d\x22http://mvark.blogspot.com/feeds/posts/default\x22 /\x3e\n\x3clink rel\x3d\x22alternate\x22 type\x3d\x22application/rss+xml\x22 title\x3d\x22Tech Tips, Tricks \x26amp; Trivia - RSS\x22 href\x3d\x22http://mvark.blogspot.com/feeds/posts/default?alt\x3drss\x22 /\x3e\n\x3clink rel\x3d\x22service.post\x22 type\x3d\x22application/atom+xml\x22 title\x3d\x22Tech Tips, Tricks \x26amp; Trivia - Atom\x22 href\x3d\x22https://www.blogger.com/feeds/8211560/posts/default\x22 /\x3e\n\n\x3clink rel\x3d\x22alternate\x22 type\x3d\x22application/atom+xml\x22 title\x3d\x22Tech Tips, Tricks \x26amp; Trivia - Atom\x22 href\x3d\x22http://mvark.blogspot.com/feeds/1976566337234110981/comments/default\x22 /\x3e\n', 'meTag': '', 'adsenseClientId': 'ca-pub-9109889343080606', 'adsenseHostId': 'ca-host-pub-1556223355139109', 'adsenseHasAds': true, 'adsenseAutoAds': false, 'boqCommentIframeForm': true, 'loginRedirectParam': '', 'isGoogleEverywhereLinkTooltipEnabled': true, 'view': '', 'dynamicViewsCommentsSrc': '//www.blogblog.com/dynamicviews/4224c15c4e7c9321/js/comments.js', 'dynamicViewsScriptSrc': '//www.blogblog.com/dynamicviews/7ce469edaf870342', 'plusOneApiSrc': 'https://apis.google.com/js/platform.js', 'disableGComments': true, 'interstitialAccepted': false, 'sharing': {'platforms': [{'name': 'Get link', 'key': 'link', 'shareMessage': 'Get link', 'target': ''}, {'name': 'Facebook', 'key': 'facebook', 'shareMessage': 'Share to Facebook', 'target': 'facebook'}, {'name': 'BlogThis!', 'key': 'blogThis', 'shareMessage': 'BlogThis!', 'target': 'blog'}, {'name': 'X', 'key': 'twitter', 'shareMessage': 'Share to X', 'target': 'twitter'}, {'name': 'Pinterest', 'key': 'pinterest', 'shareMessage': 'Share to Pinterest', 'target': 'pinterest'}, {'name': 'Email', 'key': 'email', 'shareMessage': 'Email', 'target': 'email'}], 'disableGooglePlus': true, 'googlePlusShareButtonWidth': 0, 'googlePlusBootstrap': '\x3cscript type\x3d\x22text/javascript\x22\x3ewindow.___gcfg \x3d {\x27lang\x27: \x27en\x27};\x3c/script\x3e'}, 'hasCustomJumpLinkMessage': false, 'jumpLinkMessage': 'Read more', 'pageType': 'item', 'postId': '1976566337234110981', 'postImageThumbnailUrl': 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgSaudK5BQkqRkNj4lIArPzuDeEyd2UYVIYYfWDEF7vr230Posy51ydTkZt7HvZtWnIU9TxmBPewJU2zHWp_tgtu1ZUgzEXUdKfTpiL0TW4CxfJxmZoFFH2-gW6UUOgnnMc4ZnhcrZYLJhoimvqmwEz5nIrf03jbLVLL6YxOwe7eXMI_jubkPN0/s72-c/uncle-bob.jpg', 'postImageUrl': 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgSaudK5BQkqRkNj4lIArPzuDeEyd2UYVIYYfWDEF7vr230Posy51ydTkZt7HvZtWnIU9TxmBPewJU2zHWp_tgtu1ZUgzEXUdKfTpiL0TW4CxfJxmZoFFH2-gW6UUOgnnMc4ZnhcrZYLJhoimvqmwEz5nIrf03jbLVLL6YxOwe7eXMI_jubkPN0/s1600/uncle-bob.jpg', 'pageName': 'Uncle Bob vs. Grady Booch: Rethinking Code Reviews in the Age of AI', 'pageTitle': 'Tech Tips, Tricks \x26amp; Trivia: Uncle Bob vs. Grady Booch: Rethinking Code Reviews in the Age of AI', 'metaDescription': ''}}, {'name': 'features', 'data': {}}, {'name': 'messages', 'data': {'edit': 'Edit', 'linkCopiedToClipboard': 'Link copied to clipboard!', 'ok': 'Ok', 'postLink': 'Post Link'}}, {'name': 'template', 'data': {'name': 'custom', 'localizedName': 'Custom', 'isResponsive': true, 'isAlternateRendering': false, 'isCustom': true}}, {'name': 'view', 'data': {'classic': {'name': 'classic', 'url': '?view\x3dclassic'}, 'flipcard': {'name': 'flipcard', 'url': '?view\x3dflipcard'}, 'magazine': {'name': 'magazine', 'url': '?view\x3dmagazine'}, 'mosaic': {'name': 'mosaic', 'url': '?view\x3dmosaic'}, 'sidebar': {'name': 'sidebar', 'url': '?view\x3dsidebar'}, 'snapshot': {'name': 'snapshot', 'url': '?view\x3dsnapshot'}, 'timeslide': {'name': 'timeslide', 'url': '?view\x3dtimeslide'}, 'isMobile': false, 'title': 'Uncle Bob vs. Grady Booch: Rethinking Code Reviews in the Age of AI', 'description': 'Tech Tips, Tricks \x26 Trivia (T4) covers how-to articles, book reviews, hacks on topics related to AI, Cloud, Web \x26 Microsoft technologies', 'featuredImage': 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgSaudK5BQkqRkNj4lIArPzuDeEyd2UYVIYYfWDEF7vr230Posy51ydTkZt7HvZtWnIU9TxmBPewJU2zHWp_tgtu1ZUgzEXUdKfTpiL0TW4CxfJxmZoFFH2-gW6UUOgnnMc4ZnhcrZYLJhoimvqmwEz5nIrf03jbLVLL6YxOwe7eXMI_jubkPN0/s1600/uncle-bob.jpg', 'url': 'http://mvark.blogspot.com/2026/04/uncle-bob-vs-grady-booch-rethinking.html', 'type': 'item', 'isSingleItem': true, 'isMultipleItems': false, 'isError': false, 'isPage': false, 'isPost': true, 'isHomepage': false, 'isArchive': false, 'isLabelSearch': false, 'postId': 1976566337234110981}}, {'name': 'widgets', 'data': [{'title': 'Search This Blog', 'type': 'BlogSearch', 'sectionId': 'search_top', 'id': 'BlogSearch1'}, {'title': 'Tech Tips, Tricks \x26amp; Trivia (Header)', 'type': 'Header', 'sectionId': 'header', 'id': 'Header1'}, {'title': '', 'type': 'PageList', 'sectionId': 'page_list_top', 'id': 'PageList1'}, {'title': 'Blog Posts', 'type': 'Blog', 'sectionId': 'page_body', 'id': 'Blog1', 'posts': [{'id': '1976566337234110981', 'title': 'Uncle Bob vs. Grady Booch: Rethinking Code Reviews in the Age of AI', 'featuredImage': 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgSaudK5BQkqRkNj4lIArPzuDeEyd2UYVIYYfWDEF7vr230Posy51ydTkZt7HvZtWnIU9TxmBPewJU2zHWp_tgtu1ZUgzEXUdKfTpiL0TW4CxfJxmZoFFH2-gW6UUOgnnMc4ZnhcrZYLJhoimvqmwEz5nIrf03jbLVLL6YxOwe7eXMI_jubkPN0/s1600/uncle-bob.jpg', 'showInlineAds': true}], 'headerByline': {'regionName': 'header1', 'items': [{'name': 'share', 'label': ''}, {'name': 'labels', 'label': ''}]}, 'footerBylines': [{'regionName': 'footer1', 'items': [{'name': 'timestamp', 'label': ''}, {'name': 'comments', 'label': 'comments'}]}], 'allBylineItems': [{'name': 'share', 'label': ''}, {'name': 'labels', 'label': ''}, {'name': 'timestamp', 'label': ''}, {'name': 'comments', 'label': 'comments'}]}, {'title': '', 'type': 'PopularPosts', 'sectionId': 'page_body', 'id': 'PopularPosts1', 'posts': [{'title': 'From Stiff Chatbot to Savage Sidekick: The UI/UX Glow-Up Story', 'id': 7558117214754489086}, {'title': 'HOW TO Turn Your Mobile Browser into a Barcode Scanner for Web Apps', 'id': 7941509270309098153}, {'title': '20 SQL Server 2005 Keyboard Shortcuts', 'id': 959197523135973473}]}, {'type': 'Attribution', 'sectionId': 'footer', 'id': 'Attribution1'}, {'title': '', 'type': 'Text', 'sectionId': 'sidebar_bottom', 'id': 'Text2'}, {'title': '', 'type': 'LinkList', 'sectionId': 'sidebar_bottom', 'id': 'LinkList1'}, {'title': '', 'type': 'Image', 'sectionId': 'sidebar_bottom', 'id': 'Image2'}, {'title': '', 'type': 'Image', 'sectionId': 'sidebar_bottom', 'id': 'Image1'}, {'title': 'Total Pageviews', 'type': 'Stats', 'sectionId': 'sidebar_bottom', 'id': 'Stats1'}, {'title': 'Recent Posts \x26gt;\x26gt;', 'type': 'Feed', 'sectionId': 'sidebar_bottom', 'id': 'Feed1'}, {'title': 'Labels \x26gt;\x26gt;', 'type': 'Label', 'sectionId': 'sidebar_bottom', 'id': 'Label1'}, {'title': '', 'type': 'BlogArchive', 'sectionId': 'sidebar_bottom', 'id': 'BlogArchive1'}, {'title': '', 'type': 'HTML', 'sectionId': 'sidebar_bottom', 'id': 'HTML1'}]}]);
+_WidgetManager._RegisterWidget('_BlogSearchView', new _WidgetInfo('BlogSearch1', 'search_top', document.getElementById('BlogSearch1'), {}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_HeaderView', new _WidgetInfo('Header1', 'header', document.getElementById('Header1'), {}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_PageListView', new _WidgetInfo('PageList1', 'page_list_top', document.getElementById('PageList1'), {'title': '', 'links': [{'isCurrentPage': false, 'href': 'http://feeds.feedburner.com/WebDevelopmentTipsTricksTrivia', 'title': '))\x3e RSS'}, {'isCurrentPage': false, 'href': 'https://mvark.blogspot.com/search/label/HOWTO', 'title': 'HOW TO'}, {'isCurrentPage': false, 'href': 'http://mvark.blogspot.com/p/digitoons.html', 'id': '8995942810689164325', 'title': 'Digitoons'}, {'isCurrentPage': false, 'href': 'https://mvark.blogspot.com/search/label/Book%20Review', 'title': 'Book Reviews'}, {'isCurrentPage': false, 'href': 'http://mvark.blogspot.com/p/contact_23.html', 'id': '7882881327601514390', 'title': 'Contact'}], 'mobile': false, 'showPlaceholder': true, 'hasCurrentPage': false}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_BlogView', new _WidgetInfo('Blog1', 'page_body', document.getElementById('Blog1'), {'cmtInteractionsEnabled': false, 'lightboxEnabled': true, 'lightboxModuleUrl': 'https://www.blogger.com/static/v1/jsbin/120969204-lbx.js', 'lightboxCssUrl': 'https://www.blogger.com/static/v1/v-css/828616780-lightbox_bundle.css'}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_PopularPostsView', new _WidgetInfo('PopularPosts1', 'page_body', document.getElementById('PopularPosts1'), {}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_AttributionView', new _WidgetInfo('Attribution1', 'footer', document.getElementById('Attribution1'), {}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_TextView', new _WidgetInfo('Text2', 'sidebar_bottom', document.getElementById('Text2'), {}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_LinkListView', new _WidgetInfo('LinkList1', 'sidebar_bottom', document.getElementById('LinkList1'), {}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_ImageView', new _WidgetInfo('Image2', 'sidebar_bottom', document.getElementById('Image2'), {'resize': false}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_ImageView', new _WidgetInfo('Image1', 'sidebar_bottom', document.getElementById('Image1'), {'resize': false}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_StatsView', new _WidgetInfo('Stats1', 'sidebar_bottom', document.getElementById('Stats1'), {'title': 'Total Pageviews', 'showGraphicalCounter': true, 'showAnimatedCounter': false, 'showSparkline': true, 'statsUrl': '//mvark.blogspot.com/b/stats?style\x3dBLACK_TRANSPARENT\x26timeRange\x3dALL_TIME\x26token\x3dAEz_qU9UHYwpP8oCsp5go2JXUf8Ylm6JQuTgZGX4BHt4hr7dq027rqI-OYR4_FRfx0xv8eA'}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_FeedView', new _WidgetInfo('Feed1', 'sidebar_bottom', document.getElementById('Feed1'), {'title': 'Recent Posts \x26gt;\x26gt;', 'showItemDate': true, 'showItemAuthor': false, 'feedUrl': 'https://mvark.blogspot.com/feeds/posts/default?alt\x3drss', 'numItemsShow': 5, 'loadingMsg': 'Loading...', 'openLinksInNewWindow': true, 'useFeedWidgetServ': 'true'}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_LabelView', new _WidgetInfo('Label1', 'sidebar_bottom', document.getElementById('Label1'), {}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_BlogArchiveView', new _WidgetInfo('BlogArchive1', 'sidebar_bottom', document.getElementById('BlogArchive1'), {'languageDirection': 'ltr', 'loadingMessage': 'Loading\x26hellip;'}, 'displayModeFull'));
+_WidgetManager._RegisterWidget('_HTMLView', new _WidgetInfo('HTML1', 'sidebar_bottom', document.getElementById('HTML1'), {}, 'displayModeFull'));
+</script>
+</body>
+</html>

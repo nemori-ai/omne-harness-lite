@@ -1,0 +1,37 @@
+{
+  "sourceCommit": "e949760d4e581f8441c4e9dda265ad14dc371947",
+  "environment": {
+    "node": "24.18.0",
+    "pnpm": "10.28.1"
+  },
+  "totalActualUsd": "0.33802",
+  "requests": 5,
+  "unknownAdded": 0,
+  "files": {
+    "inputs/catalog.json": "f058b4004d64ceb390056bb7584424d83abb779af24579cf62cfe064425a1155",
+    "inputs/directory.raw.json": "20420f9a19b0973a5868d5005519893a650f22b659258fb07fe4b7d223883337",
+    "inputs/endpoint.raw.json": "add76ca3fa1f76f92db84986c85071acbc28721a89663281184e64b731223071",
+    "inputs/scenario.json": "6655a01437e0185c4507e0b1ba2a3d8ed1f0459097709d47447209a32435c23a",
+    "outputs/dry-run-result.json": "d7bd5a04a1bc934834224a4bbfe715c348a0b602ac2824f1e00d9b452df807e0",
+    "outputs/fable-cache-hub-dry.log": "7152ef31468f8f42dfce9112d73092f5cc1e92f74101d99abc10ebe9840d9247",
+    "outputs/fable-cache-hub-paid.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "outputs/fable-cache-hub-review.log": "e9904a52ea731fdb71f57ed0376316722d0635188a6076d3d8f9c343737b3e48",
+    "outputs/ledger-five-entries.json": "9df20e1b2ad7b01d38186d8dbe0bbcf52c2b8eaff8beed814fff354ac95dd30a",
+    "outputs/manifest.json": "06285f292519ee2045b889c8c60e2799a847e0827a986b80456fe6703111dae0",
+    "outputs/physical-batch-verification.json": "53223d1fb897d9506b1ddf70402c40bebe8ccb3ae6483820b9dc58a8c50011a0",
+    "outputs/physical-check-initial-failure.txt": "afa6a154998a778e03b47d4bf19e8016bc114ef3099a9dc56843af4f5c3db2d2",
+    "outputs/public-1d740f0c-4c7d-41d2-bff5-32be82b36c99.json": "8a0f6f4c86912bd6fb22b0f8b975dba1a637e5f111334d8f1de6d31646628b7e",
+    "outputs/public-8a1d7a0b-e89b-4003-acf7-25080caf8650.json": "a88dc4be93cec5ed13b1b0e51a698d785127d696df691dc2cf3883c33093f960",
+    "outputs/public-cache-pair.json": "2e9c9923742987921ae2bc1130f6b78d5a145a151d20ad324ce2627db5fff552",
+    "outputs/service-561abf45-8ba0-425e-86f0-2d61148774c4.json": "072a9abf38509742835900f9a83aea515dec7ae3bf95b56e6b66929db74716a4",
+    "outputs/service-8e64e8c8-9570-426d-b473-2e6b35a946b9.json": "9b1c7016852acefbbded1e8dc46cdd28b7e0cde0487e0768a54d9a4503249d16",
+    "outputs/service-9e46da7e-189d-4a28-ae79-0eb67db87abd.json": "183e8857b83724d97dd7967d0200b9a7123bd5ed4ed50c1941704f4deeabbcc4",
+    "outputs/service-close-0a2ffb45-542f-46ae-aac9-c52ea296933c.json": "7ee2c3984b5a22d2b45786c13f542015877c28d328fb956655e5ef142ce42003",
+    "scripts/catalog-anthropic.mjs": "932a386d1cea2bf1ed733c536bfd6f92af51db3dd31179d814af23868431ad53",
+    "scripts/dry-run.mjs": "2b250c1dd967db9669999de3935fb245118951a15b3cc7dd98431259cc2be190",
+    "scripts/paid-core.mjs": "4b1fe6e85ac2e82a22c2e8bd0bb093239fcfa6298f0bfeedaa14fe40ae5ab5d5",
+    "scripts/paid.mjs": "ee3ad0007da5788a6e2df8e1407c0e003d3563b966b4a53ae0608b175b0359b9",
+    "scripts/review.mjs": "15807b6c60ec93867034a534e1fcb9bd5087bcdcaad5558f2f734bdd553b847a",
+    "scripts/service-core.mjs": "a823513a9580ab9a7a2d892f260feb489743ba0ae6dfed710b42062178bc361d"
+  }
+}

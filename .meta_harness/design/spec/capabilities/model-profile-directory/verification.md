@@ -1,9 +1,47 @@
 # 验证覆盖与实际证据
 
-`capability.model-profile-directory` v2（candidate）的证据义务与执行状态。本文件可更新，位于规范版本目录之外；
+## v5 发布前破坏性演进
+
+本轮表达复评点名的版本自称、精确消费坐标与前驱执行声明已定点修订；MR7 与 runner5 当前产品依据按实际消费范围核对。字段结构、行为模型与既有操作责任保持不变。
+
+本轮从已接受且冻结的 `capability.model-profile-directory/v4` 起草 candidate v5，基线 `11c6c5b0`。源接受依据为 D-097（MP4）或 D-099（其余六份）；本版没有接受、冻结或实现完成声明。
+
+### 变化的影响（本轮）
+
+- 只更新本批精确链 MP5 / Directory5 / MS6 / MR7 / LC6 / RT7 / runner5，并删除旧格式 codec、只读、认回与结算过渡义务；既有 IV、CB、日志、资产与 hooks 等精确依赖不升级。
+- 字段、值域、Schema 结构、操作、失败集合、发送门、数值与策略不变；RT S-34 的完整失败主体重取继续原义。data 的 `$id` / `$ref` 与注释中的对应坐标同步迁移。
+- 不原地改写、清空或回填用户旧数据；不兼容输入沿既有边界明确拒绝。当前代际已经受理的任务、不可变快照、未知结果、原批认回与释放结算责任继续成立。
+
+| 证据义务 | 可失败观察 | 状态 / owner |
+|---|---|---|
+| 精确依赖及 Schema 同构 | 除本批坐标和说明文字外出现结构差异即失败；所有 `$ref` 精确解析 | 本次检查结果见下；规格起草 / 集成 owner |
+| 冻结源与形式工件保持 | 源登记 hash 改变，或 `.tla`/`.cfg`/`.als` 任一字节改变即失败 | 本次检查结果见下；规格起草 |
+| 当前格式唯一运行路径 | 旧不兼容输入不得进入旧 codec、不得降级/回填、不得写/清空原数据 | 未开始；相应数据接收者 / 提供者 |
+| 当前代际责任不丢失 | 当前任务未知提交或已受理工作仍由原 owner 认回/恢复/结算；新格式拒绝不能抹旧事实 | 未开始；runtime / runner / 日志提供者 |
+| 公共操作与最终门不退化 | 原输入上限、Pending 回复、重试历史及 S-34 失败重取仍按原精确性质成立 | 未开始；对应消费者及验证 owner |
+
+### 本次实际检查
+
+本轮使用本树 `uv run --locked python` 执行临时审计脚本，实际输出：
+
+```text
+PASS: 584 frozen source hashes unchanged; 4 schemas structurally identical after exact $id/$ref remap; 276 refs resolved; 58 formal source/config files byte-identical; 86 explicit schema cases matched; RT S-34 unchanged except coordinates; all dependency clauses unchanged.
+NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery/settlement and actual IO.
+```
+
+`uv run --locked python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip` 的本轮检查返回 0，输出 `PASS`（gate=internal; formal=skip）；候选中央登记尚待集成，检查通过不声称已登记或接受。`git diff --check` 返回 0。
+
+本次核对本基线全部 **584** 个冻结资源，脚本与日志在本次任务区交集成 owner 保留，尚未归档为 record/evidence。本版 82 个规范资源中的 58 份形式源/配置均与各自前驱逐字节相同。**本轮形式工具未运行**，源有限结果只保留相同模型输入与断言范围，不提升为本版真实实现验证。当前格式拒绝与责任不丢失的实现场景仍为未开始；原有缺口的 owner 保留，旧格式分发缺口改为当前格式采用与拒绝证据。
+
+### v5 变化的影响
+
+本版仅继承该专题性质与来源证据，实际状态统一见本节「本次实际检查」；不声明本轮重新运行模型或实现测试。
+
+
+`capability.model-profile-directory` 已接受 v2 与候选 v3 的证据义务及执行状态。本文件可更新，位于规范版本目录之外；
 结果始终绑定实际规范与实现修订。
 
-**当前状态：全部义务「未开始」。**没有实现，没有执行过任何场景；本页不含任何通过记录。
+**行为验证状态：全部义务「未开始」。**下方既有义务与评审历史属于 v2；本批 v3 的变化、检查范围及独立义务在文末单列。文档检查不等于实现或场景通过。
 
 ## 证据义务
 
@@ -131,3 +169,116 @@ spec-reviewer（只读），2026-09-25，基线 HUB `8ad37c50`，发现表 `tmp/
 **对齐义务（与 `capability.credential-custodian` v2）**：本契约 [S-7](v2/contract.md#s-7-凭据绑定)「一个租户至多一把、替换即轮换」与 [S-12](v2/contract.md#s-12-秘密只在一个问法里出现)「秘密只在取值问法里出现」一改，那份契约的 S-5、S-8 要跟着改（它的 catalog 边指着这两条）；那份契约的副本条目、`absent`／`unavailable` 两分一改，本契约 S-20 ⑧ 的「租户那一格读不到 ⇒ `unavailable`」要复核。两边都是 candidate，谁先改谁在自己的「变化的影响」里点名另一边。
 
 **没有证据因此作废**——本契约此前没有执行证据。
+
+## v3 变化的影响
+
+2026-09-27，执行树基线 `d4eaf7673bc161bf22f6682385151e080d3323ae`；依据[模型请求适配提案 revision 2](../../../record/proposals/model-request-adaptation/design.md)、目录 v3 施工简报及主线关于配置修订生命周期和失败次序的补充裁定。候选未接受，v2 冻结正文及实例不改。
+
+| 改变 | 语义与采用影响 | 责任及证据 |
+|---|---|---|
+| [v3 S-4](v3/contract.md#s-4-依赖方向与被消费的面) 采用 data.model-profile v3 | 五份直接依赖仅档案数据升版；新增实质消费 S-29～S-31。目录十个操作及八失败值保留；不声称 v2 已接收或返回绑定 | 主线集成 candidate catalog、covers；不新增编号族或 formal task |
+| [S-14](v3/contract.md#s-14-registerprofile)、[S-16](v3/contract.md#s-16-readprofile)、[S-17](v3/contract.md#s-17-listprofiles)、[S-18](v3/contract.md#s-18-loadmanifest)、[S-31](v3/contract.md#s-31-updateprofile)、[S-34](v3/contract.md#s-34-模型适配绑定的读写) 完整绑定读写 | 绑定必给且模型 ID 与路由名相等；整项替换，完整值参与认回；未注册不会阻断目录结构合法的写入。运行时准入另判可用性 | 数据校验与目录接收边界、治理调用者及运行时读面显式采用新版本 |
+| 同档案配置修订不可改义 | 主线确认覆盖整个档案生命周期；增加耐久判重事实，和档案变化同提交；不同档案同修订可各有值。不提供历史档案读面 | 提供者补存储要求；并发、失败注入与重启场景未开始 |
+| 有状态内容冲突仍为 `invalidInput{reason: malformed}` | 授权前不读历史；register 的冲突先于 routeNameTaken；update 在解析及完整形状后；manifest 在旧序号或同序号认回/拒绝之后。单文档 Schema 不能判该冲突 | 新 [examples §7](v3/examples.md#7-v3-绑定的写入修订与隔离)、[§8](v3/examples.md#8-发布采用与停止旧准入的交接)；不增加 data 表示层拒绝值 |
+| [S-35](v3/contract.md#s-35-发布采用与停止旧准入) 发布三动作 | 注册、目录采用、显式停止旧准入分别成功或失败；自建行不随 official 自动变化；不引入跨 owner 原子提交 | 注册及 runtime owner 的模型与真实组合证据，目录局部检查不代替 |
+| [S-22](v3/contract.md#s-22-装配给的保证-vs-协议须给的保证) 本批独立单机装配 | 允许现读同一权威存储；凭据仍须真实授权/保管。G-7 中心到据点协议保留；本地通过不覆盖副本新鲜度或秘密下发 | realization 与装配 owner；不新建中心凭据能力、不写提供者设计 |
+| PF-013 rev 12 → 13 核对 | rev 13 只收窄据点 factory 凭据验收及呈现归属，不改变本能力范围与授权。既有出厂凭据场景仅在明确配有该凭据的本地部署使用，不推为真实据点承诺 | 本版输入更新为 PF-013 rev 13；PF-001 rev 19、PF-002 rev 20、PF-016 rev 8 不变 |
+| 修正旧导航与示例前提 | README 的 OG v2 误记改按 catalog 取 OG v1；S-26 两个并发建档显式内容不同但配置同修订同值，以排除认回与新配置冲突分支；选中模型仍记路由名 | 表达修正沿既有条款，不改变政策；仅影响新 v3 场景，旧冻结资源不动 |
+
+### v3 消费者传播
+
+| 消费者 | 当前状态及所需变化 | 闭合条件 |
+|---|---|---|
+| 目录提供者与独立验收装配 | 既有接受设计仍基于 v2；需采用 v3 完整内容、判重事实的存储与事务、本机真实读取及授权 | 对应 realization 明确采用并通过真实存储/组合验收；目录候选不代替设计或实现 |
+| 模型请求运行时 | 旧 v2 消费者不能接收新绑定；本批 runtime v3 须显式采用目录 v3、完整快照及 exact-version 取得 | 新候选批对齐、评审、接受及真实生命周期验证分别完成 |
+| 管理入口与 official 发布者 | 建档/清单必填绑定；旧文档不得补默认值后冒称原输入。自建修改须整体替换；发布序号 producer 保留 G-9 | 显式采用数据和目录 v3，并验证失败原子性及发布动作授权 |
+| credential-custodian v2 及其采用者 | S-7、S-12、S-20 的来源与范围语义未改变；仍按既有反向依赖/对齐口径，不反向新增目录→custodian catalog 边 | 复核绑定查询与 absent/unavailable；中心一侧、跨进程 G-7 继续显式阻断 |
+
+### v3 证据义务
+
+全部运行行为义务**未开始**。继承前述 v2 场景的规范目标，实际执行必须针对 v3 接收边界和新表示重跑，不能把旧数据的通过追认为新版本通过。
+
+| 条款/性质 | 可失败的检查与前提 | 状态/owner |
+|---|---|---|
+| S-14、S-16、S-17、S-18、S-31 完整往返 | 建档、单读、列表、清单、修订真实路径均比较完整 binding；缺绑定、缺 values、模型错配拒绝 | 未开始；目录提供者 |
+| S-34 精确配置值 | 对象重排及数值等价应认回；超出 IEEE-754 的相邻整数不得误认相等；重复 JSON 成员在对象化前拒绝 | 未开始；数据接收边界与目录提供者 |
+| S-34 生命周期不可改义 | c1→c2→重启→c1 不同值拒绝；撤回、恢复后仍拒绝；跨档案同修订不同值允许 | 未开始；真实存储检查 |
+| S-34 同提交 | 并发同新修订不同值只一方成功；注入行写/判重写/清单提交失败，无半份状态；读不到判重依据返回 unavailable | 未开始；目录提供者，必须真并发及故障注入 |
+| S-9/S-14/S-18/S-31 拒绝次序 | 无权者在行存在/不存在、冲突/不冲突时结果不可区分；旧序号在配置冲突之前拒绝；已授权写明确冲突 | 未开始；目录符合性测试 |
+| S-35 发布交接 | 新版本注册失败、目录采用失败、official 更新不动 custom、旧版本提前停准入，观察各 owner 的实际状态 | 未开始；发布/注册/runtime 真实组合 |
+| S-22 本机读与凭据 | 同存储读只见提交后的完整状态；授权真实，租户失败不回落 factory，秘密只在 value 返回 | 未开始；独立单机装配，G-7 跨进程不在此范围 |
+
+本包不新增 TLA+/Alloy/Schema。注册、取得引用与撤除模型归 runtime 候选；本页不将其存在登记为本目录已验证。目录文档检查范围与实际输出另列，不能由检查器通过推出上述行为成立。
+
+### v3 报给主线
+
+- 本包保持 candidate；registry 四清单由主线唯一 owner 集成，起草者提供精确候选 metadata，未自行登记、接受或冻结。
+- 主线已裁定同档案配置修订终身判重及失败次序；提供者必须补同存储提交要求，不得仅比较当前行。
+- 新增模型适配绑定使用已有词条，无新增术语或产品政策。旧文中保管方、官方清单、发布序号等“无词条”标记沿用，不在本任务补造词条。
+- 仍未闭合 **G-7**（中心↔据点组合协议；架构 owner）和 **G-9**（发布序号单一来源及发布方鉴别；发布/装配 owner）。其余已闭合编号不复用；本版未新增 G-n。
+
+### v3 本次实际文档检查
+
+2026-09-27，在上述工作树中使用本检出的 `.venv/bin/python`：
+
+- `tmp/model-request-runtime/directory-v3/check.py`：**83 项结构检查通过**。检查 35 条唯一条款、十操作各九项、候选资源、五项精确依赖的消费锚点、21 项覆盖不冒称复核、正文没有提供者 API 词，以及 v2 两个冻结文件与基线逐字相同。输出为任务区的 `structural-check.txt`；输入摘要为 `input-hashes.json`。这是结构检查，不是操作行为测试。
+- `check_design.py --root .meta_harness/design --formal registered`：**退出 1，6 项错误**，均为并行 `data.model-response/v4/verification.md` 到任务区文件的链接越出 design root；未报告本目录包错误。原输出为同一任务区的 `design-check.txt`。该次检查时目录 v3 registry 候选尚由主线待集成，不能据此声称候选已登记或发布就绪。
+- `git diff --check -- .meta_harness/design/spec/capabilities/model-profile-directory`：**退出 0**。
+- TLA+、Alloy、真实存储、目录操作、凭据与运行时组合：**未运行**。`--formal registered` 只检查登记，不执行模型。
+
+任务区材料供本批集成归档，不是长期设计证据入口；没有从设计正文链接到可清理的任务区。后续主线集成候选登记或修复并行文件后，应重新执行整批检查，按实际输出另记，不改写本次失败结果。
+
+
+## v4 变化的影响
+
+**2026-09-28 整批评审后的依据修订核对**：候选头部 PF-001 rev 19 → 23、PF-002 rev 20 → 26、PF-016 rev 8 → 10。逐版核对三份 changelog，并核对当前正文的实质消费条款：PF-001 §6.1 的身份层次、§6.4 的显式租户与不可用/失权区分、§6.6 的下一道准入仍成立；PF-002 §5.6 仍先禁用过滤、再使用资格过滤、最后取最具体者；PF-016 §6.11 仍只许呈现凭据的有无、范围与配置时刻。新增修订涉及工作区身份、共享实例、本地来源、参与关系和交付呈现；未改变本目录的范围链、授权、凭据隔离或秘密呈现承诺，不把工作区加入档案范围链。本轮只更新候选依据版本及验证入口锚点，S-1～S-38、实例、精确规格依赖和 registry 均不变；已有行为证据义务与未开始状态不变。
+
+2026-09-28，从已接受目录 v3 演进；执行树基线 `fd4c87f2bc2809843ecec7937834a235906b2163`。
+输入是 PF-013 rev 14 / D-096 与本批定型 data.model-profile v4；核实共享 Schema SHA-256 为
+`cfdb0878cab32f961cfd8e1471e714c0abf2f8ca6d360e4326f7e0e076c72278`。主线确认此最终修订仅改 Schema 根 description 的版本号，结构未变；contract SHA-256 为 `7c682a8d9f7e64a58fcafee1184f1bdf5077b498c7b7d9b3a72737b6428552b2`。定型供起草引用不表示已接受。
+本版 candidate 的资源为 [v4/contract.md](v4/contract.md)、[v4/examples.md](v4/examples.md)，共 38 条 S-n。
+
+| 变化 | 消费者与影响 | 依据/状态 |
+|---|---|---|
+| 精确采用 data.model-profile v4 | 三条内容写路径与完整读回增加 cap/facts，既有配置历史、授权、整行/整清单提交不变；十操作、八失败值保持 | S-4、S-14、S-16～S-18、S-31、S-34、S-36；candidate |
+| 相等与 updatedAt | 三态变化与 cap 变化进入比较；六项不变保留时标，只有绑定/注册状态变化不动；时标不当修订 ID | S-36；data v4 S-11/S-28 |
+| 旧行缺新必填项 | v4 read/list 返回 unavailable，列表不部分返回；不增加默认值，不声称自动迁移或额外 v3 公开面 | 主线明确裁定，S-36；G-12 |
+| 表示层拒绝与有状态失败保持区分 | M15/M16 沿 data v4 malformed；不新建目录失败值；更新整份校验在授权/解析之后 | S-9/S-31/S-36 |
+| 候选依赖与覆盖 | catalog 片段 1 条、依赖 5 条；profile 升 4，增加 S-8/S-9/S-27/S-32/S-33；covers 21 条 reviewed:false | 任务授权四清单片段在任务区交主线集成，中央 registry 未写；无新编号族或 formal task |
+| 版本保持 | v2/v3 规范字节不动；其他提供者、消息、响应、runtime 消费坐标由各 owner 显式升级 | 不以本候选代替接受或迁移证据 |
+
+### v4 证据义务
+
+以下操作/存储/真实组合证据均**未开始**，旧版通过不能追认为 v4 通过。
+
+| 性质 | 可失败的检查、前提 | owner / 状态 |
+|---|---|---|
+| 完整形状与跨字段关系 | 构造 unknown/unbounded/limited；image cap/事实缺项、非 image 带图指标、cap 大于同名 limited；等于合法。Schema 外必须执行 S-33，不能只看 Schema | 目录接收边界；未开始 |
+| 三条内容写路径/两条读面往返 | 显式完整 cap/facts 建档、更新、清单，再单读/列表逐值比较；对象重排相等，事实分支变化不等 | 目录提供者；未开始 |
+| 时标精确性 | S-37 与 examples §9；用可区分时刻查 cap-only、fact-only、binding-only、relist；同精度允许相等、不同值不得倒退 | 目录提供者与时钟 owner；未开始 |
+| 失败顺序与无信息泄露 | 无权者对依赖旧值才可知的非法 patch 仍 notAuthorized；有权者解析后 malformed；同序号合法不同事实为 manifestNotNewer | 目录符合性；未开始 |
+| 原子性与配置历史保持 | S-38 真并发读写和存储故障；清单任一无效条目不能留下行、配置历史、序号或处置半份；重启不忘已采用修订 | 真实存储提供者；未开始 |
+| 旧行与旧调用 | v4 read/list 遇旧行缺项为 unavailable；显式来源核实完整升级后可读；已取得调用快照不随目录变化、不从现目录补值 | 目录提供者、runtime/codec owner；未开始，G-12 |
+| 每项适用输入约束的实际计量与发前判定 | 本目录仅保证数据完整，发送消费者须检验最终表示和计量证据；目录成功不证明可发 | runtime/transport/正式清单 owner；未开始 |
+
+沿 S-24 不新增 TLA+/Alloy/Schema；capability 的值形状唯一来自 data.model-profile v4。
+本轮没有新增状态机或跨 owner 原子协议。真实存储的完整提交、授权与计量不能用原子建模或静态检查冒充；形式工具**未运行**。
+
+### v4 报给主线与缺口
+
+- 本轮政策来自简报与 data v4；把新成员纳入既有内容认回、清单比较和更新原子提交是目录承诺的直接延伸，不另选政策。
+- G-7：中心↔据点协议，owner 架构；G-9：发布身份与序号来源，owner 发布/装配；G-12：实际旧行升级完整输入及证据，owner 目录提供者/正式清单。
+- 无新服务、领域对象或正式术语；data v4 的技术投影名沿其无独立词条声明。没有发现需要自行改判的共享形状冲突。
+- 本轮 registry 只有交主线的候选片段，不能声称中央登记已落或本规格已接受。
+
+
+### v4 本次实际检查
+
+在本执行树使用 root 准备的本地 `.venv/bin/python`：
+
+- `tmp/model-request-runtime/input-limit-successor/directory4/check.py` 输出：`PASS: 238 scoped structural checks; 38 clauses, 10 operations x 9 items, 5 dependencies, 21 covers; old frozen resources and central registry unchanged. No behavioral execution.` 检查条款唯一、九项齐全、精确依赖锚点/候选片段、最终共享 Schema 指纹、旧 v2/v3 字节不变及中央 registry 不变。
+- `check_design.py --root .meta_harness/design --formal registered` 输出 `PASS`，`gate=internal; formal=registered`，退出 0。此模式只检查已有登记；directory4 片段尚未集成中央 registry，不表述为新版本已登记或所有消费者已闭合。
+- `git diff --check` 退出 0。
+- TLA+、Alloy、Schema 实例执行、真实存储、目录行为及发送路径：**未运行**；本次静态检查不替代上表的「未开始」。
+
+原始输出和候选四清单片段交主线保存在本批任务区；这些不是设计正文的长期引用依据。

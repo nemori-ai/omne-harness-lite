@@ -91,7 +91,7 @@
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
-| [工作区](../domain_objects/objects.md#ul-workspace--工作区) | [UL-workspace](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | [租户](../domain_objects/objects.md#ul-tenant--租户)——工作区有一个治理所有者，也可通过租户—工作区关系授权其他租户参与 | Git 工作区 | PF-020 | 002 |
+| [工作区](../domain_objects/objects.md#ul-workspace--工作区) | [UL-workspace](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace--工作区--workspace) | 寿命宿主正文未述。Omne Host 托管工作区的治理所有者为一个[租户](../domain_objects/objects.md#ul-tenant--租户)，登记外部仓库的工作区则无 Omne 治理所有者、各接入租户均为参与者；治理归属及参与关系不据此成为寿命宿主 | Git 工作区 | PF-020 | 002 |
 | [工作区实例](../domain_objects/objects.md#ul-workspace-instance--工作区实例) | [UL-workspace-instance](../ubiquitous_language/terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance) | 部署节点上的一次工作区装载，可接入用户已有的本地目录；它代表一个工作区，但不拥有工作区 | — | PF-020 | — |
 
 ## 主体与归属

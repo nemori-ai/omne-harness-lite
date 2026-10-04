@@ -1,0 +1,47 @@
+{
+ "TD-1": [
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies forwards non-report bytes exactly, including interrupted prefixes and invalid octets",
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies oversize paste still drains after its tail is interrupted by a report",
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies owns a hidden begin prefix through stop until downstream has drained it",
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies preserves every delimiter and UTF8 cut with each legitimate report, byte by byte",
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies query failure cannot discard a half report; input error cannot release it either",
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies real EOF releases both hidden control prefixes and downstream paste ownership",
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies reconstructs the real iTerm 768 + 11 + 2 byte counterexample"
+ ],
+ "TD-2": [
+  "tui-application.spec.ts :: close failure changes a successful result to 70 and never closes borrowed state",
+  "tui-application.spec.ts :: governance entry reads identity and both inboxes on one use, then closes CG/terminal/CLS in order",
+  "tui-application.spec.ts :: identity switch cancelled only reads identity again after a successful Ack",
+  "tui-application.spec.ts :: identity switch rejected only reads identity again after a successful Ack",
+  "tui-application.spec.ts :: identity switch success only reads identity again after a successful Ack",
+  "tui-application.spec.ts :: output failure outside a write callback closes with status 70",
+  "tui-application.spec.ts :: setup performs one root action, never opens a use and does not reopen after the result",
+  "tui-application.spec.ts :: signal cancellation before any CG report is status 2, while normal menu exit is 0",
+  "tui-dialog.spec.ts :: a paste cannot submit the next dialog or bypass unread pages",
+  "tui-dialog.spec.ts :: keeps an entire typing burst but Enter cannot confirm before the new value is shown",
+  "tui-dialog.spec.ts :: old or hidden frames cannot authorize confirmation after resize",
+  "tui-dialog.spec.ts :: stop waits outstanding output before ending the prompt",
+  "tui-screen.spec.ts :: close drops unsent frames, waits actual write and suppresses late callbacks",
+  "tui-screen.spec.ts :: layout preserves full identities, paginates body and never changes private modes",
+  "tui-screen.spec.ts :: never grants delivery to an old revision; backpressure retains only latest",
+  "tui-screen.spec.ts :: output failure stops output and propagates a single observable failure"
+ ],
+ "TD-3": [
+  "tui-input.spec.ts :: CQ2 bounded input accepts only bounded mode replies and rejects unsupported sequences",
+  "tui-input.spec.ts :: CQ2 bounded input decodes every UTF8 split before key parsing, including a lone high byte chunk",
+  "tui-input.spec.ts :: CQ2 bounded input discards the rest of an oversized CSI or unsupported string control",
+  "tui-input.spec.ts :: CQ2 bounded input elapsed silence cannot release an incomplete paste; EOF can",
+  "tui-input.spec.ts :: CQ2 bounded input explicit cancel/exit after a lone Escape terminates that incomplete prefix",
+  "tui-input.spec.ts :: CQ2 bounded input input error is observable but cannot release an unfinished paste as EOF",
+  "tui-input.spec.ts :: CQ2 bounded input never interprets a delayed first ESC byte as cancellation or loses the paste frame",
+  "tui-input.spec.ts :: CQ2 bounded input oversize or bad UTF8 paste retains no body, drains through real end, then reports invalid",
+  "tui-input.spec.ts :: CQ2 bounded input owns a split paste-begin prefix through cancellation and silence",
+  "tui-input.spec.ts :: CQ2 bounded input paste is one data event and never an Enter or mode response",
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies oversize paste still drains after its tail is interrupted by a report",
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies owns a hidden begin prefix through stop until downstream has drained it",
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies preserves every delimiter and UTF8 cut with each legitimate report, byte by byte",
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies query failure cannot discard a half report; input error cannot release it either",
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies real EOF releases both hidden control prefixes and downstream paste ownership",
+  "tui-mode-replies.spec.ts :: D054 interleaved terminal replies reconstructs the real iTerm 768 + 11 + 2 byte counterexample"
+ ]
+}

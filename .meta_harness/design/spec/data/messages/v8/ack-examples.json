@@ -1,0 +1,1101 @@
+[
+  {
+    "name": "ack-pending-original-witness",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "response",
+        "response": "resp_4c1e9a"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ],
+      "retainedResultDigest": {
+        "role": "model-call-retained-result-semantic-sha256/v1",
+        "hex": "0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9"
+      },
+      "accountingWitness": {
+        "response": "resp_4c1e9a",
+        "dispatch": 1,
+        "readyPosition": 3,
+        "payload": {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        },
+        "origin": {
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          },
+          "session": "session-1",
+          "run": "run_7a02",
+          "attempt": 1
+        },
+        "outcome": "complete",
+        "usage": {
+          "input_tokens": 10,
+          "cache_read_tokens": 20,
+          "cache_write_tokens": 0,
+          "output_tokens": 5,
+          "source": "upstream"
+        },
+        "cost": {
+          "cost_usd": 0.0031,
+          "source": "upstream_usage"
+        },
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "provider": "anthropic",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "timing": {
+          "sentAt": "2026-09-23T10:00:00Z",
+          "firstTokenAt": "2026-09-23T10:00:01.2Z",
+          "endedAt": "2026-09-23T10:00:04Z"
+        }
+      }
+    },
+    "schemaValid": true
+  },
+  {
+    "name": "ack-independent-final",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "response",
+        "response": "resp_4c1e9a"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ]
+    },
+    "schemaValid": true
+  },
+  {
+    "name": "ack-ended-no-response",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "ended",
+        "ending": "undispatched"
+      },
+      "terminalState": "handed_up",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ]
+    },
+    "schemaValid": true
+  },
+  {
+    "name": "digest-without-witness",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "response",
+        "response": "resp_4c1e9a"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ],
+      "retainedResultDigest": {
+        "role": "model-call-retained-result-semantic-sha256/v1",
+        "hex": "0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9"
+      }
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "witness-without-digest",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "response",
+        "response": "resp_4c1e9a"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ],
+      "accountingWitness": {
+        "response": "resp_4c1e9a",
+        "dispatch": 1,
+        "readyPosition": 3,
+        "payload": {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        },
+        "origin": {
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          },
+          "session": "session-1",
+          "run": "run_7a02",
+          "attempt": 1
+        },
+        "outcome": "complete",
+        "usage": {
+          "input_tokens": 10,
+          "cache_read_tokens": 20,
+          "cache_write_tokens": 0,
+          "output_tokens": 5,
+          "source": "upstream"
+        },
+        "cost": {
+          "cost_usd": 0.0031,
+          "source": "upstream_usage"
+        },
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "provider": "anthropic",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "timing": {
+          "sentAt": "2026-09-23T10:00:00Z",
+          "firstTokenAt": "2026-09-23T10:00:01.2Z",
+          "endedAt": "2026-09-23T10:00:04Z"
+        }
+      }
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "mixed-target",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "response",
+        "response": "resp_4c1e9a",
+        "ending": "released"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ],
+      "retainedResultDigest": {
+        "role": "model-call-retained-result-semantic-sha256/v1",
+        "hex": "0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9"
+      },
+      "accountingWitness": {
+        "response": "resp_4c1e9a",
+        "dispatch": 1,
+        "readyPosition": 3,
+        "payload": {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        },
+        "origin": {
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          },
+          "session": "session-1",
+          "run": "run_7a02",
+          "attempt": 1
+        },
+        "outcome": "complete",
+        "usage": {
+          "input_tokens": 10,
+          "cache_read_tokens": 20,
+          "cache_write_tokens": 0,
+          "output_tokens": 5,
+          "source": "upstream"
+        },
+        "cost": {
+          "cost_usd": 0.0031,
+          "source": "upstream_usage"
+        },
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "provider": "anthropic",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "timing": {
+          "sentAt": "2026-09-23T10:00:00Z",
+          "firstTokenAt": "2026-09-23T10:00:01.2Z",
+          "endedAt": "2026-09-23T10:00:04Z"
+        }
+      }
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "wrong-role",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "response",
+        "response": "resp_4c1e9a"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ],
+      "retainedResultDigest": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9"
+      },
+      "accountingWitness": {
+        "response": "resp_4c1e9a",
+        "dispatch": 1,
+        "readyPosition": 3,
+        "payload": {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        },
+        "origin": {
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          },
+          "session": "session-1",
+          "run": "run_7a02",
+          "attempt": 1
+        },
+        "outcome": "complete",
+        "usage": {
+          "input_tokens": 10,
+          "cache_read_tokens": 20,
+          "cache_write_tokens": 0,
+          "output_tokens": 5,
+          "source": "upstream"
+        },
+        "cost": {
+          "cost_usd": 0.0031,
+          "source": "upstream_usage"
+        },
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "provider": "anthropic",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "timing": {
+          "sentAt": "2026-09-23T10:00:00Z",
+          "firstTokenAt": "2026-09-23T10:00:01.2Z",
+          "endedAt": "2026-09-23T10:00:04Z"
+        }
+      }
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "no-ready-position",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "response",
+        "response": "resp_4c1e9a"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ],
+      "retainedResultDigest": {
+        "role": "model-call-retained-result-semantic-sha256/v1",
+        "hex": "0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9"
+      },
+      "accountingWitness": {
+        "response": "resp_4c1e9a",
+        "dispatch": 1,
+        "payload": {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        },
+        "origin": {
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          },
+          "session": "session-1",
+          "run": "run_7a02",
+          "attempt": 1
+        },
+        "outcome": "complete",
+        "usage": {
+          "input_tokens": 10,
+          "cache_read_tokens": 20,
+          "cache_write_tokens": 0,
+          "output_tokens": 5,
+          "source": "upstream"
+        },
+        "cost": {
+          "cost_usd": 0.0031,
+          "source": "upstream_usage"
+        },
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "provider": "anthropic",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "timing": {
+          "sentAt": "2026-09-23T10:00:00Z",
+          "firstTokenAt": "2026-09-23T10:00:01.2Z",
+          "endedAt": "2026-09-23T10:00:04Z"
+        }
+      }
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "big-reply-forbidden",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "response",
+        "response": "resp_4c1e9a"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ],
+      "retainedResultDigest": {
+        "role": "model-call-retained-result-semantic-sha256/v1",
+        "hex": "0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9"
+      },
+      "accountingWitness": {
+        "response": "resp_4c1e9a",
+        "dispatch": 1,
+        "readyPosition": 3,
+        "payload": {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        },
+        "origin": {
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          },
+          "session": "session-1",
+          "run": "run_7a02",
+          "attempt": 1
+        },
+        "outcome": "complete",
+        "usage": {
+          "input_tokens": 10,
+          "cache_read_tokens": 20,
+          "cache_write_tokens": 0,
+          "output_tokens": 5,
+          "source": "upstream"
+        },
+        "cost": {
+          "cost_usd": 0.0031,
+          "source": "upstream_usage"
+        },
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "provider": "anthropic",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "timing": {
+          "sentAt": "2026-09-23T10:00:00Z",
+          "firstTokenAt": "2026-09-23T10:00:01.2Z",
+          "endedAt": "2026-09-23T10:00:04Z"
+        },
+        "reply": {
+          "id": "msg_51",
+          "type": "assistant",
+          "createdAt": "2026-09-23T10:00:04Z",
+          "response": "resp_4c1e9a",
+          "ending": "complete",
+          "blocks": [
+            {
+              "id": "b1",
+              "kind": "text",
+              "visibility": {
+                "toHuman": true,
+                "toModel": true
+              },
+              "text": "先读一下配置文件。"
+            },
+            {
+              "id": "b2",
+              "kind": "tool_call",
+              "visibility": {
+                "toHuman": true,
+                "toModel": true
+              },
+              "complete": true,
+              "callId": "call_01",
+              "tool": "read_file",
+              "arguments": {
+                "path": "config.toml"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "unknown-field",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "response",
+        "response": "resp_4c1e9a"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ],
+      "retainedResultDigest": {
+        "role": "model-call-retained-result-semantic-sha256/v1",
+        "hex": "0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9"
+      },
+      "accountingWitness": {
+        "response": "resp_4c1e9a",
+        "dispatch": 1,
+        "readyPosition": 3,
+        "payload": {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        },
+        "origin": {
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          },
+          "session": "session-1",
+          "run": "run_7a02",
+          "attempt": 1
+        },
+        "outcome": "complete",
+        "usage": {
+          "input_tokens": 10,
+          "cache_read_tokens": 20,
+          "cache_write_tokens": 0,
+          "output_tokens": 5,
+          "source": "upstream"
+        },
+        "cost": {
+          "cost_usd": 0.0031,
+          "source": "upstream_usage"
+        },
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "provider": "anthropic",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "timing": {
+          "sentAt": "2026-09-23T10:00:00Z",
+          "firstTokenAt": "2026-09-23T10:00:01.2Z",
+          "endedAt": "2026-09-23T10:00:04Z"
+        }
+      },
+      "cleanup": "released"
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "duplicate-release-ref",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "response",
+        "response": "resp_4c1e9a"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        },
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        }
+      ],
+      "retainedResultDigest": {
+        "role": "model-call-retained-result-semantic-sha256/v1",
+        "hex": "0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9"
+      },
+      "accountingWitness": {
+        "response": "resp_4c1e9a",
+        "dispatch": 1,
+        "readyPosition": 3,
+        "payload": {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        },
+        "origin": {
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          },
+          "session": "session-1",
+          "run": "run_7a02",
+          "attempt": 1
+        },
+        "outcome": "complete",
+        "usage": {
+          "input_tokens": 10,
+          "cache_read_tokens": 20,
+          "cache_write_tokens": 0,
+          "output_tokens": 5,
+          "source": "upstream"
+        },
+        "cost": {
+          "cost_usd": 0.0031,
+          "source": "upstream_usage"
+        },
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "provider": "anthropic",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "timing": {
+          "sentAt": "2026-09-23T10:00:00Z",
+          "firstTokenAt": "2026-09-23T10:00:01.2Z",
+          "endedAt": "2026-09-23T10:00:04Z"
+        }
+      }
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "ended-cannot-have-witness",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "ended",
+        "ending": "undispatched"
+      },
+      "terminalState": "handed_up",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ],
+      "accountingWitness": {
+        "response": "resp_4c1e9a",
+        "dispatch": 1,
+        "readyPosition": 3,
+        "payload": {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        },
+        "origin": {
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          },
+          "session": "session-1",
+          "run": "run_7a02",
+          "attempt": 1
+        },
+        "outcome": "complete",
+        "usage": {
+          "input_tokens": 10,
+          "cache_read_tokens": 20,
+          "cache_write_tokens": 0,
+          "output_tokens": 5,
+          "source": "upstream"
+        },
+        "cost": {
+          "cost_usd": 0.0031,
+          "source": "upstream_usage"
+        },
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "provider": "anthropic",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "timing": {
+          "sentAt": "2026-09-23T10:00:00Z",
+          "firstTokenAt": "2026-09-23T10:00:01.2Z",
+          "endedAt": "2026-09-23T10:00:04Z"
+        }
+      },
+      "retainedResultDigest": {
+        "role": "model-call-retained-result-semantic-sha256/v1",
+        "hex": "0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9"
+      }
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "ended-terminal-mismatch",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "ended",
+        "ending": "undispatched"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ]
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "ack-excluded-from-context",
+    "definition": "Message",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "response",
+        "response": "resp_4c1e9a"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ],
+      "retainedResultDigest": {
+        "role": "model-call-retained-result-semantic-sha256/v1",
+        "hex": "0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9"
+      },
+      "accountingWitness": {
+        "response": "resp_4c1e9a",
+        "dispatch": 1,
+        "readyPosition": 3,
+        "payload": {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        },
+        "origin": {
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          },
+          "session": "session-1",
+          "run": "run_7a02",
+          "attempt": 1
+        },
+        "outcome": "complete",
+        "usage": {
+          "input_tokens": 10,
+          "cache_read_tokens": 20,
+          "cache_write_tokens": 0,
+          "output_tokens": 5,
+          "source": "upstream"
+        },
+        "cost": {
+          "cost_usd": 0.0031,
+          "source": "upstream_usage"
+        },
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "provider": "anthropic",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "timing": {
+          "sentAt": "2026-09-23T10:00:00Z",
+          "firstTokenAt": "2026-09-23T10:00:01.2Z",
+          "endedAt": "2026-09-23T10:00:04Z"
+        }
+      }
+    },
+    "schemaValid": false
+  },
+  {
+    "name": "distinct-creation-dispatch-attempts",
+    "definition": "ModelInvocationRecord",
+    "value": {
+      "kind": "model_call_acknowledged",
+      "call": "mc_19f3",
+      "creationKey": "create-1",
+      "creationInput": {
+        "role": "model-call-creation-semantic-sha256/v1",
+        "hex": "2894d60e6bdd298a36b716f5699a46e0699bea30e855b5f337e8e827591220ad"
+      },
+      "target": {
+        "kind": "response",
+        "response": "resp_4c1e9a"
+      },
+      "terminalState": "complete",
+      "acknowledgedAt": "2026-09-29T12:00:00Z",
+      "releasablePayloads": [
+        {
+          "kind": "created",
+          "locator": "content-1",
+          "version": "v1",
+          "digest": "ed8e44132882f5fb5ab33bd200543bbd038e542ce41656d3889d5aa172669dd5"
+        },
+        {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        }
+      ],
+      "retainedResultDigest": {
+        "role": "model-call-retained-result-semantic-sha256/v1",
+        "hex": "0986c946e242bfdd8bbbd56bc5c9ba41228ff130263f425a238dcb25731129b9"
+      },
+      "accountingWitness": {
+        "response": "resp_4c1e9a",
+        "dispatch": 1,
+        "readyPosition": 3,
+        "payload": {
+          "kind": "reply_ready",
+          "locator": "content-2",
+          "version": "v1",
+          "digest": "6a9d7bd5c89544a0c9c080aa9ff66cb698cc13559001c1c3967378fcaeb2f6b3"
+        },
+        "origin": {
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          },
+          "session": "session-1",
+          "run": "run_7a02",
+          "attempt": 2
+        },
+        "outcome": "complete",
+        "usage": {
+          "input_tokens": 10,
+          "cache_read_tokens": 20,
+          "cache_write_tokens": 0,
+          "output_tokens": 5,
+          "source": "upstream"
+        },
+        "cost": {
+          "cost_usd": 0.0031,
+          "source": "upstream_usage"
+        },
+        "credentialScope": {
+          "layer": "tenant",
+          "tenant": {
+            "organization": "org_7fd2c1",
+            "account": "acc_91ab40"
+          }
+        },
+        "provider": "anthropic",
+        "upstreamRequestId": "gen-1758621600-a1b2c3",
+        "timing": {
+          "sentAt": "2026-09-23T10:00:00Z",
+          "firstTokenAt": "2026-09-23T10:00:01.2Z",
+          "endedAt": "2026-09-23T10:00:04Z"
+        }
+      }
+    },
+    "schemaValid": true
+  }
+]

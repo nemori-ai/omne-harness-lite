@@ -1,0 +1,33 @@
+[00:01] Yes, today was May the 4th, be with you.
+[00:11] Today we have to talk about Scrum.
+[00:17] Scrum was a gorgeous idea, a beautiful idea at the time.
+[00:21] In 1995, Scrum was a good idea.
+[00:26] Put forward by primarily technical people.
+[00:30] It showed up at the patterns conference,
+[00:34] where we were discussing object-oriented design,
+[00:37] and these guys came forward with a paper talking about Scrum.
+[00:41] It was a good idea.
+[00:43] It was the precursor to Agile.
+[00:47] In some ways, it was the forerunner to extreme programming,
+[00:50] which is the fundamental Agile mechanism.
+[00:55] So what happened?
+[00:56] How did Scrum go from a promising beginning to the horror scene
+[01:01] that is today, and I'll tell you what happened.
+[01:04] What happened was the invasion of the project managers,
+[01:10] the invasion of the project managers
+[01:12] who took over the entire Agile movement
+[01:15] and corrupted it into some kind of authoritarian, unsensical,
+[01:21] god-awful mess.
+[01:26] How'd that happen?
+[01:28] Well, the seeds of that deceit were sewn amongst the Agile community itself.
+[01:37] Certified Scrum master courses.
+[01:43] Thought it was a good idea at the time,
+[01:45] at least some people did.
+[01:47] I thought it was a dumb idea,
+[01:49] but a lot of people thought it was a good idea.
+[01:51] It would get a lot of people interested in Agile and Scrum,
+[01:55] and what it did really was just invite the project managers
+[01:59] to take over the whole thing, which they did.
+[02:03] They took over the movement, they took over the conferences,
+[02:06] they took over the whole thing, and they've driven it right into the ground
+[02:09] as you would expect.

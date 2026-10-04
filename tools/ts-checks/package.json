@@ -8,18 +8,37 @@
     "node": ">=24 <25"
   },
   "bin": {
-    "omne-ts-checks": "./dist/cli.js"
+    "omne-ts-checks": "./dist/cli.js",
+    "omne-architecture": "./dist/arch/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./architecture": {
+      "types": "./dist/arch/actual.d.ts",
+      "import": "./dist/arch/actual.js"
+    }
   },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
-    "scan": "node --experimental-strip-types src/cli.ts ../../packages ../../apps"
+    "scan": "node --experimental-strip-types src/cli.ts ../../packages ../../apps ../../examples",
+    "metrics": "node --experimental-strip-types src/metrics/cli.ts",
+    "architecture": "node --experimental-strip-types src/arch/cli.ts"
   },
   "devDependencies": {
+    "@jscpd/core": "catalog:",
+    "@jscpd/tokenizer": "catalog:",
     "@omne-harness-lite/identity-values": "workspace:*",
+    "@stryker-mutator/core": "catalog:",
+    "@stryker-mutator/vitest-runner": "catalog:",
     "@types/node": "catalog:",
+    "elkjs": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "yaml": "catalog:"
   }
 }

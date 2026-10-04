@@ -28,3 +28,22 @@ bindings:
 
     # 最后一次对着所引 basis 条目核对的日期。早于条目的 checked 即进入待复核
     alignment_checked: "{{YYYY-MM-DD}}"
+
+# 装配声明（节点全过完成之前可缺，之后有包节点必填）：本节点在装配上打算怎样接进 Cordis。
+# 照 design.md 的正文写，不从代码抄；字段与正文冲突时以这里为准，正文只写理由。
+# 字段含义见 ../../README.md「装配声明」，规则见 ../../cordis-integration-conventions.md。
+# 只有 core 里的定义包写 defines；只有装配节点写 composition。
+assembly:
+  # IC-5 的同提交例外才写：target（目标节点路径）、symbols（事务内读函数名，非空、无通配符）、
+  # sharedStorage（两写入者共同触碰的存储对象）、source（本节点说明同提交责任的小节）。
+  # 名称与理由来自节点设计；不能为使对照变绿而添加例外。
+  importExceptions: []
+  plugins:
+    - name: "{{插件名，即 fiber 名}}"
+      source: "design.md#{{给出这条意图的小节锚点}}"
+      provides: []        # 提供的服务键
+      injects: []         # 必需依赖
+      optional: []        # 调用时取用的可选依赖
+      emits: []           # [{ event: "<包名>/<事件>", mode: emit|parallel|serial|bail|waterfall }]
+      listens: []
+      contributes: []     # 向哪些注册表服务登记

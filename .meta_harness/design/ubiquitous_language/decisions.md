@@ -365,6 +365,68 @@ UL-session 注意 ③、产品区 README 与 [architecture-core](../product/arch
 | [PF-007 五维表](../product/PF-007-meta-capabilities/design.md#派发有三种模式) `spawn` 那格「**继承当前会话的**」 | **写准为「带着派发那一刻组装出来的那份上下文的副本开始」**（2026-09-22）。[PF-007 §9.1 那条未决项随之闭合](../product/PF-007-meta-capabilities/changelog.md#rev-15--2026-09-22)——「**共享同一份会话日志**」那一侧作废 |
 | 「对方会话已经结束时规则一还成不成立，**等 PF-015 定义会话终态**」 | 问题**重新表述**为「**对方会话被归档后规则一还成不成立**」，仍未决 |
 
+## UL-D-7 · 能力接缝与 Cordis 插件树 · 2026-10-02
+
+### 产品负责人的裁决
+
+2026-10-02 #53／#46 合并方案的访谈里（按原话整理）。先问 Cordis 改成契约规范之后集成约定要不要自己定，主线答要；随后：
+
+> 「你参考一下 deepseek harness 它有没有在 cordis 之上的装配约定，有的话，我们的设计可以参考它那边的作为设计的起点，
+> 再结合我们的系统实际要求和设计来进一步完善」
+
+DSH 的约定以能力接缝三角色为骨架（[调研](../../research/dsh-cordis-integration-conventions/research.md)）。关于服务面放哪、装配怎么给：
+
+> 「1. 服务放哪这个按你的建议来；2. 装配改成数据，但是你说的分层方式和租户维度又是影响什么的呢？」
+
+主线答：进程这一级先分两级（发行默认＋运维者），租户在这一级没有一格，租户维度落在按会话装上的那一侧。负责人答「**可以**」。
+服务定义放哪，读完布局后改定为：
+
+> 「看下来服务定义全部在 core 里吧」
+
+取名时主线报三组候选，负责人选定（AskUserQuestion，2026-10-02）：三个角色**全部加「Cordis」前缀**；进程那一级叫 **「Cordis 插件树 ＋ 插件树层」**；
+**「宿主平面／Agent 平面」与按会话装上的 Cordis 插件所在的作用域都先不立**，作用域留给 Agent 平面作用域试点去定。
+
+**要说清楚裁的是什么**：负责人裁了「以 DSH 的三角色为起点」「进程一级的装配是数据、两级、无租户一格」「服务定义放 core」与上面三个名字；
+**定义的措辞全部由 PM 写**，依据逐条列在下面，可核对、可推翻。「能力接缝」这个名字不在三组候选的改动范围里，沿用候选原文。
+
+### 这条走第二种出处，三个条件逐条核过
+
+| 条件 | 核对 |
+|---|---|
+| **跨全链** | 52 个实现映射节点的设计都要写自己担哪个接缝的什么角色；[PF-004 design](../product/PF-004-agent-definition-and-assembly/design.md) 与 PF-002／004／012／014／015 的 `decisions.md` 已按 Cordis 的意思在用「服务提供者」（见 [C-50](conflicts.md#c-50裸写的服务提供者)）；本项目的 Cordis 集成约定与装配节点都以插件树为对象 |
+| **没有哪个 topic 拥有它** | [D-112](../record/decisions/cordis-as-assembly-contract/README.md) 定 Cordis 是装配契约、不是建模视角——装配上的说法不归任何产品 topic；它们的规则将写在实现映射区的集成约定里，那不是 topic |
+| **产品负责人直接裁决过** | 上面四段原话与三个取名选择 |
+
+### 定义正文是 PM 起草的，依据在这里
+
+| 词条 | 依据 |
+|---|---|
+| [能力接缝](terms/architecture-core-and-extension.md#ul-capability-seam--能力接缝--capability-seam) | DSH 的 `seam`：三角色合起来才是一个接缝、单个角色不是（[调研约定表 #1](../../research/dsh-cordis-integration-conventions/research.md)）。「一个服务键一个接缝」「服务定义恰一个」来自负责人「服务定义全部在 core」——定义只能有一处 |
+| [Cordis 服务定义](terms/architecture-core-and-extension.md#ul-cordis-service-definition--cordis-服务定义--cordis-service-definition) | DSH 的 `Service Definition`：拥有 `ctx.<key>` 与词汇类型，是抽象类或具体注册表 service，从不是 TS `interface`（约定表 #3） |
+| [Cordis 服务提供者](terms/architecture-core-and-extension.md#ul-cordis-service-provider--cordis-服务提供者--cordis-service-provider) | DSH 的 `Service Provider`：提供或登记实现，换掉它不动消费者（约定表 #1） |
+| [Cordis 服务消费者](terms/architecture-core-and-extension.md#ul-cordis-service-consumer--cordis-服务消费者--cordis-service-consumer) | DSH 的 `Consumer`：按键注入；可选依赖按键取用（约定表 #1、#6）。「只依赖服务定义、不 import 提供者特有的东西」是**规则**，归集成约定，不写进定义 |
+| [Cordis 插件树](terms/architecture-core-and-extension.md#ul-cordis-plugin-tree--cordis-插件树--cordis-plugin-tree) | 负责人「装配改成数据」「可以」；DSH 的 profile／bundle／patch 分层（约定表 #11）。形态写视图：它丢了能从各层原样重算 |
+| [插件树层](terms/architecture-core-and-extension.md#ul-plugin-tree-layer--插件树层--plugin-tree-layer) | 负责人认可的两级与「租户无一格」。形态写位置：本版两格由设计穷举，不在运行期创建 |
+
+### 两处 PM 自己定的
+
+- **三个角色的形态写「属性」**：它们是一个包在某个接缝关系里扮演的角色，不引入新身份；一个包可以对不同接缝担不同角色。
+- **插件树层不叫「发行默认层」**：「默认」与作用域层的「出厂默认」太近，正式名用「发行层」，别混里写明两者不是一回事。
+
+### 这里不收的名字
+
+| 名字 | 不收的理由 |
+|---|---|
+| 宿主平面、Agent 平面 | 负责人裁定先不立。「宿主」撞[宿主机](terms/grounding-and-isolation.md#ul-host-machine--宿主机--host-machine)与领域对象的「宿主」字段；进程那一级已由插件树说清 |
+| 按会话装上的 Cordis 插件所在的作用域 | 负责人裁定留给试点定；机制还没设计，现在收等于把草稿定成语言 |
+| 集成约定 | 一份文档的名字，不是概念 |
+
+## UL-D-6 · 模型适配绑定 · 2026-09-27
+
+来源：产品负责人在本轮模型请求纵线讨论中明确要求「公共实现 + 模型窄适配」，并确认按模型逐个调优、八家 37 个模型的首批范围；要求提醒消息采用专用消息类型或 user，缓存策略按具体供应商实现且验证真实命中，TTL 不写死。随后授权实施已讨论的完整交付方案。
+
+本条只固定新增词汇的含义，不代替接口、热更新机制或新规格的接受。模型适配绑定是调用所持有的适配属性：指明具体实现版本、模型窄定义及配置。它没有独立领域身份，不增加另一种模型档案或调用对象。模型前缀缓存策略是该绑定中的配置属性，缓存命中是上游报告的事实，不能由配置推断。
+
 ## UL-D-5 · 凭据保管方 · 2026-09-25
 
 ### 产品负责人的裁决

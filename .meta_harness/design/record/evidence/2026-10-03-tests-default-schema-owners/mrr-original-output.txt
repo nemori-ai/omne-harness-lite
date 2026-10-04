@@ -1,0 +1,153 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/packages/model/model-request-runtime
+
+ ✓ tests/acceptance-20260930-a22-runtime.spec.ts (31 tests) 16320ms
+     ✓ only a current ack holder confirms; read/wait/settle/cancel/revoked/foreign/extra-field inputs are refused with zero writes  1959ms
+     ✓ time inversion: an in-flight (speaking) call is wrongPhase and nothing is fixed, written or closed  470ms
+     ✓ a failed earlier response is never the target; the whole-call ending is, and the failed attempt stays in the small sequence  617ms
+     ✓ no implicit ACK: consumer release, zero consumers, runtime close and a cold restart leave the copy retained  483ms
+     ✓ a publisher that registered first blocks the release until its permit ends; the gate is closed for new reads/writes meanwhile; another call is untouched  718ms
+     ✓ retiring committed first: while the ACK append is in flight new reads and publications are refused and nothing is deleted  454ms
+     ✓ A22-V4: concurrent copies racing the ACK finish whole or fail explicitly; an idle wait handle does not pin cleanup and later waits are small  542ms
+     ✓ landed but receipt unknown -> SQL retiring -> restart: the original batch is recognized, then released; acknowledgedAt is never rebuilt  495ms
+     ✓ not landed and receipt unknown: nothing is deleted without the ACK; a later retry (cold=false) resends the same fixed batch only  480ms
+     ✓ not landed and receipt unknown: nothing is deleted without the ACK; a later retry (cold=true) resends the same fixed batch only  520ms
+     ✓ no lawful ACK, no deletion: a foreign ACK-shaped record whose creation digest contradicts the retained original does not release the copy  460ms
+     ✓ control (no ACK): closing the runtime over an unknown-receipt ready neither interrupts nor re-finalizes it  371ms
+     ✓ a ready marker whose receipt is unknown keeps its publish permit: cleanup stays writer_in_flight until the original writer is actually resolved; ACK cleanup never writes a final  534ms
+     ✓ a failure inside the release transaction leaves the complete prior state; the next attempt releases; log bytes never change  445ms
+     ✓ a committed release whose receipt is lost is recognized from the same control row  415ms
+     ✓ released identities are not reused: neither the same call nor another call may publish under a released locator/version  624ms
+     ✓ cleanup pending on a real in-memory reader: acquire/wait/readAttempts/reconcile/open never hand out the full value; host stop still reads the durable ACK  504ms
+     ✓ a second runtime still holding its warm container obeys the ACK another runtime confirmed: no full read, no settle from the stale in-memory copy, no control, no write  557ms
+     ✓ without an ACK a missing model copy is damage, not an acknowledged or absent call  482ms
+     ✓ after release a fresh process recognizes the same creation (reordered/1.0) and refuses a different one  542ms
+     ✓ measurement control: the GC probe does collect an unreferenced object  366ms
+     ✓ after released, neither an idle consumer handle nor the runtime keeps the call container (request, pending) reachable  1981ms
+     ✓ authority first, then the retained value is required and checked; a valid value settles only through S-99⑧ staging  574ms
+     ✓ before ACK a caller value may only equal the authority (cold durable ready)  477ms
+     ✓ B1: a durable ready is complete + disposition_pending on every face of a cold process; close releases; releaseCall is alreadyEnded and harmless  535ms
+     ✓ N1 (ACK path): the ACK append and its reads over writers that stop only after requestStop neither hang nor leak a registration  451ms
+stdout | tests/review-20260930-runtime.spec.ts > review 2026-09-30 Q6 observation: selectModel unknown receipt (session-selection.ts unknown set) > characterization: after one unknown selection write the component refuses every later selectModel, even a healthy retry of the committed value
+selection-unknown-retry {"unavailable":true} {"unavailable":true}
+
+ ✓ tests/review-20260930-runtime.spec.ts (24 tests) 9898ms
+     ✓ (the runtime that ran the call) every entry answers the acknowledged branch or its terminal refusal, appends nothing and sends nothing  850ms
+     ✓ (cold second runtime over the same log) every entry answers the acknowledged branch or its terminal refusal, appends nothing and sends nothing  826ms
+     ✓ a refused same-creationKey openCall (acknowledged or not) leaks no lease, writes no marker and does not poison another call  600ms
+     ✓ a live wait consumer acquired before completion stops reading after the ACK  424ms
+     ✓ (a) receipt lost, batch committed: the repeat recognizes it, one physical submission, close releases  391ms
+     ✓ (b) actually absent: repeat resolves and releases with unavailable, then the same original batch is resent byte-identically  407ms
+     ✓ (b-close) absent then close: resolution writes nothing and frees the registration; a later write is only the original disposition  443ms
+     ✓ (c) unreadable prefix: nothing is released as absent, close reports unavailable, a later close succeeds  372ms
+     ✓ (d) late stop of the unknown writer: runtime.close cannot report released before that writer stopped  584ms
+     ✓ (e) a rejected stop: settleReply returns, close never hangs, no unhandled rejection, no false release  376ms
+     ✓ (g) a repeat with another disposition after a lost receipt is alreadyEnded and the original disposition is the one durable  393ms
+     ✓ cold settle (second runtime, no container): unknown receipt keeps the coordinator, repeat recognizes, one submission  387ms
+     ✓ cold settle: absent unknown then close resolves without writing; the retry resends the same batch  350ms
+     ✓ previous review: runtime.close never says released while an unknown original is unresolved (unreadable log)  358ms
+     ✓ previous review: the settlement paths over a writer that only stops after requestStop neither cycle nor hang  351ms
+     ✓ previous review: completion succeeds while the writer is slow to stop, and stopped is neither a wait cycle nor lost  450ms
+     ✓ S-86: a lost final receipt proven absent does not make the runtime unclosable  336ms
+     ✓ S-86: the durable ready is complete/interrupted with disposition_pending on every read face, not reply_pending  318ms
+ ✓ tests/session-selection.spec.ts (20 tests) 5118ms
+     ✓ each legality and repeat command reads current inputs; new model locks never filter the S11 set  618ms
+     ✓ controlled foreign, ineffective, inconsistent and unreadable current results never become empty legality or a duplicate success  546ms
+     ✓ successful absent optional model means no lock; real current same-name and changed-name locks are observed without reload  539ms
+     ✓ validates current legality before repeat; actual withdrawn private row cannot bypass the command check  339ms
+     ✓ actual missing recipe and controlled membership-state loss are unavailable; neither creates a fake no-lock basis  319ms
+ ✓ tests/acceptance-a22-acknowledgement.spec.ts (9 tests) 4365ms
+     ✓ A22-V1/V2/V8: only current ack authority confirms; all fifteen entries then answer small  1141ms
+     ✓ A22-V2/V8/V11: a ready reply ACK fixes the witness, pends on a real reader, then a caller-held value settles  597ms
+     ✓ A22-V2 (review S1): alreadyRecorded is not recognition; a different value under the same key is not recognized  438ms
+     ✓ A22-V2 (review S1): alreadyRecorded is not recognition; the same value read back is recognized  483ms
+     ✓ A22-V5 (B-1): a zero-write ACK whose policy stops retreats to retained; nothing is deleted  454ms
+     ✓ N-5: after a zero-write ACK the retry wait of a scheduler that stops only on request neither hangs nor leaks  395ms
+     ✓ S-99⑦/S-86 (no ACK): repeating settleReply after a final recognizes the same disposition and answers alreadyEnded for another, with no write  572ms
+ ✓ tests/service-reconcile.spec.ts (19 tests) 3966ms
+     ✓ keeps original response attempt while accounting an interruption in the current attempt  403ms
+     ✓ recognizes a committed no-dispatch ended record after an unknown receipt without reappend  342ms
+     ✓ does not treat a stopped unknown end write with a verified absence as a terminal call  347ms
+     ✓ withholds all calls on one unavailable original, then resumes only unresolved rows  469ms
+ ✓ tests/acceptance-a22-settlement-work.spec.ts (6 tests) 3312ms
+     ✓ A22-V13/R4: a writer that never answers (commit_then_hang) leaves only its staged batch; the recovery owner concludes it  657ms
+     ✓ A22-V13/R4: a writer that never answers (drop_then_hang) leaves only its staged batch; the recovery owner concludes it  607ms
+     ✓ A22-V14/seam B: an unreadable work row is never taken as a zero write  552ms
+     ✓ A22-V13/V14 seam C: the original late writer lands its final first; the same disposition is recognized, no second batch  472ms
+     ✓ A22-V13/V14 seam C: the original late writer lands its final first; another disposition is alreadyEnded, no second batch  480ms
+     ✓ A22-V14 seam E + R3: a late retire of an ended work never deletes the next work row  543ms
+ ✓ tests/service-dispatch.spec.ts (5 tests) 3316ms
+   ✓ service dispatch writes both anchors before handing out a complete pending response  3313ms
+ ✓ tests/session-display-list.spec.ts (6 tests) 1884ms
+     ✓ requires durable explicit selection and returns current winners, covered rows and presence per source  474ms
+     ✓ selected missing row is profileNotFound; unreadable catalog, log, projection or presence is unavailable  466ms
+ ✓ tests/service-runtime.spec.ts (7 tests) 1968ms
+     ✓ runs the real SQLite/JSONL runtime through close (scope cleanup initially fails: false)  819ms
+     ✓ runs the real SQLite/JSONL runtime through close (scope cleanup initially fails: true)  692ms
+ ❯ tests/acceptance-t15-fresh-dispatch-inputs.spec.ts (3 tests | 1 failed) 1378ms
+     ✓ uses both newly published limits and the rotated credential for the same call retry  615ms
+     ✓ preserves awaiting_decision without a new anchor when current evaluation is unavailable  496ms
+     × releases a previously dispatched call only when the fresh credential is missing 266ms
+ ✓ tests/acceptance-thirteen-operations.spec.ts (1 test) 1316ms
+     ✓ uses one owned service with actual SQLite/SL3 state and exactly two local HTTP sends  1316ms
+ ✓ tests/acceptance-t15-resume-planning.spec.ts (2 tests) 1198ms
+     ✓ rejects each new input without changing the original D/R, then resumes corrected input  855ms
+     ✓ releases a genuinely reconciled resumable call once without cause or another response  343ms
+ ✓ tests/acceptance-20260930-review3-close-responsibility.spec.ts (3 tests) 1364ms
+     ✓ a ready refused outright (tailChanged): close answers unavailable and writes no final; the holder can still settle the reply as itself, after which close releases  590ms
+     ✓ a ready whose receipt is unavailable and which never landed: close answers unavailable twice, writes no final; a cold process still sees the in-flight frontier  386ms
+     ✓ closes the real in-flight caller with the no-reply final; dispatch and close answer, a cold process reads interrupted  388ms
+ ✓ tests/acceptance-20260930-review3-control-recovery.spec.ts (1 test) 371ms
+     ✓ asks the retained writer to stop before waiting: the landed intent is recognized, later control answers its stage, close neither hangs nor leaks  371ms
+ ✓  TS  tests/acknowledgement-types.spec-d.ts (0 test)
+ ✓  TS  tests/diagnostics.spec-d.ts (0 test)
+ ✓  TS  tests/dispatch-guard.spec-d.ts (0 test)
+ ✓  TS  tests/selection.spec-d.ts (0 test)
+ ✓  TS  tests/service-types.spec-d.ts (0 test)
+ ✓  TS  tests/async-planning.spec-d.ts (1 test)
+ ✓  TS  tests/credential-redaction.spec-d.ts (1 test)
+ ✓  TS  tests/decide-retry.spec-d.ts (1 test)
+ ✓  TS  tests/invoke-policy.spec-d.ts (1 test)
+ ✓  TS  tests/log-codec-v2.spec-d.ts (1 test)
+ ✓  TS  tests/log-codec.spec-d.ts (1 test)
+ ✓  TS  tests/model-consumption.spec-d.ts (2 tests)
+ ✓  TS  tests/reference-ledger.spec-d.ts (1 test)
+ ✓  TS  tests/retry-delay.spec-d.ts (1 test)
+ ✓  TS  tests/settlement-types.spec-d.ts (1 test)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/acceptance-t15-fresh-dispatch-inputs.spec.ts > RT10 T15 current dispatch inputs > releases a previously dispatched call only when the fresh credential is missing
+AssertionError: expected { unavailable: true } to match object { settled: { outcome: 'failed' } }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "settled": {
+-     "outcome": "failed",
+-   },
++   "unavailable": true,
+  }
+
+ ❯ tests/acceptance-t15-fresh-dispatch-inputs.spec.ts:321:58
+    319|     fixtures.push(fixture)
+    320|     const call = await fixture.openCall()
+    321|     expect(await fixture.runtime.service.dispatch(call)).toMatchObject…
+       |                                                          ^
+    322|       settled: { outcome: 'failed' },
+    323|     })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 28 passed (29)
+      Tests  1 failed | 147 passed (148)
+Type Errors  no errors
+   Start at  21:31:36
+   Duration  72.52s (transform 2.29s, setup 0ms, import 3.34s, tests 55.77s, environment 0ms, typecheck 13.20s)
+
+JSON report written to /data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r4/packages__model__model-request-runtime-slow.json

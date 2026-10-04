@@ -1,0 +1,35 @@
+{
+  "command": [
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design/.venv/bin/omne-docs-check"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-ref-design",
+  "started": "2026-09-29T12:48:04.370676+00:00",
+  "inputs_before": {
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v11/consumer-impact.md": "1c86038c894c822e41f992acaba4dd5da213cb056a926d128bfe3f48fd4aaf4a",
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v11/contract.md": "82781c9b422920c58b2f3aa4b330a3415a968bd64c88c5d70776181a7f47c2eb",
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v11/examples.md": "146f2e7cb564643e9ce5c9d8938952218cfac8e66efb42d6f3b8fb3335004a66",
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v11/formal/README.md": "9ede4f0704a24304c2ad28eca57da667df58e9cdeef693216412a7b0d5d959a6",
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v11/source-alignment.md": "99aa949c2bc11ecd4ff8cd62e11a1c42293ea59199ae97a84e9ceeb6ef057ea1",
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v11/verification.md": "4a0b48c2cc2f1d5be61002517e8b9ac6409d4e36bc3abbb40781740227cca478",
+    ".meta_harness/design/spec/data/call-accounts/v3/consumer-impact.md": "d709143d48846df3f730c26f5291620c5df8bad3ccfc334c77deab4b12af0f7f",
+    ".meta_harness/design/spec/data/call-accounts/v3/contract.md": "e461251db17958913a01c880e13f5990d0597ed83aa58a1be72259fc7b9be994",
+    ".meta_harness/design/spec/data/call-accounts/v3/examples.md": "5b9b4a24f4fa05e6a34101e0f1708e981a40ae2559355d2a1baf33cbe29d24a7",
+    ".meta_harness/design/spec/data/call-accounts/v3/source-alignment.md": "7373e93a230645a1431a3d1da597283274765efe27e81525f705b7750616f67a",
+    ".meta_harness/design/spec/data/call-accounts/v3/verification.md": "0631a72878865405039a1bed79e4a259cff1e7a0612351003728687d38989c59",
+    ".meta_harness/design/spec/data/messages/v7/consumer-impact.md": "ef1f864339b1c937c103a3cc0dc0160877c451d44ee473d6ef3df95e854c5a1a",
+    ".meta_harness/design/spec/data/messages/v7/contract.md": "0aa044d4210ac66828f11b8117fcb42f2546e8dacaeeaff4ae1212691dfd84c2",
+    ".meta_harness/design/spec/data/messages/v7/examples.md": "63e0d6f6ca1868c3365cedd707c8dd11922218b297d1f170d4d6fcc23440b312",
+    ".meta_harness/design/spec/data/messages/v7/formal/README.md": "94cee0693ac6592d6e16e261a353c92aa19dfbf77b1cf5349fbfd192abf6819f",
+    ".meta_harness/design/spec/data/messages/v7/source-alignment.md": "4f17be89de094ebd3603d3d501ce5a9eb7d72e7a8e2d485dbb67658484a806ef",
+    ".meta_harness/design/spec/data/messages/v7/verification.md": "52a7b1ca050b72cbb7482a000b29adeee7511f909c0aedbfb228f233c45f1f7c",
+    ".meta_harness/design/spec/data/model-response/v10/consumer-impact.md": "d1ab3e33aa1e0418ebd52a477cc236d70886b578b95d233e9ae197fa3c493bd3",
+    ".meta_harness/design/spec/data/model-response/v10/contract.md": "8bef0e27616b5a317bcbcc185d0ebc0df2e7db82c97829e18d167466e4d5972e",
+    ".meta_harness/design/spec/data/model-response/v10/examples.md": "61a10885391663125f220fc481a609e366e2e4d7e1155c22c1f6957164a5eb38",
+    ".meta_harness/design/spec/data/model-response/v10/source-alignment.md": "56da6db2409d1c0fb7b124ed22a5f1a5a0348136a4ffbe0a864f2440067f3bdd",
+    ".meta_harness/design/spec/data/model-response/v10/verification.md": "e8cfcb131f1f773e8d4bbe5562f4f796c0aa2896fd0132ab5a4db7cc2aa1137c"
+  },
+  "exit_code": 0,
+  "log": "tmp/model-registry-design/spec-draft-r2/docs-01.log",
+  "log_sha256": "9786bf6be0a875879aa80263b8d542b0901e5b039fa6ecf3ecaa476aced90e28",
+  "ended": "2026-09-29T12:50:32.215087+00:00"
+}

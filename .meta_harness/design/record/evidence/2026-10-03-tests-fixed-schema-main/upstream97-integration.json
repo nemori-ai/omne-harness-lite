@@ -1,0 +1,15 @@
+{
+  "old_baseline": "bf9874441dc53d661ec0773f6e3803218630f2f2",
+  "old_candidate": "955965ddf4e33d4da9843a9b079100fa3ad1650a",
+  "baseline": "3b493b82486e2f77ae3279312952ce18c94aaa66",
+  "new": "72e86fe473b4d933923bab9cc1e06cd3a6ec7506",
+  "changed_paths": [
+    "packages/model/model-request-runtime/src/calibration-diagnostic.ts",
+    "packages/model/model-request-runtime/src/credential-redaction.ts",
+    "packages/model/model-request-runtime/src/diagnostics.ts",
+    "packages/model/model-request-runtime/src/service-diagnostics.ts"
+  ],
+  "patches_equivalent": 30,
+  "dirty": false,
+  "measured_copies_unchanged": true
+}

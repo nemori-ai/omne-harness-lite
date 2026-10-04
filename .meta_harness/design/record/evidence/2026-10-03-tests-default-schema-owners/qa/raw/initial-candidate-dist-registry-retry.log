@@ -1,0 +1,3 @@
+PASS dist registry retry
+(node:202681) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)

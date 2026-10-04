@@ -4,6 +4,8 @@
 
 到达信封的纯校验与单块填充归约。模型响应流和工具执行帧使用同一套数据词汇；本包不提供传输或可靠投递机制。
 
+失败原因类型来自 `@omne-harness-lite/loop-extension` 当前公开入口。
+
 ## Workspace 使用
 
 这是实验阶段的私有 workspace 包，目前未发布到 npm。在仓库检出中按[开发指南](../../../docs/development.md)准备环境并构建 workspace，消费成员声明 `"@omne-harness-lite/arrival-events": "workspace:*"`，示例直接导入的其他包也应声明为直接依赖。通过公开包入口导入，不穿透兄弟包的 `src/`。
@@ -17,6 +19,9 @@
 | `isStandardBase64`                                     | 检查非空标准 Base64 的规范填充与尾部位                  |
 | 到达／事件／开块／归约类型                             | `open`、`fill`、`close`、`trim`、`account`、`finish` 值 |
 | `validate`、`schemaId`、`SCHEMA_DEF_NAMES`；`./schema` | 形状校验与 v2 Schema                                    |
+
+Schema 图使用 arrival-events v2 所引用的精确 `call-accounts/schema/v2` 资源，
+不随 call-accounts 根 Schema 的版本升级而改变。
 
 ## 使用示例
 

@@ -1,0 +1,36 @@
+{
+  "case": "public",
+  "entryId": "cf0b66cc-b169-4452-91ec-d46aec535ab1",
+  "modelId": "anthropic/claude-opus-5",
+  "definitionRevision": "2",
+  "implementation": {
+    "name": "pi-ai:anthropic",
+    "revision": "mp4-5"
+  },
+  "wireSha256": "17d94cc478dfbed1422d5e11e90f04b089db7c4eed5a8249979be44040e11120",
+  "estimateUsd": "8.726400000000000000",
+  "outcome": "complete",
+  "rejectionReason": null,
+  "failure": null,
+  "upstreamRequestId": "gen-1790667816-7DvtPRARkWDVPL7ZfN2j",
+  "httpStatus": null,
+  "inBandStatusCode": null,
+  "requestIdHeaders": {
+    "x-generation-id": "gen-1790667816-7DvtPRARkWDVPL7ZfN2j"
+  },
+  "usage": {
+    "input_tokens": 58,
+    "output_tokens": 152,
+    "cache_read_tokens": 0,
+    "cache_write_tokens": 0,
+    "source": "upstream",
+    "reasoning_tokens": 148
+  },
+  "cost": {
+    "cost_usd": 0.00409,
+    "source": "upstream_usage",
+    "upstream_inference_cost_usd": 0.00409
+  },
+  "observedInput": "from_usage",
+  "observedInputReason": null
+}

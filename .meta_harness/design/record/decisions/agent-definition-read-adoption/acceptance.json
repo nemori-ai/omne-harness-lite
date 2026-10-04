@@ -1,0 +1,39 @@
+{
+  "format": 1,
+  "status": "accepted",
+  "decision_path": "record/decisions/agent-definition-read-adoption/decision.md",
+  "authority": "root primary technical planner under user implementation delegation; overall user acceptance excluded",
+  "at_utc": "2026-09-27T05:39:59.907506+00:00",
+  "user_instruction": "Implement the plan.",
+  "independent_spec_review": "record/proposals/model-request-adaptation/review.md#2026-09-27-agent-definition1-叶节点独立复核",
+  "independent_architecture_review": "record/proposals/model-request-adaptation/review.md#2026-09-27-agent-definition1-叶节点独立复核",
+  "accepts": [
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.agent-definition",
+        "version": 1
+      },
+      "resources": {
+        "spec/data/agent-definition/v1/contract.md": "6820187aea0e9c45a2a54f05df876feead27f3c95cd27e6f1c03b7f9fcfa3119",
+        "spec/data/agent-definition/v1/agent-definition.schema.json": "e115d2b7d47a3121c3706eeeae91a67c06c1363550d7f1e46f714f5e29a0cff9",
+        "spec/data/agent-definition/v1/examples.md": "60f2e9b599786fdb3a2b5790e0eb9998c1fc9717bef9359c46a1af0547f3bb49"
+      },
+      "scope_clauses": [
+        "S-1..S-10"
+      ]
+    }
+  ],
+  "provider_adoption": {
+    "node": "packages/core/agent-definition",
+    "input_sha256": {
+      "realization/packages/core/agent-definition/bindings.yaml": "faf8d87e9ff47524741670ac0ea4224889a2700630e3d81ed829757fcc2d8a99",
+      "realization/packages/core/agent-definition/verification.md": "e9d2090d289e7ea4e83169c34961553d4a1f40b6aa32b01bd652620306c215be",
+      "realization/packages/core/agent-definition/design.md": "c080fad47a72ab9e2df0168e068712fc5d2a6e58b145c3d5e6efdb0216b5d872",
+      "realization/packages/core/agent-definition/README.md": "2e788faa8cd6a8b31072f57614f311e3740a0322e5c1682512e293f53b4cdead"
+    },
+    "public_entry": "@omne-harness-lite/agent-definition",
+    "implementation": "pending actual code and verification"
+  },
+  "human_overall_acceptance": false
+}

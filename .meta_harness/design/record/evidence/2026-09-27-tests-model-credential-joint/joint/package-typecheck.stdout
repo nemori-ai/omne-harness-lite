@@ -1,0 +1,5 @@
+Scope: 2 of 46 workspace projects
+packages/model/model-profile-directory typecheck$ tsc -p tsconfig.test.json
+.../infra/credential-custodian-local typecheck$ tsc -p tsconfig.test.json
+.../infra/credential-custodian-local typecheck: Done
+packages/model/model-profile-directory typecheck: Done

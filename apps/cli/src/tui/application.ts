@@ -12,7 +12,7 @@ import {
   type Origin,
 } from '@omne-harness-lite/governance-client-operations'
 import { providers, type CliRuntime } from '../application.ts'
-import { InputFailure, type Diagnostic } from '../diagnostic.ts'
+import { diagnosticText, InputFailure, type Diagnostic } from '../diagnostic.ts'
 import { commands } from '../parser.ts'
 import { reportText } from '../presentation.ts'
 import { validReport } from '../validation.ts'
@@ -24,6 +24,7 @@ import {
   type Form,
   type Tenant,
   type PreparedForm,
+  type Field,
 } from './forms.ts'
 import { openTerminal, type TerminalPort } from './terminal.ts'
 
@@ -35,6 +36,15 @@ interface Options {
 export function tuiOptions(args: readonly string[], home: string): Options | 'help' {
   if (args.length === 2 && args[0] === 'tui' && args[1] === '--help') return 'help'
   if (args[0] !== 'tui') throw new InputFailure('invalid-options')
+  const values = tuiOptionValues(args)
+  const directory =
+    values.get('--state-dir') ?? (isAbsolute(home) ? join(home, '.omne-harness-lite') : '')
+  const profile = values.get('--terminal-profile')
+  if (typeof directory !== 'string' || !isAbsolute(directory) || typeof profile !== 'string')
+    throw new InputFailure('invalid-options')
+  return { directory, profile, setup: values.has('--setup') }
+}
+function tuiOptionValues(args: readonly string[]): Map<string, string | true> {
   const values = new Map<string, string | true>()
   for (let at = 1; at < args.length; at++) {
     const name = args[at]
@@ -46,12 +56,7 @@ export function tuiOptions(args: readonly string[], home: string): Options | 'he
       values.set(name, value)
     } else throw new InputFailure('invalid-options')
   }
-  const directory =
-    values.get('--state-dir') ?? (isAbsolute(home) ? join(home, '.omne-harness-lite') : '')
-  const profile = values.get('--terminal-profile')
-  if (typeof directory !== 'string' || !isAbsolute(directory) || typeof profile !== 'string')
-    throw new InputFailure('invalid-options')
-  return { directory, profile, setup: values.has('--setup') }
+  return values
 }
 export interface TuiRuntime extends Pick<
   CliRuntime,
@@ -61,6 +66,13 @@ export interface TuiRuntime extends Pick<
 }
 export function tuiProviders() {
   return { ...providers(), terminal: openTerminal }
+}
+/** Both screen codes mean this terminal cannot carry the full-screen interface: point to machine. */
+function tuiDiagnosticText(code: Diagnostic): string {
+  return diagnosticText(
+    code,
+    code === 'tty-required' || code === 'tty-unsupported' ? {} : undefined,
+  )
 }
 function pretty(value: unknown): string[] {
   return JSON.stringify(value, null, 2).split('\n')
@@ -97,42 +109,51 @@ async function collect(form: Form, dialog: Dialog): Promise<Record<string, unkno
       if (choice === undefined) return undefined
       if (choice === 0) continue
     }
-    if (field.kind === 'enum' || field.kind === 'boolean') {
-      const options = field.kind === 'boolean' ? ['False', 'True'] : field.options
-      if (!options) throw new Error('missing enum options')
-      const choice = await dialog.choose(field.label, options)
-      if (choice === undefined) return undefined
-      draft[field.name] = field.kind === 'boolean' ? choice === 1 : options[choice]
-    } else if (field.kind === 'tenant') {
-      const account = await dialog.text(field.label + ': account ID')
-      if (account === undefined) return undefined
-      const organization = await dialog.text(field.label + ': organization ID')
-      if (organization === undefined) return undefined
-      draft[field.name] = { account, organization }
-    } else if (field.kind === 'organizations') {
-      const count = await dialog.choose(field.label, ['One organization', 'Two organizations'])
-      if (count === undefined) return undefined
-      const organizations: string[] = []
-      for (let i = 0; i <= count; i++) {
-        const id = await dialog.text(`Organization ${i + 1} ID`)
-        if (id === undefined) return undefined
-        organizations.push(id)
-      }
-      draft[field.name] = organizations
-    } else {
-      const value = await dialog.text(
-        field.label,
-        field.kind === 'secret-file'
-          ? ['Enter a protected file path. Do not type the credential here.']
-          : field.kind === 'integer'
-            ? ['Decimal integer; no exponent, fraction, or surrounding spaces.']
-            : [],
-      )
-      if (value === undefined) return undefined
-      draft[field.name] = value
-    }
+    const value = await collectField(field, dialog)
+    if (value === undefined) return undefined
+    draft[field.name] = value
   }
   return draft
+}
+async function collectField(field: Field, dialog: Dialog): Promise<unknown> {
+  if (field.kind === 'enum' || field.kind === 'boolean') {
+    const options = field.kind === 'boolean' ? ['False', 'True'] : field.options
+    if (!options) throw new Error('missing enum options')
+    const choice = await dialog.choose(field.label, options)
+    if (choice === undefined) return undefined
+    return field.kind === 'boolean' ? choice === 1 : options[choice]
+  } else if (field.kind === 'tenant') {
+    return collectTenant(field.label, dialog)
+  } else if (field.kind === 'organizations') {
+    return collectOrganizations(field.label, dialog)
+  } else {
+    return dialog.text(
+      field.label,
+      field.kind === 'secret-file'
+        ? ['Enter a protected file path. Do not type the credential here.']
+        : field.kind === 'integer'
+          ? ['Decimal integer; no exponent, fraction, or surrounding spaces.']
+          : [],
+    )
+  }
+}
+async function collectTenant(label: string, dialog: Dialog): Promise<Tenant | undefined> {
+  const account = await dialog.text(label + ': account ID')
+  if (account === undefined) return undefined
+  const organization = await dialog.text(label + ': organization ID')
+  if (organization === undefined) return undefined
+  return { account, organization }
+}
+async function collectOrganizations(label: string, dialog: Dialog): Promise<string[] | undefined> {
+  const count = await dialog.choose(label, ['One organization', 'Two organizations'])
+  if (count === undefined) return undefined
+  const organizations: string[] = []
+  for (let i = 0; i <= count; i++) {
+    const id = await dialog.text(`Organization ${i + 1} ID`)
+    if (id === undefined) return undefined
+    organizations.push(id)
+  }
+  return organizations
 }
 function previewBody(preview: ActionPreview): string[] {
   return [
@@ -411,7 +432,7 @@ export async function runTui(args: readonly string[], runtime: TuiRuntime): Prom
     }
     if (failed) status = 70
     try {
-      for (const code of diagnostics) await runtime.stderr(`omne: ${code}\n`)
+      for (const code of diagnostics) await runtime.stderr(tuiDiagnosticText(code))
       if (terminal && !dialog?.outputFailed) {
         if (lastReport && !lastShown) await runtime.stdout(reportText(lastReport, false))
         await runtime.stdout(`\r\nGovernance TUI ended. Exit status: ${status}.\n`)

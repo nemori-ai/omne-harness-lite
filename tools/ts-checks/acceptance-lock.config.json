@@ -1,0 +1,5 @@
+{
+  "memberRoots": ["packages", "apps"],
+  "directory": "acceptance",
+  "ownerRoles": ["main", "qa"]
+}

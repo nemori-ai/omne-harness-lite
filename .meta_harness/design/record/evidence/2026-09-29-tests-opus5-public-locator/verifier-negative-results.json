@@ -1,0 +1,16 @@
+[
+  {
+    "case": "byte-tamper",
+    "inventoryRefreshedToExerciseSemanticCheck": false,
+    "exitCode": 1,
+    "stderr": "Traceback (most recent call last):\n  File \"/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/new-paid-evidence-20260929/2026-09-29-tests-opus5-public-locator/verify.py\", line 131, in <module>\n    print(json.dumps(verify(args.repo),ensure_ascii=False,indent=2))\n  File \"/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/new-paid-evidence-20260929/2026-09-29-tests-opus5-public-locator/verify.py\", line 29, in verify\n    check(sha((PACK / path).read_bytes()) == digest, 'SHA mismatch: ' + path)\n  File \"/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/new-paid-evidence-20260929/2026-09-29-tests-opus5-public-locator/verify.py\", line 14, in check\n    raise AssertionError(message)\nAssertionError: SHA mismatch: receipts/public-cf0b66cc-b169-4452-91ec-d46aec535ab1.json\n",
+    "originalRestoredByteForByte": true
+  },
+  {
+    "case": "ledger-total-tamper",
+    "inventoryRefreshedToExerciseSemanticCheck": true,
+    "exitCode": 1,
+    "stderr": "Traceback (most recent call last):\n  File \"/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/new-paid-evidence-20260929/2026-09-29-tests-opus5-public-locator/verify.py\", line 131, in <module>\n    print(json.dumps(verify(args.repo),ensure_ascii=False,indent=2))\n  File \"/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/new-paid-evidence-20260929/2026-09-29-tests-opus5-public-locator/verify.py\", line 86, in verify\n    check(Decimal(entry['actualUsd']) == cost['cost_usd'], 'ledger actual')\n  File \"/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/new-paid-evidence-20260929/2026-09-29-tests-opus5-public-locator/verify.py\", line 14, in check\n    raise AssertionError(message)\nAssertionError: ledger actual\n",
+    "originalRestoredByteForByte": true
+  }
+]

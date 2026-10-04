@@ -1,0 +1,7 @@
+{
+  "coldEntryId": "3335fd52-4dcb-4cc4-b9d2-7dd5aecd57ac",
+  "warmEntryId": "f7c4e817-1639-4fb2-81d4-8f3d144538b2",
+  "coldWriteTokens": 6204,
+  "warmReadTokens": 6204,
+  "wireSha256": "5fbfa03cdd078662b1c6bb0939f055cd4cbf1a01a20f8e24769be6014c1bcc7e"
+}

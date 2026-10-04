@@ -4,6 +4,7 @@ import type {
   GovernanceClientOperations,
 } from '@omne-harness-lite/governance-client-operations'
 import { runCli, providers, type CliRuntime } from '../src/application.ts'
+import { diagnosticText } from '../src/diagnostic.ts'
 import { commands } from '../src/parser.ts'
 import { json, unopened } from '../src/presentation.ts'
 const healthCommand = commands.find(c => c.action === 'health')!
@@ -127,7 +128,41 @@ describe('CLI owns process resources and preserves governance facts', () => {
     expect(await runCli(['center', 'health'], f.runtime)).toBe(2)
     expect(f.runtime.openState).not.toHaveBeenCalled()
     expect(f.stdout).toEqual([])
-    expect(f.stderr).toEqual(['omne: tty-required\n'])
+    expect(f.stderr).toEqual([
+      'omne: tty-required\nFor scripts or redirected output, use omne machine center health\n',
+    ])
+  })
+  it('the signpost names only the recognized command and never echoes option values', async () => {
+    const f = fixture({ stdoutIsTTY: false })
+    expect(await runCli(['tenant', 'current', '--state-dir', '/PRIVATE/dir'], f.runtime)).toBe(2)
+    expect(f.stderr.join('')).toContain('use omne machine tenant current\n')
+    expect(f.stderr.join('')).not.toContain('PRIVATE')
+    const unknown = fixture({ stdoutIsTTY: false })
+    expect(await runCli(['PRIVATE-word', '--state-dir', '/PRIVATE/dir'], unknown.runtime)).toBe(2)
+    expect(unknown.stderr).toEqual([
+      'omne: tty-required\nFor scripts or redirected output, use omne machine (see omne --help)\n',
+    ])
+  })
+  it('a code line alone stays one line; the signpost appears only when the caller asks for it', () => {
+    expect(diagnosticText('tty-unsupported')).toBe('omne: tty-unsupported\n')
+    expect(diagnosticText('tty-unsupported', {})).toBe(
+      'omne: tty-unsupported\nFor scripts or redirected output, use omne machine (see omne --help)\n',
+    )
+  })
+  it('a missing credential file on a real terminal is not a no-screen refusal and gets no signpost', async () => {
+    const f = fixture({ stdoutIsTTY: true })
+    await runCli(['register', '--login-identifier', 'alice'], f.runtime)
+    expect(f.stderr).toEqual(['omne: tty-unsupported\n'])
+  })
+  it('a failing stderr write on the rejected human entry is the same failure as before', async () => {
+    const f = fixture({
+      stdoutIsTTY: false,
+      stderr: async () => {
+        throw new Error('broken stderr')
+      },
+    })
+    expect(await runCli(['center', 'health'], f.runtime)).toBe(70)
+    expect(f.runtime.openState).not.toHaveBeenCalled()
   })
   it.each(['--help', '--version'])(
     'pure %s does not open state even through a pipe',

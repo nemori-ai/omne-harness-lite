@@ -1,16 +1,31 @@
 {
   "checked_at": "2026-09-23",
   "codex": {
-    "cli_version": "0.156.1",
+    "checked_at": "2026-10-01",
+    "cli_version": "0.159.0",
     "evidence": {
       "kind": "local_host_catalog_cache",
       "path_hint": "~/.codex/models_cache.json",
-      "fetched_at": "2026-09-23T03:19:42.831006336Z",
-      "client_version": "0.156.1",
-      "sha256": "95709bf27a686256559684393d5d880c8459f75f417d40deb7a5cb15959e284a",
-      "official_host_docs": "https://learn.chatgpt.com/docs/models"
+      "fetched_at": "2026-10-01T08:50:07.632281373Z",
+      "client_version": "0.159.0",
+      "sha256": "6965f938e542d31641ffef5e32288ff92cadcc5670a3252e5bae02524f92239d",
+      "official_host_docs": "https://learn.chatgpt.com/docs/models",
+      "note": "The cache is rewritten by whichever Codex client ran last. An older client on the same machine (0.155.0, bundled with an editor extension) wrote a catalog without gpt-6.1-sol minutes before and after this read; hash a copy taken right after a run of the target client."
     },
     "models": [
+      {
+        "id": "gpt-6.1-sol",
+        "host_catalog_visible": true,
+        "effort_values": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+          "ultra"
+        ],
+        "account_execution": "ok: codex exec probe on 0.159.0 with ChatGPT sign-in, 2026-10-01; a made-up name (gpt-6.1-doesnotexist) was refused with HTTP 400 in the same session, so acceptance is not blanket"
+      },
       {
         "id": "gpt-6-astra",
         "host_catalog_visible": true,

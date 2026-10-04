@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "captureSource": "openrouter-public-api",
+  "observedAt": "2026-09-29T07:03:06.583Z",
+  "directoryObservedAt": "2026-09-29T07:03:06.562Z",
+  "directoryRawSha256": "20420f9a19b0973a5868d5005519893a650f22b659258fb07fe4b7d223883337",
+  "endpointRawSha256": "cb2ccc03b4ca7c21b5bb20d08b1d82a7c50c543c14761bb083323d4291508621",
+  "cards": [
+    {
+      "id": "anthropic/claude-sonnet-5",
+      "state": "directory_present",
+      "endpoints": [
+        {
+          "tag": "anthropic",
+          "provider": "Anthropic",
+          "status": 0,
+          "pricing": {
+            "prompt": "0.000002",
+            "completion": "0.00001",
+            "web_search": "0.01",
+            "input_cache_read": "0.0000002",
+            "input_cache_write": "0.0000025",
+            "input_cache_write_1h": "0.000004",
+            "discount": 0
+          }
+        }
+      ]
+    }
+  ]
+}

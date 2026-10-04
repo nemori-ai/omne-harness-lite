@@ -1,0 +1,3260 @@
+=====PAGE 0=====
+
+=====PAGE 1=====
+Praise for We, Programmers
+“ I, like Uncle Bob, spent much of my career consulting, teaching, and 
+going to computer conferences. The importance of this is that I got to 
+meet and dine with many of the characters in this book. So this book is 
+about my professional friends, and I can tell you that it is a faithful 
+story. In fact, it is incredibly well-written and researched. That is how it 
+really was.”
+—From the Afterword by Tom Gilb
+“ I can’t think of any other book that provides such a sweeping overview 
+of the early history of programming.” 
+—Mark Seeman
+“ We, Programmers is a fascinating romp through the history of computers 
+and programming. Wonderful glimpses into the lives of some of the greats. 
+And an enjoyable ride with Uncle Bob’s career as a programmer." 
+—Jon Kern, co-author of the Agile Manifesto
+“ In We, Programmers , Bob successfully weaves together a highly 
+entertaining history of programmers, giving us a wealth of historical 
+context, humanizing stories, and eye-opening revelations about the 
+foundational folks in our industry, all bolstered with just the right 
+amount of low-level detail. Bob, being a small piece of this rich history, 
+finds a way to pepper the history with his own relevant observations 
+and critiques. We also get Bob’s full story this time out, as well as his 
+own thoughts about what’s coming next. A fun, quick read.”
+—Jeff Langr
+=====PAGE 2=====
+Robert C. Martin Series
+THE ROBERT C. MARTIN SERIES is directed at software developers, team leaders,
+business analysts, and managers who want to increase their skills and proﬁ ciency to 
+the level of a Master Craftsman. 
+Clean Code presents the principles, patterns, and practices of writing clean code and 
+challenges programmers to closely read code, discovering what’s right and what’s 
+wrong with it.
+Clean Coder provides practical guidance on how to approach software development 
+and work well and clean with a software team.
+Clean Craftsmanship picks up where Clean Code leaves oﬀ  , outlining additional ways 
+to write quality and trusted code you can be proud of every day.
+Clean Agile is a clear and concise guide to basic Agile values and principles. Perfect 
+for those new to Agile methods and long-time developers who want to simplify 
+approaches for the better.
+Clean Architecture brings the methods and tactics of “clean coding” to system design.
+Visit informit.com/martinseries for a complete list of available publications.
+Make sure to connect with us!
+InformIT.com/connect
+=====PAGE 3=====
+We, Programmers
+A Chronicle of Coders from Ada to AI
+Robert C. Martin
+Hoboken, New Jersey
+=====PAGE 4=====
+Cover image: agsandrew/Shutterstock
+Page xxxi: Author photo courtesy of Robert C. Martin
+Page 31: Jacquard Loom, gorosan/Shutterstock
+Page 46: David Hilbert, INTERFOTO/Alamy Stock Photo
+Page 53: Hilbert’s tomb, Kassandro, licensed under CC BY-SA 3.0
+Page 82: Harvard Mark I, Arnold Reinhold, licensed under CC BY-SA 3.0
+Page 116: John Backus, courtesy of Lawrence Berkeley National Laboratory
+Page 119: SSEC mainframe computer, Everett Collection/Shutterstock
+Page 139: ARRA, Internationaal Instituut voor Sociale Geschiedenis (IISG), licensed under CC BY-SA 2.0
+Page 147: ARMAC, Gabriele Sowada, licensed under CC BY 3.0
+Page 210: Newspaper article with photo of Judith Allen; The Oregon Journal’s archive is the property of Oregonian 
+Publishing Co.
+Page 213: Second gen computers, courtesy of Paul Pierce
+Page 224: Operator working with early CAD program, courtesy of the Computer History Museum
+Page 245: Digi-Comp, Pierre Terre, licensed under CC BY-SA 3.0
+Page 259: Varian 620, J R Spigot, licensed under CC0 1.0
+Page 262: Tri-data Cartridge, Museum of Obsolete Media, by Jason Curtis licensed under CC BY SA 4.0
+Page 267: System7, Mike Ross/corestore.org
+Page 373: Grace Murray Hopper, official U.S. Navy Photograph, from the collections of the Naval History and 
+Heritage Command; photo # NH 96919-KN
+Page 392: IBM 026 Keypunch illustration, Jennifer Kohnke
+Page 393: IBM Selectric typewriter, Steve lodefink, licensed under CC BY 2.0
+Page 393: IBM Selectric Type Ball, David Whidborne/Shutterstock
+Page 394: Intel 8080, the Board of Trustees of the Science Museum; image licensed under CC BY-SA 4.0
+Page 398: PDP-7, Tore Sinding Bekkedal, licensed under CC BY-SA 1.0
+Page 399: PDP-11, Don P. Mitchell/mentallandscape.com
+Page 400: Plugboard, Chris Shrigley, licensed under CC BY 2.5
+Page 401: Rk07drive, Gunkies.org/Computer History Wiki, licensed under the GNU Free Documentation License 1.2
+Page 401: Rk07 Packs, Gunkies.org/Computer History Wiki, licensed under the GNU Free Documentation License 1.2
+Page 404: Transistors, Jules Selmes/Pearson Education Ltd.
+Page 406: Vacuum tube, bearwu/Shutterstock
+Page 407: VT100, Living Computer Museum, Seattle by Jason “Textfiles” Scott, licensed under CC BY 2.0
+Many of the designations used by manufacturers and sellers to distinguish their products are claimed as trademarks. 
+Where those designations appear in this book, and the publisher was aware of a trademark claim, the designations have 
+been printed with initial capital letters or in all capitals.
+The author and publisher have taken care in the preparation of this book, but make no expressed or implied 
+warranty of any kind and assume no responsibility for errors or omissions. No liability is assumed for incidental or 
+consequential damages in connection with or arising out of the use of the information or programs contained herein.
+Please contact us with concerns about any potential bias at pearson.com/report-bias.html.
+Visit us on the Web: informit.com/aw
+Library of Congress Control Number: 2024947905
+Copyright © 2025 Pearson Education, Inc.
+All rights reserved. This publication is protected by copyright, and permission must be obtained from the publisher 
+prior to any prohibited reproduction, storage in a retrieval system, or transmission in any form or by any means, 
+electronic, mechanical, photocopying, recording, or likewise. For information regarding permissions, request forms 
+and the appropriate contacts within the Pearson Education Global Rights & Permissions Department, please visit 
+www.pearson.com/global-permission-granting.html.
+ISBN-13: 978-0-13-534426-2 
+ISBN-10: 0-13-534426-3 
+$PrintCode
+=====PAGE 5=====
+For Timothy Michael Conrad
+=====PAGE 6=====
+This page intentionally left blank 
+=====PAGE 7=====
+vii
+Foreword   xv
+Preface   xix
+Timeline   xxiii
+About This Book  xxvii
+Acknowledgments  xxix
+About the Author  xxxi
+PART I  Setting the Stage  1
+Chapter 1  Who Are We?  3
+Why Are We Here? 6
+PART II  The Giants  11
+Chapter 2  Babbage: The First Computer Engineer  13
+The Man 13
+Tables 15
+Making Tables 16
+Finite Differences 18
+Babbage’s Vision 23
+Contents
+=====PAGE 8=====
+Contents
+viii
+The Difference Engine 24
+Mechanical Notation 26
+Party Tricks 27
+The Engine’s Demise 28
+The Technology Argument 30
+The Analytical Engine 30
+Symbols 33
+Ada: The Countess of Lovelace 34
+The First Programmer? 39
+Only the Good Die Young 39
+A Mixed End 40
+The Realization of the Difference Engine 2  41
+Conclusion 42
+Chapter 3  Hilbert, Turing, and Von Neumann: The First  
+Computer Architects  45
+David Hilbert 46
+Gödel 49
+Storm Clouds 52
+John von Neumann 53
+Alan Turing 57
+The Turing-Von Neumann Architecture 60
+Turing’s Machine 61
+Von Neumann’s Journey 65
+Chapter 4  Grace Hopper: The First Software Engineer  77
+War, and the Summer of 1944 78
+Discipline: 1944–1945 83
+Subroutines: 1944–1946 89
+The Symposium: 1947 90
+The UNIVAC: 1949–1951 93
+Sorting, and the Beginning of Compilers 99
+Alcohol: Circa 1949 100
+Compilers: 1951–1952 101
+The Type A Compilers 103
+Languages: 1953–1956 105
+COBOL: 1955–1960 108
+=====PAGE 9=====
+Contents
+ix
+My COBOL Rant 112
+An Unmitigated Success 113
+Chapter 5  John Backus: The First High-Level Language  115
+John Backus, the Man 115
+Colored Lights That Hypnotize 117
+Speedcoding and the 701 120
+The Need for Speed 124
+The Division of Labor 129
+My FORTRAN Rant 130
+ALGOL and Everything Else 131
+Chapter 6  Edsger Dijkstra: The First Computer Scientist  135
+The Man 135
+The ARRA: 1952–1955 138
+The ARMAC: 1955–1958 143
+Dijkstra’s Algorithm: The Minimum Path 144
+ALGOL and the X1: 1958–1962 145
+The Gathering Gloom: 1962 150
+The Rise of Science: 1963–1967 152
+Science 153
+Semaphores 154
+Structure 155
+Proof 155
+Mathematics: 1968 156
+Structured Programming: 1968 160
+Dijkstra’s Argument 161
+Chapter 7  Nygaard and Dahl: The First OOPL  165
+Kristen Nygaard 165
+Ole-Johan Dahl 167
+SIMULA and OO 168
+SIMULA I 174
+Chapter 8  John Kemeny: The First “Everyman’s” Language—BASIC  185
+The Man, John Kemeny 185
+The Man, Thomas Kurtz 188
+The Revolutionary Idea 188
+=====PAGE 10=====
+Contents
+x
+Impossible 190
+BASIC 192
+Time-sharing 193
+Computer Kids 194
+Escape 195
+The Blind Prophet 195
+Symbiosis? 196
+Prophesies 197
+Through a Glass Darkly 201
+References 202
+Chapter 9  Judith Allen  203
+The ECP-18 204
+Judy 205
+A Stellar Career 209
+Chapter 10  Thompson, Ritchie, and Kernighan  211
+Ken Thompson 211
+Dennis Ritchie 214
+Brian Kernighan 219
+Multics 221
+PDP-7 and Space Travel 223
+Unix 226
+PDP-11 230
+C 232
+K&R 236
+Twisting Arms 237
+Software Tools 238
+Conclusion 239
+PART III  The Knee of the Curve  243
+Chapter 11  The Sixties  245
+ECP-18 249
+What Fathers Do 252
+Chapter 12  The Seventies  253
+1969 253
+1970 258
+1973 261
+=====PAGE 11=====
+Contents
+xi
+1974 266
+1976 271
+Source Code Control 274
+1978 275
+1979 277
+Chapter 13  The Eighties  281
+1980 281
+Sys Admin 283
+The pCCU 284
+1981 285
+The DLU/DRU 285
+The Apple II 287
+New Products 288
+1982 289
+Xerox Star 290
+1983 291
+Inside the Macintosh 292
+BBS 292
+C at Teradyne 293
+1984–1986: VRS 293
+Core War 294
+1986 295
+The Craft Dispatch System (CDS) 295
+Field-Labeled Data 296
+Finite State Machines 297
+OO 298
+1987–1988: The UK 298
+Chapter 14  The Nineties  301
+1989–1992: Clear Communications 301
+Usenet 302
+Uncle Bob 303
+1992: The C++ Report 304
+1993: Rational Inc. 304
+1994: ETS 306
+The C++ Report Column 309
+Patterns 309
+=====PAGE 12=====
+Contents
+xii
+1995–1996: First Book, Conferences, Classes,  
+and Object Mentor Inc. 310
+Principles 311
+1997–1999: The C++ Report, UML, and Dotcom 312
+Book 2: Design Principles 313
+1999–2000: eXtreme Programming 313
+Chapter 15  The Millennium  317
+2000: XP Leadership 317
+2001: Agile and the Crash(es) 318
+2002–2008: Wandering in the Wilderness 320
+Clean Code 320
+2009: SICP and Chroma-key 321
+Video 322
+cleancoders.com 324
+2010–2023: Videos, Craftsmanship, and Professionalism 324
+Agile Off the Rails 325
+More Books 326
+The COVID-19 Pandemic 326
+2023: The Plateau 326
+PART IV  The Future  329
+Chapter 16  Languages  331
+Types 333
+Lisp 335
+Chapter 17  AI 337
+The Human Brain 337
+Neural Nets 340
+Building Neural Nets Is Not Programming  342
+Large Language Models 343
+The DISRUPTION of Large X Models 351
+Chapter 18  Hardware  355
+Moore’s Law 356
+Cores 357
+The Cloud 357
+The Plateau 357
+Quantum Computers 358
+=====PAGE 13=====
+Contents
+xiii
+Chapter 19  The World Wide Web  361
+Chapter 20  Programming  367
+The Aviation Analogy 368
+Principles 368
+Methods 369
+Disciplines 369
+Ethics 370
+Afterword   371
+Reflections on the Content 371
+Personal Anecdotes or Stories 372
+Reflections on the Content 380
+Afterword Author’s Perspective 381
+Discussion of Future Trends 381
+Calls to Action, or Closing Thoughts 384
+Glossary of Terms  385
+Cast of Supporting Characters  411
+Index   435
+=====PAGE 14=====
+This page intentionally left blank 
+=====PAGE 15=====
+xv
+Foreword
+```
+vim .
+```
+Five simple characters launch my favorite text editor. This isn’t just any 
+text editor, it’s NeoVim. Today’s NeoVim experience sports keybinds, 
+LSPs, syntax highlighting, in-editor error diagnostics, and more. With all 
+of this customization, NeoVim launches in mere milliseconds, allowing 
+file editing in what feels like an instant. Even with thousands of files, 
+LSPs quickly report the state of the project, and errors are loaded into 
+quickfix menus for speedy navigation. A couple keystrokes allow me to 
+build and launch or run tests. My computer produces code from plain 
+English via the AI! Furthermore, that same AI can code alongside me 
+as I type, providing large amounts of (highly questionable) code in a 
+flash. This all sounds impressive. The NeoVim experience is wonderful, 
+smooth, and blazingly fast. However, using NeoVim is considered 
+primitive, and by some, profane. “Luddite!” some developers shout for 
+choosing to use NeoVim and spending time configuring my editor when 
+full-batteries-included environments exist. IntelliJ supports actions that 
+my NeoVim mind cannot even comprehend!
+=====PAGE 16=====
+Foreword
+xvi
+I tell you all of this because it is shocking. No, not shocking that I  
+use what some would call antiquated technologies. Not shocking how 
+software engineers argue over preferences—all that is par for the course. 
+What truly boggles my mind is how the sheer power of editing is mundane 
+to us engineers. A mere blip in the daily grind of coding, meetings, and 
+Slack messages. Text editing is ordinary. Autocompletes, syntax high -
+lighting, reliable (sometimes) docs are just things we expect. Before text 
+editors, engineers spent decades without a high-level language, even 
+longer without syntax highlighting, and practically 70 years without 
+LSPs to give autocomplete and refactoring tools in almost any language. 
+Text editing is truly a marvel of humankind.
+Besides living in the past with my text editor, I also love reading about 
+the past. The “real programmers” who could time their code with the 
+drum memory for optimal reading speeds. What I wouldn’t give to see 
+one of the greats, experts of their craft, in action. Perhaps it’s just nostalgia, 
+but the past adventures seem more grand, discoveries more significant, 
+and work more meaningful. In We, Programmers, I got the chance to 
+walk that past, side by side, with the creator(s) of each significant leap in 
+computing history. I could see the dinner parties of Charles Babbage, who 
+inspired and terrified his guests with the Difference Engine. That giant 
+mechanical monster clinking and clanking as it produced what must have 
+appeared as magic. Seeing the Difference Engine in action was likely 
+similar to what we experienced with our first LLM prompt or Copilot 
+autocomplete. I bet you could have heard dinner guests exclaiming 
+“Machines can really think.” I got to feel the pressure of teams working 
+around the clock and the urgent need for better computing during the 
+critical calculations of World War II that allowed for the atom bomb. No, 
+they did not have Herman Miller chairs and fancy standing desks. Hell, 
+they didn’t even have a monitor or a keyboard! Yet they achieved the 
+unimaginable and changed the course of history. We, Programmers is one 
+of the most compelling tellings of computing history.
+I would be very surprised to meet a programmer who hasn’t heard the 
+name Uncle Bob or isn’t familiar with his work. He is absolutely prolific 
+in our industry. For many years, I only knew of Uncle Bob by name, by 
+=====PAGE 17=====
+Foreword
+xvii
+Twitter PFP, and his notable works on clean code and Agile. In my mind, 
+he was the Avatar of AbstractBuilderFactory. That all changed when one 
+day we started interacting on Twitter, which resulted in emails, phone 
+calls, and even a podcast. Through these exchanges, my whole perspective 
+changed. Robert C. Martin is so much more than what my university 
+studies lead me to believe. He is pragmatic and willing to make concessions 
+when needed. During and after our podcast, one of the most consistent 
+comments went along the lines of “He laughs and smiles a lot!” It’s a 
+testament to his character and a life well lived. He is a genuine Software 
+Engineer and somebody that we can all learn from.
+I am personally tired of the countless arguments over whitespace, text editors, 
+and the OOP vs. FP debates that rage across X in 280 characters or 
+less. What I think is interesting is who created the technologies behind the 
+arguments that have shaped so many of us. We, Programmers delivers 
+something many times more meaningful, a connection to the past and 
+hope for the future, and Uncle Bob is perhaps the perfect mediator for 
+this story.
+—The name is ThePrimeagen
+=====PAGE 18=====
+This page intentionally left blank 
+=====PAGE 19=====
+xix
+I am about to tell you the story of how it all began. It’s a twisty-turny tale 
+of the lives and challenges of some remarkable people, the remarkable times 
+in which they lived, and the remarkable machines they mastered.
+But before we dive headlong into those twisty little passages all different, 
+a little preview is likely appropriate—just to whet your appetite.
+Necessity may be the mother of invention, but nothing breeds necessity 
+like war. The impetus for our industry was created by the paroxysms of 
+war—especially World War II.
+In the 1940s, the technology of warfare had outstripped our computational 
+resources. There was simply no way that battalions of humans operating 
+desk calculators could keep up with the computational demands coming 
+from all sectors of the war.
+The problem was the vast amount of additions, subtractions, multiplications, 
+and divisions required to approximate the path of a shell fired from a gun 
+to its target. Such problems could not be solved by a simple mathematical 
+formula like d=rt or s=½at2. These problems required that time and 
+Preface
+=====PAGE 20=====
+Preface
+xx
+distance be broken down into thousands of tiny segments and that the 
+path of the projectile be simulated and approximated from segment  
+to segment. Such simulation requires a vast amount of brute-force 
+grade-school calculation.
+In centuries past, all that calculation was performed by armies of humans 
+equipped with pen and paper. It was only in the last century that they 
+were given adding machines to assist in that task. Organizing the 
+calculations, and the teams of people who performed them, was a 
+herculean task. 1 The calculations themselves could take such teams 
+weeks, or even months.
+Machines that could perform such feats had been dreamed of in the 
+1800s. Some anemic prototypes had even been built. But they were 
+playthings and oddities. They were devices to be shown at the dinner 
+parties of the elite. Few considered them to be tools worthy of use—
+especially considering their cost.
+But WWII changed all that. The need was dire. The cost was irrelevant. 
+And so those early dreams became reality, and vast calculating engines 
+were built.
+The people who programmed and operated those machines were the 
+pioneers of our field. At first, they were forced into the most primitive of 
+conditions. Programming instructions were literally punched, one hole at 
+a time, into long ribbons of paper tape that the machine would consume 
+and execute. This style of programming was overwhelmingly laborious, 
+hideously detailed, and utterly unforgiving. Moreover, the execution of 
+such programs could span weeks that required detailed monitoring and 
+constant intervention. A loop in a program, for example, was executed by 
+manually repositioning the paper tape for every iteration of the loop, and 
+1. To see such a task in action, I recommend the 2024 Pi Day celebration, where over 100 digits were 
+calculated by hand by a very well-coordinated team of a few hundred individuals over the period of a 
+week. At the time of writing, “The biggest hand calculation in a century! [Pi Day 2024]”, posted to 
+YouTube by Stand-up Maths, Mar. 13, 2024.
+=====PAGE 21=====
+Preface
+xxi
+manually inspecting the state of the machine to see if the loop should be 
+terminated or not.
+As the years wore on, electromechanical machines gave way to electronic 
+vacuum tube machines that stored their data in sound waves traveling 
+through long tubes of mercury. Paper tape gave way to punched cards 
+and eventually to stored programs. These new technologies were driven 
+by those early pioneers, and enabled further innovations.
+The first compilers of the early 1950s were little more than assemblers 
+with special keywords that loaded and invoked prewritten subroutines—
+sometimes from paper tape, or magnetic tape. Later compilers experimented 
+with expressions and data types but remained primitive and slow. By the 
+late ’50s, John Backus’s FORTRAN and Grace Hopper’s COBOL 
+introduced a whole new mindset. The binary code that programmers had 
+previously written by hand could now be generated by a computer program 
+that could read and parse abstract text.
+In the early ’60s, Dijkstra’s ALGOL drove the level of abstraction higher. 
+A few years later Dahl’s and Nygaard’s SIMULA 67 drove it higher again.
+Structured programming and object-oriented programming emerged from 
+those beginnings.
+Meanwhile, John Kemeny and crew brought computing to the common 
+person by creating BASIC and time-sharing in 1964. BASIC was a 
+language almost anyone could understand and use. Time-sharing allowed 
+many people to conveniently and simultaneously use a single, expensive 
+computer.
+And then came Ken Thompson and Dennis Ritchie, who, in the late ’60s 
+and early ’70s, blew open the world of software development by creating 
+C and Unix. After that, we were off to the races.
+The mainframe computer revolution of the ’60s was followed by the 
+minicomputer revolution of the ’70s and the microcomputer revolution of 
+=====PAGE 22=====
+Preface
+xxii
+the ’80s. The personal computer took the industry by storm in the ’80s, 
+followed quickly by the object-oriented revolution, and then the internet 
+revolution, and then the Agile revolution. Software was beginning to 
+dominate everything.
+9/11 and the dotcom bust slowed us down for a few years, but then came 
+the Ruby/Rails revolution, and then the mobile revolution. And then the 
+internet was everywhere. The social networks blossomed and then 
+decayed while AI reared up to threaten everything.
+And that brings us to now and to thoughts of the future. All of that, and 
+more, is what we will be talking about in the pages of this book. So, if 
+you are ready, buckle up—because the ride is going to be a wild one.
+Register your copy of We, Programmers on the InformIT site for convenient 
+access to updates and/or corrections as they become available. To start the 
+registration process, go to informit.com/register and log in or create an 
+account. Enter the product ISBN (9780135344262) and click Submit. If 
+you would like to be notified of exclusive offers on new editions and 
+updates, please check the box to receive email from us. 
+=====PAGE 23=====
+xxiii
+Timeline
+The people and events described through the stories in this book are 
+depicted upon this timeline. As you read the stories and encounter the 
+events, you can place them in context by finding them here. For example, 
+you may find it interesting to know that FORTRAN and Sputnik are 
+coincident in time, or that Ken Thompson joined Bell Labs before Dijkstra 
+said that GOTO statements were harmful.
+=====PAGE 24=====
+Timeline
+xxiv
+Events
+• Pearl Harbor
+• Hilbert’s Challenge
+• Gödel’s Incompleteness
+• Hilbert: No Math in Gottingen
+• Turing Decideability
+• Von Neumann Meets Turing
+• Von Neumann to London (NCR)
+• Von Neumann to Los Alamos
+• Von Neumann sees Mark I & ENIAC. Writes EDVAC draft.
+• Hopper Joins Mark I
+• Betty Snyder’s Merge Sort
+• Mark I Symposium
+• Hopper Joins UNIVAC
+• Hopper: Automatic Programming
+• Symposium: Automatic Programming
+• B-O Flowmatic
+• CODASYL
+• COBOL
+• SSEC
+• Speedcoding
+• Fortran
+• BNF ALGOL
+• Cambridge EDSAC
+• Nygaard NDRE
+• Kemeny Hears Von Neumann on EDVAC   
+• Hired at Dartmouth
+• LGP-30
+• DN30 & DN235
+• BASIC & Timesharing
+• Dahl NDRE
+• Monte Carlo Compiler
+• Simula Spec
+• Nygaard pitches UNIVAC
+• 1107 Delivered
+• Simula I
+• Simula 67
+Simula 67 Commercialized •
+Stroustrup Arrhus •
+• Ken Thompson Bell
+• Dennis Ritchie Bell
+• Dennis Ritchie No Thesis
+• Brian Kernighan Bell
+• MULTICS Killed
+• UNIX PDP7
+• UNIX PDP11
+K&R •
+• C
+• MCC ARRA
+• Programmer
+• First ALGOL
+• Dark Future
+• THE
+• Gatlinburg
+• Go to Harmful
+• FERTA
+• ARMAC
+• Min Path
+• XI
+• A-O
+• Hilbert Dies
+• Von Neumann Dies
+• Turing Dies
+Turing to Bletchley Park •
+• Trinity
+• Manchester Baby
+• IBM 701
+• IBM 704
+• IBM 7090
+• UNIVAC 1107
+• UNIVAC 1108
+• PDP7
+• PDP8
+• PDP11
+• CP/M
+• 8080
+VAX •
+Apple ][ •
+• H200
+• DN30&335
+• ECP-18
+• Sputnik
+HilbertHopperBackusDijkstraNygaardKemenyRitchie
+1930 1940 1950 1960
+Vietnam WarWW2 Korean War
+1970
+=====PAGE 25=====
+Timeline
+xxv
+• C with Classes
+• Usenet
+• 8086
+• MP/M
+• PC
+• Mac
+• C++
+• OBJ-C
+• OODB • Netscape
+• Scrum
+• Java
+• Agile
+• SCALA
+• CLOJURE
+• Swift
+• Go
+• Dart
+• Elm
+• Rust
+• C# • F#
+• Rails• Ruby
+• UML/RUP
+• Javascript
+• XP• Booch
+• Sparc
+• Web
+• Python
+1980 1990
+Gulf War
+Afghan War
+Iraq
+2000 2010 2020 2030
+=====PAGE 26=====
+This page intentionally left blank 
+=====PAGE 27=====
+xxvii
+Before we get started, there are a few points about the book, and its 
+author, that I think you should be aware of.
+ • At the time of this writing, I have been a programmer for 60 years, 
+although perhaps the years from ages 12 to 18 should be counted 
+differently. Still, from 1964 until today, I have participated in the vast 
+majority of the “computer age.” I have seen and lived many of the 
+important and even foundational events within this field. And so what 
+you are about to read was written by someone who is part of a small 
+and shrinking group of early travelers in this field. And though that 
+group cannot claim to be among the earliest of travelers, we can claim 
+to have accepted the baton from their hands.
+ • This work spans two centuries of time. Many may find the names and 
+ideas mentioned in the telling of these stories to be unfamiliar—lost 
+in the shadows of time. Therefore, at the end of this work, there is a 
+Glossary of Terms and a Cast of Supporting Characters.
+ • The Glossary of Terms contains a description of most of the hardware 
+mentioned in the text. If you see a computer or a device that you don’t 
+recognize, see if you can find it there.
+About This Book
+=====PAGE 28=====
+About This Book
+xxviii
+ • The Cast of Supporting Characters is a list of the people mentioned in 
+passing in the pages that follow. The list is quite long, and yet it is far 
+too short. It names just some of the people who had either a direct or 
+indirect influence on the industry of computer programming. Some of 
+the folks mentioned in the book have been lost in the mist of time and 
+in the fog of internet search engines. Look through those names and be 
+amazed at who you find there. Look again and realize that the list just 
+barely scratches the surface. Look yet again at the dates when these 
+people passed. Most of them passed very recently indeed.
+=====PAGE 29=====
+xxix
+Yet again, I offer my thanks to the folks at Pearson who have worked so 
+hard to publish this book: Julie Phifer, Harry Misthos, Julie Nahil, Menka 
+Mehta, and Sandra Schroeder. And thanks also to the production team 
+who polished the content: Maureen Forys, Audrey Doyle, Chris Cleveland, 
+and others. Working with them is always a pleasure.
+Thank you to Andy Koenig and Brian Kernighan for helping me to make 
+connections.
+A special thanks to Bill and John Ritchie for providing me with so many 
+wonderful insights into their brother “Dear old DMR”.
+Thanks to Michael Paulson (aka, The name is ThePrimeagen) for the 
+lovely Foreword.
+Thanks to Tom Gilb for your hospitality, your insight, and for one of the 
+most entertaining Afterwords I have ever read.
+Thanks to Grady Booch, Martin Fowler, Tim Ottinger, Jeff Langr, Tracy 
+Brown, John Kern, Mark Seeman, and Heather Kanser for reviewing 
+Acknowledgments
+=====PAGE 30=====
+Acknowledgments
+xxx
+the manuscript when it was in much rougher shape. Their help made it 
+much better.  
+As always, I thank my wonderful and beautiful wife—the love of my 
+life—and my four spectacular children and my ten equally spectacular 
+grandchildren. They are my life. Writing about software is just for fun.
+Lastly, I must offer thanks that my life is perfect—I live in paradise.
+=====PAGE 31=====
+xxxi
+Robert C. Martin (Uncle Bob) has been a programmer since 1970. He is 
+founder of Uncle Bob Consulting, LLC, and cofounder with his son Micah 
+Martin of Clean Coders, LLC. Martin has published dozens of articles in 
+various trade journals and is a regular speaker at international conferences 
+and trade shows. He has authored and edited many books, including 
+Designing Object-Oriented C++ Applications Using the Booch Method ; 
+Pattern Languages of Program Design 3 ; More C++ Gems ; Extreme 
+Programming in Practice; Agile Software Development: Principles, Patterns, 
+and Practices; UML for Java Programmers; Clean Code; The Clean Coder; 
+and Functional Design: Principles, Patterns, and Practices. A leader in the 
+industry of software development, Martin served for three years as 
+editor-in-chief of The C++ Report, and he served as the first chairman of 
+the Agile Alliance.
+About the Author
+=====PAGE 32=====
+This page intentionally left blank 
+=====PAGE 33=====
+135
+6
+Edsger Dijkstra is one of the most famous names in software. He is the 
+father of structured programming and the guy who told us not to use 
+GOTO. He invented the semaphore construct and was the author of many 
+useful algorithms. He cowrote the first working version of the ALGOL 60 
+compiler and participated in the design of early multiprogramming 
+operating systems.
+But these accomplishments are mere mile markers along a battle-torn path. 
+The true legacy of Edsger Dijkstra is the ascendance of the abstract over 
+the physical, a battle he fought with himself, with his peers, and with the 
+profession at large, and eventually won.
+He was a pioneer and a legend and a programmer, and perhaps not 
+particularly humble. Alan Kay once affectionately said of him: “Arrogance 
+in computer science is measured in nano-Dijkstras.” He went on to explain 
+that “Dijkstra was much more funny than annoying for anyone who had 
+any sense of self.” In any case, the story of Edsger Dijkstra is fascinating.
+The Man
+Edsger Wybe Dijkstra was born in Rotterdam on May 11, 1930. His 
+father was a chemistry teacher and president of the Dutch Chemical 
+Edsger Dijkstra: 
+The First  
+Computer Scientist
+=====PAGE 34=====
+Chapter 6  Edsger Dijkstra
+136
+Society. His mother was a mathematician. So the boy was surrounded by 
+math and technology.
+During the German occupation of the Netherlands, his parents sent him 
+away to the countryside until things calmed down. After the war, a lot 
+was broken, but there was also a lot of hope.
+Dijkstra graduated high school in 1948 with the highest possible marks 
+in math and science.
+Like all young people, I suppose, he rejected his parents’ technical calling 
+at first, and thought he’d be better suited to study law and represent the 
+Netherlands at the UN. But the technical bug caught him at Leiden 
+University, and his interests quickly changed to theoretical physics. 
+Those interests changed again in 1951 when his father arranged for him 
+to go to Cambridge, in the UK, to attend a three-week course introducing 
+programming on the EDSAC. His father thought that learning about the 
+new tools of the day would enhance his career in theoretical physics. But 
+the result was quite different.
+Although he struggled with English, he very much enjoyed the class; and 
+he learned a great deal. He said that those three weeks changed his life. 
+While there, he met the director of the Mathematical Centre (MC) in 
+Amsterdam, Adriaan van Wijngaarden, who offered him a part-time job 
+as a programmer.
+Dijkstra accepted that job in March of 1952. He was the first programmer 
+in the Netherlands. He was hooked by how unforgiving computers were.
+The MC did not have a computer at the time. They were trying to build 
+the ARRA, an electromechanical machine. He helped design the instruction 
+set and wrote programs that would have to wait until the machine was built.
+It was here that he met Gerrit Blaauw, who had studied under Howard 
+Aiken at Harvard in ’52 and would go on to help design the IBM 360 
+=====PAGE 35=====
+The Man
+137
+with Fred Brooks and Gene Amdahl. Blaauw imported both material and 
+many decent techniques into the MC from Aiken’s laboratory.
+Dijkstra and Blaauw worked together on the ARRA 1 and other projects. 
+Of Blaauw, Dijkstra once told the following story:2 
+“ He was a very punctual man, and that was a good thing because for a couple 
+of months [he] and I debugged the FERTA3 that was installed at Schiphol 
+Aircraft.4 The place was a little hard to reach and, thank goodness, he had 
+a car. So early in the morning, at 7:00, I would jump on my bicycle, go to 
+the highway, hide my bicycle, and wait on the side until Gerrit came and 
+picked me up. It was a grim winter, and it could only be done thanks to an 
+old Canadian army code and due to the fact that, as I said, Gerrit was a very 
+punctual man. I remember one horrible occasion that we had been debug-
+ging the FERTA all day long and it was 10:00 in the evening and his [car] 
+was the last car in the […] parking lot, and it was beginning to snow, and the 
+thing wouldn’t start. I don’t exactly remember how we got home, my guess 
+is that Gerrit Blaauw fixed […] another bug that day.”
+Dijkstra loved the challenge of “being ingenious and being accurate.” 
+But the deeper he got into the efforts of the MC, the more he feared that 
+programming was not an appropriate field for him. He was, after all, 
+being groomed as a first-class theoretical physicist, and programming 
+computers was not first-class anything at the time.
+This personal dilemma came to a head in 1955 when he expressed his 
+fears to Wijngaarden. Dijkstra said: 
+“ When I left his office a number of hours later, I was another man. [Wijn-
+gaarden explained] quietly that automatic computers were here to stay, that 
+1. An early electromechanical computer.
+2. “A Programmer’s Early Memories” by Edsger Dijkstra.
+3. An early electronic computer derived from the ARRA.
+4. An informal reference to Royal Dutch Aircraft Factory Fokker (in English). Also known as the 
+Nederlandse Vliegtuigenfabriek (Dutch Aircraft Factory) in the Dutch area of Schiphol.
+=====PAGE 36=====
+Chapter 6  Edsger Dijkstra
+138
+we were just at the beginning and [I could] be one of the persons called to 
+make programming a respectable discipline in the years to come. This was 
+a turning point in my life….”5
+In 1957 Dijkstra married Maria (Ria) Debets, one of the girls working as 
+a “computer” in the MC. The officials in Amsterdam refused to recognize 
+the profession of “programmer” that Dijkstra had written upon his 
+marriage license. Of this, he says:
+“ Believe it or not, but under the heading of ‘profession’ my marriage act 
+shows the ridiculous entry ‘theoretical physicist’!”
+The ARRA: 1952–1955
+Wijngaarden hired Dijkstra to program the MC’s new ARRA computer. 
+The problem was that the ARRA didn’t work. Five years before, 
+Wijngaarden had traveled to Harvard and had seen Aiken’s Mark I and 
+its successors. Impressed, Wijngaarden hired some young engineers to 
+build a similar but much smaller machine: the ARRA.
+The ARRA was designed to be a stored-program electromechanical beast. 
+It had a drum memory, 1,200 relays, and some vacuum tube flip-flops for 
+registers. The relays had to be cleaned regularly, but the contacts degraded 
+so rapidly that the switching time was undependable, making the machine 
+unreliable. After four years of development and constant repair, the poor 
+machine was apparently only good for generating random numbers. 
+That was not a joke. They had written a demonstration program that 
+simulated the rolling of a 13-dimensional cubic die. 6 At one point, a 
+minister of government came in to see this demo. They fearfully turned 
+the machine on and, for once, it started printing proper random numbers. 
+It worked!—for a moment. Then it unexpectedly halted. Wijngaarden, 
+5. “The Humble Programmer.” Communications of the ACM 15, no.10 (Oct. 1972), 859–866.
+6. Only a bunch of mathematical geeks could come up with that as a demo.
+=====PAGE 37=====
+The ARRA: 1952–1955
+139
+thinking on his feet, explained to the minister: “This is a highly remarkable 
+situation: The cube is balancing on one of its corners and does not know 
+which way to fall. If you push this button, you will give the cube a little 
+push and the ARRA will continue its computation.” The minister pushed 
+the button, and the machine once again started printing random numbers. 
+The minister replied: “That is very interesting,” and left shortly thereafter.
+The machine never worked again.
+A frustrated Wijngaarden recruited Gerrit Blaauw, who had just gotten 
+his Ph.D. at Harvard while working with Aiken on the Harvard Mark IV. 
+Blaauw joined the team and in very short order convinced them that their 
+machine had no hope of success, and that they needed to start from scratch 
+with electronics and not electromechanical relays.
+So the team started in on the design of the ARRA. Well, actually, it was 
+the ARRA 2, but they didn’t want to advertise that there had ever been 
+an ARRA 1.
+So they just called the new machine the ARRA.
+Being the “programmer,” Dijkstra would propose an instruction set to the 
+hardware guys. They, in turn, would assess whether that instruction set 
+=====PAGE 38=====
+Chapter 6  Edsger Dijkstra
+140
+was practical to build. They’d make amendments and toss them back to 
+Dijkstra. This iteration continued until they were all ready to “sign in 
+blood.” And then the hardware guys built the hardware, and Dijkstra 
+started working on the programming manual and writing the IO primitives.
+This division of labor established the idea that the hardware was a black 
+box that executed the software, and the software was independent of the 
+design of the hardware. This was an important step in computer architecture 
+and a very early example of dependency inversion. The hardware depended 
+on the needs of the software, rather than the software being subordinate 
+to the dictates of the hardware.
+They managed to complete the new machine 13 months later, in 1953. 
+What’s more, it worked—and they put it to work 24 hours a day calculating 
+things like wind patterns, water movements, and the behavior of airplane 
+wings. The machine completely replaced the team of women “computers” 
+who had previously been doing these calculations on desk calculators. 
+Those women became the programmers of the new machine.
+At some point, they hooked a loudspeaker up to one of the registers 
+and could listen to the rhythmic sounds as it operated. This was a good 
+debugging tool because you could hear when it was executing properly 
+and when it got caught in a loop.
+The ARRA was designed as a binary machine at a time when most 
+computers were using decimal (BCD). The electronics were vacuum tubes. 
+It had two working registers, had 1,024 30-bit words of drum memory, 
+and could execute ~40 instructions per second. The drum spun at 50 revs 
+per second. The primary input device was five-channel paper tape. Output 
+was typically sent to an automatic typewriter.
+The instruction set that Dijkstra designed for the ARRA 2 should 
+provide some insight into what he and his contemporaries thought a 
+computer should be able to do: It was quite sparse, and focused much 
+more on arithmetic than data manipulation. Later computers would 
+reverse that decision!
+=====PAGE 39=====
+The ARRA: 1952–1955
+141
+Instructions in the ARRA 2 were 15 bits wide, so two instructions would 
+fit into a 30-bit word. Those two instructions were referred to as a and b. 
+So the machine could hold 2,048 instructions. The first five bits in an 
+instruction were the operation code, and the last ten were the memory 
+address (or an immediate value).
+The two registers were named A and S. They were independently 
+manipulated, but could also be used as a double-precision 60-bit number.
+There were 24 instructions. Notice the lack of IO and indirect addressing. 
+Notice also that Dijkstra used decimal to denote the operation codes. At 
+the time, there was no thought of octal or hexadecimal:
+0/n replace (A) with (A)+(n)
+1/n replace (A) with (A)-(n) 
+2/n replace (A) with (n)
+3/n replace (A) with -(n) 
+4/n replace (n) with (A) 
+5/n replace (n) by -(A)
+6/n conditional control move to na 
+7/n control move to after na
+8/n replace (S) with (s)+(n) 
+9/n replace (S) with (S)-(n)
+10/n replace (S) with (n) 
+11/n replace (S) with -(n) 
+12/n replace (n) with (S) 
+13/n replace (n) with -(S)
+14/n conditional control move to nb 
+15/n control move to nb
+16/n replace [AS] with [n].[s]+[A] 
+17/n replace [AS] with -[n].[S]+[A] 
+18/n replace [AS] with [n].[S]
+19/n replace [AS] with - [n].[s]
+20/n divide [AS] by [n]:, place quotient in S, remainder in A 
+21/n divide [AS] by -[n]:, place quotient in S, remainder in A 
+22/n shift A->S, i.e. replace [AS] with [A].2^(29-n)
+23/n shift S->A, i.e. replace [SA] with [S].2^(30-n) 
+24/n communication assignment
+=====PAGE 40=====
+Chapter 6  Edsger Dijkstra
+142
+The two conditional control moves (jumps) executed only if the result of the 
+last arithmetic operation was positive. The ARRA was a one’s complement 
+machine, which means there were two representations of zero, one positive 
+and the other negative. So testing for zero by subtracting was perilous.
+Notice that if you want to jump to instruction a or b, you have to use a 
+different jump instruction. That must have been hellish to deal with when 
+you inserted an instruction into your program.
+The drum memory was arranged into 64 channels containing 16 words 
+each. I infer that each channel corresponded to a track on the drum. I 
+also infer that there were 64 read heads, and that each read head was 
+routed to the electronics through relays. Those relays took from 20 ms to 
+40 ms to open or close. So the efficiency-minded programmer had to take 
+care not to jump around between tracks.
+What’s more, it appears that the electronics for reading and writing the drum 
+were able to read from two tracks at a time: one for instructions and another 
+for data. This allowed the programmer to aggregate instructions on one 
+track and data on another without having to change the state of the relays.
+Just to add one extra complication, it appears that the actual tracks on 
+the drum could only hold eight words around the drum circumference, 
+but that each read/write head was actually a dual head that could read 
+and write one or the other of two adjacent tracks. Thus, reading an entire 
+16-word channel required at least two revolutions of the drum.
+Imagine having all that to think about while you are trying to write an 
+interesting mathematical program.
+Notice that the instruction set does not allow for indirect addressing. 
+Either Dijkstra had not yet realized the importance of pointers, or the 
+hardware designers could not easily implement indirection. So any 
+indirect or indexed access had to be accomplished by modifying the 
+addresses within existing instructions.
+=====PAGE 41=====
+The ARMAC: 1955–1958
+143
+This was also the strategy for subroutines. The instruction set had no 
+“call” instruction, nor any way to remember return addresses. So it was 
+the programmers’ job to store the appropriate jump instruction in the last 
+instruction of a subroutine, before jumping to that subroutine.
+The primitive nature of these machines and instruction sets likely had a 
+dual effect upon Dijkstra. First, being so swamped by all the hideous detail 
+and the deeply constrained environment likely precluded any serious 
+consideration of computer science. But second, it also likely instilled within 
+him the strong desire to shed all such detail and drive toward abstraction. 
+As we shall see, that’s exactly the path that Dijkstra took.
+Indeed, there are hints of this battle between detail and abstract thinking in 
+Dijkstra’s “Functionele Beschrijving Van De Arra” (“Functional Description 
+of the ARRA”) from 1953. In that write-up, Dijkstra goes to great lengths 
+to justify and explain the benefits of callable subroutines as opposed to the 
+kind of “open subroutines” (code duplication) that Hopper had been using 
+in the Mark I.
+In his description of how to do a subroutine call, he says that “it would 
+be nice to have control run through the same series of commands” instead 
+of duplicating those commands over and over within the program, which 
+“is quite bad [and] is wasteful of memory space.” But then he turns around 
+and complains that jumping to a subroutine in that fashion will cause a 
+great deal of drum-switching time, adding a full revolution of the drum to 
+each call and each return.
+Coming to terms with this dichotomy is the story, and the legacy, of 
+Edsger Dijkstra.
+The ARMAC: 1955–1958
+The MC continued to make improvements to the design, and they built 
+new machines based upon the ARRA.
+=====PAGE 42=====
+Chapter 6  Edsger Dijkstra
+144
+The FERTA was built two years later (1955) and was installed at the 
+Fokker factory next to Schiphol Airport. It was used to calculate matrices 
+used for the design of the wings of the F27 Friendship. The architecture 
+was similar to the ARRA, but memory was expanded to 4,096 34-bit 
+words and speed was doubled to ~100 instructions per second, probably 
+because the density of each track on the drum had doubled.
+The ARMAC was another ARRA derivative that followed one year later 
+(1956). It could execute 1,000 instructions per second because a small 
+bank of core memory was used to buffer tracks on the drum. This 
+machine had 1,200 tubes and consumed 10 kilowatts.
+This was a period of intense hardware experimentation and improvement, 
+but not much improvement in the software architecture—particularly the 
+instruction set. However, the increase in memory and speed allowed Dijkstra 
+to consider a previously untenable problem.
+Dijkstra’s Algorithm: The Minimum Path
+“ What is the shortest way to travel from Rotterdam to Groningen, in 
+general: from given city to given city. It is the algorithm for the 
+shortest path, which I designed in about twenty minutes. One morning 
+[in 1956] I was shopping in Amsterdam with my young fiancée, and 
+tired, we sat down on the café terrace to drink a cup of coffee and I 
+was just thinking about whether I could do this, and I then designed 
+the algorithm for the shortest path. As I said, it was a twenty-minute 
+invention. In fact, it was published in ’59, three years later. The 
+publication is still readable, it is, in fact, quite nice. One of the reasons 
+that it is so nice was that I designed it without pencil and paper. I 
+learned later that one of the advantages of designing without pencil 
+and paper is that you are almost forced to avoid all avoidable 
+complexities. Eventually, that algorithm became to my great amazement, 
+one of the cornerstones of my fame.”
+—Edsger Dijkstra, 2001
+=====PAGE 43=====
+ALGOL and the X1: 1958–1962
+145
+Dijkstra chose the problem because he wanted to demonstrate the power 
+of the ARMAC with a non-numerical problem that normal people could 
+understand. He wrote the demonstration code to find the shortest path 
+from one city to another through a simplified traffic network between 64 7 
+cities in the Netherlands.
+The algorithm is not a difficult one to understand. It’s a matter of a few 
+nested loops, a bit of sorting, and a fair bit of data manipulation. But 
+imagine writing this code without pointers. Without recursion. Without a 
+call instruction for your subroutines. Imagine having to access your data 
+by modifying the addresses within individual instructions. Further, consider 
+the problems of optimizing this program to keep track of data from being 
+flushed in and off the drum from the core buffer. My mind rebels at the 
+thought!
+Having dispensed with the demonstration, Dijkstra then created a similar 
+algorithm to solve a more practical problem. The backplane of the next 
+computer, the X1, had a vast number of interconnections, and copper is a 
+precious metal. So he wrote the minimum spanning tree algorithm to 
+minimize the amount of copper wire used on that backplane.
+Solving these kinds of graph algorithms was a step toward the computer 
+science that we recognize today. Dijkstra used the computer to solve 
+problems that were not strictly numerical in nature.
+ALGOL and the X1: 1958–1962
+Dijkstra’s efforts at the MC were taking place at a formative time in 
+computing. Hopper’s 1954 symposium on Automatic Programming8 had 
+generated a lot of buzz. At that symposium, J. H. Brown 9 and J. W. 
+7. Yes, he represented each city with a 6-bit integer.
+8. See Compilers: 1951–1952, in Chapter 4.
+9. From Willow Run Research Center.
+=====PAGE 44=====
+Chapter 6  Edsger Dijkstra
+146
+Carr III10 presented a paper on their efforts to create a universal 
+programming language that was machine independent. Saul Gorn 11 
+presented a similar paper. Both papers advocated for divorcing the 
+structure of the language from the physical structure of the hardware.
+This was a revolutionary concept that flew in the face of the thinking of 
+the day. Languages like FORTRAN, MATH-MATIC, and eventually even 
+COBOL were strongly wed to the physical architecture of the machines 
+of the day. This strong binding was thought to be necessary to achieve 
+efficiency of execution. Brown and Carr acknowledged that universal 
+languages might be slower, but they argued that they would reduce 
+programming time and programmer error.
+As an example of the wedding between language and physical architecture, 
+consider the type int in the C language. Depending upon the machine, it is 
+either a 16-, 32-, or 64-bit integer. I once worked on a machine in which it 
+was an 18-bit integer. In C, an int is wedded to the machine word. Many 
+languages of the day simply assumed that the data format of the language 
+was the data format of the machine, including memory layout. Subroutine 
+arguments were assigned fixed locations, precluding any kind of recursion or 
+reentrancy.
+In May of 1958, Carr and several others met in Zurich to begin the 
+definition of a universal machine-independent programming language. 
+They named it ALGOL. 12 The stated goal was to create a language 
+based upon mathematical notation that could be used for the publishing 
+of algorithms and mechanically translated into machine programs.
+John Backus created a formal notation to describe an early (1958) 
+version of the language. Peter Naur recognized the genius of the notation 
+10. John Weber Carr III (1923–1997).
+11. From Ballistics Research Lab.
+12. International ALGOrithmic Language.
+=====PAGE 45=====
+ALGOL and the X1: 1958–1962
+147
+and named it Backus Normal Form (BNF 13). He then used it to specify 
+the 1960 version of ALGOL.
+Meanwhile, Dijkstra and the MC were busy building the X1 computer. 
+This was a fully transistorized machine, with up to 32K of 27-bit words. 
+The first 8K of the address space was read-only memory and contained 
+boot programs and a primitive assembler. The X1 was one of the first 
+machines to have a hardware interrupt—something that Dijkstra would 
+make strategic use of. The machine also had an index register! At last, 
+real pointers! Otherwise, it was similar in many ways to the ARRA and 
+ARMAC machines.
+The memory cycle time was 32 µs and the add time was 64 µs. It could 
+therefore execute over 10,000 instructions per second.
+In 1959 Wijngaarden and Dijkstra joined in the effort to define the ALGOL 
+language. In 1960, with the BNF specification complete, Dijkstra and his 
+close colleague Jaap Zonneveld surprised the computing world by quickly 
+writing a compiler for the X1.
+13. In 1964 Donald Knuth recommended that the name be changed to Backus–Naur Form.
+=====PAGE 46=====
+Chapter 6  Edsger Dijkstra
+148
+“Surprised” might be an understatement. Naur wrote: “The first news of 
+the success of the Dutch project, in June 1960, fell like a bomb in our 
+group.”14 That bomb might explain some of the tension that arose 
+later. I imagine Dijkstra & Co were viewed as upstarts who scooped 
+everybody else.
+Of their success, Dijkstra wrote:15 “The combination of no prior experience 
+in compiler writing and a new machine [the X1] without established ways 
+of use greatly assisted us in approaching the problem of implementing 
+ALGOL 60 with a fresh mind.”
+One of the techniques Dijkstra and Zonneveld used was “dual 
+programming.” Each would independently implement a feature and then 
+they would compare the results. Dijkstra called this an “engineering 
+approach.” It has been suggested16 that this approach so significantly 
+reduced their debugging time that it led to a net reduction in their 
+development time.
+This was at a time when most teams implementing the language were 
+debating which features to leave in or out. Dijkstra and Zonneveld left 
+nothing out. They implemented the full specification—in six weeks.
+Indeed, they even implemented the part of the specification that virtually 
+everyone had planned on omitting: recursion.
+This is ironic because recursion had been voted out of the language. 
+Dijkstra and John McCarthy had strenuously advocated for recursion, 
+but the rest of the committee thought that recursion was too inefficient 
+and was otherwise useless. However, the wording of the resolution was 
+ambiguous enough that Dijkstra sneaked the feature in anyway.
+14. Daylight, p. 46.
+15. Daylight, p. 57.
+16. Private correspondence with Tom Gilb.
+=====PAGE 47=====
+ALGOL and the X1: 1958–1962
+149
+This got him into some trouble with the other members of the ALGOL 
+team. Indeed, the issue of recursion versus efficiency generated quite a 
+bit of tension. In a meeting in 1962, one of the members 17 got up and 
+directed a nasty comment toward Dijkstra, Naur, and other proponents 
+of recursion18—a comment that was greeted with loud applause and 
+laughter:
+“ And the question is—to state it once more—that we want to work with 
+this language, really to work and not to play with it, and I hope we don’t 
+become a kind of ALGOL play-boys.”
+One reason that Dijkstra and Zonneveld were successful when so many 
+other teams were still struggling was because Dijkstra created an abstraction 
+boundary between the language and the machine. The compiler converted 
+ALGOL source code into a p-code,19 and an associated runtime system 
+interpreted that p-code. Nowadays, we would call that runtime system  
+a VM.20
+This division allowed the language compiler to ignore the machine itself—
+which was one of the goals originally sought by Carr, Brown, Gorn, and 
+the ALGOL team. Ignoring the machine made the compiler much easier to 
+write. In short, Dijkstra invented a machine that was perfect for ALGOL, 
+and then he made up the difference in his runtime system.
+Of course, this caused certain inefficiencies. Simulating a p-code is 
+always slower 21 than raw machine language. But Dijkstra justified this by 
+stalwartly refusing to worry about efficiency in the short term. His focus 
+17. Gerhard Seegmüller.
+18. Daylight, p. 44.
+19. Portable code. A typically numeric code representing the instructions of a virtual machine.
+20. A virtual machine like the JVM or the CLR.
+21. Especially since just-in-time compilers were decades in the future.
+=====PAGE 48=====
+Chapter 6  Edsger Dijkstra
+150
+was more upon the long-term direction of language and computer 
+architecture. Thus, he said:22
+“ In order to get as clear a picture as possible of the real needs of the pro-
+grammer, I intend to pay, for a while, no attention to the well-known 
+criteria ‘space and time’. ”
+He went on to say:
+“ I am convinced that [the] problems [of program correctness] will prove 
+to be much more urgent than, for example, the exhaustive exploitation of 
+specific machine features….”
+And just to cap things off:
+“ . . .Recursion] is such a neat and elegant concept that I can hardly imagine 
+that it will not have a marked influence on the design of new machines in 
+the near future.”
+And, of course, he was right. The PDP-11, with all its lovely index registers, 
+one of which was a dedicated stack pointer, was only a decade away.
+At the very start of the ALGOL project, Dijkstra and Zonneveld were 
+concerned that Wijngaarden would (as was his wont) take undue credit. 
+So the two clean-shaven programmers conspired to remain unshaven until 
+the compiler worked. Only those with a beard could take credit for the 
+compiler. Six weeks later, with the compiler working, Zonneveld shaved, 
+but Dijkstra remained bearded from that point on.
+The Gathering Gloom: 1962
+With the success of ALGOL 60 under his belt, Dijkstra looked to the 
+future in a 1962 paper titled “Some Meditations on Advanced 
+22. Daylight, p. 59.
+=====PAGE 49=====
+The Gathering Gloom: 1962
+151
+Programming.” His first assertion is that software is an art that must 
+become a science:
+“ Therefore I would like to draw your attention in particular to those efforts 
+and considerations which try to improve ‘the state of the Art’ of program-
+ming, maybe to such an extent that at some time in the future we may 
+speak of ‘the state of the Science of Programming’.”
+He then goes on to paint a rather gloomy picture of “the state of the art.” 
+He says that this change from an art to a science is “very urgent” because:
+“ . . . The programmer’s world is a very dark one with only just the first 
+patches of a brighter sky appearing at the horizon.”
+He explains this by describing what it had, up to then, been like to be a 
+programmer given “nearly impossible jobs” using machines that have 
+capabilities “exhausted to slightly beyond their utmost limits.” He 
+explains that programmers under such circumstances fall back on 
+“curious and tricky ways” to cajole their systems into working.
+He calls the discipline of programming “extremely crude and primitive” 
+and “unhygienic,” and complains that the creativity and shrewdness of 
+the programmers encourage the hardware designers to “include all kinds 
+of curious facilities of doubtful usability.” In other words, bad machines 
+make bad programmers who encourage even worse machines.
+What machines was he railing against? Rumor has it that it was the 
+machines made by IBM.
+As you read on in this paper, you realize that his specific complaint is 
+that the machine architecture of the day makes recursion difficult and 
+inefficient, and this tempts the compiler writers to constrain the language 
+to prevent recursion.
+He concludes the piece with an appeal to “elegance” and “beauty” and 
+claims that unless programmers are given languages that are “charming” 
+=====PAGE 50=====
+Chapter 6  Edsger Dijkstra
+152
+and “worthy or our love,” they will likely not create systems of “superior 
+quality.”
+This paper came at a time when the concerns of the industry were 
+focused on quite a different problem. Those were the early days of “the 
+software crisis.” It was becoming ever more obvious that projects, if they 
+were delivered at all, were breaking budgets and schedules; were inefficient, 
+buggy, and did not meet requirements; and were unmanageable and 
+unmaintainable.
+I presume that sounds familiar to you. The software crisis never really 
+ended. We’ve just kind of learned to accept and live with it.
+Dijkstra’s solution was science, elegance, and beauty. And as we shall see, 
+he wasn’t wrong.
+The Rise of Science: 1963–1967
+With a working ALGOL compiler, and thereby freed from the confines of 
+the physical hardware, Dijkstra was able to experiment with all manner 
+of computer science issues. One of those early issues was multiprogramming. 
+Dijkstra captained a team of five other researchers at the Eindhoven 
+University of Technology who embarked on a project to build a 
+multiprogramming system named the THE23 Multiprogramming System.
+Dijkstra described this system in a famous paper 24 that he submitted to 
+the Communications of the ACM in 1968. The structure of that system 
+was unique at the time, and showed just how far Dijkstra had come from 
+his ARRA days.
+This system ran on the X8 computer, which was a much faster and more 
+capable derivative of the X1. The X8 had a minimum of 16K 27-bit 
+23. Technische Hogeschool Eindhoven.
+24. “The Structure of the “THE”-Multiprogramming System.” See this chapter’s References section.
+=====PAGE 51=====
+The Rise of Science: 1963–1967
+153
+words, expandable to 256K. It had a 2.5 µs core memory cycle time, 
+allowing it to execute hundreds of thousands of instructions per second. 
+It had indirect addressing and hardware interrupts 25 that included  
+IO and a real-time clock. For the day, it was an ideal platform for 
+experimenting with multiprocessing.
+Science
+The architecture of the THE system was quite modern. Dijkstra was very 
+careful to separate it into black box layers. He did not want high-level 
+layers knowing about the intricacies of the layers at lower levels.
+At the lowest layer (Layer 0) was processor allocation—this layer 
+decided which processor would be allocated to a particular process. 
+Above this layer, the executing program had no idea which processor it 
+was running on.
+The next layer up (Layer 1) was memory control. The system had a 
+primitive virtual memory capability. Pages in the core could be swapped 
+to and from the drum. Above this layer, the program simply assumes 
+that all program and data elements are accessible in memory.
+The next level (Layer 2) controlled the system console.26 It was responsible 
+for ensuring that individual processes could communicate with their users 
+with the keyboard and printer. Above this level, each process simply 
+assumed that it had undivided access to the console.
+Layer 3 controlled IO and the buffering of IO devices. Above this level, 
+user programs simply assumed that data going in and out of various 
+devices was a continuous stream requiring no management.
+25. He called it “an interrupt system to fall in love with.” I imagine that’s the last time anyone said 
+that about interrupts.
+26. It may seem strange that an entire layer was dedicated to a single IO device. But the system con -
+sole was the only device that was shared among all the processes, and it therefore deserved special 
+attention. Nowadays, we would likely handle this differently, but back then a better solution wasn’t 
+clear. I remember working on systems at the time that faced the same issue.
+=====PAGE 52=====
+Chapter 6  Edsger Dijkstra
+154
+Layer 4 was where user programs executed.
+In the mid-1960s, the discipline required in order to design an 
+operating system with a carefully layered structure was brand new. 
+The idea of creating layers of abstraction that isolated high-level 
+policy from low-level detail was revolutionary. This was computer 
+science at its best.
+Semaphores
+As part of this development, the team faced the issue of concurrent 
+update and race conditions. To address this, Dijkstra came up with the 
+semaphore abstraction that we have all come to know and love.
+A semaphore is simply an integer upon which two operations 27 are 
+allowed. The P operation blocks the calling process if the semaphore is 
+less than or equal to zero; otherwise, it decrements the semaphore and 
+continues. The V operation increments the semaphore, and if the result is 
+positive, it simply continues on. Otherwise, one of the blocked processes 
+is released before continuing on.
+As part of his write-up on semaphores, Dijkstra invents the terms critical 
+section and indivisible action . A critical section is any portion of the 
+program that is manipulating a shared resource in a way that must not be 
+interrupted by another. That is, it does not allow concurrent update. An 
+indivisible action is an action that must fully complete before a hardware 
+interrupt is allowed. In particular, the increment and decrement operations 
+upon semaphores must be indivisible.
+Of course, nowadays we programmers know these concepts well. They 
+were taught to us in our earliest years of coding. But Dijkstra and his 
+team had to derive these concepts from first principles and formalize 
+them into the abstractions that we now take for granted.
+27. Named P and V for historical reasons.
+=====PAGE 53=====
+The Rise of Science: 1963–1967
+155
+Structure
+Another radically scientific concept adopted by Dijkstra was the notion 
+that programs were structures of sequential procedures. Each such procedure 
+had a single entry and a single exit. All adjacent procedures viewed it as a 
+black box. Such procedures could be sequential in that one executed after 
+the other, or they could be iterative in that a procedure executed many 
+times in a loop.
+This black box structure of sequential and iterative procedures allowed 
+Dijkstra’s team to test the individual procedures in isolation and to create 
+reasoned proofs that the procedures were correct.
+The testing enabled by this structured approach was so successful that he 
+proudly asserted:
+“ The only errors that showed up during testing were trivial coding errors 
+(occurring with a density of one error per 500 instructions), each of them 
+located within 10 minutes [of] (classical) inspection by the machine and 
+each of them correspondingly easy to remedy.”
+Dijkstra was convinced that this kind of structured programming was an 
+essential part of good system design and was responsible for the significant 
+success of the THE system. To dissuade detractors who claimed that its 
+success was due to its relatively small size, Dijkstra wrote:
+“ . . . I should like to venture the opinion that the larger the project, the more 
+essential the structuring!”
+Proof
+And this is where things start to get a little strange. In his write-up of the 
+THE system, Dijkstra makes a remarkable claim:
+“ . . . The resulting system is guaranteed to be flawless. When the system is 
+delivered, we shall not live in the perpetual fear that a system derailment 
+may still occur in an unlikely situation.”
+=====PAGE 54=====
+Chapter 6  Edsger Dijkstra
+156
+Dijkstra made this claim because he believed that he and his team had 
+proven, mathematically, that the system was correct. This is a view that 
+Dijkstra would hold, promote, and evangelize for the rest of his career. It 
+is also the source of what I consider to be his greatest mistake. In his 
+view, programming was mathematics.
+Indeed, in On the Reliability of Programs ,28 Dijkstra asserts that 
+“programming will become more and more an activity of mathematical 
+nature.” And in this, Edsger Wybe Dijkstra was, in my view, dead wrong.
+Mathematics: 1968
+The idea of software as a form of mathematics is a seductive one. There 
+are, after all, many adjacencies. The early programs written by Hopper and 
+her crew at Harvard were all numerical, and deeply mathematical in 
+nature. The use of the Harvard Mark I to compute the solutions of systems 
+of partial differential equations describing the implosion of the plutonium 
+core of the Fat Man bomb required a very deep mathematical ability indeed.
+It was, after all, Turing who claimed that programmers were “mathematicians 
+of ability.” And it was Babbage who was driven by the need to ease the 
+burden of the creation of mathematical tables.
+So when Dijkstra wrote that software would become more and more a 
+matter of mathematics, he was standing on pretty firm historical ground. 
+He therefore focused his endeavors on mathematically proving software 
+programs correct.
+We can plainly see this in his Notes on Structured Programming,29 as he 
+shows us the basic mathematical mechanisms for proving a simple algorithm 
+correct. He outlines those mechanisms as enumeration, induction, and 
+abstraction.
+28. Dahl, Dijkstra, and Hoare, p. 3.
+29. Dahl, Dijkstra, and Hoare, p. 12.
+=====PAGE 55=====
+Mathematics: 1968
+157
+He uses enumeration to prove that two or more program statements in 
+sequence achieve their desired goals while maintaining stated invariants. 
+He uses induction to prove the same things about a loop. He uses abstraction 
+as his primary motivation for black box structure.
+And then, using all three of those mechanisms, he presents a proof of the 
+following algorithm for computing the integer remainder of a/d:
+This is a lovely little algorithm that runs in logarithmic time using a shift-
+and-subtract approach. Any PDP-8 programmer would be proud.
+The proof that Dijkstra presented was two pages long, followed by 
+another page of notes. My own proof, based upon Dijkstra’s, is a bit 
+shorter but no less imposing (see next page).
+It ought to be very clear that no programmer 30 would accept this as part 
+of a viable process for writing software. As Dijkstra himself said:
+“ The pomp and length of the above proof infuriate me […] I would not 
+dare to suggest (at least at present!) that it is the programmer’s duty to 
+supply such a proof whenever he writes a simple […] program. If so, he 
+could never write a program of any size at all!”
+30. Other than, perhaps, those in an academic environment doing research on formal proofs of 
+algorithms.
+=====PAGE 56=====
+Chapter 6  Edsger Dijkstra
+158
+
+=====PAGE 57=====
+Mathematics: 1968
+159
+But then he goes on to say that he felt the same kind of “fury” when 
+examining the early theorems of Euclid’s plane geometry. And this is 
+where Dijkstra’s dream shows up.
+Dijkstra dreamed that, one day, there would be a body of theorems and 
+corollaries and lemmas that programmers could draw from. That they 
+would not be relegated to proving their code in such horrid detail, but 
+rather would restrict themselves to techniques that were already proven, 
+and could create new proofs based upon the old ones without all the 
+“pomp and length.”
+In short, he thought software was going to be like Euclid’s Elements, a 
+mathematical superstructure of theorems, a vast hierarchy of proofs, and 
+that programmers would have little to do other than assemble their own 
+proofs from the resources in that vast hierarchy.
+But here I sit, in the waning months of 2023, and I do not see that hierarchy. 
+There is no superstructure of theorems. The Elements of software has not 
+been written. Nor do I believe it ever will.
+There is an odd parallel between Hilbert and Dijkstra in this regard. Both 
+were seeking a grand edifice of truth that simply cannot exist.
+Dijkstra’s dream has not been achieved. In all likelihood, it cannot be 
+achieved. And the reason for that is that software is not a form of 
+mathematics.
+Mathematics is a positive discipline—we prove things correct using 
+formal logic. Software, as it turns out, is a negative discipline—we prove 
+things incorrect by observation. If that sounds familiar, it should. 
+Software is a science.
+In science, we cannot prove our theories correct; we can only observe 
+them to be incorrect. We perform these observations with well-designed 
+and well-controlled experiments. Likewise, in software, we almost never 
+=====PAGE 58=====
+Chapter 6  Edsger Dijkstra
+160
+try to prove our programs correct. Instead, we detect their incorrectness 
+by conducting observations in the form of well-designed tests.
+Testing was something that Dijkstra complained about by saying: “Testing 
+shows the presence, not the absence, of bugs.” And, of course, he was 
+correct. What he missed, in my opinion, is that his statement proved that 
+software is not mathematics, but rather a science.
+Structured Programming: 1968
+In 1967, after all the successes he had enjoyed, the MC disbanded Dijkstra’s 
+group because they saw no future in computer science. Dijkstra, for that 
+reason among others, descended into a six-month severe depression for 
+which he was hospitalized.
+Upon recovery, Dijkstra started to really stir things up.
+In an ironic twist, it was Dijkstra’s dream of mathematics that led him to 
+what is perhaps his most valuable contribution to computer science and 
+the software craft: structured programming. In hindsight, we appreciate 
+that value, but at the time, it stirred up quite a controversy.
+In 1967 Dijkstra gave a talk at the ACM Conference on Operating 
+System Principles in Gatlinburg, TN. He had lunch with some of the 
+attendees, and the discussion turned to Dijkstra’s view on the GOTO 
+statement. Dijkstra explained to them why GOTO introduced complexity 
+into programs. The group was so impressed by this discussion that they 
+encouraged him to write an article for The Communications of the ACM 
+on the topic. 
+So Dijkstra wrote a short article describing his views. He titled it “A 
+Case Against the Go To Statement.” He submitted it the editor, Niklaus 
+Wirth,31 who was so excited to publish it that in March of 1968 he 
+31. Yeah, THAT Niklaus Wirth. You know: the inventor of Pascal.
+=====PAGE 59=====
+Structured Programming: 1968
+161
+rushed it through as a letter to the editor rather than a fully reviewed 
+article. Wirth also changed the title to “Go To Statement Considered 
+Harmful.”
+That title has echoed down through the decades.
+The title also raised the ire of an entire cohort of programmers, who were 
+horrified at the very idea. It’s not clear to me whether those programmers 
+actually read the article before declaring their angst. Whatever the case 
+may be, the programming journals lit up like a Christmas tree.
+I was a very young programmer at the time, and I remember quite well 
+the fracas that ensued. There was no Facebook or Twitter (X) at the time, 
+so the flame wars were conducted in letters to the editors all around the 
+industry.
+It took five to ten years or so for things to settle down. In the end, Dijkstra 
+won that war. As a rule, we programmers do not use GOTO.
+Dijkstra’s Argument
+In 1966 Corrado Böhm and Giuseppe Jacopini wrote a paper titled 
+“Flow Diagrams, Turing Machines, and Language with Only Two 
+Formation Rules.” In this paper, they proved that “every Turing machine 
+is reducible to, or in a determined sense is equivalent to, a program written 
+in a language which admits as formation rules only composition and 
+iteration.” In other words, every program can be reduced to statements in 
+sequence or statements in loops. Period.
+This was a remarkable finding. It was generally ignored because it was 
+deeply academic. But Dijkstra took it very seriously, and the argument he 
+laid down in his article is hard to refute.
+In short, if you want to understand a program—if you want to prove 
+the program correct—you need to be able to visualize and examine the 
+execution of that program. That means you need to turn the program 
+=====PAGE 60=====
+Chapter 6  Edsger Dijkstra
+162
+into a sequence of events in time. These events need to be identifiable 
+with some kind of label32 that ties them back to the source code.
+In the case of simple sequential statements, that label is nothing more 
+than the line number of the source code statement. In the case of loops, 
+that label is the line number adorned with the state of the loop; for 
+example, the nth execution of line l. For function calls, it is the stack of 
+line numbers that represent the calling sequence. But how do you 
+construct a reasonable label if any statement can jump to any other 
+statement using a GOTO?
+Yes, it’s possible to construct those labels, but they would have to consist 
+of a long list of line numbers, each adorned with the state of the system.
+Constructing proofs using such unmanageable labels is simply unreasonable. 
+It’s too much to ask.
+So Dijkstra recommended maintaining provability by eliminating 
+unconstrained GOTOs and replacing them with the three structures we’ve 
+come to know and love: sequence, selection, and iteration. Each of those 
+structures is a black box with a single entry and a single exit, and each is 
+likely composed of the same structures in a recursive descent.
+As a simple example, consider this payroll algorithm:
+For each employee: e
+N YIs today payday for e?
+Calculate gross for e.
+Calculate deductions for e.
+net = gross – deductions.
+Pay net to e.
+32. He used the term coordinate. Consider this alongside Babbage’s notation for dynamics.
+=====PAGE 61=====
+Structured Programming: 1968
+163
+Nassi–Shneiderman diagrams like this constrain the algorithm to the three 
+structures. You can see the iteration around the outside, the selection 
+as the first element of the iteration, and the four sequences along the Y path 
+of the selection. Each of those four sequences are subsequences that are 
+themselves composed of sequences, selections, and iterations.
+Why, if we are not going to follow Dijkstra’s dream of creating proofs, is 
+this strategy valuable? Because even though we don’t write proofs for our 
+code, we want our code to be provable. Provable code is code that we can 
+analyze and reason about. Indeed, if we keep our functions small, simple, 
+and provable, then we needn’t even create Dijkstra’s labels.
+In any case, Dijkstra won the argument rather decisively; the GOTO 
+statement has been all but completely driven out of our modern 
+menagerie of languages.
+It would be a mistake, however, to think that Dijkstra’s view of structured 
+programming was simply the absence of GOTO. That’s the part that most of 
+us remember, but his intention was far more involved than that. It went as 
+far as layers of architecture and the directions of dependencies. But I’ll leave 
+you, gentle reader, to discover this for yourself within his wonderful writings.
+References
+Apt, Krzysztof R., and Tony Hoare (Eds.). 2002. Edsger Wybe Dijkstra: His Life, 
+Work, and Legacy. ACM.
+Belgraver Thissen, W. P. C., W. J. Haffmans, M. M. H. P. van den Heuvel, and  
+M. J. M. Roeloffzen. 2007. “Unsung Heroes in Dutch Computing History.” 
+https://web.archive.org/web/20131113022238/http://www-set.win.tue.nl 
+/UnsungHeroes/home.html.
+Computer History Museum. “A Programmer’s Early Memories by Edsger W. 
+Dijkstra.” Lecture presented at the First International Research Conference 
+on the History of Computing, Los Alamos, New Mexico, summer of 1976. 
+Posted June 10, 2022. 24:23. Posted on YouTube on June 10, 2022. (Available 
+at the time of writing.)
+=====PAGE 62=====
+Chapter 6  Edsger Dijkstra
+164
+computingheritage. “Remembering ARRA: A Pioneer in Dutch Computing,” 
+9:13. Posted on YouTube on June 4, 2015. (Available at the time of writing.)
+Dahl, O.-J., E. W. Dijkstra, and C. A. R. Hoare. 1972. Structured Programming. 
+Academic Press.
+Daylight, Edgar G. 2012. The Dawn of Software Engineering: From Turing to 
+Dijkstra. Lonely Scholar Scientific Books.
+Dijkstra, E. W. 1953. “Functionele Beschrijving Van De Arra.” Mathematisch 
+Centrum, Amsterdam. https://ir.cwi.nl/pub/9277.
+Dijkstra, Edsger. 1968. “The Structure of the ‘THE’-Multiprogramming System.” 
+Communications of the ACM.  www.cs.utexas.edu/~EWD/ewd01xx  
+/EWD196.PDF.
+Dijkstra, Edsger W. “Edsger Dijkstra - Oral Interview for the Charles Babbage 
+Institute - 2001,” 2:09:32. Posted on YouTube on Jan. 3, 2023.
+Markoff, John. 2002. “Edsger Dijkstra, 72, Physicist Who Shaped Computer 
+Era.” New York Times, August 10, 2002. www.nytimes.com/2002/08/10 
+/us/edsger-dijkstra-72-physicist-who-shaped-computer-era.html.
+University of Cambridge, Computer Laboratory. 1999. “EDSAC99, EDSAC 1 
+and After: A Compilation of Personal Reminiscences.” www.cl.cam.ac.uk 
+/events/EDSAC99/reminiscences.
+Van den Hove, Gauthier. 2009. “Edsger Wybe Dijkstra, First Years in the 
+Computing Science (1951-1968).” MsCS Thesis, Universitē de Namur. https://
+pure.unamur.be/ws/portalfiles/portal/36772985/2009_VanDenHoveG 
+_memoire.pdf.
+Van Emden, Maarten. n.d. “Dijkstra, Blaauw, and the Origin of Computer 
+Architecture.” A Programmer’s Place. https://vanemden.wordpress.com/2014 
+/06/14/dijkstra-blaauw-and-the-origin-of-computer-architecture.
+Van Emden, Maarten. n.d. “I Remember Edsger Dijkstra (1930-2001).” A 
+Programmer’s Place. https://vanemden.wordpress.com/2008/05/06/i-remember 
+-edsger-dijkstra-1930-2002.
+Wikipedia. “Dijkstra’s algorithm.” https://en.wikipedia.org/wiki/Dijkstra's 
+_algorithm.
+Wikipedia. “Edsger Dijkstra.” https://en.wikipedia.org/wiki/Edsger_W._Dijkstra.
+=====PAGE 63=====
+435
+Numbers
+4-TEL, 271, 281, 284, 293, 298
+A
+AbstractBuilderFactory, xvii
+abstraction vs. physicality, 135, 
+143, 149–150, 157
+accumulator (AC), 250, 251
+accurate computations, 24
+ACE (Automatic Computing 
+Engine), 64, 73, 386
+Ackermann, Wilhelm, 49, 411
+ACT-III, 189
+activities, 179
+addition, 23, 25, 94
+addressing
+cursor, 265
+indirect, 95, 121, 122, 
+141, 153, 175, 208–209, 
+226, 336
+SSEC, 121
+UNIVAC, 95
+Agile
+Agile Manifesto,  
+318–319, 383
+derailment of, 325
+design methods and, 369
+revolution, xxii
+Agile Software Development: 
+Principles, Patterns, and 
+Practice, 320
+AI
+advent of, xxii
+Babbage's prediction of, 
+32–33
+human brain and, 337–340
+Kemeny's prediction of, 
+197–198
+large language models, 37, 
+340, 343–351
+large x models, 351–353
+neural nets, 340–342
+programmer obsoletion  
+and, 4
+Aiken, Howard, 40, 69, 79, 
+80–81, 83, 88, 90–93, 118, 
+119, 411
+Airy, George Bidell, 29, 411
+algebra, symbolic, 33–34
+algebraic compiler, 107
+ALGOL, xxi, 131–133, 145–150, 
+170, 176–177
+ALGOL 60, 132, 133,  
+135, 148
+algorithms
+algorithmic proofs, 52
+Dijkstra's, 135, 144–145
+minimal path, 144–145
+symbiotic human/
+mechanical, 84–86
+Allen, Judith, 203–210, 249
+ALWAC III-E, 206
+Amdahl, Gene, 136–137, 412
+analysis, structured, 291
+Analytical Engine
+Ada Lovelace's work on, 
+36, 37, 38
+architecture of, 60
+Babbage's idea for,  
+30–33
+data/instructions  
+storage, 45
+electromechanical analog 
+of, 40
+Mark I and, 80
+unrealized idea of, 41
+Andreessen, Marc, 310
+AND statements, 247
+Index
+=====PAGE 64=====
+Index
+436
+The Annotated Turing, 61
+Apple
+128K Macintosh, 291, 292
+Apple II, 287
+iPhone/iPad, 320
+Smalltalk and Mac, 196
+applications
+infrastructure and,  
+362–365
+need for code for, 7
+architecture
+data/instructions storage, 
+45, 60
+Dijkstra on, 163
+ECP-18, 250–251
+hardware/software 
+distinctions in, 140
+language and physical,  
+145–146, 149–150
+programmer capacity  
+and, 151
+THE system, 153
+Turing-von Neumann, 45, 
+60, 73
+arc-seconds, 18
+ARMAC, 143–145, 385
+ARRA, 136, 138–143, 385
+ASCC (Automatic Sequence 
+Controlled Calculator), 79
+ASCII, 172
+A.S.C. Tabulating Corp., 253, 
+259, 261
+assignment statements, 322
+Astronomical Society, 15, 28
+atomic weapons, 67–72
+Automatic Computing Engine 
+(ACE), 64, 73, 386
+Automatic Programming, 77, 
+102, 124, 125, 145
+Automatic Programming 
+Department, 106, 113
+Automatic Sequence Controlled 
+Calculator (ASCC), 79
+B
+B-0 language, 109–110
+Babbage, Charles
+Aiken as "successor" to, 
+90–91
+analytical engine idea,  
+30–33
+awards/recognitions for, 14
+biography of, 13–15
+Difference Engine of, xvi, 
+24–26, 28–30, 36
+first calculating machine, 15
+mechanical notation of, 
+26–27
+nonhuman computer idea, 
+23–24
+party tricks of, 27–28
+personality of, 15, 29
+unfinished ideas of,  
+40–41, 42
+work with Ada Lovelace, 
+36, 37, 39
+Backus, John, xxi, 108, 115–134, 
+146, 221
+Ballistics Research Lab (BRL), 
+66–67
+Bartik, Jean, 74
+BASIC, xxi, 188,  
+192–195, 202
+Basic Combined Programming 
+Language (BCPL), 222,  
+233, 386
+batch machines, 190
+BBS (bulletin board services), 
+292–293
+BCPL (Basic Combined 
+Programming Language), 
+222, 233, 386
+Beck, Kent, 11, 314, 319,  
+370, 412
+Bell Labs, 213–214, 215, 220, 
+223, 229
+Bemer, Bob, 172, 412
+Berners-Lee, Tim, 310
+Best, Sheldon, 126, 130
+Big Brother, 198–199
+BigInteger, 345
+BINAC, 93, 98
+binary machines, 93, 140, 187, 
+385, 405
+Blaauw, Gerrit, 136–137,  
+139, 413
+B language, 233–235
+Bletchley Park, 64, 386
+Bloch, Richard, 79, 83,  
+90, 413
+blocks
+block-structured  
+languages, 174
+fixed-size, 180
+garbage collection and, 
+177–178
+Unix system and, 227
+BNF (Backus–Naur Form), 132, 
+133, 147
+Booch, Grady, 303, 305, 306, 
+309, 312, 413
+Boolean algebra, 247, 413
+BOSS (Basic Operating  
+System and Scheduler),  
+283, 285
+brain, human, 337–340
+BRL (Ballistics Research Lab), 
+66–67
+Brooks, Angela, 325
+Brooks, Fred, 136–137, 414
+Bulletin Board Services, 201
+buses
+Analytical Engine, 31
+Mark I, 88
+transistor communication 
+and, 339
+businesspeople, 108, 109,  
+112–113
+Byron, George Gordon (Lord 
+Byron), 34, 414
+=====PAGE 65=====
+Index
+437
+C
+C#, 181, 331, 334
+C++
+advent of, 196
+author's interest in, 298
+author's work with, 302, 311
+B language and, 24
+data types and, 334
+origination of, 183
+SIMULA 67 and, 181
+SIMULA and, 168
+C-10 language, 97–98, 101, 104
+Calaprice, Alice, 379
+call management systems, 288
+calls, ARRA, 143
+Campbell, Robert, 79, 83, 414
+Cantor, Georg, 46, 414
+Carew, Mike, 286
+Cartesian coordinate plane, 16
+CASE (computer-aided software 
+engineering), 305
+CDS (Craft Dispatch System), 
+295–296, 298
+cell phones, xxii, 6, 198
+central limit theorem, 59
+Central Office Line Tester 
+(COLT), 272, 273, 281, 284
+central processors, 61, 338
+ChatGPT, 198, 380
+chemistry industry, 332
+chroma-key, 323
+Church, Alonzo, 51, 187, 415
+C language
+assembler, 236
+author's introduction to, 
+282–283
+author's work with,  
+292, 293
+B and, 24
+creation of, xxi, 232–235
+data types and, 334
+innovativeness of, 327
+int in, 146
+popularity of, 196
+similarity with other 
+languages, 331
+Unix and, 211
+classes/subclasses, 48, 180
+Clean Code, 320–321
+Clean Coders Inc., 324
+Clear Communications, 301–302
+clock rates, 357
+Clojure, 334, 349–350, 352
+cloud computers, 357
+COBOL
+creation of, 108–112
+physical architecture  
+and, 146
+success of, xxi, 113
+users as focus of,  
+112–113
+C.O.D.E., 313, 315
+code
+binary vs. assembler, 327
+Clean Code, 320–321
+code generator  
+programs, 129
+Difference Engine, 25
+editing magnetic tape, 263
+historic changes in, 367
+magnetic tape source  
+code, 262
+Mark I, 89–90
+need for writers of, 7
+octal, 250, 349
+provable, 163
+source code control,  
+274–275
+source code statement, 162
+Speedcoding, 120–123
+UNIVAC, 95–98
+COLT (Central Office Line 
+Tester), 272, 273, 281, 284
+COLT Measurement Unit 
+(CMU), 284
+Columbia University, 117
+comments, invention of, 78
+communism, 54, 72
+Compatible Time-Sharing 
+System (CTSS), 221, 222
+compilers
+algebraic, 107
+BASIC, 192
+beginnings of, 99–100
+data checks by, 333–335
+FORTRAN input to,  
+127–129
+Grace Hopper and, 77, 90, 
+103, 106
+IBM 370, 268
+IBM 704, 124
+Kurtz/Kemeny's work on, 
+191
+M365, 264
+SIMULA, 169, 170, 174, 
+178, 179, 180
+Type A compilers, 103–105
+XI, 147–150
+completeness proof, 47–49, 55
+complexity, 376–380
+computer-aided software 
+engineering (CASE), 305
+computers
+accuracy for early, 24
+ALWAC III-E, 206
+Analytical Engine, 30–33
+ARRA, 138–143
+ASCC (Harvard Mark I), 79
+Babbage's prototype for, 15, 
+30–33
+cloud computers, 357
+computer revolution, 195
+ECP-18, 204, 250–251
+expense of early, 104, 108, 
+123–124
+Ferranti Mercury, 169
+growing power/capacity  
+of, 4
+human, 23, 66
+=====PAGE 66=====
+Index
+438
+computers (continued)
+human/computer symbiosis, 
+196–197
+humans replaced by,  
+102–103
+IBM System/7, 267
+increasing power of,  
+355–356, 357
+language/architecture  
+bond, 146
+miracle of thought by, 28
+PDP-7, 223–226
+PDP-11, 230–232, 277
+programmer capacity  
+and, 151
+programmers of early, 3–4
+SSEC, 117–120
+stored-program computers, 
+64, 73, 93
+time-sharing terminals, 193
+Turing's machine, 61–65
+universal access to, 190, 
+192–193, 202
+Varian 620/F, 259–260
+von Neumann on, 71, 187
+XI, 147
+computer science
+Dijkstra and, 145, 151, 
+152–156
+mathematics vs., 159–160
+Conrad, Tim, 248, 254, 260, 
+261, 264
+consistency proof, 51, 55
+consoles, 200
+continuum infinity, 46
+cooperating processors, 286
+Coplien, Jim, 306, 309, 310, 
+312, 415
+core memory, 107–108,  
+123, 386
+cores, number of processor, 357
+Core War game, 294, 387
+cosines, 16–18
+costs/financial issues
+designing to cost,  
+381–382
+machine vs. programmer 
+time, 104, 123
+memory price drops, 200
+price of copper, 284
+counting number infinity, 46
+COVID-19 pandemic, 326
+Craft Dispatch System (CDS), 
+295–296, 298
+crashes, 86
+creativity, human, 337, 343
+critical sections, 154
+CTSS (Compatible Time-Sharing 
+System), 221, 222
+Cunningham, Ward, 310, 315, 
+317, 415
+customers
+early UNIVAC, 102
+SIMULA, 170, 176, 178
+D
+Dahl, Ole-Johan, 165–184
+Dartmouth, 188, 195, 202
+data
+access on disks, 226–227
+Analytical Engine, 45
+breaches, 199
+checking/enforcing types of, 
+333–335
+computer architecture  
+and, 60
+EDVAC and binary data 
+storage, 73
+management information, 
+106
+programs as, 72, 336, 362
+SSEC data entry, 121
+stations, 170, 176
+storage, xxi
+voice conversions of 
+written, 296
+databases, object-oriented,  
+306, 397
+DATANET-30, 190, 191,  
+259, 391
+Debets, Maria, 138
+debugging
+ARRA, 140
+Backus' system for, 123
+Difference Engine, 29, 39
+Difference Engine 2, 41–42
+IBM System/7 for, 269
+invention of, 78
+DEC 340 vector graphics 
+display, 223, 224, 225, 278
+decidability proof, 51, 55, 61
+decimal machines, 93–94
+DECnet connections, 299, 388
+dependencies
+dependency inversion, 310
+directions of, 163
+designing to cost, 381
+desktop computers, 287
+details, reveling in, 6, 9, 353
+determinism, 342
+dial-up services
+BBS and, 292–293
+DECnet connections, 299
+Kemeny's predictions 
+about, 201
+VT100 terminals, 283
+die-cast machinery, 266
+Difference Engine, xvi, 24–26, 
+36, 40, 42, 355–356
+Difference Engine 2, 33, 40, 
+41–42
+difference tables, 18–23
+Digi-Comp I, 245–246, 250
+digital switches, 284
+Dijkstra, Edsger
+ALGOL and XI, xxi,  
+145–150, 374
+ARMAC, 143–144
+ARRA work, 138–143
+=====PAGE 67=====
+Index
+439
+biography of, 135–138
+dream of provable software, 
+156–160
+early machines and, 4
+early programmers and, 3
+minimal path algorithm, 
+144–145
+structured programming, 133
+structured programming of, 
+160–163
+discipline of programming, 77, 
+84, 88
+discrete event network, 170
+disks
+accessing data on, 226–227
+disk memory, 388
+disk scheduling, 226
+Display Local Unit (DLU),  
+285, 286
+Display Remote Unit (DRU), 
+285, 286
+distinct software, 374
+distributed processing, 361
+DLU (Display Local Unit),  
+285, 286
+DMA (direct memory  
+access), 226
+dotcom boom, 312, 315,  
+319, 388
+dotcom crash, 319, 320
+DRU (Display Remote Unit), 
+285, 286
+dual programming, 148
+dynamics, symbols for, 26–27
+dynamic typing, 334
+E
+EASYCODER, 254
+Eckert, J. Presper, 72–73,  
+75, 416
+Eckert and Mauchly Computer 
+Corporation (EMCC),  
+93, 100
+ECP-18, 204–205, 207, 210, 
+249–252
+editing
+IBM 370 for, 268
+KED screen editor, 279
+magnetic tape source  
+code, 263
+EDSAC, 136, 389
+“The Education of a 
+Computer,” 102–103
+Educational Testing Service, 
+306–309, 389
+EDVAC (Electronic Discrete 
+Variable Automatic 
+Computer), 72–73,  
+186–187, 389
+Einstein, Albert, 48, 56, 187, 
+188, 376–380, 416
+Electronic Receptionist, 288, 
+289, 291–292, 294
+email
+email mirror, 309–310, 389
+networks for, 201
+EMCC (Eckert and Mauchly 
+Computer Corporation),  
+93, 100
+ENIAC, 70, 72, 73, 90, 91–92
+enumeration, 157
+Equal Rights Amendment, 204
+ethics, 11, 370
+events
+customers, stations and, 170
+event-check subroutines, 273
+execution times, type A 
+compiler, 104
+Experimental Time-Sharing 
+System, 222
+F
+Facebook, 199
+feminism of Judith Allen,  
+203–204
+Ferranti Mercury, 169, 390
+FERTA, 137, 144, 390
+Feynman, Richard, 70, 185, 417
+field-labeled data (FLD),  
+296, 298
+file editing, NeoVim for, xv
+filters, Unix, 232
+finite differences, 18–23
+"The First Draft of a Report on 
+the EDVAC,” 73, 92, 186
+FLD (field-labeled data),  
+296, 298
+floppy disks, 290, 291, 390
+flowcharts, 95, 97
+FLOW-MATIC, 109–110, 112
+for format, 233
+formalisms, math, 26–27, 47, 
+51, 132, 133
+FORTRAN
+B language and, 233–234
+creation of, xxi,  
+125–126, 127
+data types and, 334
+future irrelevance of, 131
+inaccessibility of, 109, 192
+list processing library  
+for, 220
+physical architecture  
+and, 146
+popularity of, 108
+statements, 127–128
+FORTRAN IV, 238
+Fowler, Martin, 315, 318, 418
+Fulmer, Dr. Allen, 207, 208, 
+209, 418
+functional programming,  
+133, 322
+functions
+function call trees, 105
+local, 175–176
+transcendental math 
+functions, 16, 23
+Fundamental Algorithms, 265
+future, the
+AI in, 337–353
+=====PAGE 68=====
+Index
+440
+future, the (continued)
+hardware in, 355–359
+languages in, 331–336
+programming in, 367–370
+World Wide Web in,  
+361–365
+G
+games, writing
+Core War, 294
+depth perception for early 
+3D, 224
+Multics for, 223–226
+Pharoah, 299, 400
+time-sharing terminals  
+for, 193
+garbage collection, 177
+GECOS, 223, 225, 228
+GEIR computer,  
+173–174, 391
+GEMAP assembler, 225
+general relativity, 47, 55, 79
+German Enigma Code, 64, 66
+GIGO (garbage in, garbage 
+out), 341
+Gilb, Tom, 371
+Go, 331, 332, 334
+Gödel, Kurt, 49–52, 63, 418
+Goldstine, Herman, 70, 73, 419
+GOTO statements, 135, 160, 269
+Groves, Leslie, 100, 419
+GUIs
+Apple 128K Macintosh, 292
+Educational Testing Service, 
+306–309
+M365 video terminal, 265
+H
+Haibt, Lois, 126, 129, 419
+Hamming, Richard, 220, 419
+hardware
+AI hardware, 342
+ARMAC and FERTA, 144
+ARRA, 139–140, 142
+DMA, 226
+exponential growth in,  
+355–356
+Mark I operation, 83–88
+slowed growth of,  
+327–328
+software/hardware 
+carryovers, 274
+XI, 147
+Harvard Mark I. See Mark I
+Harvard University, 91, 215
+heaps, garbage-collected, 177
+Heisenberg, Werner, 55, 419
+Heisenberg’s matrix  
+analysis, 47
+Herrick, Harlan, 125, 129, 420
+Herschel, John, 15, 23, 420
+Hickey, Rich, 322, 420
+Hilbert, David, 46–49, 52, 55, 
+60, 159
+history of computing
+exponential growth of, 
+355–358
+failure of Hilbert and, 49, 
+50–53
+knowledge of/connection to, 
+xvi–xvii
+post WWII information 
+sharing, 90–91
+supporting characters in, 
+xxvii–xxviii
+timeline of, xxiii–xxv
+time-sharing terminals in, 
+193–195, 197
+war as impetus in, xix–xx
+Honeywell H200, 392
+hope as a strategy, 341, 342
+Hopper, Grace, xxi, 40, 77–114, 
+124, 156, 372
+HP-35 calculator, 265
+HTML, 361, 362, 365
+Hurd, Cuthbert, 124
+hydrogen bomb (the  
+Super), 72
+I
+IAS (Institute for Advanced 
+Studies), 56, 57
+IAL (International Algebraic 
+Language), 132
+IBM
+Backus' work for,  
+120, 125
+FORTRAN and, 108
+Mark I and, 80, 91
+SSEC, 118
+IBM 360, 136–137, 182
+IBM 370, 268
+IBM 700, 187
+IBM 701, 120–123
+IBM 704, 108, 123, 130, 132, 
+189, 393
+IBM 7090, 123, 393
+IBM 7094, 212, 220,  
+222, 393
+IBM’s 1401, 254
+IBM System/7, 266–268, 269
+IITRAN, 194
+incompleteness proof, 49–51
+inconsistency proof, 51
+incrementalism, 42
+index registers
+PDP-11, 150
+Speedcoding and, 122
+stack pointers and, 175
+XI, 147
+indivisible actions, 154
+induction, 157
+infinities, infinite, 46
+information age, 40
+infrastructure, applications and, 
+362–365
+inode structure, 227
+Inside Macintosh, 292
+Institute for Advanced Studies 
+(IAS), 56, 57
+instructions
+Analytical Engine, 45
+ARRA, 143
+=====PAGE 69=====
+Index
+441
+data/instructions storage, 
+45, 60
+EASYCODER, 254
+IBM System/7, 268
+Mark I, 81, 84, 86
+PDP-7, 225
+SSEC, 121
+type A compiler, 105
+UNIVAC mnemonic, 95
+int, 146
+Intel 16-bit 80286 chip, 289
+Intel 8080, 237
+Intel 8085, 175, 276, 278, 282, 
+288, 394
+intelligence, human, 337,  
+343, 348
+IntelliJ, xv
+Interface Segregation  
+Principle, 313
+International Algebraic 
+Language (IAL), 132
+internet, the
+advent of, xxii, 281, 302
+dotcom boom, 312
+education via, 201
+pre-Web, 310
+Web arrival, 320
+World Wide Web, 361–365
+interrupts
+DATANET-30, 192
+indivisible actions and, 154
+X8, 153
+inventions, 14
+IO (input/output), 122, 126, 
+141, 153, 189, 196, 207, 
+255, 265, 282
+iPhone/iPad, 320
+iteration, sequence, and 
+selection, 162–163
+J
+Jacobson, Iver, 312, 421
+Java
+AI programs with, 345–349
+B language and, 24
+C# and, 331
+historic syntax  
+changes, 335
+innovativeness of, 327
+local functions and, 176
+SIMULA 67 and, 181
+storage in stacks, 175
+JavaScript, 361
+JOHNNIAC, 187, 395
+JSON, 361, 362
+jumps, ARRA, 142–143
+K
+kanban, 291
+Kay, Alan, 135, 167,  
+168, 421
+Kemeny, John, xxi,  
+185–202
+Kernighan, Brian Wilson,  
+211–241
+King, William, 36, 422
+Knapp, Tony, 190, 422
+Kotlin, 331, 332
+Kurtz, Thomas, 188,  
+189–190
+L
+languages
+ALGOL, 131–133,  
+145–150, 174
+assembler, 236
+author's early life study  
+of, 252
+Babbage's notation,  
+26–27, 30–33
+BASIC, 192–195
+B language, 232–235
+block-structured, 174
+BNF and syntax of, 133
+C-10, 97, 101, 104
+ChatGPT, 198
+C language, xxi, 146, 196, 
+232–235
+COBOL, 108–112
+early, pioneering, xxi
+English, 109, 132, 133
+"everyone's," 187
+first high-level, 127
+first wide access,  
+192–193
+FORTRAN, 125–126
+Grace Hopper and, 103, 
+105–106
+Lisp, 335–336
+list of common, 331
+new/recent, 327, 331–332
+OOPL, 168
+SIMULA, 168–183
+simulation, 180, 182
+single, universal, 331–333
+Smalltalk, 168, 196, 295
+statically vs. dynamically 
+typed, 334–335
+Laning, Jr., J. Halcombe, 107, 
+108, 423
+large language models (LLMs), 
+337, 340, 343–351
+large x models, 351–353
+laser trimming systems, 261
+Leiden University, 136
+LGP-30 (Librascope General 
+Purpose 30), 189, 395
+Linux, 239
+Lippman, Stan, 309, 423
+Liskov Substitution  
+Principle, 310
+Lisp, 189, 321, 333, 334,  
+335–336, 362, 365
+LLMs (large language models), 
+337, 340, 343–351
+Lloyd, Richard, 260
+local functions, 175–176
+logarithms, 16
+Logo, 334
+London Science Museum,  
+33, 42
+Lonseth, Arvin, 206
+=====PAGE 70=====
+Index
+442
+loops
+century-old programs and, xx
+Mark I, 89
+paper tape machine, 82
+SSEC, 120
+statements in loops, 161
+Los Alamos, 67–69, 185
+Lovelace, Ada King, 13, 34–41
+M
+M365, 261, 272, 275, 276, 396
+MacBook Pro, 25
+macros, 63
+magnetic tape machines, 263
+mainframe computers, xxi
+management information 
+systems, 78, 106
+Man and the Computer, 196
+Manhattan Project, 67–69,  
+70, 185
+Mark I
+Analytical Engine and,  
+40, 60
+ASCC as, 79
+ENIAC and, 69–70, 72, 
+91–92
+numerical programming  
+of, 156
+operation of, 83–88
+paper tape machinery of, 
+80–82
+subroutines, 89–90
+WWII era jobs of, 83
+Martin, Ludolph, 253, 424
+Martin, Micah, 324, 424
+Martin, Robert C.
+18-bit binary calculator 
+build, 248–249
+Agile and, 318–320
+books by, 306, 309, 311, 
+313, 320–321, 326
+childhood programming by, 
+246–247
+Clean Coders Inc., 324
+Clear Communications, 
+301–304
+computer simulation by, 194
+consulting work, 305–306, 
+312, 319, 320, 321
+Craft Dispatch System 
+(CDS), 295–298
+ECP-18 use, 205
+Educational Testing Service, 
+306–309
+Electronic Receptionist, 
+289–293
+first programming job,  
+254–258
+software principles of,  
+311–312, 313
+speaking/writing by, 302, 
+304, 309, 310, 311, 312
+Teradyne Central work, 
+271–274, 285–287
+training videos of, 324–325
+UNIVAC 1108 use, 182
+Usenet postings, 302, 306
+Voice Response System 
+(VRS), 293
+XP Immersions, 315,  
+317–318
+mathematical calculations
+AI for, 345
+Analytical Engine, 31
+axiomatized set theory,  
+47, 54
+Babbage's first machine  
+for, 15
+ballistics/shock wave 
+calculations, 66–67, 68, 
+121–122, 186
+completeness/
+incompleteness proofs, 
+47–50
+computer-done, 102–103
+David Hilbert's, 46
+Difference Engine for, 
+24–26
+Hilbert's three challenges, 
+51, 55, 60
+manual/hand done,  
+xix–xx, 15
+Mark I architecture for, 
+83–84
+programming as, 155–160
+programs based on, 50–52
+science vs., 159–160
+tables of, 16–23
+technological inventions 
+and, 23
+Turing machine for, 63
+Mathematical Centre (MC), 
+136, 137, 138, 143,  
+145, 160
+Mathematical Foundations of 
+Quantum Mechanics, 56
+MATH-MATIC, 107, 108,  
+109, 146
+Mauchly, John, 72–73, 75,  
+101, 424
+MC (Mathematical Centre), 
+136, 137, 138, 143, 145, 160
+McCarthy, John, 148, 180, 189, 
+221, 424
+McIlroy, Doug, 232, 425
+McLure, Robert, 232
+Mechanized Line Tester  
+(MLT), 281
+memory
+Analytical Engine, 45
+ARRA, 142, 143
+core memory, 107–108, 
+123, 226, 386
+disk, 388
+DMA (direct memory 
+access), 226
+drum, 389
+EASYCODER, 254
+ENIAC, 91
+=====PAGE 71=====
+Index
+443
+Kemeny's predictions about, 
+199–200
+restrictive cost of, 193
+Speedcoding and, 121–122
+stored-program computer, 
+92–93
+THE system, 153
+time-sharing and early, 221
+Turing machine, 61–62
+Turing-von Neumann 
+architecture for, 60
+UNIVAC, 93–95
+von Neumann's vision  
+for, 187
+Menabrea, Luigi, 37, 425
+Meyer, Albert, 215, 425
+microchips, 338
+microcomputers, xxi, 276
+Milbanke, Annabella, 34, 426
+mill, the, 31
+Mills, Harlan, 383
+minicomputers, xxi, 195,  
+259, 266
+minimal path algorithm,  
+144–145
+Minksy, Marvin, 378
+miracles, 28
+MIT, 189, 220, 221, 378
+MLT (Mechanized Line  
+Tester), 281
+mobile phones, xxii, 6, 198
+modems, 292
+Monte Carlo methods, 169, 
+173, 178, 396
+Moore's Law, 356–358, 426
+Morcom, Christopher, 59
+Mosaic, 310
+Multics, 214, 220, 221–223, 226
+multiplication, 84
+multiprocessing
+event-check subroutines  
+for, 273
+invention of, 78, 87
+networks, 201
+XI and experimentation 
+with, 153
+N
+Naur, Peter, 133, 146, 149,  
+374, 426
+NCR Accounting Machine, 67
+NDRE (Norwegian Defense 
+Research Establishment), 
+166, 168, 169, 171
+Nelson, Bob, 125, 129
+NeoVim, xv
+Netnews (Usenet), 302–303, 
+310, 405
+networks, 201
+Neumann, Peter, 229, 375, 427
+neural networks, 351
+neurons in the human brain, 
+337–338
+Nim game, 246, 248
+nine's complement, 26,  
+84, 94
+nodes in neural networks, 340
+Norwegian Defense Research 
+Establishment (NDRE), 166, 
+168, 169, 171
+Notes on Structured 
+Programming, 156
+numbers
+Gödel incompleteness 
+proofs, 50
+negative, 26
+real vs. natural, 46–47, 50
+SD (standard description), 63
+Nutt, Roy, 126, 129, 427
+Nygaard, Kristen, 165–184
+O
+Object Mentor Inc., 313,  
+320, 321
+objects
+classes/subclasses of, 180
+foreshadowing of, 277
+lifetime of, on stacks, 176
+octal code, 250, 349
+OMC (Outboard Marine 
+Corporation), 266, 269
+OOPL (object-oriented 
+programming language), 
+163, 298, 303
+Open–Closed Principle, 310
+open source, 78
+operating systems
+BOSS (Basic Operating 
+System and  
+Scheduler), 237
+GECOS, 223, 225, 228
+RSX-11M, 278
+Unix, 228
+VMS, 287
+operation codes, 141
+Operations Research (OR) 
+group, 166
+Oppenheimer, J. Robert, 68, 427
+OR (Operations Research) 
+group, 166
+OR statements, 247
+Ossanna, Joe, 229, 427
+Outboard Marine Corporation 
+(OMC), 266, 269
+overconfidence, 42
+P
+pages, 263
+pair programming, 39, 148, 
+315, 324
+PAL-III assembler, 209, 397
+paper tape machines
+Backus' language for, 127
+ENIAC, 72, 92
+Grace Hopper on, 77, 
+80–82
+H200, 257
+loops in, xx
+magnetic tape vs., 263
+=====PAGE 72=====
+Index
+444
+paper tape machines (continued)
+Mark I, 60, 80–83, 120
+PDP-7, 225
+process of operating,  
+84–86
+SSEC, 118
+Turing's machine, 61
+parser programs, 129, 133
+Pascal, 334
+patterns of design, 309–310
+pCCU, 284–285, 286
+p-code, 149
+PDP-7, 223–226, 228, 235, 
+397–398
+PDP-8, 157, 175, 209, 223, 
+252, 398–399
+PDP-10, 182
+PDP-11, 150, 230–232, 235, 
+277, 282, 399
+PDP-11/60, 277–279
+Peel, Sir Robert, 15, 428
+personal computers
+Apple II, 287
+precursors to, 195
+widespread use of, 292
+Petzold, Charles, 61
+phoneme generators, 288
+phones, 198
+physicality vs. abstraction, 135, 
+143, 149–150
+Pi Day, xx
+pipelining, 87
+pipes, Unix, 232
+Plana, Giovanni, 36
+Plauger, Bill, 238–239, 428
+Plauger, P. J., 282
+politics, WWII era European, 
+52, 54, 56, 185
+polynomial approximations, 
+16–18, 23
+positive integers, 26, 50
+Princeton University, 56, 65, 
+185, 188
+Principia Mathematica, 48, 50
+privacy, 198–199
+processes, 313, 318
+processing power, 341
+processor allocation, 153
+production rules, 132
+programmers
+Ada Lovelace, 34–41
+AI and job security of, 352
+aptitude tests to find, 99
+assembly language for, 236
+automatic, 102
+Charles Babbage, 13–43
+cost of early, 104, 123–124
+crucial role of, 3, 4, 6–9, 
+352–353
+cultural role of, 5–6
+detail managers as, 6,  
+9, 353
+early, 3–4, 104, 106
+Edsger Dijkstra, 135–164
+future outlook for, 367–370
+Grace Hopper, 77–114
+Hilbert, Turing, and von 
+Neumann, 45–76
+historic giants among, 
+11–12
+incompleteness proof  
+and, 50
+Jean Bartik, 74
+John Backus, 115–134
+John Kemeny, 185–202
+Judith Allen, 203–210
+learning from elder, 372
+Mark I, 84
+neural nets vs. 
+programming, 342
+new ideas among, 327
+Nygaard and Dahl,  
+165–184
+science of, 151
+specialized skills of, 4
+SSEC, 119, 120
+Thompson, Ritchie, and 
+Kernighan, 211–241
+See also Martin, Robert C.
+Program Research Group, 127
+programs
+AI-written, 345–349
+data as, 336, 362
+data/instructions storage for 
+early, 60
+deterministic systems  
+as, 342
+dual but distinct, 374
+ENIAC, 72
+games, 193
+Mark I, 83–88
+mechanical punching  
+for, xx
+punch card, 45, 155–160
+sequential structure of, 155
+stored-program computer, 
+64, 73, 93
+structured, 129, 133, 135, 
+155, 160–163
+style in writing of, 220–221
+Turing machine, 62–64
+UNIVAC, 95–98
+See also software
+punch cards, xx, 31, 45, 60, 68, 
+70, 80, 86, 127, 189, 256, 
+260, 268
+Python, 331, 334
+Q
+quantum computers, 358–359
+quantum entanglement, 56
+quantum mechanics, 47, 50, 55, 
+56, 359
+queues, stacks and, 176
+R
+RAM, 276, 288, 338, 401
+ratfor (Rational FORTRAN), 
+238, 282
+=====PAGE 73=====
+Index
+445
+Rational Unified Process (RUP), 
+312, 401
+recursion, 148–149
+recursive binary tree  
+walkers, 288
+register-based instruction set 
+(RISC), 267
+relay devices, 247–248
+Remington Rand, 101,  
+106, 109
+reusable frameworks,  
+308, 309
+Richards, Martin, 222, 428
+RISC (register-based instruction 
+set), 267
+Ritchie, Bill, 216, 219
+Ritchie, Dennis MacAlistair, 
+xxi, 211–241
+Ritchie, John, 216, 218
+ROM, 276, 402
+routines, Mark I, 89–90
+Royal Society of London, 28
+RS-232 ports, 278, 402
+RSX-11M operating system, 
+278, 403
+Ruby, xxii, 331, 334
+Rumbaugh, Jim, 312, 429
+runtime data checks, 333–335
+RUP (Rational Unified Process), 
+312, 401
+Russell, Bertrand, 47–48, 429
+Rust, 334
+S
+SAC (Service Area Computer), 
+272, 273, 281, 284
+Scheme, 321
+Schrödinger, Erwin, 55,  
+429–430
+Schrödinger equation, 47, 56
+Schultz, Judith, 205–209
+Scientific Memoirs, 37
+screens, 200, 301
+SD (standard description), 
+63–64
+Seeber, Jr., Robert Rex, 80–81, 
+119–120, 430
+Selective Sequence Electronic 
+Calculator (SSEC),  
+117–120
+semaphores, 135, 154
+semiconductor components, 356
+September 11, 2001, 319
+sequence, selection, and 
+iteration, 162–163
+Service Area Computer (SAC), 
+272, 273, 281, 284
+set theory, 46, 48, 54, 187
+Shelley, Mary, 34, 430
+Sheridan, Peter, 126, 129, 430
+SICP (Structure and 
+Interpretation of  
+Computer Programs), 321
+sign bits, 121
+simplicity, 376–380
+SIMULA, xxi, 168–183, 327
+Sinclair ZX-81, 200
+sines, 16–18, 19
+sixth-order polynomials, 24
+skip (nop), 96–97
+Smalltalk, 168, 196, 295,  
+298, 334
+Snyder, Betty, 94, 97, 99, 430
+social networks, xxii,  
+199, 302
+software
+ARRA, 140
+crisis, 151–152
+diagrams, 303, 305
+distinct, 374–375
+engineering, 77, 79, 148
+large language models,  
+343–351
+Mark I operation, 83–88
+mathematically  
+provable, 156
+programmers who write, 3
+revolutions in, xxii
+science of, 159–160
+slowed growth of,  
+327–328
+software/hardware 
+carryovers, 274
+See also programs
+software design
+author's learning of, 264
+object-oriented, 303, 311
+pattens of, 309–310
+principles of, 286, 310, 
+368–369, 373
+simplicity and, 381
+SOLID and Component 
+Principles, 311–312
+structured, 291
+Software Tools, 238, 239, 282
+SOLID and Component 
+Principles, 311–312
+solid-state computers, 173, 267
+sorting, compilers and, 99
+source code statement, 162
+space exploration, 245, 253
+Space War, 215, 224
+SPARCstations, 301, 403
+Speedcoding, 120–123, 124
+Sperry Rand, 110, 111, 113, 
+172–174, 180, 182
+SSEC (Selective Sequence 
+Electronic Calculator),  
+60, 117–120
+stacks
+local variables stored on, 
+174–175
+queues and, 176
+stack pointers, 175
+statements
+AND/OR, 247
+sequential or looped, 161
+SIMULA process  
+scheduling, 179
+=====PAGE 74=====
+Index
+446
+states, superposition of, 359
+state transition table,  
+62–63, 297
+static electricity, 264
+static types, 334
+stations, SIMULA 67, 170,  
+176, 178
+storage
+data storage, xxi
+SIMULA, 177–178
+stacks as, 175
+stored-program computer, 64, 
+73, 93, 95, 97, 138
+Strachey, Christopher,  
+221, 431
+Stroustrup, Bjarne, 168, 183, 
+298, 431
+Structure and Interpretation  
+of Computer Programs 
+(SICP), 321
+structured programming, 129, 
+133, 135, 155, 160–163, 
+269, 291, 374
+subroutines
+compilers and, 103, 105
+EASYCODER, 255
+FORTRAN, 131
+invention of, 78
+Mark I, 89–90
+Turing and, 63
+UNIVAC I, 98
+subtraction, 26, 84, 94, 225
+Sun Microsystems, 301, 302
+superposition of states, 359
+SWAC (Standards Western 
+Automatic Computer),  
+188, 404
+Swade, Doron, 42
+Swift, 331, 332
+symbolic assemblers, 208
+symbol manipulation
+Ada Lovelace and, 38–39
+Analytical Engine, 38
+Babbage and, 27, 33–34
+BNF, 132
+Grace Hopper and,  
+105–106
+System/7, 266–268, 269
+system console control, 153
+systems administration, 283
+T
+T1 communications monitoring 
+system, 301–302
+tables
+Astronomical Society  
+tables, 15
+machines for calculating, 118
+making mathematical, 
+16–23
+printed by Mark I, 83
+state transition tables, 
+62–63
+tag analysis, 130
+Taylor expansion, 17, 19, 20
+TDD (test-driven  
+development), 87
+Teller, Edward, 72, 431
+Teradyne Inc., 236, 261, 262, 
+270, 271, 281, 298
+terminals
+graphics terminals with 
+pointers, 224
+Kemeny's predictions  
+about, 200
+SAC (Service Area 
+Computer), 285
+time-sharing, 193–195, 197
+video terminals, 262, 264
+virtual SAC, 286
+terminology, 78, 110
+testing programs
+Mark I, 86–87
+software science and, 160
+structured programming 
+and, 155
+text editing, xvi
+text files, 127, 297
+“The Axiomatization of Set 
+Theory,” 47, 54
+The C++ Report, 302, 304, 309, 
+312, 315
+THE Multiprogramming 
+System, 152, 153, 155
+theoretical physics, 136,  
+137, 138
+Thompson, Ken, xxi, xxiii, 
+211–241
+thought, mechanical, 28
+TikTok, 199
+timeline of computing,  
+xxiii–xxv
+time-sharing
+BASIC and, 193–194
+Kurtz/Kemeny's work on, 
+190, 191
+Multics, 221, 222
+terminals, widespread use 
+of, 193–195
+TMG (Transmogrifier), 232
+tracing, 123
+trade journals, 269
+training neural networks,  
+340–341
+transcendental functions, 16, 23
+transfinite numbers, 46
+transistors, 339, 404
+Trinity, 70–71
+True BASIC, 196
+Turing, Alan
+decidability proof, 51
+early life and work, 57–60
+Turing's machine, 61–65
+Turing-von Neumann 
+architecture, 60, 73
+type A compiler, 103–105
+type B compiler, 107
+types
+classes and, 181
+=====PAGE 75=====
+Index
+447
+type checking, 333–335
+types of data, 333–335
+“Type-Theory vs.  
+Set-Theory,” 187
+U
+UML (Unified Modeling 
+Language), 312, 405
+Unified Modeling Language 
+(UML), 312, 405
+UNIVAC (UNIVersal Automatic 
+Computer), 75, 93–99, 101, 
+108, 113, 172, 405
+UNIVAC 1107, 173, 182, 405
+UNIVAC 1108, 182, 194, 405
+Universal Programming 
+Language, 132, 146
+University of California, 
+Berkeley, 212
+University of Göttingen, 46, 52
+Unix, xxi, 211, 220, 226–230, 
+231, 238–239, 282, 291
+updates, concurrent, 154
+URLs, 365
+U.S. DoD, 110–111
+Usenet, 302–303, 405
+user groups, 78
+uservices, 297
+V
+vacuum tube machines, xxi, 
+70, 93, 118, 120, 188,  
+189, 406
+van Wijngaarden, Adriaan, 136, 
+137, 138, 150, 310, 433
+variables, 175–176, 334
+Varian 620/F, 259
+Vassar, 78, 79
+VAX 750, 286, 288, 299, 407
+VAX 780, 290, 299
+Veblen, Oswald, 56, 432
+video terminals, 262
+virtual procedures, 180, 233
+VM (virtual machine), 149
+VMS, 287
+VMX, 291
+voicemail, digital, 288, 289, 
+291–292
+Voice Response System (VRS), 
+293–294, 295
+voice technologies, 288, 293
+von Neumann, John
+atomic weapons work, 
+67–72, 89, 186
+“The Axiomatization of Set 
+Theory,” 48
+Ballistics Research Lab 
+(BRL), 66–67
+computing interest of, 65, 
+67, 69
+EDVAC work, 73, 92,  
+186–187
+Kemeny's work with, 185
+personal life/work of, 
+53–57, 426
+response to disproving 
+Hilbert, 50
+Turing-von Neumann 
+architecture, 60, 73, 74
+von Neumann, Klári, 74
+VRS (Voice Response System), 
+293–294, 295
+VT100 terminals, 277,  
+283, 407
+W
+war
+atomic weapons, 67–72
+Bletchley Park, 64, 66
+"Defense Calculator," 120
+historic computing timeline 
+and, xxiv–xxv
+post WWII information 
+sharing, 90
+technological impetus of, 
+xix–xx
+WWII era European 
+politics, 52, 54, 56, 185
+Wator program, 292, 294, 408
+Watson, Thomas J., 80, 91, 118, 
+119, 432
+Watson Sr., Thomas J., 80
+Wheatstone, Charles, 37, 432
+Whitehead, Alfred North, 48, 432
+Wigner, Eugene, 56, 433
+World War II, xix, 52, 64, 67–69
+World Wide Web, 320, 361–365
+X
+X (Twitter), 199, 324
+X8, 152
+Xerox star, 290–291
+XI computer, 145–150, 409
+XMODEM, 292
+XP (eXtreme Programming), 
+314–315, 390
+XP Immersions, 315,  
+317–318, 319
+Y
+yacc program, 133
+Yale University, 78, 79, 100
+Yourdon, Ed, 209, 433
+YouTube, 199
+Z
+Zierler, Neil, 107, 108, 434
+Ziller, Irving, 125, 129
+Zonneveld, Jaap, 147, 148, 150, 
+374, 434

@@ -1,0 +1,154 @@
+{
+  "official_repositories": [
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "commit_resolution_url": "https://api.github.com/repos/OpenRouterTeam/typescript-sdk/commits/main"
+    },
+    {
+      "repo": "OpenRouterTeam/docs",
+      "sha": "58426585252517e9cc38993b8c2681b355a960b0",
+      "commit_resolution_url": "https://api.github.com/repos/OpenRouterTeam/docs/commits/main"
+    }
+  ],
+  "source_acquisition": "Official public GitHub API resolved main once; all raw URLs then pinned to returned commit SHA; Python3 urllib HTTPS GET; SHA256 of complete bytes. Official website overview/streaming read for cross-check; not immutable snapshots.",
+  "sources": [
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/models/chatstreamdelta.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/models/chatstreamdelta.ts",
+      "sha256": "8c1a890663742c091093f769a23e53c580bc82ec74b1f0d721c51e9e78d8623f",
+      "bytes": 2668
+    },
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/models/chatstreamchoice.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/models/chatstreamchoice.ts",
+      "sha256": "caaf53a99a6ec3eabde5964a7c3b517b419e5a2ac33f0c1e91d3457868d2bdc5",
+      "bytes": 1707
+    },
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/models/chatstreamchunk.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/models/chatstreamchunk.ts",
+      "sha256": "0967a00fb4a447e3668f1dfaab93dc9e50e876bf12221cb3c3c38886981186ff",
+      "bytes": 4630
+    },
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/models/chatstreamingresponse.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/models/chatstreamingresponse.ts",
+      "sha256": "f8b32133ddaf089d8c55a34e1b36dd4e0d8d73d01bdf3d7c3e79124a2ebe16c2",
+      "bytes": 1286
+    },
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/funcs/chatSend.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/funcs/chatSend.ts",
+      "sha256": "14381c3ce5bde907f07bbf18ea4f34bf08dfb174d35eeaa9488248c175000d3e",
+      "bytes": 11885
+    },
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/lib/event-streams.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/lib/event-streams.ts",
+      "sha256": "649982dd4dfe0cc9c365be3ecfa6d091bc49bcd465b81ed738fc4699781d464b",
+      "bytes": 6574
+    },
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/lib/stream-transformers.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/lib/stream-transformers.ts",
+      "sha256": "ec4736ef36557488f77c45562723142d4ffa9c1e46f79d3a69f44ec0368aeccc",
+      "bytes": 31567,
+      "scope_note": "Read but not used as Chat Completions delta.refusal reader evidence"
+    },
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/models/chatmessages.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/models/chatmessages.ts",
+      "sha256": "94f82d37673c39ccadce72178a46007d0a009986386acad42a452409b5c12595",
+      "bytes": 1779,
+      "scope_note": "Read but not used as Chat Completions delta.refusal reader evidence"
+    },
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/models/chatstreamoptions.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/models/chatstreamoptions.ts",
+      "sha256": "7d42465190aa87948fe419c4ef97d6dcff880060dc216fceb2f36e7d8216d0bd",
+      "bytes": 1088
+    },
+    {
+      "repo": "OpenRouterTeam/docs",
+      "sha": "58426585252517e9cc38993b8c2681b355a960b0",
+      "path": "api_reference/overview.mdx",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/docs/58426585252517e9cc38993b8c2681b355a960b0/api_reference/overview.mdx",
+      "sha256": "649f99059860091febd30af9e7d8da1227fce269198f834e5d32370fffc1bf16",
+      "bytes": 15954
+    },
+    {
+      "repo": "OpenRouterTeam/docs",
+      "sha": "58426585252517e9cc38993b8c2681b355a960b0",
+      "path": "api_reference/streaming.mdx",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/docs/58426585252517e9cc38993b8c2681b355a960b0/api_reference/streaming.mdx",
+      "sha256": "1bc39d17903b4332f93a2ed84c4b1b91014374a64cc4a6517cbd8af84e7c7127",
+      "bytes": 20690
+    },
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/lib/matchers.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/lib/matchers.ts",
+      "sha256": "f6fde77ff519d375412dee83c24491dff1d46ad5b27146f30f7e1a55d1fa145b",
+      "bytes": 8975
+    },
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/models/operations/sendchatcompletionrequest.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/models/operations/sendchatcompletionrequest.ts",
+      "sha256": "a5932e412b60dc27006be1db2e7c3747c25c024a12682f9be6afef2a47495eee",
+      "bytes": 4213
+    },
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/models/chatfinishreasonenum.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/models/chatfinishreasonenum.ts",
+      "sha256": "4068be42a2ffc9cec3c0ee9216aada8a8b6b1713be8e508a13d954172f55763d",
+      "bytes": 635
+    },
+    {
+      "repo": "OpenRouterTeam/typescript-sdk",
+      "sha": "17de251b8db278092c401347c9444741f155214d",
+      "path": "src/models/chatassistantmessage.ts",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/typescript-sdk/17de251b8db278092c401347c9444741f155214d/src/models/chatassistantmessage.ts",
+      "sha256": "7a1e2d8c87a1ba867c64280302b86a0591d3fbed35f6dd3d2f50dd60fbfbe627",
+      "bytes": 6638
+    },
+    {
+      "repo": "OpenRouterTeam/docs",
+      "sha": "58426585252517e9cc38993b8c2681b355a960b0",
+      "path": "openapi/openapi.yaml",
+      "url": "https://raw.githubusercontent.com/OpenRouterTeam/docs/58426585252517e9cc38993b8c2681b355a960b0/openapi/openapi.yaml",
+      "sha256": "057102d532723202084abf7775d4373bf2dbb345174653ccc8bdbbc47ea1cbde",
+      "bytes": 1840401
+    }
+  ],
+  "independent_readback": {
+    "date": "2026-09-29",
+    "all_source_hashes_matched": true,
+    "count": 16,
+    "sdk_executed": false,
+    "paid": false
+  }
+}

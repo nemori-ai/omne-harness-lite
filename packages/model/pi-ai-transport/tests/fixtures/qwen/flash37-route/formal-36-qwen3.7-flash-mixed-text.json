@@ -1,0 +1,1 @@
+{"model":"qwen/qwen3.7-flash","provider":{"order":["alibaba"],"allow_fallbacks":false,"require_parameters":true},"stream":true,"store":false,"messages":[{"role":"user","content":[{"type":"text","text":"Compare 北京 and Shanghai. Then return only the TypeScript identifier from `const result = 42;`."}]}],"max_tokens":16}

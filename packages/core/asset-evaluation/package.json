@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "capability.asset-evaluation v3 pure non-Connector evaluation and complete workspace reading",
+  "description": "capability.asset-evaluation v4 pure evaluation, root selection and result reading",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -14,7 +14,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "README_ZH.md"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
@@ -29,7 +31,10 @@
     "@omne-harness-lite/loop-extension": "workspace:*",
     "@omne-harness-lite/mcp-endpoint": "workspace:*",
     "@omne-harness-lite/skill-package": "workspace:*",
-    "@omne-harness-lite/slash-command": "workspace:*"
+    "@omne-harness-lite/slash-command": "workspace:*",
+    "@omne-harness-lite/agent-definition": "workspace:*",
+    "@omne-harness-lite/call-accounts": "workspace:*",
+    "@omne-harness-lite/model-profile": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

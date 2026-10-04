@@ -1,6 +1,156 @@
 # 验证覆盖与实际证据
 
+## v5 发布前破坏性演进
+
+本轮表达复评点名的版本自称、精确消费坐标与前驱执行声明已定点修订；MR7 与 runner5 当前产品依据按实际消费范围核对。字段结构、行为模型与既有操作责任保持不变。
+
+本轮从已接受且冻结的 `data.model-profile/v4` 起草 candidate v5，基线 `11c6c5b0`。源接受依据为 D-097（MP4）或 D-099（其余六份）；本版没有接受、冻结或实现完成声明。
+
+### 变化的影响（本轮）
+
+- 只更新本批精确链 MP5 / Directory5 / MS6 / MR7 / LC6 / RT7 / runner5，并删除旧格式 codec、只读、认回与结算过渡义务；既有 IV、CB、日志、资产与 hooks 等精确依赖不升级。
+- 字段、值域、Schema 结构、操作、失败集合、发送门、数值与策略不变；RT S-34 的完整失败主体重取继续原义。data 的 `$id` / `$ref` 与注释中的对应坐标同步迁移。
+- 不原地改写、清空或回填用户旧数据；不兼容输入沿既有边界明确拒绝。当前代际已经受理的任务、不可变快照、未知结果、原批认回与释放结算责任继续成立。
+
+| 证据义务 | 可失败观察 | 状态 / owner |
+|---|---|---|
+| 精确依赖及 Schema 同构 | 除本批坐标和说明文字外出现结构差异即失败；所有 `$ref` 精确解析 | 本次检查结果见下；规格起草 / 集成 owner |
+| 冻结源与形式工件保持 | 源登记 hash 改变，或 `.tla`/`.cfg`/`.als` 任一字节改变即失败 | 本次检查结果见下；规格起草 |
+| 当前格式唯一运行路径 | 旧不兼容输入不得进入旧 codec、不得降级/回填、不得写/清空原数据 | 未开始；相应数据接收者 / 提供者 |
+| 当前代际责任不丢失 | 当前任务未知提交或已受理工作仍由原 owner 认回/恢复/结算；新格式拒绝不能抹旧事实 | 未开始；runtime / runner / 日志提供者 |
+| 公共操作与最终门不退化 | 原输入上限、Pending 回复、重试历史及 S-34 失败重取仍按原精确性质成立 | 未开始；对应消费者及验证 owner |
+
+### 本次实际检查
+
+本轮使用本树 `uv run --locked python` 执行临时审计脚本，实际输出：
+
+```text
+PASS: 584 frozen source hashes unchanged; 4 schemas structurally identical after exact $id/$ref remap; 276 refs resolved; 58 formal source/config files byte-identical; 86 explicit schema cases matched; RT S-34 unchanged except coordinates; all dependency clauses unchanged.
+NOT RUN: TLC/Alloy; production old-format rejection; current-generation recovery/settlement and actual IO.
+```
+
+`uv run --locked python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip` 的本轮检查返回 0，输出 `PASS`（gate=internal; formal=skip）；候选中央登记尚待集成，检查通过不声称已登记或接受。`git diff --check` 返回 0。
+
+本次核对本基线全部 **584** 个冻结资源，脚本与日志在本次任务区交集成 owner 保留，尚未归档为 record/evidence。本版 82 个规范资源中的 58 份形式源/配置均与各自前驱逐字节相同。**本轮形式工具未运行**，源有限结果只保留相同模型输入与断言范围，不提升为本版真实实现验证。当前格式拒绝与责任不丢失的实现场景仍为未开始；原有缺口的 owner 保留，旧格式分发缺口改为当前格式采用与拒绝证据。
+
+### v5 变化的影响
+
+本版仅继承该专题性质与来源证据，实际状态统一见本节「本次实际检查」；不声明本轮重新运行模型或实现测试。
+
+
 本文件在版本目录之外，可更新；结果始终绑定实际的规范修订与实现修订。
+
+## v4 候选与证据义务
+
+本版在 `panqiwei/model-request-runtime-profile4-spec`、基线 `84260cac` 起草。PF-013 rev 14 / D-096 已核对；本包状态 **candidate**。v2/v3 冻结资源没有改动；下列历史 v3 起草记录不改变它后来已接受的状态。
+
+| 条款 / 性质 | 能失败的证据义务 | 状态与 owner |
+|---|---|---|
+| S-8/S-9/S-32 形状、必填、适用性、三态闭合 | examples.json 全部 74 条 Schema 正反例；三个宿主同条件；精确外部 $ref 全部可解析 | 本次本地检查结果见下；实现符合性未开始，core/model-profile |
+| S-24/S-25/S-31/S-33 表示层跨字段与优先级 | 四指标 N/N+1、上限冲突与输出冲突同时发生、缺 cap 与空 providers 同时发生；不能只跑 Schema | 规范中的比较谓词自检见下；真实 validator 对全部拒绝值的符合性未开始，core/model-profile |
+| S-11/S-28 相等与时间 | 只改 cap、只改事实、只改配置、对象键次序/模态次序、时间源不后退；记录是否实际改写均有断言 | 未开始，directory |
+| S-27 完整不可变快照 | 拷贝后修改原对象与当前目录，旧快照精确不变；新输入重计；MS/MR/LC 三位置往返不丢字段 | 未开始，runtime / codec |
+| S-8 准确计量或可靠保守界 | 有独立来源 oracle；消息/system/tools/协议/模态全部计入，保守界超 cap 但真值未知不得声称测得超限 | 未开始，模型计量提供者；G-15 |
+| S-9/S-33 字节、图数、请求体独立指标 | 严格 base64 实际解码值、重复图项、逐图都过而总数或完整请求体失败；附件 bytes 不能放行 | 未开始，runtime / transport；数据形状检查不替代最终门 |
+| S-3/S-10/S-29/S-30 继承义务 | 同格原子判重、同身份恢复、修订不改义、配置无秘密、严格 JSON 无损 | 原证据保留原范围；v4 提供者符合性未开始 |
+| S-27 历史读取与新发送 | 旧快照只按旧版本读取/结算，不用当前目录回填；新版缺成员拒绝且无新发送 | 未开始，runtime / codec；G-16 |
+
+### v4 变化的影响
+
+本轮将 S-8/S-9 的项目供给与 S-32 的上游事实分开，S-33 在既有 malformed 下增加跨字段一致性，S-11 更新六项时间语义，S-27 完整保存两组限制；Schema 增加两个共享定义并在档案、建档内容与快照上采用相同 image 条件。身份、registration、绑定修订与参数词表未改变。新增指标是既有档案属性的技术投影，没有新增领域对象。
+
+本批需要精确迁移的消费面：directory4 的整值写读与 updatedAt；runtime6 的同一快照和最终门；messages5、response6、loop-extension5 的完整快照；runner4 的失败主体透传。旧版本与旧记录保持原采用，不能因为 root 推荐候选而升级。
+
+本次起草只交 catalog/covers/lineage 及 namespaces/formal disposition **片段**给集成 owner；中央 registry 尚未由本执行者改动或登记。沿用 S-/G-/M 编号族，不增 namespace。lineage.json 现行口径仅跨 baseline，故不造同 baseline 的 relations；同 baseline 演进与实际消费者迁移清单交给 root 集成。
+
+### v4 形式化范围
+
+本数据包没有新增并发协议、共享操作代数或装卸状态机。三态与有限数值是单文档结构，Schema 与 S-33 比较即可表达；时间、目录提交及快照不可变需要消费者场景，模型责任归目录/runtime。**不新增 TLA+/Alloy，不登记 formal task，形式工具未运行**；不能把形状校验说成 token 计量或并发保证已证明。
+
+### v4 本次实际检查
+
+2026-09-28，在本 spoke 的 `.venv/bin/python`（Python 3.12、jsonschema 4.26.0）执行本地实例检查，实际输出：
+
+```text
+PASS: Draft202012 schema valid; 42 exact $refs resolved; 74 schema cases matched; all 14 definitions covered; 9 S-33 declarative comparisons matched.
+NOT RUN: production representation validator/rejection priority; directory time/transactions; snapshot/codec scenarios; actual token/media metering; formal tools.
+```
+
+命令 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip` 实际返回 0：
+
+```text
+PASS: design tree /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-profile4-spec/.meta_harness/design passed gate=internal; formal=skip.
+```
+
+`git diff --check` 返回 0；v2/v3 路径的 `git diff --quiet` 返回 0。首次系统 Python 3.8 尝试因 `PurePosixPath.is_relative_to` 不存在中止；随后 Python 3.12 的一次检查点名尚未补齐的 verification 锚点，补齐后上列重跑通过。均不把早期失败记成通过。
+
+上述本地原始日志与可重跑实例脚本交 root 保存在本次任务区，未归档成 record/evidence。Schema 自检不是实现验收，规范比较谓词自检不代替生产 validator。检查器本次未集成候选中央登记，主线整批集成后还须核对新消费坐标与登记片段。
+
+独立表达复评点名的两处残留已修：Schema 描述中的旧 v3 作用域；抬头继承产品来源复核到 PF-001 rev23 §6.1、PF-004 rev13 §6.6（适用性质未变）。没有修改 Schema 结构。
+
+## v3 候选与证据义务
+
+2026-09-27：在 `panqiwei/model-request-runtime`、基线 `d4eaf767` 上起草
+[`data.model-profile/v3`](v3/contract.md)。v2 已接受并冻结；v3 未接受、未冻结，不把 v2 的接受与既有证据提升为 v3 已验证。
+版本目录仍只有契约、Schema 和规范实例三项；可变验证记录留在本文件。
+
+| 规范/性质 | 证据方式与输入 | 当前状态 | 责任与受阻消费者 |
+|---|---|---|---|
+| S-29 必填、三组分量闭合、字符串边界 | Schema 正反实例第 11、12 节，及三个档案表示的必填回归；显式空白码点、尾随换行/U+FEFF 均检查 | 本地 Schema 自检通过；未归档，非实现验收 | 规格工具与 core/model-profile；缺绑定不得补默认 |
+| S-31 模型 ID 一致及 S-25 优先级 | 表示层校验的纯计算检查；examples 第 12 节的 Schema 通过而完整校验拒绝、与空路由名和输出上限同时错误场景 | 未开始 | core/model-profile；只运行 Schema 不足以通过 |
+| S-30 配置 JSON 与数无损 | 严格解析重复成员、NaN、尾逗号及精确大整数/小数的往返；以 content-blocks/v2 S-24 的共同语义为依据 | 未开始 | 配置接收边界与 core 公共 JSON 设施；不能由 Schema 实例检查替代 |
+| S-29 修订命名域、不原地改义、值相等 | examples 第 13 节；同档案改值不改修订被阻止，不同租户可用同修订字符串但保留各自 values；对象次序不影响相等、数组次序与精确数值参与比较 | 未开始 | 实现/定义/档案写入者；不能仅测结构合法 |
+| S-27/S-29 调用快照完整且不随更新变化 | 原样复制绑定和 values 后修改当前档案，旧调用、重试与历史回读仍得旧值；另测外部对象别名修改 | 未开始 | 运行时与持久化消费者；其状态机模型和真实组合证据不在本 data 包伪造 |
+| S-30 秘密/凭据禁入、自建只取声明式配置 | 接收边界检查与写入路径审阅；嵌套合成秘密不被当成 Schema 已排除；自建不能通过配置载入任意代码、冒充 official | 未开始 | 档案写入与适配注册 owner；Schema 通过不证明此性质 |
+| S-29/S-30/S-31 跨消费者同一定义 | Schema 指针与精确依赖检查，messages/response/extension 等只引用公共定义；注册可用性与配置适用性失败由行为消费者闭合 | 未开始 | 主线整批对齐；G-14 阻断实现采用，不阻断候选表达 |
+
+### v3 变化的影响
+
+- 必填 `adaptation` 加入 `ModelProfileContent`、`ModelProfile`、`ModelProfileSnapshot`；唯一公共定义为 `v3/model-profile.schema.json#/$defs/ModelAdaptationBinding`，对应 S-29。S-30、S-31 补配置义务与模型对应性。
+- 五个字符串和配置 JSON 值一起构成绑定值比较；`configuration.revision` 不全局唯一。复制不得只留下修订，也不得按修订取别的档案值。
+- S-1～S-28 保留原有身份、范围和参数承诺，更新字段集合、跨字段校验、快照复制与拒绝优先级。修订适配不改变 S-11 仅由五项上游属性推动 `updatedAt` 的规则。
+- 产品前提复核到 PF-013 **rev 13**：rev 13 只修订 S5b/S10c 验收范围，未改档案数据语义；PF-001 rev 19、PF-004 rev 12、PF-010 rev 6 不变。本批新增要求来自用户授权方向与主线施工简报，不标成 PF-013 已有规则或新的已接受产品修订。
+- 依赖保留 `identity-values/v1` 与 `offer-expiry/v1`；`content-blocks/v2` 除 S-6 再消费 S-24。该 Schema 没有 `JsonObject` 定义，主线裁定用 `type: object` 加精确语义引用，不新增同义 JSON 规范或悬空 `$ref`。
+- 旧 v2 规范及历史证据保留原范围；新增绑定、跨字段拒绝和消费者快照证据必须重建。没有自动升级、默认绑定或兼容转换承诺。
+
+| 现有消费者 | 必须随本批显式升级的部分 | 未升级时 |
+|---|---|---|
+| core/model-profile 实现 | 公共类型、Schema、解析/复制、相等、完整表示层校验及拒绝次序 | 继续消费 v2；不可声称能读 v3 |
+| `capability.model-profile-directory/v2` | 建档、修订、官方清单、读取完整绑定；配置修订改义与注册配置校验的责任和失败 | G-14 未闭合，不得以 v2 接收新数据 |
+| `capability.model-request-runtime/v2` 与公开模型函数 | 采用/冻结完整绑定、模型对应性、注册与配置可用性、版本更新后在途保持 | G-14 未闭合；形状合法不等于调用获准 |
+| `data.model-response/v2`、`v3`；`data.loop-extension/v2`、`v3`；`data.messages/v2`、`v3` | 当前都精确引用 model-profile/v2；新候选须将相关快照与嵌套记录指到 v3，显式处理新增绑定字段 | 旧快照形状拒绝新成员或丢失绑定，不能混用 |
+| `capability.modality-projection/v2`、`capability.asset-registry/v2` | 当前只消费 S-7 或 S-25；若输入改成完整 v3 档案则采用新版本并更新验证，否则保留既有精确依赖 | 不因推荐新版本自动升级；由主线逐入口判定采用 |
+
+### v3 检查结果
+
+2026-09-27 本地自检实际执行于该工作树 `.venv/bin/python`（`jsonschema 4.26.0`、`referencing`），读取本版 Schema、examples JSON 正例及第 9 节快照，构造绑定缺席、未知成员、类型错误、全部 26 个显式空白码点 × 五个字符串 × 首尾两端、三个表示缺绑定等反例。仅检查 Schema 的通过/拒绝；同时确认模型 ID 错配可被 Schema 放过，以免误报完整校验通过。
+首次以 heredoc 执行；按主线补充授权将同一检查保存为脚本并重跑，命令为 `.venv/bin/python tmp/model-request-runtime/model-profile-v3/check_schema.py`，退出 0。
+
+本次实际输出：
+
+```text
+PASS: model-profile/v3 candidate schema and examples; checks=321; definitions=12; clauses=31; jsonschema=4.26.0
+SCOPE: Schema only. Cross-field refusal, secret exclusion, revision immutability and runtime freeze remain unexecuted implementation obligations.
+```
+
+输入 SHA-256：`model-profile.schema.json` 为 `fe5ef98ebd0902d0353dbc2ea8885d0bba24eff18912d8db9f8e9d6291790b8d`，`examples.md` 为 `0a4bd984ecabb46a4d448654d241d3ef48e0a3cbabca73817c0904fb18f1dc6d`。
+脚本、真实标准输出/错误及含输入哈希和工具版本的 `schema-check-inputs.json` 暂存于本批工作树 `tmp/model-request-runtime/model-profile-v3/`，尚未归档到长期 evidence；它们是交接资产，不能当作已发布的持久证据入口。本地自检不能充作独立实现符合性证据，归档由本批主线统一负责。
+
+同次执行 `.venv/bin/python .meta_harness/tooling/src/check_design.py --root .meta_harness/design --formal skip`，退出 1：
+
+```text
+FAIL: design validation found 9 error(s).
+```
+
+九处全树链接错误位于并行成稿中的 `capabilities/model-request-runtime/v3`、`data/messages/v4`、`data/model-response/v4`；本次输出未指向本包，但本次全树检查仍是失败，registry 集成和整批检查须由主线收口。`git diff --check` 通过，`v2/` 无字节修改。
+
+保存脚本与输入后重跑同一全树命令，退出 1，实际输出为 `FAIL: design validation found 2 error(s).`：余下两处均为运行时 v3 契约及形式入口指向其尚未写完的 `verification.md#v3-候选变化与证据`。该次真实输出、错误和命令/退出码已保存为上述交接目录中的 `design-check.stdout.txt`、`design-check.stderr.txt`、`design-check-run.json`；仍不声明全树通过。
+
+本包未建立 TLA+/Alloy 工件，也未运行形式工具；`--formal skip` 明确不执行形式任务。新增内容不引入 data 操作或并发状态机；注册、撤除、调用保持的形式义务由其行为 owner 承担。
+
+## v2 起草期记录
+
+以下保留 v2 起草、评审与本地自检的原始叙述。其“candidate/未接受”措辞是当时状态；当前接受与冻结以 registry 为准，不能据下段否定 v2 后续接受，也不能据旧自检声称 v3 已通过。
 
 > **当前状态：未开始。**`data.model-profile` v2 是 `candidate`（2026-09-23 起草），未接受、未冻结；
 > 没有提供者、没有装配、没有源码。下表登记的是**已经触发的证据义务**，不是已完成的检查。
@@ -201,3 +351,32 @@ reviewer：spec-reviewer，S25 第二轮批 R2b（另含批 R1 转来的一条�
 - **2026-09-25 修复波 2（候选，未冻结，原地改）**——逐条处置见[独立评审「第二轮」](#第二轮2026-09-25)：R2-MP-1（消费者表 messages、MRR 两行与 S-20 末条补全）、R2-MR-4 的本契约一半（S-23 协议列：出网之前交回写「已出门」的一方，只随结果回传不够）、R2-MP-2（「切换事实」→「模型切换落下的那条记录」，链 UL-model-switch；实例第 3 节一行、covers 一条 note 同改）、R2-MP-3（S-10 末段按名字写）、R2-MP-4（对齐义务状态）。**语义与表示都不变**：Schema 与实例 JSON 未改，自检不重跑；catalog 不变。
 
 结果不改写规范。发现语义问题回到来源设计（PF-013），不在这里改契约。
+
+## v3 报给主线
+
+1. **已获裁定**：修订命名域、绑定完整值比较、`JsonObject` 引用冲突以及模型 ID 必须等于路由名，均按本批简报与后续消息落到 S-29～S-31，没有自行增加别名或租约政策。
+2. **登记交接**：本批 registry 唯一 owner 是主线；候选 catalog/covers 建议随本次交接返回，本 agent 不写四份共享清单。规范工件三份，条款 S-1～S-31；未增加编号族，未增加 formal task，不冻结资源。
+3. **G-14，owner 主线及各行为消费者**：数据候选定型不等于目录、函数、运行时或嵌套历史已升级；上表列出当前坐标与采用义务。注册/配置失败值及并发版本保持不能由本 data 包补造。
+4. **继承缺口**：G-2（供应商词法，传输适配 owner）、G-8（覆盖去掉参数，运行时/拓展数据 owner）、G-9（extra 同义参数收场，运行时 owner）、G-10（将来模型组，产品负责人）保留，不在本批数据改动中暗关。
+
+## v6 估算计量保证
+
+### 变化的影响
+
+PF-013 rev15 产品语义由用户明确确认，正文来源 a61cc601 与 §8 对齐修订 578e39f2（本 spoke 输入提交 7ee05060）；表达复核与技术接受归主线，candidate 不声明已接受。仅 MP6 与 RT8 后继；MP6 S-8/S-33 改准入计量保证但字段、Schema断言和纯判定不变。RT8 S-74 允许适用 tokenizer 估算加显式 tokenMargin，basis=estimated 拒绝不冒充 exact；bytes/图数保持精确，actual usage仍来自上游。Directory5/MS6/MR7/LC6继续精确消费原表示，理由见候选的消费者影响段。
+
+简报裁定：multiplier≥1有限十进制、reserveTokens≥0整数，两项显式；admissionTokens=ceil(estimatedTokens×multiplier)+reserveTokens；原三拒绝reason不变。推导细化：政策非法沿既有malformed、在cap/事实missing检查后验证；准确超限与估算拒绝并存时优先报告准确事实，理由是保持原准确超限优先且不混淆来源。没有新增领域对象、服务操作或实际usage字段。
+
+### 证据义务与缺口
+
+真实tokenizer适用依据、完整输入覆盖、任意有限十进制实现、固定最终请求、37模型生产认证与真实IO：**未开始**。MP6不增加状态机/Alloy；RT8仅改FinalPlan，其他模型仍按前驱的明确输入范围解释，不把旧结果改称本次通过。
+
+既有缺口owner保持，MP G-15与RT G-33仍要求逐模型/供应商/版本的计量及材料证据；RT G-28生产Run终结认法不因本轮关闭。无新术语定义；tokenMargin及metadata为既有计量概念的技术参数（无独立词条）。中央registry未修改，候选登记片段在任务区fragments，主线负责合入与接受。
+
+### 本次实际检查（2026-09-28）
+
+候选静态检查 240 项全部通过：MP5/MP6 Schema 断言逐项相同、同一组实例在两版结果相同、纯判定不变；RT8 保留 76 条与十三操作各九项及原失败集合、其他六个 TLA 模型及其配置逐字继承，五组精确十进制公式向量通过。`check_design.py --root .meta_harness/design --formal registered` 实际退出 0；它检查中央已有登记，不代替候选片段集成。片段资源路径、消费条款与覆盖条款另经上述静态检查。
+
+FinalPlan 两份正配置实际 TLC 退出 0（WithLog=true：8737 不同状态；公开无日志：8545）；九份负配置均退出 12，分别命中 CheckedBeforeEffects、SameFixedPlan、UnknownNotExceeded、EstimateCanProceed、MarginApplied、EstimateNotActual、MissingPriority、BytesExact、UsageFromUpstream。模型允许 estimated≤cap 而实际上游 token>cap 的发送；这不是本契约承诺排除的状态。首次运行使用异类型集合导致 TLC 指纹错误退出 75，原日志保留；改成带标签记录后另存最终输入重跑。未重跑其他继承模型，未运行 Alloy 或真实 IO。
+
+本次本地证据位于 spoke 的 `tmp/model-request-runtime/token-estimate/`：`checks/checks.json`、`checks/check-design-run.json` 及原始输出；`formal-run-1/` 保留首次工具失败，`formal-run-2/runs.json`、`formal-run-2/sha256.json` 与各配置原始输出保存最终形式输入和结果；`fragments/` 保存八份待集成登记片段，`CHANGE-AUDIT.md` 记录最小变动与推导项。主线需归档这些临时证据；它们不是已经归入 record 的接受材料。

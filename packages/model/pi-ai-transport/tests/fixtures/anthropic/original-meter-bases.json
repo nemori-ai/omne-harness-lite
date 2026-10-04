@@ -1,0 +1,80 @@
+{
+  "sourceCommit": "1c520b26",
+  "method": "Executed actual factory after pnpm recursive dependency build; no model request",
+  "sources": [
+    {
+      "path": "packages/model/pi-ai-transport/src/input-meters/anthropic.ts",
+      "sha256": "35de398dbb5e59ecc99f5f8adc12de6a9fb0e207433c62007c92b0f694ec7695"
+    },
+    {
+      "path": "packages/model/pi-ai-transport/src/input-meters/marginal.ts",
+      "sha256": "d9188343c39f03198b0b21070a08ec84c136af066047ce29d1098045daac40a0"
+    },
+    {
+      "path": "packages/model/pi-ai-transport/src/input-meter.ts",
+      "sha256": "3f476946194102dd82cd6e916021f18ec5e287971fabbbe8569d4ef25feae0b2"
+    },
+    {
+      "path": "packages/model/pi-ai-transport/src/official-models/anthropic.ts",
+      "sha256": "3feb35a810748d6b401d576050d126a144c2cbd44e20d40f60c221cbcedd14d3"
+    }
+  ],
+  "rows": [
+    {
+      "modelId": "anthropic/claude-opus-5.5",
+      "definitionRevision": "3",
+      "implementation": {
+        "name": "pi-ai:anthropic",
+        "revision": "mp4-17"
+      },
+      "provider": "anthropic",
+      "algorithmRevision": "anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1",
+      "tokenizerRevision": "tokenizer-basis/anthropic-legacy-bpe-plus-vision-patches-4",
+      "replayRevision": "visible-final-units-json-net-estimated/1",
+      "transformRevision": "openrouter-wire/2",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "anthropic/claude-opus-5",
+      "definitionRevision": "3",
+      "implementation": {
+        "name": "pi-ai:anthropic",
+        "revision": "mp4-17"
+      },
+      "provider": "anthropic",
+      "algorithmRevision": "anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1",
+      "tokenizerRevision": "tokenizer-basis/anthropic-legacy-bpe-plus-vision-patches-4",
+      "replayRevision": "visible-final-units-json-net-estimated/1",
+      "transformRevision": "openrouter-wire/2",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "anthropic/claude-sonnet-5",
+      "definitionRevision": "3",
+      "implementation": {
+        "name": "pi-ai:anthropic",
+        "revision": "mp4-17"
+      },
+      "provider": "anthropic",
+      "algorithmRevision": "anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1",
+      "tokenizerRevision": "tokenizer-basis/anthropic-legacy-bpe-plus-vision-patches-4",
+      "replayRevision": "visible-final-units-json-net-estimated/1",
+      "transformRevision": "openrouter-wire/2",
+      "projectionRevision": "openrouter-input-projection/2"
+    },
+    {
+      "modelId": "anthropic/claude-fable-5.1",
+      "definitionRevision": "3",
+      "implementation": {
+        "name": "pi-ai:anthropic",
+        "revision": "mp4-17"
+      },
+      "provider": "anthropic",
+      "algorithmRevision": "anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1",
+      "tokenizerRevision": "tokenizer-basis/anthropic-legacy-bpe-plus-vision-patches-4",
+      "replayRevision": "visible-final-units-json-net-estimated/1",
+      "transformRevision": "openrouter-wire/2",
+      "projectionRevision": "openrouter-input-projection/2"
+    }
+  ]
+}

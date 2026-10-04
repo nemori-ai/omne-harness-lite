@@ -1,0 +1,40 @@
+{
+  "format": 1,
+  "status": "accepted",
+  "decision_id": "D-108",
+  "decision_path": "record/decisions/openrouter-refusal-mapping-adoption/decision.md",
+  "authority": "root technical integrator under explicit user implementation and acceptance delegation; human overall delivery acceptance excluded",
+  "date_utc": "2026-09-29",
+  "designs": [
+    {
+      "node": "packages/model/pi-ai-transport",
+      "design_path": "realization/packages/model/pi-ai-transport/v14-refusal-design.md",
+      "revision": 2,
+      "sha256": "cf687f33d8d60270a1982ce0e7bfe36819ac520695b80f3d33143215f3015a0e"
+    }
+  ],
+  "projection": {
+    "path": "product/PF-013-model-profiles-and-invocation/projection/v4/projection.md",
+    "sha256": "acb99ffea7e3d9c24a77174d790a7c7dee843f6aafaed16d8f3db85f7c65544a",
+    "provenance_path": "product/PF-013-model-profiles-and-invocation/projection/v4/provenance.json",
+    "provenance_sha256": "a05d790270379bbf8c455faa28d085f0b1c18df15b288203ba42cb0edef5af87"
+  },
+  "contracts": [
+    "data.content-blocks/v3",
+    "data.arrival-events/v2",
+    "capability.stream-assembly/v3",
+    "data.messages/v6",
+    "data.model-response/v9",
+    "capability.model-request-runtime/v10"
+  ],
+  "new_contract_versions": 0,
+  "new_bindings": 0,
+  "implemented": false,
+  "actual_verification": false,
+  "remaining": [
+    "RF-V1 through RF-V9",
+    "shared reader binding publication",
+    "public package and bilingual consumer verification",
+    "model certification assessed per exact source and binding"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "sourcePacketSha256": "532259bd58c591b0a337203f5b9222623a4150cc0bacb87b1bdd0467c220dbc9",
+  "route": "openai",
+  "datedModel": "openai/gpt-6-luna-20260922",
+  "cases": [
+    {
+      "id": "luna-plain-history",
+      "requestSha256": "d0183e36b8f1dd0063d258456490e4b59e17b197a13b67599a332fa4caadf859",
+      "estimatedInputTokens": 126,
+      "upstreamInputTokens": 70,
+      "overestimateTokens": 56,
+      "generationId": "gen-1790624451-OTOVU329o7U9EYpyhDZm"
+    },
+    {
+      "id": "luna-paired-tool-history",
+      "requestSha256": "e27e340f553a0a9d1e3e7c39d7d821d9394ee45455e0465a3c22c140099ef537",
+      "estimatedInputTokens": 302,
+      "upstreamInputTokens": 178,
+      "overestimateTokens": 124,
+      "generationId": "gen-1790624535-02T14c7G8tCsSh3sMN4z"
+    },
+    {
+      "id": "luna-tool-reminder-holdout",
+      "requestSha256": "201876451581384ed0e1f22fa3856b45934f8af70cac523e0a5c207c22b1f9b5",
+      "estimatedInputTokens": 410,
+      "upstreamInputTokens": 236,
+      "overestimateTokens": 174,
+      "generationId": "gen-1790624596-xmrucPl15jafBQ4qpWVn"
+    }
+  ]
+}

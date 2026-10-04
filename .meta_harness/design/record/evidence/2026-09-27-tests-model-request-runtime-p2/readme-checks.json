@@ -1,0 +1,98 @@
+{
+  "readmes": 4,
+  "examples": 10,
+  "checks": [
+    {
+      "command": [
+        "packages/model/pi-ai-transport/node_modules/.bin/tsc",
+        "-p",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-readme-consumer-2/tsconfig.json"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-readme-consumer-2/model-request-runtime-README-0.ts"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-readme-consumer-2/model-request-runtime-README_ZH-0.ts"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-readme-consumer-2/pi-ai-transport-README-0.ts"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-readme-consumer-2/pi-ai-transport-README-1.ts"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-readme-consumer-2/pi-ai-transport-README-2.ts"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-readme-consumer-2/pi-ai-transport-README-3.ts"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-readme-consumer-2/pi-ai-transport-README_ZH-0.ts"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-readme-consumer-2/pi-ai-transport-README_ZH-1.ts"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-readme-consumer-2/pi-ai-transport-README_ZH-2.ts"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-readme-consumer-2/pi-ai-transport-README_ZH-3.ts"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "codeMatchesExecutedInputs": true,
+  "publishFilesContainBothLanguages": true,
+  "exportedInvokeOnceNotCalled": true,
+  "paidRequests": 0
+}

@@ -169,8 +169,10 @@ it.skipIf(!supportsAssociativeArrays)(
   },
 )
 
+// 归慢层：子进程：逐个投影变体起 bash 子进程跑部署脚本的安全校验（含 jq）。
 it.skipIf(!supportsAssociativeArrays || !hasJq)(
   'rejects added privilege, host PID, capabilities, and devices in both projections',
+  { tags: ['slow'] },
   () => {
     const root = mkdtempSync(join(tmpdir(), 'omne-control-security-'))
     const image = 'sha256:' + 'a'.repeat(64)
@@ -467,8 +469,10 @@ it.skipIf(!supportsAssociativeArrays || !hasJq || !hasTimeout)(
   },
 )
 
+// 归慢层：子进程＋真实等待：每轮起 bash 子进程跑部署脚本的等待逻辑，按真实时长发信号并等它收尾。
 it.skipIf(!supportsAssociativeArrays)(
   'waits after handled maintenance INT or TERM and preserves a task that completed first',
+  { tags: ['slow'] },
   () => {
     const root = mkdtempSync(join(tmpdir(), 'omne-control-signal-'))
     const calls = join(root, 'calls')
@@ -638,8 +642,10 @@ it.skipIf(!supportsAssociativeArrays || !hasJq)(
   },
 )
 
+// 归慢层：子进程：逐个变体起 bash 子进程跑部署脚本的停机流程（含 jq）。
 it.skipIf(!supportsAssociativeArrays || !hasJq)(
   'sends one explicit TERM and requires a complete wait code matching the same exited ID',
+  { tags: ['slow'] },
   () => {
     const root = mkdtempSync(join(tmpdir(), 'omne-control-stop-r5-'))
     const id = '0'.repeat(64)

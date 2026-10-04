@@ -1,0 +1,38 @@
+{
+  "branch": "panqiwei/model-request-runtime",
+  "head": "cb83084b88ce685a65fda2118854d2600ddbfff4",
+  "node": "v24.18.0",
+  "pnpm": "10.28.1",
+  "python": "Python 3.12.13",
+  "platform": "Linux",
+  "uid": 1001,
+  "sourcePackages": [
+    "packages/core/arrival-events",
+    "packages/core/asset-model",
+    "packages/core/call-accounts",
+    "packages/core/content-blocks",
+    "packages/core/identity-values",
+    "packages/core/kernel-basis",
+    "packages/core/loop-extension",
+    "packages/core/messages",
+    "packages/core/model-profile",
+    "packages/core/model-response",
+    "packages/core/offer-expiry",
+    "packages/core/stream-assembly",
+    "packages/core/tool-definition",
+    "packages/model/model-request-runtime",
+    "packages/model/pi-ai-transport"
+  ],
+  "implementationRevision": "4",
+  "definitionRevision": "1",
+  "sourceHasUncommittedChanges": true,
+  "intermediateFailedSourceSnapshotsComplete": false,
+  "finalSourceAndArtifactSnapshotsComplete": true,
+  "budget": {
+    "settled": 170,
+    "unsettled": 0,
+    "actualUsd": "1.139960389500000000",
+    "limitUsd": "100",
+    "paidRequestsThisRun": 0
+  }
+}

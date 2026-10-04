@@ -1,3 +1,83 @@
+## 2026-09-30 ACK 后继精确采用
+
+- **语义接受**：[D-110 ACK 后继](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受 RT12/MS8/MR11/CA4，精确版本与摘要由 registry 和接受文件登记。
+- **可实施**：本节点对应的 ACK 后继映射已技术采用，当前实现直接迁移；下方候选与 noGC 文字保留其历史快照，不代表现行采用状态。
+- **绑定证据**：新增 0，原绑定保持原范围；有限规格模型不提升实际提供者绑定。
+- **实际验证**：ACK 实现、该节点真实组合与公开制品验收仍待，不能据采用或旧实现通过宣称完成。
+
+## 2026-09-29 MR10 原响应证据与耐久未处分候选
+
+- **语义接受**：MR10／MS7／CA3／RT11 均为 candidate；此前 MR9 接受及实际证据保持原范围。
+- **可实施**：[v10-reference-result-design.md](v10-reference-result-design.md) 起草当前资源图、共享 `judgeResponseFinalization`、原回复和首次消息派生的分工；未技术采用，不释放新增实现。
+- **绑定证据**：新增 0，旧 bindings 不变；[R10 验证义务](verification.md#mr10-原响应与未处分内容候选义务) 待执行。
+- **实际验证**：本增量未实现、未验。候选 Schema／TLA 只支持各自有限检查，不能证明真实内容来源、原子批、转换与消息写权。
+
+2026-09-29：[D-107](../../../../record/decisions/model-input-usage-calibration-adoption/decision.md) 已接受 MR9/RT10，并采用本节点 v9 纯值映射 R9-P1～P5。新增绑定 0；实际实施与 V9 验收待完成。受审正文保持原字节，以下候选标记按起草日期读取。
+
+## MR9 输入校准值映射候选（2026-09-29）
+
+- 入口：[v9-usage-calibration-design.md](v9-usage-calibration-design.md)，revision 1；节点及源码路径仍为 `packages/core/model-response`，纯共享值包，无 plugin/fiber/service。
+- **语义接受：无。**catalog 中 MR9/RT10 均 candidate。**可实施：候选 R9-P1～P5** 明确六个共享 readonly 类型、required inputCalibration、局部自有快照、完整 judge 关系与当前格式直接迁移；须经接受后实施。
+- **绑定证据：新增 0 条。**既有 bindings 不改；规格有限结果不冒充生产来源证明。**实际验证：本增量尚无产品执行。**[V9 验收与缺口](verification.md#mr9-输入校准值映射候选)明确正反例、公开制品和双语 README 义务。
+- MR9 S-45 原批/授权/恢复由 runtime 和日志写方兑现；S-41～S-44 真实投影、观察与 φ 依据归适配提供者，G-16/G-17 保留。当前 Schema/完整关系通过均不能证明这些外部事实。以下历史状态只在其原日期、版本及采用范围内读取。
+
+2026-09-28：[D-105](../../../../record/decisions/model-recovery-timing-provider-adoption/decision.md) 技术采用 [v8 实施映射](v8-design.md)。精确受审正文保留候选标记，以采用记录判当前状态；新增绑定0，V8实际实现验证待完成。
+
+## MR8 恢复时序实施候选（2026-09-28）
+
+- 入口：[v8-design.md](v8-design.md)。纯包根/schema 从 MR7 直接迁移 MR8，Timing.sentAt 允许显式 null，但仅合法 interrupted 持久响应能使用；Pending 仍必须为实际时刻。
+- **语义接受**：MR8/RT9 已由 [D104](../../../../record/decisions/model-recovery-timing-adoption/decision.md) 接受。**可实施**：本次窄提供者映射仍为 candidate，未声称采用。
+- **绑定证据**：新增 0 条。**实际验证**：本次没有产品测试；已归档 10 Schema 边界与一正四负 TLC 只支持原有限规格范围。
+- 消费者编译、拒绝优先级、精确依赖与外部写方责任见 [V8 验收](verification.md#v8-恢复时序实施候选)。null 不证明未发、零费用或可重试；原来源未裁项不由本增量处置。以下历史事件保留原范围。
+
+## 当前格式直接迁移候选（2026-09-28）
+
+2026-09-28：[D-100](../../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 采用 [v7-design.md](v7-design.md) 的当前迁移范围；绑定不新增，实际组合验证待实施。
+
+- 入口：[v7-design.md](v7-design.md)。节点路径仍为 `packages/core/model-response`，沿纯模块边界，根/schema 只提供当前格式；拟删除旧响应版本入口，所有当前消费者一起迁移。
+- **语义接受**：MR6/MS5/LC5 与 MP4 的旧基线已接受；MR7/MS6/LC6/MP5 后继候选尚未在本节点基线登记/接受。旧 MR6 S-40 的读取结算义务与新的无兼容要求，须由后继接受解决，本映射不改写冻结契约。
+- **可实施**：候选 R7-P1～P6 已列窄施工路径、实际消费者与 Pending/失败主体边界；目标采用门及 Schema 闭包缺口见 G7-1/2，未接受本投影。
+- **绑定证据**：本次新增 0 条，原 bindings 保留原坐标。**实际验证**：本次尚无当前格式产品运行；旧 MR5 通过记录不是新根通过记录。
+- 验收与外部 owner：[v7 候选义务](verification.md#v7-当前格式直接迁移候选)。以下保留历史采用事件，其中旧入口共存安排不作为本次候选实施目标。
+
+## MR5 纯值实施签收（2026-09-27）
+
+- 2026-09-27 后续有限实施签收：MR5 显式公开面已由 `9512c80b` 并入 HUB `62da5a5f`；本包 PV1～PV9 的有限纯值实施已技术接受，独立原判定 Pass with issues 的双语导航文字随后更正，代码块未变。[实际运行、原失败、制品和范围](../../../../record/evidence/2026-09-27-tests-model-response-v5-core/README.md)保全 317 成员；MR4/v3/旧 Schema 保留。此更新替代下方起草时“没有新增 v5 源码/待验”的当前口径，不改历史事件和外部写方缺口；不新增绑定或升级其他消费者。
+
+## 当前采用与可实施范围（2026-09-27，D-090）
+
+- 语义接受：MR5／RT5 已由 [D-090](../../../../record/decisions/model-headers-v5-adoption/decision.md) 精确接受；本节点 [v5-design rev1](v5-design.md) 同步技术采用。
+- 可实施：新增显式 `./v5`、`./schema/v5`；当前根／schema 的 MR4 和保留的 v3／schema-v2 不自动升级。D-078 承接的 v4 采用继续有效，下方候选状态按原日期读取。
+- 绑定与证据：本次新增0；v5 PV1～9 尚待，原证据保持原坐标与前提。
+- 实际验证：本次没有新增 v5 源码或产品执行，不从采用推断通过。
+
+以下为原版本的历史事件；本节取代其“当前未接受／未实现”的导航口径，不改写历史验证范围。
+
+## v4 候选增量（2026-09-27）
+
+- kind：`provider`
+
+节点与源码路径均为 `packages/core/model-response`。
+- 设计入口：[v4-design.md](v4-design.md)。本版从现有 v3 纯模块演进；下方既有接受和验证记录保留原版本范围，原 [design.md](design.md) 不改写。
+- 输入：`data.model-response/v4`，同批 `data.model-profile/v3`、`data.messages/v4`；精确依赖和输入哈希见新设计。
+
+### v4 分层状态
+
+- **语义接受：无。**三份增量契约在 catalog 中均为 candidate；v3 的接受不自动覆盖 v4。
+- **可实施范围：候选映射已写明，生产实施受语义接受门约束。**MR4-P1～P6 为纯值责任，MR4-P7 的历史与上游事实归真实 runtime/transport。候选默认根/schema 采用 v4；现有 v3 纯值面保留到候选 `./v3`，v2 仅保留已有 `./schema/v2` 完整闭包，不新设 v2 判定 API；本版源码尚未实现。
+- **绑定与证据：v4 为 0 条；既有 v3 绑定 1 条按原范围保留。**候选 Schema/精确值脚本是规格证据，未登记为生产实现绑定。新义务见 [verification.md](verification.md#v4-候选证据义务)。
+- **实际验证：尚无 v4 生产实现验证。**已归档规格检查覆盖 58 个完整实例、12 个绑定判定及 5 个精确值变异；只说明其输入快照中的有限样本。旧 v3 回归不换标签。
+
+### v4 阅读入口
+
+| 问题 | 入口 |
+|---|---|
+| 纯值实现、精确版本闭包、失败次序及无装卸责任 | [候选实现设计](v4-design.md) |
+| 哪条承诺已有具名证据 | [绑定表](bindings.yaml) |
+| 新增反例、外部 owner、受阻消费者 | [验证与缺口](verification.md#v4-覆盖缺口与外部-owner) |
+
+以下是已发生的 v3/core 阶段记录，不作为 v4 接受或验证依据。
+
 ## 最终 core 阶段签收（2026-09-26）
 
 本节点本阶段的 6 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
@@ -53,3 +133,21 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+2026-09-29：[D-110](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)已采用本节点 T29 精确增量；原候选正文保留受审字节，新增实现与验收尚待。
+
+## 当前公开定义资源闭包后继候选（2026-09-29）
+
+[共同后继](../messages/public-definition-resource-closure-followup.md)以 MS7 50/MR10 25 公开定义及真实私有入口为编译根，各9份规范资源；RC1–RC5替代原全依赖文件defs扩张要求的范围尚待主线采用。T26固定输入的75公开编译/18因果删除反控已有，生产注册迁移、实际制品与冷构建仍待；原冻结设计/证据保持各自范围。
+
+## MR11 ACK 保留边界候选
+
+[v11 ACK 实现映射](v11-acknowledgement-design.md)保持完整Pending/final值形状，承接合法ACK的副本释放及后继真实处分原值验证。语义接受未采用；可实施待成组评审/采用；新增bindings0；实际验证未执行。纯包不新增Storage/权限/删除行为。
+
+## 2026-10-03 固定Schema技术采用
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。
+
+## 2026-10-03 D-116 主体实施与有限验收
+
+本节点固定图已实施构建期生成与首次实际消费时的同步原生装载。全部定义、公开结果/errors、构建失败清理、恢复、新鲜性及制品消费的实际范围见[主体原始运行与有限签收](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。本段取代上文 D-116 补充中关于固定图实施/验证尚待的状态；原契约、其他能力与历史运行的边界不变。

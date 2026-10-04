@@ -1,0 +1,14 @@
+{
+ "variant": "default",
+ "quick": false,
+ "values": 10772,
+ "defs": 54,
+ "pairs": 581688,
+ "repoPositives": 12796,
+ "mismatches": 0,
+ "threw": 0,
+ "sample": [],
+ "oracleRows": 45,
+ "oracleBad": [],
+ "ms": 761115
+}

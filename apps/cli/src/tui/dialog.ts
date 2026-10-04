@@ -95,6 +95,9 @@ export class Dialog {
       return
     }
     if (this.#stopped) return
+    this.#activeEvent(event)
+  }
+  #activeEvent(event: TerminalInput): void {
     if (
       event.kind === 'eof' ||
       (event.kind === 'key' && (event.text === '\x03' || event.text === '\x04'))
@@ -110,6 +113,9 @@ export class Dialog {
     if (event.kind !== 'key' && event.kind !== 'paste') return
     // Busy/backpressured keys never become a queued action in the next screen.
     if (!this.#waiting) return
+    this.#interact(event)
+  }
+  #interact(event: Extract<TerminalInput, { kind: 'key' | 'paste' }>): void {
     if (event.kind === 'key' && (event.text === '\x1b[5~' || event.text === '\x1b[6~')) {
       if (!this.#eligible) return
       this.#screen = {
@@ -127,18 +133,24 @@ export class Dialog {
       return
     }
     if (event.kind === 'key' && event.text === '\r') {
-      if (!this.#eligible) return
-      if (this.#visited.size !== this.#pages) {
-        this.#screen = {
-          ...this.#screen,
-          footer: 'Read every page with PgUp/PgDn before continuing. Ctrl+C: exit',
-        }
-        this.#draw()
-        return
-      }
-      this.#resolve(this.#screen.input?.getValue() ?? '')
+      this.#confirm()
       return
     }
+    this.#edit(event)
+  }
+  #confirm(): void {
+    if (!this.#eligible) return
+    if (this.#visited.size !== this.#pages) {
+      this.#screen = {
+        ...this.#screen,
+        footer: 'Read every page with PgUp/PgDn before continuing. Ctrl+C: exit',
+      }
+      this.#draw()
+      return
+    }
+    this.#resolve(this.#screen.input?.getValue() ?? '')
+  }
+  #edit(event: Extract<TerminalInput, { kind: 'key' | 'paste' }>): void {
     const input = this.#screen.input
     if (!input || !this.#fieldVisible) return
     if (event.kind === 'key' && event.text === '\x15') {

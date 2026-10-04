@@ -1,0 +1,1020 @@
+{
+  "schema": "local-evidence-manifest-v1",
+  "purpose": "five-item evidence handoff, not specification or acceptance",
+  "branch": "panqiwei/model-request-runtime",
+  "captureHead": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+  "rootAcceptanceInput": "Root explicitly reported TODO closeout of T09/T10/T15/T19/T20; packaging does not accept again",
+  "copiedFiles": [
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/t15-final-matrix/T09-T10-T15-CLOSEOUT.md",
+      "copy": "reports/0/T09-T10-T15-CLOSEOUT.md",
+      "sha256": "70d8c7dc269f08b53f9c9495536b86adebd825a9c4c9974893b31cb49a018559",
+      "bytes": 16292,
+      "provenance": "independent-read-only-review; root retains acceptance",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/u4-final-closeout/T19-T20-REVIEW.md",
+      "copy": "reports/1/T19-T20-REVIEW.md",
+      "sha256": "2d723d0e5b8088b9d19dbcaf6ff62e544b6b58bba84f4003129b54fb26e834af",
+      "bytes": 15616,
+      "provenance": "independent-read-only-review; root retains acceptance",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/t15-final-matrix/REPORT.md",
+      "copy": "reports/2/REPORT.md",
+      "sha256": "7bd6682e0120a764ada27fda04cc32c6e31e7a07a32f6ec524d472cc8ff66dd6",
+      "bytes": 21414,
+      "provenance": "independent-read-only-review; root retains acceptance",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/t15-final-matrix/T08-FINAL-REVIEW.md",
+      "copy": "reports/3/T08-FINAL-REVIEW.md",
+      "sha256": "48faf4ea84252570178d1d50f3e4ab424fe40ca70758b5dfe7048fdf9588dcff",
+      "bytes": 4858,
+      "provenance": "independent-read-only-review; root retains acceptance",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/t15-final-matrix/C2-REVIEW.md",
+      "copy": "reports/4/C2-REVIEW.md",
+      "sha256": "140f0b710a6b2e8b01024020f2dcd07a96c3573249f6d5116b27139f36bc824c",
+      "bytes": 3859,
+      "provenance": "independent-read-only-review; root retains acceptance",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/t09-t10-independent/REPORT.md",
+      "copy": "reports/5/REPORT.md",
+      "sha256": "9dd3d01ea5e0315936211a5777af6df44f11903c15cbf0f268f877c120b89164",
+      "bytes": 17723,
+      "provenance": "independent-read-only-review; root retains acceptance",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/luna-service-runner-prefix-final.log",
+      "copy": "root-logs/luna-service-runner-prefix-final.log",
+      "sha256": "0a349bad45ccb858d1195dc78e13f144ce7e1eaf6647dda17f5ddd7cff813f25",
+      "bytes": 297,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/runner-p5-wait-limit-final.log",
+      "copy": "root-logs/runner-p5-wait-limit-final.log",
+      "sha256": "0ca9d0cea5e83c32f43e1b08abcf15386ff7aef28c69cdb616f9c610e3ccc189",
+      "bytes": 294,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/runner-final-guard-map.log",
+      "copy": "root-logs/runner-final-guard-map.log",
+      "sha256": "e6de0e8e7e95102210e7a018beb4e16ebae168feeb6bdc7bd01cda2d1599ce6a",
+      "bytes": 290,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/runner-final-guard-types.log",
+      "copy": "root-logs/runner-final-guard-types.log",
+      "sha256": "e224bb6f1a32870a89cd2843364fcb554e01a99f19dbd579190cbad76c760e0f",
+      "bytes": 12056,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/runner-final-guard-types-after-build.log",
+      "copy": "root-logs/runner-final-guard-types-after-build.log",
+      "sha256": "ec241ba0298653129191b60438043f57a191c2f3f3e84105be1360e6d7c44c19",
+      "bytes": 205,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/t08-t15-final-gaps.log",
+      "copy": "root-logs/t08-t15-final-gaps.log",
+      "sha256": "a7e1cd9719f0c85a47cf799c180fd564a2349b24409ab835e1e65434c32cb8d5",
+      "bytes": 463,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/t15-credential-runner-final.log",
+      "copy": "root-logs/t15-credential-runner-final.log",
+      "sha256": "0982f80a34793e3fc5014e9eeef43b6c0b11722a6bd8575e3043f1c82afd931c",
+      "bytes": 295,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/u4-causal-source-order-integrated.log",
+      "copy": "root-logs/u4-causal-source-order-integrated.log",
+      "sha256": "eeeb151e00a1185365b5ded70b413bc9783702089ca411da5956677871c3bee7",
+      "bytes": 461,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/withrun-three-turns-final.log",
+      "copy": "root-logs/withrun-three-turns-final.log",
+      "sha256": "2fcc26a367e743656c0da8df20c4327f7c8f9126926cfd2999df4fc60010ffde",
+      "bytes": 295,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/withrun-three-turns-typecheck.log",
+      "copy": "root-logs/withrun-three-turns-typecheck.log",
+      "sha256": "9d335141902598359dde8e0855b1e6dfa6fecedf4a1c74de71d40b5ad6a1db5b",
+      "bytes": 1608,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/withrun-three-turns-typecheck-fixed.log",
+      "copy": "root-logs/withrun-three-turns-typecheck-fixed.log",
+      "sha256": "ec241ba0298653129191b60438043f57a191c2f3f3e84105be1360e6d7c44c19",
+      "bytes": 205,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/runtime-v18-source-tests.log",
+      "copy": "root-logs/runtime-v18-source-tests.log",
+      "sha256": "494ca18d90363f2f43f40cdedbcfaf1a41bbf784636d2794553fa0cd3f4bfe31",
+      "bytes": 463,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/t08-final-owned-run-composition.log",
+      "copy": "root-logs/t08-final-owned-run-composition.log",
+      "sha256": "e2df093c9f118d73aef857f8a5104a94ff42b5a0592534314d68f1480b19de14",
+      "bytes": 468,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/withrun-calibration-retry-target-tests.log",
+      "copy": "root-logs/withrun-calibration-retry-target-tests.log",
+      "sha256": "0c2240599ca4f5863d07969727874fe86578f8c52f6bfb19514b8f9551acea42",
+      "bytes": 464,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/demo-v18-exact-attempt-tests.log",
+      "copy": "root-logs/demo-v18-exact-attempt-tests.log",
+      "sha256": "4954c6864a7d13d7e361335684a0fb7068b4f86a716a321646c280c5d7bf9421",
+      "bytes": 1457,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/demo-v18-exact-attempt-tests-data-tmp.log",
+      "copy": "root-logs/demo-v18-exact-attempt-tests-data-tmp.log",
+      "sha256": "f408f7e4b42a593f8cb3ba78122a67778acdd7994938aef8749aa7e811a41360",
+      "bytes": 295,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/demo-v18-exact-attempt-typecheck.log",
+      "copy": "root-logs/demo-v18-exact-attempt-typecheck.log",
+      "sha256": "ec241ba0298653129191b60438043f57a191c2f3f3e84105be1360e6d7c44c19",
+      "bytes": 205,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/runner-v8-p5-generation-tests.log",
+      "copy": "root-logs/runner-v8-p5-generation-tests.log",
+      "sha256": "633243b47ee8a9aeadb7b9a0007d01e28b910c6e6917bddbfb4ecba645d3ac73",
+      "bytes": 482,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/runner-v8-second-tests.log",
+      "copy": "root-logs/runner-v8-second-tests.log",
+      "sha256": "d8568f4308d97a669f20cdcd4b27888f31caf7a0bd62bdb30d0f4b9789df8289",
+      "bytes": 501,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/runner-final-service-chain-tests.log",
+      "copy": "root-logs/runner-final-service-chain-tests.log",
+      "sha256": "19dfda6a6cc25d4bd4a5ff3e0519fa8358a23517e99f2670c709c2cde486ac47",
+      "bytes": 471,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/runner-final-boundary-tests.log",
+      "copy": "root-logs/runner-final-boundary-tests.log",
+      "sha256": "6110eb2e3a61961fe3822ff8b523491f68a2eca5d29b73fd1e413d6cd1240ab6",
+      "bytes": 441,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/runner-source-release-tests.log",
+      "copy": "root-logs/runner-source-release-tests.log",
+      "sha256": "2d25cae2f7e72063d79b57a1c8e146090bcb3fa9e8b65ca9db22bc748479919f",
+      "bytes": 295,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/vendor-completion-root/runtime-v17-source-matrix-tests.log",
+      "copy": "root-logs/runtime-v17-source-matrix-tests.log",
+      "sha256": "b69a08cca070b0e82fdb526add17b62ab508173f23bcfaa87371a50c8d2e6cae",
+      "bytes": 465,
+      "provenance": "root-executed; reviewer read log and relevant assertions; overlapping counts not summed",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/REPORT.md",
+      "copy": "independent-a4/REPORT.md",
+      "sha256": "46509ffe4966c32e16c94e0ee58016fa25d62b8019d829cbbdcf9f850a1e7561",
+      "bytes": 5814,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/packs.json",
+      "copy": "independent-a4/packs.json",
+      "sha256": "6e150e3834a9e8780ffd547bdf911e94e0fe2a9a46ed21f72114d06e5adcc5fc",
+      "bytes": 24049,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/dist-before.json",
+      "copy": "independent-a4/dist-before.json",
+      "sha256": "c53fbc7ebf4f26a08eec7534c1d8866201abef6bf328e6fe538973318bce69cf",
+      "bytes": 321150,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/project-pack-complete.json",
+      "copy": "independent-a4/project-pack-complete.json",
+      "sha256": "3bd98b4236b1ac906667fc1b306d90e235f0c4213a4f2c73a790688c797fe561",
+      "bytes": 12894,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/execution-receipt.json",
+      "copy": "independent-a4/execution-receipt.json",
+      "sha256": "0bf1be7524f8f73d651ebf696ecf084c01877bed395ce30bfc6ebf236ba23969",
+      "bytes": 275,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/consumer.mts",
+      "copy": "independent-a4/consumer.mts",
+      "sha256": "53f8600d4e4faa864f8e01c9f222e9f184672f3c5c9273c95744a22002756768",
+      "bytes": 13004,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/consumers.json",
+      "copy": "independent-a4/consumers.json",
+      "sha256": "fc80f74ae1087fe2329ac755d0a02042a81dc7537658dc70dd211208d286656c",
+      "bytes": 220,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/cleanup.json",
+      "copy": "independent-a4/cleanup.json",
+      "sha256": "bfaf371905a1f4d1a4ac080f9e91dd7592a6e2ca4495e167f5325f29d9867bc6",
+      "bytes": 321,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/pack-driver-initial-failure.log",
+      "copy": "independent-a4/pack-driver-initial-failure.log",
+      "sha256": "3ab5d36bbd44772b08e044bdbf4b9657d19ab7ed0abcd3f20e1cdfc3438a7445",
+      "bytes": 493,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/finish-pack.log",
+      "copy": "independent-a4/finish-pack.log",
+      "sha256": "2fc0d900992a9a69630779cb59812b090fda09c9cccc19372a130a62bf7c2658",
+      "bytes": 117,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/en/compile-1.log",
+      "copy": "independent-a4/en/compile-1.log",
+      "sha256": "36d02607e0f66aa136943cda073994bce7f73ca04c58e574c91b8dfb73341a8b",
+      "bytes": 682,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/en/run-1.log",
+      "copy": "independent-a4/en/run-1.log",
+      "sha256": "45072ee6706023755ae064ea36d08604d60a443fd9b2354c604930e21b4c9d67",
+      "bytes": 712,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/en/run-2.log",
+      "copy": "independent-a4/en/run-2.log",
+      "sha256": "95ec4819a976aa3b9eec4fcbcc057a39b1b634f0d4317cf1f03aaa3c4e2d0b3a",
+      "bytes": 785,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/en/compile-final.log",
+      "copy": "independent-a4/en/compile-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/en/run-3.log",
+      "copy": "independent-a4/en/run-3.log",
+      "sha256": "1c9cc2367cf9e4ad43ede70beac6bee74a72419c347569c6213dd751aaa90f12",
+      "bytes": 63,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/en/result.json",
+      "copy": "independent-a4/en/result.json",
+      "sha256": "0f2dd776216dbfd1de6e1092fb8d12a1f7a5515fffc993eaf048c61dd4afb092",
+      "bytes": 698,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/en/extraction.json",
+      "copy": "independent-a4/en/extraction.json",
+      "sha256": "96205e78cb5e2902c052c1b96a4d21aa13e141986c0b7b7d5ae3f0bd998ce373",
+      "bytes": 295,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/en/literal.mts",
+      "copy": "independent-a4/en/literal.mts",
+      "sha256": "218a8df9cbf28a5eff359b0cdad20b0961227a4d84e23735776dfea2a2a1ebd9",
+      "bytes": 535,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/en/closure.json",
+      "copy": "independent-a4/en/closure.json",
+      "sha256": "8dfe2927d3144114fbd5bee48b66b5b74cc1c19e4b5cf89f58f084e3e2b972ed",
+      "bytes": 97624,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/zh/compile-final.log",
+      "copy": "independent-a4/zh/compile-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/zh/run-1.log",
+      "copy": "independent-a4/zh/run-1.log",
+      "sha256": "1c9cc2367cf9e4ad43ede70beac6bee74a72419c347569c6213dd751aaa90f12",
+      "bytes": 63,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/zh/result.json",
+      "copy": "independent-a4/zh/result.json",
+      "sha256": "0f2dd776216dbfd1de6e1092fb8d12a1f7a5515fffc993eaf048c61dd4afb092",
+      "bytes": 698,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/zh/extraction.json",
+      "copy": "independent-a4/zh/extraction.json",
+      "sha256": "ede0b9609f521a787870a9e8ddda99548533f3062966335fff2bc0e6d0be29ec",
+      "bytes": 298,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/zh/literal.mts",
+      "copy": "independent-a4/zh/literal.mts",
+      "sha256": "218a8df9cbf28a5eff359b0cdad20b0961227a4d84e23735776dfea2a2a1ebd9",
+      "bytes": 535,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    },
+    {
+      "source": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/f18-artifact-acceptance/zh/closure.json",
+      "copy": "independent-a4/zh/closure.json",
+      "sha256": "8dfe2927d3144114fbd5bee48b66b5b74cc1c19e4b5cf89f58f084e3e2b972ed",
+      "bytes": 97624,
+      "provenance": "independent actual offline artifact execution; 32 pnpm project packs + 29 installed-file third-party repacks, not registry originals",
+      "copyHashVerified": true
+    }
+  ],
+  "trackedReferences": [
+    {
+      "path": ".meta_harness/design/record/decisions/runner-current-pure-provider-adoption/decision.md",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "4c40f3c45f42d8a55c4509484fb4cd4ced25076f",
+      "sha256": "f21c3a427508d8102ace8d5226e8ebeda219e56b410d4dba1db96e40aa468fe1",
+      "lastChangeCommit": "1c2f05fccf70afc33aa0009925f7adc5a2fa3afb",
+      "worktreeMatchesSnapshot": true,
+      "kind": "adopted-authority-reference",
+      "copied": false
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/model-input-usage-calibration-adoption/decision.md",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "8f778bac892f9c9a423ae6377a05731e23794d08",
+      "sha256": "ec20bddd6f13e0d741038c7e28f3d4db0f655ed5508f5f543fcab3abb08784b0",
+      "lastChangeCommit": "630592c0b19a0f910d2c4484ebd3c8083dc300ed",
+      "worktreeMatchesSnapshot": true,
+      "kind": "adopted-authority-reference",
+      "copied": false
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/contract.md",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "624a8190f21a816be7b1ccbbb14e9b8a75da19fa",
+      "sha256": "add7ff23a73a6ad5a749f40f6707f408f60d33b6032080ad6ba4751f10d5695c",
+      "lastChangeCommit": "1fef9c906b7fe1efbf9b9485290dd8ec55a39e6f",
+      "worktreeMatchesSnapshot": true,
+      "kind": "adopted-authority-reference",
+      "copied": false
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/loop-extension-runner/v5/contract.md",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "85befef929ae2468125d904e8094f39758c914c7",
+      "sha256": "e571e01d8e4d86fec3904d9decb37beb38615940125f320a72c250fd63ca4c43",
+      "lastChangeCommit": "db6013d5f85d8ba60825bcfabdfc0dad1dce1e45",
+      "worktreeMatchesSnapshot": true,
+      "kind": "adopted-authority-reference",
+      "copied": false
+    },
+    {
+      "path": ".meta_harness/design/spec/data/model-response/v9/contract.md",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "075ccf9845ebccb4b8cf53f568184a34b9b31355",
+      "sha256": "fc4fe5f8092f1abff7efa6b27a228f7321575c5de8205c58de8ee8106ad3ebda",
+      "lastChangeCommit": "1fef9c906b7fe1efbf9b9485290dd8ec55a39e6f",
+      "worktreeMatchesSnapshot": true,
+      "kind": "adopted-authority-reference",
+      "copied": false
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/model-request-runtime/v16-usage-calibration-design.md",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "0a78bc24c418246af2639c8472f5572ceaad495a",
+      "sha256": "17e4552faac16a3ab03aa974b210e150ac1fc96a5982f4812b8e549e203c978d",
+      "lastChangeCommit": "9ac88753b5aca35f0f87e31bdda917ac0426bae7",
+      "worktreeMatchesSnapshot": true,
+      "kind": "adopted-authority-reference",
+      "copied": false
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/model-request-runtime/v17-model-consumption-design.md",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "98af8a4a95a74f1bc1c0095cf1f00917d6ef348b",
+      "sha256": "a4e73586c1614126874b641428914c767d0d8a2e514b93b615c7fc1f188f5b8e",
+      "lastChangeCommit": "982a61a5abfdbc50c3f68456fb4f565140bbc749",
+      "worktreeMatchesSnapshot": true,
+      "kind": "adopted-authority-reference",
+      "copied": false
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/model-request-runtime/v18-failure-execution-design.md",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "cfe4a4e09fbe367f8e852c55be82d2d7c23586ec",
+      "sha256": "2d5aeded046158adfe213cb279ee1f7cd9462d2651986c6326e4d28022a4e06e",
+      "lastChangeCommit": "1c2f05fccf70afc33aa0009925f7adc5a2fa3afb",
+      "worktreeMatchesSnapshot": true,
+      "kind": "adopted-authority-reference",
+      "copied": false
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/model/model-request-runtime/verification.md",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "629a594ea593c6ed3254d9125cc642464a8afcf6",
+      "sha256": "eeb15c9ec48ee9a5af965a961b05360134bacb8bdda75ebc2455ce7ea815f779",
+      "lastChangeCommit": "1c2f05fccf70afc33aa0009925f7adc5a2fa3afb",
+      "worktreeMatchesSnapshot": true,
+      "kind": "adopted-authority-reference",
+      "copied": false
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v7-model-service-design.md",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "1acae7b72ec6a1aad7e1ed9049b4a34ceddca86e",
+      "sha256": "caf86ef7b78dae0a106ced11d14951bdc667e6eed1a1a6950758c7e06fe754a3",
+      "lastChangeCommit": "982a61a5abfdbc50c3f68456fb4f565140bbc749",
+      "worktreeMatchesSnapshot": true,
+      "kind": "adopted-authority-reference",
+      "copied": false
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v8-failure-execution-design.md",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "cee9502560f18cced2bb0eb38918ee9060092cfb",
+      "sha256": "8553482fefad6c311adbc61cfc4b0b964e602055b1eedd457a5017e3cfe6524e",
+      "lastChangeCommit": "1c2f05fccf70afc33aa0009925f7adc5a2fa3afb",
+      "worktreeMatchesSnapshot": true,
+      "kind": "adopted-authority-reference",
+      "copied": false
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/agent-loop/loop-extension-runner/verification.md",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "f363d1977b34dd2a5900e56ea3c9f30628424c7b",
+      "sha256": "c0b45876cad1600658c1de2ea76cece288cb477726aac40fa0dc8398934cf4bf",
+      "lastChangeCommit": "1c2f05fccf70afc33aa0009925f7adc5a2fa3afb",
+      "worktreeMatchesSnapshot": true,
+      "kind": "adopted-authority-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/model-request-runtime/src/service-calibration.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "25738f7e7f47e21d539fe21406cebafa94309b8d",
+      "sha256": "0e58b2b0f59fd0126ab34bf0a92f9b640d2184c3328de3bce88c26bfdbc3c7ae",
+      "lastChangeCommit": "b2df8fbe2060d2a234974e30d5aeb6323971400c",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/model-request-runtime/src/failure-subject.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "c669dd99250f07633062c32385de3bebbe40a72e",
+      "sha256": "1318c3b34eea6b894efb97fe8c7c544691adad30b42a36d17dc208623c81b3bc",
+      "lastChangeCommit": "c42b8a6b6f07e38b6d2d1d3df2e5f09204189364",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/model-request-runtime/src/service-dispatch.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "a151af7a82c7ba29e8ebc3c5c4519a933c207c09",
+      "sha256": "5389479d8691178fb8db22f26e864aa44a9b87f84bbb07f1e54740d0a6f047bb",
+      "lastChangeCommit": "04f14e98d2dbcafbef3b8ad09084ba4f65a0e411",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/model-request-runtime/src/service-reads.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "c39cb03d794f82aa3d0ce2db9bdc6766572e810f",
+      "sha256": "8a0a60a6a69a8e9a149b329d409c4e149378902454c856d6c723f0cc43cd5d51",
+      "lastChangeCommit": "04f14e98d2dbcafbef3b8ad09084ba4f65a0e411",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/model-request-runtime/src/service-types.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "2c8c680f1c58d30881832bd13e3336296ec61a0b",
+      "sha256": "d0be103a7f286d40756c2815c440f71e16cdd0fa342ece8b35d39a7966900a8d",
+      "lastChangeCommit": "04f14e98d2dbcafbef3b8ad09084ba4f65a0e411",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/model-request-runtime/tests/acceptance-t15-resume-planning.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "1ecf04c029770e1894e33d6a571cd2e6f377eae2",
+      "sha256": "2a7724da8dc298d1b7e7eb9c1a2eadf94ef1a632d07b35d72f3d4234360561c1",
+      "lastChangeCommit": "6783e162a7c4fbbd4a3874381455e4972d2098f4",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/model-request-runtime/tests/acceptance-t15-fresh-dispatch-inputs.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "ef0d7a8f54cafd130de8744aed8cb9efc3bc8827",
+      "sha256": "af4a8f62a3dad83d3974977a73499e94c6ac9c1256bb2521432a855974a983ee",
+      "lastChangeCommit": "ffe401212147ff547f143868248b6f3a27dc62af",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/model-request-runtime/tests/acceptance-u4-causal-source-order.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "5a031173b0b771518ff5c8d80229c3203831e375",
+      "sha256": "41c012a92f20be4bb5435bb3e3afed960c7665ac1181b969b8e2660a96a66cc7",
+      "lastChangeCommit": "47b5c575d6278ca99d88864c884bffaa82b1e2a7",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/model-request-runtime/tests/service-calibration.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "eefdf9ccf0be3496e2f626cf8d44e31e36989fbc",
+      "sha256": "c0aa562bf5c8d55897145cbcdc55118771d5e5aeb099b9da32530d77ad2bdfc0",
+      "lastChangeCommit": "45787a4919aa0cd0696c92e60fb95910eb995fd4",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/model-request-runtime/tests/acceptance-calibration-source.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "221001e621f346f0f0fd72126cfb961205204c04",
+      "sha256": "aac6421e7fba6a4f56a0f5862f6652f73592151ba10eadfb63d0dca53154ef92",
+      "lastChangeCommit": "48f13b520a475a6d8a51599782d8692787d1afc5",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/model-request-runtime/tests/service-dispatch.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "8103a0853253cbbfdf6ee3ee5a26ec73f84f6a41",
+      "sha256": "0621d048e972b864fad7b20ef8dd38db612e0c2b15714c440e9d76a586ed1f39",
+      "lastChangeCommit": "c42b8a6b6f07e38b6d2d1d3df2e5f09204189364",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/model-request-runtime/tests/failure-source.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "855235d0a7696673a2feeacd5230fd290751b820",
+      "sha256": "a0ef8f0e617b56f9583f193cdcb3f74b36e60cee9901fc7f8572a9135de0ae98",
+      "lastChangeCommit": "c42b8a6b6f07e38b6d2d1d3df2e5f09204189364",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "examples/model-invocation-minimal-demo/src/runner-service-host.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "66c16f5f7e44c37c5d69c67ae4c41130bd118ce4",
+      "sha256": "1e7528e94085b68c452ea680fda76f4a30ecb63923140525ba79097672442e92",
+      "lastChangeCommit": "05611e155cc666eb3644bbd003fa0911b2e7b7ad",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "examples/model-invocation-minimal-demo/src/model-request-text.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "f9da11727be597cb6065674cdd9c291a1ff6420d",
+      "sha256": "7b16ada7814152c9b566971d787392448c839b241bd2a8f47b6c207334d14b6b",
+      "lastChangeCommit": "940ff967fd05192953f55c0a5017d543c2ddd150",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "examples/model-invocation-minimal-demo/tests/runner-service-retry-after-wait.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "9dfaec4b3363974d7a32979614bfd52db174188b",
+      "sha256": "39a56277f119ba9c7b7e4c53ed71fa582677a4b9907f748e4dc603f310c68f77",
+      "lastChangeCommit": "9006c5e707c171debe1fb8816103b6a641b43c10",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "examples/model-invocation-minimal-demo/tests/runner-service-guard-map.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "ef5640afd7027b8a3085a004bc4ebc7e1270058b",
+      "sha256": "7067121300abcf265dfa50cfa63727559dbf1defec4dadb65136565004a9f8b2",
+      "lastChangeCommit": "05611e155cc666eb3644bbd003fa0911b2e7b7ad",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "examples/model-invocation-minimal-demo/tests/runner-service-assembly.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "c2d45efbbca2026312e7cefb9299f788c2956d05",
+      "sha256": "95a3422a65bb8e4f2aa7906b654c7f97f98f82e4261a2f7e7aa82a2ddddc00f1",
+      "lastChangeCommit": "5b1a3d33bca94eb707758812bcbcee14a0f2013d",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "examples/model-invocation-minimal-demo/tests/runner-service-with-run-calibration.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "34b148fd2601b84e971331bd8f1651cf2b99f3f5",
+      "sha256": "988edf32c1a3dd033d8460dc2cc068a243a63cb64b89cdeffc515f58ada82fac",
+      "lastChangeCommit": "68b49260a8da01cf79aa096c4cea7df3a81e1c65",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "examples/model-invocation-minimal-demo/tests/acceptance-t15-credential-rotation.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "814e77bb8c949b15c149905b07ebeb5c5a4ab34d",
+      "sha256": "2ae8d08c15db1f0da4811e8c68c27980291e463bd7b532c109df6cc913420eb8",
+      "lastChangeCommit": "ca09671754c1e003b17d614ff2980130eff9fb35",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "examples/model-invocation-minimal-demo/tests/acceptance-calibration-service.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "10b479a8a568f319905c2daf2c5101fd4265303b",
+      "sha256": "60479a9fa73d90b7160704316db4f12177b289755f2795c075be7c617d18c8c1",
+      "lastChangeCommit": "eea17b33edb046c421b58653c2b593071a9c3315",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "examples/model-invocation-minimal-demo/tests/acceptance-calibration-cold.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "947f971860a0714fe9d2deea4575b78ef4fe0870",
+      "sha256": "7ed36a089a335c0e52ee2db7250d5120bde7f1179ef22ee1add659bc5957c8a7",
+      "lastChangeCommit": "726efbfc9366f4fc4bdfab098d41970df36c0a82",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/pi-ai-transport/tests/acceptance-calibration-invalidation.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "c6a0b963225d0d3aeabb39305708e2ac529f30b9",
+      "sha256": "6cac1df2069a5b782551f30f3269cee03050de958279c32bc39a2e166993f9fd",
+      "lastChangeCommit": "48f13b520a475a6d8a51599782d8692787d1afc5",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/pi-ai-transport/tests/acceptance-calibration-reader.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "8db22f66bea18d04172c7057f1f59e95e65f3d8d",
+      "sha256": "883fea71a3a0112b46d5af42a8e8747085555e725130ca3a9f8ddb99ee071d64",
+      "lastChangeCommit": "726efbfc9366f4fc4bdfab098d41970df36c0a82",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/pi-ai-transport/tests/acceptance-calibration-openai.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "bde1a893b419376fe9c878dcf012c9658e9f92ef",
+      "sha256": "8560e34651229e5498f7b2334ce730c89dca3578d896afeefbe744f3a754e072",
+      "lastChangeCommit": "e949760d4e581f8441c4e9dda265ad14dc371947",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/model/pi-ai-transport/tests/acceptance-calibration-pro.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "2fda490c3b873cf5c3801347e65452d5e92b8ec3",
+      "sha256": "b9471e320fb39c59411126f9d4e89e5dc1c96f8b9a16e73a06f53fc9d2433c81",
+      "lastChangeCommit": "cff9dc7daafc44758d74191c81f350a9d15d00ee",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/agent-loop/loop-extension-runner/tests/acceptance-public-matrix.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "2e646fe2c2d522b60d2e297117b09c5a0d4d8831",
+      "sha256": "4960af15f2a6fffb1c722a768c86ee1330870f2579bb5d4f43f550e26d6f5e99",
+      "lastChangeCommit": "703a119effafdc212286df6aadc51d147f3dea9e",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    },
+    {
+      "path": "packages/agent-loop/loop-extension-runner/tests/service.spec.ts",
+      "snapshotCommit": "bc24829860c191ef8b90c7ca38c2423e943cf7a2",
+      "gitBlob": "61e155da1360288ae06a1594536b3f1f3ef7efae",
+      "sha256": "084bfb9e979b706bf42500bc1c701234170fbc2a9dc1cbffdb81fa6ffb52f7e8",
+      "lastChangeCommit": "703a119effafdc212286df6aadc51d147f3dea9e",
+      "worktreeMatchesSnapshot": true,
+      "kind": "implementation-or-test-reference",
+      "copied": false
+    }
+  ],
+  "archiveReferences": [
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion30/calibration-acceptance-manifest.json",
+      "sha256": "d0a3075d3561cd48cd0fd4c469c08bd88156a800cc8357d88696385a7dcd4e39",
+      "bytes": 186417,
+      "copied": false,
+      "purpose": "existing preserved archive/index; no DB/config/key/ledger opened"
+    },
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion30/calibration-acceptance-unique.tar.gz",
+      "sha256": "e441ef8dc1123965b778b28ff196496e8e1747aa329b3680bc4d66889d98873d",
+      "bytes": 10008910,
+      "copied": false,
+      "purpose": "existing preserved archive/index; no DB/config/key/ledger opened"
+    },
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion34/runner-assembly/MANIFEST.json",
+      "sha256": "20f68ca6114ff59273219c0b9a363df1f0a0bd52b794b97be3a58efd89e61b09",
+      "bytes": 195392,
+      "copied": false,
+      "purpose": "existing preserved archive/index; no DB/config/key/ledger opened"
+    },
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion34/u4-source-order/SHA256-MANIFEST.tsv",
+      "sha256": "fb9d8f8958a91a8f53c10cc92fffd6a5abe885dad82b7415a552cf5471f2a1c8",
+      "bytes": 14055,
+      "copied": false,
+      "purpose": "existing preserved archive/index; no DB/config/key/ledger opened"
+    },
+    {
+      "path": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion34/u4-source-order/RECOVERY.md",
+      "sha256": "ac6cae40e2f3c0b4a9169c7e1de05bb0fc219e620b6e6601f70706935f0c937b",
+      "bytes": 2539,
+      "copied": false,
+      "purpose": "existing preserved archive/index; no DB/config/key/ledger opened"
+    }
+  ],
+  "archiveMembersVerified": [
+    {
+      "archive": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion30/calibration-acceptance-unique.tar.gz",
+      "member": "tmp/calibration-acceptance/README.md",
+      "sha256": "7f6898c3435b829ff79b8447af2f61a7cc599e4ea462bfb344e1f43a988a3f35",
+      "originalManifestMatch": true,
+      "copied": false,
+      "provenance": "reused prior independent U4 execution; original failure preserved in archive"
+    },
+    {
+      "archive": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion30/calibration-acceptance-unique.tar.gz",
+      "member": "tmp/calibration-acceptance/transport-final.log",
+      "sha256": "65ac184129d97f57fe65962b2b002fc8325c662c5ee094668ce43c213c63549e",
+      "originalManifestMatch": true,
+      "copied": false,
+      "provenance": "reused prior independent U4 execution; original failure preserved in archive"
+    },
+    {
+      "archive": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion30/calibration-acceptance-unique.tar.gz",
+      "member": "tmp/calibration-acceptance/runtime-final.log",
+      "sha256": "310eac572eaf81e27d5de5db658c19672fe92f4b94bec0e25faee5bafad1acfb",
+      "originalManifestMatch": true,
+      "copied": false,
+      "provenance": "reused prior independent U4 execution; original failure preserved in archive"
+    },
+    {
+      "archive": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion30/calibration-acceptance-unique.tar.gz",
+      "member": "tmp/calibration-acceptance/demo-final.log",
+      "sha256": "b21105ad5cdecaf3bdb38764221bf64b31c5b72c091abbaf2a02896f2ff40fc9",
+      "originalManifestMatch": true,
+      "copied": false,
+      "provenance": "reused prior independent U4 execution; original failure preserved in archive"
+    },
+    {
+      "archive": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion30/calibration-acceptance-unique.tar.gz",
+      "member": "tmp/calibration-acceptance/service-complete.log",
+      "sha256": "1593f9662e6f689e9ac3bc56e25a77617f26e7d2d0fc00cb6c490e52e0f81518",
+      "originalManifestMatch": true,
+      "copied": false,
+      "provenance": "reused prior independent U4 execution; original failure preserved in archive"
+    },
+    {
+      "archive": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion30/calibration-acceptance-unique.tar.gz",
+      "member": "tmp/calibration-acceptance/pro-independent-4.log",
+      "sha256": "799146c84c4d97c76cb96653b5871ca5da562be016c292f34f22629d42894214",
+      "originalManifestMatch": true,
+      "copied": false,
+      "provenance": "reused prior independent U4 execution; original failure preserved in archive"
+    },
+    {
+      "archive": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion30/calibration-acceptance-unique.tar.gz",
+      "member": "tmp/calibration-acceptance/openai-original.log",
+      "sha256": "9f089766595ec9c852b769dc39c0ee5eb8951055ef0a5502d62b996f593a281a",
+      "originalManifestMatch": true,
+      "copied": false,
+      "provenance": "reused prior independent U4 execution; original failure preserved in archive"
+    },
+    {
+      "archive": "/data/qiwei/repos/omne-harness-lite/tmp/model-request-runtime/retired-20260929-completion30/calibration-acceptance-unique.tar.gz",
+      "member": "tmp/calibration-acceptance/openai-fixed.log",
+      "sha256": "c23e94c3bb57d319d24401be66ac99840cf08c4820909896e2a7add3a8599edb",
+      "originalManifestMatch": true,
+      "copied": false,
+      "provenance": "reused prior independent U4 execution; original failure preserved in archive"
+    }
+  ],
+  "executionRoles": {
+    "rootExecuted": "root-logs/; tests/typechecks were performed by root; full output copied unchanged",
+    "independentExecuted": "independent-a4/ plus existing archived U4 suite; no new execution in packaging",
+    "independentReadOnly": "reports/ plus this packaging hash audit",
+    "reuse": "archiveReferences and archiveMembersVerified, with exact provenance"
+  },
+  "scopeExclusions": [
+    "T21/T22",
+    "paid receipts",
+    "user conversation",
+    "keys/config/ledger/databases",
+    "full Run/AgentLoop/governance",
+    "formal record creation"
+  ],
+  "rootConfirmedExitCodes": [
+    {
+      "log": "runner-final-guard-types-after-build.log",
+      "handle": 42902,
+      "exitCode": 0,
+      "source": "explicit root result, not inferred from empty log"
+    },
+    {
+      "log": "u4-causal-source-order-integrated.log",
+      "handle": 24516,
+      "exitCode": 0,
+      "source": "explicit root result"
+    }
+  ],
+  "milestones": [
+    {
+      "label": "original-noRun-counterexample",
+      "commit": "7595c1969c2f9016d3c984fd24a5c99eb47e7b6e"
+    },
+    {
+      "label": "runtime-v18-artifact-input",
+      "commit": "c42b8a6b6f07e38b6d2d1d3df2e5f09204189364"
+    },
+    {
+      "label": "withRun-three-turn-types",
+      "commit": "68b49260a8da01cf79aa096c4cea7df3a81e1c65"
+    },
+    {
+      "label": "A2-durable-source",
+      "commit": "9006c5e707c171debe1fb8816103b6a641b43c10"
+    },
+    {
+      "label": "A3-wait-current-limit",
+      "commit": "091d1c3d7454b150f91ed4b2f8049c0e910235a2"
+    },
+    {
+      "label": "guard-seven-results",
+      "commit": "05611e155cc666eb3644bbd003fa0911b2e7b7ad"
+    },
+    {
+      "label": "U16-V6-causal-order",
+      "commit": "47b5c575d6278ca99d88864c884bffaa82b1e2a7"
+    }
+  ],
+  "historicalReferences": [
+    {
+      "commit": "7595c1969c2f9016d3c984fd24a5c99eb47e7b6e",
+      "path": "examples/model-invocation-minimal-demo/src/runner-service-host.ts",
+      "sha256": "c0f935020a3bcb3184f17647e4450af4fdf8f6b68861a497046a403571268d3e",
+      "copied": false
+    },
+    {
+      "commit": "7595c1969c2f9016d3c984fd24a5c99eb47e7b6e",
+      "path": "examples/model-invocation-minimal-demo/tests/runner-service-assembly.spec.ts",
+      "sha256": "7dea4c636d31a50ebb0b43e35ab9736b3bbd6db8d8b8072ebb9b746c8a69d0d1",
+      "copied": false
+    },
+    {
+      "commit": "7595c1969c2f9016d3c984fd24a5c99eb47e7b6e",
+      "path": "packages/model/model-request-runtime/src/failure-subject.ts",
+      "sha256": "aa3799e1fd3c2315ec15210016bf8158347359bdc4d28976537857f59dc4ef40",
+      "copied": false
+    },
+    {
+      "commit": "c42b8a6b6f07e38b6d2d1d3df2e5f09204189364",
+      "path": "packages/model/model-request-runtime/src/failure-subject.ts",
+      "sha256": "1318c3b34eea6b894efb97fe8c7c544691adad30b42a36d17dc208623c81b3bc",
+      "copied": false
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "head": "75c6a66eff119dc702224cab1265ba2564464dd8",
+  "base": "52bc6005dc168f2254d21ff79f6cd2df021676b8",
+  "scope": "Changed product source, tests and common hard lines. Includes D-116 identity assertion explanation and original failure evidence. Agents/configuration unchanged; reuse prior agents check.",
+  "steps": [
+    {
+      "name": "format",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "bash",
+        "scripts/format.sh",
+        "check",
+        "packages/assets/evaluation-input-store/src/data.ts",
+        "packages/assets/evaluation-input-store/src/publication.ts",
+        "packages/assets/evaluation-input-store/src/registry-history.ts",
+        "packages/assets/evaluation-input-store/src/registry-inputs.ts",
+        "packages/assets/evaluation-input-store/tests/default-owner-seed.mjs",
+        "packages/assets/evaluation-input-store/tests/default-owner-worker.mjs",
+        "packages/assets/evaluation-input-store/tests/default-owner.spec.ts",
+        "packages/assets/evaluation-input-store/tests/support.ts",
+        "packages/core/asset-evaluation/src/compute.ts",
+        "packages/core/asset-evaluation/src/defaults.ts",
+        "packages/core/asset-evaluation/src/evaluate.ts",
+        "packages/core/asset-evaluation/src/reader.ts",
+        "packages/core/asset-evaluation/src/result.ts",
+        "packages/core/asset-evaluation/tests/body-domain.spec.ts",
+        "packages/core/asset-evaluation/tests/default-owner-worker.mjs",
+        "packages/core/asset-evaluation/tests/default-owner.spec.ts",
+        "packages/tools/asset-registry/src/records.ts",
+        "packages/tools/asset-registry/src/registry.ts",
+        "packages/tools/asset-registry/src/tables.ts",
+        "packages/tools/asset-registry/tests/default-owner-worker.mjs",
+        "packages/tools/asset-registry/tests/default-owner.spec.ts",
+        "tools/core-verification/src/w6-asset-consumer.ts"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 2.0858515090076253
+    },
+    {
+      "name": "rules",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "pnpm",
+        "run",
+        "lint:rules"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 30.220550183963496
+    },
+    {
+      "name": "docs",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "make",
+        "--no-print-directory",
+        "docs-check"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 65.46020989201497
+    },
+    {
+      "name": "design",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "make",
+        "--no-print-directory",
+        "design-check"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 22.58925255597569
+    },
+    {
+      "name": "strict",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "--experimental-strip-types",
+        "tools/ts-checks/src/loop/cli.ts",
+        "--base",
+        "52bc6005dc168f2254d21ff79f6cd2df021676b8",
+        "--strict",
+        "--out",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-common-r1/loop"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 57.60992644901853
+    }
+  ],
+  "complete": true
+}

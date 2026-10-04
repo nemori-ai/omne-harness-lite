@@ -9,7 +9,7 @@
 
 **定向 fork pi 的传输一层，放进本 monorepo 一个包；HTTP 用 Node 内置 `node:https` 直发，不带 pi 的 SDK 依赖。**
 
-- **方向与基线已接受**：[D-019](../../../../record/decisions/model-provider-pi-ai-fork/decision.md#选择与范围)（以 pi-ai 的 OpenRouter 协议请求与流／工具解析为基线，定向 fork；目录估价不得冒充实际费用；拒绝整包服务层）；[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-5 与 [D-019 追加 2026-09-25](../../../../record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-25.md)（基线 `earendil-works/pi` 提交 `3390bd93630965a12a0a1a5c36ce890ec22f7e1d`，即 `@earendil-works/pi-ai@0.86.1`；**只取传输一层**：请求发出、流片段接收、供应商错误映射；其余 pi 代码不进来）。R-5 比 D-019 原文窄：**pi 的模型目录不进来**——本系统的档案归 `capability.model-profile-directory`，目录费率本来就不许用。
+- **方向与基线已接受**：[D-019](../../../../record/decisions/model-provider-pi-ai-fork/decision.md#选择与范围)（以 pi-ai 的 OpenRouter 协议请求与流／工具解析为基线，定向 fork；目录估价不得冒充实际费用；拒绝整包服务层）；[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-5 与 [D-019 追加 2026-09-25](../../../../record/decisions/model-provider-pi-ai-fork/gate-status-2026-09-25.md)（基线 `earendil-works/pi` 提交 `3390bd93630965a12a0a1a5c36ce890ec22f7e1d`，即 `@earendil-works/pi-ai@0.86.1`；**只取传输一层**：请求发出、流片段接收、供应商错误映射；其余 pi 代码不进来）。2026-10-02 按 R-5「按需同步」改锚到 1.0.0 发布提交 `a13d35a`，代码未改（[D-019 追加 2026-10-02](../../../../record/decisions/model-provider-pi-ai-fork/rebase-1.0.0-2026-10-02.md)）。R-5 比 D-019 原文窄：**pi 的模型目录不进来**——本系统的档案归 `capability.model-profile-directory`，目录费率本来就不许用。
 - **流片段语法**：[D-035](../../../../record/decisions/message-and-stream-baseline/decision.md#选择与范围)——pi 只在传输适配处被翻译进来；[保留前提](../../../../record/decisions/message-and-stream-baseline/decision.md#理由与保留前提) 1（fork 禁止中间解析、唯一解析点在装配器）与 2（custom grammar 分支会构造 JSON 增量）由本节点的 [fork 边界](#fork-边界)兑现：普通 function 分支去掉 `parseStreamingJson`，custom grammar 分支整个不取。
 - **上游语义的来源**：pi 0.86.1 的行为读数全部来自研究 `model-request-transport-sources`（`.meta_harness/research/` 下，证据记录 E2、E3；OpenRouter 用量文档 E11）——**离线读数，未升 basis，一律是待核对主张**。fork 之后这些行为变成本包自己的代码，证据改为本包的符合性测试（[verification](verification.md#证据义务)），不再需要以「上游缺省行为」立 basis；契约 [G-10](../../../../spec/capabilities/model-request-runtime/v2/contract.md#十二已知缺口) 已按 D-060 §八 N-40 ④ 采用本包 T-1～T-11 为验证路径；测试尚未执行，不能据此称 G-10 已兑现。**Node `node:https` 的三条行为**（不跟随重定向、请求没有缺省总超时、`signal` 中止在途请求）是**假设，须按 source-check 取证**；本包的符合性测试恰好会在它们变了时失败（[verification](verification.md#证据义务) T-9、T-1、T-10）。
 - **Cordis 采用版本** `@deepseek-ai/cordis` 4.0.4（[D-025](../../../../record/decisions/cordis-adoption-version/decision.md)），只在插件子入口里用；插件层共用件取 [kernel-basis](../../core/kernel-basis/README.md)（`definePlugin`）。
@@ -21,7 +21,7 @@
 
 ## fork 边界
 
-**来源**：`earendil-works/pi` 提交 `3390bd9`，`packages/ai/src/`（下表路径都相对它）；来源归档的 SHA-256 记在研究 `model-request-transport-sources` 证据记录的「取证条件总览」里（`29b35ae6…`）。**取的是函数与片段，不是整文件照搬**；每个取来的片段在本包里保留原作者的 MIT 许可声明与「来自哪个文件、哪个提交、改了什么」的头注。
+**来源**：`earendil-works/pi` 1.0.0 发布提交 `a13d35a`，`packages/ai/src/`（下表路径都相对它）。下表初稿按 0.86.1 之后的 `3390bd9` 写成，那份来源归档的 SHA-256 记在研究 `model-request-transport-sources` 证据记录的「取证条件总览」里（`29b35ae6…`）；两版之间下表所涉两个文件的改动逐处处置与新归档的哈希见 [D-019 追加 2026-10-02](../../../../record/decisions/model-provider-pi-ai-fork/rebase-1.0.0-2026-10-02.md)。**取的是函数与片段，不是整文件照搬**；每个取来的片段在本包里保留原作者的 MIT 许可声明与「来自哪个文件、哪个提交、改了什么」的头注。
 
 | 上游位置 | 取不取 | 在本包里改了什么／为什么不取 |
 | --- | --- | --- |
@@ -160,7 +160,7 @@
 | `SystemReminderMessage` | `role: user`，内容前后由本包按类型加系统标识；路由在 `routeWireHints` 里写了 `reminderRole: developer` 的落 `role: developer` | PF-009 §5.2 的示意（openai → Developer，anthropic → User）只说各家可以不同，落点由 adapter 定；**不按路由名认家族**，所以缺省取各家都支持的 `user`；**标识防冒充的做法未定**（PF-009 §5.3，PAT-N12） |
 | `CompactionMessage` | `role: user`，同样加系统标识 | 同上 |
 | 助手消息：文本、工具调用 | `role: assistant`，文本拼成字符串；工具调用 `tool_calls[{ id: CallId, type: function, function: { name, arguments: 原文 } }]` | 同 pi；`CallId` 不合上游词法时按 pi 的 `normalizeToolCallId` 在同一个请求里确定性地改写，调用与结果一起改 |
-| 助手消息：思考块 | 同一路由名且带着本传输写的 `opaque` ⇒ `reasoning_details` 原样带回；否则只把思考文本放进 `reasoning` 字段、**不折进正文** | `data.content-blocks/v2` S-9 把「换了模型带不带」交给传输适配；比较门「私有 replay」项（PAT-N13） |
+| 助手消息：思考块 | 同一路由名且带着本传输写的 `opaque` ⇒ `reasoning_details` 原样带回；带 `opaque` 但路由名不同 ⇒ **规划拒绝** `unavailable`，原块不剥离、不降级为明文；不带 `opaque` 的思考文本放进 `reasoning` 字段、**不折进正文** | `data.content-blocks/v2` S-9 把「换了模型带不带」交给传输适配；本包选拒绝：签名／密文降级为明文会改线上语义与计量基准，`reasoning.encrypted` 亦无文本可降级；跨模型切换时对外来 opaque 思考块的处置归运行时上下文组装（GG-11）；比较门「私有 replay」项（PAT-N13） |
 | 工具消息（结果） | `role: tool`，文本块拼接；结果里的图 ⇒ 紧跟一条 `role: user` 装图（chat-completions 的工具消息不收图，同 pi） | 模型不收图 ⇒ 规划拒绝（S-38 第 7 条）；结果为空时 pi 写「(no tool output)」——本包照写，列入比较门 |
 | `ToolInternalMessage` | **规划拒绝**（它根本不该到这里，`data.messages/v2` S-36） | — |
 | 有调用、无结果的工具调用 | **规划拒绝** `orphan_tool_call`（pi 会补一条「No result provided」，那是凭空造内容） | 组装一侧的缺陷应当暴露 |

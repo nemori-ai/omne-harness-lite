@@ -1,0 +1,12 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/packages/model/model-request-runtime
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed | 13 skipped (14)
+Type Errors  no errors
+   Start at  06:01:43
+   Duration  7.27s (transform 3.00s, setup 0ms, import 6.80s, tests 323ms, environment 0ms)
+

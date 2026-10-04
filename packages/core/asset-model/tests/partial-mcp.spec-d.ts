@@ -1,5 +1,6 @@
 import { expectTypeOf } from 'vitest'
 import {
+  createAssetModelJudge,
   attributeDeclarationsOf,
   type BodyContract,
   type BodyContracts,
@@ -29,12 +30,14 @@ const hiddenUndefined = { underivable: 'connector' as const, actionSnapshotKind:
 const forbiddenUnderivableField: DeclarationResult<'connector'> = hiddenUndefined
 
 declare const ports: BodyContracts
-const mcp = attributeDeclarationsOf({ category: 'mcp', body: {} }, ports)
+const portsJudge = createAssetModelJudge(ports)
+
+const mcp = attributeDeclarationsOf({ category: 'mcp', body: {} }, portsJudge)
 expectTypeOf(mcp).toEqualTypeOf<DeclarationResult<'mcp'>>()
 expectTypeOf(mcp.actionSnapshotKind).toEqualTypeOf<'fetched' | 'not_fetched' | undefined>()
 // @ts-expect-error this overload preserves MCP's fixed known result
 mcp.underivable
-const tool = attributeDeclarationsOf({ category: 'tool', definition: {} }, ports)
+const tool = attributeDeclarationsOf({ category: 'tool', definition: {} }, portsJudge)
 expectTypeOf(tool).toEqualTypeOf<DeclarationResult<'tool'>>()
 expectTypeOf<ReturnType<BodyContract<'mcp'>['deriveDeclarations']>>().toEqualTypeOf<
   DeclarationResult<'mcp'>

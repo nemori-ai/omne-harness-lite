@@ -1,0 +1,15 @@
+{
+  "schema": {
+    "metadata": "schema-01.json",
+    "exit_code": 0,
+    "cases": 70
+  },
+  "formal": "formal-runs.json",
+  "prior_formal": "prior-model-applicability.json",
+  "design": "design-03.json",
+  "docs": "docs-03.json",
+  "snapshot": "semantic-snapshot-02.json",
+  "candidate_files": "candidate-files.json",
+  "integrity": "integrity-check.json",
+  "status": "candidate; edits released; no commit"
+}

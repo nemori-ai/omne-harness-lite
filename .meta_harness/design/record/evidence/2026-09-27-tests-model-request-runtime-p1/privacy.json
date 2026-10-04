@@ -1,0 +1,18 @@
+[
+  {
+    "runId": "p1-public-345c6a7f-d414-48af-82a6-193d55cafeda",
+    "directoryMode": "0700",
+    "fileMode": "0600",
+    "uid": 1001,
+    "nobodyReadDenied": true,
+    "files": 22
+  },
+  {
+    "runId": "p1-public-5ca9531b-5573-42eb-a5cf-56be6b3dc81f",
+    "directoryMode": "0700",
+    "fileMode": "0600",
+    "uid": 1001,
+    "nobodyReadDenied": true,
+    "files": 22
+  }
+]

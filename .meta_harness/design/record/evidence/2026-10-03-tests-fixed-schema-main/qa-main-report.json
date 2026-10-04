@@ -1,0 +1,167 @@
+{
+  "verdict": "Pass with issues",
+  "commit": "28dd49e0018f455c53b278bc3309b9c80c2ef2f7",
+  "baseline_commit": "9e5a141bef120be42b5a92364fc71378815fa090",
+  "run_id": "qa65-main-r1-20261003",
+  "exit_code": 0,
+  "verifier": "qa",
+  "verifier_instance": "/root/qa65_main",
+  "completion": "All seven dispatched observable criteria executed. This verdict is not acceptance.",
+  "date_utc": "2026-10-03",
+  "delivery_surface": "20 fixed-owner package graphs, CB published technical subpaths, AM owner API, inherited CLI validation/help",
+  "candidate_checkout": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c",
+  "baseline_checkout": "/data/qiwei/repos/omne-harness-lite/tmp/s65-b",
+  "build": {
+    "prepared_by": "ROOT",
+    "description": "46 affected/dependency members. 41 unchanged successful builds reused after the three AM consumer migrations. Five failed or unstarted members rebuilt serially at the frozen candidate.",
+    "record": "../../final65-main-integration/clones-r1/result.json",
+    "followup_record": "../../final65-main-integration/clones-r1/candidate-build-followup.json",
+    "independent_representative_bootstrap": "fault-clean-bootstrap.log",
+    "all_member_build_is_not_qa_acceptance_evidence": true
+  },
+  "environment": {
+    "node": "v24.21.0",
+    "cpu_affinity": [7],
+    "nice": 5,
+    "locale": "C.UTF-8",
+    "VITEST_MAX_WORKERS": "1",
+    "OMNE_TEST_MEMBER_CONCURRENCY": "1",
+    "npm_config_workspace_concurrency": "1",
+    "TMPDIR": "/tmp/omne-s65-c-jhig53a9",
+    "native_source_launch": "node --experimental-transform-types",
+    "maximum_attempts_per_failed_scenario": 3,
+    "application_process_timeout_seconds": [120, 180, 240, 360],
+    "fixed_sleeps": false,
+    "machine_slot_wrapper_used": false
+  },
+  "criteria": [
+    {
+      "id": 1,
+      "source": "qa-brief.md: Required observable checks, item 1; D-116 and owner supplements FS65-1/2/5",
+      "trigger": "Import public source/dist entries in fresh native processes with compiler loading unavailable, then call validators and every finite generated definition.",
+      "observable": "Both channels use the finite generated graph. Unknown values and full available errors match the baseline. A second fresh process matches the first.",
+      "scenario": ["../scenarios/finite.mjs", "../scenarios/runner.py finite", "../scenarios/runner.py source-retry"],
+      "evidence": ["finite-baseline.log", "finite-candidate-dist.log", "finite-candidate-src-r2.log", "finite-second-process.log", "structure/finite-comparison.json", "structure/finite-source-r2-comparison.json"],
+      "result": "Pass",
+      "counts": {"owners": 20, "finite_nonmeta_definitions": 434, "meta_export": 1, "graph_calls_per_process": 7378, "public_calls_per_process": 6804, "cli_calls_per_process": 17, "baseline_records_per_process": 14199, "successful_candidate_processes": 3, "equal_records": 42597, "runtime_compiler_loads": 0},
+      "notes": "All 19 package root entries import in src and dist. CLI exposes its existing validation entry. Private frontend/session graphs are invoked through their actual generated functions. Source mode needed Node transform-types, as the existing CB JSON class uses a parameter property. The failed launcher log remains."
+    },
+    {
+      "id": 2,
+      "source": "qa-brief.md: Required observable checks, item 2; D-116 native binding; construction r4 exact/meta/B1 oracle",
+      "trigger": "Use the published CB code-runtime/schema-codegen subpaths, generate a native module, call source/dist text handoffs and the real messages numeric consumer, interleave calls, then separate the receiver in a QA artifact.",
+      "observable": "Exact boolean and complete raw errors agree with baseline semantics. Caller input and schema stay unchanged. Retained errors are independent. The deliberate receiver split exposes a brand mismatch.",
+      "scenario": ["../scenarios/exact.mjs", "../scenarios/messages-numeric.mjs", "../scenarios/identity-countercontrol.mjs"],
+      "evidence": ["exact-native-r2.log", "semantic/exact-native-r2.jsonl", "messages-numeric-r2.log", "structure/identity-countercontrol-result.json"],
+      "result": "Pass",
+      "counts": {"exact_keyword_functions": 16, "independent_exact_cases": 35, "src_dist_boolean_and_error_comparisons": 70, "meta_checks_including_baseline": 18, "real_messages_numeric_checks_including_baseline": 21, "receiver_negative_controls": 1},
+      "notes": "Covers fractional integers, integer/string unions, positive/negative tiny and huge exponents, exact bounds/multiples/const/enum/uniqueItems, all cardinality functions, escaped nested keys, propertyNames, external refs, dynamic refs and interleaved snapshots. The final countercontrol uses a type-constrained huge integer. An earlier minimum-only negative control was not a valid oracle because numeric keywords ignore nonnumbers."
+    },
+    {
+      "id": 3,
+      "source": "qa-brief.md: Required observable checks, item 3; D-116 build transaction and FS65-4",
+      "trigger": "Build CB with no dist/generated, then inject tsc, missing resource after tsc, invalid standard meta, a later missing definition and a real EISDIR output write failure in a private fixture.",
+      "observable": "Every failure returns nonzero and removes both output directories, including old successful outputs. Restored inputs build successfully.",
+      "scenario": ["../scenarios/fixtures.py faults"],
+      "evidence": ["fault-clean-bootstrap.log", "fault-tsc.log", "fault-missing-resource.log", "fault-standard-meta.log", "fault-later-definition.log", "fault-output-write.log", "structure/fault-summary.json"],
+      "result": "Pass",
+      "counts": {"clean_bootstrap": "1/1", "failure_classes": "5/5", "nonzero_exits": "5/5", "both_outputs_removed": "5/5", "recovery_builds": "5/5"},
+      "notes": "The original driver, tsc and real compiler run. Ajv is privately copied, not shared or replaced. Hooks remove an external resource after successful tsc and create a genuine output path collision. No source/config in either clean checkout changes."
+    },
+    {
+      "id": 4,
+      "source": "qa-brief.md: Required observable checks, item 4; D-116 first-use failure and published artifact",
+      "trigger": "Remove the generated ordinary module or exact helper before first use in a private fixture, restore it and retry in the same process. Pack the actual candidate CB package and consume the extracted tarball.",
+      "observable": "The original MODULE_NOT_FOUND error propagates. No false validation result or stale fallback appears. A retry succeeds. Packed generated outputs and both new exports exist and execute.",
+      "scenario": ["../scenarios/fixtures.py loading", "../scenarios/fixtures.py pack-retry"],
+      "evidence": ["load-missing-generated.log", "load-missing-helper.log", "pack-real.log", "pack-consume.log", "structure/pack-files.json"],
+      "result": "Pass",
+      "counts": {"original_loading_errors": "2/2", "same_process_retry_success": "2/2", "actual_packed_artifacts": 1, "published_technical_exports": "2/2"},
+      "notes": "Packed consumption uses its real dist/generated files and links only already-installed external dependencies. No package installation or network backend is used. The first archive-extraction attempt hit the host Python tar API version, before consuming the product. The same actual archive was then extracted and consumed."
+    },
+    {
+      "id": 5,
+      "source": "qa-brief.md: Required observable checks, item 5; D-116 freshness and FS65-3/6",
+      "trigger": "Change current raw resource, source, helper, options, version, definitions or resolution inputs without rebuilding. Rebuild a changed valid BlockId schema. Mutate imported MR JSON before first use in fresh source/dist processes.",
+      "observable": "The actual current-input fingerprint no longer equals the delivered artifact. The valid rebuilt schema rejects the newly short value. Restoring and rebuilding restores original fingerprint/output hashes. MR still follows its built graph.",
+      "scenario": ["../scenarios/freshness.mjs"],
+      "evidence": ["freshness.log", "structure/freshness-result.json", "freshness-rebuild.log", "freshness-rebuilt-behavior.log", "freshness-restored-build.log", "mr-mutation-src.log", "mr-mutation-dist.log"],
+      "result": "Pass",
+      "counts": {"changed_input_classes_detected": "14/14", "changed_valid_schema_rebuild": "1/1", "restored_original_fingerprint_and_outputs": "1/1", "mr_before_first_use_mutation": "2/2"},
+      "notes": "This is the declared development freshness check, not a runtime mutation watch. It recomputes present bytes and configuration. The manifest is only the delivered-artifact reference. A real rebuilt behavior change and restored output hashes provide additional evidence."
+    },
+    {
+      "id": 6,
+      "source": "qa-brief.md: Required observable checks, item 6; D-116 AM owner interface and public-boundary-r2",
+      "trigger": "Construct AM from supplied ports, replace values/functions after construction, invoke two declarations and manifest parsing, compile public positive/negative type examples, and compare refusals/callback identity with baseline.",
+      "observable": "Invalid supply fails immediately. The owner stays bound. Its 25 main definitions compile only once. Two explicit open-domain/default calls still create and compile temporary authors. Old supply arguments fail type checking. Category returns remain correlated.",
+      "scenario": ["../scenarios/am.mjs", "../scenarios/am-types.ts"],
+      "evidence": ["am-candidate-dist-r2.log", "am-candidate-src-r2.log", "am-baseline-dist-r2.log", "am-public-types-r2.log", "structure/am-baseline-comparison.json"],
+      "result": "Pass",
+      "counts": {"candidate_entry_channels": "2/2", "invalid_supply_cases_per_channel": "2/2", "main_requests_per_original_owner": 25, "main_graph_constructions": 1, "temporary_author_compilations": 2, "old_argument_type_negative_cases": 3, "category_type_positive_cases": 2, "refusal_order_cases_per_channel": 3, "callback_identity_cases_per_channel": 2},
+      "notes": "Body ports are supplied test doubles at the explicitly allowed injected-port boundary. No body-contract correctness claim is made. Constructor/compile instrumentation logs real Ajv calls and does not replace application behavior. Its first static-property wrapper failed before product execution, and the corrected wrapper keeps the same assertions."
+    },
+    {
+      "id": 7,
+      "source": "qa-brief.md: Required observable checks, item 7; CLI FS65-1/2 and GCE own 107-definition domain",
+      "trigger": "Run candidate/baseline help, import valid/invalid bundled forms in source/dist fixtures, inspect each own GCE validator's resolved schema metadata, reject inherited prototype names, and run existing affected CLI acceptance.",
+      "observable": "Help exits successfully. Invalid metadata throws at import. Every own schema metadata snapshot matches baseline, including aliases. Prototype names throw as outside the finite domain. Existing CLI acceptance remains green.",
+      "scenario": ["../scenarios/cli-metadata.mjs", "pnpm exec vitest run --config acceptance/vitest.config.ts --maxWorkers 1"],
+      "evidence": ["cli-help-candidate.log", "cli-help-baseline.log", "forms-valid-src.log", "forms-valid-dist.log", "forms-invalid-src.log", "forms-invalid-dist.log", "structure/cli-metadata-result.json", "cli-affected-acceptance.log"],
+      "result": "Pass",
+      "counts": {"help_runs": "2/2", "own_gce_metadata": "107/107", "prototype_names_outside_domain": "2/2", "forms_positive_imports": "2/2", "forms_negative_imports": "2/2", "existing_cli_acceptance": "5/5"},
+      "notes": "The existing CLI suite is affected-consumer evidence. It is not a new TUI release verdict. The first private forms fixture missed commands/governance.json, then the complete fixture passed the original forms assertions."
+    }
+  ],
+  "summary": {"passed_criteria": 7, "failed_criteria": 0, "uncovered_required_criteria": 0, "independent_product_defects": 0},
+  "defects": [],
+  "verification_issues": [
+    {"id": "QA-I1", "classification": "deterministic QA launcher/fixture defects", "description": "Initial source launcher, Ajv instrumentation wrapper, root compiler coordinate, Python archive extraction and incomplete CLI fixture prevented execution. Corrected facilities passed unchanged product assertions. Every failed output remains in commands.json and raw/."},
+    {"id": "QA-I2", "classification": "deterministic QA scenario corrections", "description": "The extra messages numeric case initially used an unregistered definition name. The receiver split initially lacked its dependency resolution coordinate, then used an unconstrained numeric-keyword oracle. Final cases use the actual own definition and a type-constrained huge integer. These are not product retries or flaky observations."}
+  ],
+  "attempts": [
+    {"scenario": "finite source", "attempts": 2, "final_hits": "1/1", "first_failure": "ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX without transform-types"},
+    {"scenario": "exact source/dist", "attempts": 2, "final_hits": "1/1", "first_failure": "same source launcher limitation"},
+    {"scenario": "AM per mode", "attempts": 2, "final_hits": "1/1", "first_failure": "QA wrapper attempted to assign inherited getter"},
+    {"scenario": "AM public types", "attempts": 2, "final_hits": "1/1", "first_failure": "TypeScript is a member dependency, not root dependency"},
+    {"scenario": "packed consumption", "attempts": 2, "final_hits": "1/1", "first_failure": "Python tar extraction filter keyword unsupported"},
+    {"scenario": "CLI metadata fixture", "attempts": 2, "final_hits": "1/1", "first_failure": "QA fixture omitted existing commands resource"},
+    {"scenario": "additional messages numeric", "attempts": 2, "final_hits": "1/1", "first_failure": "Interrupted is outside the finite definition set; actual name is InterruptedSource"},
+    {"scenario": "receiver negative control", "attempts": 3, "final_hits": "1/1", "earlier_failures": ["missing consumer resolution context", "minimum-only schema does not require numeric type"]}
+  ],
+  "uncovered": [
+    {"scope": "three default owners' later lazy construction and publication snapshot timing", "reason": "Explicitly excluded from this main PR and assigned to the next PR."},
+    {"scope": "performance adoption and all-member gates", "reason": "ROOT owns these decisions and evidence. They are not this package verdict."},
+    {"scope": "TUI terminal matrix, non-TTY, resize, wide characters, restoration, scrollback, paste and machine-output purity gates", "reason": "Non-TUI delivery surface. No terminal interaction/layout changes are dispatched. Inherited CLI acceptance is checked without a new TUI release claim."},
+    {"scope": "real backend/network body implementations", "reason": "No backend protocol changes are dispatched. AM proves behavior through its supplied-port boundary only."},
+    {"scope": "Stryker randomized sandbox build integration", "reason": "ROOT relayed an implementation-reviewer counterexample. QA did not execute that separate integration entry in this frozen run. ROOT will reproduce and fix it, then dispatch a minimal driver reacceptance."}
+  ],
+  "residual_risks": [
+    "This verdict applies to the fixed candidate and the enumerated input/artifact hashes. Any changed driver, helper, schema, definition, option, package resolution or related emitted file needs an impact review and affected reacceptance.",
+    "The independent finite matrix is broad but does not exhaust every possible JSON value or frontend service flow.",
+    "Fault transaction evidence is representative CB evidence, not five fault injections in all 20 owners.",
+    "Source entry checks require Node's transform-types mode for existing TypeScript parameter properties. Dist checks use ordinary native Node.",
+    "The observed numerical/identity properties are executable evidence under this environment, not unconditional formal proofs."
+  ],
+  "substitute_boundaries": [
+    {"location": "AM supplied BodyContractSupply ports", "type": "test doubles for externally injected body contracts", "claim_limit": "owner capture, graph reuse, declaration/manifest behavior, refusals and callback propagation only"},
+    {"location": "build fault hooks", "type": "fixture filesystem faults after real tsc and at a real write path", "claim_limit": "real CB build transaction cleanup and recovery"}
+  ],
+  "exploration": [
+    "The deliberate receiver separation becomes visible when exact type validation receives a huge lossless integer. A minimum-only schema correctly ignores values it does not recognize as numbers, so it is not a standalone brand oracle.",
+    "ROOT's reported Stryker path-guard integration issue remains a separate pending observation. This report contains no independent reproduction or fix verdict for it."
+  ],
+  "evidence_layers": {"semantic": "semantic/", "structure": "structure/", "raw": "raw/", "commands": "commands.json", "input_and_artifact_hashes": "checkout-integrity.json", "scenario_hashes": "structure/scenario-input-sha256.json"},
+  "cleanup": {
+    "started_external_services": [],
+    "remaining_application_processes": [],
+    "terminal_multiplexer_servers": [],
+    "terminal_modes_changed": false,
+    "clean_candidate_and_baseline_status": "empty git status at frozen coordinate",
+    "product_source_tests_lockfiles_configs_modified": false,
+    "dependency_installations": false,
+    "write_scope": "QA-owned scenarios/ and evidence/ only",
+    "fixtures_retained": "Evidence fixture, packed artifact and CLI fault fixtures retained for replay. The CB representative fixture ends at restored original inputs and matching original fingerprint/output hashes.",
+    "testing_lane": "Explicitly released to ROOT after all product execution completed."
+  }
+}

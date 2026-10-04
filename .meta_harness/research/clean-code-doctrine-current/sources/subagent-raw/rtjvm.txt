@@ -1,0 +1,71 @@
+Robert Martin on Clojure, AI, Programming Languages and the Craft of Good Code | Rock the Code Podcast | Rock the JVM
+Rock the JVM Rock the JVM    ROCKTHEJVM
+CoursesArticlesPodcastVideosSign InJoin Rock the JVM
+Search     Ctrl+K
+Close
+-->
+System Theme      Light Theme      Dark Theme     Open main menu
+← All episodes
+Robert Martin on Clojure, AI, Programming Languages and the Craft of Good Code
+Jul 17, 2025 • 1h 39m
+Video
+Audio
+About this episode
+Robert Martin aka "Uncle Bob" is a software engineer for more than 50 years, and the author of many influential programming books, including Clean Code and Clean Architecture, and one of the founders of the Agile methodology.
+He teaches principles of software craftsmanship at https://cleancoders.com/
+0:00 Intro
+1:04 Uncle Bob's journey into Clojure
+5:05 Why Uncle Bob prefers Clojure over Java
+8:30 Dynamic vs. static typing
+13:08 How TDD replaces type checkers
+20:10 Dijkstra's failed dream of provable software
+30:20 AI as a co-pilot: the danger of blind trust
+43:00 Will AI replace programmers?
+56:00 Clean Code principles in the age of AI
+1:04:00 Clean Code 2nd edition: what changed
+1:13:20 Osterhout's critique of Clean Code
+1:17:51 The only way to go fast: craftsmanship
+1:21:16 Filtering the churn: spotting old news
+1:28:08 Essential books every programmer should read
+1:35:54 Don't fear the future
+1:37:11 How Uncle Bob developed as a teacher
+This site uses cookies. Check our cookie policy (TLDR: no personal information is stored). For more information see our cookie policy.
+Accept allReject all
+Footer
+Subscribe to our newsletter!
+Email address
+Subscribe
+This site is built on trust, and your data is safe. Check out the
+privacy policy
+.
+Thank you for subscribing! Check your email for confirmation.
+Content
+Articles
+Courses
+Videos
+Scala Courses
+Kotlin Courses
+Typelevel Courses
+ZIO Courses
+Apache Spark Courses
+Apache Flink Courses
+Akka/Pekko Courses
+Support
+Contact
+Memberships
+Company
+About
+Policies
+Cookie
+Privacy
+Refund
+Terms
+Trademark
+Clear Cookies
+Facebook
+GitHub
+LinkedIn
+Twitter
+YouTube
+RSS
+© 2017–2026 Accelerated Learning System SRL

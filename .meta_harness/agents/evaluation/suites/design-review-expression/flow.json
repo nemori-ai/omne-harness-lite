@@ -1,0 +1,538 @@
+{
+  "format": 1,
+  "id": "design-review-expression",
+  "version": 1,
+  "family": "review",
+  "role": "design-reviewer",
+  "judgment": "表达",
+  "criteria_page": "references/review/expression.md",
+  "attach_design_review": true,
+  "reps": 2,
+  "host": {
+    "claude-code": {
+      "model": "claude-opus-5-5",
+      "effort": "xhigh",
+      "allowed": ["Read", "Glob", "Grep"]
+    }
+  },
+  "workspace": {
+    "base": "6694e2d6b29a95ec7ddbd6194b74439bd7b4766e",
+    "material_paths": [".meta_harness/design"],
+    "material_excludes": [".meta_harness/design/record/evidence"],
+    "subject_paths": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".meta_harness/AGENTS.md",
+      ".meta_harness/CLAUDE.md",
+      ".meta_harness/README.md",
+      ".meta_harness/agents/skills",
+      ".meta_harness/tooling"
+    ]
+  },
+  "metrics": [
+    {"id": "caught", "kind": "binary", "label": "抓到种入"},
+    {"id": "read_only", "kind": "binary", "label": "只读"},
+    {"id": "names_page", "kind": "binary", "label": "写明判据页"},
+    {"id": "out_of_kind", "kind": "float", "label": "越出判断条数", "scale": 5, "better": "lower"},
+    {"id": "novel_blocking", "kind": "float", "label": "表外阻断条数", "scale": 5, "better": "lower"},
+    {"id": "blocking", "kind": "float", "label": "阻断条数", "scale": 10}
+  ],
+  "signoffs": {
+    "cases": {"by": "panqiwei", "date": "2026-10-01", "version": 1},
+    "grading": {"by": "panqiwei", "date": "2026-10-01", "version": 1,
+                "judge": "judge:subagent:claude-sonnet-5-5 rules 70fdea287e52"}
+  },
+  "materials": [
+    {
+      "id": "raf-contract",
+      "target": "capability.run-attempt-facts v2 的契约，改成 candidate 后种入",
+      "contract": "capability.run-attempt-facts/v2",
+      "brief": "briefs/raf-contract.md",
+      "tags": ["种入的", "主会话写的"],
+      "prepare": [
+        {
+          "op": "catalog-candidate",
+          "registry": ".meta_harness/design/registry",
+          "contract_id": "capability.run-attempt-facts",
+          "version": 2
+        }
+      ],
+      "seeds": [
+        {
+          "id": "E1",
+          "kind": "tool",
+          "check": "bare-clause-ref",
+          "where": "S-6 第 4 条",
+          "truth": "跨契约引用丢了坐标：本契约没有 S-39",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "**所以依它写下的 `late` 只可能漏标、不会误标**（`data.call-accounts/v2#S-39`）",
+            "replace": "**所以依它写下的 `late` 只可能漏标、不会误标**（见 S-39）"
+          }
+        },
+        {
+          "id": "E2",
+          "kind": "tool",
+          "check": "dependency-clause-missing",
+          "where": "registry/catalog.json 对 data.messages v2 的依赖",
+          "truth": "catalog 登记消费 data.messages/v2#S-97，目标契约没有这一条，正文 S-4 也没有列它",
+          "op": {
+            "op": "catalog-add-clause",
+            "registry": ".meta_harness/design/registry",
+            "contract_id": "capability.run-attempt-facts",
+            "version": 2,
+            "dependency": {"contract_id": "data.messages", "version": 2},
+            "clause": "S-97"
+          }
+        },
+        {
+          "id": "E3",
+          "kind": "judgment",
+          "where": "S-9 ⑥",
+          "truth": "失败集合开放式收尾，与 S-8「失败值总表是全部失败值」及 ⑥「闭合枚举」冲突",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "| ⑥ | `invalidInput`（任一参数缺席或不合形状）→ `attemptNotFound`；读不到、认不出终结记录 ⇒ `unavailable` |",
+            "replace": "| ⑥ | `invalidInput`（任一参数缺席或不合形状）→ `attemptNotFound`；读不到、认不出终结记录 ⇒ `unavailable`；其他错误由提供者自定 |"
+          }
+        },
+        {
+          "id": "E4",
+          "kind": "judgment",
+          "where": "S-9 ①",
+          "truth": "身份参数有了默认值，与 S-8「会话、运行、尝试缺一即 invalidInput，不从进程上下文补」冲突",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "| ① | `session`（`SessionRef`）、`run`（`RunId`）、",
+            "replace": "| ① | `session`（`SessionRef`；缺省时取调用方当前所在的会话）、`run`（`RunId`）、"
+          }
+        },
+        {
+          "id": "E5",
+          "kind": "judgment",
+          "where": "S-12 撤除时在途的读",
+          "truth": "缺席时放行：与 S-8、S-9 ⑧「判不出不答未取代、未终结」冲突",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "- **撤除时在途的读**：调用方可能等不到回答，按 `unavailable` 处置。",
+            "replace": "- **撤除时在途的读**：调用方可能等不到回答，按「仍是当前、尚未终结」处置，以免挡住落账。"
+          }
+        },
+        {
+          "id": "E6",
+          "kind": "judgment",
+          "where": "S-9 ⑤",
+          "truth": "半截答复：与 S-8「两件事实要么一起答出，要么一起不答」冲突",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "| ⑤ | `superseded`、`runEnded`：两个都给出的真值（[S-5](#s-5-两件事实)） |",
+            "replace": "| ⑤ | `superseded`、`runEnded`（[S-5](#s-5-两件事实)）；`runEnded` 认不出时可以省略，只给 `superseded` |"
+          }
+        },
+        {
+          "id": "E7",
+          "kind": "judgment",
+          "where": "S-7 第 2 条",
+          "truth": "机制进了契约：inject、serial 与服务键属于提供者设计，不属于语言无关的契约",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "这一次读都看得见（`capability.session-log/v2#S-13` 第 4 条）。",
+            "replace": "这一次读都看得见（`capability.session-log/v2#S-13` 第 4 条）；提供者以 `ctx.inject(['sessionLog'])` 取得日志服务，并在每次调用里先 `await ctx.serial('session-log/flush')` 再读。"
+          }
+        },
+        {
+          "id": "E8",
+          "kind": "judgment",
+          "where": "进展性质表第一行",
+          "truth": "声明超过证据：S-13 写明不建形式模型，registry 里也没有对应的 formal task",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "| 新尝试的第一条条目提交之后开始的读，都答「已被取代」 | 那一次提交返回之后的第一次读 |",
+            "replace": "| 新尝试的第一条条目提交之后开始的读，都答「已被取代」（已由 TLC 在本契约的行为模型上检查） | 那一次提交返回之后的第一次读 |"
+          }
+        },
+        {
+          "id": "E9",
+          "kind": "tool",
+          "check": "analysis-id-in-contract",
+          "where": "不变量表第一行",
+          "truth": "分析阶段的编号进了契约",
+          "op": {
+            "op": "replace",
+            "file": ".meta_harness/design/spec/capabilities/run-attempt-facts/v2/contract.md",
+            "find": "| **两件事实只从假变真** | [S-6](#s-6-只从假变真) |",
+            "replace": "| **两件事实只从假变真**（INV-2） | [S-6](#s-6-只从假变真) |"
+          }
+        }
+      ],
+      "known_issues": [
+        {"id": "K1", "verdict": "artefact", "what": "状态与版本血缘互相矛盾：一个已接受、已冻结的 v2 被登记成 candidate 并原地修订。这是为了让契约可以受审而做的处理，不是契约的问题；对照里四份报告都把它报成阻断"},
+        {"id": "K2", "verdict": "real", "what": "「设计依据」写的 PF-012 rev 14 落后于 topic 当前 rev。对照里四份报告都报出"},
+        {"id": "K3", "verdict": "real", "what": "页首把 data.messages v2、data.call-accounts v2、capability.session-log v2 标成 candidate，catalog 里它们已是 accepted。对照里三份报告报出"},
+        {"id": "K4", "verdict": "real", "what": "产品装配下的判定次序有两种读法：S-9 ⑥ 写的次序与第十一节对产品装配的说法对不上。对照里四份报告都报出"},
+        {"id": "K5", "verdict": "real", "what": "S-13 说 session-log 的模型「未运行」，而 D-060 §八 N-37 ⑪ 记的是已跑。对照里三份报告报出"},
+        {"id": "K6", "verdict": "real", "what": "examples.md 引用 data.identity-values/v1#S-31，S-4 与 catalog 的依赖条款里都没有它。对照里三份报告报出"},
+        {"id": "K7", "verdict": "unverified", "what": "几处引用只写简称没写坐标（「那份契约的 S-2」「它的 S-15」等）。只有一份报告报出，没有另行核实"},
+        {"id": "K8", "verdict": "unverified", "what": "第十一、十二节与验证入口里关于提供者与主线的说法过时。两份报告报出，没有另行核实"},
+        {"id": "K9", "verdict": "unverified", "what": "账本外名字（superseded、runEnded、attemptNotFound）的接受依据 D-060 N-37 ① 证据不足。两份报告以「未证实」报出"},
+        {"id": "K10", "verdict": "unverified", "what": "「验收装配里由测试种子答」有两种读法；进展性质与规范场景漏写前提。各一份报告报出，没有另行核实"}
+      ]
+    },
+    {
+      "id": "raf-contract-clean",
+      "target": "同一份契约 capability.run-attempt-facts v2，只改成 candidate、不种入，对照材料",
+      "contract": "capability.run-attempt-facts/v2",
+      "brief": "briefs/raf-contract.md",
+      "tags": ["对照"],
+      "prepare": [
+        {
+          "op": "catalog-candidate",
+          "registry": ".meta_harness/design/registry",
+          "contract_id": "capability.run-attempt-facts",
+          "version": 2
+        }
+      ],
+      "seeds": [],
+      "known_issues": [
+        {"id": "K1", "verdict": "artefact", "what": "状态与版本血缘互相矛盾：一个已接受、已冻结的 v2 被登记成 candidate。这是为了让契约可以受审而做的处理"},
+        {"id": "K2", "verdict": "real", "what": "「设计依据」写的 PF-012 rev 14 落后于 topic 当前 rev"},
+        {"id": "K3", "verdict": "real", "what": "页首把三份依赖契约标成 candidate，catalog 里它们已是 accepted"},
+        {"id": "K4", "verdict": "real", "what": "产品装配下的判定次序有两种读法：S-9 ⑥ 与第十一节对不上"},
+        {"id": "K5", "verdict": "real", "what": "S-13 说 session-log 的模型「未运行」，而 D-060 §八 N-37 ⑪ 记的是已跑"},
+        {"id": "K6", "verdict": "real", "what": "examples.md 引用 data.identity-values/v1#S-31，S-4 与 catalog 的依赖条款里都没有它"},
+        {"id": "K7", "verdict": "unverified", "what": "几处引用只写简称没写坐标"},
+        {"id": "K8", "verdict": "unverified", "what": "第十一、十二节与验证入口里关于提供者与主线的说法过时"},
+        {"id": "K9", "verdict": "unverified", "what": "账本外名字的接受依据 D-060 N-37 ① 证据不足"},
+        {"id": "K10", "verdict": "unverified", "what": "「验收装配里由测试种子答」有两种读法；进展性质与规范场景漏写前提"}
+      ]
+    },
+    {
+      "id": "https-json-r1",
+      "target": "composition.governance-center-entry-https-json v1（治理中心入口的传输绑定）首稿，第一轮评审之前的快照",
+      "source": "真实评审。材料是提交 064178402 时的设计树；应当被报出的是 2026-09-23 第一轮 spec-reviewer 评审之后作者在 2c0330226 修掉的问题。评审报告原文没有留存，清单由那次修订的提交说明、验证入口的修订记录与前后差异反推，只取有记录点名的 13 条；记录没有逐条标严重度（总数是 2 阻断、8 应修、12 建议）",
+      "base": "0641784023521e54a22a7cfe5df363f8a4bfcdb6",
+      "contract": "composition.governance-center-entry-https-json/v1",
+      "brief": "briefs/https-json-r1.md",
+      "tags": ["真实的"],
+      "seeds": [
+        {
+          "id": "R1", "kind": "real", "where": "S-10 的接收上界，对 S-18",
+          "truth": "S-10 让实现任取接收上界、没有任何下限，超界即关连接不写字节；S-18 却无条件承诺读不下来的请求都得那 133 个字节、公开体检请求都得公开体检答复。上界取得极低的实现合 S-10 而让 S-18 落空",
+          "quote": "上界的取值归入口层的实现映射，不归本契约。\n- **读不下来或版本不被接受的，一律是那 133 个字节**：请求体按 [S-7](#s-7-请求体怎样读成信封) 读不下来，或读成了信封而 `protocolVersion` 缺席、重复或不被接受，在任何协议版本下都答 examples §1 那份字节。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/contract.md"]
+        },
+        {
+          "id": "R2", "kind": "real", "where": "S-10「上界不得切掉合法的请求」",
+          "truth": "「合法的请求」没有定义：是合 EC Schema 的信封、能得到非 version-mismatch 答复的请求，还是任何能成帧的请求；读法不同，上界该不该切哪些请求就不同",
+          "quote": "- **上界不得切掉合法的请求**，本版却写不出一个可检的下限：EC 的 Schema 对凭据材料、创建键与各不透明标识都没有长度上限，合法信封没有最大值（[G-3](#十一已知缺口)）。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/contract.md"]
+        },
+        {
+          "id": "R3", "kind": "real", "where": "S-7 逐级读法与 S-10 接收上界之间的先后",
+          "truth": "S-7 说任何一级读不下去就答 version-mismatch，S-10 说超界就关连接不写字节，没有说各上界在哪一刻判、与 S-7 各级谁先；两个实现会对同一请求一个答 133 字节、一个关连接",
+          "quote": "请求体按下表逐级读。**任何一级读不下去，就是 EC S-10 ①「信封不可解析」，答 `version-mismatch`**\n- **接收有上界**：请求头部的字节数、请求体的字节数、从连接建立到收完请求报文的时长、请求体里 JSON 的嵌套深度。**超过任一上界 ⇒ 关闭连接，不写任何字节**（问不到）。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/contract.md"]
+        },
+        {
+          "id": "R4", "kind": "real", "where": "S-18「第 0 步先于一切」",
+          "truth": "本契约自称不拥有任何语义、判定次序归入口契约，S-18 却把「公开体检先于版本那一关」冻结成跨协议版本不改；入口契约只冻结那两样的形状与字节，没有冻结判定次序。传输绑定替入口契约冻结了它没冻结的语义",
+          "quote": "- **第 0 步先于一切**：中心在应答时，请求体合 [S-9](#s-9-公开体检的请求在本传输上的形状) 形状的请求在任何协议版本下都得公开体检答复。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/contract.md"]
+        },
+        {
+          "id": "R6", "kind": "real", "where": "S-19 第二条末句",
+          "truth": "把「继续以本版应答持本版的客户端」写成条件句，成了中心可选；入口契约 S-8 要求认出 version-mismatch 与发出公开体检请求的办法跨协议版本不变，是义务",
+          "quote": "一个中心要让持本版的客户端仍认得出版本对不上，就得继续以本版应答它们。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/contract.md"]
+        },
+        {
+          "id": "R7", "kind": "real", "where": "S-19 第一条",
+          "truth": "没有说一个同时接受多个协议版本的中心对某个请求按哪一版绑定写答复、version-mismatch 用哪一份；实现者只能自己定",
+          "quote": "本版给出的这一份，适用于本版承载的每一个协议版本（`accepted_protocol_versions` 取什么值都一样）；将来某个协议版本要改它们，随本契约的新版本发布，不在本版上改。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/contract.md"]
+        },
+        {
+          "id": "R8", "kind": "real", "where": "S-5 第一条：写出答复后关闭连接",
+          "truth": "只说写出答复后关闭、之后的字节不读。对端多写了字节时带着未读数据关闭，传输层可能以重置收场，对端收不到已写出的答复，与 S-26「每一次都是那 137 个字节」冲突；关闭的次序与读尽的上界都没写",
+          "quote": "- 中心在一条连接上**只读一个请求报文**；写出答复、或决定不写（[S-16](#s-16-问不到不写任何答复字节)）之后关闭连接。同一连接上这个报文之后的字节（例如流水线里的下一个请求）不读、不答。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/contract.md"]
+        },
+        {
+          "id": "R12", "kind": "real", "where": "S-16 表第一行「还没被受理」、S-23「已受理」",
+          "truth": "停机时哪些请求算在途，在本传输上没有定义：「受理」是连接已接受、头部收齐，还是报文收齐；停机开始时只收了一半报文的连接该答还是该关，两个实现会不同",
+          "quote": "| 客户端一面还没开始应答（启动中），或已经停止接受新请求、这个请求还没被受理 | EC S-34：起来即整体；停机先停收 |\n停机时已受理的请求在排空上界内答完，否则不答",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/contract.md"]
+        },
+        {
+          "id": "R15", "kind": "real", "where": "S-5 第二条：不写 100 Continue",
+          "truth": "引 RFC 9110 §10.1.1 说规范「允许服务端不发」100 Continue；那一节其实要求源服务器在头部收齐时要么立即给终态答复、要么立即写 100 Continue，不得等请求体。本契约的做法是偏离，引文把它说成合规",
+          "quote": "- **答复之外不写任何字节**：不写 1xx 临时答复——请求带 `Expect: 100-continue` 也不写 `100 Continue`（RFC 9110 §10.1.1 允许服务端不发它）；不写第二份答复。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/contract.md"]
+        },
+        {
+          "id": "R16", "kind": "real", "where": "S-12 表「对象」行",
+          "truth": "「按它所合的那个定义的 properties 书写次序」在一个值同时合几个定义时没有唯一读法：路由结果是 27 个形状的并，一个值可能合不止一个形状而成员次序不同。两个实现会对同一路由结果写出不同字节，与「同一个值只有一种字节」冲突",
+          "quote": "| 对象 | 成员按它在 EC 的 Schema（及其所引的 `data.identity-values` v1、`data.offer-expiry` v1 的 Schema）里所合的那个定义的 `properties` **书写次序**写出；`oneOf` 取它所合的那一支；",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/contract.md"]
+        },
+        {
+          "id": "R17", "kind": "real", "where": "S-2 依赖表与 catalog 的依赖登记",
+          "truth": "S-12 按 data.identity-values v1 的 Schema 定成员次序，正文因此依赖它，但 S-2 依赖表与 catalog 都只登了入口契约与 data.offer-expiry。正文说依赖了、登记里没有",
+          "quote": "（及其所引的 `data.identity-values` v1、`data.offer-expiry` v1 的 Schema）\n| 时间点 | `omne-harness-lite-design-2026-09-15 · data.offer-expiry · v1`（`accepted`，D-023）；",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/contract.md"]
+        },
+        {
+          "id": "R18", "kind": "real", "where": "S-30 规范场景与 covers 登记", "severity": "建议（记录里唯一带严重度的一条）",
+          "truth": "S-26～S-29 各有一行「依据」指向验收判据，S-30（只有 TLS、服务端认证）没有；PF-017 acceptance §二「冒牌货」那一行没有覆盖到 S-30，covers 也没登",
+          "quote": "跑完其余场景后，在全部答复、两种体检、工程记录与启动失败说明里搜私钥与各请求的原始请求头：一处都搜不到。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/v1/contract.md"]
+        },
+        {
+          "id": "R28", "kind": "real", "where": "verification.md「实际执行」",
+          "truth": "页首说结果始终绑定实际的规范修订，「实际执行」里起草者的自检却只记了工作树分支名，没记它核对的是哪个提交的 examples.md；执行记录没有绑定输入修订",
+          "quote": "**2026-09-23，起草者自检 examples（不是任何一条证据义务）**，在工作树 `panqiwei/tenancy-leg-2-spec-binding` 上：",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry-https-json/verification.md"]
+        }
+      ],
+      "known_issues": [
+        {"id": "M5", "verdict": "real", "what": "S-19 允许新版本绑定改 TLS 最低版本与服务端认证方式，与 S-18「任何协议版本旁边都认得出」对不上（同一轮修掉，记录没有点名）"},
+        {"id": "M9", "verdict": "real", "what": "S-10「请求行或头部语法错」「多个不一致的 Content-Length」没说规范给接收方的宽松选项取不取（同一轮与后两轮陆续修掉）"},
+        {"id": "M10", "verdict": "unverified", "what": "S-6 接受分块请求体，却没说其余传输编码、分块扩展、尾部字段怎样处理"},
+        {"id": "M11", "verdict": "real", "what": "S-4 没说是否接受 TLS 1.3 的早期数据（0-RTT）"},
+        {"id": "M13", "verdict": "real", "what": "S-9 把「以任何方法、向任何路径」写成发公开体检请求的办法并冻进 S-18，客户端一侧该用哪个方法没有钉住"},
+        {"id": "M14", "verdict": "real", "what": "几处违反 RFC 9110／9112 的「必须」却没有标成有意偏离：对 HEAD 写内容、成帧不了时不答 4xx、不写 Date、头部过大不答 4xx、CONNECT、前置条件头、不核 Host 与证书的对应（第一轮与后两轮陆续补成「有意偏离」表）"},
+        {"id": "M19", "verdict": "real", "what": "契约是 candidate，正文与包 README 却说它「闭合」入口契约的 G-10、G-11：把候选说成已生效"},
+        {"id": "M20", "verdict": "real", "what": "页首说本契约不拥有任何语义，正文却定了只属于本传输的行为（只有 TLS、成帧、接收上界、关闭）"},
+        {"id": "M21", "verdict": "real", "what": "S-11「恰为下面这串字节」没说是哪一层的字节、答复一次写出还是先头后体"},
+        {"id": "M22", "verdict": "real", "what": "S-20 说接收上界在运维面同样适用（含 JSON 嵌套深度），S-21 却说运维面不把请求体读成 JSON"},
+        {"id": "M23", "verdict": "unverified", "what": "S-20 正文点名了提供者节点的配置键 socketDirectory"},
+        {"id": "M24", "verdict": "real", "what": "S-22 只禁止请求体与请求头的值原样进输出，漏了请求目标（路径与查询）"},
+        {"id": "M25", "verdict": "unverified", "what": "S-25 说「同一个值只有一种字节」的证据是 V-1～V-6，漏了 V-9；V-5 声称用 S-26 证明「缺 Host 照样答」而 S-26 里没有这一例"},
+        {"id": "M27", "verdict": "real", "what": "examples.md 页首说占位值都沿用入口契约的 examples，其中的时刻与主机名其实是本页新造的"},
+        {"id": "M29", "verdict": "real", "what": "spec/README.md 上一句说第七个 topic 是候选，下一句说「七个版本都在 catalog 登记并接受」"},
+        {"id": "M30", "verdict": "unverified", "what": "「问不到」作无词条的技术名使用，没有与 PF-016 的「治理中心不可达」对齐"},
+        {"id": "L1", "verdict": "real", "what": "接收时长没有下限（后一轮定为 30 秒）；接收时长的起止点没有定义"},
+        {"id": "L2", "verdict": "real", "what": "S-18「读不下来或版本不被接受的一律是那 133 个字节」与 S-9 末条「本条跨协议版本不改」把入口契约没冻结的触发条件与次序一并冻结（与 R4 同类，后两轮才修）"},
+        {"id": "L3", "verdict": "real", "what": "S-16「连接以正常关闭还是重置结束，本契约不定」：握手完成后关闭不要求先发 close_notify"},
+        {"id": "L4", "verdict": "real", "what": "registry/README.md 的 frozen 与 covers 计数过期（契约包外的登记说明）"}
+      ]
+    },
+    {
+      "id": "entry-r1",
+      "target": "composition.governance-center-entry v1（治理中心入口）候选包，第一轮评审之前的快照",
+      "source": "真实评审。材料是提交 ab4da7b89 时的设计树；应当被报出的是 2026-09-23 第一轮 spec-reviewer 评审之后作者在 3a2ede667 修掉的问题。不取修订的前一个提交：那时旁边的实现映射节点已经写进了这一轮的裁决，等于泄题；契约包与登记在这两个提交之间没有变。评审报告原文没有留存，清单由那次修订的提交说明、验证入口的修订记录与前后差异反推。有记录点名的共 27 条，这里取其中 16 条计分（不取要靠产品裁定才能修的、彼此是同一件事的两半的），其余归已知的原有问题；严重度没有记录",
+      "base": "ab4da7b893d0859bbbf050e65d102a2223f91b8d",
+      "contract": "composition.governance-center-entry/v1",
+      "brief": "briefs/entry-r1.md",
+      "tags": ["真实的"],
+      "seeds": [
+        {
+          "id": "R4", "kind": "real", "where": "S-36「出示物不可伪造」一行",
+          "truth": "组合契约在自己的装配表里宣称「闭合」账号能力 v1 的 G-2 与 data.identity-values v1 的 G-04 里 LoginStateId 不可猜测的那一半，并替提供者定下具体做法；那两处缺口的 owner 是提供者设计，本契约无权闭合，只能把不可猜测列为自己的前提",
+          "quote": "| **出示物不可伪造**（本契约；闭合 `capability.account-identity` v1 G-2 与 `data.identity-values` v1 G-04 中「`LoginStateId` 不可猜测」那一半）",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "R5", "kind": "real", "where": "S-17 命名表下的注 1；Schema 的 CredentialMaterial",
+          "truth": "credential 的线上形状写成「推不出」，Schema 对它不加任何约束；而线上形状归把操作送过进程边界的这份组合契约，不许实现各写各的。开发者将不得不自己决定凭据在线上是什么、按哪条规则判 invalid-input",
+          "quote": "1. **推不出**：`credential` 的线上形状。`capability.account-identity` v1 S-8 把凭据材料的结构、强度规则与比对方式交给它 S-26 的 `credential_policy`，属实现选择。Schema 对它不收紧；",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "R6", "kind": "real", "where": "多处裸写参与方契约的条款号（S-12、S-15、S-22、S-24、S-33 等）",
+          "truth": "大量裸写的 S-n 指的是参与方契约的条款（账号能力的 S-17、治理的 S-36、S-26 等），而本契约自己也有 S-17、S-26、S-36；跨契约引用不带坐标，读者会读成本契约的条款（报出其中任一处并指出是跨契约引用没带坐标即算）",
+          "quote": "- **每个请求都现读**：第 ② 步现读 S-17，身份推导现读 S-36，补授权现读 S-26；",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "R7", "kind": "real", "where": "S-21 引导句与路由表「交给领域的身份」列",
+          "truth": "S-21 就地把「S-36」「S-17」重新定义为「身份推导得到的当前租户身份」「第 ② 步认出的 AccountId」，而本契约的 S-36、S-17 分别是装配表与路由表：同名不同义",
+          "quote": "全部经第 ② 步。「S-36」指[身份推导](#s-12-身份推导)现读得到的当前租户身份；「S-17」指第 ② 步认出的 `AccountId`。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "R11", "kind": "real", "where": "S-34「起来即整体」第二句",
+          "truth": "「任一参与方的面缺席，客户端一面就不应答」没说面缺席在什么时候发生：若存储或时钟不可用以面缺席出现，整个中心就成了问不到，与要求答 unavailable 的条款矛盾；参与方提供者换代时在途请求与新到请求怎么收场也没写",
+          "quote": "入口层所依赖的任一参与方的面缺席，客户端一面就不应答——来者看到的是「问不到」，不是某些路由答 `unavailable`、某些照常。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "R14", "kind": "real", "where": "S-8「跨所有协议版本不变的，恰有两样」",
+          "truth": "只把公开体检与 version-mismatch 的形状、字节序列钉为跨版本不变，它们落到传输上的办法却归实现映射、可随版本变；落地一变，版本对不上的客户端照样认不出 version-mismatch、发不出公开体检请求，S-8 自己的理由落空",
+          "quote": "2. `version-mismatch` 这个答复的形状与字节序列。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "R15", "kind": "real", "where": "S-3「传输机制」「防冒充的具体手段」；已知缺口表",
+          "truth": "传输绑定与防冒充手段都推给实现映射或传输层，却没有登为显式缺口、没有 owner 与闭合条件；防冒充是产品交给技术设计的硬要求，契约既不兑现也不登记，就没人兑现",
+          "quote": "本契约既不兑现它，也不以它为任何条款的前提。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "R17", "kind": "real", "where": "S-13 补授权：要读多个组织的那一行",
+          "truth": "要对两个组织各读一次成员资格时，表只给单次读数的收场，没定一个读出无效、另一个读不到时答什么，也没说先读到无效能否就停；答复会随读的先后变成 notAuthorized 或 unavailable",
+          "quote": "| 对每一个都现读一次；**全部有效才过** |",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "R18", "kind": "real", "where": "S-13「那次现读的结果」表",
+          "truth": "补授权现读的那个治理操作，失败集合里还有 invalidInput，也可能出现集合之外的值；表只列有效、无效、不可用三支，其余收场未定义",
+          "quote": "| `{ failure: \"unavailable\" }` | `unavailable`——**不得收成 `notAuthorized`**，那是把判不了说成失权 |",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "R20", "kind": "real", "where": "S-14 失败映射表末行",
+          "truth": "「返回了与该条款承诺矛盾的结果」是开放式条件：哪些矛盾要检、怎么检没有列举，两个实现会检出不同的缺陷集合，缺陷计数也不可比",
+          "quote": "| **失败集合之外的任何东西**（未列出的值、没有返回、抛出、返回了与该条款承诺矛盾的结果） |",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "R21", "kind": "real", "where": "S-21 写路由表里以调用方本人为创建者的两行「透传的具名值」",
+          "truth": "这两条路由把就调用方本人给出的 accountNotActivated、accountDoesNotExist 列为原样透传；但认人所得的 AccountId 必属已激活账号，这两个值在本组合里到不了，应与其他到不了的值同口径记缺陷",
+          "quote": "| 创建者 `AccountId` ← S-17 | 创建键（可选） | `accountNotActivated`、`accountDoesNotExist` |",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "R25", "kind": "real", "where": "S-2 参与方表的消费条款；catalog 的依赖登记",
+          "truth": "正文消费了账号能力的 S-26（凭据规则）与 data.offer-expiry 的 S-17，但 S-2 的消费条款与 catalog 的依赖登记都没有它们。正文说依赖了、登记里没有",
+          "quote": "交给它 S-26 的 `credential_policy`",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/contract.md"]
+        },
+        {
+          "id": "R26", "kind": "real", "where": "已知缺口表的编号；verification.md「变化的影响」",
+          "truth": "闭合两条缺口后把后面的缺口改号顶上并删掉已闭合的行，违反编号规矩「已闭合的号保留不重排、不复用」；covers 里指向缺口号的说明随之指向了别的缺口",
+          "quote": "缺口重编号 G-7→G-5、G-8→G-6",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/verification.md"]
+        },
+        {
+          "id": "R33", "kind": "real", "where": "formal/README.md 映射表 S-7 一行；模型的 AnsweredClosed",
+          "truth": "S-7 答复集合闭合绑定到 AnsweredClosed，而它由 TypeOK 的合取项直接推出，S-7 被违反时它不会失败：TypeOK 自指，不构成形式对应",
+          "quote": "| [S-7](../contract.md#s-7-答复集合闭合) 答复集合闭合 | TLA+ 不变量 | `AnsweredClosed` |",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/formal/README.md"]
+        },
+        {
+          "id": "R34", "kind": "real", "where": "模型的断言集合，对 S-10 的判定次序",
+          "truth": "S-10 规定信封那一步先于认人，验证入口声称 TLC 覆盖 S-10 的判定次序，但模型里没有任何断言会在信封那一步被挪到认人之后时失败（载荷先于身份推导与补授权同样没有断言）",
+          "quote": "(* S-10 第 ①′ 步：信封本身（路由在不在表内、有无表外成员）——不用查。 *)",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/formal/EntryDecision.tla"]
+        },
+        {
+          "id": "R36", "kind": "real", "where": "examples.md 页首",
+          "truth": "页首声称 Schema 的每个定义项在这里都有一组正反实例，实际有若干定义项没有单列、只被间接求值：声明的覆盖超过实际证据",
+          "quote": "的每个定义项在这里各有一组正反实例。",
+          "files": [".meta_harness/design/spec/compositions/governance-center-entry/v1/examples.md"]
+        }
+      ],
+      "known_issues": [
+        {"id": "H1", "verdict": "real", "what": "S-10 说 invalid-input 只在「看得懂是哪件事」时给出，同表却对路由缺席或不在表内也答 invalid-input；S-6 的同类措辞亦然（修法靠产品裁定，不计分）"},
+        {"id": "H3", "verdict": "real", "what": "S-36 说「持有 AccountId 即可读账号」靠不暴露兑现，邀请路由却原样透传被邀请者账号存不存在、激活没有（产品裁定接受这项残余暴露，不计分）"},
+        {"id": "H19", "verdict": "real", "what": "S-14 表示层不合格的两支，分界按路由判还是按这一次请求判不清"},
+        {"id": "H22", "verdict": "real", "what": "defectCount 没说只计入口层自己记的，还是也汇入参与方内部判出的缺陷"},
+        {"id": "H24", "verdict": "real", "what": "S-36 说 data.offer-expiry 的 S-17 全部五行在这条边上不触发，其中「默认时长取值为正、加载配置时校验」一行其实落在本应用上"},
+        {"id": "H27", "verdict": "real", "what": "Schema 的三个值定义引用了 data.identity-values 声明不供外部引用的内部基定义 OpaqueIdentifier"},
+        {"id": "H28", "verdict": "real", "what": "两个时间点在本 Schema 内联为 format: date-time，没有用 data.offer-expiry 已有的带 pattern 的 Instant：同一概念另定义一次且断言更弱"},
+        {"id": "H29", "verdict": "real", "what": "Schema 里 GovernanceCenterId 的英文名写成 Id，统一语言词条的正式英文名是 Identifier"},
+        {"id": "H31", "verdict": "real", "what": "S-17 说路由表每一行给出装配表里相关的那一行，各路由表却没有这一格：27 条路由的第 9 件事没有逐条落点"},
+        {"id": "H32", "verdict": "real", "what": "covers 登记的若干条款，正文里并没有指向那一产品小节的链接"},
+        {"id": "M2", "verdict": "real", "what": "S-13 给四条读面新加一道授权前置，没写依据也没登为缺口（产品裁定为不算越权，只补依据句）"},
+        {"id": "M8", "verdict": "unverified", "what": "S-17 命名表的路由列用省略写法，不是合法的路由标识"},
+        {"id": "M9", "verdict": "real", "what": "S-4 说任一成员在传输上重复都按「多个出示物」判，与 S-10 的判定次序字面冲突"},
+        {"id": "M10", "verdict": "real", "what": "只有运维面在应答的窗口里，完整体检的 reachable、centerId 该答什么没有定义"},
+        {"id": "M12", "verdict": "real", "what": "启动时钟读不到，startedAt 无从定义，契约没说这时启动算不算成功；S-30 要求记录分得出存储与钟，入口层却观察不到两者的差别"},
+        {"id": "M16", "verdict": "real", "what": "S-9 列表句柄的构造全交给实现映射，没写重启、升级、换密钥之后句柄是否不变"},
+        {"id": "M23", "verdict": "real", "what": "S-28 的铸造条件只是「数据里还没有标识」：已有治理事实却缺了标识的数据会被静默铸一个新标识（后一轮架构评审还为此提了阻断）"},
+        {"id": "M30", "verdict": "unverified", "what": "offerTtl 线上只约束是整数、没有上界"},
+        {"id": "M37", "verdict": "unverified", "what": "验证入口把进展性质的前提写成 P1～P4，模型实际只用到 P1；变异配置缺进展性质；S-36 的 TenantId 一行与 data.identity-values 的装配表对不上；S-17 注 3 的引用指错了条款"},
+        {"id": "L1", "verdict": "real", "what": "S-11 认人出口表与 S-12 都没有「失败集合之外 ⇒ unavailable 并记缺陷」一支（第二轮才修）"},
+        {"id": "L2", "verdict": "real", "what": "S-31「判不了不下结论」的前提对注册路由不成立：注册组合把底层判不了收进 interrupted（第二轮才修）"},
+        {"id": "L4", "verdict": "real", "what": "没有登记操作系统崩溃或断电后的例外：判时钟回拨所依据的记录、刚铸的中心标识、已撤销的登录状态都可能回退（后两轮才修）"},
+        {"id": "L6", "verdict": "real", "what": "S-14「没有返回」可读成返回了却没有值，也可读成一直不返回（第三轮才修）"},
+        {"id": "L7", "verdict": "real", "what": "升级整体性与启动前只读核对在契约里没有家，只在 covers 的说明里提到归承载装配，没有显式缺口与 owner（架构评审提出）"}
+      ]
+    },
+    {
+      "id": "account-identity-v2-r1",
+      "target": "capability.account-identity v2 候选稿，第一轮评审之前的快照",
+      "source": "真实评审。材料是提交 4e441f416（候选稿登记进 catalog 的那一刻）时的设计树；应当被报出的是 2026-09-23 第一轮 spec-reviewer 评审之后作者在 5041f4ee9 修掉的问题。不取修订的前一个提交 45fecdbef：那时入口契约与实现映射节点已经照着未提交的修订稿写了「按来源取」「孤立代理」「至多 1024」，等于泄题；契约包的四个文件在这两个提交之间逐字节相同。评审报告原文没有留存，清单由那次修订的提交说明、验证入口的修订记录与前后差异反推，只取提交说明点名的 8 条；严重度没有记录",
+      "base": "4e441f416753d763cd9b32a66be8fea7c5570d9b",
+      "contract": "capability.account-identity/v2",
+      "brief": "briefs/account-identity-v2-r1.md",
+      "tags": ["真实的"],
+      "seeds": [
+        {
+          "id": "R1", "kind": "real", "where": "§十「对消费者的影响」capability.organization-governance 一行，对 OG v1 的 S-42",
+          "truth": "OG v1 S-42 让两个操作以「自己就带一道 S-17 校验」免于「调用方身份已经核实过」；v2 里 LoginStateId 不再是秘密，S-17 只判它此刻作不作数、不判调用方是不是持有者，那段豁免只在进程内成立。本契约却说 OG「不受影响」",
+          "quote": "**不受影响**。这六条在本版里判定逐字相同；S-17 只多了「只对进程内调用方开放」，它本来就是进程内调用方",
+          "files": [".meta_harness/design/spec/capabilities/account-identity/v2/contract.md"]
+        },
+        {
+          "id": "R2", "kind": "real", "where": "S-16、S-37 的「输入与授权」",
+          "truth": "v2 起 LoginStateId 出现在列表、事件、存储里，不再是秘密；S-16、S-37 的授权只要求那个登录状态此刻有效，不说明调用方持有它。「LoginStateId 只能来自本契约的结果、不得来自线上」只写在 S-30 的装配列里，没进这两个操作自己的九件事；只读 S-16／S-37 实施的人会接受线上收到的 LoginStateId 当发起方",
+          "quote": "输入：**目标 LoginStateId**（无默认值）、**发起方 LoginStateId**（无默认值）。授权：发起方登录状态**此刻有效**\n授权：该登录状态**此刻有效**，用 [S-17](#s-17-校验登录状态) 校验",
+          "files": [".meta_harness/design/spec/capabilities/account-identity/v2/contract.md"]
+        },
+        {
+          "id": "R3", "kind": "real", "where": "S-45 性质表「交换表示」行；S-44 求值表第 2 步",
+          "truth": "「非空字符串」没说字符串的单位：含孤立代理码点的串能过表示层却没有 UTF-8 编码，派生式 SHA-256(UTF-8(出示物)) 对它无定义，S-44 第 2 步「纯计算，没有失败支」不成立；交换表示也没有长度上界，表示层判定不闭合",
+          "quote": "| **交换表示** | 非空字符串，首末字符都不在\n按 [S-45](#s-45-登录状态出示物) 的派生规则算出它的 LoginStateId | —（纯计算，没有失败支）",
+          "files": [".meta_harness/design/spec/capabilities/account-identity/v2/contract.md"]
+        },
+        {
+          "id": "R4", "kind": "real", "where": "§四 本版新增的两条安全性质；S-9 末段",
+          "truth": "两条性质声称承载 PF-017 §8「读到数据或备份的人不能直接拿去用」，却只写成「拿不到能过 S-44 的值」。这排除不了把读到的 LoginStateId 拿去 S-16／S-17／S-37 上用；真正关上那些门的是 S-30「只有 S-44 认出示物」一行，保护点里却没有它。性质比它所引的需求窄",
+          "quote": "**读到存储或备份的人，拿不到能过 [S-44](#s-44-按出示物换取身份) 的值**——存储里没有出示物\n读到这些记录或它们的备份的人，拿到的只有 LoginStateId，**而 LoginStateId 过不了 [S-44](#s-44-按出示物换取身份)**。",
+          "files": [".meta_harness/design/spec/capabilities/account-identity/v2/contract.md"]
+        },
+        {
+          "id": "R5", "kind": "real", "where": "§九 G-2；S-18 末句",
+          "truth": "G-2 被标成「已闭合（本版）」，AccountId 那一半的依据却是实现映射给的候选形式，同一格又说它在 data.identity-values 的 G-04 裁定前仍是候选：一条靠另一条未决缺口才成立的「闭合」，按显式缺口的规矩应当仍开着并写 owner 与闭合条件",
+          "quote": "**AccountId 那一半由提供者设计闭合**\n**AccountId 的词法与不可猜测程度属实现选择**，[G-2](#九已知缺口) 已闭合，闭合方式写在那一格。",
+          "files": [".meta_harness/design/spec/capabilities/account-identity/v2/contract.md"]
+        },
+        {
+          "id": "R6", "kind": "real", "where": "§十「逐条差异」表",
+          "truth": "这张表声称逐条列出 v1 到 v2 的差异，却漏了正文里实际改过的几处（§三前言「八个操作」改「九个」并把出示物加进「身份参数没有默认值」、S-15 的幂等格与第 9 格、§四 表里 S-24 那一行）；「语义变了吗」一栏的取值也没有定义",
+          "quote": "| [§四](#四跨操作性质) | 追加 | 扩 | 新增一条不变量、两条安全性质及其四个前提 |\n| [S-15](#s-15-验证凭据并签发登录状态) | 改写 | **是** | 返回由 `LoginStateId` 改为 **`{出示物, LoginStateId}`**；提交点写明记录里是 LoginStateId；",
+          "files": [".meta_harness/design/spec/capabilities/account-identity/v2/contract.md"]
+        },
+        {
+          "id": "R7", "kind": "real", "where": "S-45 派生规则第 2 条；§十 data.identity-values 一行",
+          "truth": "data.identity-values v1 的 G-04 把不透明标识的词法留作缺口；本契约在规格层把 LoginStateId 定成 64 个小写十六进制字符，却说自己「不改它是什么」，也没说这等于对 LoginStateId 定下了 G-04、那一侧怎样记；消费者影响表说它「不需要改版」而不提此事",
+          "quote": "本条只补上「它从哪来」，**不改它是什么**。\n**不需要改版**。它 `#S-9` 的「由存储生成」本版怎样读，写在",
+          "files": [".meta_harness/design/spec/capabilities/account-identity/v2/contract.md"]
+        },
+        {
+          "id": "R17", "kind": "real", "where": "抬头「精确语义依赖」；S-17 引 data.identity-values/v1#S-19 的一段；catalog 的依赖登记",
+          "truth": "S-17 正向引用 data.identity-values/v1#S-19 并说本条是那条通用收场的落点，按本契约抬头自己写的判据这是一条消费；抬头的精确语义依赖却只列七条、不含 S-19，G-5、G-6 与 catalog 的依赖登记也都是七条。正文消费了、登记里没有",
+          "quote": "[`#S-30`（跨边界须重新验证）](../../../data/identity-values/v1/contract.md#s-30-跨边界须重新验证)——**共七条**；\n**这条也与 [`data.identity-values/v1#S-19`](../../../data/identity-values/v1/contract.md#s-19-不可用即明确失败) 同形**",
+          "files": [".meta_harness/design/spec/capabilities/account-identity/v2/contract.md"]
+        }
+      ],
+      "known_issues": [
+        {"id": "M8", "verdict": "real", "what": "LoginStateId 定成 64 个十六进制字符之后，没说 S-16／S-17／S-37 的表示层能不能收紧到这个形状，两个实现会给不同的失败值"},
+        {"id": "M9", "verdict": "real", "what": "登录状态记录的字段：S-37 与验证入口要求有签发时间，S-9 的组成表只列三项"},
+        {"id": "M10", "verdict": "real", "what": "S-46 的两支都只搜出示物的原样，可还原编码（base64url、十六进制）翻不出来"},
+        {"id": "M11", "verdict": "real", "what": "S-30「出示物猜不中」一行把熵下限写成「装配给」，它其实是提供者义务"},
+        {"id": "M12", "verdict": "real", "what": "S-30 新增行把 S-16／S-17／S-37 限定为只对进程内开放，第 6 行却仍说自己是「本表里唯一一条会改变契约公开面的」"},
+        {"id": "M13", "verdict": "real", "what": "S-29 说撤销改变的只是「下一次 S-17」，S-23 的保护点也只点名 S-17，漏了 S-44 这条路；§十 还把这两条记为「原样」"},
+        {"id": "M14", "verdict": "real", "what": "S-33「退出的作用范围」场景仍只用 S-17 检查，线上那条路（S-44）没有证据"},
+        {"id": "M15", "verdict": "real", "what": "S-45 的派生式没有指明 UTF-8、SHA-256 的规范来源与十六进制的字节次序"},
+        {"id": "M16", "verdict": "real", "what": "「登录状态出示物」是新概念，只声明「无词条」，没说为什么不立词条、唯一权威在哪"},
+        {"id": "M18", "verdict": "unverified", "what": "抬头的设计依据只列 PF-017 的 §6.14 与 §8，covers 与 S-46、S-47 正文还引了 §6.7 与 acceptance §三"},
+        {"id": "M19", "verdict": "unverified", "what": "S-2 说注册组合的消费面「九条」，catalog 登的是十条；G-6 说 covers 里 PF-001「二十条」，实际十九条"},
+        {"id": "M21", "verdict": "unverified", "what": "verification.md 仍写 v2「未登记 catalog」；README 说 D-023 点名的三处措辞「都等 v2」，v2 §十 却说没有收口"},
+        {"id": "M23", "verdict": "unverified", "what": "S-3 把登录状态的到期、刷新写成边界声明，PF-017 §9 里它是产品侧未决项；verification.md 的 v2 段缺 S-21 行；S-2 入口契约行的坐标缺版本号"},
+        {"id": "L1", "verdict": "real", "what": "S-2 消费者表把入口契约这条边拆成三行，入口契约那一行列的消费条款比 catalog 登记的少；§十 入口契约行「现在钉的」漏了 S-20、S-26"},
+        {"id": "L2", "verdict": "real", "what": "S-30「只有 S-44 认出示物」一行不区分 S-16 的目标：入口契约把线上载荷里的句柄原样作 S-16 的目标"},
+        {"id": "L3", "verdict": "real", "what": "README「全部八个操作」没有区分 v1 的八个与 v2 的九个"}
+      ]
+    }
+  ]
+}

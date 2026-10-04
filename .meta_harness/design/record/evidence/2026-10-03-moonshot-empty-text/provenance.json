@@ -1,0 +1,79 @@
+{
+  "sourceCommit": "eb2b5bf00dca8facc67d5c082418d09e4a0fbdc0",
+  "baseline": "dfa3eb92e292dddb1bb47cf122212362d095c143",
+  "method": "Byte-exact copies. Original QA report links resolve in the preserved task directory; txt extension preserves that report unchanged. Raw logs/scenarios retained with task evidence manifest in main checkout tmp. No source coordinates rewritten.",
+  "files": [
+    {
+      "source": "tmp/test-tiers-mutation/qa50-r1/report.md",
+      "stored": "qa-report.txt",
+      "bytes": 11369,
+      "sha256": "e3fbe3e864174caaaa32dd758a7d8a0ec054a6b75949b4d925cb82ab89768aa7"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/qa50-r1/report.json",
+      "stored": "qa-report.json",
+      "bytes": 14326,
+      "sha256": "74e7cad69525bdbe99f087d4a909e55660b3fd8324e724978ec399e5f848b25c"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/qa50-r1/evidence/coverage-account.json",
+      "stored": "coverage-account.json",
+      "bytes": 41942,
+      "sha256": "058a124502c2469cadc2c3fe8c09ec0ed6d8e1420af81b07a9eeb3de45cdf4fd"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/qa50-r1/evidence/final-reuse-audit.json",
+      "stored": "final-reuse-audit.json",
+      "bytes": 1937,
+      "sha256": "e18c8cae928c78598e4e76eccd40053c92012793b3434a8a663fc85e979f453b"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/qa50-r1/evidence/final-plan.json",
+      "stored": "final-plan.json",
+      "bytes": 40744,
+      "sha256": "7f161d7599788a31c79d7650f0450072e48f00cdf00ff17b1f9f8b8870168a35"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/qa50-r1/evidence/final-commands.json",
+      "stored": "final-commands.json",
+      "bytes": 7536,
+      "sha256": "1d7554d6db948eb995cc36efd02f9487a11f5f37bf29db1ba45a19eb8f0776d9"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/qa50-r1/evidence/facility-failures.json",
+      "stored": "facility-failures.json",
+      "bytes": 1895,
+      "sha256": "a413aa7a6d768b7d81ba71320a275f156a8da9a2f509e6d7956f6a7426e07f87"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/qa50-r1/evidence/final-loop/status.json",
+      "stored": "loop-status.json",
+      "bytes": 123989,
+      "sha256": "c25dbf4809bd0bcfe56952e82e33af20f593c14e4c97d41753f9add1a8e607e3"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/checks50/mutation-r1/packages__model__pi-ai-transport.mutation.json",
+      "stored": "mutation-report.json",
+      "bytes": 1565653,
+      "sha256": "1413c601e94884e655dee5b281d8a9e2cf0c57c842e6bb6632bbd560f6048153"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/checks50/mutation-r1/summary.md",
+      "stored": "mutation-summary.txt",
+      "bytes": 3694,
+      "sha256": "32b9ec421b95e9c0f928c34791ea58298ca59f9c8531aad2b491a5c14e68da02"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/checks50/mutation-counter-r1/result.json",
+      "stored": "mutation-counter.json",
+      "bytes": 1057,
+      "sha256": "f8c8960be148943912905f96f61c9e214b3f8dba403f703ee96f62cae1c2970d"
+    },
+    {
+      "source": "tmp/test-tiers-mutation/checks50/mutation-counter-r1/vitest.json",
+      "stored": "mutation-counter-vitest.json",
+      "bytes": 25796,
+      "sha256": "46660ea72f37bf7f2197651905392f06d32bdcb7e0371b8309fb275043a34891"
+    }
+  ]
+}

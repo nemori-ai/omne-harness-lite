@@ -1,0 +1,78 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 71 and seed -6525317655937766767 with 8 workers on 8 cores with 6955MB heap and 64MB offheap memory [pid: 100658] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /tmp/claude-1001/-data-qiwei-repos-omne-harness-lite/97c68df0-c421-4845-b5db-321f5d038fbe/scratchpad/tlc-vnext/Ack-sum/AckLifecycle.tla
+Parsing file /tmp/tlc-2182494379270880599/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-2182494379270880599/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-2182494379270880599/TLC.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-2182494379270880599/_TLCTrace.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /tmp/tlc-2182494379270880599/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-2182494379270880599/TLCExt.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /tmp/tlc-2182494379270880599/Integers.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module AckLifecycle
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module AckLifecycle
+Starting... (2026-09-30 05:35:05)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-30 05:35:06.
+Error: Invariant OneAccount is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ phase = (callA :> "retained" @@ callB :> "retained")
+/\ badAdmission = FALSE
+/\ oldWriter = TRUE
+/\ settlement = "none"
+/\ final = FALSE
+/\ ackKnown = FALSE
+/\ temp = FALSE
+/\ reader = {}
+/\ readView = "none"
+/\ used = {}
+/\ tempGen = 0
+/\ crashed = FALSE
+/\ body = (callA :> TRUE @@ callB :> TRUE)
+/\ ackLog = FALSE
+/\ up = TRUE
+/\ logReadable = TRUE
+/\ appendFlight = FALSE
+/\ ackFlight = FALSE
+/\ batchGen = 0
+/\ finalGen = 2
+/\ newWriter = FALSE
+/\ finalValid = TRUE
+
+State 2: <OldFinal line 70, col 13 to line 74, col 70 of module AckLifecycle>
+/\ phase = (callA :> "retained" @@ callB :> "retained")
+/\ badAdmission = FALSE
+/\ oldWriter = TRUE
+/\ settlement = "none"
+/\ final = TRUE
+/\ ackKnown = FALSE
+/\ temp = FALSE
+/\ reader = {}
+/\ readView = "none"
+/\ used = {}
+/\ tempGen = 0
+/\ crashed = FALSE
+/\ body = (callA :> TRUE @@ callB :> TRUE)
+/\ ackLog = FALSE
+/\ up = TRUE
+/\ logReadable = TRUE
+/\ appendFlight = FALSE
+/\ ackFlight = FALSE
+/\ batchGen = 0
+/\ finalGen = 2
+/\ newWriter = FALSE
+/\ finalValid = TRUE
+
+25 states generated, 22 distinct states found, 8 states left on queue.
+The depth of the complete state graph search is 4.
+Finished in 01s at (2026-09-30 05:35:06)
+Trace exploration spec path: ./AckLifecycle_TTrace_1790746505.tla

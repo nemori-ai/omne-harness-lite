@@ -61,16 +61,19 @@ describe('INPUT frozen adoption and language-neutral source artifacts', () => {
     }
   })
   it('INPUT-02 consumes exact dependency Schema copies and creates no assembly Schema', () => {
-    for (const name of ['arrival-events', 'content-blocks', 'call-accounts']) {
+    // call-accounts 包根已是 CA4；本节点仍采用 CA2，比对其公开 `./schema/v2` 原字节。
+    for (const [name, file, version] of [
+      ['arrival-events', 'arrival-events.schema.json', 2],
+      ['content-blocks', 'content-blocks.schema.json', 3],
+      ['call-accounts', 'v2/call-accounts.schema.json', 2],
+    ] as const) {
       expect(
-        readFileSync(resolve(root, `packages/core/${name}/schema/${name}.schema.json`)).equals(
+        readFileSync(resolve(root, `packages/core/${name}/schema/${file}`)).equals(
           readFileSync(
-            resolve(
-              root,
-              `.meta_harness/design/spec/data/${name}/v${name === 'content-blocks' ? 3 : 2}/${name}.schema.json`,
-            ),
+            resolve(root, `.meta_harness/design/spec/data/${name}/v${version}/${name}.schema.json`),
           ),
         ),
+        name,
       ).toBe(true)
     }
     const manifest: { exports: Record<string, unknown> } = JSON.parse(
@@ -78,55 +81,61 @@ describe('INPUT frozen adoption and language-neutral source artifacts', () => {
     )
     expect(Object.keys(manifest.exports)).toEqual(['.'])
   })
-  it('INPUT-04 retains exact old resources and compiles every definition in the fixed dependency graph', () => {
-    const paths = [
-      ['arrival-events', 'arrival-events.schema.json', 2],
-      ['call-accounts', 'call-accounts.schema.json', 2],
-      ['content-blocks', 'content-blocks.schema.json', 3],
-      ['content-blocks', 'content-blocks.v2.schema.json', 2],
-      ['loop-extension', 'loop-extension.v2.schema.json', 2],
-      ['identity-values', 'identity-values.schema.json', 1],
-      ['offer-expiry', 'offer-expiry.v1.schema.json', 1],
-      ['asset-model', 'asset-model.v2.schema.json', 2],
-      ['tool-definition', 'tool-definition.v2.schema.json', 2],
-      ['messages', 'messages.v2.schema.json', 2],
-      ['model-profile', 'model-profile.schema.json', 2],
-      ['skill-package', 'skill-package.v2.schema.json', 2],
-      ['mcp-endpoint', 'mcp-endpoint.schema.json', 2],
-      ['slash-command', 'slash-command.schema.json', 2],
-      ['connector', 'connector.schema.json', 2],
-    ] as const
-    const resources = paths.map(([name, filename, version]) => {
-      const bytes = readFileSync(
-        resolve(
-          root,
-          name === 'connector'
-            ? `packages/core/asset-model/schema/resources/${filename}`
-            : `packages/core/${name}/schema/${filename}`,
-        ),
-      )
-      const path = `spec/data/${name}/v${version}/${name}.schema.json`
-      expect(bytes.equals(readFileSync(resolve(root, `.meta_harness/design/${path}`))), path).toBe(
-        true,
-      )
-      expect(createHash('sha256').update(bytes).digest('hex'), path).toBe(frozen.files[path])
-      const parsed = readJsonStrict(bytes.toString('utf8'))
-      if ('failed' in parsed || !object(parsed.ok))
-        throw new Error(`invalid frozen resource: ${path}`)
-      return parsed.ok
-    })
-    const runtime = createSchemaRuntime(resources)
-    for (const resource of resources) {
-      if (
-        typeof resource.$id !== 'string' ||
-        resource.$defs === undefined ||
-        !object(resource.$defs)
-      )
-        throw new Error('frozen resource missing identity/definitions')
-      for (const name of Object.keys(resource.$defs))
-        expect(() => runtime.compile({ $ref: `${resource.$id}#/$defs/${name}` })).not.toThrow()
-    }
-  })
+  // 归慢层：重 CPU：真实编译冻结 Schema 依赖图里的每一个定义。
+  it(
+    'INPUT-04 retains exact old resources and compiles every definition in the fixed dependency graph',
+    { tags: ['slow'] },
+    () => {
+      const paths = [
+        ['arrival-events', 'arrival-events.schema.json', 2],
+        ['call-accounts', 'v2/call-accounts.schema.json', 2],
+        ['content-blocks', 'content-blocks.schema.json', 3],
+        ['content-blocks', 'content-blocks.v2.schema.json', 2],
+        ['loop-extension', 'loop-extension.v2.schema.json', 2],
+        ['identity-values', 'identity-values.schema.json', 1],
+        ['offer-expiry', 'offer-expiry.v1.schema.json', 1],
+        ['asset-model', 'asset-model.v2.schema.json', 2],
+        ['tool-definition', 'tool-definition.v2.schema.json', 2],
+        ['messages', 'messages.v2.schema.json', 2],
+        ['model-profile', 'v2/model-profile.schema.json', 2],
+        ['skill-package', 'skill-package.v2.schema.json', 2],
+        ['mcp-endpoint', 'mcp-endpoint.schema.json', 2],
+        ['slash-command', 'slash-command.schema.json', 2],
+        ['connector', 'connector.schema.json', 2],
+      ] as const
+      const resources = paths.map(([name, filename, version]) => {
+        const bytes = readFileSync(
+          resolve(
+            root,
+            name === 'connector'
+              ? `packages/core/asset-model/schema/resources/${filename}`
+              : `packages/core/${name}/schema/${filename}`,
+          ),
+        )
+        const path = `spec/data/${name}/v${version}/${name}.schema.json`
+        expect(
+          bytes.equals(readFileSync(resolve(root, `.meta_harness/design/${path}`))),
+          path,
+        ).toBe(true)
+        expect(createHash('sha256').update(bytes).digest('hex'), path).toBe(frozen.files[path])
+        const parsed = readJsonStrict(bytes.toString('utf8'))
+        if ('failed' in parsed || !object(parsed.ok))
+          throw new Error(`invalid frozen resource: ${path}`)
+        return parsed.ok
+      })
+      const runtime = createSchemaRuntime(resources)
+      for (const resource of resources) {
+        if (
+          typeof resource.$id !== 'string' ||
+          resource.$defs === undefined ||
+          !object(resource.$defs)
+        )
+          throw new Error('frozen resource missing identity/definitions')
+        for (const name of Object.keys(resource.$defs))
+          expect(() => runtime.compile({ $ref: `${resource.$id}#/$defs/${name}` })).not.toThrow()
+      }
+    },
+  )
   it.each(artifactFile.artifacts)(
     'INPUT-03 exact source location $path:$line ($kind)',
     artifact => {

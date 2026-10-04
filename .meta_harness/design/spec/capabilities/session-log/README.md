@@ -1,5 +1,11 @@
 # 会话日志（窄口）
 
+## v3 精确采用（2026-09-27）
+
+[D083](../../../record/decisions/session-log-tail-condition-adoption/decision.md)技术接受[v3完整包](v3/contract.md)，24资源已按接受清单冻结；append条件必填、尾判定与整批共同提交、未知恢复和完整前缀责任明确。三形式任务已登记，有限run1沿未变模型和原输入范围读取；没有provider绑定或真实IO验收。当前RT3等六条规范消费者仍精确SL2，新版不自动升级它们。[消费者传播](v3/consumer-impact.md)及[验证入口](verification.md)指向尚未完成项。
+
+## v2 历史入口
+
 **一个会话的[会话日志](../../../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log)里，追加一批条目、按键读、从某个位置往后读；追加时判重、判尝试栅栏。**
 这是按三个运行时消费者（工具执行运行时、模型请求运行时、拓展点派发）已列出的要求定的**窄口接口**，不是整本会话日志的契约——那一份归 loop 与会话那一程。
 
@@ -9,7 +15,7 @@
 - **状态**：`accepted`、资源已冻结（2026-09-26，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md)）；接受范围含显式缺口。实现与验证状态见 verification.md。
 - **catalog 映射**：已登记为 `accepted`；`family=capabilities`、`topic=session-log`、
   `contract_path=spec/capabilities/session-log/v2/contract.md`；`resources` 含契约、`examples.md` 与 `formal/` 下八个文件（入口 README、模型、六个配置）；
-  依赖五项：`data.identity-values`、`data.messages`、`data.call-accounts`、`data.content-blocks`、`capability.session-tenancy`（均 v1），clauses 取自[契约 S-4](v2/contract.md#s-4-依赖方向与被消费的面)
+  依赖五项：`data.identity-values` v1、`data.messages` v2、`data.call-accounts` v2、`data.content-blocks` v2、`capability.session-tenancy` v2，clauses 取自[契约 S-4](v2/contract.md#s-4-依赖方向与被消费的面)
 - **formal-tasks 映射**：`session-log-v2-appends`（正配置）；五个有效性与可达性配置不登记。已执行一次，结果在[验证入口](verification.md#形式工件)
 - **提供者/装配映射**：[packages/session/session-log-jsonl](../../../realization/packages/session/session-log-jsonl/README.md)；当前节点设计已由 D-062 接受，源码／实际验证按各节点四层状态分别读取。
 
@@ -50,3 +56,7 @@
 ## 2026-09-26 版本接受
 
 本次接受 `capability.session-log` v2 的全部条款，[D-061](../../../record/decisions/assets-runtimes-contract-acceptance/decision.md) 为实际接受依据；catalog 与冻结资源已对齐。后续规范变化出新版本，不改写已冻结版本。
+
+## 2026-09-27：v3 条件追加候选
+
+新增 [v3 契约](v3/contract.md)、[规范实例](v3/examples.md)、[精确消费者传播](v3/consumer-impact.md) 与 [形式义务](v3/formal/README.md)。本版按 [D-081](../../../record/decisions/model-late-coordination-direction/decision.md) 已采用方向起草，**精确规格尚未接受**，没有新增 provider binding；v2 冻结资源及当前消费者采用保持。append 增加必填 condition 与尾比较零写结果，readByKey/readSince 保持原面；日志仍不解释业务载荷。正式 registry 的候选登记由主线整批核对，本入口不冒充 catalog 已登记。

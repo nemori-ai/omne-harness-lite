@@ -31,6 +31,7 @@ mkdir -p \
     "$sandbox/packages/demo/src" \
     "$sandbox/packages/demo/upstream" \
     "$sandbox/tools/ts-helper/src" \
+    "$sandbox/examples/demo/src" \
     "$sandbox/spec" \
     "$sandbox/.vscode"
 cp -- "$repo_root/scripts/format.sh" "$sandbox/scripts/format.sh"
@@ -46,6 +47,7 @@ git -C "$sandbox" config user.email formatting-test@example.invalid
 git -C "$sandbox" config user.name "Formatting Test"
 
 printf '%s\n' 'const value={nested:[1,2,3]}' >"$sandbox/packages/demo/src/space name.ts"
+printf '%s\n' 'export const example={interactive:true}' >"$sandbox/examples/demo/src/index.ts"
 printf '%s\n' 'export const helper={ready:true}' >"$sandbox/tools/ts-helper/src/index.ts"
 printf '%s\n' '{"compilerOptions":{"strict":true}}' >"$sandbox/tsconfig.test.json"
 printf '%s\n' 'const upstream={must:"stay byte-identical"}' >"$sandbox/packages/demo/upstream/original.ts"
@@ -59,6 +61,7 @@ if "$sandbox/scripts/format.sh" check >/dev/null 2>&1; then
 fi
 "$sandbox/scripts/format.sh" write >/dev/null
 "$sandbox/scripts/format.sh" check >/dev/null
+"$sandbox/scripts/format.sh" check examples/demo/src/index.ts >/dev/null
 first_write="$(sha256sum "$sandbox/packages/demo/src/space name.ts")"
 "$sandbox/scripts/format.sh" write >/dev/null
 second_write="$(sha256sum "$sandbox/packages/demo/src/space name.ts")"

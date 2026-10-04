@@ -10,13 +10,13 @@ different locations. Take the execution repository from the task or an explicit
 provider/assembly mapping; do not infer it from a parent directory, current shell
 location or the repository carrying .meta_harness.
 
-Record the main checkout, declared primary branch, current task/HUB/spoke path and
+Record the main checkout, declared primary branch, the session's worktree path and
 branch, baseline revision, worktree container and permitted write scope. Verify
 Git metadata inside that selected repository before changing it. Use a task-supplied
 path or its own declared conventions; missing data does not authorize guessing.
 
-The adopted container belongs to the main checkout. HUBs and spokes share that
-container; never nest another container in a linked worktree. The examples use
+The adopted container belongs to the main checkout. Every session's worktree lives in
+that container; never nest another container in a linked worktree. The examples use
 .worktrees and main for readability, not as evidence of another repository's policy.
 
 ## Setup and checks
@@ -36,7 +36,8 @@ checks, not unrelated product suites.
 Each integration check identifies the integrated revision, environment, configuration
 and covered properties. Reuse prior evidence only when those inputs and the required
 scope still match; changed composition, upstream requirements or missing coverage
-requires the affected check. A spoke result does not establish HUB integration.
+requires the affected check. A check that passed before the primary branch was taken in
+does not establish the integrated state.
 
 Take review, commit, push, merge and cleanup permissions from the current task and
 the selected repository's adopted delivery rules. Existing authorization persists;
@@ -57,4 +58,4 @@ Unknown preservation or active-consumer status defers removal, not unrelated wor
 Source changes remain on the task branch under its authorization; do not use stash
 as an untracked substitute for a recoverable handoff.
 
-Return to [discipline](../SKILL.md) or the [fan-out walkthrough](fanout_playbook.md).
+Return to [discipline](../SKILL.md).

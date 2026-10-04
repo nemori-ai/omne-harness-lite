@@ -1,0 +1,36 @@
+{
+  "date": "2026-09-29",
+  "method": "Independent anonymous pinned-source HTTPS reads; no model requests, builds or library execution",
+  "files": [
+    {
+      "url": "https://raw.githubusercontent.com/earendil-works/pi/3390bd93630965a12a0a1a5c36ce890ec22f7e1d/packages/coding-agent/src/utils/image-resize-core.ts",
+      "sha256": "b3523329397d47473b76c40e8802283a79d3a3e3f317f4da0124ccba5152edd8",
+      "bytes": 4784,
+      "result": "same_pinned_bytes"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/639ed015397290b3745d163aafe02ffee4aa3f84/packages/attachment/attachment-local/src/encoding.ts",
+      "sha256": "6404620aaa9ccf87fdfcdb6302c2be09b666b76dd755a8f0f761c5890a7c9921",
+      "bytes": 3301,
+      "result": "same_pinned_bytes"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/639ed015397290b3745d163aafe02ffee4aa3f84/packages/attachment/attachment-local/src/image.ts",
+      "sha256": "ec48db7f7702bb06317c10c393c1fc6a8ec0927f87f63021f419f015dd69827f",
+      "bytes": 5594,
+      "result": "same_pinned_bytes"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/langchain-ai/langchainjs/17b6bba8343bdd3f3dfc5c59578e0b72337ec740/libs/langchain-core/src/language_models/base.ts",
+      "sha256": "a15f3f7f4a95477f15b40d1ed73cdcb33aae2124e5c89bed36596da99380ac18",
+      "bytes": 21753,
+      "result": "same_pinned_bytes"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/lovell/sharp/1018449164723ba0203c1beffaba0e21f7829c18/lib/input.mjs",
+      "sha256": "c134801d22ca82b1cf56e21e3468592585e29b093cbd7c7663608d2baf93308e",
+      "bytes": 33630,
+      "result": "same_pinned_bytes"
+    }
+  ]
+}

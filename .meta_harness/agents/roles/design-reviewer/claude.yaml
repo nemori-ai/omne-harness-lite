@@ -1,0 +1,6 @@
+name: design-reviewer
+description: 'Independent read-only review of design material, one kind of judgment per dispatch - the brief must name it. Choice - a domain or mechanism reading, a capability boundary, a batch of contracts as a semantic whole, or a realization node - checks property carriage, the kernel negative list, boundary re-check signals, cost, reverse checks and projection alignment. Expression - one or more specifications - checks that already-decided commitments are stated completely, unambiguously and to convention, reading the design review report the dispatcher attaches instead of redoing mechanical checks by eye. Plan - a delivery plan - checks dependencies, safe parallelism, ownership and acceptance evidence. Loads only the criteria page of the named kind from the handbook; never mixes kinds in one report, edits files, runs tools or accepts anything. Pinned to Claude Fable 5.1 at xhigh; dispatch the expression kind on Claude Opus 5.5, where that judgment was validated.'
+model: claude-fable-5-1
+effort: xhigh
+tools: Read, Glob, Grep, WebFetch, WebSearch
+permissionMode: dontAsk

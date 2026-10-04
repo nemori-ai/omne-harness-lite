@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/usr/local/bin/tlc",
+    "-noGenerateSpecTE",
+    "-metadir",
+    "tmp/model-request-runtime/lifecycle-formal-2/Adaptation_AcquireRetired/states",
+    "-workers",
+    "1",
+    "-config",
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v3/formal/validity-check/Adaptation_AcquireRetired.cfg",
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v3/formal/Adaptation.tla"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime",
+  "exitCode": 12,
+  "elapsedSeconds": 0.6825764179229736,
+  "inputs": {
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v3/formal/validity-check/Adaptation_AcquireRetired.cfg": "577548732fb2fd20de6d6f74ce2a1d6a3c5a6b9d8f5023199eda9f1de936ec00",
+    ".meta_harness/design/spec/capabilities/model-request-runtime/v3/formal/Adaptation.tla": "23472057c4d32b456c90de1301eddc59de1078ee9123e1a142aef1257f89ffe2"
+  }
+}

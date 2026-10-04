@@ -49,3 +49,51 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 ## 独立评审
 
 N1：无发现——2026-09-25 本节点随 N1 批（`core` 十五个纯模块）经一次独立的架构评审（只读结构核对，无运行），无阻断、无应修、无建议（批的结论见 [D-060 §八 N-28](../../../../record/decisions/mainline-self-rulings-2026-09/decision.md#八实现映射起草反推出的契约修订m31m442026-09-25-追加)）。
+
+## CA3 候选增量（2026-09-29）
+
+对象为 [v3-design.md](v3-design.md)，固定语义为 `3f597c18` 中 `data.call-accounts/v3` contract/Schema，candidate。源码已存在，但下列 CA3 义务均未执行；原 CA2 运行与绑定不迁移为新证据。本次新增绑定 0，原绑定不改。以下 V3 编号仅是本节点验收义务，不是已登记测试或 formal task。
+
+### CA3 证据义务
+
+| 义务／条款 | 正例与必须失败的反例 | owner 与状态 |
+|---|---|---|
+| V3-1：S-4～S-18/S-27～S-29/S-37～S-39 | 最终采用 CA3 Schema 的字节副本、原规范正反实例和判定次序；新 `$id` 可被消费者解析。错误旧 URI、漏字段、未知枚举或组合矛盾必须失败，不能改为 unknown | 本包实施者；未开始 |
+| V3-2：S-5/S-26 | 无损读入→选中账值→纯求值→写出保留超 17 位金额，`0.1 + 0.2 = 0.3`；将任一边界替换成浮点解析/相加必须触发差异 | 本包负责纯计算；runtime/存储负责逐跳；未开始 |
+| V3-3：S-22～S-24/S-40 | 将同 ResponseId 的 ready 或 final 分别投影为唯一显式账值，两次独立求值相等；误交两项必须为重复账失败；同 CallKey 的不同 ResponseId 分别计数 | 本包实施者；未开始；显式输入不证明真实来源选择 |
+| V3-4：S-10/S-17/S-24/S-41 | ready 原账 + 工具镜像 + 最新有效补账只算一份有效模型费用，final 接替后相同；目标仍原 ResponseId；补账平局/孤立目标必须失败，预先覆写原 Cost 为 later_correction 不得准入 | 本包实施者；未开始；同组及镜像真实引用由外侧证明 |
+| V3-5：S-4/S-23/S-40～S-42 | 合法 unknown 保留未知笔数；费用与用量分别走既有入口；坏表示明确拒绝。负控把未知填零、跳过坏值或把工具镜像加入权威和均必须失败 | 本包实施者；未开始；不据纯函数成功声称无源也可汇总 |
+| V3-6：S-40/S-42 | 真实日志前缀 P 只有 ready，读取期间 final 进入 P′；P/P′ 各一笔且相同。ready 已发布但 payload 丢失/损坏时必须 unavailable，不能跳过或混入较新前缀；同前缀复读相同 | runtime/日志成本读面 owner；未开始；须真实并发及故障注入 |
+| V3-7：S-25/S-38～S-42 | 原 Run ready 在新 Run 查询仍归原壳；final 接替原账、不重赋归属；ready 无 late 不推不迟到。跨 Session/租户壳、伪造补账 sessionLog、未授权或撤权读取不得成功返回总账 | runtime/成本读面与真实授权提供者；未开始；core 输入无 Session，不能以其测试替代 |
+| V3-8：S-19～S-21/S-40/S-42 | 已知发出无 ready/final 由原在途/恢复流程明确解释，不能静默消失；无人处分的 ready 仍计费；诊断可解释 ResponseId/阶段但不泄漏 payload，账/marker 不进模型上下文 | runtime/成本读面及上下文消费者；未开始；不虚构完整 Run/ToolRuntime 交付 |
+| V3-9：S-5/S-22～S-24/S-27～S-29/S-40～S-42 | 打包公开 JS、声明与 root `./schema`→CA3、候选 `./schema/v2`→原字节 CA2。MR10/MS7 新图、LC6/AE3 及保留 MS/LC 旧资源混合图全部解析；stream-assembly 经 AE3 的公开消费运行。负控删 CA2 注册/出口或用 CA3 冒充其 $id 必须失败。双语 README 例子按实际入口执行，含唯一值、补账及 unknown；无私有源码依赖、旧执行入口或杜撰查询 API | 本包及消费者实施者、验证 owner；未开始；精确 Schema 资源保留不是兼容执行面 |
+
+V3-6 的两条交错是 [并发章节](v3-design.md#状态并发与失败) 的真并发演练；纯数组排列测试不能取代。不存在本节点跨 owner 写入或共同存储对象证明义务。外侧原批唯一、payload 留存等义务仍归外侧节点，不因 CA 没有存储而消失。
+
+### CA3 实际执行与证据限制
+
+本次只核对源码公开面、CA2/CA3 Schema 身份差异、catalog 坐标和设计文档。没有运行本包产品测试、形式模型或付费模型请求；CA3 实际验证尚无。文档检查结果不提升上述义务状态。
+
+2026-09-29，使用本工作树 `.venv/bin/python` 运行 `check_design.py --root .meta_harness/design --formal skip --gate internal`，实际输出 `PASS: design tree`、`passed gate=internal; formal=skip.`。该检查核设计树内部一致性，所有 formal 明确跳过，不是 CA3 实现或运行态验证。首次用系统 `python3` 因版本不支持 `PurePosixPath.is_relative_to` 中止，随后改用本工作树 Python 环境完成。
+
+### CA3 覆盖缺口
+
+| 缺口 | 条款与受阻消费者 | owner／闭合条件 |
+|---|---|---|
+| G3-1 | S-1～S-42：全批采用和来源复核未闭合，阻止 CA3 正式采用及依赖实施 | 规格 owner、主线完成全批 gate 与明确采用 |
+| G3-2 | S-40～S-42 / G-13：实际来源完整、唯一选择、权限与归组没有证据，完整总账消费者受阻 | runtime/日志成本读面 owner 完成 V3-6～V3-8；不由纯 sum 或现有 CA2 绑定关闭 |
+| G3-3 | S-25/S-26/S-38/S-42：生产授权、日志/内容读取与原归属装配尚无应用承接者 | 主线指定生产 owner；本批不新建 apps，开发示例不充当生产 Session/Run；独立纯计算不受阻 |
+| G3-4 | S-5/S-22～S-24/S-27～S-29：CA3 Schema、消费图、类型与双语示例未迁移/复验 | 本包及各消费者实施者完成 V3-1～V3-5/V3-9，登记真实制品与运行证据后才考虑新绑定 |
+
+新增上游待核对主张为 0；本包无 Cordis 依赖。节点未自评审、未接受，独立 architecture-reviewer 与后续技术接受由主线安排。
+
+## CA4 ACK 来源候选义务
+
+对应[v4](v4-acknowledgement-design.md)，全部待执行，新增bindings0。
+
+| 编号 | 验证 | 范围 |
+| --- | --- | --- |
+| A4-V1 | CA4 13公开defs/四实际资源冷编译、逐资源缺失负控、packed声明及跨包消费 | 不新增MR/MS反向依赖 |
+| A4-V2 | 原Usage/Cost/Correction精确数与unknown、reasoning/upstream_inference optional往返、原纯有效费用/汇总回归 | 原算法未变的证据按精确diff复用，不冒新来源组合 |
+| A4-V3 | runtime同源final→ACK witness→ready切换恰一次；同时来源矛盾明确拒绝；多个dispatch分别计；没有合法ACK的缺payload不可成功总账 | 真日志/来源属于runtime组合验收 |
+| A4-V4 | unknown在ACK/删除后保持未知笔数；迟到补账仍原ResponseId/租户/Run/credentialScope；重ACK不加镜像/费用 | 不从当前请求者迁账，不用hash或当前价格补数 |

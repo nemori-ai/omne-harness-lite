@@ -1,0 +1,224 @@
+{
+  "format": 1,
+  "id": "implementation-review",
+  "version": 1,
+  "family": "review",
+  "role": "implementation-reviewer",
+  "judgment": "实现",
+  "criteria_page": "",
+  "reps": 2,
+  "host": {
+    "claude-code": {
+      "model": "claude-fable-5-1",
+      "effort": "high",
+      "allowed": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Bash"
+      ]
+    }
+  },
+  "workspace": {
+    "kind": "checkout",
+    "base": "6694e2d6b29a95ec7ddbd6194b74439bd7b4766e",
+    "excludes": [
+      ".meta_harness/agents/evaluation"
+    ],
+    "setup": [
+      [
+        "pnpm",
+        "install",
+        "--frozen-lockfile",
+        "--ignore-scripts",
+        "--prefer-offline"
+      ],
+      [
+        "pnpm",
+        "run",
+        "build"
+      ]
+    ],
+    "linked": [
+      "node_modules"
+    ],
+    "drop": [
+      ".claude",
+      ".agents",
+      ".codex"
+    ],
+    "commit": "delivery",
+    "member": "packages/session/session-tenancy-table",
+    "delivery": {
+      "subject": "session-tenancy-table: operator description and file-based reader",
+      "trailers": [
+        "Harness: claude-code",
+        "Agent-Role: developer"
+      ],
+      "author": "implementer <implementer@invalid>"
+    },
+    "rebuild": [
+      "pnpm",
+      "run",
+      "build"
+    ]
+  },
+  "checks": {
+    "member_test": [
+      "pnpm",
+      "run",
+      "test"
+    ],
+    "rules": {
+      "run": [
+        "pnpm",
+        "run",
+        "lint:rules"
+      ],
+      "fails_with": "group-direction"
+    }
+  },
+  "metrics": [
+    {
+      "id": "caught",
+      "kind": "binary",
+      "label": "抓到种入"
+    },
+    {
+      "id": "tracked_intact",
+      "kind": "binary",
+      "label": "未动受控文件"
+    },
+    {
+      "id": "blocking",
+      "kind": "judge",
+      "label": "阻断条数",
+      "scale": 10
+    },
+    {
+      "id": "novel_blocking",
+      "kind": "judge",
+      "label": "表外阻断条数",
+      "scale": 5,
+      "better": "lower"
+    },
+    {
+      "id": "out_of_kind",
+      "kind": "judge",
+      "label": "越出判断条数",
+      "scale": 5,
+      "better": "lower"
+    }
+  ],
+  "signoffs": {
+    "cases": { "by": "panqiwei", "date": "2026-10-02", "version": 1 },
+    "grading": {
+      "by": "panqiwei",
+      "date": "2026-10-02",
+      "version": 1,
+      "judge": "judge:subagent:claude-sonnet-5-5 rules e65bb670c43e"
+    }
+  },
+  "materials": [
+    {
+      "id": "session-tenancy-delivery",
+      "target": "成员 packages/session/session-tenancy-table 上的一个交付提交（种入五处问题）与一份有不实主张的交付说明；契约 .meta_harness/design/spec/capabilities/session-tenancy/v2/contract.md",
+      "brief": "briefs/implementation-review.md",
+      "delivery_note": "briefs/implementation-delivery-note.md",
+      "tags": [
+        "种入的"
+      ],
+      "seeds": [
+        {
+          "id": "I1",
+          "kind": "seeded",
+          "where": "packages/session/session-log-jsonl/README_ZH.md（写入范围之外）",
+          "truth": "写入范围之外的改动：简报只给了 session-tenancy-table 的 src 与 tests，交付却改了 session-log-jsonl 的说明",
+          "ops": [
+            {
+              "op": "append",
+              "file": "packages/session/session-log-jsonl/README_ZH.md",
+              "text": "\n> 备注：会话日志的读者应当先经 session-tenancy-table 确认会话归属，再读日志。\n"
+            }
+          ]
+        },
+        {
+          "id": "I2",
+          "kind": "seeded",
+          "where": "packages/session/session-tenancy-table/tests/reader.spec.ts",
+          "truth": "既有断言被改弱：原来断言读不到时得到 unavailable，被改成 sessionNotFound，正好掩盖 I3；另有一条既有测试被标成 skip",
+          "ops": [
+            {
+              "op": "replace",
+              "file": "packages/session/session-tenancy-table/tests/reader.spec.ts",
+              "find": "    expect(await reader.holdingTenant('session_a')).toEqual({ failure: 'unavailable' })\n    read.mockRestore()",
+              "replace": "    expect(await reader.holdingTenant('session_a')).toEqual({ failure: 'sessionNotFound' })\n    read.mockRestore()"
+            },
+            {
+              "op": "replace",
+              "file": "packages/session/session-tenancy-table/tests/reader.spec.ts",
+              "find": "test('participation uses the real shared unit and never starts a nested ordinary read', async () => {",
+              "replace": "test.skip('participation uses the real shared unit and never starts a nested ordinary read', async () => {"
+            }
+          ]
+        },
+        {
+          "id": "I3",
+          "kind": "seeded",
+          "where": "packages/session/session-tenancy-table/src/reader.ts 读不到存储时的收场",
+          "truth": "违背契约：存储读不到时答「没有这个会话」。契约 capability.session-tenancy/v2 S-7 要求读不到即 unavailable、没有记录才是 sessionNotFound（规范场景 S-14、S-15）；反例是读者未撤除时的任何一次存储不可用。撤除后的读仍答 unavailable，所以其余既有测试照常通过",
+          "ops": [
+            {
+              "op": "replace",
+              "file": "packages/session/session-tenancy-table/src/reader.ts",
+              "find": "    } catch (error) {\n      return mapStorageError(error, 'unavailable')\n    }",
+              "replace": "    } catch (error) {\n      // A store that cannot be read has no row to offer either way.\n      if (error instanceof StorageUnavailable && !closed) return { failure: 'sessionNotFound' }\n      return mapStorageError(error, 'unavailable')\n    }"
+            }
+          ]
+        },
+        {
+          "id": "I4",
+          "kind": "seeded",
+          "where": "packages/session/session-tenancy-table/src/reader.ts 的导入与新增的 openSessionTenancyReader",
+          "truth": "依赖方向：领域包的产品源码直接导入 infra 提供者 storage-sql（只有装配层可以选用 infra），仓库规则 group-direction 报红",
+          "ops": [
+            {
+              "op": "replace",
+              "file": "packages/session/session-tenancy-table/src/reader.ts",
+              "find": "import type { TenantId } from '@omne-harness-lite/identity-values'\n",
+              "replace": "import type { TenantId } from '@omne-harness-lite/identity-values'\nimport { openStorage } from '@omne-harness-lite/storage-sql'\nimport { composeMigrations } from '@omne-harness-lite/storage'\nimport { sessionTenancyMigrations } from './migrations.ts'\n"
+            },
+            {
+              "op": "replace",
+              "file": "packages/session/session-tenancy-table/src/reader.ts",
+              "find": "export function createSessionTenancyReader(storage: Storage): SessionTenancyReader {",
+              "replace": "/** Convenience for callers that only have a database file. */\nexport async function openSessionTenancyReader(file: string): Promise<SessionTenancyReader> {\n  const storage = await openStorage({\n    dialect: 'sqlite',\n    file,\n    migrations: composeMigrations(sessionTenancyMigrations),\n    upgrade: false,\n  })\n  return createSessionTenancyReader(storage)\n}\nexport function createSessionTenancyReader(storage: Storage): SessionTenancyReader {"
+            }
+          ]
+        },
+        {
+          "id": "I5",
+          "kind": "seeded",
+          "where": "packages/session/session-tenancy-table/src/reader.ts 新增的 describeHoldingTenant",
+          "truth": "结构：新增函数 describeHoldingTenant 圈复杂度远超处置线、没有任何测试，交付说明没有提到它",
+          "ops": [
+            {
+              "op": "replace",
+              "file": "packages/session/session-tenancy-table/src/reader.ts",
+              "find": "async function query(tx: ReadTx, session: string): Promise<HoldingTenantResult> {",
+              "replace": "/** Human-readable line for operators; used by diagnostics only. */\nexport function describeHoldingTenant(\n  session: unknown,\n  result: HoldingTenantResult,\n  options: { verbose?: boolean; locale?: 'zh' | 'en'; redact?: boolean } = {},\n): string {\n  const zh = options.locale !== 'en'\n  let who = typeof session === 'string' ? session : zh ? '（非法会话）' : '(invalid session)'\n  if (options.redact && typeof session === 'string') {\n    who = session.length > 8 ? `${session.slice(0, 4)}…${session.slice(-2)}` : '****'\n  }\n  if ('tenant' in result) {\n    if (options.verbose) {\n      return zh ? `会话 ${who} 归属已确认` : `session ${who} holding tenant confirmed`\n    }\n    return zh ? `${who}：已确认` : `${who}: ok`\n  }\n  if (result.failure === 'invalidInput') {\n    if (options.verbose) {\n      return zh ? `会话 ${who} 的指认不合形状` : `session ${who} is not a well-formed reference`\n    }\n    return zh ? `${who}：输入不合` : `${who}: invalid`\n  }\n  if (result.failure === 'sessionNotFound') {\n    if (options.verbose) {\n      return zh ? `没有会话 ${who} 的归属记录` : `no holding record for session ${who}`\n    }\n    return zh ? `${who}：无记录` : `${who}: not found`\n  }\n  if (options.verbose) {\n    return zh ? `读不到会话 ${who} 的归属` : `holding tenant of session ${who} cannot be read`\n  }\n  return zh ? `${who}：读不到` : `${who}: unavailable`\n}\nasync function query(tx: ReadTx, session: string): Promise<HoldingTenantResult> {"
+            }
+          ]
+        },
+        {
+          "id": "I6",
+          "kind": "seeded",
+          "where": "交付说明",
+          "truth": "交付说明与事实不符：声称「既有测试一条没动」，实际改了一条断言、跳过了一条测试；声称只改了 session-tenancy-table，实际还改了别的包的说明",
+          "in": "briefs/implementation-delivery-note.md"
+        }
+      ],
+      "known_issues": []
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "pnpm",
+    "--filter",
+    "@omne-harness-lite/ts-checks",
+    "run",
+    "build"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime",
+  "head": "4a268c91494445a056a75424ab073991d2e0f5d3",
+  "started_at": "2026-09-28T00:46:12.862253+00:00",
+  "completed_at": "2026-09-28T00:46:14.839691+00:00",
+  "exit_code": 0,
+  "output_sha256": "221ae9c66673957bcf65823992f0abb0ce69d8aebf9ae7c63f09c5b970d7b64d"
+}

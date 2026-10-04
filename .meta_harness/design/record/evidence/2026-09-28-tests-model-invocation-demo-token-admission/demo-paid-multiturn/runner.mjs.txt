@@ -1,0 +1,1 @@
+../../2026-09-28-tests-model-invocation-demo-service/runner.mjs.txt

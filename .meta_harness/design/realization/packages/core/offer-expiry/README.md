@@ -8,6 +8,8 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 # offer-expiry
 
+**2026-09-27 模型时间精确比较增补**：[D089](../../../../record/decisions/model-time-order-projection-adoption/decision.md)技术采用[原串排序rev1](rfc3339-order-design.md) SHA256 `249c68ea3239977131cc44be3d75dbd31474e0659355258c2606833eb2bfaab2`。B／R1新增纯公开比较入口，在合法RFC3339时点前提下精确排序，不改变旧毫秒Instant／Clock；`ok`不认证闰秒事实。当前仅采用，源码及TO-V1～9未验，新增bindings0；TL-G1真实时间生产者／宿主／合法历史证据及runtime完整关联仍待。下方旧接口实测保持原范围。
+
 ## 当前 core 交付与技术接受（2026-09-26）
 
 - 语义采用：`data.offer-expiry/v2`；规范接受与冻结依据仍归 registry／原决定，本次不修改其语义。
@@ -46,3 +48,13 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
 
 2026-09-25增量：D042/D043范围内的新版本局部实现及测试见[证据](../../../../record/evidence/2026-09-25-tests-governance-participation/README.md)。旧bindings不整批升级；新entry/host组合未验，不声明生产开闸。
+
+**2026-09-27 W17 条件比较签收**：[限定技术签收](../../../../record/evidence/2026-09-27-tests-core-rfc3339-order/README.md)接受D089 B/R1公开纯比较；HUB56d69e36/core150、两闭合制品各9475oracle、12literal、两真编译行为负控及4542归档成员亲核。产品slice Pass、证据Pass with issues，首次oracle脚本PID/完整stderr缺项保留；源码878f8bf8已集成。TL-G1真实合法来源与runtime三/两timing及opened关联未闭，新增规范bindings0，旧源码/Schema/Clock保持。
+
+## 2026-10-03 固定Schema技术采用
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。
+
+## 2026-10-03 D-116 主体实施与有限验收
+
+本节点固定图已实施构建期生成与首次实际消费时的同步原生装载。全部定义、公开结果/errors、构建失败清理、恢复、新鲜性及制品消费的实际范围见[主体原始运行与有限签收](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。本段取代上文 D-116 补充中关于固定图实施/验证尚待的状态；原契约、其他能力与历史运行的边界不变。

@@ -1,0 +1,26 @@
+{
+  "name": "SynthesizeTime",
+  "argv": [
+    "java",
+    "-Xmx256m",
+    "-cp",
+    "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar",
+    "tlc2.TLC",
+    "-workers",
+    "1",
+    "-metadir",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/recovery-timing-validation/SynthesizeTime/states",
+    "-config",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/.meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/validity-check/RecoveryTiming_SynthesizeTime.cfg",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/.meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming.tla"
+  ],
+  "returncode": 12,
+  "expected_violation": "TruthfulSentAt",
+  "actual_violations": [
+    "TruthfulSentAt"
+  ],
+  "matched": true,
+  "model_sha256": "fd62324b758d2429454819204271a8ce7bffe3f4a731d491f03fd924454ed27d",
+  "config_sha256": "3527ed919c2be3ece4d7434f4aecd35541c52e766457d006aee1b3edf55e4ffd",
+  "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1"
+}

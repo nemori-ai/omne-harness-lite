@@ -1,0 +1,1632 @@
+{
+  "head": "4425061cef030aa374ac1e3e0011bfcfeed99765",
+  "node": "v24.21.0",
+  "cases": 65,
+  "identities": 2,
+  "metaCases": 6,
+  "keywords": 16,
+  "ordinaryAndMetaErrorsEqual": true,
+  "immediateSnapshot": true,
+  "isolated": {
+    "result": {
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_integer",
+          "keyword": "exact_integer",
+          "params": {},
+          "message": "must pass \"exact_integer\" keyword validation"
+        }
+      ]
+    },
+    "forbidden": [],
+    "seen": [
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/cases.cjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/compiler-free-probe/native-helper.mjs"
+    ]
+  },
+  "source": {
+    "exactSha256": "229d45edc0a8115fc82c7f04ff1613382dd34a97615dc3ac7b6596041aa24baa",
+    "jsonSha256": "c08bd65914b354daa8ced326c8a8a6094f064077870bd0f49f4a632349545d95",
+    "oracleSha256": "485bb185e0a1c9e7081d512a77d22de0b175a3cf731b6cfd142a33950b53d92b"
+  },
+  "artifacts": [
+    {
+      "file": "json.mjs",
+      "sha256": "17ed35719f595e9a92777a9e344918db523dd6382efeb4f9b060711e8c1fee5e",
+      "bytes": 8236
+    },
+    {
+      "file": "exact-runtime.mjs",
+      "sha256": "0b6ea42c02c38533cfc08093722d3070552a2ddef6a4a5a40ba5f90642d742ca",
+      "bytes": 13499
+    },
+    {
+      "file": "pattern.mjs",
+      "sha256": "6ca117bc0a8e97c79e1566fcf3950200f9edd3eef121c0be7f081ab4595d3f12",
+      "bytes": 1165
+    },
+    {
+      "file": "native-helper.mjs",
+      "sha256": "b744cb3c4f4e9a21a8fe09080f7353d1c0a10b6dc2fb1e55f18f34619f45b7a8",
+      "bytes": 1062
+    },
+    {
+      "file": "cases.cjs",
+      "sha256": "eaac68423cd27b0a8a5573a8c00f66e569dfcd89b00c2eff88e3bd31c6e937c2",
+      "bytes": 67994
+    },
+    {
+      "file": "meta.cjs",
+      "sha256": "056e15dfa0b8112ae0e44c0218a33802d9f4b7980ef910c3693a62d9bd3a83f6",
+      "bytes": 76929
+    },
+    {
+      "file": "isolated-load.cjs",
+      "sha256": "8ab5575ac78d6485b23cd1b7da82ff545e4b9cc31c4e2630d68ec37bba9bd197",
+      "bytes": 794
+    }
+  ],
+  "scope": "compiler-free mechanically copied helper; 65 exact/error cases in src/dist plus 6 meta cases. No build transaction, actual package subpaths, full graph fixture or performance proof.",
+  "results": [
+    {
+      "identity": "src",
+      "case": 0,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_integer",
+          "keyword": "exact_integer",
+          "params": {},
+          "message": "must pass \"exact_integer\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 0,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_integer",
+          "keyword": "exact_integer",
+          "params": {},
+          "message": "must pass \"exact_integer\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 1,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 1,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 2,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 2,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 3,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_type",
+          "keyword": "exact_type",
+          "params": {},
+          "message": "must pass \"exact_type\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 3,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_type",
+          "keyword": "exact_type",
+          "params": {},
+          "message": "must pass \"exact_type\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 4,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 4,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 5,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 5,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 6,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minimum",
+          "keyword": "exact_minimum",
+          "params": {},
+          "message": "must pass \"exact_minimum\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 6,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minimum",
+          "keyword": "exact_minimum",
+          "params": {},
+          "message": "must pass \"exact_minimum\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 7,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_maximum",
+          "keyword": "exact_maximum",
+          "params": {},
+          "message": "must pass \"exact_maximum\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 7,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_maximum",
+          "keyword": "exact_maximum",
+          "params": {},
+          "message": "must pass \"exact_maximum\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 8,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 8,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 9,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 9,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 10,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 10,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 11,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_multipleOf",
+          "keyword": "exact_multipleOf",
+          "params": {},
+          "message": "must pass \"exact_multipleOf\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 11,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_multipleOf",
+          "keyword": "exact_multipleOf",
+          "params": {},
+          "message": "must pass \"exact_multipleOf\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 12,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_const",
+          "keyword": "exact_const",
+          "params": {},
+          "message": "must pass \"exact_const\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 12,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_const",
+          "keyword": "exact_const",
+          "params": {},
+          "message": "must pass \"exact_const\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 13,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 13,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 14,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 14,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 15,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_uniqueItems",
+          "keyword": "exact_uniqueItems",
+          "params": {},
+          "message": "must pass \"exact_uniqueItems\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 15,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_uniqueItems",
+          "keyword": "exact_uniqueItems",
+          "params": {},
+          "message": "must pass \"exact_uniqueItems\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 16,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 16,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 17,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minimum",
+          "keyword": "exact_minimum",
+          "params": {},
+          "message": "must pass \"exact_minimum\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 17,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minimum",
+          "keyword": "exact_minimum",
+          "params": {},
+          "message": "must pass \"exact_minimum\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 18,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minLength",
+          "keyword": "exact_minLength",
+          "params": {},
+          "message": "must pass \"exact_minLength\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 18,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minLength",
+          "keyword": "exact_minLength",
+          "params": {},
+          "message": "must pass \"exact_minLength\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 19,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 19,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 20,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minLength",
+          "keyword": "exact_minLength",
+          "params": {},
+          "message": "must pass \"exact_minLength\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 20,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minLength",
+          "keyword": "exact_minLength",
+          "params": {},
+          "message": "must pass \"exact_minLength\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 21,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 21,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 22,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minLength",
+          "keyword": "exact_minLength",
+          "params": {},
+          "message": "must pass \"exact_minLength\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 22,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minLength",
+          "keyword": "exact_minLength",
+          "params": {},
+          "message": "must pass \"exact_minLength\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 23,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 23,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 24,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minItems",
+          "keyword": "exact_minItems",
+          "params": {},
+          "message": "must pass \"exact_minItems\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 24,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minItems",
+          "keyword": "exact_minItems",
+          "params": {},
+          "message": "must pass \"exact_minItems\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 25,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 25,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 26,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minProperties",
+          "keyword": "exact_minProperties",
+          "params": {},
+          "message": "must pass \"exact_minProperties\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 26,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/exact_minProperties",
+          "keyword": "exact_minProperties",
+          "params": {},
+          "message": "must pass \"exact_minProperties\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 27,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 27,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 28,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/propertyNames/exact_minLength",
+          "keyword": "exact_minLength",
+          "params": {},
+          "message": "must pass \"exact_minLength\" keyword validation",
+          "propertyName": "a"
+        },
+        {
+          "instancePath": "",
+          "schemaPath": "#/propertyNames",
+          "keyword": "propertyNames",
+          "params": {
+            "propertyName": "a"
+          },
+          "message": "property name must be valid"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 28,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/propertyNames/exact_minLength",
+          "keyword": "exact_minLength",
+          "params": {},
+          "message": "must pass \"exact_minLength\" keyword validation",
+          "propertyName": "a"
+        },
+        {
+          "instancePath": "",
+          "schemaPath": "#/propertyNames",
+          "keyword": "propertyNames",
+          "params": {
+            "propertyName": "a"
+          },
+          "message": "property name must be valid"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 29,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 29,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 30,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 30,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 31,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 31,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 32,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/propertyNames/exact_enum",
+          "keyword": "exact_enum",
+          "params": {},
+          "message": "must pass \"exact_enum\" keyword validation",
+          "propertyName": "b"
+        },
+        {
+          "instancePath": "",
+          "schemaPath": "#/propertyNames",
+          "keyword": "propertyNames",
+          "params": {
+            "propertyName": "b"
+          },
+          "message": "property name must be valid"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 32,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/propertyNames/exact_enum",
+          "keyword": "exact_enum",
+          "params": {},
+          "message": "must pass \"exact_enum\" keyword validation",
+          "propertyName": "b"
+        },
+        {
+          "instancePath": "",
+          "schemaPath": "#/propertyNames",
+          "keyword": "propertyNames",
+          "params": {
+            "propertyName": "b"
+          },
+          "message": "property name must be valid"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 33,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 33,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 34,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/anyOf/0/exact_const",
+          "keyword": "exact_const",
+          "params": {},
+          "message": "must pass \"exact_const\" keyword validation"
+        },
+        {
+          "instancePath": "",
+          "schemaPath": "#/anyOf/1/type",
+          "keyword": "type",
+          "params": {
+            "type": "null"
+          },
+          "message": "must be null"
+        },
+        {
+          "instancePath": "",
+          "schemaPath": "#/anyOf",
+          "keyword": "anyOf",
+          "params": {},
+          "message": "must match a schema in anyOf"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 34,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/anyOf/0/exact_const",
+          "keyword": "exact_const",
+          "params": {},
+          "message": "must pass \"exact_const\" keyword validation"
+        },
+        {
+          "instancePath": "",
+          "schemaPath": "#/anyOf/1/type",
+          "keyword": "type",
+          "params": {
+            "type": "null"
+          },
+          "message": "must be null"
+        },
+        {
+          "instancePath": "",
+          "schemaPath": "#/anyOf",
+          "keyword": "anyOf",
+          "params": {},
+          "message": "must match a schema in anyOf"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 35,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/oneOf",
+          "keyword": "oneOf",
+          "params": {
+            "passingSchemas": [
+              0,
+              1
+            ]
+          },
+          "message": "must match exactly one schema in oneOf"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 35,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/oneOf",
+          "keyword": "oneOf",
+          "params": {
+            "passingSchemas": [
+              0,
+              1
+            ]
+          },
+          "message": "must match exactly one schema in oneOf"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 36,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 36,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 37,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/then/exact_minimum",
+          "keyword": "exact_minimum",
+          "params": {},
+          "message": "must pass \"exact_minimum\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 37,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/then/exact_minimum",
+          "keyword": "exact_minimum",
+          "params": {},
+          "message": "must pass \"exact_minimum\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 38,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "/x",
+          "schemaPath": "#/additionalProperties/exact_integer",
+          "keyword": "exact_integer",
+          "params": {},
+          "message": "must pass \"exact_integer\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 38,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "/x",
+          "schemaPath": "#/additionalProperties/exact_integer",
+          "keyword": "exact_integer",
+          "params": {},
+          "message": "must pass \"exact_integer\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 39,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/unevaluatedProperties",
+          "keyword": "unevaluatedProperties",
+          "params": {
+            "unevaluatedProperty": "y"
+          },
+          "message": "must NOT have unevaluated properties"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 39,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/unevaluatedProperties",
+          "keyword": "unevaluatedProperties",
+          "params": {
+            "unevaluatedProperty": "y"
+          },
+          "message": "must NOT have unevaluated properties"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 40,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/dependentSchemas/x/required",
+          "keyword": "required",
+          "params": {
+            "missingProperty": "y"
+          },
+          "message": "must have required property 'y'"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 40,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/dependentSchemas/x/required",
+          "keyword": "required",
+          "params": {
+            "missingProperty": "y"
+          },
+          "message": "must have required property 'y'"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 41,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 41,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 42,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 42,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 43,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 43,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 44,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/unevaluatedItems",
+          "keyword": "unevaluatedItems",
+          "params": {
+            "limit": 1
+          },
+          "message": "must NOT have more than 1 items"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 44,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/unevaluatedItems",
+          "keyword": "unevaluatedItems",
+          "params": {
+            "limit": 1
+          },
+          "message": "must NOT have more than 1 items"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 45,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 45,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 46,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/false schema",
+          "keyword": "false schema",
+          "params": {},
+          "message": "boolean schema is false"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 46,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/false schema",
+          "keyword": "false schema",
+          "params": {},
+          "message": "boolean schema is false"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 47,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 47,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 48,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/contains",
+          "keyword": "contains",
+          "params": {
+            "minContains": 9007199254740991,
+            "maxContains": 9007199254740991
+          },
+          "message": "must contain at least 9007199254740991 and no more than 9007199254740991 valid item(s)"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 48,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/contains",
+          "keyword": "contains",
+          "params": {
+            "minContains": 9007199254740991,
+            "maxContains": 9007199254740991
+          },
+          "message": "must contain at least 9007199254740991 and no more than 9007199254740991 valid item(s)"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 49,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 49,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 50,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/contains",
+          "keyword": "contains",
+          "params": {
+            "minContains": 9007199254740991
+          },
+          "message": "must contain at least 9007199254740991 valid item(s)"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 50,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/contains",
+          "keyword": "contains",
+          "params": {
+            "minContains": 9007199254740991
+          },
+          "message": "must contain at least 9007199254740991 valid item(s)"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 51,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 51,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 52,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 52,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 53,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/allOf/0/contains",
+          "keyword": "contains",
+          "params": {
+            "minContains": 9007199254740991
+          },
+          "message": "must contain at least 9007199254740991 valid item(s)"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 53,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/allOf/0/contains",
+          "keyword": "contains",
+          "params": {
+            "minContains": 9007199254740991
+          },
+          "message": "must contain at least 9007199254740991 valid item(s)"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 54,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 54,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 55,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/type",
+          "keyword": "type",
+          "params": {
+            "type": "array"
+          },
+          "message": "must be array"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 55,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/type",
+          "keyword": "type",
+          "params": {
+            "type": "array"
+          },
+          "message": "must be array"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 56,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/type",
+          "keyword": "type",
+          "params": {
+            "type": "number"
+          },
+          "message": "must be number"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 56,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/type",
+          "keyword": "type",
+          "params": {
+            "type": "number"
+          },
+          "message": "must be number"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 57,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 57,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 58,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 58,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 59,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "/a~1b~0c/0",
+          "schemaPath": "#/properties/a~1b~0c/items/exact_minimum",
+          "keyword": "exact_minimum",
+          "params": {},
+          "message": "must pass \"exact_minimum\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 59,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "/a~1b~0c/0",
+          "schemaPath": "#/properties/a~1b~0c/items/exact_minimum",
+          "keyword": "exact_minimum",
+          "params": {},
+          "message": "must pass \"exact_minimum\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 60,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 60,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 61,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/propertyNames/exact_minLength",
+          "keyword": "exact_minLength",
+          "params": {},
+          "message": "must pass \"exact_minLength\" keyword validation",
+          "propertyName": "x"
+        },
+        {
+          "instancePath": "",
+          "schemaPath": "#/propertyNames",
+          "keyword": "propertyNames",
+          "params": {
+            "propertyName": "x"
+          },
+          "message": "property name must be valid"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 61,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "",
+          "schemaPath": "#/propertyNames/exact_minLength",
+          "keyword": "exact_minLength",
+          "params": {},
+          "message": "must pass \"exact_minLength\" keyword validation",
+          "propertyName": "x"
+        },
+        {
+          "instancePath": "",
+          "schemaPath": "#/propertyNames",
+          "keyword": "propertyNames",
+          "params": {
+            "propertyName": "x"
+          },
+          "message": "property name must be valid"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 62,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 62,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "src",
+      "case": 63,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "/n",
+          "schemaPath": "#/$defs/bound/exact_minimum",
+          "keyword": "exact_minimum",
+          "params": {},
+          "message": "must pass \"exact_minimum\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "dist",
+      "case": 63,
+      "expected": false,
+      "valid": false,
+      "errors": [
+        {
+          "instancePath": "/n",
+          "schemaPath": "#/$defs/bound/exact_minimum",
+          "keyword": "exact_minimum",
+          "params": {},
+          "message": "must pass \"exact_minimum\" keyword validation"
+        }
+      ]
+    },
+    {
+      "identity": "src",
+      "case": 64,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    },
+    {
+      "identity": "dist",
+      "case": 64,
+      "expected": true,
+      "valid": true,
+      "errors": null
+    }
+  ]
+}

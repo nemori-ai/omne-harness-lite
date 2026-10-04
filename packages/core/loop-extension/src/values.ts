@@ -10,10 +10,12 @@ import type {
   Conclusion,
   ExtensionInput,
   ExtensionOutput,
+  ModelRetryConclusion,
   PositionedSubject,
   Subject,
 } from './types.ts'
 import { validate } from './schema.ts'
+import { object } from './json.ts'
 
 function identifier<B extends string>(value: string, brand: B): OpaqueIdentifier<B> {
   const parsed = parseOpaqueIdentifier(value, brand)
@@ -63,6 +65,7 @@ function subject(value: Wire<Subject>): Subject {
         restore(value.dispatches[0]),
         ...value.dispatches.slice(1).map(restore),
       ] as const),
+      retryConclusions: Object.freeze(value.retryConclusions.map(retryConclusion)),
     })
   }
   if ('call' in value)
@@ -157,6 +160,42 @@ function positioned(value: Wire<PositionedSubject>): PositionedSubject {
   }
   throw new Error('admitted loop subject does not match its position')
 }
+/** This conversion follows judgment of the position, dimension, and selected subject. */
+export function positionedFromRepresentation(value: JsonValue): PositionedSubject {
+  if (!object(value) || !object(value.subject) || !validate('Subject', value.subject).valid)
+    throw new Error('admitted positioned subject failed Schema narrowing')
+  if (!isWirePositioned(value))
+    throw new Error('admitted positioned subject failed position narrowing')
+  return positioned(value)
+}
+function isWirePositioned(value: JsonValue): value is JsonValue & Wire<PositionedSubject> {
+  if (!object(value) || !object(value.subject) || !validate('Subject', value.subject).valid)
+    return false
+  switch (value.position) {
+    case 'after_model_call':
+      return (
+        object(value.dimension) &&
+        (value.dimension.ending === 'failure' || value.dimension.ending === 'complete_reply')
+      )
+    case 'after_action':
+      return (
+        object(value.dimension) &&
+        (value.dimension.scope === 'each' || value.dimension.scope === 'batch')
+      )
+    case 'attempt_started':
+    case 'before_persist_message':
+    case 'after_persist_message':
+    case 'before_compaction':
+    case 'after_compaction':
+    case 'before_model_call':
+    case 'before_action':
+    case 'before_terminal':
+    case 'after_terminal':
+      return !Object.hasOwn(value, 'dimension')
+    default:
+      return false
+  }
+}
 function output(value: Wire<ExtensionOutput>): ExtensionOutput {
   switch (value.kind) {
     case 'rewrite':
@@ -187,7 +226,7 @@ function isWireConclusion(value: JsonValue): value is JsonValue & Wire<Conclusio
   return validate('Conclusion', value).valid
 }
 type IdentityOf<T> = T extends unknown
-  ? Pick<T, Extract<keyof T, 'position' | 'dimension' | 'callId'>>
+  ? Pick<T, Extract<keyof T, 'position' | 'dimension' | 'callId' | 'modelCallId'>>
   : never
 type ConclusionIdentity = IdentityOf<Conclusion>
 function actionIdentity(value: Wire<Conclusion>): ConclusionIdentity {
@@ -208,7 +247,19 @@ function actionIdentity(value: Wire<Conclusion>): ConclusionIdentity {
         dimension: Object.freeze({ scope: 'batch' as const }),
       })
     case 'after_model_call':
-      return Object.freeze({ position: value.position, dimension: value.dimension })
+      if (value.dimension.ending === 'failure') {
+        if (typeof value.modelCallId !== 'string')
+          throw new Error('admitted failure conclusion lacks modelCallId')
+        return Object.freeze({
+          position: value.position,
+          dimension: Object.freeze({ ending: 'failure' as const }),
+          modelCallId: identifier(value.modelCallId, 'ModelCallId'),
+        })
+      }
+      return Object.freeze({
+        position: value.position,
+        dimension: Object.freeze({ ending: 'complete_reply' as const }),
+      })
     default:
       return Object.freeze({ position: value.position })
   }
@@ -245,6 +296,25 @@ function conclusion(value: Wire<Conclusion>): Conclusion {
     })
   }
   return Object.freeze({ ...base, output: restored })
+}
+function retryConclusion(value: Wire<ModelRetryConclusion>): ModelRetryConclusion {
+  const restored = conclusion(value)
+  if (
+    restored.position !== 'after_model_call' ||
+    restored.dimension.ending !== 'failure' ||
+    typeof restored.modelCallId !== 'string' ||
+    !('output' in restored) ||
+    restored.output.kind !== 'retry' ||
+    'skipped' in restored
+  )
+    throw new Error('admitted retry conclusion is not effective')
+  return Object.freeze({
+    ...restored,
+    position: 'after_model_call' as const,
+    dimension: Object.freeze({ ending: 'failure' as const }),
+    modelCallId: restored.modelCallId,
+    output: restored.output,
+  })
 }
 export function inputFromRepresentation(value: JsonValue): ExtensionInput {
   if (!isWireInput(value)) throw new Error('admitted loop input failed Schema narrowing')

@@ -99,6 +99,10 @@
 - [TypeSafe Jev：结构化决策模型的能力与边界](typesafe-jev/README.md) — `jev-1.13.0`，取证 2026-09-19 两轮（主张核查；机制、训练与用途），消费者待出现
 - [实时语音通话：能力、链路与证据强度](realtime-voice-calling/README.md) — `gpt-live-1` 与整条语音链路，取证 2026-09-19，消费者待出现
 
+### 方法论与思想体系
+
+- [Robert C. Martin 整洁之道体系的当前版本：代码、架构、敏捷、工艺与 agent 时代言论](clean-code-doctrine-current/README.md) — Clean Code 2e `9780135398579`（样章钉字节）/ blog.cleancoder.com（止于 2023-01）/ X 原帖 2025-03 → 2026-09-30（FixTweet 逐条取回，主会话复核 44 条）/ GitHub `unclebob` 快照 2026-09-30（swarm-forge `f4f5fbca`、negative-test-experiment、uml-viewer）/ 两段视频本地转写；独立批评 28 条、实证 45 条；二十条结论 + 演变表，取证 2026-09-30，消费者待出现
+
 ### 评估与优化方法
 
 - [评估设计与爬山优化：哪些做法有独立证据，哪些只是厂商自述](eval-design-and-hillclimbing/README.md) — Anthropic 博客 2026-09-28 版（钉字节）/ `anthropics/skills@8a1541c4` 的 claude-api `build-eval` 与 `hillclimb` 正文，对照学术文献与同行工程实践 42 条（其中 24 条主会话逐句复核）；未运行技能，取证 2026-09-29，消费者待出现
@@ -129,6 +133,15 @@
 
 - [TypeScript 里「可配置重试策略」的现成库：cockatiel、p-retry 与同类](ts-retry-policy-libraries/README.md) — `cockatiel@4.0.0` / `p-retry@8.0.1` / `retry@0.13.1` / `exponential-backoff@3.1.3` / `async-retry@1.3.3` / `ts-retry-promise@0.8.1` / `@lifeomic/attempt@3.1.0` / `promise-retry@2.0.1`，参照 `tenacity@9.1.4` 与 `effect@3.22.2`；tarball 源码钉字节、Node `v24.18.0` 探针实测，取证 2026-09-25，消费者为 D-063 R-6 的落点（MRR 节点 P-5、契约 G-8、W-10b，待出现）
 
+- [收工钩子：Claude Code 与 Codex CLI 在 agent 收工点能做什么、不能做什么](host-stop-hooks/README.md) — Claude Code `2.1.287` 与 Codex CLI `0.159.0` 的钩子文档（原文钉字节，主会话逐句核对了入正文的引文）/ Codex 源码 `rust-v0.159.0`（仅转述）；没有实际注册并触发过钩子，取证 2026-10-01，消费者为[宿主钩子的源](../agents/hooks/README.md)
+
+### 架构判断辅助与 Cordis 集成约定（2026-10-02）
+
+- [架构视图的社区先例与布局边界](architecture-view-community/README.md)：C4、Structurizr、dependency-cruiser、ELK、NDepend 与 Lattix；elkjs 0.12.0 有限探针，取证 2026-10-03，消费者为 N2 工具视图。
+
+- [哪些方法与工具能辅助架构判断](architecture-judgment-aids/README.md) — 方法文献 97 条（主线抽核 2 篇原文）/ dependency-cruiser 18.5.0、LikeC4 1.59.4 等工具本机试用 / 本仓库主线 `6f3cefa39` 读数（装配边 32 对中 14 对同时是 import 边，更正原始调研稿），取证 2026-10-02，消费者为 #53／#46 合并方案
+- [DeepSeek Harness 在 Cordis 之上的集成约定](dsh-cordis-integration-conventions/README.md) — DSH `639ed015`（归档钉字节，约定表 17 行逐行核出处）；本仓库所装 Cordis 4.0.4 即 DSH vendor 的 fork，取证 2026-10-02，消费者为 #53／#46 合并方案的集成约定
+
 迁入前的历史索引见 [`legacy_backup/`](legacy_backup/README.md)，那里是存底，不按本页规则接续。
 
 每个 topic 入口标明调查对象、版本与范围；先沿当前判断进入对应 topic，再按其阅读地图取得证据与局限。
@@ -139,6 +152,12 @@
 [Docker 停止与重启](governance-docker-runtime/README.md)：Engine29.1.3/Compose2.40.3的有限机制观察，原始脚本与正负对照归档；不是部署采用或产品验收。
 
 [2026-09-26 core 规格实施一致性观察](core-spec-conformance-2026-09-26/README.md)：固定CB2/SA2的两个反例与静态消费者影响；不接受新版本或实现。
+
+[DSH AgentRegistry 的活引用与生命周期边界](dsh-agent-registry-reference/README.md)：固定官方修订的服务、引用、登记及拆卸读数；不构成 Agent 原语采用。
+
+[图片与空文本段的 OpenRouter 接受性](empty-text-part-acceptance/README.md)：2026-10-02 的 31 路由、97 请求有限观察；完整脱敏请求与离线复核入口已保全，消费者为 D-115 与 pi-ai-transport 窄修复。
+
+[固定Schema编译开销](fixed-schema-compile-cost/README.md)：Ajv8.20/Node24.21原研究及2026-10-03有限探针、26图构造捕获；全路径性能未量。
 
 - [AI助理产品投影的输入与框架事实](ai-assistant-saas-projection/README.md)：需求讨论稿1.0 / harness `2a04c232`，165功能、23故事、来源修正与框架承诺/兑现边界；消费者为Relay SaaS投影提案。
 

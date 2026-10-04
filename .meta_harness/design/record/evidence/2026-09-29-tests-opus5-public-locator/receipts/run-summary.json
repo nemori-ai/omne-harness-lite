@@ -1,0 +1,28 @@
+{
+  "modelId": "anthropic/claude-opus-5",
+  "scenarioSha256": "6f88755f7af7ea3753174fd4c3e21a110251842fa1e4e47a5cda23c1ecacf00b",
+  "catalogSha256": "68d58bf267eff6f1d5d4bd392925cf932c28571d1dc73aa1d94222a815d86d04",
+  "public": [
+    {
+      "entryId": "cf0b66cc-b169-4452-91ec-d46aec535ab1",
+      "outcome": "complete",
+      "usage": {
+        "input_tokens": 58,
+        "output_tokens": 152,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "source": "upstream",
+        "reasoning_tokens": 148
+      },
+      "cost": {
+        "cost_usd": 0.00409,
+        "source": "upstream_usage",
+        "upstream_inference_cost_usd": 0.00409
+      },
+      "wireSha256": "17d94cc478dfbed1422d5e11e90f04b089db7c4eed5a8249979be44040e11120"
+    }
+  ],
+  "service": [],
+  "ownersClosed": true,
+  "serviceNotStartedByScenario": true
+}

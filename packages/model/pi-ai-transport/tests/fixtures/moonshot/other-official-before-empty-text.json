@@ -1,0 +1,10 @@
+{
+  "scope": "Actual baseline planner; import paths relocated only. Other-official definitions, meter and image preparation inputs unchanged from baseline. No network or upstream observation.",
+  "baseline": "75da02d205980c97bb3c279741abb356d70fdc00",
+  "originalPlanSha256": "3da333245b9f92a510b98e9e2940784462c0bd0933877147d33b04156f419ddf",
+  "relocatedPlanSha256": "a95e98113bcb89072dd20d179ec772bf586b538f8154cf83f91b7b54fb9382a0",
+  "modelId": "openai/gpt-6-astra",
+  "provider": "openai",
+  "serialized": "{\"model\":\"openai/gpt-6-astra\",\"provider\":{\"order\":[\"openai\"],\"allow_fallbacks\":false,\"require_parameters\":true},\"stream\":true,\"store\":false,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAO0lEQVRIiWO45upIU8QwaoHraBA5jqaia6MZzXG0qLg2Wpq6jlY410arTNfRVoXjaMPLdbTp6DioW9cATtVwTPlkbtsAAAAASUVORK5CYII=\"}},{\"type\":\"text\",\"text\":\"\"}]}],\"reasoning\":{\"effort\":\"high\"},\"max_tokens\":512}",
+  "networkRequests": 0
+}

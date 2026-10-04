@@ -1,0 +1,422 @@
+{
+  "format": 1,
+  "run_id": "2026-09-30-ack-seam-vnext-tlc",
+  "tool": {
+    "tlc": "TLC2 Version 2026.09.12.025210 (rev: 867aefb)",
+    "jar": "/opt/tlaplus/tla2tools.jar",
+    "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+    "java": "OpenJDK Temurin 21.0.12.1+1 (build 21.0.12.1+1-LTS)",
+    "workers": 8
+  },
+  "model": {
+    "path": "spec/capabilities/model-request-runtime/v-next/formal/AckLifecycle.tla",
+    "sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+    "status": "v-next candidate; not the frozen v12 model; not a registered formal task"
+  },
+  "runs": [
+    {
+      "name": "AckLifecycle",
+      "config": "spec/capabilities/model-request-runtime/v-next/formal/AckLifecycle.cfg",
+      "argv_effective": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "8",
+        "-config",
+        "run.cfg",
+        "AckLifecycle.tla"
+      ],
+      "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+      "returncode": 0,
+      "states_generated": 32617,
+      "states_distinct": 8384,
+      "expected_violation": null,
+      "actual_violations": [],
+      "liveness_violated": false,
+      "matched": true,
+      "finished": {
+        "duration": "04s",
+        "at_local": "2026-09-30 05:34:38"
+      },
+      "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+      "config_sha256": "41592b4e2d3f1f3470c5372021081c185a9d85fd2c5ef0f925584b1498b94207",
+      "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+      "log_sha256": "04d10c348ea2a4c28e9d8e01903adc63f89f42a21be62ef6a1b57acceb427669"
+    },
+    {
+      "name": "AckProgress",
+      "config": "spec/capabilities/model-request-runtime/v-next/formal/AckProgress.cfg",
+      "argv_effective": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "8",
+        "-config",
+        "run.cfg",
+        "AckLifecycle.tla"
+      ],
+      "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+      "returncode": 0,
+      "states_generated": 32617,
+      "states_distinct": 8384,
+      "expected_violation": null,
+      "actual_violations": [],
+      "liveness_violated": false,
+      "matched": true,
+      "finished": {
+        "duration": "07s",
+        "at_local": "2026-09-30 05:34:46"
+      },
+      "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+      "config_sha256": "41aa8754a8c03e51394bd79145077ee8f93858bca4f406fe1125a1a73d453c75",
+      "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+      "log_sha256": "34d1b0d78db93de80ec56f80fc62ae9b5857c637cc50aca58fb45dbf8d58bc7f"
+    },
+    {
+      "name": "Ack-ackFirst",
+      "config": "spec/capabilities/model-request-runtime/v-next/formal/validity-check/Ack-ackFirst.cfg",
+      "argv_effective": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "8",
+        "-config",
+        "run.cfg",
+        "AckLifecycle.tla"
+      ],
+      "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+      "returncode": 12,
+      "states_generated": 259,
+      "states_distinct": 158,
+      "expected_violation": "AckBeforeDelete",
+      "actual_violations": [
+        "AckBeforeDelete"
+      ],
+      "liveness_violated": false,
+      "matched": true,
+      "finished": {
+        "duration": "02s",
+        "at_local": "2026-09-30 05:34:52"
+      },
+      "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+      "config_sha256": "a8bad47c983c0ea5882254c9b4f94b261b019b1ee10536262eee86bc1e901eb5",
+      "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+      "log_sha256": "b535fa818660ba1a8466e1077d48e721cdcd80ec5c2a46246879d8d256412d46"
+    },
+    {
+      "name": "Ack-admission",
+      "config": "spec/capabilities/model-request-runtime/v-next/formal/validity-check/Ack-admission.cfg",
+      "argv_effective": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "8",
+        "-config",
+        "run.cfg",
+        "AckLifecycle.tla"
+      ],
+      "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+      "returncode": 12,
+      "states_generated": 37,
+      "states_distinct": 24,
+      "expected_violation": "AdmissionClosed",
+      "actual_violations": [
+        "AdmissionClosed"
+      ],
+      "liveness_violated": false,
+      "matched": true,
+      "finished": {
+        "duration": "01s",
+        "at_local": "2026-09-30 05:34:55"
+      },
+      "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+      "config_sha256": "39c5bc96fcaae95b7514926db34ebd2de9db4d46cb2829a25d5eca648dd84225",
+      "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+      "log_sha256": "0983ffc4b8d79fa878df5e8a30d9bd3c56d81ea768243f8e7c036dc4cb27749b"
+    },
+    {
+      "name": "Ack-atomic",
+      "config": "spec/capabilities/model-request-runtime/v-next/formal/validity-check/Ack-atomic.cfg",
+      "argv_effective": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "8",
+        "-config",
+        "run.cfg",
+        "AckLifecycle.tla"
+      ],
+      "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+      "returncode": 12,
+      "states_generated": 1733,
+      "states_distinct": 637,
+      "expected_violation": "AtomicDeletion",
+      "actual_violations": [
+        "AtomicDeletion"
+      ],
+      "liveness_violated": false,
+      "matched": true,
+      "finished": {
+        "duration": "01s",
+        "at_local": "2026-09-30 05:34:57"
+      },
+      "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+      "config_sha256": "f0e9327826f435041e7b858de21c056068e7cead57db7b94c6217fc1cc27496d",
+      "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+      "log_sha256": "100740cdb8f22aa9f5f8f6b885c632b1cab2ded94345d6e34d76b57968296109"
+    },
+    {
+      "name": "Ack-drain",
+      "config": "spec/capabilities/model-request-runtime/v-next/formal/validity-check/Ack-drain.cfg",
+      "argv_effective": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "8",
+        "-config",
+        "run.cfg",
+        "AckLifecycle.tla"
+      ],
+      "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+      "returncode": 12,
+      "states_generated": 1490,
+      "states_distinct": 566,
+      "expected_violation": "WriterDrained",
+      "actual_violations": [
+        "WriterDrained"
+      ],
+      "liveness_violated": false,
+      "matched": true,
+      "finished": {
+        "duration": "01s",
+        "at_local": "2026-09-30 05:35:00"
+      },
+      "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+      "config_sha256": "1a6ae2cb978f79ac80968d8a5a1e2df9d3bd06f6d9c276b14b81a9ad09359562",
+      "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+      "log_sha256": "7bc4d3c5d48480ee539f4d58715e5a9c82a2821261d4d16bfc0b94575f6396b9"
+    },
+    {
+      "name": "Ack-missing",
+      "config": "spec/capabilities/model-request-runtime/v-next/formal/validity-check/Ack-missing.cfg",
+      "argv_effective": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "8",
+        "-config",
+        "run.cfg",
+        "AckLifecycle.tla"
+      ],
+      "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+      "returncode": 12,
+      "states_generated": 3512,
+      "states_distinct": 1264,
+      "expected_violation": "OldRefVisible",
+      "actual_violations": [
+        "OldRefVisible"
+      ],
+      "liveness_violated": false,
+      "matched": true,
+      "finished": {
+        "duration": "01s",
+        "at_local": "2026-09-30 05:35:02"
+      },
+      "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+      "config_sha256": "570b27733c1f22db404cc5d2cb89d9bdc52f0c487e7aa95ce8bcef054e7221d2",
+      "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+      "log_sha256": "f2b00528441cb702be4c609e6d8a435284865eceef773a97db7e3eefcd32d63f"
+    },
+    {
+      "name": "Ack-sum",
+      "config": "spec/capabilities/model-request-runtime/v-next/formal/validity-check/Ack-sum.cfg",
+      "argv_effective": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "8",
+        "-config",
+        "run.cfg",
+        "AckLifecycle.tla"
+      ],
+      "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+      "returncode": 12,
+      "states_generated": 25,
+      "states_distinct": 22,
+      "expected_violation": "OneAccount",
+      "actual_violations": [
+        "OneAccount"
+      ],
+      "liveness_violated": false,
+      "matched": true,
+      "finished": {
+        "duration": "01s",
+        "at_local": "2026-09-30 05:35:06"
+      },
+      "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+      "config_sha256": "99a02a79c89b429060d9f59232881e41f11bc289ac299f7cd6c9c6fe6361e2b6",
+      "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+      "log_sha256": "041834c9f327482280988b6fa078080335cb3ddd0001214097fc08cea6e5777c"
+    },
+    {
+      "name": "Ack-tamper",
+      "config": "spec/capabilities/model-request-runtime/v-next/formal/validity-check/Ack-tamper.cfg",
+      "argv_effective": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "8",
+        "-config",
+        "run.cfg",
+        "AckLifecycle.tla"
+      ],
+      "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+      "returncode": 12,
+      "states_generated": 2046,
+      "states_distinct": 757,
+      "expected_violation": "RetainedIntegrity",
+      "actual_violations": [
+        "RetainedIntegrity"
+      ],
+      "liveness_violated": false,
+      "matched": true,
+      "finished": {
+        "duration": "01s",
+        "at_local": "2026-09-30 05:35:08"
+      },
+      "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+      "config_sha256": "54fd796f07cd1b94bd816bbc3e0a1f9f30255f4b4ce566d14c106e7327b13439",
+      "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+      "log_sha256": "7bc55fba801ca64c6d7ef09096a0a8b43d596eb4a2479b1118360b0aac0c4964"
+    },
+    {
+      "name": "Ack-temporaryBatch",
+      "config": "spec/capabilities/model-request-runtime/v-next/formal/validity-check/Ack-temporaryBatch.cfg",
+      "argv_effective": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "8",
+        "-config",
+        "run.cfg",
+        "AckLifecycle.tla"
+      ],
+      "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+      "returncode": 12,
+      "states_generated": 904,
+      "states_distinct": 394,
+      "expected_violation": "RecoverableBatch",
+      "actual_violations": [
+        "RecoverableBatch"
+      ],
+      "liveness_violated": false,
+      "matched": true,
+      "finished": {
+        "duration": "01s",
+        "at_local": "2026-09-30 05:35:10"
+      },
+      "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+      "config_sha256": "5edddbf101037ce95e2c2e9ab5be9a05de8471574fc775aa3bf377057edf8f68",
+      "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+      "log_sha256": "436d259a2ab9e70a39da3b64ad3cbe731ed8d18c5e72100076a16b85c7ecb265"
+    },
+    {
+      "name": "Ack-staleTemp",
+      "config": "spec/capabilities/model-request-runtime/v-next/formal/validity-check/Ack-staleTemp.cfg",
+      "argv_effective": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "8",
+        "-config",
+        "run.cfg",
+        "AckLifecycle.tla"
+      ],
+      "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+      "returncode": 12,
+      "states_generated": 4475,
+      "states_distinct": 1614,
+      "expected_violation": "RecoveredMatchesFinal",
+      "actual_violations": [
+        "RecoveredMatchesFinal"
+      ],
+      "liveness_violated": false,
+      "matched": true,
+      "finished": {
+        "duration": "01s",
+        "at_local": "2026-09-30 05:35:04"
+      },
+      "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+      "config_sha256": "71ff236fef20b9107d4dbb638b22b89676561b4f9c8640dab36b6dea0d9722d8",
+      "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+      "log_sha256": "4a017281fb3a3b3b99ff7f033127b2d449573ce04b325aa1f7a620df6d8989eb"
+    },
+    {
+      "name": "Ack-absenceUnreadable",
+      "config": "spec/capabilities/model-request-runtime/v-next/formal/validity-check/Ack-absenceUnreadable.cfg",
+      "argv_effective": [
+        "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "/opt/tlaplus/tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "8",
+        "-config",
+        "run.cfg",
+        "AckLifecycle.tla"
+      ],
+      "invoked_as": "/usr/local/bin/tlc -workers 8 -config run.cfg AckLifecycle.tla (wrapper script; cwd = scratch copy holding AckLifecycle.tla and run.cfg)",
+      "returncode": 12,
+      "states_generated": 5113,
+      "states_distinct": 1833,
+      "expected_violation": "EndedMeansAbsent",
+      "actual_violations": [
+        "EndedMeansAbsent"
+      ],
+      "liveness_violated": false,
+      "matched": true,
+      "finished": {
+        "duration": "02s",
+        "at_local": "2026-09-30 05:34:49"
+      },
+      "model_sha256": "2d61138fe3390064bf2d76e3a065b643e17601948de6878128671db9fd29eb45",
+      "config_sha256": "9958058480b58d3e4473d140606837dce9cbc7545301f0249243bf37d1ea6a33",
+      "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1",
+      "log_sha256": "442372f223043bc5fecb30306d57c7356bf774617eecda941751f12288dd36c3"
+    }
+  ]
+}

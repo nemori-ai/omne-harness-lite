@@ -1,0 +1,216 @@
+#### Model Capabilities
+
+# Image Understanding
+
+> [!WARNING]
+>
+> When sending images, it is advised to not store request/response history on the server. Otherwise the request may fail.
+> See .
+
+Some models allow images in the input. The model will consider the image context when generating the response.
+
+## Constructing the message body - difference from text-only prompt
+
+The request message to image understanding is similar to a text-only prompt. The main difference is that instead of text input:
+
+```json
+[
+  {
+    "role": "user",
+    "content": "What is in this image?"
+  }
+]
+```
+
+We send in `content` as a list of objects:
+
+```json
+[
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "input_image",
+        "image_url": "data:image/jpeg;base64,<base64_image_string>"
+      },
+      {
+        "type": "input_text",
+        "text": "What is in this image?"
+      }
+    ]
+  }
+]
+```
+
+The `image_url` value can also be a public URL on the Internet instead of a base64 data URL.
+
+### Image understanding example
+
+```python customLanguage="pythonXAI"
+import os
+from xai_sdk import Client
+from xai_sdk.chat import user, image
+
+client = Client(
+    api_key=os.getenv("XAI_API_KEY"),
+    management_api_key=os.getenv("XAI_MANAGEMENT_API_KEY"),
+    timeout=3600,
+)
+
+image_url = "https://science.nasa.gov/wp-content/uploads/2023/09/web-first-images-release.png"
+chat = client.chat.create(model="grok-4.7")
+chat.append(
+    user(
+        "What's in this image?",
+        image(image_url=image_url, detail="high"),
+    )
+)
+
+response = chat.sample()
+print(response)
+
+# The response ID that can be used to continue the conversation later
+
+print(response.id)
+```
+
+```python customLanguage="pythonOpenAISDK"
+import os
+import httpx
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="<YOUR_XAI_API_KEY_HERE>",
+    base_url="https://api.x.ai/v1",
+    timeout=httpx.Timeout(3600.0), # Override default timeout with longer timeout for reasoning models
+)
+image_url = (
+    "https://science.nasa.gov/wp-content/uploads/2023/09/web-first-images-release.png"
+)
+
+response = client.responses.create(
+    model="grok-4.7",
+    input=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "input_image",
+                    "image_url": image_url,
+                    "detail": "high",
+                },
+                {
+                    "type": "input_text",
+                    "text": "What's in this image?",
+                },
+            ],
+        },
+    ],
+)
+
+print(response)
+
+# The response ID that can be used to continue the conversation later
+
+print(response.id)
+```
+
+```javascript customLanguage="javascriptOpenAISDK"
+import OpenAI from "openai";
+
+const client = new OpenAI({
+    apiKey: "<api key>",
+    baseURL: "https://api.x.ai/v1",
+    timeout: 360000, // Override default timeout with longer timeout for reasoning models
+});
+
+const image_url =
+    "https://science.nasa.gov/wp-content/uploads/2023/09/web-first-images-release.png";
+
+const response = await client.responses.create({
+    model: "grok-4.7",
+    input: [
+        {
+            role: "user",
+            content: [
+                {
+                    type: "input_image",
+                    image_url: image_url,
+                    detail: "high",
+                },
+                {
+                    type: "input_text",
+                    text: "What's in this image?",
+                },
+            ],
+        },
+    ],
+});
+
+console.log(response);
+
+// The response ID that can be used to recall the conversation later
+console.log(response.id);
+```
+
+```javascript customLanguage="javascriptAISDK"
+import { xai } from '@ai-sdk/xai';
+import { generateText } from 'ai';
+
+const { text, response } = await generateText({
+    model: xai.responses('grok-4.7'),
+    messages: [
+        {
+            role: 'user',
+            content: [
+                {
+                    type: 'image',
+                    image: new URL('https://science.nasa.gov/wp-content/uploads/2023/09/web-first-images-release.png'),
+                },
+                {
+                    type: 'text',
+                    text: "What's in this image?",
+                },
+            ],
+        },
+    ]
+});
+
+console.log(text);
+
+// The response ID can be used to continue the conversation
+console.log(response.id);
+```
+
+```bash
+curl https://api.x.ai/v1/responses \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $XAI_API_KEY" \
+  -m 3600 \
+  -d '{
+    "model": "grok-4.7",
+    "input": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "input_image",
+            "image_url": "https://science.nasa.gov/wp-content/uploads/2023/09/web-first-images-release.png",
+            "detail": "high"
+          },
+          {
+            "type": "input_text",
+            "text": "What'\''s in this image?"
+          }
+        ]
+      }
+    ]
+  }'
+```
+
+### Image input general limits
+
+* Maximum image size: `20MiB`
+* Maximum number of images: No limit
+* Supported image file types: `jpg/jpeg` or `png`.
+* Any image/text input order is accepted (e.g. text prompt can precede image prompt)

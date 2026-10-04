@@ -22,7 +22,24 @@ export interface AssetReference {
 export interface CompositionRoot {
   readonly definition: CapabilityId
   readonly references: readonly AssetReference[]
+  readonly attributes: readonly AttributeDeclaration[]
+  readonly source: EvaluationRootSource
 }
+export interface EvaluationRootSource {
+  readonly asset: string
+  readonly version: JsonNumber
+}
+export type EvaluationRootSelectionInput = Pick<
+  NonConnectorEvaluationInput,
+  'tenant' | 'standing' | 'workspace' | 'holdings' | 'definitions' | 'session'
+> & {
+  readonly rootDefinition: CapabilityId
+}
+export type EvaluationRootSelectionResult =
+  | { readonly ok: EvaluationRootSource }
+  | { readonly missing: true }
+  | Extract<EvaluationResult, { readonly invalidInput: unknown }>
+  | { readonly unavailable: true }
 export interface SessionAssignment {
   readonly capability: CapabilityId
   readonly assignment: AttributeAssignment
@@ -88,7 +105,7 @@ export interface EffectiveValue {
 }
 export interface FilteredOut {
   readonly capability: CapabilityId
-  readonly from: Layer
+  readonly from: HoldingLayer
   readonly reason: FilterReason
 }
 export interface Unresolved {
@@ -103,7 +120,7 @@ export interface EffectiveAssembly {
   readonly filteredOut: readonly FilteredOut[]
   readonly unresolved: readonly Unresolved[]
 }
-export type Condition = `C${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14}`
+export type Condition = `C${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16}`
 export interface InputDiagnostic {
   readonly condition: Condition
   readonly message: string

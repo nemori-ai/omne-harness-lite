@@ -1,0 +1,1317 @@
+diff --git a/.meta_harness/design/registry/catalog.json b/.meta_harness/design/registry/catalog.json
+index 6d49e191..d2250827 100644
+--- a/.meta_harness/design/registry/catalog.json
++++ b/.meta_harness/design/registry/catalog.json
+@@ -13323,6 +13323,7 @@
+         "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Estimated.cfg",
+         "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ExactOrBound.cfg",
+         "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg",
++        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ReanchorProgress.cfg",
+         "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ThreeCalls.cfg",
+         "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_UpperBound.cfg",
+         "spec/capabilities/model-request-runtime/v10/formal/validity-check/AdaptationBinding_MissingFallback.cfg",
+@@ -13360,8 +13361,10 @@
+         "spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimatedWindow.cfg",
+         "spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnoreBasis.cfg",
+         "spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnorePrefix.cfg",
++        "spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_KeepOldAnchor.cfg",
+         "spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_LatestBranch.cfg",
+         "spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_MissingZero.cfg",
++        "spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_NeverUseAnchor.cfg",
+         "spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PartialBatch.cfg",
+         "spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PublishEarly.cfg",
+         "spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RecomputeRecovery.cfg",
+diff --git a/.meta_harness/design/registry/formal-tasks.json b/.meta_harness/design/registry/formal-tasks.json
+index 3f020804..d809ac02 100644
+--- a/.meta_harness/design/registry/formal-tasks.json
++++ b/.meta_harness/design/registry/formal-tasks.json
+@@ -2785,6 +2785,31 @@
+         "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
+       ],
+       "timeout_seconds": 240
++    },
++    {
++      "id": "model-request-runtime-v10-usage-reanchorprogress",
++      "kind": "tla",
++      "artifacts": [
++        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla",
++        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ReanchorProgress.cfg"
++      ],
++      "command": [
++        "${JAVA_BIN}",
++        "-Xmx768m",
++        "-cp",
++        "${TLA2TOOLS_JAR}",
++        "tlc2.TLC",
++        "-metadir",
++        "tmp/tlc/model-request-runtime-v10-usage-reanchorprogress",
++        "-cleanup",
++        "-noGenerateSpecTE",
++        "-workers",
++        "1",
++        "-config",
++        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ReanchorProgress.cfg",
++        "spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla"
++      ],
++      "timeout_seconds": 240
+     }
+   ]
+ }
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/contract.md b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/contract.md
+index feaabd5c..624a8190 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/contract.md
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/contract.md
+@@ -1275,6 +1275,7 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
+ | `routeName`、`provider`、`adaptation` | 本次要求的路由、指定供应商与已使用的完整模型适配绑定；不是档案引用或租户归属 |
+ | `parameters`、`parameterAdjustments?`、`droppedParameters?` | `data.model-response/v9#S-11`：实际发出的参数及规划确定的改值、丢项；不能拿要求值冒充发送值 |
+ | `upstreamModel?`、`servingProvider?`、`upstreamRequestId?`、`stopReason?` | `data.model-response/v9#S-9`、`#S-12`、`#S-37` 的上游原样事实；上游没给就缺席，不能以请求值或本系统标识代填 |
++| `inputCalibration` | MR9 S-41～S-44 的必填事实投影：requestInput 来自本次固定 plan，observedInput 只取 S-59 显式交出的同次观察，outputGroup 来自实际保留输出及固定编码版本。无服务身份时不伪造日志/response id；没有观察须显式 unavailable，不省略判别成员 |
+ | `rawHeaders?` | 同次 S-58 交出的已取得且已留存、经 S-20 原凭据规则处理的自有不可变头值；唯一含义和合法值域来自 `data.model-response/v9#S-20/#S-21/#S-22` 的 `raw.headers`。保留 string／有序 string[] 形状、次序、重复及空值；缺席不等于空对象／空数组／空串 |
+ 
+ **头事实的终局保留**：成功、HTTP 失败、带内失败、读体／解析中断、门失败及取得头后的取消，只要同次 S-58 已交出 `rawHeaders`，发出后的 `ModelInvocationResult` 就保留这个原值。S-59 不另给第二条头事实权威；不从不透明响应或失败载荷私取另一份值并猜优先级。未取得或未留存时沿 MR9 缺席，不补 `{}`、不另造故障或第五种收场。发送前拒绝与零次 send 的取消没有这份头事实。留存失败不改变既有收场，给出非法头值的提供者不符合该端口，不能通过拼接、取首、静默丢弃或默认值伪装合规。
+@@ -1355,12 +1356,14 @@ M1 若是选中模型，`displayList` 上它带 `modality_mismatch`。
+ | ② | 调用者持有该响应；每份响应只属于本次读过程 |
+ | ③ | 不再发送，不做工具参数逆转写，不以成功 HTTP 码代替带内错误码；不自行结算或修改绑定 |
+ | ④ | 按收到的序列解析并交出 `data.arrival-events/v2` 到达事实，由装配器接受；逐片原文保留，工具参数唯一解析点仍在流装配。结束、断流、取消均有明确收尾 |
+-| ⑤ | 到达事件序列与最终已知事实：实际模型/供应商、generation 标识、usage/cost、上游收尾及错误来源。给下游的内容可见性仍受 S-55 约束。S-58 已交出的 `rawHeaders` 不由本操作覆盖或抹除；读体失败、解析失败、取消或没有最终内容不是该事实不存在的证据。本操作不增加 header 到达事件或第二条头事实结果权威 |
++| ⑤ | 到达事件序列与最终已知事实：实际模型/供应商、generation 标识、usage/cost、上游收尾及错误来源；以及必填、显式的 MR9 S-42 observedInput（含同次 provenance 或 unavailable 判别）。首次解释上游响应的固定 read 构件负责归一化该观察：完整互斥分项给 from_usage；另知完整 prompt 输入总量而缓存细目缺失时给 upstream_total，不能因旧 usage 无法容纳而丢弃总量；无法确认口径/未取得时按 MR9 给 unavailable。给下游的内容可见性仍受 S-55 约束。S-58 已交出的 `rawHeaders` 不由本操作覆盖或抹除；读体失败、解析失败、取消或没有最终内容不是该事实不存在的证据。本操作不增加 header 到达事件或第二条头事实结果权威 |
+ | ⑥ | 表示错误 `invalidInput`；已发出后的读取/协议错误以来源事实交回，由 S-18 分类；未知只记未知。不可把提前断流伪装成正常结束 |
+ | ⑦ | 不允许对同一活响应开启两个竞争读取；新的读取不从头重发。最终收尾只交一次 |
+ | ⑧ | 缺 usage、缓存计数或实际执行方按权威 data 规则保留未知/缺席，不拿请求中的供应商冒充实际供应商 |
+ | ⑨ | 交本次目标的到达事实及 S-63 诊断；消费者拒收不另造一次模型发出 |
+ 
++**同次观察交接**：observedInput 与 usage/cost 在本 read 的同一显式最终事实结果中交接，没有另一个查询口或 raw/opaque 私读入口；语言绑定可决定封装，但必须可完整表达 MR9 的三支及 provenance。read 以同次固定计划和原上游事实核对统计范围与来源，并沿 MR9 S-42 处理分项/total 冲突；invoke 不重新解析不透明响应、不读取 raw 附件、不从诊断或第二条侧信道拼回 I。已经提取的合法观察在后续解析错误、取消或输出不完整时保留；未知项仍未知，不能以 read 未成功收尾抹掉既知 I。read 未被实际执行或未取得任何观察的发送结果由 invoke 显式给 MR9 unavailable，不能制造 from_usage/upstream_total。若构件违反必填交接契约，不得默补零或伪称上游没给；沿 S-54/S-59 的既有本地失败责任保留已知事实。
++
+ ### S-60 纯判定与可单取用构件
+ 
+ 下列每个函数都遵守本节九件事；除本节新增的 `retryDelay` 精确关系外，语义只有所引原条款一份，不另定义重试决定或授权规则。
+@@ -1760,7 +1763,7 @@ MS6 S-49/MR9 S-40 只校验共享快照形状并明确将发送门交运行时
+ 
+ P 是某次请求的最终 input-bearing 有序投影与 envelope；θ 是其 CountingBasis；I 是该次全部输入的可信实际观察；G 是同次响应实际输出组及必要 usage 证据。可复用候选来自显式来源，不能从“最后到达”或同一个 seq 猜身份。服务输入必须在已授权的同一 holdingTenant/session/log 中，可证是本次选定分支和读取前缀的实际祖先，绑定原 response id/call id/dispatch/attempt 和应有 reply.response 关系。跨日志同 seq、其他租户、其他分支晚到与新 attempt 的相似 body 都不是同一事实。纯函数没有日志/租户权限；服务先以现行身份边界取回事实，再显式传入，不能由函数隐式查询。
+ 
+-复用需同时成立：原观察适用于实际 P；本次最终 input 的非新增部分仍等于 P（含 system/tools、角色、选择次序、媒体表示、边界及 envelope）；存在确切的当前 φ/δ 适用依据；θ 相同或有提供者可验证的语义兼容声明。只有摘要相同、只有 modelId 相同、只有消息数未变都不充分。
++在所有满足下述条件的候选中，必须选择本次实际因果祖先链上最新的已确认观察，不能任意长期停留在最早锚。新旧次序来自授权来源的因果关系及其明确读取前缀，不能按不透明 id 字符串、全局到达时间或其他分支的最后记录排序；不能判祖先关系或次序的来源不可用。复用需同时成立：原观察适用于实际 P；本次最终 input 的非新增部分仍等于 P（含 system/tools、角色、选择次序、媒体表示、边界及 envelope）；存在确切的当前 φ/δ 适用依据；θ 相同或有提供者可验证的语义兼容声明。只有摘要相同、只有 modelId 相同、只有消息数未变都不充分。
+ 
+ 两类失效的闭合诊断值为 `prefix_changed`、`basis_changed`：前者含 compaction 静默、编辑/重排/删块、system/tools 或实际投影变化；后者含模型/实际供应商、tokenizer/meter/φ/模板/隐式变换语义改变及不能判兼容。无可信候选另记 `no_observation`，来源不可用另记 `source_unavailable`，它们不是第三类失效。多个条件同时不满足按 source_unavailable、no_observation、prefix_changed、basis_changed 顺序记录首个适用原因，亦可诊断其余已知原因但不得改变结果。存在 CompactionMessage 是核查触发，真正守卫是最终非新增输入相等；即使消息标记缺席，实际前缀变也必须检出。
+ 
+@@ -1842,13 +1845,13 @@ MR9 evidence 随 payload 初次形成即固定，与原结算同批（SL3 S-32
+ | 固定 plan 与精确 lease | 原 planner/send 与 lease 所有者 | 固定内容/版本证明及释放确认 | 变更必须重新计划；未实际结束不得撤资源 |
+ | estimated 精度诚实 | meter/φ/δ 和准入政策 | 同精度与依据传递 | 不提升 exact、不承诺硬窗口；无适用依据拒绝 |
+ 
+-若 prefix/basis 稳定、下一次实际返回准确完整输入 usage、原批最终确定提交、授权读取可用且相关工作公平调度，则后继规划能从该响应取得新 I。上游永不报 usage、存储永不确认、持续换模型或外部请求不结束时无最终准确/完成承诺。既有 RT9/SL3 生命周期与协议假设继续成立；本增量模型不把目标 append-only/原批/正确锚本身当环境前提。
++若 prefix/basis 稳定、下一次实际返回准确完整输入 usage、原批最终确定提交、授权读取可用且相关工作公平调度，则后继实际发生的规划必须取得并使用该最新可用 I；稳定前提和公平调度下，从准确原批确定提交到后继规划实际使用该观察构成进展性质，不能只以“最终 done”或永远全量完成代替。上游永不报 usage、存储永不确认、持续换模型或外部请求不结束时无最终准确/完成承诺。既有 RT9/SL3 生命周期与协议假设继续成立；本增量模型不把目标 append-only/原批/正确锚本身当环境前提。
+ 
+ ### S-83 本版工件与缺口
+ 
+ 增量行为权威为 formal/UsageCalibration.tla；模型明确原批、receipt unknown、同分支关联、计划与发送、lease，既有 RT9 模型按原范围继承。ExactOrBound 配置只在 oracle/贡献证据满足条件时验证硬窗口；Estimated 配置验证标记/政策及误差重置，另有预期超窗反例。纯函数无 IO 由实现静态/独立调用证据承担，模型不以没有 IO 变量冒充已覆盖。
+ 
+-G-35：各绑定 φ／δ 的实际准确性、兼容证明及上游观察与最终输入对应证据，owner 为适配/计量提供者；不阻断通用候选表达，阻断无依据 exact/复用认证。
++G-37：各绑定 φ／δ 的实际准确性、兼容证明及上游观察与最终输入对应证据，owner 为适配/计量提供者；不阻断通用候选表达，阻断无依据 exact/复用认证。
+ 
+ G-36：PF-010 压缩硬 fit 对 estimated 的要求仍由产品/上下文主线处理，本版只检测最终投影失效和全量回退，不实现压缩。
+ 
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/examples.md b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/examples.md
+index a5c29025..3635e403 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/examples.md
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/examples.md
+@@ -412,3 +412,12 @@ H1/H2 是相同耐久前缀而实际发送不同的真实故障注入义务，
+ | 估算越窗 | estimated=10、余量 multiplier=1/reserve=0、window=12、输出预留2 准入，actual=11 时实际13超过窗口；这是明确风险而非模型矛盾 | S-74/S-78 |
+ | 纯公共调用 | 显式 plan/φ/δ/observation，不提供 tenant/log，函数不得因此读取全局日志或伪造这些身份 | S-79 |
+ | 旧格式拒绝 | 显式 MR 缺 inputCalibration 为 malformed；必要耐久值不能可靠解释为 unavailable，原未知责任不消失 | S-74/MR9 S-44 |
++
++
++### read → invoke 的输入观察交接
++
++固定 reader 取得同次 `prompt_tokens=30`，但 cache_write 未报告，既有 CA2 用量仍保留该项 unknown。reader 在显式最终事实结果交 `observedInput={kind:upstream_total,tokens:30,provenance:…}`；invoke 原样传该已归一化观察至 inputCalibration，不通过 raw/opaque/日志另取数。随后输出解析失败仍保留已取得观察，并如实描述 partial 输出；不能因没有正常 final chunk 就把 I 丢掉。若三项输入后来都已知且和为 30，reader 唯一归一化成 from_usage；若和冲突则 unavailable/inconsistent_usage，不交第二权威。对应 S-59⑤ 与 S-54 字段账本、MR9 S-42。
++
++### 必须换到最新可用锚
++
++三次稳定请求：第一响应 I₁ 已确认，第二计划使用它；第二响应 I₂ 已确认且对应新的完整输入，第三计划必须使用 I₂。永远全量虽能完成请求，或者始终使用仍然合法的 I₁ 虽可算对，都不满足稳定前缀只计新增及响应重锚进展。最新按实际可用祖先关系判，不按其他分支最后到达排序。对应 S-77/S-82，负控 NeverUseAnchor 与 KeepOldAnchor。
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/README.md b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/README.md
+index bc245b9b..7ec15568 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/README.md
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/README.md
+@@ -17,7 +17,7 @@
+ 
+ LateResponse 的额外 id=MaxCalls+1 是被抽象掉执行过程的并发 request，仍有真实原输入/输出/receipt；不与主序列 call/dispatch 身份混同。NextAttempt 对当前链追加实际输出、取得前一已提交祖先，再开新的 dispatch；RetryAsNewAttempt 是缺 usage 分支的具名子关系，Next 中的 NextAttempt 已含该关系。它不放宽 RT9 首 token/自动重试政策，只表达调用方合法发起后续请求。
+ 
+-ChangeOldPrefix 同时探索删除旧序列首单元和改变 envelope；可表示 compaction/可读性变化及工具/system 变化，不实现选择压缩哪些消息。单轮只允许一次变更与一次新增，单个模型状态没有无限碎片增长。
++ChangeOldPrefix 同时探索删除旧序列首单元和改变 envelope；可表示 compaction/可读性变化及工具/system 变化，不实现选择压缩哪些消息。单轮只允许一次变更与一次新增，单个模型状态没有无限碎片增长。StableSuccessor=TRUE 的专用重锚配置禁止非新增前缀/basis 变化，以表达 S-82 的稳定前提；新增输入、分支产生、其他分支晚到与回执丢失仍可交错。该常量不约束 planner 选择，故永远全量或总选最旧锚仍能形成反例。
+ 
+ ## 条款与可失败断言
+ 
+@@ -31,6 +31,7 @@ ChangeOldPrefix 同时探索删除旧序列首单元和改变 envelope；可表
+ | S-79/S-80 | PlanSendSame | StalePlan |
+ | S-77/S-82 | LeaseHeld | ReleaseLease |
+ | S-74/S-78 | WindowSafe（条件保证） | EstimatedWindow 说明不对 estimated 成立 |
++| S-77/S-79/S-82 | ReanchorProgress / EventuallyReanchored | NeverUseAnchor / KeepOldAnchor；终止仍不能替代新锚实际使用 |
+ 
+ 所有负控只改一处守卫或传播，检查其具名 invariant；在 validity-check，不登记 formal task。观察 missing/cache 在模型中 input=0 是存储占位，kind 必须参与判定；这个 0 永远不是 known observation。负控去掉 kind 守卫确实能错误复用。
+ 
+@@ -41,10 +42,13 @@ ChangeOldPrefix 同时探索删除旧序列首单元和改变 envelope；可表
+ - UsageCalibration_Estimated：同域，每个被计量贡献比真实值少 1，显式 Margin=0；检查精度诚实、准入关系与 ErrorReset，不检查 WindowSafe。
+ - UsageCalibration_ThreeCalls：3 次主序列 dispatch、accurate/missing，覆盖连续缺 usage 后仍回到更早祖先及再校准；其余域同准确配置。
+ - UsageCalibration_Progress：2 次主序列 dispatch，仅 accurate；使用 ProgressSpec 的显式弱公平性，检查 EventuallyDone。它只保证有限检查里的规划/拒绝/结算终止，不证明真实外部请求必停。
++- UsageCalibration_ReanchorProgress：3 次主序列 dispatch、仅 accurate，StableSuccessor=TRUE，Window=100、Reserved=2、Margin=0。检查 `AccurateCommitted(i) ~> UsesAnchor(i)`（每个有后继的 i）及 `EventuallyReanchored`：后继 planned 必须实际引用刚确定的最新可用祖先 i，不能只终止。后者确保至少第一条重锚路径实际发生，不能由提前拒绝让前件永不成立。Window=100 只确保此有限域内请求可发，从而暴露进展义务，不参与 EstimatedWindow 的边界配置。
+ 
+-Window=12、Reserved=2、Margin=0 是有限探针的显式常量，不是产品配置初值。UpperBound 的净贡献都可带边界修正；最终总量检查非负。没有对称化或隐藏状态截断；每轮新增/变更次数与 MaxCalls 明确限定状态域。协议允许合法拒绝，因此进展终态可为拒绝或最后提交，不声称每个请求都被发送。
++NeverUseAnchor 仅允许 PlanFull、禁用 PlanMarginal；KeepOldAnchor 仍增量但总选因果最早合法祖先。两者都不破坏原公平执行或终止，重锚配置下仅检查 ReanchorProgress，预期 temporal-property 反例。它们不关闭 accurate 观察或提交，也不靠改状态域绕过目标性质。模型的整数 id 是有限因果 dispatch 次序，不把这种排序投影成真实不透明标识排序。
+ 
+-工具命令使用 registry/formal-tasks.json 中可注入 JAVA_BIN/TLA2TOOLS_JAR 的 argv。负控以同 argv 替换 -config 为 validity-check 下对应文件。结果应为该 invariant 被违反，普通 parser 错误、超时或任意非零退出都不算负控成功。
++除上述重锚配置外，Window=12、Reserved=2、Margin=0 是有限探针的显式常量，不是产品配置初值。UpperBound 的净贡献都可带边界修正；最终总量检查非负。没有对称化或隐藏状态截断；每轮新增/变更次数与 MaxCalls 明确限定状态域。协议允许合法拒绝，因此进展终态可为拒绝或最后提交，不声称每个请求都被发送。
++
++工具命令使用 registry/formal-tasks.json 中可注入 JAVA_BIN/TLA2TOOLS_JAR 的 argv。负控以同 argv 替换 -config 为 validity-check 下对应文件。结果应为该 invariant 或唯一配置的 temporal property 被违反，普通 parser 错误、超时或任意非零退出都不算负控成功。
+ 
+ ## 递推的条件归纳（非机器证明）
+ 
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla
+index 073f7e2f..22aaa531 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration.tla
+@@ -1,6 +1,6 @@
+ -------------------------- MODULE UsageCalibration --------------------------
+ EXTENDS Integers, Sequences, FiniteSets, TLC
+-CONSTANTS MaxCalls, Mode, Bug, ObservationKinds, Window, Reserved, Margin
++CONSTANTS MaxCalls, Mode, Bug, ObservationKinds, Window, Reserved, Margin, StableSuccessor
+ VARIABLE s
+ vars == <<s>>
+ RECURSIVE Sum(_)
+@@ -22,7 +22,8 @@ SelectOK(r) == Receipt(r)
+   /\ (r.basis=s.basis \/ Bug="IgnoreBasis")
+ Candidates == {s.log[i]: i \in {j \in 1..Len(s.log): SelectOK(s.log[j])}}
+ Anchor == IF Candidates={} THEN Empty ELSE
+-  CHOOSE r \in Candidates: \A q \in Candidates: r.id>=q.id
++  CHOOSE r \in Candidates: \A q \in Candidates:
++    IF Bug="KeepOldAnchor" THEN r.id<=q.id ELSE r.id>=q.id
+ CorrectCandidates == {s.log[i]: i \in {j \in 1..Len(s.log): Eligible(s.log[j])}}
+ ExactReplay(r) == Count(r.body\o r.output,r.env,r.basis)-r.input
+ ExactNew(r) == Count(s.body,s.env,s.basis)-Count(r.body\o r.output,r.env,r.basis)
+@@ -52,10 +53,10 @@ Init == s=[phase |-> "edit", call |-> 1, body |-> <<1>>, env |-> 3, basis |-> 1,
+  installed |-> 1, leased |-> TRUE, released |-> FALSE, lost |-> FALSE]
+ AppendNewInput == /\ s.phase="edit" /\ ~s.appended
+  /\ \E n \in {1,2}: s'=[s EXCEPT !.body=Append(@,n),!.appended=TRUE]
+-ChangeOldPrefix == /\ s.phase="edit" /\ ~s.changed /\ s.call>1
++ChangeOldPrefix == /\ ~StableSuccessor /\ s.phase="edit" /\ ~s.changed /\ s.call>1
+  /\ (s'=[s EXCEPT !.env=4,!.changed=TRUE]
+       \/ s'=[s EXCEPT !.body=IF Len(@)>0 THEN Tail(@) ELSE @,!.changed=TRUE])
+-ChangeBasis == /\ s.phase="edit" /\ ~s.changed /\ s.call>1
++ChangeBasis == /\ ~StableSuccessor /\ s.phase="edit" /\ ~s.changed /\ s.call>1
+  /\ s'=[s EXCEPT !.basis=2,!.installed=2,!.changed=TRUE]
+ ForkBranch == /\ s.phase="edit" /\ s.call>1 /\ ~s.forked
+  /\ s'=[s EXCEPT !.branch=2,!.forked=TRUE]
+@@ -68,9 +69,9 @@ LateResponse == /\ s.phase="edit" /\ s.call>1 /\ ~s.late
+     IN s'=[s EXCEPT !.beforeLog=s.log,!.log=Append(@,r),
+           !.beforeReplyLog=s.replyLog,!.replyLog=Append(@,[id |-> r.id,output |-> r.output]),
+           !.receipts=@\cup{r.id},!.late=TRUE]
+-PlanFull == /\ s.phase="edit" /\ Candidates={}
++PlanFull == /\ s.phase="edit" /\ (Candidates={} \/ Bug="NeverUseAnchor")
+  /\ s'=[s EXCEPT !.plan=MakePlan(Empty),!.phase="planned"]
+-PlanMarginal == /\ s.phase="edit" /\ Candidates#{}
++PlanMarginal == /\ s.phase="edit" /\ Candidates#{} /\ Bug#"NeverUseAnchor"
+  /\ s'=[s EXCEPT !.plan=MakePlan(Anchor),!.phase="planned"]
+ UnloadOrReplaceBinding == /\ s.phase="planned" /\ s.installed=s.plan.installed
+  /\ s'=[s EXCEPT !.installed=3,!.released=IF Bug="ReleaseLease" THEN TRUE ELSE @]
+@@ -164,4 +165,12 @@ ProgressSpec == Spec /\ WF_vars(PlanFull \/ PlanMarginal)
+  /\ WF_vars(StageOriginalBatch) /\ WF_vars(CommitOriginalBatch \/ LoseReceipt)
+  /\ WF_vars(RecoverSameBatch) /\ WF_vars(NextAttempt \/ Finish)
+ EventuallyDone == <>(s.phase="done")
++\* Scope: stable-prefix/basis configuration, accurate observations, finite next calls.
++\* The id here is the finite causal dispatch index, not a lexicographic real-world id.
++UsesAnchor(i) == s.call=i+1 /\ PlanActive /\ s.plan.marginal /\ s.plan.anchor.id=i
++AccurateCommitted(i) == s.call=i /\ s.phase="committed"
++ /\ s.received.kind="accurate" /\ i \in s.receipts
++ReanchorProgress == \A i \in 1..(MaxCalls-1): AccurateCommitted(i) ~> UsesAnchor(i)
++\* Ensures the first reanchor path actually occurs; rejection cannot satisfy it.
++EventuallyReanchored == <>UsesAnchor(1)
+ =============================================================================
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Estimated.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Estimated.cfg
+index 1b19c064..4577239c 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Estimated.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Estimated.cfg
+@@ -8,6 +8,7 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANTS
+  TypeOK
+  AnchorSource
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ExactOrBound.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ExactOrBound.cfg
+index 1d87a38e..ed57448e 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ExactOrBound.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ExactOrBound.cfg
+@@ -8,6 +8,7 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANTS
+  TypeOK
+  AnchorSource
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg
+index d49ac735..97ba88fd 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg
+@@ -8,6 +8,7 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANTS
+  TypeOK
+  AnchorSource
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ThreeCalls.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ThreeCalls.cfg
+index 1061057e..7a77a9dc 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ThreeCalls.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ThreeCalls.cfg
+@@ -8,6 +8,7 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANTS
+  TypeOK
+  AnchorSource
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_UpperBound.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_UpperBound.cfg
+index e6fff54c..4ba8961e 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_UpperBound.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_UpperBound.cfg
+@@ -8,6 +8,7 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANTS
+  TypeOK
+  AnchorSource
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_CacheZero.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_CacheZero.cfg
+index 35e6fb7c..4fba1eba 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_CacheZero.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_CacheZero.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT AnchorSource
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_DoubleOutput.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_DoubleOutput.cfg
+index c2920b0d..749d1a54 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_DoubleOutput.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_DoubleOutput.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT NoDoubleOutput
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimateExact.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimateExact.cfg
+index cc528a7b..789faf14 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimateExact.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimateExact.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT PrecisionHonest
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimatedWindow.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimatedWindow.cfg
+index 54e3914d..9dadd902 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimatedWindow.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimatedWindow.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT WindowSafe
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnoreBasis.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnoreBasis.cfg
+index 63b695bf..2cb2d6b3 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnoreBasis.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnoreBasis.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT BasisGuard
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnorePrefix.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnorePrefix.cfg
+index c60e22d3..8fd54566 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnorePrefix.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnorePrefix.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT PrefixGuard
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_LatestBranch.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_LatestBranch.cfg
+index cd143c40..d2db4ae8 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_LatestBranch.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_LatestBranch.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT AnchorSource
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_MissingZero.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_MissingZero.cfg
+index 99f38ccb..9a54e92a 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_MissingZero.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_MissingZero.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT AnchorSource
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PartialBatch.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PartialBatch.cfg
+index 22f3ad0f..174c7afb 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PartialBatch.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PartialBatch.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT SameBatch
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PublishEarly.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PublishEarly.cfg
+index 2308e807..3e59de02 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PublishEarly.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PublishEarly.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT NoEarlyPublish
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RecomputeRecovery.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RecomputeRecovery.cfg
+index 1661a94a..170c001b 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RecomputeRecovery.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RecomputeRecovery.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT OriginalBatch
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_ReleaseLease.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_ReleaseLease.cfg
+index 0cbd3854..7f1ac3dd 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_ReleaseLease.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_ReleaseLease.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT LeaseHeld
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RewriteHistory.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RewriteHistory.cfg
+index e7a7dcf8..671f031b 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RewriteHistory.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RewriteHistory.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT AppendOnly
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_StalePlan.cfg b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_StalePlan.cfg
+index 8a785d60..405196b6 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_StalePlan.cfg
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_StalePlan.cfg
+@@ -8,4 +8,5 @@ CONSTANTS
+  Window = 12
+  Reserved = 2
+  Margin = 0
++ StableSuccessor = FALSE
+ INVARIANT PlanSendSame
+diff --git a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/verification.md b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/verification.md
+index e5354cc2..579183b6 100644
+--- a/.meta_harness/design/spec/capabilities/model-request-runtime/v10/verification.md
++++ b/.meta_harness/design/spec/capabilities/model-request-runtime/v10/verification.md
+@@ -4,28 +4,30 @@
+ 
+ 2026-09-29：继承 D-104 RT9，消费 MR9 新事实，追加 S-77～S-83。十三服务操作及既有失败集合不变；按现有九项操作附加输入/输出/守卫/原批责任，不另立 metering service。新行为模型只覆盖本次校准，并列出既有 RT9/SL3 前提；不把原接受或模型复制当本批执行证据。
+ 
++修订二：S-59 明确 reader 首次归一化并交出同次 observedInput，S-54 显式传递且禁止旁路重读；S-77/S-82 要求实际使用最新可用因果祖先，新增三轮稳定重锚正配置及 NeverUseAnchor/KeepOldAnchor 负控。新适配缺口使用 G-37，避免覆盖原 LC6 G-35。运行记录与实施进度由版本外证据拥有。
++
+ ## 必需证据
+ 
+-| 性质 | 证据落点 | 实现验收状态 |
++| 性质 | 证据落点 | 证据边界 |
+ |---|---|---|
+-| stable P/basis 增量；两类失效全量 | formal UsageCalibration 的 AnchorSource/PrefixGuard/BasisGuard；有控 meter 必须可观测未 tokenize P | 实现未开始 |
+-| 正确 φ/δ、误差不累计、精度不升级、O 不双加 | ErrorReset/NoDoubleOutput/PrecisionHonest、README 条件归纳、真实 tokenizer 对照 | 真实适配证据未开始 |
++| stable P/basis 增量；两类失效全量 | formal UsageCalibration 的 AnchorSource/PrefixGuard/BasisGuard；有控 meter 必须可观测未 tokenize P | 须实际实施验收 |
++| 正确 φ/δ、误差不累计、精度不升级、O 不双加 | ErrorReset/NoDoubleOutput/PrecisionHonest、README 条件归纳、真实 tokenizer 对照 | 须实际适配证据 |
+ | accurate/bound 条件窗口、estimated 不保证 | ExactOrBound/UpperBound；EstimatedWindow 预期反例 | 不把有限 oracle 换成真实上游保证 |
+-| 必需事实同原 response/reply 批；unknown 不提前发布、原值恢复 | SameBatch/OriginalBatch/AppendOnly/NoEarlyPublish 与逐负控；真实追加失去回执故障注入 | 真实存储验收未开始 |
+-| 发送等于 plan、绑定更换不覆盖进行中调用 | PlanSendSame/LeaseHeld；实际 send 字节和租约释放验收 | 实现未开始 |
+-| 租户/日志来源授权、actual branch ancestry | 模型在一个已授权域内检 branch；跨租户同 seq/越权需真实 service 测试 | 真实 service 验收未开始 |
+-| 无隐藏 log IO、公开函数独立使用 | 独立包消费者及 IO 监视；TLA 不声称覆盖 | 实现未开始 |
+-| 百万 token 性能 | 分别量最终序列化、来源核验、新增 meter、完整调用；与研究中的全量 baseline 比较 | 新增实现尚未开始；无预设未经采用阈值 |
+-| 原未变义务 | 继承 v9 模型/验证义务与提供者场景 | 旧证据仅旧输入范围，本批未全跑旧模型 |
++| 必需事实同原 response/reply 批；unknown 不提前发布、原值恢复 | SameBatch/OriginalBatch/AppendOnly/NoEarlyPublish 与逐负控；真实追加失去回执故障注入 | 须实际存储验收 |
++| 发送等于 plan、绑定更换不覆盖进行中调用 | PlanSendSame/LeaseHeld；实际 send 字节和租约释放验收 | 须实际实施验收 |
++| 租户/日志来源授权、actual branch ancestry | 模型在一个已授权域内检 branch；跨租户同 seq/越权需真实 service 测试 | 须真实 service 验收 |
++| 无隐藏 log IO、公开函数独立使用 | 独立包消费者及 IO 监视；TLA 不声称覆盖 | 须实际实施验收 |
++| 百万 token 性能 | 分别量最终序列化、来源核验、新增 meter、完整调用；与研究中的全量 baseline 比较 | 分别保留基线与新增路径测量，无预设未经采用阈值 |
++| 原未变义务 | 继承 v9 模型/验证义务与提供者场景 | 旧证据仅旧输入范围，变动影响须另行验证 |
+ 
+ ## 形式配置与结果责任
+ 
+ formal/README.md 逐配置列前提/断言/负控；formal-tasks 只登记正向配置。实际输出归本批版本外 evidence。负控只有预定 invariant 被违反才算有效，parser/定义域异常与 timeout 不算反例。有限 TLC 无反例不是无条件证明。
+ 
+-本批模型初次三轮扩域发现 Tail(empty) 定义域错误；修订为序列非空时才删首项，空序列保持空。该修订不排除空输入或关闭性质；错误重现与修订后输出应同时保留在执行证据。response/reply 拆为两个序列并增 SameBatch/PartialBatch 负控，避免把待检查同批性质隐藏在一个值里。
++response/reply 须分别表达并检查 SameBatch，使用 PartialBatch 负控；不得把同批目标隐藏在不可分割值中。重锚进展须检查准确提交后实际使用最新可用观察，并以 NeverUseAnchor 与 KeepOldAnchor 验证性质可失败；EventuallyDone 不能代替该性质。
+ 
+ ## 已知缺口与报给主线
+ 
+-G-35：各实际绑定 φ/δ/compatibility 与上游 observation 证据，owner 适配/计量提供者；G-36：compaction 硬 fit 与 estimated 取舍，owner 产品/上下文主线。本版不实现 compaction、完整 Session/Run/Agent Loop、store 或内核。
++G-37：各实际绑定 φ/δ/compatibility 与上游 observation 证据，owner 适配/计量提供者；G-36：compaction 硬 fit 与 estimated 取舍，owner 产品/上下文主线。本版不实现 compaction、完整 Session/Run/Agent Loop、store 或内核。
+ 
+-需要独立架构/规格审查、主线明确接受及 realization 投影后才能实现；本作者不接受、也不以本地形式结果认证产品。当前 U1 产物未发布。
++需要独立架构/规格审查、主线明确接受及 realization 投影后才能实现；本作者不接受、也不以本地形式结果认证产品。规格状态以 registry 的候选条目为准。
+diff --git a/.meta_harness/design/spec/data/model-response/v9/contract.md b/.meta_harness/design/spec/data/model-response/v9/contract.md
+index 64a8e97a..075ccf98 100644
+--- a/.meta_harness/design/spec/data/model-response/v9/contract.md
++++ b/.meta_harness/design/spec/data/model-response/v9/contract.md
+@@ -806,7 +806,7 @@ known 两支均带 `provenance`：adapterRevision 与 fieldPaths 必填，记录
+ 
+ ### S-43 outputGroup 与回放
+ 
+-known 输出组恰含 source、blockDigests、completeness、usageRef。source=reply 时 digest 序列逐项对应原 `reply` 的实际内容块；source=delivered 时对应已交付内容；source=none 时两者均不存在且 blockDigests 为空。序列数量与原块数组相等，沿原规则允许空的 complete reply；delivered 沿原规则非空。序列顺序及重复均保留；block 摘要采用 S-41 projectionRevision 规定的确定性内容编码。原 reply 与本响应 id 的对应仍沿 S-14/S-39。`usageRef` 固定指本 response 的 usage，不复制 output/reasoning 总量。
++known 输出组恰含 projectionRevision、source、blockDigests、completeness、usageRef。projectionRevision 必填，独立指认本输出组摘要的确定性内容编码版本，由当次固定适配提供者拥有并随本值耐久；它不依赖 requestInput 必须为 known。requestInput unavailable 与 outputGroup known 合法，仍须保留这份可解释的部分输出事实。requestInput 也为 known 时，两者 projectionRevision 必须精确相等，不允许混用两种编码版本。source=reply 时 digest 序列逐项对应原 `reply` 的实际内容块；source=delivered 时对应已交付内容；source=none 时两者均不存在且 blockDigests 为空。序列数量与原块数组相等，沿原规则允许空的 complete reply；delivered 沿原规则非空。序列顺序及重复均保留；block 摘要采用本 outputGroup.projectionRevision 规定的确定性内容编码（版本规则沿 S-41）。原 reply 与本响应 id 的对应仍沿 S-14/S-39。`usageRef` 固定指本 response 的 usage，不复制 output/reasoning 总量。
+ 
+ completeness=complete 表示实际收到且保留的输出组完整，partial 表示只保留部分；不因 HTTP 成功、outcome complete 或 output_tokens 存在就推断完整。未知不能冒填 complete，无法描述组时用 unavailable（not_retained/not_sent/send_unknown）。输出组证据可为 partial，同时输入 I 仍已知；是否可用取决于下一次实际选入的组及版本化 φ 能否解释。
+ 
+@@ -814,7 +814,7 @@ completeness=complete 表示实际收到且保留的输出组完整，partial 
+ 
+ ### S-44 纯表示校验及事实判定
+ 
+-纯校验沿 S-27 的闭合拒绝集合与优先级。inputCalibration 内的缺项、类型、未知判别值先是成员层 malformed；已有具名跨成员拒绝先于本条。随后：S-41 的两处相等、S-42 观察分支与 usage 的交叉条件、known total 小于已知分项和、provenance 已给同名事实不等、S-43 source 与内容存在性／数量不等，均为跨成员 malformed，不新增失败值。Schema 只实现能表达的条件，数值和、相等与摘要逐项对应另作纯关系校验；Schema 通过不等于事实判定通过。
++纯校验沿 S-27 的闭合拒绝集合与优先级。inputCalibration 内的缺项、类型、未知判别值先是成员层 malformed；已有具名跨成员拒绝先于本条。随后：S-41 的两处相等、S-42 观察分支与 usage 的交叉条件、known total 小于已知分项和、provenance 已给同名事实不等、S-43 两个 known 表示的 projectionRevision 不等、source 与内容存在性／数量不等，均为跨成员 malformed，不新增失败值。Schema 只实现能表达的条件，数值和、相等与摘要逐项对应另作纯关系校验；Schema 通过不等于事实判定通过。
+ 
+ 输入为显式值，输出合法或上述唯一拒绝；不读日志、不授权、无状态或提交、副作用为零、重复结果一致、缺失无默认，不发事件。实际摘要字节对应、上游来源真实性、跨日志/分支 ancestry、同批耐久与固定计划由能力/提供者兑现；不能将这些未知错写为表示层已证有效。
+ 
+diff --git a/.meta_harness/design/spec/data/model-response/v9/examples.json b/.meta_harness/design/spec/data/model-response/v9/examples.json
+index db416f82..7c669649 100644
+--- a/.meta_harness/design/spec/data/model-response/v9/examples.json
++++ b/.meta_harness/design/spec/data/model-response/v9/examples.json
+@@ -212,7 +212,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -431,7 +432,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -644,7 +646,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -857,7 +860,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -1075,7 +1079,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "partial",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -1294,7 +1299,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -1670,7 +1676,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -1889,7 +1896,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -2107,7 +2115,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -2325,7 +2334,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -2540,7 +2550,8 @@
+           "source": "reply",
+           "blockDigests": [],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -2759,7 +2770,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -2978,7 +2990,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -3191,7 +3204,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -3409,7 +3423,8 @@
+             "3333333333333333333333333333333333333333333333333333333333333333"
+           ],
+           "completeness": "complete",
+-          "usageRef": "usage"
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
+         }
+       }
+     }
+@@ -3580,5 +3595,609 @@
+         }
+       }
+     }
++  },
++  {
++    "name": "known-output-independent-projection-version",
++    "schemaValid": true,
++    "relationsValid": true,
++    "value": {
++      "id": "resp_4c1e9a",
++      "call": {
++        "runId": "run_7a02",
++        "callId": "mc_19f3"
++      },
++      "dispatch": 1,
++      "attemptId": 1,
++      "route": {
++        "adaptation": {
++          "implementation": {
++            "name": "example-family",
++            "revision": "impl-1"
++          },
++          "definition": {
++            "modelId": "anthropic/claude-sonnet-4.5",
++            "revision": "model-1"
++          },
++          "configuration": {
++            "revision": "config-1",
++            "values": {}
++          }
++        },
++        "profile": {
++          "origin": "custom",
++          "scope": {
++            "layer": "organization",
++            "organization": "org_7fd2c1"
++          },
++          "routeName": "anthropic/claude-sonnet-4.5"
++        },
++        "profileSnapshot": {
++          "adaptation": {
++            "implementation": {
++              "name": "example-family",
++              "revision": "impl-1"
++            },
++            "definition": {
++              "modelId": "anthropic/claude-sonnet-4.5",
++              "revision": "model-1"
++            },
++            "configuration": {
++              "revision": "config-1",
++              "values": {}
++            }
++          },
++          "providers": [
++            "anthropic",
++            "amazon-bedrock",
++            "google-vertex",
++            "openai"
++          ],
++          "allowFallback": true,
++          "inputModalities": [
++            "text",
++            "image"
++          ],
++          "outputModalities": [
++            "text",
++            "image"
++          ],
++          "maxInputTokens": 200000,
++          "maxOutputTokens": 64000,
++          "updatedAt": "2026-09-20T08:00:00Z",
++          "inputConstraints": {
++            "maxImageBytes": 5242880
++          },
++          "upstreamInputLimits": {
++            "maxInputTokens": {
++              "status": "unknown"
++            },
++            "maxRequestBytes": {
++              "status": "unknown"
++            },
++            "maxImageBytes": {
++              "status": "unknown"
++            },
++            "maxImages": {
++              "status": "unknown"
++            }
++          }
++        },
++        "selectedBy": "session",
++        "provider": "anthropic",
++        "credentialScope": {
++          "layer": "tenant",
++          "tenant": {
++            "organization": "org_7fd2c1",
++            "account": "acc_91ab40"
++          }
++        },
++        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
++        "upstreamRequestId": "gen-1758621600-a1b2c3",
++        "parameters": {
++          "reasoningEffort": "medium",
++          "temperature": 0.7
++        }
++      },
++      "outcome": "complete",
++      "stopReason": "stop",
++      "reply": {
++        "id": "msg_51",
++        "type": "assistant",
++        "createdAt": "2026-09-23T10:00:04Z",
++        "response": "resp_4c1e9a",
++        "ending": "complete",
++        "blocks": [
++          {
++            "id": "b1",
++            "kind": "text",
++            "visibility": {
++              "toHuman": true,
++              "toModel": true
++            },
++            "text": "先读一下配置文件。"
++          },
++          {
++            "id": "b2",
++            "kind": "tool_call",
++            "visibility": {
++              "toHuman": true,
++              "toModel": true
++            },
++            "complete": true,
++            "callId": "call_01",
++            "tool": "read_file",
++            "arguments": {
++              "path": "config.toml"
++            }
++          }
++        ]
++      },
++      "replyDisposition": "persisted",
++      "timing": {
++        "sentAt": "2026-09-23T10:00:00Z",
++        "firstTokenAt": "2026-09-23T10:00:01.2Z",
++        "endedAt": "2026-09-23T10:00:04Z"
++      },
++      "usage": {
++        "input_tokens": 10,
++        "cache_read_tokens": 20,
++        "cache_write_tokens": 0,
++        "output_tokens": 5,
++        "source": "upstream"
++      },
++      "cost": {
++        "cost_usd": 0.0031,
++        "source": "upstream_usage"
++      },
++      "raw": {
++        "headers": {
++          "content-type": "text/event-stream",
++          "x-generation-id": "gen-1758621600-a1b2c3"
++        },
++        "body": {
++          "storage": "attachments",
++          "key": "raw/resp_4c1e9a",
++          "mediaType": "text/event-stream",
++          "bytes": 18234
++        }
++      },
++      "inputCalibration": {
++        "requestInput": {
++          "kind": "unavailable",
++          "reason": "not_retained"
++        },
++        "observedInput": {
++          "kind": "from_usage",
++          "provenance": {
++            "adapterRevision": "adapter-1",
++            "fieldPaths": [
++              "usage.prompt_tokens"
++            ]
++          }
++        },
++        "outputGroup": {
++          "kind": "known",
++          "source": "reply",
++          "blockDigests": [
++            "3333333333333333333333333333333333333333333333333333333333333333",
++            "3333333333333333333333333333333333333333333333333333333333333333"
++          ],
++          "completeness": "complete",
++          "usageRef": "usage",
++          "projectionRevision": "projection-1"
++        }
++      }
++    }
++  },
++  {
++    "name": "known-output-missing-own-projection-version",
++    "schemaValid": false,
++    "relationsValid": false,
++    "value": {
++      "id": "resp_4c1e9a",
++      "call": {
++        "runId": "run_7a02",
++        "callId": "mc_19f3"
++      },
++      "dispatch": 1,
++      "attemptId": 1,
++      "route": {
++        "adaptation": {
++          "implementation": {
++            "name": "example-family",
++            "revision": "impl-1"
++          },
++          "definition": {
++            "modelId": "anthropic/claude-sonnet-4.5",
++            "revision": "model-1"
++          },
++          "configuration": {
++            "revision": "config-1",
++            "values": {}
++          }
++        },
++        "profile": {
++          "origin": "custom",
++          "scope": {
++            "layer": "organization",
++            "organization": "org_7fd2c1"
++          },
++          "routeName": "anthropic/claude-sonnet-4.5"
++        },
++        "profileSnapshot": {
++          "adaptation": {
++            "implementation": {
++              "name": "example-family",
++              "revision": "impl-1"
++            },
++            "definition": {
++              "modelId": "anthropic/claude-sonnet-4.5",
++              "revision": "model-1"
++            },
++            "configuration": {
++              "revision": "config-1",
++              "values": {}
++            }
++          },
++          "providers": [
++            "anthropic",
++            "amazon-bedrock",
++            "google-vertex",
++            "openai"
++          ],
++          "allowFallback": true,
++          "inputModalities": [
++            "text",
++            "image"
++          ],
++          "outputModalities": [
++            "text",
++            "image"
++          ],
++          "maxInputTokens": 200000,
++          "maxOutputTokens": 64000,
++          "updatedAt": "2026-09-20T08:00:00Z",
++          "inputConstraints": {
++            "maxImageBytes": 5242880
++          },
++          "upstreamInputLimits": {
++            "maxInputTokens": {
++              "status": "unknown"
++            },
++            "maxRequestBytes": {
++              "status": "unknown"
++            },
++            "maxImageBytes": {
++              "status": "unknown"
++            },
++            "maxImages": {
++              "status": "unknown"
++            }
++          }
++        },
++        "selectedBy": "session",
++        "provider": "anthropic",
++        "credentialScope": {
++          "layer": "tenant",
++          "tenant": {
++            "organization": "org_7fd2c1",
++            "account": "acc_91ab40"
++          }
++        },
++        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
++        "upstreamRequestId": "gen-1758621600-a1b2c3",
++        "parameters": {
++          "reasoningEffort": "medium",
++          "temperature": 0.7
++        }
++      },
++      "outcome": "complete",
++      "stopReason": "stop",
++      "reply": {
++        "id": "msg_51",
++        "type": "assistant",
++        "createdAt": "2026-09-23T10:00:04Z",
++        "response": "resp_4c1e9a",
++        "ending": "complete",
++        "blocks": [
++          {
++            "id": "b1",
++            "kind": "text",
++            "visibility": {
++              "toHuman": true,
++              "toModel": true
++            },
++            "text": "先读一下配置文件。"
++          },
++          {
++            "id": "b2",
++            "kind": "tool_call",
++            "visibility": {
++              "toHuman": true,
++              "toModel": true
++            },
++            "complete": true,
++            "callId": "call_01",
++            "tool": "read_file",
++            "arguments": {
++              "path": "config.toml"
++            }
++          }
++        ]
++      },
++      "replyDisposition": "persisted",
++      "timing": {
++        "sentAt": "2026-09-23T10:00:00Z",
++        "firstTokenAt": "2026-09-23T10:00:01.2Z",
++        "endedAt": "2026-09-23T10:00:04Z"
++      },
++      "usage": {
++        "input_tokens": 10,
++        "cache_read_tokens": 20,
++        "cache_write_tokens": 0,
++        "output_tokens": 5,
++        "source": "upstream"
++      },
++      "cost": {
++        "cost_usd": 0.0031,
++        "source": "upstream_usage"
++      },
++      "raw": {
++        "headers": {
++          "content-type": "text/event-stream",
++          "x-generation-id": "gen-1758621600-a1b2c3"
++        },
++        "body": {
++          "storage": "attachments",
++          "key": "raw/resp_4c1e9a",
++          "mediaType": "text/event-stream",
++          "bytes": 18234
++        }
++      },
++      "inputCalibration": {
++        "requestInput": {
++          "kind": "unavailable",
++          "reason": "not_retained"
++        },
++        "observedInput": {
++          "kind": "from_usage",
++          "provenance": {
++            "adapterRevision": "adapter-1",
++            "fieldPaths": [
++              "usage.prompt_tokens"
++            ]
++          }
++        },
++        "outputGroup": {
++          "kind": "known",
++          "source": "reply",
++          "blockDigests": [
++            "3333333333333333333333333333333333333333333333333333333333333333",
++            "3333333333333333333333333333333333333333333333333333333333333333"
++          ],
++          "completeness": "complete",
++          "usageRef": "usage"
++        }
++      }
++    }
++  },
++  {
++    "name": "known-output-request-projection-version-mismatch",
++    "schemaValid": true,
++    "relationsValid": false,
++    "value": {
++      "id": "resp_4c1e9a",
++      "call": {
++        "runId": "run_7a02",
++        "callId": "mc_19f3"
++      },
++      "dispatch": 1,
++      "attemptId": 1,
++      "route": {
++        "adaptation": {
++          "implementation": {
++            "name": "example-family",
++            "revision": "impl-1"
++          },
++          "definition": {
++            "modelId": "anthropic/claude-sonnet-4.5",
++            "revision": "model-1"
++          },
++          "configuration": {
++            "revision": "config-1",
++            "values": {}
++          }
++        },
++        "profile": {
++          "origin": "custom",
++          "scope": {
++            "layer": "organization",
++            "organization": "org_7fd2c1"
++          },
++          "routeName": "anthropic/claude-sonnet-4.5"
++        },
++        "profileSnapshot": {
++          "adaptation": {
++            "implementation": {
++              "name": "example-family",
++              "revision": "impl-1"
++            },
++            "definition": {
++              "modelId": "anthropic/claude-sonnet-4.5",
++              "revision": "model-1"
++            },
++            "configuration": {
++              "revision": "config-1",
++              "values": {}
++            }
++          },
++          "providers": [
++            "anthropic",
++            "amazon-bedrock",
++            "google-vertex",
++            "openai"
++          ],
++          "allowFallback": true,
++          "inputModalities": [
++            "text",
++            "image"
++          ],
++          "outputModalities": [
++            "text",
++            "image"
++          ],
++          "maxInputTokens": 200000,
++          "maxOutputTokens": 64000,
++          "updatedAt": "2026-09-20T08:00:00Z",
++          "inputConstraints": {
++            "maxImageBytes": 5242880
++          },
++          "upstreamInputLimits": {
++            "maxInputTokens": {
++              "status": "unknown"
++            },
++            "maxRequestBytes": {
++              "status": "unknown"
++            },
++            "maxImageBytes": {
++              "status": "unknown"
++            },
++            "maxImages": {
++              "status": "unknown"
++            }
++          }
++        },
++        "selectedBy": "session",
++        "provider": "anthropic",
++        "credentialScope": {
++          "layer": "tenant",
++          "tenant": {
++            "organization": "org_7fd2c1",
++            "account": "acc_91ab40"
++          }
++        },
++        "upstreamModel": "anthropic/claude-4.5-sonnet-20250929",
++        "upstreamRequestId": "gen-1758621600-a1b2c3",
++        "parameters": {
++          "reasoningEffort": "medium",
++          "temperature": 0.7
++        }
++      },
++      "outcome": "complete",
++      "stopReason": "stop",
++      "reply": {
++        "id": "msg_51",
++        "type": "assistant",
++        "createdAt": "2026-09-23T10:00:04Z",
++        "response": "resp_4c1e9a",
++        "ending": "complete",
++        "blocks": [
++          {
++            "id": "b1",
++            "kind": "text",
++            "visibility": {
++              "toHuman": true,
++              "toModel": true
++            },
++            "text": "先读一下配置文件。"
++          },
++          {
++            "id": "b2",
++            "kind": "tool_call",
++            "visibility": {
++              "toHuman": true,
++              "toModel": true
++            },
++            "complete": true,
++            "callId": "call_01",
++            "tool": "read_file",
++            "arguments": {
++              "path": "config.toml"
++            }
++          }
++        ]
++      },
++      "replyDisposition": "persisted",
++      "timing": {
++        "sentAt": "2026-09-23T10:00:00Z",
++        "firstTokenAt": "2026-09-23T10:00:01.2Z",
++        "endedAt": "2026-09-23T10:00:04Z"
++      },
++      "usage": {
++        "input_tokens": 10,
++        "cache_read_tokens": 20,
++        "cache_write_tokens": 0,
++        "output_tokens": 5,
++        "source": "upstream"
++      },
++      "cost": {
++        "cost_usd": 0.0031,
++        "source": "upstream_usage"
++      },
++      "raw": {
++        "headers": {
++          "content-type": "text/event-stream",
++          "x-generation-id": "gen-1758621600-a1b2c3"
++        },
++        "body": {
++          "storage": "attachments",
++          "key": "raw/resp_4c1e9a",
++          "mediaType": "text/event-stream",
++          "bytes": 18234
++        }
++      },
++      "inputCalibration": {
++        "requestInput": {
++          "kind": "known",
++          "projectionRevision": "projection-1",
++          "prefixBoundary": 2,
++          "prefixDigest": "1111111111111111111111111111111111111111111111111111111111111111",
++          "inputEnvelopeDigest": "2222222222222222222222222222222222222222222222222222222222222222",
++          "countingBasis": {
++            "binding": {
++              "implementation": {
++                "name": "example-family",
++                "revision": "impl-1"
++              },
++              "definition": {
++                "modelId": "anthropic/claude-sonnet-4.5",
++                "revision": "model-1"
++              },
++              "configuration": {
++                "revision": "config-1",
++                "values": {}
++              }
++            },
++            "model": "anthropic/claude-sonnet-4.5",
++            "provider": "anthropic",
++            "tokenizerRevision": "tokenizer-1",
++            "meterRevision": "meter-1",
++            "projectionRevision": "projection-1",
++            "replayRevision": "replay-1",
++            "transformRevision": "transform-1"
++          }
++        },
++        "observedInput": {
++          "kind": "from_usage",
++          "provenance": {
++            "adapterRevision": "adapter-1",
++            "fieldPaths": [
++              "usage.prompt_tokens"
++            ]
++          }
++        },
++        "outputGroup": {
++          "kind": "known",
++          "source": "reply",
++          "blockDigests": [
++            "3333333333333333333333333333333333333333333333333333333333333333",
++            "3333333333333333333333333333333333333333333333333333333333333333"
++          ],
++          "completeness": "complete",
++          "usageRef": "usage",
++          "projectionRevision": "other"
++        }
++      }
++    }
+   }
+ ]
+diff --git a/.meta_harness/design/spec/data/model-response/v9/model-response.schema.json b/.meta_harness/design/spec/data/model-response/v9/model-response.schema.json
+index 9e71ebd9..36c164b6 100644
+--- a/.meta_harness/design/spec/data/model-response/v9/model-response.schema.json
++++ b/.meta_harness/design/spec/data/model-response/v9/model-response.schema.json
+@@ -1597,6 +1597,7 @@
+           "additionalProperties": false,
+           "required": [
+             "kind",
++            "projectionRevision",
+             "source",
+             "blockDigests",
+             "completeness",
+@@ -1628,6 +1629,11 @@
+             },
+             "usageRef": {
+               "const": "usage"
++            },
++            "projectionRevision": {
++              "type": "string",
++              "minLength": 1,
++              "description": "S-43：本输出组摘要的独立耐久编码版本；requestInput known 时与其 projectionRevision 相等。"
+             }
+           }
+         },
+diff --git a/.meta_harness/design/spec/data/model-response/v9/verification.md b/.meta_harness/design/spec/data/model-response/v9/verification.md
+index cc4fb94c..198d23e2 100644
+--- a/.meta_harness/design/spec/data/model-response/v9/verification.md
++++ b/.meta_harness/design/spec/data/model-response/v9/verification.md
+@@ -4,18 +4,20 @@
+ 
+ 2026-09-29：在已接受 MR8 上追加 S-41～S-45；持久/待提交值共用 required inputCalibration。原 S-1～S-40 义务继承，不修改前驱冻结文件。消费 CA2 v2 S-6/S-7 的互斥输入口径，原 MP5/MS6/LC6 数据依赖不变。跨域状态由 RT10 拥有，MR 不反向登记 RT 依赖。
+ 
++修订二：S-43 的 known 输出组自身必带 projectionRevision，保留 requestInput unavailable 时合法的部分输出证据；双方 known 时需相等，Schema 后纯关系校验须同步。新增独立版本、缺版本和错版本三例。
++
+ ## 必需证据
+ 
+-| 性质 | 证据 | 当前实施状态 |
++| 性质 | 证据 | 边界 |
+ |---|---|---|
+-| 必填判别联合、known 分支与 CA2 条件、未知不零 | examples.json 的完整正反例，Draft202012Validator；类型/成员形状与关系拒绝分开 | 规格实例可执行；产品符合性未开始 |
+-| basis/route、projectionRevision 相等；known total 不小于分项和；provenance 原事实一致 | Schema 后纯关系校验的正反例 | 产品符合性未开始 |
+-| output group 顺序/数量/摘要、reply.response 关系 | 固定 provider 投影原件的同次输出对照，换序/漏块/partial/hidden 输出负例 | 真实适配证据未开始 |
+-| 上游 actual total 与模型输入范围吻合 | 真实 OpenRouter 固定 model/provider/参数观察；response-cache 与 prefix-cache 区分 | 本批未运行网络 |
+-| required 当前格式、旧数据不回填 | 缺字段拒绝与耐久 unreadable 不伪成功，原 responsibility 保留 | 产品符合性未开始 |
+-| 原批/append-only/unknown/recovery | RT10 formal/UsageCalibration.tla 与真实 SL3 故障注入 | 有限规格模型由 RT10 承担；本包不声称真实存储通过 |
+-
+-examples.json 的 schemaValid/relationsValid 只描述可在单值上判的部分；摘要原件和真实上游来源不能靠示例中一个合法 hex 串证明。examples.md 继承前驱收场示例并显式添加 unavailable，不是兼容迁移算法。PendingModelResponse 同 required 条件另需完整有回复 fixture。保持 CA2/MR/MS 共享形状的原对齐义务，不复制这些数据定义。
++| 必填判别联合、known 分支与 CA2 条件、未知不零 | examples.json 的完整正反例，Draft202012Validator；类型/成员形状与关系拒绝分开 | 规格实例与产品符合性分别验证 |
++| basis/route、projectionRevision 相等；known total 不小于分项和；provenance 原事实一致 | Schema 后纯关系校验的正反例 | 须由产品符合性验收兑现 |
++| output group 顺序/数量/摘要、reply.response 关系 | 固定 provider 投影原件的同次输出对照，换序/漏块/partial/hidden 输出负例 | 须有真实适配证据 |
++| 上游 actual total 与模型输入范围吻合 | 真实 OpenRouter 固定 model/provider/参数观察；response-cache 与 prefix-cache 区分 | 须保留实际网络样本和条件 |
++| required 当前格式、旧数据不回填 | 缺字段拒绝与耐久 unreadable 不伪成功，原 responsibility 保留 | 须由产品符合性验收兑现 |
++| 原批/append-only/unknown/recovery | RT10 formal/UsageCalibration.tla 与真实 SL3 故障注入 | 有限模型由 RT10 承担；实际存储另验 |
++
++examples.json 的 schemaValid/relationsValid 只描述可在单值上判的部分；摘要原件和真实上游来源不能靠示例中一个合法 hex 串证明。examples.md 继承前驱收场示例并显式添加 unavailable，不是兼容迁移算法。PendingModelResponse 同 required 条件需完整有回复 fixture。输出组自身版本与 request unavailable 的正例、缺版本与 known 版本不一致反例都须核验。保持 CA2/MR/MS 共享形状的原对齐义务，不复制这些数据定义。
+ 
+ ## 工具与范围
+ 

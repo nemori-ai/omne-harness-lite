@@ -20,24 +20,24 @@
 | Topic | 状态 | rev |
 |---|---|---|
 | [PF-000 发生的事与记录条目](PF-000-occurrences-and-record-entries/README.md) | active | 1 |
-| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 24 |
-| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 31 |
+| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 25 |
+| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 32 |
 | [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 6 |
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 20 |
-| [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 8 |
-| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 23 |
+| [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 9 |
+| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 24 |
 | [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 23 |
 | [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | active | 7 |
 | [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | active | 9 |
 | [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 7 |
 | [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | active | 5 |
 | [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 21 |
-| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 14 |
+| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 17 |
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 11 |
 | [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | active | 20 |
-| [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 10 |
-| [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 6 |
-| [PF-020 工作区](PF-020-workspace/README.md) | active | 21 |
+| [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 11 |
+| [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 7 |
+| [PF-020 工作区](PF-020-workspace/README.md) | active | 22 |
 | [PF-021 日程与日历](PF-021-schedule-and-calendar/README.md) | active | 8 |
 
 ## 已排定、尚未开题的编号
@@ -104,14 +104,20 @@ PF-0NN-<slug>/
 ├── design.md         概念、模型、规则、取舍、边界、未决  ← 必须
 ├── flows.md          旅程、异常分支、状态流转、角色矩阵
 ├── acceptance.md     可观察场景、绝不能发生的事、判据
+├── stories.md        故事卡：还没交付的那几块，先做哪块、怎么演示
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决        ← 必须
 ├── changelog.md      产品设计本身的演进（rev N）        ← 必须
 ├── interviews/       设计交流笔记（原始材料）
-└── projection/       向 Cordis 的技术设计投影，按版本固化
+└── projection/       技术设计的投影，按版本固化
 ```
 
 四个必须的分别回答**是什么**、**谁定的**、**怎么变的**、**在哪**。
-其余按实际情况取舍：没有多步旅程就不必有 `flows.md`。
+其余按实际情况取舍：没有多步旅程就不必有 `flows.md`，还没切卡就不建 `stories.md`。
+
+**故事卡是交付切片，不是产品含义。**一张卡是一个可以单独演示的用户可见结果，由若干条验收场景组成；
+它决定先交付哪一块，不增加也不改变任何一条规则，所以**改卡不升 rev**。
+**卡接受了就从 `stories.md` 删掉**：那份文件只放还没交付的，长期留下的是验收场景与守着它们的可执行验收。
+卡长什么样、它的一生、场景怎么编号、对账器守哪几条，见[故事卡的格式契约](conventions.md)。
 
 **静态与动态分开**：`design.md` 说产品是什么，`flows.md` 说它怎么动。
 研发查「这步失败了怎么办」去 flows，查「这个概念是什么」去 design。
@@ -167,3 +173,7 @@ product/<topic>/design.md   ──→  handbook skill A–G  ──→  spec/ ·
 两边各写一份完整字段规格必然不一致。
 
 返回[设计链入口](../README.md)。
+
+## 2026-09-27 工作区产品增量正式登记
+
+依据产品负责人授权“design/product 下的变更，如果未翻正式的，帮我翻一下顺手”，本次登记 PR #13 的 PF-001／002／003／004／005／006／007／014／015／016／017／020 工作区增量为正式产品设计。接受仅覆盖已确定条款与据已有裁决修正的残余矛盾；既有未决与此前接受范围保留，产品正式状态不升级冻结契约、提供者采用或实现完成度。独立评审范围与外部仓库登记仅参与者及受限时不取得工作区身份的同批裁决见 [PF-020 登记](PF-020-workspace/decisions.md#2026-09-27-产品正式状态登记)。

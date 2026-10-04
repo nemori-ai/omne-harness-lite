@@ -1,0 +1,35 @@
+{
+  "checkedAt": "2026-09-29",
+  "kind": "source-tool-payload-handoff",
+  "capture": "Tool extraction JSON, not original HTTP response bytes; no model requests or credentials.",
+  "sources": [
+    "https://developers.openai.com/api/docs/guides/images-vision",
+    "https://developers.openai.com/api/docs/guides/reasoning#reasoning-mode",
+    "https://openrouter.ai/openai/gpt-5.6-sol-pro",
+    "https://openrouter.ai/openai/gpt-5.6-terra-pro",
+    "https://openrouter.ai/openai/gpt-5.6-luna-pro"
+  ],
+  "boundary": "Same-base Pro image proxy is an implementation estimate under D101, not measured Pro preprocessing or confirmation of upstream token accounting scope. Scope remains unknown.",
+  "files": [
+    {
+      "path": "images-vision-tool.json",
+      "sha256": "3f6fa89d69569dd0d3aebd30e1970be5fc82eb36b502036f0262f8b06cd34146",
+      "bytes": 43025
+    },
+    {
+      "path": "reasoning-tool.json",
+      "sha256": "295fd59670c1d743c0bf076c5762f023f8bf02277e59c83385ab3a6600526ece",
+      "bytes": 73607
+    },
+    {
+      "path": "routes-tool.json",
+      "sha256": "b44e889d5fe6ed111fef22b663efbc66b3498d43aa0c855ad431d3c73448f2c3",
+      "bytes": 15971
+    },
+    {
+      "path": "gif-validation.txt",
+      "sha256": "acdc69a58e99c74b7ae91601f61e1d21dc74d801845c64237171bcd9f7cfa446",
+      "bytes": 297
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+[
+  {
+    "name": "dropped-extra-prefix",
+    "command": [
+      "node",
+      "root.mjs"
+    ],
+    "cwd": "/tmp/omne-r6-negative-dropped-extra-prefix-qk50ckpk/package",
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "expectedDiagnosticFragment": "Expected values to be strictly deep-equal",
+    "expectedDiagnosticObserved": true,
+    "durationSeconds": 0.9986112117767334,
+    "mutationFile": "dist/plan.js",
+    "originalSha256": "8024fc3e337c82f93ac186ec0bfaaa292591bf98097f202a78f7071352563e3c",
+    "mutatedSha256": "6844565bfd3d244552a7a12d4203f966bfb2a86febd5d0570a930ed28e6f2365"
+  },
+  {
+    "name": "host-open-admission",
+    "command": [
+      "node",
+      "boundaries.mjs",
+      "host"
+    ],
+    "cwd": "/tmp/omne-r6-negative-host-open-admission-4fk8c79i/package",
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "expectedDiagnosticFragment": "queued send rejected before held response ends",
+    "expectedDiagnosticObserved": true,
+    "durationSeconds": 5.213140249252319,
+    "mutationFile": "dist/registry.js",
+    "originalSha256": "d53d5be351bad04269fe9ecd67c0c485c747eade92a14c2ba668a81e3f297434",
+    "mutatedSha256": "94a4dff2b19d0652d3c456427b5e6cba3b11df278c22db7a7ca70220588651e3"
+  },
+  {
+    "name": "diagnostic-controls-business",
+    "command": [
+      "node",
+      "boundaries.mjs",
+      "diagnostic"
+    ],
+    "cwd": "/tmp/omne-r6-negative-diagnostic-controls-business-z80kf4j8/package",
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "expectedDiagnosticFragment": "diagnostic fixture throws",
+    "expectedDiagnosticObserved": true,
+    "durationSeconds": 1.322845458984375,
+    "mutationFile": "dist/diagnostics.js",
+    "originalSha256": "df798ee1d6396145de70c35255d80520049854da44517e9d8ca98cfae3756f8b",
+    "mutatedSha256": "3ff995d94fb526600d8011904edaf21f5681f818ba86b7674710ffb3ac553749"
+  },
+  {
+    "name": "http-encoded-redaction",
+    "command": [
+      "node",
+      "boundaries.mjs",
+      "credential"
+    ],
+    "cwd": "/tmp/omne-r6-negative-http-encoded-redaction-pb8fwmur/package",
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "expectedDiagnosticFragment": "credential leak",
+    "expectedDiagnosticObserved": true,
+    "durationSeconds": 1.3452785015106201,
+    "mutationFile": "dist/http.js",
+    "originalSha256": "0bdce7e47220d53cd90ed061e3d59eb9ca6f1ceede790a13d72a2459b2b900db",
+    "mutatedSha256": "53cc9b1e3acbba93eca72bf8fd7c72c60f6ad18f0582a5b15b056c8d25537358"
+  },
+  {
+    "name": "ascii-redaction-marker",
+    "command": [
+      "node",
+      "boundaries.mjs",
+      "marker"
+    ],
+    "cwd": "/tmp/omne-r6-negative-ascii-redaction-marker-ts8v8dew/package",
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "expectedDiagnosticFragment": "credential leak",
+    "expectedDiagnosticObserved": true,
+    "durationSeconds": 2.43264102935791,
+    "mutationFile": "dist/http.js",
+    "originalSha256": "0bdce7e47220d53cd90ed061e3d59eb9ca6f1ceede790a13d72a2459b2b900db",
+    "mutatedSha256": "7bbb5b48e65555f50c103ee098ac62c12b717f37e02a25e78fa21fbf7cbfec4e"
+  },
+  {
+    "name": "redacted-key-collision",
+    "command": [
+      "node",
+      "boundaries.mjs",
+      "collision"
+    ],
+    "cwd": "/tmp/omne-r6-negative-redacted-key-collision-itud182x/package",
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "expectedDiagnosticFragment": "ordinary-mask",
+    "expectedDiagnosticObserved": true,
+    "durationSeconds": 1.4527642726898193,
+    "mutationFile": "dist/json.js",
+    "originalSha256": "363e82ce1fd52507cf1a79da4f1d5af263ee670b1a379aa98755f5aebf74a71b",
+    "mutatedSha256": "b14afb0fc7b7167e26f0321175b17b15eb5b5805a59865fdeb9f6dcb3c5b0a6b"
+  },
+  {
+    "name": "all-unknown-usage-upstream",
+    "command": [
+      "node",
+      "boundaries.mjs",
+      "usage"
+    ],
+    "cwd": "/tmp/omne-r6-negative-all-unknown-usage-upstream-nfiswl36/package",
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "expectedDiagnosticFragment": "unknown_with_source",
+    "expectedDiagnosticObserved": true,
+    "durationSeconds": 1.2071983814239502,
+    "mutationFile": "dist/accounts.js",
+    "originalSha256": "6bd876416585d2922c9fcaca3ec9176347c886f9be7e5058e64bc093c527d5c0",
+    "mutatedSha256": "d500be68bbc14eec01ac961e5f2839da1b41e57d5cfac672c036527e9e3d76fc"
+  }
+]

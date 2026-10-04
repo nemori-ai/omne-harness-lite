@@ -1,0 +1,3644 @@
+{
+  "head": "4425061cef030aa374ac1e3e0011bfcfeed99765",
+  "scope": "Static input inventory. Expressions are recorded without evaluation. Private graph transformations still require explicit build ownership.",
+  "owners": 20,
+  "sourceFiles": 22,
+  "rows": [
+    {
+      "path": "packages/core/content-blocks/src/schema.ts",
+      "sourceSha256": "4cc65ad55e0d67e24a01f45b825b885c2631becefba89da7bf82d6b95132302c",
+      "constructors": [
+        {
+          "line": 34,
+          "options": "{\n  strict: true,\n  strictTypes: false,\n  strictRequired: false,\n  allErrors: false,\n  ownProperties: true,\n  code: { regExp: schemaPattern },\n}"
+        }
+      ],
+      "definitions": [
+        {
+          "line": 7,
+          "expression": "[\n  'ContentBlock',\n  'BlockBase',\n  'TextBlock',\n  'ThinkingBlock',\n  'VoiceBlock',\n  'ImageBlock',\n  'FileBlock',\n  'ToolCallBlock',\n  'IncompleteToolCallBlock',\n  'ToolResultBlock',\n  'Visibility',\n  'DerivedRendering',\n  'AttachmentRef',\n  'InlineBytes',\n  'MediaType',\n  'Modality',\n  'ExecutionOutcome',\n  'PlaceholderReason',\n  'BlockId',\n  'CallId',\n  'CapabilityId',\n  'ModelToolName',\n] as const"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 42,
+          "expression": "ajv.addSchema({ ...schema, $id: schemaId })"
+        },
+        {
+          "line": 45,
+          "expression": "ajv.getSchema(`${schemaId}#/$defs/${name}`)"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema",
+          "path": "packages/core/content-blocks/schema/content-blocks.schema.json",
+          "sha256": "809d2a5db29db6a91096535017cc9bf4e7f75a3b93469520173e82916fff1bb5",
+          "bytes": 31529,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v3/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/content-blocks/src/exact-schema.ts",
+      "sourceSha256": "229d45edc0a8115fc82c7f04ff1613382dd34a97615dc3ac7b6596041aa24baa",
+      "constructors": [
+        {
+          "line": 443,
+          "options": "{\n    meta: false,\n    validateSchema: false,\n    strict: false,\n    ownProperties: true,\n    validateFormats: false,\n    passContext: true,\n  }"
+        }
+      ],
+      "definitions": [],
+      "bindings": [
+        {
+          "line": 165,
+          "expression": "ajv.addKeyword({\n      keyword: `exact_${keyword}`,\n      schemaType: 'string',\n      errors: false,\n      validate: function (\n        this: unknown,\n        encoded: unknown,\n        _value: unknown,\n        _schema: unknown,\n        context: unknown,\n      ): boolean {\n        const value = original(this, context, _value)\n        let count: number\n        if (keyword.endsWith('Length')) {\n          if (typeof value !== 'string') return true\n          count = 0\n          for (const _point of value) count++\n        } else if (keyword.endsWith('Items')) {\n          if (!Array.isArray(value)) return true\n          count = value.length\n        } else {\n          if (!object(value)) return true\n          count = Object.keys(value).length\n        }\n        const actual = decimal(count)\n        const bound = decimal(literal(encoded))\n        if (actual === undefined || bound === undefined)\n          throw new Error('invalid cardinality Schema bound')\n        const comparison = compare(actual, bound)\n        return keyword.startsWith('min') ? comparison >= 0 : comparison <= 0\n      },\n    })"
+        },
+        {
+          "line": 197,
+          "expression": "ajv.addKeyword({\n    keyword: 'exact_uniqueItems',\n    schemaType: 'boolean',\n    errors: false,\n    validate: function (\n      this: unknown,\n      _encoded: unknown,\n      _value: unknown,\n      _schema: unknown,\n      context: unknown,\n    ): boolean {\n      const value = original(this, context, _value)\n      return (\n        !Array.isArray(value) ||\n        value.every((item, index) => !value.slice(0, index).some(other => equal(item, other)))\n      )\n    },\n  })"
+        },
+        {
+          "line": 215,
+          "expression": "ajv.addKeyword({\n    keyword: 'exact_type',\n    schemaType: 'string',\n    errors: false,\n    validate: function (\n      this: unknown,\n      encoded: unknown,\n      _value: unknown,\n      _schema: unknown,\n      context: unknown,\n    ): boolean {\n      const value = original(this, context, _value)\n      const types = literal(encoded)\n      const candidates = Array.isArray(types) ? types : [types]\n      return candidates.some(type => {\n        if (type === 'integer') {\n          const number = decimal(value)\n          return number !== undefined && (number.digits === '0' || number.exponent >= 0n)\n        }\n        if (type === 'number') return isJsonNumber(value)\n        if (type === 'array') return Array.isArray(value)\n        if (type === 'object') return object(value)\n        if (type === 'null') return value === null\n        return typeof value === type\n      })\n    },\n  })"
+        },
+        {
+          "line": 249,
+          "expression": "ajv.addKeyword({\n      keyword: `exact_${keyword}`,\n      schemaType: 'string',\n      errors: false,\n      validate: function (\n        this: unknown,\n        encoded: unknown,\n        _value: unknown,\n        _schema: unknown,\n        context: unknown,\n      ): boolean {\n        const value = decimal(original(this, context, _value))\n        const bound = decimal(literal(encoded))\n        if (value === undefined) return true\n        if (bound === undefined) throw new Error('invalid numeric Schema bound')\n        if (keyword === 'multipleOf') return divisible(value, bound)\n        const comparison = compare(value, bound)\n        return keyword === 'minimum'\n          ? comparison >= 0\n          : keyword === 'maximum'\n            ? comparison <= 0\n            : keyword === 'exclusiveMinimum'\n              ? comparison > 0\n              : comparison < 0\n      },\n    })"
+        },
+        {
+          "line": 276,
+          "expression": "ajv.addKeyword({\n    keyword: 'exact_integer',\n    schemaType: 'boolean',\n    errors: false,\n    validate: function (\n      this: unknown,\n      _encoded: unknown,\n      _value: unknown,\n      _schema: unknown,\n      context: unknown,\n    ): boolean {\n      const value = original(this, context, _value)\n      if (!isJsonNumber(value)) return true\n      const number = decimal(value)\n      return number !== undefined && (number.digits === '0' || number.exponent >= 0n)\n    },\n  })"
+        },
+        {
+          "line": 294,
+          "expression": "ajv.addKeyword({\n      keyword: `exact_${keyword}`,\n      schemaType: 'string',\n      errors: false,\n      validate: function (\n        this: unknown,\n        encoded: unknown,\n        _value: unknown,\n        _schema: unknown,\n        context: unknown,\n      ): boolean {\n        const value = original(this, context, _value)\n        const expected = literal(encoded)\n        return (\n          value !== undefined &&\n          (keyword === 'const'\n            ? equal(value, expected)\n            : Array.isArray(expected) && expected.some(item => equal(value, item)))\n        )\n      },\n    })"
+        },
+        {
+          "line": 455,
+          "expression": "ajv.addMetaSchema(transformed)"
+        },
+        {
+          "line": 457,
+          "expression": "ajv.getSchema(fixedMetaId)"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "ajv/dist/refs/json-schema-2020-12/schema.json",
+          "path": "node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/refs/json-schema-2020-12/schema.json",
+          "sha256": "5333c7df76bceee098e865881d0808238dea836126c6c60b49299ec85c6c7a56",
+          "bytes": 2166,
+          "id": "https://json-schema.org/draft/2020-12/schema",
+          "definitions": []
+        },
+        {
+          "specifier": "ajv/dist/refs/json-schema-2020-12/meta/applicator.json",
+          "path": "node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/refs/json-schema-2020-12/meta/applicator.json",
+          "sha256": "f1e465ff0c0cc86bee5c0cc4b51d2734c532e6ea12c75b60a2ac093a4577b2d4",
+          "bytes": 1441,
+          "id": "https://json-schema.org/draft/2020-12/meta/applicator",
+          "definitions": [
+            "schemaArray"
+          ]
+        },
+        {
+          "specifier": "ajv/dist/refs/json-schema-2020-12/meta/unevaluated.json",
+          "path": "node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/refs/json-schema-2020-12/meta/unevaluated.json",
+          "sha256": "8f7f75f4274745faa32e4abdba12de99f49b21df225f52f723b5c62043b0edca",
+          "bytes": 472,
+          "id": "https://json-schema.org/draft/2020-12/meta/unevaluated",
+          "definitions": []
+        },
+        {
+          "specifier": "ajv/dist/refs/json-schema-2020-12/meta/content.json",
+          "path": "node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/refs/json-schema-2020-12/meta/content.json",
+          "sha256": "7ede86f2c48d646202bf1332aefaf46db268c943d59752727db7247dc2920516",
+          "bytes": 479,
+          "id": "https://json-schema.org/draft/2020-12/meta/content",
+          "definitions": []
+        },
+        {
+          "specifier": "ajv/dist/refs/json-schema-2020-12/meta/core.json",
+          "path": "node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/refs/json-schema-2020-12/meta/core.json",
+          "sha256": "c3a5947992d4fe67c95cda7910911207376bbae41c0a124ec9e7e699172e7a49",
+          "bytes": 1344,
+          "id": "https://json-schema.org/draft/2020-12/meta/core",
+          "definitions": [
+            "anchorString",
+            "uriString",
+            "uriReferenceString"
+          ]
+        },
+        {
+          "specifier": "ajv/dist/refs/json-schema-2020-12/meta/format-annotation.json",
+          "path": "node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/refs/json-schema-2020-12/meta/format-annotation.json",
+          "sha256": "1e31131b1ed21f98c007f04deb501343b8c4dd77f1c5a8494a9c2085f68d769d",
+          "bytes": 420,
+          "id": "https://json-schema.org/draft/2020-12/meta/format-annotation",
+          "definitions": []
+        },
+        {
+          "specifier": "ajv/dist/refs/json-schema-2020-12/meta/meta-data.json",
+          "path": "node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/refs/json-schema-2020-12/meta/meta-data.json",
+          "sha256": "eb008c756b29bdaa237c1f06d32ea4a21f6ef22148b03c6372cea5e4c0782273",
+          "bytes": 758,
+          "id": "https://json-schema.org/draft/2020-12/meta/meta-data",
+          "definitions": []
+        },
+        {
+          "specifier": "ajv/dist/refs/json-schema-2020-12/meta/validation.json",
+          "path": "node_modules/.pnpm/ajv@8.20.0/node_modules/ajv/dist/refs/json-schema-2020-12/meta/validation.json",
+          "sha256": "3cae7069843679429e4ada7df261bb8961fa34cac15be89296026e69af312092",
+          "bytes": 2264,
+          "id": "https://json-schema.org/draft/2020-12/meta/validation",
+          "definitions": [
+            "nonNegativeInteger",
+            "nonNegativeIntegerDefault0",
+            "simpleTypes",
+            "stringArray"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/identity-values/src/validate.ts",
+      "sourceSha256": "83042c48008943658152157e0b7e3e62543b9f87948e1b15e1a7dbf756fd38f4",
+      "constructors": [
+        {
+          "line": 30,
+          "options": "{ strict: true, allErrors: false }"
+        }
+      ],
+      "definitions": [
+        {
+          "line": 11,
+          "expression": "[\n  'OpaqueIdentifier',\n  'HandoffWarrant',\n  'LoginIdentifier',\n  'AccountId',\n  'OrganizationId',\n  'LoginStateId',\n  'OrganizationKind',\n  'TenantRole',\n  'TenantId',\n  'MembershipStanding',\n  'MembershipStandingResult',\n  'ScopeLayerIdentity',\n] as const"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 31,
+          "expression": "ajv.addSchema(schema)"
+        },
+        {
+          "line": 39,
+          "expression": "ajv.getSchema(ref)"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "../schema/identity-values.schema.json",
+          "path": "packages/core/identity-values/schema/identity-values.schema.json",
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "bytes": 15185,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+          "definitions": [
+            "OpaqueIdentifier",
+            "HandoffWarrant",
+            "LoginIdentifier",
+            "AccountId",
+            "OrganizationId",
+            "LoginStateId",
+            "OrganizationKind",
+            "TenantRole",
+            "TenantId",
+            "MembershipStanding",
+            "MembershipStandingResult",
+            "ScopeLayerIdentity"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/offer-expiry/src/validate.ts",
+      "sourceSha256": "0b9ba353f74418a7d4b78bf84d4524103ae6330bc9bca9b87ddea90a3bec702b",
+      "constructors": [
+        {
+          "line": 14,
+          "options": "{ strict: true, allErrors: false, validateFormats: false }"
+        }
+      ],
+      "definitions": [
+        {
+          "line": 10,
+          "expression": "['Instant', 'OfferTiming', 'OfferState', 'SettledState'] as const"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 16,
+          "expression": "ajv.addKeyword('x-counterexamples')"
+        },
+        {
+          "line": 17,
+          "expression": "ajv.addSchema(schema)"
+        },
+        {
+          "line": 29,
+          "expression": "ajv.getSchema(`${schema.$id}#/$defs/${defName}`)"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "../schema/offer-expiry.schema.json",
+          "path": "packages/core/offer-expiry/schema/offer-expiry.schema.json",
+          "sha256": "2fa7b9bcd5ba528ef4dafc6812cc087c839c0a45a5e0f465747ad44a7230d05b",
+          "bytes": 5296,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v2/offer-expiry.schema.json",
+          "definitions": [
+            "Instant",
+            "OfferTiming",
+            "OfferState",
+            "SettledState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/agent-definition/src/index.ts",
+      "sourceSha256": "e961bcfda20dd8deebf456ba1b58d3f7c87a730de1d180d35aefdb5aee8b5c57",
+      "constructors": [],
+      "definitions": [],
+      "bindings": [
+        {
+          "line": 37,
+          "expression": "createSchemaRuntime([\n  schema,\n  assetSchema,\n  toolSchema,\n  profileSchema,\n  contentSchema,\n  retainedContentSchema,\n  identitySchema,\n  expirySchema,\n])"
+        },
+        {
+          "line": 47,
+          "expression": "runtime.compile({ $ref: `${schema.$id}#/$defs/AgentDefinitionBody` })"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/agent-definition/schema",
+          "path": "packages/core/agent-definition/schema/agent-definition.schema.json",
+          "sha256": "e115d2b7d47a3121c3706eeeae91a67c06c1363550d7f1e46f714f5e29a0cff9",
+          "bytes": 4053,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/agent-definition/v1/agent-definition.schema.json",
+          "definitions": [
+            "AgentDefinitionBody",
+            "AssetReference"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/asset-model/schema",
+          "path": "packages/core/asset-model/schema/asset-model.schema.json",
+          "sha256": "f674f438dfee8fc1d6ad6106113fe72699232092c84699e5b216ca2792137131",
+          "bytes": 42436,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v3/asset-model.schema.json",
+          "definitions": [
+            "AssetCategory",
+            "CapabilityName",
+            "CapabilityId",
+            "AssetRecordId",
+            "AssetOrigin",
+            "AssetOwner",
+            "AssetContent",
+            "AssetVersion",
+            "LineageId",
+            "CopyLineage",
+            "AssetDefinition",
+            "AttributeKind",
+            "SettingCategory",
+            "AttributeDomain",
+            "AttributeDeclaration",
+            "PermissionValue",
+            "AttributeAssignment",
+            "WorkspaceKey",
+            "HoldingScope",
+            "SharingId",
+            "HoldingBasis",
+            "VersionSelection",
+            "AssetHolding",
+            "CredentialRef",
+            "WorkspaceCarrierManifest"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/tool-definition/schema",
+          "path": "packages/core/tool-definition/schema/tool-definition.schema.json",
+          "sha256": "116e05d91003574cb2f8a50d51e82428c25d24552ad39e2eeb480edb94ec43a9",
+          "bytes": 24435,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v3/tool-definition.schema.json",
+          "definitions": [
+            "ToolDefinition",
+            "SingleFunctionTool",
+            "MultiCommandTool",
+            "CommandDefinition",
+            "ToolName",
+            "JsonSchema",
+            "ModelToolName",
+            "ModelToolEntry",
+            "ToolNeeds",
+            "DependencyName",
+            "ToolSettings",
+            "SettingDeclaration",
+            "TargetEnvironment",
+            "BindingLayer",
+            "Facility",
+            "Duration",
+            "ExecutePermission",
+            "ToolSource",
+            "ToolReturn",
+            "ToolResult",
+            "Offload"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/model-profile/schema/v3",
+          "path": "packages/core/model-profile/schema/v3/model-profile.schema.json",
+          "sha256": "fe5ef98ebd0902d0353dbc2ea8885d0bba24eff18912d8db9f8e9d6291790b8d",
+          "bytes": 24327,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v3/model-profile.schema.json",
+          "definitions": [
+            "ModelProfile",
+            "ModelProfileContent",
+            "ModelProfileRef",
+            "ModelProfileSnapshot",
+            "RouteName",
+            "ProfileOrigin",
+            "ProviderName",
+            "InputConstraints",
+            "Registration",
+            "ModelRequestParameters",
+            "ModelAdaptationBinding",
+            "ReasoningEffort"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema",
+          "path": "packages/core/content-blocks/schema/content-blocks.schema.json",
+          "sha256": "809d2a5db29db6a91096535017cc9bf4e7f75a3b93469520173e82916fff1bb5",
+          "bytes": 31529,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v3/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema/v2",
+          "path": "packages/core/content-blocks/schema/content-blocks.v2.schema.json",
+          "sha256": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+          "bytes": 31593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/identity-values/schema",
+          "path": "packages/core/identity-values/schema/identity-values.schema.json",
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "bytes": 15185,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+          "definitions": [
+            "OpaqueIdentifier",
+            "HandoffWarrant",
+            "LoginIdentifier",
+            "AccountId",
+            "OrganizationId",
+            "LoginStateId",
+            "OrganizationKind",
+            "TenantRole",
+            "TenantId",
+            "MembershipStanding",
+            "MembershipStandingResult",
+            "ScopeLayerIdentity"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/offer-expiry/schema/v1",
+          "path": "packages/core/offer-expiry/schema/offer-expiry.v1.schema.json",
+          "sha256": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+          "bytes": 4812,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v1/offer-expiry.schema.json",
+          "definitions": [
+            "Instant",
+            "OfferTiming",
+            "OfferState",
+            "SettledState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/messages/src/schema.ts",
+      "sourceSha256": "122242a5c5d6349d96d09538de84b44f011ce0e36208bfd804b586ff0933dddb",
+      "constructors": [],
+      "definitions": [
+        {
+          "line": 14,
+          "expression": "Object.freeze([\n  'MessageId',\n  'ResponseId',\n  'CardId',\n  'SessionRef',\n  'AgentRef',\n  'ScheduleRef',\n  'RuntimeContextBlockId',\n  'MessageBase',\n  'SystemMessage',\n  'UserMessage',\n  'AssistantEnding',\n  'AssistantMessage',\n  'ToolMessage',\n  'ToolInternalEnding',\n  'ToolInternalMessage',\n  'ReminderNature',\n  'SystemReminderMessage',\n  'ReminderSource',\n  'BackgroundExecutionFinishedSource',\n  'BackgroundExecutionInterruptedSource',\n  'AttemptStartedSource',\n  'InterruptedSource',\n  'CardAnswer',\n  'SystemWaitAnsweredSource',\n  'LoopGuardSource',\n  'PeerSessionNoteSource',\n  'ScheduledTriggerSource',\n  'RuntimeContextChangedSource',\n  'RuntimeContextSnapshotSource',\n  'ExtensionSource',\n  'LoopExtensionName',\n  'SilencedBlockRef',\n  'CompactionMessage',\n  'ModelCallDispatchedRecord',\n  'SelectedBy',\n  'ParameterAdjustment',\n  'CredentialScope',\n  'ModelCallOpenedRecord',\n  'ModelCallInterruptIntentRecord',\n  'ModelCallEndedRecord',\n  'ModelSelectionChangedRecord',\n  'ModelInvocationRecord',\n  'Message',\n  'CreationKey',\n  'CallKey',\n  'ModelCallPayloadRef',\n  'ModelCallCreationInput',\n  'ModelCallCreatedPayload',\n  'ModelCallCreatedRecord',\n  'ModelCallReplyReadyRecord',\n  'ModelCallSemanticDigest',\n  'ModelCallOrigin',\n  'ModelCallAccountingWitness',\n  'ModelCallAcknowledgedRecord',\n] as const)"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 76,
+          "expression": "createSchemaRuntime([\n  identitySchema,\n  expirySchema,\n  contentSchema,\n  retainedContentSchema,\n  accountsSchema,\n  profileSchema,\n  profileV6Schema,\n  toolsSchema,\n  schema,\n])"
+        },
+        {
+          "line": 88,
+          "expression": "runtime.compile({ $ref: `${schemaId}#/$defs/${name}` })"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/messages/schema",
+          "path": "packages/core/messages/schema/messages.schema.json",
+          "sha256": "029be66cccc02103fbe2da6241a366b112a235e9f7f7e89462a843e602c39126",
+          "bytes": 84646,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v8/messages.schema.json",
+          "definitions": [
+            "MessageId",
+            "ResponseId",
+            "CardId",
+            "SessionRef",
+            "AgentRef",
+            "ScheduleRef",
+            "RuntimeContextBlockId",
+            "MessageBase",
+            "SystemMessage",
+            "UserMessage",
+            "AssistantEnding",
+            "AssistantMessage",
+            "ToolMessage",
+            "ToolInternalEnding",
+            "ToolInternalMessage",
+            "ReminderNature",
+            "SystemReminderMessage",
+            "ReminderSource",
+            "BackgroundExecutionFinishedSource",
+            "BackgroundExecutionInterruptedSource",
+            "AttemptStartedSource",
+            "InterruptedSource",
+            "CardAnswer",
+            "SystemWaitAnsweredSource",
+            "LoopGuardSource",
+            "PeerSessionNoteSource",
+            "ScheduledTriggerSource",
+            "RuntimeContextChangedSource",
+            "RuntimeContextSnapshotSource",
+            "ExtensionSource",
+            "LoopExtensionName",
+            "SilencedBlockRef",
+            "CompactionMessage",
+            "ModelCallDispatchedRecord",
+            "SelectedBy",
+            "ParameterAdjustment",
+            "CredentialScope",
+            "ModelCallOpenedRecord",
+            "ModelCallInterruptIntentRecord",
+            "ModelCallEndedRecord",
+            "ModelSelectionChangedRecord",
+            "ModelInvocationRecord",
+            "Message",
+            "CreationKey",
+            "CallKey",
+            "ModelCallPayloadRef",
+            "ModelCallCreationInput",
+            "ModelCallCreatedPayload",
+            "ModelCallCreatedRecord",
+            "ModelCallReplyReadyRecord",
+            "ModelCallSemanticDigest",
+            "ModelCallOrigin",
+            "ModelCallAccountingWitness",
+            "ModelCallAcknowledgedRecord"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema/v2",
+          "path": "packages/core/content-blocks/schema/content-blocks.v2.schema.json",
+          "sha256": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+          "bytes": 31593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema",
+          "path": "packages/core/content-blocks/schema/content-blocks.schema.json",
+          "sha256": "809d2a5db29db6a91096535017cc9bf4e7f75a3b93469520173e82916fff1bb5",
+          "bytes": 31529,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v3/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/identity-values/schema",
+          "path": "packages/core/identity-values/schema/identity-values.schema.json",
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "bytes": 15185,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+          "definitions": [
+            "OpaqueIdentifier",
+            "HandoffWarrant",
+            "LoginIdentifier",
+            "AccountId",
+            "OrganizationId",
+            "LoginStateId",
+            "OrganizationKind",
+            "TenantRole",
+            "TenantId",
+            "MembershipStanding",
+            "MembershipStandingResult",
+            "ScopeLayerIdentity"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/offer-expiry/schema/v1",
+          "path": "packages/core/offer-expiry/schema/offer-expiry.v1.schema.json",
+          "sha256": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+          "bytes": 4812,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v1/offer-expiry.schema.json",
+          "definitions": [
+            "Instant",
+            "OfferTiming",
+            "OfferState",
+            "SettledState"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/call-accounts/schema",
+          "path": "packages/core/call-accounts/schema/call-accounts.schema.json",
+          "sha256": "710a589f5692edfd4d5d474ff9fd5df6320dd98ffba7f4c711b50c8fb1dab368",
+          "bytes": 30001,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/call-accounts/v4/call-accounts.schema.json",
+          "definitions": [
+            "Unknown",
+            "ResponseId",
+            "Usage",
+            "Cost",
+            "CostItem",
+            "TrimReason",
+            "TrimSummary",
+            "FrameAccount",
+            "ToolCallAccount",
+            "CostCorrection",
+            "RunId",
+            "AttemptId",
+            "ModelCallId"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/model-profile/schema",
+          "path": "packages/core/model-profile/schema/model-profile.schema.json",
+          "sha256": "1c0d0073f9671eb163250f322ee62f003a7f007bf28eb15a69f9f34880d20156",
+          "bytes": 32593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v5/model-profile.schema.json",
+          "definitions": [
+            "ModelProfile",
+            "ModelProfileContent",
+            "ModelProfileRef",
+            "ModelProfileSnapshot",
+            "RouteName",
+            "ProfileOrigin",
+            "ProviderName",
+            "InputConstraints",
+            "Registration",
+            "ModelRequestParameters",
+            "ModelAdaptationBinding",
+            "ReasoningEffort",
+            "InputLimitFact",
+            "UpstreamInputLimits"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/model-profile/schema/v6",
+          "path": "packages/core/model-profile/schema/v6/model-profile.schema.json",
+          "sha256": "11cb1b458b97b86e82003ee1cafe2f7b83db8cb65b2c00cd18a5ab1a9d5fe60f",
+          "bytes": 32593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v6/model-profile.schema.json",
+          "definitions": [
+            "ModelProfile",
+            "ModelProfileContent",
+            "ModelProfileRef",
+            "ModelProfileSnapshot",
+            "RouteName",
+            "ProfileOrigin",
+            "ProviderName",
+            "InputConstraints",
+            "Registration",
+            "ModelRequestParameters",
+            "ModelAdaptationBinding",
+            "ReasoningEffort",
+            "InputLimitFact",
+            "UpstreamInputLimits"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/tool-definition/schema",
+          "path": "packages/core/tool-definition/schema/tool-definition.schema.json",
+          "sha256": "116e05d91003574cb2f8a50d51e82428c25d24552ad39e2eeb480edb94ec43a9",
+          "bytes": 24435,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v3/tool-definition.schema.json",
+          "definitions": [
+            "ToolDefinition",
+            "SingleFunctionTool",
+            "MultiCommandTool",
+            "CommandDefinition",
+            "ToolName",
+            "JsonSchema",
+            "ModelToolName",
+            "ModelToolEntry",
+            "ToolNeeds",
+            "DependencyName",
+            "ToolSettings",
+            "SettingDeclaration",
+            "TargetEnvironment",
+            "BindingLayer",
+            "Facility",
+            "Duration",
+            "ExecutePermission",
+            "ToolSource",
+            "ToolReturn",
+            "ToolResult",
+            "Offload"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/arrival-events/src/schema.ts",
+      "sourceSha256": "eab9983ce8ce785e45c56f41e413902f99e968fd4ab1d89d7f636b68edf67e0e",
+      "constructors": [],
+      "definitions": [
+        {
+          "line": 9,
+          "expression": "Object.freeze([\n  'ArrivalEnvelope',\n  'ArrivalTarget',\n  'ArrivalEvent',\n  'OpenEvent',\n  'FillEvent',\n  'CloseEvent',\n  'TrimEvent',\n  'AccountEvent',\n  'FinishEvent',\n  'BlockKind',\n  'FillMode',\n  'BlockHead',\n  'PresentationHint',\n  'FinishReason',\n] as const)"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 30,
+          "expression": "createSchemaRuntime([contentSchema, accountsSchema, loopSchema, schema])"
+        },
+        {
+          "line": 32,
+          "expression": "runtime.compile({ $ref: `${schemaId}#/$defs/${name}` })"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/arrival-events/schema",
+          "path": "packages/core/arrival-events/schema/arrival-events.schema.json",
+          "sha256": "bcaac3fc5c9d7a0a223f68722164956507bf978e62bc1423d56cc9c4810b74c5",
+          "bytes": 18549,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/arrival-events/v2/arrival-events.schema.json",
+          "definitions": [
+            "ArrivalEnvelope",
+            "ArrivalTarget",
+            "ArrivalEvent",
+            "BlockKind",
+            "FillMode",
+            "OpenEvent",
+            "BlockHead",
+            "PresentationHint",
+            "FillEvent",
+            "CloseEvent",
+            "TrimEvent",
+            "AccountEvent",
+            "FinishReason",
+            "FinishEvent"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema/v2",
+          "path": "packages/core/content-blocks/schema/content-blocks.v2.schema.json",
+          "sha256": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+          "bytes": 31593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/call-accounts/schema/v2",
+          "path": "packages/core/call-accounts/schema/v2/call-accounts.schema.json",
+          "sha256": "c79cbf51ada9314d83f8bd5fcb5a10b2ebbf855a59bddbe68bb3fdfeffc19511",
+          "bytes": 29890,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/call-accounts/v2/call-accounts.schema.json",
+          "definitions": [
+            "Unknown",
+            "ResponseId",
+            "Usage",
+            "Cost",
+            "CostItem",
+            "TrimReason",
+            "TrimSummary",
+            "FrameAccount",
+            "ToolCallAccount",
+            "CostCorrection",
+            "RunId",
+            "AttemptId",
+            "ModelCallId"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/loop-extension/schema/v2",
+          "path": "packages/core/loop-extension/schema/loop-extension.v2.schema.json",
+          "sha256": "41ebe3501a30fe124b7226c055b5ff294cca399ad5f0179c6754b10160c8a0fe",
+          "bytes": 59045,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v2/loop-extension.schema.json",
+          "definitions": [
+            "LoopPosition",
+            "Dimension",
+            "Power",
+            "ErrorPolicy",
+            "UnavailabilityPolicy",
+            "LoopExtensionDefinition",
+            "ExtensionImplementation",
+            "LogHandle",
+            "EnvironmentHandle",
+            "FailureCause",
+            "TerminalFact",
+            "CompactionPlan",
+            "ModelRequest",
+            "ToolDefinitionRef",
+            "AttemptStartedSubject",
+            "BeforePersistMessageSubject",
+            "AfterPersistMessageSubject",
+            "BeforeCompactionSubject",
+            "AfterCompactionSubject",
+            "BeforeModelCallSubject",
+            "AfterModelCallCompleteReplySubject",
+            "AfterModelCallFailureSubject",
+            "BeforeActionSubject",
+            "AfterActionEachSubject",
+            "AfterActionBatchSubject",
+            "BeforeTerminalSubject",
+            "AfterTerminalSubject",
+            "Subject",
+            "ExtensionInput",
+            "ObservedOutput",
+            "InjectOutput",
+            "RewriteOutput",
+            "SelectModelOutput",
+            "VetoOutput",
+            "StopOutput",
+            "RetryPlan",
+            "RetryOutput",
+            "CardOption",
+            "DecisionCardDraft",
+            "AskOutput",
+            "ExtensionOutput",
+            "Conclusion"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/tool-definition/src/schema.ts",
+      "sourceSha256": "f3d3fc101a148969628ccad16cc7d2b1b7cf37a231cafe6bfcee0810ec1f9b43",
+      "constructors": [
+        {
+          "line": 39,
+          "options": "{\n  strict: true,\n  strictTypes: false,\n  strictRequired: false,\n  ownProperties: true,\n}"
+        }
+      ],
+      "definitions": [
+        {
+          "line": 15,
+          "expression": "[\n  'ToolDefinition',\n  'SingleFunctionTool',\n  'MultiCommandTool',\n  'CommandDefinition',\n  'ToolName',\n  'ModelToolName',\n  'ModelToolEntry',\n  'ToolNeeds',\n  'ToolSettings',\n  'SettingDeclaration',\n  'TargetEnvironment',\n  'BindingLayer',\n  'Facility',\n  'Duration',\n  'ExecutePermission',\n  'ToolSource',\n  'DependencyName',\n  'ToolReturn',\n  'ToolResult',\n  'Offload',\n  'JsonSchema',\n] as const"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 45,
+          "expression": "ajv.addSchema(contentSchema)"
+        },
+        {
+          "line": 46,
+          "expression": "ajv.addSchema(assetSchema)"
+        },
+        {
+          "line": 47,
+          "expression": "ajv.addSchema(schema)"
+        },
+        {
+          "line": 49,
+          "expression": "ajv.getSchema(`${schemaId}#/$defs/${name}`)"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/tool-definition/schema",
+          "path": "packages/core/tool-definition/schema/tool-definition.schema.json",
+          "sha256": "116e05d91003574cb2f8a50d51e82428c25d24552ad39e2eeb480edb94ec43a9",
+          "bytes": 24435,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v3/tool-definition.schema.json",
+          "definitions": [
+            "ToolDefinition",
+            "SingleFunctionTool",
+            "MultiCommandTool",
+            "CommandDefinition",
+            "ToolName",
+            "JsonSchema",
+            "ModelToolName",
+            "ModelToolEntry",
+            "ToolNeeds",
+            "DependencyName",
+            "ToolSettings",
+            "SettingDeclaration",
+            "TargetEnvironment",
+            "BindingLayer",
+            "Facility",
+            "Duration",
+            "ExecutePermission",
+            "ToolSource",
+            "ToolReturn",
+            "ToolResult",
+            "Offload"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema",
+          "path": "packages/core/content-blocks/schema/content-blocks.schema.json",
+          "sha256": "809d2a5db29db6a91096535017cc9bf4e7f75a3b93469520173e82916fff1bb5",
+          "bytes": 31529,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v3/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/asset-model/schema",
+          "path": "packages/core/asset-model/schema/asset-model.schema.json",
+          "sha256": "f674f438dfee8fc1d6ad6106113fe72699232092c84699e5b216ca2792137131",
+          "bytes": 42436,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v3/asset-model.schema.json",
+          "definitions": [
+            "AssetCategory",
+            "CapabilityName",
+            "CapabilityId",
+            "AssetRecordId",
+            "AssetOrigin",
+            "AssetOwner",
+            "AssetContent",
+            "AssetVersion",
+            "LineageId",
+            "CopyLineage",
+            "AssetDefinition",
+            "AttributeKind",
+            "SettingCategory",
+            "AttributeDomain",
+            "AttributeDeclaration",
+            "PermissionValue",
+            "AttributeAssignment",
+            "WorkspaceKey",
+            "HoldingScope",
+            "SharingId",
+            "HoldingBasis",
+            "VersionSelection",
+            "AssetHolding",
+            "CredentialRef",
+            "WorkspaceCarrierManifest"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/loop-extension/src/schema.ts",
+      "sourceSha256": "75c9615f158402ff3c6c21883e2b671277b780dbab2d8b66891528ab210a4803",
+      "constructors": [],
+      "definitions": [
+        {
+          "line": 30,
+          "expression": "Object.freeze([\n  'LoopPosition',\n  'Dimension',\n  'Power',\n  'ErrorPolicy',\n  'UnavailabilityPolicy',\n  'LoopExtensionDefinition',\n  'ExtensionImplementation',\n  'LogHandle',\n  'EnvironmentHandle',\n  'FailureCause',\n  'TerminalFact',\n  'CompactionPlan',\n  'ModelRequest',\n  'ToolDefinitionRef',\n  'AttemptStartedSubject',\n  'BeforePersistMessageSubject',\n  'AfterPersistMessageSubject',\n  'BeforeCompactionSubject',\n  'AfterCompactionSubject',\n  'BeforeModelCallSubject',\n  'AfterModelCallCompleteReplySubject',\n  'AfterModelCallFailureSubject',\n  'BeforeActionSubject',\n  'AfterActionEachSubject',\n  'AfterActionBatchSubject',\n  'BeforeTerminalSubject',\n  'AfterTerminalSubject',\n  'Subject',\n  'ExtensionInput',\n  'ObservedOutput',\n  'InjectOutput',\n  'RewriteOutput',\n  'SelectModelOutput',\n  'VetoOutput',\n  'StopOutput',\n  'RetryPlan',\n  'RetryOutput',\n  'CardOption',\n  'DecisionCardDraft',\n  'AskOutput',\n  'ExtensionOutput',\n  'Conclusion',\n  'ModelRetryConclusion',\n] as const)"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 99,
+          "expression": "createSchemaRuntime(resources)"
+        },
+        {
+          "line": 101,
+          "expression": "runtime.compile({ $ref: `${schemaId}#/$defs/${name}` })"
+        },
+        {
+          "line": 238,
+          "expression": "createSchemaRuntime([...resources.slice(0, -1), early])"
+        },
+        {
+          "line": 240,
+          "expression": "earlyRuntime.compile({ $ref: `${earlyId}#/$defs/${name}` })"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/loop-extension/schema",
+          "path": "packages/core/loop-extension/schema/loop-extension.schema.json",
+          "sha256": "5c74a3d0827449f3eb32b0c4468c410c78ef9714026bfb0801d4c6e361858727",
+          "bytes": 86882,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v6/loop-extension.schema.json",
+          "definitions": [
+            "LoopPosition",
+            "Dimension",
+            "Power",
+            "ErrorPolicy",
+            "UnavailabilityPolicy",
+            "LoopExtensionDefinition",
+            "ExtensionImplementation",
+            "LogHandle",
+            "EnvironmentHandle",
+            "FailureCause",
+            "TerminalFact",
+            "CompactionPlan",
+            "ModelRequest",
+            "ToolDefinitionRef",
+            "AttemptStartedSubject",
+            "BeforePersistMessageSubject",
+            "AfterPersistMessageSubject",
+            "BeforeCompactionSubject",
+            "AfterCompactionSubject",
+            "BeforeModelCallSubject",
+            "AfterModelCallCompleteReplySubject",
+            "AfterModelCallFailureSubject",
+            "BeforeActionSubject",
+            "AfterActionEachSubject",
+            "AfterActionBatchSubject",
+            "BeforeTerminalSubject",
+            "AfterTerminalSubject",
+            "Subject",
+            "ExtensionInput",
+            "ObservedOutput",
+            "InjectOutput",
+            "RewriteOutput",
+            "SelectModelOutput",
+            "VetoOutput",
+            "StopOutput",
+            "RetryPlan",
+            "RetryOutput",
+            "CardOption",
+            "DecisionCardDraft",
+            "AskOutput",
+            "ExtensionOutput",
+            "Conclusion",
+            "ModelRetryConclusion"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/loop-extension/schema/v3",
+          "path": "packages/core/loop-extension/schema/loop-extension.v3.schema.json",
+          "sha256": "cc6c0bee411e7044166be429cd0e7701b92f0938b42d1a2f0ec86da4b8411b9f",
+          "bytes": 59045,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v3/loop-extension.schema.json",
+          "definitions": [
+            "LoopPosition",
+            "Dimension",
+            "Power",
+            "ErrorPolicy",
+            "UnavailabilityPolicy",
+            "LoopExtensionDefinition",
+            "ExtensionImplementation",
+            "LogHandle",
+            "EnvironmentHandle",
+            "FailureCause",
+            "TerminalFact",
+            "CompactionPlan",
+            "ModelRequest",
+            "ToolDefinitionRef",
+            "AttemptStartedSubject",
+            "BeforePersistMessageSubject",
+            "AfterPersistMessageSubject",
+            "BeforeCompactionSubject",
+            "AfterCompactionSubject",
+            "BeforeModelCallSubject",
+            "AfterModelCallCompleteReplySubject",
+            "AfterModelCallFailureSubject",
+            "BeforeActionSubject",
+            "AfterActionEachSubject",
+            "AfterActionBatchSubject",
+            "BeforeTerminalSubject",
+            "AfterTerminalSubject",
+            "Subject",
+            "ExtensionInput",
+            "ObservedOutput",
+            "InjectOutput",
+            "RewriteOutput",
+            "SelectModelOutput",
+            "VetoOutput",
+            "StopOutput",
+            "RetryPlan",
+            "RetryOutput",
+            "CardOption",
+            "DecisionCardDraft",
+            "AskOutput",
+            "ExtensionOutput",
+            "Conclusion"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/loop-extension/schema/v2",
+          "path": "packages/core/loop-extension/schema/loop-extension.v2.schema.json",
+          "sha256": "41ebe3501a30fe124b7226c055b5ff294cca399ad5f0179c6754b10160c8a0fe",
+          "bytes": 59045,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v2/loop-extension.schema.json",
+          "definitions": [
+            "LoopPosition",
+            "Dimension",
+            "Power",
+            "ErrorPolicy",
+            "UnavailabilityPolicy",
+            "LoopExtensionDefinition",
+            "ExtensionImplementation",
+            "LogHandle",
+            "EnvironmentHandle",
+            "FailureCause",
+            "TerminalFact",
+            "CompactionPlan",
+            "ModelRequest",
+            "ToolDefinitionRef",
+            "AttemptStartedSubject",
+            "BeforePersistMessageSubject",
+            "AfterPersistMessageSubject",
+            "BeforeCompactionSubject",
+            "AfterCompactionSubject",
+            "BeforeModelCallSubject",
+            "AfterModelCallCompleteReplySubject",
+            "AfterModelCallFailureSubject",
+            "BeforeActionSubject",
+            "AfterActionEachSubject",
+            "AfterActionBatchSubject",
+            "BeforeTerminalSubject",
+            "AfterTerminalSubject",
+            "Subject",
+            "ExtensionInput",
+            "ObservedOutput",
+            "InjectOutput",
+            "RewriteOutput",
+            "SelectModelOutput",
+            "VetoOutput",
+            "StopOutput",
+            "RetryPlan",
+            "RetryOutput",
+            "CardOption",
+            "DecisionCardDraft",
+            "AskOutput",
+            "ExtensionOutput",
+            "Conclusion"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema/v2",
+          "path": "packages/core/content-blocks/schema/content-blocks.v2.schema.json",
+          "sha256": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+          "bytes": 31593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema",
+          "path": "packages/core/content-blocks/schema/content-blocks.schema.json",
+          "sha256": "809d2a5db29db6a91096535017cc9bf4e7f75a3b93469520173e82916fff1bb5",
+          "bytes": 31529,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v3/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/identity-values/schema",
+          "path": "packages/core/identity-values/schema/identity-values.schema.json",
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "bytes": 15185,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+          "definitions": [
+            "OpaqueIdentifier",
+            "HandoffWarrant",
+            "LoginIdentifier",
+            "AccountId",
+            "OrganizationId",
+            "LoginStateId",
+            "OrganizationKind",
+            "TenantRole",
+            "TenantId",
+            "MembershipStanding",
+            "MembershipStandingResult",
+            "ScopeLayerIdentity"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/offer-expiry/schema/v1",
+          "path": "packages/core/offer-expiry/schema/offer-expiry.v1.schema.json",
+          "sha256": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+          "bytes": 4812,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v1/offer-expiry.schema.json",
+          "definitions": [
+            "Instant",
+            "OfferTiming",
+            "OfferState",
+            "SettledState"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/asset-model/schema",
+          "path": "packages/core/asset-model/schema/asset-model.schema.json",
+          "sha256": "f674f438dfee8fc1d6ad6106113fe72699232092c84699e5b216ca2792137131",
+          "bytes": 42436,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v3/asset-model.schema.json",
+          "definitions": [
+            "AssetCategory",
+            "CapabilityName",
+            "CapabilityId",
+            "AssetRecordId",
+            "AssetOrigin",
+            "AssetOwner",
+            "AssetContent",
+            "AssetVersion",
+            "LineageId",
+            "CopyLineage",
+            "AssetDefinition",
+            "AttributeKind",
+            "SettingCategory",
+            "AttributeDomain",
+            "AttributeDeclaration",
+            "PermissionValue",
+            "AttributeAssignment",
+            "WorkspaceKey",
+            "HoldingScope",
+            "SharingId",
+            "HoldingBasis",
+            "VersionSelection",
+            "AssetHolding",
+            "CredentialRef",
+            "WorkspaceCarrierManifest"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/asset-model/schema/v2",
+          "path": "packages/core/asset-model/schema/asset-model.v2.schema.json",
+          "sha256": "3b4a9302a51f902f89f6bb567f2b91b0533f323d8f315853e35ac15a679f5890",
+          "bytes": 42427,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v2/asset-model.schema.json",
+          "definitions": [
+            "AssetCategory",
+            "CapabilityName",
+            "CapabilityId",
+            "AssetRecordId",
+            "AssetOrigin",
+            "AssetOwner",
+            "AssetContent",
+            "AssetVersion",
+            "LineageId",
+            "CopyLineage",
+            "AssetDefinition",
+            "AttributeKind",
+            "SettingCategory",
+            "AttributeDomain",
+            "AttributeDeclaration",
+            "PermissionValue",
+            "AttributeAssignment",
+            "WorkspaceKey",
+            "HoldingScope",
+            "SharingId",
+            "HoldingBasis",
+            "VersionSelection",
+            "AssetHolding",
+            "CredentialRef",
+            "WorkspaceCarrierManifest"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/asset-model/schema/connector/v2",
+          "path": "packages/core/asset-model/schema/resources/connector.schema.json",
+          "sha256": "d02af56071f37786229142a73e93194529b7e3dad3b5a70c1a69e0fe44196d5d",
+          "bytes": 8157,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/connector/v2/connector.schema.json",
+          "definitions": [
+            "ConnectorDefinition",
+            "SourceIdentity",
+            "DeliveryTarget",
+            "InboundEnvelope"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/call-accounts/schema/v2",
+          "path": "packages/core/call-accounts/schema/v2/call-accounts.schema.json",
+          "sha256": "c79cbf51ada9314d83f8bd5fcb5a10b2ebbf855a59bddbe68bb3fdfeffc19511",
+          "bytes": 29890,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/call-accounts/v2/call-accounts.schema.json",
+          "definitions": [
+            "Unknown",
+            "ResponseId",
+            "Usage",
+            "Cost",
+            "CostItem",
+            "TrimReason",
+            "TrimSummary",
+            "FrameAccount",
+            "ToolCallAccount",
+            "CostCorrection",
+            "RunId",
+            "AttemptId",
+            "ModelCallId"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/model-profile/schema",
+          "path": "packages/core/model-profile/schema/model-profile.schema.json",
+          "sha256": "1c0d0073f9671eb163250f322ee62f003a7f007bf28eb15a69f9f34880d20156",
+          "bytes": 32593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v5/model-profile.schema.json",
+          "definitions": [
+            "ModelProfile",
+            "ModelProfileContent",
+            "ModelProfileRef",
+            "ModelProfileSnapshot",
+            "RouteName",
+            "ProfileOrigin",
+            "ProviderName",
+            "InputConstraints",
+            "Registration",
+            "ModelRequestParameters",
+            "ModelAdaptationBinding",
+            "ReasoningEffort",
+            "InputLimitFact",
+            "UpstreamInputLimits"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/model-profile/schema/v2",
+          "path": "packages/core/model-profile/schema/v2/model-profile.schema.json",
+          "sha256": "3a2088c59777b9520af8355bb3b4e794637f4642fdbf8a93b268366717de8b3b",
+          "bytes": 19997,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v2/model-profile.schema.json",
+          "definitions": [
+            "ModelProfile",
+            "ModelProfileContent",
+            "ModelProfileRef",
+            "ModelProfileSnapshot",
+            "RouteName",
+            "ProfileOrigin",
+            "ProviderName",
+            "InputConstraints",
+            "Registration",
+            "ModelRequestParameters",
+            "ReasoningEffort"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/messages/schema/v6",
+          "path": "packages/core/messages/schema/v6/messages.schema.json",
+          "sha256": "7daa83f4351baee1d98cf5f64a65cec0fd2bb6342a074aafff28b1aea097fdae",
+          "bytes": 62948,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v6/messages.schema.json",
+          "definitions": [
+            "MessageId",
+            "ResponseId",
+            "CardId",
+            "SessionRef",
+            "AgentRef",
+            "ScheduleRef",
+            "RuntimeContextBlockId",
+            "MessageBase",
+            "SystemMessage",
+            "UserMessage",
+            "AssistantEnding",
+            "AssistantMessage",
+            "ToolMessage",
+            "ToolInternalEnding",
+            "ToolInternalMessage",
+            "ReminderNature",
+            "SystemReminderMessage",
+            "ReminderSource",
+            "BackgroundExecutionFinishedSource",
+            "BackgroundExecutionInterruptedSource",
+            "AttemptStartedSource",
+            "InterruptedSource",
+            "CardAnswer",
+            "SystemWaitAnsweredSource",
+            "LoopGuardSource",
+            "PeerSessionNoteSource",
+            "ScheduledTriggerSource",
+            "RuntimeContextChangedSource",
+            "RuntimeContextSnapshotSource",
+            "ExtensionSource",
+            "LoopExtensionName",
+            "SilencedBlockRef",
+            "CompactionMessage",
+            "ModelCallDispatchedRecord",
+            "SelectedBy",
+            "ParameterAdjustment",
+            "CredentialScope",
+            "ModelCallOpenedRecord",
+            "ModelCallInterruptIntentRecord",
+            "ModelCallEndedRecord",
+            "ModelSelectionChangedRecord",
+            "ModelInvocationRecord",
+            "Message"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/messages/schema/v3",
+          "path": "packages/core/messages/schema/v3/messages.schema.json",
+          "sha256": "5e832dccf0b5a88387d1b71c064331f81fe9251b5ff87bd1c6ab4151b5862005",
+          "bytes": 51807,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v3/messages.schema.json",
+          "definitions": [
+            "MessageId",
+            "ResponseId",
+            "CardId",
+            "SessionRef",
+            "AgentRef",
+            "ScheduleRef",
+            "RuntimeContextBlockId",
+            "MessageBase",
+            "SystemMessage",
+            "UserMessage",
+            "AssistantEnding",
+            "AssistantMessage",
+            "ToolMessage",
+            "ToolInternalEnding",
+            "ToolInternalMessage",
+            "ReminderNature",
+            "SystemReminderMessage",
+            "ReminderSource",
+            "BackgroundExecutionFinishedSource",
+            "BackgroundExecutionInterruptedSource",
+            "AttemptStartedSource",
+            "InterruptedSource",
+            "CardAnswer",
+            "SystemWaitAnsweredSource",
+            "LoopGuardSource",
+            "PeerSessionNoteSource",
+            "ScheduledTriggerSource",
+            "RuntimeContextChangedSource",
+            "RuntimeContextSnapshotSource",
+            "ExtensionSource",
+            "LoopExtensionName",
+            "SilencedBlockRef",
+            "CompactionMessage",
+            "ModelCallDispatchedRecord",
+            "SelectedBy",
+            "ParameterAdjustment",
+            "CredentialScope",
+            "ModelCallOpenedRecord",
+            "ModelCallInterruptIntentRecord",
+            "ModelCallEndedRecord",
+            "ModelSelectionChangedRecord",
+            "ModelInvocationRecord",
+            "Message"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/messages/schema/v2",
+          "path": "packages/core/messages/schema/messages.v2.schema.json",
+          "sha256": "5069484d45c7a2d9165c1201307e9b4241acf8eceae20e749b5c24f377b0d65f",
+          "bytes": 51807,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v2/messages.schema.json",
+          "definitions": [
+            "MessageId",
+            "ResponseId",
+            "CardId",
+            "SessionRef",
+            "AgentRef",
+            "ScheduleRef",
+            "RuntimeContextBlockId",
+            "MessageBase",
+            "SystemMessage",
+            "UserMessage",
+            "AssistantEnding",
+            "AssistantMessage",
+            "ToolMessage",
+            "ToolInternalEnding",
+            "ToolInternalMessage",
+            "ReminderNature",
+            "SystemReminderMessage",
+            "ReminderSource",
+            "BackgroundExecutionFinishedSource",
+            "BackgroundExecutionInterruptedSource",
+            "AttemptStartedSource",
+            "InterruptedSource",
+            "CardAnswer",
+            "SystemWaitAnsweredSource",
+            "LoopGuardSource",
+            "PeerSessionNoteSource",
+            "ScheduledTriggerSource",
+            "RuntimeContextChangedSource",
+            "RuntimeContextSnapshotSource",
+            "ExtensionSource",
+            "LoopExtensionName",
+            "SilencedBlockRef",
+            "CompactionMessage",
+            "ModelCallDispatchedRecord",
+            "SelectedBy",
+            "ParameterAdjustment",
+            "CredentialScope",
+            "ModelCallOpenedRecord",
+            "ModelCallInterruptIntentRecord",
+            "ModelCallEndedRecord",
+            "ModelSelectionChangedRecord",
+            "ModelInvocationRecord",
+            "Message"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/tool-definition/schema",
+          "path": "packages/core/tool-definition/schema/tool-definition.schema.json",
+          "sha256": "116e05d91003574cb2f8a50d51e82428c25d24552ad39e2eeb480edb94ec43a9",
+          "bytes": 24435,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v3/tool-definition.schema.json",
+          "definitions": [
+            "ToolDefinition",
+            "SingleFunctionTool",
+            "MultiCommandTool",
+            "CommandDefinition",
+            "ToolName",
+            "JsonSchema",
+            "ModelToolName",
+            "ModelToolEntry",
+            "ToolNeeds",
+            "DependencyName",
+            "ToolSettings",
+            "SettingDeclaration",
+            "TargetEnvironment",
+            "BindingLayer",
+            "Facility",
+            "Duration",
+            "ExecutePermission",
+            "ToolSource",
+            "ToolReturn",
+            "ToolResult",
+            "Offload"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/tool-definition/schema/v2",
+          "path": "packages/core/tool-definition/schema/tool-definition.v2.schema.json",
+          "sha256": "21f6ff19640da3905b4697404b8d7c527a4f0a6ec4c870b3f0affdc558c469ae",
+          "bytes": 24435,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json",
+          "definitions": [
+            "ToolDefinition",
+            "SingleFunctionTool",
+            "MultiCommandTool",
+            "CommandDefinition",
+            "ToolName",
+            "JsonSchema",
+            "ModelToolName",
+            "ModelToolEntry",
+            "ToolNeeds",
+            "DependencyName",
+            "ToolSettings",
+            "SettingDeclaration",
+            "TargetEnvironment",
+            "BindingLayer",
+            "Facility",
+            "Duration",
+            "ExecutePermission",
+            "ToolSource",
+            "ToolReturn",
+            "ToolResult",
+            "Offload"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/mcp-endpoint/schema",
+          "path": "packages/core/mcp-endpoint/schema/mcp-endpoint.schema.json",
+          "sha256": "4fcddf8b9e2a870be8d47ac0abf3fc835ad330f4bd0afd2d6cfe866796df2c13",
+          "bytes": 13227,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/mcp-endpoint/v2/mcp-endpoint.schema.json",
+          "definitions": [
+            "McpEndpoint",
+            "McpTransport",
+            "ActionSnapshot",
+            "McpToolDescriptor",
+            "McpActionName",
+            "McpEndpointName",
+            "OAuthBinding"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/skill-package/schema/v2",
+          "path": "packages/core/skill-package/schema/skill-package.v2.schema.json",
+          "sha256": "eb2b30c03023e02584d0bfec54f1905751c4049b41e16ae3744c8b9606cbd4e5",
+          "bytes": 11883,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v2/skill-package.schema.json",
+          "definitions": [
+            "SkillName",
+            "SkillManifest",
+            "ResourceEntry",
+            "SkillDefinitionRecord",
+            "SkillPackage"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/slash-command/schema",
+          "path": "packages/core/slash-command/schema/slash-command.schema.json",
+          "sha256": "595e5662cf7ebd5d84c5ba3edee7b4dd8a6e817a4738343bfa86c318cc1ac40e",
+          "bytes": 18012,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json",
+          "definitions": [
+            "CommandName",
+            "ServiceName",
+            "CommandBinding",
+            "ParameterDeclaration",
+            "SlashCommandDefinition",
+            "Span",
+            "CommandInvocation",
+            "Recognition",
+            "ParseResult"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/model-response/src/schema.ts",
+      "sourceSha256": "40231156ca5d0ddd5f97462d4734f3c28bb97c01b8fee44edd04528d11eb31d6",
+      "constructors": [],
+      "definitions": [
+        {
+          "line": 15,
+          "expression": "Object.freeze([\n  'ResponseId',\n  'RunId',\n  'AttemptId',\n  'ModelCallId',\n  'ReplyDisposition',\n  'ModelCallRef',\n  'SelectedBy',\n  'CredentialScope',\n  'Route',\n  'ParameterAdjustment',\n  'ResponseOutcome',\n  'UpstreamError',\n  'Failure',\n  'Timing',\n  'RawHeaders',\n  'RawResponse',\n  'ModelResponse',\n  'ResponseFactsConstraints',\n  'PendingModelResponse',\n  'CountingBasis',\n  'RequestInputEvidence',\n  'ObservationProvenance',\n  'ObservedInput',\n  'OutputGroupEvidence',\n  'InputCalibration',\n] as const)"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 76,
+          "expression": "createSchemaRuntime([...normativeSchemaResources, memberSchema])"
+        },
+        {
+          "line": 78,
+          "expression": "runtime.compile({ $ref: `${schemaId}#/$defs/${name}` })"
+        },
+        {
+          "line": 80,
+          "expression": "runtime.compile({ $ref: `${memberId}#/$defs/ModelResponse` })"
+        },
+        {
+          "line": 81,
+          "expression": "runtime.compile({ $ref: `${memberId}#/$defs/PendingModelResponse` })"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/model-response/schema",
+          "path": "packages/core/model-response/schema/model-response.schema.json",
+          "sha256": "9e58f395b07169a7fe6a2095b59cf60c1fbeb040fe18bc8e847e44bf2c154b2b",
+          "bytes": 57960,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-response/v11/model-response.schema.json",
+          "definitions": [
+            "ResponseId",
+            "RunId",
+            "AttemptId",
+            "ModelCallId",
+            "ReplyDisposition",
+            "ModelCallRef",
+            "SelectedBy",
+            "CredentialScope",
+            "Route",
+            "ParameterAdjustment",
+            "ResponseOutcome",
+            "UpstreamError",
+            "Failure",
+            "Timing",
+            "RawHeaders",
+            "RawResponse",
+            "ModelResponse",
+            "ResponseFactsConstraints",
+            "PendingModelResponse",
+            "CountingBasis",
+            "RequestInputEvidence",
+            "ObservationProvenance",
+            "ObservedInput",
+            "OutputGroupEvidence",
+            "InputCalibration"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/call-accounts/schema",
+          "path": "packages/core/call-accounts/schema/call-accounts.schema.json",
+          "sha256": "710a589f5692edfd4d5d474ff9fd5df6320dd98ffba7f4c711b50c8fb1dab368",
+          "bytes": 30001,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/call-accounts/v4/call-accounts.schema.json",
+          "definitions": [
+            "Unknown",
+            "ResponseId",
+            "Usage",
+            "Cost",
+            "CostItem",
+            "TrimReason",
+            "TrimSummary",
+            "FrameAccount",
+            "ToolCallAccount",
+            "CostCorrection",
+            "RunId",
+            "AttemptId",
+            "ModelCallId"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema/v2",
+          "path": "packages/core/content-blocks/schema/content-blocks.v2.schema.json",
+          "sha256": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+          "bytes": 31593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema",
+          "path": "packages/core/content-blocks/schema/content-blocks.schema.json",
+          "sha256": "809d2a5db29db6a91096535017cc9bf4e7f75a3b93469520173e82916fff1bb5",
+          "bytes": 31529,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v3/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/identity-values/schema",
+          "path": "packages/core/identity-values/schema/identity-values.schema.json",
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "bytes": 15185,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+          "definitions": [
+            "OpaqueIdentifier",
+            "HandoffWarrant",
+            "LoginIdentifier",
+            "AccountId",
+            "OrganizationId",
+            "LoginStateId",
+            "OrganizationKind",
+            "TenantRole",
+            "TenantId",
+            "MembershipStanding",
+            "MembershipStandingResult",
+            "ScopeLayerIdentity"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/loop-extension/schema",
+          "path": "packages/core/loop-extension/schema/loop-extension.schema.json",
+          "sha256": "5c74a3d0827449f3eb32b0c4468c410c78ef9714026bfb0801d4c6e361858727",
+          "bytes": 86882,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/loop-extension/v6/loop-extension.schema.json",
+          "definitions": [
+            "LoopPosition",
+            "Dimension",
+            "Power",
+            "ErrorPolicy",
+            "UnavailabilityPolicy",
+            "LoopExtensionDefinition",
+            "ExtensionImplementation",
+            "LogHandle",
+            "EnvironmentHandle",
+            "FailureCause",
+            "TerminalFact",
+            "CompactionPlan",
+            "ModelRequest",
+            "ToolDefinitionRef",
+            "AttemptStartedSubject",
+            "BeforePersistMessageSubject",
+            "AfterPersistMessageSubject",
+            "BeforeCompactionSubject",
+            "AfterCompactionSubject",
+            "BeforeModelCallSubject",
+            "AfterModelCallCompleteReplySubject",
+            "AfterModelCallFailureSubject",
+            "BeforeActionSubject",
+            "AfterActionEachSubject",
+            "AfterActionBatchSubject",
+            "BeforeTerminalSubject",
+            "AfterTerminalSubject",
+            "Subject",
+            "ExtensionInput",
+            "ObservedOutput",
+            "InjectOutput",
+            "RewriteOutput",
+            "SelectModelOutput",
+            "VetoOutput",
+            "StopOutput",
+            "RetryPlan",
+            "RetryOutput",
+            "CardOption",
+            "DecisionCardDraft",
+            "AskOutput",
+            "ExtensionOutput",
+            "Conclusion",
+            "ModelRetryConclusion"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/messages/schema",
+          "path": "packages/core/messages/schema/messages.schema.json",
+          "sha256": "029be66cccc02103fbe2da6241a366b112a235e9f7f7e89462a843e602c39126",
+          "bytes": 84646,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v8/messages.schema.json",
+          "definitions": [
+            "MessageId",
+            "ResponseId",
+            "CardId",
+            "SessionRef",
+            "AgentRef",
+            "ScheduleRef",
+            "RuntimeContextBlockId",
+            "MessageBase",
+            "SystemMessage",
+            "UserMessage",
+            "AssistantEnding",
+            "AssistantMessage",
+            "ToolMessage",
+            "ToolInternalEnding",
+            "ToolInternalMessage",
+            "ReminderNature",
+            "SystemReminderMessage",
+            "ReminderSource",
+            "BackgroundExecutionFinishedSource",
+            "BackgroundExecutionInterruptedSource",
+            "AttemptStartedSource",
+            "InterruptedSource",
+            "CardAnswer",
+            "SystemWaitAnsweredSource",
+            "LoopGuardSource",
+            "PeerSessionNoteSource",
+            "ScheduledTriggerSource",
+            "RuntimeContextChangedSource",
+            "RuntimeContextSnapshotSource",
+            "ExtensionSource",
+            "LoopExtensionName",
+            "SilencedBlockRef",
+            "CompactionMessage",
+            "ModelCallDispatchedRecord",
+            "SelectedBy",
+            "ParameterAdjustment",
+            "CredentialScope",
+            "ModelCallOpenedRecord",
+            "ModelCallInterruptIntentRecord",
+            "ModelCallEndedRecord",
+            "ModelSelectionChangedRecord",
+            "ModelInvocationRecord",
+            "Message",
+            "CreationKey",
+            "CallKey",
+            "ModelCallPayloadRef",
+            "ModelCallCreationInput",
+            "ModelCallCreatedPayload",
+            "ModelCallCreatedRecord",
+            "ModelCallReplyReadyRecord",
+            "ModelCallSemanticDigest",
+            "ModelCallOrigin",
+            "ModelCallAccountingWitness",
+            "ModelCallAcknowledgedRecord"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/model-profile/schema",
+          "path": "packages/core/model-profile/schema/model-profile.schema.json",
+          "sha256": "1c0d0073f9671eb163250f322ee62f003a7f007bf28eb15a69f9f34880d20156",
+          "bytes": 32593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v5/model-profile.schema.json",
+          "definitions": [
+            "ModelProfile",
+            "ModelProfileContent",
+            "ModelProfileRef",
+            "ModelProfileSnapshot",
+            "RouteName",
+            "ProfileOrigin",
+            "ProviderName",
+            "InputConstraints",
+            "Registration",
+            "ModelRequestParameters",
+            "ModelAdaptationBinding",
+            "ReasoningEffort",
+            "InputLimitFact",
+            "UpstreamInputLimits"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/offer-expiry/schema/v1",
+          "path": "packages/core/offer-expiry/schema/offer-expiry.v1.schema.json",
+          "sha256": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+          "bytes": 4812,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v1/offer-expiry.schema.json",
+          "definitions": [
+            "Instant",
+            "OfferTiming",
+            "OfferState",
+            "SettledState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/model-profile/src/schema.ts",
+      "sourceSha256": "5d06356185c6e85cd9b5f757140f81efc180f652eb95db050dc3c7650404f02f",
+      "constructors": [
+        {
+          "line": 34,
+          "options": "{\n  strict: true,\n  strictTypes: false,\n  strictRequired: false,\n  validateFormats: false,\n  ownProperties: true,\n}"
+        }
+      ],
+      "definitions": [
+        {
+          "line": 12,
+          "expression": "[\n  'ModelProfile',\n  'ModelAdaptationBinding',\n  'ModelProfileContent',\n  'ModelProfileSnapshot',\n  'ModelProfileRef',\n  'RouteName',\n  'ProfileOrigin',\n  'ProviderName',\n  'InputConstraints',\n  'Registration',\n  'ModelRequestParameters',\n  'ReasoningEffort',\n  'InputLimitFact',\n  'UpstreamInputLimits',\n] as const"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 41,
+          "expression": "ajv.addKeyword('x-counterexamples')"
+        },
+        {
+          "line": 43,
+          "expression": "ajv.addSchema(resource)"
+        },
+        {
+          "line": 46,
+          "expression": "ajv.getSchema(`${schemaId}#/$defs/${name}`)"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/model-profile/schema",
+          "path": "packages/core/model-profile/schema/model-profile.schema.json",
+          "sha256": "1c0d0073f9671eb163250f322ee62f003a7f007bf28eb15a69f9f34880d20156",
+          "bytes": 32593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/model-profile/v5/model-profile.schema.json",
+          "definitions": [
+            "ModelProfile",
+            "ModelProfileContent",
+            "ModelProfileRef",
+            "ModelProfileSnapshot",
+            "RouteName",
+            "ProfileOrigin",
+            "ProviderName",
+            "InputConstraints",
+            "Registration",
+            "ModelRequestParameters",
+            "ModelAdaptationBinding",
+            "ReasoningEffort",
+            "InputLimitFact",
+            "UpstreamInputLimits"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema/v2",
+          "path": "packages/core/content-blocks/schema/content-blocks.v2.schema.json",
+          "sha256": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+          "bytes": 31593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/identity-values/schema",
+          "path": "packages/core/identity-values/schema/identity-values.schema.json",
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "bytes": 15185,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+          "definitions": [
+            "OpaqueIdentifier",
+            "HandoffWarrant",
+            "LoginIdentifier",
+            "AccountId",
+            "OrganizationId",
+            "LoginStateId",
+            "OrganizationKind",
+            "TenantRole",
+            "TenantId",
+            "MembershipStanding",
+            "MembershipStandingResult",
+            "ScopeLayerIdentity"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/offer-expiry/schema/v1",
+          "path": "packages/core/offer-expiry/schema/offer-expiry.v1.schema.json",
+          "sha256": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+          "bytes": 4812,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v1/offer-expiry.schema.json",
+          "definitions": [
+            "Instant",
+            "OfferTiming",
+            "OfferState",
+            "SettledState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/skill-package/src/schema.ts",
+      "sourceSha256": "bfea9429b69def10f31762c74ea63c28aedfe75111aca9aea04a9750a4ab2a23",
+      "constructors": [],
+      "definitions": [
+        {
+          "line": 15,
+          "expression": "[\n  'SkillName',\n  'SkillManifest',\n  'ResourceEntry',\n  'SkillDefinitionRecord',\n  'SkillPackage',\n] as const"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 33,
+          "expression": "createSchemaRuntime(resources)"
+        },
+        {
+          "line": 38,
+          "expression": "runtime.compile({ $ref: `${resource.$id}#/$defs/${name}` })"
+        },
+        {
+          "line": 60,
+          "expression": "skillSchemaBinding.createRuntime().compile({ const: 1 })"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/skill-package/schema",
+          "path": "packages/core/skill-package/schema/skill-package.schema.json",
+          "sha256": "8c4a5352cccb695d94072828c5881486e8cdd5474a2213a3a621b17e3fbc836b",
+          "bytes": 11883,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v3/skill-package.schema.json",
+          "definitions": [
+            "SkillName",
+            "SkillManifest",
+            "ResourceEntry",
+            "SkillDefinitionRecord",
+            "SkillPackage"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/skill-package/schema/v2",
+          "path": "packages/core/skill-package/schema/skill-package.v2.schema.json",
+          "sha256": "eb2b30c03023e02584d0bfec54f1905751c4049b41e16ae3744c8b9606cbd4e5",
+          "bytes": 11883,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/skill-package/v2/skill-package.schema.json",
+          "definitions": [
+            "SkillName",
+            "SkillManifest",
+            "ResourceEntry",
+            "SkillDefinitionRecord",
+            "SkillPackage"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema/v2",
+          "path": "packages/core/content-blocks/schema/content-blocks.v2.schema.json",
+          "sha256": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+          "bytes": 31593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/asset-model/schema/v2",
+          "path": "packages/core/asset-model/schema/asset-model.v2.schema.json",
+          "sha256": "3b4a9302a51f902f89f6bb567f2b91b0533f323d8f315853e35ac15a679f5890",
+          "bytes": 42427,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v2/asset-model.schema.json",
+          "definitions": [
+            "AssetCategory",
+            "CapabilityName",
+            "CapabilityId",
+            "AssetRecordId",
+            "AssetOrigin",
+            "AssetOwner",
+            "AssetContent",
+            "AssetVersion",
+            "LineageId",
+            "CopyLineage",
+            "AssetDefinition",
+            "AttributeKind",
+            "SettingCategory",
+            "AttributeDomain",
+            "AttributeDeclaration",
+            "PermissionValue",
+            "AttributeAssignment",
+            "WorkspaceKey",
+            "HoldingScope",
+            "SharingId",
+            "HoldingBasis",
+            "VersionSelection",
+            "AssetHolding",
+            "CredentialRef",
+            "WorkspaceCarrierManifest"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/tool-definition/schema/v2",
+          "path": "packages/core/tool-definition/schema/tool-definition.v2.schema.json",
+          "sha256": "21f6ff19640da3905b4697404b8d7c527a4f0a6ec4c870b3f0affdc558c469ae",
+          "bytes": 24435,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json",
+          "definitions": [
+            "ToolDefinition",
+            "SingleFunctionTool",
+            "MultiCommandTool",
+            "CommandDefinition",
+            "ToolName",
+            "JsonSchema",
+            "ModelToolName",
+            "ModelToolEntry",
+            "ToolNeeds",
+            "DependencyName",
+            "ToolSettings",
+            "SettingDeclaration",
+            "TargetEnvironment",
+            "BindingLayer",
+            "Facility",
+            "Duration",
+            "ExecutePermission",
+            "ToolSource",
+            "ToolReturn",
+            "ToolResult",
+            "Offload"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/call-accounts/src/schema.ts",
+      "sourceSha256": "5a770e23f4d5eb2724f68946284083cd308b224191c7c6866dbd0715e3caf8b9",
+      "constructors": [
+        {
+          "line": 38,
+          "options": "{\n    strict: true,\n    strictTypes: false,\n    strictRequired: false,\n    validateFormats: false,\n    ownProperties: true,\n  }"
+        }
+      ],
+      "definitions": [
+        {
+          "line": 17,
+          "expression": "[\n  'Unknown',\n  'ResponseId',\n  'Usage',\n  'Cost',\n  'CostItem',\n  'ToolCallAccount',\n  'FrameAccount',\n  'TrimReason',\n  'TrimSummary',\n  'CostCorrection',\n  'RunId',\n  'AttemptId',\n  'ModelCallId',\n] as const"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 46,
+          "expression": "ajv.addKeyword({ keyword: 'x-counterexamples', valid: true })"
+        },
+        {
+          "line": 51,
+          "expression": "ajv.addSchema(selected)"
+        },
+        {
+          "line": 55,
+          "expression": "ajv.getSchema(`${schemaId}#/$defs/${name}`)"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/call-accounts/schema",
+          "path": "packages/core/call-accounts/schema/call-accounts.schema.json",
+          "sha256": "710a589f5692edfd4d5d474ff9fd5df6320dd98ffba7f4c711b50c8fb1dab368",
+          "bytes": 30001,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/call-accounts/v4/call-accounts.schema.json",
+          "definitions": [
+            "Unknown",
+            "ResponseId",
+            "Usage",
+            "Cost",
+            "CostItem",
+            "TrimReason",
+            "TrimSummary",
+            "FrameAccount",
+            "ToolCallAccount",
+            "CostCorrection",
+            "RunId",
+            "AttemptId",
+            "ModelCallId"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema/v2",
+          "path": "packages/core/content-blocks/schema/content-blocks.v2.schema.json",
+          "sha256": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+          "bytes": 31593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/identity-values/schema",
+          "path": "packages/core/identity-values/schema/identity-values.schema.json",
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "bytes": 15185,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+          "definitions": [
+            "OpaqueIdentifier",
+            "HandoffWarrant",
+            "LoginIdentifier",
+            "AccountId",
+            "OrganizationId",
+            "LoginStateId",
+            "OrganizationKind",
+            "TenantRole",
+            "TenantId",
+            "MembershipStanding",
+            "MembershipStandingResult",
+            "ScopeLayerIdentity"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/offer-expiry/schema/v1",
+          "path": "packages/core/offer-expiry/schema/offer-expiry.v1.schema.json",
+          "sha256": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+          "bytes": 4812,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v1/offer-expiry.schema.json",
+          "definitions": [
+            "Instant",
+            "OfferTiming",
+            "OfferState",
+            "SettledState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/mcp-endpoint/src/schema.ts",
+      "sourceSha256": "987900fb0b43eccc86886c50a81aa15a89bc90b8724159291468a0d7c4196b98",
+      "constructors": [],
+      "definitions": [
+        {
+          "line": 11,
+          "expression": "Object.freeze([\n  'McpEndpoint',\n  'McpTransport',\n  'ActionSnapshot',\n  'McpToolDescriptor',\n  'McpActionName',\n  'McpEndpointName',\n  'OAuthBinding',\n] as const)"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 23,
+          "expression": "createSchemaRuntime([\n  contentSchema,\n  identitySchema,\n  offerSchema,\n  assetSchema,\n  toolSchema,\n  schema,\n])"
+        },
+        {
+          "line": 32,
+          "expression": "runtime.compile({ $ref: `${schemaId}#/$defs/${name}` })"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/mcp-endpoint/schema",
+          "path": "packages/core/mcp-endpoint/schema/mcp-endpoint.schema.json",
+          "sha256": "4fcddf8b9e2a870be8d47ac0abf3fc835ad330f4bd0afd2d6cfe866796df2c13",
+          "bytes": 13227,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/mcp-endpoint/v2/mcp-endpoint.schema.json",
+          "definitions": [
+            "McpEndpoint",
+            "McpTransport",
+            "ActionSnapshot",
+            "McpToolDescriptor",
+            "McpActionName",
+            "McpEndpointName",
+            "OAuthBinding"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema/v2",
+          "path": "packages/core/content-blocks/schema/content-blocks.v2.schema.json",
+          "sha256": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+          "bytes": 31593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/asset-model/schema/v2",
+          "path": "packages/core/asset-model/schema/asset-model.v2.schema.json",
+          "sha256": "3b4a9302a51f902f89f6bb567f2b91b0533f323d8f315853e35ac15a679f5890",
+          "bytes": 42427,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v2/asset-model.schema.json",
+          "definitions": [
+            "AssetCategory",
+            "CapabilityName",
+            "CapabilityId",
+            "AssetRecordId",
+            "AssetOrigin",
+            "AssetOwner",
+            "AssetContent",
+            "AssetVersion",
+            "LineageId",
+            "CopyLineage",
+            "AssetDefinition",
+            "AttributeKind",
+            "SettingCategory",
+            "AttributeDomain",
+            "AttributeDeclaration",
+            "PermissionValue",
+            "AttributeAssignment",
+            "WorkspaceKey",
+            "HoldingScope",
+            "SharingId",
+            "HoldingBasis",
+            "VersionSelection",
+            "AssetHolding",
+            "CredentialRef",
+            "WorkspaceCarrierManifest"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/tool-definition/schema/v2",
+          "path": "packages/core/tool-definition/schema/tool-definition.v2.schema.json",
+          "sha256": "21f6ff19640da3905b4697404b8d7c527a4f0a6ec4c870b3f0affdc558c469ae",
+          "bytes": 24435,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/tool-definition/v2/tool-definition.schema.json",
+          "definitions": [
+            "ToolDefinition",
+            "SingleFunctionTool",
+            "MultiCommandTool",
+            "CommandDefinition",
+            "ToolName",
+            "JsonSchema",
+            "ModelToolName",
+            "ModelToolEntry",
+            "ToolNeeds",
+            "DependencyName",
+            "ToolSettings",
+            "SettingDeclaration",
+            "TargetEnvironment",
+            "BindingLayer",
+            "Facility",
+            "Duration",
+            "ExecutePermission",
+            "ToolSource",
+            "ToolReturn",
+            "ToolResult",
+            "Offload"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/identity-values/schema",
+          "path": "packages/core/identity-values/schema/identity-values.schema.json",
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "bytes": 15185,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+          "definitions": [
+            "OpaqueIdentifier",
+            "HandoffWarrant",
+            "LoginIdentifier",
+            "AccountId",
+            "OrganizationId",
+            "LoginStateId",
+            "OrganizationKind",
+            "TenantRole",
+            "TenantId",
+            "MembershipStanding",
+            "MembershipStandingResult",
+            "ScopeLayerIdentity"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/offer-expiry/schema/v1",
+          "path": "packages/core/offer-expiry/schema/offer-expiry.v1.schema.json",
+          "sha256": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+          "bytes": 4812,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v1/offer-expiry.schema.json",
+          "definitions": [
+            "Instant",
+            "OfferTiming",
+            "OfferState",
+            "SettledState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/core/slash-command/src/schema.ts",
+      "sourceSha256": "98933467f38007590f2c15a2f7b34d3f0275ecb6df0450ef4e2610cf5f49354c",
+      "constructors": [],
+      "definitions": [
+        {
+          "line": 8,
+          "expression": "Object.freeze([\n  'CommandName',\n  'ServiceName',\n  'CommandBinding',\n  'ParameterDeclaration',\n  'SlashCommandDefinition',\n  'Span',\n  'CommandInvocation',\n  'Recognition',\n  'ParseResult',\n] as const)"
+        }
+      ],
+      "bindings": [
+        {
+          "line": 24,
+          "expression": "createSchemaRuntime([contentSchema, assetSchema, schema])"
+        },
+        {
+          "line": 26,
+          "expression": "runtime.compile({ $ref: `${schemaId}#/$defs/${name}` })"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/slash-command/schema",
+          "path": "packages/core/slash-command/schema/slash-command.schema.json",
+          "sha256": "595e5662cf7ebd5d84c5ba3edee7b4dd8a6e817a4738343bfa86c318cc1ac40e",
+          "bytes": 18012,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/slash-command/v2/slash-command.schema.json",
+          "definitions": [
+            "CommandName",
+            "ServiceName",
+            "CommandBinding",
+            "ParameterDeclaration",
+            "SlashCommandDefinition",
+            "Span",
+            "CommandInvocation",
+            "Recognition",
+            "ParseResult"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/asset-model/schema/v2",
+          "path": "packages/core/asset-model/schema/asset-model.v2.schema.json",
+          "sha256": "3b4a9302a51f902f89f6bb567f2b91b0533f323d8f315853e35ac15a679f5890",
+          "bytes": 42427,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/asset-model/v2/asset-model.schema.json",
+          "definitions": [
+            "AssetCategory",
+            "CapabilityName",
+            "CapabilityId",
+            "AssetRecordId",
+            "AssetOrigin",
+            "AssetOwner",
+            "AssetContent",
+            "AssetVersion",
+            "LineageId",
+            "CopyLineage",
+            "AssetDefinition",
+            "AttributeKind",
+            "SettingCategory",
+            "AttributeDomain",
+            "AttributeDeclaration",
+            "PermissionValue",
+            "AttributeAssignment",
+            "WorkspaceKey",
+            "HoldingScope",
+            "SharingId",
+            "HoldingBasis",
+            "VersionSelection",
+            "AssetHolding",
+            "CredentialRef",
+            "WorkspaceCarrierManifest"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/content-blocks/schema/v2",
+          "path": "packages/core/content-blocks/schema/content-blocks.v2.schema.json",
+          "sha256": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+          "bytes": 31593,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/content-blocks/v2/content-blocks.schema.json",
+          "definitions": [
+            "BlockId",
+            "CallId",
+            "ModelToolName",
+            "Visibility",
+            "MediaType",
+            "Modality",
+            "CapabilityId",
+            "AttachmentRef",
+            "InlineBytes",
+            "DerivedRendering",
+            "BlockBase",
+            "TextBlock",
+            "ThinkingBlock",
+            "VoiceBlock",
+            "ImageBlock",
+            "FileBlock",
+            "ToolCallBlock",
+            "IncompleteToolCallBlock",
+            "ExecutionOutcome",
+            "PlaceholderReason",
+            "ToolResultBlock",
+            "ContentBlock"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/session/session-tenancy-table/src/values.ts",
+      "sourceSha256": "fdabab544885cc97ba11e2bc5f252b9b6f63bc65b48c30ed110d604602100aa2",
+      "constructors": [],
+      "definitions": [],
+      "bindings": [
+        {
+          "line": 14,
+          "expression": "createSchemaRuntime([schema]).compile({ $ref: `${schema.$id}#/$defs/SessionRef` })"
+        },
+        {
+          "line": 14,
+          "expression": "createSchemaRuntime([schema])"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/messages/schema/v2",
+          "path": "packages/core/messages/schema/messages.v2.schema.json",
+          "sha256": "5069484d45c7a2d9165c1201307e9b4241acf8eceae20e749b5c24f377b0d65f",
+          "bytes": 51807,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/messages/v2/messages.schema.json",
+          "definitions": [
+            "MessageId",
+            "ResponseId",
+            "CardId",
+            "SessionRef",
+            "AgentRef",
+            "ScheduleRef",
+            "RuntimeContextBlockId",
+            "MessageBase",
+            "SystemMessage",
+            "UserMessage",
+            "AssistantEnding",
+            "AssistantMessage",
+            "ToolMessage",
+            "ToolInternalEnding",
+            "ToolInternalMessage",
+            "ReminderNature",
+            "SystemReminderMessage",
+            "ReminderSource",
+            "BackgroundExecutionFinishedSource",
+            "BackgroundExecutionInterruptedSource",
+            "AttemptStartedSource",
+            "InterruptedSource",
+            "CardAnswer",
+            "SystemWaitAnsweredSource",
+            "LoopGuardSource",
+            "PeerSessionNoteSource",
+            "ScheduledTriggerSource",
+            "RuntimeContextChangedSource",
+            "RuntimeContextSnapshotSource",
+            "ExtensionSource",
+            "LoopExtensionName",
+            "SilencedBlockRef",
+            "CompactionMessage",
+            "ModelCallDispatchedRecord",
+            "SelectedBy",
+            "ParameterAdjustment",
+            "CredentialScope",
+            "ModelCallOpenedRecord",
+            "ModelCallInterruptIntentRecord",
+            "ModelCallEndedRecord",
+            "ModelSelectionChangedRecord",
+            "ModelInvocationRecord",
+            "Message"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/tenancy/governance-center-entry/src/routing/schema.ts",
+      "sourceSha256": "dd54f898b860c300140fb0764295f1cc1189f77d61967a0aa8811009a4904903",
+      "constructors": [
+        {
+          "line": 32,
+          "options": "{\n  strict: true,\n  strictTypes: false,\n  // Conditional required keys are declared in the enclosing schema. This Ajv\n  // authoring warning is not a JSON Schema validation constraint.\n  strictRequired: false,\n  allErrors: false,\n  validateFormats: false,\n}"
+        }
+      ],
+      "definitions": [],
+      "bindings": [
+        {
+          "line": 42,
+          "expression": "ajv.addKeyword('x-counterexamples')"
+        },
+        {
+          "line": 43,
+          "expression": "ajv.addSchema(identityValuesSchema.document)"
+        },
+        {
+          "line": 44,
+          "expression": "ajv.addSchema(offerExpirySchema.document)"
+        },
+        {
+          "line": 45,
+          "expression": "ajv.addSchema(entrySchema.document)"
+        },
+        {
+          "line": 53,
+          "expression": "ajv.getSchema(`${entrySchema.id}#/$defs/${defName}`)"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "../../schema/governance-center-entry.schema.json",
+          "path": "packages/tenancy/governance-center-entry/schema/governance-center-entry.schema.json",
+          "sha256": "884105bf25dab57a764f53b7e4858cce2d668ff002215933e94b3f56646c8ff0",
+          "bytes": 117348,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v3/governance-center-entry.schema.json",
+          "definitions": [
+            "GovernanceCenterId",
+            "LoginStatePresentation",
+            "ProtocolVersion",
+            "PublicHealthRouteId",
+            "EnvelopeRouteId",
+            "Envelope",
+            "PublicHealthRequest",
+            "EntryAnswer",
+            "RouteFailureName",
+            "RouteFailure",
+            "RouteSuccess",
+            "Exchange",
+            "LoginResult",
+            "LoginStateListItem",
+            "InvitationId",
+            "AffiliationRequestId",
+            "CreationKey",
+            "CredentialMaterial",
+            "OfferTtl",
+            "AffiliationDirection",
+            "CallerIdentityKind",
+            "OrganizationView",
+            "InvitationView",
+            "AffiliationRequestView",
+            "IncomingAffiliationRequestView",
+            "MemberView",
+            "Payload_AR_S8",
+            "Payload_AI_S15",
+            "Payload_AI_S16",
+            "Payload_AI_S37",
+            "Payload_OG_S21",
+            "Payload_OG_S22",
+            "Payload_OG_S23",
+            "Payload_OG_S24",
+            "Payload_OG_S25",
+            "Payload_OG_S26",
+            "Payload_OG_S27",
+            "Payload_OG_S28",
+            "Payload_OG_S29",
+            "Payload_OG_S30",
+            "Payload_OG_S31",
+            "Payload_OG_S32",
+            "Payload_OG_S33",
+            "Payload_OG_S34",
+            "Payload_OG_S35",
+            "Payload_OG_S36",
+            "Payload_OG_S37",
+            "Payload_OG_S55",
+            "Payload_OG_S56",
+            "Payload_OG_S57",
+            "Payload_OG_S58",
+            "Payload_OG_S59",
+            "Payload_OG_S60",
+            "Result_AR_S8",
+            "Result_AI_S15",
+            "Result_AI_S16",
+            "Result_AI_S37",
+            "Result_OG_S21",
+            "Result_OG_S22",
+            "Result_OG_S23",
+            "Result_OG_S24",
+            "Result_OG_S25",
+            "Result_OG_S26",
+            "Result_OG_S27",
+            "Result_OG_S28",
+            "Result_OG_S29",
+            "Result_OG_S30",
+            "Result_OG_S31",
+            "Result_OG_S32",
+            "Result_OG_S33",
+            "Result_OG_S34",
+            "Result_OG_S35",
+            "Result_OG_S36",
+            "Result_OG_S37",
+            "Result_OG_S55",
+            "Result_OG_S56",
+            "Result_OG_S57",
+            "Result_OG_S58",
+            "Result_OG_S59",
+            "Result_OG_S60",
+            "ClientFaceReply",
+            "PublicHealthReply",
+            "DeploymentParameterDuration",
+            "DeploymentParameters",
+            "FullHealthReply",
+            "Payload_AI_S50",
+            "Result_AI_S50",
+            "Payload_OG_S61",
+            "Result_OG_S61",
+            "Payload_OG_S62",
+            "Result_OG_S62",
+            "Payload_ENTRY_S50",
+            "Result_ENTRY_S50",
+            "MaintenanceLocation",
+            "BackupFileName",
+            "Metadata",
+            "BackupDescriptor",
+            "BackupInput",
+            "BackupStatusInput",
+            "VerifyInput",
+            "RestoreIsolatedInput",
+            "BackupOutcomeUnknown",
+            "RestoreOutcomeUnknown",
+            "BackupResult",
+            "BackupStatusResult",
+            "VerifyResult",
+            "RestoreIsolatedResult"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/identity-values/schema",
+          "path": "packages/core/identity-values/schema/identity-values.schema.json",
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "bytes": 15185,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+          "definitions": [
+            "OpaqueIdentifier",
+            "HandoffWarrant",
+            "LoginIdentifier",
+            "AccountId",
+            "OrganizationId",
+            "LoginStateId",
+            "OrganizationKind",
+            "TenantRole",
+            "TenantId",
+            "MembershipStanding",
+            "MembershipStandingResult",
+            "ScopeLayerIdentity"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/offer-expiry/schema",
+          "path": "packages/core/offer-expiry/schema/offer-expiry.schema.json",
+          "sha256": "2fa7b9bcd5ba528ef4dafc6812cc087c839c0a45a5e0f465747ad44a7230d05b",
+          "bytes": 5296,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v2/offer-expiry.schema.json",
+          "definitions": [
+            "Instant",
+            "OfferTiming",
+            "OfferState",
+            "SettledState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/frontend/client-local-state/src/record.ts",
+      "sourceSha256": "1451cb661f2d8e72360ce0666c3cbe51790573d024f1929943ab5e435cc5fc25",
+      "constructors": [
+        {
+          "line": 11,
+          "options": "{\n  strict: true,\n  strictTypes: false,\n  strictRequired: false,\n  validateFormats: false,\n}"
+        }
+      ],
+      "definitions": [],
+      "bindings": [
+        {
+          "line": 17,
+          "expression": "ajv.addKeyword('x-counterexamples')"
+        },
+        {
+          "line": 18,
+          "expression": "ajv.addSchema(iv).addSchema(oe).addSchema(ec)"
+        },
+        {
+          "line": 18,
+          "expression": "ajv.addSchema(iv).addSchema(oe)"
+        },
+        {
+          "line": 18,
+          "expression": "ajv.addSchema(iv)"
+        },
+        {
+          "line": 19,
+          "expression": "ajv.compile({ $ref: `${id}#/$defs/${name}` })"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/governance-center-client/schema",
+          "path": "packages/frontend/governance-center-client/schema/governance-center-entry.schema.json",
+          "sha256": "7c7124396ea16e1f0d2eda7d6a44f4284d9be77f2546e74de7ae740d718a3b29",
+          "bytes": 96559,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json",
+          "definitions": [
+            "GovernanceCenterId",
+            "LoginStatePresentation",
+            "ProtocolVersion",
+            "PublicHealthRouteId",
+            "EnvelopeRouteId",
+            "Envelope",
+            "PublicHealthRequest",
+            "EntryAnswer",
+            "RouteFailureName",
+            "RouteFailure",
+            "RouteSuccess",
+            "Exchange",
+            "LoginResult",
+            "LoginStateListItem",
+            "InvitationId",
+            "AffiliationRequestId",
+            "CreationKey",
+            "CredentialMaterial",
+            "OfferTtl",
+            "AffiliationDirection",
+            "CallerIdentityKind",
+            "OrganizationView",
+            "InvitationView",
+            "AffiliationRequestView",
+            "IncomingAffiliationRequestView",
+            "MemberView",
+            "Payload_AR_S8",
+            "Payload_AI_S15",
+            "Payload_AI_S16",
+            "Payload_AI_S37",
+            "Payload_OG_S21",
+            "Payload_OG_S22",
+            "Payload_OG_S23",
+            "Payload_OG_S24",
+            "Payload_OG_S25",
+            "Payload_OG_S26",
+            "Payload_OG_S27",
+            "Payload_OG_S28",
+            "Payload_OG_S29",
+            "Payload_OG_S30",
+            "Payload_OG_S31",
+            "Payload_OG_S32",
+            "Payload_OG_S33",
+            "Payload_OG_S34",
+            "Payload_OG_S35",
+            "Payload_OG_S36",
+            "Payload_OG_S37",
+            "Payload_OG_S55",
+            "Payload_OG_S56",
+            "Payload_OG_S57",
+            "Payload_OG_S58",
+            "Payload_OG_S59",
+            "Payload_OG_S60",
+            "Result_AR_S8",
+            "Result_AI_S15",
+            "Result_AI_S16",
+            "Result_AI_S37",
+            "Result_OG_S21",
+            "Result_OG_S22",
+            "Result_OG_S23",
+            "Result_OG_S24",
+            "Result_OG_S25",
+            "Result_OG_S26",
+            "Result_OG_S27",
+            "Result_OG_S28",
+            "Result_OG_S29",
+            "Result_OG_S30",
+            "Result_OG_S31",
+            "Result_OG_S32",
+            "Result_OG_S33",
+            "Result_OG_S34",
+            "Result_OG_S35",
+            "Result_OG_S36",
+            "Result_OG_S37",
+            "Result_OG_S55",
+            "Result_OG_S56",
+            "Result_OG_S57",
+            "Result_OG_S58",
+            "Result_OG_S59",
+            "Result_OG_S60",
+            "ClientFaceReply",
+            "PublicHealthReply",
+            "DeploymentParameterDuration",
+            "DeploymentParameters",
+            "FullHealthReply",
+            "Payload_AI_S50",
+            "Result_AI_S50",
+            "Payload_OG_S61",
+            "Result_OG_S61",
+            "Payload_OG_S62",
+            "Result_OG_S62",
+            "Payload_ENTRY_S50",
+            "Result_ENTRY_S50"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/identity-values/schema",
+          "path": "packages/core/identity-values/schema/identity-values.schema.json",
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "bytes": 15185,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+          "definitions": [
+            "OpaqueIdentifier",
+            "HandoffWarrant",
+            "LoginIdentifier",
+            "AccountId",
+            "OrganizationId",
+            "LoginStateId",
+            "OrganizationKind",
+            "TenantRole",
+            "TenantId",
+            "MembershipStanding",
+            "MembershipStandingResult",
+            "ScopeLayerIdentity"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/offer-expiry/schema",
+          "path": "packages/core/offer-expiry/schema/offer-expiry.schema.json",
+          "sha256": "2fa7b9bcd5ba528ef4dafc6812cc087c839c0a45a5e0f465747ad44a7230d05b",
+          "bytes": 5296,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v2/offer-expiry.schema.json",
+          "definitions": [
+            "Instant",
+            "OfferTiming",
+            "OfferState",
+            "SettledState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/frontend/governance-center-client/src/governance.ts",
+      "sourceSha256": "da97a8c108c8ba477cf08a0d7054f72f6ac73a7158fe0822a535c9620f9f461c",
+      "constructors": [
+        {
+          "line": 18,
+          "options": "{\n  strict: true,\n  strictTypes: false,\n  strictRequired: false,\n  validateFormats: false,\n}"
+        }
+      ],
+      "definitions": [],
+      "bindings": [
+        {
+          "line": 24,
+          "expression": "ajv.addKeyword('x-counterexamples')"
+        },
+        {
+          "line": 25,
+          "expression": "ajv.addSchema(require('@omne-harness-lite/identity-values/schema'))"
+        },
+        {
+          "line": 26,
+          "expression": "ajv.addSchema(require('@omne-harness-lite/offer-expiry/schema'))"
+        },
+        {
+          "line": 27,
+          "expression": "ajv.addSchema(schema)"
+        },
+        {
+          "line": 28,
+          "expression": "ajv.compile({ $ref: `${schema.$id}#/$defs/Envelope` })"
+        },
+        {
+          "line": 29,
+          "expression": "ajv.compile({ $ref: `${schema.$id}#/$defs/Exchange` })"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "../schema/governance-center-entry.schema.json",
+          "path": "packages/frontend/governance-center-client/schema/governance-center-entry.schema.json",
+          "sha256": "7c7124396ea16e1f0d2eda7d6a44f4284d9be77f2546e74de7ae740d718a3b29",
+          "bytes": 96559,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json",
+          "definitions": [
+            "GovernanceCenterId",
+            "LoginStatePresentation",
+            "ProtocolVersion",
+            "PublicHealthRouteId",
+            "EnvelopeRouteId",
+            "Envelope",
+            "PublicHealthRequest",
+            "EntryAnswer",
+            "RouteFailureName",
+            "RouteFailure",
+            "RouteSuccess",
+            "Exchange",
+            "LoginResult",
+            "LoginStateListItem",
+            "InvitationId",
+            "AffiliationRequestId",
+            "CreationKey",
+            "CredentialMaterial",
+            "OfferTtl",
+            "AffiliationDirection",
+            "CallerIdentityKind",
+            "OrganizationView",
+            "InvitationView",
+            "AffiliationRequestView",
+            "IncomingAffiliationRequestView",
+            "MemberView",
+            "Payload_AR_S8",
+            "Payload_AI_S15",
+            "Payload_AI_S16",
+            "Payload_AI_S37",
+            "Payload_OG_S21",
+            "Payload_OG_S22",
+            "Payload_OG_S23",
+            "Payload_OG_S24",
+            "Payload_OG_S25",
+            "Payload_OG_S26",
+            "Payload_OG_S27",
+            "Payload_OG_S28",
+            "Payload_OG_S29",
+            "Payload_OG_S30",
+            "Payload_OG_S31",
+            "Payload_OG_S32",
+            "Payload_OG_S33",
+            "Payload_OG_S34",
+            "Payload_OG_S35",
+            "Payload_OG_S36",
+            "Payload_OG_S37",
+            "Payload_OG_S55",
+            "Payload_OG_S56",
+            "Payload_OG_S57",
+            "Payload_OG_S58",
+            "Payload_OG_S59",
+            "Payload_OG_S60",
+            "Result_AR_S8",
+            "Result_AI_S15",
+            "Result_AI_S16",
+            "Result_AI_S37",
+            "Result_OG_S21",
+            "Result_OG_S22",
+            "Result_OG_S23",
+            "Result_OG_S24",
+            "Result_OG_S25",
+            "Result_OG_S26",
+            "Result_OG_S27",
+            "Result_OG_S28",
+            "Result_OG_S29",
+            "Result_OG_S30",
+            "Result_OG_S31",
+            "Result_OG_S32",
+            "Result_OG_S33",
+            "Result_OG_S34",
+            "Result_OG_S35",
+            "Result_OG_S36",
+            "Result_OG_S37",
+            "Result_OG_S55",
+            "Result_OG_S56",
+            "Result_OG_S57",
+            "Result_OG_S58",
+            "Result_OG_S59",
+            "Result_OG_S60",
+            "ClientFaceReply",
+            "PublicHealthReply",
+            "DeploymentParameterDuration",
+            "DeploymentParameters",
+            "FullHealthReply",
+            "Payload_AI_S50",
+            "Result_AI_S50",
+            "Payload_OG_S61",
+            "Result_OG_S61",
+            "Payload_OG_S62",
+            "Result_OG_S62",
+            "Payload_ENTRY_S50",
+            "Result_ENTRY_S50"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/identity-values/schema",
+          "path": "packages/core/identity-values/schema/identity-values.schema.json",
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "bytes": 15185,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+          "definitions": [
+            "OpaqueIdentifier",
+            "HandoffWarrant",
+            "LoginIdentifier",
+            "AccountId",
+            "OrganizationId",
+            "LoginStateId",
+            "OrganizationKind",
+            "TenantRole",
+            "TenantId",
+            "MembershipStanding",
+            "MembershipStandingResult",
+            "ScopeLayerIdentity"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/offer-expiry/schema",
+          "path": "packages/core/offer-expiry/schema/offer-expiry.schema.json",
+          "sha256": "2fa7b9bcd5ba528ef4dafc6812cc087c839c0a45a5e0f465747ad44a7230d05b",
+          "bytes": 5296,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v2/offer-expiry.schema.json",
+          "definitions": [
+            "Instant",
+            "OfferTiming",
+            "OfferState",
+            "SettledState"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "packages/frontend/governance-client-operations/src/validation.ts",
+      "sourceSha256": "8681014e5da7487cb93052ea706e9b70697ebd04b4959bd10d94a2ad9c2f80d9",
+      "constructors": [
+        {
+          "line": 14,
+          "options": "{\n  strict: true,\n  strictTypes: false,\n  strictRequired: false,\n  validateFormats: false,\n}"
+        }
+      ],
+      "definitions": [],
+      "bindings": [
+        {
+          "line": 20,
+          "expression": "ajv.addKeyword('x-counterexamples')"
+        },
+        {
+          "line": 21,
+          "expression": "ajv.addSchema(require('@omne-harness-lite/identity-values/schema'))"
+        },
+        {
+          "line": 22,
+          "expression": "ajv.addSchema(oe)"
+        },
+        {
+          "line": 23,
+          "expression": "ajv.addSchema(require('@omne-harness-lite/governance-center-client/schema'))"
+        },
+        {
+          "line": 24,
+          "expression": "ajv.addSchema(cg)"
+        },
+        {
+          "line": 28,
+          "expression": "ajv.addSchema(cg2)"
+        },
+        {
+          "line": 29,
+          "expression": "ajv.compile({ $ref: `${cg2.$id}#/$defs/Intent` })"
+        },
+        {
+          "line": 30,
+          "expression": "ajv.compile({ $ref: `${cg2.$id}#/$defs/Preview` })"
+        },
+        {
+          "line": 31,
+          "expression": "ajv.compile({ $ref: `${cg2.$id}#/$defs/PromptExchange` })"
+        },
+        {
+          "line": 32,
+          "expression": "ajv.compile({ $ref: `${cg.$id}#/$defs/Input` })"
+        },
+        {
+          "line": 33,
+          "expression": "ajv.compile({ $ref: `${cg.$id}#/$defs/Output` })"
+        },
+        {
+          "line": 34,
+          "expression": "ajv.compile({ $ref: `${oe.$id}#/$defs/Instant` })"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "../schema/governance-client-operations.schema.json",
+          "path": "packages/frontend/governance-client-operations/schema/governance-client-operations.schema.json",
+          "sha256": "e89e9f03a632b5bd5acfb725537538a1b2675ccfa7bbcadc82977e1bad143e35",
+          "bytes": 128166,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v1/governance-client-operations.schema.json",
+          "definitions": [
+            "Input",
+            "PublicExchange",
+            "Output"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/offer-expiry/schema",
+          "path": "packages/core/offer-expiry/schema/offer-expiry.schema.json",
+          "sha256": "2fa7b9bcd5ba528ef4dafc6812cc087c839c0a45a5e0f465747ad44a7230d05b",
+          "bytes": 5296,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/offer-expiry/v2/offer-expiry.schema.json",
+          "definitions": [
+            "Instant",
+            "OfferTiming",
+            "OfferState",
+            "SettledState"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/identity-values/schema",
+          "path": "packages/core/identity-values/schema/identity-values.schema.json",
+          "sha256": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+          "bytes": 15185,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/data/identity-values/v1/identity-values.schema.json",
+          "definitions": [
+            "OpaqueIdentifier",
+            "HandoffWarrant",
+            "LoginIdentifier",
+            "AccountId",
+            "OrganizationId",
+            "LoginStateId",
+            "OrganizationKind",
+            "TenantRole",
+            "TenantId",
+            "MembershipStanding",
+            "MembershipStandingResult",
+            "ScopeLayerIdentity"
+          ]
+        },
+        {
+          "specifier": "@omne-harness-lite/governance-center-client/schema",
+          "path": "packages/frontend/governance-center-client/schema/governance-center-entry.schema.json",
+          "sha256": "7c7124396ea16e1f0d2eda7d6a44f4284d9be77f2546e74de7ae740d718a3b29",
+          "bytes": 96559,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v2/governance-center-entry.schema.json",
+          "definitions": [
+            "GovernanceCenterId",
+            "LoginStatePresentation",
+            "ProtocolVersion",
+            "PublicHealthRouteId",
+            "EnvelopeRouteId",
+            "Envelope",
+            "PublicHealthRequest",
+            "EntryAnswer",
+            "RouteFailureName",
+            "RouteFailure",
+            "RouteSuccess",
+            "Exchange",
+            "LoginResult",
+            "LoginStateListItem",
+            "InvitationId",
+            "AffiliationRequestId",
+            "CreationKey",
+            "CredentialMaterial",
+            "OfferTtl",
+            "AffiliationDirection",
+            "CallerIdentityKind",
+            "OrganizationView",
+            "InvitationView",
+            "AffiliationRequestView",
+            "IncomingAffiliationRequestView",
+            "MemberView",
+            "Payload_AR_S8",
+            "Payload_AI_S15",
+            "Payload_AI_S16",
+            "Payload_AI_S37",
+            "Payload_OG_S21",
+            "Payload_OG_S22",
+            "Payload_OG_S23",
+            "Payload_OG_S24",
+            "Payload_OG_S25",
+            "Payload_OG_S26",
+            "Payload_OG_S27",
+            "Payload_OG_S28",
+            "Payload_OG_S29",
+            "Payload_OG_S30",
+            "Payload_OG_S31",
+            "Payload_OG_S32",
+            "Payload_OG_S33",
+            "Payload_OG_S34",
+            "Payload_OG_S35",
+            "Payload_OG_S36",
+            "Payload_OG_S37",
+            "Payload_OG_S55",
+            "Payload_OG_S56",
+            "Payload_OG_S57",
+            "Payload_OG_S58",
+            "Payload_OG_S59",
+            "Payload_OG_S60",
+            "Result_AR_S8",
+            "Result_AI_S15",
+            "Result_AI_S16",
+            "Result_AI_S37",
+            "Result_OG_S21",
+            "Result_OG_S22",
+            "Result_OG_S23",
+            "Result_OG_S24",
+            "Result_OG_S25",
+            "Result_OG_S26",
+            "Result_OG_S27",
+            "Result_OG_S28",
+            "Result_OG_S29",
+            "Result_OG_S30",
+            "Result_OG_S31",
+            "Result_OG_S32",
+            "Result_OG_S33",
+            "Result_OG_S34",
+            "Result_OG_S35",
+            "Result_OG_S36",
+            "Result_OG_S37",
+            "Result_OG_S55",
+            "Result_OG_S56",
+            "Result_OG_S57",
+            "Result_OG_S58",
+            "Result_OG_S59",
+            "Result_OG_S60",
+            "ClientFaceReply",
+            "PublicHealthReply",
+            "DeploymentParameterDuration",
+            "DeploymentParameters",
+            "FullHealthReply",
+            "Payload_AI_S50",
+            "Result_AI_S50",
+            "Payload_OG_S61",
+            "Result_OG_S61",
+            "Payload_OG_S62",
+            "Result_OG_S62",
+            "Payload_ENTRY_S50",
+            "Result_ENTRY_S50"
+          ]
+        },
+        {
+          "specifier": "../schema/governance-client-operations-v2.schema.json",
+          "path": "packages/frontend/governance-client-operations/schema/governance-client-operations-v2.schema.json",
+          "sha256": "ce0fb32438b8e5eb729985095e8a91d682c07b8b79fe3db548695b1783d261f6",
+          "bytes": 63477,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v2/governance-client-operations.schema.json",
+          "definitions": [
+            "Input",
+            "Output",
+            "PublicExchange",
+            "Intent",
+            "Preview",
+            "PromptResult",
+            "PromptExchange",
+            "PreviewIntent"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/cli/src/validation.ts",
+      "sourceSha256": "9b93e193d75f222458448734dacce83cf14c7f7c1a0e1c8f412c108d4ef7a7d6",
+      "constructors": [
+        {
+          "line": 5,
+          "options": "{\n  strict: true,\n  strictTypes: false,\n  strictRequired: false,\n  validateFormats: false,\n}"
+        }
+      ],
+      "definitions": [],
+      "bindings": [
+        {
+          "line": 11,
+          "expression": "ajv.addKeyword('x-counterexamples')"
+        },
+        {
+          "line": 19,
+          "expression": "ajv.addSchema(require(name))"
+        },
+        {
+          "line": 21,
+          "expression": "ajv.compile({ $ref: `${schema.$id}#/$defs/Intent` })"
+        },
+        {
+          "line": 22,
+          "expression": "ajv.compile({ $ref: `${schema.$id}#/$defs/Output` })"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "@omne-harness-lite/governance-client-operations/schema/v2",
+          "path": "packages/frontend/governance-client-operations/schema/governance-client-operations-v2.schema.json",
+          "sha256": "ce0fb32438b8e5eb729985095e8a91d682c07b8b79fe3db548695b1783d261f6",
+          "bytes": 63477,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-client-operations/v2/governance-client-operations.schema.json",
+          "definitions": [
+            "Input",
+            "Output",
+            "PublicExchange",
+            "Intent",
+            "Preview",
+            "PromptResult",
+            "PromptExchange",
+            "PreviewIntent"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "apps/cli/src/tui/forms.ts",
+      "sourceSha256": "689a811d66c4b23fa523320de728e11105095347a1c48527b6bdd5ef27cfce7d",
+      "constructors": [
+        {
+          "line": 35,
+          "options": "{ strict: true, strictRequired: false }"
+        }
+      ],
+      "definitions": [],
+      "bindings": [
+        {
+          "line": 35,
+          "expression": "new Ajv2020({ strict: true, strictRequired: false }).compile<readonly Form[]>(\n  require('../../forms/tui-forms.schema.json'),\n)"
+        }
+      ],
+      "resources": [
+        {
+          "specifier": "../../forms/tui-forms.schema.json",
+          "path": "apps/cli/forms/tui-forms.schema.json",
+          "sha256": "53f3bfbb05238143626cfd517073dd7bfcb1213ff652d4bcdeb77129afad3eed",
+          "bytes": 3668,
+          "id": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-cli-entry/v2/tui-forms.schema.json",
+          "definitions": [
+            "Condition",
+            "Field",
+            "Form"
+          ]
+        },
+        {
+          "specifier": "../../forms/forms.json",
+          "path": "apps/cli/forms/forms.json",
+          "sha256": "28916e341033ff9e33dac157e729d6b2c7d720a702906f214f9d46ade08c8a3c",
+          "bytes": 19629,
+          "definitions": []
+        }
+      ]
+    }
+  ]
+}

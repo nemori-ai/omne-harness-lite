@@ -1,0 +1,3 @@
+(node:32737) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+dry-run pass: 2 x 4 HTTPS sends, one unknown-cost stop; scenario SHA ec6a639383625d314938ca34d4cbcb271bc7cd5f4a8d342557d519be7273731c

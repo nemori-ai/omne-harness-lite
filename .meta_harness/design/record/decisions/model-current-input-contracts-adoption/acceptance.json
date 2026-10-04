@@ -1,0 +1,92 @@
+{
+  "format": 1,
+  "status": "accepted",
+  "decision_path": "record/decisions/model-current-input-contracts-adoption/decision.md",
+  "authority": "root primary technical planner under user implementation delegation; overall user acceptance excluded",
+  "at_utc": "2026-09-27T05:52:25.679341+00:00",
+  "user_instruction": "Implement the plan.",
+  "independent_spec_review": "record/proposals/model-request-adaptation/review.md#2026-09-27-当前读取链五包表达复审",
+  "independent_architecture_review": "record/proposals/model-request-adaptation/review.md",
+  "accepts": [
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.asset-evaluation",
+        "version": 4
+      },
+      "resources": {
+        "spec/capabilities/asset-evaluation/v4/contract.md": "52b52bebd08c8451b41c3a318583210102c7d8a3a1c804bf58eab701d4d589a7",
+        "spec/capabilities/asset-evaluation/v4/examples.md": "1a452140a1c4924d858499ff0db6fe6b6fcaa660ae0bb2bcd073d7d5f5c61770",
+        "spec/capabilities/asset-evaluation/v4/formal/Evaluation.als": "677174549d02368af4a112797c09bb0ec68a9b293f46f4995b7bcdcbb27ede1c",
+        "spec/capabilities/asset-evaluation/v4/formal/README.md": "fa8e3d19833717803a7c572f7d074bbeed02cedb04119c14638070f631723afe",
+        "spec/capabilities/asset-evaluation/v4/formal/RootSettings.als": "f4cd71d36cf9f558b221d84f6b4fcb1d75451a03bcd4490458f14d9832afce74",
+        "spec/capabilities/asset-evaluation/v4/formal/check-root-settings.py": "293741f7228f5c2be80bde377dc06d080b8b01f21318acd1bdcc8b36e0062a7b"
+      },
+      "scope_clauses": [
+        "S-1..S-47"
+      ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.assembly-manifest",
+        "version": 3
+      },
+      "resources": {
+        "spec/capabilities/assembly-manifest/v3/contract.md": "1a37d5c534c1318a72d9210e776eaf8c9a0f3f66d9feef951442975e47bec9f9",
+        "spec/capabilities/assembly-manifest/v3/examples.md": "f68a059dbaf2f6121dee313355f48e8b5dd1cacfa98dcc9a9aa6cbe9238f8dfb"
+      },
+      "scope_clauses": [
+        "S-1..S-33"
+      ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.asset-registry",
+        "version": 3
+      },
+      "resources": {
+        "spec/capabilities/asset-registry/v3/contract.md": "6b2f36192f0560158b07518bc2bfc7c862f88c54475000aca68153051e522118",
+        "spec/capabilities/asset-registry/v3/examples.md": "3c7cc96f873e882d44f0232779e4507793ac9b06d5383bf891e2f60789f29d10"
+      },
+      "scope_clauses": [
+        "S-1..S-50"
+      ]
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.loop-extension",
+        "version": 4
+      },
+      "resources": {
+        "spec/data/loop-extension/v4/contract.md": "cb317f3c0caf8a4e85ecde231440edeb98806c458a1524ed17207ab94827f6f3",
+        "spec/data/loop-extension/v4/loop-extension.schema.json": "f96437204b40f521332eadf2132667f88db457ac95b73ebb811dde41edd66ab8",
+        "spec/data/loop-extension/v4/examples.md": "01aebf2a126e92c2e57dd6bdf670201f70d4b6d5428383ef504d4a80215e4d22"
+      },
+      "scope_clauses": [
+        "S-1..S-41"
+      ]
+    }
+  ],
+  "provider_adoption": {
+    "node": "packages/core/asset-evaluation",
+    "input_sha256": {
+      "realization/packages/core/asset-evaluation/v4-design.md": "cf617761a6dd967d187bb3c37bf7f7fda5d4b9845175f7b84a966cba75fc246a",
+      "realization/packages/core/asset-evaluation/README.md": "c9ef36bd21e1f5cf38792ca6f81b7ca1e2486a7574d89242dd70217b7ffaca02",
+      "realization/packages/core/asset-evaluation/verification.md": "71c5d0df2a919e11d2ffa6666dbde1df692b87e8a851d927c4167b0912902abe",
+      "realization/packages/core/asset-evaluation/bindings.yaml": "3003a623f4a4ea56d60d76138dc179d45163bdf0fcfa5ef33f859b9058381c49"
+    },
+    "public_entry": "@omne-harness-lite/asset-evaluation",
+    "implementation": "pending v4 code and real verification"
+  },
+  "exclusions": [
+    "runtime3",
+    "runner3",
+    "other provider adoption",
+    "actual source and authorization proof",
+    "human overall acceptance"
+  ],
+  "human_overall_acceptance": false
+}

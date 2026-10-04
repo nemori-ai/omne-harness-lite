@@ -1,0 +1,517 @@
+{
+  "status": "PASS",
+  "commands": [
+    {
+      "label": "pack",
+      "command": [
+        "pnpm",
+        "pack",
+        "--out",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-boundaries/external-r6/pi-ai-transport-r6.tgz",
+        "--json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/packages/model/pi-ai-transport",
+      "exitCode": 0,
+      "durationSeconds": 0.43003082275390625
+    },
+    {
+      "label": "deploy",
+      "command": [
+        "pnpm",
+        "--filter",
+        "@omne-harness-lite/pi-ai-transport",
+        "deploy",
+        "--legacy",
+        "--prod",
+        "--offline",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/p2-boundaries/external-r6/deployed-r6"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime",
+      "exitCode": 0,
+      "durationSeconds": 1.982529878616333
+    },
+    {
+      "label": "external-root",
+      "command": [
+        "node",
+        "root.mjs"
+      ],
+      "cwd": "/tmp/omne-model-r6-public-7glesulw/package",
+      "exitCode": 0,
+      "durationSeconds": 1.4327008724212646
+    },
+    {
+      "label": "external-consumer",
+      "command": [
+        "node",
+        "consumer.mjs"
+      ],
+      "cwd": "/tmp/omne-model-r6-public-7glesulw/package",
+      "exitCode": 0,
+      "durationSeconds": 1.1744022369384766
+    },
+    {
+      "label": "external-boundaries",
+      "command": [
+        "node",
+        "boundaries.mjs"
+      ],
+      "cwd": "/tmp/omne-model-r6-public-7glesulw/package",
+      "exitCode": 0,
+      "durationSeconds": 3.742338180541992
+    },
+    {
+      "label": "relocated-root",
+      "command": [
+        "node",
+        "root.mjs"
+      ],
+      "cwd": "/tmp/omne-model-r6-relocated-o7l7jn7m/package",
+      "exitCode": 0,
+      "durationSeconds": 1.3770809173583984
+    },
+    {
+      "label": "relocated-consumer",
+      "command": [
+        "node",
+        "consumer.mjs"
+      ],
+      "cwd": "/tmp/omne-model-r6-relocated-o7l7jn7m/package",
+      "exitCode": 0,
+      "durationSeconds": 1.2383842468261719
+    },
+    {
+      "label": "relocated-boundaries",
+      "command": [
+        "node",
+        "boundaries.mjs"
+      ],
+      "cwd": "/tmp/omne-model-r6-relocated-o7l7jn7m/package",
+      "exitCode": 0,
+      "durationSeconds": 3.8329639434814453
+    }
+  ],
+  "artifactSha256": "9b0c60a7bd9887b57757b64e79d196267047c414517b39d03cf98eeb5ebd74c6",
+  "artifactBytes": 2106854,
+  "packSha256": "e23f52d78c403c3033c2f301d727517fb248e9a17507d1491d1a8f42e1828cc0",
+  "firstDirectory": "/tmp/omne-model-r6-public-7glesulw/package",
+  "relocatedDirectory": "/tmp/omne-model-r6-relocated-o7l7jn7m/package",
+  "paidRequests": 0,
+  "controlledTlsRequestsPerLegacyConsumer": 1,
+  "legacyConsumerRuns": 2,
+  "boundaryScenariosPerDirectory": 23,
+  "controlledTlsRequestsFinalRun": 84,
+  "matrices": [
+    {
+      "status": "PASS",
+      "selection": "all",
+      "reports": [
+        {
+          "group": "host",
+          "mode": "direct",
+          "requests": 1,
+          "queuedHttp": 0,
+          "oldLeaseNewHttp": 0,
+          "wireByteMatch": true,
+          "retainedReplyBytes": 18,
+          "actualSocketStops": 1,
+          "callbackRetained": true
+        },
+        {
+          "group": "host",
+          "mode": "cordis",
+          "requests": 1,
+          "queuedHttp": 0,
+          "oldLeaseNewHttp": 0,
+          "wireByteMatch": true,
+          "retainedReplyBytes": 18,
+          "actualSocketStops": 1,
+          "callbackRetained": true
+        },
+        {
+          "group": "diagnostic",
+          "mode": "baseline",
+          "requests": 2,
+          "direct": "complete",
+          "invoked": "complete",
+          "diagnosticEvents": 6,
+          "unhandledRejections": 0
+        },
+        {
+          "group": "diagnostic",
+          "mode": "throw",
+          "requests": 2,
+          "direct": "complete",
+          "invoked": "complete",
+          "diagnosticEvents": 6,
+          "unhandledRejections": 0
+        },
+        {
+          "group": "diagnostic",
+          "mode": "reject",
+          "requests": 2,
+          "direct": "complete",
+          "invoked": "complete",
+          "diagnosticEvents": 6,
+          "unhandledRejections": 0
+        },
+        {
+          "group": "diagnostic",
+          "mode": "pending",
+          "requests": 2,
+          "direct": "complete",
+          "invoked": "complete",
+          "diagnosticEvents": 6,
+          "unhandledRejections": 0
+        },
+        {
+          "group": "credential",
+          "kind": "http",
+          "order": "before",
+          "requests": 2,
+          "recursiveKeyValueAndServingScan": true,
+          "exactOrdinaryNumber": "90071992547409931991",
+          "markerKeyPreserved": true
+        },
+        {
+          "group": "credential",
+          "kind": "inband",
+          "order": "before",
+          "requests": 2,
+          "recursiveKeyValueAndServingScan": true,
+          "exactOrdinaryNumber": "90071992547409931991",
+          "markerKeyPreserved": true
+        },
+        {
+          "group": "credential",
+          "kind": "serving",
+          "order": "before",
+          "requests": 2,
+          "recursiveKeyValueAndServingScan": true,
+          "servingFactsScanned": true
+        },
+        {
+          "group": "credential",
+          "kind": "serving-stop",
+          "order": "before",
+          "requests": 2,
+          "recursiveKeyValueAndServingScan": true,
+          "servingFactsScanned": true
+        },
+        {
+          "group": "credential",
+          "kind": "inband",
+          "order": "before",
+          "requests": 2,
+          "recursiveKeyValueAndServingScan": true,
+          "exactOrdinaryNumber": "90071992547409931991",
+          "markerKeyPreserved": true
+        },
+        {
+          "group": "credential",
+          "kind": "inband",
+          "order": "after",
+          "requests": 2,
+          "recursiveKeyValueAndServingScan": true,
+          "exactOrdinaryNumber": "90071992547409931991",
+          "markerKeyPreserved": true
+        },
+        {
+          "group": "marker",
+          "credential": "redacted",
+          "requests": 1,
+          "noRecreatedAsciiCredential": true
+        },
+        {
+          "group": "marker",
+          "credential": "[redacted]",
+          "requests": 1,
+          "noRecreatedAsciiCredential": true
+        },
+        {
+          "group": "marker",
+          "credential": "AA[redacted]ZZ",
+          "requests": 1,
+          "noRecreatedAsciiCredential": true
+        },
+        {
+          "group": "usage",
+          "name": "empty",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "none",
+          "independentExactCost": false
+        },
+        {
+          "group": "usage",
+          "name": "reasoning-only",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "none",
+          "independentExactCost": false
+        },
+        {
+          "group": "usage",
+          "name": "cost-only",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "none",
+          "independentExactCost": true
+        },
+        {
+          "group": "usage",
+          "name": "invalid-base",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "none",
+          "independentExactCost": false
+        },
+        {
+          "group": "usage",
+          "name": "inconsistent-base",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "none",
+          "independentExactCost": false
+        },
+        {
+          "group": "usage",
+          "name": "known-zero-output",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "upstream",
+          "independentExactCost": false
+        },
+        {
+          "group": "usage",
+          "name": "known-zero-cache",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "upstream",
+          "independentExactCost": false
+        },
+        {
+          "group": "usage",
+          "name": "large-and-cost",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "upstream",
+          "independentExactCost": true
+        }
+      ],
+      "requests": 41,
+      "paidRequests": 0,
+      "unhandledRejections": []
+    },
+    {
+      "status": "PASS",
+      "selection": "all",
+      "reports": [
+        {
+          "group": "host",
+          "mode": "direct",
+          "requests": 1,
+          "queuedHttp": 0,
+          "oldLeaseNewHttp": 0,
+          "wireByteMatch": true,
+          "retainedReplyBytes": 18,
+          "actualSocketStops": 1,
+          "callbackRetained": true
+        },
+        {
+          "group": "host",
+          "mode": "cordis",
+          "requests": 1,
+          "queuedHttp": 0,
+          "oldLeaseNewHttp": 0,
+          "wireByteMatch": true,
+          "retainedReplyBytes": 18,
+          "actualSocketStops": 1,
+          "callbackRetained": true
+        },
+        {
+          "group": "diagnostic",
+          "mode": "baseline",
+          "requests": 2,
+          "direct": "complete",
+          "invoked": "complete",
+          "diagnosticEvents": 6,
+          "unhandledRejections": 0
+        },
+        {
+          "group": "diagnostic",
+          "mode": "throw",
+          "requests": 2,
+          "direct": "complete",
+          "invoked": "complete",
+          "diagnosticEvents": 6,
+          "unhandledRejections": 0
+        },
+        {
+          "group": "diagnostic",
+          "mode": "reject",
+          "requests": 2,
+          "direct": "complete",
+          "invoked": "complete",
+          "diagnosticEvents": 6,
+          "unhandledRejections": 0
+        },
+        {
+          "group": "diagnostic",
+          "mode": "pending",
+          "requests": 2,
+          "direct": "complete",
+          "invoked": "complete",
+          "diagnosticEvents": 6,
+          "unhandledRejections": 0
+        },
+        {
+          "group": "credential",
+          "kind": "http",
+          "order": "before",
+          "requests": 2,
+          "recursiveKeyValueAndServingScan": true,
+          "exactOrdinaryNumber": "90071992547409931991",
+          "markerKeyPreserved": true
+        },
+        {
+          "group": "credential",
+          "kind": "inband",
+          "order": "before",
+          "requests": 2,
+          "recursiveKeyValueAndServingScan": true,
+          "exactOrdinaryNumber": "90071992547409931991",
+          "markerKeyPreserved": true
+        },
+        {
+          "group": "credential",
+          "kind": "serving",
+          "order": "before",
+          "requests": 2,
+          "recursiveKeyValueAndServingScan": true,
+          "servingFactsScanned": true
+        },
+        {
+          "group": "credential",
+          "kind": "serving-stop",
+          "order": "before",
+          "requests": 2,
+          "recursiveKeyValueAndServingScan": true,
+          "servingFactsScanned": true
+        },
+        {
+          "group": "credential",
+          "kind": "inband",
+          "order": "before",
+          "requests": 2,
+          "recursiveKeyValueAndServingScan": true,
+          "exactOrdinaryNumber": "90071992547409931991",
+          "markerKeyPreserved": true
+        },
+        {
+          "group": "credential",
+          "kind": "inband",
+          "order": "after",
+          "requests": 2,
+          "recursiveKeyValueAndServingScan": true,
+          "exactOrdinaryNumber": "90071992547409931991",
+          "markerKeyPreserved": true
+        },
+        {
+          "group": "marker",
+          "credential": "redacted",
+          "requests": 1,
+          "noRecreatedAsciiCredential": true
+        },
+        {
+          "group": "marker",
+          "credential": "[redacted]",
+          "requests": 1,
+          "noRecreatedAsciiCredential": true
+        },
+        {
+          "group": "marker",
+          "credential": "AA[redacted]ZZ",
+          "requests": 1,
+          "noRecreatedAsciiCredential": true
+        },
+        {
+          "group": "usage",
+          "name": "empty",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "none",
+          "independentExactCost": false
+        },
+        {
+          "group": "usage",
+          "name": "reasoning-only",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "none",
+          "independentExactCost": false
+        },
+        {
+          "group": "usage",
+          "name": "cost-only",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "none",
+          "independentExactCost": true
+        },
+        {
+          "group": "usage",
+          "name": "invalid-base",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "none",
+          "independentExactCost": false
+        },
+        {
+          "group": "usage",
+          "name": "inconsistent-base",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "none",
+          "independentExactCost": false
+        },
+        {
+          "group": "usage",
+          "name": "known-zero-output",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "upstream",
+          "independentExactCost": false
+        },
+        {
+          "group": "usage",
+          "name": "known-zero-cache",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "upstream",
+          "independentExactCost": false
+        },
+        {
+          "group": "usage",
+          "name": "large-and-cost",
+          "requests": 2,
+          "publicUsageAndCostJudges": true,
+          "source": "upstream",
+          "independentExactCost": true
+        }
+      ],
+      "requests": 41,
+      "paidRequests": 0,
+      "unhandledRejections": []
+    }
+  ],
+  "sourceDrift": [],
+  "packageClosureCount": 15,
+  "inputFiles": 827,
+  "uncovered": [
+    "actual OpenRouter requests/cache hits/TTL expiry",
+    "37 full offers/configuration schemas/production certification",
+    "model runtime service/durable settlement",
+    "full T/SC/G gates"
+  ]
+}

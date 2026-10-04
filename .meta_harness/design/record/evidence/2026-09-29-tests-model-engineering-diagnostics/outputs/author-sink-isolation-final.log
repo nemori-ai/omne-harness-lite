@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-d6-completion/examples/model-invocation-minimal-demo
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  05:39:12
+   Duration  9.24s (transform 2.38s, setup 0ms, import 6.31s, tests 2.79s, environment 0ms)
+

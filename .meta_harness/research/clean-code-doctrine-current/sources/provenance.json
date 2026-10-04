@@ -1,0 +1,35 @@
+{
+ "captured_on": "2026-09-30",
+ "captured_by": "主会话（clean-code-doctrine-current 首轮）与三路子代理（著作线、agent 言论线、独立批评线）",
+ "verify": "cd sources && sha256sum -c SHA256SUMS",
+ "groups": {
+  "fx/<id>.json, fx-<id>.json": "X 原帖，api.fxtwitter.com/i/status/<id> 只读接口 JSON（含 created_at UTC、note_tweet 全文、replying_to）；主会话取回",
+  "synd-<id>.json": "cdn.syndication.twimg.com/tweet-result 接口 JSON（长帖截断 276 字），主会话取回",
+  "rants/<id>.json, rants/index.txt": "cleancoder.com『Morning Bathrobe Rants』26 条视频帖的 fx JSON 与索引（时长、视频 URL）",
+  "rants/<id>.transcript.txt": "上述视频的 faster-whisper base/int8 本地转写（批量，逐条落盘；缺者表示截止取证时未完成）",
+  "bathrobe-rant-2098744156709441896.transcript.txt(.json)": "2026-09-12 视频 260 s，faster-whisper small/int8 转写；mp4 原件未入库（132 MB）",
+  "uml-viewer-demo-2102079838639038629.transcript.txt(.json)": "2026-09-21 视频 533 s，同上；mp4 未入库（78 MB）",
+  "informit-cc2e.html": "InformIT Clean Code 2e 纸书页（目录、Published Oct 8, 2025）",
+  "cc2e-sample.pdf / cc2e-sample.txt": "InformIT 出版社样章 PDF（85 页）与 pypdf 抽取文本",
+  "ousterhout-debate-README.md": "github.com/johnousterhout/aposd-vs-clean-code main README 原文",
+  "cmuratori-cleancodeqa.md": "github.com/unclebob/cmuratori-discussion cleancodeqa.md 原文",
+  "blog-*.html, blog-index.html": "blog.cleancoder.com 页面",
+  "cleancoder-home.html": "cleancoder.com 首页（含 Morning Bathrobe Rants 列表）",
+  "gh-*.md, gh-repos.json, gh-aps-readme.md, swarm-forge/*, nte/*": "github.com/unclebob 仓库 README、API 仓库清单、swarm-forge 宪法三篇与 six-pack README、negative-test-experiment 五份文档",
+  "xdlkc-*.md": "github.com/xdlkc/uncle-bob-harness 第三方研究笔记（interview-core、twitter-raw、twitter-year、adversarial-review、operating-principles）",
+  "alexrusin.*, explainx.html, startupfortune.html, axol-2e.html, akita.html, mvark-april.html, github-unclebob-repos.html, oreilly-ai-agents-clean-code.html, x-2098432570887217520.html": "第三方页面原样字节",
+  "critics/*": "主会话抽核批评线来源的原页面（arXiv 摘要页、qntm、martinfowler.com、METR、Just 2014 PDF）",
+  "subagent-raw/": "三路子代理的原始抓取（tw_ 为 fx 推文 JSON 99 条；tl/ 为 profile 时间线翻页 846 条；v_ 为视频转写；kent_ 为播客官方逐字稿；cc_ 为 Clean Coders 页面；art_/informit/agile 为出版社样章；xdlkc_/gh_/yt_ 为其他）；模型输出不在其中，只有抓取原件",
+  "tooling/*": "2026-10-01 第二轮，主会话经 GitHub API 按提交取回并读过的三份工具源码：uml-viewer@017168235d4ec37aab460366f2c88e9805d92c32 src/uml_viewer/domain/config.clj；crapper@4909ad241ba0531f697900f2945a40edddcf1df9 src/crapper/languages/typescript.py 与 treesitter.py。两个仓库都没有 LICENSE 文件，副本只作复核依据"
+ },
+ "not_included": [
+  "两段 mp4 视频原件（210 MB）",
+  "26 条怒吼视频 mp4（转写后即删）",
+  "YouTube 访谈 zcLPGC-tvgk（字幕接口被封，未取得）"
+ ],
+ "tools": {
+  "faster-whisper": "uv run --python 3.12 --with faster-whisper --with av==13.1.0；模型 small（两段长视频）/ base（怒吼批量）, int8, CPU",
+  "fxtwitter": "https://api.fxtwitter.com/i/status/<id>"
+ },
+ "note_md_txt": "所有 Markdown 原件以 .md.txt 存放（同 eval-design-and-hillclimbing/sources 的做法），避免仓库链接检查把原件内的相对链接当作本仓库链接；原始文件名去掉 .txt 即是。"
+}

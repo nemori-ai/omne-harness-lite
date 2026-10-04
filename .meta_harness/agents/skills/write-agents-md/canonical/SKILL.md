@@ -15,6 +15,10 @@ place for every useful rule. Give the agent the project's mind, map, taste,
 hard boundaries, and routes to deeper knowledge. Assume a frontier model
 already knows ordinary engineering technique.
 
+Load the `asd-ste100` skill before you write or revise documentation.
+Follow its applicable writing rules.
+Keep this skill's authority boundaries, prompt structure, and required report.
+
 ## The Content Model
 
 Keep three layers distinct:

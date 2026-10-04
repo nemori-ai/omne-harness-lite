@@ -1,5 +1,11 @@
 # session-log-jsonl
 
+**2026-09-27 源码与诊断隔离实际增量**：SL3提供者源码已合入HUB，公开闭包／薄插件及四参数条件append已存在；修复后HUB本包178项通过。[W15独立制品及主线核对](../../../../record/evidence/2026-09-27-tests-model-request-runtime-guard-log/README.md)有限签收借用同步diagnostic sink的异常隔离，真实IO／内部异常不被吞、close失败仍保留锁直至实际退出；原804 Fail保留。该签收不是完整提供者验收，生产processOwnership观察、旧写方迁移及runtime组合仍待；当前新增bindings0。下方未建包／未验陈述保留各旧checkpoint范围。
+
+**2026-09-27 恢复识别增补**：[D-085](../../../../record/decisions/session-log-recovery-projection-adoption/decision.md) 已技术采用 [v3-recovery-design](v3-recovery-design.md) rev2（SHA256 `ea205862968dbe54889d7ba4b80ffcb33e04318c5ba8a82fb09367c1bbd324ae`）。沿D084补每日志预写active／健康clean和必填processOwnership，标记及锁不代证旧物理进程退出，三操作业务面不变。当前仅采用设计；真实宿主观察、10项恢复oracle及所有调用者／双语README迁移仍待，新增bindings0。施工spoke部分源码检查不构成本节点最终验收，下方较早“尚未建包”等按其日期读取。
+
+**2026-09-27 当前增量**：[D-084](../../../../record/decisions/session-log-jsonl-v3-projection-adoption/decision.md) 已技术采用 [SL3 提供者投影](v3-design.md) rev 2（SHA256 `f8561eed58597fbb972d474b14648f74f74cafae3d1125f7813a45a4c241b351`），消费 D-083 已接受的 session-log/v3。当前实施面为必填 condition 的四参数 append、两读面及独立闭包／薄插件；不可信态三操作 unavailable，旧 V-5 的读旧尾预期由 SLJ3-V8 替代，其余 IO 义务保留。旧三参数不兼容；RT3 等实际消费者须显式采用新版本和停旧写方后接入。当前尚未建包、绑定0、真实验证未完成。下方首稿状态按其 SL2／2026-09-25 范围读取，不以历史设计状态代新版实现证据。
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.session-log · v2`（[契约](../../../../spec/capabilities/session-log/v2/contract.md)，状态 `accepted`，已接受、已冻结）的**全部条款**，作为它第十一节说的「本版的最小提供者」（[D-063](../../../../record/decisions/assets-runtimes-rulings-2026-09-25/README.md) R-1）
 - 源码位置：`packages/session/session-log-jsonl`——**尚未建包**。第一层 `session` 已由产品负责人接受（[D-064 ⑱](../../../../record/decisions/assets-runtimes-rulings-2026-09-26/decision.md)）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
@@ -28,6 +34,7 @@
 | 三个运行时消费者的 L／RL 要求在这里落在哪 | [实现设计：消费者要求的承接](design.md#消费者要求的承接互指) |
 | 策略配置项与初值 | [实现设计：策略配置项](design.md#策略配置项) |
 | 装卸配对、在途追加归谁 | [实现设计：成对的装载与撤除](design.md#成对的装载与撤除) |
+| SL3 四参数条件、同文件比较／整批提交、未知恢复与迁移 | [已采用增量](v3-design.md)及[D-084](../../../../record/decisions/session-log-jsonl-v3-projection-adoption/decision.md) |
 | 哪条承诺由哪份证据支持 | [绑定表](bindings.yaml)（空） |
 | 证据义务、还缺什么 | [验证与证据](verification.md) |
 

@@ -77,7 +77,7 @@ PF-002 因对象的种类或组合形状变，本 topic 因流动的方向或语
 
 ## 状态
 
-- 产品设计：**rev 6**，本轮工作区一致性增量为草稿；按 PF-020 已确认规则修订，原有接受与评审范围不扩张。此前状态：**rev 5，已正式接受**（产品负责人，2026-09-26，[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)）。现行规则及显式缺口按本包正文。
+- 产品设计：**rev 6**，本次工作区一致性增量**已正式接受**（2026-09-27，依据[本次登记](decisions.md#2026-09-27-工作区增量正式状态登记)）；此前 rev 5 的正式接受范围保留（[D-065](../../record/decisions/assets-runtimes-formal-acceptance-2026-09-26/decision.md)），现存未决与技术投影状态分别保留。
 - 未决项：**无**
 - 待裁决：**0**；提升时生效分享的现行规格处理已随 D-065 接受，历史候选与来由见 decisions.md。
 - 技术投影：[v2](projection/README.md)，当前 accepted／post-review；规格来源已冻结，产品与节点以快照 hash 核对；显式缺口及未实现状态分别保留

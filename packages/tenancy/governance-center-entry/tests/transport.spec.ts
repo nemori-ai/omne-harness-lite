@@ -379,33 +379,38 @@ describe('V-6：开门之前问不到', () => {
 })
 
 describe('读尽时限（S-5；两张面同一连接层）', () => {
-  it('写完答复后对端一直不关写 ⇒ 读尽时限到了中心全关（在中心一侧观察连接关闭的时刻）', async () => {
-    const server = createNetServer({ allowHalfOpen: true })
-    const closedAfter = new Promise<number>(resolve => {
-      server.on('connection', socket => {
-        const connection = new Http1Connection(socket, RECEIVE_LIMITS, {
-          accepting: () => true,
-          answer: async () => REJECTED,
-        })
-        void connection.answered.then(() => {
-          const answeredAt = performance.now()
-          void connection.closed.then(() => resolve(performance.now() - answeredAt))
+  // 归慢层：真实等待＋网络：在本地 TCP 连接上按真实时钟等满读尽时限。
+  it(
+    '写完答复后对端一直不关写 ⇒ 读尽时限到了中心全关（在中心一侧观察连接关闭的时刻）',
+    { tags: ['slow'] },
+    async () => {
+      const server = createNetServer({ allowHalfOpen: true })
+      const closedAfter = new Promise<number>(resolve => {
+        server.on('connection', socket => {
+          const connection = new Http1Connection(socket, RECEIVE_LIMITS, {
+            accepting: () => true,
+            answer: async () => REJECTED,
+          })
+          void connection.answered.then(() => {
+            const answeredAt = performance.now()
+            void connection.closed.then(() => resolve(performance.now() - answeredAt))
+          })
         })
       })
-    })
-    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
-    const address = server.address()
-    if (address === null || typeof address === 'string') throw new Error('no port')
-    const client = netConnect({ host: '127.0.0.1', port: address.port, allowHalfOpen: true })
-    const received: Buffer[] = []
-    client.on('data', chunk => received.push(chunk))
-    client.on('error', () => undefined)
-    client.write(httpRequest('{}'))
-    const elapsed = await closedAfter
-    expect(Buffer.concat(received)).toEqual(REJECTED)
-    expect(elapsed).toBeGreaterThanOrEqual(RECEIVE_LIMITS.drainTimeoutMs - 50)
-    expect(elapsed).toBeLessThan(RECEIVE_LIMITS.drainTimeoutMs + 1_000)
-    client.destroy()
-    await new Promise<void>(resolve => server.close(() => resolve()))
-  }, 15_000)
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+      const address = server.address()
+      if (address === null || typeof address === 'string') throw new Error('no port')
+      const client = netConnect({ host: '127.0.0.1', port: address.port, allowHalfOpen: true })
+      const received: Buffer[] = []
+      client.on('data', chunk => received.push(chunk))
+      client.on('error', () => undefined)
+      client.write(httpRequest('{}'))
+      const elapsed = await closedAfter
+      expect(Buffer.concat(received)).toEqual(REJECTED)
+      expect(elapsed).toBeGreaterThanOrEqual(RECEIVE_LIMITS.drainTimeoutMs - 50)
+      expect(elapsed).toBeLessThan(RECEIVE_LIMITS.drainTimeoutMs + 1_000)
+      client.destroy()
+      await new Promise<void>(resolve => server.close(() => resolve()))
+    },
+  )
 })

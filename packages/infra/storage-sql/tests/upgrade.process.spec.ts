@@ -75,26 +75,31 @@ describe('upgrade.exclusive-owner', () => {
     await reopened.close()
   })
 
-  it('两个子进程：后起者「被占」且没碰库与快照；先起者被 SIGKILL 之后，后起者再起即成功（锁随进程释放）', async () => {
-    const file = tempSqliteFile('exclusive')
-    await confirmedDatabase(file, ['t1'])
+  // 归慢层：子进程＋真库：三个子进程先后争同一个 SQLite 文件库的升级排他，先起者被 SIGKILL。
+  it(
+    '两个子进程：后起者「被占」且没碰库与快照；先起者被 SIGKILL 之后，后起者再起即成功（锁随进程释放）',
+    { tags: ['slow'] },
+    async () => {
+      const file = tempSqliteFile('exclusive')
+      await confirmedDatabase(file, ['t1'])
 
-    const first = spawnOwner({ file, migrations: ['t1', 't2'] })
-    await first.until('ready')
-    // 先起者已升级、未确认：快照在，库里有 t2
-    const snapshotDigest = digest(snapshotOf(file))
+      const first = spawnOwner({ file, migrations: ['t1', 't2'] })
+      await first.until('ready')
+      // 先起者已升级、未确认：快照在，库里有 t2
+      const snapshotDigest = digest(snapshotOf(file))
 
-    const second = spawnOwner({ file, migrations: ['t1', 't2'] })
-    expect(await second.until('failed:')).toBe('failed:occupied')
-    expect(await second.exited()).toBe(0)
-    // 没有排他时后起者会把先起者未确认的快照当遗留恢复掉——这里它原样在
-    expect(digest(snapshotOf(file))).toBe(snapshotDigest)
+      const second = spawnOwner({ file, migrations: ['t1', 't2'] })
+      expect(await second.until('failed:')).toBe('failed:occupied')
+      expect(await second.exited()).toBe(0)
+      // 没有排他时后起者会把先起者未确认的快照当遗留恢复掉——这里它原样在
+      expect(digest(snapshotOf(file))).toBe(snapshotDigest)
 
-    await first.kill()
-    const third = spawnOwner({ file, migrations: ['t1', 't2'] })
-    await third.until('ready')
-    await third.kill()
-  }, 30_000)
+      await first.kill()
+      const third = spawnOwner({ file, migrations: ['t1', 't2'] })
+      await third.until('ready')
+      await third.kill()
+    },
+  )
 
   it('同进程第二个开了守卫的实例同样「被占」；不开守卫的实例不受影响', async () => {
     const file = tempSqliteFile('exclusive-same-process')
@@ -121,51 +126,56 @@ describe('upgrade.exclusive-owner', () => {
 })
 
 describe('upgrade.leftover-restored：真崩溃之后下一次启动先恢复', () => {
-  it('⑥之后、⑦中、恢复的「删附属文件之后、替换之前」各被杀一次 ⇒ 最终库与只跑旧序列的库内容一致', async () => {
-    const file = tempSqliteFile('leftover')
-    await confirmedDatabase(file, ['t1'])
-    const plain = await openStorage({ dialect: 'sqlite', file, upgrade: false })
-    await plain.write(async tx => {
-      await tx.db.insertInto('t1').values({ id: 'before-upgrade' }).execute()
-    })
-    await plain.close()
-    const before = dumpDatabase(file)
+  // 归慢层：子进程＋真库：先后三个升级子进程在指定时点被 SIGKILL，再重开 SQLite 文件库恢复核对。
+  it(
+    '⑥之后、⑦中、恢复的「删附属文件之后、替换之前」各被杀一次 ⇒ 最终库与只跑旧序列的库内容一致',
+    { tags: ['slow'] },
+    async () => {
+      const file = tempSqliteFile('leftover')
+      await confirmedDatabase(file, ['t1'])
+      const plain = await openStorage({ dialect: 'sqlite', file, upgrade: false })
+      await plain.write(async tx => {
+        await tx.db.insertInto('t1').values({ id: 'before-upgrade' }).execute()
+      })
+      await plain.close()
+      const before = dumpDatabase(file)
 
-    // ⑥之后被杀：快照已建、迁移未跑
-    const afterSnapshot = spawnOwner({ file, migrations: ['t1', 't2'], stopAt: 'beforeMigrate' })
-    await afterSnapshot.until('at:beforeMigrate')
-    await afterSnapshot.kill()
-    expect(existsSync(snapshotOf(file))).toBe(true)
+      // ⑥之后被杀：快照已建、迁移未跑
+      const afterSnapshot = spawnOwner({ file, migrations: ['t1', 't2'], stopAt: 'beforeMigrate' })
+      await afterSnapshot.until('at:beforeMigrate')
+      await afterSnapshot.kill()
+      expect(existsSync(snapshotOf(file))).toBe(true)
 
-    // 下一次启动在恢复的「删附属文件之后、替换之前」被杀：快照仍在，附属文件已不在
-    const midRestore = spawnOwner({
-      file,
-      migrations: ['t1', 't2'],
-      stopAt: 'afterSidecarsRemoved',
-    })
-    await midRestore.until('at:afterSidecarsRemoved')
-    await midRestore.kill()
-    expect(existsSync(snapshotOf(file))).toBe(true)
-    expect(existsSync(`${file}-wal`)).toBe(false)
+      // 下一次启动在恢复的「删附属文件之后、替换之前」被杀：快照仍在，附属文件已不在
+      const midRestore = spawnOwner({
+        file,
+        migrations: ['t1', 't2'],
+        stopAt: 'afterSidecarsRemoved',
+      })
+      await midRestore.until('at:afterSidecarsRemoved')
+      await midRestore.kill()
+      expect(existsSync(snapshotOf(file))).toBe(true)
+      expect(existsSync(`${file}-wal`)).toBe(false)
 
-    // 再下一次：恢复做完，重建快照，迁移跑到一半被杀（t2 已建，hang 未完成）
-    const midMigration = spawnOwner({ file, migrations: ['t1', 't2', 'hang'] })
-    await midMigration.until('at:migration')
-    await midMigration.kill()
-    expect(existsSync(snapshotOf(file))).toBe(true)
+      // 再下一次：恢复做完，重建快照，迁移跑到一半被杀（t2 已建，hang 未完成）
+      const midMigration = spawnOwner({ file, migrations: ['t1', 't2', 'hang'] })
+      await midMigration.until('at:migration')
+      await midMigration.kill()
+      expect(existsSync(snapshotOf(file))).toBe(true)
 
-    // 旧版本（只认 t1）照常能起：先恢复，库回到升级之前
-    const guard = createUpgradeGuard()
-    const storage = await openStorage(ownerConfig(file, guard, ['t1']))
-    expect(await guard.confirm()).toEqual({
-      migrated: false,
-      snapshotTaken: false,
-      snapshotRemoved: false,
-    })
-    await storage.close()
-    expect(existsSync(snapshotOf(file))).toBe(false)
-    expect(dumpDatabase(file)).toEqual(before)
-  }, 60_000)
+      // 旧版本（只认 t1）照常能起：先恢复，库回到升级之前
+      const guard = createUpgradeGuard()
+      const storage = await openStorage(ownerConfig(file, guard, ['t1']))
+      expect(await guard.confirm()).toEqual({
+        migrated: false,
+        snapshotTaken: false,
+        snapshotRemoved: false,
+      })
+      await storage.close()
+      expect(existsSync(snapshotOf(file))).toBe(false)
+      expect(dumpDatabase(file)).toEqual(before)
+    },
+  )
 
   it('⑥写好临时名、改名之前被杀 ⇒ 下一次启动②删掉半成品、⑥照常建成快照；pending() 从不把半成品报成快照', async () => {
     const file = tempSqliteFile('leftover-temp')

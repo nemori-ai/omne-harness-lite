@@ -1,0 +1,1267 @@
+{
+ "head": "eb2b5bf00dca8facc67d5c082418d09e4a0fbdc0",
+ "dirty": false,
+ "base": {
+  "ref": "dfa3eb92e292dddb1bb47cf122212362d095c143",
+  "mergeBase": "dfa3eb92e292dddb1bb47cf122212362d095c143"
+ },
+ "plan": {
+  "mode": "scoped",
+  "reason": "162 个改动文件，成员 2 个（自己改了 1 个、依赖方 0 个、只因读者规则 1 个）；pytest 不跑",
+  "files": [
+   {
+    "path": ".meta_harness/design/realization/packages/model/pi-ai-transport/README.md",
+    "category": "resident",
+    "rule": ".meta_harness/design/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/design/realization/packages/model/pi-ai-transport/v16-moonshot-empty-text-design.md",
+    "category": "resident",
+    "rule": ".meta_harness/design/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/design/realization/packages/model/pi-ai-transport/verification.md",
+    "category": "resident",
+    "rule": ".meta_harness/design/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/design/record/decisions/README.md",
+    "category": "resident",
+    "rule": ".meta_harness/design/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/design/record/decisions/moonshot-empty-text-adoption/README.md",
+    "category": "resident",
+    "rule": ".meta_harness/design/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/design/record/decisions/moonshot-empty-text-adoption/decision.md",
+    "category": "resident",
+    "rule": ".meta_harness/design/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/design/record/proposals/README.md",
+    "category": "resident",
+    "rule": ".meta_harness/design/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/design/record/proposals/moonshot-empty-text/README.md",
+    "category": "resident",
+    "rule": ".meta_harness/design/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/design/record/proposals/moonshot-empty-text/alternatives.md",
+    "category": "resident",
+    "rule": ".meta_harness/design/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/design/record/proposals/moonshot-empty-text/review.md",
+    "category": "resident",
+    "rule": ".meta_harness/design/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/README.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/README.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/changelog.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/evidence.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-02-live-1-summary.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-02-live-2-summary.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-02-live-3-25-moonshotai_kimi-k3-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-02-live-3-26-moonshotai_kimi-k3-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-02-live-3-28-moonshotai_kimi-k2.7-code-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-02-live-3-29-moonshotai_kimi-k2.7-code-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-02-live-3-31-z-ai_glm-5.3-flash-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-02-live-3-32-z-ai_glm-5.3-flash-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-02-live-3-summary.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-02-request-index.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-03-current-planner-kimi-k3/README.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-03-current-planner-kimi-k3/anthropic-local-50.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-03-current-planner-kimi-k3/capture-50-baseline-plan.mts",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-03-current-planner-kimi-k3/capture-50-other-official.mts",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-03-current-planner-kimi-k3/ledger.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-03-current-planner-kimi-k3/live50-current-request.mts",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-03-current-planner-kimi-k3/planned-request.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-03-current-planner-kimi-k3/preflight.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-03-current-planner-kimi-k3/probe50-anthropic-local.mts",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-03-current-planner-kimi-k3/provenance.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/2026-10-03-current-planner-kimi-k3/result.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/SHA256SUMS",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/a.txt",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/01-openai_gpt-6-astra-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/02-openai_gpt-6-astra-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/03-openai_gpt-6-astra-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/04-openai_gpt-6-astra-pro-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/05-openai_gpt-6-astra-pro-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/06-openai_gpt-6-astra-pro-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/07-openai_gpt-6-sol-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/08-openai_gpt-6-sol-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/09-openai_gpt-6-sol-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/10-openai_gpt-6-sol-pro-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/11-openai_gpt-6-sol-pro-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/12-openai_gpt-6-sol-pro-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/13-openai_gpt-6-luna-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/14-openai_gpt-6-luna-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/15-openai_gpt-6-luna-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/16-openai_gpt-6-luna-pro-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/17-openai_gpt-6-luna-pro-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-1/summary.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/01-openai_gpt-6-luna-pro-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/02-openai_gpt-6-luna-pro-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/03-openai_gpt-6-luna-pro-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/04-openai_gpt-5.6-sol-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/05-openai_gpt-5.6-sol-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/06-openai_gpt-5.6-sol-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/07-openai_gpt-5.6-sol-pro-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/08-openai_gpt-5.6-sol-pro-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/09-openai_gpt-5.6-sol-pro-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/10-openai_gpt-5.6-terra-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/11-openai_gpt-5.6-terra-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/12-openai_gpt-5.6-terra-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/13-openai_gpt-5.6-terra-pro-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/14-openai_gpt-5.6-terra-pro-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/15-openai_gpt-5.6-terra-pro-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/16-openai_gpt-5.6-luna-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/17-openai_gpt-5.6-luna-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/18-openai_gpt-5.6-luna-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/19-openai_gpt-5.6-luna-pro-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/20-openai_gpt-5.6-luna-pro-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/21-openai_gpt-5.6-luna-pro-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/22-anthropic_claude-opus-5.5-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/23-anthropic_claude-opus-5.5-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/24-anthropic_claude-opus-5.5-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/25-anthropic_claude-opus-5-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/26-anthropic_claude-opus-5-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/27-anthropic_claude-opus-5-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/28-anthropic_claude-sonnet-5-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/29-anthropic_claude-sonnet-5-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/30-anthropic_claude-sonnet-5-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/31-anthropic_claude-fable-5.1-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/32-anthropic_claude-fable-5.1-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/33-anthropic_claude-fable-5.1-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/34-deepseek_deepseek-v4.1-flash-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/35-deepseek_deepseek-v4.1-flash-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/36-deepseek_deepseek-v4.1-flash-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/37-google_gemini-3.8-flash-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/38-google_gemini-3.8-flash-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/39-google_gemini-3.8-flash-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/40-google_gemini-3.7-flash-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/41-google_gemini-3.7-flash-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/42-google_gemini-3.7-flash-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/43-x-ai_grok-4.7-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/44-x-ai_grok-4.7-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-2/summary.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/01-x-ai_grok-4.7-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/02-x-ai_grok-4.7-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/03-x-ai_grok-4.7-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/04-x-ai_grok-4.6-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/05-x-ai_grok-4.6-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/06-x-ai_grok-4.6-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/07-qwen_qwen3.8-max-0902-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/08-qwen_qwen3.8-max-0902-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/09-qwen_qwen3.8-max-0902-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/10-qwen_qwen3.8-max-prime-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/11-qwen_qwen3.8-max-prime-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/12-qwen_qwen3.8-max-prime-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/13-qwen_qwen3.8-flash-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/14-qwen_qwen3.8-flash-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/15-qwen_qwen3.8-flash-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/16-qwen_qwen3.8-27b-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/17-qwen_qwen3.8-27b-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/18-qwen_qwen3.8-27b-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/19-qwen_qwen3.7-plus-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/20-qwen_qwen3.7-plus-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/21-qwen_qwen3.7-plus-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/22-qwen_qwen3.7-flash-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/23-qwen_qwen3.7-flash-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/24-qwen_qwen3.7-flash-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/25-moonshotai_kimi-k3-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/26-moonshotai_kimi-k3-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/27-moonshotai_kimi-k3-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/28-moonshotai_kimi-k2.7-code-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/29-moonshotai_kimi-k2.7-code-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/30-moonshotai_kimi-k2.7-code-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/31-z-ai_glm-5.3-flash-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/32-z-ai_glm-5.3-flash-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/33-z-ai_glm-5.3-flash-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/34-z-ai_glm-5.3-flashx-A1.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/35-z-ai_glm-5.3-flashx-A2.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/36-z-ai_glm-5.3-flashx-B.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/live-3/summary.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/archive/provenance.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/provenance.json",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/sources/or-api_reference_errors-and-debugging.html",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/sources/or-faq.html",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/sources/original-probe.mjs",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/sources/portable-probe.mjs",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/sources/price_check.py",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/reports/sources/reconcile.py",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": ".meta_harness/research/empty-text-part-acceptance/research.md",
+    "category": "resident",
+    "rule": ".meta_harness/research/**",
+    "reads": []
+   },
+   {
+    "path": "packages/model/pi-ai-transport/README.md",
+    "category": "resident",
+    "rule": "packages/*/*/*.md",
+    "reads": []
+   },
+   {
+    "path": "packages/model/pi-ai-transport/README_ZH.md",
+    "category": "resident",
+    "rule": "packages/*/*/*.md",
+    "reads": []
+   },
+   {
+    "path": "packages/model/pi-ai-transport/provenance.json",
+    "category": "member",
+    "rule": "packages/model/pi-ai-transport",
+    "reads": [],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/src/official-catalog.ts",
+    "category": "reader",
+    "rule": "packages/**/*.ts",
+    "reads": [
+     {
+      "pattern": "packages/**/*.ts",
+      "members": [
+       "tools/ts-checks"
+      ]
+     }
+    ],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/src/official-models/moonshot.ts",
+    "category": "reader",
+    "rule": "packages/**/*.ts",
+    "reads": [
+     {
+      "pattern": "packages/**/*.ts",
+      "members": [
+       "tools/ts-checks"
+      ]
+     }
+    ],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/src/plan.ts",
+    "category": "reader",
+    "rule": "packages/**/*.ts",
+    "reads": [
+     {
+      "pattern": "packages/**/*.ts",
+      "members": [
+       "tools/ts-checks"
+      ]
+     }
+    ],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/tests/fixtures/moonshot/before-empty-text-mp4-18.json",
+    "category": "member",
+    "rule": "packages/model/pi-ai-transport",
+    "reads": [],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/tests/fixtures/moonshot/other-official-before-empty-text.json",
+    "category": "member",
+    "rule": "packages/model/pi-ai-transport",
+    "reads": [],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/tests/fixtures/official-catalog/fingerprint.json",
+    "category": "member",
+    "rule": "packages/model/pi-ai-transport",
+    "reads": [],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/tests/fixtures/shared-reader/moonshot-visible-reasoning.json",
+    "category": "member",
+    "rule": "packages/model/pi-ai-transport",
+    "reads": [],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/tests/moonshot-closeout-boundaries.spec.ts",
+    "category": "reader",
+    "rule": "packages/**/*.ts",
+    "reads": [
+     {
+      "pattern": "packages/**/*.ts",
+      "members": [
+       "tools/ts-checks"
+      ]
+     }
+    ],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/tests/moonshot-empty-text.spec.ts",
+    "category": "reader",
+    "rule": "packages/**/*.ts",
+    "reads": [
+     {
+      "pattern": "packages/**/*.ts",
+      "members": [
+       "tools/ts-checks"
+      ]
+     }
+    ],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/tests/moonshot-support.ts",
+    "category": "reader",
+    "rule": "packages/**/*.ts",
+    "reads": [
+     {
+      "pattern": "packages/**/*.ts",
+      "members": [
+       "tools/ts-checks"
+      ]
+     }
+    ],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/tests/moonshot-three-round.spec.ts",
+    "category": "reader",
+    "rule": "packages/**/*.ts",
+    "reads": [
+     {
+      "pattern": "packages/**/*.ts",
+      "members": [
+       "tools/ts-checks"
+      ]
+     }
+    ],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/tests/official-moonshot-definitions.spec.ts",
+    "category": "reader",
+    "rule": "packages/**/*.ts",
+    "reads": [
+     {
+      "pattern": "packages/**/*.ts",
+      "members": [
+       "tools/ts-checks"
+      ]
+     }
+    ],
+    "owner": "packages/model/pi-ai-transport"
+   },
+   {
+    "path": "packages/model/pi-ai-transport/tokenizers/moonshot/provenance.json",
+    "category": "member",
+    "rule": "packages/model/pi-ai-transport",
+    "reads": [],
+    "owner": "packages/model/pi-ai-transport"
+   }
+  ],
+  "members": [
+   {
+    "path": "packages/model/pi-ai-transport",
+    "changed": [
+     "packages/model/pi-ai-transport/provenance.json",
+     "packages/model/pi-ai-transport/src/official-catalog.ts",
+     "packages/model/pi-ai-transport/src/official-models/moonshot.ts",
+     "packages/model/pi-ai-transport/src/plan.ts",
+     "packages/model/pi-ai-transport/tests/fixtures/moonshot/before-empty-text-mp4-18.json",
+     "packages/model/pi-ai-transport/tests/fixtures/moonshot/other-official-before-empty-text.json",
+     "packages/model/pi-ai-transport/tests/fixtures/official-catalog/fingerprint.json",
+     "packages/model/pi-ai-transport/tests/fixtures/shared-reader/moonshot-visible-reasoning.json",
+     "packages/model/pi-ai-transport/tests/moonshot-closeout-boundaries.spec.ts",
+     "packages/model/pi-ai-transport/tests/moonshot-empty-text.spec.ts",
+     "packages/model/pi-ai-transport/tests/moonshot-support.ts",
+     "packages/model/pi-ai-transport/tests/moonshot-three-round.spec.ts",
+     "packages/model/pi-ai-transport/tests/official-moonshot-definitions.spec.ts",
+     "packages/model/pi-ai-transport/tokenizers/moonshot/provenance.json"
+    ],
+    "reads": []
+   },
+   {
+    "path": "tools/ts-checks",
+    "changed": [],
+    "reads": [
+     {
+      "path": "packages/model/pi-ai-transport/src/official-catalog.ts",
+      "pattern": "packages/**/*.ts"
+     },
+     {
+      "path": "packages/model/pi-ai-transport/src/official-models/moonshot.ts",
+      "pattern": "packages/**/*.ts"
+     },
+     {
+      "path": "packages/model/pi-ai-transport/src/plan.ts",
+      "pattern": "packages/**/*.ts"
+     },
+     {
+      "path": "packages/model/pi-ai-transport/tests/moonshot-closeout-boundaries.spec.ts",
+      "pattern": "packages/**/*.ts"
+     },
+     {
+      "path": "packages/model/pi-ai-transport/tests/moonshot-empty-text.spec.ts",
+      "pattern": "packages/**/*.ts"
+     },
+     {
+      "path": "packages/model/pi-ai-transport/tests/moonshot-support.ts",
+      "pattern": "packages/**/*.ts"
+     },
+     {
+      "path": "packages/model/pi-ai-transport/tests/moonshot-three-round.spec.ts",
+      "pattern": "packages/**/*.ts"
+     },
+     {
+      "path": "packages/model/pi-ai-transport/tests/official-moonshot-definitions.spec.ts",
+      "pattern": "packages/**/*.ts"
+     }
+    ]
+   }
+  ],
+  "build": [
+   {
+    "path": "packages/assets/assembly-manifest-store",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/assets/evaluation-input-store",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/agent-definition",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/arrival-events",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/asset-evaluation",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/asset-model",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/call-accounts",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/content-blocks",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/identity-values",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/kernel-basis",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/loop-extension",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/mcp-endpoint",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/messages",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/model-profile",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/model-response",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/offer-expiry",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/skill-package",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/slash-command",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/storage",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/stream-assembly",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/core/tool-definition",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/infra/clock",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/infra/storage-sql",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/model/model-profile-directory",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/model/model-request-runtime",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/model/pi-ai-transport",
+    "reason": "selected"
+   },
+   {
+    "path": "packages/session/session-log-jsonl",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/session/session-tenancy-table",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/tenancy/account-identity",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/tenancy/account-registration",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/tenancy/credential-verification",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/tenancy/organization-governance",
+    "reason": "dependency"
+   },
+   {
+    "path": "packages/tools/asset-registry",
+    "reason": "dependency"
+   },
+   {
+    "path": "tools/ts-checks",
+    "reason": "selected"
+   }
+  ],
+  "typecheck": [
+   "packages/model/pi-ai-transport",
+   "tools/ts-checks"
+  ],
+  "test": [
+   "packages/model/pi-ai-transport",
+   "tools/ts-checks"
+  ],
+  "acceptance": [],
+  "python": {
+   "run": false,
+   "reason": "没有改动命中 Python 工具的路径"
+  }
+ }
+}

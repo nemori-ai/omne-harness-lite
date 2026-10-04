@@ -1,0 +1,77 @@
+{
+  "index": 37,
+  "route": "google/gemini-3.8-flash",
+  "providerRequested": "google-ai-studio",
+  "variant": "A1",
+  "startedAt": "2026-10-02T17:04:42.547Z",
+  "finishedAt": "2026-10-02T17:04:44.194Z",
+  "durationMs": 1647,
+  "reservationUsd": "0.005075250000000000",
+  "costUsd": "0.001042500000",
+  "costReported": true,
+  "providerMismatch": true,
+  "status": 200,
+  "usage": {
+    "prompt_tokens": 1090,
+    "completion_tokens": 60,
+    "total_tokens": 1150,
+    "cost": "0.0010425",
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0010425,
+      "upstream_inference_prompt_cost": 0.0008175,
+      "upstream_inference_completions_cost": 0.000225
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 57,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "provider": "Google AI Studio",
+  "upstreamModel": "google/gemini-3.8-flash",
+  "requestId": "gen-1790960682-PnNcYROTRdGEIpqyOQM5",
+  "finish": "length",
+  "outputPreview": "This is a",
+  "outcome": "accepted",
+  "rawResponse": "data: {\"id\":\"gen-1790960682-PnNcYROTRdGEIpqyOQM5\",\"object\":\"chat.completion.chunk\",\"created\":1790960682,\"model\":\"google/gemini-3.8-flash\",\"provider\":\"Google AI Studio\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"This is a\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960682-PnNcYROTRdGEIpqyOQM5\",\"object\":\"chat.completion.chunk\",\"created\":1790960682,\"model\":\"google/gemini-3.8-flash\",\"provider\":\"Google AI Studio\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"signature\":\"ErgCCrUCAWkUfROxObkcDgWmygqAUSnw4zmT1oqc+RHnak0nVrucZtuC+uAWX7JWSdt8XhFErhGTY+xNYCkUsQXQB3nJWVrqr0MzA2oat++tRudD6enee45y4s+ejrAtFAepQoQV4LZJ8DxZbfSKgPDIc2OER2PbAnIRwdcM55rx3jcAdPgLwtwohR3k1W+/ty6CbuXba31GtaepcL2dsLtwCqpkWW7NIPtiKuOlk5apWAsnzEho2eM85SQgfLtJyR0eiZYKzEiiHH7oKi71c4LWELe//s4+EsnY6Aoa9/2AAQ0l/6rPtZEx629yjUHV2mMDI1E2fiM3cDj2P2F8X0ANdUZHQ85U70mGRkLhF3cX0OTu/fqTiYLrG4NZj6CapJmpzzZKFNzqqe7s/OnSXynzH68VhwUu0K9z\",\"format\":\"google-gemini-v1\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960682-PnNcYROTRdGEIpqyOQM5\",\"object\":\"chat.completion.chunk\",\"created\":1790960682,\"model\":\"google/gemini-3.8-flash\",\"provider\":\"Google AI Studio\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"length\",\"native_finish_reason\":\"MAX_TOKENS\"}]}\n\ndata: {\"id\":\"gen-1790960682-PnNcYROTRdGEIpqyOQM5\",\"object\":\"chat.completion.chunk\",\"created\":1790960682,\"model\":\"google/gemini-3.8-flash\",\"provider\":\"Google AI Studio\",\"service_tier\":\"default\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"length\",\"native_finish_reason\":\"MAX_TOKENS\"}],\"usage\":{\"prompt_tokens\":1090,\"completion_tokens\":60,\"total_tokens\":1150,\"cost\":0.0010425,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.0010425,\"upstream_inference_prompt_cost\":0.0008175,\"upstream_inference_completions_cost\":0.000225},\"completion_tokens_details\":{\"reasoning_tokens\":57,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+  "rawTruncated": false,
+  "request": {
+    "model": "google/gemini-3.8-flash",
+    "provider": {
+      "order": [
+        "google-ai-studio"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true
+    },
+    "stream": true,
+    "usage": {
+      "include": true
+    },
+    "max_tokens": 64,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSU...[154 chars, png sha256 0d9cc10556d669b8]"
+            }
+          },
+          {
+            "type": "text",
+            "text": ""
+          }
+        ]
+      }
+    ]
+  }
+}

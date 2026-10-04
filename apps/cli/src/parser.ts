@@ -70,20 +70,8 @@ export function parseInvocation(args: readonly string[]): Invocation {
       c => c.command.length === names.length && c.command.every((word, i) => word === names[i]),
     )
     if (command === undefined) return { kind: 'error', machine, diagnostic: 'invalid-command' }
-    const seen = new Set<string>()
-    for (const token of parsed.tokens) {
-      if (token.kind !== 'option') continue
-      if (!command.allowedOptions.includes(token.name) || seen.has(token.name))
-        return { kind: 'error', machine, command, diagnostic: 'invalid-options' }
-      seen.add(token.name)
-    }
-    if (command.action === 'configure') {
-      if (
-        !parsed.values['endpoint'] ||
-        ['system-ca', 'ca-file', 'spki'].filter(k => parsed.values[k] !== undefined).length !== 1
-      )
-        return { kind: 'error', machine, command, diagnostic: 'invalid-options' }
-    }
+    if (!validCommandOptions(command, parsed))
+      return { kind: 'error', machine, command, diagnostic: 'invalid-options' }
     return { kind: 'command', machine, command, values: Object.freeze({ ...parsed.values }) }
   } catch {
     return {
@@ -93,6 +81,31 @@ export function parseInvocation(args: readonly string[]): Invocation {
       ...(command === undefined ? {} : { command }),
     }
   }
+}
+function validCommandOptions(
+  command: Command,
+  parsed: {
+    readonly tokens: readonly (
+      | { readonly kind: 'option'; readonly name: string }
+      | { readonly kind: 'positional' | 'option-terminator' }
+    )[]
+    readonly values: Readonly<Record<string, string | boolean | undefined>>
+  },
+): boolean {
+  const seen = new Set<string>()
+  for (const token of parsed.tokens) {
+    if (token.kind !== 'option') continue
+    if (!command.allowedOptions.includes(token.name) || seen.has(token.name)) return false
+    seen.add(token.name)
+  }
+  if (command.action === 'configure') {
+    if (
+      !parsed.values['endpoint'] ||
+      ['system-ca', 'ca-file', 'spki'].filter(k => parsed.values[k] !== undefined).length !== 1
+    )
+      return false
+  }
+  return true
 }
 export function secretOption(field: Command['secretFields'][number]): string {
   return field === 'credential'

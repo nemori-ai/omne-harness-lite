@@ -149,6 +149,11 @@ describe('V13 record duplicate keys at all decoding depths', () => {
     })
   it('a nested duplicate is rejected inside otherwise valid dispatch parameters', () => {
     const input = {
+      adaptation: {
+        implementation: { name: 'test', revision: '1' },
+        definition: { modelId: 'vendor/chat', revision: '1' },
+        configuration: { revision: '1', values: {} },
+      },
       kind: 'model_call_dispatched',
       call: 'mc',
       dispatch: 1,
@@ -162,6 +167,16 @@ describe('V13 record duplicate keys at all decoding depths', () => {
         outputModalities: ['text'],
         maxInputTokens: 100,
         maxOutputTokens: 50,
+        inputConstraints: {},
+        upstreamInputLimits: {
+          maxInputTokens: { status: 'unknown' },
+          maxRequestBytes: { status: 'unknown' },
+        },
+        adaptation: {
+          implementation: { name: 'test', revision: '1' },
+          definition: { modelId: 'vendor/chat', revision: '1' },
+          configuration: { revision: '1', values: {} },
+        },
         updatedAt: at,
       },
       parameters: { extra: { nested: { a: 1 } } },

@@ -6,6 +6,22 @@
 
 依据：[现行 reload 契约及输入边界](../../../../spec/capabilities/asset-registry/README.md)。
 
+## v3 候选增量（2026-09-27）
+
+- 路径仍为 `packages/tools/asset-registry`；**尚未建包**。新增 [v3-design.md](v3-design.md)，旧已接受 design.md 不改。
+- 契约坐标：`(omne-harness-lite-design-2026-09-15, capability.asset-registry, 3)`，catalog candidate；显式采用 AE4、manifest3，并消费同一实际版本的根正文来源。
+
+| 分层状态 | 本版事实 |
+| --- | --- |
+| 语义接受 | 无本版接受；v2 已接受事实保持原范围，本候选待独立评审 |
+| 可实施范围 | AR3-1～AR3-7 已列投影；S-16/S-23/S-24/S-31/S-50 的已确认 C16 根失配映射已投影，普通二次读不到分支保留。AR3-G2 真实现读、AR3-G3 固定根读取面/选版构件与失败原因交接仍待对应 owner 实现和验证；其他缺口见增量设计 |
+| 绑定与证据 | **0 条绑定**；没有本版实现测试。新增 VE-1～VE-13 与原 S-36～S-47/N-1～N-10 并存，不用候选结构自检提升证据 |
+| 实际验证 | **尚无产品验证**。没有真实 registry/manifest/输入源组合、并发、日志顺序或重启验收 |
+
+本版区分每表历史 E1、最近已提交 E2 和实时输入；reuse 保留 E1/O1。SQL 清单与会话 JSONL 分别提交，失败先落日志再收窄表。lookup/list 按类别及 within 分支读取，运行内技能不重判、工具不偷偷换成新正文。详见 [增量设计](v3-design.md)与 [验证义务](verification.md#v3-候选增量)。
+
+## v2 已接受设计与历史状态
+
 - kind：`provider`
 - 对象与设计修订：状态 `accepted`，2026-09-25 首稿，尚无实现修订。兑现 `omne-harness-lite-design-2026-09-15 · capability.asset-registry · v2`（[契约](../../../../spec/capabilities/asset-registry/v2/contract.md)，状态 `accepted`，已接受、已冻结；设计依据 PF-002 rev 20、PF-006 rev 19、PF-004 rev 12）
 - 源码位置：`packages/tools/asset-registry`——**尚未建包**。第一层 `tools` 由 [D-059](../../../../record/decisions/assets-runtimes-split-and-rulings/README.md) 拍板（tools 取候选 C，注册表归 `tools`）；布局规则见[两层布局](../../../README.md#packages-的两层布局)
@@ -38,3 +54,37 @@
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 本轮技术采用
+
+[D-074](../../../../record/decisions/model-read-provider-adoption/decision.md)采用本轮增量设计；精确输入哈希另记，候选历史读数保留原字节。实际源码、符合性与组合证据另核，旧绑定不重标。
+
+## v4 完整增量候选（2026-09-27）
+
+新增 [v4-design.md](v4-design.md)，完整接续七操作与 AR4 S-51/S-52 的来源认回，旧设计、来源缺口稿及 bindings 保留原字节。节点仍为 `packages/tools/asset-registry`，尚未建包。
+
+| 分层状态 | 本增量事实 |
+| --- | --- |
+| 语义接受 | [D-079](../../../../record/decisions/model-original-fill-adoption/decision.md) 已接受 AR4/MF4 和 MF4 provider；本节点 v4-design **candidate，未采用**，不借上游接受提升 |
+| 可实施范围 | AR4-1～7 对应完整七操作、readHead(H)→readGiven(H)→完整 fill 用途核验→真实 STT/EIS 固定正文、reload CAS 全套重取及 refresh 固定 H。AR4-G3 所需受限历史正文端口待 source owner 增量设计/采用，旧报告及已不持有旧表正文的成功恢复仍是本批必交目标 |
+| 绑定与证据 | **0 新绑定**，bindings.yaml 不改；[V4-1～15](verification.md#v4-完整增量的证据义务) 是未执行义务。MF3/EIS 各自组件通过不代证 AR4 来源认回/重开/并发链 |
+| 实际验证 | 尚无本节点产品验证；静态文档检查只核文档结构，独立架构评审与采用归主线 |
+
+原 OF-G1/2 的公共定位与观察范围已由 AR4/MF4 接受条款回答；其实现证据和 D-077 SI-G1 仍待真实组合关闭。来源/正文缺失应正确 unavailable，但不能用该拒绝路径替代本批成功恢复验收。新稿不建立来源旁表、不新增报告 head、不把 MF/EIS/JSONL 称为共同事务。
+
+## 2026-09-27 历史读取增量技术采用
+
+[D-080](../../../../record/decisions/model-registry-history-provider-adoption/decision.md)精确采用本增量；上方候选状态保留该次成稿事实。源码与适用验证义务继续独立落实，真实成功恢复尚未验收，新增绑定0。
+
+## 2026-10-03 Schema构造与消费补充
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)技术采用：AM声明/manifest复用绑定owner，作者临时编译保持；AE发布捕获深冻结生产Schema，AE/evaluation-input-store/asset-registry三个默认owner首用构造分后续PR；MRR的固定图缺陷归相应MS/MR/CA构建失败，缺产物首次实际消费原抛。仅各自相关条款适用；本机制实施/验证尚待，不改变契约和原历史run。
+
+## 2026-10-03 D-116 主体实施与有限验收
+
+本包作为主体的受影响消费者已完成验证；默认判定器首次使用构造仍归后续 PR，本次未交付。实际源码坐标、输入复用及验证边界见[主体原始运行与有限签收](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。本段仅更新以上已交付范围，不提升历史未验能力或后续默认装配的状态。
+
+
+## 2026-10-03 D-116 默认 owner 实施与有限验收
+
+三个默认判定owner均已改为首次实际使用时构造，成功后复用、失败原抛且可重试。AE发布五份深冻结生产Schema并捕获职责函数，三个消费者共享这份发布快照。显式工厂和作者临时编译保持。独立L2六标准、真实src/dist与SQLite业务基线对拍通过；九处旧身份断言按已接受复制边界迁移。[实际运行与有限签收](../../../../record/evidence/2026-10-03-tests-default-schema-owners/README.md)保留原失败、MRR一次未定因观察和验证范围，不提升本节点其他历史未验能力的状态。

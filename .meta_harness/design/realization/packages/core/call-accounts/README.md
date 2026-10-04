@@ -1,3 +1,19 @@
+## 2026-09-30 ACK 后继精确采用
+
+- **语义接受**：[D-110 ACK 后继](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受 RT12/MS8/MR11/CA4，精确版本与摘要由 registry 和接受文件登记。
+- **可实施**：本节点对应的 ACK 后继映射已技术采用，当前实现直接迁移；下方候选与 noGC 文字保留其历史快照，不代表现行采用状态。
+- **绑定证据**：新增 0，原绑定保持原范围；有限规格模型不提升实际提供者绑定。
+- **实际验证**：ACK 实现、该节点真实组合与公开制品验收仍待，不能据采用或旧实现通过宣称完成。
+
+## CA3 候选分层状态（2026-09-29）
+
+本次增量见 [v3-design.md](v3-design.md)，`kind: provider`，节点及既有源码路径为 `packages/core/call-accounts`；源码已存在。固定语义输入为 `3f597c18` 的 `data.call-accounts/v3` contract/Schema，catalog 状态 candidate。下文 CA2 历史接受与测试不提升本候选。
+
+- **语义接受：无。** CA3 与本节点增量未接受，全批 gate 及主线采用仍待完成；来源复核归规格 owner（G3-1）。
+- **可实施：候选范围明确，未授权实施。** 复用精确纯计算与原公开签名，迁移 Schema/消费者/双语示例；S-40～S-42 实际唯一选择、权限、完整来源归 runtime/成本读面，生产装配未承接（G3-2/G3-3）。逐条见 [责任投影表](v3-design.md#契约责任--公开操作cordis-投影--实现与版本--依据或缺口)。
+- **绑定证据：CA3 新增 0 条。** `bindings.yaml` 原样保留 1 条 CA2 有限测试绑定；新义务见 [verification](verification.md#ca3-候选增量2026-09-29)。
+- **实际验证：CA3 尚无。** 本次只起草设计并做文档检查；未运行 CA3 产品测试、真实成本读面或付费请求，当前格式迁移未实施（G3-4）。
+
 ## 最终 core 阶段签收（2026-09-26）
 
 本节点本阶段的 8 项本地／组合责任已由主调度按精确坐标签收；全程221/221（六混合项仅NonConnector部分），U1另13项。
@@ -42,3 +58,17 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+2026-09-29：[D-110](../../../../record/decisions/model-runtime-reference-lifecycle-adoption/decision.md)已采用本节点 T29 精确增量；原候选正文保留受审字节，新增实现与验收尚待。
+
+## CA4 ACK 原账来源候选
+
+[v4 ACK 实现映射](v4-acknowledgement-design.md)保持纯值/精确计算，只由runtime组合读面增加ACK原账见证来源。语义接受未采用；可实施待评审/采用；新增bindings0；实际验证未执行。不是新增账务service或日志/权限实现。
+
+## 2026-10-03 固定Schema技术采用
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)与[本节点固定图装配](fixed-schema-precompile-design.md)补充现行设计。只改变固定图编译/装载时机；本机制实施、实际绑定与验证未完成，原契约和历史run的状态不据此改写。
+
+## 2026-10-03 D-116 主体实施与有限验收
+
+本节点固定图已实施构建期生成与首次实际消费时的同步原生装载。全部定义、公开结果/errors、构建失败清理、恢复、新鲜性及制品消费的实际范围见[主体原始运行与有限签收](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。本段取代上文 D-116 补充中关于固定图实施/验证尚待的状态；原契约、其他能力与历史运行的边界不变。

@@ -1,0 +1,24 @@
+{
+  "checked_at": "2026-09-27T04:17:57.498777+00:00",
+  "worktree": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime",
+  "baseline": "d4eaf7673bc161bf22f6682385151e080d3323ae",
+  "command": [
+    ".venv/bin/python",
+    "tmp/model-request-runtime/model-profile-v3/check_schema.py"
+  ],
+  "exit_code": 0,
+  "python": "3.12.13",
+  "jsonschema": "4.26.0",
+  "referencing": "0.37.0",
+  "input_sha256": {
+    ".meta_harness/design/spec/data/model-profile/v3/contract.md": "ed8463fbb7d60faf029bcda547fb39dd69f49f38eea99e091a040e9fed4b782f",
+    ".meta_harness/design/spec/data/model-profile/v3/model-profile.schema.json": "fe5ef98ebd0902d0353dbc2ea8885d0bba24eff18912d8db9f8e9d6291790b8d",
+    ".meta_harness/design/spec/data/model-profile/v3/examples.md": "0a4bd984ecabb46a4d448654d241d3ef48e0a3cbabca73817c0904fb18f1dc6d",
+    ".meta_harness/design/spec/data/identity-values/v1/identity-values.schema.json": "1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855",
+    ".meta_harness/design/spec/data/offer-expiry/v1/offer-expiry.schema.json": "63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684",
+    ".meta_harness/design/spec/data/content-blocks/v2/content-blocks.schema.json": "ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21",
+    ".meta_harness/design/spec/data/content-blocks/v2/contract.md": "ae963e2bcd8c5005951f6e31be9d893e555aad24b12e230fa12e95bddfbca532",
+    "tmp/model-request-runtime/model-profile-v3/check_schema.py": "33437676a7ca32c7f7202bfaab334002c2d4794981a357e067a6661810cc58bd"
+  },
+  "scope": "321 candidate Schema checks; not full representation validation or runtime conformance."
+}

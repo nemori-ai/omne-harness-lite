@@ -1,0 +1,116 @@
+{
+  "inputFilesVerified": 86,
+  "results": [
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Estimated.cfg",
+      "exit": 0,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ExactOrBound.cfg",
+      "exit": 0,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_Progress.cfg",
+      "exit": 0,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ReanchorProgress.cfg",
+      "exit": 0,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_ThreeCalls.cfg",
+      "exit": 0,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/UsageCalibration_UpperBound.cfg",
+      "exit": 0,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_CacheZero.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_DoubleOutput.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimateExact.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_EstimatedWindow.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnoreBasis.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_IgnorePrefix.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_KeepOldAnchor.cfg",
+      "exit": 13,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_LatestBranch.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_MissingZero.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_NeverUseAnchor.cfg",
+      "exit": 13,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PartialBatch.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_PublishEarly.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RecomputeRecovery.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_ReleaseLease.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_RewriteHistory.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    },
+    {
+      "configuration": ".meta_harness/design/spec/capabilities/model-request-runtime/v10/formal/validity-check/UsageCalibration_StalePlan.cfg",
+      "exit": 12,
+      "rootRawLogVerified": true
+    }
+  ],
+  "scope": "hashes/archive member bytes/raw result inspection; not root TLC rerun"
+}

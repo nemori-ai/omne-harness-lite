@@ -12,6 +12,9 @@
 | `refMatches`                | 将引用与显式传入的一行及其范围比较 |
 | `parameterNames`            | 列出统一参数名与 `extra` 中的键    |
 | `ModelProfileSnapshot`      | 描述请求写入方捕获的档案事实       |
+| `InputLimitFact`            | 区分未知、无限与有限的上游限制事实 |
+| `UpstreamInputLimits`       | 记录所有适用指标的上游事实         |
+| `InputConstraints`          | 声明本档案的项目有限输入上限       |
 | `validate`                  | 校验公开 Schema 定义项             |
 
 ## 判定档案及其输出上限
@@ -28,6 +31,11 @@ import {
 
 const profile: ModelProfile = {
   routeName: 'vendor/chat',
+  adaptation: {
+    implementation: { name: 'example-family', revision: 'r1' },
+    definition: { modelId: 'vendor/chat', revision: 'd1' },
+    configuration: { revision: 'c1', values: {} },
+  },
   origin: 'official',
   providers: ['provider-a'],
   allowFallback: false,
@@ -36,6 +44,10 @@ const profile: ModelProfile = {
   maxInputTokens: 32000,
   maxOutputTokens: 8192,
   inputConstraints: {},
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+  },
   parameters: { maxOutputTokens: 4096, extra: { top_k: 40 } },
   registration: 'listed',
   updatedAt: '2026-09-26T10:00:00Z',
@@ -75,6 +87,11 @@ const bob = unwrap(
 )
 const profile: ModelProfile = {
   routeName: 'vendor/chat',
+  adaptation: {
+    implementation: { name: 'example-family', revision: 'r1' },
+    definition: { modelId: 'vendor/chat', revision: 'd1' },
+    configuration: { revision: 'c1', values: {} },
+  },
   origin: 'custom',
   providers: ['provider-a'],
   allowFallback: false,
@@ -83,6 +100,10 @@ const profile: ModelProfile = {
   maxInputTokens: 32000,
   maxOutputTokens: 8192,
   inputConstraints: {},
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+  },
   registration: 'withdrawn',
   updatedAt: '2026-09-26T10:00:00Z',
 }
@@ -100,3 +121,55 @@ console.log(refMatches(ref, profile, bob)) // false
 数值字段接收 `JsonNumber`，包括 `LosslessNumber`；判定比较原表示的精确数值。缺席的请求参数不会被补上。本包不存储档案、不创建快照、不保证名字唯一、不管理凭据、不发送 OpenRouter 请求；请求路由与生命周期由消费者负责。
 
 JSON Schema 通过 `@omne-harness-lite/model-profile/schema` 公开。参见[源码导出](src/index.ts)、[测试](tests/)与[模型响应](../model-response/README_ZH.md)。
+
+默认入口与 Schema 采用 `data.model-profile/v5`；当前档案必须提供全部必填事实。逐字保留的 `./schema/v2` 与 `./schema/v3` 资源只供钉定规范的精确引用，包括 AD1 所需的 MP3 `RouteName`；二者均无旧版可执行入口。支持图片的档案即使本次只发文本，也必须提供项目 `maxImageBytes` 有限上限以及上游 `maxImageBytes`、`maxImages` 事实。上游为 `unknown` 或 `unbounded` 时，项目上限仍须有限。
+
+```ts
+import { judgeModelProfileDocument, type ModelProfile } from '@omne-harness-lite/model-profile'
+
+const imageProfile: ModelProfile = {
+  routeName: 'vendor/chat',
+  adaptation: {
+    implementation: { name: 'example-family', revision: 'r1' },
+    definition: { modelId: 'vendor/chat', revision: 'd1' },
+    configuration: { revision: 'c1', values: {} },
+  },
+  origin: 'official',
+  providers: ['provider-a'],
+  allowFallback: false,
+  outputModalities: ['text'],
+  maxInputTokens: 32000,
+  maxOutputTokens: 8192,
+  registration: 'listed',
+  updatedAt: '2026-09-29T00:00:00Z',
+  inputModalities: ['text', 'image'],
+  inputConstraints: { maxImageBytes: 4_000_000, maxImages: 4 },
+  upstreamInputLimits: {
+    maxInputTokens: { status: 'unknown' },
+    maxRequestBytes: { status: 'unknown' },
+    maxImageBytes: { status: 'limited', value: 8_000_000 },
+    maxImages: { status: 'unknown' },
+  },
+}
+console.log(judgeModelProfileDocument('ModelProfile', imageProfile)) // { ok: true }
+```
+
+`validate` 只检查 Schema 形状；完整判定还会对项目上限与已知有限上游事实逐项做精确比较。`ModelProfileSnapshot` 的类型与 Schema 保留两个输入限制对象，实际复制和历史保存由请求写入方负责。具体边界以已接受设计为准。
+
+`./schema/v6` 提供 MS7 created 内容引用所需的规范 MP6 原字节；默认执行入口与 `./schema` 仍为 MP5。两版所有定义同形，完整快照可原样复制后按 MP6 精确定义判形，不转换字段，也不改写目录原采用版本。Schema 通过不证明运行时发送前 token 计量、依据和显式余量已满足。
+
+### 导入 MP5 与 MP6 精确资源
+
+```ts
+import assert from 'node:assert/strict'
+import current from '@omne-harness-lite/model-profile/schema' with { type: 'json' }
+import created from '@omne-harness-lite/model-profile/schema/v6' with { type: 'json' }
+import { schemaId } from '@omne-harness-lite/model-profile'
+
+assert.equal(schemaId, current.$id)
+assert.ok(current.$id.includes('/model-profile/v5/'))
+assert.ok(created.$id.includes('/model-profile/v6/'))
+assert.deepEqual(current.$defs, created.$defs)
+```
+
+采用依据与映射：[D110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md), [MP6 resource provider](../../../.meta_harness/design/realization/packages/core/model-profile/v6-schema-resource-design.md). [资源与纯值测试](tests/v6-resource.spec.ts)验证原字节、两个精确快照定义及无损复制；运行时冻结、created 记录往返和发送保证另由真实组合验证。

@@ -1,0 +1,103 @@
+# 固定Schema生成与装载 · revision 2
+
+2026-10-03，技术采用范围见D-116；实现/验证未完成。基线 `25c0b5e86612eb20979da9909ef5bdfdefdd76fe`。承接两份 r2 选择候选；本文件补技术接口及逐图装配输入；精确接受范围和释放门由D-116记录，不产生实际验证通过状态。ROOT 是唯一写入者。
+
+## 固定图与拥有者
+
+[实际装配清单](../../../../research/fixed-schema-compile-cost/2026-10-03/upstream/captured-graphs-65/index.json)及其22行图文件记录现行资源构造、选项、注解关键字和定义请求。26个图、435次定义请求包括107个入口可访问定义的有限范围，数字不是435个独立领域定义。记录器代替编译器，没有执行校验。原输入与源码 SHA 一并保留；首轮 ST 捕获器因 require ESM export 失败的原件在 `captured-graphs-65-r1/`，不能当作产品失败。
+
+每个拥有者设 `src/schema-inputs.ts`，只负责固定资源装配、原有私有派生变换、有限定义名称与选项；不创建 Ajv、不调用作者工厂、不导入本包根入口。把原 Schema 构造搬到它，消费者和 build 共享这一个权威输入。资源从现行公开 Schema 子入口取，包内文件从本包路径取。派生图重用现行变换本体，不能用静态清点的原资源替代派生结果。
+
+| 拥有者 | 图与有限定义范围 | 原流水线保持 |
+|---|---|---|
+| content-blocks | ordinary：22个公开定义；meta：8份标准元资源、一个根meta定义 | ordinary 的复制、私有数字投影、attachment精确后置检查；meta用exact变换 |
+| identity-values | ordinary：SCHEMA_DEF_NAMES的12个定义 | unknown直接校验、原错误字符串投影 |
+| offer-expiry | ordinary：4个定义，x-counterexamples注解 | unknown直接校验、原错误字符串投影 |
+| agent-definition | exact：8资源、AgentDefinitionBody | 当前原值复制及跨条目判定 |
+| messages | exact：9资源、54定义 | 当前复制与消息判定 |
+| arrival-events | exact：4资源、14定义 | 当前复制与事件判定 |
+| tool-definition | ordinary：3资源、21定义 | 私有复制／数字投影与既有精确后置判断 |
+| loop-extension | exact：21资源的完整图及21资源的stage-one图，各43定义 | earlyResource、absoluteRefs和阶段一改写本体；完整与阶段一入口不可串图 |
+| model-response | exact：9规范资源＋1私有members资源，25公开＋2私有定义 | memberSchema只移去现行的三个条件；公开/私有拒绝阶段保持 |
+| model-profile | ordinary：4资源、14定义，注解关键字 | 原私有复制及规则 |
+| skill-package | exact：v3五资源／5定义；v2四资源／5定义；numericOne五资源／const1 | 两版资源闭包保持；createRuntime显式工厂及作者defaultFits编译保持 |
+| call-accounts | ordinary：完整4资源与结构4资源，各13定义 | structuralSchema原变换、私有数字投影、结构后置约束保持 |
+| mcp-endpoint | exact：6资源、7定义 | 作者/对端Schema仍归显式owner，未成为固定图 |
+| slash-command | exact：3资源、9定义 | 原复制／解析与拒绝顺序 |
+| session-tenancy-table | exact：messages/v2单资源、SessionRef | 不增加当前消息作为旧SessionRef前置 |
+| governance-center-entry | ordinary：3资源、本入口$defs的107个有限定义 | 私有entryValidator仍同步；未知名原抛；errors与.schema读数保持 |
+| client-local-state | ordinary：3资源、7个原check定义 | zod、证书、缓存规则及unknown语义保持 |
+| governance-center-client | ordinary：3资源、Envelope/Exchange | 原unknown及返回判断 |
+| governance-client-operations | ordinary：5资源、6个现行ref | 两版CG资源和Instant仍各自绑定 |
+| apps/cli | ordinary：validation五资源的Intent/Output；forms的根Schema | forms.json仍在导入时校验，失败仍抛invalid bundled forms；该实际校验可加载已生成代码，无运行期编译 |
+
+identity-values没有CB依赖，CB已有identity依赖，不新添反向边。普通Ajv图由开发脚本直接使用本成员的Ajv，不调用CB生成器。CB ordinary 特有的schemaPattern由已编译的本包helper提供，不能为identity等引入CB。
+
+## 包内构建输入
+
+一个拥有者的 `schema-inputs` 返回图清单，每个图有稳定名字、`kind`（ordinary/exact/meta）、依序的资源、依序的有限定义，以及本拥有者实际选项和非断言关键字。每个定义记录稳定导出名与原请求方法：`getSchema(ref)` 或 `compile(schema)`。CLI forms编译根Schema，不先注册成另一份资源。标准meta使用`addMetaSchema`，其余保持`addSchema`。
+
+生成脚本读取对应的原资源文件字节及声明的装配／派生源码，不把运行时可变JSON对象当作输入权威。输入记录使用包名、公开资源specifier、相对拥有者路径和摘要，不把某个检出绝对路径纳入语义摘要。每个图的导出名唯一、非空；重名、缺定义、不支持的异步Schema及图编译错误原抛。
+
+exact默认选项固定为strict:false、allErrors:false、ownProperties:true、validateFormats:false、validateSchema:false、passContext:true、code.regExp为现行默认schemaPattern引擎；meta还固定meta:false。仅构建增加code.source:true，runtime的patternFactory仍是原显式owner选项，不进入固定图。
+
+普通图保留原选项及keyword登记方式；只增加 standalone 必需的`code.source:true`与生成引用的技术code值。getSchema 与 compile 两种请求不能直接偷换，须在生成阶段保持其原Schema与ref/base解析，并由errors对拍证明。生成器为匿名compile请求分配有界、确定的内部注册键，不修改调用方或固定Schema的$id；不能把键或host绝对路径写进公开错误路径。
+
+## CB的受限技术公开面
+
+两个新增子入口以`types`及可被ESM import/native require解析的条件指向dist，不含顶层await。其余package exports及公开类型形状保持，AM和AE列出的有限变更除外。
+
+### `@omne-harness-lite/content-blocks/code-runtime`
+
+仅供固定生成模块使用。生成模块取16个原exact函数、schemaPattern及同步无损文本接收函数；手写固定校验包装只取得生成模块已绑定的文本函数，不分别导入code-runtime。不是新领域能力，也不让调用方拼root/context。
+
+- `exactKeywords`：有限、冻结的16个关键字函数表；函数本体和JSON数值语义由现行exact源码机械提取。无作者Schema或调用值缓存。
+- `schemaPattern`：现行确定正则引擎。非RegExp特例有由完整pattern和flags决定的唯一toString，不用共享`[object Object]`去重键。
+- `validateExact(validator, losslessText)`：接收侧严格读文本，建立其私有品牌的原root与投影，同步调用生成函数，返回`{valid, errors}`。errors即时深复制，保持次序、instancePath、keyword、params、schemaPath和message；空错误保持null。读取/编译制品/context缺陷原抛；不返回修补后的值、不捕获成malformed。
+
+该模块只引用JSON值、精确函数与pattern；不引用Ajv编译器、标准meta导入、生成器、CB根入口、文件IO或远端资源。普通unknown图不走文本入口。
+
+### `@omne-harness-lite/content-blocks/schema-codegen`
+
+只在build消费。两个同步技术函数：
+
+- `generateSchemaModule({resources, definitions}) -> string`：resources为当前SchemaDocument有限数组；definitions为`{name, schema}`数组。执行与现行createSchemaRuntime同一顺序的无损复制、精确meta检查、exact变换、投影和资源登记，编译全部定义，返回native CJS源码。每个具名exact导出函数只接收无损文本并返回{valid, errors}；原始生成validator在CJS内私有保存。固定exact图使用原schema-runtime选项与默认pattern；不接受外部resolver、async或模块作者缓存。
+- `generateMetaModule() -> string`：按当前八份标准meta原字节和现行选项自举，使用build专用meta编译器；不尝试加载尚未生成的运行期meta制品，返回只有固定Meta文本校验函数导出的CJS源码。
+
+这两个函数不写文件、不提交产物；任一资源或定义失败即抛，没有部分成功返回。写盘与退出状态归开发脚本。code关键字通过scopeValue登记当前同域原函数ref；standalone引用新code-runtime。不要保留validate关键字再手工篡改Ajv内部scope。
+
+### 原生实例的加载绑定
+
+每份exact/meta生成CJS在自身的原生require上下文取得同一个code-runtime实例：关键字的scopeValue引用与本模块的文本接收包装使用完全相同specifier与解析上下文。生成模块内持有原始validator，再导出绑定该接收函数的(name)->(losslessText)->{valid,errors}函数；调用者不能提供另一个接收器或raw root。
+
+源码与dist手写包装只经createRequire原生取得生成CJS，调用它的已绑定文本函数。两侧不得分别通过ESM/Vitest/native取得validateExact和exactKeywords；不得把code-runtime再送给Vitest变换。接收侧严格解析的JSON品牌和关键字所用JSON品牌由同一原生CJS接线保证，而不是由路径相同或源码相同推断。动态作者编译仍使用本入口同域ref，只有其固定meta使用上述绑定文本模块。实际包子入口/native/src/dist与故意分域反控仍属于扩散门。
+
+## 作者runtime的保持
+
+`./schema-runtime`原类型和函数名不变。其模块不顶层加载Ajv；`createSchemaRuntime`被实际调用时同步取得Ajv、当场检查资源，编译与错误归显式owner。compiler组装代码放包内私有模块，runtime和build共享它的原流水线；私有模块只有类型导入，不在module加载时取得编译器。
+
+运行期固定meta首次使用加载已生成meta；作者和动态port资源构造时立即meta检查。运行期code关键字ref使用本入口同域的JSON模块和原函数，不把src原值交给native dist函数。作者compile仍是原值复制、变换、投影、编译及同步验证，patternFactory的确定性/native/non-global/non-sticky检查及原异常保持。没有作者Schema的模块级或WeakMap缓存。
+
+## 构建事务与发布
+
+开发脚本只编排本拥有者的build：验证属于本任务的拥有者后，清旧dist/generated；以本成员可解析的typescript compiler真实入口执行tsc；从新dist取得schema-inputs和helper，生成该拥有者的全部图；最后写新鲜元数据，成功返回才交付整套。
+
+每个成员build都走这一步。生成CJS与元数据置于包根generated、Git忽略、进入发布files。src/dist通过以package.json为坐标的createRequire定位同一份generated，不能假定每个schema.ts都直接位于src第一层；routing/和tui/同样正确。生成制品经原生加载，不能送进Vitest转换或用复制helper替代发布子入口。
+
+tsc、缺资源、坏meta、任一后续定义、目录/文件写盘失败均使build非零，并清本次dist/generated，不回退旧制品。构建中不承诺给并发消费者保留旧产物。首次校验缺generated或helper原抛，不降级为业务拒绝，不缓存失败为可用结果。workspace按既有拓扑构建，CB的helper由tsc先取得、meta随后build自举。
+
+元数据至少含Ajv实际版本与选项、关键字登记/顺序、所有资源原始字节及派生结果摘要、装配/派生/JSON/exact/pattern源码摘要、16函数/变换、导出定义与请求方法、native helper稳定解析坐标和对应实现摘要。重生成确定、不写时间戳。新鲜测试重算当前输入；改其中任一项而没重建必须失败，提示先构建，不能只比资源$id或版本0.0.0。
+
+governance-center-entry的`entryValidator`是包内私有技术函数，没有从package公开入口导出。它改用真实固定函数类型，包含同步调用、errors与.schema；不能继续假称完整Ajv ValidateFunction而丢掉必需schemaEnv。把构建捕获的原定义Schema挂到.schema，原decide断言与预期不改。没有消费者读取compiler-owned schemaEnv的行为迁移。
+
+## AM与三默认owner
+
+按 public-boundary-r2：AM增加绑定ports的声明方法，两个外层函数改传已构造owner，旧bodies路径删除。泛型类别/返回关联及原拒绝顺序保持。声明推导放私有模块，明确接收owner捕获的ports和值判定闭包；避免新judge/declarations循环。validDomain/defaultFits的临时作者编译保持，主图与作者编译分别计数。
+
+AE/evaluate的两处产品声明调用复用当前owner，AM/MCP运行和类型调用同步迁移。默认owner主PR先保留eager；后续独立PR在AE发布时复制深冻结全部生产Schema/ports（含LC3 overlay），三个消费者引用同一快照，实际首用才构造自己的owner。捕获失败当场抛，首用编译失败原抛、没有假成功缓存。原公开JSON资源不被改变；defaultBodyContracts的固定资源复制冻结是已经列明的有限行为变更。
+
+## 必须先取得的证据
+
+施工计划revision2的第2a步是扩散门（冻结计划归当前任务，不能用选择评审代表施工计划评审）。当前compiler-free-probe只证明机械提取helper的130次exact布尔/errors＋12次meta两域对拍及新进程无编译器；不是实际新子入口、全部资源、构建失败或性能证明。
+
+ROOT先实现CB、messages、identity代表性实际组合。真实helper/包子入口、native src/dist与完整数值oracle/B1/escaped-key/ref/dynamicRef/propertyNames/errors/交错快照、普通unknown、clean自举与五类构建失败清理逐项通过、冻结坐标和原日志齐全，才释放其余图/AM迁移。缺一项暂停依赖扩散。最终L3独立实现评审与QA仍必须执行。每包另有等价、新鲜、全部定义可加载；MR mutation-after-import保持。四项五轮交替性能证据及总制品体积按计划执行，不编造采用百分比，不占全机名额。

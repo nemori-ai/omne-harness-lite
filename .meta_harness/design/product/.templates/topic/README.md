@@ -35,6 +35,7 @@ relations:
 | 这块产品是什么：概念、模型、规则、取舍 | [产品设计](design.md) |
 | 用户怎么走、对象怎么流转、谁能做什么 | [流程与状态](flows.md) |
 | 做成什么样算做对了 | [验收标准](acceptance.md) |
+| 还有哪几块没交付、先做哪块、交付了怎么演示 | [故事卡](stories.md) |
 | 哪些是拍板定的，哪些是推导的，还有什么没定 | [决策与来源](decisions.md) |
 | 这块设计是怎么演变到今天的 | [变更历史](changelog.md) |
 | 当时是怎么谈的 | [设计交流笔记](interviews/README.md) |
@@ -52,7 +53,7 @@ relations:
 > 模板提示（成稿删除）：**design.md、decisions.md、changelog.md 必须有**——
 > 分别回答「是什么」「谁定的」「怎么变的」，缺一项就会有人来问而无处可查。
 > 其余按 topic 实际情况取舍：没有多步旅程就不必有 flows.md，
-> 没有独立交流场次就不必有 interviews/。
+> 没有独立交流场次就不必有 interviews/，还没切卡就不建 stories.md（阅读表里那一行一并删掉）。
 
 ```text
 {{PF-0NN}}-{{slug}}/
@@ -60,10 +61,11 @@ relations:
 ├── design.md         概念、模型、规则、取舍、边界      ← 必须
 ├── flows.md          旅程、异常分支、状态流转、角色矩阵
 ├── acceptance.md     产品视角的验收标准
+├── stories.md        故事卡：还没交付的那几块，先做哪块、怎么演示
 ├── decisions.md      拍板记录 / PM 推导 / 待裁决       ← 必须
 ├── changelog.md      产品设计本身的演进                ← 必须
 ├── interviews/       设计交流笔记（原始材料）
-└── projection/       向 Cordis 的技术设计投影，按版本固化
+└── projection/       技术设计的投影，按版本固化
 ```
 
 **静态与动态分开看**：`design.md` 说产品是什么，`flows.md` 说它怎么动。

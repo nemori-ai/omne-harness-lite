@@ -1,0 +1,1214 @@
+{
+  "version": "W16-b683351-r3",
+  "fourStateVerdict": "Pass with issues",
+  "testedSliceVerdict": "Pass",
+  "acceptanceAuthority": "root; report does not accept delivery",
+  "head": "b6833514f9b4d4ecd7dbc8dbc59d5bfd4602eb17",
+  "branch": "panqiwei/model-request-runtime-p2-retry-delay-verification",
+  "commonDir": "/data/qiwei/repos/omne-harness-lite/.git",
+  "scope": "S60 public retryDelay exact arithmetic, final public exports/types and literal examples integration",
+  "criteria": [
+    {
+      "id": 1,
+      "state": "Pass",
+      "oracle": "本树真实 offline install/build/pack/deploy；最终 B/C 每个发布成员与 fresh tar 字节对照；递归隐藏所有 links",
+      "evidence": "setup-commands.json, packs/*, latest-final-consumers.json, audit.json",
+      "limit": "原 B/C 与 deploy 的14份 hidden metadata是未解析workspace/catalog版，原件保留，不声称其所有发布字节已匹配；最终副本每目录全匹配"
+    },
+    {
+      "id": 2,
+      "state": "Pass",
+      "oracle": "Python Fraction 直接 S60，3kind×4jitter 全矩阵/端点/previous/等值HMS",
+      "evidence": "fraction-oracle.py, fraction-vectors.json, final-consumers*/B/C-numeric.json",
+      "limit": "有限2133个显式数学用例，非无条件证明"
+    },
+    {
+      "id": 3,
+      "state": "Pass",
+      "oracle": ">2^53 n/factor；长Duration2048整数位、4096小数位、sample3072位、n5000位、科学等价；巨大科学n有限cap/退化 witness",
+      "evidence": "Fraction vectors每项proof，numeric时间/内存/outputCharacters",
+      "limit": "不展开巨大n的独立数学证明仅用于列明cap/退化场景；未测无cap任意巨量输出性能"
+    },
+    {
+      "id": 4,
+      "state": "Pass",
+      "oracle": "46 strict拒绝；getter/toJSON0调用；输入不改/冻结结果/跨调用不保留；actual公开类型严格编译",
+      "evidence": "numeric.mjs, public-types.mts, final-consumers commands+results",
+      "limit": "有限代表性JSON边界，不声称穷尽所有JS宿主对象"
+    },
+    {
+      "id": 5,
+      "state": "Pass",
+      "oracle": "实际移除Cordis/kernel副本+导入失败确认；IO导入阻断；调用期env/clock/random/timers禁用；实际guard字面例子与TLS invoke",
+      "evidence": "no-optional.mjs/removed清单, numeric.mjs, W15-REUSE.json",
+      "limit": "W15仅复用85 guard case/目录，相关源/声明/全部直接依赖逐hash未变；log IO无新增slice声明"
+    },
+    {
+      "id": 6,
+      "state": "Pass",
+      "oracle": "最终独立compiled副本half→full、decorrelated lo不封顶；指定同Fraction AssertionError",
+      "evidence": "latest-final-consumers.json.controls及*.diff/原stdout/stderr",
+      "limit": "恰2个最终选定行为负控；早期其它运行另保原件，不计loader/syntax/fixture非零"
+    },
+    {
+      "id": 7,
+      "state": "Pass",
+      "oracle": "6 literal TS×2 strict TS6 NodeNext skipfalse编译/run；4 actualHTTPS/SSE/realAgent/双向close事件/actual child wait",
+      "evidence": "readme-blocks.json, final-consumers commands/results, client诊断原始event+FD",
+      "limit": "教学本地TLS，无官方模型/凭据/paid/外部endpoint；初次Set1非原run物理FD观察，解释只限另次具名诊断"
+    },
+    {
+      "id": 8,
+      "state": "Pass with issues",
+      "oracle": "1135 pre/post source/dist/input和15packhash；全部原件保全；完整archive读回hash/link graph",
+      "evidence": "audit.json, MEASUREMENT-REVISIONS.md, ARCHIVE-MANIFEST.json, archive.json",
+      "limit": "早期setup/numeric/docs/nooptional及首次controls外层driver PID未单独留存；实际被测child PID/argv/raw/wait均保留；首次formatter操作仅tool transcript，PID不可恢复"
+    }
+  ],
+  "frozenMaintenanceFiles": 527,
+  "frozenSourceDistInputs": 1135,
+  "sourceDrift": [],
+  "packs": {
+    "kernel-basis.tgz": "94c33c3659c16b9b16a36eb5200b0f3b8bc28b517e75d4ca68ec353f4ba791ed",
+    "arrival-events.tgz": "ec44e27fc8a6ba50c65cd7b057e7fe85189b6e817967431ce9c00a584680b2c6",
+    "identity-values.tgz": "c5b910d02642ff2aa2378802988604dd31e87723f65d79a3af897773ea2041a2",
+    "model-response.tgz": "955abd295db5e410522ca52f996bb134d6950a814a37c76a865198114b286504",
+    "call-accounts.tgz": "8d4864faa05af982e61018c9e7a340152a50327797c93e8c489a870b59343aa4",
+    "content-blocks.tgz": "c2cc10a4abff1fbced9c51630e961e08cde64745f6192aa356148c3af6c23a6f",
+    "loop-extension.tgz": "fa8928514bb3bb630e8cfa30fa27e35560741b692d9f3b90e58e02dba1b0fbce",
+    "pi-ai-transport.tgz": "8e761116f1329146665964d8e81b81b9b9444e0b48302320c818954a1dac7df3",
+    "messages.tgz": "9f98ffd6dff35c6211f4faf628e04df7466e4e9b656d9822c852bae44fd90aef",
+    "offer-expiry.tgz": "7b988e2f31d716c5299e9be3a4787fc90918394b0bd0a4c6ef20ba677ee72303",
+    "asset-model.tgz": "dc9b9417e27e95ce7b6178ce724b2a73b9b08e5d3367b999bbd2d591f51cf9ca",
+    "stream-assembly.tgz": "5dd9cfc999c260f84b7b3b7a1fb58fdd4bf1aa381298c11278190df637dab0d8",
+    "model-profile.tgz": "b78667f8628814007c2b8ae572e20914d5fff5c89ec4efca48f8e5e6865fe8e1",
+    "model-request-runtime.tgz": "69c28054b666e60016984fc7b26c8dfb9ecb43bc5177d7431a472d31ac7a167c",
+    "tool-definition.tgz": "b4c5dde1bf4ec6cfebbe8c7df574bd45b541b79fe916bf5746b6ac18330f68e8"
+  },
+  "freezeSha256": "5f8dcd719b2790bf21d6942670a800ca7cb0046f7204682ca7a91bb437a9e3db",
+  "inputHashesSha256": "3bacc9d44e26a9e4192f948835bf33a9d8db0575d372494915a6ba685b5fd060",
+  "oracle": {
+    "generatorSha256": "40bb616b4895f4ebe45c8c114c75a77b4248675b166d27127736c9c2e01eb7d5",
+    "vectorsSha256": "6683ff539fd341d6ce7a524a47483e697121f2191fb88a5f6e45da44b25d937a",
+    "count": 2133,
+    "python": "3.8.10 (default, Mar 18 2025, 20:04:55) \n[GCC 9.4.0]",
+    "oracle": "Python fractions.Fraction direct S60, no product arithmetic imports or worker vectors",
+    "scope": "finite explicit sample; huge compressed ordinal cases use stated finite mathematical cap/degenerate witnesses; no unbounded complexity proof"
+  },
+  "finalRun": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163",
+  "finalConsumers": {
+    "B": {
+      "directory": "/tmp/omne-retry-delay-independent-u9ojssk4/final-B",
+      "audit": {
+        "productCopies": 29,
+        "packFilesCompared": 1274,
+        "symlinks": 130,
+        "productPackMismatches": 0,
+        "sourceBacklinks": 0,
+        "brokenLinks": 0
+      },
+      "postAudit": {
+        "productCopies": 29,
+        "packFilesCompared": 1274,
+        "symlinks": 130,
+        "productPackMismatches": 0,
+        "sourceBacklinks": 0,
+        "brokenLinks": 0
+      }
+    },
+    "C": {
+      "directory": "/tmp/omne-retry-delay-independent-u9ojssk4/final-relocated/C",
+      "audit": {
+        "productCopies": 29,
+        "packFilesCompared": 1274,
+        "symlinks": 130,
+        "productPackMismatches": 0,
+        "sourceBacklinks": 0,
+        "brokenLinks": 0
+      },
+      "postAudit": {
+        "productCopies": 29,
+        "packFilesCompared": 1274,
+        "symlinks": 130,
+        "productPackMismatches": 0,
+        "sourceBacklinks": 0,
+        "brokenLinks": 0
+      }
+    }
+  },
+  "positiveCommandExits0": 24,
+  "commands": [
+    {
+      "label": "B-Fraction-2133-plus-strict-and-pure",
+      "argv": [
+        "node",
+        "numeric.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-numeric.json"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-B",
+      "pid": 103996,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 2.069266684819013
+    },
+    {
+      "label": "B-strict-six-literals",
+      "argv": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--ignoreConfig",
+        "--strict",
+        "--noUncheckedIndexedAccess",
+        "--exactOptionalPropertyTypes",
+        "--noImplicitOverride",
+        "--noFallthroughCasesInSwitch",
+        "--useUnknownInCatchVariables",
+        "--verbatimModuleSyntax",
+        "--isolatedModules",
+        "--skipLibCheck",
+        "false",
+        "--module",
+        "NodeNext",
+        "--target",
+        "ES2024",
+        "--types",
+        "node",
+        "--rootDir",
+        "readme-blocks",
+        "--outDir",
+        "readme-dist",
+        "readme-blocks/example-definition.mts",
+        "readme-blocks/runtime-README-1.mts",
+        "readme-blocks/runtime-README-2.mts",
+        "readme-blocks/runtime-README-3.mts",
+        "readme-blocks/runtime-README_ZH-1.mts",
+        "readme-blocks/runtime-README_ZH-2.mts",
+        "readme-blocks/runtime-README_ZH-3.mts"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-B",
+      "pid": 104003,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 2.620859277434647
+    },
+    {
+      "label": "B-runtime-README-1.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-runtime-README-1.mjs.json",
+        "runtime-README-1.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-B",
+      "pid": 104011,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.9195998720824718
+    },
+    {
+      "label": "B-runtime-README-2.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-runtime-README-2.mjs.json",
+        "runtime-README-2.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-B",
+      "pid": 104057,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.769036278128624
+    },
+    {
+      "label": "B-runtime-README-3.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-runtime-README-3.mjs.json",
+        "runtime-README-3.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-B",
+      "pid": 104067,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.8193301539868116
+    },
+    {
+      "label": "B-runtime-README_ZH-1.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-runtime-README_ZH-1.mjs.json",
+        "runtime-README_ZH-1.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-B",
+      "pid": 104081,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.869247225113213
+    },
+    {
+      "label": "B-runtime-README_ZH-2.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-runtime-README_ZH-2.mjs.json",
+        "runtime-README_ZH-2.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-B",
+      "pid": 104089,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.8193275858648121
+    },
+    {
+      "label": "B-runtime-README_ZH-3.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-runtime-README_ZH-3.mjs.json",
+        "runtime-README_ZH-3.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-B",
+      "pid": 104097,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.8192964657209814
+    },
+    {
+      "label": "B-strict-public-type-consumer",
+      "argv": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--ignoreConfig",
+        "--strict",
+        "--noUncheckedIndexedAccess",
+        "--exactOptionalPropertyTypes",
+        "--noImplicitOverride",
+        "--verbatimModuleSyntax",
+        "--skipLibCheck",
+        "false",
+        "--module",
+        "NodeNext",
+        "--target",
+        "ES2024",
+        "--types",
+        "node",
+        "--outDir",
+        "public-types-dist",
+        "public-types.mts"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-B",
+      "pid": 104111,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 2.470789508894086
+    },
+    {
+      "label": "B-actual-public-type-consumer",
+      "argv": [
+        "node",
+        "public-types-dist/public-types.mjs"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-B",
+      "pid": 104118,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.769276840146631
+    },
+    {
+      "label": "B-actually-no-optional",
+      "argv": [
+        "node",
+        "no-optional.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-no-optional.json"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-B-no-optional",
+      "pid": 104131,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.8196265012957156
+    },
+    {
+      "label": "C-Fraction-2133-plus-strict-and-pure",
+      "argv": [
+        "node",
+        "numeric.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-numeric.json"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-relocated/C",
+      "pid": 104138,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 2.0698325810953975
+    },
+    {
+      "label": "C-strict-six-literals",
+      "argv": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--ignoreConfig",
+        "--strict",
+        "--noUncheckedIndexedAccess",
+        "--exactOptionalPropertyTypes",
+        "--noImplicitOverride",
+        "--noFallthroughCasesInSwitch",
+        "--useUnknownInCatchVariables",
+        "--verbatimModuleSyntax",
+        "--isolatedModules",
+        "--skipLibCheck",
+        "false",
+        "--module",
+        "NodeNext",
+        "--target",
+        "ES2024",
+        "--types",
+        "node",
+        "--rootDir",
+        "readme-blocks",
+        "--outDir",
+        "readme-dist",
+        "readme-blocks/example-definition.mts",
+        "readme-blocks/runtime-README-1.mts",
+        "readme-blocks/runtime-README-2.mts",
+        "readme-blocks/runtime-README-3.mts",
+        "readme-blocks/runtime-README_ZH-1.mts",
+        "readme-blocks/runtime-README_ZH-2.mts",
+        "readme-blocks/runtime-README_ZH-3.mts"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-relocated/C",
+      "pid": 104174,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 2.7238735598511994
+    },
+    {
+      "label": "C-runtime-README-1.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-runtime-README-1.mjs.json",
+        "runtime-README-1.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-relocated/C",
+      "pid": 104187,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.869593664072454
+    },
+    {
+      "label": "C-runtime-README-2.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-runtime-README-2.mjs.json",
+        "runtime-README-2.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-relocated/C",
+      "pid": 104195,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.7693131808191538
+    },
+    {
+      "label": "C-runtime-README-3.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-runtime-README-3.mjs.json",
+        "runtime-README-3.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-relocated/C",
+      "pid": 104209,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.7692060801200569
+    },
+    {
+      "label": "C-runtime-README_ZH-1.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-runtime-README_ZH-1.mjs.json",
+        "runtime-README_ZH-1.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-relocated/C",
+      "pid": 104218,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.8193257036618888
+    },
+    {
+      "label": "C-runtime-README_ZH-2.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-runtime-README_ZH-2.mjs.json",
+        "runtime-README_ZH-2.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-relocated/C",
+      "pid": 104226,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 2.0731999170966446
+    },
+    {
+      "label": "C-runtime-README_ZH-3.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-runtime-README_ZH-3.mjs.json",
+        "runtime-README_ZH-3.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-relocated/C",
+      "pid": 104337,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 3.4897724869661033
+    },
+    {
+      "label": "C-strict-public-type-consumer",
+      "argv": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--ignoreConfig",
+        "--strict",
+        "--noUncheckedIndexedAccess",
+        "--exactOptionalPropertyTypes",
+        "--noImplicitOverride",
+        "--verbatimModuleSyntax",
+        "--skipLibCheck",
+        "false",
+        "--module",
+        "NodeNext",
+        "--target",
+        "ES2024",
+        "--types",
+        "node",
+        "--outDir",
+        "public-types-dist",
+        "public-types.mts"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-relocated/C",
+      "pid": 104356,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 4.048899897839874
+    },
+    {
+      "label": "C-actual-public-type-consumer",
+      "argv": [
+        "node",
+        "public-types-dist/public-types.mjs"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-relocated/C",
+      "pid": 104385,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.9711088202893734
+    },
+    {
+      "label": "C-actually-no-optional",
+      "argv": [
+        "node",
+        "no-optional.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-no-optional.json"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-C-no-optional",
+      "pid": 104401,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 1.76951798889786
+    },
+    {
+      "label": "half-uses-full-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/final-negative-half-uses-full/vendor/model-request-runtime/dist/retry-delay.js"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-negative-half-uses-full",
+      "pid": 104408,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 0.03438324201852083
+    },
+    {
+      "label": "half-uses-full-same-Fraction-oracle",
+      "argv": [
+        "node",
+        "numeric.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/half-uses-full.json"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-negative-half-uses-full",
+      "pid": 104415,
+      "timedOut": false,
+      "exit": 1,
+      "actualWaitCompleted": true,
+      "seconds": 1.8193912371061742
+    },
+    {
+      "label": "decorrelated-lo-unclamped-syntax",
+      "argv": [
+        "node",
+        "--check",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/final-negative-decorrelated-lo-unclamped/vendor/model-request-runtime/dist/retry-delay.js"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-negative-decorrelated-lo-unclamped",
+      "pid": 104428,
+      "timedOut": false,
+      "exit": 0,
+      "actualWaitCompleted": true,
+      "seconds": 0.03386836685240269
+    },
+    {
+      "label": "decorrelated-lo-unclamped-same-Fraction-oracle",
+      "argv": [
+        "node",
+        "numeric.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/decorrelated-lo-unclamped.json"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/final-negative-decorrelated-lo-unclamped",
+      "pid": 104435,
+      "timedOut": false,
+      "exit": 1,
+      "actualWaitCompleted": true,
+      "seconds": 1.8694589110091329
+    }
+  ],
+  "matrix": [
+    {
+      "consumer": "B",
+      "pid": 103996,
+      "passedOracles": 2181,
+      "FractionVectors": 2133,
+      "strictOracles": 46,
+      "ownershipOracles": 1,
+      "pureOracles": 1,
+      "matrixSeconds": 0.28201672199999983,
+      "maxVectorSeconds": 0.006519725000000108,
+      "maxOutputCharacters": 4101,
+      "initialResources": [],
+      "finalResources": [],
+      "initialFDs": 21,
+      "finalFDs": 21,
+      "initialMemory": {
+        "rss": 185036800,
+        "heapTotal": 125366272,
+        "heapUsed": 31072040,
+        "external": 2372173,
+        "arrayBuffers": 209147
+      },
+      "finalMemory": {
+        "rss": 197689344,
+        "heapTotal": 134860800,
+        "heapUsed": 45957240,
+        "external": 2402420,
+        "arrayBuffers": 209147
+      },
+      "deniedOptionalImportAttempts": [],
+      "forbiddenIOImportAttempts": []
+    },
+    {
+      "consumer": "C",
+      "pid": 104138,
+      "passedOracles": 2181,
+      "FractionVectors": 2133,
+      "strictOracles": 46,
+      "ownershipOracles": 1,
+      "pureOracles": 1,
+      "matrixSeconds": 0.2805283529999999,
+      "maxVectorSeconds": 0.006560543999999936,
+      "maxOutputCharacters": 4101,
+      "initialResources": [],
+      "finalResources": [],
+      "initialFDs": 21,
+      "finalFDs": 21,
+      "initialMemory": {
+        "rss": 184926208,
+        "heapTotal": 124579840,
+        "heapUsed": 31006224,
+        "external": 2372173,
+        "arrayBuffers": 209147
+      },
+      "finalMemory": {
+        "rss": 197181440,
+        "heapTotal": 134074368,
+        "heapUsed": 45909448,
+        "external": 2402420,
+        "arrayBuffers": 209147
+      },
+      "deniedOptionalImportAttempts": [],
+      "forbiddenIOImportAttempts": []
+    }
+  ],
+  "actualTLS": [
+    {
+      "consumer": "B",
+      "language": "README",
+      "block": 1,
+      "pid": 104011,
+      "resultFile": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-runtime-README-1.mjs.json",
+      "terminal": {
+        "ownedTimers": [],
+        "actualTimerRecords": [
+          {
+            "stopped": true,
+            "actualKind": "Timeout"
+          },
+          {
+            "stopped": true,
+            "actualKind": "Timeout"
+          },
+          {
+            "stopped": true,
+            "actualKind": "Timeout"
+          }
+        ],
+        "deniedIO": [],
+        "activeResources": [
+          "Immediate",
+          "Immediate"
+        ],
+        "fds": 22
+      },
+      "tls": {
+        "requests": 1,
+        "agents": [
+          {
+            "created": true,
+            "destroyed": true
+          }
+        ],
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 1,
+        "actualClientSockets": 0,
+        "actualClientClosed": 1,
+        "outcome": "complete",
+        "environment": "actual local TLS protocol fixture; no paid or external endpoint"
+      }
+    },
+    {
+      "consumer": "B",
+      "language": "README_ZH",
+      "block": 1,
+      "pid": 104081,
+      "resultFile": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-runtime-README_ZH-1.mjs.json",
+      "terminal": {
+        "ownedTimers": [],
+        "actualTimerRecords": [
+          {
+            "stopped": true,
+            "actualKind": "Timeout"
+          },
+          {
+            "stopped": true,
+            "actualKind": "Timeout"
+          },
+          {
+            "stopped": true,
+            "actualKind": "Timeout"
+          }
+        ],
+        "deniedIO": [],
+        "activeResources": [
+          "Immediate",
+          "Immediate"
+        ],
+        "fds": 22
+      },
+      "tls": {
+        "requests": 1,
+        "agents": [
+          {
+            "created": true,
+            "destroyed": true
+          }
+        ],
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 1,
+        "actualClientSockets": 0,
+        "actualClientClosed": 1,
+        "outcome": "complete",
+        "environment": "actual local TLS protocol fixture; no paid or external endpoint"
+      }
+    },
+    {
+      "consumer": "C",
+      "language": "README",
+      "block": 1,
+      "pid": 104187,
+      "resultFile": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-runtime-README-1.mjs.json",
+      "terminal": {
+        "ownedTimers": [],
+        "actualTimerRecords": [
+          {
+            "stopped": true,
+            "actualKind": "Timeout"
+          },
+          {
+            "stopped": true,
+            "actualKind": "Timeout"
+          },
+          {
+            "stopped": true,
+            "actualKind": "Timeout"
+          }
+        ],
+        "deniedIO": [],
+        "activeResources": [
+          "Immediate",
+          "Immediate"
+        ],
+        "fds": 22
+      },
+      "tls": {
+        "requests": 1,
+        "agents": [
+          {
+            "created": true,
+            "destroyed": true
+          }
+        ],
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 1,
+        "actualClientSockets": 0,
+        "actualClientClosed": 1,
+        "outcome": "complete",
+        "environment": "actual local TLS protocol fixture; no paid or external endpoint"
+      }
+    },
+    {
+      "consumer": "C",
+      "language": "README_ZH",
+      "block": 1,
+      "pid": 104218,
+      "resultFile": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-runtime-README_ZH-1.mjs.json",
+      "terminal": {
+        "ownedTimers": [],
+        "actualTimerRecords": [
+          {
+            "stopped": true,
+            "actualKind": "Timeout"
+          },
+          {
+            "stopped": true,
+            "actualKind": "Timeout"
+          },
+          {
+            "stopped": true,
+            "actualKind": "Timeout"
+          }
+        ],
+        "deniedIO": [],
+        "activeResources": [
+          "Immediate",
+          "Immediate"
+        ],
+        "fds": 22
+      },
+      "tls": {
+        "requests": 1,
+        "agents": [
+          {
+            "created": true,
+            "destroyed": true
+          }
+        ],
+        "serverListening": false,
+        "sockets": 0,
+        "socketsClosed": 1,
+        "actualClientSockets": 0,
+        "actualClientClosed": 1,
+        "outcome": "complete",
+        "environment": "actual local TLS protocol fixture; no paid or external endpoint"
+      }
+    }
+  ],
+  "pureLiteralResources": [
+    {
+      "consumer": "B",
+      "language": "README",
+      "block": 2,
+      "pid": 104057,
+      "resultFile": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-runtime-README-2.mjs.json",
+      "terminal": {
+        "ownedTimers": [],
+        "actualTimerRecords": [],
+        "deniedIO": [],
+        "activeResources": [],
+        "fds": 21
+      }
+    },
+    {
+      "consumer": "B",
+      "language": "README",
+      "block": 3,
+      "pid": 104067,
+      "resultFile": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-runtime-README-3.mjs.json",
+      "terminal": {
+        "ownedTimers": [],
+        "actualTimerRecords": [],
+        "deniedIO": [],
+        "activeResources": [],
+        "fds": 21
+      }
+    },
+    {
+      "consumer": "B",
+      "language": "README_ZH",
+      "block": 2,
+      "pid": 104089,
+      "resultFile": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-runtime-README_ZH-2.mjs.json",
+      "terminal": {
+        "ownedTimers": [],
+        "actualTimerRecords": [],
+        "deniedIO": [],
+        "activeResources": [],
+        "fds": 21
+      }
+    },
+    {
+      "consumer": "B",
+      "language": "README_ZH",
+      "block": 3,
+      "pid": 104097,
+      "resultFile": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-runtime-README_ZH-3.mjs.json",
+      "terminal": {
+        "ownedTimers": [],
+        "actualTimerRecords": [],
+        "deniedIO": [],
+        "activeResources": [],
+        "fds": 21
+      }
+    },
+    {
+      "consumer": "C",
+      "language": "README",
+      "block": 2,
+      "pid": 104195,
+      "resultFile": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-runtime-README-2.mjs.json",
+      "terminal": {
+        "ownedTimers": [],
+        "actualTimerRecords": [],
+        "deniedIO": [],
+        "activeResources": [],
+        "fds": 21
+      }
+    },
+    {
+      "consumer": "C",
+      "language": "README",
+      "block": 3,
+      "pid": 104209,
+      "resultFile": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-runtime-README-3.mjs.json",
+      "terminal": {
+        "ownedTimers": [],
+        "actualTimerRecords": [],
+        "deniedIO": [],
+        "activeResources": [],
+        "fds": 21
+      }
+    },
+    {
+      "consumer": "C",
+      "language": "README_ZH",
+      "block": 2,
+      "pid": 104226,
+      "resultFile": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-runtime-README_ZH-2.mjs.json",
+      "terminal": {
+        "ownedTimers": [],
+        "actualTimerRecords": [],
+        "deniedIO": [],
+        "activeResources": [],
+        "fds": 21
+      }
+    },
+    {
+      "consumer": "C",
+      "language": "README_ZH",
+      "block": 3,
+      "pid": 104337,
+      "resultFile": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-runtime-README_ZH-3.mjs.json",
+      "terminal": {
+        "ownedTimers": [],
+        "actualTimerRecords": [],
+        "deniedIO": [],
+        "activeResources": [],
+        "fds": 21
+      }
+    }
+  ],
+  "actualNoOptional": {
+    "B": {
+      "pid": 104131,
+      "argv": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.18.0/installation/bin/node",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/final-B-no-optional/no-optional.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/B-no-optional.json"
+      ],
+      "node": "v24.18.0",
+      "packageChecks": [
+        {
+          "name": "@deepseek-ai/cordis",
+          "actualPackageAbsent": true,
+          "loaderFailure": "ERR_MODULE_NOT_FOUND"
+        },
+        {
+          "name": "@omne-harness-lite/kernel-basis",
+          "actualPackageAbsent": true,
+          "loaderFailure": "ERR_MODULE_NOT_FOUND"
+        }
+      ],
+      "oracles": [
+        {
+          "name": "S60.actual-absent-Cordis-kernel-pure-retry-and-guard",
+          "result": "pass",
+          "actual": {
+            "retry": "PT24.9875S",
+            "guard": {
+              "allowed": true
+            },
+            "touched": []
+          }
+        }
+      ],
+      "resources": []
+    },
+    "C": {
+      "pid": 104401,
+      "argv": [
+        "/data/qiwei/.local/share/fnm/node-versions/v24.18.0/installation/bin/node",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/final-C-no-optional/no-optional.mjs",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/final-consumers-1790537953164586163/C-no-optional.json"
+      ],
+      "node": "v24.18.0",
+      "packageChecks": [
+        {
+          "name": "@deepseek-ai/cordis",
+          "actualPackageAbsent": true,
+          "loaderFailure": "ERR_MODULE_NOT_FOUND"
+        },
+        {
+          "name": "@omne-harness-lite/kernel-basis",
+          "actualPackageAbsent": true,
+          "loaderFailure": "ERR_MODULE_NOT_FOUND"
+        }
+      ],
+      "oracles": [
+        {
+          "name": "S60.actual-absent-Cordis-kernel-pure-retry-and-guard",
+          "result": "pass",
+          "actual": {
+            "retry": "PT24.9875S",
+            "guard": {
+              "allowed": true
+            },
+            "touched": []
+          }
+        }
+      ],
+      "resources": []
+    }
+  },
+  "finalControls": [
+    {
+      "name": "half-uses-full",
+      "directory": "/tmp/omne-retry-delay-independent-u9ojssk4/final-negative-half-uses-full",
+      "specifiedOracle": "S60.Fraction.base-below-cap.constant.half.n1.u0.previous0",
+      "syntaxExit": 0,
+      "oracleExit": 1,
+      "firstFailure": {
+        "name": "S60.Fraction.base-below-cap.constant.half.n1.u0.previous0",
+        "result": "fail",
+        "seconds": 0.001237527,
+        "error": "AssertionError [ERR_ASSERTION]: base-below-cap.constant.half.n1.u0.previous0\n+ actual - expected\n\n  {\n+   ok: 'PT0S'\n-   ok: 'PT1.125S'\n  }\n",
+        "stack": "AssertionError [ERR_ASSERTION]: base-below-cap.constant.half.n1.u0.previous0\n+ actual - expected\n\n  {\n+   ok: 'PT0S'\n-   ok: 'PT1.125S'\n  }\n\n    at file:///tmp/omne-retry-delay-independent-u9ojssk4/final-negative-half-uses-full/numeric.mjs:96:12\n    at check (file:///tmp/omne-retry-delay-independent-u9ojssk4/final-negative-half-uses-full/numeric.mjs:61:20)\n    at file:///tmp/omne-retry-delay-independent-u9ojssk4/final-negative-half-uses-full/numeric.mjs:92:3",
+        "actual": {
+          "ok": "PT0S"
+        },
+        "expected": {
+          "ok": "PT1.125S"
+        }
+      },
+      "changedProductFiles": [
+        "vendor/model-request-runtime/dist/retry-delay.js"
+      ],
+      "normalProductFilesCompared": 1274,
+      "beforeSha256": "598433a54a9999c49a747781bca09aaf682672ef0e9bbcc7434c92dc414abba8",
+      "afterSha256": "4d35f1572441e84f9c9ea51381ec77d8e129a557d3932cbd3ab1b5e47e2398b2",
+      "actualWaitCompleted": true
+    },
+    {
+      "name": "decorrelated-lo-unclamped",
+      "directory": "/tmp/omne-retry-delay-independent-u9ojssk4/final-negative-decorrelated-lo-unclamped",
+      "specifiedOracle": "S60.Fraction.base-above-cap.constant.decorrelated.n1.u0.previous0",
+      "syntaxExit": 0,
+      "oracleExit": 1,
+      "firstFailure": {
+        "name": "S60.Fraction.base-above-cap.constant.decorrelated.n1.u0.previous0",
+        "result": "fail",
+        "seconds": 0.0011325160000001232,
+        "error": "AssertionError [ERR_ASSERTION]: base-above-cap.constant.decorrelated.n1.u0.previous0\n+ actual - expected\n\n  {\n+   ok: 'PT20S'\n-   ok: 'PT3S'\n  }\n",
+        "stack": "AssertionError [ERR_ASSERTION]: base-above-cap.constant.decorrelated.n1.u0.previous0\n+ actual - expected\n\n  {\n+   ok: 'PT20S'\n-   ok: 'PT3S'\n  }\n\n    at file:///tmp/omne-retry-delay-independent-u9ojssk4/final-negative-decorrelated-lo-unclamped/numeric.mjs:96:12\n    at check (file:///tmp/omne-retry-delay-independent-u9ojssk4/final-negative-decorrelated-lo-unclamped/numeric.mjs:61:20)\n    at file:///tmp/omne-retry-delay-independent-u9ojssk4/final-negative-decorrelated-lo-unclamped/numeric.mjs:92:3",
+        "actual": {
+          "ok": "PT20S"
+        },
+        "expected": {
+          "ok": "PT3S"
+        }
+      },
+      "changedProductFiles": [
+        "vendor/model-request-runtime/dist/retry-delay.js"
+      ],
+      "normalProductFilesCompared": 1274,
+      "beforeSha256": "598433a54a9999c49a747781bca09aaf682672ef0e9bbcc7434c92dc414abba8",
+      "afterSha256": "fcf93569dc360eb9cf3f6e021ef8cea31559c39e064ffb2fef4e3a50e3dcd66c",
+      "actualWaitCompleted": true
+    }
+  ],
+  "initialDocsFirstFailures": [
+    {
+      "label": "B-runtime-README-1.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/docs-1790537231340592595/B-runtime-README-1.mjs.json",
+        "runtime-README-1.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/B",
+      "pid": 100615,
+      "exit": 1,
+      "actualWaitCompleted": true,
+      "seconds": 1.9007441778667271,
+      "TMPDIR": "/tmp/omne-retry-delay-independent-u9ojssk4/readme-temporary"
+    },
+    {
+      "label": "B-runtime-README_ZH-1.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/docs-1790537231340592595/B-runtime-README_ZH-1.mjs.json",
+        "runtime-README_ZH-1.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/B",
+      "pid": 100660,
+      "exit": 1,
+      "actualWaitCompleted": true,
+      "seconds": 1.805332571733743,
+      "TMPDIR": "/tmp/omne-retry-delay-independent-u9ojssk4/readme-temporary"
+    },
+    {
+      "label": "C-runtime-README-1.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/docs-1790537231340592595/C-runtime-README-1.mjs.json",
+        "runtime-README-1.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/relocated/C",
+      "pid": 100813,
+      "exit": 1,
+      "actualWaitCompleted": true,
+      "seconds": 2.1471944069489837,
+      "TMPDIR": "/tmp/omne-retry-delay-independent-u9ojssk4/readme-temporary"
+    },
+    {
+      "label": "C-runtime-README_ZH-1.mjs",
+      "argv": [
+        "node",
+        "readme-runner.mjs",
+        "readme",
+        "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/docs-1790537231340592595/C-runtime-README_ZH-1.mjs.json",
+        "runtime-README_ZH-1.mjs",
+        "/tmp/omne-retry-delay-independent-u9ojssk4/tls"
+      ],
+      "cwd": "/tmp/omne-retry-delay-independent-u9ojssk4/relocated/C",
+      "pid": 100854,
+      "exit": 1,
+      "actualWaitCompleted": true,
+      "seconds": 1.9352216040715575,
+      "TMPDIR": "/tmp/omne-retry-delay-independent-u9ojssk4/readme-temporary"
+    }
+  ],
+  "physicalClientDiagnostic": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-p2-retry-delay-verification/tmp/model-request-runtime/p2-retry-delay-verification/types-diagnostic-1790537776196085518/B-client-phases.json",
+  "issues": [
+    "早期setup/numeric/docs/nooptional及首次controls外层driver PID未单独留存；实际被测child PID/argv/raw/wait均保留；首次formatter操作仅tool transcript，PID不可恢复"
+  ],
+  "measurementsRevised": true,
+  "uncovered": [
+    "decideRetry/P5/default retry plugin",
+    "actual scheduling wait precision and huge timer R3G7",
+    "five settlement components",
+    "13 service operations and real session/tenant/permission",
+    "production observer",
+    "G28..31/log codec and old SL2 whole writer",
+    "complete P2-P6",
+    "37-model authentication"
+  ],
+  "tools": {
+    "node": "v24.18.0",
+    "pnpm": "10.28.1",
+    "python": "3.8.10 (default, Mar 18 2025, 20:04:55) \n[GCC 9.4.0]",
+    "uname": "Linux dev-ai-oh-agent-01 5.15.0-1084-aws #91~20.04.1-Ubuntu SMP Fri May 2 06:59:36 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux",
+    "typescript": "6.0.3"
+  },
+  "trackedClean": true,
+  "archiveResult": "archive.json (written after report+manifest hashing; no recursive hash claim)"
+}

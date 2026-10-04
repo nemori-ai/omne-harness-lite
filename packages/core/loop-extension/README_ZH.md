@@ -10,9 +10,12 @@
 | ------------------------------------------------------------------ | ---------------------------------- |
 | `judgeDefinition`、`judgeInput`、`judgeOutput`                     | 接收协议值并取得带类型的副本       |
 | `judgeConclusion(value, inputs)`                                   | 检查结论形状、合法组合与不可改字段 |
+| `judgePositionedSubject`、`judgeConclusionForSubject`              | 无执行句柄地判定纯主体和结论       |
 | `POSITIONS`、`POWERS`、`POWER_CONCLUSIONS`、`POSITION_CONCLUSIONS` | 查看位置与结论的合法组合           |
 | `loopExtensionBodyContract`                                        | 为资产模型提供拓展件定义规则       |
 | `validate`、`judgeValue`                                           | 使用 Schema 与通用判定面           |
+
+根入口采用 `data.loop-extension/v6`。模型调用失败输入必须带完整、有序的 `retryConclusions`；该位置落下的每条结论都必须带与输入相符的 `modelCallId`。`/schema/v3` 与 `/schema/v2` 仅提供当前规范引用所需的精确资源，不是旧版可执行 API。
 
 ## 接收拓展件定义
 
@@ -106,10 +109,52 @@ console.log(
 
 ## 失败与边界
 
+纯组合可以在不声称 Run 或日志存在的情况下检查主体和结论：
+
+```ts
+import { judgePositionedSubject, judgeConclusionForSubject } from '@omne-harness-lite/loop-extension'
+
+const subject = judgePositionedSubject({ position: 'attempt_started', subject: { attempt: 1 } })
+if ('rejected' in subject) throw new Error(subject.rejected)
+const conclusion = judgeConclusionForSubject(
+  {
+    extension: 'audit',
+    position: 'attempt_started',
+    power: 'observe',
+    output: { kind: 'observed' },
+    at: '2026-09-28T10:00:00Z',
+  },
+  { positionedSubject: subject.ok, extensionName: 'audit' },
+)
+if ('rejected' in conclusion) throw new Error(conclusion.rejected)
+console.log(conclusion.ok.output) // { kind: 'observed' }
+```
+
+纯主体只接收 `position`、该位置需要的 `dimension` 和 `subject`。判定成功只证明表示及配对关系，不证明实际调用、派发或历史完整。真正执行的消费者仍须以真实句柄与 Run 事实调用 `judgeInput` 和 `judgeConclusion`。
+
 判定返回带类型的 `{ ok }` 副本或 `{ rejected }`。`judgeConclusion` 需要已经接收的 `ExtensionInput` 与真实拓展件名，并与该次位置、维度及动作身份配对。辅助配置缺失或不合法会抛出 `TypeError`；协议拒绝仍是独立结果。只检查 Schema 的类型守卫与 `validate` 无法对照实际调用检查改写。
 
 合法结论不代表派发授权。调用方提供生效干预力，检查模型与供应商资格，完成放行，记录结论并按 Loop 次序应用。`select_model`、`retry`、`ask`、`veto` 在这里都是值；本包不执行模型选择、重试、等待、否决效果或命令。日志与环境句柄是不透明的。
 
 改写保留对应位置的不可改成员。拓展件不能把无法解析的工具调用修补成已解析参数。注入提醒必须以真实拓展件名作为来源。依赖、策略执行、持久化与恢复归消费者负责。
 
-公开 JSON Schema 入口是 `@omne-harness-lite/loop-extension/schema`（v3）和 `/schema/v2`。参见[源码导出](src/index.ts)、[测试](tests/)与[工具定义](../tool-definition/README_ZH.md)。
+公开 JSON Schema 入口是 `@omne-harness-lite/loop-extension/schema`（v6）、`/schema/v3` 和 `/schema/v2`。当前 Schema 图使用这些契约引用的精确 `messages/schema/v6` 与 `call-accounts/schema/v2` 资源，不随各包根 Schema 升级而改变。参见[源码导出](src/index.ts)、[测试](tests/)与[工具定义](../tool-definition/README_ZH.md)。
+
+## 校验已记录的重试结论
+
+重试历史保留完整结论，包括模型调用身份、作者、时刻及方案。`judgeInput` 校验完整失败主体，并核对每条发出记录及重试结论都属于同一个模型调用；完整日志前缀仍由运行时取得。
+
+```ts
+import { judgeValue } from '@omne-harness-lite/loop-extension'
+
+const result = judgeValue('ModelRetryConclusion', {
+  extension: 'default-retry',
+  position: 'after_model_call',
+  dimension: { ending: 'failure' },
+  modelCallId: 'mc_01',
+  power: 'rewrite',
+  output: { kind: 'retry', plan: { provider: 'provider-b', after: 'PT2S' } },
+  at: '2026-09-28T10:00:00Z',
+})
+console.log('ok' in result) // true
+```

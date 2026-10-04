@@ -8,6 +8,7 @@
 |---|---|
 | `skills/<name>/canonical/` + `adapters/<host>/strategy.yaml` | `.agents/skills/<name>/`、`.claude/skills/<name>/` |
 | `roles/<name>/role.md`、`codex.toml`、`claude.yaml`，可选 assembly / adaptation | `.codex/agents/<name>.toml`、`.claude/agents/<name>.md` |
+| [`hooks/hooks.yaml`](hooks/README.md)（宿主无关的收工钩子声明） | `.claude/settings.json`、`.codex/hooks.json` |
 
 [`research/`](research/README.md) 不是编译源，也不产出任何东西：它保存**当初据以立规的观察**——
 上游流程怎么要求候选比较、形式化证明到哪为止、评测怎样进入决策。
@@ -46,9 +47,10 @@ skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，
 
 | Skill | 职责 |
 |---|---|
-| `harness-design-handbook` | 从需求与能力覆盖到演化、契约、Cordis 投影和交接；方法草稿 |
+| `harness-design-handbook` | 从需求与能力覆盖到演化、契约、装配时对 Cordis 的符合性核对和交接；方法草稿 |
 | `product-design` | 以 product manager 视角起草或修订产品设计正文；该区维护规矩归 [design/product](../design/product/AGENTS.md) |
 | `write-blog` | 为人代笔技术博客：访谈作者、核对设计资料，按方向撰写个人工程复盘或开发者技术专题，以说人话和准确表达为准则 |
+| [`asd-ste100`](skills/asd-ste100/README.md) | 全工作区文档写作与修订的表达规范：英文采用 STE，中文采用清晰性原则；保留语义与要求强度，含结构检查器，由本仓库维护 |
 | `write-agents-md` | AGENTS.md 的心智、边界、继承与阅读地图 |
 | `design-subagents` | 角色契约、宿主与模型适配、模板、成对渲染及验证 |
 | `worktree-discipline` | 明确执行仓库中的隔离、并行集成与证据保留 |

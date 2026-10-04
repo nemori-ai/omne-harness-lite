@@ -1,0 +1,3 @@
+PASS src ae snapshot
+(node:202405) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)

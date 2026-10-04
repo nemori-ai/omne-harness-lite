@@ -1,0 +1,8 @@
+
+> omne-harness-lite-workspace@ format:check /data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation
+> ./scripts/format.sh check -- packages/core/call-accounts/src/schema.ts packages/core/skill-package/src/schema.ts packages/tenancy/governance-center-entry/src/routing/schema.ts scripts/build-fixed-schemas.mjs tools/core-verification/src/dependency-surface.ts tools/core-verification/src/w6-asset-consumer.ts tools/core-verification/tests/dependency-require.spec.ts tools/ts-checks/src/rules/ops-import-whitelist.ts tools/ts-checks/tests/entry-rules.spec.ts tools/ts-checks/tests/fixed-schema-sandbox.spec.ts
+
+Checking formatting...
+[warn] tools/core-verification/src/w6-asset-consumer.ts
+[warn] Code style issues found in the above file. Run Prettier with --write to fix.
+ ELIFECYCLE  Command failed with exit code 1.

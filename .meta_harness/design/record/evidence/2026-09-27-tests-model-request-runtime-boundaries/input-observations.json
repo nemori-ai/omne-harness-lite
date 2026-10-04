@@ -1,0 +1,464 @@
+[
+  {
+    "path": ".meta_harness/design/registry/catalog.json",
+    "sha256": "e45d090d97f48ce1af9f71dde50e2e77bf2d7dd71a579d28aa9b21c3c03f3d57",
+    "observedSha256": "e45d090d97f48ce1af9f71dde50e2e77bf2d7dd71a579d28aa9b21c3c03f3d57",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/registry/frozen.json",
+    "sha256": "5742d1e60250bac295329c17cae91169ac550e7ffda65db24cc6d45aa5317e43",
+    "observedSha256": "5742d1e60250bac295329c17cae91169ac550e7ffda65db24cc6d45aa5317e43",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/spec/data/model-profile/v3/contract.md",
+    "sha256": "8bc4fbfe743b02586ccf582aecb4b5792e3e6582af9e48d5516c364b7251be23",
+    "observedSha256": "8bc4fbfe743b02586ccf582aecb4b5792e3e6582af9e48d5516c364b7251be23",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/data/messages/v4/contract.md",
+    "sha256": "a8ac82be707ae5d49ceb7ad057b42041f73f73a47e76cdfbea5cc37b9d1be89c",
+    "observedSha256": "a8ac82be707ae5d49ceb7ad057b42041f73f73a47e76cdfbea5cc37b9d1be89c",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/data/model-response/v4/contract.md",
+    "sha256": "b591476555136ef8e86fba235b95df23627aa930581ee13db2817079d5cbf566",
+    "observedSha256": "b591476555136ef8e86fba235b95df23627aa930581ee13db2817079d5cbf566",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/model-profile-directory/v3/contract.md",
+    "sha256": "a38d111a1e071300bc7297f533998922213dc2e47e4671be621b8dd21cf94e45",
+    "observedSha256": "a38d111a1e071300bc7297f533998922213dc2e47e4671be621b8dd21cf94e45",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/model-request-runtime/v3/contract.md",
+    "sha256": "9d73735d3c22033dd583f10f8c7ea61b5b6865769e25de652399a59e2949747a",
+    "observedSha256": "9d73735d3c22033dd583f10f8c7ea61b5b6865769e25de652399a59e2949747a",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/loop-extension-runner/v3/contract.md",
+    "sha256": "e2fcc0aac94b2bb5567ecf6b764b3dcc10790b538af3ae9faaf15b0e0dad7b2b",
+    "observedSha256": "e2fcc0aac94b2bb5567ecf6b764b3dcc10790b538af3ae9faaf15b0e0dad7b2b",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/asset-evaluation/v4/contract.md",
+    "sha256": "52b52bebd08c8451b41c3a318583210102c7d8a3a1c804bf58eab701d4d589a7",
+    "observedSha256": "52b52bebd08c8451b41c3a318583210102c7d8a3a1c804bf58eab701d4d589a7",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/asset-registry/v3/contract.md",
+    "sha256": "6b2f36192f0560158b07518bc2bfc7c862f88c54475000aca68153051e522118",
+    "observedSha256": "6b2f36192f0560158b07518bc2bfc7c862f88c54475000aca68153051e522118",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/asset-registry/v4/contract.md",
+    "sha256": "23ce5e5b88dbdaf4062184e2a0324cf0b75cd5af86cdf79aebaba05354c9b414",
+    "observedSha256": "23ce5e5b88dbdaf4062184e2a0324cf0b75cd5af86cdf79aebaba05354c9b414",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/assembly-manifest/v3/contract.md",
+    "sha256": "1a37d5c534c1318a72d9210e776eaf8c9a0f3f66d9feef951442975e47bec9f9",
+    "observedSha256": "1a37d5c534c1318a72d9210e776eaf8c9a0f3f66d9feef951442975e47bec9f9",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/assembly-manifest/v4/contract.md",
+    "sha256": "46c3d605fb889c6f66822f8aecb815c1e691bf605600a036dc48ac0c9aeb6a2d",
+    "observedSha256": "46c3d605fb889c6f66822f8aecb815c1e691bf605600a036dc48ac0c9aeb6a2d",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/session-log/v2/contract.md",
+    "sha256": "7a41db66fbd03343634252828d913aa430b44b7c9ddd4ba6b89fdd5809ff8e8c",
+    "observedSha256": "7a41db66fbd03343634252828d913aa430b44b7c9ddd4ba6b89fdd5809ff8e8c",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/session-tenancy/v2/contract.md",
+    "sha256": "f37412a8f377c91dbbfa76a2542cec2f5204564b34fbdc0a51bbd2fd6845f703",
+    "observedSha256": "f37412a8f377c91dbbfa76a2542cec2f5204564b34fbdc0a51bbd2fd6845f703",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/modality-projection/v2/contract.md",
+    "sha256": "73d225e356a1af250f637ee3eb070b76257b9f96c17ae527aec37eeea810aac2",
+    "observedSha256": "73d225e356a1af250f637ee3eb070b76257b9f96c17ae527aec37eeea810aac2",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/model/model-request-runtime/v3-design.md",
+    "sha256": "31a46a46ad67bb6d1dd383cbc6a08a7a89d3354aa261d9db54ab8f7ae7d2ae99",
+    "observedSha256": "31a46a46ad67bb6d1dd383cbc6a08a7a89d3354aa261d9db54ab8f7ae7d2ae99",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/model/pi-ai-transport/v3-design.md",
+    "sha256": "297d42b6eb6b8841169724d3922bd9be4f1114a8432c498aa27cba4b9f75e0cd",
+    "observedSha256": "297d42b6eb6b8841169724d3922bd9be4f1114a8432c498aa27cba4b9f75e0cd",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/model/pi-ai-transport/verification.md",
+    "sha256": "ea1b7c06ea2db7adf5a890cf9f4a2c143dff593effbd7c24fcf468d6b81aa2a9",
+    "observedSha256": "ea1b7c06ea2db7adf5a890cf9f4a2c143dff593effbd7c24fcf468d6b81aa2a9",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/model/model-profile-directory/v3-design.md",
+    "sha256": "6998595474dcc847a4da354fed90195d6b52368313515d7af98da84c6a48f671",
+    "observedSha256": "6998595474dcc847a4da354fed90195d6b52368313515d7af98da84c6a48f671",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/assets/evaluation-input-store/design.md",
+    "sha256": "01e0d2a1ff4fbdaab11321a1126bec8e0e3c01d91a18e8c1f6e3cd162a134bd4",
+    "observedSha256": "01e0d2a1ff4fbdaab11321a1126bec8e0e3c01d91a18e8c1f6e3cd162a134bd4",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/assets/evaluation-input-store/v3-source-interfaces.md",
+    "sha256": "1d0be74b524b6609c2a1d61e5ce49ebdcf3247026b710458a951823ee83640b6",
+    "observedSha256": "1d0be74b524b6609c2a1d61e5ce49ebdcf3247026b710458a951823ee83640b6",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/assets/evaluation-input-store/v4-history-source-interfaces.md",
+    "sha256": "9313dcbe4788f4e72b1be13b05b109d55f7d5aa70d928e24927af49bc9e584a0",
+    "observedSha256": "9313dcbe4788f4e72b1be13b05b109d55f7d5aa70d928e24927af49bc9e584a0",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/assets/assembly-manifest-store/v4-design.md",
+    "sha256": "d2394261503f5a37b39f67a6e11b552c19c218564e008bcf4884235be99c2784",
+    "observedSha256": "d2394261503f5a37b39f67a6e11b552c19c218564e008bcf4884235be99c2784",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/tools/asset-registry/v4-design.md",
+    "sha256": "d5d53046909700936b839a7142406bff606b55b33c050d9b6ef21ec467a0ba60",
+    "observedSha256": "d5d53046909700936b839a7142406bff606b55b33c050d9b6ef21ec467a0ba60",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/infra/credential-custodian-local/v2-design.md",
+    "sha256": "e02af1cb236928f9cb59298f3d7ae901730706ef726fec10ebfee23ebac1d30a",
+    "observedSha256": "e02af1cb236928f9cb59298f3d7ae901730706ef726fec10ebfee23ebac1d30a",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/agent-loop/loop-extension-runner/v3-design.md",
+    "sha256": "439fcb0ea12535bd2bf1ac9b467ce2873eda57957c46b224fb5e3b64040613c7",
+    "observedSha256": "439fcb0ea12535bd2bf1ac9b467ce2873eda57957c46b224fb5e3b64040613c7",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/model/modality-projection/design.md",
+    "sha256": "8507cd5d054720efc45fd2817e0d2f8688d26e7ed51671c38e4cbabdc9992008",
+    "observedSha256": "8507cd5d054720efc45fd2817e0d2f8688d26e7ed51671c38e4cbabdc9992008",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/session/session-log-jsonl/design.md",
+    "sha256": "a52d26d2042b260e53c4fa9cb849b883034b92381b19cc87f8cd815c253a025e",
+    "observedSha256": "a52d26d2042b260e53c4fa9cb849b883034b92381b19cc87f8cd815c253a025e",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/packages/session/run-attempt-facts-derived/design.md",
+    "sha256": "1f95dcaa295b7b577c32ff42ddb7c0862381db91d49c0b9025b895a0acd23faa",
+    "observedSha256": "1f95dcaa295b7b577c32ff42ddb7c0862381db91d49c0b9025b895a0acd23faa",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/apps/model-request-acceptance/design.md",
+    "sha256": "49c87851856064ba0c33cc0c25d8b73a70a7b249d6a060fca3fcb0610da96bbf",
+    "observedSha256": "49c87851856064ba0c33cc0c25d8b73a70a7b249d6a060fca3fcb0610da96bbf",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/realization/apps/model-request-acceptance/verification.md",
+    "sha256": "893b270db06cf5e789f10a89bd49500c5c759a441bc6937f04844f57d17d2fad",
+    "observedSha256": "893b270db06cf5e789f10a89bd49500c5c759a441bc6937f04844f57d17d2fad",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/record/decisions/model-runtime-delivery-adoption/acceptance.json",
+    "sha256": "ce6c5f771f6ed51541ce2efe459aec3612d28e57c75fe9587a0eefc80155201e",
+    "observedSha256": "ce6c5f771f6ed51541ce2efe459aec3612d28e57c75fe9587a0eefc80155201e",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/record/decisions/model-credential-source-projection/adoption.json",
+    "sha256": "53f9e52f2e7028648bfcbf29e56b48b3472925da8167a453afc51fcfd4877a8d",
+    "observedSha256": "53f9e52f2e7028648bfcbf29e56b48b3472925da8167a453afc51fcfd4877a8d",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/record/decisions/model-original-fill-adoption/acceptance.json",
+    "sha256": "706257735ea978b8e190af9840bd627480cb323efe2cdab16a8f894cb63761b4",
+    "observedSha256": "706257735ea978b8e190af9840bd627480cb323efe2cdab16a8f894cb63761b4",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/record/decisions/model-registry-history-provider-adoption/adoption.json",
+    "sha256": "6ed9100889be09484a8d56b6f93ca3ec61e6d6c89bfe97ad9abc8d0b8b2251c6",
+    "observedSha256": "6ed9100889be09484a8d56b6f93ca3ec61e6d6c89bfe97ad9abc8d0b8b2251c6",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": "tools/model-probe/src/models.mjs",
+    "sha256": "432fac32d8288f167d1de6e583eba93330e4a8a64e346ab1b27fd8fbb1f27a4a",
+    "observedSha256": "432fac32d8288f167d1de6e583eba93330e4a8a64e346ab1b27fd8fbb1f27a4a",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": "tmp/model-request-runtime/ledger.json",
+    "sha256": "e0a4c2eb0da554a7a41980508b5e5976794d45bb50d35b9737b028c4fad0abc7",
+    "observedSha256": "e0a4c2eb0da554a7a41980508b5e5976794d45bb50d35b9737b028c4fad0abc7",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/spec/data/content-blocks/v2/contract.md",
+    "sha256": "ae963e2bcd8c5005951f6e31be9d893e555aad24b12e230fa12e95bddfbca532",
+    "observedSha256": "ae963e2bcd8c5005951f6e31be9d893e555aad24b12e230fa12e95bddfbca532",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/data/messages/v2/contract.md",
+    "sha256": "4e5089045292bbb48d7f5aea60855eb2b82f61fba66c92159faf0e2529180569",
+    "observedSha256": "4e5089045292bbb48d7f5aea60855eb2b82f61fba66c92159faf0e2529180569",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/data/model-profile/v2/contract.md",
+    "sha256": "3591412b5d95f55d3a8bc3621cd384c98905cbfc1ce5cd101dfc62654a3618e9",
+    "observedSha256": "3591412b5d95f55d3a8bc3621cd384c98905cbfc1ce5cd101dfc62654a3618e9",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/data/loop-extension/v2/contract.md",
+    "sha256": "da5ded1e56a9f9ac02d3465a368e835afa190d516ccd78cfb90ce266ec974374",
+    "observedSha256": "da5ded1e56a9f9ac02d3465a368e835afa190d516ccd78cfb90ce266ec974374",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/loop-extension-runner/v2/contract.md",
+    "sha256": "ca4e3204b8fbde1f4ecfcfcb9e24b55b056a2f1de41ba0dfc288b9bd07875226",
+    "observedSha256": "ca4e3204b8fbde1f4ecfcfcb9e24b55b056a2f1de41ba0dfc288b9bd07875226",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/spec/data/content-blocks/v3/contract.md",
+    "sha256": "27ee5765f5cf96cbcfdbf14784e66c1200697d41d7fba6f728ce93ba2ca2c9bb",
+    "observedSha256": "27ee5765f5cf96cbcfdbf14784e66c1200697d41d7fba6f728ce93ba2ca2c9bb",
+    "matchesPlanObservation": true,
+    "frozen": true
+  },
+  {
+    "path": ".meta_harness/design/product/PF-002-assets-settings-and-permissions/README.md",
+    "sha256": "e70669194675b374f4a3af5c1c3716e098892b637151b6d8774039a29a03d8d7",
+    "observedSha256": "e70669194675b374f4a3af5c1c3716e098892b637151b6d8774039a29a03d8d7",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-016-cli-tui-delivery-surface/README.md",
+    "sha256": "53a36aa1a856d0b8c8f529faa48d5115d8cb50d1552391198cfe3075da857847",
+    "observedSha256": "53a36aa1a856d0b8c8f529faa48d5115d8cb50d1552391198cfe3075da857847",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-014-inbound-intake-and-queueing/README.md",
+    "sha256": "f00dd8bd859d228ed6459eef6abab0533ded1677e5351cc87856de6a7b4bb67f",
+    "observedSha256": "f00dd8bd859d228ed6459eef6abab0533ded1677e5351cc87856de6a7b4bb67f",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-003-asset-transfer-and-sharing/README.md",
+    "sha256": "70a2c255e6a8c6eed58d1cf05d7a4495995a9966bb64755aff13849b3d94048c",
+    "observedSha256": "70a2c255e6a8c6eed58d1cf05d7a4495995a9966bb64755aff13849b3d94048c",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-015-session-lifecycle-and-ownership/README.md",
+    "sha256": "3308361633b25d2cf0611464aba48e264a9556cc9eb92358b89a250d473862b8",
+    "observedSha256": "3308361633b25d2cf0611464aba48e264a9556cc9eb92358b89a250d473862b8",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-004-agent-definition-and-assembly/README.md",
+    "sha256": "79955b9667607c61ae13b63c82c748a47ea450bd72f3526925c7ba0b7a6dda9d",
+    "observedSha256": "79955b9667607c61ae13b63c82c748a47ea450bd72f3526925c7ba0b7a6dda9d",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-005-execution-environments-and-sandboxes/README.md",
+    "sha256": "3b36a38b130c56a0dd203a70240111f50b750ed6ca15ad923c43191dc7695dda",
+    "observedSha256": "3b36a38b130c56a0dd203a70240111f50b750ed6ca15ad923c43191dc7695dda",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-007-meta-capabilities/README.md",
+    "sha256": "1900b565eef497a857eb2d49cd3ee0a38f554476809a7112e7df8d70b390d552",
+    "observedSha256": "1900b565eef497a857eb2d49cd3ee0a38f554476809a7112e7df8d70b390d552",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-001-identity-scope-and-agent-constraints/README.md",
+    "sha256": "d25ad60360ce28db7c8e1a090034148f824e3074e628d4fae6d8896b6e18bf6e",
+    "observedSha256": "d25ad60360ce28db7c8e1a090034148f824e3074e628d4fae6d8896b6e18bf6e",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-006-tools-and-skills/README.md",
+    "sha256": "c105bfe7e14e7f23bc60784bb737ef1da665ae163162c850fb0503f46a987f10",
+    "observedSha256": "c105bfe7e14e7f23bc60784bb737ef1da665ae163162c850fb0503f46a987f10",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-017-governance-center-as-deployable-application/README.md",
+    "sha256": "574c353298f2adc494b7df75935b2f78004c4ecac632d6561f7a5d3105337d89",
+    "observedSha256": "574c353298f2adc494b7df75935b2f78004c4ecac632d6561f7a5d3105337d89",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-020-workspace/README.md",
+    "sha256": "a7575b1e5e9e9c2a641339a39b2e3fb1404b694f9438428cf7add194ecb99fec",
+    "observedSha256": "a7575b1e5e9e9c2a641339a39b2e3fb1404b694f9438428cf7add194ecb99fec",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": "tmp/model-request-runtime/origin-main-update-2844/IMPACT.md",
+    "sha256": "c6221e1cfe928cd9382fe71ad8bb917ae1456fff52bb6a367a64ff86c7e80360",
+    "observedSha256": "c6221e1cfe928cd9382fe71ad8bb917ae1456fff52bb6a367a64ff86c7e80360",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-002-assets-settings-and-permissions/design.md",
+    "sha256": "f21917dd7ff82adfb1c8a3b5985dd7e1653e188297cb40c393d2f099856ba872",
+    "observedSha256": "f21917dd7ff82adfb1c8a3b5985dd7e1653e188297cb40c393d2f099856ba872",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-020-workspace/design.md",
+    "sha256": "229ab0a2ba2e9d5d1c0aec8e60f8c40cf85349432527ebd0dcdb6c314c76c852",
+    "observedSha256": "229ab0a2ba2e9d5d1c0aec8e60f8c40cf85349432527ebd0dcdb6c314c76c852",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/product/PF-020-workspace/decisions.md",
+    "sha256": "008a6dade0f30c30f82f768a615da9530bc100360f80aebfde18adc0bce3d6ae",
+    "observedSha256": "008a6dade0f30c30f82f768a615da9530bc100360f80aebfde18adc0bce3d6ae",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/spec/data/identity-values/README.md",
+    "sha256": "583a90b8872199fb40e28a7117d8b371d66401bdacb1d5e6739c47612eb580d8",
+    "observedSha256": "583a90b8872199fb40e28a7117d8b371d66401bdacb1d5e6739c47612eb580d8",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/spec/data/asset-model/README.md",
+    "sha256": "30f01aafd9a0d431ee09b001a86d1bd0246b832ab55249c386a0178ca7c88c2e",
+    "observedSha256": "30f01aafd9a0d431ee09b001a86d1bd0246b832ab55249c386a0178ca7c88c2e",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/asset-evaluation/README.md",
+    "sha256": "ce6b1c10fae3e822e69a26e8ad682c249e67ed14698c3143daea026c37e75d11",
+    "observedSha256": "ce6b1c10fae3e822e69a26e8ad682c249e67ed14698c3143daea026c37e75d11",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/asset-registry/README.md",
+    "sha256": "616b2d514d94a2d2d8d4be7c36cabf1347470acb3853ca0c8063f769b722cd1f",
+    "observedSha256": "616b2d514d94a2d2d8d4be7c36cabf1347470acb3853ca0c8063f769b722cd1f",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/spec/capabilities/hooks-import/README.md",
+    "sha256": "ac29cf19eba19604ed02093495e7a109c53a664e7cbbf21a859e5049f2aa2b5f",
+    "observedSha256": "ac29cf19eba19604ed02093495e7a109c53a664e7cbbf21a859e5049f2aa2b5f",
+    "matchesPlanObservation": true,
+    "frozen": false
+  },
+  {
+    "path": ".meta_harness/design/spec/data/skill-package/README.md",
+    "sha256": "0e67381cda8dc3407ae53784fdd46794a1e1a759c4568b47f07e3585d6751ec9",
+    "observedSha256": "0e67381cda8dc3407ae53784fdd46794a1e1a759c4568b47f07e3585d6751ec9",
+    "matchesPlanObservation": true,
+    "frozen": false
+  }
+]

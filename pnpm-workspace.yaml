@@ -1,14 +1,19 @@
 packages:
   - packages/*/*
   - apps/*
+  - examples/*
   - tools/ts-checks
   - tools/core-verification
   - tools/artifact-builder
 
 # 版本只在这里钉一次；成员用 `catalog:` 引用。改版本先改这里，再重生锁文件。
 catalog:
-  '@earendil-works/pi-tui': 0.86.1
+  '@earendil-works/pi-tui': 1.0.0
   '@deepseek-ai/cordis': 4.0.4
+  '@huggingface/tokenizers': 0.2.0
+  js-tiktoken: 1.0.21
+  image-size: 2.0.4
+  sharp: 0.35.3
   '@types/node': 24.13.6
   ajv: 8.20.0
   kysely: 0.29.6
@@ -16,10 +21,16 @@ catalog:
   '@types/pg': 8.15.6
   typescript: 6.0.3
   vitest: 4.1.11
+  '@vitest/coverage-v8': 4.1.11
   zod: 4.6.5
   '@standard-schema/spec': 1.1.0
   yaml: 2.9.1
+  elkjs: 0.12.0
   '@eslint-community/regexpp': 4.12.2
+  '@jscpd/core': 4.0.1
+  '@jscpd/tokenizer': 4.0.1
+  '@stryker-mutator/core': 10.0.0
+  '@stryker-mutator/vitest-runner': 10.0.0
 
 patchedDependencies:
-  '@earendil-works/pi-tui@0.86.1': apps/cli/patches/pi-tui-0.86.1.patch
+  '@earendil-works/pi-tui@1.0.0': apps/cli/patches/pi-tui-1.0.0.patch

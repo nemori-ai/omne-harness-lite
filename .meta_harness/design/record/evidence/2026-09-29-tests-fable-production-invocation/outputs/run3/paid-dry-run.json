@@ -1,0 +1,52 @@
+{
+  "sourceCommit": "58f34e40514018a3114032fe4c61a4670ca864d9",
+  "scenarioSha256": "ec6a639383625d314938ca34d4cbcb271bc7cd5f4a8d342557d519be7273731c",
+  "fixtureCatalogSha256": "292b2f9b1dd9d6b82be2af3bdb160c9de3b19e3817828662f0214f54f11a5e36",
+  "runs": [
+    {
+      "directory": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/priority-certification/dry-run-1-IwAlsE",
+      "serviceWireSha256": [
+        "ecafb4d63a28cce0e6ea14b81457fafda60154b2f9da1bd743d878e62e991099",
+        "573bfa86235af1aa08bd815a557f5ad3cf9688586a8236225d5bcc152124f84e",
+        "4c6458c8ec22047882797b99c4f47efb04e6383a613871d93e9c5a93e08506c9"
+      ],
+      "reservedAtHttp": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "ledgerStates": [
+        "settled",
+        "settled",
+        "settled",
+        "settled"
+      ]
+    },
+    {
+      "directory": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/priority-certification/dry-run-2-Pe1whB",
+      "serviceWireSha256": [
+        "ecafb4d63a28cce0e6ea14b81457fafda60154b2f9da1bd743d878e62e991099",
+        "573bfa86235af1aa08bd815a557f5ad3cf9688586a8236225d5bcc152124f84e",
+        "4c6458c8ec22047882797b99c4f47efb04e6383a613871d93e9c5a93e08506c9"
+      ],
+      "reservedAtHttp": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "ledgerStates": [
+        "settled",
+        "settled",
+        "settled",
+        "settled"
+      ]
+    },
+    {
+      "directory": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/priority-certification/dry-run-unknown-RGXQzC",
+      "unknownCostStopped": true,
+      "ledgerState": "unknown"
+    }
+  ]
+}

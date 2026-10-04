@@ -1,0 +1,497 @@
+[
+  {
+    "id": "prime-control",
+    "source": "zai-completion-20260928-1735/prime-control.json",
+    "sourceSha256": "0c6a95778d14d265a9a46c1e8e89b8d3084e48bcf27897b69b4756160a1b12ad",
+    "sseSha256": "1102b73a43690987c0c175a29aa2dbf6b6c6daec876da1d397ed7cc0fb2d989f",
+    "sse": "data: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"The\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"The\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" lookup\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" lookup\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" tool returned\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" tool returned\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" \\\"\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" \\\"\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"17 ×\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"17 ×\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" 19\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" 19\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" = \",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" = \",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"323\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"323\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"\\\". So\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"\\\". So\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" the arithmetic\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" the arithmetic\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" result given\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" result given\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" is \",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" is \",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"323\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"323\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\".\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\".\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"The\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" arithmetic result\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" given was\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" 3\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"23 (\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"from \",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"17 ×\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"19).\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"gen-1790616834-AqvupF08XU2Pjt0I77dq\",\"object\":\"chat.completion.chunk\",\"created\":1790616834,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"service_tier\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":210,\"completion_tokens\":41,\"total_tokens\":251,\"cost\":0.0009488,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.0009488,\"upstream_inference_prompt_cost\":0.000588,\"upstream_inference_completions_cost\":0.0003608},\"completion_tokens_details\":{\"reasoning_tokens\":24,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+    "model": "z-ai/glm-5.3-prime",
+    "provider": "alibaba",
+    "request": {
+      "model": "z-ai/glm-5.3-prime",
+      "provider": {
+        "order": [
+          "alibaba"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Answer the final question in one short sentence."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "Compute 17 times 19 with the lookup tool."
+        },
+        {
+          "role": "assistant",
+          "content": "The arithmetic result is 323.",
+          "tool_calls": [
+            {
+              "id": "history_call_1",
+              "type": "function",
+              "function": {
+                "name": "lookup",
+                "arguments": "{\"value\":17}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "history_call_1",
+          "content": "17 × 19 = 323"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What arithmetic result was given?",
+              "cache_control": {
+                "type": "ephemeral",
+                "ttl": "5m"
+              }
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "lookup",
+            "description": "Return a number",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "thought": "The lookup tool returned \"17 × 19 = 323\". So the arithmetic result given is 323.",
+    "content": "The arithmetic result given was 323 (from 17 × 19).",
+    "detail": {
+      "type": "reasoning.text",
+      "text": "The lookup tool returned \"17 × 19 = 323\". So the arithmetic result given is 323.",
+      "format": "unknown",
+      "index": 0
+    }
+  },
+  {
+    "id": "prime-long",
+    "source": "zai-completion-20260928-1735/prime-long.json",
+    "sourceSha256": "dcc3fb2b5d56f5157f9d7d5f9bff13dd220057fc01926dc747a4d6c9fb922b54",
+    "sseSha256": "78ff24f9058332181af5fc2663032ded83a58e535a6d5f9889fad15204e7a911",
+    "sse": "data: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"The\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"The\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" user asks\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" user asks\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" what arithmetic\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" what arithmetic\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" result was\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" result was\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" given.\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" given.\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" The lookup\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" The lookup\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" tool returned\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" tool returned\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" \\\"17\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" \\\"17\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" × \",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" × \",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"19 =\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"19 =\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" 3\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" 3\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"23\\\".\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"23\\\".\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" So the\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" So the\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" arithmetic result\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" arithmetic result\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" was \",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" was \",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"3\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"3\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"23.\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"23.\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" Answer in\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" Answer in\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" one short\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" one short\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" sentence\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" sentence\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\".\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\".\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"The lookup\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" tool returned\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" 17\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" × \",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"19 =\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" 3\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"23,\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" so the\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" arithmetic result\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" given\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" was \",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"323\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\".\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"gen-1790616835-aaOVkWNIjQuiMv8wNf36\",\"object\":\"chat.completion.chunk\",\"created\":1790616835,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"service_tier\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":883,\"completion_tokens\":63,\"total_tokens\":946,\"cost\":0.0030268,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.0030268,\"upstream_inference_prompt_cost\":0.0024724,\"upstream_inference_completions_cost\":0.0005544},\"completion_tokens_details\":{\"reasoning_tokens\":38,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+    "model": "z-ai/glm-5.3-prime",
+    "provider": "alibaba",
+    "request": {
+      "model": "z-ai/glm-5.3-prime",
+      "provider": {
+        "order": [
+          "alibaba"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Answer the final question in one short sentence."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "Compute 17 times 19 with the lookup tool."
+        },
+        {
+          "role": "assistant",
+          "content": "The arithmetic result is 323.",
+          "tool_calls": [
+            {
+              "id": "history_call_1",
+              "type": "function",
+              "function": {
+                "name": "lookup",
+                "arguments": "{\"value\":17}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "history_call_1",
+          "content": "17 × 19 = 323"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What arithmetic result was given? Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. ",
+              "cache_control": {
+                "type": "ephemeral",
+                "ttl": "5m"
+              }
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "lookup",
+            "description": "Return a number",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "thought": "The user asks what arithmetic result was given. The lookup tool returned \"17 × 19 = 323\". So the arithmetic result was 323. Answer in one short sentence.",
+    "content": "The lookup tool returned 17 × 19 = 323, so the arithmetic result given was 323.",
+    "detail": {
+      "type": "reasoning.text",
+      "text": "The user asks what arithmetic result was given. The lookup tool returned \"17 × 19 = 323\". So the arithmetic result was 323. Answer in one short sentence.",
+      "format": "unknown",
+      "index": 0
+    }
+  },
+  {
+    "id": "prime-base",
+    "source": "zai-commercial-holdout-20260928-1809/prime-base.json",
+    "sourceSha256": "9d23f29f2dbbb608e9c3180728874171fa64d05df4d48479fa36b471cfe18366",
+    "sseSha256": "6f4369aae32c4d0b9999f40ba11b28fefd825024c09ad3907f977926ce5db1de",
+    "sse": "data: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"The\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"The\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" user asked\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" user asked\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" me to\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" me to\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" read the\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" read the\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" tool record\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" tool record\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" and only\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" and only\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" answer the\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" answer the\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" verification value\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" verification value\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\". The\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\". The\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" tool\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" tool\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" returned:\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" returned:\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" \\\"核\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" \\\"核\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"验值\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"验值\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"：\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"：\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"323\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"323\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"。状态\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"。状态\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"：有效\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"：有效\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"。\\\"\\n\\n\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"。\\\"\\n\\n\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"The user\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"The user\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" wants me\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" wants me\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" to only\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" to only\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" answer the\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" answer the\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" verification value\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" verification value\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\", which\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\", which\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" is \",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" is \",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"323\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"323\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\".\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\".\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"323\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"gen-1790618841-Y5cqwF9Swgb2uLveIty3\",\"object\":\"chat.completion.chunk\",\"created\":1790618841,\"model\":\"z-ai/glm-5.3-prime\",\"provider\":\"Alibaba\",\"service_tier\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":241,\"completion_tokens\":53,\"total_tokens\":294,\"cost\":0.0011412,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.0011412,\"upstream_inference_prompt_cost\":0.0006748,\"upstream_inference_completions_cost\":0.0004664},\"completion_tokens_details\":{\"reasoning_tokens\":50,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+    "model": "z-ai/glm-5.3-prime",
+    "provider": "alibaba",
+    "request": {
+      "model": "z-ai/glm-5.3-prime",
+      "provider": {
+        "order": [
+          "alibaba"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "仅核验记录中的数值；一句话作答。"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "请调用 audit_value 核验十七乘十九。"
+        },
+        {
+          "role": "assistant",
+          "content": "我已核验。",
+          "tool_calls": [
+            {
+              "id": "holdout_call_1",
+              "type": "function",
+              "function": {
+                "name": "audit_value",
+                "arguments": "{\"左\":17,\"右\":19}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "holdout_call_1",
+          "content": "核验值：323。状态：有效。"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "请读完工具记录后，只回答核验数值。",
+              "cache_control": {
+                "type": "ephemeral",
+                "ttl": "5m"
+              }
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "audit_value",
+            "description": "核验两个整数的积",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "左": {
+                  "type": "integer"
+                },
+                "右": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "左",
+                "右"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "thought": "The user asked me to read the tool record and only answer the verification value. The tool returned: \"核验值：323。状态：有效。\"\n\nThe user wants me to only answer the verification value, which is 323.",
+    "content": "323",
+    "detail": {
+      "type": "reasoning.text",
+      "text": "The user asked me to read the tool record and only answer the verification value. The tool returned: \"核验值：323。状态：有效。\"\n\nThe user wants me to only answer the verification value, which is 323.",
+      "format": "unknown",
+      "index": 0
+    }
+  },
+  {
+    "id": "flashx-long",
+    "source": "zai-completion-20260928-1735/flashx-long.json",
+    "sourceSha256": "897c8c1e99929765af10dffc265127973dade8144bf4dbf5a5c60cdcdccc6806",
+    "sseSha256": "eec9a2585f77baf42f2eb9eb1012c258b1251c61a89020c9a002f10f665fe6ad",
+    "sse": "data: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"The\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"The\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" user\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" user\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" is\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" is\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" asking\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" asking\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" what\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" what\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" arithmetic\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" arithmetic\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" result\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" result\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" was\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" was\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" given\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" given\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\".\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\".\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" Earlier\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" Earlier\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\",\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\",\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" the\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" the\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" lookup\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" lookup\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" tool\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" tool\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" returned\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" returned\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" \",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" \",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"17\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"17\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" ×\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" ×\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" \",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" \",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"19\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"19\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" =\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" =\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" \",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" \",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"3\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"3\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"23\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"23\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\".\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\".\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" So\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" So\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" the\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" the\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" answer\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" answer\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" is\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" is\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" \",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" \",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"3\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"3\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"23\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"23\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\".\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\".\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"The\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" arithmetic\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" result\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" given\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" was\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" **\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"3\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"23\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"**\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" (\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"from\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"17\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" ×\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"19\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\").\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"gen-1790616841-gXB9HrNzZKPmBxRfRl2L\",\"object\":\"chat.completion.chunk\",\"created\":1790616841,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"service_tier\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":883,\"completion_tokens\":53,\"total_tokens\":936,\"cost\":0.0003392,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":192,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.0003392,\"upstream_inference_prompt_cost\":0.00027295,\"upstream_inference_completions_cost\":0.00006625},\"completion_tokens_details\":{\"reasoning_tokens\":34,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+    "model": "z-ai/glm-5.3-flashx",
+    "provider": "z-ai/fp8",
+    "request": {
+      "model": "z-ai/glm-5.3-flashx",
+      "provider": {
+        "order": [
+          "z-ai/fp8"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Answer the final question in one short sentence."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "Compute 17 times 19 with the lookup tool."
+        },
+        {
+          "role": "assistant",
+          "content": "The arithmetic result is 323.",
+          "tool_calls": [
+            {
+              "id": "history_call_1",
+              "type": "function",
+              "function": {
+                "name": "lookup",
+                "arguments": "{\"value\":17}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "history_call_1",
+          "content": "17 × 19 = 323"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "What arithmetic result was given? Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. Read all earlier material before answering. "
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "lookup",
+            "description": "Return a number",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "thought": "The user is asking what arithmetic result was given. Earlier, the lookup tool returned 17 × 19 = 323. So the answer is 323.",
+    "content": "The arithmetic result given was **323** (from 17 × 19).",
+    "detail": {
+      "type": "reasoning.text",
+      "text": "The user is asking what arithmetic result was given. Earlier, the lookup tool returned 17 × 19 = 323. So the answer is 323.",
+      "format": "unknown",
+      "index": 0
+    }
+  },
+  {
+    "id": "flashx-mixed",
+    "source": "zai-commercial-holdout-20260928-1809/flashx-mixed.json",
+    "sourceSha256": "9abbfd3bd7ab7049154c332dae763299595e5ffc6052f3d5b087182ad1e6266b",
+    "sseSha256": "1c449f72bdec65c351bdc5c12453c0a06e87754b09c1470e5328efcc58e962b6",
+    "sse": "data: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"The\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"The\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" user\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" user\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" wants\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" wants\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" me\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" me\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" to\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" to\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" just\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" just\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" answer\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" answer\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" the\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" the\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" verified\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" verified\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" value\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" value\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" in\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" in\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" one\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" one\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" sentence\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" sentence\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\".\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\".\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" The\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" The\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" tool\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" tool\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" returned\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" returned\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" \",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" \",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"3\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"3\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"23\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"23\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\",\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\",\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" valid\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" valid\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\".\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\".\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" So\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" So\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" answer\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" answer\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\":\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\":\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" \",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" \",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"3\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"3\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"23\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"23\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\".\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\".\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"核\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"验\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"数值\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"为\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" 323。\",\"role\":\"assistant\"},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"gen-1790618849-dK12uo44zo3nleG6ZeiZ\",\"object\":\"chat.completion.chunk\",\"created\":1790618849,\"model\":\"z-ai/glm-5.3-flashx\",\"provider\":\"Z.AI\",\"service_tier\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":561,\"completion_tokens\":40,\"total_tokens\":601,\"cost\":0.00020381,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":192,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.00020381,\"upstream_inference_prompt_cost\":0.00015381,\"upstream_inference_completions_cost\":0.00005},\"completion_tokens_details\":{\"reasoning_tokens\":30,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+    "model": "z-ai/glm-5.3-flashx",
+    "provider": "z-ai/fp8",
+    "request": {
+      "model": "z-ai/glm-5.3-flashx",
+      "provider": {
+        "order": [
+          "z-ai/fp8"
+        ],
+        "allow_fallbacks": false,
+        "require_parameters": true
+      },
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 64,
+      "messages": [
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "仅核验记录中的数值；一句话作答。"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "请调用 audit_value 核验十七乘十九。"
+        },
+        {
+          "role": "assistant",
+          "content": "我已核验。",
+          "tool_calls": [
+            {
+              "id": "holdout_call_1",
+              "type": "function",
+              "function": {
+                "name": "audit_value",
+                "arguments": "{\"左\":17,\"右\":19}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "holdout_call_1",
+          "content": "核验值：323。状态：有效。"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "请读完工具记录后，只回答核验数值。\n代码与 JSON 仅作上下文：\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n```json\n{\"标签\":\"甲乙丙🔬\",\"values\":[17,19,323],\"valid\":true}\n```\n"
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "audit_value",
+            "description": "核验两个整数的积",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "左": {
+                  "type": "integer"
+                },
+                "右": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "左",
+                "右"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "thought": "The user wants me to just answer the verified value in one sentence. The tool returned 323, valid. So answer: 323.",
+    "content": "核验数值为 323。",
+    "detail": {
+      "type": "reasoning.text",
+      "text": "The user wants me to just answer the verified value in one sentence. The tool returned 323, valid. So answer: 323.",
+      "format": "unknown",
+      "index": 0
+    }
+  }
+]

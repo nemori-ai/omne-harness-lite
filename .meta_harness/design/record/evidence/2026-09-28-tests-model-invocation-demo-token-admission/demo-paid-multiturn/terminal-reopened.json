@@ -1,0 +1,230 @@
+{
+  "label": "reopened-third-turn",
+  "output": "Model invocation minimal demo\r\nModel: deepseek/deepseek-v4-pro-0813\r\nProvider route: deepinfra/fp8\r\nConversation: demo-53356785-cbc5-432b-9c79-edf0236b5168\r\nEach submitted message can incur OpenRouter charges. /help lists commands.\r\nYou> After restarting, what exact code did I ask you to remember? Reply with that code only.\r\r\nAssistant> ORCHID-742\r\nSaved. {\"outcome\":\"complete\",\"usage\":{\"input_tokens\":78,\"output_tokens\":127,\"cache_read_tokens\":0,\"cache_write_tokens\":0,\"source\":\"upstream\",\"reasoning_tokens\":119},\"cost\":{\"cost_usd\":0.0004316,\"source\":\"upstream_usage\",\"upstream_inference_cost_usd\":0.0004316}}\r\nCumulative: input 151, output 215, cache read 0, cache write 0 tokens; actual USD 7553e-7\r\nYou> /exit\r\r\n\r\nClosed. Start again with the same --data path to resume.\r\n",
+  "error": "",
+  "chunks": [
+    {
+      "at": "2026-09-28T12:29:18.093Z",
+      "bytes": 233
+    },
+    {
+      "at": "2026-09-28T12:29:18.093Z",
+      "bytes": 5
+    },
+    {
+      "at": "2026-09-28T12:29:18.101Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.101Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.101Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.101Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.101Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.101Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.101Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.101Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.101Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.101Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.101Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.101Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 4
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 11
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 4
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:18.102Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T12:29:18.103Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T12:29:18.103Z",
+      "bytes": 11
+    },
+    {
+      "at": "2026-09-28T12:29:19.390Z",
+      "bytes": 10
+    },
+    {
+      "at": "2026-09-28T12:29:19.411Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:19.584Z",
+      "bytes": 263
+    },
+    {
+      "at": "2026-09-28T12:29:19.600Z",
+      "bytes": 96
+    },
+    {
+      "at": "2026-09-28T12:29:19.621Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T12:29:19.621Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T12:29:19.621Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T12:29:19.646Z",
+      "bytes": 60
+    }
+  ],
+  "closed": true,
+  "code": 0,
+  "signal": null
+}

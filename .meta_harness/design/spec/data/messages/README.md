@@ -1,5 +1,14 @@
 # 消息
 
+2026-09-28：[D-100](../../../record/decisions/model-runtime-current-generation-adoption/decision.md) 接受当前后继 v6 全部规范资源；旧格式运行兼容承诺被取代，未表示实现完成。
+
+**当前候选 `data.messages/v6`**：[契约](v6/contract.md)与[变化及证据](verification.md#v6-发布前破坏性演进)。由已接受 v5 机械演进，只更新精确消费链并删除旧格式兼容过渡义务；当前代际在途与历史责任保持。未接受、未冻结；中央登记由本批唯一 owner 集成，旧冻结版本不改。下文既有进展按原版本和当时事件读取。
+
+
+## 当前采用与 v5 候选
+
+当前已接受版本为 `data.messages/v4`（[D-078](../../../record/decisions/model-main-integration-coordination/acceptance.json)）；[v5 契约](v5/contract.md)、[Schema](v5/messages.schema.json)、[实例](v5/examples.md)与[输入限制实例](v5/input-limit-examples.json)是 **candidate**。v5 精确采用 `data.model-profile/v4`，只扩展 S-49 的完整输入限制快照留存；七种消息与已有运行时记录语义保留。版本变化与证据见[验证入口](verification.md#v5-完整输入限制快照)。v5 未接受或冻结，旧消费者不自动升级；以下历史条目保留原版本范围。
+
 **一份会话日志里的消息：七种各自是什么、带什么、谁感知得到、出门怎么办。**
 提醒的来源是一张怎样的闭合表、说状态的要带什么；压缩名单长什么样、什么样的名单合法；
 「此刻哪些块模型可读」怎样从日志里算出来；一次工具执行的真实结果落哪一种消息——以及一条消息不合形状时，拒绝值叫什么。
@@ -59,3 +68,14 @@
 ## 2026-09-26 D-068 当前 v3
 
 `data.messages · v3` 已接受并冻结，[精确契约](v3/contract.md) 的接受范围与32资源摘要见 [D-068](../../../record/decisions/core-implementation-spec-reconciliation/acceptance.json)。本段为当前导航，以上旧版接受与验证记录保留原适用范围。新版推荐不自动升级消费者；八个core提供者须显式采用，24个外部消费者仍钉2。实现、公开旧Schema闭包及新组合证据尚待完成，不从规格接受推断通过。
+
+2026-09-28：[D-099](../../../record/decisions/model-input-limit-consumer-contract-adoption/decision.md)在独立复评闭合后技术接受 v5；规范资源冻结。实现采用和验证另行交付，原文 candidate 是起草状态。
+
+
+## v7 candidate（本批）
+
+[v7完整规范](v7/contract.md)、[消费者影响](v7/consumer-impact.md)、[验证义务](v7/verification.md)。未接受、未冻结，不自动升级现有消费者。
+
+## v8 ACK后继候选
+
+[v8 contract](v8/contract.md) · [消费者影响](v8/consumer-impact.md) · [验证义务](v8/verification.md)。candidate，未接受；前驱v7接受状态不传递。ACK确认、真实处分与清理分别可见；本批证据未完成时不据目录存在宣称通过。

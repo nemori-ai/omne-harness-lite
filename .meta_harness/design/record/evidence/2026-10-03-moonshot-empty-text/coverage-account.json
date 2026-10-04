@@ -1,0 +1,1119 @@
+{
+  "commit": "eb2b5bf00dca8facc67d5c082418d09e4a0fbdc0",
+  "source_commit": "56c446ab842e2e2e69a120755019e2ad553e09e1",
+  "run_id": "qa50-r1-final",
+  "verifier": "qa",
+  "exit_code": 0,
+  "tier_segments": [
+    {
+      "member": "packages/model/pi-ai-transport",
+      "tier": "fast",
+      "commit": "56c446ab842e2e2e69a120755019e2ad553e09e1",
+      "executed": 1366,
+      "passed": 1366,
+      "failed": 0,
+      "skipped": 0,
+      "wall_seconds": 114,
+      "ledger": "evidence/pi-fast/ledger.json",
+      "raw": "evidence/pi-fast/packages__model__pi-ai-transport.log"
+    },
+    {
+      "member": "packages/model/pi-ai-transport",
+      "tier": "slow",
+      "commit": "56c446ab842e2e2e69a120755019e2ad553e09e1",
+      "executed": 1185,
+      "passed": 1185,
+      "failed": 0,
+      "skipped": 1,
+      "wall_seconds": 326,
+      "ledger": "evidence/pi-slow/ledger.json",
+      "raw": "evidence/pi-slow/packages__model__pi-ai-transport.log"
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "commit": "eb2b5bf00dca8facc67d5c082418d09e4a0fbdc0",
+      "executed": 861,
+      "passed": 861,
+      "failed": 0,
+      "skipped": 12,
+      "wall_seconds": 60,
+      "ledger": "evidence/tools-fast/ledger.json",
+      "raw": "evidence/tools-fast/tools__ts-checks.log"
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "commit": "eb2b5bf00dca8facc67d5c082418d09e4a0fbdc0",
+      "executed": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 95,
+      "wall_seconds": 104,
+      "ledger": "evidence/tools-slow/ledger.json",
+      "raw": "evidence/tools-slow/tools__ts-checks.log"
+    }
+  ],
+  "passed_fast": 2227,
+  "passed_slow": 1204,
+  "raw_tier_skips": [
+    {
+      "member": "packages/model/pi-ai-transport",
+      "tier": "slow",
+      "file": "packages/model/pi-ai-transport/tests/deepseek-marginal.spec.ts",
+      "name": "'deepseek/deepseek-v4-pro-0813' signed reference boundaries meters only the new image span while checking every image byte",
+      "status": "skipped",
+      "executed_in_other_tier": false
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports collectSources + CLI 真实临时包：坏依赖退出1，合法包退出0",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "临时目录里造出入口层包：collectSources + CLI 真的会红 违反的包 ⇒ runRules 报出各条、CLI 退出 1 并逐条打印",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "临时目录里造出入口层包：collectSources + CLI 真的会红 合规的包 ⇒ CLI 退出 0",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "file": "tools/ts-checks/tests/group-direction.spec.ts",
+      "name": "group-direction 真实仓库：现状在已登记例外下无违反；撤掉例外即报出那条边",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "file": "tools/ts-checks/tests/loop-repository.spec.ts",
+      "name": "入口 硬线破了（core 依赖了 infra）：退出 1，硬线一段标出；撤掉后退出 0",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "file": "tools/ts-checks/tests/loop-repository.spec.ts",
+      "name": "入口 给了基线：删卡记录与验收锁并列一行；删卡不带 trailer 退出 1，没给基线不判",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "file": "tools/ts-checks/tests/loop-repository.spec.ts",
+      "name": "入口 快照：干净的工作树上 --snapshot 写一条，再跑不重复写；不干净不写",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "file": "tools/ts-checks/tests/loop-repository.spec.ts",
+      "name": "入口 用法错或基线不存在：退出 2",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "file": "tools/ts-checks/tests/loop-stop-hook.spec.ts",
+      "name": "收工钩子的入口 种一个超 alert 的函数：恰好一个只有 decision、reason 的 JSON 对象；再跑一次为空；续跑中为空",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "file": "tools/ts-checks/tests/loop-stop-hook.spec.ts",
+      "name": "收工钩子的入口 存量超线的函数：改一行不加分支不反馈；加一个分支才反馈，带「原 N」",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "file": "tools/ts-checks/tests/loop-stop-hook.spec.ts",
+      "name": "量读数的线程 没碰产品源码给 undefined；碰了给读数；超过时限以超时拒绝",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "fast",
+      "file": "tools/ts-checks/tests/mutation.spec.ts",
+      "name": "夹具项目上真起 Stryker 没断言的测试留下存活变异体，补上断言后被杀；只变异改动行，跑完不留 sandbox",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports current exact schemas do not retain retired executable or private paths",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports OE1 精确资源入口只授予已登记依赖，不准许版本通配或私有路径",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports 中性 Schema runtime 从批准的 content-blocks 依赖公开子入口消费",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports MCP 中性技术边只允许已批准 CB 根／Schema/runtime 子入口，不扩大为任意子路径",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports AM 已迁出的旧 schema-runtime 不再是公开入口，即使包依赖仍批准",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports content-blocks 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports asset-model 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports model-profile 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports call-accounts 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports messages 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports tool-definition 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports loop-extension 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports skill-package 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports connector 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports mcp-endpoint 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports arrival-events 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports model-response 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports slash-command 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports stream-assembly 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports asset-evaluation 不导入 Cordis、kernel、storage 或非 core 插件",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports 精确公开依赖与纯构件可用；不自动准许其他 core 包",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports 不经私有 src、dist、未登记子入口或相对路径穿透包边界",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports asset-model S-17 可用纯 path 字面规范化；其他节点不因此获得路径依赖",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports 已明确采用 JSON 工具的节点可通过 content-blocks 公开入口复用",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports 静态、重导出、类型导入、require、import()、转义字面量都查；计算说明符拒绝",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "core-pure-imports 既有 kernel/storage 职责例外；产品测试不限制",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "SC-OE-3 no-wall-clock 字面解码、globalThis、const 与解构别名仍禁止取墙钟，显式转换保持合法",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "SC-OE-3 no-wall-clock Date.now、new Date()、performance.now 各有必红反例，并保留原真实扫描",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "no-testing-import — 解码后的真实说明符 静态、侧效应、动态、重导出、类型与 require 的 testing 入口都红",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "identity SC-1 精确输入 规则输入消费公开身份类型清单，非第二份领域名单",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "identity SC-1 精确输入 登记准入参数的物理品牌、嵌套成员、本地别名、具名import改名必红",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "identity SC-1 精确输入 身份/持有/效力输入合法；未点名的路径函数和组织结构谓词不受查",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "identity SC-1 精确输入 品牌构造器改名不丢失物理品牌证据",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "identity SC-1 精确输入 @identityDecision 标注函数、箭头和方法同样查，不把注释字样当任意函数",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "identity SC-1 精确输入 注册目标/类型标注消失会红，身份与物理名字重叠输入拒绝",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "identity SC-2 账号记录 两个AccountId字段（含改名与品牌别名）必红；登录状态引用与合法账号记录不报",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "identity SC-2 账号记录 真实AccountRow原文通过；向string自身份记录添加一个typed引用必红",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "identity SC-2 账号记录 普通string聚类键语义不由类型语法检查证明",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "identity SC-9 持久归属 optional、nullable、nullable本地别名成对列必红",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "identity SC-9 持久归属 合法ScopeLayerIdentity、两个互斥判别分支及不归属的读面不误报",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "identity SC-9 持久归属 @scopedRecord明确标注持久形状；测试免查",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/core-rules.spec.ts",
+      "name": "allows a data module to statically load its own exported Schema",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "ops-import-whitelist 合规：白名单内的包、cordis 与 zod、node:*、事件声明模块与 ops 目录内互引",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "ops-import-whitelist 运维面导入治理包、本包别处、第三方、白名单包的子入口、动态说明符 ⇒ 逐条报出",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "ops-import-whitelist 事件声明模块导入任何 @omne-harness-lite/*、本包模块或别的第三方 ⇒ 报出",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "ops-import-whitelist 合规：事件声明模块导入 node 内置、cordis 类型与 zod",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "ops-import-whitelist 入口层包不存在 ⇒ 静默通过；包在而运维面目录或事件声明模块缺席 ⇒ 报布局偏离",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "D055 maintenance import boundary allows the adopted readonly maintenance dependencies",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "D055 maintenance import boundary checks every permitted readonly leaf instead of trusting its filename",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "D055 maintenance import boundary blocks governance and write-capable paths behind an allowed maintenance import",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "ops-event-whitelist 合规：Cordis 上下文只订阅 serving/stopped/defect、只派发 listening；Node 发射器不管",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "ops-event-whitelist ctx.on('login.revoked', …) 与计算出的名字、错的常量、非事件模块的同名标识符 ⇒ 报出",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "ops-event-whitelist 同名标识符若不是从事件声明模块导入的，不算",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "ops-event-whitelist 运维面目录之外不查（客户端面的派发归别的规则）",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "single-table-entry 合规：字面量、带别名的字面量、定义为该字面量的常量",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "single-table-entry 别的表、判不出的表名、join 别的表、sql 模板与 sql.raw ⇒ 报出",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "single-table-entry 入口层包之外不查",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "no-peer-address remoteAddress、x-forwarded-for 等 ⇒ 报出；注释里提到不算",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "credentials-parse-only 入口层包里 .derive( .verify( .checkPolicy( ⇒ 报出；.parse( 合规",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "presentation-only-authn logins.verify(、parseLoginStateId、as LoginStateId、<LoginStateId> ⇒ 报出",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "presentation-only-authn 合规：exchange 认人、类型位置的 LoginStateId 泛型与导入不算",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "presentation-only-authn EC2：accounts 的普通读写不是认人或按名邀请参与面",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "presentation-only-authn 合规：inject 里只有路由表点名的服务；字面量 accounts 出现在别处（日志键）不算解析",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "no-network-listen-in-tenancy 入口层包 transport/ops 之外、其他 tenancy 包 ⇒ 导入 node:http/https/net/tls 或 .listen( 报出",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "no-network-listen-in-tenancy 合规：transport 与 ops 里可以；core/infra 与测试不在范围",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "restricted-call-sites：入口 SC-1 新增的四个方法 入口层包与其他非 owner 包调 createPersonal/activate/purge/sweepStaleSelections ⇒ 报出",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/entry-rules.spec.ts",
+      "name": "restricted-call-sites：入口 SC-1 新增的四个方法 合规：owner 包定义与自调、注册组合调用、注释里提到、相似名字",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/group-direction.spec.ts",
+      "name": "memberOf / memberGraph 按路径前缀识别成员与组；根 tools/ 不是成员",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/group-direction.spec.ts",
+      "name": "memberOf / memberGraph 只取产品源码的字面导入；测试、自导入与子入口的处理",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/group-direction.spec.ts",
+      "name": "cycles 只报节点数大于一的强连通分量",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/group-direction.spec.ts",
+      "name": "group-direction 登记在仓库路径规则里，随 lint:rules 执行",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/group-direction.spec.ts",
+      "name": "group-direction 合规夹具无违反",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/group-direction.spec.ts",
+      "name": "group-direction core 依赖 infra ⇒ 在导入处报出",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/group-direction.spec.ts",
+      "name": "group-direction 领域直接依赖 infra ⇒ 报出；登记为例外后不报",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/group-direction.spec.ts",
+      "name": "group-direction 同层领域互依不报，成环才报",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/group-direction.spec.ts",
+      "name": "group-direction 未登记层位的新组 ⇒ 报出，不静默放过",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/loop-repository.spec.ts",
+      "name": "读 git 的传感器 一起改：最近若干个非合并提交各自碰过的成员，新的在前",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/loop-repository.spec.ts",
+      "name": "读 git 的传感器 rev 翻动：只数改了 revision 那一行的提交，按窗口起点截；目录不存在就没数据",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/loop-repository.spec.ts",
+      "name": "读 git 的传感器 并行工作树：主检出不算，各自相对主线合并点改过的成员（含未提交），分离头指针不算",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/loop-repository.spec.ts",
+      "name": "读 git 的传感器 祖先关系：tip 自己是 0，越往前越大；别的分支上的提交不在其中",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/loop-repository.spec.ts",
+      "name": "入口 其余报告项再多也是 0：超阈值的函数、重复代码、没有断言的测试、超预算的成员",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/loop-repository.spec.ts",
+      "name": "入口 配置里排除的成员组（初值 examples）不判预算、不生成草稿；全仓指标照样计入",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/loop-repository.spec.ts",
+      "name": "入口 给了基线：有要解释的红项一段与验收锁一行；锁被破退出 1",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/loop-stop-hook.spec.ts",
+      "name": "收工钩子的入口 坏 JSON、输入的 cwd 不在 git 仓库里：退出 0，标准输出为空（进程所在的仓库明明有红项）",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/loop-stop-hook.spec.ts",
+      "name": "收工钩子的入口 改的不是产品源码（测试目录、examples、仓库根）：放行",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/loop-stop-hook.spec.ts",
+      "name": "收工钩子的入口 度量自己坏了（成员源码里一个指向不存在文件的链接）：退出 0、只给用户一句警告、日志多一行",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/mutation.spec.ts",
+      "name": "范围：改动行按成员分组 只留 packages/ 与 apps/ 成员 src/ 下的源码；测试、类型声明、工具与示例不在内",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/mutation.spec.ts",
+      "name": "范围：改动行按成员分组 接在 diff 解析之后：新增、删除、改名（按删加算）各落到新一侧的行",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/mutation.spec.ts",
+      "name": "范围：改动行按成员分组 点名成员：src/ 下的全部源码整份变异，递归、去掉类型声明",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/mutation.spec.ts",
+      "name": "报告汇总 只计落在改动行上的；分数是测出来的占（测出来＋没测出来）",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/mutation.spec.ts",
+      "name": "报告汇总 存活与无覆盖列出位置、算子、原文与替换；跨行的原文压成一行，static 标出来",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/mutation.spec.ts",
+      "name": "sandbox 与配置 sandbox 与成员同深度：容器在成员的上两级，Stryker 在容器下再建一层",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/mutation.spec.ts",
+      "name": "sandbox 与配置 配置：vitest runner 读 sandbox 里放宽时限的配置、不只挑相关测试、改动行的 mutate、报告落在运行目录、只报告不设线",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/mutation.spec.ts",
+      "name": "入口的参数 --base 与 --members 二选一；不是产品成员的拒绝",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    },
+    {
+      "member": "tools/ts-checks",
+      "tier": "slow",
+      "file": "tools/ts-checks/tests/mutation.spec.ts",
+      "name": "入口的参数 点名成员只列范围：写明跑快层",
+      "status": "skipped",
+      "executed_in_other_tier": true
+    }
+  ],
+  "unique_unexecuted": [
+    {
+      "member": "packages/model/pi-ai-transport",
+      "tier": "slow",
+      "file": "packages/model/pi-ai-transport/tests/deepseek-marginal.spec.ts",
+      "name": "'deepseek/deepseek-v4-pro-0813' signed reference boundaries meters only the new image span while checking every image byte",
+      "status": "skipped",
+      "executed_in_other_tier": false
+    }
+  ],
+  "independent_public_cases": 42,
+  "receipt_count": 97,
+  "offline_probe_self_cases": 31,
+  "offline_probe_dry_bodies": 93,
+  "price_matches": 86,
+  "price_differences": 5,
+  "file_classifications": {
+    "resident": 148,
+    "member": 6,
+    "reader": 8
+  },
+  "build_members": 34,
+  "raw_records": [
+    {
+      "record": "evidence/prepare-commands.json",
+      "name": "plan",
+      "exit_code": 0,
+      "sha256": "6fc6fe59125a6db196e70384c1891e4efb435bd0e2b71ac6d4ad897fddd4be97"
+    },
+    {
+      "record": "evidence/prepare-commands.json",
+      "name": "agents-check",
+      "exit_code": 0,
+      "sha256": "9d40dde4c6b4b9a891d5105de771966d2b74ef92df00cf5a8e61c0009dffadfa"
+    },
+    {
+      "record": "evidence/prepare-commands.json",
+      "name": "docs-check",
+      "exit_code": 0,
+      "sha256": "02ab1496ffc449c11d2bf2841675dabcb9b79f55d8fd0a73ca5616ba39d0a500"
+    },
+    {
+      "record": "evidence/prepare-commands.json",
+      "name": "design-check",
+      "exit_code": 0,
+      "sha256": "89515cc86d79bd4a17196989eae3863d265ea6f1daf5c6b86e19d6b5449b77e3"
+    },
+    {
+      "record": "evidence/prepare-commands.json",
+      "name": "step-python",
+      "exit_code": 0,
+      "sha256": "9fb2de3aedf53893dc67e822d64d24d7dde84bfd8b0013b654b507964f25261e"
+    },
+    {
+      "record": "evidence/prepare-commands.json",
+      "name": "format-check",
+      "exit_code": 0,
+      "sha256": "6237528b25213b4d2115aef58ac5bde0c986a9498aac86ae1bad19091e31f8c9"
+    },
+    {
+      "record": "evidence/prepare-commands.json",
+      "name": "test-format",
+      "exit_code": 0,
+      "sha256": "b4113fc9d7ff67331fe62f5b63c383dc5388ee0c7dbb0de1db054b6291b91f1f"
+    },
+    {
+      "record": "evidence/prepare-commands.json",
+      "name": "shell-syntax",
+      "exit_code": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "record": "evidence/prepare-commands.json",
+      "name": "step-build",
+      "exit_code": 0,
+      "sha256": "72af8d295c1db9c11e85b2ee0d1a0f8c881077a0f8b87f439836cc91845916ea"
+    },
+    {
+      "record": "evidence/prepare-commands.json",
+      "name": "step-typecheck",
+      "exit_code": 0,
+      "sha256": "c5a5f97a70010026a1a631bb22fec6e10a69a12df5492bb3845b04334318a2f4"
+    },
+    {
+      "record": "evidence/independent-final-commands.json",
+      "name": "public-api-r4",
+      "exit_code": 0,
+      "sha256": "081eb1c71ab97e552884fa22d4679188715d4ed06faaa58359368bb72e9174ce"
+    },
+    {
+      "record": "evidence/independent-final-commands.json",
+      "name": "provenance-audit",
+      "exit_code": 1,
+      "sha256": "c9a9bb74217a2b511297862382c91f4cd0f098c33406bf961934e89ba99d1091"
+    },
+    {
+      "record": "evidence/independent-final-commands.json",
+      "name": "probe-dry",
+      "exit_code": 0,
+      "sha256": "4494f7abb7188ca4754171604041f098b0dca239ea49fd1657ad5a861dae34bc"
+    },
+    {
+      "record": "evidence/independent-final-commands.json",
+      "name": "probe-self",
+      "exit_code": 0,
+      "sha256": "5dc597834a44159ea5262391b05d3e112ba35641b1e4947c5e968587fbdf7487"
+    },
+    {
+      "record": "evidence/independent-final-commands.json",
+      "name": "reconcile",
+      "exit_code": 0,
+      "sha256": "29c7716573b0dd4612c8435e1658cdfce6dd767f5f19f1ef7918c40c3857c607"
+    },
+    {
+      "record": "evidence/independent-final-commands.json",
+      "name": "price-check",
+      "exit_code": 0,
+      "sha256": "f6dbe7ef99e6d26d105452fe5a485670078f58bcbda5531508d5bcbaf647a37b"
+    },
+    {
+      "record": "evidence/final-commands.json",
+      "name": "plan",
+      "exit_code": 0,
+      "sha256": "c6007db857f5eb331c358cecbe873cd9ebc63550adadbfb39ca431d269971fa9"
+    },
+    {
+      "record": "evidence/final-commands.json",
+      "name": "agents-check",
+      "exit_code": 0,
+      "sha256": "9d40dde4c6b4b9a891d5105de771966d2b74ef92df00cf5a8e61c0009dffadfa"
+    },
+    {
+      "record": "evidence/final-commands.json",
+      "name": "docs-check",
+      "exit_code": 0,
+      "sha256": "8db15897f60e6b6bd85c0e9ea970562e3905f9b4e59100456e60fe5a460a72e2"
+    },
+    {
+      "record": "evidence/final-commands.json",
+      "name": "design-check",
+      "exit_code": 0,
+      "sha256": "c074f036e20dee4cca7802f6c3a3f6460a6768cb184b3090dc67f8845293a66d"
+    },
+    {
+      "record": "evidence/final-commands.json",
+      "name": "step-python",
+      "exit_code": 0,
+      "sha256": "9fb2de3aedf53893dc67e822d64d24d7dde84bfd8b0013b654b507964f25261e"
+    },
+    {
+      "record": "evidence/final-commands.json",
+      "name": "format-check",
+      "exit_code": 0,
+      "sha256": "6237528b25213b4d2115aef58ac5bde0c986a9498aac86ae1bad19091e31f8c9"
+    },
+    {
+      "record": "evidence/final-commands.json",
+      "name": "test-format",
+      "exit_code": 0,
+      "sha256": "b4113fc9d7ff67331fe62f5b63c383dc5388ee0c7dbb0de1db054b6291b91f1f"
+    },
+    {
+      "record": "evidence/final-commands.json",
+      "name": "shell-syntax",
+      "exit_code": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "record": "evidence/final-commands.json",
+      "name": "tools-tiers",
+      "exit_code": 0,
+      "sha256": "388186c248b38c1eab72d952fc4271ecd1b77a7309d925c9d3f57b2c5dd41a5b"
+    },
+    {
+      "record": "evidence/final-commands.json",
+      "name": "lint-rules",
+      "exit_code": 0,
+      "sha256": "bba3eeb6173272e97697c2ebaf720c816f9138ffa00694da3ca841c4335cbdd7"
+    },
+    {
+      "record": "evidence/final-commands.json",
+      "name": "step-acceptance",
+      "exit_code": 0,
+      "sha256": "c8b42f3518e31ee1ac3edbc2112b8c4e59a9ce5cfb49675a686f62966c2fe821"
+    },
+    {
+      "record": "evidence/final-commands.json",
+      "name": "strict-loop",
+      "exit_code": 0,
+      "sha256": "91957365b464f885de3a734dd8a36bdd25ca7d8bdacf79f25eda4fafa46cd280"
+    }
+  ],
+  "known_failed_attempts_preserved": "facility-failures.json; raw earlier logs; independent-final audit first exit 1 retained and r2 logged separately",
+  "actual_sets_equal_final_plan": true
+}

@@ -1,4 +1,12 @@
+2026-10-01：[D-113](../record/decisions/spec-single-revision/README.md) 定下「规格只留最新一版」：终态是每份契约一条登记、原地修订、修订号接着现在的版本号往下数；**切换尚未执行，登记形状与检查器现在都没变**。过渡期不再新增指向旧版的依赖、覆盖与形式任务，旧版的登记在消费者迁完后随目录一起删。本页下文与各决定里「推荐／接受新版本不自动升级消费者」「旧版保留」的说法，自该决定起只描述已发生的事，不再是规矩。现数（多少契约、多少旧版、各被谁消费）看 `make spec-retention`。
+
+2026-09-30：[D-110 ACK 后继](../record/decisions/model-runtime-reference-lifecycle-adoption/ack-contracts-decision.md)接受 RT12/MS8/MR11/CA4，新增冻结134项，原970项保持；covers及formal任务状态不提升，实际实现另验。
+
+2026-09-29：[D-107](../record/decisions/model-input-usage-calibration-adoption/decision.md) 接受 MR9/RT10，新增冻结81资源；原冻结项保持，covers/formal任务状态不提升。规范接受不等于实现或消费者升级。
+
 # 身份、版本与关系清单
+
+2026-09-27：[D086](../record/decisions/model-runtime-tail-settlement-adoption/decision.md)登记RT4 accepted，新增27冻结资源／17精确依赖／55项reviewed=false covers／6形式任务，原记录及445冻结hash保持；当前catalog79、frozen472、covers2015、formal tasks54。旧推荐不自动升级消费者，后文较早计数按当时事件读取。
 
 这里是设计链全部**坐标与关系**的唯一权威。任何会被机器 join 的事实住在这里，
 其余目录只引用坐标，不复制一份同义登记。
@@ -11,8 +19,8 @@
 | 文件                 | 持续含义与关键字段                                                                                               | 谁写           |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------- |
 | `baseline.json`      | `format=1`、稳定 `baseline_id`、输入 `snapshot_id`、Schema `schema_namespace`、旧谱系清单及显式 `version_policy` | 基线切换       |
-| `catalog.json` | **63 条，全部 accepted**；治理线 21 条保持原坐标，#9 的 34 条由 [D-066](../record/decisions/pr9-pr10-coordinate-reconciliation/README.md) 行政迁移坐标，沿用 D-061 的语义接受。315 条依赖带精确坐标与消费 clauses；推荐／接受新版本不自动升级消费者 |
-| `frozen.json` | **351 项规格资源**；治理线 173 项 hash 不变，#9 的 146 项在新坐标冻结，原字节在完整 main 快照中按原 182 项登记核对。后续修改须出新版本 |
+| `catalog.json` | 每个契约版本一条：坐标、状态、资源清单、接受依据；依赖带精确坐标与消费 clauses。条数不在这里手写，看文件或 `make spec-retention` | 发布与接受 |
+| `frozen.json` | 已接受版本的每个资源一项：路径 → SHA-256。过渡期里字节变了就判失败，修订出新版本目录（见页首 D-113 的说明） | 冻结 |
 | `lineage.json`       | 旧→新 baseline 的条款关系、退出身份、`freeze_gate` 与实际产品消费者的旧/新谱系观察                                           | 重分解         |
 | `version-migrations.json` | 同 baseline 的行政版本迁移：原提交/完整快照、原新坐标、逐文件摘要及决定/产品修订映射；#9 的 34 份规格遵循 [D-066](../record/decisions/pr9-pr10-coordinate-reconciliation/decision.md) | 行政迁移 |
 | `formal-tasks.json`  | 模型种类、已登记工件、可注入 argv runner 和超时；结果不写回规范                                                  | 形式义务变化   |
@@ -100,7 +108,8 @@ catalog 的稳定键是 `(baseline_id, contract_id, version)`。资源位置为
 - 清单由发布、接受与复核动作驱动，不在设计正文里顺手改；改动要能指出是哪次事件。
 - 不在其他目录复制坐标清单。需要展示时由 [views/](../views/README.md) 派生，派生物不得被引为依据。
 - `version_policy` 决定能否新增版本。`{"kind":"initial-uniform","version":1}` 下任何契约都只能有 v1；
-  稳定演化阶段切换为 `{"kind":"evolving"}` 后可新增 v2，且不能改写 v1。
+  稳定演化阶段切换为 `{"kind":"evolving"}` 后可新增 v2，且不能改写 v1。这是过渡期的机制；
+  终态的修订号模型见 [D-113](../record/decisions/spec-single-revision/decision.md#二接受了什么)。
 - 清单是数据不是叙述。为什么这样分解归 [record/decisions/](../record/decisions/README.md)，
   这里只登记结果。
 
@@ -129,7 +138,7 @@ covers 补登 PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2（含
 | `covers.json`        | **1496 条，指向 63 个契约版本**（原标记沿用，行政迁移不提升 reviewed；以下数量沿革仅描述 #9 原输入）（2026-09-25 接口契约批后按文件实际计数刷新；此前修复波 3 跨批对齐时为 1053／35；修复波 1／1b 后为 1045，修复波 2 +3、修复波 3 +5；各契约条目数见该文件全局 `note`）：PF-001／002／003／015 → 租户五份，2026-09-23 补登的 PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2、传输绑定 12 条，加 26 份候选各自起草时登记的条目、2026-09-24 整批对齐补登的 6 条与同日修订批的增删，全部 `reviewed: false`；全局 `note` 已合成一段，写明口径、一律不登的几类与各契约的条目数。`clause` 用产品 topic 的**小节锚点**，理由与三处已知不完整写在该文件的 `clause_form` 与 `note` 里                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `frozen.json` | **351 项规格资源**；治理线 173 项 hash 不变，#9 的 146 项在新坐标冻结，原字节在完整 main 快照中按原 182 项登记核对。后续修改须出新版本 |
 | `lineage.json`       | **仍为空。**2026-09-17 那三个候选于 2026-09-22 整体废弃，**从未接受或冻结，不产生血缘**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `id-namespaces.json` | 8 个前缀族（2026-09-23 起加了 `G-`、`CS-/IS-/SC-/V-/P-`、`M`），整批对齐未变                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `id-namespaces.json` | 11 个前缀族（2026-09-23 起加了 `G-`、`CS-/IS-/SC-/V-/P-`、`M`，整批对齐未变；2026-10-01 加故事卡的 `ST-` 与验收场景的编号；2026-10-02 加 Cordis 集成约定的 `IC-`）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 **两件没有登记进来的事，都是有意的**：
 
@@ -165,3 +174,22 @@ covers 补登 PF-016／PF-017 → 入口契约、PF-001／PF-017 → AI v2（含
 ## D-069 Skill3（2026-09-26）
 
 按[独立复审后的技术接受](../record/decisions/skill-yaml-key-resolution/acceptance.json)新增Skill3：catalog当前64 accepted、318精确依赖、1518覆盖、354冻结资源。351旧冻结hash与37形式任务不变；新3只补未知YAML键最终无法排重时M16，ordinaryunknown仍忽略。其它消费者继续精确Skill2，不自动升级。接受不表明实现／证据／人的总体签字。
+
+## D-070 模型绑定首批（2026-09-27）
+
+[技术接受](../record/decisions/model-adaptation-binding-acceptance/acceptance.json)新增4 accepted、13 frozen资源；354原冻结hash原样保留。其它5候选仍未接受。提供者增量采用另归[D-071](../record/decisions/model-value-provider-adoption/acceptance.json)，不声称真实生产路径已验证。
+
+2026-09-27：[D-072](../record/decisions/agent-definition-read-adoption/decision.md)技术接受 AD1 及纯提供者；新增三份冻结资源，真实源与总体交付状态另核。
+
+2026-09-27：[D-073](../record/decisions/model-current-input-contracts-adoption/decision.md)技术接受 AE4/MF3/AR3/LC4，纯 AE4 投影同步采用；runtime/runner 及 IO 交付另核。
+
+[D-076](../record/decisions/model-runtime-delivery-adoption/decision.md)：RT3/runner3最终精确技术接受，17项RT依赖对齐；四个提供者/装配投影采用，真实交付与认证另核。
+
+2026-09-27，按 [D-078](../record/decisions/model-main-integration-coordination/decision.md)接续模型施工提交的历史 D-070～D-072：五个既有 accepted 坐标只切换 acceptance 路径，资源 hash、版本、依赖、覆盖与任务不变。采用不因主分支同步提升实现验收状态。
+
+按 [D-079](../record/decisions/model-original-fill-adoption/decision.md)接受 MF4/AR4，冻结四资源；旧版本/依赖保持精确采用，不自动升级其它消费者。
+2026-09-27：[D083](../record/decisions/session-log-tail-condition-adoption/decision.md)在独立两轮复评后技术接受session-log v3：新增1accepted、5精确依赖、24冻结资源、11覆盖（reviewed:false）和3正形式任务。有限run1及其旧正文输入／未变模型范围另读，登记不成为真实实现验收；旧SL2及全部旧规范消费关系保持，不自动升级RT3。
+
+2026-09-27：[D-090](../record/decisions/model-headers-v5-adoption/decision.md)新增 MR5／RT5 accepted，30资源冻结；当前81登记／502冻结／2098 covers／60形式任务，本批83 covers一律reviewed:false。原79登记、472冻结、2015 covers、54任务保持；新增形式任务未执行，不覆盖新增头事实。
+
+2026-09-29：[D-110](../record/decisions/model-runtime-reference-lifecycle-adoption/README.md)接受 RT11/MR10/MS7/CA3，新增冻结118资源，原852项保持；五现有节点映射技术采用，不表示实现与实际验收完成。

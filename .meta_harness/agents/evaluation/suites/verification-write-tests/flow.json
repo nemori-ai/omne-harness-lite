@@ -1,0 +1,247 @@
+{
+  "format": 1,
+  "id": "verification-write-tests",
+  "version": 1,
+  "family": "write-tests",
+  "role": "verification-developer",
+  "reps": 2,
+  "host": {
+    "claude-code": {
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "allowed": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Edit",
+        "Write",
+        "Bash"
+      ]
+    }
+  },
+  "workspace": {
+    "kind": "checkout",
+    "base": "003561900adb27de6ebe776fa1cf1b228304c873",
+    "excludes": [
+      ".meta_harness/agents/evaluation",
+      ".meta_harness/design/record/evidence",
+      ".meta_harness/design_legacy",
+      ".gitmodules"
+    ],
+    "setup": [
+      [
+        "pnpm",
+        "install",
+        "--frozen-lockfile",
+        "--ignore-scripts",
+        "--prefer-offline"
+      ],
+      [
+        "pnpm",
+        "run",
+        "build"
+      ]
+    ],
+    "linked": [
+      "node_modules"
+    ],
+    "drop": [
+      ".claude",
+      ".agents",
+      ".codex"
+    ],
+    "commit": "single"
+  },
+  "brief_frame": "briefs/_write-tests.md",
+  "oracle": {
+    "member": "apps/cli",
+    "tests_dir": "tests",
+    "test": [
+      "pnpm",
+      "exec",
+      "vitest",
+      "run",
+      "--reporter=json",
+      "--outputFile={OUT}"
+    ],
+    "typecheck": [
+      "pnpm",
+      "run",
+      "typecheck"
+    ],
+    "timeout_s": {
+      "test": 600,
+      "mutant": 300,
+      "typecheck": 900
+    }
+  },
+  "metrics": [
+    {
+      "id": "success",
+      "kind": "binary",
+      "label": "成功"
+    },
+    {
+      "id": "kill_rate",
+      "kind": "float",
+      "label": "变异体杀死率",
+      "scale": 1
+    },
+    {
+      "id": "killed",
+      "kind": "binary",
+      "label": "单个变异体被杀"
+    },
+    {
+      "id": "write_scope",
+      "kind": "binary",
+      "label": "守写入范围"
+    },
+    {
+      "id": "tests_intact",
+      "kind": "binary",
+      "label": "原有测试未动"
+    },
+    {
+      "id": "only_allowed",
+      "kind": "binary",
+      "label": "只用放行工具"
+    }
+  ],
+  "signoffs": {
+    "cases": { "by": "panqiwei", "date": "2026-10-02", "version": 1 },
+    "grading": { "by": "panqiwei", "date": "2026-10-02", "version": 1 }
+  },
+  "materials": [
+    {
+      "id": "VD-1",
+      "target": "apps/cli/src/input.ts 的模块级测试：单次治理命令的输入取得（readInputFile、payloadJSON、buildIntent、readSecrets）",
+      "brief": "briefs/VD-1.md",
+      "tags": [
+        "应用切片",
+        "单模块"
+      ],
+      "task": {
+        "target": "apps/cli/src/input.ts",
+        "hidden_tests": [
+          "apps/cli/tests/input.spec.ts"
+        ],
+        "allowed_write": [
+          "apps/cli/tests/"
+        ],
+        "mutants": [
+          {
+            "id": "m1-duplicate-member",
+            "find": "        if (keys.has(key)) return fail()\n",
+            "replace": ""
+          },
+          {
+            "id": "m2-nonsecret-bom",
+            "find": "if (!secret && bytes[0] === 0xef",
+            "replace": "if (false && bytes[0] === 0xef"
+          },
+          {
+            "id": "m3-group-readable-secret",
+            "find": "(stat.mode & 0o077) !== 0",
+            "replace": "(stat.mode & 0o007) !== 0"
+          },
+          {
+            "id": "m4-lossy-utf8",
+            "find": "{ fatal: true, ignoreBOM: true }",
+            "replace": "{ fatal: false, ignoreBOM: true }"
+          },
+          {
+            "id": "m5-exponent-number",
+            "find": "/^-?(?:0|[1-9][0-9]*)/",
+            "replace": "/^-?(?:0|[1-9][0-9]*)(?:[eE][0-9]+)?/"
+          },
+          {
+            "id": "m6-follows-final-symlink",
+            "find": "constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK | constants.O_NOCTTY",
+            "replace": "constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOCTTY"
+          },
+          {
+            "id": "m7-secret-member-in-payload",
+            "find": "if (Object.hasOwn(payload, field)) throw new InputFailure('secret-source')",
+            "replace": "if (false) throw new InputFailure('secret-source')"
+          },
+          {
+            "id": "m8-login-identifier-override",
+            "find": "if (Object.hasOwn(payload, 'loginIdentifier')) throw new InputFailure('invalid-options')",
+            "replace": ""
+          },
+          {
+            "id": "m9-unsafe-integer",
+            "find": "    if (!Number.isSafeInteger(number)) return fail()\n",
+            "replace": ""
+          },
+          {
+            "id": "m10-prototype-object",
+            "find": "const result: Record<string, unknown> = Object.create(null),",
+            "replace": "const result: Record<string, unknown> = {},"
+          }
+        ]
+      }
+    },
+    {
+      "id": "VD-2",
+      "target": "apps/cli/src/tui/screen.ts 的模块级测试：治理 TUI 的整帧布局与帧写入（safeText、layout、FrameWriter）",
+      "brief": "briefs/VD-2.md",
+      "tags": [
+        "终端切片",
+        "单模块"
+      ],
+      "task": {
+        "target": "apps/cli/src/tui/screen.ts",
+        "hidden_tests": [
+          "apps/cli/tests/tui-screen.spec.ts"
+        ],
+        "allowed_write": [
+          "apps/cli/tests/"
+        ],
+        "mutants": [
+          {
+            "id": "s1-stale-revision-delivered",
+            "find": "if (!this.#closed && this.#revision === frame.revision) frame.delivered()",
+            "replace": "if (!this.#closed) frame.delivered()"
+          },
+          {
+            "id": "s4-silent-output-failure",
+            "find": "        this.#latest = undefined\n        this.#failed()\n",
+            "replace": "        this.#latest = undefined\n"
+          },
+          {
+            "id": "s5-bidi-not-escaped",
+            "find": "/[\\u0000-\\u001f\\u007f-\\u009f\\u202a-\\u202e\\u2066-\\u2069]/gu",
+            "replace": "/[\\u0000-\\u001f\\u007f-\\u009f]/gu"
+          },
+          {
+            "id": "s6-identity-overflow-fits",
+            "find": "if (columns < 60 || rows < 16 || capacity < 1) {",
+            "replace": "if (columns < 60 || rows < 16) {"
+          },
+          {
+            "id": "s7-invalid-size-accepted",
+            "find": "if (!Number.isSafeInteger(columns) || !Number.isSafeInteger(rows) || columns < 1 || rows < 1)",
+            "replace": "if (columns < 1 || rows < 1)"
+          },
+          {
+            "id": "s9-private-mode-emitted",
+            "find": "return { bytes: '\\x1b[H\\x1b[2J' + lines.join('\\r\\n') + (cursor ?? ''), fits: true, page, pages }",
+            "replace": "return { bytes: '\\x1b[?1049h\\x1b[H\\x1b[2J' + lines.join('\\r\\n') + (cursor ?? ''), fits: true, page, pages }"
+          },
+          {
+            "id": "s10-identity-truncated",
+            "find": "const identity = screen.identity.flatMap(wrapped)",
+            "replace": "const identity = screen.identity.map(text => wrapped(text)[0] ?? '')"
+          },
+          {
+            "id": "s11-failure-not-recorded",
+            "find": "        this.#failure = true\n        this.#latest = undefined\n",
+            "replace": "        this.#latest = undefined\n"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -14,6 +14,8 @@
 | `evaluationInputFingerprint` | 为完整求值输入生成指纹                       |
 | 权限辅助函数                 | 分类配值并计算约束                           |
 
+根入口 `.` 采用 v4。`selectEvaluationRootSource` 选择实际不可变根来源，`judgeEffectiveAssembly` 读取结果表示而不补字段。默认 Loop Extension 正文端口复用当前声明行为，向资产模型 v3 提供它精确引用的 LC3 Schema 资源；只接受资产模型用到的七个声明定义，其他定义作为无效端口配置报错。
+
 ## 求值一份完整输入
 
 示例提供根定义与每份持有所指的定义。缺失的引用会列入 `unresolved`。
@@ -40,15 +42,18 @@ function factory(capability: AssetHolding['capability'], asset: string): AssetHo
     since: at,
   }
 }
+const rootReferences = [
+  { capability: tool, resident: true },
+  { capability: { category: 'skill', name: 'missing-review' } as const },
+] as const
 const input: NonConnectorEvaluationInput = {
   tenant,
   standing: { standing: 'effective', role: 'member' },
   root: {
     definition: root,
-    references: [
-      { capability: tool, resident: true },
-      { capability: { category: 'skill', name: 'missing-review' } },
-    ],
+    references: rootReferences,
+    attributes: [],
+    source: { asset: 'asset_root', version: 1 },
   },
   holdings: [factory(root, 'asset_root'), factory(tool, 'asset_inspect')],
   definitions: [
@@ -60,7 +65,10 @@ const input: NonConnectorEvaluationInput = {
         {
           number: 1,
           publishedAt: at,
-          content: { category: 'agent_definition', body: toOpaqueJson({}) },
+          content: {
+            category: 'agent_definition',
+            body: toOpaqueJson({ references: rootReferences, attributes: [] }),
+          },
         },
       ],
     },

@@ -1,0 +1,51 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Running breadth-first search Model-Checking with fp 129 and seed -718224041780011198 with 1 worker on 8 cores with 6955MB heap and 64MB offheap memory [pid: 21311] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-runtime6-spec/tmp/model-request-runtime/input-limit-successor/independent-formal/rt6/input/RetryHistory.tla
+Parsing file /tmp/tlc-14597266298448307072/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-14597266298448307072/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-14597266298448307072/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-14597266298448307072/_TLCTrace.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /tmp/tlc-14597266298448307072/TLC.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-14597266298448307072/TLCExt.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /tmp/tlc-14597266298448307072/Integers.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module RetryHistory
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module RetryHistory
+Starting... (2026-09-28 09:53:10)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-28 09:53:10.
+Error: Invariant CountsOwnConclusions is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ history = <<>>
+/\ n = 0
+/\ decision = "none"
+/\ dispatches = 1
+/\ phase = "failed"
+
+State 2: <ContinueLost line 9, col 17 to line 11, col 60 of module RetryHistory>
+/\ history = <<>>
+/\ n = 0
+/\ decision = "none"
+/\ dispatches = 2
+/\ phase = "failed"
+
+State 3: <Decide line 18, col 11 to line 22, col 46 of module RetryHistory>
+/\ history = <<>>
+/\ n = 2
+/\ decision = "observed"
+/\ dispatches = 2
+/\ phase = "decided"
+
+9 states generated, 9 distinct states found, 6 states left on queue.
+The depth of the complete state graph search is 3.
+Finished in 00s at (2026-09-28 09:53:10)
+Trace exploration spec path: ./RetryHistory_TTrace_1790589189.tla

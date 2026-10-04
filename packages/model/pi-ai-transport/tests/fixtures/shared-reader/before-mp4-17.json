@@ -1,0 +1,1563 @@
+[
+  {
+    "family": "openai",
+    "modelId": "openai/gpt-6-astra",
+    "definition": "3",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-10"
+    },
+    "algorithm": "openai-gpt-6-astra-final-visible-json-o200k-patches-1/response-calibration-1",
+    "tokenizer": "js-tiktoken-1.0.21/o200k-base-gpt-6-astra-surrogate/1",
+    "replay": "openai-gpt-6-astra-visible-image-units-json-net-estimated/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 922000
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "4",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "openai",
+    "modelId": "openai/gpt-6-astra-pro",
+    "definition": "4",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-14"
+    },
+    "algorithm": "openai-gpt-6-astra-pro-final-visible-json-o200k-image-proxy-1/response-calibration-1",
+    "tokenizer": "js-tiktoken-1.0.21/o200k-base-gpt-6-astra-pro-surrogate/1",
+    "replay": "visible-final-units-json-net-estimated/1",
+    "transform": "openrouter-input-transform/pro-scope-1",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 922000
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "5",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "openai",
+    "modelId": "openai/gpt-6-sol",
+    "definition": "4",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-15"
+    },
+    "algorithm": "openai-gpt-6-sol-final-visible-json-image-proxy-2/response-calibration-1",
+    "tokenizer": "js-tiktoken-1.0.21/o200k-base-gpt-6-sol-surrogate/1",
+    "replay": "visible-final-units-json-net-estimated/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 922000
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "5",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "openai",
+    "modelId": "openai/gpt-6-sol-pro",
+    "definition": "4",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-15"
+    },
+    "algorithm": "openai-gpt-6-sol-pro-final-visible-json-image-proxy-2/response-calibration-1",
+    "tokenizer": "js-tiktoken-1.0.21/o200k-base-gpt-6-sol-pro-surrogate/1",
+    "replay": "visible-final-units-json-net-estimated/1",
+    "transform": "openrouter-input-transform/pro-scope-1",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 922000
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "5",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "openai",
+    "modelId": "openai/gpt-6-luna",
+    "definition": "5",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-15"
+    },
+    "algorithm": "openai-gpt-6-luna-final-visible-json-image-proxy-2/response-calibration-1",
+    "tokenizer": "js-tiktoken-1.0.21/o200k-base-gpt-6-luna-surrogate/1",
+    "replay": "visible-final-units-json-net-estimated/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 922000
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "6",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "openai",
+    "modelId": "openai/gpt-6-luna-pro",
+    "definition": "4",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-15"
+    },
+    "algorithm": "openai-gpt-6-luna-pro-final-visible-json-image-proxy-2/response-calibration-1",
+    "tokenizer": "js-tiktoken-1.0.21/o200k-base-gpt-6-luna-pro-surrogate/1",
+    "replay": "visible-final-units-json-net-estimated/1",
+    "transform": "openrouter-input-transform/pro-scope-1",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 922000
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "5",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "openai",
+    "modelId": "openai/gpt-5.6-sol",
+    "definition": "7",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-16"
+    },
+    "algorithm": "openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1",
+    "tokenizer": "tokenizer-basis/openai-gpt-5.6-o200k-base-complete-output-6",
+    "replay": "openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 922000
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "8",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "openai",
+    "modelId": "openai/gpt-5.6-sol-pro",
+    "definition": "6",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-13"
+    },
+    "algorithm": "openai-gpt-5.6-pro-base-image-proxy-1/response-calibration-1",
+    "tokenizer": "tokenizer-basis/openai-gpt-5.6-pro-base-image-proxy-1",
+    "replay": "visible-final-units-json-net-estimated/1",
+    "transform": "openrouter-input-transform/pro-scope-1",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 922000
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "7",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "openai",
+    "modelId": "openai/gpt-5.6-terra",
+    "definition": "7",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-16"
+    },
+    "algorithm": "openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1",
+    "tokenizer": "tokenizer-basis/openai-gpt-5.6-o200k-base-complete-output-6",
+    "replay": "openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 922000
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "8",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "openai",
+    "modelId": "openai/gpt-5.6-terra-pro",
+    "definition": "6",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-13"
+    },
+    "algorithm": "openai-gpt-5.6-pro-base-image-proxy-1/response-calibration-1",
+    "tokenizer": "tokenizer-basis/openai-gpt-5.6-pro-base-image-proxy-1",
+    "replay": "visible-final-units-json-net-estimated/1",
+    "transform": "openrouter-input-transform/pro-scope-1",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 922000
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "7",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "openai",
+    "modelId": "openai/gpt-5.6-luna",
+    "definition": "7",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-16"
+    },
+    "algorithm": "openai-gpt-5.6-o200k-base-complete-output-history-7/response-calibration-1",
+    "tokenizer": "tokenizer-basis/openai-gpt-5.6-o200k-base-complete-output-6",
+    "replay": "openai-gpt-5.6-complete-encrypted-group-output-zero-framing-estimated/2",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 922000
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "8",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "openai",
+    "modelId": "openai/gpt-5.6-luna-pro",
+    "definition": "6",
+    "implementation": {
+      "name": "pi-ai:openai",
+      "revision": "mp4-13"
+    },
+    "algorithm": "openai-gpt-5.6-pro-base-image-proxy-1/response-calibration-1",
+    "tokenizer": "tokenizer-basis/openai-gpt-5.6-pro-base-image-proxy-1",
+    "replay": "visible-final-units-json-net-estimated/1",
+    "transform": "openrouter-input-transform/pro-scope-1",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 922000
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "7",
+      "implementation": {
+        "name": "pi-ai:openai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "anthropic",
+    "modelId": "anthropic/claude-opus-5.5",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:anthropic",
+      "revision": "mp4-5"
+    },
+    "algorithm": "anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1",
+    "tokenizer": "tokenizer-basis/anthropic-legacy-bpe-plus-vision-patches-4",
+    "replay": "visible-final-units-json-net-estimated/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 872000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:anthropic",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "anthropic",
+    "modelId": "anthropic/claude-opus-5",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:anthropic",
+      "revision": "mp4-5"
+    },
+    "algorithm": "anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1",
+    "tokenizer": "tokenizer-basis/anthropic-legacy-bpe-plus-vision-patches-4",
+    "replay": "visible-final-units-json-net-estimated/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 872000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:anthropic",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "anthropic",
+    "modelId": "anthropic/claude-sonnet-5",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:anthropic",
+      "revision": "mp4-5"
+    },
+    "algorithm": "anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1",
+    "tokenizer": "tokenizer-basis/anthropic-legacy-bpe-plus-vision-patches-4",
+    "replay": "visible-final-units-json-net-estimated/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 872000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:anthropic",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "anthropic",
+    "modelId": "anthropic/claude-fable-5.1",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:anthropic",
+      "revision": "mp4-5"
+    },
+    "algorithm": "anthropic-legacy-bpe-plus-vision-patches-4/response-calibration-1",
+    "tokenizer": "tokenizer-basis/anthropic-legacy-bpe-plus-vision-patches-4",
+    "replay": "visible-final-units-json-net-estimated/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 872000,
+      "maxOutputTokens": 128000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:anthropic",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "deepseek",
+    "modelId": "deepseek/deepseek-v4.1-flash",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:deepseek",
+      "revision": "mp4-4"
+    },
+    "algorithm": "deepseek-v41-flash-reference-3",
+    "tokenizer": "deepseek-v41-flash-dba1be0a40aa45a94ad051997016db3960a90277",
+    "replay": "deepseek-reference-boundary/1",
+    "transform": "deepseek-flash-reference-projection/1",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 917504,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:deepseek",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "deepseek",
+    "modelId": "deepseek/deepseek-v4-pro-0813",
+    "definition": "3",
+    "implementation": {
+      "name": "pi-ai:deepseek",
+      "revision": "mp4-3"
+    },
+    "algorithm": "deepseek-v4-pro-reference-2",
+    "tokenizer": "deepseek-v4-pro-b5968e9190ef611bbf34a7229255be88a0e937c1",
+    "replay": "deepseek-reference-boundary/1",
+    "transform": "deepseek-pro-reference-projection/1",
+    "capabilities": {
+      "inputModalities": ["text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 1032192,
+      "maxOutputTokens": 16384,
+      "inputConstraints": {},
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "4",
+      "implementation": {
+        "name": "pi-ai:deepseek",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "google",
+    "modelId": "google/gemini-3.8-flash",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:google",
+      "revision": "mp4-3"
+    },
+    "algorithm": "gemma4-visible-text-tools-effort-offset6-2",
+    "tokenizer": "tokenizer-basis/gemma4-visible-text-tools-effort-offset6-2",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["audio", "image", "text", "video"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 983040,
+      "maxOutputTokens": 65536,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:google",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "google",
+    "modelId": "google/gemini-3.7-flash",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:google",
+      "revision": "mp4-3"
+    },
+    "algorithm": "gemma4-visible-text-tools-effort-offset6-2",
+    "tokenizer": "tokenizer-basis/gemma4-visible-text-tools-effort-offset6-2",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["audio", "image", "text", "video"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 983040,
+      "maxOutputTokens": 65536,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:google",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "xai",
+    "modelId": "x-ai/grok-4.7",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:xai",
+      "revision": "mp4-3"
+    },
+    "algorithm": "grok-build-visible-text-tools-effort-offset1181-2",
+    "tokenizer": "tokenizer-basis/grok-build-visible-text-tools-effort-offset1181-2",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 50000,
+      "maxOutputTokens": 450000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:xai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "xai",
+    "modelId": "x-ai/grok-4.6",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:xai",
+      "revision": "mp4-3"
+    },
+    "algorithm": "grok-build-visible-text-tools-effort-offset141-2",
+    "tokenizer": "tokenizer-basis/grok-build-visible-text-tools-effort-offset141-2",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 50000,
+      "maxOutputTokens": 450000,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:xai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "qwen",
+    "modelId": "qwen/qwen3.8-max-0902",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-6"
+    },
+    "algorithm": "qwen3.8-max-0902-final-visible-json-proxy-1",
+    "tokenizer": "tokenizer-basis/qwen3.8-max-0902-final-visible-json-proxy-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text", "video"],
+      "maxInputTokens": 868928,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 983616
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      },
+      "outputModalities": ["text"]
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:qwen",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "qwen",
+    "modelId": "qwen/qwen3.8-max-prime",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-6"
+    },
+    "algorithm": "qwen3.8-max-prime-final-visible-json-proxy-1",
+    "tokenizer": "tokenizer-basis/qwen3.8-max-prime-final-visible-json-proxy-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text", "video"],
+      "maxInputTokens": 868928,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 983616
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      },
+      "outputModalities": ["text"]
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:qwen",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "qwen",
+    "modelId": "qwen/qwen3.8-flash",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-6"
+    },
+    "algorithm": "qwen3.8-flash-final-visible-json-proxy-1",
+    "tokenizer": "tokenizer-basis/qwen3.8-flash-final-visible-json-proxy-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text", "video"],
+      "maxInputTokens": 868928,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 983616
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      },
+      "outputModalities": ["text"]
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:qwen",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "qwen",
+    "modelId": "qwen/qwen3.8-2.4t-a95b",
+    "definition": "1",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-2"
+    },
+    "algorithm": "qwen-38-public-template-2",
+    "tokenizer": "tokenizer-basis/qwen-38-public-template-2",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["text"],
+      "maxInputTokens": 868928,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {},
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        }
+      },
+      "outputModalities": ["text"]
+    },
+    "expected": {
+      "definition": "2",
+      "implementation": {
+        "name": "pi-ai:qwen",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "qwen",
+    "modelId": "qwen/qwen3.8-27b",
+    "definition": "1",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-3"
+    },
+    "algorithm": "qwen-38-public-template-image-3",
+    "tokenizer": "tokenizer-basis/qwen-38-public-template-image-3",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text", "video"],
+      "maxInputTokens": 868928,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      },
+      "outputModalities": ["text"]
+    },
+    "expected": {
+      "definition": "2",
+      "implementation": {
+        "name": "pi-ai:qwen",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "qwen",
+    "modelId": "qwen/qwen3.7-max",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-6"
+    },
+    "algorithm": "qwen3.7-max-final-visible-json-proxy-1",
+    "tokenizer": "tokenizer-basis/qwen3.7-max-final-visible-json-proxy-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["text"],
+      "maxInputTokens": 868928,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {},
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 983616
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        }
+      },
+      "outputModalities": ["text"]
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:qwen",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "qwen",
+    "modelId": "qwen/qwen3.7-plus",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-6"
+    },
+    "algorithm": "qwen3.7-plus-final-visible-json-proxy-1",
+    "tokenizer": "tokenizer-basis/qwen3.7-plus-final-visible-json-proxy-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "maxInputTokens": 868928,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 983616
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      },
+      "outputModalities": ["text"]
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:qwen",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "qwen",
+    "modelId": "qwen/qwen3.7-flash",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:qwen",
+      "revision": "mp4-6"
+    },
+    "algorithm": "qwen3.7-flash-final-visible-json-proxy-1",
+    "tokenizer": "tokenizer-basis/qwen3.7-flash-final-visible-json-proxy-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text", "video"],
+      "maxInputTokens": 934464,
+      "maxOutputTokens": 65536,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "limited",
+          "value": 983616
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      },
+      "outputModalities": ["text"]
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:qwen",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "moonshot",
+    "modelId": "moonshotai/kimi-k3",
+    "definition": "1",
+    "implementation": {
+      "name": "pi-ai:moonshot",
+      "revision": "mp4-3"
+    },
+    "algorithm": "moonshot-k3-xtml-image-4",
+    "tokenizer": "tokenizer-basis/moonshot-k3-xtml-image-4",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text", "video"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 104858,
+      "maxOutputTokens": 943718,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "2",
+      "implementation": {
+        "name": "pi-ai:moonshot",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "moonshot",
+    "modelId": "moonshotai/kimi-k2.7-code",
+    "definition": "1",
+    "implementation": {
+      "name": "pi-ai:moonshot",
+      "revision": "mp4-2"
+    },
+    "algorithm": "moonshot-k27-jinja-image-3",
+    "tokenizer": "tokenizer-basis/moonshot-k27-jinja-image-3",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 26215,
+      "maxOutputTokens": 235929,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "2",
+      "implementation": {
+        "name": "pi-ai:moonshot",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "zai",
+    "modelId": "z-ai/glm-5.3",
+    "definition": "1",
+    "implementation": {
+      "name": "pi-ai:zai",
+      "revision": "mp4-1"
+    },
+    "algorithm": "glm-5.3-public-template-1",
+    "tokenizer": "tokenizer-basis/glm-5.3-public-template-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 917504,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {},
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "2",
+      "implementation": {
+        "name": "pi-ai:zai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "zai",
+    "modelId": "z-ai/glm-5.3-prime",
+    "definition": "2",
+    "implementation": {
+      "name": "pi-ai:zai",
+      "revision": "mp4-2"
+    },
+    "algorithm": "prime-public-glm53-declared-effort-route-fit-2",
+    "tokenizer": "tokenizer-basis/prime-public-glm53-declared-effort-route-fit-2",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 868928,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {},
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "3",
+      "implementation": {
+        "name": "pi-ai:zai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "zai",
+    "modelId": "z-ai/glm-5.3-flash",
+    "definition": "1",
+    "implementation": {
+      "name": "pi-ai:zai",
+      "revision": "mp4-1"
+    },
+    "algorithm": "glm-5.3-flash-public-template-1",
+    "tokenizer": "tokenizer-basis/glm-5.3-flash-public-template-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text", "video"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 917504,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "2",
+      "implementation": {
+        "name": "pi-ai:zai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "zai",
+    "modelId": "z-ai/glm-5.3-flashx",
+    "definition": "1",
+    "implementation": {
+      "name": "pi-ai:zai",
+      "revision": "mp4-1"
+    },
+    "algorithm": "flashx-public-glm53-route-fit-1",
+    "tokenizer": "tokenizer-basis/flashx-public-glm53-route-fit-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["image", "text", "video"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 917504,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {
+        "maxImageBytes": 4194304
+      },
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        },
+        "maxImageBytes": {
+          "status": "unknown"
+        },
+        "maxImages": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "2",
+      "implementation": {
+        "name": "pi-ai:zai",
+        "revision": "mp4-17"
+      }
+    }
+  },
+  {
+    "family": "zai",
+    "modelId": "z-ai/glm-5.2",
+    "definition": "1",
+    "implementation": {
+      "name": "pi-ai:zai",
+      "revision": "mp4-1"
+    },
+    "algorithm": "glm-5.2-public-template-1",
+    "tokenizer": "tokenizer-basis/glm-5.2-public-template-1",
+    "replay": "unsupported-marginal/1",
+    "transform": "openrouter-wire/2",
+    "capabilities": {
+      "inputModalities": ["text"],
+      "outputModalities": ["text"],
+      "maxInputTokens": 917504,
+      "maxOutputTokens": 131072,
+      "inputConstraints": {},
+      "upstreamInputLimits": {
+        "maxInputTokens": {
+          "status": "unknown"
+        },
+        "maxRequestBytes": {
+          "status": "unknown"
+        }
+      }
+    },
+    "expected": {
+      "definition": "2",
+      "implementation": {
+        "name": "pi-ai:zai",
+        "revision": "mp4-17"
+      }
+    }
+  }
+]

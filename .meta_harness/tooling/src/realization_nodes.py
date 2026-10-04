@@ -10,8 +10,12 @@
 **不判断任何节点的内容对不对**——它查不出一条绑定的证据是否真能支持那条条款，
 也查不出某条边少写了一侧。
 
+另核 `bindings.yaml` 里的装配声明（`assembly`、`composition`）的形状：顶层键只认六个、派发模式只认五种、
+同节点服务键不重复、`source` 指回节点正文里真实存在的锚点、装配节点挂的插件在被引用节点的声明里有这个名字；
+被引用节点还没声明时只提示。**它不核声明与代码是否一致**——那是开发工具里意图对实现对照的事。
+
 只读 `--root` 指向的设计根，不从承载仓库发现 `apps/` 或 `packages/` 源码：工作区要能整体迁出。
-YAML 用仓库开发依赖里已有的 PyYAML，只读 `node`、`kind`、`bindings` 三个顶层键。
+YAML 用仓库开发依赖里已有的 PyYAML。
 """
 from __future__ import annotations
 
@@ -20,6 +24,7 @@ import json
 import re
 import sys
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
 from urllib.parse import unquote, urldefrag, urlparse
 
@@ -28,6 +33,8 @@ import yaml
 # 「链接后面跟着（rev N）」是全链共用的一条写法，权威在 ubiquitous_language/conventions.md，
 # 机器读法只有 domain_objects.py 里那一份；这里复用它，不另抄一遍正则。
 from domain_objects import CITE_TOKEN_RE, REV_RE
+# 标题锚点的读法（含重名标题的 -1、-2 与显式 <a id>）只有 design_review.py 里那一份。
+from design_review import markdown_anchors
 
 AREAS = ("apps", "packages")
 KINDS = ("provider", "assembly")
@@ -36,6 +43,15 @@ DELIVERY_SECTION = "交付面与非目标"
 STACK_SECTION = "技术栈采用"
 COORDINATE_COLUMNS = ("契约坐标", "精确形状归谁")  # 「与其他应用的边」与「交互面」两张表里写坐标的那一列
 ADOPTED, CANDIDATE = "已采用", "candidate"
+# 装配声明（realization/README.md「装配声明」一节；规则归 cordis-integration-conventions.md）
+TOP_KEYS = ("version", "node", "kind", "bindings", "assembly", "composition")
+MODES = ("emit", "parallel", "serial", "bail", "waterfall")
+LAYERS = ("distribution", "operator")
+PLUGIN_KEYS = ("name", "source", "provides", "injects", "optional", "emits", "listens", "contributes")
+PLUGIN_LISTS = ("provides", "injects", "optional", "listens", "contributes")
+DEFINE_KEYS = ("key", "contract", "owner", "source")
+IMPORT_EXCEPTION_KEYS = ("target", "symbols", "sharedStorage", "source")
+ROW_KEYS = ("id", "node", "plugin", "layer", "source")
 
 SECTION_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 FIELD_RE = re.compile(r"^- ([^：:]+?)\s*[:：]\s*(.*)$")
@@ -122,6 +138,39 @@ def key_line(text: str, key: str) -> int:
     return 1
 
 
+def yaml_lines(text: str) -> dict[tuple, int]:
+    """每个映射值与列表项的起始行（从 1 起），键是从根起的路径，如 `("assembly", "plugins", 0, "emits", 0, "mode")`。"""
+    lines: dict[tuple, int] = {}
+
+    def walk(item: yaml.Node, path: tuple) -> None:
+        lines[path] = item.start_mark.line + 1
+        if isinstance(item, yaml.MappingNode):
+            for key, value in item.value:
+                if isinstance(key, yaml.ScalarNode):
+                    walk(value, (*path, key.value))
+        elif isinstance(item, yaml.SequenceNode):
+            for index, value in enumerate(item.value):
+                walk(value, (*path, index))
+
+    root = yaml.compose(text, Loader=yaml.SafeLoader)
+    if root is not None:
+        walk(root, ())
+    return lines
+
+
+def line_of(lines: dict[tuple, int], *path: object) -> int:
+    """路径上最深的、在文件里找得到的那一层所在的行；整条路径都不在时回落到第 1 行。"""
+    while path and path not in lines:
+        path = path[:-1]
+    return lines.get(path, 1)
+
+
+def located(file: str, lines: dict[tuple, int], *path: object) -> str:
+    """报错前缀 `<文件>:<行>: assembly.plugins[0].emits[0]`：行号指到这一项本身，不只是顶层键。"""
+    label = "".join(f"[{part}]" if isinstance(part, int) else f".{part}" for part in path)
+    return f"{file}:{line_of(lines, *path)}: {label.removeprefix('.')}"
+
+
 class Checker:
     def __init__(self, root: Path, *, stale: str = "fail") -> None:
         self.root = root.resolve()
@@ -132,6 +181,9 @@ class Checker:
         self.revisions: dict[str, int] = {}
         self.drafts: set[str] = set()  # front-matter 的 status 是 draft：那份产品正文还没被接受
         self._catalog: set[tuple[str, int]] | None = None
+        self.hints: list[str] = []  # 不判失败的提示：装配节点引用了还没声明 assembly 的节点
+        self.declared: dict[str, list[str]] = {}  # 节点相对路径 → assembly.plugins 的名字
+        self.references: list[tuple[str, str, str]] = []  # (出处, 被引用节点, 插件名)
 
     def error(self, message: str) -> None:
         self.errors.append(message)
@@ -211,6 +263,7 @@ class Checker:
             self.check_architecture(node)
             self.check_bindings(node)
             self.check_links(node)
+        self.check_references()
 
     def check_entry(self, node: Node) -> None:
         """README：kind、源码位置、交付面（仅 assembly）。"""
@@ -438,6 +491,190 @@ class Checker:
         if drafts and bindings:
             self.error(f"{self.rel(path)}:{number}: 交付面 {'、'.join(drafts)} 的 status 还是 draft，"
                        f"这个节点不得登记绑定，现在有 {len(bindings)} 条")
+        self.check_declarations(node, path, text, data)
+
+    # ── 装配声明 ────────────────────────────────────────────────────────
+    def check_declarations(self, node: Node, path: Path, text: str, data: dict) -> None:
+        """`assembly` 写本节点的 Cordis 插件意图，`composition` 写装配节点挂哪些插件；缺省即「未声明」，不判失败。"""
+        for key in data:
+            if key not in TOP_KEYS:
+                self.error(f"{self.rel(path)}:{key_line(text, str(key))}: 顶层键 `{key}` 不认识"
+                           f"（只认 {'、'.join(TOP_KEYS)}）")
+        lines = yaml_lines(text)
+        assembly = data.get("assembly")
+        if assembly is not None:
+            self.check_assembly(node, path, lines, assembly)
+        composition = data.get("composition")
+        if composition is not None:
+            if data.get("kind") != "assembly":
+                self.error(f"{self.rel(path)}:{key_line(text, 'composition')}: composition 只给装配节点")
+            else:
+                self.check_composition(node, path, lines, composition)
+
+    def _table(self, where: str, item: object, allowed: tuple[str, ...]) -> bool:
+        if not isinstance(item, dict):
+            self.error(f"{where}: 要写成一张表")
+            return False
+        for key in item:
+            if key not in allowed:
+                self.error(f"{where}: 键 `{key}` 不认识（只认 {'、'.join(allowed)}）")
+        return True
+
+    def _items(self, where: str, value: object) -> list:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            self.error(f"{where}: 要写成列表")
+            return []
+        return value
+
+    def _strings(self, where: str, value: object) -> list[str]:
+        if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
+            self.error(f"{where}: 要写成非空字符串的列表")
+            return []
+        return value
+
+    def _source(self, node: Node, where: str, value: object) -> None:
+        """`source` 指回节点正文里给出这条意图的地方：`<节点内文件>.md#<锚点>`，文件与锚点都要在。"""
+        if not isinstance(value, str) or "#" not in value:
+            self.error(f"{where}: source 要写成 `<文件>.md#<锚点>`")
+            return
+        name, anchor = value.split("#", 1)
+        target = node.path / name
+        anchors = markdown_anchors(target) if target.suffix == ".md" and target.parent == node.path else None
+        if anchors is None:
+            self.error(f"{where}: source 指的文件不在节点里：{name}")
+        elif anchor not in anchors:
+            self.error(f"{where}: source 的锚点在 {name} 里找不到：#{anchor}")
+
+    def check_assembly(self, node: Node, path: Path, lines: dict[tuple, int], assembly: object) -> None:
+        spot = partial(located, self.rel(path), lines, "assembly")
+        if not self._table(spot(), assembly, ("defines", "plugins", "importExceptions")):
+            return
+        self.check_import_exceptions(node, path, lines, assembly.get("importExceptions"))
+        if assembly.get("defines") and self.rel(node.path).split("/")[:3] != ["realization", "packages", "core"]:
+            self.error(f"{spot('defines')}: 服务定义声明只给 packages/core 里的节点（IC-1）")
+        contracts = {contract for contract, _ in self.catalog()}
+        defined: list[str] = []
+        for index, item in enumerate(self._items(spot("defines"), assembly.get("defines"))):
+            at = spot("defines", index)
+            if not self._table(at, item, DEFINE_KEYS):
+                continue
+            key, contract, owner = item.get("key"), item.get("contract"), item.get("owner")
+            if not isinstance(key, str) or not key:
+                self.error(f"{at}: 缺 key")
+            elif key in defined:
+                self.error(f"{at}: 服务键「{key}」在本节点的 defines 里写了两次")
+            else:
+                defined.append(key)
+            if (contract is None) == (owner is None):
+                self.error(f"{at}: contract 与 owner 恰写其一（接缝出自契约写 contract，出自协议形状写 owner）")
+            elif contract is not None and (not isinstance(contract, str) or contract not in contracts):
+                self.error(f"{at}: contract「{contract}」不在 {CATALOG} 里（只写 contract_id）")
+            elif owner is not None and f"realization/{owner}" not in {self.rel(n.path) for n in self.nodes}:
+                self.error(f"{at}: owner「{owner}」不是一个实现映射节点")
+            self._source(node, at, item.get("source"))
+        names: list[str] = []
+        provided: list[str] = []
+        for index, item in enumerate(self._items(spot("plugins"), assembly.get("plugins"))):
+            at = spot("plugins", index)
+            if not self._table(at, item, PLUGIN_KEYS):
+                continue
+            name = item.get("name")
+            if not isinstance(name, str) or not name:
+                self.error(f"{at}: 缺 name")
+            elif name in names:
+                self.error(f"{at}: 插件名「{name}」在本节点重复")
+            else:
+                names.append(name)
+            self._source(node, at, item.get("source"))
+            for field_name in PLUGIN_LISTS:
+                if field_name not in item:
+                    continue
+                values = self._strings(spot("plugins", index, field_name), item[field_name])
+                if field_name != "provides":
+                    continue
+                for key in values:
+                    if key in provided:
+                        self.error(f"{spot('plugins', index, 'provides')}: 服务键「{key}」在本节点的 provides 里写了两次")
+                    provided.append(key)
+            for number, emit in enumerate(self._items(spot("plugins", index, "emits"), item.get("emits"))):
+                emitted = spot("plugins", index, "emits", number)
+                if not self._table(emitted, emit, ("event", "mode")):
+                    continue
+                if not isinstance(emit.get("event"), str) or not emit["event"]:
+                    self.error(f"{emitted}: 缺 event")
+                if emit.get("mode") not in MODES:
+                    self.error(f"{spot('plugins', index, 'emits', number, 'mode')}: "
+                               f"mode「{emit.get('mode')}」不在五种派发里（{'、'.join(MODES)}）")
+        self.declared[self.rel(node.path)] = names
+
+    def check_import_exceptions(self, node: Node, path: Path, lines: dict[tuple, int], value: object) -> None:
+        """IC-5 的事务内读函数例外必须点名目标、导出符号、共同存储对象与正文依据；不判断事务语义。"""
+        spot = partial(located, self.rel(path), lines, "assembly", "importExceptions")
+        known = {self.rel(n.path).removeprefix("realization/") for n in self.nodes}
+        own = self.rel(node.path).removeprefix("realization/")
+        seen: set[tuple[str, str]] = set()
+        for index, item in enumerate(self._items(spot(), value)):
+            at = spot(index)
+            if not self._table(at, item, IMPORT_EXCEPTION_KEYS):
+                continue
+            target = item.get("target")
+            if not isinstance(target, str) or target not in known:
+                self.error(f"{spot(index, 'target')}: target「{target}」不是一个实现映射节点")
+            elif target == own:
+                self.error(f"{spot(index, 'target')}: importExceptions 只给跨成员导入，不能指向本节点")
+            symbols = self._strings(spot(index, "symbols"), item.get("symbols"))
+            if not symbols:
+                self.error(f"{spot(index, 'symbols')}: symbols 至少点名一个事务内读函数，不能写空列表")
+            for symbol in symbols:
+                if symbol == "*":
+                    self.error(f"{spot(index, 'symbols')}: symbols 不许用 `*` 免除整个成员的导入")
+                if not isinstance(target, str):
+                    continue
+                if (target, symbol) in seen:
+                    self.error(f"{spot(index, 'symbols')}: target「{target}」的符号「{symbol}」重复")
+                seen.add((target, symbol))
+            storage = item.get("sharedStorage")
+            if not isinstance(storage, str) or not storage.strip():
+                self.error(f"{spot(index, 'sharedStorage')}: sharedStorage 要点名两个写入者共同触碰的存储对象")
+            self._source(node, at, item.get("source"))
+
+    def check_composition(self, node: Node, path: Path, lines: dict[tuple, int], composition: object) -> None:
+        spot = partial(located, self.rel(path), lines, "composition")
+        if not self._table(spot(), composition, ("plugins",)):
+            return
+        ids: set[str] = set()
+        for index, row in enumerate(self._items(spot("plugins"), composition.get("plugins"))):
+            at = spot("plugins", index)
+            if not self._table(at, row, ROW_KEYS):
+                continue
+            row_id = row.get("id")
+            if not isinstance(row_id, str) or not row_id:
+                self.error(f"{at}: 缺 id")
+            elif row_id in ids:
+                self.error(f"{at}: 行 id「{row_id}」重复")
+            else:
+                ids.add(row_id)
+            if row.get("layer") not in LAYERS:
+                self.error(f"{at}: layer「{row.get('layer')}」只能是 {' 或 '.join(LAYERS)}")
+            self._source(node, at, row.get("source"))
+            target, plugin = row.get("node"), row.get("plugin")
+            if not isinstance(target, str) or not target or not isinstance(plugin, str) or not plugin:
+                self.error(f"{at}: 要写 node（如 packages/infra/storage-sql）与 plugin")
+                continue
+            self.references.append((at, f"realization/{target}", plugin))
+
+    def check_references(self) -> None:
+        """装配节点挂的插件对到被引用节点的 `assembly.plugins`：那边声明了却没有这个名字判失败；还没声明只提示。"""
+        known = {self.rel(node.path) for node in self.nodes}
+        for at, target, plugin in self.references:
+            if target not in known:
+                self.error(f"{at}: node「{target.removeprefix('realization/')}」不是一个实现映射节点")
+            elif target not in self.declared:
+                self.hints.append(f"{at}: {target} 还没声明 assembly，插件名「{plugin}」无从核对")
+            elif plugin not in self.declared[target]:
+                self.error(f"{at}: {target} 的 assembly.plugins 里没有「{plugin}」")
 
     def check_links(self, node: Node) -> None:
         """节点 markdown 里的本地相对链接要能解析；外链与纯锚点不查，锚点本身由 check_design.py 统一查。"""
@@ -466,6 +703,8 @@ def main(argv: list[str] | None = None) -> int:
     checker.check()
     for note in checker.notes:
         print(f"STALE: {note}")
+    for hint in checker.hints:
+        print(f"NOTE: {hint}")
     for error in checker.errors:
         print(f"ERROR: {error}", file=sys.stderr)
     if checker.errors:

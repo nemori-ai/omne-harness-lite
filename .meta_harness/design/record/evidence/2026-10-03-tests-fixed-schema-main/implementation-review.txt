@@ -1,0 +1,76 @@
+# #65 主实现独立实现评审 · 第 1 轮（运行证据待补）
+
+评审对象为 `/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation`，分支 `panqiwei/lazy-schema`。任务基线是 `9e5a141bef120be42b5a92364fc71378815fa090`，最终被审提交是 `28dd49e0018f455c53b278bc3309b9c80c2ef2f7`，接受级别 L3。初始候选 `79cdc32509cddf6dc2ac6e4fdbda488546b048bc` 后只追加三处 AM 消费参数迁移，派发者已补入范围。三默认 owner 和性能采用不在本次范围。
+
+已完成变更、原断言、规则、度量与检查表 1—20 的核对。L3 指定热点已逐行读。最终受影响范围的快慢层、全部类型检查、CLI 消费者验收、严格 loop 和差分变异运行证据尚待派发者补交。此报告不接受交付。
+
+**本次范围内未发现阻断问题。**这不表示尚未取得的运行证据通过。
+
+## 工具一览
+
+检查命令均从上述工作树运行。三项检查的共同前缀为 `taskset -c 7 nice -n 5`，环境为 `VITEST_MAX_WORKERS=1 OMNE_TEST_MEMBER_CONCURRENCY=1 npm_config_workspace_concurrency=1`。取得派发者执行通道后串行运行，结束即释放。没有执行 `make check`、槽位脚本、安装或提交。
+
+| 入口 | 实际命令／读取 | 结果 | 输出位置 |
+|---|---|---|---|
+| 工作树与交付坐标 | `git branch --show-current`、`git rev-parse HEAD`、`git status --porcelain=v1` | 退出 0；指定分支，最终 HEAD 为 `28dd49e0`，跟踪状态干净 | 本次工具输出；`status-initial.txt`，`status-final.txt` |
+| 变更清单 | `git diff --name-status 9e5a141b 28dd49e0`；`git log --reverse --format=… --name-status 9e5a141b..28dd49e0` | 退出 0；285 文件、27 提交，未见超出最终补充范围 | `change-list-final.txt`、`commit-list-final.txt` |
+| 验收／测试差异 | `git diff 9e5a141b 79cdc325 -- ':(glob)**/tests/**' ':(glob)**/acceptance/**' ':(glob)**/*golden*' ':(glob)**/*snap*'`；另核 `79cdc325..28dd49e0` | 退出 0；原 AM/MCP 六文件仅迁移调用；预期及 matcher 不变；追加工具消费者三行也不改断言 | `tests-acceptance.diff`、`consumer-followup.diff` |
+| 验收锁 | `make --no-print-directory acceptance-lock BASE=9e5a141bef120be42b5a92364fc71378815fa090` | 退出 0；“基线以来没有验收文件被改动” | `acceptance-lock.log`、`checks-result.json` |
+| 仓库规则 | `pnpm run lint:rules` | 退出 0；27 包规则、8 路径规则、1 份验收覆盖声明、1012 个提交署名及删卡 trailer，无违反 | `rules.log`、`checks-result.json` |
+| 结构度量 | `make --no-print-directory metrics BASE=9e5a141bef120be42b5a92364fc71378815fa090 OUT=tmp/test-tiers-mutation/review65-main-r1/metrics` | 退出 0；方向违规 0、环 0；变更函数 5 个 alert、2 个 warn，已核对说明；未开启 coverage | `metrics.log`、`metrics/{summary.md,metrics.json,graph.json,review.html}` |
+| 独立断言保真入口 | 仓库未声明专门入口 | 无此入口；采用本次 Git 差异人工核对，未冒称机器断言审计 | `tests-acceptance.diff` |
+| 共享门及故障日志读回 | 读取 shared-gate release、metadata reentry 原始输出，并用 Python 3 标准库读文件核 SHA256 | 文件核对退出 0；7 份 release 证据摘要、13 份故障／恢复日志摘要匹配；新 driver 源摘要匹配 | `evidence-readback.json`；原件在 `../shared-gate-65/`、`../migration65/schema-metadata-reentry/` |
+| 结构红项基线核对 | `git show 9e5a141b:packages/core/content-blocks/src/exact-schema.ts` 与当前源片段逐行比较 | 退出 0；`compare`、`equal`、`divisible`、`exactSchema` 的函数文本完全相同 | `moved-function-readback.json` |
+| 干净候选构建（读取 ROOT 证据） | 原 46 成员 `pnpm -r --workspace-concurrency=1 --filter … run build`，随后对未完成 5 成员补构建 | 原候选退出 1，三个旧 AM 参数 TS2345；最终补构建退出 0。其余 41 成员输入未变且原日志已完成 | `../final65-main-integration/clones-r1/{candidate-build.log,candidate-build-followup.json,candidate-build-followup.log}` |
+| 受影响测试／全套检查 | 本次不重复启动；等待最终提交原始输出 | 未验证：无最终快慢层、完整类型、CLI 验收和严格 loop 输出；不把阶段日志冒充最终通过 | 待补 |
+| 失败归因入口 | 未对旧 AM r5 直接日志运行 `testing/cli.ts triage` | 未验证：该次没有运行器账本且当前新增夹具已改；未归因为并行或负载 | `../migration65/am-r5/asset-model-fast.log`、`../migration65/am-r6/result.json` |
+| L3 形式任务 | 核对本次清单及 D-116 的采用范围 | 本次无新触发或改动模型任务；未运行 TLC／Alloy，不作形式验证声明 | `change-list-final.txt`、D-116；五类故障实际输出见上 |
+
+`python` 命令首次读回失败（退出 127，环境没有该命令），改用已存在的 `python3` 后完成；没有安装依赖。
+
+## 阻断
+
+无。
+
+以下是支持当前结论的有限证据，均不替代后续运行证据：
+
+- `schema-codegen.ts:31` 的 CJS 生成串将 raw validator 保留在模块内，所有导出改为文本函数；`schema-compiler.ts:18` 的 keyword 引用与 `schema-codegen.ts:38` 的接收函数采用同一 native require specifier。`code-runtime.ts:20` 在接收域读严格无损 JSON，并即时复制 errors。`shared-gate-65/native-r2/result.json` 记录 138 次 exact、12 次 meta 比较、完整 errors 相等及故意分域的 `[true,false]` 反控。相关 helper/JSON/transform 源摘要与当前匹配。
+- `build-fixed-schemas.mjs:212` 在真实 tsc 前清两个输出目录，全部图成功后才写 manifest；异常再次清两目录。metadata reentry 的五类失败均退出 1，记录 `distExists:false` 和 `generatedExists:false`；恢复构建均退出 0。日志包含 TS2322、ERR_MODULE_NOT_FOUND、坏 meta、MissingForGate 和 EISDIR 的真实错误。当前 driver 摘要匹配该证据。
+- GCE 的资源叶子已纳入 `ops-import-whitelist.ts:22`，只开放精确资源和生成入口；规则正反用例保留。`build-fixed-schemas.mjs:176` 读取实际 `validator.schema`，`routing/schema.ts:14` 拒绝非自有定义。元数据用例覆盖 `Result_AI_S15` 解析到 `LoginResult`。原 `__proto__`／`constructor` 事故行为的对拍差异保留，未把它算入 107 个自有定义的等价声明。
+- `asset-model/src/judge.ts:595` 使声明方法闭包持有构造时的 `bodies` 与同一 `judgeAssetValue`；两个外层包装消费显式 owner。原作者临时编译仍位于 `judge.ts:615`。原始 native src/dist 记录均为主图 25 次、作者图 2 次、runtime 3 个；新增测试在替换外部 supply 后仍使用已捕获闭包，类型负例拒绝旧参数。`w6-asset-consumer.ts` 三处补迁移复用第 209 行已有 judge，原断言不变。
+
+## 非阻断
+
+无新增发现。五个 alert 均已交代：`exactSchema` CC27、`equal` CC18 为机械移出；`exchangeGovernance` CC23、`validRecord` CC16 只替换固定校验调用；`generateSchemaModule` CC13 为新的构建期生成器，其失败分支已有共享门记录。两个 warn（`compare` CC12、`divisible` CC11）也与基线文本相同。成员风险红色计数 20 不等于本次新引入 20 条违反。
+
+## 范围外待裁决
+
+无新增裁决项。三默认 owner 的延迟构造、AE 快照与四项性能采用按派发范围另行交付。
+
+## 未覆盖
+
+- 最终受影响范围快慢层、全部类型、CLI 消费者验收、严格 loop 和差分变异输出尚未提供；当前不具备这些检查通过的结论。已有阶段通过和修复日志只按其各自输入使用。
+- 未重跑共享门的故障注入、打包消费者与原 oracle；本次读取实际日志并核对摘要。最终独立运行验收归 QA。
+- 无 coverage／CRAP 或变异执行声明。对检查表第 5 问仅按变更测试、已存在的 oracle 与反控阅读，未改文件种入变异体。
+- 285 文件中研究归档与大量捕获 JSON 未逐字通读；依据变更清单、采用正文、摘要和运行证据抽读。指定 L3 helper、生成器、构建事务、GCE leaf、AM 闭包路径已逐行读。未改动的租户服务／存储事务实现没有扩展为本次全面安全审计。
+- 设计取舍及契约表达不在本角色判断范围；QA 的验收结论不由本角色代作。
+
+## 检查表覆盖记录
+
+| 问题 | 本次核对落点与状态 |
+|---|---|
+| 1—3 写入范围、如实、逐提交清理 | 最终 285 文件／27 提交清单、补充范围、原失败日志；未见越界或不实成功声明。范围内迁移按成员提交，没有发现额外清理提交。 |
+| 4 测试／验收变更 | 验收锁输出零改动；旧测试与工具消费者输入迁移均保留 matcher 和预期。 |
+| 5—7 测试反控、断言、红转绿 | 读取固定定义、新鲜性、保留名、MR JSON 变异及 owner-reuse 用例；原始 exact 分域、缺产物、构建故障反控存在。AM r5 原日志明确缺 `disabled`，r6 修正夹具后该两用例通过；不把历史 423+单独2 冒充一次424全过。归因入口限制见未覆盖。 |
+| 8 依赖方向与公开入口 | 本次 lint:rules 无违反；metrics 方向 0／环 0；两个新增 CB 子入口按 D-116，未新增 identity→CB 反向边。 |
+| 9—10 缺席与提供者语义 | 精确域文本交接、ordinary unknown、GCE 有限自有定义和 owner 显式输入；未形成违反已采用条款的具体反例。 |
+| 11—13 结构、重复、策略常量 | 本次度量 alert/warn 均核对；新生成器与包装中未见新增重试／退避／超时策略。小型谓词拆出后的重复未形成可举行为后果，不计缺陷。 |
+| 14—16 错误、副作用、受限输入 | 构建异常保留原抛及清理；生成入口缺失原抛；当前规则受限调用检查无违反。既有业务 catch 不因本次校验器替换而新增兜底。 |
+| 17 租户显式流 | AM 的 `sameTenant`／`authorshipLeavesOwner` 与命名拒绝路径、GCE 只读校验和 ST sessionValue 路径逐行核对；本次没有新增当前租户或默认租户取值。 |
+| 18 凭据泄漏 | 变更日志只含 package/build 信息；生成 helper 和 owner 路径没有新增凭据日志、错误载荷或夹具值。 |
+| 19 同一提交 | 本次未新增跨 owner 持久事务；被修改的构建输出完整性交给同一个 driver 清理，实际五类失败记录见工具表。未声称断电崩溃原子发布。 |
+| 20 形式及故障实际输出 | 无新增形式任务；五类构建故障与恢复的实际原始输出和 SHA 已读回。 |
+
+文件系统没有按路径强制写保护；只读产品、仅写本证据目录依靠角色指令约束。本评审没有修改跟踪文件。派发者在评审中推进候选提交的变更已单独保存为 `consumer-followup.diff`。
+
+派发者于本轮收尾要求先交回当前报告，后续以同一候选和新增证据另派补证任务。本文件保留为第 1 轮原件，补证另存 revision。

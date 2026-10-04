@@ -8,6 +8,9 @@ import type {
   SystemReminderMessage,
   ModelInvocationRecord,
   ModelCallEndedRecord,
+  ModelCallDispatchedRecord,
+  ModelCallAcknowledgedRecord,
+  ModelCallAccountingWitness,
   AssistantMessage,
   ToolMessage,
   AttemptStartedSource,
@@ -25,11 +28,14 @@ it('public unions are complete, branded, immutable and keep owned numeric identi
     'system' | 'user' | 'assistant' | 'tool' | 'tool_internal' | 'system_reminder' | 'compaction'
   >()
   expectTypeOf<ModelInvocationRecord['kind']>().toEqualTypeOf<
+    | 'model_call_created'
+    | 'model_call_reply_ready'
     | 'model_call_dispatched'
     | 'model_call_opened'
     | 'model_call_interrupt_intent'
     | 'model_call_ended'
     | 'model_selection_changed'
+    | 'model_call_acknowledged'
   >()
   expectTypeOf<AttemptStartedSource['attempt']>().toEqualTypeOf<AttemptId>()
   expectTypeOf<Extract<InterruptedSource, { what: 'model_call' }>['about']>().toEqualTypeOf<
@@ -139,4 +145,90 @@ it('semantic discrimination rejects wrong nature, incomplete complete replies, a
   void reminder
   void complete
   void tool
+})
+
+// @ts-expect-error MR owns PendingModelResponse; messages must not copy or re-export it
+import type { PendingModelResponse } from '@omne-harness-lite/messages'
+import type {
+  CallKey,
+  CreationKey,
+  ModelCallCreatedPayload,
+  ModelCallCreationInput,
+  ModelCallPayloadRef,
+  ModelCallCreatedRecord,
+  ModelCallCreatedPayloadJudgment,
+  ModelReplyMessageJudgment,
+} from '@omne-harness-lite/messages'
+import type { CapabilityId } from '@omne-harness-lite/content-blocks'
+import { judgeModelCallCreatedPayload, judgeModelReplyMessage } from '@omne-harness-lite/messages'
+declare const key: CreationKey
+declare const payloadRef: ModelCallPayloadRef & { readonly kind: 'created' }
+it('MS7 public owner types preserve paired creation and original-first reply signatures', () => {
+  expectTypeOf<CallKey['callId']>().toEqualTypeOf<ModelCallId>()
+  expectTypeOf<ModelCallCreationInput['targetChangedBy']>().toEqualTypeOf<
+    CapabilityId | undefined
+  >()
+  expectTypeOf(
+    judgeModelCallCreatedPayload,
+  ).returns.toEqualTypeOf<ModelCallCreatedPayloadJudgment>()
+  expectTypeOf(judgeModelReplyMessage).returns.toEqualTypeOf<ModelReplyMessageJudgment>()
+  expectTypeOf<ModelCallCreatedRecord>().not.toExtend<Message>()
+  const single = {
+    kind: 'model_call_ended',
+    call: 'call',
+    ending: 'undispatched',
+    cause: 'withdrawn',
+    creationKey: key,
+  } as const
+  // @ts-expect-error creationKey requires a created payload ref
+  const badPair: ModelCallEndedRecord = single
+  const wrongEnding = {
+    ...single,
+    ending: 'released',
+    cause: 'credential_unavailable',
+    payload: payloadRef,
+  } as const
+  // @ts-expect-error only undispatched permits creation members
+  const badEnding: ModelCallEndedRecord = wrongEnding
+  type Accepted = Extract<ModelCallCreatedPayload, { status: 'accepted' }>
+  expectTypeOf<Accepted['adopted']['profileSnapshot']>().toEqualTypeOf<
+    ModelCallDispatchedRecord['profileSnapshot']
+  >()
+  void badPair
+  void badEnding
+})
+
+it('MS8 public ACK types enforce paired evidence and ended state', () => {
+  type InterruptedWitness = Extract<ModelCallAccountingWitness, { outcome: 'interrupted' }>
+  expectTypeOf<InterruptedWitness['initiator']>().toEqualTypeOf<
+    'user' | 'run_cancelled' | 'runtime_lost'
+  >()
+  const base = {
+    kind: 'model_call_acknowledged',
+    call: 'call',
+    creationKey: key,
+    creationInput: { role: 'model-call-creation-semantic-sha256/v1', hex: 'a'.repeat(64) },
+    acknowledgedAt: '2026-09-29T12:00:00Z',
+    releasablePayloads: [],
+  } as const
+  const unpaired = {
+    ...base,
+    target: { kind: 'response', response: 'response' },
+    terminalState: 'complete',
+    retainedResultDigest: {
+      role: 'model-call-retained-result-semantic-sha256/v1',
+      hex: 'b'.repeat(64),
+    },
+  } as const
+  // @ts-expect-error a retained result digest requires the accounting witness
+  const badPair: ModelCallAcknowledgedRecord = unpaired
+  const falseEnding = {
+    ...base,
+    target: { kind: 'ended', ending: 'released' },
+    terminalState: 'complete',
+  } as const
+  // @ts-expect-error released ends handed up, never complete
+  const badEnding: ModelCallAcknowledgedRecord = falseEnding
+  void badPair
+  void badEnding
 })

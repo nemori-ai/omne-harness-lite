@@ -1,0 +1,59 @@
+# #50 独立验收报告
+
+**判决：Pass with issues。** 10 条标准均通过；未发现阻断产品缺陷。变更的复杂度与重复片段、单 CPU 的分层耗时读数保留为非阻断事项，由负责人处置。本判决不是接受。
+
+验证者为独立 `qa` 实例 `/root/qa68`，run id 为 `qa50-r1-final`，最终检查及机器对账退出码均为 `0`。最终候选为 `eb2b5bf00dca8facc67d5c082418d09e4a0fbdc0`，基线为 `dfa3eb92e292dddb1bb47cf122212362d095c143`。原 PI／公开入口／付费记录锚定 `56c446ab842e2e2e69a120755019e2ad553e09e1`，基线为 `75da02d205980c97bb3c279741abb356d70fdc00`。时间和完整机读结果见 [report.json](report.json)。
+
+验收标准来自 [简报](../qa50-brief-r1.md) 的 1–10 项、已接受的 D-115 与 v16 revision 1。v16 冻结 SHA 为 `4496691143b5b0b631b0a21fb2dd882126ddb4e2be667880381248d587f1ef47`，实读一致。先从标准定义触发与结果，再编写独立场景。现有测试结果没有替代公开入口场景；根会话的完成声明只作为待核主张。
+
+## 执行与提交复用
+
+ROOT 准备干净 detached disposable clone、离线冻结依赖及宿主生成物。QA 没有安装依赖、创建分支、改产品／原有测试／golden、提交或联网调用提供方。运行环境固定为 CPU 7、nice 5、单成员、单 Vitest worker、单构建并发；短私有 `TMPDIR=/tmp/q50.0h4seug7` 在 checkout 外。
+
+实际影响面为 162 路径：148 项常驻正文、8 项 PI TypeScript 及其 ts-checks 读者、6 项 PI 成员文件。测试／类型只选 PI 与 ts-checks，构建闭包为 34 成员，含常驻 identity。没有触发全量检查。
+
+原提交完成 34 成员构建、两成员类型与 PI 两层。主线前进后，ROOT 安全刷新同一干净副本；QA 独立比较全部 34 成员与根执行／配置／锁文件，原头到最终头逐路径零差异。PI、类型、构建和付费样本据此复用。仓库内容读者 tools 两层和共同检查在最终头重跑。各段保留实际坐标，没有改写旧账本，也没有声称完整 `make check` 被调用。依据见 [final-reuse-audit.json](evidence/final-reuse-audit.json)。
+
+真实编排没有排队、申请全机名额或设置 `OMNE_TEST_SLOT_HELD`。原有 `test-slot.spec.ts` 使用自己的私有名额设施，完整执行；其内部边界模拟与本轮真实资源持有状态分开记录。
+
+## 逐标准结果
+
+| 简报标准 | 独立场景／实际执行 | 证据 | 结果与次数 |
+| --- | --- | --- | --- |
+| 1 影响面 | `run-r2.py prepare`、`final-run.py`、`account.py`；逐项核 162 路径分类和实际集合 | [最终计划](evidence/final-plan.json)、[机器对账](evidence/coverage-account.json) | Pass；原／最终两个真 plan 均为 scoped；测试／类型仅 2 成员、构建 34；Python 与空成员验收明确跳过 |
+| 2 两条精确绑定省略 | `public-api.mjs`；图前／图后、多空串和非空顺序；真实公开 planner 与官方 meter | [公开场景记录](evidence/public-api.json)、[原始日志](evidence/independent/public-api-r4.log) | Pass；两叶各 8 个 content 变体，每个实际 1 次；最终数组和值／顺序符合独立 oracle |
+| 3 边界与身份 | 同一公开场景；单／多全空串、空数组、空白，system、reminder、compaction、assistant、tool 和四消息身份 | [公开场景记录](evidence/public-api.json)、PI 两层原始记录 | Pass；提醒／压缩先加非空标记再滤空串，system 沿其既有角色；助手／工具旧路径保持；原输入和身份／数目不变 |
+| 4 非目标与负控 | 完整非目标 OpenAI baseline serialized 比较；每叶 5 组相似／旧 model/provider/definition/implementation factory 负控；实际回归 | [公开场景记录](evidence/public-api.json)、[来源核对](evidence/provenance-audit.json) | Pass；非目标完整字节相等 1 次，精确负控 10 次均拒绝；负控公开场景证明到官方 meter 注册边界 |
+| 5 旧四夹具校准 | 保留实际旧 planner 的 requestInput 原字符串、源 hash；明确 synthetic observation；真 planner 重规划 | [公开场景记录](evidence/public-api.json)、[来源核对](evidence/provenance-audit.json) | Pass；四条各 1 次；body 改变的两条 `prefix_changed`，body 不变／实现改变的两条 `basis_changed`；原摘要／事实不变 |
+| 6 修订边界 | `audit.py` Git 对比、公开 catalog／meter；37 叶逐项 fingerprint 对账 | [catalog 结构](evidence/catalog-fingerprint-structure.json)、[来源核对](evidence/provenance-audit.json) | Pass；仅两 Moonshot 叶为 definition 3、implementation mp4-19，catalog 3；历史 fingerprint 1/2 留存；计量／tokenizer／replay 实现和其他叶未改；投影 /3、wire /2 |
+| 7 真实组合与计量 | 真实公开 `invokeModel → plan/send/read` 对既有 loopback TLS fixture；真实 Sharp preparer、官方 meter，固定 planned body 对 captured body | [公开场景记录](evidence/public-api.json)、PI 快／慢账本 | Pass；TLS 1 次、send 1 次、两份 body hash 相等、outcome complete；独立最终 body 计量相等；calibration/history/input-limit 回归均通过 |
+| 8 必需检查 | 构建／类型、两成员两层、agents/docs/design/format/facility/shell/lint/strict-loop；实际 skip 账本 | [原提交命令](evidence/prepare-commands.json)、[最终命令](evidence/final-commands.json)、[机器对账](evidence/coverage-account.json) | Pass；快 2,227、慢 1,204；共同项均 exit 0，严格硬线通过；107 个分层 skip 在另一层真实通过，唯一未执行为不适用的 Pro 图像例；TLC/Alloy 仅 registered |
+| 9 研究与离线设施 | `audit.py` 对原保全文件核 hash／字节；实际 portable probe dry/self、reconcile、price-check | [来源核对](evidence/provenance-audit.json)、[独立命令](evidence/independent-final-commands.json)、`evidence/independent/*` | Pass；97 请求、3 汇总、100 档案字节逐项核；91 accepted／6 rejected；dry 93/93、self 31/31；核价 86 match／5 DIFF，差异如实保留；改动 tracked 文件未发现已知 OpenRouter 密钥格式 |
+| 10 当前付费确认 | QA 只读核根提供的实际规划／发送／结果／账本／执行脚本，没有另发请求 | [付费核对](evidence/paid-audit.json)、任务根 `live50-r1/*` 和 `checks50/live-current-request.log` | Pass；当前 mp4-19 Kimi K3 1 send、source image+empty-text→final image_url、真实 complete；费用 0.001179 USD；历史 0.2320266、合计 0.2332056；两条账目 settled、低于 5 USD |
+
+上述 42 个独立公开场景在设施修正后的完整运行中 42/42 通过。PI 快层为 1,366，慢层为 1,185；tools 快层为 861，慢层为 19。完整集合与原始日志 hash 由 `account.py` 实际核对。
+
+## 缺陷、读数与未覆盖
+
+没有发现产品验收标准的阻断缺陷。以下是需交负责人／developer 处置的非阻断读数，不能省略成“全绿”：
+
+- `I-50-1`：实际变更读数 `planRequest` CC 从基线 86 增至 92；四处重复片段有一端落在 Moonshot 改动文件。见 [严格回路](evidence/final-loop/status.json)。这是机器读数，不是 QA 对抽象选择的设计判决。
+- `I-50-2`：单 CPU 下，tools 快层 `test-slot.spec.ts` 文件累计约 11 秒，超过 10 秒文件线；该文件与执行入口相对基线字节一致，未测基线同条件耗时，因果未判。PI 慢层另有 9 份“每条很快且整份不足 5 秒”读数；不据此盲改分层。
+- 当前全仓有 21 红成员、470 个超 alert 函数、2 个超预算成员。严格硬线仍通过。没有基线快照，整体是否变差未判，不能把这些读数写成已经证明的历史红项。变更 CC 的局部基线差分已另列。
+- 历史核价 91 条中 5 条 Grok 报价与回报不同，原始记录与重算输出保留。账目回报和余额采样也有时间差；97 条回报合计 0.2320266 USD，余额跨度为 0.230174090 USD，差 0.001852510。这里证明能从保全材料重算，不证明提供方每种费用语义普遍正确。
+
+唯一跨两层都未执行的既有用例为 `deepseek-marginal.spec.ts` 的 Pro 图像增量计量例。原 `it.runIf` 只对 `deepseek-v4.1-flash` 开启；对应 Flash 用例已运行，Pro 行不适用。它不是新增 #50 场景跳过。107 个其他原始 skip 均在另一层真实通过，不能计为漏验。Python 路径未受影响，CLI 无受影响验收成员，按真实计划跳过；最终验收空账本锚定 eb2，而非老提交。
+
+QA 设施失败单列 [facility-failures.json](evidence/facility-failures.json)：最初多加了无必要的本地分支前置条件，尚未运行产品检查；后续 Node fixture 加载、公开投影参数、助手必填字段，以及付费记录的消息定位错误均有原始失败或修正说明。没有改产品／旧断言，没有把失败静默标 flaky。公开场景初次加三次重试，最终完整 42 条执行；来源核对首次误认 system 消息，第二次按 image_url 用户消息核对通过。独立阶段的首次总体 exit 1 保留，最终通过依据是各条实际修正后的证据。
+
+本次未执行 TLC／Alloy，不声称形式化证明；非终端面，终端矩阵、resize、宽字符和退出还原等终端关不适用。没有新增阻断未覆盖项。
+
+## 证据范围、复跑与清理
+
+本地 TLS 只替换外部提供方，产品 planner／meter／codec／transport／invoke 均为真实组件。TLS 返回的内容与 token usage 是 synthetic；四条历史校准的 observation 也明确 synthetic。真实上游证明来自根执行的单次付费记录，QA 核 hash、脚本实际 send 对固定序列化的断言、结果及账本；QA 未独立连接上游账户或另核外部账单。这次不是 37 模型整体上游认证，不覆盖所有历史位置或全空串上游行为。
+
+CPU／worker 为 1 的测试耗时不能声称正常并发一分钟目标达成。此前 #68 的 317 秒只是测试阶段下界；原受影响测试入口还有 plan 和必要 build，入口全程未独立测量。该历史读数不作为本次 #50 范围缺陷。
+
+复跑须重新取得两个精确提交的干净 detached 环境及冻结工具链。在原头运行 `run-r2.py prepare`、`pi-tiers.mts`、`independent-final.py`；后者的源码审计按基线 Git 对象和原保全资料执行。ROOT 刷新到最终头后运行 `final-run.py`，随后 `account.py`。精确 CPU／环境和底层命令见各 `*-commands.json` 与场景源码；不要使用全机包装入口。报告及原始记录／根付费材料的 hash 改变后须重新判定相应范围。
+
+QA 自有检查进程已全部退出，检查结束时 clone 为 clean detached eb2，见 [执行交接](evidence/execution-handoff.json)。ROOT 最新要求保留并接手该 clone 做独立的差分 mutation，QA 已明确释放 CPU／clone，此后不再起产品测试。私有 TMPDIR 的 26 文件、4,080,511 字节及逐文件 hash 已列清单并交 ROOT；QA 没有删除其他会话路径，也没有直接清除唯一证据。全部验收证据与场景保留在本目录；[evidence-manifest.json](evidence/evidence-manifest.json) 列其 hash。该清理声明锚定交接时刻，不冒充 ROOT 后续 mutation 的状态。

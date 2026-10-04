@@ -21,6 +21,14 @@ interface Row {
   readonly label: string
 }
 const rows: Row[] = []
+function legacyDispatch(value: unknown): boolean {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'kind' in value &&
+    value.kind === 'model_call_dispatched'
+  )
+}
 let def: SchemaDefName = 'Message'
 let section = ''
 for (const [index, line] of examples.split('\n').entries()) {
@@ -56,16 +64,18 @@ describe('V-1 frozen normative rows', () => {
   })
   for (const row of rows)
     it(`V1 line ${row.line} ${row.def}`, () => {
-      expect(validate(row.def, row.value).valid).toBe(row.schema)
+      expect(validate(row.def, row.value).valid).toBe(
+        row.def === 'ModelInvocationRecord' && legacyDispatch(row.value) ? false : row.schema,
+      )
     })
-  it('has exactly 43 public definitions and the Schema is frozen-byte identical', () => {
+  it('has exactly 54 current public definitions and the retained Schema is frozen-byte identical', () => {
     const original = readFileSync(new URL('spec/data/messages/v3/messages.schema.json', design))
-    const copied = readFileSync(new URL('../schema/messages.schema.json', import.meta.url))
+    const copied = readFileSync(new URL('../schema/v3/messages.schema.json', import.meta.url))
     expect(copied.equals(original)).toBe(true)
     expect(createHash('sha256').update(copied).digest('hex')).toBe(
       '5e832dccf0b5a88387d1b71c064331f81fe9251b5ff87bd1c6ab4151b5862005',
     )
-    expect(SCHEMA_DEF_NAMES).toHaveLength(43)
+    expect(SCHEMA_DEF_NAMES).toHaveLength(54)
   })
 })
 describe('V-2/V-3 first-stage rejection and full record constraints', () => {
@@ -76,7 +86,10 @@ describe('V-2/V-3 first-stage rejection and full record constraints', () => {
       const actual =
         row.def === 'Message' ? judgeMessage(row.value) : judgeModelInvocationRecord(row.value)
       // S-49's shape-valid requested mismatch is explicitly a writer violation in this row.
-      const expected = row.label.includes('`requested` 不等于') ? 'malformed' : row.rejection
+      const expected =
+        row.def === 'ModelInvocationRecord' && legacyDispatch(row.value)
+          ? 'malformed'
+          : row.rejection
       expect('rejected' in actual ? actual.rejected : undefined).toBe(expected)
     })
   }

@@ -1,0 +1,189 @@
+{
+  "scope": "S-56 encoding-domain vectors; individual scalar inputs are not full creation/Pending fixtures",
+  "vectors": [
+    {
+      "name": "object-order-a",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "{\"b\":2,\"a\":1}",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"o\",[[[\"s\",[97]],[\"d\",\"+\",\"1\",\"0\"]],[[\"s\",[98]],[\"d\",\"+\",\"2\",\"0\"]]]]]",
+      "sha256": "2358059e07392c9c3e625da3a61add7f93c567e9340c10844c8fac29641fd337"
+    },
+    {
+      "name": "object-order-b",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "{\"a\":1.0,\"b\":2e0}",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"o\",[[[\"s\",[97]],[\"d\",\"+\",\"1\",\"0\"]],[[\"s\",[98]],[\"d\",\"+\",\"2\",\"0\"]]]]]",
+      "sha256": "2358059e07392c9c3e625da3a61add7f93c567e9340c10844c8fac29641fd337"
+    },
+    {
+      "name": "array-a",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "[1,2]",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"a\",[[\"d\",\"+\",\"1\",\"0\"],[\"d\",\"+\",\"2\",\"0\"]]]]",
+      "sha256": "84ae09f2b192d7270071c28509886f22018a99c1ac47077f909759d76064bda9"
+    },
+    {
+      "name": "array-b",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "[2,1]",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"a\",[[\"d\",\"+\",\"2\",\"0\"],[\"d\",\"+\",\"1\",\"0\"]]]]",
+      "sha256": "594552be94c46e684349bf70e6534e7b06a6a0554dbe39363cd4703a7f66abae"
+    },
+    {
+      "name": "missing",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "{}",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"o\",[]]]",
+      "sha256": "6b923114fc517ce6edd625a47cc65c41dc3a54e6b132d68e9e08d9fc92bf6a96"
+    },
+    {
+      "name": "null",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "{\"a\":null}",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"o\",[[[\"s\",[97]],[\"z\"]]]]]",
+      "sha256": "6c38e45a6387dcd09edb2583a15ac0b393b6a3415946b5235313c6fe0ad2c617"
+    },
+    {
+      "name": "escape",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "\"\\u0061\"",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"s\",[97]]]",
+      "sha256": "e982568d1bf8ff572944f0681d11c52076042333065356e8e4614d0bf0559b93"
+    },
+    {
+      "name": "literal",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "\"a\"",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"s\",[97]]]",
+      "sha256": "e982568d1bf8ff572944f0681d11c52076042333065356e8e4614d0bf0559b93"
+    },
+    {
+      "name": "composed",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "\"é\"",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"s\",[233]]]",
+      "sha256": "e314d9e60ad1a77c80509fd92b128a6cb7d964eff2ec3f1d26f5f757e582e826"
+    },
+    {
+      "name": "decomposed",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "\"e\\u0301\"",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"s\",[101,769]]]",
+      "sha256": "a51972e00db670da4a2990644dabb2af0c093ae092c713b130e2ca9b5335d64b"
+    },
+    {
+      "name": "large-a",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "9007199254740992",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"d\",\"+\",\"9007199254740992\",\"0\"]]",
+      "sha256": "c5be378fe27ebf89fb3c6567235c62caa7ca6d7c3e247b4f04a55b8f7c276734"
+    },
+    {
+      "name": "large-b",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "9007199254740993",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"d\",\"+\",\"9007199254740993\",\"0\"]]",
+      "sha256": "79417ceca61a62d8d7fd6dc126d8abd24097edcf29d04d47a2e1bc5fbace7a7c"
+    },
+    {
+      "name": "huge-exponent",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "1e100000000000000000000",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"d\",\"+\",\"1\",\"100000000000000000000\"]]",
+      "sha256": "0d51d0041e6f9194d6403c18208c4576cca669e767a0f631cb8df455047322e1"
+    },
+    {
+      "name": "huge-equivalent",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "10e99999999999999999999",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"d\",\"+\",\"1\",\"100000000000000000000\"]]",
+      "sha256": "0d51d0041e6f9194d6403c18208c4576cca669e767a0f631cb8df455047322e1"
+    },
+    {
+      "name": "negative-zero",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "-0.00e999",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"d\",\"+\",\"0\",\"0\"]]",
+      "sha256": "1f19bb82075d53d6dda684879aee1e08cec6cfa28ffc95fa22f5ddb4d60874c6"
+    },
+    {
+      "name": "zero",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "0",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"d\",\"+\",\"0\",\"0\"]]",
+      "sha256": "1f19bb82075d53d6dda684879aee1e08cec6cfa28ffc95fa22f5ddb4d60874c6"
+    },
+    {
+      "name": "source-version-a",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "{\"sourceVersions\":{\"profile\":\"1\"}}",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"o\",[[[\"s\",[115,111,117,114,99,101,86,101,114,115,105,111,110,115]],[\"o\",[[[\"s\",[112,114,111,102,105,108,101]],[\"s\",[49]]]]]]]]]",
+      "sha256": "f805d546d6c8afb563dac5dd15b8d603499cb8667cd464ee744fcd44507b0f69"
+    },
+    {
+      "name": "source-version-b",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "{\"sourceVersions\":{\"profile\":\"2\"}}",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"o\",[[[\"s\",[115,111,117,114,99,101,86,101,114,115,105,111,110,115]],[\"o\",[[[\"s\",[112,114,111,102,105,108,101]],[\"s\",[50]]]]]]]]]",
+      "sha256": "a34320484930d098fc10c151da4df80c1213b1efec7eaca0f80e587bb37d6a48"
+    },
+    {
+      "name": "role-isolation",
+      "role": "model-call-retained-result-semantic-sha256/v1",
+      "json": "{\"b\":2,\"a\":1}",
+      "canonicalAscii": "[\"model-call-retained-result-semantic-sha256/v1\",[\"o\",[[[\"s\",[97]],[\"d\",\"+\",\"1\",\"0\"]],[[\"s\",[98]],[\"d\",\"+\",\"2\",\"0\"]]]]]",
+      "sha256": "460565d2a6b30f64ed24ae8499d7dd7abd281912b90b0bbfcfd745702ea82271"
+    },
+    {
+      "name": "astral-order",
+      "role": "model-call-creation-semantic-sha256/v1",
+      "json": "{\"\\ud83d\\ude00\":1,\"\\ue000\":2}",
+      "canonicalAscii": "[\"model-call-creation-semantic-sha256/v1\",[\"o\",[[[\"s\",[55357,56832]],[\"d\",\"+\",\"1\",\"0\"]],[[\"s\",[57344]],[\"d\",\"+\",\"2\",\"0\"]]]]]",
+      "sha256": "76f24f4125bb15e6f05154a3ed02114bf9fc797a9c553504fb8b172840c0a473"
+    }
+  ],
+  "equalPairs": [
+    [
+      "object-order-a",
+      "object-order-b"
+    ],
+    [
+      "escape",
+      "literal"
+    ],
+    [
+      "huge-exponent",
+      "huge-equivalent"
+    ],
+    [
+      "negative-zero",
+      "zero"
+    ]
+  ],
+  "differentPairs": [
+    [
+      "array-a",
+      "array-b"
+    ],
+    [
+      "missing",
+      "null"
+    ],
+    [
+      "composed",
+      "decomposed"
+    ],
+    [
+      "large-a",
+      "large-b"
+    ],
+    [
+      "source-version-a",
+      "source-version-b"
+    ],
+    [
+      "object-order-a",
+      "role-isolation"
+    ]
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "uv",
+    "run",
+    "--locked",
+    "python",
+    ".meta_harness/tooling/src/check_design.py",
+    "--root",
+    ".meta_harness/design",
+    "--formal",
+    "skip",
+    "--gate",
+    "internal"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime",
+  "head": "4a268c91494445a056a75424ab073991d2e0f5d3",
+  "started_at": "2026-09-28T01:17:40.940883+00:00",
+  "completed_at": "2026-09-28T01:17:55.361292+00:00",
+  "exit_code": 0,
+  "output_sha256": "eebd899c910c39cac39a9de2f3fe531d789a05b826c3270bfd3b930316379c70"
+}

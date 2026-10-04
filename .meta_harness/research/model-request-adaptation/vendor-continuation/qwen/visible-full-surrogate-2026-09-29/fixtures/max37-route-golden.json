@@ -1,0 +1,52 @@
+{
+  "modelId": "qwen/qwen3.7-max",
+  "provider": "Alibaba",
+  "upstreamModel": "qwen/qwen3.7-max-20260520",
+  "sourceGenerationVerificationSha256": "05a86372c5c7c60591ae47292240d22fea371c475bf7334d8a1dae5ce3fa70fe",
+  "rows": [
+    {
+      "phase": "fit",
+      "label": "english",
+      "file": "formal-23-qwen3.7-max-english.json",
+      "fileSha256": "3a9bad99adf4ca67fa0834a4cd9c254ae45c0306d20f3656791a9a8782803ae3",
+      "sentSha256": "c13152427d35d1cf36d02636e21318774f0def3549ccd617abbdb6f32cc8859e",
+      "sourceObservationSha256": "7bad9d2f13650fcab3a357503be491f89a503bdd2261d083caac054a08e1bcb8",
+      "proxyTokens": 17,
+      "observedInputTokens": 17,
+      "actualUsd": "0.000095875"
+    },
+    {
+      "phase": "fit",
+      "label": "chinese",
+      "file": "formal-24-qwen3.7-max-chinese.json",
+      "fileSha256": "1f99e57c6412515113bdf6a45525121edbb3f6918b40a996c21c97e2cd48e1a1",
+      "sentSha256": "eba60208232c50376e44430166fd2b03b58f34cc8e55e8313d12ae341963ac76",
+      "sourceObservationSha256": "e4730254d4ad2cb55896b1199e5ce80de01631bd60a906ca55306b6330f2433c",
+      "proxyTokens": 17,
+      "observedInputTokens": 17,
+      "actualUsd": "0.000095875"
+    },
+    {
+      "phase": "fit",
+      "label": "code",
+      "file": "formal-25-qwen3.7-max-code.json",
+      "fileSha256": "7ab32917adc11c7f3aab39fdf5d77d082d7ad5f7415dace71619ff4db6d4f3cc",
+      "sentSha256": "5242aa4715009f79573a22f0b9fdd9a5523acc29f36ecb46c2d7a20a31cda27a",
+      "sourceObservationSha256": "e46b6a21b4605feaa58415a0fa528c92f7f6419f947280f06a6db3da4545f7cf",
+      "proxyTokens": 26,
+      "observedInputTokens": 26,
+      "actualUsd": "0.00010915"
+    },
+    {
+      "phase": "untouched-holdout",
+      "label": "mixed-text",
+      "file": "formal-26-qwen3.7-max-mixed-text.json",
+      "fileSha256": "0b6c0e820f3b44f2387301649026b30420c869c4f68ea7987e88c62cf970fe82",
+      "sentSha256": "46a57570f1fc8c5d12437b3cbd7c84b80e67064c5a81bad96805f7c00eb5215f",
+      "sourceObservationSha256": "e96a1d48fd5da5cff0a793fba5eb2e5d4993937fcb713e04ab4064e194dc165e",
+      "proxyTokens": 32,
+      "observedInputTokens": 32,
+      "actualUsd": "0.000118"
+    }
+  ]
+}

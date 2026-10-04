@@ -70,7 +70,7 @@ probe 断言什么。
 
 ## 怎样被消费
 
-设计分析的机制读数从这里取，不在每次分析里重推。
+提供者设计与装配核对要用的上游机制读数从这里取，不在每次分析里重推；领域读数与承载读数不拿它当论据。
 [realization/](../realization/README.md) 的绑定表按 `id` 引用条目，
 并记录 `alignment_checked`；当条目的 `checked` 晚于某条绑定的 `alignment_checked`，
 该绑定进入待复核——这是上游变动传播到设计的唯一通路。
@@ -80,6 +80,9 @@ probe 断言什么。
 这也是它不能作为依据的原因。
 
 ## 当前状态
+
+2026-10-02 加三条，都是实现映射区的 Cordis 集成约定依赖的内核行为：`service-subclass-provides-its-key`（抽象 `Service` 子类在抽象类给的键上提供服务）、
+`service-method-ctx-is-caller`（经调用方取到的服务，方法里的 `this.ctx` 是调用方，登记归调用方 fiber）、`ctx-property-is-not-ctx-get`（插件里 `ctx.<键>` 要先声明，`ctx.get` 直接读服务表）；probe 同目录，对 4.0.4 通过。
 
 2026-09-23 阶段 2 加两条（W1-B 实现 account-identity 时核实）：`emit-listener-throw-propagates`（否定事实：`emit` 不隔离监听者）、`logger-level-order-error-lowest`（级别序与缺省阈值）；probe 同目录，对 4.0.4 通过。
 

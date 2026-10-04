@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "node",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-t26-rolling/tmp/model-request-runtime/t26-rolling/19a3b968-minimal-graph/verify-minimal-graph.mjs"
+  ],
+  "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime-t26-rolling",
+  "exit": 0,
+  "elapsedSeconds": 3.946175266057253,
+  "allProcessesTerminal": true,
+  "scriptSha256": "f3dc1388ba996579c9108a95f6e2f71bbe668d18d2a2576dd9d278ef04fc2981"
+}

@@ -89,7 +89,12 @@ function inputOf(
   ]
   const input: NonConnectorEvaluationInput = {
     ...simple(),
-    root: { definition: helper, references: [{ capability: shell, resident: true }] },
+    root: {
+      definition: helper,
+      references: [{ capability: shell, resident: true }],
+      attributes: [],
+      source: { asset: 'ast_off_helper3', version: 1 },
+    },
     definitions,
     holdings,
   }

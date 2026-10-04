@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：子进程＋真库：每条用例起 Node 子进程，在 SQLite 文件库上走维护工作区的失败路径。
 import { acquireSqliteLock, SqliteLockBusy } from '../src/sqlite/lock.ts'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import { spawn } from 'node:child_process'

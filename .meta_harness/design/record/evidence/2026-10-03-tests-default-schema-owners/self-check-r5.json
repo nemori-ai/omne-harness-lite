@@ -1,0 +1,195 @@
+{
+  "head": "b03945d7ea2ed341e37569f6b0a30078a9aaca39",
+  "base": "52bc6005dc168f2254d21ff79f6cd2df021676b8",
+  "scope": "Two alternating baseline/candidate reruns of the one MRR file that returned unavailable in r4, then the still-unexecuted independent members. No assertion or timing change.",
+  "steps": [
+    {
+      "name": "baseline-mrr-file-1",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/acceptance-t15-fresh-dispatch-inputs.spec.ts",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r5/baseline-mrr-file-1.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/model/model-request-runtime",
+      "exit_code": 0,
+      "wall_seconds": 7.166709700017236,
+      "tests": {
+        "numTotalTests": 3,
+        "numPassedTests": 3,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "candidate-mrr-file-1",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/acceptance-t15-fresh-dispatch-inputs.spec.ts",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r5/candidate-mrr-file-1.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/packages/model/model-request-runtime",
+      "exit_code": 0,
+      "wall_seconds": 7.154032705002464,
+      "tests": {
+        "numTotalTests": 3,
+        "numPassedTests": 3,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "baseline-mrr-file-2",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/acceptance-t15-fresh-dispatch-inputs.spec.ts",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r5/baseline-mrr-file-2.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/tmp/s65-c/packages/model/model-request-runtime",
+      "exit_code": 0,
+      "wall_seconds": 7.10225747799268,
+      "tests": {
+        "numTotalTests": 3,
+        "numPassedTests": 3,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "candidate-mrr-file-2",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/acceptance-t15-fresh-dispatch-inputs.spec.ts",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r5/candidate-mrr-file-2.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/packages/model/model-request-runtime",
+      "exit_code": 0,
+      "wall_seconds": 7.137971800984815,
+      "tests": {
+        "numTotalTests": 3,
+        "numPassedTests": 3,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "packages__model__pi-ai-transport-slow",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r5/packages__model__pi-ai-transport-slow.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/packages/model/pi-ai-transport",
+      "exit_code": 0,
+      "wall_seconds": 275.4045420899638,
+      "tests": {
+        "numTotalTests": 1186,
+        "numPassedTests": 1185,
+        "numFailedTests": 0,
+        "numPendingTests": 1
+      }
+    },
+    {
+      "name": "packages__tools__asset-registry-slow",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r5/packages__tools__asset-registry-slow.json",
+        "--exclude",
+        "tests/default-owner.spec.ts"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/packages/tools/asset-registry",
+      "exit_code": 0,
+      "wall_seconds": 8.281872965977527,
+      "tests": {
+        "numTotalTests": 21,
+        "numPassedTests": 21,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "tools__core-verification-slow",
+      "command": [
+        "taskset",
+        "-c",
+        "7",
+        "nice",
+        "-n",
+        "5",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tmp/test-tiers-mutation/default-owners-self-r5/tools__core-verification-slow.json"
+      ],
+      "cwd": "/data/qiwei/repos/omne-harness-lite/.worktrees/test-tiers-mutation/tools/core-verification",
+      "exit_code": 1,
+      "wall_seconds": 28.106129960971884,
+      "tests": {
+        "numTotalTests": 27,
+        "numPassedTests": 25,
+        "numFailedTests": 2,
+        "numPendingTests": 0
+      }
+    }
+  ]
+}

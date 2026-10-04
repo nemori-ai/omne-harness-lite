@@ -1,0 +1,47 @@
+{
+  "vocabulary": {
+    "source": "https://huggingface.co/moonshotai/Kimi-K3/resolve/f831ab66814297da540d832a5235f8e904f29d06/tiktoken.model",
+    "alsoUsedBy": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/tiktoken.model",
+    "sha256": "b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103",
+    "license": "See LICENSE.K3 and LICENSE.K27"
+  },
+  "k3": {
+    "source": "https://huggingface.co/moonshotai/Kimi-K3/tree/f831ab66814297da540d832a5235f8e904f29d06",
+    "template": "encoding_k3.py",
+    "templateSha256": "49ff03305fdc4be26867972788d36150b67f8a9e852e62bb7959d87482223676",
+    "config": "k3-tokenizer_config.json",
+    "configSha256": "5d0803c94db9cd78763499e0956c95fd5a225c14a727e5a6cf5db3f96f010a6e",
+    "license": "LICENSE.K3"
+  },
+  "k27Code": {
+    "source": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/tree/74797c9c62378b951a1f6fcf5c4631024e9b8bef",
+    "template": "chat_template.jinja",
+    "templateSha256": "8d21200dff7e85beaf51c8b110952e039ffd0779f615d64d63293d74773360f9",
+    "config": "k27-tokenizer_config.json",
+    "configSha256": "6dfafeacca3d44748fc4a2fcc6725be5ea616ecc5b95f5a8b4277077c06e7d9f",
+    "license": "LICENSE.K27"
+  },
+  "imageEstimate": {
+    "algorithm": "media_utils.py navit_resize_image, model-specific preprocessor_config.json; selected OpenRouter route remains estimated",
+    "implementationBindings": {
+      "moonshotai/kimi-k3": "pi-ai:moonshot@mp4-19; moonshot-k3-xtml-image-5",
+      "moonshotai/kimi-k2.7-code": "pi-ai:moonshot@mp4-19; moonshot-k27-jinja-image-4"
+    },
+    "k3": {
+      "visionSource": "https://huggingface.co/moonshotai/Kimi-K3/resolve/f831ab66814297da540d832a5235f8e904f29d06/kimi_k3_vision_processing.py",
+      "visionSha256": "d122b30bfd3a51a6f05d4bfcfda1e657827322b1353f7caefeebc2835d7736b5",
+      "mediaSource": "https://huggingface.co/moonshotai/Kimi-K3/resolve/f831ab66814297da540d832a5235f8e904f29d06/media_utils.py",
+      "mediaSha256": "78403540328f9847d6b7ebc5c44eb2e6a752863de0afb7d0710728bb161dc60d",
+      "configurationSource": "https://huggingface.co/moonshotai/Kimi-K3/resolve/f831ab66814297da540d832a5235f8e904f29d06/preprocessor_config.json",
+      "configurationSha256": "4be333605990c53a816e586dee9d5dd545afb7a59947c17f8f7ef26b4782668e"
+    },
+    "k27Code": {
+      "visionSource": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/kimi_k25_vision_processing.py",
+      "visionSha256": "498e20753c9aa6b6224ddbcd05b04deb7e987b76595bf5c28ee8583f33ebc375",
+      "mediaSource": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/media_utils.py",
+      "mediaSha256": "77a6b1fed3580b0562443092928a0240c2989e3950377e93893952123ae48e3d",
+      "configurationSource": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/preprocessor_config.json",
+      "configurationSha256": "bd9a1f5d7b1580b38093c35ca49162580a118485164fac48e1cdb224ee41fcff"
+    }
+  }
+}

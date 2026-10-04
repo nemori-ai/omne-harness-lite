@@ -313,3 +313,192 @@ def test_relative_links_must_resolve(tree: Path) -> None:
     assert any(f"{CLI}/README.md:9: 链接解析不到：shape.md" in message for message in errors(tree))
     edit(tree, f"{CLI}/README.md", "[应用形状](shape.md)", "[应用形状](https://example.invalid/shape)")
     assert errors(tree) == []  # 外链不查
+
+
+# ── 装配声明 ──────────────────────────────────────────────────────────
+PROVIDER_DESIGN = "# core 的实现\n\n## 插件边界与服务面\n\n一个插件。\n"
+
+ASSEMBLY = """
+assembly:
+  defines:
+    - key: accounts
+      contract: capability.account-identity
+      source: design.md#插件边界与服务面
+  plugins:
+    - name: core-accounts
+      source: design.md#插件边界与服务面
+      provides: [accounts]
+      injects: [storage]
+      emits:
+        - event: core/account-activated
+          mode: emit
+"""
+
+COMPOSITION = """
+composition:
+  plugins:
+    - id: accounts
+      node: packages/core
+      plugin: core-accounts
+      layer: distribution
+      source: architecture.md#拓扑与进程模型
+"""
+
+
+def declare(root, provider: str = ASSEMBLY, assembly: str = COMPOSITION) -> None:
+    (root / f"{CORE}/design.md").write_text(PROVIDER_DESIGN, encoding="utf-8")
+    with (root / f"{CORE}/bindings.yaml").open("a", encoding="utf-8") as out:
+        out.write(provider)
+    with (root / f"{CLI}/bindings.yaml").open("a", encoding="utf-8") as out:
+        out.write(assembly)
+
+
+def test_declarations_that_follow_the_shape_pass(tree) -> None:
+    declare(tree)
+    assert errors(tree) == []
+
+
+def test_existing_nodes_without_declarations_still_pass(tree) -> None:
+    assert errors(tree) == []
+
+
+def test_unknown_top_level_key_fails(tree) -> None:
+    with (tree / f"{CORE}/bindings.yaml").open("a", encoding="utf-8") as out:
+        out.write("plugins: []\n")
+    assert any("顶层键 `plugins` 不认识" in e for e in errors(tree))
+
+
+def test_mode_must_be_one_of_the_five_dispatches(tree) -> None:
+    declare(tree, provider=ASSEMBLY.replace("mode: emit", "mode: broadcast"))
+    text = (tree / f"{CORE}/bindings.yaml").read_text(encoding="utf-8")
+    line = text.splitlines().index("          mode: broadcast") + 1
+    found = [e for e in errors(tree) if "mode「broadcast」不在五种派发里" in e]
+    assert len(found) == 1 and f"bindings.yaml:{line}: assembly.plugins[0].emits[0].mode" in found[0]
+
+
+def test_service_key_provided_twice_in_one_node_fails(tree) -> None:
+    twice = ASSEMBLY + """    - name: core-accounts-copy
+      source: design.md#插件边界与服务面
+      provides: [accounts]
+"""
+    declare(tree, provider=twice)
+    assert any("服务键「accounts」在本节点的 provides 里写了两次" in e for e in errors(tree))
+
+
+def test_source_anchor_must_exist(tree) -> None:
+    declare(tree, provider=ASSEMBLY.replace("design.md#插件边界与服务面\n      provides",
+                                            "design.md#没有这一节\n      provides"))
+    assert any("锚点在 design.md 里找不到：#没有这一节" in e for e in errors(tree))
+
+
+def test_composition_naming_a_plugin_the_provider_does_not_declare_fails(tree) -> None:
+    declare(tree, assembly=COMPOSITION.replace("plugin: core-accounts", "plugin: core-ledger"))
+    assert any("assembly.plugins 里没有「core-ledger」" in e for e in errors(tree))
+
+
+def test_composition_naming_an_undeclared_provider_only_hints(tree) -> None:
+    declare(tree, provider="")
+    checker = Checker(tree)
+    checker.check()
+    assert checker.errors == []
+    assert any("还没声明 assembly" in hint for hint in checker.hints)
+
+
+def test_composition_belongs_to_assembly_nodes_only(tree) -> None:
+    declare(tree, provider=ASSEMBLY + COMPOSITION)
+    assert any("composition 只给装配节点" in e for e in errors(tree))
+
+
+def test_layer_is_distribution_or_operator(tree) -> None:
+    declare(tree, assembly=COMPOSITION.replace("layer: distribution", "layer: tenant"))
+    assert any("layer「tenant」只能是 distribution 或 operator" in e for e in errors(tree))
+
+
+def test_defines_takes_a_contract_id_known_to_the_catalog(tree) -> None:
+    declare(tree, provider=ASSEMBLY.replace("contract: capability.account-identity",
+                                            "contract: capability.account-identity/v1"))
+    assert any("不在 registry/catalog.json 里（只写 contract_id）" in e for e in errors(tree))
+
+
+def test_defines_may_name_an_owner_node_instead_of_a_contract(tree) -> None:
+    declare(tree, provider=ASSEMBLY.replace("contract: capability.account-identity",
+                                            "owner: packages/core"))
+    assert errors(tree) == []
+
+
+def test_defines_takes_exactly_one_of_contract_and_owner(tree) -> None:
+    declare(tree, provider=ASSEMBLY.replace("contract: capability.account-identity",
+                                            "contract: capability.account-identity\n      owner: packages/core"))
+    assert any("contract 与 owner 恰写其一" in e for e in errors(tree))
+
+
+def test_defines_owner_must_be_a_node(tree) -> None:
+    declare(tree, provider=ASSEMBLY.replace("contract: capability.account-identity",
+                                            "owner: packages/core/nowhere"))
+    assert any("owner「packages/core/nowhere」不是一个实现映射节点" in e for e in errors(tree))
+
+
+IMPORT_EXCEPTION = """
+  importExceptions:
+    - target: packages/tenancy/ledger
+      symbols: [readAccountInTransaction]
+      sharedStorage: accountRows
+      source: design.md#插件边界与服务面
+"""
+
+
+def declare_import_exception(root: Path, declaration: str = IMPORT_EXCEPTION) -> None:
+    target = root / "realization/packages/tenancy/ledger"
+    target.mkdir(parents=True)
+    (target / "README.md").write_text(
+        PROVIDER_ENTRY.replace("# core", "# ledger").replace("`packages/core`", "`packages/tenancy/ledger`"),
+        encoding="utf-8",
+    )
+    (target / "design.md").write_text(PROVIDER_DESIGN, encoding="utf-8")
+    (target / "bindings.yaml").write_text('version: 1\nnode: ledger\nkind: provider\nbindings: []\n', encoding="utf-8")
+    declare(root, provider=ASSEMBLY + declaration)
+
+
+def test_import_exception_names_a_target_symbol_storage_and_source(tree) -> None:
+    declare_import_exception(tree)
+    assert errors(tree) == []
+
+
+@pytest.mark.parametrize(("old", "new", "message"), [
+    ("target: packages/tenancy/ledger", "target: packages/tenancy/missing", "不是一个实现映射节点"),
+    ("target: packages/tenancy/ledger", "target: packages/core", "不能指向本节点"),
+    ("symbols: [readAccountInTransaction]", "symbols: []", "至少点名一个事务内读函数"),
+    ("symbols: [readAccountInTransaction]", "symbols: ['*']", "不许用 `*`"),
+    ("symbols: [readAccountInTransaction]", "symbols: [readAccountInTransaction, readAccountInTransaction]", "符号「readAccountInTransaction」重复"),
+    ("symbols: [readAccountInTransaction]", "symbols: [false]", "非空字符串的列表"),
+    ("sharedStorage: accountRows", "sharedStorage: '  '", "sharedStorage 要点名"),
+    ("source: design.md#插件边界与服务面", "source: design.md#没有这一节", "锚点在 design.md 里找不到"),
+])
+def test_import_exception_rejects_incomplete_or_blanket_permissions(tree, old, new, message) -> None:
+    declare_import_exception(tree, IMPORT_EXCEPTION.replace(old, new))
+    assert any(message in error for error in errors(tree))
+
+
+def test_import_exception_requires_shared_storage(tree) -> None:
+    declare_import_exception(tree, IMPORT_EXCEPTION.replace("      sharedStorage: accountRows\n", ""))
+    assert any("sharedStorage 要点名" in error for error in errors(tree))
+
+
+def test_import_exception_duplicate_across_rows_reports_the_later_symbol_line(tree) -> None:
+    row = IMPORT_EXCEPTION.split("  importExceptions:\n", 1)[1]
+    declare_import_exception(tree, IMPORT_EXCEPTION + row)
+    text = (tree / f"{CORE}/bindings.yaml").read_text(encoding="utf-8")
+    line = max(number for number, value in enumerate(text.splitlines(), 1) if "symbols:" in value)
+    found = [error for error in errors(tree) if "符号「readAccountInTransaction」重复" in error]
+    assert len(found) == 1
+    assert f"bindings.yaml:{line}: assembly.importExceptions[1].symbols" in found[0]
+
+
+def test_defines_cannot_be_declared_outside_core(tree) -> None:
+    declare_import_exception(tree)
+    target = tree / "realization/packages/tenancy/ledger/bindings.yaml"
+    with target.open("a", encoding="utf-8") as out:
+        out.write(ASSEMBLY)
+    found = [error for error in errors(tree) if "服务定义声明只给 packages/core" in error]
+    assert len(found) == 1
+    assert "realization/packages/tenancy/ledger/bindings.yaml" in found[0]

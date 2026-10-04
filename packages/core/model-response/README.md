@@ -2,114 +2,146 @@
 
 [中文](README_ZH.md)
 
-Represent the record of one model dispatch: its route snapshot, actual parameters, response outcome, timing, delivered content, usage and cost. The package judges complete records without sending model requests or owning persistence.
+Pure MR11 response representation and ordered judgments. A `ModelResponse` records one confirmed durable dispatch responsibility, including its immutable route and profile snapshot, outcome, timing, reply or delivered partial content, actual usage, cost, and optional raw response reference. A persisted `interrupted` response can explicitly carry `timing.sentAt: null` when the actual send time is unavailable; this does not assert that no request was sent. `PendingModelResponse` is the complete reply fact passed to a message writer before that writer decides whether the reply became a message and whether the record is late. Every pending reply requires an actual send time. Neither judgment sends a request or persists a record.
 
-This package is an unpublished, private ESM workspace member. Use it from this repository with its declared Node and pnpm versions; see the [development guide](../../../docs/development.md). Imports below use the public package entry. Each example is self-contained.
+This is a private ESM workspace package. Its current public entries are the package root and `./schema`. Historical response versions have no executable package entry. Incompatible stored values fail admission; the package never fills their missing fields from a current model directory.
 
-| Public API                                    | Use                                                          |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| `ModelResponse`, `Route`, `Failure`, `Timing` | Type the conditional response shapes                         |
-| `judgeModelResponse`                          | Judge independent members and outcome relationships in order |
-| `validate`, `SCHEMA_DEF_NAMES`, `schemaId`    | Access the schema validation surface                         |
+## Judge a pending reply, then a persisted response
 
-## Judge a complete response
+The example is runnable as an ESM file after building the workspace package. It uses a text-only profile. In a real runtime the route, timestamps, usage, cost, and reply come from the actual dispatch and provider boundary; a caller must not invent them to make an invalid record pass.
 
-Create branded message and block identities through public APIs. This record uses an official profile and a factory credential scope.
+```js
+import assert from 'node:assert/strict'
+import {
+  copyInputCalibration,
+  judgeModelResponse,
+  judgePendingModelResponse,
+  judgeResponseFinalization,
+  validate,
+} from '@omne-harness-lite/model-response'
 
-```ts
-import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import { judgeContentBlock } from '@omne-harness-lite/content-blocks'
-import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-
-const block = judgeContentBlock({
-  id: 'block_1',
-  kind: 'text',
-  text: 'Ready.',
-  visibility: { toHuman: true, toModel: true },
-})
-if ('rejected' in block || block.ok.kind !== 'text') throw new Error('Text block required')
-const { origin: _origin, ...replyBlock } = block.ok
-const response: ModelResponse = {
-  id: 'response_1',
+const adaptation = {
+  implementation: { name: 'example-family', revision: '1' },
+  definition: { modelId: 'example/chat', revision: '1' },
+  configuration: { revision: '1', values: {} },
+}
+const pending = {
+  id: 'resp_1',
   call: { callId: 'model_call_1' },
   dispatch: 1,
   route: {
-    profile: { origin: 'official', routeName: 'vendor/chat' },
+    adaptation,
+    profile: { origin: 'official', routeName: 'example/chat' },
     profileSnapshot: {
-      providers: ['provider-a'],
+      adaptation,
+      providers: ['example'],
       allowFallback: false,
       inputModalities: ['text'],
       outputModalities: ['text'],
-      maxInputTokens: 32000,
-      maxOutputTokens: 8192,
-      updatedAt: '2026-09-26T09:00:00Z',
+      maxInputTokens: 1000,
+      maxOutputTokens: 100,
+      inputConstraints: {},
+      upstreamInputLimits: {
+        maxInputTokens: { status: 'unknown' },
+        maxRequestBytes: { status: 'unknown' },
+      },
+      updatedAt: '2026-09-28T10:00:00Z',
     },
     selectedBy: 'session',
-    provider: 'provider-a',
+    provider: 'example',
     credentialScope: { layer: 'factory' },
-    parameters: { maxOutputTokens: 64 },
+    parameters: {},
   },
   outcome: 'complete',
   reply: {
-    id: unwrap(parseOpaqueIdentifier('message_1', 'MessageId')),
+    id: 'message_1',
     type: 'assistant',
-    response: 'response_1',
+    response: 'resp_1',
     ending: 'complete',
-    blocks: [replyBlock],
-    createdAt: '2026-09-26T10:00:02Z',
+    blocks: [
+      {
+        id: 'block_1',
+        kind: 'text',
+        text: 'Hello.',
+        visibility: { toHuman: true, toModel: true },
+      },
+    ],
+    createdAt: '2026-09-28T10:00:02Z',
   },
-  replyDisposition: 'persisted',
   timing: {
-    sentAt: '2026-09-26T10:00:00Z',
-    firstTokenAt: '2026-09-26T10:00:01Z',
-    endedAt: '2026-09-26T10:00:02Z',
+    sentAt: '2026-09-28T10:00:00Z',
+    firstTokenAt: '2026-09-28T10:00:01Z',
+    endedAt: '2026-09-28T10:00:02Z',
   },
   usage: {
-    input_tokens: 12,
-    output_tokens: 2,
+    input_tokens: 1,
+    output_tokens: 1,
     cache_read_tokens: 0,
     cache_write_tokens: 0,
     source: 'upstream',
   },
   cost: { cost_usd: 0.0001, source: 'upstream_usage' },
-}
-console.log(judgeModelResponse(response)) // { ok: true }
-console.log(
-  judgeModelResponse({ ...response, reply: { ...response.reply, ending: 'truncated_at_limit' } }),
-)
-// { rejected: 'reply_ending_mismatch' }
-```
-
-## Judge failure and rejection precedence
-
-Unknown cost remains unknown. An in-band status-code relationship is checked after the named response relationships.
-
-```ts
-import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-
-const response: ModelResponse = {
-  id: 'response_failed',
-  call: { callId: 'model_call_2' },
-  dispatch: 1,
-  route: {
-    profile: { origin: 'official', routeName: 'vendor/chat' },
-    profileSnapshot: {
-      providers: ['provider-a'],
-      allowFallback: false,
-      inputModalities: ['text'],
-      outputModalities: ['text'],
-      maxInputTokens: 32000,
-      maxOutputTokens: 8192,
-      updatedAt: '2026-09-26T09:00:00Z',
+  inputCalibration: {
+    requestInput: {
+      kind: 'known',
+      projectionRevision: 'example-projection-1',
+      prefixBoundary: 1,
+      prefixDigest: '1'.repeat(64),
+      inputEnvelopeDigest: '2'.repeat(64),
+      countingBasis: {
+        binding: adaptation,
+        model: 'example/chat',
+        provider: 'example',
+        tokenizerRevision: 'example-tokenizer-1',
+        meterRevision: 'example-meter-1',
+        projectionRevision: 'example-projection-1',
+        replayRevision: 'example-replay-1',
+        transformRevision: 'example-transform-1',
+      },
     },
-    selectedBy: 'session',
-    provider: 'provider-a',
-    credentialScope: { layer: 'factory' },
-    parameters: {},
+    observedInput: {
+      kind: 'from_usage',
+      provenance: { adapterRevision: 'example-adapter-1', fieldPaths: ['usage.prompt_tokens'] },
+    },
+    outputGroup: {
+      kind: 'known',
+      projectionRevision: 'example-projection-1',
+      source: 'reply',
+      blockDigests: ['3'.repeat(64)],
+      completeness: 'complete',
+      usageRef: 'usage',
+    },
   },
-  outcome: 'failed',
-  failure: { cause: 'request_rejected', statusCode: 429 },
-  timing: { sentAt: '2026-09-26T10:00:00Z', endedAt: '2026-09-26T10:00:02Z' },
+  raw: { headers: { 'x-example': ['first', 'first', ''] } },
+}
+
+assert.deepEqual(judgePendingModelResponse(pending), { ok: true })
+assert.equal(validate('ModelResponse', pending).valid, false)
+
+// The message writer supplies this fact only after its own commit decision.
+const persisted = { ...pending, replyDisposition: 'persisted' }
+assert.deepEqual(judgeModelResponse(persisted), { ok: true })
+assert.deepEqual(judgeResponseFinalization(pending, persisted), { ok: true })
+assert.deepEqual(
+  judgeResponseFinalization(pending, { ...persisted, cost: { cost_usd: 0, source: 'upstream_usage' } }),
+  { rejected: 'malformed' },
+)
+assert.deepEqual(
+  judgeResponseFinalization(pending, { ...persisted, reply: { ...pending.reply, createdAt: '2026-09-28T10:00:03Z' } }),
+  { rejected: 'malformed' },
+)
+assert.deepEqual(persisted.raw.headers['x-example'], ['first', 'first', ''])
+
+// A separate recovery-shaped value illustrates the representation only. The writer must
+// establish the durable dispatch, actual-stop, and timing facts before persisting it.
+const recovered = {
+  id: 'resp_recovery_1',
+  call: { callId: 'recovery_call_1' },
+  dispatch: 1,
+  route: pending.route,
+  outcome: 'interrupted',
+  initiator: 'runtime_lost',
+  timing: { sentAt: null, endedAt: '2026-09-28T10:01:00Z' },
   usage: {
     input_tokens: 'unknown',
     output_tokens: 'unknown',
@@ -118,26 +150,58 @@ const response: ModelResponse = {
     source: 'none',
   },
   cost: { cost_usd: 'unknown', source: 'none' },
+  inputCalibration: {
+    requestInput: { kind: 'unavailable', reason: 'send_unknown' },
+    observedInput: { kind: 'unavailable', reason: 'missing_usage' },
+    outputGroup: { kind: 'unavailable', reason: 'not_retained' },
+  },
 }
-console.log(judgeModelResponse(response)) // { ok: true }
-console.log(judgeModelResponse({ ...response, outcome: 'future', dispatch: 0 }))
-// { rejected: 'outcome_unknown' }
-console.log(
-  judgeModelResponse({
-    ...response,
-    outcome: 'interrupted',
-    initiator: 'user',
-    failure: { cause: 'request_rejected', inBand: true },
-  }),
-) // { rejected: 'failure_on_interrupted' }
+assert.deepEqual(judgeModelResponse(recovered), { ok: true })
+assert.equal(recovered.cost.cost_usd, 'unknown')
+assert.deepEqual(
+  judgeModelResponse({ ...recovered, cost: { cost_usd: 0, source: 'none' } }),
+  { rejected: 'malformed' },
+)
+
+const independentOutput = {
+  ...pending,
+  inputCalibration: {
+    ...pending.inputCalibration,
+    requestInput: { kind: 'unavailable', reason: 'not_retained' },
+  },
+}
+assert.deepEqual(judgePendingModelResponse(independentOutput), { ok: true })
+const copied = copyInputCalibration(independentOutput.inputCalibration)
+if (!('ok' in copied)) throw new Error('invalid calibration')
+assert.equal(Object.isFrozen(copied.ok.outputGroup), true)
+assert.notEqual(copied.ok.outputGroup, independentOutput.inputCalibration.outputGroup)
+
+assert.deepEqual(
+  judgePendingModelResponse({ ...pending, timing: { ...pending.timing, sentAt: null } }),
+  { rejected: 'malformed' },
+)
 ```
 
-## Failures and boundaries
+`validate(defName, value)` checks one of the 25 MR11 JSON Schema definitions and returns `{ valid: boolean }`. `judgeModelResponse(value)` and `judgePendingModelResponse(value)` return `{ ok: true }` or `{ rejected: reason }` with the MR11 S-27 rejection order. They preserve exact JSON numbers and never mutate input. A valid representation does not prove the dispatch, time provenance, actual usage, reply commit, or durability; those guarantees belong to the runtime and writer.
 
-`judgeModelResponse` returns `{ ok: true }` or one `{ rejected }`. Precedence is: unknown outcome, integer dispatch below one, unknown failure cause, other independent member malformation; then `reply_missing`, `reply_on_failure`, `reply_and_delivered`, `failure_missing`, `failure_on_interrupted`, `failure_on_success`, `reply_ending_mismatch`, `first_token_inconsistent`; remaining cross-member violations are `malformed`. For example, missing `statusCode` with `failure.inBand: true` does not hide `failure_on_interrupted`. Schema-only `validate` reports shape validity rather than this rejection order.
+MR11 compiles all 25 public definitions and its two existing private member validators over nine exact normative resources through public schema entries: MR11, CA4, IV1, MP5, CB2, OE1, LC6, CB3 and MS8. The private member view remains separate. LC6 supplies only the referenced FailureCause definition; this graph does not register MS6, CA2, MP6, TD3 or the old asset chain. Each required resource keeps its original bytes and `$id`. Missing or incorrect resources make package initialization fail clearly. The accepted contract is [MR11](../../../.meta_harness/design/spec/data/model-response/v11/contract.md); the adopted provider mapping is [model-response v11](../../../.meta_harness/design/realization/packages/core/model-response/v11-acknowledgement-design.md).
 
-Complete and truncated responses carry a reply and disposition. Mid-reply failure carries `delivered` and a first-token time, with no reply. Interruption has its own shapes and is not a failure. `late` belongs only to a response associated with a run. Numeric counts and costs use exact `JsonNumber` values, and unknown amounts are not replaced with zero.
+An ACK adds no response member or disposition. Before ACK, consumers may save the full `PendingModelResponse` shown above. After a valid ACK releases named model-owned copies, the runtime can accept that saved value for a later real disposition only after checking the MS8 role-bound semantic digest, original source and current authority. The same `judgePendingModelResponse` and `judgeResponseFinalization` functions enforce the complete shape and original-facts relation; a digest or accounting witness cannot recreate missing route, raw or input-calibration content. ACK alone writes no final response or assistant message.
 
-Passing validation establishes representation validity. Actual dispatch provenance, identity uniqueness, clock provenance, truthful usage, redaction, snapshot capture and persistence remain the writer's responsibility. A rejected record is a writer defect; it must not be reclassified as a failed model call or used as a reason to automatically resend. This module reads no clocks or stores and performs no model calls.
+## Input calibration values
 
-Public JSON Schema entries are `@omne-harness-lite/model-response/schema` (v3) and `/schema/v2`. See [source exports](src/index.ts), [tests](tests/) and [model profile](../model-profile/README.md).
+Both response forms require `inputCalibration`. The public readonly types are `CountingBasis`, `RequestInputEvidence`, `ObservationProvenance`, `ObservedInput`, `OutputGroupEvidence`, and `InputCalibration`. Request evidence records the original projection and counting basis; observed input records upstream facts; output evidence describes the retained group. `from_usage` refers to the three mutually exclusive input usage components; it never copies or adds another total. Missing components remain `unknown`.
+
+The example's repeated-digit digests and revision labels are illustrative values, not authenticated hashes of its content. Production adapters must supply the actual fixed projection, source facts, and content digests. Request evidence may be unavailable while output evidence remains known with its own projection revision, as the example shows.
+
+`copyInputCalibration(value)` returns `{ ok: InputCalibration }` or `{ rejected: 'malformed' }`. It rejects getters without running them, cycles, non-JSON members, invalid shapes, and conflicting local projection revisions. Success returns an independent, deeply frozen, lossless snapshot; it does not certify route/usage relations, digest contents, or upstream provenance.
+
+`validate` remains Schema-only. The two judges additionally compare the complete adaptation binding, projection revisions, observed route facts, exact input-component sums, and output source/block count, after the existing named rejection checks. A fragment can pass `copyInputCalibration` while its enclosing response fails judgment. Neither operation reads historical logs, calls a tokenizer, or persists calibration. The runtime owns authorization and atomic response/reply persistence; older values missing this field are rejected without backfill.
+
+## Preserve the original response through finalization
+
+`judgeResponseFinalization(pending, final)` first owns and fully judges the complete Pending, then owns and judges final, preserving each S-27 rejection order. Only final's top-level `replyDisposition` and `late` are removed for comparison. Every other JSON value must be exactly equal, including original reply derivations, usage/cost, raw references, header order and input calibration. Object key order and equal numeric spellings do not matter; array order, duplicates, absence and exact decimal differences do. The result is the existing frozen judgment, and input is unchanged.
+
+Pending can be retained as immutable content under S-46; it is still not a final response. This helper certifies neither bytes, source, authorization, durable publication nor cost selection. It never queries a provider or meter, recomputes original digests, or fills unknown amounts. A first persisted message's permitted rendering/transcript additions belong to the unique `judgeModelReplyMessage` in messages; final.reply itself remains original. The runtime/writer composes both judgments with actual source and permission checks and commits the original batch. [D-110](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/decision.md) adopts this version; actual runtime/storage combination remains a separate verification obligation.
+
+The current resource registration and verification roots follow the accepted [public-definition closure revision 2](../../../.meta_harness/design/realization/packages/core/messages/public-definition-resource-closure-followup.md) and [D110 closure decision](../../../.meta_harness/design/record/decisions/model-runtime-reference-lifecycle-adoption/public-schema-closure-decision.md). MS2/MS3/MS6 resources remain available for their actual external consumers, with no old executable codec. LC/AE migration and runtime persistence are separate responsibilities.

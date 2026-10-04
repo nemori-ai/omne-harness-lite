@@ -1,9 +1,10 @@
 import { defineConfig } from 'vitest/config'
+import { testTiers } from '../../vitest.tiers.mts'
 
 export default defineConfig({
   test: {
+    ...testTiers(),
     include: ['tests/**/*.spec.ts'],
-    testTimeout: 30_000,
     typecheck: {
       enabled: true,
       include: ['tests/**/*.spec-d.ts'],

@@ -1,0 +1,31 @@
+
+UBCUncle Bob Martin
+Programmer, Speaker, Teacher, Retired (mostly)
+ContactRecommended BooksBlogsCraftsman-seriesAncient BlogsOld ArticlesA Little ClojureGames!Space War!Missile Command!Othello
+Morning Bathrobe Rants
+2026-09-30 -- Software Products
+2026-09-15 -- WE'RE ALL DOOMED… again.
+2026-09-14 -- No bathrobe. No rant. The AI threat.
+2026-09-12 -- Rethinking Harnesses
+2026-09-01 -- AI slop
+2026-07-26 -- 20X
+2026-05-20 -- Tubes on Pegs
+2026-05-06 -- Disengage from the Syntax
+2026-04-21 -- Quicksilver
+2026-04-20 -- AI Out-Codes You; Deal with It
+2025-12-13 -- Truly Bizarre Failure Modes
+2025-10-26 -- SOLID Up Front
+2025-07-21 -- Casey Muratori's Talk at the Better Software Conference
+2025-06-05 -- Agile
+2025-06-03 -- Testing Discipline
+2025-05-16 -- Vibe Coding
+2025-05-15 -- Bad Code
+2025-05-14 -- Code Reviews
+2025-05-12 -- Micro Services
+2025-05-10 -- Design Patterns Will Destroy You as a Programmer
+2025-05-09 -- Write Your Damned Tests
+2025-05-08 -- Types
+2025-05-05 -- Scrum
+2025-05-02 -- OOP
+2025-05-01 -- ORMs
+2025-04-30 -- SQL

@@ -1,0 +1,59 @@
+<|im_start|>system
+Reasoning effort is set to xhigh. Please think carefully through the task, validate key assumptions, consider plausible alternatives, and prioritize correctness, consistency, and clarity in the final answer.
+
+# Tools
+
+You have access to the following functions:
+
+<tools>
+{"function": {"description": "Exact lookup", "name": "lookup__exact", "parameters": {"additionalProperties": false, "properties": {"query": {"type": "string"}}, "required": ["query"], "type": "object"}}, "type": "function"}
+</tools>
+
+If you choose to call a function ONLY reply in the following format with NO suffix:
+
+<tool_call>
+<function=example_function_name>
+<parameter=example_parameter_1>
+value_1
+</parameter>
+<parameter=example_parameter_2>
+This is the value for the second parameter
+that can span
+multiple lines
+</parameter>
+</function>
+</tool_call>
+
+<IMPORTANT>
+Reminder:
+- Function calls MUST follow the specified format: an inner <function=...></function> block must be nested within <tool_call></tool_call> XML tags
+- Required parameters MUST be specified
+- You may provide optional reasoning for your function call in natural language BEFORE the function call, but NOT after
+- If there is no function call available, answer the question like normal with your current knowledge and do not tell the user about function calls
+</IMPORTANT>
+
+You are precise.<|im_end|>
+<|im_start|>user
+[system_reminder "review"]Review the exact value.<|im_end|>
+<|im_start|>user
+Look up alpha.<|im_end|>
+<|im_start|>assistant
+<think>
+Need a lookup.
+</think>
+
+<tool_call>
+<function=lookup__exact>
+<parameter=query>
+alpha
+</parameter>
+</function>
+</tool_call><|im_end|>
+<|im_start|>user
+<tool_response>
+value=42
+</tool_response><|im_end|>
+<|im_start|>user
+Summarize.<|im_end|>
+<|im_start|>assistant
+<think>

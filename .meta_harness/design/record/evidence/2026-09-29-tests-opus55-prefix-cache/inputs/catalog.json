@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "captureSource": "openrouter-public-api",
+  "observedAt": "2026-09-29T06:41:23.367Z",
+  "directoryObservedAt": "2026-09-29T06:41:23.345Z",
+  "directoryRawSha256": "20420f9a19b0973a5868d5005519893a650f22b659258fb07fe4b7d223883337",
+  "endpointRawSha256": "f6603f7407fd3d3d32d0c86e10b237542d44bf6307be10a2b1b063c3c1c8c5f0",
+  "cards": [
+    {
+      "id": "anthropic/claude-opus-5.5",
+      "state": "directory_present",
+      "endpoints": [
+        {
+          "tag": "anthropic",
+          "provider": "Anthropic",
+          "status": 0,
+          "pricing": {
+            "prompt": "0.000004",
+            "completion": "0.00002",
+            "web_search": "0.01",
+            "input_cache_read": "0.0000002",
+            "input_cache_write": "0.000005",
+            "input_cache_write_1h": "0.000008",
+            "discount": 0
+          }
+        }
+      ]
+    }
+  ]
+}

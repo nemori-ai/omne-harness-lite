@@ -35,10 +35,19 @@ Agent Runtime（Agent Loop）完全由本项目自主设计；Harness 层、工�
 不采用 DSH `agent` 原语。本条取代此前「Cordis 与 DSH `agent` 原语」的复用范围，
 以及 2026-09-13 对其他选定 DSH 组件采用 fork 的安排；确认来源与影响见 [changes.md](changes.md)。
 
+2026-10-01，负责人重定 Cordis 的定位：它仍是内核，是让本项目有条件实现完全动态系统的、
+**全系统集成装配时要满足和遵循的契约规范**——架构设计与实现出来的东西，要能以 fiber、plugin、service、inject
+的方式集成装配；**它不是建模的视角**。领域与能力独立于 Cordis 建模，装配时逐项核对符合性。
+复用范围与采用方式不变。接受记录见 [D-112](../../record/decisions/cordis-as-assembly-contract/README.md)，
+确认来源见 [changes.md](changes.md#2026-10-01重定-cordis-的定位)。
+
 ## SYS-SPEC
 
-设计保持编程语言无关，作为未来严格验证与跨语言复现的规格依据。TLA+ 表达行为
-权威规格，Alloy 辅助验证结构约束，JSON Schema 定义数据契约；实现不能替代规格。
+公开 TypeScript 类型与必要运行时校验拥有模块形状；类型表达不出的不变量、失败、
+副作用、并发、取消与恢复承诺由模块旁薄规格约束。设计不再要求编程语言无关。
+重要隔离、事务、恢复和进展问题仍保留相称的模型、探针或故障测试；实现不能替代承诺。
+规格与资源的唯一归属及未迁旧源读法见[架构维护入口](../../architecture/README.md)，
+确认与部分取代范围见 [D-115](../../record/decisions/actual-architecture-and-thin-spec/decision.md)。
 
 ## SYS-DEPLOY
 

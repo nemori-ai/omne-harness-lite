@@ -1,0 +1,24 @@
+{
+  "name": "positive",
+  "argv": [
+    "java",
+    "-Xmx256m",
+    "-cp",
+    "/data/qiwei/repos/omne-harness-lite/tmp/formal-toolchain/tla2tools.jar",
+    "tlc2.TLC",
+    "-workers",
+    "1",
+    "-metadir",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/tmp/model-request-runtime/recovery-timing-validation/positive/states",
+    "-config",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/.meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming.cfg",
+    "/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/.meta_harness/design/spec/capabilities/model-request-runtime/v9/formal/RecoveryTiming.tla"
+  ],
+  "returncode": 0,
+  "expected_violation": null,
+  "actual_violations": [],
+  "matched": true,
+  "model_sha256": "fd62324b758d2429454819204271a8ce7bffe3f4a731d491f03fd924454ed27d",
+  "config_sha256": "3f741e62a3c340dcc5aa607f74d49200569fd225f265e6c875730d30e84bb455",
+  "jar_sha256": "db131ddb48e7004d823bef4493df7b35694babe37505b9d9fa5685e7a331f1f1"
+}

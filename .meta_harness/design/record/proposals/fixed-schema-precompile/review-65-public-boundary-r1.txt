@@ -1,0 +1,15 @@
+# #65 公开面补充 r1 的独立 choice 评审
+
+2026-10-03；对象SHA256 50d1b44a5f58b2d5f8353e2bee1b900db4ba1d6bb659ac1ae706df23de0b121e。只读 choice，未运行检查／测试，未接受。
+
+## B1：默认生产资源捕获被错误延迟
+
+AE 的 LC3 覆盖端口直接引用公开 loopSchemaV3；外层冻结未冻结 JSON。AE 导入后、首次使用前 Reflect.deleteProperty(defaultBodyContracts.loop_extension.schema, '$id') 会改变资源。旧 eager owner 已捕获而候选 lazy owner 才捕获，后者 bindBodyContracts 会因缺 $id 抛出；三处 owner 可能绑定不同时刻内容。必须明确捕获／保护机制并实测反控，不能仅改措辞。
+
+## 其他结论及未覆盖
+
+没有其他选择机制矛盾；CB native/build 子入口与普通图无反向 CB 依赖、AM 同ports声明闭包、三处默认 owner 同步模块寿命已核。
+
+r1计数条款过宽，validDomain 的 open-domain 作者runtime及compile(raw)须保留；应区分外层25定义主图与作者编译。实际发布闭包、构建依赖图、类型负例、断言保持、失败/计数及性能未验证。不判表达或施工计划。
+
+ROOT r2 处置：AE 装配时逐份复制冻结生产资源及ports，再延迟判定对象/编译；明确公开只读生产供给的保护变化与旧资源修改反控。作者编译单独计数并保留。r2尚待复评。

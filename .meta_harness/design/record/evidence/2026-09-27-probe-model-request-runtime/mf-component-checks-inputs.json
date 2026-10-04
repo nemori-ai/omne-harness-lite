@@ -1,0 +1,553 @@
+{
+  "archive": "mf-component-checks-run-1.tar.gz",
+  "archive_sha256": "ea5031cb9de9b8ad9484f963cf61750766445ecc53ffdb37a20975a07c9af5d8",
+  "format": 1,
+  "at_utc": "2026-09-27T08:28:55.354257+00:00",
+  "git_source_base": "cb83084b88ce685a65fda2118854d2600ddbfff4",
+  "upstream_main": "9c15813113e7e77393f38c74778dee144533bf43",
+  "node": "v24.18.0",
+  "pnpm": "10.28.1",
+  "checks": {
+    "mf4_test": {
+      "command": "pnpm --filter @omne-harness-lite/assembly-manifest-store run test",
+      "exit": 0,
+      "tests": 76,
+      "log": "tmp/model-request-runtime/manifest-v4-tests-4.txt"
+    },
+    "static_test": {
+      "exit": 0,
+      "tests": 403,
+      "log": "tmp/model-request-runtime/manifest-guard-tests-2.txt"
+    },
+    "workspace_build": {
+      "exit": 0,
+      "log": "tmp/model-request-runtime/build-after-mf4.txt"
+    },
+    "workspace_typecheck": {
+      "exit": 0,
+      "log": "tmp/model-request-runtime/typecheck-after-mf4.txt"
+    },
+    "actual_source_scan": {
+      "exit": 0,
+      "package_rules": 27,
+      "repository_rules": 5,
+      "log": "tmp/model-request-runtime/rules-after-mf4.txt"
+    },
+    "design": {
+      "exit": 0,
+      "formal": "registered only; tasks were not executed",
+      "log": "tmp/model-request-runtime/design-after-d079.txt"
+    },
+    "packed_consumer": {
+      "exit": 0,
+      "run": "tmp/model-request-runtime/manifest-artifact-run-4/results.json",
+      "scope": "packed MF exports and declarations with exact built workspace dependencies explicitly linked; no network install or portable dependency-closure claim"
+    }
+  },
+  "limits": [
+    "implementer component checks, not independent acceptance",
+    "six-table MF fixture is not actual AR full-fill producer",
+    "AR/EIS historical restoration composition pending",
+    "PostgreSQL concurrency not executed",
+    "safe-integer capacity is a synthetic boundary fixture, not 2^53 actual records",
+    "SIGKILL is not power-loss durability",
+    "diagnostic business isolation does not verify assembly degradation query",
+    "production certification 0/37"
+  ],
+  "secret_scan": {
+    "literal_provider_key_patterns_and_private_pem": 0,
+    "compressed_mf_artifacts_inspected": true
+  },
+  "files": [
+    {
+      "path": ".meta_harness/design/realization/packages/assets/assembly-manifest-store/v4-design.md",
+      "sha256": "d2394261503f5a37b39f67a6e11b552c19c218564e008bcf4884235be99c2784",
+      "bytes": 24677
+    },
+    {
+      "path": ".meta_harness/design/realization/packages/assets/assembly-manifest-store/verification.md",
+      "sha256": "739927b83c3f8f7ba097d1dc0cbdf8213da6fc13cb94f66b61b1f8fdfaabdfb3",
+      "bytes": 27858
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/model-main-integration-coordination/README.md",
+      "sha256": "88cc48b2085a8d3e84bd6749a08f2425d58eb37137fa634b97ab79baff502f9d",
+      "bytes": 367
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/model-main-integration-coordination/acceptance.json",
+      "sha256": "009b143e3d9ed71499ccda8b40cc6ab4b2667664ec7358ba41a7791f3e7d8270",
+      "bytes": 5302
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/model-main-integration-coordination/coordination-snapshot.json",
+      "sha256": "c7c19291631c013f77c23bfe2a5636a7260852c0d08e5478376c46952ca2ef66",
+      "bytes": 4422
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/model-main-integration-coordination/decision.md",
+      "sha256": "9c2fdcd69936d03bab5936e32d371ad81a7997b00b9cc34effee089cb7cd9d7e",
+      "bytes": 2190
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/model-original-fill-adoption/README.md",
+      "sha256": "0e00e1efcb1c5873da31f32501f0117f2454186333228096b2934ece5782f8d3",
+      "bytes": 297
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/model-original-fill-adoption/acceptance.json",
+      "sha256": "706257735ea978b8e190af9840bd627480cb323efe2cdab16a8f894cb63761b4",
+      "bytes": 3298
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/model-original-fill-adoption/decision.md",
+      "sha256": "05f75a99a3e47c2a480b79d55c96f4473a9dfd7d01f09a895798b2f16851d72f",
+      "bytes": 1670
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/model-registry-history-provider-adoption/README.md",
+      "sha256": "f2eb485396aaaf319c06c4dd979e5c400ff1cdf87de9adcc881b3246efe92435",
+      "bytes": 268
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/model-registry-history-provider-adoption/adoption.json",
+      "sha256": "6ed9100889be09484a8d56b6f93ca3ec61e6d6c89bfe97ad9abc8d0b8b2251c6",
+      "bytes": 1747
+    },
+    {
+      "path": ".meta_harness/design/record/decisions/model-registry-history-provider-adoption/decision.md",
+      "sha256": "c5f6edaf67d0809a6215e54e80a41582b8500fd5d5fb81686967977bf46fd8f4",
+      "bytes": 2130
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/assembly-manifest/v4/contract.md",
+      "sha256": "46c3d605fb889c6f66822f8aecb815c1e691bf605600a036dc48ac0c9aeb6a2d",
+      "bytes": 74163
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/assembly-manifest/v4/examples.md",
+      "sha256": "d0e78471062e824c1723129822d7fefac38eef9a96196d386e4f874033f01d45",
+      "bytes": 11048
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/asset-registry/v4/contract.md",
+      "sha256": "23ce5e5b88dbdaf4062184e2a0324cf0b75cd5af86cdf79aebaba05354c9b414",
+      "bytes": 205703
+    },
+    {
+      "path": ".meta_harness/design/spec/capabilities/asset-registry/v4/examples.md",
+      "sha256": "66bbcc339d483b23f9b6d2ac0e848417b0ab79c2e676bfa539851054c45f747a",
+      "bytes": 34986
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/README.md",
+      "sha256": "b0f18afd00522fd04936bbc18ef899902e089947762114406122adf39d0d317f",
+      "bytes": 902
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/package.json",
+      "sha256": "accda94dd3c0f6329bbfd3fdd558de4ae594036d5574b92da73b5198b9841fdf",
+      "bytes": 1371
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/src/index.ts",
+      "sha256": "d1b822784e43c8c80e97cd46247a1bce73c174c59f246d7d488d7a04f491afc8",
+      "bytes": 392
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/src/migrations.ts",
+      "sha256": "b3f93d9bdf09e8428553982939c51c66ce86c4449b0138aef6f2f867464b5417",
+      "bytes": 2485
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/src/plugin.ts",
+      "sha256": "2159a41f24490e517bc33b740774ae0a483dffc5709de9443930ab5c5b090018",
+      "bytes": 1913
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/src/store.ts",
+      "sha256": "42f96f608a0ab334f5b0b7a218a082bc0836246c3c2191cf7f565269fa73f943",
+      "bytes": 18927
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/src/types.ts",
+      "sha256": "ae62d46a5d5b3850a0fa7fd3191f303c1b3f8086c49e3c917d9bb36a02017031",
+      "bytes": 5246
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/src/value.ts",
+      "sha256": "9a6a578798306c272ff2ed870715ab09ea976b92968db2d238e623290f1ea040",
+      "bytes": 7072
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/tests/crash-worker.mjs",
+      "sha256": "0981c03f4ede86073f12cad8b3ff66516f8102baf58c1604ff23b343006bab7f",
+      "bytes": 1507
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/tests/crash.spec.ts",
+      "sha256": "1abe132c92572b848defe13b2ffd65ffb52a8e0e601c4f4685cd4149812f3f40",
+      "bytes": 2244
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/tests/given.spec.ts",
+      "sha256": "14be94c65ee700467706b6e37d144af4dd822d57067c2d25d54d91597599fff8",
+      "bytes": 19149
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/tests/store.spec.ts",
+      "sha256": "b74cadce0347a23e975e7d0f8fe57d9430ee66090ec0b88adedb5ffe9446e2e5",
+      "bytes": 18479
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/tests/support.ts",
+      "sha256": "c0a7ec97166967199de1bc0bedcad121d9db24ca051b12c233a740324425c178",
+      "bytes": 2731
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/tests/value.spec.ts",
+      "sha256": "fa14bf764208c322e57fb0fe28d44fb3dd029347ff199304b5cbe65d5903da8b",
+      "bytes": 6261
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/tsconfig.build.json",
+      "sha256": "ed54eadbde93969726eef46671721cb0e0dbcee3c16c00873f1d2cd62db14ebe",
+      "bytes": 193
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/tsconfig.test.json",
+      "sha256": "132276fd71193c254b1dd1e2366d37bce3c92416c3c41626e1802f15aaec0fb9",
+      "bytes": 285
+    },
+    {
+      "path": "packages/assets/assembly-manifest-store/vitest.config.ts",
+      "sha256": "12de63c1f378f7bd0a22626b661219db848aba43ac317a7f4464dba8028b7325",
+      "bytes": 256
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "2ddf9d70bfe3eb0c5bb07b46787e3f55fbb6bfd754576f081f40b0639cfde1f4",
+      "bytes": 74334
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "sha256": "de3717467b9b81d2af6b7c515c927a70d8147be113a0b731eff8c1caae3abdf5",
+      "bytes": 617
+    },
+    {
+      "path": "tmp/model-request-runtime/build-after-mf4.txt",
+      "sha256": "1e64df8f7f885041929d40f546c346aaa854143466113f592d1649bd1ebdda26",
+      "bytes": 7392
+    },
+    {
+      "path": "tmp/model-request-runtime/design-after-d079.txt",
+      "sha256": "83a96e2ab8a5152b757c5b3453ef33220f04159ff42bdfa938eeec85c5a70094",
+      "bytes": 3870
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-1/consumer.mjs",
+      "sha256": "8c28ecc19f6ad9d88bd98e27140df08d98615aa60d3da61a519e2e6f65612783",
+      "bytes": 3365
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-1/consumer.ts",
+      "sha256": "0a4cde672b32974ef683e343993654406b418aedbe252b7540ab921ae787c7d9",
+      "bytes": 503
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-1/manifest.tgz",
+      "sha256": "783455e8d2fac86efdf7a50916b84c82ed27c9428e073096b581f6881a358d28",
+      "bytes": 17369
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-1/pack.txt",
+      "sha256": "0c48c5d443f0342880de2cde06a4ad7d4c26e01476c3cc08dcdb627335d3a25b",
+      "bytes": 675
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-1/results.json",
+      "sha256": "ee173486dfeba3dfe52f7cc2c3b8e95999da4b0c9ce56b6a91488f11279bb70d",
+      "bytes": 1026
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-1/run.mjs",
+      "sha256": "36bdd0d83184e2e885978f3dfc60116e3c07f77e0bcb991831ef49f64b27f766",
+      "bytes": 2625
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-1/run.txt",
+      "sha256": "b29cf869fdf2470b5b0e793e8de0ff689f6d3779e264bc05f99088f20a460eb6",
+      "bytes": 593
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-2/consumer.mjs",
+      "sha256": "8c28ecc19f6ad9d88bd98e27140df08d98615aa60d3da61a519e2e6f65612783",
+      "bytes": 3365
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-2/consumer.ts",
+      "sha256": "0a4cde672b32974ef683e343993654406b418aedbe252b7540ab921ae787c7d9",
+      "bytes": 503
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-2/manifest.tgz",
+      "sha256": "783455e8d2fac86efdf7a50916b84c82ed27c9428e073096b581f6881a358d28",
+      "bytes": 17369
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-2/pack.txt",
+      "sha256": "0c48c5d443f0342880de2cde06a4ad7d4c26e01476c3cc08dcdb627335d3a25b",
+      "bytes": 675
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-2/results.json",
+      "sha256": "a51a5d1d6fcda70e8c4bc20a9b7aad3b22ad917b53fbfb7bcb2068e1d3008456",
+      "bytes": 1405
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-2/run.mjs",
+      "sha256": "bf6c450feb6e9e80d0b3a1471abca1024c1b6c0c50d6f84fa5c5952b375c6b17",
+      "bytes": 2615
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-2/run.txt",
+      "sha256": "be2a04007caa1df8b99b1f1520cc635d9b26ad9f259d7ff2c23bc992cbedf8aa",
+      "bytes": 918
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-3/consumer.mjs",
+      "sha256": "8c28ecc19f6ad9d88bd98e27140df08d98615aa60d3da61a519e2e6f65612783",
+      "bytes": 3365
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-3/consumer.ts",
+      "sha256": "0a4cde672b32974ef683e343993654406b418aedbe252b7540ab921ae787c7d9",
+      "bytes": 503
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-3/manifest.tgz",
+      "sha256": "783455e8d2fac86efdf7a50916b84c82ed27c9428e073096b581f6881a358d28",
+      "bytes": 17369
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-3/pack.txt",
+      "sha256": "0c48c5d443f0342880de2cde06a4ad7d4c26e01476c3cc08dcdb627335d3a25b",
+      "bytes": 675
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-3/results.json",
+      "sha256": "6e2e8418bc20165de4656a73c472b95595ce86577e7aa9ef9c3ccfc7e34a101a",
+      "bytes": 1864
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-3/run.mjs",
+      "sha256": "d34649dc54881d55afb27d3d0128f74f7108477530b1f9d0caa13e1277169cf9",
+      "bytes": 2630
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-3/run.txt",
+      "sha256": "8aa68892c6962176e81870f7a71d4e135e2c63e69612b7e2eab3fc363cfc3ed2",
+      "bytes": 1092
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-4/consumer.mjs",
+      "sha256": "708ea729aa0c8199e534841d2400eac6216f211e9e751195fd39ef6cc6abc2c5",
+      "bytes": 3381
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-4/consumer.ts",
+      "sha256": "0a4cde672b32974ef683e343993654406b418aedbe252b7540ab921ae787c7d9",
+      "bytes": 503
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-4/manifest.tgz",
+      "sha256": "783455e8d2fac86efdf7a50916b84c82ed27c9428e073096b581f6881a358d28",
+      "bytes": 17369
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-4/pack.txt",
+      "sha256": "0c48c5d443f0342880de2cde06a4ad7d4c26e01476c3cc08dcdb627335d3a25b",
+      "bytes": 675
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-4/results.json",
+      "sha256": "60d32003ba53362bcf3852119e470c8419b8f916689c055a6f9cb08693028e4b",
+      "bytes": 1464
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-4/run.mjs",
+      "sha256": "d34649dc54881d55afb27d3d0128f74f7108477530b1f9d0caa13e1277169cf9",
+      "bytes": 2630
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-artifact-run-4/run.txt",
+      "sha256": "ce4bf18fbc12ce2d29f225e61a2d328a46709309c1f11f38827c18bce28f22af",
+      "bytes": 122
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-build-1.txt",
+      "sha256": "9e70bf4d1caf3ef9949f91c8a17f32e8f59ad898be2be13bd85245b31814af54",
+      "bytes": 1244
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-build-2.txt",
+      "sha256": "24dc8ed840c39f3c469227566c5db9b7f80289033cf98b74df18c3af2ad1fc54",
+      "bytes": 274
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-guard-build-2.txt",
+      "sha256": "221ae9c66673957bcf65823992f0abb0ce69d8aebf9ae7c63f09c5b970d7b64d",
+      "bytes": 236
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-guard-build.txt",
+      "sha256": "221ae9c66673957bcf65823992f0abb0ce69d8aebf9ae7c63f09c5b970d7b64d",
+      "bytes": 236
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-guard-format-2.txt",
+      "sha256": "05c34ff325bbcd819462c734e0f32e44091aec0ffd0c81bfa49213aebc2c3110",
+      "bytes": 65
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-guard-format.txt",
+      "sha256": "0b1e29e1f8dfa1f1d915b0a2a4ca8910af2848353589510094b4650eecd6e191",
+      "bytes": 224
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-guard-tests-2.txt",
+      "sha256": "3176aa651e5cb4a7882549993084b12068846ae1c29a458465e8faa9e65d977a",
+      "bytes": 591
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-guard-tests.txt",
+      "sha256": "62ecfbdb1eb219869d48effbf7b0ac3f9009a56c4982262cb0127a9080fd840b",
+      "bytes": 1698
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-guard-typecheck.txt",
+      "sha256": "0bc48722046cc170bf5b86e29b1e3b3e6d8d33d05c2dda28e91a356c96ee872e",
+      "bytes": 162
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-install.txt",
+      "sha256": "3d40eaf3a9fd860991fc996f5629d2fe65c2490ec439c8065e978b7268478be5",
+      "bytes": 260
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-tests-1.txt",
+      "sha256": "ff7b27a340994f94eaf3c58b02e89c213948b59fa0ce144189fcef638356c8be",
+      "bytes": 3305
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-tests-2.txt",
+      "sha256": "ada34c4483e0c6f3e045826eb94b8a41c8e1fd4387f5077bfceba438f0429aa7",
+      "bytes": 1930
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-tests-3.txt",
+      "sha256": "5d280516028031f5c4e52c94a108446d08996960078b02878779d620f972f5c3",
+      "bytes": 647
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-build-1.txt",
+      "sha256": "24dc8ed840c39f3c469227566c5db9b7f80289033cf98b74df18c3af2ad1fc54",
+      "bytes": 274
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-build-2.txt",
+      "sha256": "24dc8ed840c39f3c469227566c5db9b7f80289033cf98b74df18c3af2ad1fc54",
+      "bytes": 274
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-build-3.txt",
+      "sha256": "24dc8ed840c39f3c469227566c5db9b7f80289033cf98b74df18c3af2ad1fc54",
+      "bytes": 274
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-build-4.txt",
+      "sha256": "24dc8ed840c39f3c469227566c5db9b7f80289033cf98b74df18c3af2ad1fc54",
+      "bytes": 274
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-format-1.txt",
+      "sha256": "e266063a2e115dac10faa764ece373c3b58e803079c4d74da289b0f97eee5412",
+      "bytes": 895
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-format-2.txt",
+      "sha256": "6a93f806750e0a89fa819e65217429c6bade50fe09491a2e222f97b34cd53205",
+      "bytes": 71
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-format-3.txt",
+      "sha256": "ed011e598520d9a096f9efbade72c52f69b06d40e3eaf38efe2bd1fa25cd605b",
+      "bytes": 59
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-format-4.txt",
+      "sha256": "d94915be5155e1f516b4f64d4d36f4bbd6aea7c545f4909f23a37187ee08c4e9",
+      "bytes": 136
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-tests-1.txt",
+      "sha256": "c25f9986242d1078bbbf708970d0be856aab255035e0a6d52973d493c846c4fc",
+      "bytes": 1825
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-tests-2.txt",
+      "sha256": "e59648a809bd1ab3293ec55a1d329ff86323e6e0e5bde5f75fc930e10d5045ac",
+      "bytes": 647
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-tests-3.txt",
+      "sha256": "d04c64e0d2c608aae8dd73d019b9c0ce6a0b4755d3b56f9e3da3d6cca4f22175",
+      "bytes": 649
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-tests-4.txt",
+      "sha256": "2b66c7512716436985f946bd1f87d74aef2d087e2ecad591afc442076052677d",
+      "bytes": 647
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-typecheck-1.txt",
+      "sha256": "27a6168974397c823c308a9c56e1c6589aae57501b1daba1c9c19ee6dafa4faa",
+      "bytes": 200
+    },
+    {
+      "path": "tmp/model-request-runtime/manifest-v4-typecheck-2.txt",
+      "sha256": "27a6168974397c823c308a9c56e1c6589aae57501b1daba1c9c19ee6dafa4faa",
+      "bytes": 200
+    },
+    {
+      "path": "tmp/model-request-runtime/rules-after-mf4.txt",
+      "sha256": "4e74f4788717537b68782abbe78b20d10003486aa593a59611e31c33706a8db7",
+      "bytes": 619
+    },
+    {
+      "path": "tmp/model-request-runtime/typecheck-after-mf4.txt",
+      "sha256": "f98afea8175ac5451f377e7a3cb3244f1857ceb4eb44b9b0cc2adf1ae765fe6f",
+      "bytes": 4522
+    },
+    {
+      "path": "tools/ts-checks/src/repository.ts",
+      "sha256": "a221dd7326dddee5547ba499beeab844bb4448da2ca787b9280490d72634ddd1",
+      "bytes": 4558
+    },
+    {
+      "path": "tools/ts-checks/src/rules/manifest-immutable.ts",
+      "sha256": "06885255a10019ad501a00a3dbef989a70a14f3abf51a48e54cc43779ac01756",
+      "bytes": 2730
+    },
+    {
+      "path": "tools/ts-checks/tests/manifest-immutable.spec.ts",
+      "sha256": "d023912b3fa9cad85e588e89ae60cb8b34186307c629a7d5a693039bb158d9ff",
+      "bytes": 1814
+    },
+    {
+      "path": "tsconfig.base.json",
+      "sha256": "06b2d08325c0c9aed71c9258b56b34b38e88c44b1257f65ecb30803454319ac0",
+      "bytes": 564
+    }
+  ]
+}

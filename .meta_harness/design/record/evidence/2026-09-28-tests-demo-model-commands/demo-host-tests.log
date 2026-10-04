@@ -1,0 +1,88 @@
+
+> @omne-harness-lite/model-invocation-minimal-demo@0.0.0 test /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/examples/model-invocation-minimal-demo
+> vitest run -- tests/model-service-path.spec.ts tests/model-service-faults.spec.ts
+
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/examples/model-invocation-minimal-demo
+
+ ❯ tests/interactive.spec.ts (5 tests | 3 failed) 64038ms
+     × HTTP 503 records a failed response but exits nonzero with a safe generic message 1806ms
+     × streams two turns, closes, and a new startup sends both prior pairs in the third turn 1022ms
+     × system SIGINT stops a held actual TLS request and completes physical close 60005ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/interactive.spec.ts > real interactive durable conversation > HTTP 503 records a failed response but exits nonzero with a safe generic message
+AssertionError: expected { complete: true, interrupted: false } to deeply equal { complete: false, interrupted: false }
+
+- Expected
++ Received
+
+  {
+-   "complete": false,
++   "complete": true,
+    "interrupted": false,
+  }
+
+ ❯ tests/interactive.spec.ts:68:9
+     66|           false,
+     67|         ),
+     68|       ).toEqual({ complete: false, interrupted: false })
+       |         ^
+     69|       expect(out.text()).toContain(
+     70|         'Model request failed; durable response recorded. No automatic…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/interactive.spec.ts > real interactive durable conversation > streams two turns, closes, and a new startup sends both prior pairs in the third turn
+AssertionError: expected 'Model invocation minimal demo\nModel:…' to contain 'Assistant> first second'
+
+- Expected
++ Received
+
+- Assistant> first second
++ Model invocation minimal demo
++ Model: deepseek/deepseek-v4-pro-0813
++ Provider route: deepinfra/fp8
++ Conversation: demo-367f744e-35cf-4548-961d-5a9fd5169115
++ Each submitted message can incur OpenRouter charges. /help lists commands.
++ You> Assistant> 
++ Request refused before sending; no automatic retry.
++ You> Assistant> 
++ Request refused before sending; no automatic retry.
++ You> You> 
++ Closed. Start again with the same --data path to resume.
++
+
+ ❯ tests/interactive.spec.ts:109:26
+    107|       )
+    108|       expect(result).toEqual({ complete: true, interrupted: false })
+    109|       expect(out.text()).toContain('Assistant> first second')
+       |                          ^
+    110|       expect(out.text()).toContain('user: first prompt')
+    111|       expect(out.text()).toContain('assistant: first second')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/interactive.spec.ts > real interactive durable conversation > system SIGINT stops a held actual TLS request and completes physical close
+Error: Test timed out in 60000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/interactive.spec.ts:178:3
+    176|     }
+    177|   })
+    178|   it('system SIGINT stops a held actual TLS request and completes phys…
+       |   ^
+    179|     const root = await setup('interrupt-'),
+    180|       tls = await createLocalTls(join(root, 'tls'))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed | 19 passed (20)
+      Tests  3 failed | 82 passed (85)
+   Start at  15:01:53
+   Duration  74.05s (transform 9.36s, setup 0ms, import 173.28s, tests 137.28s, environment 4ms)
+
+/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/examples/model-invocation-minimal-demo:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @omne-harness-lite/model-invocation-minimal-demo@0.0.0 test: `vitest run -- tests/model-service-path.spec.ts tests/model-service-faults.spec.ts`
+Exit status 1

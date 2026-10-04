@@ -1,2 +1,2 @@
-shared_prompts = ["../engineering-taste.md"]
+shared_prompts = ["../engineering-taste.md", "../drafter-contract.md"]
 default_effort = "xhigh"

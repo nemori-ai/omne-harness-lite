@@ -113,6 +113,29 @@ describe('D055 maintenance import boundary', () => {
     `${E}src/ops/requests.ts`,
     "import { readJsonText } from '../json.ts'; import { OnlineMaintenance } from '../maintenance/online.ts'",
   )
+  it('checks the D-116 resource leaf and permits only its finite generated entry', () => {
+    const schema = file(
+      `${E}src/routing/schema.ts`,
+      "import { entryDefinitions } from '../schema-inputs.ts'; import type { ErrorObject } from 'ajv/dist/2020.js'; const validators = require('./generated/ordinary.cjs')",
+    )
+    const inputs = file(
+      `${E}src/schema-inputs.ts`,
+      "import { createRequire } from 'node:module'; const a = require('../schema/governance-center-entry.schema.json'); const b = require('@omne-harness-lite/identity-values/schema'); const c = require('@omne-harness-lite/offer-expiry/schema')",
+    )
+    expect(opsImportWhitelist.check([events, ops, schema, inputs])).toEqual([])
+    for (const specifier of [
+      './center-id/read-or-mint.ts',
+      '@omne-harness-lite/account-identity',
+      './generated/ordinary.cjs',
+    ]) {
+      const unsafe = file(`${E}src/schema-inputs.ts`, `import '${specifier}'`)
+      expect(opsImportWhitelist.check([events, ops, unsafe])).toHaveLength(1)
+    }
+    for (const specifier of ['./generated/other.cjs', '../routes.ts']) {
+      const unsafe = file(`${E}src/routing/schema.ts`, `const value = require('${specifier}')`)
+      expect(opsImportWhitelist.check([events, ops, unsafe])).toHaveLength(1)
+    }
+  })
   it('allows the adopted readonly maintenance dependencies', () => {
     const source = file(
       `${E}src/maintenance/input.ts`,
@@ -468,7 +491,8 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
   const runCli = (dir: string) =>
     spawnSync(process.execPath, ['--experimental-strip-types', cli, dir], { encoding: 'utf8' })
 
-  it('违反的包 ⇒ runRules 报出各条、CLI 退出 1 并逐条打印', () => {
+  // 归慢层：子进程＋重 CPU：起真实 CLI 子进程，它会扫描整个仓库的执行模块。
+  it('违反的包 ⇒ runRules 报出各条、CLI 退出 1 并逐条打印', { tags: ['slow'] }, () => {
     const dir = writeTree({
       [`${E}src/events.ts`]: events.text,
       [`${E}src/ops/plugin.ts`]: [
@@ -500,7 +524,8 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
     expect(result.stderr).toContain(`${E}src/ops/plugin.ts:2 [ops-event-whitelist]`)
   })
 
-  it('合规的包 ⇒ CLI 退出 0', () => {
+  // 归慢层：子进程＋重 CPU：起真实 CLI 子进程，它会扫描整个仓库的执行模块。
+  it('合规的包 ⇒ CLI 退出 0', { tags: ['slow'] }, () => {
     const dir = writeTree({
       [`${E}src/events.ts`]: events.text,
       [`${E}src/ops/plugin.ts`]: [

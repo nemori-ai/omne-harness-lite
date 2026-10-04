@@ -104,3 +104,13 @@ console.log(
 目录规范化只做字面处理：要求绝对路径，不解析符号链接，不读取文件系统。`carrierRecordId` 包含租户、目录与能力标识；它是标识，不是内容摘要。跟踪正文变化请使用 `contentFingerprint`。本模块不持久化资产，不确立分享或授权，也不保证存储记录之间的唯一性与变更规则。
 
 公开 JSON Schema 入口是 `@omne-harness-lite/asset-model/schema`（v3）和 `/schema/v2`（保留的 v2）。参见[源码导出](src/index.ts)、[测试](tests/)与[资产求值](../asset-evaluation/README_ZH.md)。
+
+## 加载 Connector Schema 资源
+
+公开子路径 `schema/connector/v2` 提供资产 Schema 所引用的精确 Connector v2 资源。构造固定 Schema 图的消费者可直接加载它，无需访问包内路径；这个入口只提供资源，不提供 Connector 运行时。
+
+```ts
+import connectorSchema from '@omne-harness-lite/asset-model/schema/connector/v2' with { type: 'json' }
+
+console.log(connectorSchema.$id)
+```

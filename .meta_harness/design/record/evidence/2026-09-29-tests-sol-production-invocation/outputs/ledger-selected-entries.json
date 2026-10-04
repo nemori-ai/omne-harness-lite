@@ -1,0 +1,38 @@
+[
+  {
+    "id": "5171f10c-0157-4b9c-b7d8-65b93df20cc0",
+    "model": "openai/gpt-6-sol",
+    "provider": "openai",
+    "stage": "acceptance",
+    "estimateUsd": "4.613840000000000000",
+    "state": "settled",
+    "actualUsd": "0.000146"
+  },
+  {
+    "id": "2d28613c-5e5e-4694-a902-63077980ed4c",
+    "model": "openai/gpt-6-sol",
+    "provider": "openai",
+    "stage": "acceptance",
+    "estimateUsd": "4.613840000000000000",
+    "state": "settled",
+    "actualUsd": "0.00009"
+  },
+  {
+    "id": "c967a261-f06c-46df-9c44-b8684e58408a",
+    "model": "openai/gpt-6-sol",
+    "provider": "openai",
+    "stage": "acceptance",
+    "estimateUsd": "4.613840000000000000",
+    "state": "settled",
+    "actualUsd": "0.000136"
+  },
+  {
+    "id": "cd873136-b55a-4c4b-b91c-f5582b4c1ff7",
+    "model": "openai/gpt-6-sol",
+    "provider": "openai",
+    "stage": "acceptance",
+    "estimateUsd": "4.613840000000000000",
+    "state": "settled",
+    "actualUsd": "0.000172"
+  }
+]

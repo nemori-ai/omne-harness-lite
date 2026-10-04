@@ -1,0 +1,103 @@
+# verification-developer 为一个模块写测试
+
+量的是：给 [verification-developer](../../../roles/verification-developer/role.md) 一份装好依赖的整仓检出，其中一个模块的实现在、
+针对它的原有测试被拿走，按一份完整的施工简报让它为这个模块写模块级测试——写出的测试在当前实现上是否全过，
+以及能否杀死一组它看不到的变异体（每个变异体是模块的一处改动，各自违反一条规格）。判定由程序在收录运行时做，没有判官。
+
+状态：**第 1 版，两次签字已齐（2026-10-02），还没有基线。**负责人签判定方法时定了：**类型检查只记录，不计入成败**（与原判定器相同）。
+基线何时跑由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
+
+## 材料
+
+两项都取自[角色模型对照（Sonnet 5.5）](../../role-model-sonnet55/README.md)留出集里属于 verification-developer 的任务
+（[留出集](../../role-model-sonnet55/suites/role-tasks-heldout-v1.json)的 `VD-1`、`VD-2`，变异体是其中的 `mutants`），钉在提交 `003561900`，成员 `apps/cli`。
+
+| 材料 | 被测模块 | 拿走的原有测试 | 写入范围 | 变异体 |
+|---|---|---|---|---|
+| `VD-1` | `apps/cli/src/input.ts`：单次治理命令的输入取得 | `input.spec.ts` | `apps/cli/tests/` | 10 个 |
+| `VD-2` | `apps/cli/src/tui/screen.ts`：整帧布局与帧写入 | `tui-screen.spec.ts` | `apps/cli/tests/` | 8 个 |
+
+变异体的全文（`find` 与 `replace`）在 [flow.json](flow.json) 每份材料的 `task.mutants` 里，`inputs` 逐字印出。
+VD-2 的编号跳过了 `s2`、`s3`、`s8`，原留出集就是这样。
+
+## 一个用例集里多出来的文件
+
+```text
+briefs/_write-tests.md   施工简报的框架；briefs/VD-*.md 按 @@段名 分段填进去
+```
+
+没有桩、没有目标测试清单：被测模块原样留在副本里，变异体只在判定时临时盖上去。
+
+## 副本与判定
+
+副本是钉住提交的整仓检出（见[运行器](../../harness/README.md#整仓检出一类)），基底、排除清单与装依赖步骤与 [developer-implement](../developer-implement/README.md) 相同。
+然后删掉成员的 `dist/`、删掉 `hidden_tests` 列的原有测试，提交成唯一的基线提交——与原对照的 `prepare` 对 write-tests 一类的做法一致。
+被拿走的原有测试同时是判定器的**已知好**答案，`verify` 用它。
+
+`record` 在删副本之前判定，规则移植原对照 `tooling/evalrun.py` 的 `oracle_write_tests` 与 `judge_scope`：
+
+1. 角色的测试：`git status` 里 `apps/cli/tests/` 下以 `.spec.ts` 结尾的新增或改动的文件（改了已有的 spec 也算进来，同原判定）。一个都没有就判无效、全部存活、不成功，什么都不跑。
+2. 在当前实现上只跑这些文件（`vitest run` 加文件过滤）：退出码为 0 且至少一条测试，判**有效**。
+3. 跑 `pnpm run typecheck`，**只记录，不计入成败**——原判定就是这样。
+4. 逐个变异体：把模板里那份目标文件写回副本，把变异体的 `find` 换成 `replace`（必须恰好命中一次，否则判定失败），再跑同一批文件；退出码不为 0 即**杀死**，否则**存活**。每个变异体之后、以及全部跑完（或中途出错）之后，目标文件都写回模板里的原样。
+
+| 指标 | 怎样得出 |
+|---|---|
+| `success` | 有效，并且没有存活的变异体 |
+| `kill_rate` | 杀死的变异体占全部变异体的比例（原对照的「部分得分」）。**不看有效性**：在当前实现上就失败的测试会把全部变异体判成杀死，读它要连着 `success` 读 |
+| `killed` | 每个变异体一行：角色的测试在它上面失败为 1，全过为 0 |
+| `write_scope` | `git status` 里的改动（含未跟踪）都落在写入范围内 |
+| `tests_intact` | 成员 `tests/` 下没有状态不是「未跟踪」的改动（只许新增，不许改、删已有测试） |
+| `only_allowed` | 轨迹里的工具都在放行清单内 |
+
+判定的命令输出、每个变异体的 JSON 报告与 `oracle.json` 留在这次运行的 `oracle/` 下。
+
+`verify` 在真的副本上证明判定器判得出：每个变异体的 `find` 在模板的目标文件里恰好出现一次（不是就报出是哪个、不建副本）；
+一个测试都不写——无效、全部存活、不成功；只写一条恒真的测试——有效、全部存活、不成功；放回原有测试——有效、全部杀死、成功；
+三次之后目标文件与模板逐字节相同。原有测试杀不死的变异体会作为问题报出，不改变异体、不改判定。
+
+## 与原判定的不同之处
+
+判定标准没有改。移植时有这几处不同，都不改变一次正常运行的结论：
+
+- **跑超时不是判定结论。**原判定里测试或类型检查跑过时限会抛出异常、整次运行没有记录；这里同样不出结论，记为判定器失败（`errors.jsonl` 的 `grader`），那个位置可以重跑。时限照原判定：有效性 600 秒、每个变异体 300 秒、类型检查 900 秒，写在 `oracle.timeout_s`。
+- **目标文件按字节写回。**原判定按文本读写；两个目标文件里都没有回车符，结果相同，按字节写回才能逐字节核对还原。
+- **逐条结果。**原判定只给整次运行一条记录；这里每个变异体另落一行（`killed`），整次运行一行，与运行器的统一形状一致。
+- 原判定在 `judge_scope` 里另记的 `oracle_integrity`，这里是 `tests_intact`；`isolation` 由运行器的 `contaminated` 核对承担。
+
+## 运行设置
+
+Claude Sonnet 5.5，high，放行 Read、Glob、Grep、Edit、Write、Bash，每份材料 2 次。出处：
+
+- 模型：原对照里 verification-developer 跑过 Opus 5.5 与 Sonnet 5.5 两组，结论是换成 Sonnet 5.5，并已落到角色源
+  （[对照的采用表](../../role-model-sonnet55/README.md#采用)；[角色源](../../../roles/verification-developer/claude.yaml)现钉 `claude-sonnet-5-5`）。这里取 Sonnet 5.5 那一组。
+- 档位：原对照「档位取角色默认（application-developer 为 medium，其余 high）」，verification-developer 两组都是 high。
+- 工具：原运行脚本 `tooling/evalrun.py` 的 `run` 放行 `Bash`、`Read`、`Edit`、`Write`、`Glob`、`Grep`，禁 `WebFetch`、`WebSearch`、`Agent`。
+  角色定义里另有 WebFetch、WebSearch；registered 派发拿不走它们，用了就体现在 `only_allowed` 上。
+
+## 复制时改了什么
+
+用例的内容（简报框架、两份任务简报、被测模块、拿走的测试、写入范围、全部变异体）逐字取自原对照，只有：
+
+- 清单字段按 `flow.json` 的形状改写：`target`、`hidden_tests`、`allowed_write`、`mutants` 放进每份材料的 `task`，字段名与值不变。
+- 简报框架 `briefs/_write-tests.md` 与原对照的同名文件逐字相同；`{ROLE}` 填的是 `verification-developer`，与原对照相同。
+- 材料的 `target`（一句说明）与 `tags` 是新写的，不进简报。
+
+## 基线数字与噪声范围
+
+还没有基线。
+
+原对照里这两项的结果（`claude -p` 无界面运行、角色定义作为主会话、每任务每模型 2 次，是旧的结果，**不是这个用例集的基线**）：
+VD-1 两个模型都是 10/10 ×2，VD-2 都是 8/8 ×2，四组全部成功。见[原对照的逐任务表](../../role-model-sonnet55/README.md#sonnet-55-对-opus-55)。
+两份材料、每份最多两种结果，这个流目前分辨不出两个变体之间的小差别。
+
+## 量不出什么
+
+- **完成声明是否属实。**程序判不了，要人对着 `oracle/oracle.json` 读 `final.md`。
+- **测试的质量只量到这组变异体为止。**十个、八个变异体是实验者挑的规格偏离；杀死全部不等于测试覆盖了规格的每一条，也不说明断言落在规格而不是实现细节上——简报要的这一点要人读。
+- **类型检查不计入成败。**角色写的测试类型检查不过（简报的验收项要求它过），`success` 仍可为真；看 `oracle.json` 的 `typecheck`。
+- 变异体只在模块文本上做替换：杀死它靠的是运行时观察得到的差别，量不到只在类型层面的偏离。
+- 副本里的 skills、文档与工具是钉住那个提交的版本，不是工作树的；只有角色定义取自当前的源。
+- 两项都是单模块的模块级测试，不含跨进程的并发与故障注入、需要自己推导判据的场景——角色说明里点名要改派顶档的那几类，这个流都量不到。
+- 依赖目录是从模板硬链接来的：角色若改了 `node_modules` 里的文件，会连模板一起改。
+- 隔离只靠「从仓库之外派发」与事后扫描工具输入；这条前提与 registered 派发还没有对上，见[运行器说明](../../harness/README.md#整仓检出一类)。

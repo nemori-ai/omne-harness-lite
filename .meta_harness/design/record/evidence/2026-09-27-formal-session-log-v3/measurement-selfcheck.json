@@ -1,0 +1,11 @@
+{
+  "accept_named_counterexample": true,
+  "reject_wrong_assertion": true,
+  "reject_syntax_error": true,
+  "reject_missing_trace": true,
+  "reject_zero_negative_exit": true,
+  "reject_success_without_completion": true,
+  "accept_completed_positive": true,
+  "reject_nonzero_positive": true,
+  "reject_sany_error_even_exit_zero": true
+}

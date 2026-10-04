@@ -1,0 +1,210 @@
+{
+  "label": "reopened-third-turn",
+  "output": "Model invocation minimal demo\r\nModel: deepseek/deepseek-v4-pro-0813\r\nProvider route: deepinfra/fp8\r\nConversation: demo-ae1b9fe5-154d-4c28-808e-834eb13a1822\r\nEach submitted message can incur OpenRouter charges. /help lists commands.\r\nYou> After restarting, what exact code did I ask you to remember? Reply with that code only.\r\r\nAssistant> ORCHID-742\r\nSaved. {\"outcome\":\"complete\",\"usage\":{\"input_tokens\":78,\"output_tokens\":124,\"cache_read_tokens\":0,\"cache_write_tokens\":0,\"source\":\"upstream\",\"reasoning_tokens\":116},\"cost\":{\"cost_usd\":0.0004238,\"source\":\"upstream_usage\",\"upstream_inference_cost_usd\":0.0004238}}\r\nCumulative: input 151, output 191, cache read 0, cache write 0 tokens; actual USD 6929e-7\r\nYou> /exit\r\r\n\r\nClosed. Start again with the same --data path to resume.\r\n",
+  "error": "",
+  "chunks": [
+    {
+      "at": "2026-09-28T09:37:46.743Z",
+      "bytes": 233
+    },
+    {
+      "at": "2026-09-28T09:37:46.743Z",
+      "bytes": 5
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 4
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 4
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 4
+    },
+    {
+      "at": "2026-09-28T09:37:46.751Z",
+      "bytes": 4
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 4
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 4
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 5
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 8
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 4
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T09:37:46.752Z",
+      "bytes": 5
+    },
+    {
+      "at": "2026-09-28T09:37:46.753Z",
+      "bytes": 3
+    },
+    {
+      "at": "2026-09-28T09:37:46.753Z",
+      "bytes": 11
+    },
+    {
+      "at": "2026-09-28T09:37:48.283Z",
+      "bytes": 10
+    },
+    {
+      "at": "2026-09-28T09:37:48.302Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T09:37:48.504Z",
+      "bytes": 263
+    },
+    {
+      "at": "2026-09-28T09:37:48.522Z",
+      "bytes": 96
+    },
+    {
+      "at": "2026-09-28T09:37:48.545Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:48.545Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:48.545Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:48.545Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:48.545Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:48.546Z",
+      "bytes": 1
+    },
+    {
+      "at": "2026-09-28T09:37:48.546Z",
+      "bytes": 2
+    },
+    {
+      "at": "2026-09-28T09:37:48.577Z",
+      "bytes": 60
+    }
+  ],
+  "closed": true,
+  "code": 0,
+  "signal": null
+}

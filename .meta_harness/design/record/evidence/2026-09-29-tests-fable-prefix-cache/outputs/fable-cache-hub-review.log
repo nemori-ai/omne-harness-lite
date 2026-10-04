@@ -1,0 +1,27 @@
+{
+  "modelId": "anthropic/claude-fable-5.1",
+  "caseKind": "cache_cold_warm",
+  "reviewStatus": "approved",
+  "scenarioSha256": "6655a01437e0185c4507e0b1ba2a3d8ed1f0459097709d47447209a32435c23a",
+  "catalogSha256": "f058b4004d64ceb390056bb7584424d83abb779af24579cf62cfe064425a1155",
+  "observedAt": "2026-09-29T06:29:51.445Z",
+  "endpointTag": "anthropic",
+  "definitionRevision": "2",
+  "implementation": {
+    "name": "pi-ai:anthropic",
+    "revision": "mp4-5"
+  },
+  "profileSha256": "05cfa8c20c58677031e806e8b1da1ab74a78224fec50bc91c3b46852463a6676",
+  "publicWireSha256": "90f6ebf8e478e1b4060be083ae71b3d767d217b7b5eb744635c8c961d750d8c6",
+  "approvedLocalServiceWireSha256": [
+    "b9d4794841269d2075ab526a864840ef9b2b1b55c927800f5070a88e75ae237f",
+    "730247df2d9e97e42e1486f0c6b77a79908063934953490139e36ede0cf7a259",
+    "4c2249ac9a28588b0e8431ef2936f89909a3dd46432cb0d6c4395236f193ed4b"
+  ],
+  "inputTokenBoundPerRequest": 872000,
+  "outputTokenBoundPerRequest": 256,
+  "estimateUsdPerRequest": "17.452800000000000000",
+  "maximumPlannedRequests": 5,
+  "maximumPlannedReservationUsd": "87.264000000000000000",
+  "note": "Service live wire is not observable through this public assembly; its local hashes are not a live wire certificate."
+}

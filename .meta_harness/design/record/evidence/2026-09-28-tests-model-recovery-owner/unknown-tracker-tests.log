@@ -1,0 +1,39 @@
+Testing types with tsc and vue-tsc is an experimental feature.
+Breaking changes might not follow SemVer, please pin Vitest's version when using it.
+
+ RUN  v4.1.11 /data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/packages/model/model-request-runtime
+
+ ❯ tests/service-control.spec.ts (8 tests | 1 failed) 93ms
+     × retains ownership when the log committed but the receipt is unconfirmed 43ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/service-control.spec.ts > RT7 S-31/S-68 actual control append > retains ownership when the log committed but the receipt is unconfirmed
+AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/service-control.spec.ts:354:24
+    352|         }),
+    353|       ).toEqual({ unavailable: true })
+    354|       expect(releases).toBe(1)
+       |                        ^
+    355|       readAvailable = true
+    356|       expect(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 21 passed (22)
+Type Errors  no errors
+   Start at  14:24:56
+   Duration  7.69s (transform 4.01s, setup 0ms, import 14.15s, tests 1.52s, environment 0ms)
+
+undefined
+/data/qiwei/repos/omne-harness-lite/.worktrees/model-request-runtime/packages/model/model-request-runtime:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run tests/service-calls.spec.ts tests/service-dispatch.spec.ts tests/service-control.spec.ts

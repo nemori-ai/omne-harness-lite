@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "status": "adopted",
+  "authority": "root primary under user implementation delegation",
+  "at_utc": "2026-09-27T08:27:31.434006+00:00",
+  "decision_path": "record/decisions/model-registry-history-provider-adoption/decision.md",
+  "input_sha256": {
+    "realization/packages/assets/evaluation-input-store/v4-history-source-interfaces.md": "9313dcbe4788f4e72b1be13b05b109d55f7d5aa70d928e24927af49bc9e584a0",
+    "realization/packages/assets/evaluation-input-store/README.md": "2b18a74027adc265ed83742f298802fe467122055ebf16cfe2c62035baf87fb2",
+    "realization/packages/assets/evaluation-input-store/verification.md": "a0b06d4622e2b6a1bf37d98da7f1d378d9181509b053f624762bbeb81714dbf9",
+    "realization/packages/tools/asset-registry/v4-design.md": "d5d53046909700936b839a7142406bff606b55b33c050d9b6ef21ec467a0ba60",
+    "realization/packages/tools/asset-registry/README.md": "7622be9d566c6d96460e54eca6f1149230ffbdf76101b4a3c513c6447df56d35",
+    "realization/packages/tools/asset-registry/verification.md": "19d6c7d6a87e6d7fcff067e68d78f9cb2cff1bf9efbf30fcc43d467ed6cbb7da"
+  },
+  "new_contracts": [],
+  "new_bindings": 0,
+  "human_overall_acceptance": false,
+  "independent_review": {
+    "ar4_architecture": "core_projection_review initial and limited joint follow-up; no blockers",
+    "eis_architecture": "adaptation_architecture_review; no blockers",
+    "joint_expression": "binding_batch_spec_review; no blockers; N1 corrected and verified"
+  },
+  "source_and_verification": "pending; component tests do not establish the AR/EIS historical recovery composition",
+  "required_success": "old report/table original immutable version remains readable after current holding is removed; unavailable is not delivered success"
+}

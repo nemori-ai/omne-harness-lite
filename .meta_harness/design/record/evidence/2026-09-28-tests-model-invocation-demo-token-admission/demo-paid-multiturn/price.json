@@ -1,0 +1,12 @@
+{
+  "observedAt": "2026-09-28T12:29:06.765Z",
+  "model": "deepseek/deepseek-v4-pro-0813",
+  "provider": "deepinfra/fp8",
+  "pricing": {
+    "prompt": "0.0000013",
+    "completion": "0.0000026",
+    "input_cache_read": "0.0000001",
+    "discount": 0
+  },
+  "estimateUsd": "1.365811200000000000"
+}

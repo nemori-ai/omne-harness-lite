@@ -1,8 +1,31 @@
 ## 工作区接入的适用范围
 
+> 历史路径提示：本页所称 `apps/model-request-acceptance`／`model-request-acceptance` 是 D-076 采用时的技术验收装配坐标；当前已退出 `apps/` 映射。现行归属与剩余责任以[实现映射入口](../../../README.md)为准。
+
+
 当前 AE3 的 C3／PRE-5、readWorkspaceCarrier、S-27／S-28 及兼容 hook 的租户格例外不能直接承载新版工作区输入。需等待相关身份／资产／读入契约接续，再更新本节点与验证。现有显式输入的求值测试不证明双来源选择、真实目录发现或关系授权；既有权限过滤规则继续有效。
 
 依据：[契约适用范围与待演进部分](../../../../spec/capabilities/asset-evaluation/README.md)。
+
+## v4 根设置增量候选（2026-09-27）
+
+- kind：`provider`
+
+节点与源码路径均为 `packages/core/asset-evaluation`。v3 包真实存在；本次只起草 v4 映射，不修改源码。
+- 契约与范围：`capability.asset-evaluation/v4` S-1～S-47（candidate），增量为 S-6/S-7 C15、C16/S-21/S-22/S-45～S-47；精确依赖见 [v4 实现增量](v4-design.md)。范围依据 PF-002 rev 20、PF-004 rev 12、PF-013 rev 13 及[读取链候选](../../../../record/proposals/model-request-adaptation/read-projection.md)。
+- **语义接受：本次 v4 无。** AE4、agent-definition/v1、model-profile/v3 仍 candidate；既有 v3 的接受与冻结保持下列原范围。
+- **可实施：候选路径已写明，尚未接受、尚未实施 v4。** 保留纯函数、默认入口显式演进及未切换消费者的 v3 闭包；候选 `judgeEffectiveAssembly(value): boolean` 按 S-47 供持久读面共用；候选 `selectEvaluationRootSource(input)` 复用第一步选根来源，避免真实输入生产者复制算法或伪造 root 输入。二者不证明来源、当前权限或完整求值正确。本能力无自有 Schema、Cordis 服务或存储。AD1 公开构件/精确采用、真实正文生产者、结果判定、根选择与精确版本比较的实施证据分别为 AE4-1、AE4-6、AE4-7、AE4-8，不能由本包暗读 IO 或猜默认补齐。
+- **绑定与证据：v4 新增 0 条；保留 v3 测试绑定 1 条。** 新 RootSettings 有限正/负检查不作为本节点生产实现绑定，旧证据不换成 v4 坐标。
+- **实际验证：v4 实现与真实组合尚无。** 本次文档检查与待执行义务见 [verification](verification.md#v4-候选增量的证据义务)；下列 168 项等历史结果仅属于原 v3 输入/源码。
+
+| 当前问题 | 入口 |
+|---|---|
+| v4 怎样实现、公开闭包与外部 owner 是谁 | [v4 候选设计](v4-design.md) |
+| 哪些责任仍未验、谁补证据 | [v4 验证义务](verification.md#v4-候选增量的证据义务) |
+| 原 v3 实现与证据 | [原设计](design.md)、[绑定表](bindings.yaml)及下列原事件 |
+
+本段只登记新候选，不取代或提升下列 v3 已接受事件。独立架构评审、技术采用和真实运行均须另记。
+主线已点名真实输入提供者 `packages/assets/evaluation-input-store` 与独立验收装配 `apps/model-request-acceptance`；前者节点尚未成稿，真实正文 IO 及完整交接仍未验。
 
 ## 最终 core 阶段签收（2026-09-26）
 
@@ -63,3 +86,20 @@ Skill默认入口采用3，AM3／AE3／Slash2仍以真实2正文端口判定；�
 
 状态变化由实际事件驱动。文件存在、接口齐全或评审无意见都不提升状态；
 契约语义变化回 [spec](../../../../spec/README.md)，采用选择回 [record/decisions](../../../../record/decisions/README.md)。
+
+## 2026-09-27 v4 技术采用
+
+[D-073](../../../../record/decisions/model-current-input-contracts-adoption/decision.md)接受 AE4 及本纯增量设计；此前候选读数保留原字节。AD1/MP3 已由 D072/D070 接受。v4 源码及真实符合性另行核验，旧 v3 的绑定不重标。
+
+## 2026-10-03 Schema构造与消费补充
+
+[D-116](../../../../record/decisions/fixed-schema-precompile/README.md)技术采用：AM声明/manifest复用绑定owner，作者临时编译保持；AE发布捕获深冻结生产Schema，AE/EIS/registry三个默认owner首用构造分后续PR；MRR的固定图缺陷归相应MS/MR/CA构建失败，缺产物首次实际消费原抛。仅各自相关条款适用；本机制实施/验证尚待，不改变契约和原历史run。
+
+## 2026-10-03 D-116 主体实施与有限验收
+
+主体已迁移 AM 同 owner 消费方式。AE 发布生产资源快照与默认判定器首次使用构造仍归后续 PR，本次未交付。实际源码坐标、输入复用及验证边界见[主体原始运行与有限签收](../../../../record/evidence/2026-10-03-tests-fixed-schema-main/README.md)。本段仅更新以上已交付范围，不提升历史未验能力或后续默认装配的状态。
+
+
+## 2026-10-03 D-116 默认 owner 实施与有限验收
+
+三个默认判定owner均已改为首次实际使用时构造，成功后复用、失败原抛且可重试。AE发布五份深冻结生产Schema并捕获职责函数，三个消费者共享这份发布快照。显式工厂和作者临时编译保持。独立L2六标准、真实src/dist与SQLite业务基线对拍通过；九处旧身份断言按已接受复制边界迁移。[实际运行与有限签收](../../../../record/evidence/2026-10-03-tests-default-schema-owners/README.md)保留原失败、MRR一次未定因观察和验证范围，不提升本节点其他历史未验能力的状态。

@@ -1,0 +1,112 @@
+name: Check
+
+# 远程 CI 目前关闭：检查结论以本地跑的 make check 为准（2026-10-01 定）。
+# 这份工作流只留手动触发，仓库设置里也已停用；没有注册 runner 时任务只会排队。
+# 要恢复自动触发：注册自托管 runner（见 scripts/README.md），在仓库设置里启用本工作流，
+# 再把下面注释掉的三种触发放回 on: 之下。
+#   pull_request:
+#   push:
+#     branches: [main]
+#   schedule:
+#     - cron: '0 19 * * *'   # 每天 03:00（Asia/Shanghai）跑一次全量覆盖率度量
+on:
+  workflow_dispatch:
+    inputs:
+      coverage:
+        description: 对全部成员跑覆盖率度量（耗时长）
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # 度量产物留在 runner 主机上，不走 GitHub 产物存储。
+  OMNE_METRICS_HOME: ${{ vars.OMNE_METRICS_HOME }}
+
+jobs:
+  check:
+    if: github.event_name != 'schedule'
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: astral-sh/setup-uv@v10
+      - run: uv sync --locked
+      - run: pnpm install --frozen-lockfile
+      # 生成物被 Git 忽略，全新检出要先编译一次，agents-check 才有东西可比。
+      - name: Compile agent outputs
+        run: uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+      # 并行度的初值在 tools/ts-checks/test-runs.config.json；这两个仓库变量留空即用初值，
+      # runner 主机核数不同时再设。make check 自己会占一个运行名额，与主机上别的全量检查排队。
+      - name: make check
+        run: nice -n 10 make check
+        env:
+          OMNE_TEST_MEMBER_CONCURRENCY: ${{ vars.OMNE_TEST_MEMBER_CONCURRENCY }}
+          VITEST_MAX_WORKERS: ${{ vars.OMNE_VITEST_MAX_WORKERS }}
+          OMNE_TEST_LEDGER_HOME: ${{ vars.OMNE_TEST_LEDGER_HOME }}
+      # 度量只报告：它失败不改变检查结论，也不因检查失败而跳过。
+      - name: Structure metrics
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          EVENT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          home="${OMNE_METRICS_HOME:-$HOME/omne-metrics}"
+          short="$(git rev-parse --short=9 HEAD)"
+          out="$home/${PR_NUMBER:+pr-$PR_NUMBER/}$short"
+          base=""
+          if [[ -n "$EVENT_BASE" ]] && git cat-file -e "$EVENT_BASE^{commit}" 2>/dev/null; then
+            base="$EVENT_BASE"
+          fi
+          make --no-print-directory metrics BASE="$base" OUT="$out" | tee "$RUNNER_TEMP/metrics-summary.txt"
+          {
+            echo '### 结构度量'
+            echo
+            echo '```text'
+            cat "$RUNNER_TEMP/metrics-summary.txt"
+            echo '```'
+            echo
+            echo "产物在 runner 主机：\`$out\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  coverage:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.coverage)
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      # 一部分成员的测试经包名导入自己，执行的是 dist；先构建，覆盖率才映射得回 src。
+      - run: nice -n 10 pnpm run build
+      - name: Structure metrics with coverage
+        run: |
+          home="${OMNE_METRICS_HOME:-$HOME/omne-metrics}"
+          out="$home/nightly/$(date -u +%F)-$(git rev-parse --short=9 HEAD)"
+          nice -n 10 make --no-print-directory metrics COVERAGE=1 OUT="$out" | tee "$RUNNER_TEMP/metrics-summary.txt"
+          {
+            echo '### 结构度量（全量覆盖率）'
+            echo
+            echo '```text'
+            cat "$RUNNER_TEMP/metrics-summary.txt"
+            echo '```'
+            echo
+            echo "产物在 runner 主机：\`$out\`"
+          } >> "$GITHUB_STEP_SUMMARY"

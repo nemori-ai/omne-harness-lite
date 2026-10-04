@@ -1,0 +1,180 @@
+{
+  "baseline": "52bc6005dc168f2254d21ff79f6cd2df021676b8",
+  "normalization": "Replace getAssetJudge() with assetJudge and remove whitespace. This is a fragment correspondence check, not semantic equivalence proof.",
+  "rows": [
+    {
+      "clone": {
+        "a": {
+          "path": "packages/tools/asset-registry/src/registry.ts",
+          "member": "packages/tools/asset-registry",
+          "start": 857,
+          "end": 867
+        },
+        "b": {
+          "path": "packages/assets/evaluation-input-store/src/registry-history.ts",
+          "member": "packages/assets/evaluation-input-store",
+          "start": 347,
+          "end": 358
+        },
+        "lines": 11,
+        "crossMember": true,
+        "bEndEstimated": false
+      },
+      "sides": [
+        {
+          "side": "a",
+          "exists_after_getter_and_whitespace_normalization": true
+        },
+        {
+          "side": "b",
+          "exists_after_getter_and_whitespace_normalization": true
+        }
+      ]
+    },
+    {
+      "clone": {
+        "a": {
+          "path": "packages/assets/evaluation-input-store/src/registry-inputs.ts",
+          "member": "packages/assets/evaluation-input-store",
+          "start": 249,
+          "end": 267
+        },
+        "b": {
+          "path": "packages/assets/evaluation-input-store/src/registry-history.ts",
+          "member": "packages/assets/evaluation-input-store",
+          "start": 342,
+          "end": 360
+        },
+        "lines": 19,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "sides": [
+        {
+          "side": "a",
+          "exists_after_getter_and_whitespace_normalization": true
+        },
+        {
+          "side": "b",
+          "exists_after_getter_and_whitespace_normalization": true
+        }
+      ]
+    },
+    {
+      "clone": {
+        "a": {
+          "path": "packages/tools/asset-registry/src/registry.ts",
+          "member": "packages/tools/asset-registry",
+          "start": 748,
+          "end": 762
+        },
+        "b": {
+          "path": "packages/tools/asset-registry/src/registry.ts",
+          "member": "packages/tools/asset-registry",
+          "start": 629,
+          "end": 643
+        },
+        "lines": 15,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "sides": [
+        {
+          "side": "a",
+          "exists_after_getter_and_whitespace_normalization": true
+        },
+        {
+          "side": "b",
+          "exists_after_getter_and_whitespace_normalization": true
+        }
+      ]
+    },
+    {
+      "clone": {
+        "a": {
+          "path": "packages/tools/asset-registry/src/registry.ts",
+          "member": "packages/tools/asset-registry",
+          "start": 772,
+          "end": 786
+        },
+        "b": {
+          "path": "packages/tools/asset-registry/src/registry.ts",
+          "member": "packages/tools/asset-registry",
+          "start": 629,
+          "end": 643
+        },
+        "lines": 15,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "sides": [
+        {
+          "side": "a",
+          "exists_after_getter_and_whitespace_normalization": true
+        },
+        {
+          "side": "b",
+          "exists_after_getter_and_whitespace_normalization": true
+        }
+      ]
+    },
+    {
+      "clone": {
+        "a": {
+          "path": "packages/assets/evaluation-input-store/src/registry-inputs.ts",
+          "member": "packages/assets/evaluation-input-store",
+          "start": 144,
+          "end": 152
+        },
+        "b": {
+          "path": "packages/assets/evaluation-input-store/src/reader.ts",
+          "member": "packages/assets/evaluation-input-store",
+          "start": 49,
+          "end": 57
+        },
+        "lines": 9,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "sides": [
+        {
+          "side": "a",
+          "exists_after_getter_and_whitespace_normalization": true
+        },
+        {
+          "side": "b",
+          "exists_after_getter_and_whitespace_normalization": true
+        }
+      ]
+    },
+    {
+      "clone": {
+        "a": {
+          "path": "packages/tools/asset-registry/src/registry.ts",
+          "member": "packages/tools/asset-registry",
+          "start": 841,
+          "end": 848
+        },
+        "b": {
+          "path": "packages/tools/asset-registry/src/registry.ts",
+          "member": "packages/tools/asset-registry",
+          "start": 713,
+          "end": 720
+        },
+        "lines": 8,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "sides": [
+        {
+          "side": "a",
+          "exists_after_getter_and_whitespace_normalization": true
+        },
+        {
+          "side": "b",
+          "exists_after_getter_and_whitespace_normalization": true
+        }
+      ]
+    }
+  ]
+}

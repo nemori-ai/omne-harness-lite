@@ -2,12 +2,26 @@ import {
   judgeContentBlock,
   readJsonStrict,
   type ContentBlockRejection,
+  type JsonObject,
 } from '@omne-harness-lite/content-blocks'
 import { isObject, snapshot } from './json.ts'
 import { rawBlockTree } from './blocks.ts'
-import { brandMessage, brandRecord, isWireMessage, isWireRecord } from './values.ts'
-import { dispatchedParametersValid } from './parameters.ts'
-import type { MessageJudgment, LogPrefixView, ModelInvocationJudgment } from './types.ts'
+import {
+  brandMessage,
+  brandRecord,
+  isWireMessage,
+  isWireRecord,
+  isWireCreatedPayload,
+  brandCreatedPayload,
+} from './values.ts'
+import { dispatchedParametersValid, jsonEqual } from './parameters.ts'
+import type {
+  MessageJudgment,
+  LogPrefixView,
+  ModelInvocationJudgment,
+  ModelCallCreatedPayloadJudgment,
+  ModelReplyMessageJudgment,
+} from './types.ts'
 
 const MESSAGE_TYPES: readonly string[] = Object.freeze([
   'system',
@@ -141,7 +155,11 @@ export function judgeModelInvocationRecord(value: unknown): ModelInvocationJudgm
     copied === undefined ||
     !isObject(copied) ||
     !isWireRecord(copied) ||
-    (copied.kind === 'model_call_dispatched' && !dispatchedParametersValid(copied))
+    (copied.kind === 'model_call_dispatched' && !dispatchedValid(copied)) ||
+    (copied.kind === 'model_call_acknowledged' &&
+      copied.accountingWitness !== undefined &&
+      (copied.target.kind !== 'response' ||
+        copied.target.response !== copied.accountingWitness.response))
   )
     return Object.freeze({ rejected: 'malformed' } as const)
   return Object.freeze({ ok: brandRecord(copied) })
@@ -151,4 +169,104 @@ export function judgeModelInvocationRecordText(text: string): ModelInvocationJud
   return 'failed' in read
     ? Object.freeze({ rejected: 'malformed' } as const)
     : judgeModelInvocationRecord(read.ok)
+}
+
+function dispatchedValid(value: JsonObject): boolean {
+  if (
+    !dispatchedParametersValid(value) ||
+    !isObject(value.adaptation) ||
+    !isObject(value.profileSnapshot) ||
+    !isObject(value.profile) ||
+    !isObject(value.adaptation.definition)
+  )
+    return false
+  return (
+    value.profileSnapshot.adaptation !== undefined &&
+    jsonEqual(value.adaptation, value.profileSnapshot.adaptation) &&
+    value.adaptation.definition.modelId === value.profile.routeName
+  )
+}
+
+/** MS8 S-53 intrinsic value checks; never a source, permission or publication check. */
+export function judgeModelCallCreatedPayload(value: unknown): ModelCallCreatedPayloadJudgment {
+  const copied = snapshot(value)
+  if (
+    copied === undefined ||
+    !isWireCreatedPayload(copied) ||
+    copied.ref.session !== copied.origin.session ||
+    copied.input.messages.some(message => 'rejected' in judgeMessage(message)) ||
+    (copied.status === 'accepted' &&
+      (!jsonEqual(copied.adopted.adaptation, copied.adopted.profileSnapshot.adaptation) ||
+        copied.adopted.adaptation.definition.modelId !== copied.adopted.profile.routeName ||
+        copied.adopted.messages.some(message => 'rejected' in judgeMessage(message))))
+  )
+    return Object.freeze({ rejected: 'malformed' } as const)
+  return Object.freeze({ ok: brandCreatedPayload(copied) })
+}
+export function judgeModelCallCreatedPayloadText(text: string): ModelCallCreatedPayloadJudgment {
+  const read = readJsonStrict(text)
+  return 'failed' in read
+    ? Object.freeze({ rejected: 'malformed' } as const)
+    : judgeModelCallCreatedPayload(read.ok)
+}
+/** MS8 S-9: original first, persisted second, then the permitted first-publication relation. */
+export function judgeModelReplyMessage(
+  originalReply: unknown,
+  persistedMessage: unknown,
+): ModelReplyMessageJudgment {
+  const original = judgeMessage(originalReply)
+  if ('rejected' in original) return original
+  if (original.ok.type !== 'assistant') return Object.freeze({ rejected: 'malformed' } as const)
+  const persisted = judgeMessage(persistedMessage)
+  if ('rejected' in persisted) return persisted
+  if (persisted.ok.type !== 'assistant') return Object.freeze({ rejected: 'malformed' } as const)
+  const a = snapshot(original.ok),
+    b = snapshot(persisted.ok)
+  if (
+    a === undefined ||
+    b === undefined ||
+    !isObject(a) ||
+    !isObject(b) ||
+    !Array.isArray(a.blocks) ||
+    !Array.isArray(b.blocks)
+  )
+    return Object.freeze({ rejected: 'malformed' } as const)
+  const originalBlocks = a.blocks,
+    persistedBlocks = b.blocks
+  if (
+    !membersEqual(a, b, ['blocks']) ||
+    originalBlocks.length !== persistedBlocks.length ||
+    !originalBlocks.every((block, index) => {
+      const other = persistedBlocks[index]
+      if (!isObject(block) || !isObject(other)) return false
+      if (
+        (block.kind === 'voice' || block.kind === 'image' || block.kind === 'file') &&
+        !Object.hasOwn(block, 'renderings') &&
+        !Object.hasOwn(block, 'transcript') &&
+        Object.hasOwn(other, 'renderings') &&
+        Object.hasOwn(other, 'transcript')
+      )
+        return membersEqual(block, other, ['renderings', 'transcript'])
+      return jsonEqual(block, other)
+    })
+  )
+    return Object.freeze({ rejected: 'malformed' } as const)
+  return Object.freeze({ ok: persisted.ok })
+}
+/** All original members are retained; only the named top-level additions are permitted. */
+function membersEqual(
+  original: JsonObject,
+  persisted: JsonObject,
+  allowed: readonly string[],
+): boolean {
+  return (
+    Object.keys(original).every(key => {
+      const a = original[key],
+        b = persisted[key]
+      return (
+        allowed.includes(key) ||
+        (a !== undefined && b !== undefined && Object.hasOwn(persisted, key) && jsonEqual(a, b))
+      )
+    }) && Object.keys(persisted).every(key => allowed.includes(key) || Object.hasOwn(original, key))
+  )
 }

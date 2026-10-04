@@ -30,5 +30,7 @@
 | 接受了什么、什么仍须验证、**不表示**什么 | [决定正文](decision.md) |
 | 固定版本上实际观察到什么 | [研究包](../../../../research/legacy_backup/pi-ai-openrouter-transport/README.md)与它的[证据记录](../../../../research/legacy_backup/pi-ai-openrouter-transport/evidence.md) |
 | 比较门逐项做到了哪、0.86.1 上补丁还要不要 | [2026-09-23 比较门现状补记](gate-status-2026-09-23.md)——对本决定的追加，不改写接受范围；观察本身在[模型请求运行时研究](../../../../research/model-request-transport-sources/research.md) |
+| fork 的基线、托管与上游同步规矩 | [2026-09-25 基线与托管](gate-status-2026-09-25.md)（D-063 R-5：0.86.1、按需同步） |
+| fork 现在锚在哪个上游版本，两版之间的差分怎么处置 | [2026-10-02 改锚到 1.0.0](rebase-1.0.0-2026-10-02.md)——只记账，代码未改 |
 
 返回[决定](../README.md)。

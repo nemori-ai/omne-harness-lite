@@ -25,12 +25,12 @@ is_format_target() {
         */node_modules/*|*/dist/*|*/tmp/*|*/.worktrees/*|*/generated/*|*/upstream/*|spec/*|*.jsonl)
             return 1
             ;;
-        .prettierrc.json|.vscode/settings.json|.vscode/extensions.json|.github/workflows/format.yml)
+        .prettierrc.json|.vscode/settings.json|.vscode/extensions.json|.github/workflows/check.yml)
             return 0
             ;;
-        packages/*|apps/*|tools/*|scripts/*)
+        packages/*|apps/*|examples/*|tools/*|scripts/*)
             case "$name" in
-                *.js|*.jsx|*.cjs|*.mjs|*.ts|*.tsx|package.json|tsconfig*.json|vitest.config.*)
+                *.js|*.jsx|*.cjs|*.mjs|*.ts|*.tsx|*.mts|*.cts|package.json|tsconfig*.json|vitest.config.*)
                     return 0
                     ;;
             esac
@@ -38,7 +38,7 @@ is_format_target() {
         *)
             if [[ "$path" != */* ]]; then
                 case "$name" in
-                    *.js|*.jsx|*.cjs|*.mjs|*.ts|*.tsx|package.json|pnpm-workspace.yaml|tsconfig*.json|vitest.config.*)
+                    *.js|*.jsx|*.cjs|*.mjs|*.ts|*.tsx|*.mts|*.cts|package.json|pnpm-workspace.yaml|tsconfig*.json|vitest.config.*)
                         return 0
                         ;;
                 esac

@@ -7,9 +7,8 @@
 持续感知环境、协作完成工作、积累知识，并在运行中发展自身能力，始终与所服务的组织或个人
 保持利益对齐。
 
-> 产品设计、规格与实验实现并行推进。已接受的契约从
-> [身份清单](.meta_harness/design/registry/README.md)查找，实现及验证范围从
-> [实现映射](.meta_harness/design/realization/README.md)查找。
+> 产品设计、规格与实验实现并行推进。承诺归属从[架构维护入口](.meta_harness/design/architecture/README.md)查找；
+> 未迁契约及实现仍从[身份清单](.meta_harness/design/registry/README.md)和[实现映射](.meta_harness/design/realization/README.md)追溯。
 > 治理中心的启动与配置见 [tenancy-host](apps/tenancy-host/README.md)；
 > 可运行不等于已经满足生产准入。第一版完整交付为单机系统。
 
@@ -62,9 +61,8 @@ Agent 定义与装配、执行环境与沙箱、工具与技能、Meta Capabilit
 
 - **动态组合。** 可替换能力以具有生命周期、作用域和所有权的插件或服务组合；
   定义、运行实例、持久状态与物理部署分别建模。
-- **语言无关的契约。** TLA+ 表达行为权威规格，Alloy 辅助验证结构约束，JSON Schema
-  定义数据契约；产品实现以 TypeScript 为主。
-  已登记的契约身份见[身份清单](.meta_harness/design/registry/README.md)。
+- **就近维护精确承诺。** 公开 TypeScript 类型与必要运行时校验表达形状，薄规格表达剩余行为。
+  重要性质保留相称的模型与测试，归属见[架构维护入口](.meta_harness/design/architecture/README.md)。
 - **从第一天起落实租户隔离。** 自然人全局身份与租户成员关系分别表达；受租户所有权
   约束的对象和跨边界操作显式携带租户身份，跨租户访问默认拒绝。
 - **统一模型请求入口。** 所有模型请求经 OpenRouter 发送。

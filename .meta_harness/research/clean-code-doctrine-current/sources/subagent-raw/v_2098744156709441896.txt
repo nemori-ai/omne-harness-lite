@@ -1,0 +1,31 @@
+[00:01] Maybe it's time to rethink things here. For the last several months, I have been working
+[00:11] on harnesses that will take agents and orchestrate them. I worked very hard on figuring out ways
+[00:22] for the agents to hand off to each other without polluting each other. I worked very hard
+[00:28] on establishing the deterministic tools that each agent would use to make sure that they're
+[00:34] not going crazy and doing dumb things. I got them working. And then once the harness was
+[00:46] working and I did some measurements, and then I thought, well, let's just try to use one
+[00:53] agent to do the same thing. And one agent did it better than the harness by a rather large factor.
+[01:05] And I looked at the one agent and the output of the one agent and I thought, wait a minute,
+[01:11] they didn't used to be this good. They've really gotten a lot better. And so I did a few more
+[01:21] experiments and I found, just for example, what would have taken my harness three or
+[01:29] four hours to produce and produce acceptably, but not really great. A single grock instance
+[01:43] now can produce that in 40 minutes and do a better job than my harness. Even though
+[01:54] the harness is using that same grock model, apparently the harness is doing the damage.
+[02:01] That's not what I expected. So I tried an experiment, gave the harness, not the harness,
+[02:12] I gave a single grock agent a not insignificant task, a simple prompt, a not insignificant task,
+[02:24] and it worked on that for 40 minutes. I relaxed all of my constraints. I said,
+[02:32] keep crap below 12, do some mutation testing, write some unit tests, don't do any gherkin,
+[02:40] don't do any of that stuff. Just basic stuff, you know, keep crap below 12. Usually I had a
+[02:45] keeping crap below six, but no, keep crap below 12. Okay. And then I just walked away and let it
+[02:52] churn and 40 minutes later, it produced a remarkably good outcome. Not perfect. There
+[03:01] were a couple of little quibbles, but I mean, not nearly as bad as the harness. And it had
+[03:06] actually, without trying, kept crap below six. Anyway, even though it wasn't trying to,
+[03:15] it just said, well, you know, I broke it up into the modules that I thought was appropriate and
+[03:20] all the crap came out less than six. So, okay. And I said, well, what about the mutation testing?
+[03:26] And it said, well, the mutation testing did help to find some bugs and omissions,
+[03:32] but it also left scars. And when I traced down those scars, and I'm going to have to do
+[03:37] something about that because the mutation testing algorithm forces the agent to do stupid things.
+[03:44] It also forces the agent to do good things, but some of the stupid things are so stupid that you
+[03:51] think, well, you know, why the hell is it doing that? I'll leave that to another time to explain.
+[03:57] In any case, it's time to rethink this. Maybe, maybe I should not be considering the agents to
+[04:11] be components in a software design.

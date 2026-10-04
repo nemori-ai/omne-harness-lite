@@ -1,0 +1,73 @@
+{
+  "index": 36,
+  "route": "deepseek/deepseek-v4.1-flash",
+  "providerRequested": "deepinfra/fp8",
+  "variant": "B",
+  "startedAt": "2026-10-02T17:04:41.102Z",
+  "finishedAt": "2026-10-02T17:04:42.546Z",
+  "durationMs": 1444,
+  "reservationUsd": "0.000926100000000000",
+  "costUsd": "0.000056840000",
+  "costReported": true,
+  "providerMismatch": true,
+  "status": 200,
+  "usage": {
+    "prompt_tokens": 214,
+    "completion_tokens": 64,
+    "total_tokens": 278,
+    "cost": "0.00005684",
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00005684,
+      "upstream_inference_prompt_cost": 0.00002996,
+      "upstream_inference_completions_cost": 0.00002688
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 64,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "provider": "DeepInfra",
+  "upstreamModel": "deepseek/deepseek-v4.1-flash",
+  "requestId": "gen-1790960681-KLI9p9JdEWK5vwqCAvLK",
+  "finish": "length",
+  "outputPreview": "The user has sent an image that appears to be a solid color — a reddish/coral/salmon colored square. There's no accompanying text or question. \n\nI should describe what I see and ask what they'd like m",
+  "outcome": "accepted",
+  "rawResponse": "data: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"The\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"The\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" user has\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" user has\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" sent\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" sent\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" an image that appears\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" an image that appears\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" to be a solid color\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" to be a solid color\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" — a\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" — a\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" reddish/c\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" reddish/c\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"oral/s\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"oral/s\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"almon colored square\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"almon colored square\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\". There's no accompanying\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\". There's no accompanying\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" text or question. \\n\\nI\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" text or question. \\n\\nI\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" should\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" should\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" describe\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" describe\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" what I see and\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" what I see and\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" ask\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" ask\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" what they'd\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" what they'd\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" like me\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" like me\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" to do with it. Since\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" to do with it. Since\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" there\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" there\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"'s no question, I should\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"'s no question, I should\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" respond help\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" respond help\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\"fully by\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\"fully by\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":\" noting\",\"reasoning_details\":[{\"type\":\"reasoning.text\",\"text\":\" noting\",\"format\":\"unknown\",\"index\":0}]},\"finish_reason\":null,\"native_finish_reason\":null}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\",\"reasoning\":null},\"finish_reason\":\"length\",\"native_finish_reason\":\"length\"}]}\n\ndata: {\"id\":\"gen-1790960681-KLI9p9JdEWK5vwqCAvLK\",\"object\":\"chat.completion.chunk\",\"created\":1790960681,\"model\":\"deepseek/deepseek-v4.1-flash\",\"provider\":\"DeepInfra\",\"service_tier\":\"default\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":\"length\",\"native_finish_reason\":\"length\"}],\"usage\":{\"prompt_tokens\":214,\"completion_tokens\":64,\"total_tokens\":278,\"cost\":0.00005684,\"is_byok\":false,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0,\"video_tokens\":0},\"cost_details\":{\"upstream_inference_cost\":0.00005684,\"upstream_inference_prompt_cost\":0.00002996,\"upstream_inference_completions_cost\":0.00002688},\"completion_tokens_details\":{\"reasoning_tokens\":64,\"image_tokens\":0,\"audio_tokens\":0}}}\n\ndata: [DONE]\n\n",
+  "rawTruncated": false,
+  "request": {
+    "model": "deepseek/deepseek-v4.1-flash",
+    "provider": {
+      "order": [
+        "deepinfra/fp8"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true
+    },
+    "stream": true,
+    "usage": {
+      "include": true
+    },
+    "max_tokens": 64,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSU...[154 chars, png sha256 0d9cc10556d669b8]"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

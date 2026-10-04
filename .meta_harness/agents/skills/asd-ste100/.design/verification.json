@@ -1,0 +1,50 @@
+{
+  "format": 1,
+  "verified_on": "2026-10-03",
+  "repository_baseline": "7e91c8f3950b346a067661f4d80027f03ca8d478",
+  "upstream_revision": "7d4a135a199a5d7447c4886bcd7ffe742a627bc9",
+  "import_manifest": "upstream.json",
+  "checks": [
+    {
+      "name": "upstream inventory and hashes",
+      "result": "pass",
+      "detail": "All 7 tracked upstream files accounted for. Six are byte-identical. SKILL.md differs only by moving version into metadata. Both host copies match canonical bytes."
+    },
+    {
+      "name": "official skill-creator quick_validate.py",
+      "result": "pass",
+      "detail": "Canonical and both generated skill directories pass. The unchanged upstream entry fails on its top-level version field; the import records this sole adjustment."
+    },
+    {
+      "name": "python3 canonical/scripts/ste-lint.py --selftest",
+      "result": "pass",
+      "output": "selftest OK"
+    },
+    {
+      "name": "linter CLI smoke cases",
+      "result": "pass",
+      "detail": "Six cases cover protected modality, hard failure, baseline tolerance, disabled rules, prose in Markdown table cells, and exactly two dangling-conjunction findings from the intentional invalid fixture."
+    },
+    {
+      "name": "make agents-check",
+      "result": "pass",
+      "output": "PASS: checked 188 files for all; host loading and model behavior not tested. PASS: three relative project links checked."
+    },
+    {
+      "name": "make docs-check",
+      "result": "pass",
+      "output": "PASS: 2442 Markdown files; local links and skill mirrors."
+    },
+    {
+      "name": "pytest tooling/tests/test_compile_agents.py tooling/tests/test_link_agents.py",
+      "result": "pass",
+      "output": "39 passed in 0.81s"
+    }
+  ],
+  "unverified": [
+    "Discovery or loading by an already running Codex or Claude Code session",
+    "Model rewrite behavior and preservation of meaning on real project text",
+    "Official ASD-STE100 dictionary compliance",
+    "Effects on downstream agent task success"
+  ]
+}

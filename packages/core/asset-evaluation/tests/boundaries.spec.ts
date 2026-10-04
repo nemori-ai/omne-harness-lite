@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：重 CPU：每条用例跑完整的 evaluate，正文判定在调用中真实编译 JSON Schema（不替换）。
 import { describe, expect, it } from 'vitest'
 import { carrierRecordId } from '@omne-harness-lite/asset-model'
 import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
@@ -168,6 +170,8 @@ describe('input conditions and multi-error priority', () => {
         root: {
           definition: root,
           references: [{ capability: shell }, { capability: shell, resident: true }],
+          attributes: [],
+          source: { asset: 'ast_root', version: 1 },
         },
       },
       'C14',
@@ -175,7 +179,12 @@ describe('input conditions and multi-error priority', () => {
     invalid(
       {
         ...base,
-        root: { definition: root, references: [{ capability: github, resident: false }] },
+        root: {
+          definition: root,
+          references: [{ capability: github, resident: false }],
+          attributes: [],
+          source: { asset: 'ast_root', version: 1 },
+        },
       },
       'C14',
     )
@@ -234,6 +243,8 @@ describe('input conditions and multi-error priority', () => {
         root: {
           definition: root,
           references: [{ capability: plugin }, { capability: root }, { capability: shell }],
+          attributes: [],
+          source: { asset: 'ast_root', version: 1 },
         },
         session: [{ capability: shell, assignment: assignment('execute', { allowed: ['yolo'] }) }],
       },
@@ -304,7 +315,12 @@ describe('workspace restrictions, resident, version selection and caller ownersh
         holding('workspace', github, mcpAsset),
         holding('workspace', hook, hookAsset),
       ],
-      root: { definition: root, references: [{ capability: github }, { capability: hook }] },
+      root: {
+        definition: root,
+        references: [{ capability: github }, { capability: hook }],
+        attributes: [],
+        source: { asset: 'ast_root', version: 1 },
+      },
     }
     const effective = result(input)
     expect(effective.composition).toEqual([])

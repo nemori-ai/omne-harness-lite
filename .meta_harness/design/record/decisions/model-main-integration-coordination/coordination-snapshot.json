@@ -1,0 +1,80 @@
+{
+  "format": 1,
+  "checkpoint_commit": "19c7ec60d77f5e54ea36702d3b7f0d00cc3b7a0e",
+  "upstream_commit": "9c15813113e7e77393f38c74778dee144533bf43",
+  "historical_sources": {
+    "record/decisions/model-adaptation-binding-acceptance/decision.md": "d50c5bfaf6adf9913894e21892c66fddffe43a958741263c4734e970d874295e",
+    "record/decisions/model-adaptation-binding-acceptance/acceptance-2.json": "8fe1b7977bd56608b129422155097ff3aaabec2ba231a648b05836d3fd93a979",
+    "record/decisions/model-adaptation-binding-acceptance/README.md": "548a447072a9d04c3e829235e22d27bfe0d8aece17b13b15e490ba02d4568e48",
+    "record/decisions/model-adaptation-binding-acceptance/acceptance.json": "2325ad9ea365e22db85add3a8f192660a0a4ae4e565dbba79e18ebbfc44cf89f",
+    "record/decisions/model-value-provider-adoption/decision.md": "1d50c117435e72fe06e6414438229081f0e801a2a7fb65503dda701beafff4e9",
+    "record/decisions/model-value-provider-adoption/README.md": "79db48a7a6507496d3800b6c1505ad15bda102a34652e42e1f57766607da6571",
+    "record/decisions/model-value-provider-adoption/acceptance.json": "45e4c92e7c48d186675f7269a2f0ff7704dc419f15e5d2d5bcbc8a911a421286",
+    "record/decisions/agent-definition-read-adoption/decision.md": "a41f1c8215fc81fb277bd3074503c05e44bc76fdb3bceb388677051b247d6481",
+    "record/decisions/agent-definition-read-adoption/README.md": "f07b2d9fe58e5874fb0f4cb484240cc20abb99b0c80e2193b572325d1d428326",
+    "record/decisions/agent-definition-read-adoption/acceptance.json": "dcd1df6eb2acf2f76f7467c795127c0bd9d02ba6e3778f9334f42ac3b34f0fe1"
+  },
+  "catalog_acceptance_changes": [
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.model-profile",
+        "version": 3
+      },
+      "previous_acceptance": "record/decisions/model-adaptation-binding-acceptance/acceptance-2.json",
+      "current_acceptance": "record/decisions/model-main-integration-coordination/acceptance.json"
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.messages",
+        "version": 4
+      },
+      "previous_acceptance": "record/decisions/model-adaptation-binding-acceptance/acceptance-2.json",
+      "current_acceptance": "record/decisions/model-main-integration-coordination/acceptance.json"
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.model-response",
+        "version": 4
+      },
+      "previous_acceptance": "record/decisions/model-adaptation-binding-acceptance/acceptance-2.json",
+      "current_acceptance": "record/decisions/model-main-integration-coordination/acceptance.json"
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "capability.model-profile-directory",
+        "version": 3
+      },
+      "previous_acceptance": "record/decisions/model-adaptation-binding-acceptance/acceptance-2.json",
+      "current_acceptance": "record/decisions/model-main-integration-coordination/acceptance.json"
+    },
+    {
+      "coordinate": {
+        "baseline_id": "omne-harness-lite-design-2026-09-15",
+        "contract_id": "data.agent-definition",
+        "version": 1
+      },
+      "previous_acceptance": "record/decisions/agent-definition-read-adoption/acceptance.json",
+      "current_acceptance": "record/decisions/model-main-integration-coordination/acceptance.json"
+    }
+  ],
+  "provider_adoption_sources": {
+    "agent-definition-read-adoption/acceptance.json#provider_adoption": {
+      "node": "packages/core/agent-definition",
+      "input_sha256": {
+        "realization/packages/core/agent-definition/bindings.yaml": "faf8d87e9ff47524741670ac0ea4224889a2700630e3d81ed829757fcc2d8a99",
+        "realization/packages/core/agent-definition/verification.md": "e9d2090d289e7ea4e83169c34961553d4a1f40b6aa32b01bd652620306c215be",
+        "realization/packages/core/agent-definition/design.md": "c080fad47a72ab9e2df0168e068712fc5d2a6e58b145c3d5e6efdb0216b5d872",
+        "realization/packages/core/agent-definition/README.md": "2e788faa8cd6a8b31072f57614f311e3740a0322e5c1682512e293f53b4cdead"
+      },
+      "public_entry": "@omne-harness-lite/agent-definition",
+      "implementation": "pending actual code and verification"
+    }
+  },
+  "frozen_resources_changed": 0,
+  "new_contract_coordinates": 0,
+  "new_bindings": 0
+}

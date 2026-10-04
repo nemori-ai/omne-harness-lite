@@ -28,7 +28,7 @@
 | 已有规则内的文字、链接、工具修复或实现修正 | 定位内容所有者或精确契约，在任务范围内修改并做相称验证；不要求另造提案或决定 |
 | 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 在 `.meta_harness/design/` 相应 family 接续或创建信息包，沿手册分析现有能力覆盖、剩余责任与候选；必要政策未明确时，暂停依赖它的实施 |
 | 新观察挑战已有决定 | 按 [record 家族](.meta_harness/design/record/README.md)的规矩关联受影响决定，提交可复现、可验证的因果依据；观察本身不自动取代决定 |
-| 发布或修订正式规格 | 按[身份清单](.meta_harness/design/registry/README.md)与[规格区](.meta_harness/design/spec/README.md)维护接受依据、精确引用与冻结；历史规范原件不原地覆盖 |
+| 发布或修订正式规格 | 按[架构维护规则](.meta_harness/design/architecture/README.md)维护唯一承诺源、接受依据和消费者；未迁规格仍按 registry/spec 冻结，历史原件不覆盖 |
 | 衔接能力规格、提供者设计与实施交接 | 加载 `harness-design-handbook` skill 的「规格演进」，明确当前正文、就绪范围、受影响消费者与未完成义务 |
 | 创建或维护 skills、角色及宿主适配 | 在 [.meta_harness/agents](.meta_harness/agents/README.md) 修改源；skill 加载官方 `skill-creator`，角色加载 `design-subagents` skill，AGENTS.md 加载 `write-agents-md` skill |
 
@@ -46,7 +46,8 @@
 
 先核对当前检出、分支和已有改动。常规隔离、合并与清理由
 `worktree-discipline` skill 维护，工作树容器统一在
-主检出根的 `.worktrees/`。任务中明确授权的例外按其范围执行，不改写为永久惯例。
+主检出根的 `.worktrees/`，一个会话只用一棵工作树。任务中明确授权的例外按其范围执行，不改写为永久惯例；
+一个会话带几棵工作树或并行的写入者不在可例外之列，要改就改那份 skill。
 保护其他任务已有的改动，环境准备按开发指南在实际工作的检出中完成。
 
 新增依赖应说明它解决什么问题以及为何适合，依赖归属和锁文件维护按
@@ -63,6 +64,9 @@
 - 具体问题、预期行为和实际改变，以及采用的需求、设计或规格版本。
 - 影响的边界、取舍、未决项及需要重点审阅的地方；只有实际相关时才展开。
 - 实际执行的验证及结果，必要的复现方式；未执行、失败和未覆盖项分别说明。
+- 改了产品源码的交付，附[结构度量](docs/verification.md#检查入口)的摘要原文与产物位置：
+  它对应哪个提交、工作树是否干净；基线以来改动的函数里超阈值的，逐条写已处理或保留理由。
+  向接受者请求接受时给出审讯页的绝对路径。度量是抽查线索，不代替上面的验证。
 
 按[验证规范](docs/verification.md)选择检查。新增测试应保护改变的可观察
 行为；局部文字修复无需为凑数量编写测试。修改行为时同步其所属说明、示例或契约，
@@ -75,9 +79,10 @@ skills/roles 变更一并交付 canonical/角色源、宿主适配与生成产�
 
 使用 AI 辅助时，**对最终内容、事实来源和验证声明负责**；生成成功不等于已验证。
 分支名以自己的 git username 开头，**不用 `codex/`、`claude/` 这类 harness 或 agent 名**；
-commit 的 author 与 trailer **不带任何 coding agent 信息**。
-理由见[根 AGENTS.md 的「署名与分支」](AGENTS.md#署名与分支权责归于人)——
-**署名只写人，责任才无处可退。**
+commit 的 author 与 committer **只有人**，不写 `Co-Authored-By`、`Generated with` 这类把 agent 列为作者的行；
+agent 参与产出的提交另带 `Harness:` 与 `Agent-Role:` 两条来源 trailer，只记来源、不表示作者身份。
+理由与写法见[根 AGENTS.md 的「署名与分支」](AGENTS.md#署名与分支作者是人来源可追溯)——
+**署名只写人，责任才无处可退；来源记下来，过程才有迹可循。**
 
 ## 评审与接受
 
