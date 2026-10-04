@@ -2,7 +2,7 @@ import {
   ACCOUNT_ID_COLUMN,
   ACCOUNT_TABLE,
   accountIdentityMigrations,
-} from '@omne-harness-lite/account-identity'
+} from '@omne-harness-lite/account-identity-sql'
 import { clockMigrations } from '@omne-harness-lite/clock-lease'
 import { replicaMigrations } from '@omne-harness-lite/credential-custodian-local/migrations'
 import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory/migrations'

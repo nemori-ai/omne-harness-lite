@@ -3,7 +3,7 @@ import {
   ACCOUNT_SNAPSHOT_TABLES,
   ACCOUNT_TABLE,
   ACCOUNT_ID_COLUMN,
-} from '@omne-harness-lite/account-identity'
+} from '@omne-harness-lite/account-identity-sql'
 import {
   organizationGovernanceSnapshotCheck,
   ORGANIZATION_SNAPSHOT_TABLES,
@@ -12,7 +12,7 @@ import { clockSnapshotCheck, CLOCK_SNAPSHOT_TABLES } from '@omne-harness-lite/cl
 import {
   governanceCenterSnapshotCheck,
   CENTER_SNAPSHOT_TABLES,
-} from '@omne-harness-lite/governance-center-entry'
+} from '@omne-harness-lite/governance-center-entry-node'
 import { storageSnapshotCheck, STORAGE_SNAPSHOT_TABLES } from '@omne-harness-lite/storage-sql'
 import type { SnapshotCheck } from '@omne-harness-lite/storage'
 import {

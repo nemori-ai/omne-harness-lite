@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "clock 服务：offer-expiry 的 Clock 形状的实现——单调钟锚定 + 存储里写在前的租约，回拨 ⇒ 'unavailable'",
+  "description": "clock \u670d\u52a1\uff1aoffer-expiry \u7684 Clock \u5f62\u72b6\u7684\u5b9e\u73b0\u2014\u2014\u5355\u8c03\u949f\u951a\u5b9a + \u5b58\u50a8\u91cc\u5199\u5728\u524d\u7684\u79df\u7ea6\uff0c\u56de\u62e8 \u21d2 'unavailable'",
   "engines": {
     "node": ">=24 <25"
   },
@@ -31,7 +31,8 @@
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/storage": "workspace:*",
     "kysely": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/storage-sql": "workspace:*",

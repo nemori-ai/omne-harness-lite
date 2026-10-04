@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-04T22:24:01.594346+00:00",
+  "base": "67eecc1ae53be30efec473206e5d1926dd5d500f",
+  "candidate": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+  "actor": "root within panqiwei implementation delegation",
+  "decision": "Accept R1-T2 frozen product scope after independent L3 and root architecture/hotspot judgment. Merge and external evidence preservation still pending.",
+  "review_sha256": "0990088da01ff16fa8dd4577515deb7e45c8298cf5daa43d6a1a8d29d35fa88a",
+  "qa_manifest_sha256": "c1942dff8f0243d566ed45dff477fd4c34d9fc0a44afee2930e4be1f58c508f5",
+  "limits": [
+    "QA observation-scanner controls are not four product leakage mutations",
+    "CV pure interface has no close; runtime binding/caller drains",
+    "participation remains caller-owned StorageUnit",
+    "A5/EIS/W6/PG/formal registration and T3/T4/R2 still open"
+  ]
+}

@@ -72,14 +72,15 @@
       "id": "host-composition",
       "paths": [
         "apps/tenancy-host/src/boot.ts",
-        "apps/tenancy-host/src/manifest.ts"
+        "apps/tenancy-host/src/manifest.ts",
+        "apps/tenancy-host/src/assembly.ts"
       ],
       "layer": "assembly",
       "domains": [
         "identity"
       ],
       "status": "adopted",
-      "source": ".meta_harness/design/realization/apps/tenancy-host/design.md"
+      "source": ".meta_harness/design/architecture/identity-integration/retirement.md"
     },
     {
       "id": "business-storage",
@@ -104,7 +105,7 @@
     {
       "id": "registration-policy",
       "paths": [
-        "packages/tenancy/account-registration/src/registration.ts"
+        "packages/tenancy/account-registration-sequential/src/registration.ts"
       ],
       "layer": "policy",
       "domains": [
@@ -128,7 +129,7 @@
     {
       "id": "mixed-governance-entry",
       "paths": [
-        "packages/tenancy/governance-center-entry/src/**"
+        "packages/tenancy/governance-center-entry-node/src/**"
       ],
       "layer": "unknown",
       "domains": [
@@ -153,7 +154,7 @@
     {
       "id": "packages/tenancy/account-identity",
       "paths": [
-        "packages/tenancy/account-identity/src/**"
+        "packages/tenancy/account-identity-sql/src/**"
       ],
       "layer": "unknown",
       "domains": [
@@ -177,7 +178,7 @@
     {
       "id": "packages/tenancy/credential-verification",
       "paths": [
-        "packages/tenancy/credential-verification/src/**"
+        "packages/tenancy/credential-verification-scrypt/src/**"
       ],
       "layer": "unknown",
       "domains": [
@@ -533,6 +534,64 @@
       ],
       "status": "candidate",
       "source": "system-intent.md#责任方向"
+    },
+    {
+      "id": "identity-definition-account-identity",
+      "paths": [
+        "packages/core/account-identity/src/**"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/design.md"
+    },
+    {
+      "id": "identity-definition-account-registration",
+      "paths": [
+        "packages/core/account-registration/src/**"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/design.md"
+    },
+    {
+      "id": "identity-definition-governance-center-entry",
+      "paths": [
+        "packages/core/governance-center-entry/src/**"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/design.md"
+    },
+    {
+      "id": "assembly-lifetime-protocol",
+      "paths": [
+        "packages/core/assembly-lifecycle/src/types.ts"
+      ],
+      "layer": "contract",
+      "domains": [],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/retirement.md"
+    },
+    {
+      "id": "assembly-lifetime-mechanism",
+      "paths": [
+        "packages/core/assembly-lifecycle/src/index.ts",
+        "packages/core/assembly-lifecycle/src/lifetime.ts",
+        "packages/core/assembly-lifecycle/src/cordis.ts"
+      ],
+      "layer": "assembly",
+      "domains": [],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/retirement.md"
     }
   ],
   "rules": [

@@ -1,3 +1,6 @@
+import { symbols } from '@deepseek-ai/cordis'
+import type { CredentialsService } from '@omne-harness-lite/account-identity'
+import { holdDerivation } from './support/managed.ts'
 // @module-tag slow
 // 归慢层：真实等待＋整套装配：按真实时长等时钟租约与撤除总超时，每条都起完整中心（SQLite 文件库、本地 TLS 入口）。
 // 按真实时长跑的几条（时钟租约宽度 10 s、撤除总超时 30 s 都是真常量）：
@@ -121,16 +124,14 @@ describe('assembly.no-commit-before-open ⑤：确认之后等不到 serving（�
 })
 
 describe('assembly.dispose-real-completion', () => {
-  it('30秒只报告still-stopping，保持真实等待与源owner直到disposer结束', async () => {
+  it('30秒只报告still-stopping，保持源owner直到已接纳的 scrypt 和账号提交结束', async () => {
     const d = await deployment('dispose-pending')
     const { host, log } = await hosts.start(d)
-    const registration = host.fibers['account-registration']
-    if (registration === undefined) throw new Error('no AR fiber')
-    let release!: () => void
-    const gate = new Promise<void>(resolve => {
-      release = resolve
-    })
-    registration.ctx.effect(() => () => gate, 'test: delayed disposer')
+    const held = holdDerivation(
+      Reflect.get(host.context.credentials, symbols.original) as CredentialsService,
+    )
+    const admitted = host.context.accounts.produce('held-during-close', 'correct horse battery')
+    await held.reached
     let settled = false
     const disposing = hosts.stop(host).then(result => {
       settled = true
@@ -140,10 +141,7 @@ describe('assembly.dispose-real-completion', () => {
       await new Promise<void>(resolve => setTimeout(resolve, DISPOSE_TIMEOUT_MS + 200))
       expect(settled).toBe(false)
       expect(log.events('still-stopping')).toHaveLength(1)
-      expect(log.events('fiber-disposed').map(line => line['plugin'])).toEqual([
-        'governance-center-entry',
-        'governance-center-ops',
-      ])
+      expect(log.events('fiber-disposed')).toEqual([])
       const { openStorage, createUpgradeGuard } = await import('@omne-harness-lite/storage-sql')
       const { composeMigrations } = await import('@omne-harness-lite/storage')
       const { hostMigrationFragments } = await import('../src/index.ts')
@@ -156,8 +154,9 @@ describe('assembly.dispose-real-completion', () => {
         }),
       ).rejects.toMatchObject({ stage: 'occupied' })
     } finally {
-      release()
+      held.release()
     }
+    expect(await admitted).toHaveProperty('ok')
     expect(await disposing).toEqual({ complete: true, unfinished: [] })
     expect(query(d.file, 'SELECT count(*) AS n FROM governance_center')).toEqual([{ n: 1 }])
   }, 90_000)

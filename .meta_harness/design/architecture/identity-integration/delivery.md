@@ -24,15 +24,22 @@ T4 最后把已具备有序收尾的手写装配切到数据树及资源注入�
 
 | 增量 | 允许产品写入 | 消费者同步点／保留边界 |
 |---|---|---|
-| R1-T2 | core/assembly-lifecycle 与 SQL/clock/entry 管理绑定、手写 host；core/EC 的 EntryOpening 定义及两面消费者；core/account-identity、core/account-registration、既有 core/organization-governance；对应三个改名提供者及 organization-governance-sql；必要 manifests/lock/精确检查 | entry、host、model 示例等所有身份导入同批迁移；纯根与正式 Service 同批成立；公共 ActionIntent 业务留 T3，host 仍手写可运行 |
+| R1-T2 | core/assembly-lifecycle 与 SQL/clock/entry 管理绑定、手写 host；core/EC 的 EntryOpening 定义及两面消费者；core/account-identity、core/account-registration、既有 core/organization-governance；对应三个改名提供者及 organization-governance-sql；entry 提供者提前物理改名为 governance-center-entry-node；必要 manifests/lock/精确检查 | entry、host、model 示例等所有身份导入同批迁移；纯根与正式 Service 同批成立；公共 ActionIntent 业务留 T3，host 仍手写可运行；entry 包名消费者和发布/部署路径同批迁移 |
 | R1-T3 | 三个 frontend 提供者及 CLS/CG/HT 定义；EC 的公共路由词汇；CLI 装配/控制/输入/输出；必要 schema 生成/包清单/精确检查 | root factories 显式传入 state/transport/storage 工厂，CLI 装配负责选择；server 仅改公共词汇与操作消费者，不提前更换 host 生命周期 |
-| R1-T4 | core/cordis-plugin-tree；core/storage 剩余运行资源接口；core/EC 剩余资源/事件；SQL owning binding；服务端提供者分面/改名；tenancy-host 及真实部署/CLI入口 | 复用 T2 已接入的 lifetime 和 EntryOpening，不再造第二份；SQL 独立 API 保持，剩余资源从 Config 移到服务；迁移所有事件/服务端包消费者及 Docker/发布入口；删除手写 ManifestEntry 装载路径 |
+| R1-T4 | core/cordis-plugin-tree；core/storage 剩余运行资源接口；core/EC 剩余资源/事件；SQL owning binding；已改名服务端提供者分面；tenancy-host 及真实部署/CLI入口 | 复用 T2 已接入的 lifetime 和 EntryOpening，不再造第二份；SQL 独立 API 保持，剩余资源从 Config 移到服务；迁移事件及剩余资源消费者；删除手写 ManifestEntry 装载路径 |
 | R1-T5 | 范围内遗留整改和必要验收证据 | 最新主线逐项比较语义/关系/实际制品，独立 L3；范围内阻断不能转为后继已知问题 |
 
 源文件迁移保持公开能力，不授权重写业务算法。每批前更新静态消费者清单。
 旧目录、根插件导出、重复服务键和旧事件名同时退役，不留兼容别名。
 registry、冻结、源码结构规则、发布/生成及文档入口须按实际影响改接。
 历史接受事件不改写。旧源未消费清零的部分继续有效，进入 N5/N6 精确接续。
+
+T2 装载坐标及提前改名已由[限定补充采用](../../record/decisions/identity-t2-binding-coordinates/decision.md)接受，
+精确入口见[管理绑定表](retirement.md#t2-绑定的精确装载坐标)。
+前述 entry 物理改名提前，是因为新 core/EC 与旧提供者不能同时占用同一 npm 包名。
+这次先消除包名冲突并改接全部实际包路径消费者，T4 再完成服务端独立工厂分面、
+其余事件/资源服务和数据树。不得将提前改名记为这些后继行为已实现。
+QA 在 M05 同时冻结这次包路径切换和八个管理入口；坐标未采用前不释放 S1。
 
 ## 每个增量内部的施工顺序
 
@@ -41,15 +48,15 @@ registry、冻结、源码结构规则、发布/生成及文档入口须按实�
 
 | 切片 | 前置输入与产出 | 当片完成条件 |
 |---|---|---|
-| T2-S1 | D0 接受、最新 BASE 和 QA 基线冻结 → assembly-lifecycle 纯协调器及 Cordis 端口 | 真实 Cordis 的独占接管/登记/部分 setup/双失败/一次性代际/有序实际关闭通过；包括缺登记、effect 安装失败和取消 |
+| T2-S1 | D0 接受、最新 BASE 和 QA 基线冻结 → assembly-lifecycle 纯协调器、Cordis 端口及同步 apply 的 startAssemblyWork | 真实 Cordis 的独占接管/登记/部分 setup/双失败/一次性代际/有序实际关闭通过；包括缺登记、effect 安装失败和取消 |
 | T2-S2 | S1 公共形状 → AI/CV/AR/OG 定义、纯工厂及薄规格，迁移全部直接/间接消费者 | 旧算法和持久身份逐项保持；完整操作与四种公开闭包核对；AR 即时 isActive 与 delayed close 分离；未接入 host 前不宣称装配保证 |
-| T2-S3 | S1/S2 完整 close 与接口 → SQL/clock/身份/组织/注册/EC 双面管理绑定及手写 host | 同一协调器、单一资源关闭者、双面共享 EntryOpening；强制撤除仍保留必要后半程，守卫/启动顺序保持 |
+| T2-S3 | S1/S2 完整 close 与接口 → SQL/clock/身份/组织/注册/EC 双面管理绑定及手写 host | 同一协调器、单一资源关闭者、同步管理 apply 与 OwnedWork.ready/ACTIVE 双屏障、双面共享 EntryOpening；强制撤除仍保留必要后半程，守卫/启动顺序保持 |
 | T2-S4 | 可运行 S3 → 检查、模型、实际包与独立 L3 | T2-Q0～Q5 全部给出证据；关闭范围内阻断后接受、合入和保全 |
 | T3-S1 | T2 已合入 → CLS/CG/HT 定义、纯工厂及模块规格 | 全部公开形状/动作接续，state/transport/storage 工厂显式传入；不保留提供者根兼容别名 |
 | T3-S2 | S1 → CLI 装配和消费者迁移、同一协调器接入 | storage 工厂→CLS→transport→CG 的依赖和逆序关闭成立；旧 CG 工厂及具体类型入口删除 |
 | T3-S3 | 可运行 S2 → TLS/SQLite/CLI、必要 PTY、制品和独立 L3 | T3-Q1～Q3 全部成立并限定接受合入 |
 | T4-S1 | T2/T3 已合入 → 树纯协议、prepare/load 与剩余资源服务 | 静态坏树先于任何 apply 拒绝，部分 setup 和完整关闭可观察；不新增生命周期协调器 |
-| T4-S2 | S1 → 真实 host 发行/运维树和服务端改名、全部部署消费者 | 先准备再接触数据，确认/开闸/维护/撤除保持；删除手写清单实现 |
+| T4-S2 | S1 → 真实 host 发行/运维树和已改名服务端分面、全部部署消费者 | 先准备再接触数据，确认/开闸/维护/撤除保持；删除手写清单实现 |
 | T4-S3 | 可运行 S2 → 真实部署正负控、旧模型和独立 L3 | T4-Q1～Q4 全部成立并限定接受合入 |
 
 各片不并行写。只读审阅可以消费固定快照，后续写入影响其输入时必须补审。

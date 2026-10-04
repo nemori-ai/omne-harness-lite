@@ -1,0 +1,311 @@
+{
+  "head": "cf4ce5874100c4271bd3b01327da7b81c443a39a",
+  "observation": "Imported built exports and dependency metadata only; this does not observe service availability or start resources.",
+  "result": [
+    {
+      "member": "infra/storage-sql",
+      "name": "managedStorageSqlPlugin",
+      "pluginName": "storage-sql-managed",
+      "assemblyLifecycle": 1,
+      "expected": [
+        "assemblyLifetime"
+      ],
+      "positions": [
+        {
+          "index": 0,
+          "own": true,
+          "type": "string",
+          "value": "assemblyLifetime"
+        }
+      ],
+      "pass": true
+    },
+    {
+      "member": "infra/clock-lease",
+      "name": "managedClockPlugin",
+      "pluginName": "clock-lease-managed",
+      "assemblyLifecycle": 1,
+      "expected": [
+        "storage",
+        "assemblyLifetime"
+      ],
+      "positions": [
+        {
+          "index": 0,
+          "own": true,
+          "type": "string",
+          "value": "storage"
+        },
+        {
+          "index": 1,
+          "own": true,
+          "type": "string",
+          "value": "assemblyLifetime"
+        }
+      ],
+      "pass": true
+    },
+    {
+      "member": "tenancy/credential-verification-scrypt",
+      "name": "managedCredentialsPlugin",
+      "pluginName": "credential-verification-scrypt-managed",
+      "assemblyLifecycle": 1,
+      "expected": [
+        "assemblyLifetime"
+      ],
+      "positions": [
+        {
+          "index": 0,
+          "own": true,
+          "type": "string",
+          "value": "assemblyLifetime"
+        }
+      ],
+      "pass": true
+    },
+    {
+      "member": "tenancy/account-identity-sql",
+      "name": "managedAccountIdentityPlugin",
+      "pluginName": "account-identity-sql-managed",
+      "assemblyLifecycle": 1,
+      "expected": [
+        "storage",
+        "clock",
+        "assemblyLifetime"
+      ],
+      "positions": [
+        {
+          "index": 0,
+          "own": true,
+          "type": "string",
+          "value": "storage"
+        },
+        {
+          "index": 1,
+          "own": true,
+          "type": "string",
+          "value": "clock"
+        },
+        {
+          "index": 2,
+          "own": true,
+          "type": "string",
+          "value": "assemblyLifetime"
+        }
+      ],
+      "pass": true
+    },
+    {
+      "member": "tenancy/organization-governance-sql",
+      "name": "managedOrganizationGovernancePlugin",
+      "pluginName": "organization-governance-sql-managed",
+      "assemblyLifecycle": 1,
+      "expected": [
+        "storage",
+        "clock",
+        "accounts",
+        "logins",
+        "assemblyLifetime"
+      ],
+      "positions": [
+        {
+          "index": 0,
+          "own": true,
+          "type": "string",
+          "value": "storage"
+        },
+        {
+          "index": 1,
+          "own": true,
+          "type": "string",
+          "value": "clock"
+        },
+        {
+          "index": 2,
+          "own": true,
+          "type": "string",
+          "value": "accounts"
+        },
+        {
+          "index": 3,
+          "own": true,
+          "type": "string",
+          "value": "logins"
+        },
+        {
+          "index": 4,
+          "own": true,
+          "type": "string",
+          "value": "assemblyLifetime"
+        }
+      ],
+      "pass": true
+    },
+    {
+      "member": "tenancy/account-registration-sequential",
+      "name": "managedRegistrationPlugin",
+      "pluginName": "account-registration-sequential-managed",
+      "assemblyLifecycle": 1,
+      "expected": [
+        "accounts",
+        "organizations",
+        "organizationPurge",
+        "assemblyLifetime"
+      ],
+      "positions": [
+        {
+          "index": 0,
+          "own": true,
+          "type": "string",
+          "value": "accounts"
+        },
+        {
+          "index": 1,
+          "own": true,
+          "type": "string",
+          "value": "organizations"
+        },
+        {
+          "index": 2,
+          "own": true,
+          "type": "string",
+          "value": "organizationPurge"
+        },
+        {
+          "index": 3,
+          "own": true,
+          "type": "string",
+          "value": "assemblyLifetime"
+        }
+      ],
+      "pass": true
+    },
+    {
+      "member": "tenancy/governance-center-entry-node",
+      "name": "managedGovernanceCenterOpsPlugin",
+      "pluginName": "governance-center-entry-node-ops-managed",
+      "assemblyLifecycle": 1,
+      "expected": [
+        "storage",
+        "clock",
+        "entryOpening",
+        "assemblyLifetime"
+      ],
+      "positions": [
+        {
+          "index": 0,
+          "own": true,
+          "type": "string",
+          "value": "storage"
+        },
+        {
+          "index": 1,
+          "own": true,
+          "type": "string",
+          "value": "clock"
+        },
+        {
+          "index": 2,
+          "own": true,
+          "type": "string",
+          "value": "entryOpening"
+        },
+        {
+          "index": 3,
+          "own": true,
+          "type": "string",
+          "value": "assemblyLifetime"
+        }
+      ],
+      "pass": true
+    },
+    {
+      "member": "tenancy/governance-center-entry-node",
+      "name": "managedGovernanceCenterEntryPlugin",
+      "pluginName": "governance-center-entry-node-managed",
+      "assemblyLifecycle": 1,
+      "expected": [
+        "storage",
+        "clock",
+        "credentials",
+        "logins",
+        "accounts",
+        "registration",
+        "organizations",
+        "memberships",
+        "offers",
+        "entryOpening",
+        "assemblyLifetime"
+      ],
+      "positions": [
+        {
+          "index": 0,
+          "own": true,
+          "type": "string",
+          "value": "storage"
+        },
+        {
+          "index": 1,
+          "own": true,
+          "type": "string",
+          "value": "clock"
+        },
+        {
+          "index": 2,
+          "own": true,
+          "type": "string",
+          "value": "credentials"
+        },
+        {
+          "index": 3,
+          "own": true,
+          "type": "string",
+          "value": "logins"
+        },
+        {
+          "index": 4,
+          "own": true,
+          "type": "string",
+          "value": "accounts"
+        },
+        {
+          "index": 5,
+          "own": true,
+          "type": "string",
+          "value": "registration"
+        },
+        {
+          "index": 6,
+          "own": true,
+          "type": "string",
+          "value": "organizations"
+        },
+        {
+          "index": 7,
+          "own": true,
+          "type": "string",
+          "value": "memberships"
+        },
+        {
+          "index": 8,
+          "own": true,
+          "type": "string",
+          "value": "offers"
+        },
+        {
+          "index": 9,
+          "own": true,
+          "type": "string",
+          "value": "entryOpening"
+        },
+        {
+          "index": 10,
+          "own": true,
+          "type": "string",
+          "value": "assemblyLifetime"
+        }
+      ],
+      "pass": true
+    }
+  ]
+}

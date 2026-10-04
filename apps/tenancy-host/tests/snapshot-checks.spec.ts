@@ -5,7 +5,7 @@ import { sql } from 'kysely'
 import { afterEach, describe, expect, it } from 'vitest'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import { createUpgradeGuard, openStorage, type SqlStorage } from '@omne-harness-lite/storage-sql'
-import { readSnapshotCenterId } from '@omne-harness-lite/governance-center-entry'
+import { readSnapshotCenterId } from '@omne-harness-lite/governance-center-entry-node'
 import { hostMigrationFragments } from '../src/migrations.ts'
 import { hostSnapshotChecks } from '../src/snapshot-checks.ts'
 

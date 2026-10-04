@@ -1,9 +1,9 @@
 import { constants } from 'node:fs'
 import { lstat, open } from 'node:fs/promises'
 import { dirname, isAbsolute } from 'node:path'
-import { AccountIdentityConfigSchema } from '@omne-harness-lite/account-identity'
-import { AccountRegistrationConfigSchema } from '@omne-harness-lite/account-registration'
-import { CredentialVerificationConfig } from '@omne-harness-lite/credential-verification'
+import { AccountIdentityConfigSchema } from '@omne-harness-lite/account-identity-sql'
+import { AccountRegistrationConfigSchema } from '@omne-harness-lite/account-registration-sequential'
+import { CredentialVerificationConfig } from '@omne-harness-lite/credential-verification-scrypt'
 import {
   isOk,
   issueHandoffWarrant,

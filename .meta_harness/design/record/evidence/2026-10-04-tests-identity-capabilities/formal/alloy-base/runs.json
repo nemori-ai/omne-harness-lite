@@ -1,0 +1,167 @@
+[
+  {
+    "label": "original",
+    "command": [
+      "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+      "-jar",
+      "/opt/alloy/alloy-6.2.0.jar",
+      "exec",
+      "-s",
+      "sat4j",
+      "-t",
+      "xml",
+      "-c",
+      "*",
+      "-o",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/alloy-base/original/solutions",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/alloy-base/original/Affiliation.als"
+    ],
+    "start_utc": "2026-10-04T18:21:29.169000+00:00",
+    "end_utc": "2026-10-04T18:21:30.086244+00:00",
+    "elapsed_seconds": 0.917,
+    "exit_code": 0,
+    "timed_out": false,
+    "timeout_seconds": 180,
+    "model_sha256": "1a72efa2f9b7c8199ae3aac797154120cf714a9b6dc674961621c8187cd1526f",
+    "mutation": {
+      "old": null,
+      "new": null
+    },
+    "expected": {
+      "aNonTrivialTree": "SAT",
+      "AcceptPreservesAcyclic": "UNSAT",
+      "PersonalOrganizationSharesNoAncestor": "UNSAT",
+      "ShareAncestorIsSameAffiliationTree": "UNSAT"
+    },
+    "observed": {
+      "aNonTrivialTree": "SAT",
+      "AcceptPreservesAcyclic": "UNSAT",
+      "PersonalOrganizationSharesNoAncestor": "UNSAT",
+      "ShareAncestorIsSameAffiliationTree": "UNSAT"
+    },
+    "receipt_observed": {
+      "aNonTrivialTree": "SAT",
+      "AcceptPreservesAcyclic": "UNSAT",
+      "PersonalOrganizationSharesNoAncestor": "UNSAT",
+      "ShareAncestorIsSameAffiliationTree": "UNSAT"
+    },
+    "matched": true
+  },
+  {
+    "label": "no-cycle-guard",
+    "command": [
+      "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+      "-jar",
+      "/opt/alloy/alloy-6.2.0.jar",
+      "exec",
+      "-s",
+      "sat4j",
+      "-t",
+      "xml",
+      "-c",
+      "AcceptPreservesAcyclic",
+      "-o",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/alloy-base/no-cycle-guard/solutions",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/alloy-base/no-cycle-guard/Affiliation.als"
+    ],
+    "start_utc": "2026-10-04T18:21:30.086811+00:00",
+    "end_utc": "2026-10-04T18:21:30.903151+00:00",
+    "elapsed_seconds": 0.816,
+    "exit_code": 0,
+    "timed_out": false,
+    "timeout_seconds": 180,
+    "model_sha256": "868cb9f39dc1ce8bc0b31a0bd02a5186617a1f0294c686c4611dfdc0eaaf7f13",
+    "mutation": {
+      "old": "    child not in newParent.*(c.parent)\n",
+      "new": ""
+    },
+    "expected": {
+      "AcceptPreservesAcyclic": "SAT"
+    },
+    "observed": {
+      "AcceptPreservesAcyclic": "SAT"
+    },
+    "receipt_observed": {
+      "AcceptPreservesAcyclic": "SAT"
+    },
+    "matched": true
+  },
+  {
+    "label": "no-self-guard",
+    "command": [
+      "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+      "-jar",
+      "/opt/alloy/alloy-6.2.0.jar",
+      "exec",
+      "-s",
+      "sat4j",
+      "-t",
+      "xml",
+      "-c",
+      "AcceptPreservesAcyclic",
+      "-o",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/alloy-base/no-self-guard/solutions",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/alloy-base/no-self-guard/Affiliation.als"
+    ],
+    "start_utc": "2026-10-04T18:21:30.903849+00:00",
+    "end_utc": "2026-10-04T18:21:31.720352+00:00",
+    "elapsed_seconds": 0.817,
+    "exit_code": 0,
+    "timed_out": false,
+    "timeout_seconds": 180,
+    "model_sha256": "dad2a69683ba420876e2245c1a2317f5e81f237961b63827bd6c7a2816000ad1",
+    "mutation": {
+      "old": "    child not in newParent.*(c.parent)\n",
+      "new": "    child not in ancestorChain[c, newParent]\n"
+    },
+    "expected": {
+      "AcceptPreservesAcyclic": "SAT"
+    },
+    "observed": {
+      "AcceptPreservesAcyclic": "SAT"
+    },
+    "receipt_observed": {
+      "AcceptPreservesAcyclic": "SAT"
+    },
+    "matched": true
+  },
+  {
+    "label": "exclusive-ancestor",
+    "command": [
+      "/opt/java/jdk-21.0.12.1+1-jre/bin/java",
+      "-jar",
+      "/opt/alloy/alloy-6.2.0.jar",
+      "exec",
+      "-s",
+      "sat4j",
+      "-t",
+      "xml",
+      "-c",
+      "ShareAncestorIsSameAffiliationTree",
+      "-o",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/alloy-base/exclusive-ancestor/solutions",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t2/alloy-base/exclusive-ancestor/Affiliation.als"
+    ],
+    "start_utc": "2026-10-04T18:21:31.721165+00:00",
+    "end_utc": "2026-10-04T18:21:32.587700+00:00",
+    "elapsed_seconds": 0.867,
+    "exit_code": 0,
+    "timed_out": false,
+    "timeout_seconds": 180,
+    "model_sha256": "cc063469590f776d928cbcd1b9bb7f160f7708e20afe6068041cb9941a9e3b07",
+    "mutation": {
+      "old": "    some (o1.*(c.parent)) & (o2.*(c.parent))\n",
+      "new": "    some ancestorChain[c,o1] & ancestorChain[c,o2]\n"
+    },
+    "expected": {
+      "ShareAncestorIsSameAffiliationTree": "SAT"
+    },
+    "observed": {
+      "ShareAncestorIsSameAffiliationTree": "SAT"
+    },
+    "receipt_observed": {
+      "ShareAncestorIsSameAffiliationTree": "SAT"
+    },
+    "matched": true
+  }
+]

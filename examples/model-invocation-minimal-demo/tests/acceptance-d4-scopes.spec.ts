@@ -3,7 +3,8 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { LOGINS_SERVICE, type LoginsService } from '@omne-harness-lite/account-identity'
+import { LOGINS_SERVICE } from '@omne-harness-lite/account-identity/cordis'
+import { type LoginsService } from '@omne-harness-lite/account-identity'
 import { generateHandoffKeyPair } from '@omne-harness-lite/identity-values'
 import {
   createAcceptanceApplication,

@@ -199,7 +199,8 @@ export const identityAccountReferences: Rule = {
   check(files) {
     const out: Violation[] = []
     for (const file of files) {
-      if (isTestPath(file.path) || !file.path.startsWith('tenancy/account-identity/src/')) continue
+      if (isTestPath(file.path) || !file.path.startsWith('tenancy/account-identity-sql/src/'))
+        continue
       const syntax = syntaxOf(file)
       visitSyntax(syntax, node => {
         if (

@@ -1,2 +1,2 @@
-export { storageSqlPlugin } from './plugin.ts'
+export { storageSqlPlugin, managedStorageSqlPlugin } from './plugin.ts'
 export { SqlStorageService } from './service.ts'

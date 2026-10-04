@@ -16,10 +16,10 @@ const imports = (name: string) => `import { x } from '@omne-harness-lite/${name}
 
 const core = file('packages/core/storage/src/index.ts', 'export const x = 1\n')
 const sql = file('packages/infra/storage-sql/src/index.ts', imports('storage'))
-const tenancy = file('packages/tenancy/account-identity/src/index.ts', imports('storage'))
+const tenancy = file('packages/tenancy/account-identity-sql/src/index.ts', imports('storage'))
 const host = file(
   'apps/tenancy-host/src/main.ts',
-  `${imports('storage-sql')}${imports('account-identity')}`,
+  `${imports('storage-sql')}${imports('account-identity-sql')}`,
 )
 const clean = [core, sql, tenancy, host]
 
@@ -37,13 +37,16 @@ describe('memberOf / memberGraph', () => {
   it('只取产品源码的字面导入；测试、自导入与子入口的处理', () => {
     const test = file('packages/core/storage/tests/a.spec.ts', imports('storage-sql'))
     const self = file('packages/core/storage/src/self.ts', imports('storage/conformance'))
-    const sub = file('packages/tenancy/account-identity/src/sub.ts', imports('storage/conformance'))
+    const sub = file(
+      'packages/tenancy/account-identity-sql/src/sub.ts',
+      imports('storage/conformance'),
+    )
     const graph = memberGraph([...clean, test, self, sub])
     expect(graph.edges.map(edge => `${edge.from} -> ${edge.to}`)).toEqual([
       'apps/tenancy-host -> packages/infra/storage-sql',
-      'apps/tenancy-host -> packages/tenancy/account-identity',
+      'apps/tenancy-host -> packages/tenancy/account-identity-sql',
       'packages/infra/storage-sql -> packages/core/storage',
-      'packages/tenancy/account-identity -> packages/core/storage',
+      'packages/tenancy/account-identity-sql -> packages/core/storage',
     ])
     expect(graph.edges[3]?.sites).toHaveLength(2)
   })
@@ -84,7 +87,7 @@ describe('group-direction', () => {
   })
 
   it('领域直接依赖 infra ⇒ 报出；登记为例外后不报', () => {
-    const bad = file('packages/tenancy/account-identity/src/bad.ts', imports('storage-sql'))
+    const bad = file('packages/tenancy/account-identity-sql/src/bad.ts', imports('storage-sql'))
     const found = groupDirection.check([...clean, bad])
     expect(found).toMatchObject([{ path: bad.path, line: 1 }])
     expect(found[0]?.message).toContain('只由装配层选用')
@@ -92,7 +95,7 @@ describe('group-direction', () => {
       ...GROUP_DIRECTION_POLICY,
       exceptions: [
         {
-          from: 'packages/tenancy/account-identity',
+          from: 'packages/tenancy/account-identity-sql',
           to: 'packages/infra/storage-sql',
           reason: '夹具',
         },
@@ -103,9 +106,15 @@ describe('group-direction', () => {
 
   it('同层领域互依不报，成环才报', () => {
     const session = file('packages/session/session-log-jsonl/src/index.ts', imports('storage'))
-    const forward = file('packages/tenancy/account-identity/src/f.ts', imports('session-log-jsonl'))
+    const forward = file(
+      'packages/tenancy/account-identity-sql/src/f.ts',
+      imports('session-log-jsonl'),
+    )
     expect(groupDirection.check([...clean, session, forward])).toEqual([])
-    const back = file('packages/session/session-log-jsonl/src/b.ts', imports('account-identity'))
+    const back = file(
+      'packages/session/session-log-jsonl/src/b.ts',
+      imports('account-identity-sql'),
+    )
     const kinds = evaluateDirection(
       memberGraph([...clean, session, forward, back]),
       GROUP_DIRECTION_POLICY,

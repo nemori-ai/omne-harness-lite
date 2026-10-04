@@ -1,0 +1,5 @@
+export type { ScryptParameters, DerivationParameters } from './scrypt.ts'
+export { PASSWORD_SCRYPT_SCHEME } from './scrypt.ts'
+export { PasswordPolicy, CHARACTER_CLASSES, type CharacterClass } from './policy.ts'
+export { createPasswordCredentials, parseCredential } from './service.ts'
+export { CredentialVerificationConfig } from './config.ts'

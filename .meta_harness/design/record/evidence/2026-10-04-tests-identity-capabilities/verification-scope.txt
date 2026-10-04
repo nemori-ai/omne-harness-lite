@@ -1,0 +1,37 @@
+# T2 验证范围与结果坐标
+
+BASE `67eecc1ae53be30efec473206e5d1926dd5d500f`。产品候选 `cf4ce5874100c4271bd3b01327da7b81c443a39a`。本页由主会话维护，不代替独立 QA 或技术接受。
+
+## 选择范围
+
+自动影响面因工作区锁文件及测试成员坐标变化选择全 52 成员和 Python 检查，见 `checks/s4-affected-plan`。本次按用户要求手动选择实际影响面，没有运行全量 `make check`、检查队列、合并队列或基准。没有执行自动计划中的全部 52 成员测试或 pytest，不能将其写为通过。
+
+锁文件的产品变更是包坐标、工作区依赖和新公共定义。T2 没有改 Python 工具实现或第三方版本。实际验证覆盖：全部工作区构建/类型、身份提供者、共同 SQL/clock 绑定、真实治理入口/host、跨域实际消费者、变更检查器、公开制品和共同硬线。完整 PostgreSQL 治理部署不在本批范围，已有跳过项保留。网络场景使用本地有界 TLS/Unix/进程或离线响应，没有新增付费模型调用。
+
+## 可继承与新执行
+
+| 范围 | 证据与实际执行 | 坐标及局限 |
+|---|---|---|
+| 最终完整构建 | `checks/s4-build-cf4`，58.599 秒，exit 0 | cf4 干净树；包括生成与实际 dist 重建 |
+| 最终完整类型 | `checks/s4-types-cf4`，69.286 秒，exit 0 | cf4 干净树，构建结束后开始 |
+| 八个绑定导出 | `binding-metadata-cf4.json`，8/8 | 读取最终 dist 的限定名称、版本标记、连续字符串依赖数组；运行可用性另由 QA 验证 |
+| 领域原回归 | `checks/s3-entry-independent`、`s3-provider-regression`、`s3-sql-binding-regression` | Entry 528/2 跳过；AI 84/10、AR 55/1、OG 109/4、CV 14/2、clock 25、core Entry 1；SQL 26 个定向场景。后续 reentrant 修复由下行接续 |
+| 重入关闭修复 | `checks/ir-t2-close-regression`、`ir-t2-close-types`、`ir-t2-close-build`，独立 `implementation-review` 和 QA 反例 | 9587 四处先登记后调用；6 个正常/重入场景，105 原业务函数保持。最终 cf4 未再改这四处 |
+| SQL 修复真实组合 | QA `evidence/host-sql-fix.*`、`managed-scrypt-qualified.*` | cf4 干净克隆重新构建，原 host 八文件 113/113。原 14 通过/99 失败保留；最终 root 全 host 回归 `checks/s4-host-cf4` 为 216 通过/11 跳过，183.854 秒 |
+| 跨域完整回归 | `checks/s4-cross-domain`，1607.888 秒，1824 项通过 | EIS 70、model runtime 846、loop runner 462、模型示例 446。开始于 9587；期间只修改约束角色坐标和 SQL managed inject 源码，root dist 在本批全程没有重建。该结果不证明新的 managed SQL 制品；模型示例消费独立 SQL 绑定，未受该修复影响。新 managed 制品由上行及最终 host 承接 |
+| 变更检查器 | `s4-rule-tests` 119 项、`s4-constraints-tests` 18 项、S3 presence/entry/consumer 72 项 | 检查实际变更规则及负控；不声称全部 tools 测试都执行 |
+| 格式/规则/文档/生成 | `s4-format-cf4`、`s4-rules-9587`、`s4-docs`、`s4-agents`、`s4-design` | 后续两次提交只有 constraints 坐标与 SQL 空项移除；constraints 单独回归、最终格式及严格回路覆盖差分 |
+| CLI 与共同硬线 | `s4-cli-acceptance-cf4` 5 项；`s4-loop-strict-cf4` exit 0 | CLI 记录落主验收账本；严格回路所有硬线及传感器有数据。首次错误 CLI 参数保留，不改写为绿 |
+| 有限形式任务 | `formal-base`、`alloy-base`、`entry-formal-base` | AI/OG/AR TLC 11 配置、OG Alloy 原 4 命令与 3 负控、EC 22 配置。业务模型/配置自 BASE 未变。EC 两个包装器误判保留，原 trace 读回见 `entry-formal-base/readback.json`；不是 SQL 实现细化证明 |
+| 新寿命机制 | `qa-startup-positive`、`qa-startup-positive-candidate`、S1 及 Q0 场景 | 有界真实 Cordis 探针、负控及生命周期观察；采用前提见 identity-startup-lifecycle 决定。没有将有限测试声称为任意并发证明 |
+| 独立制品与验收 | `qa-candidate` | 最终38项Pass，1189通过/19跳过；1403候选项、1646原基线及32启动资源全部独立散列读回。M12/M15完成，最终补审无剩余阻断。独立资源不由产品实施者修改 |
+
+## 保留失败及未知
+
+S3 首次 host 结果存在诊断失败，源漂移批次另见 `s3-regression-source-drift.json`。20:43 的局部绿测早于 20:47/20:52 构建，不能证明后来稀疏 SQL 依赖数组可启动。最终修复制品必须用 cf4 的实际 host 证据判断。
+
+QA 首次克隆安装发生 checkout/install 次序错误，首次外部安装缺内部 tarball 覆盖，另有 Unix 路径过长、Node 类型启用及声明/CJS 解析设施问题。原件均保留。能解释设施失败不等于完成对应验收；必需观察须由有资格的设施实际取得。
+
+原 A5 冷恢复 45 秒失败原因仍未知；新复验保持原阈值，重复通过不关闭原因。EIS 旧 5 秒失败原因同样未由这次通过自动解释。原 QA-FAC-1 完整 W6 schema 责任继续由 N6 接续。OG3 新业务未实现，不能按 OG2 回归绿报告交付。
+
+EC 提供者根的 Cordis 闭包整改归已冻结 T4，CLI/客户端操作边界归 T3，模型整体归 R2。精确保持这些后继义务，不把 T2 接受表述为 R1 或两域完成。

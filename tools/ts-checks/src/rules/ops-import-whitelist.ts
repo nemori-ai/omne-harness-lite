@@ -5,6 +5,10 @@ import { importsOf, lineAt, resolveRelative, withoutExtension } from '../source-
 /** 非治理的第三方：内核与 config 校验（主线 2026-09-23 裁决纳入白名单）。 */
 const THIRD_PARTY = new Set(['@deepseek-ai/cordis', 'zod'])
 const OPS_PACKAGES = new Set([
+  // Adopted identity T2: admission signal and owned-work protocol; no governance operations.
+  '@omne-harness-lite/governance-center-entry',
+  '@omne-harness-lite/governance-center-entry/cordis',
+  '@omne-harness-lite/assembly-lifecycle/cordis',
   '@omne-harness-lite/kernel-basis',
   // 原根入口的同一组 Cordis 助手；只跟随入口迁移，不开放其他子路径。
   '@omne-harness-lite/kernel-basis/cordis',
@@ -154,7 +158,9 @@ function judgeReadonlyLeaf(path: string, specifier: string | undefined): string 
       ].includes(specifier)
     )
       return undefined
-    if (resolved === 'tenancy/governance-center-entry/schema/governance-center-entry.schema.json')
+    if (
+      resolved === 'tenancy/governance-center-entry-node/schema/governance-center-entry.schema.json'
+    )
       return undefined
   }
   if (module === `${ENTRY_SRC}center-id/snapshot`) {

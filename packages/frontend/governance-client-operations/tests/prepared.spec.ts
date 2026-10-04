@@ -344,7 +344,7 @@ describe('CG2 fixed capture and interactive input', () => {
   it('previews only the original CA digest and rejects appended private key material', async () => {
     const certificateAuthorities = readFileSync(
       new URL(
-        '../../../tenancy/governance-center-entry/tests/fixtures/tls/ca.pem',
+        '../../../tenancy/governance-center-entry-node/tests/fixtures/tls/ca.pem',
         import.meta.url,
       ),
       'utf8',

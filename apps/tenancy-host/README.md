@@ -1,11 +1,19 @@
 # `@omne-harness-lite/tenancy-host`
 
-治理中心作为一个可部署应用的装配：一个进程、一个 Cordis 根 Context、八条 fiber
+治理中心作为一个可部署应用的装配：一个进程、一个 Cordis 根 Context、八个业务职责行及其生命周期服务 fiber
 （storage-sql → clock → credential-verification → account-identity → organization-governance → account-registration
 → governance-center-ops → governance-center-entry），迁移合成与升级守卫，两步开闸，逆序撤除。
+这些是稳定行 id；具体管理插件的限定名称见 [manifest.ts](src/manifest.ts)。
 设计、选择理由与证据义务归实现映射节点
 [`realization/apps/tenancy-host`](../../.meta_harness/design/realization/apps/tenancy-host/README.md)；
 本页只写**怎么起、怎么停、怎么配、运维要守什么**，以及源码取了哪些常量。
+
+R1-T2 的手写装配逐行等待 OwnedWork.ready、fiber ACTIVE、服务可见和代际资格。
+全部就绪后确认升级，再兑现同一个 EntryOpening；两张网络面直接检查它。
+任一管理行撤除使整个代际停止准入。已有工作按原提交边界收场，注册不得交下一步。
+资源按逆序关闭，随后撤 fiber、端口服务，最后核对维护及升级守卫。
+后继装配必须新建代际，不能在旧槽位重新开放。设计依据见[有序收尾](../../.meta_harness/design/architecture/identity-integration/retirement.md)。
+当前实现仍待 T2 的独立 L3 接受；插件树和其余运行资源服务化留 T4。
 
 ## 命令
 
@@ -29,7 +37,7 @@ node apps/tenancy-host/dist/cli.js serve                         # 从环境变�
 
 | 变量                                                                                                                                                                   | 内容                                                                               |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `OMNE_TENANCY_STORAGE_DIALECT`                                                                                                                                         | `sqlite`（缺省）或 `postgres`                                                      |
+| `OMNE_TENANCY_STORAGE_DIALECT`                                                                                                                                         | `sqlite`（缺省）；`postgres` 当前在启动前拒绝                                                      |
 | `OMNE_TENANCY_STORAGE_FILE`                                                                                                                                            | sqlite 库文件路径（`:memory:` 被拒）                                               |
 | `OMNE_TENANCY_STORAGE_URL`                                                                                                                                             | pg 连接串（方言为 `postgres` 时）                                                  |
 | `OMNE_TENANCY_ACTIVATION_SIGNING_KEY_PEM[_FILE]`、`…_ACTIVATION_VERIFICATION_KEY_PEM[_FILE]`、`…_PURGE_SIGNING_KEY_PEM[_FILE]`、`…_PURGE_VERIFICATION_KEY_PEM[_FILE]`  | 两对部署密钥；文件对 group／other 可读 ⇒ 启动失败；两对不配对 ⇒ 起插件之前启动失败 |
@@ -85,7 +93,7 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 | 中心版本 `version`              | 包版本 `0.0.0`                           | 构建常量，测试核与 `package.json` 一致                                   | `src/version.ts`                     |
 
 入口层包自己的常量（TLS 握手 30 s、接收时限 30 s、运维面撤除 3 s、存储现探 2 s）见
-[它的 README](../../packages/tenancy/governance-center-entry/README.md#实现映射包内常量)；本装配的常量没有一个短于它们所盖住的那一段。
+[它的 README](../../packages/tenancy/governance-center-entry-node/README.md#实现映射包内常量)；本装配的常量没有一个短于它们所盖住的那一段。
 
 ## 验证
 
