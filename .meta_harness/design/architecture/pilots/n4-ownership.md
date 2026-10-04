@@ -2,6 +2,7 @@
 
 本批依据 D-114 的集成要求、[D-115](../../record/decisions/actual-architecture-and-thin-spec/decision.md)
 与负责人 2026-10-04 的 N4 实施/验收授权。形状与集成变化不新增业务政策。
+本批限定采用见[接受事件](../../record/decisions/thin-spec-pilots-adoption/decision.md)。
 下表明确唯一源和未迁范围。实现与验收状态归[本批证据](../../record/evidence/2026-10-04-thin-spec-pilots/README.md)。
 
 ## 组织治理
