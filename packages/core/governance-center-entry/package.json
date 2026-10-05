@@ -15,11 +15,13 @@
     "./cordis": {
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
-    }
+    },
+    "./schema/v2": "./schema/governance-center-entry-v2.schema.json"
   },
   "files": [
     "dist",
-    "SPEC.md"
+    "SPEC.md",
+    "schema"
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",

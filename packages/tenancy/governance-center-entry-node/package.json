@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "\u6cbb\u7406\u4e2d\u5fc3\u5165\u53e3\u5c42\uff1a\u5ba2\u6237\u7aef\u9762\uff08TLS + JSON \u4fe1\u5c01\u7684\u5224\u5b9a\u6b21\u5e8f\u4e0e\u8def\u7531\uff09\u4e0e\u8fd0\u7ef4\u9762\uff08Unix \u5957\u63a5\u5b57\u4f53\u68c0\uff09\uff1b\u5151\u73b0 composition.governance-center-entry v2\u3002\u8bbe\u8ba1\uff1a.meta_harness/design/realization/packages/tenancy/governance-center-entry/",
+  "description": "治理中心入口层：客户端面（TLS + JSON 信封的判定次序与路由）与运维面（Unix 套接字体检）；兑现 composition.governance-center-entry v2。设计：.meta_harness/design/realization/packages/tenancy/governance-center-entry/",
   "engines": {
     "node": ">=24 <25"
   },
@@ -40,7 +40,8 @@
     "zod": "catalog:",
     "@omne-harness-lite/organization-governance": "workspace:*",
     "@omne-harness-lite/assembly-lifecycle": "workspace:*",
-    "@omne-harness-lite/governance-center-entry": "workspace:*"
+    "@omne-harness-lite/governance-center-entry": "workspace:*",
+    "@omne-harness-lite/governance-center-entry-https-json": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/clock-lease": "workspace:*",

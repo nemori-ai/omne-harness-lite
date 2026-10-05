@@ -69,6 +69,18 @@
       "source": ".meta_harness/design/realization/apps/cli/design.md"
     },
     {
+      "id": "cli-client-composition",
+      "paths": [
+        "apps/cli/src/assembly.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "admission"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/client-integration.md"
+    },
+    {
       "id": "host-composition",
       "paths": [
         "apps/tenancy-host/src/boot.ts",
@@ -142,7 +154,7 @@
     {
       "id": "local-state-scope",
       "paths": [
-        "packages/frontend/client-local-state/src/**"
+        "packages/frontend/client-local-state-sqlite/src/**"
       ],
       "layer": "unknown",
       "domains": [
@@ -488,9 +500,9 @@
       "source": "system-intent.md#责任方向"
     },
     {
-      "id": "packages/frontend/governance-client-operations",
+      "id": "packages/frontend/governance-client-operations-local",
       "paths": [
-        "packages/frontend/governance-client-operations/src/**"
+        "packages/frontend/governance-client-operations-local/src/**"
       ],
       "layer": "unknown",
       "domains": [
@@ -500,9 +512,9 @@
       "source": "system-intent.md#责任方向"
     },
     {
-      "id": "packages/frontend/governance-center-client",
+      "id": "packages/frontend/governance-center-client-https",
       "paths": [
-        "packages/frontend/governance-center-client/src/**"
+        "packages/frontend/governance-center-client-https/src/**"
       ],
       "layer": "unknown",
       "domains": [

@@ -1,4 +1,5 @@
-// 公开入口（装配 apps/tenancy-host 消费的名字；任务简报「导出名不改」）。
+import { ACCEPTED_PROTOCOL_VERSIONS } from '@omne-harness-lite/governance-center-entry'
+// 公开提供者入口与公共词汇拥有者分别消费。
 import { describe, expect, it } from 'vitest'
 import * as entry from '../src/index.ts'
 import * as bindings from '../src/cordis.ts'
@@ -23,6 +24,6 @@ describe('公开入口', () => {
       'governance-center-ops/listening',
     ])
     expect(entry.OPS_SOCKET_NAME).toBe('governance-center-ops.sock')
-    expect(entry.ACCEPTED_PROTOCOL_VERSIONS).toEqual(['2'])
+    expect(ACCEPTED_PROTOCOL_VERSIONS).toEqual(['2'])
   })
 })

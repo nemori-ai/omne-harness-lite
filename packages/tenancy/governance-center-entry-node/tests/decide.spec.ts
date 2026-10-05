@@ -8,7 +8,7 @@ const storage = decisionStorage()
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ROUTE_IDS, isGovernanceCenterId } from '../src/index.ts'
+import { ROUTE_IDS, isGovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
 import { entryAnswerBytes, publicHealthBytes, routeFailureBytes } from '../src/routing/answers.ts'
 import { type Decision, decide } from '../src/routing/decide.ts'
 import { ROUTES } from '../src/routing/routes.ts'

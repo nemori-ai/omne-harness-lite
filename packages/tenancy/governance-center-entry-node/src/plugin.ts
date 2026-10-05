@@ -26,7 +26,7 @@ import { definePlugin, fiberIsActive } from '@omne-harness-lite/kernel-basis/cor
 import type { Clock, Instant } from '@omne-harness-lite/offer-expiry'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import { readOrMintCenterId } from './center-id/read-or-mint.ts'
-import type { GovernanceCenterId } from './center-id/table.ts'
+import type { GovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
 import { defect, listening, serving, stopped } from './events.ts'
 import type { ServingNotice } from './ops/notice.ts'
 import { RECEIVE_LIMITS } from './ops/limits.ts'

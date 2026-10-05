@@ -3,13 +3,11 @@
 // 那一格不存在或值不合 S-27 即启动失败。「读不到」「那一格不存在」都绝不当作「未铸」（S-28 ⑦）。
 import { randomBytes } from 'node:crypto'
 import { type Storage, narrow } from '@omne-harness-lite/storage'
+import { CENTER_SLOT, GOVERNANCE_CENTER_TABLE, type GovernanceCenterTable } from './table.ts'
 import {
-  CENTER_SLOT,
-  GOVERNANCE_CENTER_TABLE,
   type GovernanceCenterId,
-  type GovernanceCenterTable,
   isGovernanceCenterId,
-} from './table.ts'
+} from '@omne-harness-lite/governance-center-entry'
 
 /** S-28 ④ 的失败四支：读不到、写不进、那一格不存在、值不合 S-27。 */
 export type GovernanceCenterIdentityFailure = 'unreadable' | 'unwritable' | 'missing' | 'malformed'

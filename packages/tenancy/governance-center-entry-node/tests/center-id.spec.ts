@@ -15,8 +15,8 @@ import {
   GovernanceCenterIdentityError,
   governanceCenterMigrations,
   governanceCenterPreflight,
-  isGovernanceCenterId,
 } from '../src/index.ts'
+import { isGovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
 import { mintGovernanceCenterId, readOrMintCenterId } from '../src/center-id/read-or-mint.ts'
 import { FaultyStorage, composedMigrations, tempSqliteFile } from './support/composition.ts'
 

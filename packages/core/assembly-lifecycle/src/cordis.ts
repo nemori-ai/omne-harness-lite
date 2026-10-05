@@ -1,5 +1,6 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { AssemblyLifetimePort } from './types.ts'
+import { AssemblyWorkStopped } from './errors.ts'
 
 /** @owner packages/core/assembly-lifecycle */
 export abstract class AssemblyLifetimeService extends Service implements AssemblyLifetimePort {
@@ -39,7 +40,7 @@ export function startAssemblyWork(
   }
   const assertCurrent = (): void => {
     ctx.fiber.assertActive()
-    if (!lifetime.isCurrent()) throw new Error('Assembly work has stopped')
+    if (!lifetime.isCurrent()) throw new AssemblyWorkStopped()
   }
   void Promise.resolve()
     .then(async () => {

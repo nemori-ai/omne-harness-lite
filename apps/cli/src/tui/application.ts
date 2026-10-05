@@ -1,8 +1,10 @@
 import { isAbsolute, join } from 'node:path'
 import {
-  ClientStateOpenFailure,
-  type ClientLocalStateInstance,
-} from '@omne-harness-lite/client-local-state'
+  assemblyCloseDiagnostics,
+  ClientAssemblyStateFailure,
+  ClientAssemblyStopped,
+  type ClientAssembly,
+} from '../client-assembly.ts'
 import {
   exitStatus,
   type ActionReport,
@@ -60,7 +62,7 @@ function tuiOptionValues(args: readonly string[]): Map<string, string | true> {
 }
 export interface TuiRuntime extends Pick<
   CliRuntime,
-  'home' | 'signal' | 'openState' | 'createClient' | 'stdout' | 'stderr'
+  'home' | 'signal' | 'createAssembly' | 'stdout' | 'stderr'
 > {
   readonly terminal: (profile: string) => Promise<TerminalPort>
 }
@@ -172,7 +174,7 @@ export async function runTui(args: readonly string[], runtime: TuiRuntime): Prom
     failed = false,
     terminal: TerminalPort | undefined,
     dialog: Dialog | undefined
-  let state: ClientLocalStateInstance | undefined,
+  let assembly: ClientAssembly | undefined,
     client: GovernanceClientOperations | undefined,
     use: GovernanceUse | undefined
   let closing: Promise<void> | undefined, dialogClosing: Promise<void> | undefined
@@ -189,12 +191,9 @@ export async function runTui(args: readonly string[], runtime: TuiRuntime): Prom
       dialogClosing = dialog.stop()
       void dialogClosing.catch(() => {})
     }
-    if (client && !closing) {
-      try {
-        closing = client.close()
-      } catch {
-        closing = Promise.reject(new Error('client close failed'))
-      }
+    if (assembly && !closing) {
+      assembly.requestStop()
+      closing = assembly.clientStopped
       void closing.catch(() => {})
     }
   }
@@ -219,9 +218,9 @@ export async function runTui(args: readonly string[], runtime: TuiRuntime): Prom
       terminal = await runtime.terminal(options.profile)
       dialog = new Dialog(terminal, close)
       if (controller.signal.aborted) throw new InputFailure('input-cancelled')
-      state = await runtime.openState({ directory: options.directory })
+      assembly = runtime.createAssembly({ directory: options.directory })
+      client = await assembly.ready
       if (controller.signal.aborted) throw new InputFailure('input-cancelled')
-      client = runtime.createClient({ state })
       if (!options.setup) {
         const opened = await client.openUse()
         if (controller.signal.aborted) throw new InputFailure('input-cancelled')
@@ -376,9 +375,12 @@ export async function runTui(args: readonly string[], runtime: TuiRuntime): Prom
       diagnostics.add('input-cancelled')
     }
   } catch (error) {
-    if (error instanceof ClientStateOpenFailure) {
+    if (error instanceof ClientAssemblyStateFailure) {
       status = error.reason === 'unavailable' ? 3 : 2
       diagnostics.add(error.reason === 'unavailable' ? 'state-unavailable' : 'state-invalid')
+    } else if (error instanceof ClientAssemblyStopped && controller.signal.aborted) {
+      diagnostics.add('input-cancelled')
+      status = 2
     } else if (error instanceof InputFailure) {
       diagnostics.add(error.code)
       status =
@@ -394,7 +396,7 @@ export async function runTui(args: readonly string[], runtime: TuiRuntime): Prom
   } finally {
     runtime.signal.removeEventListener('abort', close)
     close()
-    let quiet = client === undefined
+    let quiet = assembly === undefined
     try {
       await closing
       quiet = true
@@ -423,11 +425,16 @@ export async function runTui(args: readonly string[], runtime: TuiRuntime): Prom
         failed = true
         diagnostics.add('input-restore-failed')
       }
-      try {
-        await state?.close()
-      } catch {
-        failed = true
-        diagnostics.add('state-close-failed')
+      if (assembly) {
+        assembly.releasePresentation()
+        try {
+          const releaseDiagnostics = assemblyCloseDiagnostics(await assembly.closed)
+          if (releaseDiagnostics.length) failed = true
+          for (const code of releaseDiagnostics) diagnostics.add(code)
+        } catch {
+          failed = true
+          diagnostics.add('internal-defect')
+        }
       }
     }
     if (failed) status = 70

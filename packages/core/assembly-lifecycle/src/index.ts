@@ -1,4 +1,5 @@
 export { createAssemblyLifetime } from './lifetime.ts'
+export { AssemblyWorkStopped } from './errors.ts'
 export type {
   AssemblyCloseReport,
   AssemblyLifetime,
