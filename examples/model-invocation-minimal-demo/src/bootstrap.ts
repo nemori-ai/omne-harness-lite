@@ -3284,6 +3284,7 @@ export function createAcceptanceApplication(
           const journal = await createToolDriverJournal({
             owner: authorizedLogOwner!.operations,
             access: binding.control,
+            recovery: authorizedLogOwner!.recovery,
             scope: binding.scope,
           })
           if (journal.kind !== 'journal') return reject('journalUnavailable')

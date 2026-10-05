@@ -91,6 +91,7 @@ function currentForWrite(history: DriverHistory, value: DriverValue): boolean {
 async function createJournal(input: {
   readonly owner: SessionLogOwnerOperations
   readonly access: SessionAccess | RecoveryAccess
+  readonly recovery: RecoveryAccess
   readonly scope: SessionScope
 }) {
   const copied = copyJsonValue(input.scope)
@@ -273,7 +274,16 @@ async function createJournal(input: {
       if (closing !== undefined) return closing
       const task = serialize(async () => {
         if (pending !== undefined) {
-          const history = await read()
+          // Business qualification can already be revoked. Only recognize the retained original
+          // batch through this owner's private recovery read; this path cannot submit new work.
+          const retained = await input.owner.readPrefix(input.recovery, scope)
+          if (
+            retained.kind !== 'prefix' ||
+            retained.prefix.ownerGeneration !== held.ownerGeneration ||
+            !modelLogJsonEqual(retained.prefix.scope, scope)
+          )
+            throw new Error('tool driver retains an unresolved batch')
+          const history = readToolDriverHistory(retained.prefix)
           if ('unavailable' in history || !(await resolvePending(history)))
             throw new Error('tool driver retains an unresolved batch')
         }
@@ -298,6 +308,7 @@ async function createJournal(input: {
 export async function createToolDriverJournal(input: {
   readonly owner: SessionLogOwnerOperations
   readonly access: SessionAccess
+  readonly recovery: RecoveryAccess
   readonly scope: SessionScope
 }) {
   const opened = await createJournal(input)
@@ -316,6 +327,7 @@ export async function createToolDeliveryJournal(input: {
     owner: input.owner,
     scope: input.scope,
     access: input.recovery,
+    recovery: input.recovery,
   })
   if (opened.kind !== 'journal') return opened
   return Object.freeze({

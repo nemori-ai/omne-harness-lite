@@ -5,6 +5,7 @@ import type {
   SessionLogOwnerOperations,
 } from '@omne-harness-lite/session-log'
 import type { SessionAccess } from '@omne-harness-lite/session-tenancy'
+import type { RecoveryAccess } from '@omne-harness-lite/execution-environments'
 import { createToolDriverJournal } from '../src/tool-driver-journal.ts'
 import {
   captureModelLogValue,
@@ -35,7 +36,12 @@ async function fixture() {
       return { kind: 'borrowed', ownerGeneration: 'owner-one', log: { ...f.log, append }, release }
     },
   }
-  const opened = await createToolDriverJournal({ owner, access: {} as SessionAccess, scope })
+  const opened = await createToolDriverJournal({
+    owner,
+    access: {} as SessionAccess,
+    recovery: {} as RecoveryAccess,
+    scope,
+  })
   if (opened.kind !== 'journal') throw new Error('journal fixture')
   const key = await f.conclusion()
   const complete = {
@@ -62,6 +68,7 @@ async function fixture() {
     journal: opened,
     append,
     release,
+    owner,
     complete,
     async close() {
       await opened.close()
@@ -323,3 +330,53 @@ test('close waits for the actual append promise, closes admission immediately, a
     await f.close()
   }
 })
+
+test.each(['generation', 'scope'] as const)(
+  'close does not release an unknown original batch using a different %s recovery prefix',
+  async difference => {
+    const f = await fixture()
+    try {
+      f.append.mockImplementationOnce(async (...args) => {
+        const actual = await f.f.log.append(...args)
+        if ('failure' in actual) throw new Error(actual.failure)
+        return { failure: 'unavailable' }
+      })
+      expect(await f.journal.commit(f.complete)).toEqual({
+        kind: 'rejected',
+        reason: 'unavailable',
+      })
+      const read = vi.spyOn(f.owner, 'readPrefix')
+      read.mockImplementation(async () => {
+        const prefix = await f.f.prefix()
+        return {
+          kind: 'prefix',
+          prefix:
+            difference === 'generation'
+              ? { ...prefix, ownerGeneration: 'another-generation' }
+              : {
+                  ...prefix,
+                  scope: {
+                    ...prefix.scope,
+                    tenant: {
+                      ...prefix.scope.tenant,
+                      account: 'other-user' as typeof prefix.scope.tenant.account,
+                    },
+                  },
+                },
+        }
+      })
+      await expect(f.journal.close()).rejects.toThrow('unresolved batch')
+      expect(f.release).not.toHaveBeenCalled()
+      expect(await f.journal.commit(f.complete)).toEqual({
+        kind: 'rejected',
+        reason: 'unavailable',
+      })
+      read.mockRestore()
+      await f.journal.close()
+      expect(f.release).toHaveBeenCalledTimes(1)
+      expect(f.append).toHaveBeenCalledTimes(1)
+    } finally {
+      await f.close()
+    }
+  },
+)

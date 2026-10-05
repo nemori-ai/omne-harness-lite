@@ -108,3 +108,86 @@ test(
     }
   },
 )
+
+test(
+  'close recognizes the original complete denial batch after its receipt was lost and the business binding was revoked',
+  { tags: ['slow'], timeout: 120_000 },
+  async () => {
+    const parent = resolve('tmp/tool-runtime-loop/tool-demo-tests')
+    await mkdir(parent, { recursive: true, mode: 0o700 })
+    const root = await mkdtemp(join(parent, 'denial-close-'))
+    const tls = await createLocalTls(join(root, 'tls'))
+    tls.setMode('tool_nonce')
+    let lost = false
+    const demo = await openDemo(
+      join(root, 'data'),
+      { multiplier: 1.1, reserveTokens: 256 },
+      demoRetirement(),
+      16_384,
+      Buffer.from('controlled-denial-close-key'),
+      {
+        developmentTransport: tls.developmentTransport,
+        hooks: {
+          async toolProvidersInstalled(providers) {
+            await providers.officialAdmission.dispose()
+          },
+          sessionLogOpened(log) {
+            return {
+              ...log,
+              async append(...args) {
+                const denial = args[1].some(entry =>
+                  entry.dedupeKey?.includes('tool-driver/1/["denied",'),
+                )
+                const result = await log.append(...args)
+                if (denial && !lost && !('failure' in result)) {
+                  lost = true
+                  return { failure: 'unavailable' as const }
+                }
+                return result
+              },
+            }
+          },
+        },
+      },
+      undefined,
+      undefined,
+      true,
+    )
+    try {
+      const sent = await demo.send('Generate a nonce and report it.', async () => undefined)
+      expect(lost).toBe(true)
+      expect(sent).toMatchObject({ kind: 'refused', reason: 'actions:unavailable' })
+      expect(tls.requests).toHaveLength(1)
+      expect(await demo.close()).toMatchObject({ complete: true })
+      const physical = await openJsonlSessionLog({
+        dir: join(root, 'data', 'session-logs'),
+        policy: { appendQueueLimit: 8, residentLogsLimit: 16 },
+        processOwnership: {
+          current: 'post-denial-close-proof',
+          observeExit: async () => 'unknown',
+        },
+        diagnostic() {},
+      })
+      const session = unwrap(parseOpaqueIdentifier(demo.session, 'SessionRef'))
+      const read = await physical.readSince(session, 0)
+      await physical.close()
+      if ('failure' in read) throw new Error('actual closed denial history unavailable')
+      const history = readToolDriverHistory({
+        scope: { tenant: demo.actor.tenant, session },
+        ownerGeneration: 'denial-close-proof',
+        ...read,
+      })
+      if ('unavailable' in history) throw new Error('actual denial batch not recognized')
+      expect(
+        history.models.entries.filter(entry => entry.captured.message?.type === 'tool'),
+      ).toHaveLength(1)
+      expect([...history.calls.values()].map(call => call.route.kind)).toEqual(['denial'])
+      const actual = projectToolJournal(history.prefix.scope, history.prefix.entries)
+      if ('invalid' in actual) throw new Error('actual tool journal invalid')
+      expect(actual.executions.size).toBe(0)
+    } finally {
+      await demo.close()
+      await tls.close()
+    }
+  },
+)

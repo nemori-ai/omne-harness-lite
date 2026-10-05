@@ -67,6 +67,7 @@ export async function actionIntegrationFixture(
     readonly calls?: ReturnType<typeof toolCall>[]
     readonly pieces?: readonly RunnerPiece[]
     readonly official?: boolean
+    readonly permission?: 'auto' | 'forbid'
     readonly executor?: ToolExecutor
     readonly frameQueueBytes?: number
     readonly beforeRuntime?: (fixture: Awaited<ReturnType<typeof historyFixture>>) => Promise<void>
@@ -74,7 +75,7 @@ export async function actionIntegrationFixture(
     readonly ownedScopes?: readonly SessionScope[]
   } = {},
 ) {
-  const f = await historyFixture(options.calls),
+  const f = await historyFixture(options.calls, options.permission),
     directory = await mkdtemp(join(tmpdir(), 'omne-action-manifest-'))
   const manifest = await actionManifest(
     directory,
@@ -254,6 +255,7 @@ export async function actionIntegrationFixture(
     const opened = await createToolDriverJournal({
       owner: owner.operations,
       access: coordinator,
+      recovery: owner.recovery,
       scope,
     })
     if (opened.kind !== 'journal') throw new Error('journal unavailable')

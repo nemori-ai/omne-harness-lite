@@ -83,7 +83,10 @@ export function officialPiece(
 export const dk = (parts: string[]) => `tool-driver/1/${JSON.stringify(parts)}`
 
 /** Controlled data provenance through real public codecs and the physical JSONL owner. No network model is claimed here. */
-export async function historyFixture(calls: readonly ToolCallBlock[] = [toolCall()]) {
+export async function historyFixture(
+  calls: readonly ToolCallBlock[] = [toolCall()],
+  permission: 'auto' | 'forbid' = 'auto',
+) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-driver-history-'))
   const options = {
     dir,
@@ -169,7 +172,7 @@ export async function historyFixture(calls: readonly ToolCallBlock[] = [toolCall
           echo: {
             capability: { category: 'tool', name: 'echo' },
             item: 'execute',
-            value: { allowed: ['auto'] },
+            value: { allowed: [permission] },
             from: 'tenant',
             tenantAutoWritable: true,
           },

@@ -93,6 +93,7 @@ test('request fields cannot replace the host-owned complete batch, report or opa
       await createToolDriverJournal({
         owner: f.current.owner.operations,
         access: f.current.toolAccess,
+        recovery: f.current.owner.recovery,
         scope,
       }),
     ).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
