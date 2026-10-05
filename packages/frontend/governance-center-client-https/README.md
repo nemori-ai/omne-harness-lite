@@ -1,34 +1,61 @@
-# governance-center-client-https
+# @omne-harness-lite/governance-center-client-https
 
-Node24 的治理中心协议客户端；提供公开 health 请求与 EC2/HT2 治理请求。
-行为、资源所有权与采用范围见[SPEC](SPEC.md)。
+[中文](README_ZH.md)
+
+A Node HTTPS/JSON client for public health and governance exchange. Use individual request functions or an instance with explicit completion ownership.
+
+Public shapes live in [src/index.ts](src/index.ts). Behavior and integration commitments belong to [SPEC.md](SPEC.md).
+
+## Workspace use
+
+This is an experimental, private ESM workspace package, not an npm release. Follow the [development setup](../../../docs/development.md). Declare `"@omne-harness-lite/governance-center-client-https": "workspace:*"` in the consuming member. Declare every other imported workspace package as a direct dependency too. Use public exports rather than sibling `src/` paths.
+
+## Public API
+
+| Export                                                                      | Purpose                                                      |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `readPublicHealth`, `exchangeGovernance`                                    | Standalone single-attempt request functions                  |
+| `createGovernanceTransport`, `GovernanceTransportInstance`                  | Request owner with public transport operations and `close()` |
+| `./cordis`: `governanceTransportPlugin`, `managedGovernanceTransportPlugin` | Independent and assembly-managed bindings                    |
+
+## Example
 
 ```ts
-import { readPublicHealth } from '@omne-harness-lite/governance-center-client-https'
+import type { PublicHealthOptions } from '@omne-harness-lite/governance-center-entry-https-json'
+import { createGovernanceTransport } from '@omne-harness-lite/governance-center-client-https'
 
-const outcome = await readPublicHealth({
-  url: 'https://governance.example.internal:8443/',
-  trust: { mode: 'ca', certificateAuthorities: caPem },
-  signal: abortController.signal,
-})
+export async function inspectHealth(options: PublicHealthOptions) {
+  const transport = createGovernanceTransport()
+  try {
+    return await transport.readPublicHealth(options)
+  } finally {
+    await transport.close()
+  }
+}
 ```
 
-默认使用系统 CA 与 URL 主机名；显式 CA 内容在调用开始时复制。SPKI 模式要求调用方已确认的64位十六进制 SHA256：`{ mode: 'spki', sha256: confirmedPin }`。没有 insecure、代理、重定向、自动重试或登录材料参数。
+Calling this function sends one request. Supply the intended HTTPS endpoint and its trust configuration. The function retains the instance until cleanup completes.
 
-结果分别为 `health`、`entry-answer`、`unavailable`；只有 health 携带已校验的原三字段。`reachable` 不代表治理业务就绪。非法本地配置抛 `GovernanceClientConfigurationError`；异常程序缺陷不伪装成成功。
+## Boundaries and lifecycle
 
-默认总期限10秒（可配置1～120000ms），头部16KiB、体64KiB。取消和超限得到明确 unavailable；调用返回前关闭本调用网络资源并清理订阅。Node系统DNS工作不一定随取消停止，不能据此保证进程即时退出。
+Public input and outcome types belong to [the transport definition](../../core/governance-center-entry-https-json/README.md). Invalid configuration fails before network I/O. The default timeout is 10,000 ms, with an accepted range of 1–120,000 ms.
+
+Requests do not retry, follow redirects or accept new trust automatically. Response headers and bodies have bounded sizes. Cancellation preserves possible send effects.
+
+Instance close stops new requests and waits for its owned request/socket cleanup. It does not close requests from standalone functions or other instances. DNS work can outlive socket cleanup. The managed binding uses an injected assembly lifetime port. See [SPEC.md](SPEC.md).
+
+## Development
 
 ```sh
-pnpm --filter @omne-harness-lite/governance-center-client-https build
-pnpm --filter @omne-harness-lite/governance-center-client-https typecheck
-pnpm --filter @omne-harness-lite/governance-center-client-https test
+pnpm --filter @omne-harness-lite/governance-center-client-https run build
+pnpm --filter @omne-harness-lite/governance-center-client-https run typecheck
+pnpm --filter @omne-harness-lite/governance-center-client-https run test
 ```
 
-测试用 openssl 生成临时证书并运行回环 TLS 对端；不访问外部中心或真实账号。本包不提供 CLI 命令或本地登录存储。
+Build workspace dependencies first. These commands cover this package. Actual provider/consumer behavior also requires integration verification.
 
-`exchangeGovernance(options, envelope)`发送一个EC2信封，返回`reply`、`entry-answer`或`unavailable`，另含目标是否可能发送的`sendAttempted`；不自动重试。登录成功的原始reply含秘密，只供共享用例层保存，不能直接作为终端输出。完整用例由[governance-client-operations](../governance-client-operations-local/README.md)消费本包。
+Tests use local TLS servers. They require no paid model calls or public governance service.
 
-公共类型和错误由 `@omne-harness-lite/governance-center-entry-https-json` 拥有。
-`createGovernanceTransport()` 创建可关闭实例；它只等待通过自身准入的请求，关闭不影响独立函数或其他实例。
-正式绑定从本包 `./cordis` 导入。
+## Related packages
+
+- [Local client coordinator](../governance-client-operations-local/README.md)
