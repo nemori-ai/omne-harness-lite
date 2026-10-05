@@ -629,3 +629,49 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
     expect(result.status).toBe(0)
   })
 })
+
+describe('R1-T5 strict JSON shape owner', () => {
+  const events = file('core/governance-center-entry/src/events.ts', '')
+  const ops = file(`${E}src/ops/start.ts`, '')
+  it('admits only the moved named type imports in the original reader', () => {
+    const reader = file(
+      `${E}src/json.ts`,
+      "import type { JsonLimits, DuplicateMember, JsonReading } from './json-shapes.ts'",
+    )
+    const shapes = file(
+      `${E}src/json-shapes.ts`,
+      'export interface JsonLimits { depth: number }; export type JsonReading = unknown',
+    )
+    // Empty statements are absent from the actual declaration-only owner.
+    const exactShapes = file(shapes.path, shapes.text.replace('; export', '\nexport'))
+    expect(opsImportWhitelist.check([events, ops, reader, exactShapes])).toEqual([])
+  })
+  it.each([
+    "import { JsonReading } from './json-shapes.ts'",
+    "import Reading from './json-shapes.ts'",
+    "import type * as Reading from './json-shapes.ts'",
+    "import type { EntryServices } from './json-shapes.ts'",
+    "export type { JsonReading } from './json-shapes.ts'",
+    "import('./json-shapes.ts')",
+  ])('rejects an expanded reader binding: %s', text => {
+    expect(opsImportWhitelist.check([events, ops, file(`${E}src/json.ts`, text)])).toHaveLength(1)
+  })
+  it.each([
+    "import type { AccountsService } from '@omne-harness-lite/account-identity'",
+    "export type { AccountsService } from '@omne-harness-lite/account-identity'",
+    "export const call = () => globalThis.fetch('https://example.invalid')",
+  ])('rejects dependencies or effects in the shape owner: %s', text => {
+    expect(
+      opsImportWhitelist.check([events, ops, file(`${E}src/json-shapes.ts`, text)]).length,
+    ).toBeGreaterThan(0)
+  })
+  it('does not grant the same binding to an unrelated readonly leaf', () => {
+    expect(
+      opsImportWhitelist.check([
+        events,
+        ops,
+        file(`${E}src/center-id/table.ts`, "import type { JsonReading } from '../json-shapes.ts'"),
+      ]),
+    ).toHaveLength(1)
+  })
+})

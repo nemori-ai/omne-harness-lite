@@ -53,3 +53,5 @@ ops 只订阅 SERVING_EVENT/STOPPED_EVENT/DEFECT_EVENT，只派发 LISTENING_EVE
 成功路径仍按投影、矛盾检查、Schema 校验、编码、最后活动、真实提交、字节交付的原顺序完成。原捕获边界分别保持；校验和编码仍在提交前。已观察缺陷在回滚后保留，不被污染单元的终结异常覆盖。改密准备后最终事务使用原 caller/ticket，不再 exchange。注册仍保持三个独立提交。
 
 本成员策略不直接拥有 wire 编码、关联号 crypto 或存储终结。既有公共身份函数的传递运行闭包继续有效；此分离不宣称共享公共根无 crypto，也不扩大租户授权或同提交例外。
+
+R1-T5 的严格 JSON 形状搬迁只允许 json.ts 从 json-shapes.ts 以具名纯 type import 消费 JsonLimits、DuplicateMember、JsonReading。新叶子只能含 interface/type 声明，无导入、重导出和运行时语句。SC-2 对运维与只读叶子绕入治理/写逻辑的限制保持；本例外不开放其他名称、消费者或运行时绑定。
