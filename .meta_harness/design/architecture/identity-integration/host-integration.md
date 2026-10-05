@@ -58,6 +58,10 @@ unknown-role 不回显任意输入 claim 名，role 缺省。政策校验器本�
 原具名 setup 失败继续用 BASE 分类器的说明和允许快照信息，不改变其原错误能力。
 原 cause 对象可以供受信进程内调用方观察，但不展开到日志、通用树错误或安全 DTO。
 
+CLI 的精确调用为 `tenancy-host serve [--plugins <file>] [--print-plugins]`，两个选项可交换顺序。
+每个选项至多一次；未知选项、重复或缺少文件参数按原 EXIT.usage 拒绝。
+print 成功只向 stdout 写 describePluginTree 的安全 DTO 数组 JSON 加换行，返回 EXIT.ok，
+不等待 shutdownSignal；不新增独立子命令。
 --print-plugins 的静态准备使用同一错误映射与 startup-failed 记录，失败退出 EXIT.failed。
 CLI 语法错误仍为 EXIT.usage。打印失败不创建 guard、目录、数据库、端口或 socket。
 QA 通过真实 boot/operator/resolveModule 观察 cause.code/role、日志及零副作用，

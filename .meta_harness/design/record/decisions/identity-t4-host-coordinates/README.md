@@ -4,3 +4,5 @@
 采用范围、原能力保持及未完成验证见[决定](decision.md)，精确输入见[inputs.json](inputs.json)。
 
 QA冻结发现的公开错误观察接缝由[诊断补充](diagnostics.md)及其[精确输入](diagnostics-inputs.json)接续。
+
+打印和运维文件的命令位置见[CLI坐标确认](cli-coordinate.md)。
