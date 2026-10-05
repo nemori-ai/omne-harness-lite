@@ -7,8 +7,8 @@ import {
   type MaintenanceFailureKind,
   type UnknownResult,
 } from './failure.ts'
-import type { MaintenanceReporter } from './publication.ts'
-import type { BackupDescriptor, Metadata } from './metadata.ts'
+import type { MaintenanceReporter } from './maintenance-options.ts'
+import type { BackupDescriptor, Metadata } from './backup-data.ts'
 
 export interface ObservedBackups {
   readonly status: 'observed'

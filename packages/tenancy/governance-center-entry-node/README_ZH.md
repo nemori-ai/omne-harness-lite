@@ -91,3 +91,5 @@ pnpm --filter @omne-harness-lite/governance-center-entry-node run test
 - [服务端入口定义](../../core/governance-center-entry/README.md)
 - [传输定义](../../core/governance-center-entry-https-json/README.md)
 - [端到端环境说明](../../../apps/tenancy-host/tests/e2e/README.md)
+
+[维护边界](adr/maintenance-effects.md)分开策略与文件、codec 和摘要提供者；实际装配保持原同fd、发布和清理所有权。

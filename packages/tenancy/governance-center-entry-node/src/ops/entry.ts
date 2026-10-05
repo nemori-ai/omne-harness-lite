@@ -17,7 +17,8 @@ import {
 import type { GovernanceCenterOpsConfig } from './config.ts'
 import type { GovernanceCenterOpsDependencies } from './dependencies.ts'
 import { withCleanup } from '../maintenance/failure.ts'
-import { OnlineMaintenance } from '../maintenance/online.ts'
+import type { OnlineMaintenance } from '../maintenance/online.ts'
+import { createOnlineMaintenance } from '../maintenance/assembly.ts'
 import { readOpsRequest, maintenanceResultBody } from './maintenance-wire.ts'
 import { type HealthSources, fullHealthBody } from './health.ts'
 import { Http1Connection } from './http1.ts'
@@ -194,7 +195,7 @@ export function createGovernanceCenterOps(
       )
         throw new TypeError('invalid entry maintenance resources')
       assertCurrent()
-      maintenance = new OnlineMaintenance({
+      maintenance = createOnlineMaintenance({
         ...config.maintenance,
         snapshotChecks: resources.snapshotChecks,
         workDirectory: join(config.maintenance.backupDirectory, '.quarantine'),

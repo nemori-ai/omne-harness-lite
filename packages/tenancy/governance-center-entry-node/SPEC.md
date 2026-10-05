@@ -55,3 +55,11 @@ ops 只订阅 SERVING_EVENT/STOPPED_EVENT/DEFECT_EVENT，只派发 LISTENING_EVE
 本成员策略不直接拥有 wire 编码、关联号 crypto 或存储终结。既有公共身份函数的传递运行闭包继续有效；此分离不宣称共享公共根无 crypto，也不扩大租户授权或同提交例外。
 
 R1-T5 的严格 JSON 形状搬迁只允许 json.ts 从 json-shapes.ts 以具名纯 type import 消费 JsonLimits、DuplicateMember、JsonReading。新叶子只能含 interface/type 声明，无导入、重导出和运行时语句。SC-2 对运维与只读叶子绕入治理/写逻辑的限制保持；本例外不开放其他名称、消费者或运行时绑定。
+
+## 维护策略与实际文件拥有者
+
+维护的 Metadata、BackupDescriptor、大小上限和文件名判据由 maintenance/backup-data.ts 唯一维护；原 MAGIC 文本仍相同。metadata-policy.ts 拥有原时间判据，metadata.ts 与 input-codec.ts 拥有原协议校验和字节编码。
+
+input、catalog、publication、online、offline 只消费 maintenance-ports.ts 的具名效果。实际文件/目录、同fd稳定检查和资源登记分别归 input-io、directory-io、file-io；assembly 唯一选择文件、codec、摘要和中心读取。useBackup 在同一次 files.useInput 回调内完成原 header、纯输入对象构造与业务调用，close 仍由真实资源拥有者和 session 负责。公开离线工厂的名字、选项、结果和错误不变；不增加其他导出路径。
+
+中心读取仍绑定原 readSnapshotCenterId，在同一原 view 内保留逐迁移、逐Check与原结构/身份SQL检查，不去重或另开快照。原单任务准入、stop请求/close实际完成、正常耗尽digest、中心筛选先于时间/耐久、可见发布不可撤销、未知耐久、残余与清理错误优先级保持。原三处测试与两构造改接实际装配，原类方法故障注入的作用阶段不变。

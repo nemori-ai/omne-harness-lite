@@ -11,9 +11,11 @@ import {
 } from '@omne-harness-lite/storage-sql'
 import { governanceCenterMigrations } from '../src/center-id/migrations.ts'
 import { governanceCenterSnapshotCheck } from '../src/center-id/snapshot.ts'
-import { BackupInputFile, type SnapshotFormat } from '../src/maintenance/input.ts'
+import { withBackupInput } from '../src/maintenance/assembly.ts'
+import type { SnapshotFormat } from '../src/maintenance/maintenance-options.ts'
 import { maintenanceFailure } from '../src/maintenance/failure.ts'
-import { MAGIC, metadataBytes, parseMetadata, type Metadata } from '../src/maintenance/metadata.ts'
+import { MAGIC, metadataBytes, parseMetadata } from '../src/maintenance/metadata.ts'
+import type { Metadata } from '../src/maintenance/backup-data.ts'
 
 const roots: string[] = []
 const owners: SnapshotInspection[] = []
@@ -70,7 +72,7 @@ async function fixture() {
   owners.push(owner)
   const inspect = () =>
     owner
-      .run(session => BackupInputFile.use(path, session, input => input.inspect(session, format)))
+      .run(session => withBackupInput(path, session, input => input.inspect(session, format)))
       .catch((error: unknown) => {
         throw maintenanceFailure(error)
       })
@@ -131,7 +133,7 @@ it('refuses a symlink and nonprivate file without reading their contents', async
   const alias = join(root, 'alias')
   await symlink(path, alias)
   await expect(
-    owner.run(session => BackupInputFile.use(alias, session, async () => true)),
+    owner.run(session => withBackupInput(alias, session, async () => true)),
   ).rejects.toThrow()
 })
 
@@ -139,7 +141,7 @@ it('detects change through the fixed descriptor and parses time offsets semantic
   const { path, metadata, owner } = await fixture()
   await expect(
     owner.run(session =>
-      BackupInputFile.use(path, session, async input => {
+      withBackupInput(path, session, async input => {
         await writeFile(path, 'changed')
         await input.stable()
       }),

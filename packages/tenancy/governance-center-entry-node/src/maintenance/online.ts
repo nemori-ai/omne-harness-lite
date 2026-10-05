@@ -1,30 +1,17 @@
-import { createHash, randomBytes } from 'node:crypto'
 import { join } from 'node:path'
-import { instantToRfc3339, type Clock, type Instant } from '@omne-harness-lite/offer-expiry'
-import type { SnapshotMaintenance, SnapshotSession } from '@omne-harness-lite/storage'
+import { instantToRfc3339, type Instant } from '@omne-harness-lite/offer-expiry'
+import type { SnapshotSession } from '@omne-harness-lite/storage'
 import { validBackupInput, validBackupStatusInput } from './inputs.ts'
-import { checkView, type SnapshotFormat } from './input.ts'
+import { checkView } from './input.ts'
 import { MaintenanceFailure } from './failure.ts'
-import { CHUNK_BYTES, metadataBytes, metadataTime, type Metadata } from './metadata.ts'
+import { CHUNK_BYTES, type Metadata } from './backup-data.ts'
+import { metadataTime } from './metadata-policy.ts'
 import { observeBackups } from './catalog.ts'
-import {
-  checkCancelled,
-  MaintenanceDirectory,
-  publishOutput,
-  withTemporaryOutput,
-  type MaintenanceReporter,
-} from './publication.ts'
+import { checkCancelled, publishOutput, withTemporaryOutput } from './publication.ts'
+import type { OnlineMaintenanceOptions, MaintenanceReporter } from './maintenance-options.ts'
+import type { MaintenanceEffects } from './maintenance-ports.ts'
 import { reportResiduals, resultOf, type MaintenanceResult } from './results.ts'
 
-export interface OnlineMaintenanceOptions extends SnapshotFormat {
-  readonly source: SnapshotMaintenance
-  readonly clock: Clock
-  readonly backupDirectory: string
-  readonly workDirectory: string
-  readonly sourceBuildId: string | null
-  readonly report: MaintenanceReporter
-  readonly onClosed: (status: 'clean' | 'error') => void
-}
 export class OnlineMaintenance {
   #centerId: string | undefined
   #accepting = false
@@ -33,7 +20,10 @@ export class OnlineMaintenance {
   #abort: AbortController | undefined
   #closing: Promise<void> | undefined
   #failed = false
-  constructor(private readonly options: OnlineMaintenanceOptions) {}
+  constructor(
+    private readonly options: OnlineMaintenanceOptions,
+    private readonly effects: MaintenanceEffects,
+  ) {}
   readonly #report: MaintenanceReporter = diagnostic => {
     this.#failed = true
     this.options.report(diagnostic)
@@ -98,7 +88,14 @@ export class OnlineMaintenance {
   backupStatus(input: unknown): Promise<MaintenanceResult> {
     if (!validBackupStatusInput(input)) return Promise.resolve({ status: 'invalid-input' })
     return this.#run('BackupStatusResult', (session, centerId) =>
-      observeBackups(this.options.backupDirectory, session, this.options, centerId, this.#now()),
+      observeBackups(
+        this.options.backupDirectory,
+        session,
+        this.options,
+        centerId,
+        this.#now(),
+        this.effects,
+      ),
     )
   }
   backup(input: unknown): Promise<MaintenanceResult> {
@@ -112,6 +109,7 @@ export class OnlineMaintenance {
           this.options,
           centerId,
           now,
+          this.effects,
         )
         if (
           status.latest !== null &&
@@ -121,9 +119,9 @@ export class OnlineMaintenance {
       }
       const startedAt = this.#now()
       return session.snapshot(async view => {
-        if ((await checkView(view, this.options)) !== centerId)
+        if ((await checkView(view, this.options, this.effects.readCenter)) !== centerId)
           throw new MaintenanceFailure('invalid-backup')
-        const hash = createHash('sha256')
+        const hash = this.effects.digestFactory()
         for (let offset = 0; offset < view.byteLength; offset += CHUNK_BYTES) {
           checkCancelled(session)
           hash.update(await view.read(offset, Math.min(CHUNK_BYTES, view.byteLength - offset)))
@@ -138,32 +136,43 @@ export class OnlineMaintenance {
           startedAt: instantToRfc3339(startedAt),
           finishedAt: instantToRfc3339(finishedAt),
           byteLength: view.byteLength,
-          sha256: hash.digest('hex'),
+          sha256: hash.hex(),
         }
-        const fileName = `${randomBytes(16).toString('hex')}.omne-backup`
-        return MaintenanceDirectory.use(this.options.backupDirectory, session, true, directory =>
-          withTemporaryOutput(this.options.workDirectory, session, this.#report, async output => {
-            await output.handle.writeFile(metadataBytes(metadata))
-            for (let offset = 0; offset < view.byteLength; offset += CHUNK_BYTES) {
-              checkCancelled(session)
-              await output.handle.writeFile(
-                await view.read(offset, Math.min(CHUNK_BYTES, view.byteLength - offset)),
-              )
-            }
-            await output.handle.sync()
-            await publishOutput(
-              output.path,
-              join(this.options.backupDirectory, fileName),
-              directory,
+        const fileName = this.effects.backupName()
+        return this.effects.files.useDirectory(
+          this.options.backupDirectory,
+          session,
+          true,
+          directory =>
+            withTemporaryOutput(
+              this.options.workDirectory,
               session,
-              { status: 'outcome-unknown', fileName, targetLocation: null },
-              path => {
-                output.markPublished(path)
-                markPublished(path)
+              this.#report,
+              async output => {
+                await output.write(this.effects.codec.bytes(metadata))
+                for (let offset = 0; offset < view.byteLength; offset += CHUNK_BYTES) {
+                  checkCancelled(session)
+                  await output.write(
+                    await view.read(offset, Math.min(CHUNK_BYTES, view.byteLength - offset)),
+                  )
+                }
+                await output.sync()
+                await publishOutput(
+                  output.path,
+                  join(this.options.backupDirectory, fileName),
+                  directory,
+                  session,
+                  { status: 'outcome-unknown', fileName, targetLocation: null },
+                  path => {
+                    output.markPublished(path)
+                    markPublished(path)
+                  },
+                  this.effects.files,
+                )
+                return { status: 'completed', backup: { fileName, metadata } }
               },
-            )
-            return { status: 'completed', backup: { fileName, metadata } }
-          }),
+              this.effects.files,
+            ),
         )
       })
     })

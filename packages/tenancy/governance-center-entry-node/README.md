@@ -91,3 +91,5 @@ Tests use real TLS, Unix sockets and SQLite files. Some transport cases require 
 - [Server-entry definitions](../../core/governance-center-entry/README.md)
 - [Transport definitions](../../core/governance-center-entry-https-json/README.md)
 - [End-to-end environment](../../../apps/tenancy-host/tests/e2e/README.md)
+
+The [maintenance boundary](adr/maintenance-effects.md) separates policy from file, codec and digest providers. The assembly keeps the original descriptor, publication and cleanup ownership.
