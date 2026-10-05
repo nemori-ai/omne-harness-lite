@@ -1214,6 +1214,94 @@
       ],
       "status": "adopted",
       "source": ".meta_harness/design/architecture/identity-integration/preservation.md"
+    },
+    {
+      "id": "identity-host-credentials-tenancy-host-interaction",
+      "paths": [
+        "apps/tenancy-host/src/build-version.ts",
+        "apps/tenancy-host/src/maintenance-command.ts",
+        "apps/tenancy-host/src/ops-client.ts"
+      ],
+      "layer": "interaction",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/host-integration.md"
+    },
+    {
+      "id": "identity-host-credentials-tenancy-host-assembly",
+      "paths": [
+        "apps/tenancy-host/src/cli.ts",
+        "apps/tenancy-host/src/config.ts",
+        "apps/tenancy-host/src/index.ts",
+        "apps/tenancy-host/src/keys.ts",
+        "apps/tenancy-host/src/log.ts",
+        "apps/tenancy-host/src/main.ts",
+        "apps/tenancy-host/src/maintenance-assembly.ts",
+        "apps/tenancy-host/src/maintenance-config.ts",
+        "apps/tenancy-host/src/migrations.ts",
+        "apps/tenancy-host/src/snapshot-checks.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/host-integration.md"
+    },
+    {
+      "id": "identity-host-credentials-tenancy-host-contract",
+      "paths": [
+        "apps/tenancy-host/src/maintenance-ports.ts"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/host-integration.md"
+    },
+    {
+      "id": "identity-host-credentials-credential-verification-scrypt-contract",
+      "paths": [
+        "packages/tenancy/credential-verification-scrypt/src/config.ts"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/realization/packages/tenancy/credential-verification/design.md"
+    },
+    {
+      "id": "identity-host-credentials-credential-verification-scrypt-assembly",
+      "paths": [
+        "packages/tenancy/credential-verification-scrypt/src/cordis.ts",
+        "packages/tenancy/credential-verification-scrypt/src/plugin.ts",
+        "packages/tenancy/credential-verification-scrypt/src/provided-services.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/realization/packages/tenancy/credential-verification/design.md"
+    },
+    {
+      "id": "identity-host-credentials-credential-verification-scrypt-policy",
+      "paths": [
+        "packages/tenancy/credential-verification-scrypt/src/index.ts",
+        "packages/tenancy/credential-verification-scrypt/src/policy.ts",
+        "packages/tenancy/credential-verification-scrypt/src/scrypt.ts",
+        "packages/tenancy/credential-verification-scrypt/src/service.ts"
+      ],
+      "layer": "policy",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/realization/packages/tenancy/credential-verification/design.md"
     }
   ],
   "rules": [
