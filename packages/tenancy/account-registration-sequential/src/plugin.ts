@@ -1,5 +1,5 @@
 import {
-  AssemblyLifetimeService,
+  ASSEMBLY_LIFETIME_SERVICE,
   startAssemblyWork,
 } from '@omne-harness-lite/assembly-lifecycle/cordis'
 import type { Context } from '@deepseek-ai/cordis'
@@ -14,6 +14,24 @@ import {
 import { AccountRegistrationConfigSchema } from './config.ts'
 import { createRegistrationService } from './registration.ts'
 import { SequentialRegistration } from './provided-services.ts'
+import type { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree'
+import { REGISTRATION_SERVICE } from '@omne-harness-lite/account-registration/cordis'
+
+function describeAssembly(value: unknown): AssemblyDeclaration {
+  const config = AccountRegistrationConfigSchema.parse(value)
+  return {
+    provides: [REGISTRATION_SERVICE],
+    requires: [ACCOUNTS_SERVICE, ORGANIZATIONS_SERVICE, ORGANIZATION_PURGE_SERVICE],
+    optional: [],
+    claims: [
+      {
+        name: 'tenancy-host/registration',
+        version: 1,
+        config: { activationSigningKeyPem: config.activationSigningKeyPem },
+      },
+    ],
+  }
+}
 
 function bind(
   ctx: Context,
@@ -49,8 +67,10 @@ export const managedRegistrationPlugin = Object.assign(
   definePlugin<AccountRegistrationConfig>({
     name: 'account-registration-sequential-managed',
     inject: [
-      ...[ACCOUNTS_SERVICE, ORGANIZATIONS_SERVICE, ORGANIZATION_PURGE_SERVICE],
-      AssemblyLifetimeService.provide,
+      ACCOUNTS_SERVICE,
+      ORGANIZATIONS_SERVICE,
+      ORGANIZATION_PURGE_SERVICE,
+      ASSEMBLY_LIFETIME_SERVICE,
     ],
     Config: AccountRegistrationConfigSchema,
     apply(ctx: Context, config) {
@@ -74,5 +94,5 @@ export const managedRegistrationPlugin = Object.assign(
       )
     },
   }),
-  { assemblyLifecycle: 1 as const },
+  { assemblyLifecycle: 1 as const, describeAssembly },
 )

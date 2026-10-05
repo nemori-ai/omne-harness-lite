@@ -1,7 +1,4 @@
 // 运维面（入口契约 S-25、S-26；https-json/1 S-20、S-21）。导入白名单：kernel-basis、storage 协议、offer-expiry、
-// Node 内置、cordis、zod、本包 ../events.ts，以及本目录内文件。包的公开入口从 ../index.ts 导出，本文件只汇总本目录。
-export {
-  governanceCenterOpsPlugin,
-  GovernanceCenterOpsConfigSchema,
-  type GovernanceCenterOpsConfig,
-} from './plugin.ts'
+// Node 内置、cordis、zod、公共事件与精确叶子。纯工厂从根导出；本文件保留本目录的绑定汇总。
+export { governanceCenterOpsPlugin } from './plugin.ts'
+export { GovernanceCenterOpsConfigSchema, type GovernanceCenterOpsConfig } from './config.ts'

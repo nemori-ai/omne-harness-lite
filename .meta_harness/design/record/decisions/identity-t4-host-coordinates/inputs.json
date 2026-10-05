@@ -1,0 +1,29 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "accepted_at": "2026-10-05T02:23:30.581106+00:00",
+  "accepted_by": "root under panqiwei existing remediation delegation",
+  "reviewed_r2_sha256": "9d7087fc79662d46f399b4e2b8532e47bd83f8d2702b6d38edbfec35693b9722",
+  "post_review_change": "Acceptance header and decision link only",
+  "files": [
+    {
+      "path": ".meta_harness/design/architecture/identity-integration/host-integration.md",
+      "sha256": "019d930df8227d5033bed69ca7e56d332acad3ce8edb376d3fa3b9eac40010ba"
+    },
+    {
+      "path": ".meta_harness/design/architecture/identity-integration/plugin-tree.md",
+      "sha256": "c8adb429773e18a323fdbc990d718d6bd0382f97dab66ab6c14070619084bc56"
+    },
+    {
+      "path": ".meta_harness/design/architecture/identity-integration/retirement.md",
+      "sha256": "6c961096dad108943282afd8d3ba1dc088569887ef32afcb77a83a4b14da8461"
+    },
+    {
+      "path": ".meta_harness/design/architecture/identity-integration/delivery.md",
+      "sha256": "28a0f3edffebac6f1c0ffd7e6acf0405d14218bb2202b11b98f6102a44da21cc"
+    },
+    {
+      "path": ".meta_harness/design/record/evidence/2026-10-05-probe-host-error-observation/error-observation-probe.run.json",
+      "sha256": "c87d49aefa7edf2a737bee89f3fd6b32929f4e8df5bb6af6460fa23bbe400cf8"
+    }
+  ]
+}

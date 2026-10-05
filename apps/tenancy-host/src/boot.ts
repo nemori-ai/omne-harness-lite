@@ -1,117 +1,98 @@
-import { createHostAssembly } from './assembly.ts'
-// 治理中心的启动与撤除（design「装载清单与顺序」「升级的整体性」「两步开闸」「成对的装载与撤除」）。
-//   [起插件之前] config 解析、密钥配对自检                                  —— 失败：不碰数据
-//   [逐条装载]   storage-sql（升级守卫：独占、遗留恢复、只读核对、快照、迁移）→ clock → … → 运维面 → 入口层
-//                每条：同步查 PENDING（清单错误）→ await（FAILED ⇒ 逆序全撤，storage 撤除时恢复快照）
-//   [全部 ACTIVE] guard.confirm()，断言 snapshotTaken ⇒ snapshotRemoved；migrated ∧ ¬snapshotTaken ⇒ 记「本次升级不可撤回（U-3）」
-//   [确认之后]   确认 EntryOpening ⇒ 入口层开闸、发 serving ⇒ 有界地等到 serving，boot() 才返回
-//   [任一次逆序撤完之后] guard.pending()：仍有快照 ⇒「升级未确认，快照在 X」；仅此观察不能判定恢复是否尝试。
-// 本节点无领域状态、无提交点、无锁；没有缓存、池、队列、重试。
+import { readFile } from 'node:fs/promises'
 import { Context, type Fiber, type Logger } from '@deepseek-ai/cordis'
 import { clockPreflight, ClockRollbackDetected } from '@omne-harness-lite/clock-lease'
 import {
   GovernanceCenterClockTimeoutError,
-  SERVING_EVENT,
-  type ServingNotice,
   governanceCenterPreflight,
 } from '@omne-harness-lite/governance-center-entry-node'
+import { SERVING_EVENT, type ServingNotice } from '@omne-harness-lite/governance-center-entry'
+import {
+  ENTRY_OPENING_SERVICE,
+  ENTRY_MAINTENANCE_SERVICE,
+} from '@omne-harness-lite/governance-center-entry/cordis'
 import {
   SnapshotFailure,
-  type MigrationFragment,
   composeMigrations,
+  type MigrationFragment,
+  type UpgradeConfirmation,
+  type UpgradePending,
 } from '@omne-harness-lite/storage'
+import {
+  STORAGE_STARTUP_SERVICE,
+  STORAGE_COMPLETION_SERVICE,
+} from '@omne-harness-lite/storage/cordis'
 import {
   StorageStartupFailure,
   UpgradeGuardNotAttached,
-  type UpgradeConfirmation,
-  type UpgradeGuard,
   createUpgradeGuard,
+  type UpgradeGuard,
 } from '@omne-harness-lite/storage-sql'
+import {
+  composePluginTree,
+  PluginTreeError,
+  PluginTreePreparationError,
+  PluginTreeStartError,
+  PluginTreeUsageError,
+  type PreparationOptions,
+  type PluginTreeHandle,
+} from '@omne-harness-lite/cordis-plugin-tree'
+import {
+  preparePluginTree,
+  loadPluginTree,
+  inspectPluginTree,
+} from '@omne-harness-lite/cordis-plugin-tree/cordis'
+import { createHostAssembly, publishHostResources } from './assembly.ts'
 import { readBuildId } from './build-version.ts'
-import { prepareBackupDirectory } from './maintenance-config.ts'
+import { resolveBackupDirectory, prepareBackupDirectory } from './maintenance-config.ts'
 import { MaintenanceFinalization } from './maintenance-state.ts'
-import { ENV, type HostEnv, readHostConfig } from './config.ts'
+import { ENV, readHostConfig, type HostEnv } from './config.ts'
 import { HostStartupFailure, describeThrown } from './failure.ts'
 import { verifyKeyPairing } from './keys.ts'
-import { type LogSink, attachLog, stderrSink } from './log.ts'
+import { attachLog, stderrSink, type LogSink } from './log.ts'
+import { DISPOSE_TIMEOUT_MS, SERVING_GRACE_MS, buildDistributionTree } from './tree.ts'
 import {
-  DISPOSE_TIMEOUT_MS,
-  type HostPluginName,
-  type ManifestEntry,
-  SERVING_GRACE_MS,
-  buildManifest,
-} from './manifest.ts'
+  checkHostPolicy,
+  HostPluginPolicyError,
+  isHostPluginRole,
+  isHostPluginPolicyCode,
+  type HostPluginRole,
+} from './policy.ts'
 import {
   composedMigrationNames,
   dataFormatPreflight,
   hostMigrationFragments,
 } from './migrations.ts'
+import { hostSnapshotChecks } from './snapshot-checks.ts'
 
-/** 确认升级的那一方：生产路径就是挂在存储实例上的守卫本身。 */
 export interface UpgradeConfirmer {
   confirm(): Promise<UpgradeConfirmation>
 }
-
-/**
- * 测试钩子：生产入口（`main`）一个都不传。只用于装配级测试里模拟「更新的版本」、在确认处停住、交错守卫对象等
- * verification 点名的演练；不改变任何政策。
- */
 export interface BootHooks {
-  /** 追加在合成序列末尾的片段（模拟「本版多一个片段」的升级）。 */
   readonly extraMigrations?: readonly MigrationFragment[]
-  /** 改写装载清单（清单错误演练）。 */
-  readonly manifest?: (entries: readonly ManifestEntry[]) => readonly ManifestEntry[]
-  /** 每条 fiber 一创建就交给观察者（启动失败之后核「没有 fiber 留在 ACTIVE」）。 */
-  readonly observeFiber?: (name: HostPluginName, fiber: Fiber) => void
-  /** 全部 fiber ACTIVE 之后、确认之前调用并等待（「给确认处加一个测试钩子让它停住」）。 */
+  readonly resolveModule?: PreparationOptions['resolveModule']
+  /** Called synchronously after load returns, before any row apply. */
+  readonly treeCreated?: (handle: PluginTreeHandle) => void
   readonly beforeConfirm?: (context: Context) => void | Promise<void>
-  /** 换掉确认的那一方（交错守卫、注入确认结果）。 */
   readonly confirmWith?: (attached: UpgradeGuard) => UpgradeConfirmer
 }
-
 export interface BootOptions {
-  /** 缺省 `process.env`。 */
   readonly env?: HostEnv
-  /** 缺省进程标准错误流。 */
   readonly log?: LogSink
+  readonly operator?: unknown
   readonly hooks?: BootHooks
 }
-
 export interface HostDisposal {
-  /** 全部fiber真实撤完，两个维护收场槽及升级守卫均已确认。 */
   readonly complete: boolean
-  /** 实际收场仍有错误或未确认的fiber，按撤除次序。 */
-  readonly unfinished: readonly HostPluginName[]
+  readonly unfinished: readonly string[]
 }
-
 export interface TenancyHost {
   readonly context: Context
-  /** 八条 fiber（按名字）；装配给的句柄只供观察与演练，生产入口不用。 */
-  readonly fibers: Readonly<Partial<Record<HostPluginName, Fiber>>>
-  /** 开闸那一刻入口层发出的 `serving`。 */
+  readonly fibers: Readonly<Record<string, Fiber>>
   readonly serving: ServingNotice
   readonly confirmation: UpgradeConfirmation
-  /** 按装载的逆序逐个撤除；重复调用得到同一次撤除。 */
   dispose(): Promise<HostDisposal>
 }
 
-interface Deferred<T> {
-  readonly promise: Promise<T>
-  resolve(value: T): void
-  reject(reason: unknown): void
-}
-
-function deferred<T>(): Deferred<T> {
-  let resolve: (value: T) => void = () => undefined
-  let reject: (reason: unknown) => void = () => undefined
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-  return { promise, resolve, reject }
-}
-
-/** 有界等待：到时返回 `'timeout'`，并清掉定时器。 */
 async function within<T>(promise: Promise<T>, ms: number): Promise<T | 'timeout'> {
   let timer: NodeJS.Timeout | undefined
   const deadline = new Promise<'timeout'>(resolve => {
@@ -123,16 +104,55 @@ async function within<T>(promise: Promise<T>, ms: number): Promise<T | 'timeout'
     clearTimeout(timer)
   }
 }
+function safeId(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-z0-9][a-z0-9-]{0,127}$/u.test(value)
+}
+function treeFailure(
+  error:
+    | PluginTreeError
+    | PluginTreePreparationError
+    | PluginTreeStartError
+    | PluginTreeUsageError
+    | HostPluginPolicyError,
+): HostStartupFailure {
+  const stage =
+    error instanceof PluginTreeStartError
+      ? error.code === 'apply-failed' || error.code === 'stopped'
+        ? 'plugin'
+        : 'manifest'
+      : error instanceof PluginTreeUsageError || error instanceof HostPluginPolicyError
+        ? 'manifest'
+        : error.code === 'invalid-config'
+          ? 'plugin'
+          : 'manifest'
+  const rowId = 'rowId' in error ? error.rowId : undefined
+  const item =
+    error instanceof HostPluginPolicyError ? error.role : safeId(rowId) ? rowId : undefined
+  return new HostStartupFailure(stage, 'plugin tree rejected', {
+    cause: error,
+    ...(item === undefined ? {} : { item }),
+  })
+}
+function asFailure(error: unknown): HostStartupFailure {
+  if (error instanceof HostStartupFailure) return error
+  if (
+    error instanceof PluginTreeError ||
+    error instanceof PluginTreePreparationError ||
+    error instanceof PluginTreeStartError ||
+    error instanceof PluginTreeUsageError ||
+    error instanceof HostPluginPolicyError
+  )
+    return treeFailure(error)
+  return new HostStartupFailure('plugin', 'unexpected plugin failure', { cause: error })
+}
 
-/** 一条 fiber 启动失败 ⇒ 具名阶段。存储插件的具名阶段原样沿用；存储别的失败统一是「存储打不开」。 */
-function fiberFailure(name: HostPluginName, error: unknown): HostStartupFailure {
-  const thrown = describeThrown(error)
-  if (thrown.type === 'ValidationError')
-    return new HostStartupFailure('plugin', `the config of ${name} is invalid: ${thrown.message}`, {
-      item: name,
-      cause: error,
-    })
-  if (name === 'storage-sql') {
+/** The original named setup classifier, now selected by checked claim rather than row spelling. */
+function setupFailure(
+  role: HostPluginRole | undefined,
+  id: string,
+  error: unknown,
+): HostStartupFailure {
+  if (role === 'storage') {
     if (error instanceof StorageStartupFailure)
       return new HostStartupFailure(
         error.stage,
@@ -140,7 +160,7 @@ function fiberFailure(name: HostPluginName, error: unknown): HostStartupFailure 
           ? error.message
           : `${error.message} (the upgrade snapshot is kept at ${error.snapshot})`,
         {
-          item: name,
+          item: id,
           cause: error,
           ...(error.snapshot === undefined ? {} : { snapshot: error.snapshot }),
         },
@@ -152,86 +172,69 @@ function fiberFailure(name: HostPluginName, error: unknown): HostStartupFailure 
         { item: ENV.backupDirectory, cause: error },
       )
     return new HostStartupFailure('storage-open', 'the storage could not be opened', {
-      item: name,
+      item: id,
       cause: error,
     })
   }
-  if (name === 'governance-center-entry' && error instanceof GovernanceCenterClockTimeoutError)
+  if (role === 'entry' && error instanceof GovernanceCenterClockTimeoutError)
     return new HostStartupFailure(
       'clock-unreadable',
       'the center clock could not be read within the startup bound (OMNE_TENANCY_CLOCK_READY_TIMEOUT)',
-      { item: name, cause: error },
+      { item: id, cause: error },
     )
   return new HostStartupFailure(
     'plugin',
-    `${name} failed to start${error instanceof ClockRollbackDetected ? ': ClockRollbackDetected' : ''}`,
-    {
-      item: name,
-      cause: error,
-    },
+    `${id} failed to start${error instanceof ClockRollbackDetected ? ': ClockRollbackDetected' : ''}`,
+    { item: id, cause: error },
   )
 }
-
-interface Loaded {
-  readonly name: HostPluginName
-  readonly fiber: Fiber
-}
-
-/**
- * 按装载的逆序逐个撤除（不 dispose 根 Context：那会让全部 disposer 并发，clock 收回租约的写可能撞上已关准入的存储）。
- * 顺序覆盖真实结算；30秒仅诊断仍在停止，不结束等待或放弃属主。
- */
-async function disposeInReverse(
-  loaded: readonly Loaded[],
-  log: Logger,
-  finalization: MaintenanceFinalization,
-  assembly: ReturnType<typeof createHostAssembly>,
-): Promise<HostDisposal> {
-  const remaining = [...loaded].reverse()
-  const failed = new Set<HostPluginName>()
-  const timer = setTimeout(
-    () => log.warn({ event: 'still-stopping', unfinished: remaining.map(item => item.name) }),
-    DISPOSE_TIMEOUT_MS,
-  )
-  try {
-    const report = await assembly.dispose()
-    for (const row of report.rows) {
-      if (row.result.kind === 'failed') {
-        failed.add(row.id as HostPluginName)
-        log.error({ event: 'resource-close-failed', plugin: row.id, codes: row.result.codes })
-      }
-    }
-    if (report.assemblyErrors.length > 0) {
-      for (const row of loaded) failed.add(row.name)
-      log.error({ event: 'assembly-close-failed', codes: report.assemblyErrors })
-    }
-  } finally {
-    clearTimeout(timer)
-  }
-  if (
-    loaded.some(item => item.name === 'governance-center-ops') &&
-    finalization.controller !== 'clean'
-  )
-    failed.add('governance-center-ops')
-  if (loaded.some(item => item.name === 'storage-sql') && finalization.storage !== 'clean')
-    failed.add('storage-sql')
-  const unfinished = [...loaded]
-    .reverse()
-    .map(item => item.name)
-    .filter(name => failed.has(name))
-  if (unfinished.length > 0)
-    log.error({
-      event: 'dispose-incomplete',
-      unfinished,
-      controller: finalization.controller,
-      storage: finalization.storage,
-    })
-  return { complete: unfinished.length === 0, unfinished }
-}
-
-/** 写恰一条启动失败记录（阶段、点名的项、错误类型、说明、快照位置），返回同一个失败供抛出。 */
 function recordFailure(log: Logger, failure: HostStartupFailure): HostStartupFailure {
   const cause = failure.cause
+  let projection: { code?: string; rowId?: string; role?: HostPluginRole } = {}
+  if (cause instanceof HostPluginPolicyError && isHostPluginPolicyCode(cause.code))
+    projection = { code: cause.code, ...(isHostPluginRole(cause.role) ? { role: cause.role } : {}) }
+  else if (
+    cause instanceof PluginTreeError ||
+    cause instanceof PluginTreePreparationError ||
+    cause instanceof PluginTreeStartError ||
+    cause instanceof PluginTreeUsageError
+  ) {
+    const codes =
+      cause instanceof PluginTreeError
+        ? [
+            'invalid-tree',
+            'duplicate-id',
+            'duplicate-edit',
+            'missing-target',
+            'disabled-target',
+            'invalid-reference',
+            'invalid-config',
+          ]
+        : cause instanceof PluginTreePreparationError
+          ? [
+              'invalid-tree',
+              'module-unavailable',
+              'invalid-export',
+              'missing-schema',
+              'invalid-config',
+              'invalid-declaration',
+              'missing-service',
+              'service-order',
+              'duplicate-service',
+            ]
+          : cause instanceof PluginTreeStartError
+            ? [
+                'apply-failed',
+                'dependency-unavailable',
+                'missing-registration',
+                'provided-service-missing',
+                'stopped',
+              ]
+            : ['invalid-prepared', 'lifetime-mismatch', 'lifetime-used', 'missing-external-service']
+    const rowId = 'rowId' in cause ? cause.rowId : undefined
+    if (codes.includes(cause.code))
+      projection = { code: cause.code, ...(safeId(rowId) ? { rowId } : {}) }
+  }
   log.error({
     event: 'startup-failed',
     stage: failure.stage,
@@ -239,61 +242,198 @@ function recordFailure(log: Logger, failure: HostStartupFailure): HostStartupFai
     errorType: cause === undefined ? failure.name : describeThrown(cause).type,
     message: failure.message,
     ...(failure.snapshot === undefined ? {} : { snapshot: failure.snapshot }),
+    ...projection,
   })
   return failure
 }
 
-function asFailure(error: unknown): HostStartupFailure {
-  if (error instanceof HostStartupFailure) return error
-  return new HostStartupFailure('plugin', 'unexpected plugin failure', {
-    cause: error,
-  })
+/** Internal CLI input. File and JSON failures use the same safe startup record. */
+export async function readHostOperatorFile(file: string): Promise<unknown> {
+  try {
+    return JSON.parse(await readFile(file, 'utf8'))
+  } catch (cause) {
+    const context = new Context(),
+      log = attachLog(context, stderrSink)
+    throw recordFailure(
+      log,
+      new HostStartupFailure('config', 'operator configuration could not be read', {
+        item: '--plugins',
+        cause,
+      }),
+    )
+  }
 }
 
-/**
- * 起治理中心。返回时入口层已开闸（中心「起来了」）；拒绝时已按逆序撤完、确认之前的升级已撤回，
- * 并已写恰一条 `startup-failed` 记录。调用方（进程入口）据此退出非零。
- */
-export async function boot(options: BootOptions = {}): Promise<TenancyHost> {
+/** Full static preparation is shared by printing and boot, before guard/directory/database creation. */
+async function prepareHost(options: BootOptions) {
   const hooks = options.hooks ?? {}
-  // 根 Context 先只挂日志：起插件之前的失败与之后的失败走同一条流、同一形状；此时没有任何插件 fiber、未碰数据
+  const config = await readHostConfig(options.env ?? process.env)
+  verifyKeyPairing(config.keys)
+  const backupDirectory = await resolveBackupDirectory(config)
+  const sourceBuildId = await readBuildId()
+  const fragments = [...hostMigrationFragments, ...(hooks.extraMigrations ?? [])]
+  const migrationNames = composedMigrationNames(fragments)
+  const distribution = buildDistributionTree(config, {
+    backupDirectory,
+    sourceBuildId,
+    migrationNames,
+  })
+  const tree = composePluginTree(
+    distribution,
+    options.operator === undefined ? [] : options.operator,
+  )
+  const prepared = await preparePluginTree(tree, {
+    externalServices: [
+      STORAGE_STARTUP_SERVICE,
+      STORAGE_COMPLETION_SERVICE,
+      ENTRY_OPENING_SERVICE,
+      ENTRY_MAINTENANCE_SERVICE,
+    ],
+    resolveModule: hooks.resolveModule ?? (reference => import(`${reference.package}/cordis`)),
+  })
+  const roles = checkHostPolicy(prepared, distribution)
+  return { config, backupDirectory, fragments, migrationNames, prepared, roles }
+}
+/** Internal CLI entry; returns only the prepared safe DTO and creates no runtime resources. */
+export async function describeHostPlugins(options: BootOptions = {}) {
   const context = new Context()
   const log = attachLog(context, options.log ?? stderrSink)
-
-  const guard = createUpgradeGuard()
   try {
-    const config = await readHostConfig(options.env ?? process.env)
-    verifyKeyPairing(config.keys)
-    const backupDirectory = await prepareBackupDirectory(config)
-    const sourceBuildId = await readBuildId()
-    const finalization = new MaintenanceFinalization()
-    const fragments = [...hostMigrationFragments, ...(hooks.extraMigrations ?? [])]
-    const built = buildManifest(config, {
-      migrations: composeMigrations(fragments),
-      checks: [
-        dataFormatPreflight(composedMigrationNames(fragments)),
-        clockPreflight(),
-        governanceCenterPreflight,
-      ],
-      guard,
-      maintenance: {
-        backupDirectory,
-        sourceBuildId,
-        migrationNames: composedMigrationNames(fragments),
-        storageClosed: finalization.storageClosed,
-        controllerClosed: finalization.controllerClosed,
-      },
-    })
-    const manifest = hooks.manifest?.(built) ?? built
-    return await assemble(
-      context,
-      log,
-      manifest,
-      guard,
-      config.clockReadyTimeoutMs,
-      hooks,
-      finalization,
+    return (await prepareHost(options)).prepared.rows
+  } catch (error) {
+    throw recordFailure(log, asFailure(error))
+  }
+}
+
+interface Shutdown {
+  readonly result: HostDisposal
+  readonly pending: UpgradePending | 'observation-failed'
+}
+async function disposeTree(
+  handle: PluginTreeHandle,
+  resources: Fiber,
+  log: Logger,
+  finalization: MaintenanceFinalization,
+  roles: ReadonlyMap<HostPluginRole, string>,
+  guard: UpgradeGuard,
+): Promise<Shutdown> {
+  const timer = setTimeout(
+    () =>
+      log.warn({
+        event: 'still-stopping',
+        unfinished: inspectPluginTree(handle)
+          .map(row => row.id)
+          .reverse(),
+      }),
+    DISPOSE_TIMEOUT_MS,
+  )
+  try {
+    const report = await handle.dispose()
+    const rows = inspectPluginTree(handle)
+    const failed = new Set<string>()
+    for (const row of report.rows)
+      if (row.result.kind === 'failed') {
+        failed.add(row.id)
+        log.error({ event: 'resource-close-failed', plugin: row.id, codes: row.result.codes })
+      }
+    if (report.assemblyErrors.length > 0) {
+      for (const row of rows) failed.add(row.id)
+      log.error({ event: 'assembly-close-failed', codes: report.assemblyErrors })
+    }
+    for (const row of [...rows].reverse()) log.info({ event: 'fiber-disposed', plugin: row.id })
+    const ops = roles.get('ops'),
+      storage = roles.get('storage')
+    if (
+      ops !== undefined &&
+      rows.some(row => row.id === ops) &&
+      finalization.controller !== 'clean'
     )
+      failed.add(ops)
+    if (
+      storage !== undefined &&
+      rows.some(row => row.id === storage) &&
+      finalization.storage !== 'clean'
+    )
+      failed.add(storage)
+    let pending: Shutdown['pending']
+    try {
+      pending = await guard.pending()
+    } catch {
+      pending = 'observation-failed'
+      log.error({ event: 'upgrade-pending-failed' })
+    }
+    if (pending !== 'clear' && storage !== undefined) failed.add(storage)
+    // Retain all borrowed resource ports through real tree close and guard/maintenance readback.
+    try {
+      await resources.dispose()
+    } catch {
+      for (const row of rows) failed.add(row.id)
+      log.error({ event: 'assembly-close-failed', codes: ['assembly-port-dispose-failed'] })
+    }
+    const unfinished = rows
+      .map(row => row.id)
+      .reverse()
+      .filter(id => failed.has(id))
+    if (storage !== undefined && failed.has(storage) && !unfinished.includes(storage))
+      unfinished.push(storage)
+    if (unfinished.length > 0)
+      log.error({
+        event: 'dispose-incomplete',
+        unfinished,
+        controller: finalization.controller,
+        storage: finalization.storage,
+      })
+    return { result: { complete: report.complete && unfinished.length === 0, unfinished }, pending }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** Reject only after the failed prefix actually closes; ready and closed remain distinct. */
+export async function boot(options: BootOptions = {}): Promise<TenancyHost> {
+  const context = new Context()
+  const log = attachLog(context, options.log ?? stderrSink)
+  try {
+    const input = await prepareHost(options)
+    await prepareBackupDirectory(input.config, input.backupDirectory)
+    const guard = createUpgradeGuard()
+    const finalization = new MaintenanceFinalization()
+    const assembly = createHostAssembly(input.prepared.ids)
+    const resources = context.plugin(ctx => {
+      publishHostResources(ctx, {
+        opening: assembly.signal,
+        startup: {
+          migrations: composeMigrations(input.fragments),
+          upgrade: {
+            checks: [
+              dataFormatPreflight(input.migrationNames),
+              clockPreflight(),
+              governanceCenterPreflight,
+            ],
+            guard,
+          },
+        },
+        storageCompletion: { closed: finalization.storageClosed },
+        maintenance: { snapshotChecks: hostSnapshotChecks, closed: finalization.controllerClosed },
+      })
+    })
+    try {
+      await resources
+      return await assemble(
+        context,
+        log,
+        input,
+        resources,
+        guard,
+        finalization,
+        assembly,
+        options.hooks ?? {},
+      )
+    } catch (error) {
+      // assemble retains and releases these services after any claimed tree completes.
+      if (assembly.lifetime.isPristine()) await resources.dispose()
+      throw error
+    }
   } catch (error) {
     throw recordFailure(log, asFailure(error))
   }
@@ -302,22 +442,49 @@ export async function boot(options: BootOptions = {}): Promise<TenancyHost> {
 async function assemble(
   context: Context,
   log: Logger,
-  manifest: readonly ManifestEntry[],
+  input: Awaited<ReturnType<typeof prepareHost>>,
+  resources: Fiber,
   guard: UpgradeGuard,
-  clockReadyTimeoutMs: number,
-  hooks: BootHooks,
   finalization: MaintenanceFinalization,
+  assembly: ReturnType<typeof createHostAssembly>,
+  hooks: BootHooks,
 ): Promise<TenancyHost> {
-  const assembly = createHostAssembly(context, manifest, log)
-  const loaded: Loaded[] = []
-  const serving = deferred<ServingNotice>()
-  let stopWatching: (() => void) | undefined
-
-  /** 失败收场：关闭代际准入 → 逆序排空资源和 fibers → 撤后核查未确认的快照。 */
+  const serving = Promise.withResolvers<ServingNotice>()
+  const stopWatching = context.on(SERVING_EVENT, (notice: ServingNotice) => {
+    try {
+      serving.resolve(notice)
+      log.info({
+        event: 'serving',
+        centerId: notice.centerId,
+        version: notice.version,
+        startedAt: notice.startedAt,
+      })
+    } catch {
+      /* Recording cannot change entry/ops behavior. */
+    }
+  })
+  let handle: PluginTreeHandle
+  try {
+    handle = loadPluginTree(context, input.prepared, assembly.lifetime)
+  } catch (error) {
+    stopWatching()
+    throw error
+  }
+  let closing: PromiseWithResolvers<Shutdown> | undefined
+  const finish = (): Promise<Shutdown> => {
+    if (closing !== undefined) return closing.promise
+    closing = Promise.withResolvers<Shutdown>()
+    void closing.promise.catch(() => undefined)
+    void handle.dispose()
+    void disposeTree(handle, resources, log, finalization, input.roles, guard).then(
+      closing.resolve,
+      closing.reject,
+    )
+    return closing.promise
+  }
   const abort = async (failure: HostStartupFailure): Promise<HostStartupFailure> => {
-    stopWatching?.()
-    await disposeInReverse(loaded, log, finalization, assembly)
-    const pending = await guard.pending()
+    stopWatching()
+    const { pending } = await finish()
     if (typeof pending === 'object' && failure.stage !== 'restore')
       return new HostStartupFailure(
         'upgrade-unconfirmed',
@@ -328,41 +495,37 @@ async function assemble(
           ...(failure.item === undefined ? {} : { item: failure.item }),
         },
       )
+    if (pending === 'observation-failed')
+      return new HostStartupFailure(
+        'upgrade-unconfirmed',
+        'upgrade completion could not be observed',
+        { cause: failure, ...(failure.item === undefined ? {} : { item: failure.item }) },
+      )
     return failure
   }
-
   let confirmation: UpgradeConfirmation
   try {
-    for (const entry of manifest) {
-      if (entry.name === 'governance-center-entry') {
-        // serving 的监听在运维面之后、入口层之前登记：只记录、不做控制、不抛（emit 不隔离监听者）
-        stopWatching = context.on(SERVING_EVENT, (notice: ServingNotice) => {
-          try {
-            serving.resolve(notice)
-            log.info({
-              event: 'serving',
-              centerId: notice.centerId,
-              version: notice.version,
-              startedAt: notice.startedAt,
-            })
-          } catch {
-            // 记录失败不影响入口层与运维面
-          }
-        })
-      }
-      try {
-        await assembly.load(entry, fiber => {
-          loaded.push({ name: entry.name, fiber })
-          hooks.observeFiber?.(entry.name, fiber)
-        })
-      } catch (error) {
-        if (error instanceof HostStartupFailure) throw error
-        throw fiberFailure(entry.name, error)
-      }
+    try {
+      hooks.treeCreated?.(handle)
+    } catch {
+      throw new HostStartupFailure('plugin', 'plugin tree observer failed')
     }
-    assembly.assertReady()
-    log.info({ event: 'manifest-active', plugins: loaded.map(l => l.name) })
-
+    try {
+      await handle.ready
+    } catch (error) {
+      if (
+        error instanceof PluginTreeStartError &&
+        error.code === 'apply-failed' &&
+        error.rowId !== undefined &&
+        assembly.failures.has(error.rowId)
+      ) {
+        const role = [...input.roles].find(([, id]) => id === error.rowId)?.[0]
+        throw setupFailure(role, error.rowId, assembly.failures.get(error.rowId))
+      }
+      throw error
+    }
+    assembly.assertCurrent()
+    log.info({ event: 'manifest-active', plugins: input.prepared.ids })
     await hooks.beforeConfirm?.(context)
     assembly.assertCurrent()
     const confirmer = hooks.confirmWith?.(guard) ?? guard
@@ -372,9 +535,7 @@ async function assemble(
       throw new HostStartupFailure(
         'upgrade-confirm',
         `the upgrade confirmation failed${error instanceof UpgradeGuardNotAttached ? ': UpgradeGuardNotAttached' : ''}`,
-        {
-          cause: error,
-        },
+        { cause: error },
       )
     }
     if (confirmation.snapshotTaken && !confirmation.snapshotRemoved)
@@ -396,52 +557,45 @@ async function assemble(
     throw await abort(asFailure(error))
   }
 
-  // 确认之后才放行开闸；等不到 serving ⇒ 启动失败、逆序全撤，快照已确认、不恢复（缺口 U-4）
   const notice = await within(
     Promise.race([serving.promise, assembly.stopped.then(() => 'stopped' as const)]),
-    clockReadyTimeoutMs + SERVING_GRACE_MS,
+    input.config.clockReadyTimeoutMs + SERVING_GRACE_MS,
   )
   if (notice === 'stopped')
     throw await abort(new HostStartupFailure('plugin', 'the assembly stopped before serving'))
+  const entryId = input.roles.get('entry')
   if (notice === 'timeout')
     throw await abort(
       new HostStartupFailure(
         'serving-timeout',
         '钟读不到或回拨：重启前先核钟 (the entry did not open after the upgrade was confirmed; the clock could not be read or went backwards — check the clock before restarting)',
-        { item: 'governance-center-entry' },
+        entryId === undefined ? {} : { item: entryId },
       ),
     )
-
   try {
     assembly.assertCurrent()
   } catch (error) {
     throw await abort(asFailure(error))
   }
-  const fibers: Partial<Record<HostPluginName, Fiber>> = {}
-  for (const { name, fiber } of loaded) fibers[name] = fiber
-  let disposal: Promise<HostDisposal> | undefined
+  const fibers: Record<string, Fiber> = {}
+  for (const { id, fiber } of inspectPluginTree(handle)) fibers[id] = fiber
+  let disposal: PromiseWithResolvers<HostDisposal> | undefined
   const host: TenancyHost = {
     context,
-    fibers,
+    fibers: Object.freeze(fibers),
     serving: notice,
     confirmation,
     dispose() {
-      // Close admission synchronously, before observers and any asynchronous cleanup.
-      void assembly.dispose()
-      disposal ??= (async () => {
-        stopWatching?.()
-        const result = await disposeInReverse(loaded, log, finalization, assembly)
-        const pending = await guard.pending()
-        if (pending !== 'clear') {
-          const unfinished = [...new Set([...result.unfinished, 'storage-sql' as const])]
-          log.error({ event: 'dispose-incomplete', unfinished, upgrade: pending })
-          log.info({ event: 'disposed', complete: false })
-          return { complete: false, unfinished }
-        }
+      if (disposal !== undefined) return disposal.promise
+      disposal = Promise.withResolvers<HostDisposal>()
+      void disposal.promise.catch(() => undefined)
+      const done = disposal
+      stopWatching()
+      void finish().then(({ result }) => {
         log.info({ event: 'disposed', complete: result.complete })
-        return result
-      })()
-      return disposal
+        done.resolve(result)
+      }, done.reject)
+      return done.promise
     },
   }
   void assembly.stopped

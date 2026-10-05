@@ -31,17 +31,17 @@ describe('basis：ctx.on 经 effect 纳管', () => {
       name: 'on-probe',
       Config: z.object({}).strict(),
       apply(ctx) {
-        ctx.on('governance-center-entry/defect', () => {
+        ctx.on('governance-center-entry/defect-observed', () => {
           calls += 1
         })
       },
     })
     const fiber = root.plugin(listener, {})
     await fiber
-    root.emit('governance-center-entry/defect')
+    root.emit('governance-center-entry/defect-observed')
     expect(calls).toBe(1)
     await fiber.dispose()
-    root.emit('governance-center-entry/defect')
+    root.emit('governance-center-entry/defect-observed')
     expect(calls).toBe(1)
   })
 })

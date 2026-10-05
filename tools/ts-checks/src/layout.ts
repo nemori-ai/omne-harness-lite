@@ -1,7 +1,6 @@
 // 规则按路径写死的那几处，路径一律相对于扫描根（`packages/`）。
-// 入口层包的布局以 governance-center-entry 节点 verification「包布局常量」一行为准：
-// .meta_harness/design/realization/packages/tenancy/governance-center-entry/verification.md#静态检查
-// 包偏离布局即规则失效——布局改动先改那一行，再改这里。
+// 未迁布局沿精确节点 verification；T4 服务端集成与事件坐标由成员 SPEC 接续。
+// 边界变化须有采用依据，不能通过扩大白名单掩盖违规。
 import { isTestPath } from './rule.ts'
 
 export const TENANCY = 'tenancy/'
@@ -10,8 +9,9 @@ export const ENTRY_PACKAGE = 'tenancy/governance-center-entry-node/'
 export const ENTRY_SRC = `${ENTRY_PACKAGE}src/`
 /** 运维面源码目录（SC-2 白名单的键）。 */
 export const ENTRY_OPS = `${ENTRY_SRC}ops/`
-/** 事件声明模块：只导出 `serving`、`stopped`、`defect`、`listening` 四个常量。 */
-export const ENTRY_EVENTS = `${ENTRY_SRC}events.ts`
+/** T4: the pure event owner; Cordis augmentation stays in its binding entry. */
+export const ENTRY_EVENTS = 'core/governance-center-entry/src/events.ts'
+export const ENTRY_EVENTS_PACKAGE = '@omne-harness-lite/governance-center-entry'
 /** 客户端面（TLS 监听与 HTTP 落地）。 */
 export const ENTRY_TRANSPORT = `${ENTRY_SRC}transport/`
 

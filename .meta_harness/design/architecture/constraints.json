@@ -84,7 +84,8 @@
       "id": "host-composition",
       "paths": [
         "apps/tenancy-host/src/boot.ts",
-        "apps/tenancy-host/src/manifest.ts",
+        "apps/tenancy-host/src/tree.ts",
+        "apps/tenancy-host/src/policy.ts",
         "apps/tenancy-host/src/assembly.ts"
       ],
       "layer": "assembly",
@@ -92,7 +93,7 @@
         "identity"
       ],
       "status": "adopted",
-      "source": ".meta_harness/design/architecture/identity-integration/retirement.md"
+      "source": ".meta_harness/design/architecture/identity-integration/host-integration.md"
     },
     {
       "id": "business-storage",
@@ -641,6 +642,48 @@
       ],
       "status": "adopted",
       "source": ".meta_harness/design/architecture/identity-integration/design.md"
+    },
+    {
+      "id": "plugin-tree-protocol",
+      "paths": [
+        "packages/core/cordis-plugin-tree/src/types.ts",
+        "packages/core/cordis-plugin-tree/src/errors.ts"
+      ],
+      "layer": "contract",
+      "domains": [],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/plugin-tree.md"
+    },
+    {
+      "id": "plugin-tree-assembly-mechanism",
+      "paths": [
+        "packages/core/cordis-plugin-tree/src/index.ts",
+        "packages/core/cordis-plugin-tree/src/data.ts",
+        "packages/core/cordis-plugin-tree/src/tree.ts",
+        "packages/core/cordis-plugin-tree/src/prepare.ts",
+        "packages/core/cordis-plugin-tree/src/prepared.ts",
+        "packages/core/cordis-plugin-tree/src/load.ts",
+        "packages/core/cordis-plugin-tree/src/cordis.ts"
+      ],
+      "layer": "assembly",
+      "domains": [],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/plugin-tree.md"
+    },
+    {
+      "id": "governance-entry-cordis-binding",
+      "paths": [
+        "packages/tenancy/governance-center-entry-node/src/cordis.ts",
+        "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "identity",
+        "admission"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/host-integration.md"
     }
   ],
   "rules": [

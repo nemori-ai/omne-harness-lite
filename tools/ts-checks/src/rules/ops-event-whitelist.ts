@@ -1,35 +1,25 @@
 import type { Rule, SourceFile, Violation } from '../rule.ts'
-import { ENTRY_EVENTS, ENTRY_OPS, productSourceIn } from '../layout.ts'
-import {
-  codeMatches,
-  firstArgument,
-  lineAt,
-  namedImportsOf,
-  resolveRelative,
-  viewsOf,
-  withoutExtension,
-} from '../source-text.ts'
+import { ENTRY_EVENTS_PACKAGE, ENTRY_OPS, productSourceIn } from '../layout.ts'
+import { codeMatches, firstArgument, lineAt, namedImportsOf, viewsOf } from '../source-text.ts'
 
-const SUBSCRIBE = new Set(['serving', 'stopped', 'defect'])
-const DISPATCH = new Set(['listening'])
-const EVENTS_MODULE = withoutExtension(ENTRY_EVENTS)
+const SUBSCRIBE = new Set(['SERVING_EVENT', 'STOPPED_EVENT', 'DEFECT_EVENT'])
+const DISPATCH = new Set(['LISTENING_EVENT'])
 
 /**
- * 入口 verification 契约 SC-2「事件订阅白名单」与 design「本节点约束」第 5 条：运维面源码里
- * Cordis 事件总线上的 `on`／`once` 第一个实参只能是从事件声明模块导入的 `serving`、`stopped`、`defect`，
- * 派发（`emit`，以及同为派发的 `parallel`、`serial`）只能是 `listening`；字符串字面量、计算出的名字一律不许——
- * 按字符串名订阅 `login.revoked` 一类治理事件不经导入，导入白名单挡不住。
+ * SC-2 的事件能力保持；T4 将常量拥有者迁到公共定义入口。
+ * on/once 只许三项公共观察事件，emit/parallel/serial 只许 LISTENING_EVENT。
+ * 字符串、计算名称及另一模块的同名标识符仍被拒绝。
  *
  * 接收者：调用对象的成员链里有名为 `ctx`／`context` 的一段，或本文件里标注为 `Context` 类型、
  * 或由它们直接赋值得来的名字。Node 的 `server.on('error', …)` 这类发射器不是 Cordis 事件总线，不在此列。
- * 允许的实参写法：具名导入（可改名，按原名判）与命名空间导入的成员（`events.serving`）。
+ * 允许具名导入及别名，或公共模块的命名空间成员（events.SERVING_EVENT）。
  */
 export const opsEventWhitelist: Rule = {
   id: 'ops-event-whitelist',
   source:
-    'composition.governance-center-entry v1 SC-2 · governance-center-entry 节点约束第 5 条（事件订阅白名单）',
+    'composition.governance-center-entry v3 SC-2 / identity-t4-host-coordinates · 服务端 SPEC 事件边界',
   description:
-    '入口层包 src/ops/** 里 Cordis 的 on/once 只许 serving、stopped、defect，emit/parallel/serial 只许 listening，且都须是从 src/events.ts 导入的标识符',
+    '运维面 Cordis 只订阅公共 SERVING_EVENT/STOPPED_EVENT/DEFECT_EVENT，只派发 LISTENING_EVENT；必须从公共定义入口导入',
   check(files) {
     const out: Violation[] = []
     for (const file of files) {
@@ -47,8 +37,7 @@ function checkFile(rule: string, file: SourceFile): Violation[] {
   const fromEvents = new Map<string, string>()
   const namespaces = new Set<string>()
   for (const imp of namedImportsOf(file)) {
-    const resolved = resolveRelative(file.path, imp.specifier)
-    if (resolved === undefined || withoutExtension(resolved) !== EVENTS_MODULE) continue
+    if (imp.specifier !== ENTRY_EVENTS_PACKAGE) continue
     if (imp.imported === '*') namespaces.add(imp.local)
     else fromEvents.set(imp.local, imp.imported)
   }

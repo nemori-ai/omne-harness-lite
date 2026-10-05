@@ -9,24 +9,19 @@ import { startAssemblyWork } from '@omne-harness-lite/assembly-lifecycle/cordis'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { inspect } from 'node:util'
-import { symbols, type Fiber } from '@deepseek-ai/cordis'
+import { symbols } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
 import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import type { AccountsService, LoginsService } from '@omne-harness-lite/account-identity'
 import { LEASE_WIDTH_MS } from '@omne-harness-lite/clock-lease'
-import { managedClockPlugin } from '@omne-harness-lite/clock-lease/cordis'
 import { GovernanceCenterClockTimeoutError } from '@omne-harness-lite/governance-center-entry-node'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
-import { managedStorageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
-import {
-  HOST_PLUGIN_NAMES,
-  type HostPluginName,
-  type ManifestEntry,
-  buildManifest,
-  readHostConfig,
-} from '../src/index.ts'
+import { buildDistributionTree, readHostConfig } from '../src/index.ts'
+import { inspectPluginTree } from '@omne-harness-lite/cordis-plugin-tree/cordis'
+import type { PluginTreeHandle } from '@omne-harness-lite/cordis-plugin-tree'
+import { DISTRIBUTION_IDS, replaceApply, resolveProvider } from './support/tree.ts'
 import { type Deployment, asEnv, deployment, execute, query } from './support/deployment.ts'
 import { Hosts, allDisposed, failureRecords } from './support/host.ts'
 import {
@@ -68,25 +63,13 @@ describe('assembly.manifest-shape', () => {
   it('rejects PostgreSQL before opening a provider instead of falling back to an unproven bounded composition', async () => {
     const d = await deployment('postgres-refused')
     const config = await readHostConfig(asEnv(d))
-    const guard = (await import('@omne-harness-lite/storage-sql')).createUpgradeGuard()
     expect(() =>
-      buildManifest(
+      buildDistributionTree(
         {
           ...config,
           storage: { dialect: 'postgres', connectionString: 'postgresql://unused.invalid/test' },
         },
-        {
-          migrations: { getMigrations: async () => ({}) },
-          checks: [],
-          guard,
-          maintenance: {
-            backupDirectory: join(d.root, 'backups'),
-            sourceBuildId: null,
-            migrationNames: ['test'],
-            storageClosed() {},
-            controllerClosed() {},
-          },
-        },
+        { backupDirectory: join(d.root, 'backups'), sourceBuildId: null, migrationNames: ['test'] },
       ),
     ).toThrow('currently requires SQLite')
   })
@@ -94,39 +77,39 @@ describe('assembly.manifest-shape', () => {
   it('清单：恰一个 storageSqlPlugin、恰一个 clockPlugin；inject organizationPurge 的恰为 AR；运维面与入口层是最后两项且运维面在前；运维面 config 里没有服务句柄', async () => {
     const d = await deployment('manifest')
     const config = await readHostConfig(asEnv(d))
-    const entries = buildManifest(config, {
-      migrations: { getMigrations: async () => ({}) },
-      checks: [],
-      guard: (await import('@omne-harness-lite/storage-sql')).createUpgradeGuard(),
-      maintenance: {
-        backupDirectory: join(d.root, 'backups'),
-        sourceBuildId: null,
-        migrationNames: ['test'],
-        storageClosed() {},
-        controllerClosed() {},
-      },
+    const entries = buildDistributionTree(config, {
+      backupDirectory: join(d.root, 'backups'),
+      sourceBuildId: null,
+      migrationNames: ['test'],
     })
-    expect(entries.map(e => e.name)).toEqual([...HOST_PLUGIN_NAMES])
-    expect(entries.filter(e => e.plugin === managedStorageSqlPlugin)).toHaveLength(1)
-    expect(entries.find(e => e.plugin === managedStorageSqlPlugin)?.config).toMatchObject({
+    expect(entries.map(e => e.id)).toEqual([...DISTRIBUTION_IDS])
+    expect(entries.filter(e => e.plugin.export === 'managedStorageSqlPlugin')).toHaveLength(1)
+    expect(entries.find(e => e.plugin.export === 'managedStorageSqlPlugin')?.config).toMatchObject({
       dialect: 'sqlite',
       synchronous: 'full',
+      startup: 'migrate',
     })
-    expect(entries.filter(e => e.plugin === managedClockPlugin)).toHaveLength(1)
-    const injecting = entries.filter(e => {
-      const inject = (e.plugin as { inject?: unknown }).inject
-      return Array.isArray(inject) && inject.includes('organizationPurge')
-    })
-    expect(injecting.map(e => e.name)).toEqual(['account-registration'])
-    expect(entries.slice(-2).map(e => e.name)).toEqual([
+    expect(entries.filter(e => e.plugin.export === 'managedClockPlugin')).toHaveLength(1)
+    const injecting = []
+    for (const entry of entries) {
+      const module = await resolveProvider(entry.plugin)
+      if (typeof module !== 'object' || module === null) throw new Error('missing module')
+      const plugin: unknown = Reflect.get(module, entry.plugin.export)
+      if (typeof plugin !== 'object' || plugin === null) throw new Error('missing plugin')
+      const inject: unknown = Reflect.get(plugin, 'inject')
+      if (Array.isArray(inject) && inject.includes('organizationPurge')) injecting.push(entry)
+    }
+    expect(injecting.map(e => e.id)).toEqual(['account-registration'])
+    expect(entries.slice(-2).map(e => e.id)).toEqual([
       'governance-center-ops',
       'governance-center-entry',
     ])
-    const ops = entries.find(e => e.name === 'governance-center-ops')?.config
-    // 运维参数为数据；D055新增owner只读检查与收场观察回调，不传治理服务句柄或PEM
+    const ops = entries.find(e => e.id === 'governance-center-ops')?.config
+    // Configuration is JSON; maintenance callbacks now come from named services.
     const plainData = (value: unknown): boolean =>
       value === null ||
       ['string', 'number', 'boolean'].includes(typeof value) ||
+      (Array.isArray(value) && value.every(plainData)) ||
       (typeof value === 'object' &&
         Object.getPrototypeOf(value) === Object.prototype &&
         Object.values(value as object).every(plainData))
@@ -137,8 +120,9 @@ describe('assembly.manifest-shape', () => {
     }
     expect(plainData(opsConfig.deploymentKey)).toBe(true)
     expect(plainData(opsConfig.deploymentParameters)).toBe(true)
-    expect(Array.isArray(opsConfig.maintenance.snapshotChecks)).toBe(true)
-    expect(typeof opsConfig.maintenance.onClosed).toBe('function')
+    expect('snapshotChecks' in opsConfig.maintenance).toBe(false)
+    expect('onClosed' in opsConfig.maintenance).toBe(false)
+    expect(plainData(opsConfig)).toBe(true)
     expect(JSON.stringify(ops)).not.toContain(PEM_HEADER)
   })
 
@@ -217,27 +201,19 @@ describe('assembly.clock-failure-classification：N-18 按错误类型点名', (
           : new Error('unrelated plugin failure (cause: clock)')
       if (variant === 'typed-with-changed-message') cause.message = 'diagnostic wording changed'
       const refused = await hosts.refuse(d, {
-        manifest: entries =>
-          entries.map(entry =>
-            entry.name === 'governance-center-entry'
-              ? {
-                  ...entry,
-                  plugin: {
-                    assemblyLifecycle: 1,
-                    inject: ['assemblyLifetime'],
-                    apply(ctx: import('@deepseek-ai/cordis').Context) {
-                      startAssemblyWork(
-                        ctx,
-                        async () => {
-                          throw cause
-                        },
-                        async () => {},
-                      )
-                    },
-                  },
-                }
-              : entry,
-          ),
+        resolveModule: replaceApply(
+          '@omne-harness-lite/governance-center-entry-node',
+          ctx => {
+            startAssemblyWork(
+              ctx,
+              async () => {
+                throw cause
+              },
+              async () => {},
+            )
+          },
+          'managedGovernanceCenterEntryPlugin',
+        ),
       })
       expect(refused.failure).toMatchObject({
         stage: variant === 'typed-with-changed-message' ? 'clock-unreadable' : 'plugin',
@@ -245,47 +221,58 @@ describe('assembly.clock-failure-classification：N-18 按错误类型点名', (
         cause,
       })
       expect(allDisposed(refused.fibers)).toBe(true)
+      expect(refused.log.text()).not.toContain(
+        "Cannot read properties of undefined (reading 'catch')",
+      )
     },
   )
 })
 
-describe('assembly.pending-is-manifest-error：PENDING 是清单错误，同步判定、不等待', () => {
-  const reorder =
-    (change: (entries: ManifestEntry[]) => ManifestEntry[]) =>
-    (entries: readonly ManifestEntry[]) =>
-      change([...entries])
-
-  it('AR 排到 AI 之前 ⇒ 装 AR 那一步即拒绝、点名缺的服务；已装的 storage／clock／credentials 已撤', async () => {
+describe('assembly.pending-is-manifest-error: dependency order is rejected before resource creation', () => {
+  it('AR before AI rejects accounts synchronously without opening SQL or listeners', async () => {
     const d = await deployment('pending-ar')
     const started = performance.now()
-    const refused = await hosts.refuse(d, {
-      manifest: reorder(entries => {
-        const ar = entries.findIndex(e => e.name === 'account-registration')
-        const [moved] = entries.splice(ar, 1)
-        if (moved === undefined) throw new Error('no AR')
-        entries.splice(3, 0, moved)
-        return entries
-      }),
-    })
-    expect(performance.now() - started).toBeLessThan(5_000)
-    expect(refused.failure).toMatchObject({ stage: 'manifest', item: 'account-registration' })
-    expect(refused.failure.message).toContain('accounts')
-    expect(refused.fibers.map(f => f.name)).toEqual([
-      'storage-sql',
-      'clock-lease',
-      'credential-verification',
-      'account-registration',
+    const refused = await hosts.refuse(d, {}, undefined, [
+      { op: 'disable', id: 'account-registration' },
+      {
+        op: 'insert',
+        position: { before: 'account-identity' },
+        row: {
+          id: 'early-registration',
+          plugin: {
+            package: '@omne-harness-lite/account-registration-sequential',
+            export: 'managedRegistrationPlugin',
+          },
+          config: {
+            activationSigningKeyPem: (await readHostConfig(asEnv(d))).keys.activationSigningKeyPem,
+          },
+        },
+      },
     ])
+    expect(performance.now() - started).toBeLessThan(5_000)
+    expect(refused.failure).toMatchObject({
+      stage: 'manifest',
+      item: 'early-registration',
+      cause: { code: 'service-order' },
+    })
+    expect(refused.fibers.map(f => f.name)).toEqual([])
+    expect(existsSync(d.file)).toBe(false)
+    expect(await portAccepting(d.port)).toBe(false)
     expect(allDisposed(refused.fibers)).toBe(true)
   })
 
-  it('入口层支：清单里拿掉 credentials ⇒ 入口层装上即 PENDING ⇒ 同步拒绝，入口层的监听从未打开', async () => {
+  it('missing credentials rejects entry before applying any row or opening listeners', async () => {
     const d = await deployment('pending-entry')
-    const refused = await hosts.refuse(d, {
-      manifest: reorder(entries => entries.filter(e => e.name !== 'credential-verification')),
+    const refused = await hosts.refuse(d, {}, undefined, [
+      { op: 'disable', id: 'credential-verification' },
+    ])
+    expect(refused.failure).toMatchObject({
+      stage: 'manifest',
+      item: 'governance-center-entry',
+      cause: { code: 'missing-service' },
     })
-    expect(refused.failure).toMatchObject({ stage: 'manifest', item: 'governance-center-entry' })
-    expect(refused.failure.message).toContain('credentials')
+    expect(refused.fibers).toEqual([])
+    expect(existsSync(d.file)).toBe(false)
     expect(await portAccepting(d.port)).toBe(false)
     expect(allDisposed(refused.fibers)).toBe(true)
   })
@@ -294,12 +281,16 @@ describe('assembly.pending-is-manifest-error：PENDING 是清单错误，同步�
 describe('assembly.no-commit-before-open 与 assembly.entry-loads-last', () => {
   it('① 停在确认处：八条 fiber 都已 ACTIVE；公开体检、注册、运维面请求一律关闭不答，库里没有新行，serving 尚未发出', async () => {
     const d = await deployment('closed-gate')
-    const fibers: { name: HostPluginName; fiber: Fiber }[] = []
+    let tree: PluginTreeHandle | undefined
     let checked = false
     const { log } = await hosts.start(d, {
-      observeFiber: (name, fiber) => fibers.push({ name, fiber }),
+      treeCreated: handle => {
+        tree = handle
+      },
       beforeConfirm: async () => {
-        expect(fibers.map(f => f.name)).toEqual([...HOST_PLUGIN_NAMES])
+        if (tree === undefined) throw new Error('tree unavailable')
+        const fibers = inspectPluginTree(tree)
+        expect(fibers.map(f => f.id)).toEqual([...DISTRIBUTION_IDS])
         for (const { fiber } of fibers) expect(fiber.state as number).toBe(FIBER_STATE.ACTIVE)
         const health = await tlsExchange(d.port, PUBLIC_HEALTH_BODY, 3_000)
         const register = await tlsExchange(
@@ -378,7 +369,7 @@ describe('assembly.no-commit-before-open 与 assembly.entry-loads-last', () => {
     await hosts.stop(host)
     expect(existsSync(d.socketPath)).toBe(false)
     const order = log.events('fiber-disposed').map(l => l['plugin'])
-    expect(order).toEqual([...HOST_PLUGIN_NAMES].reverse())
+    expect(order).toEqual([...DISTRIBUTION_IDS].reverse())
   })
 })
 
@@ -391,7 +382,7 @@ describe('assembly.dispose-reverse-order 与 assembly.dispose-with-inflight', ()
     const after = Date.now()
     expect(disposal).toEqual({ complete: true, unfinished: [] })
     expect(log.events('fiber-disposed').map(l => l['plugin'])).toEqual(
-      [...HOST_PLUGIN_NAMES].reverse(),
+      [...DISTRIBUTION_IDS].reverse(),
     )
     const [lease] = query<{ lease_until: number }>(d.file, 'SELECT lease_until FROM clock_lease')
     expect(lease?.lease_until).toBeGreaterThanOrEqual(before - 1)
@@ -451,7 +442,7 @@ describe('assembly.keys-only-in-owner-config（窄形式：它不证同进程别
     const d = await deployment('keys-placement')
     const { host, log } = await hosts.start(d)
     const placement: Record<string, string[]> = {}
-    for (const name of HOST_PLUGIN_NAMES) {
+    for (const name of DISTRIBUTION_IDS) {
       const fiber = host.fibers[name]
       placement[name] = [
         ...new Set([...pemPaths(fiber?.config, ''), ...pemPaths(fiber?._config, '')]),
@@ -496,23 +487,19 @@ describe('assembly.credentials-replacement-generation', () => {
       AccountIdentityStopped,
     )
     await expect(accounts.read(row?.account_id)).rejects.toBeInstanceOf(AccountIdentityStopped)
-    const replacement = await hosts.start(d, {
-      manifest: entries =>
-        entries.map(entry =>
-          entry.name === 'credential-verification'
-            ? {
-                ...entry,
-                config: {
-                  cost: 2 ** 14,
-                  blockSize: 8,
-                  parallelization: 1,
-                  saltBytes: 16,
-                  keyBytes: 32,
-                },
-              }
-            : entry,
-        ),
-    })
+    const replacement = await hosts.start(d, {}, undefined, [
+      {
+        op: 'replace',
+        id: 'credential-verification',
+        config: {
+          cost: 2 ** 14,
+          blockSize: 8,
+          parallelization: 1,
+          saltBytes: 16,
+          keyBytes: 32,
+        },
+      },
+    ])
     expect(replacement.host.serving.centerId).toBe(host.serving.centerId)
     expect(
       await replacement.host.context.logins.issue('swap@example.invalid', PASSWORD),

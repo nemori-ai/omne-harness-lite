@@ -1,3 +1,8 @@
+import type {
+  UpgradeConfirmation,
+  UpgradePending,
+  UpgradeGuardHandle,
+} from '@omne-harness-lite/storage'
 // 升级守卫：装配造、经 config `upgrade.guard` 交给插件体、插件体取得排他之后附着；装配此后只对它调 confirm()／pending()。
 // 设计：.meta_harness/design/realization/packages/infra/storage-sql/design.md「确认为什么绑在守卫对象上」。
 // 守卫只排本实例与装配之间的先后，不承担跨实例的排他（那归属主锁）。
@@ -27,18 +32,6 @@ export class StorageStartupFailure extends Error {
 export class UpgradeGuardNotAttached extends Error {
   override readonly name = 'UpgradeGuardNotAttached'
 }
-
-export interface UpgradeConfirmation {
-  /** 本次附着跑过至少一个迁移。 */
-  readonly migrated: boolean
-  /** 本次附着拿过快照或「库不存在」标记（pg 恒为假）。 */
-  readonly snapshotTaken: boolean
-  /** 本次附着拿的那一份已被删除且目录已落盘。装配断言 `snapshotTaken ⇒ snapshotRemoved`。 */
-  readonly snapshotRemoved: boolean
-}
-
-export type UpgradePending =
-  'never-attached' | 'clear' | { readonly pending: { readonly location: string } }
 
 /** 附着记录背后的磁盘操作，由方言的属主站点提供。 */
 export interface AttachmentSite {
@@ -70,7 +63,7 @@ export class GuardAttachment {
 let setAttachment: (guard: UpgradeGuard, attachment: GuardAttachment) => void
 let getAttachment: (guard: UpgradeGuard) => GuardAttachment | undefined
 
-export class UpgradeGuard {
+export class UpgradeGuard implements UpgradeGuardHandle {
   #attachment: GuardAttachment | undefined
 
   static {

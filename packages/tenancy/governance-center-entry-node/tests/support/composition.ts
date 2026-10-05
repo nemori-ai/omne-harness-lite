@@ -40,16 +40,24 @@ import {
 } from '@omne-harness-lite/storage'
 import { type SqlStorage, openStorage, createUpgradeGuard } from '@omne-harness-lite/storage-sql'
 import {
-  DEFECT_EVENT,
   type GovernanceCenterEntryConfig,
   type GovernanceCenterOpsConfig,
+  governanceCenterMigrations,
+  governanceCenterSnapshotCheck,
+} from '../../src/index.ts'
+import {
+  DEFECT_EVENT,
   LISTENING_EVENT,
   SERVING_EVENT,
   STOPPED_EVENT,
   type ServingNotice,
-  governanceCenterMigrations,
-  governanceCenterSnapshotCheck,
-} from '../../src/index.ts'
+} from '@omne-harness-lite/governance-center-entry'
+import { EntryMaintenance } from '@omne-harness-lite/governance-center-entry/cordis'
+
+class TestMaintenance extends EntryMaintenance {
+  readonly snapshotChecks = [governanceCenterSnapshotCheck]
+  closed = (): void => {}
+}
 import {
   type Exchange,
   TLS_FIXTURES,
@@ -438,6 +446,9 @@ export async function bootCenter(options: CenterOptions = {}): Promise<Center> {
   const openingFiber = await ctx.plugin(inner => {
     inner.provide('entryOpening', { wait: () => openSignal.promise, isOpen: () => confirmed })
   })
+  const maintenanceFiber = await ctx.plugin(inner => {
+    new TestMaintenance(inner)
+  })
   const entryConfig: Record<string, unknown> = {
     listen: { host: '127.0.0.1', port },
     tls: { certificateChainPem: TLS_FIXTURES.chainPem, privateKeyPem: TLS_FIXTURES.leafKeyPem },
@@ -454,13 +465,11 @@ export async function bootCenter(options: CenterOptions = {}): Promise<Center> {
       backupDirectory,
       sourceBuildId: null,
       migrationNames: Object.keys(await composedMigrations().getMigrations()),
-      snapshotChecks: [governanceCenterSnapshotCheck],
-      onClosed() {},
     },
     ...options.opsConfig,
   }
   let storageFiber: Fiber | undefined = base.fibers[1]
-  const extra: Fiber[] = [openingFiber]
+  const extra: Fiber[] = [openingFiber, maintenanceFiber]
 
   const center: Center = {
     file,

@@ -37,7 +37,8 @@
     "kysely": "catalog:",
     "zod": "catalog:",
     "@omne-harness-lite/organization-governance": "workspace:*",
-    "@omne-harness-lite/assembly-lifecycle": "workspace:*"
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*",
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/clock-lease": "workspace:*",

@@ -35,4 +35,7 @@ close 停止新普通操作并等待已准入完整 Promise，不关闭借入依
 关闭后新普通调用以 OrganizationGovernanceStopped 使用错误拒绝，不加入业务失败集合。
 同步 scopeLayers 仍同步返回或抛出；已交出的参与对象继续受原 StorageUnit 寿命约束。
 原四个底层纯工厂继续可单独使用，调用方承担其完整业务及事务的结束责任；
-正式绑定共用整体工厂，不分别关闭同一引擎。实际管理装配的组合验收仍归T2后续切片。
+正式绑定共用整体工厂，不分别关闭同一引擎。
+managedOrganizationGovernancePlugin 的纯 describeAssembly 声明提供四服务，必需 storage、clock、
+accounts、logins，投影原密钥和有效期为 tenancy-host/organizations v1。
+声明沿[插件树协议](../../core/cordis-plugin-tree/SPEC.md)。T4 树及真实宿主的完整组合仍须独立验收。

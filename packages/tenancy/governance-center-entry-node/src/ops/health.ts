@@ -2,7 +2,7 @@
 // 每次读都现探、现读，不以上一次的结果顶替；不含任何治理事实与秘密的值。
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { type Storage, StorageDefect, narrow } from '@omne-harness-lite/storage'
-import type { ServingNotice } from './notice.ts'
+import type { ServingNotice } from '@omne-harness-lite/governance-center-entry'
 import { formatInstant } from './wire.ts'
 
 /** 五项部署参数（S-26），各是正整数毫秒；两项 PF-003 的本版没有消费者（G-4），照样要值、照样可见。 */

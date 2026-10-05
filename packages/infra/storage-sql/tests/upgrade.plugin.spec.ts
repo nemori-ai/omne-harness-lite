@@ -16,6 +16,7 @@ import {
 import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
 import { storageSqlPlugin, type SqlStorageService } from '../src/cordis.ts'
 import { migrationsOf } from './fixtures/migrations.ts'
+import { startupPlugin } from './fixtures/plugin-resources.ts'
 import {
   canDropWritePermission,
   dumpDatabase,
@@ -32,6 +33,28 @@ function ownerConfig(file: string, guard: UpgradeGuard, kinds: string[]): Storag
     migrations: migrationsOf(...kinds),
     upgrade: { checks: [], guard },
   }
+}
+
+function ownerAssembly(config: StorageSqlConfig) {
+  if (
+    config.dialect !== 'sqlite' ||
+    config.migrations === undefined ||
+    config.upgrade === undefined ||
+    config.upgrade === false
+  )
+    throw new Error('owner fixture requires SQLite migration resources')
+  return bootAssembly({
+    plugins: [
+      {
+        plugin: startupPlugin({ migrations: config.migrations, upgrade: config.upgrade }),
+        config: {},
+      },
+      {
+        plugin: storageSqlPlugin,
+        config: { dialect: config.dialect, file: config.file, startup: 'migrate' },
+      },
+    ],
+  })
 }
 
 async function confirmedDatabase(file: string, kinds: string[]): Promise<void> {
@@ -68,9 +91,7 @@ describe('upgrade.guard-binding（交错 f；A-1 取证）', () => {
     const file = tempSqliteFile('binding-ok')
     await confirmedDatabase(file, ['t1'])
     const guard = createUpgradeGuard()
-    const assembly = await bootAssembly({
-      plugins: [{ plugin: storageSqlPlugin, config: ownerConfig(file, guard, ['t1', 't2']) }],
-    })
+    const assembly = await ownerAssembly(ownerConfig(file, guard, ['t1', 't2']))
     expect(await guard.confirm()).toEqual({
       migrated: true,
       snapshotTaken: true,
@@ -87,9 +108,7 @@ describe('upgrade.guard-binding（交错 f；A-1 取证）', () => {
     const before = dumpDatabase(file)
     const given = createUpgradeGuard()
     const other = createUpgradeGuard()
-    const assembly = await bootAssembly({
-      plugins: [{ plugin: storageSqlPlugin, config: ownerConfig(file, given, ['t1', 't2']) }],
-    })
+    const assembly = await ownerAssembly(ownerConfig(file, given, ['t1', 't2']))
     await expect(other.confirm()).rejects.toBeInstanceOf(UpgradeGuardNotAttached)
     expect(await other.pending()).toBe('never-attached')
     expect(existsSync(snapshotOf(file))).toBe(true)
@@ -103,9 +122,7 @@ describe('upgrade.guard-binding（交错 f；A-1 取证）', () => {
     const holderGuard = createUpgradeGuard()
     const holder = await openStorage(ownerConfig(file, holderGuard, ['t1']))
     const guard = createUpgradeGuard()
-    const error = await bootAssembly({
-      plugins: [{ plugin: storageSqlPlugin, config: ownerConfig(file, guard, ['t1']) }],
-    }).then(
+    const error = await ownerAssembly(ownerConfig(file, guard, ['t1'])).then(
       () => undefined,
       (e: unknown) => e,
     )
@@ -121,9 +138,7 @@ describe('upgrade.guard-binding（交错 f；A-1 取证）', () => {
     const file = tempSqliteFile('binding-disposing')
     await confirmedDatabase(file, ['t1'])
     const guard = createUpgradeGuard()
-    const assembly = await bootAssembly({
-      plugins: [{ plugin: storageSqlPlugin, config: ownerConfig(file, guard, ['t1', 't2']) }],
-    })
+    const assembly = await ownerAssembly(ownerConfig(file, guard, ['t1', 't2']))
     // 一个在途写事务把撤除卡在「等在途」：确认一定落在撤除进行中
     const storage = assembly.ctx.get(STORAGE_SERVICE) as SqlStorageService
     let release = () => undefined as void
@@ -150,9 +165,7 @@ describe('upgrade.guard-binding（交错 f；A-1 取证）', () => {
     const file = tempSqliteFile('binding-inflight')
     await confirmedDatabase(file, ['t1'])
     const guard = createUpgradeGuard()
-    const assembly = await bootAssembly({
-      plugins: [{ plugin: storageSqlPlugin, config: ownerConfig(file, guard, ['t1', 't2']) }],
-    })
+    const assembly = await ownerAssembly(ownerConfig(file, guard, ['t1', 't2']))
     const confirming = guard.confirm()
     const disposing = assembly.dispose()
     expect(await confirming).toEqual({
@@ -167,24 +180,23 @@ describe('upgrade.guard-binding（交错 f；A-1 取证）', () => {
 
   it('同一个守卫交给两个实例（不同文件）⇒ 后附着的那个启动失败', async () => {
     const guard = createUpgradeGuard()
-    const first = await bootAssembly({
-      plugins: [
-        {
-          plugin: storageSqlPlugin,
-          config: ownerConfig(tempSqliteFile('binding-twice-a'), guard, ['t1']),
-        },
-      ],
-    })
+    const first = await ownerAssembly(ownerConfig(tempSqliteFile('binding-twice-a'), guard, ['t1']))
     const ctx = new Context()
-    const fiber = ctx.plugin(
-      storageSqlPlugin,
-      ownerConfig(tempSqliteFile('binding-twice-b'), guard, ['t1']),
+    await ctx.plugin(
+      startupPlugin({ migrations: migrationsOf('t1'), upgrade: { checks: [], guard } }),
+      {},
     )
+    const fiber = ctx.plugin(storageSqlPlugin, {
+      dialect: 'sqlite',
+      file: tempSqliteFile('binding-twice-b'),
+      startup: 'migrate',
+    })
     await expect(fiber).rejects.toThrow(/already attached/)
     expect(fiber.state as number).toBe(FIBER_STATE.FAILED)
     expect(ctx.get(STORAGE_SERVICE)).toBeUndefined()
     expect((await guard.confirm()).snapshotTaken).toBe(true)
     await first.dispose()
+    await ctx.fiber.dispose()
   })
 })
 
@@ -196,9 +208,7 @@ describe('upgrade.dispose-restore-failure-visible', () => {
       await confirmedDatabase(file, ['t1'])
       const before = dumpDatabase(file)
       const guard = createUpgradeGuard()
-      const assembly = await bootAssembly({
-        plugins: [{ plugin: storageSqlPlugin, config: ownerConfig(file, guard, ['t1', 't2']) }],
-      })
+      const assembly = await ownerAssembly(ownerConfig(file, guard, ['t1', 't2']))
       const restoreWrite = makeDirectoryReadOnly(file)
       try {
         await expect(assembly.dispose()).resolves.toBeUndefined()

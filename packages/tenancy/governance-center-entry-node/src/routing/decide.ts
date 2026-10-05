@@ -34,7 +34,6 @@ import {
 } from '@omne-harness-lite/governance-center-entry'
 import {
   type AuthenticatedRoute,
-  type EntryServices,
   type AuthenticatedServices,
   type ExemptRoute,
   type Payload,
@@ -42,6 +41,7 @@ import {
   type Route,
   routeFor,
 } from './routes.ts'
+import type { EntryServices } from '../entry-dependencies.ts'
 import { conformsTo } from './schema.ts'
 
 export interface DecisionContext {

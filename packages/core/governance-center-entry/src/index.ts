@@ -12,6 +12,14 @@ export class EntryOpeningStopped extends Error {
 }
 
 export { isGovernanceCenterId, type GovernanceCenterId } from './center-id.ts'
+export type { EntryMaintenanceResources } from './resources.ts'
+export {
+  SERVING_EVENT,
+  STOPPED_EVENT,
+  DEFECT_EVENT,
+  LISTENING_EVENT,
+  type ServingNotice,
+} from './events.ts'
 export {
   PUBLIC_HEALTH_ROUTE,
   ROUTE_IDS,

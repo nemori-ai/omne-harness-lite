@@ -1,0 +1,1 @@
+{"ts":1791185407623,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"manifest","item":"clock-lease","errorType":"PluginTreePreparationError","message":"tenancy-host startup failed at manifest: plugin tree rejected","code":"module-unavailable","rowId":"clock-lease"}

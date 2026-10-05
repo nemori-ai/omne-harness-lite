@@ -1,5 +1,5 @@
 import {
-  AssemblyLifetimeService,
+  ASSEMBLY_LIFETIME_SERVICE,
   startAssemblyWork,
 } from '@omne-harness-lite/assembly-lifecycle/cordis'
 import { type Context } from '@deepseek-ai/cordis'
@@ -39,7 +39,7 @@ export const governanceTransportPlugin = definePlugin<Record<string, never>>({
 export const managedGovernanceTransportPlugin = Object.assign(
   definePlugin<Record<string, never>>({
     name: 'governance-center-client-https-managed',
-    inject: [AssemblyLifetimeService.provide],
+    inject: [ASSEMBLY_LIFETIME_SERVICE],
     Config: transportConfig,
     apply(ctx, config) {
       let resource: GovernanceTransportInstance | undefined

@@ -33,15 +33,13 @@ export {
   ORGANIZATION_OWNER_ACCOUNT_FK,
 } from './migrations.ts'
 export {
-  buildManifest,
-  HOST_PLUGIN_NAMES,
+  buildDistributionTree,
   DRAIN_TIMEOUT_MS,
   DISPOSE_TIMEOUT_MS,
   SERVING_GRACE_MS,
-  type HostPluginName,
-  type ManifestEntry,
-  type ManifestRuntime,
-} from './manifest.ts'
+  type HostTreeData,
+} from './tree.ts'
+export { HostPluginPolicyError, type HostPluginPolicyCode, type HostPluginRole } from './policy.ts'
 export {
   attachLog,
   stderrSink,

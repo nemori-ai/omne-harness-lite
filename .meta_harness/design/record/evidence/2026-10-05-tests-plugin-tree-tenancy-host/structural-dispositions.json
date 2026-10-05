@@ -1,0 +1,2166 @@
+{
+  "actor": "root individual final construction dispositions; acceptance pending",
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "head": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "at": "2026-10-05T07:17:25.247634+00:00",
+  "counts": {
+    "complexity": 13,
+    "dependency": 12,
+    "clones": 18,
+    "legacy_assembly": 64,
+    "expectation_changes": 1,
+    "individual_rows": 108
+  },
+  "hard_lines": {
+    "cycles": [],
+    "direction": [],
+    "acceptanceLock": {
+      "status": "judged",
+      "violations": []
+    },
+    "cardRetire": {
+      "status": "judged",
+      "violations": []
+    },
+    "sensors": {
+      "status": "judged",
+      "silent": [],
+      "off": []
+    }
+  },
+  "conformance_limits": "loop uses current filesystem with ignored/generated JSON inputDirty=true; fixed-revision architecture report separately owns exact immutable readings. Current deviation66, BASE new0 and witness22 removed; unknown not accepted. Legacy assembly64 is distinct sensor, not64 IC fixes/regressions.",
+  "rows": [
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "apps/tenancy-host/src/boot.ts",
+        "member": "apps/tenancy-host",
+        "name": "disposeTree",
+        "line": 312,
+        "endLine": 390,
+        "complexity": 22,
+        "score": 22,
+        "level": "alert",
+        "grade": 1,
+        "changed": true,
+        "againstBase": {
+          "kind": "new",
+          "reason": "new-function"
+        }
+      },
+      "disposition": "保留及审阅：同一处等真实closed，再依次释放fiber、port、守卫/维护和root；保留失败与未完成，不拆成假独立收尾。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R001"
+    },
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "apps/tenancy-host/src/boot.ts",
+        "member": "apps/tenancy-host",
+        "name": "assemble",
+        "line": 442,
+        "endLine": 605,
+        "complexity": 21,
+        "score": 21,
+        "level": "alert",
+        "grade": 1,
+        "changed": true,
+        "againstBase": {
+          "kind": "worse",
+          "baseline": 17
+        }
+      },
+      "disposition": "保留及审阅：保留准备→具名资源→真实tree→ready/ACTIVE→确认/开闸/重验钟的可观察顺序；原手装载删除。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R002"
+    },
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "apps/tenancy-host/src/main.ts",
+        "member": "apps/tenancy-host",
+        "name": "main",
+        "line": 62,
+        "endLine": 140,
+        "complexity": 18,
+        "score": 18,
+        "level": "alert",
+        "grade": 2.125,
+        "changed": true,
+        "againstBase": {
+          "kind": "worse",
+          "baseline": 15
+        }
+      },
+      "disposition": "保留及审阅：新增两种正式serve选项及独立打印，原syntax/failed/ok、信号和实际关闭责任保持。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R003"
+    },
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "apps/tenancy-host/src/boot.ts",
+        "member": "apps/tenancy-host",
+        "name": "recordFailure",
+        "line": 191,
+        "endLine": 248,
+        "complexity": 17,
+        "score": 17,
+        "level": "alert",
+        "grade": 2.6875,
+        "changed": true,
+        "againstBase": {
+          "kind": "worse",
+          "baseline": 4
+        }
+      },
+      "disposition": "保留及审阅：封闭host政策/树错误的安全诊断与原cause分离；不能恢复泄密的任意issues输出。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R004"
+    },
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "packages/core/cordis-plugin-tree/src/load.ts",
+        "member": "packages/core/cordis-plugin-tree",
+        "name": "TreeRun.#watch",
+        "line": 117,
+        "endLine": 146,
+        "complexity": 14,
+        "score": 14,
+        "level": "alert",
+        "grade": 4.375,
+        "changed": true,
+        "againstBase": {
+          "kind": "new",
+          "reason": "new-file"
+        }
+      },
+      "disposition": "保留及审阅：统一service/status失效观察和第一原因；漏失/重复/后继可见性由真实竞争负控验证。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R005"
+    },
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "packages/tenancy/governance-center-entry-node/src/ops/entry.ts",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "name": "createGovernanceCenterOps",
+        "line": 166,
+        "endLine": 277,
+        "complexity": 14,
+        "score": 14,
+        "level": "alert",
+        "grade": 4.375,
+        "changed": true,
+        "againstBase": {
+          "kind": "new",
+          "reason": "new-file"
+        }
+      },
+      "disposition": "保留及审阅：显式依赖与稳定setup/close，三订阅先登记、部分setup和通知重入可关闭。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R006"
+    },
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "apps/tenancy-host/src/policy.ts",
+        "member": "apps/tenancy-host",
+        "name": "checkHostPolicy",
+        "line": 103,
+        "endLine": 136,
+        "complexity": 14,
+        "score": 14,
+        "level": "alert",
+        "grade": 4.375,
+        "changed": true,
+        "againstBase": {
+          "kind": "new",
+          "reason": "new-file"
+        }
+      },
+      "disposition": "保留及审阅：八职责的封闭角色、版本、必需服务和同源配置投影；不能按id/包名伪造授权。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R007"
+    },
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "packages/core/cordis-plugin-tree/src/tree.ts",
+        "member": "packages/core/cordis-plugin-tree",
+        "name": "captureComposedTree",
+        "line": 163,
+        "endLine": 200,
+        "complexity": 13,
+        "score": 13,
+        "level": "alert",
+        "grade": 4.9375,
+        "changed": true,
+        "againstBase": {
+          "kind": "new",
+          "reason": "new-file"
+        }
+      },
+      "disposition": "保留及审阅：公开composed输入重新验证身份、来源/editIndex和严格JSON；不信任TypeScript调用者。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R008"
+    },
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "packages/core/cordis-plugin-tree/src/data.ts",
+        "member": "packages/core/cordis-plugin-tree",
+        "name": "record",
+        "line": 8,
+        "endLine": 22,
+        "complexity": 12,
+        "score": 12,
+        "level": "warn",
+        "grade": 5.5,
+        "changed": true,
+        "againstBase": {
+          "kind": "new",
+          "reason": "new-file"
+        }
+      },
+      "disposition": "保留及审阅：同一单点拒绝getter、Symbol、非普通对象、非枚举与未知键，不执行不可信访问器。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R009"
+    },
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "packages/core/cordis-plugin-tree/src/tree.ts",
+        "member": "packages/core/cordis-plugin-tree",
+        "name": "composePluginTree",
+        "line": 98,
+        "endLine": 160,
+        "complexity": 12,
+        "score": 12,
+        "level": "warn",
+        "grade": 5.5,
+        "changed": true,
+        "againstBase": {
+          "kind": "new",
+          "reason": "new-file"
+        }
+      },
+      "disposition": "保留及审阅：稳定id按运维edit顺序整行替换/停用/插入；唯一身份与锚点检查不可省。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R010"
+    },
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "packages/infra/storage-sql/src/plugin-config.ts",
+        "member": "packages/infra/storage-sql",
+        "name": "storageConfig",
+        "line": 87,
+        "endLine": 113,
+        "complexity": 12,
+        "score": 12,
+        "level": "warn",
+        "grade": 5.5,
+        "changed": true,
+        "againstBase": {
+          "kind": "new",
+          "reason": "new-file"
+        }
+      },
+      "disposition": "保留及审阅：共享运行资源转换及真实guard条件检查；独立openStorage Config/能力保持，不把结构类型当私有身份。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R011"
+    },
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "apps/tenancy-host/src/boot.ts",
+        "member": "apps/tenancy-host",
+        "name": "treeFailure",
+        "line": 110,
+        "endLine": 135,
+        "complexity": 11,
+        "score": 11,
+        "level": "warn",
+        "grade": 6.625,
+        "changed": true,
+        "againstBase": {
+          "kind": "new",
+          "reason": "new-function"
+        }
+      },
+      "disposition": "保留及审阅：树首因/角色/当前ready原cause映射；setup异常不是自动一律clock或策略异常。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R012"
+    },
+    {
+      "kind": "complexity",
+      "fact": {
+        "path": "apps/tenancy-host/src/maintenance-config.ts",
+        "member": "apps/tenancy-host",
+        "name": "resolveBackupDirectory",
+        "line": 20,
+        "endLine": 47,
+        "complexity": 11,
+        "score": 11,
+        "level": "warn",
+        "grade": 6.625,
+        "changed": true,
+        "againstBase": {
+          "kind": "new",
+          "reason": "new-function"
+        }
+      },
+      "disposition": "保留及审阅：原canonical/owner/0700/symlink保护的只读阶段；prepare前再次对同一身份复核。",
+      "evidence": "S1/S2有限测试与原实现差分；独立L3热点审阅和clean QA待完整交付",
+      "owner": "T4",
+      "id": "T4-R013"
+    },
+    {
+      "kind": "dependency",
+      "fact": {
+        "from": "apps/tenancy-host",
+        "to": "packages/core/cordis-plugin-tree",
+        "site": {
+          "path": "apps/tenancy-host/src/boot.ts",
+          "line": 30,
+          "specifier": "@omne-harness-lite/cordis-plugin-tree"
+        }
+      },
+      "disposition": "保留：真实装配消费新通用树的纯数据与绑定，替代手装载。",
+      "evidence": "规则方向/环0；独立实际tarball纯闭包仍待QA",
+      "owner": "T4",
+      "id": "T4-R014"
+    },
+    {
+      "kind": "dependency",
+      "fact": {
+        "from": "packages/core/cordis-plugin-tree",
+        "to": "packages/core/assembly-lifecycle",
+        "site": {
+          "path": "packages/core/cordis-plugin-tree/src/load.ts",
+          "line": 2,
+          "specifier": "@omne-harness-lite/assembly-lifecycle"
+        }
+      },
+      "disposition": "保留：仅绑定加载面复用唯一lifetime或正式Fiber状态；纯根闭包禁止绑定。",
+      "evidence": "规则方向/环0；独立实际tarball纯闭包仍待QA",
+      "owner": "T4",
+      "id": "T4-R015"
+    },
+    {
+      "kind": "dependency",
+      "fact": {
+        "from": "packages/core/cordis-plugin-tree",
+        "to": "packages/core/kernel-basis",
+        "site": {
+          "path": "packages/core/cordis-plugin-tree/src/load.ts",
+          "line": 12,
+          "specifier": "@omne-harness-lite/kernel-basis/cordis"
+        }
+      },
+      "disposition": "保留：仅绑定加载面复用唯一lifetime或正式Fiber状态；纯根闭包禁止绑定。",
+      "evidence": "规则方向/环0；独立实际tarball纯闭包仍待QA",
+      "owner": "T4",
+      "id": "T4-R016"
+    },
+    {
+      "kind": "dependency",
+      "fact": {
+        "from": "packages/core/governance-center-entry",
+        "to": "packages/core/offer-expiry",
+        "site": {
+          "path": "packages/core/governance-center-entry/src/events.ts",
+          "line": 1,
+          "specifier": "@omne-harness-lite/offer-expiry"
+        }
+      },
+      "disposition": "保留：纯公共资源/ServingNotice复用Storage/Clock已拥有的定义，避免双权威。",
+      "evidence": "规则方向/环0；独立实际tarball纯闭包仍待QA",
+      "owner": "T4",
+      "id": "T4-R017"
+    },
+    {
+      "kind": "dependency",
+      "fact": {
+        "from": "packages/core/governance-center-entry",
+        "to": "packages/core/storage",
+        "site": {
+          "path": "packages/core/governance-center-entry/src/resources.ts",
+          "line": 1,
+          "specifier": "@omne-harness-lite/storage"
+        }
+      },
+      "disposition": "保留：纯公共资源/ServingNotice复用Storage/Clock已拥有的定义，避免双权威。",
+      "evidence": "规则方向/环0；独立实际tarball纯闭包仍待QA",
+      "owner": "T4",
+      "id": "T4-R018"
+    },
+    {
+      "kind": "dependency",
+      "fact": {
+        "from": "packages/infra/clock-lease",
+        "to": "packages/core/cordis-plugin-tree",
+        "site": {
+          "path": "packages/infra/clock-lease/src/plugin.ts",
+          "line": 6,
+          "specifier": "@omne-harness-lite/cordis-plugin-tree"
+        }
+      },
+      "disposition": "保留：管理提供者仅消费AssemblyDeclaration纯类型与prepare声明；不运行loader或引入树提供者业务。",
+      "evidence": "规则方向/环0；独立实际tarball纯闭包仍待QA",
+      "owner": "T4",
+      "id": "T4-R019"
+    },
+    {
+      "kind": "dependency",
+      "fact": {
+        "from": "packages/infra/storage-sql",
+        "to": "packages/core/cordis-plugin-tree",
+        "site": {
+          "path": "packages/infra/storage-sql/src/plugin-config.ts",
+          "line": 4,
+          "specifier": "@omne-harness-lite/cordis-plugin-tree"
+        }
+      },
+      "disposition": "保留：管理提供者仅消费AssemblyDeclaration纯类型与prepare声明；不运行loader或引入树提供者业务。",
+      "evidence": "规则方向/环0；独立实际tarball纯闭包仍待QA",
+      "owner": "T4",
+      "id": "T4-R020"
+    },
+    {
+      "kind": "dependency",
+      "fact": {
+        "from": "packages/tenancy/account-identity-sql",
+        "to": "packages/core/cordis-plugin-tree",
+        "site": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "line": 13,
+          "specifier": "@omne-harness-lite/cordis-plugin-tree"
+        }
+      },
+      "disposition": "保留：管理提供者仅消费AssemblyDeclaration纯类型与prepare声明；不运行loader或引入树提供者业务。",
+      "evidence": "规则方向/环0；独立实际tarball纯闭包仍待QA",
+      "owner": "T4",
+      "id": "T4-R021"
+    },
+    {
+      "kind": "dependency",
+      "fact": {
+        "from": "packages/tenancy/account-registration-sequential",
+        "to": "packages/core/cordis-plugin-tree",
+        "site": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 17,
+          "specifier": "@omne-harness-lite/cordis-plugin-tree"
+        }
+      },
+      "disposition": "保留：管理提供者仅消费AssemblyDeclaration纯类型与prepare声明；不运行loader或引入树提供者业务。",
+      "evidence": "规则方向/环0；独立实际tarball纯闭包仍待QA",
+      "owner": "T4",
+      "id": "T4-R022"
+    },
+    {
+      "kind": "dependency",
+      "fact": {
+        "from": "packages/tenancy/credential-verification-scrypt",
+        "to": "packages/core/cordis-plugin-tree",
+        "site": {
+          "path": "packages/tenancy/credential-verification-scrypt/src/plugin.ts",
+          "line": 10,
+          "specifier": "@omne-harness-lite/cordis-plugin-tree"
+        }
+      },
+      "disposition": "保留：管理提供者仅消费AssemblyDeclaration纯类型与prepare声明；不运行loader或引入树提供者业务。",
+      "evidence": "规则方向/环0；独立实际tarball纯闭包仍待QA",
+      "owner": "T4",
+      "id": "T4-R023"
+    },
+    {
+      "kind": "dependency",
+      "fact": {
+        "from": "packages/tenancy/governance-center-entry-node",
+        "to": "packages/core/cordis-plugin-tree",
+        "site": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 3,
+          "specifier": "@omne-harness-lite/cordis-plugin-tree"
+        }
+      },
+      "disposition": "保留：管理提供者仅消费AssemblyDeclaration纯类型与prepare声明；不运行loader或引入树提供者业务。",
+      "evidence": "规则方向/环0；独立实际tarball纯闭包仍待QA",
+      "owner": "T4",
+      "id": "T4-R024"
+    },
+    {
+      "kind": "dependency",
+      "fact": {
+        "from": "packages/tenancy/organization-governance-sql",
+        "to": "packages/core/cordis-plugin-tree",
+        "site": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 19,
+          "specifier": "@omne-harness-lite/cordis-plugin-tree"
+        }
+      },
+      "disposition": "保留：管理提供者仅消费AssemblyDeclaration纯类型与prepare声明；不运行loader或引入树提供者业务。",
+      "evidence": "规则方向/环0；独立实际tarball纯闭包仍待QA",
+      "owner": "T4",
+      "id": "T4-R025"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "packages/tenancy/credential-verification-scrypt/src/plugin.ts",
+          "member": "packages/tenancy/credential-verification-scrypt",
+          "start": 83,
+          "end": 100
+        },
+        "b": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "member": "packages/tenancy/account-identity-sql",
+          "start": 86,
+          "end": 103
+        },
+        "lines": 18,
+        "crossMember": true,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：直接管理绑定的相同有限生命周期/通知胶水；各面依赖与资源所有者独立，保持IC-8可见直接数组。未为删复制引入隐藏依赖的泛包装。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "T4",
+      "id": "T4-R026"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "member": "packages/tenancy/organization-governance-sql",
+          "start": 114,
+          "end": 131
+        },
+        "b": {
+          "path": "packages/tenancy/account-identity-sql/src/plugin.ts",
+          "member": "packages/tenancy/account-identity-sql",
+          "start": 86,
+          "end": 103
+        },
+        "lines": 18,
+        "crossMember": true,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：直接管理绑定的相同有限生命周期/通知胶水；各面依赖与资源所有者独立，保持IC-8可见直接数组。未为删复制引入隐藏依赖的泛包装。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "T4",
+      "id": "T4-R027"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2589,
+          "end": 2603
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 443,
+          "end": 458
+        },
+        "lines": 15,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R028"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2670,
+          "end": 2683
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 467,
+          "end": 481
+        },
+        "lines": 14,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R029"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+          "member": "packages/tenancy/governance-center-entry-node",
+          "start": 349,
+          "end": 360
+        },
+        "b": {
+          "path": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+          "member": "packages/tenancy/governance-center-entry-node",
+          "start": 236,
+          "end": 247
+        },
+        "lines": 12,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：原路由算法/拒绝分支，46路由函数正文全部同；本批只改类型归属，保持有效业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "T4",
+      "id": "T4-R030"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2272,
+          "end": 2282
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 481,
+          "end": 492
+        },
+        "lines": 11,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R031"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2001,
+          "end": 2009
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1932,
+          "end": 1940
+        },
+        "lines": 9,
+        "crossMember": false,
+        "bEndEstimated": true
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R032"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1990,
+          "end": 1997
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1926,
+          "end": 1933
+        },
+        "lines": 8,
+        "crossMember": false,
+        "bEndEstimated": true
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R033"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "member": "packages/tenancy/governance-center-entry-node",
+          "start": 155,
+          "end": 162
+        },
+        "b": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "member": "packages/tenancy/governance-center-entry-node",
+          "start": 106,
+          "end": 113
+        },
+        "lines": 8,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：直接管理绑定的相同有限生命周期/通知胶水；各面依赖与资源所有者独立，保持IC-8可见直接数组。未为删复制引入隐藏依赖的泛包装。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "T4",
+      "id": "T4-R034"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1875,
+          "end": 1881
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1826,
+          "end": 1832
+        },
+        "lines": 7,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R035"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2800,
+          "end": 2806
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2791,
+          "end": 2797
+        },
+        "lines": 7,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R036"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1907,
+          "end": 1912
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1827,
+          "end": 1832
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R037"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1966,
+          "end": 1971
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1926,
+          "end": 1931
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R038"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1972,
+          "end": 1977
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 1932,
+          "end": 1937
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R039"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2311,
+          "end": 2316
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2074,
+          "end": 2080
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R040"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2553,
+          "end": 2558
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2537,
+          "end": 2542
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R041"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2722,
+          "end": 2727
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2288,
+          "end": 2293
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R042"
+    },
+    {
+      "kind": "clone",
+      "fact": {
+        "a": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2810,
+          "end": 2815
+        },
+        "b": {
+          "path": "examples/model-invocation-minimal-demo/src/bootstrap.ts",
+          "member": "examples/model-invocation-minimal-demo",
+          "start": 2075,
+          "end": 2081
+        },
+        "lines": 6,
+        "crossMember": false,
+        "bEndEstimated": false
+      },
+      "disposition": "保留：存量模型示例代码；本批仅公开接口改接，模型Session组合与重复处理归R2，不能借T4重写业务。",
+      "evidence": "逐源差分/原routing正文/S2绑定审阅；bEndEstimated若为true按传感器原事实保留",
+      "owner": "R2",
+      "id": "T4-R043"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host||top|listens|governance-center-entry/serving-started|||",
+        "member": "apps/tenancy-host",
+        "kind": "listens",
+        "key": "governance-center-entry/serving-started",
+        "state": "deviation",
+        "implementation": {
+          "path": "apps/tenancy-host/src/boot.ts",
+          "line": 453
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R044"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host||top|listens|internal/service|||",
+        "member": "apps/tenancy-host",
+        "kind": "listens",
+        "key": "internal/service",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/cordis-plugin-tree/src/load.ts",
+          "line": 140
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：loader观察真实服务/status以停止同一代和固定首因；不是新的业务事件。旧节点映射未登记该新通用机制。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R045"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host||top|listens|internal/status|||",
+        "member": "apps/tenancy-host",
+        "kind": "listens",
+        "key": "internal/status",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/cordis-plugin-tree/src/load.ts",
+          "line": 120
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：loader观察真实服务/status以停止同一代和固定首因；不是新的业务事件。旧节点映射未登记该新通用机制。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R046"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host||top|plugin|HostMaintenance|||",
+        "member": "apps/tenancy-host",
+        "kind": "plugin",
+        "key": "HostMaintenance",
+        "state": "deviation",
+        "implementation": {
+          "path": "apps/tenancy-host/src/assembly.ts",
+          "line": 100
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用宿主资源或逐行lifetime端口插件，不是新增业务提供者；资源只由同一宿主/协调器负责。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R047"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host||top|plugin|HostOpening|||",
+        "member": "apps/tenancy-host",
+        "kind": "plugin",
+        "key": "HostOpening",
+        "state": "deviation",
+        "implementation": {
+          "path": "apps/tenancy-host/src/assembly.ts",
+          "line": 72
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用宿主资源或逐行lifetime端口插件，不是新增业务提供者；资源只由同一宿主/协调器负责。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R048"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host||top|plugin|HostStartup|||",
+        "member": "apps/tenancy-host",
+        "kind": "plugin",
+        "key": "HostStartup",
+        "state": "deviation",
+        "implementation": {
+          "path": "apps/tenancy-host/src/assembly.ts",
+          "line": 82
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用宿主资源或逐行lifetime端口插件，不是新增业务提供者；资源只由同一宿主/协调器负责。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R049"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host||top|plugin|HostStorageCompletion|||",
+        "member": "apps/tenancy-host",
+        "kind": "plugin",
+        "key": "HostStorageCompletion",
+        "state": "deviation",
+        "implementation": {
+          "path": "apps/tenancy-host/src/assembly.ts",
+          "line": 91
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用宿主资源或逐行lifetime端口插件，不是新增业务提供者；资源只由同一宿主/协调器负责。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R050"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host||top|provides|entryMaintenance|||",
+        "member": "apps/tenancy-host",
+        "kind": "provides",
+        "key": "entryMaintenance",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/governance-center-entry/src/cordis.ts",
+          "line": 25
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R051"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host||top|provides|storageCompletion|||",
+        "member": "apps/tenancy-host",
+        "kind": "provides",
+        "key": "storageCompletion",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/storage/src/cordis.ts",
+          "line": 32
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R052"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host||top|provides|storageStartup|||",
+        "member": "apps/tenancy-host",
+        "kind": "provides",
+        "key": "storageStartup",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/storage/src/cordis.ts",
+          "line": 21
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R053"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host|HostMaintenance|top|provides|entryMaintenance|||",
+        "member": "apps/tenancy-host",
+        "kind": "provides",
+        "key": "entryMaintenance",
+        "state": "deviation",
+        "plugin": "HostMaintenance",
+        "implementation": {
+          "path": "packages/core/governance-center-entry/src/cordis.ts",
+          "line": 25
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R054"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host|HostOpening|top|provides|entryOpening|||",
+        "member": "apps/tenancy-host",
+        "kind": "provides",
+        "key": "entryOpening",
+        "state": "deviation",
+        "plugin": "HostOpening",
+        "implementation": {
+          "path": "packages/core/governance-center-entry/src/cordis.ts",
+          "line": 14
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R055"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host|HostStartup|top|provides|storageStartup|||",
+        "member": "apps/tenancy-host",
+        "kind": "provides",
+        "key": "storageStartup",
+        "state": "deviation",
+        "plugin": "HostStartup",
+        "implementation": {
+          "path": "packages/core/storage/src/cordis.ts",
+          "line": 21
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R056"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "apps/tenancy-host|HostStorageCompletion|top|provides|storageCompletion|||",
+        "member": "apps/tenancy-host",
+        "kind": "provides",
+        "key": "storageCompletion",
+        "state": "deviation",
+        "plugin": "HostStorageCompletion",
+        "implementation": {
+          "path": "packages/core/storage/src/cordis.ts",
+          "line": 32
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R057"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/core/cordis-plugin-tree||top|listens|internal/service|||",
+        "member": "packages/core/cordis-plugin-tree",
+        "kind": "listens",
+        "key": "internal/service",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/cordis-plugin-tree/src/load.ts",
+          "line": 140
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：loader观察真实服务/status以停止同一代和固定首因；不是新的业务事件。旧节点映射未登记该新通用机制。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R058"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/core/cordis-plugin-tree||top|listens|internal/status|||",
+        "member": "packages/core/cordis-plugin-tree",
+        "kind": "listens",
+        "key": "internal/status",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/cordis-plugin-tree/src/load.ts",
+          "line": 120
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：loader观察真实服务/status以停止同一代和固定首因；不是新的业务事件。旧节点映射未登记该新通用机制。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R059"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/core/cordis-plugin-tree||top|plugin|RowLifetime|||",
+        "member": "packages/core/cordis-plugin-tree",
+        "kind": "plugin",
+        "key": "RowLifetime",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/cordis-plugin-tree/src/load.ts",
+          "line": 28
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用宿主资源或逐行lifetime端口插件，不是新增业务提供者；资源只由同一宿主/协调器负责。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R060"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/core/cordis-plugin-tree||top|provides|assemblyLifetime|||",
+        "member": "packages/core/cordis-plugin-tree",
+        "kind": "provides",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 7
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R061"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/core/cordis-plugin-tree|RowLifetime|top|provides|assemblyLifetime|||",
+        "member": "packages/core/cordis-plugin-tree",
+        "kind": "provides",
+        "key": "assemblyLifetime",
+        "state": "deviation",
+        "plugin": "RowLifetime",
+        "implementation": {
+          "path": "packages/core/assembly-lifecycle/src/cordis.ts",
+          "line": 7
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R062"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/core/governance-center-entry||top|defines|entryMaintenance|||",
+        "member": "packages/core/governance-center-entry",
+        "kind": "defines",
+        "key": "entryMaintenance",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/governance-center-entry/src/cordis.ts",
+          "line": 37
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R063"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/core/governance-center-entry||top|defines|entryMaintenance|||",
+        "member": "packages/core/governance-center-entry",
+        "kind": "defines",
+        "key": "entryMaintenance",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/governance-center-entry/src/cordis.ts",
+          "line": 25
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R064"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/core/storage||top|defines|storageCompletion|||",
+        "member": "packages/core/storage",
+        "kind": "defines",
+        "key": "storageCompletion",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/storage/src/cordis.ts",
+          "line": 44
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R065"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/core/storage||top|defines|storageCompletion|||",
+        "member": "packages/core/storage",
+        "kind": "defines",
+        "key": "storageCompletion",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/storage/src/cordis.ts",
+          "line": 32
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R066"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/core/storage||top|defines|storageStartup|||",
+        "member": "packages/core/storage",
+        "kind": "defines",
+        "key": "storageStartup",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/storage/src/cordis.ts",
+          "line": 43
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R067"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/core/storage||top|defines|storageStartup|||",
+        "member": "packages/core/storage",
+        "kind": "defines",
+        "key": "storageStartup",
+        "state": "deviation",
+        "implementation": {
+          "path": "packages/core/storage/src/cordis.ts",
+          "line": 21
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：采用具名资源Service/Context声明的实际抽象定义或宿主运行提供者；可能有两条声明事实，不等于两个运行owner。整树closed后再释放。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R068"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/infra/storage-sql|storage-sql-managed|top|optional|storageCompletion|||",
+        "member": "packages/infra/storage-sql",
+        "kind": "optional",
+        "key": "storageCompletion",
+        "state": "deviation",
+        "plugin": "storage-sql-managed",
+        "implementation": {
+          "path": "packages/infra/storage-sql/src/plugin.ts",
+          "line": 35
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：SQL条件资源取得通过inject子作用域，外层可选静态事实不降低migrate/maintenance的必需运行校验；plain不误要求服务。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R069"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/infra/storage-sql|storage-sql-managed|top|optional|storageStartup|||",
+        "member": "packages/infra/storage-sql",
+        "kind": "optional",
+        "key": "storageStartup",
+        "state": "deviation",
+        "plugin": "storage-sql-managed",
+        "implementation": {
+          "path": "packages/infra/storage-sql/src/plugin.ts",
+          "line": 32
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：SQL条件资源取得通过inject子作用域，外层可选静态事实不降低migrate/maintenance的必需运行校验；plain不误要求服务。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R070"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/infra/storage-sql|storage-sql|top|optional|storageCompletion|||",
+        "member": "packages/infra/storage-sql",
+        "kind": "optional",
+        "key": "storageCompletion",
+        "state": "deviation",
+        "plugin": "storage-sql",
+        "implementation": {
+          "path": "packages/infra/storage-sql/src/plugin.ts",
+          "line": 35
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：SQL条件资源取得通过inject子作用域，外层可选静态事实不降低migrate/maintenance的必需运行校验；plain不误要求服务。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R071"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/infra/storage-sql|storage-sql|top|optional|storageStartup|||",
+        "member": "packages/infra/storage-sql",
+        "kind": "optional",
+        "key": "storageStartup",
+        "state": "deviation",
+        "plugin": "storage-sql",
+        "implementation": {
+          "path": "packages/infra/storage-sql/src/plugin.ts",
+          "line": 32
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：SQL条件资源取得通过inject子作用域，外层可选静态事实不降低migrate/maintenance的必需运行校验；plain不误要求服务。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R072"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/account-registration-sequential|account-registration-sequential-managed|top|injects|accounts|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "injects",
+        "key": "accounts",
+        "state": "deviation",
+        "plugin": "account-registration-sequential-managed",
+        "implementation": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 70
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R073"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/account-registration-sequential|account-registration-sequential-managed|top|injects|organizationPurge|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "injects",
+        "key": "organizationPurge",
+        "state": "deviation",
+        "plugin": "account-registration-sequential-managed",
+        "implementation": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 72
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R074"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/account-registration-sequential|account-registration-sequential-managed|top|injects|organizations|||",
+        "member": "packages/tenancy/account-registration-sequential",
+        "kind": "injects",
+        "key": "organizations",
+        "state": "deviation",
+        "plugin": "account-registration-sequential-managed",
+        "implementation": {
+          "path": "packages/tenancy/account-registration-sequential/src/plugin.ts",
+          "line": 71
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R075"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|emits|governance-center-entry/defect-observed|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/defect-observed",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 72
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R076"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|emits|governance-center-entry/serving-started|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/serving-started",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 66
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R077"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|emits|governance-center-entry/serving-stopped|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/serving-stopped",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 69
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R078"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|injects|accounts|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "accounts",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 145
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R079"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|injects|clock|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "clock",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 142
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R080"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|injects|credentials|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "credentials",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 143
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R081"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|injects|entryOpening|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "entryOpening",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 150
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R082"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|injects|logins|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "logins",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 144
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R083"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|injects|memberships|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "memberships",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 148
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R084"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|injects|offers|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "offers",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 149
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R085"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|injects|organizations|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "organizations",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 147
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R086"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|injects|registration|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "registration",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 146
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R087"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|injects|storage|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "storage",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 141
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R088"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-managed|top|listens|governance-center-entry/ops-listening-started|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/ops-listening-started",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 74
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R089"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|emits|governance-center-entry/ops-listening-started|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/ops-listening-started",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 49
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R090"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|injects|entryMaintenance|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "entryMaintenance",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 101
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R091"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|listens|governance-center-entry/defect-observed|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/defect-observed",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 53
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R092"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|listens|governance-center-entry/serving-started|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/serving-started",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 51
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R093"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops-managed|top|listens|governance-center-entry/serving-stopped|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/serving-stopped",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops-managed",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 52
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R094"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops|top|emits|governance-center-entry/ops-listening-started|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/ops-listening-started",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 49
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R095"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops|top|injects|entryMaintenance|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "injects",
+        "key": "entryMaintenance",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 83
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R096"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops|top|listens|governance-center-entry/defect-observed|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/defect-observed",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 53
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R097"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops|top|listens|governance-center-entry/serving-started|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/serving-started",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 51
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R098"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node-ops|top|listens|governance-center-entry/serving-stopped|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/serving-stopped",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node-ops",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+          "line": 52
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R099"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|emits|governance-center-entry/defect-observed|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/defect-observed",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 72
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R100"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|emits|governance-center-entry/serving-started|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/serving-started",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 66
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R101"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|emits|governance-center-entry/serving-stopped|emit||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "emits",
+        "key": "governance-center-entry/serving-stopped",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 69
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R102"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/governance-center-entry-node|governance-center-entry-node|top|listens|governance-center-entry/ops-listening-started|||",
+        "member": "packages/tenancy/governance-center-entry-node",
+        "kind": "listens",
+        "key": "governance-center-entry/ops-listening-started",
+        "state": "deviation",
+        "plugin": "governance-center-entry-node",
+        "implementation": {
+          "path": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+          "line": 74
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：四事件的唯一coreEC拥有者及采用新字符串；载荷、次数、次序保持，旧名不双发；旧映射仍显示旧字面。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R103"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|injects|accounts|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "injects",
+        "key": "accounts",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 110
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R104"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|injects|clock|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "injects",
+        "key": "clock",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 109
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R105"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|injects|logins|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "injects",
+        "key": "logins",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 111
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R106"
+    },
+    {
+      "kind": "legacy-assembly-reading",
+      "fact": {
+        "id": "packages/tenancy/organization-governance-sql|organization-governance-sql-managed|top|injects|storage|||",
+        "member": "packages/tenancy/organization-governance-sql",
+        "kind": "injects",
+        "key": "storage",
+        "state": "deviation",
+        "plugin": "organization-governance-sql-managed",
+        "implementation": {
+          "path": "packages/tenancy/organization-governance-sql/src/plugin.ts",
+          "line": 108
+        }
+      },
+      "disposition": "保留已采用实现；接续旧映射：原必需依赖改成IC-8常量直接数组，现在可提取；entryMaintenance/entryOpening依赖属于采用资源补差；旧未知包装或旧映射不等于本批新增业务依赖。",
+      "evidence": "identity-integration/host-integration、plugin-tree、retirement；实际组合责任由独立52项QA确认，不用登记偏离关闭行为义务",
+      "owner": "N5/N6逐条对应旧映射；T4新实现/行为责任不转走",
+      "id": "T4-R107"
+    },
+    {
+      "kind": "expectation-change",
+      "fact": {
+        "id": "global-architecture",
+        "path": ".meta_harness/design/architecture/constraints.json",
+        "before": "{\"schemaVersion\":1,\"domains\":[{\"id\":\"admission\",\"label\":\"准入与人机决策\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"agent\",\"label\":\"Agent 装配与运行\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"assets\",\"label\":\"资产治理与求值\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"context\",\"label\":\"消息与上下文\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"environment\",\"label\":\"执行环境与隔离\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"identity\",\"label\":\"身份与组织租户\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"model\",\"label\":\"模型调用\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"session\",\"label\":\"会话与输入受理\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"tool\",\"label\":\"工具执行\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"workspace\",\"label\":\"工作区\",\"source\":\"system-intent.md#责任方向\"}],\"rules\":[{\"id\":\"IC-1\",\"source\":\".meta_harness/design/realization/cordis-integration-conventions.md\"},{\"id\":\"IC-2\",\"source\":\".meta_harness/design/realization/cordis-integration-conventions.md\"},{\"id\":\"IC-3\",\"source\":\".meta_harness/design/realization/cordis-integration-conventions.md\"},{\"id\":\"IC-4\",\"source\":\".meta_harness/design/realization/cordis-integration-conventions.md\"},{\"id\":\"IC-5\",\"source\":\".meta_harness/design/realization/cordis-integration-conventions.md\"},{\"id\":\"LAYER-DIP\",\"source\":\"system-intent.md#分层约束\"},{\"id\":\"LAYER-ENTRY\",\"source\":\"system-intent.md#分层约束\"}],\"roles\":[{\"id\":\"assembly-lifetime-mechanism\",\"paths\":[\"packages/core/assembly-lifecycle/src/cordis.ts\",\"packages/core/assembly-lifecycle/src/index.ts\",\"packages/core/assembly-lifecycle/src/lifetime.ts\"],\"layer\":\"assembly\",\"domains\":[],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/retirement.md\"},{\"id\":\"assembly-lifetime-protocol\",\"paths\":[\"packages/core/assembly-lifecycle/src/errors.ts\",\"packages/core/assembly-lifecycle/src/types.ts\"],\"layer\":\"contract\",\"domains\":[],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/retirement.md\"},{\"id\":\"business-storage\",\"paths\":[\"packages/infra/storage-sql/src/**\"],\"layer\":\"storage-adapter\",\"domains\":[],\"status\":\"adopted\",\"source\":\".meta_harness/design/realization/packages/infra/storage-sql/design.md\"},{\"id\":\"cli-client-composition\",\"paths\":[\"apps/cli/src/assembly.ts\"],\"layer\":\"assembly\",\"domains\":[\"admission\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/client-integration.md\"},{\"id\":\"cli-interaction\",\"paths\":[\"apps/cli/src/input.ts\",\"apps/cli/src/parser.ts\",\"apps/cli/src/presentation.ts\",\"apps/cli/src/tui/forms.ts\"],\"layer\":\"interaction\",\"domains\":[\"admission\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/realization/apps/cli/design.md\"},{\"id\":\"client-definition-client-local-state\",\"paths\":[\"packages/core/client-local-state/src/**\"],\"layer\":\"contract\",\"domains\":[\"admission\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/design.md\"},{\"id\":\"client-definition-governance-center-entry-https-json\",\"paths\":[\"packages/core/governance-center-entry-https-json/src/**\"],\"layer\":\"contract\",\"domains\":[\"admission\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/design.md\"},{\"id\":\"client-definition-governance-client-operations\",\"paths\":[\"packages/core/governance-client-operations/src/**\"],\"layer\":\"contract\",\"domains\":[\"admission\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/design.md\"},{\"id\":\"host-composition\",\"paths\":[\"apps/tenancy-host/src/assembly.ts\",\"apps/tenancy-host/src/boot.ts\",\"apps/tenancy-host/src/manifest.ts\"],\"layer\":\"assembly\",\"domains\":[\"identity\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/retirement.md\"},{\"id\":\"identity-definition-account-identity\",\"paths\":[\"packages/core/account-identity/src/**\"],\"layer\":\"contract\",\"domains\":[\"identity\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/design.md\"},{\"id\":\"identity-definition-account-registration\",\"paths\":[\"packages/core/account-registration/src/**\"],\"layer\":\"contract\",\"domains\":[\"identity\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/design.md\"},{\"id\":\"identity-definition-governance-center-entry\",\"paths\":[\"packages/core/governance-center-entry/src/**\"],\"layer\":\"contract\",\"domains\":[\"identity\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/design.md\"},{\"id\":\"local-state-scope\",\"paths\":[\"packages/frontend/client-local-state-sqlite/src/**\"],\"layer\":\"unknown\",\"domains\":[\"admission\"],\"status\":\"unknown\",\"source\":\"system-intent.md#分层约束\"},{\"id\":\"mixed-cli\",\"paths\":[\"apps/cli/src/**\"],\"layer\":\"unknown\",\"domains\":[\"admission\"],\"status\":\"candidate\",\"source\":\"system-intent.md#分层约束\"},{\"id\":\"mixed-governance-entry\",\"paths\":[\"packages/tenancy/governance-center-entry-node/src/**\"],\"layer\":\"unknown\",\"domains\":[\"admission\",\"identity\"],\"status\":\"candidate\",\"source\":\".meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md\"},{\"id\":\"packages/agent-loop/loop-extension-runner\",\"paths\":[\"packages/agent-loop/loop-extension-runner/src/**\"],\"layer\":\"unknown\",\"domains\":[\"agent\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/assets/assembly-manifest-store\",\"paths\":[\"packages/assets/assembly-manifest-store/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/assets/evaluation-input-store\",\"paths\":[\"packages/assets/evaluation-input-store/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/agent-definition\",\"paths\":[\"packages/core/agent-definition/src/**\"],\"layer\":\"unknown\",\"domains\":[\"agent\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/arrival-events\",\"paths\":[\"packages/core/arrival-events/src/**\"],\"layer\":\"unknown\",\"domains\":[\"session\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/asset-evaluation\",\"paths\":[\"packages/core/asset-evaluation/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/asset-model\",\"paths\":[\"packages/core/asset-model/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/call-accounts\",\"paths\":[\"packages/core/call-accounts/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/content-blocks\",\"paths\":[\"packages/core/content-blocks/src/**\"],\"layer\":\"unknown\",\"domains\":[\"context\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/loop-extension\",\"paths\":[\"packages/core/loop-extension/src/**\"],\"layer\":\"unknown\",\"domains\":[\"agent\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/messages\",\"paths\":[\"packages/core/messages/src/**\"],\"layer\":\"unknown\",\"domains\":[\"context\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/model-profile\",\"paths\":[\"packages/core/model-profile/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/model-request-runtime\",\"paths\":[\"packages/core/model-request-runtime/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/model-response\",\"paths\":[\"packages/core/model-response/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/offer-expiry\",\"paths\":[\"packages/core/offer-expiry/src/**\"],\"layer\":\"unknown\",\"domains\":[\"admission\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/organization-governance\",\"paths\":[\"packages/core/organization-governance/src/**\"],\"layer\":\"unknown\",\"domains\":[\"identity\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/skill-package\",\"paths\":[\"packages/core/skill-package/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/slash-command\",\"paths\":[\"packages/core/slash-command/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/stream-assembly\",\"paths\":[\"packages/core/stream-assembly/src/**\"],\"layer\":\"unknown\",\"domains\":[\"context\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/tool-definition\",\"paths\":[\"packages/core/tool-definition/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/frontend/governance-center-client-https\",\"paths\":[\"packages/frontend/governance-center-client-https/src/**\"],\"layer\":\"unknown\",\"domains\":[\"admission\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/frontend/governance-client-operations-local\",\"paths\":[\"packages/frontend/governance-client-operations-local/src/**\"],\"layer\":\"unknown\",\"domains\":[\"admission\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/infra/credential-custodian-local\",\"paths\":[\"packages/infra/credential-custodian-local/src/**\"],\"layer\":\"unknown\",\"domains\":[\"identity\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/model/model-profile-directory\",\"paths\":[\"packages/model/model-profile-directory/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/model/model-request-runtime-local\",\"paths\":[\"packages/model/model-request-runtime-local/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/model/pi-ai-transport\",\"paths\":[\"packages/model/pi-ai-transport/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/session/session-log-jsonl\",\"paths\":[\"packages/session/session-log-jsonl/src/**\"],\"layer\":\"unknown\",\"domains\":[\"session\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/session/session-tenancy-table\",\"paths\":[\"packages/session/session-tenancy-table/src/**\"],\"layer\":\"unknown\",\"domains\":[\"session\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/tenancy/account-identity\",\"paths\":[\"packages/tenancy/account-identity-sql/src/**\"],\"layer\":\"unknown\",\"domains\":[\"identity\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/tenancy/credential-verification\",\"paths\":[\"packages/tenancy/credential-verification-scrypt/src/**\"],\"layer\":\"unknown\",\"domains\":[\"identity\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/tenancy/organization-governance-sql\",\"paths\":[\"packages/tenancy/organization-governance-sql/src/**\"],\"layer\":\"unknown\",\"domains\":[\"identity\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/tools/asset-registry\",\"paths\":[\"packages/tools/asset-registry/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"registration-policy\",\"paths\":[\"packages/tenancy/account-registration-sequential/src/registration.ts\"],\"layer\":\"policy\",\"domains\":[\"identity\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/realization/packages/tenancy/account-registration/design.md\"},{\"id\":\"storage-port\",\"paths\":[\"packages/core/storage/src/**\"],\"layer\":\"storage-port\",\"domains\":[],\"status\":\"adopted\",\"source\":\".meta_harness/design/realization/packages/core/storage/design.md\"}]}",
+        "after": "{\"schemaVersion\":1,\"domains\":[{\"id\":\"admission\",\"label\":\"准入与人机决策\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"agent\",\"label\":\"Agent 装配与运行\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"assets\",\"label\":\"资产治理与求值\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"context\",\"label\":\"消息与上下文\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"environment\",\"label\":\"执行环境与隔离\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"identity\",\"label\":\"身份与组织租户\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"model\",\"label\":\"模型调用\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"session\",\"label\":\"会话与输入受理\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"tool\",\"label\":\"工具执行\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"workspace\",\"label\":\"工作区\",\"source\":\"system-intent.md#责任方向\"}],\"rules\":[{\"id\":\"IC-1\",\"source\":\".meta_harness/design/realization/cordis-integration-conventions.md\"},{\"id\":\"IC-2\",\"source\":\".meta_harness/design/realization/cordis-integration-conventions.md\"},{\"id\":\"IC-3\",\"source\":\".meta_harness/design/realization/cordis-integration-conventions.md\"},{\"id\":\"IC-4\",\"source\":\".meta_harness/design/realization/cordis-integration-conventions.md\"},{\"id\":\"IC-5\",\"source\":\".meta_harness/design/realization/cordis-integration-conventions.md\"},{\"id\":\"LAYER-DIP\",\"source\":\"system-intent.md#分层约束\"},{\"id\":\"LAYER-ENTRY\",\"source\":\"system-intent.md#分层约束\"}],\"roles\":[{\"id\":\"assembly-lifetime-mechanism\",\"paths\":[\"packages/core/assembly-lifecycle/src/cordis.ts\",\"packages/core/assembly-lifecycle/src/index.ts\",\"packages/core/assembly-lifecycle/src/lifetime.ts\"],\"layer\":\"assembly\",\"domains\":[],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/retirement.md\"},{\"id\":\"assembly-lifetime-protocol\",\"paths\":[\"packages/core/assembly-lifecycle/src/errors.ts\",\"packages/core/assembly-lifecycle/src/types.ts\"],\"layer\":\"contract\",\"domains\":[],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/retirement.md\"},{\"id\":\"business-storage\",\"paths\":[\"packages/infra/storage-sql/src/**\"],\"layer\":\"storage-adapter\",\"domains\":[],\"status\":\"adopted\",\"source\":\".meta_harness/design/realization/packages/infra/storage-sql/design.md\"},{\"id\":\"cli-client-composition\",\"paths\":[\"apps/cli/src/assembly.ts\"],\"layer\":\"assembly\",\"domains\":[\"admission\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/client-integration.md\"},{\"id\":\"cli-interaction\",\"paths\":[\"apps/cli/src/input.ts\",\"apps/cli/src/parser.ts\",\"apps/cli/src/presentation.ts\",\"apps/cli/src/tui/forms.ts\"],\"layer\":\"interaction\",\"domains\":[\"admission\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/realization/apps/cli/design.md\"},{\"id\":\"client-definition-client-local-state\",\"paths\":[\"packages/core/client-local-state/src/**\"],\"layer\":\"contract\",\"domains\":[\"admission\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/design.md\"},{\"id\":\"client-definition-governance-center-entry-https-json\",\"paths\":[\"packages/core/governance-center-entry-https-json/src/**\"],\"layer\":\"contract\",\"domains\":[\"admission\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/design.md\"},{\"id\":\"client-definition-governance-client-operations\",\"paths\":[\"packages/core/governance-client-operations/src/**\"],\"layer\":\"contract\",\"domains\":[\"admission\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/design.md\"},{\"id\":\"governance-entry-cordis-binding\",\"paths\":[\"packages/tenancy/governance-center-entry-node/src/cordis.ts\",\"packages/tenancy/governance-center-entry-node/src/ops/plugin.ts\",\"packages/tenancy/governance-center-entry-node/src/plugin.ts\"],\"layer\":\"assembly\",\"domains\":[\"admission\",\"identity\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/host-integration.md\"},{\"id\":\"host-composition\",\"paths\":[\"apps/tenancy-host/src/assembly.ts\",\"apps/tenancy-host/src/boot.ts\",\"apps/tenancy-host/src/policy.ts\",\"apps/tenancy-host/src/tree.ts\"],\"layer\":\"assembly\",\"domains\":[\"identity\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/host-integration.md\"},{\"id\":\"identity-definition-account-identity\",\"paths\":[\"packages/core/account-identity/src/**\"],\"layer\":\"contract\",\"domains\":[\"identity\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/design.md\"},{\"id\":\"identity-definition-account-registration\",\"paths\":[\"packages/core/account-registration/src/**\"],\"layer\":\"contract\",\"domains\":[\"identity\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/design.md\"},{\"id\":\"identity-definition-governance-center-entry\",\"paths\":[\"packages/core/governance-center-entry/src/**\"],\"layer\":\"contract\",\"domains\":[\"identity\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/design.md\"},{\"id\":\"local-state-scope\",\"paths\":[\"packages/frontend/client-local-state-sqlite/src/**\"],\"layer\":\"unknown\",\"domains\":[\"admission\"],\"status\":\"unknown\",\"source\":\"system-intent.md#分层约束\"},{\"id\":\"mixed-cli\",\"paths\":[\"apps/cli/src/**\"],\"layer\":\"unknown\",\"domains\":[\"admission\"],\"status\":\"candidate\",\"source\":\"system-intent.md#分层约束\"},{\"id\":\"mixed-governance-entry\",\"paths\":[\"packages/tenancy/governance-center-entry-node/src/**\"],\"layer\":\"unknown\",\"domains\":[\"admission\",\"identity\"],\"status\":\"candidate\",\"source\":\".meta_harness/design/realization/packages/tenancy/governance-center-entry/design.md\"},{\"id\":\"packages/agent-loop/loop-extension-runner\",\"paths\":[\"packages/agent-loop/loop-extension-runner/src/**\"],\"layer\":\"unknown\",\"domains\":[\"agent\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/assets/assembly-manifest-store\",\"paths\":[\"packages/assets/assembly-manifest-store/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/assets/evaluation-input-store\",\"paths\":[\"packages/assets/evaluation-input-store/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/agent-definition\",\"paths\":[\"packages/core/agent-definition/src/**\"],\"layer\":\"unknown\",\"domains\":[\"agent\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/arrival-events\",\"paths\":[\"packages/core/arrival-events/src/**\"],\"layer\":\"unknown\",\"domains\":[\"session\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/asset-evaluation\",\"paths\":[\"packages/core/asset-evaluation/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/asset-model\",\"paths\":[\"packages/core/asset-model/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/call-accounts\",\"paths\":[\"packages/core/call-accounts/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/content-blocks\",\"paths\":[\"packages/core/content-blocks/src/**\"],\"layer\":\"unknown\",\"domains\":[\"context\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/loop-extension\",\"paths\":[\"packages/core/loop-extension/src/**\"],\"layer\":\"unknown\",\"domains\":[\"agent\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/messages\",\"paths\":[\"packages/core/messages/src/**\"],\"layer\":\"unknown\",\"domains\":[\"context\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/model-profile\",\"paths\":[\"packages/core/model-profile/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/model-request-runtime\",\"paths\":[\"packages/core/model-request-runtime/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/model-response\",\"paths\":[\"packages/core/model-response/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/offer-expiry\",\"paths\":[\"packages/core/offer-expiry/src/**\"],\"layer\":\"unknown\",\"domains\":[\"admission\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/organization-governance\",\"paths\":[\"packages/core/organization-governance/src/**\"],\"layer\":\"unknown\",\"domains\":[\"identity\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/skill-package\",\"paths\":[\"packages/core/skill-package/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/slash-command\",\"paths\":[\"packages/core/slash-command/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/stream-assembly\",\"paths\":[\"packages/core/stream-assembly/src/**\"],\"layer\":\"unknown\",\"domains\":[\"context\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/core/tool-definition\",\"paths\":[\"packages/core/tool-definition/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/frontend/governance-center-client-https\",\"paths\":[\"packages/frontend/governance-center-client-https/src/**\"],\"layer\":\"unknown\",\"domains\":[\"admission\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/frontend/governance-client-operations-local\",\"paths\":[\"packages/frontend/governance-client-operations-local/src/**\"],\"layer\":\"unknown\",\"domains\":[\"admission\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/infra/credential-custodian-local\",\"paths\":[\"packages/infra/credential-custodian-local/src/**\"],\"layer\":\"unknown\",\"domains\":[\"identity\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/model/model-profile-directory\",\"paths\":[\"packages/model/model-profile-directory/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/model/model-request-runtime-local\",\"paths\":[\"packages/model/model-request-runtime-local/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/model/pi-ai-transport\",\"paths\":[\"packages/model/pi-ai-transport/src/**\"],\"layer\":\"unknown\",\"domains\":[\"model\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/session/session-log-jsonl\",\"paths\":[\"packages/session/session-log-jsonl/src/**\"],\"layer\":\"unknown\",\"domains\":[\"session\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/session/session-tenancy-table\",\"paths\":[\"packages/session/session-tenancy-table/src/**\"],\"layer\":\"unknown\",\"domains\":[\"session\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/tenancy/account-identity\",\"paths\":[\"packages/tenancy/account-identity-sql/src/**\"],\"layer\":\"unknown\",\"domains\":[\"identity\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/tenancy/credential-verification\",\"paths\":[\"packages/tenancy/credential-verification-scrypt/src/**\"],\"layer\":\"unknown\",\"domains\":[\"identity\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/tenancy/organization-governance-sql\",\"paths\":[\"packages/tenancy/organization-governance-sql/src/**\"],\"layer\":\"unknown\",\"domains\":[\"identity\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"packages/tools/asset-registry\",\"paths\":[\"packages/tools/asset-registry/src/**\"],\"layer\":\"unknown\",\"domains\":[\"assets\"],\"status\":\"candidate\",\"source\":\"system-intent.md#责任方向\"},{\"id\":\"plugin-tree-assembly-mechanism\",\"paths\":[\"packages/core/cordis-plugin-tree/src/cordis.ts\",\"packages/core/cordis-plugin-tree/src/data.ts\",\"packages/core/cordis-plugin-tree/src/index.ts\",\"packages/core/cordis-plugin-tree/src/load.ts\",\"packages/core/cordis-plugin-tree/src/prepare.ts\",\"packages/core/cordis-plugin-tree/src/prepared.ts\",\"packages/core/cordis-plugin-tree/src/tree.ts\"],\"layer\":\"assembly\",\"domains\":[],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/plugin-tree.md\"},{\"id\":\"plugin-tree-protocol\",\"paths\":[\"packages/core/cordis-plugin-tree/src/errors.ts\",\"packages/core/cordis-plugin-tree/src/types.ts\"],\"layer\":\"contract\",\"domains\":[],\"status\":\"adopted\",\"source\":\".meta_harness/design/architecture/identity-integration/plugin-tree.md\"},{\"id\":\"registration-policy\",\"paths\":[\"packages/tenancy/account-registration-sequential/src/registration.ts\"],\"layer\":\"policy\",\"domains\":[\"identity\"],\"status\":\"adopted\",\"source\":\".meta_harness/design/realization/packages/tenancy/account-registration/design.md\"},{\"id\":\"storage-port\",\"paths\":[\"packages/core/storage/src/**\"],\"layer\":\"storage-port\",\"domains\":[],\"status\":\"adopted\",\"source\":\".meta_harness/design/realization/packages/core/storage/design.md\"}]}"
+      },
+      "disposition": "已采用精确机制/资源、host tree/policy和三绑定坐标投影，来源见projection-disposition及S1交付；没有扩大apps/**或整个provider装配豁免。BASE预期另判，0新增已判定偏离不依赖放宽当前预期。",
+      "evidence": "projection-disposition.json + s1-delivery-notes.md；独立实施补审 pending",
+      "owner": "T4",
+      "id": "T4-R108"
+    }
+  ]
+}

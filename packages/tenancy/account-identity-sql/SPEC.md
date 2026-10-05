@@ -17,5 +17,9 @@ close 停止新普通调用，等待完整已准入 Promise，包括事务外 sc
 再撤除依赖。管理装配的有序收尾按[生命周期设计](../../../.meta_harness/design/architecture/identity-integration/retirement.md)实施，
 本包出现不表示真实宿主已经完成接入。
 
+managedAccountIdentityPlugin 的纯 describeAssembly 声明提供 accounts/logins、必需 storage/clock，
+credentials 仍为逐调用可选依赖。tenancy-host/accounts v1 投影原公钥、有效期及有限 JSON 政策。
+政策缺席时省略字段，保持原缺席拒绝规则；声明沿[插件树协议](../../core/cordis-plugin-tree/SPEC.md)。
+
 必须验证凭据准备期间关闭、票据销毁/错实例/失败消费、实际 SQLite 同提交和回滚、
 依赖替换与真实迟到业务完成。绑定消失或网络断开均不是业务结束证据。

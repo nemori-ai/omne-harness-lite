@@ -1,10 +1,16 @@
 import {
-  AssemblyLifetimeService,
+  ASSEMBLY_LIFETIME_SERVICE,
   startAssemblyWork,
 } from '@omne-harness-lite/assembly-lifecycle/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialsService, AccountIdentityConfig } from '@omne-harness-lite/account-identity'
-import { CREDENTIALS_SERVICE } from '@omne-harness-lite/account-identity/cordis'
+import {
+  CREDENTIALS_SERVICE,
+  ACCOUNTS_SERVICE,
+  LOGINS_SERVICE,
+} from '@omne-harness-lite/account-identity/cordis'
+import { z } from 'zod'
+import type { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree'
 import { definePlugin, resolveOptional } from '@omne-harness-lite/kernel-basis/cordis'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
@@ -16,6 +22,29 @@ import { loggerDiagnostics } from './diagnostics.ts'
 import { contextNotifier } from './notifier.ts'
 import { cryptoRandomSource } from './presentation.ts'
 import { AccountsSqlService, LoginsSqlService } from './provided-services.ts'
+
+function describeAssembly(value: unknown): AssemblyDeclaration {
+  const config = AccountIdentityConfigSchema.parse(value)
+  return {
+    provides: [ACCOUNTS_SERVICE, LOGINS_SERVICE],
+    requires: [STORAGE_SERVICE, CLOCK_SERVICE],
+    optional: [CREDENTIALS_SERVICE],
+    claims: [
+      {
+        name: 'tenancy-host/accounts',
+        version: 1,
+        config: {
+          unactivatedRetention: config.unactivatedRetention,
+          activationVerificationKeyPem: config.activationVerificationKeyPem,
+          purgeVerificationKeyPem: config.purgeVerificationKeyPem,
+          ...(config.credentialPolicy === undefined
+            ? {}
+            : { credentialPolicy: z.json().parse(config.credentialPolicy) }),
+        },
+      },
+    ],
+  }
+}
 
 function bind(
   ctx: Context,
@@ -53,7 +82,7 @@ export const accountIdentityPlugin = definePlugin<AccountIdentityConfig>({
 export const managedAccountIdentityPlugin = Object.assign(
   definePlugin<AccountIdentityConfig>({
     name: 'account-identity-sql-managed',
-    inject: [STORAGE_SERVICE, CLOCK_SERVICE, AssemblyLifetimeService.provide],
+    inject: [STORAGE_SERVICE, CLOCK_SERVICE, ASSEMBLY_LIFETIME_SERVICE],
     Config: AccountIdentityConfigSchema,
     apply(ctx: Context, config) {
       let closeWork: (() => Promise<void>) | undefined
@@ -70,5 +99,5 @@ export const managedAccountIdentityPlugin = Object.assign(
       )
     },
   }),
-  { assemblyLifecycle: 1 as const },
+  { assemblyLifecycle: 1 as const, describeAssembly },
 )

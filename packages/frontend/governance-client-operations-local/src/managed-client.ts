@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import {
-  AssemblyLifetimeService,
+  ASSEMBLY_LIFETIME_SERVICE,
   startAssemblyWork,
 } from '@omne-harness-lite/assembly-lifecycle/cordis'
 import { CLIENT_LOCAL_STATE_SERVICE } from '@omne-harness-lite/client-local-state/cordis'
@@ -23,7 +23,7 @@ export function createManagedClientBinding(dependencies: {
         CLIENT_LOCAL_STATE_SERVICE,
         GOVERNANCE_TRANSPORT_SERVICE,
         GOVERNANCE_CLIENT_CLOSE_OBSERVER_SERVICE,
-        AssemblyLifetimeService.provide,
+        ASSEMBLY_LIFETIME_SERVICE,
       ],
       Config: governanceClientConfig,
       apply(ctx, config) {

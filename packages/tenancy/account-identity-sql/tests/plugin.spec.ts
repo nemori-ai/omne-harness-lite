@@ -31,6 +31,7 @@ import {
   type WarrantKeys,
   activationWarrant,
   storageConfig,
+  storageStartupPlugin,
   tempSqliteFile,
   testClock,
   warrantKeys,
@@ -68,6 +69,7 @@ async function boot(
   const assembly = await bootAssembly({
     services: [{ name: 'clock', value: clock }],
     plugins: [
+      { plugin: storageStartupPlugin },
       { plugin: storageSqlPlugin, config: storageConfig(file) },
       ...(options.withCredentials === false
         ? []
@@ -135,6 +137,7 @@ describe('account-identity 插件', () => {
     await expect(
       bootAssembly({
         plugins: [
+          { plugin: storageStartupPlugin },
           { plugin: storageSqlPlugin, config: storageConfig(tempSqliteFile('no-clock')) },
           { plugin: accountIdentityPlugin, config: aiConfig(keys) },
         ],

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "\u6cbb\u7406\u4e2d\u5fc3\u88c5\u914d\uff1a\u5b58\u50a8\u4e0e\u8fc1\u79fb\u5408\u6210\u3001\u5347\u7ea7\u5b88\u536b\u786e\u8ba4\u3001\u65f6\u949f\u3001\u5bc6\u94a5\u3001\u56db\u4e2a tenancy \u63d2\u4ef6\u4e0e\u5165\u53e3\u5c42\u7684\u88c5\u8f7d\u6e05\u5355\u3001\u4e24\u6b65\u5f00\u95f8\u4e0e\u9006\u5e8f\u64a4\u9664\u3002\u8bbe\u8ba1\uff1a.meta_harness/design/realization/apps/tenancy-host/",
+  "description": "治理中心装配：存储与迁移合成、升级守卫确认、时钟、密钥、四个 tenancy 插件与入口层的装载清单、两步开闸与逆序撤除。设计：.meta_harness/design/realization/apps/tenancy-host/",
   "engines": {
     "node": ">=24 <25"
   },
@@ -24,6 +24,7 @@
     "test:e2e": "vitest run tests/e2e"
   },
   "dependencies": {
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*",
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/account-registration": "workspace:*",
@@ -42,14 +43,14 @@
     "@omne-harness-lite/account-identity-sql": "workspace:*",
     "@omne-harness-lite/account-registration-sequential": "workspace:*",
     "@omne-harness-lite/assembly-lifecycle": "workspace:*",
-    "@omne-harness-lite/governance-center-entry": "workspace:*"
+    "@omne-harness-lite/governance-center-entry": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/pg": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "@omne-harness-lite/artifact-builder": "workspace:*",
-    "@omne-harness-lite/organization-governance": "workspace:*"
+    "@omne-harness-lite/artifact-builder": "workspace:*"
   }
 }

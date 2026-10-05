@@ -44,6 +44,12 @@ The four deployment key _FILE variables from keygen are also required. Export th
 
     node chosen-new-directory/app/dist/cli.js serve
 
+An optional operator JSON file remains outside the code directory. To inspect its prepared rows with no database or listener effects, run with the same deployment environment:
+
+    node chosen-new-directory/app/dist/cli.js serve --plugins /absolute/private/plugins.json --print-plugins
+
+Configurations are redacted. To start that prepared configuration, omit --print-plugins. Invalid edits, dependencies or required host roles fail before resources open. The default operator layer is empty.
+
 For intranet access explicitly set the intended listening address and arrange routing, firewall and matching TLS names. The loopback example does not expose an intranet service. SIGTERM/SIGINT request orderly shutdown. Do not launch another center against the same database. Do not use an unverified old backup as a live database.
 
 For code upgrades retain old code and unpack to another new directory; stop the center before changing its executable. Keeping old code does not guarantee it can read a migrated database. This packager performs no migration, rollback, install, upload or download. Follow the accepted upgrade/recovery procedure separately.

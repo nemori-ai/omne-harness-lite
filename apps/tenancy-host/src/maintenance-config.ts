@@ -16,8 +16,8 @@ async function syncDirectory(path: string): Promise<void> {
   }
 }
 
-/** Run after key/config validation, before any storage plugin or plaintext workspace. */
-export async function prepareBackupDirectory(config: HostConfig): Promise<string> {
+/** Read-only canonical path and privacy checks. Printing must not create directories. */
+export async function resolveBackupDirectory(config: HostConfig): Promise<string> {
   if (config.storage.dialect !== 'sqlite')
     throw new HostStartupFailure('config', 'bounded governance requires SQLite')
   try {
@@ -36,25 +36,53 @@ export async function prepareBackupDirectory(config: HostConfig): Promise<string
     const path = join(parent, basename(resolve(requested)))
     if (path === parent) throw new Error('backup directory must have an existing parent')
     try {
+      await assertPrivateDirectory(path)
+    } catch (error) {
+      if (!hasCode(error, 'ENOENT')) throw error
+    }
+    return path
+  } catch (error) {
+    throw backupFailure(error)
+  }
+}
+
+async function assertPrivateDirectory(path: string): Promise<void> {
+  const info = await lstat(path)
+  if (
+    !info.isDirectory() ||
+    info.isSymbolicLink() ||
+    info.uid !== process.getuid?.() ||
+    (info.mode & 0o077) !== 0
+  )
+    throw new Error('backup directory is not private')
+}
+function backupFailure(error: unknown): HostStartupFailure {
+  return new HostStartupFailure('config', 'backup directory cannot be prepared durably', {
+    item: 'OMNE_TENANCY_BACKUP_DIR',
+    cause: error,
+  })
+}
+
+/** Execute only after static tree/policy preparation; recheck the same canonical identity. */
+export async function prepareBackupDirectory(
+  config: HostConfig,
+  expected?: string,
+): Promise<string> {
+  const path = await resolveBackupDirectory(config)
+  try {
+    if (expected !== undefined && path !== expected)
+      throw new Error('backup directory identity changed')
+    const parent = dirname(path)
+    try {
       await mkdir(path, { mode: 0o700 })
     } catch (error) {
       if (!hasCode(error, 'EEXIST')) throw error
     }
-    const info = await lstat(path)
-    if (
-      !info.isDirectory() ||
-      info.isSymbolicLink() ||
-      info.uid !== process.getuid?.() ||
-      (info.mode & 0o077) !== 0
-    )
-      throw new Error('backup directory is not private')
+    await assertPrivateDirectory(path)
     await syncDirectory(path)
     await syncDirectory(parent)
     return path
   } catch (error) {
-    throw new HostStartupFailure('config', 'backup directory cannot be prepared durably', {
-      item: 'OMNE_TENANCY_BACKUP_DIR',
-      cause: error,
-    })
+    throw backupFailure(error)
   }
 }

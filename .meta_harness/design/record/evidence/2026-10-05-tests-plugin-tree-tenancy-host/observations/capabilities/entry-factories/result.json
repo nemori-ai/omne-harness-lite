@@ -1,0 +1,84 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "run_id": "t4-entry-factories",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "started": "2026-10-05T07:30:05.229Z",
+  "results": [
+    {
+      "id": "construct-zero-IO-close-before-setup",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.921Z"
+    },
+    {
+      "id": "setup-close-stable-and-real-TLS-health",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.924Z",
+      "observed": {
+        "notices": [
+          {
+            "centerId": "b51e6bda3527e0d60560a42212569713",
+            "version": "0.0.0",
+            "startedAt": 1791185405927
+          },
+          "stopped"
+        ],
+        "health": {
+          "reachable": true,
+          "centerId": "b51e6bda3527e0d60560a42212569713",
+          "version": "0.0.0"
+        }
+      }
+    },
+    {
+      "id": "setup-barrier-close-awaits-real-prefix",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.939Z"
+    },
+    {
+      "id": "setup-storage-synchronous-close-reentry-owned",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.942Z"
+    },
+    {
+      "id": "actual-business-sync-close-reentry-waits-admitted-register",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:05.944Z",
+      "observed": {
+        "registered": "registered",
+        "close_waited": true,
+        "persisted_activation": 1
+      }
+    },
+    {
+      "id": "notification-throw-does-not-change-setup-or-close",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:06.373Z"
+    },
+    {
+      "id": "ops-three-subscriptions-before-first-wait-and-real-Unix",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:06.376Z",
+      "observed": {
+        "order": [
+          "onServing",
+          "onStopped",
+          "onDefect",
+          "listening"
+        ],
+        "unsubscribed": [
+          "defect",
+          "serving",
+          "stopped"
+        ]
+      }
+    },
+    {
+      "id": "ops-partial-subscription-failure-cleanup-not-masked",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:06.380Z"
+    }
+  ],
+  "exit_code": 0,
+  "ended": "2026-10-05T07:30:06.396Z"
+}

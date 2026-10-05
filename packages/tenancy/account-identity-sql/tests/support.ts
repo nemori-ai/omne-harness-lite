@@ -1,6 +1,7 @@
 // 包内测试夹具：真实 storage-sql（临时文件库，无 in-memory）+ 真实 credential-verification + 包内 Clock 替身。
 // 服务实现类在这里直接构造，以便注入随机源、故障与记录诊断／事件；插件级的装载另在 plugin.spec.ts。
 import { AsyncLocalStorage } from 'node:async_hooks'
+import type { Context } from '@deepseek-ai/cordis'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -29,7 +30,11 @@ import {
   type WriteTx,
   composeMigrations,
 } from '@omne-harness-lite/storage'
-import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
+import {
+  STORAGE_SERVICE,
+  StorageStartup,
+  type StorageService,
+} from '@omne-harness-lite/storage/cordis'
 import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
 import { AccountsImpl } from '../src/accounts.ts'
 import { type Diagnostics, type Notifier, loggerDiagnostics } from '../src/diagnostics.ts'
@@ -56,13 +61,21 @@ export function tempSqliteFile(label: string): string {
   return join(mkdtempSync(join(tmpdir(), `omne-account-identity-${label}-`)), 'db.sqlite')
 }
 
-/** storage-sql 插件的夹具 config：带 `migrations` 就写 `upgrade: false`（阶段 2 施工计划：合回后 upgrade 必填）。 */
+class AccountStorageStartup extends StorageStartup {
+  readonly migrations = composeMigrations(accountIdentityMigrations)
+  readonly upgrade = false as const
+}
+
+export function storageStartupPlugin(ctx: Context): void {
+  new AccountStorageStartup(ctx)
+}
+
+/** 插件配置只含数据；原迁移及 upgrade:false 由具名资源提供。 */
 export function storageConfig(file: string): unknown {
   return {
     dialect: 'sqlite',
     file,
-    migrations: composeMigrations(accountIdentityMigrations),
-    upgrade: false,
+    startup: 'migrate',
   }
 }
 
@@ -273,6 +286,7 @@ export async function openHarness(options: HarnessOptions = {}): Promise<Harness
   const file = options.file ?? tempSqliteFile(options.label ?? 'harness')
   const assembly: Assembly = await bootAssembly({
     plugins: [
+      { plugin: storageStartupPlugin },
       { plugin: storageSqlPlugin, config: storageConfig(file) },
       { plugin: credentialsPlugin, config: FAST_CREDENTIALS },
     ],

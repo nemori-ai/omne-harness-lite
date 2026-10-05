@@ -1,0 +1,34 @@
+{
+  "actor": "root original output readback",
+  "candidate": "4123ccd32b8c4b2e8578e8ebe5529f48f0ca25d9",
+  "original_wrapper_exit": 1,
+  "original_unmatched": [
+    "bad-no-protection",
+    "Validity_Reachability"
+  ],
+  "rerun": false,
+  "source_or_configuration_changed": false,
+  "positive": 5,
+  "mutation_negative": 16,
+  "reachability": 1,
+  "final_no_protection_facts": {
+    "checked": "t1",
+    "effect": "t2",
+    "expected": "t1",
+    "selected": "t2"
+  },
+  "reachable_predicates": [
+    "NeverLateInvalidation",
+    "NeverDefect",
+    "NeverGatePassed",
+    "NeverHealth",
+    "NeverResult",
+    "NeverVersionMismatch",
+    "NeverRejected",
+    "NeverUnavailable",
+    "NeverInvalidInput"
+  ],
+  "qualified_all_obligations_observed": true,
+  "original_erratum": "r1-t2/entry-formal-base/readback.json already recorded both observer assumptions; root mistakenly reused the earlier unqualified wrapper, not the readback",
+  "scope": "finite old EC3 models and fairness only; no product/SQL/arbitrary-state proof"
+}

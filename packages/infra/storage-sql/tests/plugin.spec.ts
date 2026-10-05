@@ -6,10 +6,15 @@ import type { Migration, MigrationProvider } from 'kysely/migration'
 import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import { StorageUnavailable, type StorageInstance } from '@omne-harness-lite/storage'
-import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
+import {
+  STORAGE_SERVICE,
+  STORAGE_STARTUP_SERVICE,
+  type StorageService,
+} from '@omne-harness-lite/storage/cordis'
 import { StorageSqlConfig, createUpgradeGuard, openStorage } from '../src/index.ts'
 import { storageSqlPlugin } from '../src/cordis.ts'
 import { tempSqliteFile } from './support.ts'
+import { startupPlugin } from './fixtures/plugin-resources.ts'
 
 const migrations: MigrationProvider = {
   async getMigrations(): Promise<Record<string, Migration>> {
@@ -31,13 +36,13 @@ describe('storage-sql 插件', () => {
   it('配置合法 ⇒ 迁移先跑、再 provide storage；撤除后 storage 不可用', async () => {
     const assembly = await bootAssembly({
       plugins: [
+        { plugin: startupPlugin({ migrations, upgrade: false }), config: {} },
         {
           plugin: storageSqlPlugin,
           config: {
             dialect: 'sqlite',
             file: tempSqliteFile('plugin'),
-            migrations,
-            upgrade: false,
+            startup: 'migrate',
           },
         },
       ],
@@ -81,13 +86,13 @@ describe('storage-sql 插件', () => {
     await expect(
       bootAssembly({
         plugins: [
+          { plugin: startupPlugin({ migrations: failing, upgrade: false }), config: {} },
           {
             plugin: storageSqlPlugin,
             config: {
               dialect: 'sqlite',
               file: tempSqliteFile('bad-migration'),
-              migrations: failing,
-              upgrade: false,
+              startup: 'migrate',
             },
           },
         ],
@@ -106,12 +111,32 @@ describe('storage-sql 插件', () => {
 })
 
 describe('lifecycle.upgrade-config-policy：带迁移时 upgrade 必须显式给出', () => {
-  async function loadFails(config: unknown): Promise<void> {
+  async function loadFails(config: {
+    dialect: 'sqlite'
+    file: string
+    migrations?: unknown
+    upgrade?: unknown
+  }): Promise<void> {
     const ctx = new Context()
-    const fiber = ctx.plugin(storageSqlPlugin, config as StorageSqlConfig)
-    await expect(fiber).rejects.toThrow(/invalid config/)
-    expect(fiber.state as number).toBe(FIBER_STATE.FAILED)
-    expect(ctx.get(STORAGE_SERVICE)).toBeUndefined()
+    // Deliberately malformed resource provider; data-only Config remains valid.
+    await ctx.plugin(inner =>
+      inner.provide(STORAGE_STARTUP_SERVICE, {
+        migrations: config.migrations,
+        upgrade: config.upgrade,
+      }),
+    )
+    const fiber = ctx.plugin(storageSqlPlugin, {
+      dialect: config.dialect,
+      file: config.file,
+      startup: 'migrate',
+    })
+    try {
+      await expect(fiber).rejects.toThrow(/invalid config/)
+      expect(fiber.state as number).toBe(FIBER_STATE.FAILED)
+      expect(ctx.get(STORAGE_SERVICE)).toBeUndefined()
+    } finally {
+      await ctx.fiber.dispose()
+    }
   }
 
   it('带 migrations 而缺 upgrade ⇒ FAILED、无 storage 服务', async () => {
@@ -145,13 +170,14 @@ describe('lifecycle.upgrade-config-policy：带迁移时 upgrade 必须显式给
     const file = tempSqliteFile('policy-false')
     const assembly = await bootAssembly({
       plugins: [
+        { plugin: startupPlugin({ migrations, upgrade: false }), config: {} },
         {
           plugin: storageSqlPlugin,
-          config: { dialect: 'sqlite', file, migrations, upgrade: false },
+          config: { dialect: 'sqlite', file, startup: 'migrate' },
         },
       ],
     })
-    expect(assembly.fibers[0]?.state as number).toBe(FIBER_STATE.ACTIVE)
+    expect(assembly.fibers.at(-1)?.state as number).toBe(FIBER_STATE.ACTIVE)
     expect(existsSync(`${file}.upgrade-snapshot`)).toBe(false)
     // 不取锁：同一文件上一个开了守卫的实例照样取得排他
     const guard = createUpgradeGuard()
