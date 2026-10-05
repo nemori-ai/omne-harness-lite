@@ -1,7 +1,8 @@
 # T4 宿主迁移接缝
 
 状态：补充设计已采用，实际实现与 M05 仍未完成。采用依据见
-[限定决定](../../record/decisions/identity-t4-host-coordinates/decision.md)。BASE 为 `cdd05d1050dc9d7857f7eb3569d834ae4291c4d5`。
+[限定决定](../../record/decisions/identity-t4-host-coordinates/decision.md)及
+[诊断投影补充](../../record/decisions/identity-t4-host-coordinates/diagnostics.md)。BASE 为 `cdd05d1050dc9d7857f7eb3569d834ae4291c4d5`。
 本页补齐[插件树协议](plugin-tree.md)在 T2/T3 合入后的精确实施坐标。
 它不重写领域业务，也不替代原模型。施工和完整接受仍归[交付](delivery.md)的 T4-S1～S3。
 
@@ -17,9 +18,10 @@ upgrade-confirm、upgrade-unconfirmed、clock-unreadable 等启动分类和快�
 2. 代理的 port(id).register 先给同一个 OwnedWork.ready 安装拒绝观察，再向真实端口登记。
    观察只将本行第一个原异常存入宿主私有表，不能抛错或改变 ready 结果。
    登记失败时不得把未接管 work 当成已拥有资源。原 setup/close 的执行仍只有真实 lifetime 负责。
-3. loader 的 ready 拒绝后，宿主用安全 rowId 定位本行。若表中已有原异常，沿原具名错误分类。
+3. loader 的 ready 拒绝后，宿主用安全 rowId 定位本行。仅在 code=apply-failed 且同一行表中已有原 setup 异常时，沿原具名错误分类。
    分类按已核验 claim 的角色，不按稳定 id 或包名猜测。未知 helper 仍归 plugin。
-   没有原异常时使用通用安全 code，不能等待 closed 才报告启动失败。
+   其他情况使用安全错误投影，首个 stopped 等原因不能被晚到原异常覆盖。
+   loader 不能等待 closed 才报告启动失败。
 4. 宿主 boot 的公开 Promise 继续按原承诺等待实际失败收场后拒绝。
    loader.ready 的及时失败不表示 boot 可以遗失清理责任。guard.pending 和维护完成核对保持。
    配置拒绝使用安全 code，不能恢复输出任意校验 issues/message 的旧路径。
@@ -27,6 +29,39 @@ upgrade-confirm、upgrade-unconfirmed、clock-unreadable 等启动分类和快�
 上述 Promise 观察顺序须用真实 AssemblyLifetime 和管理绑定验证。
 反例必须覆盖 setup 拒绝同时前缀 close 不结束：私有表可读、loader.ready 拒绝、closed 仍 pending。
 原失败对象只交宿主具名分类，不允许把任意 message/cause 写入诊断。
+
+### 公开失败与结构化诊断
+
+boot 的唯一拒绝形状仍为 HostStartupFailure。以下表按错误类型分类，第一行优先。
+prepare/合层的拒绝发生在资源创建之前；StartError 发生后，boot 仍先等真实收场和原守卫/维护核对再拒绝。
+
+| 原因 | HostStartupFailure.stage | cause 与定位 |
+|---|---|---|
+| PluginTreeStartError，code=apply-failed，且同一 rowId 已捕获原 setup 异常 | 沿原分类器及已核验角色分类，包括 occupied/restore/preflight/snapshot/migration、storage-open、clock-unreadable 或 plugin | 沿 BASE 分类器保留原 cause、item 和允许的 snapshot；不把原异常塞入通用树错误 |
+| 其他 PluginTreeStartError，code=apply-failed 或 stopped | plugin | cause 为安全 StartError；item 为合法 rowId（若有） |
+| 其他 PluginTreeStartError，code=dependency-unavailable、missing-registration 或 provided-service-missing | manifest | cause 为安全 StartError；item 为合法 rowId（若有） |
+| PluginTreeError 或 PluginTreePreparationError，code=invalid-config | plugin | cause 为原安全错误；item 为合法 rowId（若有） |
+| PluginTreeError 或 PluginTreePreparationError 的其余 code | manifest | 同上 |
+| PluginTreeUsageError 的全部 code | manifest | cause 为安全 UsageError；不暗示 loader 已接管或关闭任何 lifetime |
+| HostPluginPolicyError 的全部 code | manifest | cause 为安全政策错误；item 为已知 role（若有） |
+
+HostPluginPolicyError、HostPluginPolicyCode、HostPluginRole 从 host 根公开。
+code 沿原六项：missing-role、duplicate-role、unsupported-role-version、role-service-mismatch、
+incompatible-role-config、unknown-role。role 为可选 HostPluginRole，值只限
+storage、clock、credentials、accounts、organizations、registration、ops、entry。
+unknown-role 不回显任意输入 claim 名，role 缺省。政策校验器本身仍为宿主私有实现。
+
+表中保留安全树/政策 cause 的分支使用固定说明 `plugin tree rejected`，由原 HostStartupFailure
+添加阶段前缀。结构化 startup-failed 保留原 event/stage/item/errorType/message 字段，
+并增加安全 cause 的 code，以及其已知 role 或合法 rowId（若有）。序列化前按对应封闭集合和
+合法行 id 规则核验字段，不把任意异常属性直接展开。不存在的可选字段省略。
+原具名 setup 失败继续用 BASE 分类器的说明和允许快照信息，不改变其原错误能力。
+原 cause 对象可以供受信进程内调用方观察，但不展开到日志、通用树错误或安全 DTO。
+
+--print-plugins 的静态准备使用同一错误映射与 startup-failed 记录，失败退出 EXIT.failed。
+CLI 语法错误仍为 EXIT.usage。打印失败不创建 guard、目录、数据库、端口或 socket。
+QA 通过真实 boot/operator/resolveModule 观察 cause.code/role、日志及零副作用，
+不依赖私有政策函数名称，也不解析任意异常 message 猜测分类。
 
 ### 绑定专属检查入口
 
