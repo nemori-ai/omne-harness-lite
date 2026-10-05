@@ -1,14 +1,22 @@
 # SQL 存储的公开面与资源责任
 
 根入口提供独立 openStorage、SqlStorage、配置、升级守卫、驱动及维护工具。
-`./cordis` 提供 storageSqlPlugin 和 SqlStorageService。服务键与基类由 core/storage 的绑定入口拥有，提供者不重复导出键。
+`./cordis` 提供 StorageSqlPluginConfig、storageSqlPlugin、managedStorageSqlPlugin 和 SqlStorageService。
+服务键、启动资源和完成目标由 core/storage 拥有，提供者不重复导出键或迁出的结果类型。
 SQL 事务、迁移、错误映射与维护算法继续按原精确节点设计执行；本批只接续以下集成投影。
 
 ## 拥有插件
 
-storageSqlPlugin 先完成原打开、预检、迁移等启动步骤，再登记关闭 effect，最后构造 Service。
-启动等待期间插件已撤除，致使 effect 无法登记时，由启动路径先关闭已打开资源，再抛出原失败。
-effect 已登记后的 Service 构造或重复键失败，仍由该 effect 收场。
+两种拥有绑定使用严格的数据配置 StorageSqlPluginConfig。startup 缺省为 plain；plain 不取启动资源，也不允许 maintenance。
+migrate 从 storageStartup 取得原 migrations/upgrade；启用 maintenance 时另从 storageCompletion 取得 closed 目标。
+转换保留同一真实 guard、检查函数及完成目标，原 StorageSqlConfig 和 openStorage 独立输入仍可使用运行对象。
+缺资源或非法资源使启动失败，不降级为 plain。条件依赖在子作用域 inject，声明列出全部条件键。
+
+storageSqlPlugin 在打开前登记关闭 effect。撤除时等待已开始的 setup，再关闭取得的资源；启动失败不丢失已取得前缀。
+managedStorageSqlPlugin 同步登记原 AssemblyLifetime 的 OwnedWork，再启动条件子作用域及原打开路径。
+其 ready 独立于 fiber ACTIVE；条件子作用域撤除停止同一代，撤除完成等待真实 SQL 关闭。
+该等待不依赖父 fiber.dispose，避免父子撤除相互等待。首次失败继续拒绝 ready，closed 另报告收场结果。
+Service 构造或重复键失败仍由同一拥有路径收场。
 基类构造器负责占键，插件不再登记同一个键。
 
 关闭仍归原 SqlStorage：停止新准入、等待在途、关闭句柄，再按原升级/维护责任恢复或释放。
@@ -41,3 +49,4 @@ unit 保留原 frame、busy、既有污染的校验次序，再核验实例身�
 未迁行为及验证义务继续归[旧节点设计](../../../.meta_harness/design/realization/packages/infra/storage-sql/design.md)与[验证义务](../../../.meta_harness/design/realization/packages/infra/storage-sql/verification.md)。
 本页只接续本批公开集成承诺；不据本页退役其余旧正文。
 集成边界依据 [D-114](../../../.meta_harness/design/record/decisions/cordis-integration-conventions/decision.md)，承诺归属依据 [D-115](../../../.meta_harness/design/record/decisions/actual-architecture-and-thin-spec/decision.md)。
+本批配置与资源责任依据[已采用的 T4 接缝](../../../.meta_harness/design/record/decisions/identity-t4-host-coordinates/decision.md)。PostgreSQL 独立路径保留，不据 SQLite 验证声明 PostgreSQL 恢复通过。

@@ -30,18 +30,20 @@ const upgrade = z.union([
   z.object({ checks: z.array(preflightCheck), guard: upgradeGuard }).strict(),
 ])
 
+export const sqliteFileSchema = z
+  .string()
+  .min(1)
+  .refine(
+    f => f !== ':memory:' && !f.startsWith('file::memory:'),
+    'in-memory sqlite is not allowed (D-026)',
+  )
+
 export const StorageSqlConfig = z
   .discriminatedUnion('dialect', [
     z.object({
       dialect: z.literal('sqlite'),
       synchronous: z.enum(['normal', 'full']).optional(),
-      file: z
-        .string()
-        .min(1)
-        .refine(
-          f => f !== ':memory:' && !f.startsWith('file::memory:'),
-          'in-memory sqlite is not allowed (D-026)',
-        ),
+      file: sqliteFileSchema,
       migrations: migrationProvider.optional(),
       upgrade: upgrade.optional(),
       maintenance: z

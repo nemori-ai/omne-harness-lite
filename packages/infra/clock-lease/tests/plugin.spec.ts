@@ -4,12 +4,21 @@ import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { StorageUnavailable, type Storage, type StorageInstance } from '@omne-harness-lite/storage'
-import { STORAGE_SERVICE, type StorageService } from '@omne-harness-lite/storage/cordis'
+import {
+  STORAGE_SERVICE,
+  StorageStartup,
+  type StorageService,
+} from '@omne-harness-lite/storage/cordis'
 import { storageSqlPlugin } from '@omne-harness-lite/storage-sql/cordis'
 import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import { LEASE_WIDTH_MS, RENEW_PERIOD_MS } from '../src/index.ts'
 import { clockPlugin } from '../src/cordis.ts'
 import { drain, migrations, settle, tempFile } from './support.ts'
+
+class ClockStartup extends StorageStartup {
+  readonly migrations = migrations
+  readonly upgrade = false as const
+}
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
@@ -23,8 +32,13 @@ async function bootClock(label: string) {
   const assembly = await bootAssembly({
     plugins: [
       {
+        plugin(ctx) {
+          new ClockStartup(ctx)
+        },
+      },
+      {
         plugin: storageSqlPlugin,
-        config: { dialect: 'sqlite', file: tempFile(label), migrations, upgrade: false },
+        config: { dialect: 'sqlite', file: tempFile(label), startup: 'migrate' },
       },
       { plugin: clockPlugin, config: {} },
     ],
@@ -81,7 +95,7 @@ describe('clock.no-self-dispose：运行期的不可用只是返回值，fiber �
   const T = 1_900_000_000_000
 
   function assertStillServing(assembly: Awaited<ReturnType<typeof bootClock>>, clock: Clock) {
-    expect(assembly.fibers[1]?.state as number).toBe(FIBER_STATE.ACTIVE)
+    expect(assembly.fibers[2]?.state as number).toBe(FIBER_STATE.ACTIVE)
     const registered = assembly.ctx.reflect._getImpl(CLOCK_SERVICE)
     expect(registered?.value).toBe(assembly.clockRegistration.value)
     expect(registered?.fiber).toBe(assembly.clockRegistration.fiber)
