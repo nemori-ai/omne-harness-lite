@@ -22,19 +22,25 @@ test.each(['cancel', 'participant-failure'] as const)(
         return lifetime.port('row').register(work)
       }
     }
-    const port = await ctx.plugin(inner => { new Port(inner) })
+    const port = await ctx.plugin(inner => {
+      new Port(inner)
+    })
     const fiber = await ctx.plugin({
       inject: ['assemblyLifetime'],
       apply(inner) {
-        startAssemblyWork(inner, async () => {
-          entered.resolve()
-          await release.promise
-          setupEnded = true
-          if (mode === 'participant-failure') throw original
-        }, async () => {
-          expect(setupEnded).toBe(true)
-          closes++
-        })
+        startAssemblyWork(
+          inner,
+          async () => {
+            entered.resolve()
+            await release.promise
+            setupEnded = true
+            if (mode === 'participant-failure') throw original
+          },
+          async () => {
+            expect(setupEnded).toBe(true)
+            closes++
+          },
+        )
       },
     })
     try {
@@ -46,7 +52,9 @@ test.each(['cancel', 'participant-failure'] as const)(
       release.resolve()
       if (mode === 'cancel') expect(await error).toBeInstanceOf(AssemblyWorkStopped)
       else expect(await error).toBe(original)
-      expect((await closed).rows).toEqual([{ id: 'row', result: { kind: 'failed', codes: ['setup'] } }])
+      expect((await closed).rows).toEqual([
+        { id: 'row', result: { kind: 'failed', codes: ['setup'] } },
+      ])
       expect(closes).toBe(1)
     } finally {
       release.resolve()
