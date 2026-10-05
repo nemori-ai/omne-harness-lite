@@ -34,9 +34,7 @@ export type AdmissionResult =
   | { readonly kind: 'deny'; readonly reason: AdmissionDenialCode }
   | { readonly kind: 'ask'; readonly card: DecisionCardDraft }
 export interface AdmissionJudgment {
-  readonly admit: (
-    batch: readonly [AdmissionInput, ...AdmissionInput[]],
-  ) => Promise<
+  readonly admit: (batch: readonly [AdmissionInput, ...AdmissionInput[]]) => Promise<
     | {
         readonly kind: 'decisions'
         readonly results: readonly [AdmissionResult, ...AdmissionResult[]]
