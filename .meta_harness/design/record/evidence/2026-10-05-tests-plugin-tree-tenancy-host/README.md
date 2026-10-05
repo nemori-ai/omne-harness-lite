@@ -39,3 +39,5 @@
 - [接受输入](acceptance-inputs.json)和[工作树外保全读回](inputs-and-preservation.json)。
 
 工作树外 `primary/tmp/arch-intent/remediation/r1-t4-bca26b304/` 的6679项逐项读回，56MB压缩原布局及源码bundle保全。仅排除已释放的两个干净clone及两项可重建制品消费者安装；冻结上游输入和合成node_modules设施保留。实施评审完整原件已在primary/tmp独立留存。只承诺本机留存，不声称远端备份。复制报告的相对路径按归档 `r1-t4/` 解释，原坐标不改写。恢复需BASE和原锁定工具链。
+
+交付文档首检发现33份原模型README的209个相对链接在快照位置失效。原`.md`和首失保留于归档/提交历史；本机读回后将复制的历史说明按原字节保存为`.txt`，不作为现行导航。路径和SHA对应见[原文路径](raw-document-paths.json)。没有修改模型、配置、原正文或放宽文档检查。
