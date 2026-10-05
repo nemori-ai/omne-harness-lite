@@ -63,3 +63,9 @@ R1-T5 的严格 JSON 形状搬迁只允许 json.ts 从 json-shapes.ts 以具名�
 input、catalog、publication、online、offline 只消费 maintenance-ports.ts 的具名效果。实际文件/目录、同fd稳定检查和资源登记分别归 input-io、directory-io、file-io；assembly 唯一选择文件、codec、摘要和中心读取。useBackup 在同一次 files.useInput 回调内完成原 header、纯输入对象构造与业务调用，close 仍由真实资源拥有者和 session 负责。公开离线工厂的名字、选项、结果和错误不变；不增加其他导出路径。
 
 中心读取仍绑定原 readSnapshotCenterId，在同一原 view 内保留逐迁移、逐Check与原结构/身份SQL检查，不去重或另开快照。原单任务准入、stop请求/close实际完成、正常耗尽digest、中心筛选先于时间/耐久、可见发布不可撤销、未知耐久、残余与清理错误优先级保持。原三处测试与两构造改接实际装配，原类方法故障注入的作用阶段不变。
+
+## 运维体检与连接装配
+
+ops/health-probe.ts 拥有原只读SQL探针及两秒竞速。超时只结束本次观察，实际读取继续；迟到StorageDefect仍走原诊断出口。health.ts 通过具名probe读取结果，保持原公开字段和字节顺序。health-sources.ts 延迟读取原字段，不在构造时探测、读取时钟或缓存值。
+
+ops/face.ts 拥有原完整连接控制；entry.ts 选择实际维护与探针提供者。三秒只限制网络排空；停止准入后仍等待已登记业务和维护真实关闭，才删除本实例socket并通知完成。订阅、未取得socket的启动前缀清理、原fullHealthBody故障注入坐标和公共工厂保持。

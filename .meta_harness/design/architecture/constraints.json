@@ -684,6 +684,80 @@
       ],
       "status": "adopted",
       "source": ".meta_harness/design/architecture/identity-integration/host-integration.md"
+    },
+    {
+      "id": "identity-maintenance-assembly",
+      "paths": [
+        "packages/tenancy/governance-center-entry-node/src/maintenance/assembly.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/governance-center-entry-node/SPEC.md#维护策略与实际文件拥有者"
+    },
+    {
+      "id": "identity-maintenance-contract",
+      "paths": [
+        "packages/tenancy/governance-center-entry-node/src/maintenance/backup-data.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/inputs.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/maintenance-options.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/maintenance-ports.ts"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/governance-center-entry-node/SPEC.md#维护策略与实际文件拥有者"
+    },
+    {
+      "id": "identity-maintenance-interaction",
+      "paths": [
+        "packages/tenancy/governance-center-entry-node/src/maintenance/input-codec.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/metadata.ts"
+      ],
+      "layer": "interaction",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/governance-center-entry-node/SPEC.md#维护策略与实际文件拥有者"
+    },
+    {
+      "id": "identity-maintenance-policy",
+      "paths": [
+        "packages/tenancy/governance-center-entry-node/src/maintenance/catalog.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/failure.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/input.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/metadata-policy.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/offline.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/online.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/publication.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/resources.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/results.ts"
+      ],
+      "layer": "policy",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/governance-center-entry-node/SPEC.md#维护策略与实际文件拥有者"
+    },
+    {
+      "id": "identity-maintenance-storage-adapter",
+      "paths": [
+        "packages/tenancy/governance-center-entry-node/src/maintenance/directory-io.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/file-io.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/input-io.ts"
+      ],
+      "layer": "storage-adapter",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/governance-center-entry-node/SPEC.md#维护策略与实际文件拥有者"
     }
   ],
   "rules": [

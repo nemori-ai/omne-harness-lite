@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest'
 import { isOk } from '@omne-harness-lite/identity-values'
 import { type Instant, instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
 import { fullHealthBody } from '../src/ops/health.ts'
+import { createHealthSources } from '../src/ops/health-sources.ts'
 import { formatInstant, responseBytes } from '../src/ops/wire.ts'
 import {
   entryAnswerBytes,
@@ -206,7 +207,7 @@ describe('T-2：路由结果与完整体检的形状（examples §4、§5）', (
 
   it('§5：完整体检按 FullHealthReply 的书写次序写出，代入 examples 的值后逐字节相同', async () => {
     const body = await fullHealthBody(
-      {
+      createHealthSources({
         // 这个桩不跑查询，直接给出探针那次读的返回值 true（真实存储上的现探见 ops.spec.ts）
         storage: {
           read: async <T>() => true as T,
@@ -224,7 +225,7 @@ describe('T-2：路由结果与完整体检的形状（examples §4、§5）', (
           sharingInvitationTtlDefault: 604800000,
         },
         reportProbeDefect: () => undefined,
-      },
+      }),
       { centerId: CENTER_ID, version: '0.1.0', startedAt: instant(Date.UTC(2026, 8, 23, 8, 0, 0)) },
       0,
     )

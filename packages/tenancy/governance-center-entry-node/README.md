@@ -93,3 +93,5 @@ Tests use real TLS, Unix sockets and SQLite files. Some transport cases require 
 - [End-to-end environment](../../../apps/tenancy-host/tests/e2e/README.md)
 
 The [maintenance boundary](adr/maintenance-effects.md) separates policy from file, codec and digest providers. The assembly keeps the original descriptor, publication and cleanup ownership.
+
+The ops health encoder consumes an injected probe. The assembly selects the existing SQL probe and maintenance provider. A probe timeout leaves the read running; network drain still waits for admitted business work before resource release.

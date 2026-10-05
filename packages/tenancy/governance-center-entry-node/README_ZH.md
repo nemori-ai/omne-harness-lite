@@ -93,3 +93,5 @@ pnpm --filter @omne-harness-lite/governance-center-entry-node run test
 - [端到端环境说明](../../../apps/tenancy-host/tests/e2e/README.md)
 
 [维护边界](adr/maintenance-effects.md)分开策略与文件、codec 和摘要提供者；实际装配保持原同fd、发布和清理所有权。
+
+运维体检编码消费注入的探针，装配选择原SQL探针与维护提供者。探针超时后实际读仍继续；网络排空后仍等已准入业务完成，再释放资源。
