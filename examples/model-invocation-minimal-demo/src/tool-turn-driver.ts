@@ -19,6 +19,7 @@ import type { createToolDriverJournal } from './tool-driver-journal.ts'
 import { driverKey } from './tool-driver-codec.ts'
 import { inspectDriverEntry } from './tool-driver-codec.ts'
 import { toolBatch } from './tool-batch.ts'
+import { deliverDeniedAction } from './tool-denial.ts'
 import { deriveCreationKey } from './call-references.ts'
 import { passKeys, type LoopExtensionRunnerService } from '@omne-harness-lite/loop-extension-runner'
 
@@ -203,8 +204,16 @@ export function createToolTurnDriver(input: {
       const facts = history.calls.get(call.callId),
         decision = completed.completion.items.find(item => item.callId === call.callId)
       if (!facts || !decision) return unavailable
-      if (decision.decision.kind === 'denied')
-        return { kind: 'rejected', reason: 'deliveryPending' } as const
+      if (decision.decision.kind === 'denied') {
+        const returned = await deliverDeniedAction({
+          journal: input.journal,
+          runner: input.runner,
+          callId: call.callId,
+          signal,
+        })
+        if (returned.kind !== 'confirmed') return returned
+        continue
+      }
       const submitted = await input.runtime.submit({
         access: input.toolAccess,
         scope: input.authority.scope,

@@ -68,6 +68,11 @@ import type {
   SnapshotRunOptions,
   SnapshotMaintenance,
   SnapshotInspection,
+  UpgradeConfirmation,
+  UpgradePending,
+  UpgradeGuardHandle,
+  StorageStartupResources,
+  StorageCompletionPort,
 } from '@omne-harness-lite/storage'
 import type {
   JsonNumber,
@@ -403,4 +408,22 @@ test('w1.types.complete.content-call-result-and-judgment', () => {
     return { resultContent, judgment, rejection, nestedCall, repaired }
   }
   expectTypeOf(consume).toBeFunction()
+})
+
+test('w1.types.complete.main-storage-startup-and-completion-do-not-grant-attachment', () => {
+  expectTypeOf<ReturnType<UpgradeGuardHandle['confirm']>>().toEqualTypeOf<
+    Promise<UpgradeConfirmation>
+  >()
+  expectTypeOf<ReturnType<UpgradeGuardHandle['pending']>>().toEqualTypeOf<Promise<UpgradePending>>()
+  expectTypeOf<Parameters<StorageCompletionPort['closed']>>().toEqualTypeOf<
+    [status: 'clean' | 'error']
+  >()
+  expectTypeOf<
+    Extract<StorageStartupResources['upgrade'], object>['guard']
+  >().toEqualTypeOf<UpgradeGuardHandle>()
+  const observation = (guard: UpgradeGuardHandle) => {
+    // @ts-expect-error The borrowed observation face cannot attach a storage provider.
+    guard.attach()
+  }
+  expectTypeOf(observation).toBeFunction()
 })

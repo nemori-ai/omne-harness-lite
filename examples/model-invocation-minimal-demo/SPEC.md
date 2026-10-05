@@ -28,3 +28,5 @@ TD-11：demo 的工具模式从真实用户入站启动 Run，采用实际 regis
 TD-12：同一模型批次的全部 primary return 确认后，才执行 after_action(batch) 并提交 continuation_requested。它引用该批次的实际链与完整结论键；锚包含租户、会话、Run、规范化 attempt 与原 assistant 消息身份。普通数字和精确数字对象不得生成不同锚。同一原回复只有一个续答事实与稳定 model creation key。该事实不代替模型运行时拥有的请求创建记录；模型请求仍使用自身的幂等创建协议。
 
 TD-13：每次模型请求使用各自的 observer grant，固定实际 call/dispatch 身份。工具续答不能复用前一请求已固定身份的 grant，也不能放宽原 grant 的校验。原接收者停止未确认时，应用保留其释放责任。模型失败时，Run 的 failed 终结必须引用实际持久化的失败响应；不能因调用返回 unavailable 就宣称 Run 结束。
+
+TD-14：启动枚举实际持有的全部会话，恢复每个已有终局且未确认的交付义务，不能只扫描当前 demo 会话或有观察者的执行。A 的原结果资源、原后置链与结论，以及 B/C 的完整批次均须可核验；任一义务不能完成时不开业务入口。维护权限由应用私有闭包持有，只用于原执行的 after_action(each) 和工具 before_persist_message。撤权或尝试换代不取消已有结果义务；维护路径不能准入新动作、执行批次续答、推进 Run 或模型重试。结论提交保留原 tenant/session/Run/attempt 与实际物理 owner 代，不能以新尝试替换元数据。冷恢复不重跑工具作者或丢失连续性的后置贡献。完成 C 不等于模型已续答。

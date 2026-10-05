@@ -45,6 +45,7 @@ import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { projectToolJournal } from '@omne-harness-lite/tool-execution-runtime'
 import { afterEachSubject, toolDeliveryMessage } from './tool-delivery-subject.ts'
 import { toolBatch } from './tool-batch.ts'
+import { toolDenialSource } from './tool-denial-source.ts'
 import type { RecoveryAccess } from '@omne-harness-lite/execution-environments'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 
@@ -241,39 +242,67 @@ export function createDemoRunnerServiceHost(
         if (!callId) return { failure: 'invalidInput' }
         const execution = tools.executions.get(callId),
           facts = history.calls.get(callId)
-        if (!execution?.terminal || !facts) return { failure: 'unavailable' }
+        if (!facts) return { failure: 'unavailable' }
         if (
           request.run !== facts.origin.run ||
           request.attempt === undefined ||
           ExactDecimal.from(request.attempt).compare(ExactDecimal.from(facts.origin.attempt)) !== 0
         )
           return { failure: 'invalidInput' }
-        if (request.position === 'after_action' && request.dimension.scope === 'each') {
-          const subject = afterEachSubject(execution)
+        const denial = toolDenialSource(history, callId)
+        if (denial) {
+          if ('maintenance' in authorization) return { failure: 'unavailable' }
           if (
-            !subject ||
-            request.anchor !== execution.terminal.value.delivery.pass ||
-            !modelLogJsonEqual(subject, request.subject)
+            request.position === 'after_action' &&
+            request.dimension.scope === 'each' &&
+            request.anchor === denial.anchor &&
+            modelLogJsonEqual(request.subject, denial.subject)
           )
-            return { failure: 'invalidInput' }
-          initial = { position: 'after_action', dimension: { scope: 'each' }, subject }
-        } else if (request.position === 'before_persist_message') {
-          const message = toolDeliveryMessage(execution)
-          if (
-            !message ||
-            request.anchor !== `${execution.terminal.value.delivery.pass}:persist` ||
-            request.subject.producer !== 'tool' ||
-            !modelLogJsonEqual(message, request.subject.message)
+            initial = {
+              position: 'after_action',
+              dimension: { scope: 'each' },
+              subject: denial.subject,
+            }
+          else if (
+            request.position === 'before_persist_message' &&
+            request.anchor === `${denial.anchor}:persist` &&
+            request.subject.producer === 'tool' &&
+            modelLogJsonEqual(request.subject.message, denial.message)
           )
-            return { failure: 'invalidInput' }
-          initial = { position: 'before_persist_message', subject: { producer: 'tool', message } }
-        } else return { failure: 'invalidInput' }
-        const captured = copyJsonValue(execution.terminal.value.delivery.selectedChain)
-        if ('failed' in captured || !Array.isArray(captured.ok)) return { failure: 'unavailable' }
-        const chain = captured.ok as unknown as readonly RunnerPiece[]
-        if (chain.some(piece => !piece || !('ok' in judgeDefinition(piece.definition))))
-          return { failure: 'unavailable' }
-        if (initial.position === 'after_action') selectedChain = chain
+            initial = {
+              position: 'before_persist_message',
+              subject: { producer: 'tool', message: denial.message },
+            }
+          else return { failure: 'invalidInput' }
+        } else {
+          if (!execution?.terminal) return { failure: 'unavailable' }
+          if (request.position === 'after_action' && request.dimension.scope === 'each') {
+            const subject = afterEachSubject(execution)
+            if (
+              !subject ||
+              request.anchor !== execution.terminal.value.delivery.pass ||
+              !modelLogJsonEqual(subject, request.subject)
+            )
+              return { failure: 'invalidInput' }
+            initial = { position: 'after_action', dimension: { scope: 'each' }, subject }
+          } else if (request.position === 'before_persist_message') {
+            const message = toolDeliveryMessage(execution)
+            if (
+              !message ||
+              request.anchor !== `${execution.terminal.value.delivery.pass}:persist` ||
+              request.subject.producer !== 'tool' ||
+              !modelLogJsonEqual(message, request.subject.message)
+            )
+              return { failure: 'invalidInput' }
+            initial = { position: 'before_persist_message', subject: { producer: 'tool', message } }
+          } else return { failure: 'invalidInput' }
+          const captured = copyJsonValue(execution.terminal.value.delivery.selectedChain)
+          if ('failed' in captured || !Array.isArray(captured.ok)) return { failure: 'unavailable' }
+          const chain = captured.ok as unknown as readonly RunnerPiece[]
+          if (chain.some(piece => !piece || !('ok' in judgeDefinition(piece.definition))))
+            return { failure: 'unavailable' }
+          if (initial.position === 'after_action') selectedChain = chain
+        }
       }
       const external =
         'maintenance' in authorization

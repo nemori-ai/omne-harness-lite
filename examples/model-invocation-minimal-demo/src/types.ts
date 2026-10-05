@@ -184,6 +184,17 @@ export interface AcceptanceDiagnostics {
 }
 /** Trusted test controls, never supplied by a tenant or a model profile. */
 export interface AcceptanceHooks {
+  /** Trusted contribution withdrawal, after the actual tool providers have become active. */
+  readonly toolProvidersInstalled?: (providers: {
+    readonly officialAdmission: Fiber
+  }) => void | Promise<void>
+  /** Trusted fault control on the actual physical owner, before any consumer borrows it. */
+  readonly sessionLogOpened?: (
+    log: import('@omne-harness-lite/session-log').SessionLog,
+  ) =>
+    | void
+    | import('@omne-harness-lite/session-log').SessionLog
+    | Promise<void | import('@omne-harness-lite/session-log').SessionLog>
   readonly extraMigrations?: readonly MigrationFragment[]
   readonly storageOpened?: (storage: AtomicStorage, guard: UpgradeGuard) => void | Promise<void>
   readonly fiberCreated?: (name: StageFiber, fiber: Fiber) => void | Promise<void>

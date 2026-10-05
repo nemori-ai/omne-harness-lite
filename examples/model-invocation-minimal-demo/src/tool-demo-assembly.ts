@@ -58,6 +58,7 @@ export async function installDemoTools(input: {
   readonly config: ToolRuntimeConfig
 }) {
   const fibers: Fiber[] = []
+  let officialFiber: Fiber | undefined
   async function active(fiber: Fiber) {
     fibers.push(fiber)
     await fiber
@@ -83,11 +84,13 @@ export async function installDemoTools(input: {
       }),
     )
     await active(input.ctx.plugin(toolAdmissionLocal, {}))
-    await active(input.ctx.plugin(officialAdmission, {}))
+    officialFiber = input.ctx.plugin(officialAdmission, {})
+    await active(officialFiber)
     await active(input.ctx.plugin(demoPureTools, {}))
     await active(input.ctx.plugin(toolExecutionLocal({ recovery: input.recovery }), input.config))
     return Object.freeze({
       fibers,
+      officialAdmission: officialFiber,
       async close() {
         for (const fiber of [...fibers].reverse()) await fiber.dispose()
       },

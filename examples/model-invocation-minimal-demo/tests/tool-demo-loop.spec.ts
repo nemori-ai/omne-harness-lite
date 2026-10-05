@@ -1,3 +1,5 @@
+// @module-tag slow
+// Actual TLS model turns and a supervised child process require the slow tier.
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { expect, it } from 'vitest'
@@ -139,3 +141,60 @@ it('streams the tool continuation through the actual supervised demo worker', as
     await tls.close()
   }
 }, 90_000)
+
+it('returns an actual missing-contribution denial to the model and resumes without a tool execution account', async () => {
+  const parent = resolve('tmp/tool-runtime-loop/tool-demo-tests')
+  await mkdir(parent, { mode: 0o700, recursive: true })
+  const root = await mkdtemp(join(parent, 'denied-'))
+  const tls = await createLocalTls(join(root, 'tls'))
+  tls.setMode('tool_nonce')
+  const demo = await openDemo(
+    join(root, 'data'),
+    { multiplier: 1.1, reserveTokens: 256 },
+    demoRetirement(),
+    16_384,
+    Buffer.from('controlled-denial-key'),
+    {
+      developmentTransport: tls.developmentTransport,
+      hooks: {
+        toolProvidersInstalled: async providers => {
+          await providers.officialAdmission.dispose()
+        },
+      },
+    },
+    undefined,
+    undefined,
+    true,
+  )
+  try {
+    const sent = await demo.send(
+      'Call the unavailable tool and explain the refusal.',
+      async () => undefined,
+    )
+    expect(sent.kind, JSON.stringify(sent)).toBe('saved')
+    expect(tls.requests).toHaveLength(2)
+    const continuation = tls.requests[1]!.body as {
+      messages: { role: string; content: unknown; tool_call_id?: string }[]
+    }
+    const reply = continuation.messages.find(message => message.role === 'tool')!
+    expect(reply.tool_call_id).toMatch(/^call_/u)
+    expect(reply.content).toContain('official admission chain or contribution is absent')
+    const read = await demo.application.readSessionLog(demo.actor, demo.session)
+    if (!('entries' in read)) throw new Error('actual history unavailable')
+    const kinds = read.entries.flatMap(entry => {
+      const value =
+        entry.payload && typeof entry.payload === 'object' && 'value' in entry.payload
+          ? entry.payload.value
+          : undefined
+      return value && typeof value === 'object' && 'kind' in value ? [value.kind] : []
+    })
+    expect(kinds.filter(kind => kind === 'action_denied')).toHaveLength(1)
+    expect(kinds).not.toContain('execution_intended')
+    expect(kinds).toContain('continuation_requested')
+    expect(kinds).toContain('run_ended')
+    expect((await demo.close()).complete).toBe(true)
+  } finally {
+    await demo.close()
+    await tls.close()
+  }
+})

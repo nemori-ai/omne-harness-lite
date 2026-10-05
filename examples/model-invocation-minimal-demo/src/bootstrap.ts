@@ -917,8 +917,6 @@ export function createAcceptanceApplication(
     gateOpen = false
     accessRevocation.abort()
     runnerHost?.closeAdmission()
-    sessionLogBacking?.closeAdmission()
-    authorizedLogOwner?.closeAdmission()
     contextCreator?.closeAdmission()
     record({ event: 'gate', phase: 'scenario', outcome: 'closed' })
     const attempt = (async () => {
@@ -984,6 +982,10 @@ export function createAcceptanceApplication(
         }
       }
       for (const borrow of sessionBorrows.values()) borrow.owner.release()
+      // Admitted delivery can still need a maintenance read to recognize its complete C batch.
+      // The business gate is already closed; keep the physical owner available until consumers drain.
+      authorizedLogOwner?.closeAdmission()
+      sessionLogBacking?.closeAdmission()
       sessionIngress?.stop()
       runtimeActors.clear()
       coldStopped.clear()
@@ -1288,7 +1290,8 @@ export function createAcceptanceApplication(
             }),
         }
         sessionLogOwner = await openJsonlSessionLog(ownedLogOptions)
-        sessionLogBacking = createSessionLogBacking(sessionLogOwner)
+        const consumerLog = (await hooks?.sessionLogOpened?.(sessionLogOwner)) ?? sessionLogOwner
+        sessionLogBacking = createSessionLogBacking(consumerLog)
         new SessionLogBacking(context, sessionLogBacking.operations)
         runnerHost = createDemoRunnerHost(
           sessionLogOwner,
@@ -2122,6 +2125,9 @@ export function createAcceptanceApplication(
               recovery: authorizedLogOwner.recovery,
               directory: config.tools.directory,
               config: config.tools.runtime,
+            })
+            await hooks?.toolProvidersInstalled?.({
+              officialAdmission: toolAssembly.officialAdmission,
             })
             await recoverToolDeliveries()
           }
