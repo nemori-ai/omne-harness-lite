@@ -1,8 +1,6 @@
 import { entryValidator } from '../routing/schema.ts'
 
-export interface BackupInput {
-  readonly onlyIfDue: boolean
-}
+import type { BackupInput } from './backup-data.ts'
 export function validBackupInput(value: unknown): value is BackupInput {
   return entryValidator('BackupInput')(value)
 }

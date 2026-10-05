@@ -1,5 +1,4 @@
 import { dirname, isAbsolute, join } from 'node:path'
-import { entryValidator } from '../routing/schema.ts'
 import { hasCode, maintenanceFailure, MaintenanceFailure } from './failure.ts'
 import { checkCancelled, publishOutput, withTemporaryOutput } from './publication.ts'
 import type { OfflineMaintenanceOptions } from './maintenance-options.ts'
@@ -12,11 +11,17 @@ interface VerifyInput {
 interface RestoreInput extends VerifyInput {
   readonly targetLocation: string
 }
-function validVerify(input: unknown): input is VerifyInput {
-  return entryValidator('VerifyInput')(input)
+function validVerify(
+  validate: MaintenanceEffects['validate'],
+  input: unknown,
+): input is VerifyInput {
+  return validate('VerifyInput', input)
 }
-function validRestore(input: unknown): input is RestoreInput {
-  return entryValidator('RestoreIsolatedInput')(input)
+function validRestore(
+  validate: MaintenanceEffects['validate'],
+  input: unknown,
+): input is RestoreInput {
+  return validate('RestoreIsolatedInput', input)
 }
 
 /** Local file operations only: no Context, serving instance, or governance services. */
@@ -26,9 +31,10 @@ export function createOfflinePolicy(
 ) {
   return {
     verify(input: unknown, signal?: AbortSignal): Promise<MaintenanceResult> {
-      if (!validVerify(input) || !isAbsolute(input.sourceLocation))
+      if (!validVerify(effects.validate, input) || !isAbsolute(input.sourceLocation))
         return Promise.resolve({ status: 'invalid-input' })
       return resultOf(
+        effects.validate,
         'VerifyResult',
         () =>
           options.inspection.run(
@@ -45,13 +51,14 @@ export function createOfflinePolicy(
     },
     restoreIsolated(input: unknown, signal?: AbortSignal): Promise<MaintenanceResult> {
       if (
-        !validRestore(input) ||
+        !validRestore(effects.validate, input) ||
         !isAbsolute(input.sourceLocation) ||
         !isAbsolute(input.targetLocation)
       )
         return Promise.resolve({ status: 'invalid-input' })
       let publishedLocation: string | null = null
       return resultOf(
+        effects.validate,
         'RestoreIsolatedResult',
         () =>
           options.inspection.run(

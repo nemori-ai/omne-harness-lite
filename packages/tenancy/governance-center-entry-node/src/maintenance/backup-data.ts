@@ -18,3 +18,7 @@ export interface BackupDescriptor {
   readonly fileName: string
   readonly metadata: Metadata
 }
+
+export interface BackupInput {
+  readonly onlyIfDue: boolean
+}

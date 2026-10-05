@@ -701,7 +701,6 @@
       "id": "identity-maintenance-contract",
       "paths": [
         "packages/tenancy/governance-center-entry-node/src/maintenance/backup-data.ts",
-        "packages/tenancy/governance-center-entry-node/src/maintenance/inputs.ts",
         "packages/tenancy/governance-center-entry-node/src/maintenance/maintenance-options.ts",
         "packages/tenancy/governance-center-entry-node/src/maintenance/maintenance-ports.ts"
       ],
@@ -716,6 +715,7 @@
       "id": "identity-maintenance-interaction",
       "paths": [
         "packages/tenancy/governance-center-entry-node/src/maintenance/input-codec.ts",
+        "packages/tenancy/governance-center-entry-node/src/maintenance/inputs.ts",
         "packages/tenancy/governance-center-entry-node/src/maintenance/metadata.ts"
       ],
       "layer": "interaction",

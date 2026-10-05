@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
+import { entryValidator } from '../routing/schema.ts'
 import type { SnapshotInspectionSession } from '@omne-harness-lite/storage'
 import { readSnapshotCenterId } from '../center-id/snapshot.ts'
 import { BackupInputFile } from './input.ts'
@@ -11,6 +12,7 @@ import type { OnlineMaintenanceOptions, OfflineMaintenanceOptions } from './main
 import type { MaintenanceEffects } from './maintenance-ports.ts'
 
 const effects: MaintenanceEffects = {
+  validate: (definition, value) => entryValidator(definition)(value),
   files: fileEffects,
   codec: { header: readBackupHeader, bytes: metadataBytes },
   digestFactory() {

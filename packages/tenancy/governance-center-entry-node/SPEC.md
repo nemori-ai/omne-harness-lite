@@ -64,6 +64,8 @@ input、catalog、publication、online、offline 只消费 maintenance-ports.ts 
 
 中心读取仍绑定原 readSnapshotCenterId，在同一原 view 内保留逐迁移、逐Check与原结构/身份SQL检查，不去重或另开快照。原单任务准入、stop请求/close实际完成、正常耗尽digest、中心筛选先于时间/耐久、可见发布不可撤销、未知耐久、残余与清理错误优先级保持。原三处测试与两构造改接实际装配，原类方法故障注入的作用阶段不变。
 
+维护输入及结果策略通过同一 MaintenanceEffects.validate 调用原 Schema 判据。assembly 在每个原调用时点取得实际校验器，构造不读取校验器、不缓存。输入校验仍先于准入及文件效果；结果仍在工作或原失败映射、残余报告之后校验，校验器缺陷继续原样传播。BackupInput 形状归 backup-data，inputs 只拥有交互校验实现。
+
 ## 运维体检与连接装配
 
 ops/health-probe.ts 拥有原只读SQL探针及两秒竞速。超时只结束本次观察，实际读取继续；迟到StorageDefect仍走原诊断出口。health.ts 通过具名probe读取结果，保持原公开字段和字节顺序。health-sources.ts 延迟读取原字段，不在构造时探测、读取时钟或缓存值。

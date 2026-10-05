@@ -58,6 +58,7 @@ export interface Digest {
   hex(): string
 }
 export interface MaintenanceEffects {
+  readonly validate: (definition: string, value: unknown) => boolean
   readonly files: FileEffects
   readonly codec: BackupCodec
   readonly digestFactory: () => Digest

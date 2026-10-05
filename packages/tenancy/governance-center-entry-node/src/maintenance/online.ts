@@ -1,16 +1,22 @@
 import { join } from 'node:path'
 import { instantToRfc3339, type Instant } from '@omne-harness-lite/offer-expiry'
 import type { SnapshotSession } from '@omne-harness-lite/storage'
-import { validBackupInput, validBackupStatusInput } from './inputs.ts'
 import { checkView } from './input.ts'
 import { MaintenanceFailure } from './failure.ts'
-import { CHUNK_BYTES, type Metadata } from './backup-data.ts'
+import { CHUNK_BYTES, type Metadata, type BackupInput } from './backup-data.ts'
 import { metadataTime } from './metadata-policy.ts'
 import { observeBackups } from './catalog.ts'
 import { checkCancelled, publishOutput, withTemporaryOutput } from './publication.ts'
 import type { OnlineMaintenanceOptions, MaintenanceReporter } from './maintenance-options.ts'
 import type { MaintenanceEffects } from './maintenance-ports.ts'
 import { reportResiduals, resultOf, type MaintenanceResult } from './results.ts'
+
+function validBackupInput(
+  validate: MaintenanceEffects['validate'],
+  value: unknown,
+): value is BackupInput {
+  return validate('BackupInput', value)
+}
 
 export class OnlineMaintenance {
   #centerId: string | undefined
@@ -63,6 +69,7 @@ export class OnlineMaintenance {
     this.#abort = abort
     let publishedLocation: string | null = null
     const task = resultOf(
+      this.effects.validate,
       definition,
       () =>
         this.options.source.run(
@@ -86,7 +93,8 @@ export class OnlineMaintenance {
     return task
   }
   backupStatus(input: unknown): Promise<MaintenanceResult> {
-    if (!validBackupStatusInput(input)) return Promise.resolve({ status: 'invalid-input' })
+    if (!this.effects.validate('BackupStatusInput', input))
+      return Promise.resolve({ status: 'invalid-input' })
     return this.#run('BackupStatusResult', (session, centerId) =>
       observeBackups(
         this.options.backupDirectory,
@@ -99,7 +107,8 @@ export class OnlineMaintenance {
     )
   }
   backup(input: unknown): Promise<MaintenanceResult> {
-    if (!validBackupInput(input)) return Promise.resolve({ status: 'invalid-input' })
+    if (!validBackupInput(this.effects.validate, input))
+      return Promise.resolve({ status: 'invalid-input' })
     return this.#run('BackupResult', async (session, centerId, markPublished) => {
       if (input.onlyIfDue) {
         const now = this.#now()
