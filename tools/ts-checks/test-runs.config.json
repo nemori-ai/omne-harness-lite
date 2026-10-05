@@ -98,6 +98,16 @@
         ],
         "members": ["packages/model/model-profile-directory-local"],
         "why": "tests/readme.spec.ts 运行两份 README 里的代码块"
+      },
+      {
+        "paths": [
+          "examples/model-invocation-minimal-demo/src/**",
+          "examples/model-invocation-minimal-demo/schema/**",
+          "examples/model-invocation-minimal-demo/generated/**",
+          "examples/model-invocation-minimal-demo/package.json"
+        ],
+        "members": ["packages/tools/tool-execution-local"],
+        "why": "tool-execution-local 的 PF-006 S24/S69 独立验收从 model-invocation-minimal-demo 公开 dist 入口驱动模型工具续答；先显式构建 demo 及依赖，再运行 acceptance。examples 仍不加入默认成员扫描。"
       }
     ],
     "memberDocuments": [

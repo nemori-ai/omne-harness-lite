@@ -29,6 +29,8 @@ function describeAssembly(value: unknown): AssemblyDeclaration {
     provides: [ACCOUNTS_SERVICE, LOGINS_SERVICE],
     requires: [STORAGE_SERVICE, CLOCK_SERVICE],
     optional: [CREDENTIALS_SERVICE],
+    dynamicProvides: [],
+    dynamicRequires: [],
     claims: [
       {
         name: 'tenancy-host/accounts',

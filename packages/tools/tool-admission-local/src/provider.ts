@@ -18,9 +18,10 @@ export interface ToolAdmissionOptions {
   readonly judgment?: AdmissionJudgmentDependencies
 }
 /** Holds one physical log borrow. It never publishes that borrow to callers or tool implementations. */
-export function createToolAdmission(
-  options: ToolAdmissionOptions,
-): ToolAdmissionOperations & { readonly close: () => Promise<void> } {
+export function createToolAdmission(options: ToolAdmissionOptions): ToolAdmissionOperations & {
+  readonly closeAdmission: () => Promise<void>
+  readonly close: () => Promise<void>
+} {
   const generation = options.backing.ownerGeneration
   if (!('ok' in parseOpaqueIdentifier(generation, 'LogGeneration')))
     throw new TypeError('Invalid log owner generation')
@@ -47,17 +48,21 @@ export function createToolAdmission(
     generation,
     log: borrow.log,
   })
+  function closeAdmission(): Promise<void> {
+    // Qualification ends synchronously; the stable owner still holds the physical borrow.
+    const judgments = bindings.close(),
+      reads = verifier.close()
+    return Promise.all([judgments, reads]).then(() => undefined)
+  }
   let closing: Promise<void> | undefined,
     released = false
   return Object.freeze({
     forPass: bindings.forPass,
     verifyToken: verifier.verifyToken,
+    closeAdmission,
     close() {
       if (released) return Promise.resolve()
-      // Both admission gates close synchronously, before awaiting either drain.
-      const judgments = bindings.close(),
-        reads = verifier.close()
-      closing ??= Promise.all([judgments, reads])
+      closing ??= closeAdmission()
         .then(async () => {
           await borrow.release()
           released = true

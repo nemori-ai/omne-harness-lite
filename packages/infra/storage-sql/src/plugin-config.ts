@@ -60,6 +60,8 @@ export function describeStorageAssembly(value: unknown): AssemblyDeclaration {
           ? [STORAGE_STARTUP_SERVICE, STORAGE_COMPLETION_SERVICE]
           : [STORAGE_STARTUP_SERVICE],
     optional: [],
+    dynamicProvides: [],
+    dynamicRequires: [],
     claims: [
       {
         name: 'tenancy-host/storage',

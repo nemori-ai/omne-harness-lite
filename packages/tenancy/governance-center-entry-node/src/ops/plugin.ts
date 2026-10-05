@@ -61,6 +61,8 @@ function describeOpsAssembly(value: unknown): AssemblyDeclaration {
     provides: [],
     requires: [STORAGE_SERVICE, CLOCK_SERVICE, ENTRY_OPENING_SERVICE, ENTRY_MAINTENANCE_SERVICE],
     optional: [],
+    dynamicProvides: [],
+    dynamicRequires: [],
     claims: [
       {
         name: 'tenancy-host/ops',

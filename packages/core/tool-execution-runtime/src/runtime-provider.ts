@@ -20,6 +20,10 @@ import type {
   ToolRuntimeOperations,
 } from './tool-execution.ts'
 import type { ToolResultStorageOperations } from './tool-results.ts'
+import type {
+  RetainedCloseAttempt,
+  RetainedCloseControl,
+} from '@omne-harness-lite/assembly-lifecycle'
 
 /** Only active policies belong to the serializable provider configuration. */
 export interface ToolRuntimeConfig {
@@ -35,6 +39,18 @@ export interface ToolRuntimeConfig {
 export interface ToolRuntimeBootstrap {
   readonly recovery: RecoveryAccess
 }
+/** An observed original close attempt; retained does not establish quiescence. */
+export type ToolRuntimeCloseAttempt = RetainedCloseAttempt
+
+/** Trusted host control for the original instance, independent of service visibility. */
+export type ToolRuntimeCloseControl = RetainedCloseControl
+
+/** The host retains control before waiting for runtime recovery. */
+export interface ToolRuntimeStartupOperations {
+  recoveryAccess(): ToolRuntimeBootstrap['recovery']
+  retainClose(control: ToolRuntimeCloseControl): void
+}
+
 export interface ToolRuntimeDependencies extends ToolRuntimeBootstrap {
   readonly backing: SessionLogBackingOperations
   readonly owner: SessionLogOwnerOperations

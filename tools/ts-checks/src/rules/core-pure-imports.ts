@@ -80,6 +80,8 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
   'runtime-context': ['content-blocks', 'session-tenancy'],
   'execution-environments': ['content-blocks', 'runtime-context', 'session-tenancy'],
   'tool-execution-runtime': [
+    // TE-25 uses the shared pure close-control types; this does not grant a Cordis face.
+    'assembly-lifecycle',
     // Adopted r10 i1/b1: the public runtime factory receives the core RunnerServiceHost read port.
     'loop-extension-runner',
     // Public tool-runtime/1 log codec owns its durable shell and value checks.

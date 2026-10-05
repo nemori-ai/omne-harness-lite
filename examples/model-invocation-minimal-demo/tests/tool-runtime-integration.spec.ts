@@ -220,6 +220,60 @@ test('observer release and contribution withdrawal leave an entered pure closure
   }
 })
 
+test('disposing an actual Cordis consumer releases only its observer while the admitted author continues', async () => {
+  const entered = deferred<void>(),
+    returned = deferred<void>()
+  const executor = vi.fn(async () => {
+    entered.resolve()
+    await returned.promise
+    return 'survived-consumer-disposal'
+  })
+  const f = await actionIntegrationFixture({ executor })
+  let consumer: import('@deepseek-ai/cordis').Fiber | undefined
+  try {
+    const request = await requestOf(f),
+      runtime = f.current.assembly.ctx.toolRuntimeRegistry
+    const submitted = await runtime.submit(request)
+    if (submitted.kind !== 'recorded') throw new Error('actual tool submission unavailable')
+    await entered.promise
+    const scoped =
+      Promise.withResolvers<import('@omne-harness-lite/tool-execution-runtime').ExecutionObserver>()
+    consumer = f.current.assembly.ctx.plugin({
+      inject: [TOOL_RUNTIME_REGISTRY],
+      async apply(ctx) {
+        const acquired = await ctx.toolRuntimeRegistry.acquire(request.access, submitted.execution)
+        if (acquired.kind !== 'acquired') throw new Error('consumer observation unavailable')
+        scoped.resolve(acquired.observer)
+      },
+    })
+    await consumer
+    const observer = await scoped.promise,
+      waiting = observer.waitForEnd()
+    await consumer.dispose()
+    expect(await waiting).toEqual({ kind: 'rejected', reason: 'ownerStopped' })
+    expect((await history(f)).terminal).toBeUndefined()
+    expect(executor).toHaveBeenCalledTimes(1)
+    const next = await runtime.acquire(request.access, submitted.execution)
+    if (next.kind !== 'acquired') throw new Error('independent observer cannot reattach')
+    returned.resolve()
+    try {
+      expect(await next.observer.waitForEnd()).toMatchObject({
+        kind: 'found',
+        snapshot: {
+          state: { terminal: { outcome: 'completed', result: 'survived-consumer-disposal' } },
+        },
+      })
+      expect(executor).toHaveBeenCalledTimes(1)
+    } finally {
+      next.observer.release()
+    }
+  } finally {
+    returned.resolve()
+    await consumer?.dispose()
+    await f.close()
+  }
+})
+
 test('a bound result receipt survives later business revocation while new reads are denied', async () => {
   const entered = deferred<void>(),
     returned = deferred<string>()
@@ -477,6 +531,127 @@ test('startup scans and terminates an observerless second session, rather than r
     })
     expect(executor).not.toHaveBeenCalled()
   } finally {
+    await f.close()
+  }
+})
+
+test('actual issuer tokens reject forged, cross-session, cross-tenant and revoked runtime operations without changing history', async () => {
+  const entered = deferred<void>(),
+    returned = deferred<string>()
+  const executor = vi.fn(async () => {
+    entered.resolve()
+    return returned.promise
+  })
+  const f = await actionIntegrationFixture({ executor })
+  try {
+    const runtime = f.current.assembly.ctx.toolRuntimeRegistry
+    const request = await requestOf(f)
+    const submitted = await runtime.submit(request)
+    if (submitted.kind !== 'recorded') throw new Error('submission failed')
+    const originalObserver = await runtime.acquire(request.access, submitted.execution)
+    if (originalObserver.kind !== 'acquired') throw new Error('observer failed')
+    await entered.promise
+    const before = await f.f.prefix()
+    const foreignTenant = {
+      ...scope.tenant,
+      account: unwrap(parseOpaqueIdentifier('foreign-account', 'AccountId')),
+    }
+    const candidates = [
+      { access: { ...request.access }, scope },
+      {
+        access: request.access,
+        scope: { ...scope, session: unwrap(parseOpaqueIdentifier('other-session', 'SessionRef')) },
+      },
+      { access: request.access, scope: { ...scope, tenant: foreignTenant } },
+    ]
+    async function rejected(candidate: (typeof candidates)[number]) {
+      const ref = {
+        ...candidate.scope,
+        callId: submitted.kind === 'recorded' ? submitted.execution.callId : request.call.callId,
+      }
+      expect(await runtime.submit({ ...request, ...candidate })).toMatchObject({
+        reason: 'notAuthorized',
+      })
+      expect(await runtime.acquire(candidate.access, ref)).toMatchObject({
+        reason: 'notAuthorized',
+      })
+      expect(await runtime.stop(candidate.access, ref, 'forbidden')).toBe('notAuthorized')
+      expect(
+        await f.current.assembly.ctx.toolResults.readResult(candidate.access, ref),
+      ).toMatchObject({ reason: 'notAuthorized' })
+      // The waiting increment is not implemented. It must not fabricate an accepted answer.
+      expect(await runtime.answer(candidate.access, ref, 1, 'forged response')).toBe('unavailable')
+    }
+    for (const candidate of candidates) await rejected(candidate)
+    f.current.revoke()
+    await rejected({ access: request.access, scope })
+    expect(await originalObserver.observer.read()).toMatchObject({ reason: 'notAuthorized' })
+    expect(await f.f.prefix()).toEqual(before)
+    expect(executor).toHaveBeenCalledOnce()
+    f.current.restore()
+    returned.resolve('original author')
+    expect(await originalObserver.observer.waitForEnd()).toMatchObject({
+      snapshot: { state: { terminal: { outcome: 'completed', result: 'original author' } } },
+    })
+    originalObserver.observer.release()
+  } finally {
+    f.current.restore()
+    returned.resolve('original author')
+    await f.close()
+  }
+})
+
+test('replacing an actual implementation contribution cannot rewrite an execution that already adopted its closure', async () => {
+  const entered = deferred<void>(),
+    returned = deferred<string>()
+  const oldExecutor = vi.fn(async () => {
+    entered.resolve()
+    return returned.promise
+  })
+  const replacementExecutor = vi.fn(async () => 'replacement result')
+  const f = await actionIntegrationFixture({ executor: oldExecutor })
+  try {
+    const ctx = f.current.assembly.ctx
+    const request = await requestOf(f)
+    const submitted = await ctx.toolRuntimeRegistry.submit(request)
+    if (submitted.kind !== 'recorded') throw new Error('submission failed')
+    const acquired = await ctx.toolRuntimeRegistry.acquire(request.access, submitted.execution)
+    if (acquired.kind !== 'acquired') throw new Error('observer failed')
+    await entered.promise
+    const intended = (await history(f)).intent
+    await f.current.assembly.fibers.at(-2)!.dispose()
+    const replacement = ctx.plugin({
+      name: 'replacement-tool-contribution',
+      inject: ['toolImplementations'],
+      apply(inner: Context) {
+        inner.toolImplementations.register({
+          ...tool,
+          definition:
+            tool.definition as import('@omne-harness-lite/tool-definition').ToolDefinition,
+          executor: replacementExecutor,
+        })
+      },
+    })
+    await replacement
+    try {
+      if (!intended.value.selected) throw new Error('durable selected implementation missing')
+      const current = ctx.toolImplementations.acquire(intended.value.selected)
+      if (!('implementation' in current)) throw new Error('replacement missing')
+      expect(current.implementation.executor).toBe(replacementExecutor)
+      current.release()
+      returned.resolve('adopted result')
+      expect(await acquired.observer.waitForEnd()).toMatchObject({
+        snapshot: { state: { terminal: { outcome: 'completed', result: 'adopted result' } } },
+      })
+      expect((await history(f)).intent).toEqual(intended)
+      expect(oldExecutor).toHaveBeenCalledOnce()
+      expect(replacementExecutor).not.toHaveBeenCalled()
+      acquired.observer.release()
+    } finally {
+      await replacement.dispose()
+    }
+  } finally {
+    returned.resolve('adopted result')
     await f.close()
   }
 })

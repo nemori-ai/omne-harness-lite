@@ -27,6 +27,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*",
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*",
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/execution-environments": "workspace:*",
     "@omne-harness-lite/session-tenancy": "workspace:*",

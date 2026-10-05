@@ -261,6 +261,9 @@ importers:
       '@omne-harness-lite/account-registration-sequential':
         specifier: workspace:*
         version: link:../../packages/tenancy/account-registration-sequential
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../packages/core/assembly-lifecycle
       '@omne-harness-lite/assembly-manifest':
         specifier: workspace:*
         version: link:../../packages/core/assembly-manifest
@@ -288,6 +291,9 @@ importers:
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../packages/core/content-blocks
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../packages/core/cordis-plugin-tree
       '@omne-harness-lite/credential-custodian-local':
         specifier: workspace:*
         version: link:../../packages/infra/credential-custodian-local
@@ -1782,6 +1788,9 @@ importers:
       '@omne-harness-lite/arrival-events':
         specifier: workspace:*
         version: link:../arrival-events
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../assembly-lifecycle
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../call-accounts
@@ -2058,9 +2067,15 @@ importers:
 
   packages/infra/execution-environments-host:
     dependencies:
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../core/assembly-lifecycle
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../core/content-blocks
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
       '@omne-harness-lite/execution-environments':
         specifier: workspace:*
         version: link:../../core/execution-environments
@@ -2852,12 +2867,18 @@ importers:
 
   packages/tools/tool-admission-local:
     dependencies:
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../core/assembly-lifecycle
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../core/call-accounts
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../core/content-blocks
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
@@ -2901,12 +2922,18 @@ importers:
 
   packages/tools/tool-execution-local:
     dependencies:
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../core/assembly-lifecycle
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../core/call-accounts
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../core/content-blocks
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
       '@omne-harness-lite/execution-environments':
         specifier: workspace:*
         version: link:../../core/execution-environments
@@ -2965,12 +2992,18 @@ importers:
 
   packages/tools/tool-result-files:
     dependencies:
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../core/assembly-lifecycle
       '@omne-harness-lite/call-accounts':
         specifier: workspace:*
         version: link:../../core/call-accounts
       '@omne-harness-lite/content-blocks':
         specifier: workspace:*
         version: link:../../core/content-blocks
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
       '@omne-harness-lite/execution-environments':
         specifier: workspace:*
         version: link:../../core/execution-environments

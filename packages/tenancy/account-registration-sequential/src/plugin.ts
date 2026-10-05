@@ -23,6 +23,8 @@ function describeAssembly(value: unknown): AssemblyDeclaration {
     provides: [REGISTRATION_SERVICE],
     requires: [ACCOUNTS_SERVICE, ORGANIZATIONS_SERVICE, ORGANIZATION_PURGE_SERVICE],
     optional: [],
+    dynamicProvides: [],
+    dynamicRequires: [],
     claims: [
       {
         name: 'tenancy-host/registration',

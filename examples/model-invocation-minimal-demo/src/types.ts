@@ -187,6 +187,8 @@ export interface AcceptanceHooks {
   /** Trusted contribution withdrawal, after the actual tool providers have become active. */
   readonly toolProvidersInstalled?: (providers: {
     readonly officialAdmission: Fiber
+    readonly admissionPublication: Fiber
+    readonly environments: import('@omne-harness-lite/execution-environments').EnvironmentProviderRegistrations
   }) => void | Promise<void>
   /** Trusted fault control on the actual physical owner, before any consumer borrows it. */
   readonly sessionLogOpened?: (

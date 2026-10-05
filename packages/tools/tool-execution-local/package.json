@@ -24,9 +24,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "acceptance": "vitest run --config vitest.acceptance.config.ts"
   },
   "dependencies": {
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*",
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/tool-execution-runtime": "workspace:*",
     "@omne-harness-lite/kernel-basis": "workspace:*",
@@ -41,7 +43,8 @@
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/stream-assembly": "workspace:*",
     "@omne-harness-lite/loop-extension-runner": "workspace:*",
-    "@omne-harness-lite/execution-environments": "workspace:*"
+    "@omne-harness-lite/execution-environments": "workspace:*",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -244,3 +244,15 @@ test('the held borrow survives until both source and log reads have actually end
   await closing
   expect(f.release).toHaveBeenCalledTimes(1)
 })
+
+test('admission withdrawal drains its operations and retains the original borrow for the stable owner close', async () => {
+  const f = fixture()
+  try {
+    await f.provider.closeAdmission()
+    expect(await f.verify()).toEqual({ kind: 'failed', reason: 'unavailable' })
+    expect(f.release).not.toHaveBeenCalled()
+  } finally {
+    await f.provider.close()
+  }
+  expect(f.release).toHaveBeenCalledTimes(1)
+})

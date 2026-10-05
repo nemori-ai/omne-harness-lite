@@ -1,3 +1,8 @@
+import {
+  ASSEMBLY_LIFETIME_SERVICE,
+  startRetainedAssemblyWork,
+} from '@omne-harness-lite/assembly-lifecycle/cordis'
+import type { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree'
 import type { Context } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import {
@@ -58,3 +63,41 @@ export const hostEnvironment = definePlugin({
     ctx.executionEnvironments.registerProvider(provider)
   },
 })
+
+export const managedEnvironmentRegistry = Object.assign(
+  definePlugin({
+    name: 'environment-registry-managed',
+    inject: [SESSION_ACCESS, RESOURCE_RECOVERY_AUTHORITY, ASSEMBLY_LIFETIME_SERVICE],
+    Config: z.object({}).strict(),
+    apply(ctx) {
+      let owner: ReturnType<typeof createEnvironmentRegistry> | undefined
+      startRetainedAssemblyWork(
+        ctx,
+        async () => {
+          owner = createEnvironmentRegistry({
+            access: ctx.sessionAccess,
+            recovery: ctx.resourceRecoveryAuthority,
+          })
+          new Registry(ctx, owner)
+        },
+        async () => {
+          await owner?.close()
+        },
+      )
+    },
+  }),
+  {
+    assemblyLifecycle: 1 as const,
+    describeAssembly(value: unknown): AssemblyDeclaration {
+      z.object({}).strict().parse(value)
+      return {
+        provides: [EXECUTION_ENVIRONMENTS],
+        requires: [SESSION_ACCESS, RESOURCE_RECOVERY_AUTHORITY],
+        optional: [],
+        dynamicProvides: [],
+        dynamicRequires: [],
+        claims: [],
+      }
+    },
+  },
+)

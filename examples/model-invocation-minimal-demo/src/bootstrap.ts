@@ -923,12 +923,15 @@ export function createAcceptanceApplication(
       // Stop actual consumers before waiting admitted work: setup work cannot start a new call once closing.
       await Promise.allSettled([...observerGrants].map(grant => grant.revoke()))
       try {
-        await toolAssembly?.close()
+        if ((await toolAssembly?.closeAuthors()) === 'retained')
+          throw new Error('Tool author close retained')
         for (const driver of toolDrivers.values()) await driver.close()
         toolDrivers.clear()
         for (const delivery of toolDeliveries.values()) await delivery.close()
         toolDeliveries.clear()
         await toolFacilities?.close()
+        if ((await toolAssembly?.closeDependencies()) === 'retained')
+          throw new Error('Tool dependency close retained')
         await runnerServiceFiber?.dispose()
         await defaultRetryFiber?.dispose()
       } catch {
@@ -2121,13 +2124,20 @@ export function createAcceptanceApplication(
             if (!authorizedLogOwner) throw new Error('tool maintenance owner absent')
             toolAssembly = await installDemoTools({
               ctx: context,
-              owner: authorizedLogOwner.operations,
               recovery: authorizedLogOwner.recovery,
               directory: config.tools.directory,
               config: config.tools.runtime,
+              onStopping: () => {
+                gateOpen = false
+                runnerHost?.closeAdmission()
+                contextCreator?.closeAdmission()
+              },
             })
+            await toolAssembly.ready
             await hooks?.toolProvidersInstalled?.({
               officialAdmission: toolAssembly.officialAdmission,
+              admissionPublication: toolAssembly.admissionPublication,
+              environments: toolAssembly.environments,
             })
             await recoverToolDeliveries()
           }

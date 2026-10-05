@@ -12,7 +12,14 @@ it('accepts a Standard Schema success result with an explicit undefined issues p
     Config,
     assemblyLifecycle: 1,
     apply() {},
-    describeAssembly: () => ({ provides: [], requires: [], optional: [], claims: [] }),
+    describeAssembly: () => ({
+      provides: [],
+      requires: [],
+      optional: [],
+      dynamicProvides: [],
+      dynamicRequires: [],
+      claims: [],
+    }),
   }
   const prepared = await preparePluginTree(
     composePluginTree([

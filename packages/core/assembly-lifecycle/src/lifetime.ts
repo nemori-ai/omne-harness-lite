@@ -5,18 +5,21 @@ import type {
   CloseResult,
   LifetimeRegistration,
   OwnedWork,
+  RetainedCloseControl,
 } from './types.ts'
 
 interface RegisteredWork {
   readonly work: OwnedWork
   readonly ready: Promise<boolean>
   readonly completion: PromiseWithResolvers<CloseResult>
+  completed: boolean
 }
 
 interface Slot {
   readonly id: string
   readonly port: AssemblyLifetimePort
   registration?: RegisteredWork
+  control?: RetainedCloseControl
 }
 
 class Lifetime implements AssemblyLifetime {
@@ -37,6 +40,7 @@ class Lifetime implements AssemblyLifetime {
         port: Object.freeze({
           isCurrent: () => this.isCurrent(),
           register: (work: OwnedWork) => this.#register(slot, work),
+          retainClose: (control: RetainedCloseControl) => this.#retainClose(slot, control),
         }),
       }
       this.#slots.set(id, slot)
@@ -68,6 +72,25 @@ class Lifetime implements AssemblyLifetime {
     return this.closed
   }
 
+  closeControl(id: string): RetainedCloseControl | undefined {
+    const slot = this.#slots.get(id)
+    if (!slot) throw new Error('assembly-lifecycle: unknown row')
+    return slot.control
+  }
+
+  #retainClose(slot: Slot, control: RetainedCloseControl): void {
+    if (
+      !slot.registration ||
+      slot.registration.completed ||
+      !validControl(control) ||
+      (slot.control !== undefined && slot.control !== control)
+    ) {
+      this.#requestStop()
+      throw new Error('assembly-lifecycle: close control cannot be retained')
+    }
+    slot.control = control
+  }
+
   #register(slot: Slot, work: OwnedWork): LifetimeRegistration {
     if (!this.#current || slot.registration) {
       this.#requestStop()
@@ -83,7 +106,7 @@ class Lifetime implements AssemblyLifetime {
         return false
       },
     )
-    slot.registration = { work, ready, completion }
+    slot.registration = { work, ready, completion, completed: false }
     return Object.freeze({
       closed: completion.promise,
       requestStop: () => this.#requestStop(),
@@ -109,6 +132,7 @@ class Lifetime implements AssemblyLifetime {
       const registration = slot.registration
       if (!registration) continue
       const result = await closeWork(registration)
+      registration.completed = true
       registration.completion.resolve(result)
       rows.push(Object.freeze({ id: slot.id, result }))
     }
@@ -117,6 +141,19 @@ class Lifetime implements AssemblyLifetime {
       assemblyErrors: Object.freeze([...errors]),
       rows: Object.freeze(rows),
     })
+  }
+}
+
+function validControl(value: RetainedCloseControl): boolean {
+  try {
+    return (
+      value !== null &&
+      typeof value === 'object' &&
+      typeof value.closeAttempt === 'function' &&
+      typeof value.retryClose === 'function'
+    )
+  } catch {
+    return false
   }
 }
 

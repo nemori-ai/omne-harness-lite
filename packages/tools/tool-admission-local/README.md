@@ -11,10 +11,12 @@
 
 关闭先拒绝新绑定、判断和核验，再等待已接纳操作实际结束，最后释放日志借用。释放失败向调用者报告，重试关闭不会重新开放入口。
 
-`./cordis` 导出两个具名插件：`toolAdmissionLocal` 注入 sessionAccess、sessionLogBacking、toolAdmissionPassSource 和 toolActionHistory，发布定义包的 ToolAdmissionService；`officialAdmission` 注入该服务和 runner 实现登记服务。贡献随自己的 fiber 撤除。两者只接受空数据配置，活体依赖不能塞进配置。必需依赖撤除会关闭旧提供者，重建不会复活旧引用。
+`./cordis` 的独立绑定包括两个具名插件：`toolAdmissionLocal` 注入 sessionAccess、sessionLogBacking、toolAdmissionPassSource 和 toolActionHistory，发布定义包的 ToolAdmissionService；`officialAdmission` 注入该服务和 runner 实现登记服务。贡献随自己的 fiber 撤除。两者只接受空数据配置，活体依赖不能塞进配置。必需依赖撤除会关闭旧提供者，重建不会复活旧引用。
 
 本阶段的 Cordis 提供者未安装语义授权 evaluator。auto 权限路径可用，需要语义授权求值的路径明确返回 unavailable。独立工厂允许调用方注入该评估器；完整交互准入的集成按后续交付范围推进。
 
 固定形状复用公开拥有者的延迟加载校验器。本包不建立固定 Schema 的运行期编译缓存。可选 evaluate 由调用方拥有；缺席或失败时，任何需要授权求值的批次均返回 unavailable。
 
 行为承诺归 [定义包](../../core/tool-admission/SPEC.md)。测试包含受控历史端口与应用的真实 JSONL 投影组合；它们不证明完整模型—工具闭环已经交付。
+
+管理绑定 `managedToolAdmissionLocal` 使用主线装配生命周期。固定 host 持有原根和日志借用，动态子 fiber 发布实际服务。撤动态服务只关闭准入并排空原操作；host 最终关闭才释放借用。`inspectAdmissionPublication` 供可信装配观察实际发布 fiber，不授予业务权限。根工厂的 `closeAdmission()` 关闭入口并排空操作，`close()` 另外完成借用释放。管理行为归 [本包薄规格](SPEC.md)。

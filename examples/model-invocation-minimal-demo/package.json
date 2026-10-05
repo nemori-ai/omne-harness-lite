@@ -8,6 +8,10 @@
     "node": ">=24 <25"
   },
   "exports": {
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
@@ -29,6 +33,8 @@
     "start": "node dist/cli.js"
   },
   "dependencies": {
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*",
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*",
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness-lite/account-identity": "workspace:*",
     "@omne-harness-lite/account-registration": "workspace:*",

@@ -1,4 +1,5 @@
 export { createAssemblyLifetime } from './lifetime.ts'
+export { createRetainedWork } from './retained-work.ts'
 export { AssemblyWorkStopped } from './errors.ts'
 export type {
   AssemblyCloseReport,
@@ -7,4 +8,6 @@ export type {
   CloseResult,
   LifetimeRegistration,
   OwnedWork,
+  RetainedCloseAttempt,
+  RetainedCloseControl,
 } from './types.ts'

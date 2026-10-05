@@ -4,6 +4,7 @@ import type {
   ToolRuntimeOperations,
   ToolImplementationOperations,
   ToolResultStorageOperations,
+  ToolRuntimeStartupOperations,
 } from './index.ts'
 
 /** @contract capability.tool-execution-runtime */
@@ -79,8 +80,23 @@ export abstract class ToolResultsService extends Service implements ToolResultSt
 }
 export const TOOL_RESULTS = ToolResultsService.provide
 
+/** @owner packages/core/tool-execution-runtime */
+export abstract class ToolRuntimeStartupService
+  extends Service
+  implements ToolRuntimeStartupOperations
+{
+  static readonly provide = 'toolRuntimeStartup' as const
+  constructor(ctx: Context) {
+    super(ctx, ToolRuntimeStartupService.provide)
+  }
+  abstract recoveryAccess: ToolRuntimeStartupOperations['recoveryAccess']
+  abstract retainClose: ToolRuntimeStartupOperations['retainClose']
+}
+export const TOOL_RUNTIME_STARTUP = ToolRuntimeStartupService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
+    toolRuntimeStartup: ToolRuntimeStartupService
     toolRuntimeRegistry: ToolRuntimeRegistryService
     toolImplementations: ToolImplementationsService
     toolResults: ToolResultsService

@@ -1,3 +1,8 @@
+import {
+  ASSEMBLY_LIFETIME_SERVICE,
+  startRetainedAssemblyWork,
+} from '@omne-harness-lite/assembly-lifecycle/cordis'
+import type { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree'
 import type { Context } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { RESOURCE_RECOVERY_AUTHORITY } from '@omne-harness-lite/execution-environments/cordis'
@@ -6,6 +11,7 @@ import { SESSION_LOG_BACKING } from '@omne-harness-lite/session-log/cordis'
 import { TOOL_ACTION_HISTORY } from '@omne-harness-lite/tool-admission/cordis'
 import {
   TOOL_IMPLEMENTATIONS,
+  TOOL_RESULTS,
   ToolResultsService,
 } from '@omne-harness-lite/tool-execution-runtime/cordis'
 import type { ToolResultStorageOperations } from '@omne-harness-lite/tool-execution-runtime'
@@ -49,6 +55,14 @@ const selectedReader = z
   })
   .strict()
 
+const ResultsConfig = z
+  .object({
+    directory: z.string().min(1),
+    storage: z.string().min(1),
+    reader: selectedReader.optional(),
+  })
+  .strict()
+
 export const toolResultFiles = definePlugin({
   name: 'tool-result-files',
   inject: [
@@ -58,13 +72,7 @@ export const toolResultFiles = definePlugin({
     RESOURCE_RECOVERY_AUTHORITY,
     TOOL_IMPLEMENTATIONS,
   ],
-  Config: z
-    .object({
-      directory: z.string().min(1),
-      storage: z.string().min(1),
-      reader: selectedReader.optional(),
-    })
-    .strict(),
+  Config: ResultsConfig,
   async apply(ctx, config) {
     const instance = await openToolResultStorage(
       { directory: config.directory, storage: config.storage },
@@ -87,3 +95,58 @@ export const toolResultFiles = definePlugin({
     }
   },
 })
+
+const resultsRequirements = [
+  SESSION_ACCESS,
+  SESSION_LOG_BACKING,
+  TOOL_ACTION_HISTORY,
+  RESOURCE_RECOVERY_AUTHORITY,
+  TOOL_IMPLEMENTATIONS,
+]
+export const managedToolResultFiles = Object.assign(
+  definePlugin({
+    name: 'tool-result-files-managed',
+    inject: [...resultsRequirements, ASSEMBLY_LIFETIME_SERVICE],
+    Config: ResultsConfig,
+    apply(ctx, config) {
+      let instance: Awaited<ReturnType<typeof openToolResultStorage>> | undefined
+      startRetainedAssemblyWork(
+        ctx,
+        async () => {
+          instance = await openToolResultStorage(
+            { directory: config.directory, storage: config.storage },
+            {
+              authorization: ctx.sessionAccess,
+              backing: ctx.sessionLogBacking,
+              history: ctx.toolActionHistory,
+              recoveryAuthority: ctx.resourceRecoveryAuthority,
+              ...(config.reader
+                ? { reader: { selected: config.reader, implementations: ctx.toolImplementations } }
+                : {}),
+            },
+          )
+          ctx.fiber.assertActive()
+          if (!ctx.assemblyLifetime.isCurrent()) throw new Error('Assembly work has stopped')
+          new Results(ctx, instance.operations)
+        },
+        async () => {
+          await instance?.close()
+        },
+      )
+    },
+  }),
+  {
+    assemblyLifecycle: 1 as const,
+    describeAssembly(value: unknown): AssemblyDeclaration {
+      ResultsConfig.parse(value)
+      return {
+        provides: [TOOL_RESULTS],
+        requires: resultsRequirements,
+        optional: [],
+        dynamicProvides: [],
+        dynamicRequires: [],
+        claims: [],
+      }
+    },
+  },
+)

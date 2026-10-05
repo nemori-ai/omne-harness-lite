@@ -64,14 +64,14 @@ function authority() {
   }
   return {
     operations,
-    bind(consumer: AccessIdentity['consumer'], keys: readonly string[]) {
+    bind(consumer: AccessIdentity['consumer'], keys: readonly string[], boundScope = scope) {
       // Test authority oracle; product issuance is covered separately with real Cordis generations.
       const token = Object.freeze({}) as SessionAccess
       bindings.set(token, {
         binding: 'fixture',
         principal: 'fixture',
         principalKind: 'system',
-        scope,
+        scope: boundScope,
         consumer,
         contextKeys: keys,
       })
@@ -370,3 +370,278 @@ test.each(['unavailable', 'throws', 'malformed'] as const)(
     }
   },
 )
+
+test('removing one session registration leaves the shared source and the other session intact', async () => {
+  const h = await host()
+  const otherScope = {
+    ...scope,
+    session: parseOpaqueIdentifier('other-session', 'SessionRef'),
+  }
+  if (!('ok' in otherScope.session)) throw new Error('other session invalid')
+  const secondScope = { ...scope, session: otherScope.session.ok }
+  const secondSeed: ContextSessionSeed = {
+    ...seed,
+    initial: [
+      {
+        key: 'identity',
+        revision: 'initial',
+        observedAt: at,
+        value: { tenant: { ...secondScope.tenant }, session: secondScope.session },
+      },
+    ],
+    fixed: [
+      {
+        key: 'identity',
+        value: { tenant: { ...secondScope.tenant }, session: secondScope.session },
+      },
+    ],
+  }
+  try {
+    const firstInitial = await init(h)
+    const secondInitial = await h.initializer.initializeContextSession(secondScope, secondSeed)
+    if (secondInitial.kind !== 'applied') throw new Error('second initialization failed')
+    const secondControl = h.auth.bind('coordinator', ['identity', 'public'], secondScope)
+    const secondPublisher = h.auth.bind('source', ['public'], secondScope)
+    const secondTool = h.auth.bind('tool', ['public'], secondScope)
+    const sharedRead = vi.fn<ContextSource['read']>(async () => ({ kind: 'values', values: [] }))
+    const dispose = h.owner.sources.registerSource({ ...source('shared'), read: sharedRead })
+    const registration = {
+      ...identityRegistration,
+      key: 'public',
+      source: 'shared',
+      required: false,
+    }
+    const firstRegistered = await h.owner.operations.register(
+      h.access,
+      scope,
+      registration,
+      firstInitial,
+    )
+    const secondRegistered = await h.owner.operations.register(
+      secondControl,
+      secondScope,
+      registration,
+      secondInitial.revision,
+    )
+    if (firstRegistered.kind !== 'applied' || secondRegistered.kind !== 'applied')
+      throw new Error('shared registration failed')
+    expect(
+      await h.owner.operations.update(
+        h.publisher,
+        scope,
+        { key: 'public', value: 'first' },
+        'absent',
+      ),
+    ).toHaveProperty('kind', 'applied')
+    expect(
+      await h.owner.operations.update(
+        secondPublisher,
+        secondScope,
+        { key: 'public', value: 'second' },
+        'absent',
+      ),
+    ).toHaveProperty('kind', 'applied')
+    const secondBinding = await h.owner.operations.bind(secondTool, secondScope, 'tool')
+    if (secondBinding.kind !== 'bound') throw new Error('second binding failed')
+    expect(
+      await h.owner.operations.remove(h.access, scope, 'public', firstRegistered.revision),
+    ).toHaveProperty('kind', 'applied')
+    expect(await (await reader(h)).read(['public'])).toMatchObject({
+      reason: 'missingRegistration',
+    })
+    expect(await secondBinding.reader.read(['public'])).toMatchObject({
+      values: [{ value: 'second' }],
+    })
+    expect(await h.owner.operations.bind(h.tool, secondScope, 'tool')).toMatchObject({
+      reason: 'notAuthorized',
+    })
+    dispose()
+    expect(await secondBinding.reader.read(['public'])).toMatchObject({
+      reason: 'sourceUnavailable',
+    })
+    expect(await h.owner.operations.registrations(secondControl, secondScope)).toMatchObject({
+      revision: secondRegistered.revision,
+      entries: [{ key: 'identity' }, { key: 'public' }],
+    })
+    h.owner.sources.registerSource(source('shared'))
+    expect(await secondBinding.reader.read(['public'])).toMatchObject({
+      values: [{ value: 'second' }],
+    })
+    expect(sharedRead).not.toHaveBeenCalled()
+  } finally {
+    await h.close()
+  }
+})
+
+test('model, tool and extension reads intersect binding, registration and source declarations', async () => {
+  const h = await host()
+  try {
+    const initial = await init(h)
+    h.owner.sources.registerSource({ ...source('limited'), consumers: ['tool', 'extension'] })
+    expect(
+      await h.owner.operations.register(
+        h.access,
+        scope,
+        {
+          ...identityRegistration,
+          key: 'secret',
+          source: 'limited',
+          required: false,
+          consumers: ['model'],
+        },
+        initial,
+      ),
+    ).toMatchObject({ reason: 'sourceUnavailable' })
+    expect(
+      await h.owner.operations.register(
+        h.access,
+        scope,
+        {
+          ...identityRegistration,
+          key: 'secret',
+          source: 'limited',
+          required: false,
+          consumers: ['tool', 'extension'],
+        },
+        initial,
+      ),
+    ).toHaveProperty('kind', 'applied')
+    expect(
+      await h.owner.operations.update(
+        h.publisher,
+        scope,
+        { key: 'secret', value: 'tool and extension' },
+        'absent',
+      ),
+    ).toHaveProperty('kind', 'applied')
+    for (const consumer of ['tool', 'extension'] as const) {
+      const read = await reader(h, h.auth.bind(consumer, ['identity', 'secret']), consumer)
+      expect(await read.read(['secret'])).toMatchObject({
+        values: [{ value: 'tool and extension' }],
+      })
+    }
+    const model = await reader(h, h.auth.bind('model', ['identity', 'secret']), 'model')
+    expect(await model.read(['identity', 'secret'])).toEqual({
+      kind: 'rejected',
+      reason: 'notAuthorized',
+    })
+    expect(await model.read(['identity'])).toMatchObject({ values: [{ key: 'identity' }] })
+    const narrow = await reader(h, h.auth.bind('tool', ['identity']))
+    expect(await narrow.read(['secret'])).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
+  } finally {
+    await h.close()
+  }
+})
+
+test('a required downgrade and a live function value cannot change the durable registration or content', async () => {
+  const h = await host()
+  try {
+    const revision = await init(h)
+    const before = await h.log.readSince(scope.session, 0)
+    expect(
+      await h.owner.operations.register(
+        h.access,
+        scope,
+        { ...identityRegistration, required: false },
+        revision,
+      ),
+    ).toMatchObject({ reason: 'revisionConflict' })
+    expect(await h.owner.operations.remove(h.access, scope, 'identity', revision)).toMatchObject({
+      reason: 'requiredRegistration',
+    })
+    expect(
+      await h.owner.operations.update(
+        h.publisher,
+        scope,
+        // @ts-expect-error Negative runtime input: a live function is not a JSON context value.
+        { key: 'identity', value: () => 'live' },
+        'initial',
+      ),
+    ).toMatchObject({ reason: 'invalidInput' })
+    expect(await h.log.readSince(scope.session, 0)).toEqual(before)
+    expect(await h.owner.operations.registrations(h.access, scope)).toMatchObject({
+      entries: [{ key: 'identity', required: true }],
+    })
+  } finally {
+    await h.close()
+  }
+})
+
+for (const recovery of ['persisted', 'reread_source', 'recompute'] as const)
+  test(`${recovery} uses its declared recovery rule after physical log close and reopen`, async () => {
+    const h = await host()
+    let recoveredLog: Awaited<ReturnType<typeof openJsonlSessionLog>> | undefined
+    let recoveredOwner: ReturnType<typeof createRuntimeContext> | undefined
+    try {
+      const initial = await init(h)
+      const firstSourceRead = vi.fn<ContextSource['read']>(async () => ({
+        kind: 'values',
+        values: [{ key: 'public', revision: 'old', value: 11, observedAt: at }],
+      }))
+      h.owner.sources.registerSource({ ...source('recover', recovery), read: firstSourceRead })
+      expect(
+        await h.owner.operations.register(
+          h.access,
+          scope,
+          {
+            ...identityRegistration,
+            key: 'public',
+            source: 'recover',
+            required: false,
+            recovery,
+          },
+          initial,
+        ),
+      ).toHaveProperty('kind', 'applied')
+      if (recovery === 'persisted')
+        expect(
+          await h.owner.operations.update(
+            h.publisher,
+            scope,
+            { key: 'public', value: 11 },
+            'absent',
+          ),
+        ).toHaveProperty('kind', 'applied')
+      expect(await (await reader(h)).read(['public'])).toMatchObject({ values: [{ value: 11 }] })
+      h.owner.closeAdmission()
+      await h.owner.drain()
+      await h.initializer.drain()
+      await h.log.close()
+      recoveredLog = await openJsonlSessionLog({
+        dir: h.dir,
+        processOwnership: { current: 'context-reopened', observeExit: async () => 'exited' },
+      })
+      recoveredOwner = createRuntimeContext({
+        log: recoveredLog,
+        access: h.auth.operations,
+        now: () => at,
+      })
+      recoveredOwner.sources.registerSource(source())
+      const binding = await recoveredOwner.operations.bind(h.tool, scope, 'tool')
+      if (binding.kind !== 'bound') throw new Error('recovered reader failed')
+      expect(await binding.reader.read(['public'])).toMatchObject({ reason: 'sourceUnavailable' })
+      const freshSourceRead = vi.fn<ContextSource['read']>(async () => ({
+        kind: 'values',
+        values: [{ key: 'public', revision: 'fresh', value: 77, observedAt: at }],
+      }))
+      recoveredOwner.sources.registerSource({
+        ...source('recover', recovery),
+        read: freshSourceRead,
+      })
+      expect(await binding.reader.read(['public'])).toMatchObject({
+        values: [{ value: recovery === 'persisted' ? 11 : 77 }],
+      })
+      if (recovery === 'persisted') {
+        expect(firstSourceRead).not.toHaveBeenCalled()
+        expect(freshSourceRead).not.toHaveBeenCalled()
+      } else {
+        expect(firstSourceRead).toHaveBeenCalledOnce()
+        expect(freshSourceRead).toHaveBeenCalledOnce()
+      }
+    } finally {
+      recoveredOwner?.closeAdmission()
+      await recoveredOwner?.drain()
+      await recoveredLog?.close()
+      await h.close()
+    }
+  })
