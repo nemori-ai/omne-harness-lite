@@ -1375,6 +1375,20 @@
       ],
       "status": "adopted",
       "source": ".meta_harness/design/architecture/identity-integration/client-integration.md"
+    },
+    {
+      "id": "identity-definition-organization-governance-public",
+      "paths": [
+        "packages/core/organization-governance/src/index.ts",
+        "packages/core/organization-governance/src/types.ts",
+        "packages/core/organization-governance/src/cordis.ts"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/preservation.md"
     }
   ],
   "rules": [
