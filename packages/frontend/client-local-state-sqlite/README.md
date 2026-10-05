@@ -1,13 +1,65 @@
 # @omne-harness-lite/client-local-state-sqlite
 
-SQLite 本地治理记录提供者。纯入口见[src/index.ts](src/index.ts)，集成承诺见[SPEC](SPEC.md)。
-调用者提供可信父目录下的专用私有目录，以及显式的 LocalStateStorageFactory。
-工厂须以 full 耐久打开该文件，不执行中心迁移；返回的存储由本次 CLS 实例独占关闭。
-公共记录、快照和结果类型归[client-local-state](../../core/client-local-state/README.md)。
+[中文](README_ZH.md)
 
-Cordis 绑定从 `./cordis` 导入，依赖 `clientStateStorage` 具名资源。
-使用结束须等待 `close()`；读取结果包含秘密，不直接打印。
+A durable SQLite provider for client-local selection, login material and read copies. The independent factory and Cordis plugins use the same implementation.
 
-开发验证：`pnpm --filter @omne-harness-lite/client-local-state-sqlite typecheck` 和
-`pnpm --filter @omne-harness-lite/client-local-state-sqlite test`。
-Node版本与环境准备见[开发指南](../../../docs/development.md)。
+Public shapes live in [src/index.ts](src/index.ts). Behavior and integration commitments belong to [SPEC.md](SPEC.md).
+
+## Workspace use
+
+This is an experimental, private ESM workspace package, not an npm release. Follow the [development setup](../../../docs/development.md). Declare `"@omne-harness-lite/client-local-state-sqlite": "workspace:*"` in the consuming member. Declare every other imported workspace package as a direct dependency too. Use public exports rather than sibling `src/` paths.
+
+## Public API
+
+| Export                                                                                        | Purpose                                                    |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `openClientLocalState`                                                                        | Open state using a caller-supplied private storage factory |
+| `OpenClientLocalStateOptions`, `OpenClientLocalStateDependencies`, `ClientLocalStateInstance` | Directory, storage dependency and read/CAS/close interface |
+| `ClientStateOpenFailure`                                                                      | Classified open failure                                    |
+| `./cordis`: `clientLocalStatePlugin`, `managedClientLocalStatePlugin`                         | Independent and assembly-managed bindings                  |
+
+## Example
+
+```ts
+import type { LocalStateStorageFactory } from '@omne-harness-lite/client-local-state'
+import { openClientLocalState } from '@omne-harness-lite/client-local-state-sqlite'
+
+export async function readLocalRevision(directory: string, storage: LocalStateStorageFactory) {
+  const state = await openClientLocalState({ directory }, { storage })
+  try {
+    const reading = await state.read()
+    if (reading.kind === 'failed') return reading
+    return { kind: 'revision' as const, revision: reading.snapshot.revision }
+  } finally {
+    await state.close()
+  }
+}
+```
+
+The caller supplies a dedicated directory under a trusted parent and a conforming SQLite factory. The example returns only revision information and classified failures.
+
+## Boundaries and lifecycle
+
+The private directory uses restrictive permissions. Storage must provide full durability without center migrations. The returned storage becomes owned by this instance. Do not close it independently.
+
+Read and compare-and-replace use the public [local-state contract](../../core/client-local-state/SPEC.md). Tokens belong to one live instance. Corrupt data is not automatically replaced with empty state. Unconfirmed installation remains uncertain.
+
+`close()` stops admission and waits for actual writes, durability work and storage close. Both bindings require `clientStateStorage`. The managed binding also requires an assembly lifetime port. See [SPEC.md](SPEC.md).
+
+## Development
+
+```sh
+pnpm --filter @omne-harness-lite/client-local-state-sqlite run build
+pnpm --filter @omne-harness-lite/client-local-state-sqlite run typecheck
+pnpm --filter @omne-harness-lite/client-local-state-sqlite run test
+```
+
+Build workspace dependencies first. These commands cover this package. Actual provider/consumer behavior also requires integration verification.
+
+Tests require real temporary SQLite files and filesystem permissions. They do not establish production durability on every filesystem.
+
+## Related packages
+
+- [Public definitions](../../core/client-local-state/README.md)
+- [Governance client coordinator](../governance-client-operations-local/README.md)

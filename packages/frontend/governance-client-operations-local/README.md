@@ -1,36 +1,63 @@
-# governance-client-operations-local
+# @omne-harness-lite/governance-client-operations-local
 
-治理 CLI/TUI 的共享操作提供者。本包实现公共操作定义，行为与未迁业务源见[SPEC](SPEC.md)。
+[中文](README_ZH.md)
+
+A local coordinator for public governance actions. It combines client state and transport while retaining separate remote effects and local settlement results.
+
+Public shapes live in [src/index.ts](src/index.ts). Behavior and integration commitments belong to [SPEC.md](SPEC.md).
+
+## Workspace use
+
+This is an experimental, private ESM workspace package, not an npm release. Follow the [development setup](../../../docs/development.md). Declare `"@omne-harness-lite/governance-client-operations-local": "workspace:*"` in the consuming member. Declare every other imported workspace package as a direct dependency too. Use public exports rather than sibling `src/` paths.
+
+## Public API
+
+| Export                                                                                    | Purpose                                                      |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `createGovernanceClient`, `CreateGovernanceClientOptions`                                 | Create a client from public state and transport dependencies |
+| Returned `GovernanceClientOperations`                                                     | Actions, prepared prompts, identity-bound uses and close     |
+| `./cordis`: `governanceClientOperationsPlugin`, `managedGovernanceClientOperationsPlugin` | Independent and assembly-managed bindings                    |
+
+## Example
 
 ```ts
+import type { ClientLocalState } from '@omne-harness-lite/client-local-state'
+import type { GovernanceTransport } from '@omne-harness-lite/governance-center-entry-https-json'
 import { exitStatus } from '@omne-harness-lite/governance-client-operations'
 import { createGovernanceClient } from '@omne-harness-lite/governance-client-operations-local'
-import { createGovernanceTransport } from '@omne-harness-lite/governance-center-client-https'
 
-const transport = createGovernanceTransport()
-
-const client = createGovernanceClient({ state, transport }) // 已打开的 client-local-state 服务
-try {
-  const report = await client.runAction({ action: 'health' })
-  process.stdout.write(JSON.stringify(report) + '\n')
-  process.exitCode = exitStatus(report)
-} finally {
-  await client.close()
-  await transport.close()
-  await state.close() // 依赖由装配者负责，顺序不可颠倒
+export async function runHealth(state: ClientLocalState, transport: GovernanceTransport) {
+  const client = createGovernanceClient({ state, transport })
+  try {
+    const report = await client.runAction({ action: 'health' })
+    return { report, status: exitStatus(report) }
+  } finally {
+    await client.close()
+  }
 }
 ```
 
-`runAction`执行单次动作；`openUse`返回供交互界面持有的固定登录使用，其`run`只接`invoke`/`logout`。绑定从本包 `./cordis` 导入，必需注入 `clientLocalState` 和 `governanceTransport`。输入/输出及预备输入的Schema由公共 governance-client-operations 包拥有。
+The caller supplies a configured state and a live transport. Client close waits for its work. The caller retains and closes the borrowed dependencies afterward.
 
-公开报告区分远端事实、本地保存结果与数据来源；仅打印该报告，不能打印输入、原始协议登录答复或本地状态。关闭客户端会等已接纳工作结束，不关闭借用的存储。
+## Boundaries and lifecycle
+
+Action types, schemas, reports and exit mapping belong to [the public operation package](../../core/governance-client-operations/README.md). This provider does not render a CLI or terminal UI.
+
+One use fixes its origin and permits one active action. Selection changes, remote success, local conflicts and unconfirmed installation remain distinct. Cached reads retain identity and tenant scope.
+
+Prepared prompts use exact secret slots. Cancellation does not release dependencies before actual completion. Do not wait for client close from inside an active prompt. Reports exclude raw credentials. See [SPEC.md](SPEC.md).
+
+## Development
 
 ```sh
-pnpm --filter @omne-harness-lite/governance-client-operations-local build
-pnpm --filter @omne-harness-lite/governance-client-operations-local typecheck
-pnpm --filter @omne-harness-lite/governance-client-operations-local test
+pnpm --filter @omne-harness-lite/governance-client-operations-local run build
+pnpm --filter @omne-harness-lite/governance-client-operations-local run typecheck
+pnpm --filter @omne-harness-lite/governance-client-operations-local run test
 ```
 
-此包不提供终端命令或交互界面。测试使用临时真实SQLite及明确的运输/提交故障注入；跨平台真实中心驱动的范围见对应验收证据。
+Build workspace dependencies first. These commands cover this package. Actual provider/consumer behavior also requires integration verification.
 
-D048/CG2增加`runPrepared(intent, prompt)`与use同名方法：由组合先捕获身份、回调只补对应秘密槽。回调必须最终实际结束且不能await包含自己的close；关闭请求取消后仍等待它。公共定义的`./schema`保留CG1的Input/Output表示，`./schema/v2`提供Intent/Preview/PromptResult，需同时注册其明确引用的v1 Schema。具体承诺和仍有效的业务源见本包 SPEC。
+## Related packages
+
+- [SQLite state provider](../client-local-state-sqlite/README.md)
+- [HTTPS transport provider](../governance-center-client-https/README.md)
