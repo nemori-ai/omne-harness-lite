@@ -49,3 +49,6 @@ N4 公共形状与纯计算分别归 [core/organization-governance](core/organiz
 R1-T2新增 [身份定义](core/account-identity/SPEC.md)、[注册定义](core/account-registration/SPEC.md) 和
 [装配关闭协调器](core/assembly-lifecycle/SPEC.md)，以及两张网络面共用的 [EntryOpening](core/governance-center-entry/SPEC.md)。
 身份提供者纯根、正式 Service 和真实宿主管理绑定已进入施工验证；完整 L3 验收尚未完成，不能由成员表推断整改已接受。
+
+R1-T4新增 [插件树合成与加载机制](core/cordis-plugin-tree/SPEC.md)，复用装配关闭协调器。
+治理宿主接入与本增量 L3 验收仍在实施中。

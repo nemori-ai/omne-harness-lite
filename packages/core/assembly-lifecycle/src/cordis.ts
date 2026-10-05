@@ -14,13 +14,15 @@ export abstract class AssemblyLifetimeService extends Service implements Assembl
   abstract register: AssemblyLifetimePort['register']
 }
 
+export const ASSEMBLY_LIFETIME_SERVICE = AssemblyLifetimeService.provide
+
 /** Start managed work without tying resource readiness to fiber activation. */
 export function startAssemblyWork(
   ctx: Context,
   setup: () => Promise<void>,
   close: () => Promise<void>,
 ): void {
-  const lifetime = ctx.get('assemblyLifetime')
+  const lifetime = ctx.get(ASSEMBLY_LIFETIME_SERVICE)
   if (!lifetime) throw new Error('Assembly lifetime is required')
   const ready = Promise.withResolvers<void>()
   // Registration failure remains a synchronous usage error, before any effects.

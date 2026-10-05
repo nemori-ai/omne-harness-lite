@@ -1,3 +1,4 @@
+import type { UpgradeConfirmation, UpgradePending } from '@omne-harness-lite/storage'
 import type { Fiber } from '@deepseek-ai/cordis'
 import type { AccountId, LoginStateId, TenantId } from '@omne-harness-lite/identity-values'
 import type { AccountIdentityConfig } from '@omne-harness-lite/account-identity'
@@ -29,11 +30,7 @@ import type {
 } from '@omne-harness-lite/model-request-runtime-local'
 import type { HoldingTenantResult } from '@omne-harness-lite/session-tenancy-table'
 import type { AtomicStorage, MigrationFragment } from '@omne-harness-lite/storage'
-import type {
-  UpgradeConfirmation,
-  UpgradeGuard,
-  UpgradePending,
-} from '@omne-harness-lite/storage-sql'
+import type { UpgradeGuard } from '@omne-harness-lite/storage-sql'
 
 export const BASE_FIBERS = Object.freeze([
   'storage',

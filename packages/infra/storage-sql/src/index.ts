@@ -8,8 +8,6 @@ export {
   UpgradeGuardNotAttached,
   StorageStartupFailure,
   type StorageStartupStage,
-  type UpgradeConfirmation,
-  type UpgradePending,
 } from './upgrade/guard.ts'
 export { type StorageSqlLogger } from './upgrade/owner.ts'
 export {

@@ -641,6 +641,33 @@
       ],
       "status": "adopted",
       "source": ".meta_harness/design/architecture/identity-integration/design.md"
+    },
+    {
+      "id": "plugin-tree-protocol",
+      "paths": [
+        "packages/core/cordis-plugin-tree/src/types.ts",
+        "packages/core/cordis-plugin-tree/src/errors.ts"
+      ],
+      "layer": "contract",
+      "domains": [],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/plugin-tree.md"
+    },
+    {
+      "id": "plugin-tree-assembly-mechanism",
+      "paths": [
+        "packages/core/cordis-plugin-tree/src/index.ts",
+        "packages/core/cordis-plugin-tree/src/data.ts",
+        "packages/core/cordis-plugin-tree/src/tree.ts",
+        "packages/core/cordis-plugin-tree/src/prepare.ts",
+        "packages/core/cordis-plugin-tree/src/prepared.ts",
+        "packages/core/cordis-plugin-tree/src/load.ts",
+        "packages/core/cordis-plugin-tree/src/cordis.ts"
+      ],
+      "layer": "assembly",
+      "domains": [],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/plugin-tree.md"
     }
   ],
   "rules": [

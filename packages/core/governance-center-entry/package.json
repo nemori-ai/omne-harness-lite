@@ -29,7 +29,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@deepseek-ai/cordis": "catalog:"
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

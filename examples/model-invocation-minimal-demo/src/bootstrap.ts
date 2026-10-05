@@ -1,3 +1,4 @@
+import type { UpgradeConfirmation } from '@omne-harness-lite/storage'
 import { STORAGE_SERVICE } from '@omne-harness-lite/storage/cordis'
 import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import { SqlStorageService } from '@omne-harness-lite/storage-sql/cordis'
@@ -228,7 +229,6 @@ import {
   openStorage,
   StorageStartupFailure,
   type SqlStorage,
-  type UpgradeConfirmation,
 } from '@omne-harness-lite/storage-sql'
 import {
   acceptanceMigrations,

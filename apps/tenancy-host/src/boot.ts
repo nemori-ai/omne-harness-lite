@@ -1,3 +1,4 @@
+import type { UpgradeConfirmation } from '@omne-harness-lite/storage'
 import { createHostAssembly } from './assembly.ts'
 // 治理中心的启动与撤除（design「装载清单与顺序」「升级的整体性」「两步开闸」「成对的装载与撤除」）。
 //   [起插件之前] config 解析、密钥配对自检                                  —— 失败：不碰数据
@@ -23,7 +24,6 @@ import {
 import {
   StorageStartupFailure,
   UpgradeGuardNotAttached,
-  type UpgradeConfirmation,
   type UpgradeGuard,
   createUpgradeGuard,
 } from '@omne-harness-lite/storage-sql'
