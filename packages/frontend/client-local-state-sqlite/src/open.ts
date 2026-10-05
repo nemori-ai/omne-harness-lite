@@ -1,7 +1,10 @@
 import { setTimeout as delay } from 'node:timers/promises'
 import { StorageUnavailable } from '@omne-harness-lite/storage'
-import { checkSideFiles, prepareFiles, unavailableIo, type PrivateFiles } from './files.ts'
-import { initialize, LocalState, readRow, type StateStorage } from './store.ts'
+import { checkSideFiles, prepareFiles, type PrivateFiles } from './files.ts'
+import { unavailableIo } from './io-errors.ts'
+import { LocalState, readState } from './store.ts'
+import { initialize, createStatePersistence } from './state-sql.ts'
+import type { LocalStateStorage } from '@omne-harness-lite/client-local-state'
 import { ClientStateOpenFailure } from './open-failure.ts'
 import type {
   ClientLocalState,
@@ -30,7 +33,7 @@ export async function openClientLocalState(
   dependencies: OpenClientLocalStateDependencies,
 ): Promise<ClientLocalStateInstance> {
   let files: PrivateFiles | undefined
-  let storage: StateStorage | undefined
+  let storage: LocalStateStorage | undefined
   try {
     files = await prepareFiles(options.directory)
     const deadline = AbortSignal.timeout(5000)
@@ -46,8 +49,9 @@ export async function openClientLocalState(
       }
     }
     if (files.creator) await initialize(storage)
+    const persistence = createStatePersistence(storage)
     for (;;) {
-      const result = await storage.read(readRow)
+      const result = await persistence.read(readState)
       if (result.kind === 'row') break
       if (result.reason !== 'invalid-record') throw new ClientStateOpenFailure(result.reason)
       // Emptiness belongs to the same snapshot as the failed reading. A second
@@ -59,7 +63,7 @@ export async function openClientLocalState(
     await checkSideFiles(files.file)
     // Every opener confirms its own parent/file directory durability, including competitors.
     await files.sync()
-    return new LocalState(storage, files.sync, files.close)
+    return new LocalState(persistence, files.sync, files.close)
   } catch (error) {
     const cleanup: unknown[] = []
     try {

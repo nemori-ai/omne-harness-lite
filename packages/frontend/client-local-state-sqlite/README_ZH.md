@@ -47,6 +47,8 @@ export async function readLocalRevision(directory: string, storage: LocalStateSt
 
 `close()` 停止准入，并等待实际写入、持久化工作与存储关闭。两种绑定均依赖 `clientStateStorage`；管理绑定还依赖装配 lifetime 端口。详见 [SPEC.md](SPEC.md)。
 
+私有 CAS 策略消费 `state-data.ts` 的记录端口，`state-sql.ts` 在原存储回调内绑定实际操作。打开工厂选择此绑定。见[边界理由](adr/policy-persistence.md)。
+
 ## 开发验证
 
 ```sh

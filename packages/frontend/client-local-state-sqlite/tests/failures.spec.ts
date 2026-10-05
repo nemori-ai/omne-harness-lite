@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { StorageDefect, StorageUnavailable } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { sql } from 'kysely'
-import { LocalState, type StateStorage } from '../src/store.ts'
+import { LocalState } from '../src/store.ts'
+import { createStatePersistence } from '../src/state-sql.ts'
+import type { LocalStateStorage } from '@omne-harness-lite/client-local-state'
 import { config, deferred, fixtures, logged, read } from './support.ts'
 
 describe('commit uncertainty and ownership', () => {
@@ -21,7 +23,7 @@ describe('commit uncertainty and ownership', () => {
 
   it('does not call a completed but unconfirmed commit not-installed', async () => {
     const storage = await fixture()
-    const wrapped: StateStorage = {
+    const wrapped: LocalStateStorage = {
       read: fn => storage.read(fn),
       write: fn => storage.write(fn),
       close: () => storage.close(),
@@ -32,7 +34,7 @@ describe('commit uncertainty and ownership', () => {
     }
     const s = f.own(
       new LocalState(
-        wrapped,
+        createStatePersistence(wrapped),
         async () => {},
         async () => {},
       ),
@@ -50,7 +52,7 @@ describe('commit uncertainty and ownership', () => {
 
   it('keeps uncertainty when an unavailable transaction leaves the original version visible', async () => {
     const storage = await fixture()
-    const wrapped: StateStorage = {
+    const wrapped: LocalStateStorage = {
       read: fn => storage.read(fn),
       write: fn => storage.write(fn),
       close: () => storage.close(),
@@ -60,7 +62,7 @@ describe('commit uncertainty and ownership', () => {
     }
     const s = f.own(
       new LocalState(
-        wrapped,
+        createStatePersistence(wrapped),
         async () => {},
         async () => {},
       ),
@@ -73,7 +75,7 @@ describe('commit uncertainty and ownership', () => {
 
   it('rolls back provisional mutation when the transaction fails', async () => {
     const storage = await fixture()
-    const wrapped: StateStorage = {
+    const wrapped: LocalStateStorage = {
       read: fn => storage.read(fn),
       write: fn => storage.write(fn),
       close: () => storage.close(),
@@ -85,7 +87,7 @@ describe('commit uncertainty and ownership', () => {
     }
     const s = f.own(
       new LocalState(
-        wrapped,
+        createStatePersistence(wrapped),
         async () => {},
         async () => {},
       ),
@@ -100,7 +102,7 @@ describe('commit uncertainty and ownership', () => {
     const storage = await fixture()
     const s = f.own(
       new LocalState(
-        storage,
+        createStatePersistence(storage),
         async () => {
           throw Object.assign(new Error('fsync'), { code: 'EIO' })
         },
@@ -117,7 +119,7 @@ describe('commit uncertainty and ownership', () => {
     const storage = await fixture()
     const s = f.own(
       new LocalState(
-        storage,
+        createStatePersistence(storage),
         async () => {},
         async () => {},
       ),
@@ -153,7 +155,7 @@ describe('commit uncertainty and ownership', () => {
     'propagates defects instead of reporting normal unavailability: %s',
     async fault => {
       const storage = await fixture()
-      const wrapped: StateStorage = {
+      const wrapped: LocalStateStorage = {
         read: fn => storage.read(fn),
         write: fn => storage.write(fn),
         close: () => storage.close(),
@@ -163,7 +165,7 @@ describe('commit uncertainty and ownership', () => {
       }
       const s = f.own(
         new LocalState(
-          wrapped,
+          createStatePersistence(wrapped),
           async () => {},
           async () => {},
         ),
@@ -179,7 +181,7 @@ describe('commit uncertainty and ownership', () => {
     let directoryClosed = false
     const s = f.own(
       new LocalState(
-        storage,
+        createStatePersistence(storage),
         async () => {
           entered.resolve()
           await release.promise
