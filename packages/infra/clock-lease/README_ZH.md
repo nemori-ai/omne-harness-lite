@@ -59,7 +59,7 @@ try {
 }
 ```
 
-直接使用 `LeaseClock` 时，调用者拥有 `start()` 和 `close()` 生命周期。先关时钟，再关存储：关闭会清掉续约定时器，等待定时续约，并尝试收回它最后写入的租约；不会关闭传入的存储。每个实例只使用一轮启动/关闭生命周期，手工调用 `renew()` 时应在关闭前等待它完成。
+直接使用 `LeaseClock` 时，调用者拥有 `start()` 和 `close()` 生命周期。先关时钟，再关存储：关闭先停止新的时间读取及续约、清掉定时器，再等待已开始的定时续约并尝试收回自身租约；不会关闭传入的存储。每个实例只使用一轮启动/关闭生命周期，手工调用 `renew()` 时应在关闭前等待它完成。
 
 ## 通过 Cordis 提供时钟
 
@@ -90,7 +90,9 @@ class Startup extends StorageStartup {
 let storageFiber: Fiber | undefined
 let clockFiber: Fiber | undefined
 try {
-  await ctx.plugin(inner => { new Startup(inner) })
+  await ctx.plugin(inner => {
+    new Startup(inner)
+  })
   storageFiber = ctx.plugin(storageSqlPlugin, {
     dialect: 'sqlite',
     file: join(directory, 'clock.sqlite'),

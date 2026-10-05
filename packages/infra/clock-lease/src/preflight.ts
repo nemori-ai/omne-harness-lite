@@ -3,7 +3,7 @@
 // 与启动判定同一个纯函数 isRolledBack；只读、不建行、不续约；只拒确定回拨，旧租约窗口交给插件启动之后去等。
 import type { Kysely } from 'kysely'
 import type { PreflightCheck } from '@omne-harness-lite/storage'
-import { isRolledBack, systemTimeSources, type TimeSources } from './clock.ts'
+import { isRolledBack, systemTimeSources, type TimeSources } from './lease-policy.ts'
 import { CLOCK_LEASE_TABLE, leaseRow, type ClockLeaseTable } from './lease.ts'
 
 export const CLOCK_PREFLIGHT_CHECK = 'clock-rolled-back'

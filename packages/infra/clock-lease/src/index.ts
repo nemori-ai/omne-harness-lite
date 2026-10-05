@@ -1,18 +1,17 @@
-// clock 服务。设计：.meta_harness/design/realization/packages/infra/clock/。
+// 纯公开面与正式 Cordis 绑定分开。
+export { LeaseClock, type LeaseClockOptions } from './clock.ts'
 export {
-  LeaseClock,
   ClockRollbackDetected,
   isRolledBack,
   systemTimeSources,
+  LEASE_WIDTH_MS,
+  RENEW_PERIOD_MS,
   type TimeSources,
-  type LeaseClockOptions,
   type ClockLogger,
-} from './clock.ts'
+} from './lease-policy.ts'
 export {
   clockLeaseMigration,
   clockMigrations,
-  LEASE_WIDTH_MS,
-  RENEW_PERIOD_MS,
   CLOCK_LEASE_TABLE,
   type ClockLeaseTable,
 } from './lease.ts'
