@@ -8,7 +8,7 @@ import { EntryMaintenance } from '@omne-harness-lite/governance-center-entry/cor
 import type { EntryMaintenanceResources } from '@omne-harness-lite/governance-center-entry'
 import type { Context } from '@deepseek-ai/cordis'
 import { resolveProvider } from '../support/tree.ts'
-import { callOps } from '../../src/maintenance-command.ts'
+import { callOps } from '../../src/ops-client.ts'
 
 const fault = process.argv[2]
 class PendingStorageCompletion extends StorageCompletion {

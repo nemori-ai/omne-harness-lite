@@ -125,3 +125,5 @@ scrypt 派生参数取 credential-verification 的缺省（N = 2^17、r = 8、p 
 [服务模板与操作步骤](deploy/README.md)包含原socket上的full-health/backup/backup-status，以及不依赖serve配置的verify/restore-isolated。命令输出只报告元信息和结果，等待实际输出完成；退出码见该操作说明。CLI/TUI业务协议仍为2，不随本次opsVersion1要求员工升级。
 
 行为依据归[已采用的维护装配](../../.meta_harness/design/realization/apps/tenancy-host/maintenance-binding.md)和[D055](../../.meta_harness/design/record/decisions/governance-online-maintenance-adoption/README.md)，这里维护安装与运行命令。
+
+Maintenance commands use named effects. The assembly selects the existing Unix client and offline inspection provider. Parsing does not acquire resources; the command retains close responsibility for its acquired inspection.

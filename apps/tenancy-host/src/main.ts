@@ -116,9 +116,9 @@ export async function main(
     }
   }
   if (command === 'ops' || command === 'verify' || command === 'restore-isolated') {
-    const { parseMaintenanceCommand, runMaintenanceCommand } =
-      await import('./maintenance-command.ts')
-    const parsed = parseMaintenanceCommand(argv)
+    const { createMaintenanceCommands } = await import('./maintenance-assembly.ts')
+    const commands = createMaintenanceCommands()
+    const parsed = commands.parse(argv)
     if (parsed === undefined) {
       await io.stderr(USAGE)
       return EXIT.usage
@@ -130,7 +130,7 @@ export async function main(
       () => abort.abort(),
     )
     try {
-      return await runMaintenanceCommand(parsed, io, abort.signal)
+      return await commands.run(parsed, io, abort.signal)
     } finally {
       io.releaseShutdownSignal?.()
     }

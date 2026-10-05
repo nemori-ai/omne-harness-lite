@@ -15,7 +15,7 @@ import {
   type Storage,
   type SnapshotMaintenance,
 } from '@omne-harness-lite/storage'
-import { callOps } from '../src/maintenance-command.ts'
+import { callOps } from '../src/ops-client.ts'
 import { hostMigrationFragments } from '../src/migrations.ts'
 import { deployment } from './support/deployment.ts'
 import { Hosts } from './support/host.ts'

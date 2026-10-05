@@ -24,7 +24,6 @@
 SQLite 的单机耐久前提不扩大为整机/磁盘毁损恢复保证。
 PG 迁移后装配失败的整体回滚尚未闭合，不能开放成已支持生产升级路径。
 
-
 本文件约束应用公开类型不能表达的集成行为，依据[已采用的 T4 宿主接缝](../../.meta_harness/design/architecture/identity-integration/host-integration.md)及[采用记录](../../.meta_harness/design/record/decisions/identity-t4-host-coordinates/README.md)。它接续旧 HT2 的装配责任；身份、租户、治理、维护、数据格式及网络业务语义仍由各能力的现行契约拥有。设计采用不表示本批实现已验收。
 
 ## 插件树准备与装载
@@ -53,3 +52,9 @@ PG 迁移后装配失败的整体回滚尚未闭合，不能开放成已支持�
 ## CLI 树配置
 
 `serve [--plugins <file>] [--print-plugins]` 按已采用调用坐标读取 JSON 后交同一准备；两个选项各至多一次，可交换。打印仅输出安全 DTO 数组加换行，不建立停机信号订阅，也不创建实际守卫、目录、库或监听器。语法拒绝为64；文件/JSON或静态准备拒绝为1，使用同一安全启动记录；成功打印为0。常规 serve 沿原信号及真实关闭完成决定退出码。
+
+## 维护命令与提供者选择
+
+command-data.ts 唯一拥有命令与输出端口形状。maintenance-command.ts 只解析、运行及决定退出码，消费具名校验、ops调用、离线lease和失败转换。maintenance-assembly.ts 选择原提供者，main 只在原维护分支选择它；构造不打开inspection、不读取迁移检查结果。
+
+离线路径保持原open→create→操作→finally close顺序；create失败仍关闭已取得的同一inspection，open失败不虚构关闭。ops-client.ts 保持一次Unix请求及原HTTP校验、字节上限、取消和socket清理；取消仅结束本地等待，不能撤销或重投远端。诊断、输出失败、未知结果及退出码不变。原信号、读取门和dispose故障注入保持实际路径。
