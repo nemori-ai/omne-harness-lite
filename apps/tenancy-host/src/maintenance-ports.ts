@@ -17,3 +17,11 @@ export interface MaintenanceCommandEffects {
   openOffline(workDirectory: string): Promise<OfflineLease>
   failureResult(error: unknown): unknown
 }
+
+export interface OpsClientProtocol {
+  readonly socketName: string
+  readonly readReplyBody: (
+    operation: Extract<MaintenanceCommand, { kind: 'ops' }>['operation'],
+    bytes: Uint8Array,
+  ) => unknown
+}

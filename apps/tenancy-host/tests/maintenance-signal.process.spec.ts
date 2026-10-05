@@ -15,10 +15,12 @@ import {
   type Storage,
   type SnapshotMaintenance,
 } from '@omne-harness-lite/storage'
-import { callOps } from '../src/ops-client.ts'
+import { createOpsClient } from '../src/maintenance-assembly.ts'
 import { hostMigrationFragments } from '../src/migrations.ts'
 import { deployment } from './support/deployment.ts'
 import { Hosts } from './support/host.ts'
+
+const callOps = createOpsClient()
 
 const hosts = new Hosts()
 const roots: string[] = []

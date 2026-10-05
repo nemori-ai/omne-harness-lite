@@ -57,4 +57,4 @@ PG 迁移后装配失败的整体回滚尚未闭合，不能开放成已支持�
 
 command-data.ts 唯一拥有命令与输出端口形状。maintenance-command.ts 只解析、运行及决定退出码，消费具名校验、ops调用、离线lease和失败转换。maintenance-assembly.ts 选择原提供者，main 只在原维护分支选择它；构造不打开inspection、不读取迁移检查结果。
 
-离线路径保持原open→create→操作→finally close顺序；create失败仍关闭已取得的同一inspection，open失败不虚构关闭。ops-client.ts 保持一次Unix请求及原HTTP校验、字节上限、取消和socket清理；取消仅结束本地等待，不能撤销或重投远端。诊断、输出失败、未知结果及退出码不变。原信号、读取门和dispose故障注入保持实际路径。
+离线路径保持原open→create→操作→finally close顺序；create失败仍关闭已取得的同一inspection，open失败不虚构关闭。ops-client.ts 的socket名称和原回复解码函数由maintenance-assembly.ts通过必需私有OpsClientProtocol注入；createOpsClient仅绑定，不连接或提前解码。ops-client.ts 保持一次Unix请求及原HTTP校验、字节上限、取消和socket清理；取消仅结束本地等待，不能撤销或重投远端。诊断、输出失败、未知结果及退出码不变。原信号、读取门和dispose故障注入保持实际路径。

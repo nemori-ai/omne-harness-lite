@@ -1,15 +1,16 @@
 import { connect } from 'node:net'
 import { join } from 'node:path'
-import { OPS_SOCKET_NAME, readOpsReplyBody } from '@omne-harness-lite/governance-center-entry-node'
+import type { OpsClientProtocol } from './maintenance-ports.ts'
 import type { MaintenanceCommand } from './command-data.ts'
 
 /** One request, no retries. Disconnect only abandons the client's wait. */
 export function callOps(
   command: Extract<MaintenanceCommand, { kind: 'ops' }>,
   signal: AbortSignal,
+  protocol: OpsClientProtocol,
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    const socket = connect(join(command.socketDirectory, OPS_SOCKET_NAME))
+    const socket = connect(join(command.socketDirectory, protocol.socketName))
     let done = false
     let bytes = Buffer.alloc(0)
     const finish = (error?: Error, value?: unknown) => {
@@ -57,7 +58,7 @@ export function callOps(
         return
       }
       try {
-        finish(undefined, readOpsReplyBody(command.operation, bytes.subarray(boundary + 4)))
+        finish(undefined, protocol.readReplyBody(command.operation, bytes.subarray(boundary + 4)))
       } catch {
         abort()
       }

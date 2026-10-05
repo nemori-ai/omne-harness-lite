@@ -1,4 +1,6 @@
 import {
+  OPS_SOCKET_NAME,
+  readOpsReplyBody,
   createOfflineMaintenance,
   maintenanceFailureResult,
   validMaintenanceLocation,
@@ -9,12 +11,21 @@ import { composedMigrationNames, hostMigrationFragments } from './migrations.ts'
 import { callOps } from './ops-client.ts'
 import { parseMaintenanceCommand, runMaintenanceCommand } from './maintenance-command.ts'
 import type { MaintenanceCommand, MaintenanceCommandIo } from './command-data.ts'
-import type { MaintenanceCommandEffects } from './maintenance-ports.ts'
+import type { MaintenanceCommandEffects, OpsClientProtocol } from './maintenance-ports.ts'
+
+export function createOpsClient() {
+  const protocol: OpsClientProtocol = {
+    socketName: OPS_SOCKET_NAME,
+    readReplyBody: readOpsReplyBody,
+  }
+  return (command: Extract<MaintenanceCommand, { kind: 'ops' }>, signal: AbortSignal) =>
+    callOps(command, signal, protocol)
+}
 
 export function createMaintenanceCommands() {
   const effects: MaintenanceCommandEffects = {
     validLocation: validMaintenanceLocation,
-    callOps,
+    callOps: createOpsClient(),
     async openOffline(workDirectory) {
       const inspection = await openSnapshotInspection(workDirectory)
       return {
