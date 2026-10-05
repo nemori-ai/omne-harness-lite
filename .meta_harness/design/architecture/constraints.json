@@ -998,6 +998,105 @@
       ],
       "status": "adopted",
       "source": "packages/tenancy/organization-governance-sql/SPEC.md"
+    },
+    {
+      "id": "r1-t5-entry-ops-assembly",
+      "paths": [
+        "packages/tenancy/governance-center-entry-node/src/entry.ts",
+        "packages/tenancy/governance-center-entry-node/src/index.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/entry.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/health-sources.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/index.ts",
+        "packages/tenancy/governance-center-entry-node/src/routing/decide.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "identity",
+        "admission"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/governance-center-entry-node/SPEC.md"
+    },
+    {
+      "id": "r1-t5-entry-ops-contract",
+      "paths": [
+        "packages/tenancy/governance-center-entry-node/src/center-id/snapshot-structure.ts",
+        "packages/tenancy/governance-center-entry-node/src/center-id/table.ts",
+        "packages/tenancy/governance-center-entry-node/src/entry-config.ts",
+        "packages/tenancy/governance-center-entry-node/src/entry-dependencies.ts",
+        "packages/tenancy/governance-center-entry-node/src/json-shapes.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/config.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/dependencies.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/limits.ts",
+        "packages/tenancy/governance-center-entry-node/src/routing/record-shapes.ts",
+        "packages/tenancy/governance-center-entry-node/src/schema-inputs.ts",
+        "packages/tenancy/governance-center-entry-node/src/service-faces.ts"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity",
+        "admission"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/governance-center-entry-node/SPEC.md"
+    },
+    {
+      "id": "r1-t5-entry-ops-interaction",
+      "paths": [
+        "packages/tenancy/governance-center-entry-node/src/json.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/face.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/health.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/http1.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/maintenance-wire.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/socket.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/wire.ts",
+        "packages/tenancy/governance-center-entry-node/src/routing/answers.ts",
+        "packages/tenancy/governance-center-entry-node/src/routing/record.ts",
+        "packages/tenancy/governance-center-entry-node/src/routing/route-wire.ts",
+        "packages/tenancy/governance-center-entry-node/src/routing/schema.ts",
+        "packages/tenancy/governance-center-entry-node/src/transport/client-face.ts"
+      ],
+      "layer": "interaction",
+      "domains": [
+        "identity",
+        "admission"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/governance-center-entry-node/SPEC.md"
+    },
+    {
+      "id": "r1-t5-entry-ops-policy",
+      "paths": [
+        "packages/tenancy/governance-center-entry-node/src/routing/caller.ts",
+        "packages/tenancy/governance-center-entry-node/src/routing/decision-policy.ts",
+        "packages/tenancy/governance-center-entry-node/src/routing/routes.ts",
+        "packages/tenancy/governance-center-entry-node/src/routing/value-shapes.ts",
+        "packages/tenancy/governance-center-entry-node/src/work.ts"
+      ],
+      "layer": "policy",
+      "domains": [
+        "identity",
+        "admission"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/governance-center-entry-node/SPEC.md"
+    },
+    {
+      "id": "r1-t5-entry-ops-storage-adapter",
+      "paths": [
+        "packages/tenancy/governance-center-entry-node/src/center-id/migrations.ts",
+        "packages/tenancy/governance-center-entry-node/src/center-id/preflight.ts",
+        "packages/tenancy/governance-center-entry-node/src/center-id/read-or-mint.ts",
+        "packages/tenancy/governance-center-entry-node/src/center-id/snapshot.ts",
+        "packages/tenancy/governance-center-entry-node/src/ops/health-probe.ts"
+      ],
+      "layer": "storage-adapter",
+      "domains": [
+        "identity",
+        "admission"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/governance-center-entry-node/SPEC.md"
     }
   ],
   "rules": [
