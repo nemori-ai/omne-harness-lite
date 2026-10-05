@@ -1,0 +1,42 @@
+{
+  "name": "@omne-harness-lite/governance-client-operations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "governance-client-operations public definitions and Cordis services",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    },
+    "./schema": "./schema/governance-client-operations.schema.json",
+    "./schema/v2": "./schema/governance-client-operations-v2.schema.json"
+  },
+  "files": [
+    "dist",
+    "SPEC.md",
+    "schema"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/client-local-state": "workspace:*",
+    "@omne-harness-lite/governance-center-entry-https-json": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

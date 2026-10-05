@@ -94,24 +94,48 @@ importers:
 
   apps/cli:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@earendil-works/pi-tui':
         specifier: 'catalog:'
         version: 1.0.0(patch_hash=a2c748dd3dc3e866ab9a5f788c123accdcdcdf2ac43d6f137c4358c3dcad856c)
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../packages/core/assembly-lifecycle
       '@omne-harness-lite/client-local-state':
         specifier: workspace:*
-        version: link:../../packages/frontend/client-local-state
-      '@omne-harness-lite/governance-center-client':
+        version: link:../../packages/core/client-local-state
+      '@omne-harness-lite/client-local-state-sqlite':
         specifier: workspace:*
-        version: link:../../packages/frontend/governance-center-client
+        version: link:../../packages/frontend/client-local-state-sqlite
+      '@omne-harness-lite/governance-center-client-https':
+        specifier: workspace:*
+        version: link:../../packages/frontend/governance-center-client-https
+      '@omne-harness-lite/governance-center-entry':
+        specifier: workspace:*
+        version: link:../../packages/core/governance-center-entry
+      '@omne-harness-lite/governance-center-entry-https-json':
+        specifier: workspace:*
+        version: link:../../packages/core/governance-center-entry-https-json
       '@omne-harness-lite/governance-client-operations':
         specifier: workspace:*
-        version: link:../../packages/frontend/governance-client-operations
+        version: link:../../packages/core/governance-client-operations
+      '@omne-harness-lite/governance-client-operations-local':
+        specifier: workspace:*
+        version: link:../../packages/frontend/governance-client-operations-local
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../packages/core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../packages/core/kernel-basis
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../packages/core/offer-expiry
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../packages/infra/storage-sql
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
@@ -787,6 +811,25 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
+  packages/core/client-local-state:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/storage':
+        specifier: workspace:*
+        version: link:../storage
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
   packages/core/content-blocks:
     dependencies:
       '@omne-harness-lite/identity-values':
@@ -811,6 +854,44 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/governance-center-entry-https-json:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/core/governance-client-operations:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/client-local-state':
+        specifier: workspace:*
+        version: link:../client-local-state
+      '@omne-harness-lite/governance-center-entry-https-json':
+        specifier: workspace:*
+        version: link:../governance-center-entry-https-json
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1227,14 +1308,20 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
-  packages/frontend/client-local-state:
+  packages/frontend/client-local-state-sqlite:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
-      '@omne-harness-lite/governance-center-client':
+      '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
-        version: link:../governance-center-client
+        version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/client-local-state':
+        specifier: workspace:*
+        version: link:../../core/client-local-state
+      '@omne-harness-lite/governance-center-entry':
+        specifier: workspace:*
+        version: link:../../core/governance-center-entry
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
@@ -1247,9 +1334,6 @@ importers:
       '@omne-harness-lite/storage':
         specifier: workspace:*
         version: link:../../core/storage
-      '@omne-harness-lite/storage-sql':
-        specifier: workspace:*
-        version: link:../../infra/storage-sql
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
@@ -1257,6 +1341,9 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1270,39 +1357,20 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
 
-  packages/frontend/governance-center-client:
-    dependencies:
-      '@omne-harness-lite/identity-values':
-        specifier: workspace:*
-        version: link:../../core/identity-values
-      '@omne-harness-lite/offer-expiry':
-        specifier: workspace:*
-        version: link:../../core/offer-expiry
-      ajv:
-        specifier: 'catalog:'
-        version: 8.20.0
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.13.6
-      typescript:
-        specifier: 'catalog:'
-        version: 6.0.3
-      vitest:
-        specifier: 'catalog:'
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
-
-  packages/frontend/governance-client-operations:
+  packages/frontend/governance-center-client-https:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
-      '@omne-harness-lite/client-local-state':
+      '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
-        version: link:../client-local-state
-      '@omne-harness-lite/governance-center-client':
+        version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/governance-center-entry':
         specifier: workspace:*
-        version: link:../governance-center-client
+        version: link:../../core/governance-center-entry
+      '@omne-harness-lite/governance-center-entry-https-json':
+        specifier: workspace:*
+        version: link:../../core/governance-center-entry-https-json
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
@@ -1319,6 +1387,61 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(yaml@2.9.1))
+
+  packages/frontend/governance-client-operations-local:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness-lite/assembly-lifecycle':
+        specifier: workspace:*
+        version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/client-local-state':
+        specifier: workspace:*
+        version: link:../../core/client-local-state
+      '@omne-harness-lite/governance-center-entry':
+        specifier: workspace:*
+        version: link:../../core/governance-center-entry
+      '@omne-harness-lite/governance-center-entry-https-json':
+        specifier: workspace:*
+        version: link:../../core/governance-center-entry-https-json
+      '@omne-harness-lite/governance-client-operations':
+        specifier: workspace:*
+        version: link:../../core/governance-client-operations
+      '@omne-harness-lite/identity-values':
+        specifier: workspace:*
+        version: link:../../core/identity-values
+      '@omne-harness-lite/kernel-basis':
+        specifier: workspace:*
+        version: link:../../core/kernel-basis
+      '@omne-harness-lite/offer-expiry':
+        specifier: workspace:*
+        version: link:../../core/offer-expiry
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness-lite/client-local-state-sqlite':
+        specifier: workspace:*
+        version: link:../client-local-state-sqlite
+      '@omne-harness-lite/governance-center-client-https':
+        specifier: workspace:*
+        version: link:../governance-center-client-https
+      '@omne-harness-lite/storage-sql':
+        specifier: workspace:*
+        version: link:../../infra/storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1912,6 +2035,9 @@ importers:
       '@omne-harness-lite/governance-center-entry':
         specifier: workspace:*
         version: link:../../core/governance-center-entry
+      '@omne-harness-lite/governance-center-entry-https-json':
+        specifier: workspace:*
+        version: link:../../core/governance-center-entry-https-json
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values

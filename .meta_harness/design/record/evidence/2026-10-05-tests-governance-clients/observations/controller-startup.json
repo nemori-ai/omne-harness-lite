@@ -1,0 +1,228 @@
+{
+  "base": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+  "commit": "7df742c4b7b0c5d735da2245605be682b6a35f7c",
+  "working_tree": "clean-candidate",
+  "candidate_input_manifest": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/inputs/candidate-tracked-before.json",
+  "run_id": "r1-t3-actual-controller-startup",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "exit_code": 0,
+  "results": [
+    {
+      "id": "cli-cancel-only",
+      "status": "Pass",
+      "expected": 2,
+      "code": 2,
+      "metrics": {
+        "opens": 1,
+        "physicalCloses": 1,
+        "factoryCloses": 1,
+        "pureCreated": 0,
+        "pureCloseCalls": 0
+      },
+      "events": [
+        "SQLite-open-entered",
+        "actual-stop-barrier-while-open-held",
+        "SQLite-actually-opened",
+        "CLS-storage-actually-closed",
+        "factory-actually-closed"
+      ],
+      "stdout": [
+        "{\"format\":\"governance-client/1\",\"actionId\":\"ede5e0e7-60ae-4406-ad68-6d8c5ee16ee6\",\"action\":\"health\",\"operation\":null,\"origin\":{\"centerId\":null,\"accountId\":null,\"loginStateHandle\":null},\"admission\":{\"status\":\"blocked\",\"reason\":\"invalid-input\"},\"remote\":{\"status\":\"not-attempted\",\"stage\":\"none\",\"sendAttempted\":false},\"local\":{\"status\":\"not-requested\"},\"view\":{\"source\":\"none\"},\"use\":\"ended\"}\n"
+      ],
+      "stderr": [
+        "omne: input-cancelled\n"
+      ]
+    },
+    {
+      "id": "cli-cancel-open-unavailable",
+      "status": "Pass",
+      "expected": 3,
+      "code": 3,
+      "metrics": {
+        "opens": 1,
+        "physicalCloses": 0,
+        "factoryCloses": 1,
+        "pureCreated": 0,
+        "pureCloseCalls": 0
+      },
+      "events": [
+        "SQLite-open-entered",
+        "actual-stop-barrier-while-open-held",
+        "factory-actually-closed"
+      ],
+      "stdout": [
+        "{\"format\":\"governance-client/1\",\"actionId\":\"b2e70021-a431-4895-ac89-6d3c36a662f4\",\"action\":\"health\",\"operation\":null,\"origin\":{\"centerId\":null,\"accountId\":null,\"loginStateHandle\":null},\"admission\":{\"status\":\"blocked\",\"reason\":\"local-unavailable\"},\"remote\":{\"status\":\"not-attempted\",\"stage\":\"none\",\"sendAttempted\":false},\"local\":{\"status\":\"not-requested\"},\"view\":{\"source\":\"none\"},\"use\":\"ended\"}\n"
+      ],
+      "stderr": [
+        "omne: state-unavailable\n"
+      ]
+    },
+    {
+      "id": "cli-cancel-open-invalid",
+      "status": "Pass",
+      "expected": 2,
+      "code": 2,
+      "metrics": {
+        "opens": 1,
+        "physicalCloses": 0,
+        "factoryCloses": 1,
+        "pureCreated": 0,
+        "pureCloseCalls": 0
+      },
+      "events": [
+        "SQLite-open-entered",
+        "actual-stop-barrier-while-open-held",
+        "factory-actually-closed"
+      ],
+      "stdout": [
+        "{\"format\":\"governance-client/1\",\"actionId\":\"93671072-be9b-432a-9320-eb4301162c29\",\"action\":\"health\",\"operation\":null,\"origin\":{\"centerId\":null,\"accountId\":null,\"loginStateHandle\":null},\"admission\":{\"status\":\"blocked\",\"reason\":\"invalid-record\"},\"remote\":{\"status\":\"not-attempted\",\"stage\":\"none\",\"sendAttempted\":false},\"local\":{\"status\":\"not-requested\"},\"view\":{\"source\":\"none\"},\"use\":\"ended\"}\n"
+      ],
+      "stderr": [
+        "omne: state-invalid\n"
+      ]
+    },
+    {
+      "id": "cli-cancel-open-and-cleanup-defect",
+      "status": "Pass",
+      "expected": 70,
+      "code": 70,
+      "metrics": {
+        "opens": 1,
+        "physicalCloses": 1,
+        "factoryCloses": 1,
+        "pureCreated": 0,
+        "pureCloseCalls": 0
+      },
+      "events": [
+        "SQLite-open-entered",
+        "actual-stop-barrier-while-open-held",
+        "SQLite-actually-opened",
+        "CLS-storage-actually-closed",
+        "factory-actually-closed"
+      ],
+      "stdout": [
+        "{\"format\":\"governance-client/1\",\"actionId\":\"cc9e4d33-2e83-4399-8d25-fe2f31781b1b\",\"action\":\"health\",\"operation\":null,\"origin\":{\"centerId\":null,\"accountId\":null,\"loginStateHandle\":null},\"admission\":{\"status\":\"blocked\",\"reason\":\"defect\"},\"remote\":{\"status\":\"not-attempted\",\"stage\":\"none\",\"sendAttempted\":false},\"local\":{\"status\":\"not-requested\"},\"view\":{\"source\":\"none\"},\"use\":\"ended\",\"defect\":{\"stage\":\"input\",\"code\":\"internal-defect\"}}\n"
+      ],
+      "stderr": [
+        "omne: internal-defect\n"
+      ]
+    },
+    {
+      "id": "tui-cancel-only",
+      "status": "Pass",
+      "expected": 2,
+      "code": 2,
+      "metrics": {
+        "opens": 1,
+        "physicalCloses": 1,
+        "factoryCloses": 1,
+        "pureCreated": 0,
+        "pureCloseCalls": 0
+      },
+      "events": [
+        "SQLite-open-entered",
+        "input-stop-entered",
+        "input-actually-ended",
+        "actual-stop-barrier-while-open-held",
+        "SQLite-actually-opened",
+        "restore-entered",
+        "restore-actually-ended",
+        "CLS-storage-actually-closed",
+        "factory-actually-closed"
+      ],
+      "stdout": [
+        "\r\nGovernance TUI ended. Exit status: 2.\n"
+      ],
+      "stderr": [
+        "omne: input-cancelled\n"
+      ]
+    },
+    {
+      "id": "tui-cancel-open-unavailable",
+      "status": "Pass",
+      "expected": 3,
+      "code": 3,
+      "metrics": {
+        "opens": 1,
+        "physicalCloses": 0,
+        "factoryCloses": 1,
+        "pureCreated": 0,
+        "pureCloseCalls": 0
+      },
+      "events": [
+        "SQLite-open-entered",
+        "input-stop-entered",
+        "input-actually-ended",
+        "actual-stop-barrier-while-open-held",
+        "restore-entered",
+        "restore-actually-ended",
+        "factory-actually-closed"
+      ],
+      "stdout": [
+        "\r\nGovernance TUI ended. Exit status: 3.\n"
+      ],
+      "stderr": [
+        "omne: state-unavailable\n"
+      ]
+    },
+    {
+      "id": "tui-cancel-open-invalid",
+      "status": "Pass",
+      "expected": 2,
+      "code": 2,
+      "metrics": {
+        "opens": 1,
+        "physicalCloses": 0,
+        "factoryCloses": 1,
+        "pureCreated": 0,
+        "pureCloseCalls": 0
+      },
+      "events": [
+        "SQLite-open-entered",
+        "input-stop-entered",
+        "input-actually-ended",
+        "actual-stop-barrier-while-open-held",
+        "restore-entered",
+        "restore-actually-ended",
+        "factory-actually-closed"
+      ],
+      "stdout": [
+        "\r\nGovernance TUI ended. Exit status: 2.\n"
+      ],
+      "stderr": [
+        "omne: state-invalid\n"
+      ]
+    },
+    {
+      "id": "tui-cancel-open-and-cleanup-defect",
+      "status": "Pass",
+      "expected": 70,
+      "code": 70,
+      "metrics": {
+        "opens": 1,
+        "physicalCloses": 1,
+        "factoryCloses": 1,
+        "pureCreated": 0,
+        "pureCloseCalls": 0
+      },
+      "events": [
+        "SQLite-open-entered",
+        "input-stop-entered",
+        "input-actually-ended",
+        "actual-stop-barrier-while-open-held",
+        "SQLite-actually-opened",
+        "CLS-storage-actually-closed",
+        "restore-entered",
+        "restore-actually-ended",
+        "factory-actually-closed"
+      ],
+      "stdout": [
+        "\r\nGovernance TUI ended. Exit status: 70.\n"
+      ],
+      "stderr": [
+        "omne: internal-defect\n"
+      ]
+    }
+  ],
+  "boundary": "actual CLI/TUI, managed CLS and SQLite; explicit open result faults retain original state/defect priority; no fake app handle"
+}

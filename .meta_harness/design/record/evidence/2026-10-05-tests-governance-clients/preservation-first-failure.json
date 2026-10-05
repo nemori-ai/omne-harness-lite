@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-05T01:43:06.481853+00:00",
+  "command": "python3 r1-t3/preserve.py <primary>/tmp/arch-intent/remediation/r1-t3-69492d46c",
+  "exit_code": 1,
+  "failure": "AttributeError: PosixPath has no attribute readlink (verification phase)",
+  "classification": "preservation facility only; archive exists but readback incomplete, not accepted preservation",
+  "fix": "os.readlink(str(p)); preserve original failed archive; run new destination r2",
+  "root_disposition_correction": "首份工作树外归档保留了误将88条都描述为IC-4的root说明。此次按原规则更正：IC-4 73、IC-2 13、IC-1 1、IC-3 1；原读数未改。"
+}

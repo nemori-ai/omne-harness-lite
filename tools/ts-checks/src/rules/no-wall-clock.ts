@@ -19,7 +19,7 @@ export const noWallClock: Rule = {
       if (
         isTestPath(file.path) ||
         file.path.startsWith('infra/') ||
-        file.path === 'frontend/governance-client-operations/src/observation-time.ts'
+        file.path === 'frontend/governance-client-operations-local/src/observation-time.ts'
       )
         continue
       const syntax = syntaxOf(file)

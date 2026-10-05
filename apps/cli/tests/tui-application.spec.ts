@@ -1,3 +1,4 @@
+import { fixtureAssembly } from './support/client-assembly.ts'
 import { expect, it, vi } from 'vitest'
 import type {
   ActionReport,
@@ -100,13 +101,18 @@ function fixture() {
     order.push('restore')
     await originalRestore()
   }
-  const runtime: TuiRuntime = {
+  const openState = vi.fn(async () => {
+    return state
+  })
+  const createClient = vi.fn(() => client)
+  const runtime: TuiRuntime & { openState: typeof openState; createClient: typeof createClient } = {
     ...tuiProviders(),
     home: '/home',
     signal: controller.signal,
     terminal: vi.fn(async () => terminal),
-    openState: vi.fn(async () => state),
-    createClient: () => client,
+    openState,
+    createClient,
+    createAssembly: options => fixtureAssembly(options, openState, createClient),
     stdout: async text => {
       outputs.push(text)
     },

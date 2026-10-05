@@ -1,0 +1,81 @@
+TLC2 Version 2026.09.12.025210 (rev: 867aefb)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 70 and seed 5530295430951457876 with 1 worker on 8 cores with 7824MB heap and 64MB offheap memory [pid: 60712] (Linux 5.15.0-1084-aws amd64, Eclipse Adoptium 21.0.12.1 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/cli-formal-base/cq2-bad-release/TuiDelivery.tla
+Parsing file /tmp/tlc-2244342469659013915/Naturals.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-2244342469659013915/_TLCTrace.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /tmp/tlc-2244342469659013915/TLC.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-2244342469659013915/TLCExt.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /tmp/tlc-2244342469659013915/Sequences.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-2244342469659013915/FiniteSets.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-2244342469659013915/Integers.tla (jar:file:/opt/tlaplus/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module TuiDelivery
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module TuiDelivery
+Starting... (2026-10-04 23:09:55)
+Implied-temporal checking--satisfiability problem has 1 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-04 23:09:56.
+Error: Invariant BorrowedStateReleasedLast is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ pending = 2
+/\ revision = 0
+/\ inputDone = TRUE
+/\ cgQuiet = FALSE
+/\ lateWrite = FALSE
+/\ targetCount = 0
+/\ restored = FALSE
+/\ admittedInvisible = FALSE
+/\ flight = 2
+/\ phase = "editing"
+/\ visible = 2
+/\ localClosed = FALSE
+/\ workDone = TRUE
+/\ actualWrite = FALSE
+
+State 2: <Stop line 52, col 9 to line 55, col 89 of module TuiDelivery>
+/\ pending = 2
+/\ revision = 0
+/\ inputDone = TRUE
+/\ cgQuiet = FALSE
+/\ lateWrite = FALSE
+/\ targetCount = 0
+/\ restored = FALSE
+/\ admittedInvisible = FALSE
+/\ flight = 2
+/\ phase = "closing"
+/\ visible = 2
+/\ localClosed = FALSE
+/\ workDone = TRUE
+/\ actualWrite = FALSE
+
+State 3: <Release line 67, col 12 to line 71, col 47 of module TuiDelivery>
+/\ pending = 2
+/\ revision = 0
+/\ inputDone = TRUE
+/\ cgQuiet = FALSE
+/\ lateWrite = FALSE
+/\ targetCount = 0
+/\ restored = FALSE
+/\ admittedInvisible = FALSE
+/\ flight = 2
+/\ phase = "closed"
+/\ visible = 2
+/\ localClosed = TRUE
+/\ workDone = TRUE
+/\ actualWrite = FALSE
+
+13 states generated, 10 distinct states found, 5 states left on queue.
+The depth of the complete state graph search is 3.
+Finished in 00s at (2026-10-04 23:09:56)
+Trace exploration spec path: ./TuiDelivery_TTrace_1791155395.tla

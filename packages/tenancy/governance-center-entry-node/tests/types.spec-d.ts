@@ -5,11 +5,11 @@ import type { MigrationFragment, PreflightCheck } from '@omne-harness-lite/stora
 import type { Caller } from '../src/routing/caller.ts'
 import {
   type GovernanceCenterEntryConfig,
-  type GovernanceCenterId,
   type GovernanceCenterOpsConfig,
   governanceCenterMigrations,
   governanceCenterPreflight,
 } from '../src/index.ts'
+import { type GovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
 
 describe('公开入口的类型', () => {
   it('EntryOpening 与两份配置的公共形状', () => {

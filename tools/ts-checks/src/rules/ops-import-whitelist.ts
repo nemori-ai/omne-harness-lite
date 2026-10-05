@@ -1,6 +1,13 @@
-import type { Rule, Violation } from '../rule.ts'
+import ts from 'typescript'
+import type { Rule, Violation, SourceFile } from '../rule.ts'
 import { ENTRY_EVENTS, ENTRY_OPS, ENTRY_SRC, productSourceIn } from '../layout.ts'
-import { importsOf, lineAt, resolveRelative, withoutExtension } from '../source-text.ts'
+import {
+  importsOf,
+  lineAt,
+  resolveRelative,
+  withoutExtension,
+  type ImportRef,
+} from '../source-text.ts'
 
 /** 非治理的第三方：内核与 config 校验（主线 2026-09-23 裁决纳入白名单）。 */
 const THIRD_PARTY = new Set(['@deepseek-ai/cordis', 'zod'])
@@ -77,7 +84,7 @@ export const opsImportWhitelist: Rule = {
           : inMaintenance
             ? judgeMaintenanceImport(file.path, ref.specifier)
             : inReadonlyLeaf
-              ? judgeReadonlyLeaf(file.path, ref.specifier)
+              ? judgeReadonlyLeaf(file, ref)
               : judgeEventsImport(ref.specifier)
         if (verdict !== undefined) {
           out.push({
@@ -135,7 +142,9 @@ function judgeMaintenanceImport(path: string, specifier: string | undefined): st
   return `维护模块导入了 ${specifier}；仅允许本维护目录、存储/时间/身份值协议、严格JSON、Schema校验及中心身份只读检查`
 }
 
-function judgeReadonlyLeaf(path: string, specifier: string | undefined): string | undefined {
+function judgeReadonlyLeaf(file: SourceFile, ref: ImportRef): string | undefined {
+  const { path } = file
+  const { specifier } = ref
   if (specifier === undefined) return '运维只读叶子的动态导入说明符不是字面量'
   const module = withoutExtension(path)
   const resolved = resolveRelative(path, specifier)
@@ -166,6 +175,11 @@ function judgeReadonlyLeaf(path: string, specifier: string | undefined): string 
   if (module === `${ENTRY_SRC}center-id/snapshot`) {
     if (specifier === '@omne-harness-lite/storage') return undefined
     if (
+      specifier === '@omne-harness-lite/governance-center-entry' &&
+      centerIdentityOnly(file, ref.index)
+    )
+      return undefined
+    if (
       resolved !== undefined &&
       [`${ENTRY_SRC}center-id/table`, `${ENTRY_SRC}center-id/snapshot-structure`].includes(
         withoutExtension(resolved),
@@ -179,4 +193,25 @@ function judgeReadonlyLeaf(path: string, specifier: string | undefined): string 
   )
     return undefined
   return `运维只读叶子导入了 ${specifier}；不得经叶子绕过治理与写入口边界`
+}
+
+/** T3 moved these two readonly definitions out of the local table module. */
+function centerIdentityOnly(file: SourceFile, index: number): boolean {
+  const source = ts.createSourceFile(file.path, file.text, ts.ScriptTarget.Latest, true)
+  const statement = source.statements.find(node => node.pos <= index && index < node.end)
+  if (!statement || !ts.isImportDeclaration(statement)) return false
+  const clause = statement.importClause
+  const bindings = clause?.namedBindings
+  return (
+    !!clause &&
+    !clause.name &&
+    !!bindings &&
+    ts.isNamedImports(bindings) &&
+    bindings.elements.length > 0 &&
+    bindings.elements.every(element =>
+      ['GovernanceCenterId', 'isGovernanceCenterId'].includes(
+        (element.propertyName ?? element.name).text,
+      ),
+    )
+  )
 }

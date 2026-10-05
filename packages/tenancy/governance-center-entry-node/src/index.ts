@@ -41,14 +41,4 @@ export {
   GovernanceCenterIdentityError,
   type GovernanceCenterIdentityFailure,
 } from './center-id/read-or-mint.ts'
-export {
-  GOVERNANCE_CENTER_TABLE,
-  type GovernanceCenterId,
-  isGovernanceCenterId,
-} from './center-id/table.ts'
-export {
-  ACCEPTED_PROTOCOL_VERSIONS,
-  PUBLIC_HEALTH_ROUTE,
-  ROUTE_IDS,
-  type RouteId,
-} from './routing/route-ids.ts'
+export { GOVERNANCE_CENTER_TABLE } from './center-id/table.ts'

@@ -168,6 +168,30 @@ describe('D055 maintenance import boundary', () => {
     )
     expect(opsImportWhitelist.check([events, ops, source])).toEqual([])
   })
+  it('allows only the two migrated center identity names on the snapshot leaf', () => {
+    const target = '@omne-harness-lite/governance-center-entry'
+    const read = file(
+      `${E}src/center-id/snapshot.ts`,
+      `import { isGovernanceCenterId as valid, type GovernanceCenterId } from '${target}'`,
+    )
+    expect(opsImportWhitelist.check([events, ops, read])).toEqual([])
+    for (const text of [
+      `import { EntryOpening } from '${target}'`,
+      `import { isGovernanceCenterId, EntryOpening } from '${target}'`,
+      `import * as entry from '${target}'`,
+      `import entry from '${target}'`,
+      `import '${target}'`,
+      `export { isGovernanceCenterId } from '${target}'`,
+      `const entry = await import('${target}')`,
+      `const entry = require('${target}')`,
+      `import { EntryOpeningService } from '${target}/cordis'`,
+    ]) {
+      const unsafe = file(`${E}src/center-id/snapshot.ts`, text)
+      expect(opsImportWhitelist.check([events, ops, unsafe])).toHaveLength(1)
+    }
+    const wrongLeaf = file(`${E}src/center-id/table.ts`, read.text)
+    expect(opsImportWhitelist.check([events, ops, wrongLeaf])).toHaveLength(1)
+  })
   it('checks every permitted readonly leaf instead of trusting its filename', () => {
     for (const leaf of [
       'json.ts',

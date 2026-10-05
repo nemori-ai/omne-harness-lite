@@ -73,7 +73,7 @@ S1 的探针/模型不是 S3 真实业务组合通过的替代。遇到承诺或
 | T2-Q4 | credentials 缺席/替换、账号双面/组织四面撤除、注册暂停在各步、旧代际不发下一步；在途完成后依赖才释放 | QA 真实 Cordis + 实际业务 Promise，非仅替身关闭计数 |
 | T2-Q5 | AI login/commit/credentialRevision、OG、AR crash/progress 原模型的全部受影响配置与负控；IR-CC-1 按原 S-8 关闭 | 主线形式运行与 QA 判据复核，不放宽原模型前提 |
 | T3-Q1 | ActionIntent/use/公开传输/CLS 全集，全部 CLI/TUI import 迁移，替代传输和本地状态无需改业务组合 | 静态图、真实制品及 QA 替换测试 |
-| T3-Q2 | register/login、31 普通路由、health/logout/configure；远端成功而本地 CAS 失败、未知、并发换绑、prepared 取消晚完成、退出码 | QA SQLite/TLS/CLI；影响交互则真实 PTY 和 exit restore |
+| T3-Q2 | 31 条线上路由（29 invoke 加 register/login）、health/logout/configure；远端成功而本地 CAS 失败、未知、并发换绑、prepared 取消晚完成、退出码 | QA SQLite/TLS/CLI；影响交互则真实 PTY 和 exit restore |
 | T3-Q3 | CLS 私有文件/并发初始化/耐久 CAS、close 真完成；强制撤 CLS 时 CG 等远端后的 CAS 可完成；transport 不自动重试、不泄露凭据、不混淆 sendAttempted | QA 实际 OS 文件/网络故障及旧形式模型 |
 | T4-Q1 | 两层来源、稳定 id、完整 config 替换、换 provider、禁用/插入；重复/悬空/非法 JSON/module/export/config/声明全拒绝；八职责与必需/可选服务依赖声明在 apply 前核对，实际 ACTIVE 后核所供键 | QA loader 正负控，诊断凭据诱饵不得泄漏；保持原行 id 却换 helper、停用后插入等价角色分别拒绝/成功；可选缺席允许，后置提供者拒绝 |
 | T4-Q2 | 真实 host 先校验→全 ACTIVE→确认→开闸；确认前/后失败分别恢复/不恢复，Unix/TLS 与 maintenance 仍成立 | QA clean checkout 真实 SQLite、端口、socket、升级/维护故障 |

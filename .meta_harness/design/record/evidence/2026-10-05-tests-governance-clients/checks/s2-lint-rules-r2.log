@@ -1,0 +1,9 @@
+
+> omne-harness-lite-workspace@ lint:rules /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent
+> pnpm --filter @omne-harness-lite/ts-checks run scan
+
+
+> @omne-harness-lite/ts-checks@0.0.0 scan /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tools/ts-checks
+> node --experimental-strip-types src/cli.ts ../../packages ../../apps ../../examples
+
+PASS: ts-checks 27 包规则 + 8 仓库路径规则，扫描 /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/packages、/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/apps、/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/examples 及仓库执行模块，1 份验收的覆盖声明，1018 个提交的署名与删卡 trailer，无违反。

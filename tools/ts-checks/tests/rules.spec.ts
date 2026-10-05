@@ -14,10 +14,10 @@ const file = (path: string, text: string): SourceFile => ({ path, text })
 describe('no-wall-clock', () => {
   it('CG1显示时刻仅豁免具名文件，其余frontend和领域文件仍报错', () => {
     const observation = file(
-      'frontend/governance-client-operations/src/observation-time.ts',
+      'frontend/governance-client-operations-local/src/observation-time.ts',
       'new Date()',
     )
-    const action = file('frontend/governance-client-operations/src/actions.ts', 'new Date()')
+    const action = file('frontend/governance-client-operations-local/src/actions.ts', 'new Date()')
     const domain = file('tenancy/account-identity-sql/src/observation-time.ts', 'new Date()')
     expect(noWallClock.check([observation, action, domain]).map(x => x.path)).toEqual([
       action.path,

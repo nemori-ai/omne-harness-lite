@@ -1,4 +1,4 @@
-// group-direction 的两向夹具：故意违反必须报出，合规必须无违反；真实仓库在已登记例外下无违反。
+// group-direction 的两向夹具：故意违反必须报出，合规必须无违反；真实仓库不再需要前端到基础设施的例外。
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { runRules, type SourceFile } from '../src/index.ts'
@@ -130,16 +130,21 @@ describe('group-direction', () => {
   })
 
   // 归慢层：重 CPU：读取并解析整个真实仓库的成员源码。
-  it('真实仓库：现状在已登记例外下无违反；撤掉例外即报出那条边', { tags: ['slow'] }, () => {
+  it('真实仓库严格方向通过；注回已退役的前端到SQL依赖必须失败', { tags: ['slow'] }, () => {
     const root = fileURLToPath(new URL('../../../', import.meta.url))
     const sources = collectMemberSources(root)
     expect(sources.length).toBeGreaterThan(100)
     expect(runRules(sources, [groupDirection])).toEqual([])
     const strict = createGroupDirection({ ...GROUP_DIRECTION_POLICY, exceptions: [] })
-    const found = strict.check(sources)
-    expect(found.length).toBeGreaterThan(0)
-    expect(found.every(v => v.path.startsWith('packages/frontend/client-local-state/src/'))).toBe(
-      true,
+    expect(strict.check(sources)).toEqual([])
+    const forbidden = file(
+      'packages/frontend/client-local-state-sqlite/src/reintroduced-sql.ts',
+      imports('storage-sql'),
     )
+    const found = strict.check([...sources, forbidden])
+    expect(found.length).toBeGreaterThan(0)
+    expect(
+      found.every(v => v.path.startsWith('packages/frontend/client-local-state-sqlite/src/')),
+    ).toBe(true)
   })
 })

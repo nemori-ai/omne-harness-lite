@@ -42,7 +42,7 @@
       },
       {
         "paths": ["packages/tenancy/governance-center-entry-node/tests/fixtures/tls/**"],
-        "members": ["packages/frontend/governance-client-operations"],
+        "members": ["packages/frontend/governance-client-operations-local"],
         "why": "governance-client-operations tests/prepared.spec.ts 读 governance-center-entry 的 TLS 夹具，没有声明依赖"
       },
       {

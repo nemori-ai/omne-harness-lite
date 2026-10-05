@@ -19,10 +19,11 @@ import {
   routeSuccessBytes,
 } from '../src/routing/answers.ts'
 import { decide } from '../src/routing/decide.ts'
-import { ROUTE_IDS } from '../src/routing/route-ids.ts'
+import { ROUTE_IDS } from '@omne-harness-lite/governance-center-entry'
 import { routeFor } from '../src/routing/routes.ts'
 import { RequestFramer } from '../src/ops/http1.ts'
-import { RECEIVE_LIMITS, isGovernanceCenterId } from '../src/index.ts'
+import { RECEIVE_LIMITS } from '../src/index.ts'
+import { isGovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
 import { StubParticipants } from './support/stubs.ts'
 
 const EXAMPLES = join(

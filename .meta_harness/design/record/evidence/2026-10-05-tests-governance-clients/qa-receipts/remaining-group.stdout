@@ -1,0 +1,10 @@
+{"id":"external-types","exit_code":0,"duration_ms":4606.431029}
+{"id":"packed-runtime-boundary","exit_code":0,"duration_ms":58.95984599999974}
+{"id":"packed-declaration-closure","exit_code":0,"duration_ms":3296.90441}
+{"id":"formal-readback","exit_code":0,"duration_ms":69.89156999999977}
+{"id":"cli-formal-readback","exit_code":0,"duration_ms":51.151614999999765}
+{"id":"affected-typecheck","exit_code":2,"duration_ms":10234.108271}
+{"id":"shared-lifetime-tests","exit_code":0,"duration_ms":2676.158775}
+{"id":"host-lifecycle-tests","exit_code":0,"duration_ms":9136.991589999998}
+{"id":"changed-rule-controls","exit_code":0,"duration_ms":51867.036521999995}
+{"id":"current-conformance","exit_code":0,"duration_ms":8931.926702000012}

@@ -1,0 +1,5 @@
+
+> omne-harness-lite-workspace@ test:format /data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent
+> ./scripts/test-formatting.sh
+
+Formatting scope, idempotence, staged-index, real-commit, editor-path, and hook-install tests passed.

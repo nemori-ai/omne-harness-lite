@@ -1,16 +1,14 @@
 import { homedir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
+import { exitStatus, type ActionReport } from '@omne-harness-lite/governance-client-operations'
+import { createClientAssembly } from './assembly.ts'
 import {
-  openClientLocalState,
-  ClientStateOpenFailure,
-  type ClientLocalStateInstance,
-} from '@omne-harness-lite/client-local-state'
-import {
-  createGovernanceClient,
-  exitStatus,
-  type GovernanceClientOperations,
-  type ActionReport,
-} from '@omne-harness-lite/governance-client-operations'
+  assemblyCloseDiagnostics,
+  ClientAssemblyStateFailure,
+  ClientAssemblyStopped,
+  type ClientAssembly,
+  type ClientAssemblyFactory,
+} from './client-assembly.ts'
 import { diagnosticText, InputFailure, type Diagnostic } from './diagnostic.ts'
 import { buildIntent, readSecrets } from './input.ts'
 import { commands, parseInvocation, type Invocation } from './parser.ts'
@@ -26,20 +24,18 @@ export interface CliRuntime {
   readonly signal: AbortSignal
   readonly stdout: (text: string) => Promise<void>
   readonly stderr: (text: string) => Promise<void>
-  readonly openState: typeof openClientLocalState
-  readonly createClient: typeof createGovernanceClient
+  readonly createAssembly: ClientAssemblyFactory
   readonly intent: typeof buildIntent
   readonly secrets: typeof readSecrets
 }
 export function providers(): Pick<
   CliRuntime,
-  'home' | 'openState' | 'createClient' | 'intent' | 'secrets' | 'version'
+  'home' | 'createAssembly' | 'intent' | 'secrets' | 'version'
 > {
   return {
     home: homedir(),
     version: versionText,
-    openState: openClientLocalState,
-    createClient: createGovernanceClient,
+    createAssembly: createClientAssembly,
     intent: buildIntent,
     secrets: readSecrets,
   }
@@ -102,21 +98,10 @@ export async function runCli(args: readonly string[], runtime: CliRuntime): Prom
     await diagnose(invocation.diagnostic)
     return emit(unopened(invocation.command, 'invalid-input'))
   }
-  let state: ClientLocalStateInstance | undefined, client: GovernanceClientOperations | undefined
+  let assembly: ClientAssembly | undefined
   let report: ActionReport | undefined,
     admitted = false
-  let closing: Promise<void> | undefined
-  const requestClose = () => {
-    if (client !== undefined && closing === undefined) {
-      // Observe rejection now; the ordinary owner below still awaits the same result.
-      try {
-        closing = client.close()
-      } catch {
-        closing = Promise.reject(new Error('client-close-failed'))
-      }
-      void closing.catch(() => {})
-    }
-  }
+  const requestClose = () => assembly?.requestStop()
   runtime.signal.addEventListener('abort', requestClose)
   try {
     const intent = await runtime.intent(invocation, runtime.signal)
@@ -127,9 +112,9 @@ export async function runCli(args: readonly string[], runtime: CliRuntime): Prom
       (isAbsolute(runtime.home) ? join(runtime.home, '.omne-harness-lite') : undefined)
     if (typeof directory !== 'string' || !isAbsolute(directory))
       throw new InputFailure('invalid-options')
-    state = await runtime.openState({ directory })
+    assembly = runtime.createAssembly({ directory })
+    const client = await assembly.ready
     if (runtime.signal.aborted) throw new InputFailure('input-cancelled')
-    client = runtime.createClient({ state })
     admitted = true
     report = await client.runPrepared(intent, async (preview, signal) => {
       if (!invocation.machine) {
@@ -155,10 +140,13 @@ export async function runCli(args: readonly string[], runtime: CliRuntime): Prom
     if (admitted) {
       applicationFailed = true
       await diagnose('internal-defect')
-    } else if (error instanceof InputFailure) {
-      await diagnose(error.code)
+    } else if (
+      error instanceof InputFailure ||
+      (error instanceof ClientAssemblyStopped && runtime.signal.aborted)
+    ) {
+      await diagnose(error instanceof InputFailure ? error.code : 'input-cancelled')
       report = unopened(invocation.command, 'invalid-input')
-    } else if (error instanceof ClientStateOpenFailure) {
+    } else if (error instanceof ClientAssemblyStateFailure) {
       const reason =
         error.reason === 'unavailable'
           ? 'local-unavailable'
@@ -172,23 +160,27 @@ export async function runCli(args: readonly string[], runtime: CliRuntime): Prom
       report = unopened(invocation.command, 'defect', true)
     }
   } finally {
-    let quiet = client === undefined
-    if (client !== undefined) {
+    if (assembly) {
       requestClose()
+      let quiet = false
       try {
-        await closing
+        await assembly.clientStopped
         quiet = true
       } catch {
         applicationFailed = true
         await diagnose('client-close-failed')
       }
-    }
-    if (state !== undefined && quiet) {
-      try {
-        await state.close()
-      } catch {
-        applicationFailed = true
-        await diagnose('state-close-failed')
+      if (quiet) {
+        assembly.releasePresentation()
+        try {
+          for (const code of assemblyCloseDiagnostics(await assembly.closed)) {
+            applicationFailed = true
+            await diagnose(code)
+          }
+        } catch {
+          applicationFailed = true
+          await diagnose('internal-defect')
+        }
       }
     }
     runtime.signal.removeEventListener('abort', requestClose)

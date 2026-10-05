@@ -1,3 +1,4 @@
+import type { EntryAnswer } from '@omne-harness-lite/governance-center-entry-https-json'
 import { StorageUnavailable, type AtomicStorage } from '@omne-harness-lite/storage'
 import {
   parseLoginStatePresentation,
@@ -17,12 +18,7 @@ import {
 } from '@omne-harness-lite/identity-values'
 import { type DuplicateMember, readJsonText } from '../json.ts'
 import { RECEIVE_LIMITS } from '../ops/limits.ts'
-import {
-  type EntryAnswer,
-  entryAnswerBytes,
-  routeFailureBytes,
-  routeSuccessBytes,
-} from './answers.ts'
+import { entryAnswerBytes, routeFailureBytes, routeSuccessBytes } from './answers.ts'
 import { type Authentication, type Caller, authenticate } from './caller.ts'
 import {
   type Call,
@@ -32,7 +28,10 @@ import {
   tenantCorrelation,
   thrownValue,
 } from './record.ts'
-import { ACCEPTED_PROTOCOL_VERSIONS, PUBLIC_HEALTH_ROUTE } from './route-ids.ts'
+import {
+  ACCEPTED_PROTOCOL_VERSIONS,
+  PUBLIC_HEALTH_ROUTE,
+} from '@omne-harness-lite/governance-center-entry'
 import {
   type AuthenticatedRoute,
   type EntryServices,

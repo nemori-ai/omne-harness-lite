@@ -76,9 +76,9 @@ packages/core/{identity-values,offer-expiry,kernel-basis,storage}
 packages/infra/{storage-sql,clock}     存储与时钟提供者（sqlite/pg、租约时钟）
 packages/tenancy/{credential-verification,account-identity,organization-governance-sql,account-registration}
                                        tenancy 插件与公开服务实现；完整成员从 packages/README 查找
-packages/frontend/governance-center-client
-packages/frontend/client-local-state
-packages/frontend/governance-client-operations
+packages/frontend/governance-center-client-https
+packages/frontend/client-local-state-sqlite
+packages/frontend/governance-client-operations-local
                                        治理协议运输、本地完整状态与共享治理用例
 apps/cli/                             治理CLI应用；文件输入增量
 examples/model-invocation-minimal-demo/ 真实模型调用、持久多轮交互示例

@@ -22,7 +22,7 @@ import type {
 } from '@omne-harness-lite/organization-governance'
 import { formatInstant } from '../ops/wire.ts'
 import type { Caller } from './caller.ts'
-import type { RouteId } from './route-ids.ts'
+import type { RouteId } from '@omne-harness-lite/governance-center-entry'
 
 /**
  * 入口层经 inject 取得的参与方面，收窄到本表调用的方法：`logins` 没有 `verify`（AI S-17 只给进程内），

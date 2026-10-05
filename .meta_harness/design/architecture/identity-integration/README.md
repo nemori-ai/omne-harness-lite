@@ -2,7 +2,8 @@
 
 状态：R1-D0 设计已限定采用，T2 产品已通过独立 L3 并获
 [限定技术接受](../../record/decisions/identity-capabilities-delivery/decision.md)。
-八个管理绑定与真实宿主已接入。T3 公共操作和 T4 插件树仍待实施，
+八个管理绑定与真实宿主已接入。T3 公共操作、客户端及 CLI 生命周期已获
+[限定产品接受](../../record/decisions/governance-clients-delivery/decision.md)。T4 插件树仍待实施，
 完整身份领域尚未验收。设计采用范围见
 [决定](../../record/decisions/identity-integration-design/decision.md)。输入基线为
 `588628544ab92bd542f24efa1801634eb6eee56e`。
@@ -20,6 +21,8 @@ T2 的精确管理绑定坐标及 entry 提前物理改名由
 | 服务定义、包、依赖和 Cordis 投影 | [目标设计](design.md) |
 | 跨消费者排空、关闭结果及开闸代际 | [有序收尾](retirement.md) |
 | 新插件树及具名运行资源的精确候选 | [装配协议](plugin-tree.md) |
+| T3 精确工厂、绑定、Schema 和 CLI 关闭投影 | [客户端集成](client-integration.md) |
+| CG关闭拒绝、启动前缀和终端恢复次序 | [CLI生命周期](cli-lifecycle.md) |
 | 类型外承诺及薄规格落点 | [行为迁移](behavior.md) |
 | 实施顺序、验证和释放条件 | [施工与验收](delivery.md) |
 

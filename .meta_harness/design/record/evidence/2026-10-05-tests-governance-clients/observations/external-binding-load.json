@@ -1,0 +1,146 @@
+{
+  "base": "beef18017170eb70cae2c6bf3afb121b18a0139e",
+  "commit": "69492d46c10ec27bbc6943c7194d8be2d7b259d2",
+  "working_tree": "clean-candidate",
+  "candidate_input_manifest": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/inputs/candidate-tracked-final.json",
+  "run_id": "r1-t3-external-binding-load",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "exit_code": 0,
+  "records": [
+    {
+      "name": "@omne-harness-lite/client-local-state/cordis",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+client-local-state@file+..+tarballs+omne-harness-lite-client-local-state-0.0.0.tgz/node_modules/@omne-harness-lite/client-local-state/dist/cordis.js",
+      "exports": [
+        "CLIENT_LOCAL_STATE_SERVICE",
+        "CLIENT_STATE_STORAGE_SERVICE",
+        "ClientLocalStateService",
+        "ClientStateStorage"
+      ],
+      "plugins": [],
+      "status": "Pass"
+    },
+    {
+      "name": "@omne-harness-lite/governance-client-operations/cordis",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-client-operations@file+..+tarballs+omne-harness-lite-gove_ae999c49ff5ecc7693ee02f7f3248dd4/node_modules/@omne-harness-lite/governance-client-operations/dist/cordis.js",
+      "exports": [
+        "GOVERNANCE_CLIENT_CLOSE_OBSERVER_SERVICE",
+        "GOVERNANCE_CLIENT_OPERATIONS_SERVICE",
+        "GovernanceClientCloseObserver",
+        "GovernanceClientOperationsService"
+      ],
+      "plugins": [],
+      "status": "Pass"
+    },
+    {
+      "name": "@omne-harness-lite/governance-center-entry-https-json/cordis",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-center-entry-https-json@file+..+tarballs+omne-harness-lit_c67d0ab4b9bd12d4eb2102a94efaf834/node_modules/@omne-harness-lite/governance-center-entry-https-json/dist/cordis.js",
+      "exports": [
+        "GOVERNANCE_TRANSPORT_SERVICE",
+        "GovernanceTransportService"
+      ],
+      "plugins": [],
+      "status": "Pass"
+    },
+    {
+      "name": "@omne-harness-lite/governance-center-entry/cordis",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-center-entry@file+..+tarballs+omne-harness-lite-governance-center-entry-0.0.0.tgz/node_modules/@omne-harness-lite/governance-center-entry/dist/cordis.js",
+      "exports": [
+        "ENTRY_OPENING_SERVICE",
+        "EntryOpening"
+      ],
+      "plugins": [],
+      "status": "Pass"
+    },
+    {
+      "name": "@omne-harness-lite/client-local-state-sqlite/cordis",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+client-local-state-sqlite@file+..+tarballs+omne-harness-lite-client-local-state-sqlite-0.0.0.tgz/node_modules/@omne-harness-lite/client-local-state-sqlite/dist/cordis.js",
+      "exports": [
+        "clientLocalStatePlugin",
+        "managedClientLocalStatePlugin"
+      ],
+      "plugins": [
+        {
+          "key": "clientLocalStatePlugin",
+          "name": "client-local-state-sqlite",
+          "apply_is_async": true,
+          "inject": [
+            "clientStateStorage"
+          ],
+          "assemblyLifecycle": null
+        },
+        {
+          "key": "managedClientLocalStatePlugin",
+          "name": "client-local-state-sqlite-managed",
+          "apply_is_async": false,
+          "inject": [
+            "clientStateStorage",
+            "assemblyLifetime"
+          ],
+          "assemblyLifecycle": 1
+        }
+      ],
+      "status": "Pass"
+    },
+    {
+      "name": "@omne-harness-lite/governance-client-operations-local/cordis",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-client-operations-local@file+..+tarballs+omne-harness-lit_0a5fc5ff9504b52796d852334517a755/node_modules/@omne-harness-lite/governance-client-operations-local/dist/cordis.js",
+      "exports": [
+        "governanceClientOperationsPlugin",
+        "managedGovernanceClientOperationsPlugin"
+      ],
+      "plugins": [
+        {
+          "key": "governanceClientOperationsPlugin",
+          "name": "governance-client-operations-local",
+          "apply_is_async": true,
+          "inject": [
+            "clientLocalState",
+            "governanceTransport"
+          ],
+          "assemblyLifecycle": null
+        },
+        {
+          "key": "managedGovernanceClientOperationsPlugin",
+          "name": "governance-client-operations-local-managed",
+          "apply_is_async": false,
+          "inject": [
+            "clientLocalState",
+            "governanceTransport",
+            "governanceClientCloseObserver",
+            "assemblyLifetime"
+          ],
+          "assemblyLifecycle": 1
+        }
+      ],
+      "status": "Pass"
+    },
+    {
+      "name": "@omne-harness-lite/governance-center-client-https/cordis",
+      "resolved": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t3/qa-candidate-e0706e327/evidence/packed/consumer/node_modules/.pnpm/@omne-harness-lite+governance-center-client-https@file+..+tarballs+omne-harness-lite-go_f6a9ae19c39ffda5ee08612586f92ee2/node_modules/@omne-harness-lite/governance-center-client-https/dist/cordis.js",
+      "exports": [
+        "governanceTransportPlugin",
+        "managedGovernanceTransportPlugin"
+      ],
+      "plugins": [
+        {
+          "key": "governanceTransportPlugin",
+          "name": "governance-center-client-https",
+          "apply_is_async": true,
+          "inject": [],
+          "assemblyLifecycle": null
+        },
+        {
+          "key": "managedGovernanceTransportPlugin",
+          "name": "governance-center-client-https-managed",
+          "apply_is_async": false,
+          "inject": [
+            "assemblyLifetime"
+          ],
+          "assemblyLifecycle": 1
+        }
+      ],
+      "status": "Pass"
+    }
+  ],
+  "boundary": "Actual installed tarballs, module loading and qualified metadata only. Real lifetime/setup/withdrawal/close are separate frozen actual assembly observations."
+}

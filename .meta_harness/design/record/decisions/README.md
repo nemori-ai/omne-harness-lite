@@ -2,6 +2,10 @@
 
 # 决定
 
+[治理客户端与 CLI 集成的限定产品接受](governance-clients-delivery/README.md)：R1-T3 公共定义、限定提供者、正式绑定与实际收场完成；插件树、领域验收与旧范式退役仍待。
+
+[T3 客户端集成坐标的限定采用](identity-t3-binding-coordinates/README.md)：公共工厂、双面绑定、拥有传输实例及 CLI 收尾；M05 与实际产品验收仍待。
+
 [身份与治理能力的限定产品接受](identity-capabilities-delivery/README.md)：R1-T2 公共定义、纯工厂、正式 Service 和真实宿主管理生命周期；业务及数据身份保持，T3/T4 与领域完成门继续开放。
 
 [kernel-basis 公共入口分面的限定采用](kernel-basis-entry-split-adoption/README.md)：R1-T1a 精确候选的纯根、Cordis 绑定及消费者迁移；业务语义保持，其他领域整改和验证设施缺口继续保留。

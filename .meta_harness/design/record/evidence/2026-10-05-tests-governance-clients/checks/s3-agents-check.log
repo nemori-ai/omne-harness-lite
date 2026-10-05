@@ -1,0 +1,4 @@
+PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness --check
+PASS: checked 196 files for all; host loading and model behavior not tested.
+PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/link_agents.py --project-root . --check
+PASS: three relative project links checked.

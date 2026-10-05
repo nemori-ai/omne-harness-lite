@@ -1,0 +1,22 @@
+{
+  "inputs/cls/LocalChoice.tla": "99b2140d38d55dd7fcf1e3a056e7fb036564e6c665b607a7d94f8b49070d5336",
+  "inputs/cls/bad-claim.cfg": "910f51ab9fcf7fc4112851cc5e981f2b54495ec2589bb4a4185ef9a7c673dff2",
+  "inputs/cls/bad-split.cfg": "546ffc63d4c8056cba6f79767cba8aa44fe8c188f76a728a247074ff1591f1a7",
+  "inputs/cls/README.md": "83d2fe79d5f7ef6b7696f9ee5f65bbd2d42072a878fc26623e4263a87b3cc85a",
+  "inputs/cls/valid.cfg": "1196f314940a7621975dfdb4a0506d50e6c2a4bf0cefb28f1010d2812b459aea",
+  "inputs/cls/bad-instance.cfg": "ca12472aa080ef9e504905be34c4441de7e5baf73e7928500686d821d2eb74c5",
+  "inputs/cg1/bad-release.cfg": "b68145d7880b4463a885cc77172a59fe7ffe6a7e4f526416fc0b0a4e010c43f6",
+  "inputs/cg1/bad-flatten.cfg": "a01ca7545f9caf866131455c5c6ae6ac7ec214632a49cccf4f7c7cae7ba25f8f",
+  "inputs/cg1/bad-late.cfg": "7a93abe42fca9dbeb8b808a32105b6c6dd3d1cf7609eb31da925a4f0193edf9d",
+  "inputs/cg1/UseLifecycle.tla": "55d4d42d11d7adc573feeaaa54fa2bd5ef22550c572af9eb769e11529246baa1",
+  "inputs/cg1/README.md": "df67808afd16ce98b709cf6f384fe716956fced34b3c9a5027e82a20979344b4",
+  "inputs/cg1/valid.cfg": "43fd9fa103b73b3694723dbd4b2e8baae324cb8d541c4e9a0212f4423e5cba69",
+  "inputs/cg1/bad-follow.cfg": "2593d6a4c19aedd292f946c4c88a48607ddf4896d0688eb8ca81e9b5f01298e1",
+  "inputs/cg2/bad-release.cfg": "606b7a7f202b15e817e49d4c4a2fd2084cfa2d73a502c450581bb606d0ebe469",
+  "inputs/cg2/bad-late.cfg": "8eb9f5ab739bf2665dfc943f659ea376bfb53d7fb166d6725c79308cc2e73afe",
+  "inputs/cg2/bad-forget.cfg": "d3ae3a2d17e08b4ed44a6f374875275129f25ac201c5b19de4086c2be83f5ae6",
+  "inputs/cg2/PreparedInput.tla": "2b7b74069970f893c1fbe4b66080e597c441c9a63cc7685f7a475807c8fe308c",
+  "inputs/cg2/README.md": "52f72957c9a226b80dbafe1e3a8a69e8a531b14af84505a478a2b97b7ed4fb62",
+  "inputs/cg2/valid.cfg": "c7144268c66fecd5bf30693fcbd315cd0c010c2c17b4c84437019ff2fc6a91cc",
+  "inputs/cg2/bad-follow.cfg": "7e58ea2e26913b970c46330ef0000dada572ec4dae2a89c81db38a6189d7af13"
+}

@@ -24,9 +24,9 @@ const owners = new Set([
   'packages/core/slash-command',
   'packages/session/session-tenancy-table',
   'packages/tenancy/governance-center-entry-node',
-  'packages/frontend/client-local-state',
-  'packages/frontend/governance-center-client',
-  'packages/frontend/governance-client-operations',
+  'packages/frontend/client-local-state-sqlite',
+  'packages/frontend/governance-center-client-https',
+  'packages/frontend/governance-client-operations-local',
   'apps/cli',
 ])
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')

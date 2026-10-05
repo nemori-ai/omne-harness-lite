@@ -6,11 +6,12 @@
 // 控制字符用 \b\t\n\f\r 或小写 \u00xx，孤立代理码点写 \u 加小写四位，其余码点原样写 UTF-8），
 // 不插空白；成员按插入次序写出（本契约的成员名都不是整数形，不受「整数键先排」影响）。
 import { responseBytes } from '../ops/wire.ts'
-import type { GovernanceCenterId } from '../center-id/table.ts'
+import type { GovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
 
-/** 四种入口答复（S-6）：四值封闭、互不合并。 */
-export type EntryAnswer =
-  'version-mismatch' | 'login-state-rejected' | 'unavailable' | 'invalid-input'
+import type {
+  EntryAnswer,
+  PublicHealthReply,
+} from '@omne-harness-lite/governance-center-entry-https-json'
 
 const ENTRY_ANSWERS: Record<EntryAnswer, Buffer> = {
   'version-mismatch': responseBytes(JSON.stringify('version-mismatch')),
@@ -36,5 +37,7 @@ export function routeFailureBytes(name: string): Buffer {
 
 /** 公开体检答复（S-18；https-json/1 S-15）：恰三样、恰此次序；一次运行期间是一份固定字节。 */
 export function publicHealthBytes(centerId: GovernanceCenterId, version: string): Buffer {
-  return responseBytes(JSON.stringify({ reachable: true, centerId, version }))
+  return responseBytes(
+    JSON.stringify({ reachable: true, centerId, version } satisfies PublicHealthReply),
+  )
 }

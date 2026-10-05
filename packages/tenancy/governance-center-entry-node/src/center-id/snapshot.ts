@@ -5,12 +5,11 @@ import {
   type SnapshotCheck,
   type SnapshotView,
 } from '@omne-harness-lite/storage'
+import { GOVERNANCE_CENTER_TABLE, type GovernanceCenterTable } from './table.ts'
 import {
-  GOVERNANCE_CENTER_TABLE,
   isGovernanceCenterId,
   type GovernanceCenterId,
-  type GovernanceCenterTable,
-} from './table.ts'
+} from '@omne-harness-lite/governance-center-entry'
 import { snapshotTables } from './snapshot-structure.ts'
 
 export const CENTER_SNAPSHOT_TABLES = Object.freeze(snapshotTables.map(table => table.name))
