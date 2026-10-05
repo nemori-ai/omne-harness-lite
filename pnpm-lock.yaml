@@ -1509,6 +1509,9 @@ importers:
       '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
         version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
       '@omne-harness-lite/kernel-basis':
         specifier: workspace:*
         version: link:../../core/kernel-basis
@@ -1931,6 +1934,9 @@ importers:
       '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
         version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
@@ -1983,6 +1989,9 @@ importers:
       '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
         version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
@@ -2038,6 +2047,9 @@ importers:
       '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
         version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values
@@ -2157,6 +2169,9 @@ importers:
       '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
         version: link:../../core/assembly-lifecycle
+      '@omne-harness-lite/cordis-plugin-tree':
+        specifier: workspace:*
+        version: link:../../core/cordis-plugin-tree
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../../core/identity-values

@@ -24,6 +24,10 @@ Clock 不拥有传入的 Storage，不能关闭它。
 
 ## 依据及未迁责任
 
+managedClockPlugin 同步登记同一时钟的启动和真实关闭，使用公共服务键直接注入。
+纯 describeAssembly 声明提供 clock、必需 storage，投影已校验的完整空配置为 tenancy-host/clock v1。
+声明和代际责任沿[插件树协议](../../core/cordis-plugin-tree/SPEC.md)，不更改租约算法及原参数。
+
 未迁行为及验证义务继续归[旧节点设计](../../../.meta_harness/design/realization/packages/infra/clock/design.md)与[验证义务](../../../.meta_harness/design/realization/packages/infra/clock/verification.md)。
 本页只接续本批公开集成承诺；不据本页退役其余旧正文。
 集成边界依据 [D-114](../../../.meta_harness/design/record/decisions/cordis-integration-conventions/decision.md)，承诺归属依据 [D-115](../../../.meta_harness/design/record/decisions/actual-architecture-and-thin-spec/decision.md)。

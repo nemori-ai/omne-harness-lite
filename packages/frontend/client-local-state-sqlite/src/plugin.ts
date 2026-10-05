@@ -1,5 +1,5 @@
 import {
-  AssemblyLifetimeService,
+  ASSEMBLY_LIFETIME_SERVICE,
   startAssemblyWork,
 } from '@omne-harness-lite/assembly-lifecycle/cordis'
 import { type Context } from '@deepseek-ai/cordis'
@@ -47,7 +47,7 @@ export const clientLocalStatePlugin = definePlugin<OpenClientLocalStateOptions>(
 export const managedClientLocalStatePlugin = Object.assign(
   definePlugin<OpenClientLocalStateOptions>({
     name: 'client-local-state-sqlite-managed',
-    inject: [CLIENT_STATE_STORAGE_SERVICE, AssemblyLifetimeService.provide],
+    inject: [CLIENT_STATE_STORAGE_SERVICE, ASSEMBLY_LIFETIME_SERVICE],
     Config: clientLocalStateConfig,
     apply(ctx, config) {
       let resource: ClientLocalStateInstance | undefined

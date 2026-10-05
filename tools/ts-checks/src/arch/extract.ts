@@ -883,6 +883,77 @@ class Extractor {
       }
     })
   }
+  pluginDefinition(
+    reference: ts.Node,
+    seen = new Set<ts.Node>(),
+    allowMetadata = true,
+  ): ts.Node | undefined {
+    const value = this.resolver.value(reference)
+    if (value === undefined || seen.has(value)) return undefined
+    seen.add(value)
+    if (ts.isObjectLiteralExpression(value)) return value
+    const declaration = this.resolver.declaration(reference)
+    if (declaration !== undefined && ts.isClassDeclaration(declaration)) return declaration
+    if (!ts.isCallExpression(value)) return undefined
+    if (
+      value.arguments.length === 1 &&
+      ['@omne-harness-lite/kernel-basis', '@omne-harness-lite/kernel-basis/cordis'].some(module =>
+        this.resolver.imported(value.expression, 'definePlugin', module),
+      )
+    ) {
+      const object = this.resolver.value(value.arguments[0])
+      return object !== undefined && ts.isObjectLiteralExpression(object) ? object : undefined
+    }
+    // Only append the adopted metadata. Overrides, spread, getters and arbitrary calls stay unknown.
+    const callee = value.expression
+    if (
+      !allowMetadata ||
+      value.arguments.length !== 2 ||
+      !ts.isPropertyAccessExpression(callee) ||
+      callee.name.text !== 'assign' ||
+      !ts.isIdentifier(callee.expression) ||
+      callee.expression.text !== 'Object' ||
+      this.resolver.declaration(callee.expression) !== undefined
+    )
+      return undefined
+    const metadata = this.resolver.value(value.arguments[1])
+    if (metadata === undefined || !ts.isObjectLiteralExpression(metadata)) return undefined
+    const keys = new Set<string>()
+    for (const item of metadata.properties) {
+      if (!ts.isPropertyAssignment(item) && !ts.isShorthandPropertyAssignment(item))
+        return undefined
+      const key = nodeName(item.name)
+      if (
+        key === undefined ||
+        !['assemblyLifecycle', 'describeAssembly'].includes(key) ||
+        keys.has(key)
+      )
+        return undefined
+      keys.add(key)
+    }
+    const target = value.arguments[0]
+    if (target === undefined) return undefined
+    const definition = this.pluginDefinition(target, seen, false)
+    if (definition === undefined || !ts.isObjectLiteralExpression(definition)) return undefined
+    if (definition.properties.some(item => 'name' in item && keys.has(nodeName(item.name) ?? '')))
+      return undefined
+    return definition
+  }
+  treeReference(reference: ts.Node, tree: ts.SourceFile): ts.Node | undefined {
+    const value = this.resolver.value(reference)
+    if (value === undefined || !ts.isObjectLiteralExpression(value)) return reference
+    const packageName = this.resolver.string(expression(property(value, 'package')))?.value
+    const exportedName = this.resolver.string(expression(property(value, 'export')))?.value
+    if (packageName === undefined || exportedName === undefined) return reference
+    // A tree reference selects a public /cordis export, never a private source path.
+    if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/u.test(packageName)) return undefined
+    const path = this.resolver.modulePath(`${packageName}/cordis`, tree)
+    const module =
+      path === undefined
+        ? undefined
+        : this.resolver.trees().find(item => this.resolver.path(item) === path)
+    return module === undefined ? undefined : this.resolver.exported(module, exportedName, 'value')
+  }
   manifest(tree: ts.SourceFile): void {
     const member = this.resolver.member(this.resolver.path(tree))?.path
     if (member === undefined || !member.startsWith('apps/')) return
@@ -892,15 +963,12 @@ class Extractor {
       const name = expression(property(node, 'name')) ?? expression(property(node, 'id'))
       if (reference === undefined || name === undefined) return
       const key = this.resolver.string(name)?.value
-      const value = this.resolver.value(reference)
-      const definition =
-        value !== undefined && ts.isCallExpression(value) ? value.arguments[0] : value
-      const declaration = this.resolver.declaration(reference)
+      const selected = this.treeReference(reference, tree)
+      const definition = selected === undefined ? undefined : this.pluginDefinition(selected)
       const plugin = this.plugins.find(
         item =>
-          (definition !== undefined &&
-            (item.node === definition || item.serviceClass === definition)) ||
-          (declaration !== undefined && item.serviceClass === declaration),
+          definition !== undefined &&
+          (item.node === definition || item.serviceClass === definition),
       )
       const targetNode = this.resolver.declaration(reference)
       const target =

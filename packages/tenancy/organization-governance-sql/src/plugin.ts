@@ -1,5 +1,5 @@
 import {
-  AssemblyLifetimeService,
+  ASSEMBLY_LIFETIME_SERVICE,
   startAssemblyWork,
 } from '@omne-harness-lite/assembly-lifecycle/cordis'
 import { createOrganizationGovernance } from './factory.ts'
@@ -16,6 +16,13 @@ import type { Clock } from '@omne-harness-lite/offer-expiry'
 import { StorageDefect, type AtomicStorage } from '@omne-harness-lite/storage'
 import type { AccountsReadFace, Deps, LoginsVerifyFace, ResolvedConfig } from './runtime.ts'
 import type { OrganizationGovernanceEvents } from '@omne-harness-lite/organization-governance'
+import type { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree'
+import {
+  ORGANIZATIONS_SERVICE,
+  MEMBERSHIPS_SERVICE,
+  OFFERS_SERVICE,
+  ORGANIZATION_PURGE_SERVICE,
+} from '@omne-harness-lite/organization-governance/cordis'
 import {
   OrganizationsSqlService,
   MembershipsSqlService,
@@ -24,6 +31,21 @@ import {
 } from './provided-services.ts'
 
 type ParsedConfig = z.output<typeof OrganizationGovernanceConfigSchema>
+
+function describeAssembly(value: unknown): AssemblyDeclaration {
+  const config = OrganizationGovernanceConfigSchema.parse(value)
+  return {
+    provides: [
+      ORGANIZATIONS_SERVICE,
+      MEMBERSHIPS_SERVICE,
+      OFFERS_SERVICE,
+      ORGANIZATION_PURGE_SERVICE,
+    ],
+    requires: [STORAGE_SERVICE, CLOCK_SERVICE, ACCOUNTS_SERVICE, LOGINS_SERVICE],
+    optional: [],
+    claims: [{ name: 'tenancy-host/organizations', version: 1, config }],
+  }
+}
 
 function bind(ctx: Context, config: ParsedConfig, own: (close: () => Promise<void>) => void): void {
   const resolved: ResolvedConfig = {
@@ -83,8 +105,11 @@ export const managedOrganizationGovernancePlugin = Object.assign(
   definePlugin<ParsedConfig>({
     name: 'organization-governance-sql-managed',
     inject: [
-      ...[STORAGE_SERVICE, CLOCK_SERVICE, ACCOUNTS_SERVICE, LOGINS_SERVICE],
-      AssemblyLifetimeService.provide,
+      STORAGE_SERVICE,
+      CLOCK_SERVICE,
+      ACCOUNTS_SERVICE,
+      LOGINS_SERVICE,
+      ASSEMBLY_LIFETIME_SERVICE,
     ],
     Config: OrganizationGovernanceConfigSchema,
     apply(ctx: Context, config) {
@@ -102,5 +127,5 @@ export const managedOrganizationGovernancePlugin = Object.assign(
       )
     },
   }),
-  { assemblyLifecycle: 1 as const },
+  { assemblyLifecycle: 1 as const, describeAssembly },
 )

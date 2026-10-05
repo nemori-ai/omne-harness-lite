@@ -12,6 +12,10 @@
 原调用持有真实结果，撤除须等待已启动任务结束。独立绑定仍要求先排空消费者。
 管理装配必须保留旧实现到完整身份调用结束，不得把服务发现消失当作资源完成。
 
+managedCredentialsPlugin 的纯 describeAssembly 声明提供 credentials，无业务依赖，
+投影已校验的完整参数及缺省值为 tenancy-host/credentials v1。声明沿[插件树协议](../../core/cordis-plugin-tree/SPEC.md)。
+算法参数仍由本包 Config 校验；声明不能替代凭据行为验收。
+
 验证保持原 AI3 S-8/S-26 义务、参数边界及固定编码对照。
 随机编码偶含短子串不是明文泄漏；消除该错误判据时必须保留真实明文泄漏负控。
 IR-CC-1 未因本页或包改名而关闭。来源及接受范围见

@@ -1,12 +1,24 @@
 import type { Context } from '@deepseek-ai/cordis'
 import {
-  AssemblyLifetimeService,
+  ASSEMBLY_LIFETIME_SERVICE,
   startAssemblyWork,
 } from '@omne-harness-lite/assembly-lifecycle/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { CredentialVerificationConfig } from './config.ts'
 import { createPasswordCredentials } from './service.ts'
 import { ScryptCredentials } from './provided-services.ts'
+import type { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree'
+import { CREDENTIALS_SERVICE } from '@omne-harness-lite/account-identity/cordis'
+
+function describeAssembly(value: unknown): AssemblyDeclaration {
+  const config = CredentialVerificationConfig.parse(value)
+  return {
+    provides: [CREDENTIALS_SERVICE],
+    requires: [],
+    optional: [],
+    claims: [{ name: 'tenancy-host/credentials', version: 1, config }],
+  }
+}
 
 function bind(
   ctx: Context,
@@ -67,7 +79,7 @@ export const credentialsPlugin = definePlugin<CredentialVerificationConfig>({
 export const managedCredentialsPlugin = Object.assign(
   definePlugin<CredentialVerificationConfig>({
     name: 'credential-verification-scrypt-managed',
-    inject: [AssemblyLifetimeService.provide],
+    inject: [ASSEMBLY_LIFETIME_SERVICE],
     Config: CredentialVerificationConfig,
     apply(ctx: Context, config) {
       let closeWork: (() => Promise<void>) | undefined
@@ -84,5 +96,5 @@ export const managedCredentialsPlugin = Object.assign(
       )
     },
   }),
-  { assemblyLifecycle: 1 as const },
+  { assemblyLifecycle: 1 as const, describeAssembly },
 )

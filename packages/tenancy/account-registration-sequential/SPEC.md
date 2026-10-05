@@ -13,5 +13,9 @@ close 同步废止自身资格，等待全部已交出的步骤实际返回。�
 管理绑定按[有序收尾](../../../.meta_harness/design/architecture/identity-integration/retirement.md)立即检查代际资格，
 不能只依赖延后的 close。公开类、服务发现和业务实例寿命分别验证。
 
+managedRegistrationPlugin 的纯 describeAssembly 声明提供 registration，必需 accounts、
+organizations、organizationPurge，投影原私钥配置为 tenancy-host/registration v1。
+声明沿[插件树协议](../../core/cordis-plugin-tree/SPEC.md)，不新增跨步骤事务或补偿。
+
 继续执行原 AR2 场景和模型，覆盖三个注册步骤、两步清除、各步中断、未知结果及真实 SQLite 提交。
 本批未迁旧业务条款的精确来源见[保留清单](../../../.meta_harness/design/architecture/identity-integration/preservation.md)。
