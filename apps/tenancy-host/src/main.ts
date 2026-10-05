@@ -42,7 +42,22 @@ function createProcessIo(): MainIo {
 }
 
 const USAGE =
-  'usage: tenancy-host keygen <directory> | serve | ops --socket-dir <absolute> full-health|backup [--only-if-due]|backup-status | verify --source <absolute> --work-dir <absolute> | restore-isolated --source <absolute> --target <new-absolute-directory> --work-dir <absolute>\n'
+  'usage: tenancy-host keygen <directory> | serve [--plugins <file>] [--print-plugins] | ops --socket-dir <absolute> full-health|backup [--only-if-due]|backup-status | verify --source <absolute> --work-dir <absolute> | restore-isolated --source <absolute> --target <new-absolute-directory> --work-dir <absolute>\n'
+
+function parseServeOptions(argv: readonly string[]) {
+  let plugins: string | undefined
+  let print = false
+  for (let at = 0; at < argv.length; at += 1) {
+    const option = argv[at]
+    if (option === '--print-plugins' && !print) print = true
+    else if (option === '--plugins' && plugins === undefined) {
+      const file = argv[++at]
+      if (file === undefined || file.length === 0 || file.startsWith('--')) return undefined
+      plugins = file
+    } else return undefined
+  }
+  return { plugins, print }
+}
 
 export async function main(
   argv: readonly string[],
@@ -67,11 +82,30 @@ export async function main(
       return EXIT.failed
     }
   }
-  if (command === 'serve' && rest.length === 0) {
+  if (command === 'serve') {
+    const options = parseServeOptions(rest)
+    if (options === undefined) {
+      await io.stderr(USAGE)
+      return EXIT.usage
+    }
+    let operator: unknown
+    try {
+      if (options.plugins !== undefined) {
+        const { readHostOperatorFile } = await import('./boot.ts')
+        operator = await readHostOperatorFile(options.plugins)
+      }
+      if (options.print) {
+        const { describeHostPlugins } = await import('./boot.ts')
+        await io.stdout(`${JSON.stringify(await describeHostPlugins({ operator }))}\n`)
+        return EXIT.ok
+      }
+    } catch {
+      return EXIT.failed
+    }
     const signal = io.shutdownSignal()
     try {
       const { boot } = await import('./boot.ts')
-      const host = await boot()
+      const host = await boot({ operator })
       await signal
       const disposal = await host.dispose()
       return disposal.complete ? EXIT.ok : EXIT.failed

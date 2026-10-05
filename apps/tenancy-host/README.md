@@ -22,12 +22,19 @@ T2/T3 已独立接受并合入；当前 T4 宿主迁移仍待完整独立 L3 验
 pnpm --filter @omne-harness-lite/tenancy-host run build          # 先 build 全部依赖包：pnpm run build
 node apps/tenancy-host/dist/cli.js keygen <directory>            # 一次性生成两对部署密钥
 node apps/tenancy-host/dist/cli.js serve                         # 从环境变量起治理中心
+node apps/tenancy-host/dist/cli.js serve --plugins <file> --print-plugins  # 只准备并打印安全来源
 ```
 
 | 子命令         | 行为                                                                                                                                                     | 退出码                                                     |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | `keygen <dir>` | 写四份 Ed25519 PEM（`0600`，目录不存在即以 `0700` 建出）；标准输出一行 JSON 给出四个 `_FILE` 变量与路径，**不含密钥内容**；四份里任一已存在 ⇒ 一份都不写 | 0 成功；1 已存在或写失败；64 用法错误                       |
-| `serve`        | `boot()`；收到 `SIGTERM`／`SIGINT` ⇒ 按装载逆序撤除 ⇒ 退出                                                                                               | 0 收场确认；1 启动或收场失败；64 用法错误；30 s 仅诊断并继续等 |
+| `serve [--plugins <file>]` | 先合并/准备 JSON 运维编辑，再 `boot()`；收到 `SIGTERM`／`SIGINT` ⇒ 按装载逆序撤除 ⇒ 退出                                                                                               | 0 收场确认；1 启动或收场失败；64 用法错误；30 s 仅诊断并继续等 |
+
+`serve --print-plugins` 使用同一静态准备和职责政策，stdout 输出安全 DTO 数组 JSON 加换行，成功返回 0；不等待停机信号，不创建数据库、备份/套接字目录或监听器。配置全部显示为 `[redacted]`。
+`--plugins <file>` 读取 JSON 运维编辑数组，缺省为 `[]`；与 `--print-plugins` 顺序可交换且各至多一次。
+未知/重复选项或缺文件参数返回 64，读文件、JSON 或静态准备失败返回 1并记录安全启动错误。
+运维编辑采用正式[插件树接口](../../packages/core/cordis-plugin-tree/SPEC.md)：replace、disable 或按稳定 id 插入；宿主仍要求原八职责恰各一份，依赖/声明/配置不能绕过准备。
+例如 `[{"op":"replace","id":"clock-lease","config":{}}]` 保持原时钟提供者，来源标为 operator。
 
 **本版不轮换密钥。**重生密钥等于换钥：两步之间的注册与清除会以契约已定义的方式收场（重来即可），但换钥必须在中心停着的时候做。
 

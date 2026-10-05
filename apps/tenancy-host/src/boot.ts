@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { Context, type Fiber, type Logger } from '@deepseek-ai/cordis'
 import { clockPreflight, ClockRollbackDetected } from '@omne-harness-lite/clock-lease'
 import {
@@ -244,6 +245,23 @@ function recordFailure(log: Logger, failure: HostStartupFailure): HostStartupFai
     ...projection,
   })
   return failure
+}
+
+/** Internal CLI input. File and JSON failures use the same safe startup record. */
+export async function readHostOperatorFile(file: string): Promise<unknown> {
+  try {
+    return JSON.parse(await readFile(file, 'utf8'))
+  } catch (cause) {
+    const context = new Context(),
+      log = attachLog(context, stderrSink)
+    throw recordFailure(
+      log,
+      new HostStartupFailure('config', 'operator configuration could not be read', {
+        item: '--plugins',
+        cause,
+      }),
+    )
+  }
 }
 
 /** Full static preparation is shared by printing and boot, before guard/directory/database creation. */

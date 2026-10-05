@@ -206,6 +206,9 @@ importers:
       '@omne-harness-lite/offer-expiry':
         specifier: workspace:*
         version: link:../../packages/core/offer-expiry
+      '@omne-harness-lite/organization-governance':
+        specifier: workspace:*
+        version: link:../../packages/core/organization-governance
       '@omne-harness-lite/organization-governance-sql':
         specifier: workspace:*
         version: link:../../packages/tenancy/organization-governance-sql
@@ -228,9 +231,6 @@ importers:
       '@omne-harness-lite/artifact-builder':
         specifier: workspace:*
         version: link:../../tools/artifact-builder
-      '@omne-harness-lite/organization-governance':
-        specifier: workspace:*
-        version: link:../../packages/core/organization-governance
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
