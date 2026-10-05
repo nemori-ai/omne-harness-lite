@@ -340,6 +340,12 @@ describe('organizationGovernanceMigrations 工厂', () => {
     const source = readFileSync(new URL('../src/migrations.ts', import.meta.url), 'utf8')
     const imports = [...source.matchAll(/^import .* from '([^']+)'/gm)].map(m => m[1])
     expect(imports).not.toContain('@omne-harness-lite/account-identity')
-    expect(imports.every(i => i === 'kysely' || i === '@omne-harness-lite/storage')).toBe(true)
+    expect(imports).toEqual(['kysely', '@omne-harness-lite/storage', './governance-data.ts'])
+    expect(source).toContain("import { OG_TABLES } from './governance-data.ts'")
+    const data = readFileSync(new URL('../src/governance-data.ts', import.meta.url), 'utf8')
+    // The unique constant owner has no runtime imports, including no AI implementation.
+    expect([...data.matchAll(/^import\s+(?!type\b)[\s\S]*?from\s+'([^']+)'/gm)]).toHaveLength(0)
+    expect(data).not.toContain('@omne-harness-lite/account-identity-sql')
+    expect([...data.matchAll(/export const OG_TABLES =/g)]).toHaveLength(1)
   })
 })

@@ -54,6 +54,8 @@ Commit notifications are best effort and contain no credentials. Replacement pre
 
 SQLite is the current verified host composition. This package does not establish PostgreSQL recovery, distributed atomicity or later OG3 asset operations. Exact scope belongs to [SPEC.md](SPEC.md).
 
+Pure policies use private named record operations. Assembly selects the SQL backend and binds the original transaction unit. Record decoding, authorization and error order remain at the original policy observation. See [the design reason](adr/policy-persistence.md).
+
 ## Development
 
 ```sh

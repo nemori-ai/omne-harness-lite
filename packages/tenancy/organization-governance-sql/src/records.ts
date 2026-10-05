@@ -1,7 +1,6 @@
-// 存储记录：表行类型、行 → 领域记录的解码、事务内的读助手。
+// 原观察位置的记录解码与纯治理判定。具名记录面不承担授权或提交。
 // 行来自本包自己的表，但仍按「外部未知值先校验再收窄」解码：形状不对是缺陷（StoredRecordMalformed，上抛），
 // 不是「不可用」也不是「不存在」。
-import type { Kysely } from 'kysely'
 import {
   type AccountId,
   type MembershipStanding,
@@ -28,77 +27,18 @@ import {
   instantFromEpochMs,
   parseSettledState,
 } from '@omne-harness-lite/offer-expiry'
-import { narrow, type ReadTx } from '@omne-harness-lite/storage'
-import { OG_TABLES } from './migrations.ts'
+import {
+  OG_TABLES,
+  type OrgRead,
+  type InvitationTable,
+  type AffiliationRequestTable,
+} from './governance-data.ts'
 import {
   AFFILIATION_DIRECTIONS,
   type AffiliationDirection,
   type AffiliationRequestId,
   type InvitationId,
 } from '@omne-harness-lite/organization-governance'
-
-// ---- 表行（Kysely 查询类型） ----
-
-/** 整数时刻列：sqlite 返回 number，pg 的 bigint 返回 string；解码统一收成 Instant。 */
-type EpochColumn = number | string | bigint
-
-export interface OrganizationTable {
-  organization_id: string
-  kind: string
-  parent: string | null
-  owner_account: string | null
-  created_at: EpochColumn
-}
-export interface MembershipTable {
-  organization_id: string
-  account_id: string
-  effective: number
-  role: string
-}
-export interface InvitationTable {
-  invitation_id: string
-  issuer_organization: string
-  invited_account: string
-  role: string
-  issued_at: EpochColumn
-  expires_at: EpochColumn
-  settled: string | null
-}
-export interface AffiliationRequestTable {
-  affiliation_request_id: string
-  initiator: string
-  recipient: string
-  direction: string
-  issued_at: EpochColumn
-  expires_at: EpochColumn
-  settled: string | null
-}
-export interface CurrentTenantSelectionTable {
-  login_state_id: string
-  organization_id: string
-  account_id: string
-}
-export interface TeamCreationKeyTable {
-  creator_account: string
-  creation_key: string
-  organization_id: string
-  registered_at: EpochColumn
-}
-
-export interface OgDatabase {
-  organization: OrganizationTable
-  membership: MembershipTable
-  invitation: InvitationTable
-  affiliation_request: AffiliationRequestTable
-  current_tenant_selection: CurrentTenantSelectionTable
-  team_creation_key: TeamCreationKeyTable
-}
-
-export type Db = Kysely<OgDatabase>
-
-export function db(tx: ReadTx): Db {
-  return narrow<OgDatabase>(tx)
-}
 
 /**
  * 在持有节点的存储提交内生成一个不透明标识（IV G-04 词法候选）。唯一性由主键约束兑现，不由随机性兑现：
@@ -244,40 +184,27 @@ export function decodeAffiliationRequest(row: AffiliationRequestTable): Affiliat
 // ---- 事务内的读助手（调用方在自己的 read／write 事务里调；存储失败以异常上抛） ----
 
 export async function readOrganization(
-  d: Db,
+  d: OrgRead,
   id: OrganizationId,
 ): Promise<OrganizationRecord | undefined> {
-  const row = await d
-    .selectFrom('organization')
-    .select(['organization_id', 'kind', 'parent', 'owner_account'])
-    .where('organization_id', '=', id)
-    .executeTakeFirst()
+  const row = await d.organization(id)
   return row === undefined ? undefined : decodeOrganization(row)
 }
 
 /** 由 `ownerAccount` 定位个人组织（「每个账号至多一个」由唯一索引兑现）。 */
 export async function readOrganizationOwnedBy(
-  d: Db,
+  d: OrgRead,
   account: AccountId,
 ): Promise<OrganizationRecord | undefined> {
-  const row = await d
-    .selectFrom('organization')
-    .select(['organization_id', 'kind', 'parent', 'owner_account'])
-    .where('owner_account', '=', account)
-    .executeTakeFirst()
+  const row = await d.ownedOrganization(account)
   return row === undefined ? undefined : decodeOrganization(row)
 }
 
 export async function readMembership(
-  d: Db,
+  d: OrgRead,
   tenant: TenantId,
 ): Promise<MembershipRecord | undefined> {
-  const row = await d
-    .selectFrom('membership')
-    .select(['organization_id', 'account_id', 'effective', 'role'])
-    .where('organization_id', '=', tenant.organization)
-    .where('account_id', '=', tenant.account)
-    .executeTakeFirst()
+  const row = await d.membership(tenant)
   return row === undefined ? undefined : decodeMembership(row)
 }
 
@@ -285,45 +212,34 @@ export async function readMembership(
  * S-26 的判定式，**本包唯一的一份**：公开读面 `memberships.standing` 与各写操作在自己事务里的准入判定都走它
  * （写操作的准入要与写入同一事务，不能调另开一次读事务的公开面）。无记录或无效 ⇒ `ineffective`。
  */
-export async function standingIn(d: Db, tenant: TenantId): Promise<MembershipStanding> {
+export async function standingIn(d: OrgRead, tenant: TenantId): Promise<MembershipStanding> {
   const membership = await readMembership(d, tenant)
   if (membership === undefined || !membership.effective) return { standing: 'ineffective' }
   return { standing: 'effective', role: membership.role }
 }
 
-export async function isSuperAdministrator(d: Db, tenant: TenantId): Promise<boolean> {
+export async function isSuperAdministrator(d: OrgRead, tenant: TenantId): Promise<boolean> {
   const standing = await standingIn(d, tenant)
   return standing.standing === 'effective' && standing.role === 'superAdministrator'
 }
 
 export async function countEffectiveSuperAdministrators(
-  d: Db,
+  d: OrgRead,
   organization: OrganizationId,
 ): Promise<number> {
-  const row = await d
-    .selectFrom('membership')
-    .select(eb => eb.fn.countAll<number | string | bigint>().as('n'))
-    .where('organization_id', '=', organization)
-    .where('effective', '=', 1)
-    .where('role', '=', 'superAdministrator')
-    .executeTakeFirstOrThrow()
-  return Number(row.n)
+  return Number(await d.superAdministratorCount(organization))
 }
 
 /** 指向对象的存在性（OE S-19/S-20）：读得到才答 exists／absent；读不到以异常上抛，由操作收成 `unavailable`。 */
 export async function existenceOf(
-  d: Db,
+  d: OrgRead,
   ids: readonly OrganizationId[],
 ): Promise<ReadonlyMap<OrganizationId, TargetExistence>> {
   const unique = [...new Set(ids)]
   const result = new Map<OrganizationId, TargetExistence>()
   if (unique.length === 0) return result
-  const rows = await d
-    .selectFrom('organization')
-    .select('organization_id')
-    .where('organization_id', 'in', unique)
-    .execute()
-  const present = new Set(rows.map(r => r.organization_id))
+  const rows = await d.organizationIdsPresent(unique)
+  const present = new Set(rows)
   for (const id of unique) result.set(id, present.has(id) ? 'exists' : 'absent')
   return result
 }
@@ -334,7 +250,7 @@ export async function existenceOf(
  * 存储读失败以异常上抛。
  */
 export async function loadParentSnapshot(
-  d: Db,
+  d: OrgRead,
   starts: readonly OrganizationId[],
 ): Promise<ParentSnapshot> {
   const known = new Map<OrganizationId, OrganizationId | null>()

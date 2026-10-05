@@ -4,11 +4,8 @@ import type {
   OffersService,
   OrganizationPurgeService,
 } from '@omne-harness-lite/organization-governance'
-import type { Deps } from './runtime.ts'
-import { createOrganizationsService } from './organizations.ts'
-import { createMembershipsService } from './memberships.ts'
-import { createOffersService } from './offers.ts'
-import { createOrganizationPurgeService } from './purge.ts'
+import type { Deps } from './assembly-deps.ts'
+import { assembleGovernanceServices } from './assembly.ts'
 
 export class OrganizationGovernanceStopped extends Error {
   override readonly name = 'OrganizationGovernanceStopped'
@@ -45,10 +42,7 @@ export function createOrganizationGovernance(deps: Deps): OrganizationGovernance
     }
     return result
   }
-  const organizations = createOrganizationsService(deps)
-  const memberships = createMembershipsService(deps)
-  const offers = createOffersService(deps)
-  const organizationPurge = createOrganizationPurgeService(deps)
+  const { organizations, memberships, offers, organizationPurge } = assembleGovernanceServices(deps)
   return {
     organizations: {
       participate: unit => organizations.participate(unit),

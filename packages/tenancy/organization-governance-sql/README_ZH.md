@@ -54,6 +54,8 @@ export async function readOrganization(
 
 SQLite 是当前已验证的宿主组合。本包不据此声称 PostgreSQL 恢复、分布式原子性或后续 OG3 资产操作已完成。精确范围归 [SPEC.md](SPEC.md)。
 
+纯策略消费私有具名记录操作，装配选择 SQL 后端并绑定原共同事务单元。记录解码、授权和失败次序仍在原策略观察位置。理由见[策略与记录后端](adr/policy-persistence.md)。
+
 ## 开发验证
 
 ```sh

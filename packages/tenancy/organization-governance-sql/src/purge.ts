@@ -1,3 +1,4 @@
+import type { PolicyDeps } from './policy-deps.ts'
 // organization-purge 服务面：只承 S-53 清除未激活账号的个人组织。单独一个服务名，只给清除链解析
 // （S-42 第 4 行装配给；调用点限制由 tools/ts-checks 的 restricted-call-sites 守）。
 import {
@@ -8,8 +9,8 @@ import {
   parseAccountId,
 } from '@omne-harness-lite/identity-values'
 import { type Outcome, fail, succeed } from '@omne-harness-lite/kernel-basis'
-import { db, readOrganizationOwnedBy } from './records.ts'
-import { type Deps, type OperationContext, readAccountFacts, withOperation } from './runtime.ts'
+import { readOrganizationOwnedBy } from './records.ts'
+import { type OperationContext, readAccountFacts, withOperation } from './runtime.ts'
 import type {
   OrganizationPurgeService,
   PurgePersonalOrganizationFailure,
@@ -23,8 +24,8 @@ function warrantFor(deps: OperationContext, account: AccountId): PurgeOutcome {
 }
 
 /**
- * 求值次序固定（②）：表示层 → 读账号 → 读组织。账号读面在本节点事务之外调用（它自己是 AI 的一次提交，
- * 并在账号行上落盘「已过期」这个单调事实）；之后的判定与删除在一次受 S-17 序列化的写提交里。
+ * 求值次序固定（②）：表示层 → 读账号 → 读组织。账号读面通过当前共同单元参与面调用，
+ * 原过期事实、之后判定和删除都留在同一个受 S-17 序列化的提交里。
  */
 async function purgePersonalOrganization(
   deps: OperationContext,
@@ -41,7 +42,7 @@ async function purgePersonalOrganization(
   if ('failure' in facts) {
     // ②乙 账号读不到（account-not-found 是成立的结论）：不在这一步失败，继续读组织
     const outcome = await deps.query(async tx => {
-      const organization = await readOrganizationOwnedBy(db(tx), account)
+      const organization = await readOrganizationOwnedBy(tx, account)
       return succeed(organization?.id)
     })
     // ⑦乙 两样都不在了：一次重扫，依据断言的事实此刻为真
@@ -60,17 +61,17 @@ async function purgePersonalOrganization(
   if (!facts.ok.retentionExpired) return fail('accountNotExpired')
 
   const outcome = await deps.mutate(async tx => {
-    const d = db(tx)
+    const d = tx
     const organization = await readOrganizationOwnedBy(d, account)
     // ⑦甲 账号仍在、个人组织已不存在（被上一次清除掉）⇒ ok 并返回依据，无二次效果
     if (organization === undefined) return succeed(undefined)
     // ④ 受 S-17 序列化：删成员关系记录前锁组织行（R-3a）
-    await tx.lockRow('organization', { organization_id: organization.id })
+    await tx.lockOrganization(organization.id)
     // ③ 空真的守卫：由 AccountId 定位到的组织不是个人组织 ⇒ 拒绝、不删、不签（团队组织没有这条路径）
     if (organization.kind !== 'personal') return fail('organizationIsNotPersonal')
     // ④ 删组织行 ＋ 它那条唯一的成员关系记录，同一提交；有意不发 membership.changed
-    await d.deleteFrom('membership').where('organization_id', '=', organization.id).execute()
-    await d.deleteFrom('organization').where('organization_id', '=', organization.id).execute()
+    await d.deleteOrganizationMemberships(organization.id)
+    await d.deleteOrganization(organization.id)
     return succeed(organization.id)
   })
   if ('failure' in outcome) return outcome
@@ -83,7 +84,7 @@ async function purgePersonalOrganization(
   return warrantFor(deps, account)
 }
 
-export function createOrganizationPurgeService(deps: Deps): OrganizationPurgeService {
+export function createOrganizationPurgePolicy(deps: PolicyDeps): OrganizationPurgeService {
   return {
     purgePersonalOrganization: accountId =>
       withOperation(deps, context => purgePersonalOrganization(context, accountId)),

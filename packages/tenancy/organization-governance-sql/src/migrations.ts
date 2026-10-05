@@ -5,6 +5,7 @@
 // 外键 ON DELETE RESTRICT 不延迟、不建 CHECK、不带 down、片段名只追加不重排。
 import type { Kysely } from 'kysely'
 import type { MigrationFragment } from '@omne-harness-lite/storage'
+import { OG_TABLES } from './governance-data.ts'
 
 export interface OrganizationGovernanceMigrationOptions {
   /** `organization.owner_account` 引用的账号表与列（装配给出，候选 `{ table: 'account', column: 'account_id' }`）。 */
@@ -12,16 +13,6 @@ export interface OrganizationGovernanceMigrationOptions {
   /** 那条外键的显式名字（装配给出，候选 `organization_owner_account_fk`）。 */
   readonly ownerAccountForeignKey: string
 }
-
-/** 表名常量：迁移与查询共用一处。 */
-export const OG_TABLES = {
-  organization: 'organization',
-  membership: 'membership',
-  invitation: 'invitation',
-  affiliationRequest: 'affiliation_request',
-  currentTenantSelection: 'current_tenant_selection',
-  teamCreationKey: 'team_creation_key',
-} as const
 
 function requireName(value: unknown, what: string): string {
   if (typeof value !== 'string' || value.length === 0) {
