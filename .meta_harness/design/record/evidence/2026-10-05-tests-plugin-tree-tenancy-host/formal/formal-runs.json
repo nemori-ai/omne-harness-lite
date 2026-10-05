@@ -1,0 +1,14 @@
+[
+  {
+    "name": "entry-models",
+    "command": [
+      "python3",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/s3/run-entry-models.py"
+    ],
+    "actor": "root actual affected formal execution",
+    "candidate": "4123ccd32b8c4b2e8578e8ebe5529f48f0ca25d9",
+    "started_at": "2026-10-05T06:58:35.796694+00:00",
+    "elapsed_seconds": 19.31472380098421,
+    "exit_code": 1
+  }
+]

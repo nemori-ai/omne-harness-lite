@@ -1,0 +1,97 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "candidate": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "at": "2026-10-05T08:34:16.654163+00:00",
+  "hardLines": {
+    "cycles": [],
+    "direction": [],
+    "acceptanceLock": {
+      "status": "judged",
+      "violations": []
+    },
+    "cardRetire": {
+      "status": "judged",
+      "violations": []
+    },
+    "sensors": {
+      "status": "judged",
+      "silent": [],
+      "off": []
+    }
+  },
+  "strict_receipt": {
+    "name": "isolated-final-loop-r2",
+    "command": [
+      "node",
+      "--experimental-strip-types",
+      "tools/ts-checks/src/loop/cli.ts",
+      "--base",
+      "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+      "--strict",
+      "--out",
+      "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/s3/loop-isolated-bca-r2"
+    ],
+    "head": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+    "started_at": "2026-10-05T08:24:09.920114+00:00",
+    "elapsed_seconds": 64.78919089696137,
+    "exit_code": 0,
+    "reason": "first sensor read had no ledger because actual --out override; byte-identical publication, no product/test/required sensor edits",
+    "environment": {
+      "OMNE_METRICS_HOME": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/s3/homes/metrics",
+      "OMNE_ACCEPTANCE_LEDGER_HOME": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/s3/homes/acceptance",
+      "OMNE_TEST_LEDGER_HOME": "/data/qiwei/repos/omne-harness-lite/.worktrees/arch-intent/tmp/arch-intent/remediation/r1-t4/s3/homes/tests"
+    }
+  },
+  "actual_acceptance": {
+    "meta": {
+      "script": "acceptance",
+      "tier": "all",
+      "head": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+      "branch": "panqiwei/plugin-tree-tenancy-host-r1-t4",
+      "dirty": false,
+      "base": null,
+      "startedAt": "2026-10-05T08:20:39.400Z",
+      "parallel": {
+        "memberConcurrency": 2,
+        "vitestMaxWorkers": 4
+      },
+      "cores": 8,
+      "plan": null,
+      "members": [
+        "apps/cli"
+      ],
+      "wallSeconds": 3
+    },
+    "members": [
+      {
+        "member": "apps/cli",
+        "exitCode": 0,
+        "wallSeconds": 2.9,
+        "files": 1,
+        "tests": 5,
+        "skipped": 0,
+        "failed": 0,
+        "fileSeconds": 1.9,
+        "collectSeconds": 0
+      }
+    ],
+    "files": [
+      {
+        "member": "apps/cli",
+        "file": "apps/cli/acceptance/PF-016.no-screen-points-to-machine-entry.acceptance.ts",
+        "seconds": 1.9,
+        "tests": 5,
+        "slowTests": 0,
+        "fastSeconds": 1.9,
+        "longestSeconds": 0.5,
+        "collectSeconds": 0
+      }
+    ],
+    "nearTimeout": [],
+    "fastOverBudget": [],
+    "failures": []
+  },
+  "first_failure_preserved": "final-manual-runs.json; loop-isolated-bca/status.json",
+  "publication": "acceptance-ledger-publication.json",
+  "limits": "final task-specific homes only; prior wrapper and global-home deviations preserved in workflow-deviations.json"
+}

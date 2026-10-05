@@ -1,0 +1,6 @@
+{"ts":1791185409190,"level":"warn","name":"storage-sql","message":"storage-sql: restoring an unconfirmed upgrade (database-absent marker taken at 2026-10-05T07:30:09.067Z, /tmp/omne-host-qa-t4-host-prefix-beATrL/center.sqlite.upgrade-snapshot)"}
+{"ts":1791185409196,"level":"error","name":"tenancy-host","event":"resource-close-failed","plugin":"clock-lease","codes":["setup","close"]}
+{"ts":1791185409196,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"clock-lease"}
+{"ts":1791185409196,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"storage-sql"}
+{"ts":1791185409196,"level":"error","name":"tenancy-host","event":"dispose-incomplete","unfinished":["clock-lease"],"controller":"pending","storage":"clean"}
+{"ts":1791185409196,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"plugin","item":"clock-lease","errorType":"Error","message":"tenancy-host startup failed at plugin: clock-lease failed to start"}

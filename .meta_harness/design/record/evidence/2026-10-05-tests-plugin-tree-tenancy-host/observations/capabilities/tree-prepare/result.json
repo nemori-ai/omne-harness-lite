@@ -1,0 +1,150 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "run_id": "t4-prepare",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "started": "2026-10-05T07:30:04.498Z",
+  "results": [
+    {
+      "id": "ordered-providers-and-optional-absent",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.520Z"
+    },
+    {
+      "id": "external-and-disabled-resolution",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.524Z"
+    },
+    {
+      "id": "named-Service-class-is-valid-without-instantiation",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.525Z"
+    },
+    {
+      "id": "missing-module",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.526Z"
+    },
+    {
+      "id": "missing-export",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.529Z"
+    },
+    {
+      "id": "function-export",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.530Z"
+    },
+    {
+      "id": "missing-schema",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.531Z"
+    },
+    {
+      "id": "schema-private-issues",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.532Z"
+    },
+    {
+      "id": "async-schema",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.533Z"
+    },
+    {
+      "id": "async-declaration",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.534Z"
+    },
+    {
+      "id": "throwing-declaration",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.535Z"
+    },
+    {
+      "id": "missing-lifecycle",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.536Z"
+    },
+    {
+      "id": "missing-describe",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.537Z"
+    },
+    {
+      "id": "duplicate-provides",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.538Z"
+    },
+    {
+      "id": "empty-required",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.539Z"
+    },
+    {
+      "id": "required-optional-overlap",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.540Z"
+    },
+    {
+      "id": "duplicate-claims",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.541Z"
+    },
+    {
+      "id": "bad-version",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.542Z"
+    },
+    {
+      "id": "non-JSON-claim",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.543Z"
+    },
+    {
+      "id": "implicit-port-provider",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.544Z"
+    },
+    {
+      "id": "required-absent",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.545Z"
+    },
+    {
+      "id": "required-later",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.546Z"
+    },
+    {
+      "id": "optional-later",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.547Z"
+    },
+    {
+      "id": "duplicate-provider",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.548Z"
+    },
+    {
+      "id": "external-conflict",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.549Z"
+    },
+    {
+      "id": "raw-composed-revalidated",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.550Z"
+    },
+    {
+      "id": "validated-output-declaration-original-input-retained",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:04.551Z",
+      "observed": {
+        "declaration_value": 2,
+        "raw_mutated_after_prepare": true
+      }
+    }
+  ],
+  "exit_code": 0,
+  "ended": "2026-10-05T07:30:04.552Z"
+}

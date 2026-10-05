@@ -1,0 +1,1 @@
+{"ts":1791185407191,"level":"error","name":"tenancy-host","event":"startup-failed","stage":"manifest","item":"governance-center-entry","errorType":"PluginTreeError","message":"tenancy-host startup failed at manifest: plugin tree rejected","code":"duplicate-edit","rowId":"governance-center-entry"}

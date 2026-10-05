@@ -1,0 +1,46 @@
+# R1-T4 首轮补审：精确职责投影与静态保持
+
+对象：BASE `cdd05d1050dc9d7857f7eb3569d834ae4291c4d5`；原行为候选 `4123ccd32b8c4b2e8578e8ebe5529f48f0ca25d9`；补审候选 `bca26b3043d9502dd829a9d91994d44cc04917a1`。这是 L3 实施审阅的中间补充，不是 QA 或技术接受。首轮原报告、原失败和运行坐标保留。
+
+## 本次结论
+
+**本次范围内未发现阻断问题。** IR-T4-M13-1 的精确职责投影已修复；完整增量仍待最终独立 QA 和 S3 检查/结构处置材料。元数据提交没有产品、测试、锁或模型变化，原运行时证据按真实输入继承，不能改写为在 bca 上重新执行。
+
+## 独立机器补核
+
+| 入口 | 命令/结果 | 证据 |
+|---|---|---|
+| 提交差量 | `git diff 4123... bca26... -- constraints.json`；exit 0，唯一文件 18+/2- | projection-delta-bca.diff、supplement-state.json |
+| 当前预期符合性 | `node --experimental-strip-types tools/ts-checks/src/arch/cli.ts --root <工作树> --revision bca26... --conformance --out <R>/conformance-current-bca.json`；exit 0，21.981 秒；无 BASE | conformance-current-bca.execution.json、stdout/stderr/json |
+| 保持账本读回 | Python3 对 1161 项函数账本和处置 id 集合做差：59 项差量，无缺项、重复或多余；其中 41 项生产；29 断言处置编号齐全 | s3-ledger-readback-bca.json，含5个输入 SHA |
+| 结束坐标 | `git rev-parse HEAD` 与 `git status --porcelain --untracked-files=no` | supplement-state.json，tracked clean |
+
+第一次只读账本命令使用不存在的 `python`，exit 127，随后使用本机 `python3` 成功；未安装或变更环境。源码读回的两个猜测路径不存在，改用 `rg --files` 找到正式 `src/arch` 入口。两者均不是产品检查红项。
+
+## IR-T4-M13-1 的处理
+
+`host-composition` 只将已删 `manifest.ts` 替换成实际发行树 `tree.ts` 与宿主政策 `policy.ts`，来源指向已采用 host-integration。新增治理入口绑定角色仅覆盖 cordis.ts、plugin.ts、ops/plugin.ts。已逐行核对后两文件，其内容为配置、注入、日志/事件、资格及工厂登记适配；与 host-integration.md:165–167 和成员 SPEC.md:27–31 一致。没有 `apps/**` 或整个业务提供者的装配豁免。
+
+独立无 BASE 的符合性输出明确 `comparedWith=current`，固定 Git 输入 `inputDirty=false`。这五个精确文件不再出现 ROLE unknown 行。工具不输出 converged ROLE，不能发明“五项 ROLE 已证明”的统计。
+
+boot.ts 到 buildDistributionTree/checkHostPolicy 的两种 LAYER 关系均 converged，具体行保存在 projection-examples-bca.json。树文件关联关系各有4 converged/7 unknown，政策文件各13 converged/8 unknown；这里“各”指 LAYER-DIP 与 LAYER-ENTRY 两条规则。剩余 unknown 是另一端如宿主 index/config 或未采用公共成员的责任仍未采用，未用新增标签抹除。完整计数与原行保存在 projection-current-readback-bca.json。原 mixed-governance-entry 仍保留 candidate；其他工厂/网络/路由职责继续原 R1-T5 判断，不能据本项修复宣称领域架构完成。
+
+root 的 architecture-bca 也确为固定 revision、inputDirty=false，但有 BASE 的 conformance 仍对 BASE 旧预期判断。该视图里的旧投影 unknown 不能用作本次修复无效的证据，也不能用改后的预期抹除与 BASE 的变化。
+
+## 保持清单和形式范围
+
+本次读回后的正确函数分类是：1091 同位置正文、11 同正文迁移、29 changed、30 replaced，共1161。最早首轮通知和 review.md 记录的14迁移/27替代来自早期观察器；root 已在 audit_corrections 披露它把无关模块偶然相同的 deferred/describe 当作迁移。当前59差量逐项处置齐全。本审阅核对账本、差量和实际热点，未独立重算全部 AST，也不把 AST 相同当行为证明。
+
+91保护输入仍为88字节相同、3公开类型归属变化；163形式输入全同，与本评审原独立 SHA 读回一致。29断言适配处置齐全，原租户/同提交及时间判据未据此撤销。
+
+原236导出现在正确分为224保留、7迁移、5结构替代。漏列的 HOST_PLUGIN_NAMES 与手工 manifest 同退役，最终行来自 buildDistributionTree/composePluginTree，未加兼容别名。独立搜索 apps/packages/examples/tools 现行 TS（排除 dist/node_modules）未找到这个精确旧符号或其他已退役宿主形状的消费者；相似 model ManifestEntryDisposition 是别的既有概念。此搜索不代替全部432消费者的制品/声明验收。
+
+形式汇总与原件范围一致：47 TLC调用=15正控+31变异负控+1九分支可达，Alloy4次进程调用承载7项正负观察，两个有限协调设施共7控。原 Entry wrapper exit1 和具体 AppliedExpected/Never* 观察继续保留，不能称全部 wrapper exit0。CQ1/CQ2 的13项是 T3 未变输入继承，本轮没有重跑；不计入上述47。有限模型不证明真实 SQL、任意状态或45秒恢复上界。
+
+## 尚待最终补审
+
+- 冻结52项独立干净 QA 正文、manifest、实际 tarball 四层边界及原失败处置。
+- 全 S3 真实执行账本、全量影响计划的手动取舍依据和未跑范围。
+- 新旧结构与14个复杂度 warn/alert、跨包边、克隆、旧映射和 unknown 的逐项处置。固定视图现已取得，不再以早期脏输入视图代替它；最终硬线和账本仍需随最终材料读回。
+
+没有新增范围外政策裁决。原 A5、EIS、完整 W6、PostgreSQL 整体及 GUI/IME 的责任和限制继续保留。原独立定点仍是30 pass/1 Unix长路径设施失败，不因本次静态补审改写。后续补审追加文件，本次释放报告写权。

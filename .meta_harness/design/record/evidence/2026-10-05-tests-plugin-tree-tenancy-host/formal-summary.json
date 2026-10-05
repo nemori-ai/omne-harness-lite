@@ -1,0 +1,23 @@
+{
+  "actor": "root actual final affected formal execution",
+  "head": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "product_runtime_candidate": "4123ccd32b8c4b2e8578e8ebe5529f48f0ca25d9",
+  "only_head_delta": "adopted architecture projection, product code unchanged",
+  "tlc": 47,
+  "positive": 15,
+  "mutation_negative": 31,
+  "reachability": 1,
+  "alloy_commands": 7,
+  "bounded_cases": 7,
+  "entry_original_wrapper_exit": 1,
+  "entry_corrected_observation": "entry-formal/readback.json; no model/config/rerun change",
+  "identity_client_wrappers": "exit0 and exact expected invariant matched",
+  "inputs": {
+    "current_protected": 91,
+    "changed_public_type_owner_only": 3,
+    "historical_symlink_metadata": 3,
+    "formal_files": 163,
+    "all_formal_input_bytes_unchanged": true
+  },
+  "scope": "AI3/OG2/AR2,EC3,CLS1/CG1/CG2 finite configurations; bounded assembly safety and qualification. No product/SQL/arbitrary-state proof or bounded cold recovery guarantee. CQ1/CQ2 terminal inputs unchanged, T3 accepted13 observations inherited, not rerun."
+}

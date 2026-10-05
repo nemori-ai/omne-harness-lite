@@ -1,0 +1,28 @@
+(node:191252) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"ts":1791185408865,"level":"info","name":"tenancy-host","event":"manifest-active","plugins":["storage-sql","clock-lease","credential-verification","account-identity","organization-governance","account-registration","governance-center-ops","governance-center-entry"]}
+{"ts":1791185408868,"level":"info","name":"tenancy-host","event":"upgrade-confirmed","migrated":true,"snapshotTaken":true,"snapshotRemoved":true}
+{"ts":1791185408868,"level":"info","name":"tenancy-host","event":"open-signal"}
+{"ts":1791185408869,"level":"info","name":"tenancy-host","event":"serving","centerId":"d970fb6884006fcb9ce7a39c83271c65","version":"0.0.0","startedAt":1791185408869}
+{"ts":1791185408882,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-entry"}
+{"ts":1791185408882,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-ops"}
+{"ts":1791185408882,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-registration"}
+{"ts":1791185408882,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"organization-governance"}
+{"ts":1791185408882,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-identity"}
+{"ts":1791185408882,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"credential-verification"}
+{"ts":1791185408882,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"clock-lease"}
+{"ts":1791185408882,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"storage-sql"}
+{"ts":1791185408883,"level":"info","name":"tenancy-host","event":"disposed","complete":true}
+{"ts":1791185408918,"level":"info","name":"tenancy-host","event":"manifest-active","plugins":["storage-sql","clock-lease","credential-verification","account-identity","organization-governance","account-registration","governance-center-ops","governance-center-entry"]}
+{"ts":1791185408918,"level":"info","name":"tenancy-host","event":"upgrade-confirmed","migrated":false,"snapshotTaken":false,"snapshotRemoved":false}
+{"ts":1791185408918,"level":"info","name":"tenancy-host","event":"open-signal"}
+{"ts":1791185408918,"level":"info","name":"tenancy-host","event":"serving","centerId":"d970fb6884006fcb9ce7a39c83271c65","version":"0.0.0","startedAt":1791185408918}
+{"ts":1791185408927,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-entry"}
+{"ts":1791185408928,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"governance-center-ops"}
+{"ts":1791185408928,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-registration"}
+{"ts":1791185408928,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"organization-governance"}
+{"ts":1791185408928,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"account-identity"}
+{"ts":1791185408928,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"credential-verification"}
+{"ts":1791185408928,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"clock-lease"}
+{"ts":1791185408928,"level":"info","name":"tenancy-host","event":"fiber-disposed","plugin":"storage-sql"}
+{"ts":1791185408928,"level":"info","name":"tenancy-host","event":"disposed","complete":true}

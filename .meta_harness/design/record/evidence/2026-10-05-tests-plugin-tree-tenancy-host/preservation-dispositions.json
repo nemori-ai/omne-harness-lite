@@ -1,0 +1,885 @@
+{
+  "actor": "root full construction disposition; not independent acceptance",
+  "at": "2026-10-05T07:13:14.811422+00:00",
+  "candidate": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "counts": {
+    "originalFunctions": 1161,
+    "originalProduction": 600,
+    "same": 1091,
+    "sameBodyNewFile": 11,
+    "changed": 29,
+    "replaced": 30,
+    "originalAssertions": 3263,
+    "unchangedAssertions": 3234,
+    "adaptedAssertions": 29,
+    "addedOrAdapted": 103,
+    "protectedFiles": 91,
+    "changedProtected": 3,
+    "formalFiles": 163,
+    "changedFormal": 0,
+    "retainedOrMovedExports": 231,
+    "replacedExports": 5
+  },
+  "body_differences": [
+    {
+      "id": "body-0",
+      "file": "apps/tenancy-host/src/assembly.ts",
+      "name": "createHostAssembly",
+      "status": "changed",
+      "disposition": "One existing lifetime, private observed readiness and borrowed resource services; actual load and reverse fiber/port release delegated to same generic tree handle, original confirm/open ownership kept.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-1",
+      "file": "apps/tenancy-host/src/assembly.ts",
+      "name": "confirm",
+      "status": "changed",
+      "disposition": "One existing lifetime, private observed readiness and borrowed resource services; actual load and reverse fiber/port release delegated to same generic tree handle, original confirm/open ownership kept.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-2",
+      "file": "apps/tenancy-host/src/assembly.ts",
+      "name": "load",
+      "status": "replaced",
+      "disposition": "One existing lifetime, private observed readiness and borrowed resource services; actual load and reverse fiber/port release delegated to same generic tree handle, original confirm/open ownership kept.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-3",
+      "file": "apps/tenancy-host/src/assembly.ts",
+      "name": "register",
+      "status": "changed",
+      "disposition": "One existing lifetime, private observed readiness and borrowed resource services; actual load and reverse fiber/port release delegated to same generic tree handle, original confirm/open ownership kept.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-4",
+      "file": "apps/tenancy-host/src/assembly.ts",
+      "name": "dispose",
+      "status": "replaced",
+      "disposition": "One existing lifetime, private observed readiness and borrowed resource services; actual load and reverse fiber/port release delegated to same generic tree handle, original confirm/open ownership kept.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-5",
+      "file": "apps/tenancy-host/src/boot.ts",
+      "name": "deferred",
+      "status": "replaced",
+      "disposition": "Prepare and host policy before guard/directories/resources, observe errors before registration; true closed -> reverse fiber -> original maintenance/guard/finalize, same private causes/stages and 30s diagnostic. Old manual helpers deleted.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-7",
+      "file": "apps/tenancy-host/src/boot.ts",
+      "name": "fiberFailure",
+      "status": "replaced",
+      "disposition": "Prepare and host policy before guard/directories/resources, observe errors before registration; true closed -> reverse fiber -> original maintenance/guard/finalize, same private causes/stages and 30s diagnostic. Old manual helpers deleted.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-8",
+      "file": "apps/tenancy-host/src/boot.ts",
+      "name": "disposeInReverse",
+      "status": "replaced",
+      "disposition": "Prepare and host policy before guard/directories/resources, observe errors before registration; true closed -> reverse fiber -> original maintenance/guard/finalize, same private causes/stages and 30s diagnostic. Old manual helpers deleted.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-9",
+      "file": "apps/tenancy-host/src/boot.ts",
+      "name": "recordFailure",
+      "status": "changed",
+      "disposition": "Prepare and host policy before guard/directories/resources, observe errors before registration; true closed -> reverse fiber -> original maintenance/guard/finalize, same private causes/stages and 30s diagnostic. Old manual helpers deleted.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-10",
+      "file": "apps/tenancy-host/src/boot.ts",
+      "name": "asFailure",
+      "status": "changed",
+      "disposition": "Prepare and host policy before guard/directories/resources, observe errors before registration; true closed -> reverse fiber -> original maintenance/guard/finalize, same private causes/stages and 30s diagnostic. Old manual helpers deleted.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-11",
+      "file": "apps/tenancy-host/src/boot.ts",
+      "name": "boot",
+      "status": "changed",
+      "disposition": "Prepare and host policy before guard/directories/resources, observe errors before registration; true closed -> reverse fiber -> original maintenance/guard/finalize, same private causes/stages and 30s diagnostic. Old manual helpers deleted.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-12",
+      "file": "apps/tenancy-host/src/boot.ts",
+      "name": "assemble",
+      "status": "changed",
+      "disposition": "Prepare and host policy before guard/directories/resources, observe errors before registration; true closed -> reverse fiber -> original maintenance/guard/finalize, same private causes/stages and 30s diagnostic. Old manual helpers deleted.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-13",
+      "file": "apps/tenancy-host/src/boot.ts",
+      "name": "dispose",
+      "status": "changed",
+      "disposition": "Prepare and host policy before guard/directories/resources, observe errors before registration; true closed -> reverse fiber -> original maintenance/guard/finalize, same private causes/stages and 30s diagnostic. Old manual helpers deleted.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-37",
+      "file": "apps/tenancy-host/src/main.ts",
+      "name": "main",
+      "status": "changed",
+      "disposition": "Accepted serve plugins/print parsing and fixed safe operator read diagnostic; normal signals, complete close and prior exit codes retained.",
+      "construction_evidence": "../s2-deploy/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-44",
+      "file": "apps/tenancy-host/src/maintenance-config.ts",
+      "name": "prepareBackupDirectory",
+      "status": "changed",
+      "disposition": "Separate readonly canonical/owner/path validation from mkdir/durable preparation; revalidate canonical identity immediately before original side effects.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-45",
+      "file": "apps/tenancy-host/src/manifest.ts",
+      "name": "buildManifest",
+      "status": "replaced",
+      "disposition": "Replaced hand-manifest with buildDistributionTree and generic prepare/load; original ids/order/providers/data maintained by literal rows. Runtime objects move to named services.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-158",
+      "file": "apps/tenancy-host/tests/fixtures/maintenance-dispose-child.ts",
+      "name": "onClosed",
+      "status": "replaced",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-161",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "name": "storageClosed",
+      "status": "replaced",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-162",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "name": "controllerClosed",
+      "status": "replaced",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-163",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "name": "storageClosed",
+      "status": "replaced",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-164",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "name": "controllerClosed",
+      "status": "replaced",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-165",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "name": "apply",
+      "status": "replaced",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-170",
+      "file": "apps/tenancy-host/tests/managed-lifecycle.spec.ts",
+      "name": "observeFiber",
+      "status": "replaced",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-171",
+      "file": "apps/tenancy-host/tests/managed-lifecycle.spec.ts",
+      "name": "beforeConfirm",
+      "status": "changed",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-207",
+      "file": "apps/tenancy-host/tests/support/host.ts",
+      "name": "Hosts.start",
+      "status": "changed",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-208",
+      "file": "apps/tenancy-host/tests/support/host.ts",
+      "name": "Hosts.refuse",
+      "status": "changed",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-host/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-270",
+      "file": "packages/core/assembly-lifecycle/src/cordis.ts",
+      "name": "startAssemblyWork",
+      "status": "changed",
+      "disposition": "Replace literal service key with its public constant; all remaining helper body unchanged.",
+      "construction_evidence": "../s1-completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-328",
+      "file": "packages/infra/clock-lease/tests/plugin.spec.ts",
+      "name": "bootClock",
+      "status": "changed",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-sql/completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-329",
+      "file": "packages/infra/clock-lease/tests/plugin.spec.ts",
+      "name": "assertStillServing",
+      "status": "changed",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-sql/completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-385",
+      "file": "packages/infra/storage-sql/src/plugin.ts",
+      "name": "describe",
+      "status": "replaced",
+      "disposition": "Inline identical formatter in closeLogged; coincidental same-named bodies in unrelated modules do not establish a move.",
+      "construction_evidence": "../s2-sql/completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-386",
+      "file": "packages/infra/storage-sql/src/plugin.ts",
+      "name": "closeLogged",
+      "status": "changed",
+      "disposition": "Inline identical Error.message/String formatter, same close/logger/error swallowing contract.",
+      "construction_evidence": "../s2-sql/completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-387",
+      "file": "packages/infra/storage-sql/src/plugin.ts",
+      "name": "apply",
+      "status": "changed",
+      "disposition": "JSON config + conditionally injected startup/completion; register actual work before resource opening, retain setup/close completion and private guard; reentrant native child disposal tolerates Cordis void and still waits closed. Pure openStorage unchanged.",
+      "construction_evidence": "../s2-sql/completion.json;../s2-host/completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-388",
+      "file": "packages/infra/storage-sql/src/plugin.ts",
+      "name": "apply",
+      "status": "changed",
+      "disposition": "JSON config + conditionally injected startup/completion; register actual work before resource opening, retain setup/close completion and private guard; reentrant native child disposal tolerates Cordis void and still waits closed. Pure openStorage unchanged.",
+      "construction_evidence": "../s2-sql/completion.json;../s2-host/completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-525",
+      "file": "packages/infra/storage-sql/tests/plugin.spec.ts",
+      "name": "loadFails",
+      "status": "changed",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-sql/completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-617",
+      "file": "packages/tenancy/account-identity-sql/tests/plugin.spec.ts",
+      "name": "boot",
+      "status": "changed",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-sql/completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-625",
+      "file": "packages/tenancy/account-identity-sql/tests/support.ts",
+      "name": "storageConfig",
+      "status": "changed",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-sql/completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-641",
+      "file": "packages/tenancy/account-identity-sql/tests/support.ts",
+      "name": "openHarness",
+      "status": "changed",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-sql/completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-832",
+      "file": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+      "name": "OpsFace.accept",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-834",
+      "file": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+      "name": "OpsFace.dispose",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-837",
+      "file": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+      "name": "opsWork",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-838",
+      "file": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+      "name": "setup",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-839",
+      "file": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+      "name": "close",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-840",
+      "file": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+      "name": "apply",
+      "status": "changed",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-841",
+      "file": "packages/tenancy/governance-center-entry-node/src/ops/plugin.ts",
+      "name": "apply",
+      "status": "changed",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-851",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "fiberDisposed",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-852",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "waitForClock",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-853",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "EntryRuntime.run",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-857",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "EntryRuntime.#tryOpen",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-858",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "EntryRuntime.#abandonOpening",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-860",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "EntryRuntime.onListening",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-861",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "EntryRuntime.record",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-862",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "EntryRuntime.dispose",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-863",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "entryWork",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-864",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "setup",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-865",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "close",
+      "status": "replaced",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-866",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "apply",
+      "status": "changed",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-867",
+      "file": "packages/tenancy/governance-center-entry-node/src/plugin.ts",
+      "name": "apply",
+      "status": "changed",
+      "disposition": "Move network/runtime ownership to explicit pure factory, adapt Cordis binding to same factory; stable close, immediate admission stop, owned promise before dependency reentry, event owner migration. All routing method bodies and payload/schema unchanged. Detailed method ledger in s2-entry notes.",
+      "construction_evidence": "../s2-entry/delivery-notes.md",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-925",
+      "file": "packages/tenancy/governance-center-entry-node/tests/basis.spec.ts",
+      "name": "apply",
+      "status": "changed",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-sql/completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    },
+    {
+      "id": "body-986",
+      "file": "packages/tenancy/governance-center-entry-node/tests/support/composition.ts",
+      "name": "bootCenter",
+      "status": "changed",
+      "disposition": "Adapt original fixture to accepted JSON resource Service, public event owner, real tree handle/prefix or final-row identity; original business assertion/timeout obligations retained. See exact source diff and assertion ledger.",
+      "construction_evidence": "../s2-sql/completion.json",
+      "accepted_basis": "identity-integration/host-integration.md + plugin-tree/retirement",
+      "independent_review": "pending"
+    }
+  ],
+  "assertion_differences": [
+    {
+      "id": "assertion-0",
+      "file": "apps/tenancy-host/tests/config.spec.ts",
+      "original_line": 318,
+      "original_expression": "expect(host.fibers['account-identity']?.config).toMatchObject({ credentialPolicy: undefined })",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-1",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 72,
+      "original_expression": "expect(() => buildManifest({\n    ...config,\n    storage: { dialect: 'postgres', connectionString: 'postgresql://unused.invalid/test' },\n}, {\n    migrations: { getMigrations: async () => ({}) },\n    checks: [],\n    guard,\n    maintenance: {\n        backupDirectory: join(d.root, 'backups'),\n        sourceBuildId: null,\n        migrationNames: ['test'],\n        storageClosed() { },\n        controllerClosed() { },\n    },\n})).toThrow('currently requires SQLite')",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-2",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 109,
+      "original_expression": "expect(entries.map(e => e.name)).toEqual([...HOST_PLUGIN_NAMES])",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-3",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 110,
+      "original_expression": "expect(entries.filter(e => e.plugin === managedStorageSqlPlugin)).toHaveLength(1)",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-4",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 111,
+      "original_expression": "expect(entries.find(e => e.plugin === managedStorageSqlPlugin)?.config).toMatchObject({\n    dialect: 'sqlite',\n    synchronous: 'full',\n})",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-5",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 115,
+      "original_expression": "expect(entries.filter(e => e.plugin === managedClockPlugin)).toHaveLength(1)",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-6",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 120,
+      "original_expression": "expect(injecting.map(e => e.name)).toEqual(['account-registration'])",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-7",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 121,
+      "original_expression": "expect(entries.slice(-2).map(e => e.name)).toEqual([\n    'governance-center-ops',\n    'governance-center-entry',\n])",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-8",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 140,
+      "original_expression": "expect(Array.isArray(opsConfig.maintenance.snapshotChecks)).toBe(true)",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-9",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 141,
+      "original_expression": "expect(typeof opsConfig.maintenance.onClosed).toBe('function')",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-10",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 271,
+      "original_expression": "expect(refused.failure).toMatchObject({ stage: 'manifest', item: 'account-registration' })",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-11",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 272,
+      "original_expression": "expect(refused.failure.message).toContain('accounts')",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-12",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 273,
+      "original_expression": "expect(refused.fibers.map(f => f.name)).toEqual([\n    'storage-sql',\n    'clock-lease',\n    'credential-verification',\n    'account-registration',\n])",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-13",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 287,
+      "original_expression": "expect(refused.failure).toMatchObject({ stage: 'manifest', item: 'governance-center-entry' })",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-14",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 288,
+      "original_expression": "expect(refused.failure.message).toContain('credentials')",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-15",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 302,
+      "original_expression": "expect(fibers.map(f => f.name)).toEqual([...HOST_PLUGIN_NAMES])",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-16",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 381,
+      "original_expression": "expect(order).toEqual([...HOST_PLUGIN_NAMES].reverse())",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-17",
+      "file": "apps/tenancy-host/tests/lifecycle.spec.ts",
+      "original_line": 393,
+      "original_expression": "expect(log.events('fiber-disposed').map(l => l['plugin'])).toEqual([...HOST_PLUGIN_NAMES].reverse())",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-18",
+      "file": "apps/tenancy-host/tests/managed-lifecycle.spec.ts",
+      "original_line": 122,
+      "original_expression": "expect(log.events('fiber-disposed').map(row => row['plugin'])).toEqual([...HOST_PLUGIN_NAMES].reverse())",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-19",
+      "file": "apps/tenancy-host/tests/upgrade.spec.ts",
+      "original_line": 387,
+      "original_expression": "expect(refused.failure).toMatchObject({ stage: 'plugin', item: 'storage-sql' })",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-20",
+      "file": "apps/tenancy-host/tests/upgrade.spec.ts",
+      "original_line": 388,
+      "original_expression": "expect(refused.failure.message).toContain('upgrade must be given explicitly')",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-21",
+      "file": "apps/tenancy-host/tests/upgrade.spec.ts",
+      "original_line": 397,
+      "original_expression": "expect(refused.failure.stage).toBe('plugin')",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-22",
+      "file": "apps/tenancy-host/tests/upgrade.spec.ts",
+      "original_line": 398,
+      "original_expression": "expect(refused.failure.item).toBe('storage-sql')",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-23",
+      "file": "apps/tenancy-host/tests/upgrade.spec.ts",
+      "original_line": 399,
+      "original_expression": "expect(refused.failure.message).toContain('snapshot maintenance requires an owned upgrade guard')",
+      "disposition": "Exact host original-expression adaptation documented in s2-host/delivery-notes.md: independent fixed-eight fixture, serializable rows/ports, zero-apply preparation rejection, safe error code or same reverse fibers. Assertions and extra zero-I/O observations are in source diff; no original timer increased.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-24",
+      "file": "packages/infra/clock-lease/tests/plugin.spec.ts",
+      "original_line": 84,
+      "original_expression": "expect(assembly.fibers[1]?.state as number).toBe(FIBER_STATE.ACTIVE)",
+      "disposition": "Resource Service adds one leading provider; same actual clock fiber ACTIVE observation moves index1->2, registration value/fiber identity assertions unchanged.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-25",
+      "file": "packages/infra/storage-sql/tests/plugin.spec.ts",
+      "original_line": 81,
+      "original_expression": "expect(bootAssembly({\n    plugins: [\n        {\n            plugin: storageSqlPlugin,\n            config: {\n                dialect: 'sqlite',\n                file: tempSqliteFile('bad-migration'),\n                migrations: failing,\n                upgrade: false,\n            },\n        },\n    ],\n})).rejects.toThrow('migration exploded')",
+      "disposition": "Provide original exact migration/upgrade resources via Service instead of Config; same migration exception or actual storage fiber ACTIVE, no change to database result, timeouts or rejection predicate.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-26",
+      "file": "packages/infra/storage-sql/tests/plugin.spec.ts",
+      "original_line": 154,
+      "original_expression": "expect(assembly.fibers[0]?.state as number).toBe(FIBER_STATE.ACTIVE)",
+      "disposition": "Provide original exact migration/upgrade resources via Service instead of Config; same migration exception or actual storage fiber ACTIVE, no change to database result, timeouts or rejection predicate.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-27",
+      "file": "packages/tenancy/account-identity-sql/tests/plugin.spec.ts",
+      "original_line": 135,
+      "original_expression": "expect(bootAssembly({\n    plugins: [\n        { plugin: storageSqlPlugin, config: storageConfig(tempSqliteFile('no-clock')) },\n        { plugin: accountIdentityPlugin, config: aiConfig(keys) },\n    ],\n})).rejects.toThrow(/PENDING/)",
+      "disposition": "Add explicit storage startup resource before storage plugin; missing-clock PENDING rejection unchanged, no credential/business weakening.",
+      "independent_review": "pending"
+    },
+    {
+      "id": "assertion-28",
+      "file": "packages/tenancy/governance-center-entry-node/tests/skeleton.spec.ts",
+      "original_line": 15,
+      "original_expression": "expect([\n    entry.SERVING_EVENT,\n    entry.STOPPED_EVENT,\n    entry.DEFECT_EVENT,\n    entry.LISTENING_EVENT,\n]).toEqual([\n    'governance-center-entry/serving',\n    'governance-center-entry/stopped',\n    'governance-center-entry/defect',\n    'governance-center-ops/listening',\n])",
+      "disposition": "Four event strings/owner migrate to coreEC adopted strings; all four payload/timing obligations remain. Pure provider events removed, no alias/double send.",
+      "independent_review": "pending"
+    }
+  ],
+  "protected_differences": [
+    {
+      "file": "packages/infra/storage-sql/src/upgrade/guard.ts",
+      "same": false,
+      "original_sha256": "12648cdc86797dc2ec4bfc2f5f3e75d80232ef1f490041c9a0daba71404174a3",
+      "current_sha256": "03c006b46ca193cb20c16d96a044975e347d976027024d6f7374231223109963",
+      "disposition": "Only public type ownership/import changes: actual private UpgradeGuard implementation/body preserved, or exact EntryServices fields moved to entry-dependencies. No SQL/schema/data/transport/routing algorithm change.",
+      "independent_review": "pending"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/routing/decide.ts",
+      "same": false,
+      "original_sha256": "d171e2ce8be2ba2166c858d1372b96e226b51937cca52b122fd3b177ce9ecdad",
+      "current_sha256": "0a03e7038e88c247ab813b9f2c50656a686c8b81210f1654a0d039d59cf1b69b",
+      "disposition": "Only public type ownership/import changes: actual private UpgradeGuard implementation/body preserved, or exact EntryServices fields moved to entry-dependencies. No SQL/schema/data/transport/routing algorithm change.",
+      "independent_review": "pending"
+    },
+    {
+      "file": "packages/tenancy/governance-center-entry-node/src/routing/routes.ts",
+      "same": false,
+      "original_sha256": "7a2532c009c9e873189537a82a1520ca0cd5d4735034806fd480e54d6cacdd9b",
+      "current_sha256": "586bcf1603afc9543cc7b056cfc841312d93a605e10e19645d5f8660e834be75",
+      "disposition": "Only public type ownership/import changes: actual private UpgradeGuard implementation/body preserved, or exact EntryServices fields moved to entry-dependencies. No SQL/schema/data/transport/routing algorithm change.",
+      "independent_review": "pending"
+    }
+  ],
+  "audit_corrections": [
+    "Original full-preservation observer incorrectly called two incidental identical bodies across unrelated modules a move (deferred/describe). All moves now require exact adopted file correspondence; original script/results retained in git-ignored evidence.",
+    "Original M02 export map missed fixed-name constant retirement; final map has231 retained/moved and5 structurally replaced, original preserved.",
+    "Direct root node_modules/.bin/tsc coordinate absent; actual ts-checks workspace tsc subsequently used, first exit127 retained."
+  ],
+  "limits": [
+    "Scope is original11 member named bodies and original assertion expressions, not all anonymous code or business proof.",
+    "No checked item is an independent product acceptance. QA freezes its own equality/counterexample expectations.",
+    "M08-M16 and whole T4 L3/acceptance remain open."
+  ]
+}

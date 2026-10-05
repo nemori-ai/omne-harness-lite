@@ -1,0 +1,6 @@
+{
+  "at": "2026-10-05T08:16:28.868490+00:00",
+  "original": "s3/consumer-disposition.before-count-correction.json",
+  "occurrences": 67,
+  "correction": "108 all structural rows, 64 old assembly mapping rows; no product or frozen QA resource change"
+}

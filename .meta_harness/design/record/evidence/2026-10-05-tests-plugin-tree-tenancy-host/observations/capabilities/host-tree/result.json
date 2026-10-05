@@ -1,0 +1,352 @@
+{
+  "base": "cdd05d1050dc9d7857f7eb3569d834ae4291c4d5",
+  "commit": "bca26b3043d9502dd829a9d91994d44cc04917a1",
+  "run_id": "t4-host-tree",
+  "verifier": "/root/r1_t1a_candidate_qa",
+  "started": "2026-10-05T07:30:06.468Z",
+  "results": [
+    {
+      "id": "original-eight-real-roles-with-treeCreated-before-apply",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:06.898Z",
+      "observed": {
+        "enabled": [
+          "storage-sql",
+          "clock-lease",
+          "credential-verification",
+          "account-identity",
+          "organization-governance",
+          "account-registration",
+          "governance-center-ops",
+          "governance-center-entry"
+        ],
+        "centerId": "e14f438f7c404ed2a19965c2696a354b",
+        "confirmation": {
+          "migrated": true,
+          "snapshotTaken": true,
+          "snapshotRemoved": true
+        }
+      }
+    },
+    {
+      "id": "duplicate-edit",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.173Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407191,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "manifest",
+            "item": "governance-center-entry",
+            "errorType": "PluginTreeError",
+            "message": "tenancy-host startup failed at manifest: plugin tree rejected",
+            "code": "duplicate-edit",
+            "rowId": "governance-center-entry"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "dangling-edit",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.197Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407217,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "manifest",
+            "item": "absent",
+            "errorType": "PluginTreeError",
+            "message": "tenancy-host startup failed at manifest: plugin tree rejected",
+            "code": "missing-target",
+            "rowId": "absent"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "bad-config",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.219Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407237,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "plugin",
+            "item": "clock-lease",
+            "errorType": "PluginTreePreparationError",
+            "message": "tenancy-host startup failed at plugin: plugin tree rejected",
+            "code": "invalid-config",
+            "rowId": "clock-lease"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "missing-role",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.239Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407259,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "manifest",
+            "item": "clock",
+            "errorType": "HostPluginPolicyError",
+            "message": "tenancy-host startup failed at manifest: plugin tree rejected",
+            "code": "missing-role",
+            "role": "clock"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "duplicate-role",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.260Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407280,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "manifest",
+            "item": "clock",
+            "errorType": "HostPluginPolicyError",
+            "message": "tenancy-host startup failed at manifest: plugin tree rejected",
+            "code": "duplicate-role",
+            "role": "clock"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "unsupported-version",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.281Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407299,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "manifest",
+            "item": "clock",
+            "errorType": "HostPluginPolicyError",
+            "message": "tenancy-host startup failed at manifest: plugin tree rejected",
+            "code": "unsupported-role-version",
+            "role": "clock"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "incompatible-role-config",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.300Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407319,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "manifest",
+            "item": "clock",
+            "errorType": "HostPluginPolicyError",
+            "message": "tenancy-host startup failed at manifest: plugin tree rejected",
+            "code": "incompatible-role-config",
+            "role": "clock"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "unknown-role",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.320Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407339,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "manifest",
+            "errorType": "HostPluginPolicyError",
+            "message": "tenancy-host startup failed at manifest: plugin tree rejected",
+            "code": "unknown-role"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "role-service-mismatch",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.340Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407359,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "manifest",
+            "item": "clock",
+            "errorType": "HostPluginPolicyError",
+            "message": "tenancy-host startup failed at manifest: plugin tree rejected",
+            "code": "role-service-mismatch",
+            "role": "clock"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "migration-list-resource-projection-mismatch",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.360Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407379,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "manifest",
+            "item": "ops",
+            "errorType": "HostPluginPolicyError",
+            "message": "tenancy-host startup failed at manifest: plugin tree rejected",
+            "code": "incompatible-role-config",
+            "role": "ops"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "host-cannot-select-plain-or-unguarded-storage-role",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.380Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407398,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "manifest",
+            "item": "storage",
+            "errorType": "HostPluginPolicyError",
+            "message": "tenancy-host startup failed at manifest: plugin tree rejected",
+            "code": "incompatible-role-config",
+            "role": "storage"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "same-id-helper-claim-does-not-prove-role",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.399Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407418,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "manifest",
+            "item": "clock",
+            "errorType": "HostPluginPolicyError",
+            "message": "tenancy-host startup failed at manifest: plugin tree rejected",
+            "code": "missing-role",
+            "role": "clock"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "disable-original-insert-new-id-equivalent-role",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.419Z",
+      "observed": {
+        "enabled": [
+          "storage-sql",
+          "replacement-clock",
+          "credential-verification",
+          "account-identity",
+          "organization-governance",
+          "account-registration",
+          "governance-center-ops",
+          "governance-center-entry"
+        ],
+        "centerId": "0b54b4dae2e849ca90c6318a5fc0a28e",
+        "confirmation": {
+          "migrated": true,
+          "snapshotTaken": true,
+          "snapshotRemoved": true
+        }
+      }
+    },
+    {
+      "id": "missing-module-sanitized-before-data",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.605Z",
+      "observed": {
+        "log": [
+          {
+            "ts": 1791185407623,
+            "level": "error",
+            "name": "tenancy-host",
+            "event": "startup-failed",
+            "stage": "manifest",
+            "item": "clock-lease",
+            "errorType": "PluginTreePreparationError",
+            "message": "tenancy-host startup failed at manifest: plugin tree rejected",
+            "code": "module-unavailable",
+            "rowId": "clock-lease"
+          }
+        ],
+        "zero_apply": true
+      }
+    },
+    {
+      "id": "print-real-subprocess-has-no-data-or-listener-effects",
+      "status": "Pass",
+      "started": "2026-10-05T07:30:07.624Z",
+      "observed": {
+        "exit_code": 0,
+        "no_database": true,
+        "no_backup": true,
+        "no_socket_directory": true
+      }
+    }
+  ],
+  "exit_code": 0,
+  "ended": "2026-10-05T07:30:08.078Z"
+}
