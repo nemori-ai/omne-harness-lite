@@ -1302,6 +1302,79 @@
       ],
       "status": "adopted",
       "source": ".meta_harness/design/realization/packages/tenancy/credential-verification/design.md"
+    },
+    {
+      "id": "identity-frontend-governance-client-operations-local-policy",
+      "paths": [
+        "packages/frontend/governance-client-operations-local/src/actions.ts",
+        "packages/frontend/governance-client-operations-local/src/cache.ts",
+        "packages/frontend/governance-client-operations-local/src/client.ts",
+        "packages/frontend/governance-client-operations-local/src/index.ts",
+        "packages/frontend/governance-client-operations-local/src/observation-time.ts",
+        "packages/frontend/governance-client-operations-local/src/prepared.ts",
+        "packages/frontend/governance-client-operations-local/src/report.ts",
+        "packages/frontend/governance-client-operations-local/src/routes.ts",
+        "packages/frontend/governance-client-operations-local/src/schema-inputs.ts",
+        "packages/frontend/governance-client-operations-local/src/settlement.ts",
+        "packages/frontend/governance-client-operations-local/src/use.ts",
+        "packages/frontend/governance-client-operations-local/src/validation.ts"
+      ],
+      "layer": "policy",
+      "domains": [
+        "identity",
+        "admission"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/client-integration.md"
+    },
+    {
+      "id": "identity-frontend-governance-client-operations-local-assembly",
+      "paths": [
+        "packages/frontend/governance-client-operations-local/src/cordis.ts",
+        "packages/frontend/governance-client-operations-local/src/managed-client.ts",
+        "packages/frontend/governance-client-operations-local/src/plugin.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "identity",
+        "admission"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/client-integration.md"
+    },
+    {
+      "id": "identity-frontend-governance-center-client-https-interaction",
+      "paths": [
+        "packages/frontend/governance-center-client-https/src/config.ts",
+        "packages/frontend/governance-center-client-https/src/governance.ts",
+        "packages/frontend/governance-center-client-https/src/health.ts",
+        "packages/frontend/governance-center-client-https/src/index.ts",
+        "packages/frontend/governance-center-client-https/src/instance.ts",
+        "packages/frontend/governance-center-client-https/src/protocol.ts",
+        "packages/frontend/governance-center-client-https/src/schema-inputs.ts",
+        "packages/frontend/governance-center-client-https/src/transport.ts"
+      ],
+      "layer": "interaction",
+      "domains": [
+        "identity",
+        "admission"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/client-integration.md"
+    },
+    {
+      "id": "identity-frontend-governance-center-client-https-assembly",
+      "paths": [
+        "packages/frontend/governance-center-client-https/src/cordis.ts",
+        "packages/frontend/governance-center-client-https/src/plugin.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "identity",
+        "admission"
+      ],
+      "status": "adopted",
+      "source": ".meta_harness/design/architecture/identity-integration/client-integration.md"
     }
   ],
   "rules": [
