@@ -758,6 +758,246 @@
       ],
       "status": "adopted",
       "source": "packages/tenancy/governance-center-entry-node/SPEC.md#维护策略与实际文件拥有者"
+    },
+    {
+      "id": "r1-t5-client-local-state-sqlite-assembly",
+      "paths": [
+        "packages/frontend/client-local-state-sqlite/src/cordis.ts",
+        "packages/frontend/client-local-state-sqlite/src/index.ts",
+        "packages/frontend/client-local-state-sqlite/src/open.ts",
+        "packages/frontend/client-local-state-sqlite/src/plugin.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "admission"
+      ],
+      "status": "adopted",
+      "source": "packages/frontend/client-local-state-sqlite/SPEC.md"
+    },
+    {
+      "id": "r1-t5-client-local-state-sqlite-contract",
+      "paths": [
+        "packages/frontend/client-local-state-sqlite/src/open-failure.ts",
+        "packages/frontend/client-local-state-sqlite/src/schema-inputs.ts",
+        "packages/frontend/client-local-state-sqlite/src/state-data.ts"
+      ],
+      "layer": "contract",
+      "domains": [
+        "admission"
+      ],
+      "status": "adopted",
+      "source": "packages/frontend/client-local-state-sqlite/SPEC.md"
+    },
+    {
+      "id": "r1-t5-client-local-state-sqlite-policy",
+      "paths": [
+        "packages/frontend/client-local-state-sqlite/src/io-errors.ts",
+        "packages/frontend/client-local-state-sqlite/src/record.ts",
+        "packages/frontend/client-local-state-sqlite/src/store.ts"
+      ],
+      "layer": "policy",
+      "domains": [
+        "admission"
+      ],
+      "status": "adopted",
+      "source": "packages/frontend/client-local-state-sqlite/SPEC.md"
+    },
+    {
+      "id": "r1-t5-client-local-state-sqlite-storage-adapter",
+      "paths": [
+        "packages/frontend/client-local-state-sqlite/src/files.ts",
+        "packages/frontend/client-local-state-sqlite/src/state-sql.ts"
+      ],
+      "layer": "storage-adapter",
+      "domains": [
+        "admission"
+      ],
+      "status": "adopted",
+      "source": "packages/frontend/client-local-state-sqlite/SPEC.md"
+    },
+    {
+      "id": "r1-t5-clock-lease-assembly",
+      "paths": [
+        "packages/infra/clock-lease/src/clock.ts",
+        "packages/infra/clock-lease/src/cordis.ts",
+        "packages/infra/clock-lease/src/index.ts",
+        "packages/infra/clock-lease/src/plugin.ts",
+        "packages/infra/clock-lease/src/service.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/infra/clock-lease/SPEC.md"
+    },
+    {
+      "id": "r1-t5-clock-lease-contract",
+      "paths": [
+        "packages/infra/clock-lease/src/config.ts",
+        "packages/infra/clock-lease/src/lease-persistence.ts",
+        "packages/infra/clock-lease/src/snapshot-structure.ts"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/infra/clock-lease/SPEC.md"
+    },
+    {
+      "id": "r1-t5-clock-lease-policy",
+      "paths": [
+        "packages/infra/clock-lease/src/lease-policy.ts"
+      ],
+      "layer": "policy",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/infra/clock-lease/SPEC.md"
+    },
+    {
+      "id": "r1-t5-clock-lease-storage-adapter",
+      "paths": [
+        "packages/infra/clock-lease/src/lease-sql.ts",
+        "packages/infra/clock-lease/src/lease.ts",
+        "packages/infra/clock-lease/src/preflight.ts",
+        "packages/infra/clock-lease/src/snapshot.ts"
+      ],
+      "layer": "storage-adapter",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/infra/clock-lease/SPEC.md"
+    },
+    {
+      "id": "r1-t5-account-identity-sql-assembly",
+      "paths": [
+        "packages/tenancy/account-identity-sql/src/cordis.ts",
+        "packages/tenancy/account-identity-sql/src/factory.ts",
+        "packages/tenancy/account-identity-sql/src/index.ts",
+        "packages/tenancy/account-identity-sql/src/notifier.ts",
+        "packages/tenancy/account-identity-sql/src/plugin.ts",
+        "packages/tenancy/account-identity-sql/src/provided-services.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/account-identity-sql/SPEC.md"
+    },
+    {
+      "id": "r1-t5-account-identity-sql-contract",
+      "paths": [
+        "packages/tenancy/account-identity-sql/src/config.ts",
+        "packages/tenancy/account-identity-sql/src/identity-data.ts",
+        "packages/tenancy/account-identity-sql/src/snapshot-structure.ts"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/account-identity-sql/SPEC.md"
+    },
+    {
+      "id": "r1-t5-account-identity-sql-policy",
+      "paths": [
+        "packages/tenancy/account-identity-sql/src/accounts.ts",
+        "packages/tenancy/account-identity-sql/src/deps.ts",
+        "packages/tenancy/account-identity-sql/src/diagnostics.ts",
+        "packages/tenancy/account-identity-sql/src/logins.ts",
+        "packages/tenancy/account-identity-sql/src/presentation.ts",
+        "packages/tenancy/account-identity-sql/src/records.ts"
+      ],
+      "layer": "policy",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/account-identity-sql/SPEC.md"
+    },
+    {
+      "id": "r1-t5-account-identity-sql-storage-adapter",
+      "paths": [
+        "packages/tenancy/account-identity-sql/src/identity-sql.ts",
+        "packages/tenancy/account-identity-sql/src/schema.ts",
+        "packages/tenancy/account-identity-sql/src/snapshot.ts"
+      ],
+      "layer": "storage-adapter",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/account-identity-sql/SPEC.md"
+    },
+    {
+      "id": "r1-t5-organization-governance-sql-assembly",
+      "paths": [
+        "packages/tenancy/organization-governance-sql/src/assembly.ts",
+        "packages/tenancy/organization-governance-sql/src/cordis.ts",
+        "packages/tenancy/organization-governance-sql/src/factory.ts",
+        "packages/tenancy/organization-governance-sql/src/index.ts",
+        "packages/tenancy/organization-governance-sql/src/plugin.ts",
+        "packages/tenancy/organization-governance-sql/src/provided-services.ts"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/organization-governance-sql/SPEC.md"
+    },
+    {
+      "id": "r1-t5-organization-governance-sql-contract",
+      "paths": [
+        "packages/tenancy/organization-governance-sql/src/assembly-deps.ts",
+        "packages/tenancy/organization-governance-sql/src/config.ts",
+        "packages/tenancy/organization-governance-sql/src/governance-data.ts",
+        "packages/tenancy/organization-governance-sql/src/policy-deps.ts",
+        "packages/tenancy/organization-governance-sql/src/snapshot-structure.ts"
+      ],
+      "layer": "contract",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/organization-governance-sql/SPEC.md"
+    },
+    {
+      "id": "r1-t5-organization-governance-sql-policy",
+      "paths": [
+        "packages/tenancy/organization-governance-sql/src/input.ts",
+        "packages/tenancy/organization-governance-sql/src/memberships.ts",
+        "packages/tenancy/organization-governance-sql/src/offers.ts",
+        "packages/tenancy/organization-governance-sql/src/organizations.ts",
+        "packages/tenancy/organization-governance-sql/src/purge.ts",
+        "packages/tenancy/organization-governance-sql/src/records.ts",
+        "packages/tenancy/organization-governance-sql/src/runtime.ts"
+      ],
+      "layer": "policy",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/organization-governance-sql/SPEC.md"
+    },
+    {
+      "id": "r1-t5-organization-governance-sql-storage-adapter",
+      "paths": [
+        "packages/tenancy/organization-governance-sql/src/governance-sql.ts",
+        "packages/tenancy/organization-governance-sql/src/migrations.ts",
+        "packages/tenancy/organization-governance-sql/src/snapshot.ts"
+      ],
+      "layer": "storage-adapter",
+      "domains": [
+        "identity"
+      ],
+      "status": "adopted",
+      "source": "packages/tenancy/organization-governance-sql/SPEC.md"
     }
   ],
   "rules": [
