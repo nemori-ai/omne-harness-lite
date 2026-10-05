@@ -425,6 +425,57 @@
           "type": "object",
           "properties": {
             "kind": {
+              "const": "continuation_requested"
+            },
+            "origin": {
+              "$ref": "#/$defs/Origin"
+            },
+            "requestKey": {
+              "type": "string",
+              "minLength": 1
+            },
+            "batch": {
+              "type": "object",
+              "properties": {
+                "pass": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "chain": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Piece"
+                  }
+                },
+                "conclusions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "uniqueItems": true
+                }
+              },
+              "required": [
+                "pass",
+                "chain",
+                "conclusions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "kind",
+            "origin",
+            "requestKey",
+            "batch"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
               "const": "run_ended"
             },
             "run": {

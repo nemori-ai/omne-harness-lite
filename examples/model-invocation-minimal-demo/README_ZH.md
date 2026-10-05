@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-本示例是一个可运行的 **Cordis 模型调用 loop**，不是正式业务应用。单个宿主进程在同一个 Cordis context 里接线 `@omne-harness-lite/model-request-runtime-local` 的公开面，组合真实本地存储（SQLite）、JSONL 会话日志、加密凭据副本、账号与成员资格检查以及 OpenRouter 传输。它不实现 Session、Run、Inbound 或 Agent Loop 领域，也不是生产治理。凡需要受信提供者之处，本示例只提供单进程、单宿主的证据并如实说明，不能当作跨进程权威的模板。可复用能力留在 `packages/`；本示例只做装配。
+本示例是一个可运行的 **Cordis 模型调用 loop**，不是正式业务应用。单个宿主进程在同一个 Cordis context 里接线 `@omne-harness-lite/model-request-runtime-local` 的公开面，组合真实本地存储（SQLite）、JSONL 会话日志、加密凭据副本、账号与成员资格检查以及 OpenRouter 传输。默认模式发送独立模型请求；工具模式增加一个持久 Run 驱动，展示模型调用工具后的续答。它不是完整 Agent Runtime 或生产治理。凡需要受信提供者之处，本示例只提供单进程、单宿主的证据并如实说明，不能当作跨进程权威的模板。可复用能力留在 `packages/`；本示例只做装配。
 
 它有两个入口：
 
@@ -35,6 +35,7 @@ node dist/cli.js --data ../../tmp/my-model-demo --token-margin-multiplier 1.1 --
 | `--transport-retirement-wait-ms <n>` | `10000`   | 撤除传输贡献时的正整数等待；命令行始终设 `force=false`。等待超时仍保留 owner，不冒称清理完毕。                           |
 | `--ipc-max-message-bytes <n>`        | `1048576` | 每条完整 IPC 消息的字节上限，父子两端都生效。                                                                            |
 | `--ipc-max-commands <n>`             | `1`       | 主管与 worker 之间待处理 IPC 请求的上限。                                                                                |
+| `--tools`                           | 关闭      | 启用纯函数工具 `demo__echo`、`demo__nonce`，以及工具结果后的模型续答。 |
 | `--key-file <路径>`                  | 无        | 仅所有者可读（0600）的文件，只含密钥原始字节，不解析 `.env` 格式；末尾一个换行会被忽略。与 `OPENROUTER_API_KEY` 二选一。 |
 
 新对话请使用**尚不存在**的 `--data` 目录；示例以仅所有者可访问的权限创建它。`/exit` 或输入结束后，仍用相同路径继续。既有目录只有在认证会话及耐久日志可读、可对账时才接受；归属未知的未完工作会被拒绝。不要在命令行传密钥值。密钥发布进加密副本之后，正常重启可省略环境变量和 `--key-file`；再次提供密钥会通过真实凭据发布 API 替换。
@@ -73,9 +74,17 @@ Closed. Start again with the same --data path to resume.
 
 以上数值仅作示意；回答正文、token 用量和美元费用来自上游实际响应。每次提交都可能产生 OpenRouter 费用。`/models`、`/model`、`/model <标识>`、`/history` 与 `/help` 不发送模型请求。未知斜杠命令在本地拒绝。
 
+启用工具模式时，从新建数据目录开始：
+
+```sh
+node examples/model-invocation-minimal-demo/dist/cli.js --data "$PWD/tmp/my-tool-demo" --tools --token-margin-multiplier 1.1 --token-margin-reserve 256
+```
+
+输入“调用 demo__nonce 生成口令，然后原样回复口令”。口令只在工具实际执行时生成。工具结果确认写入会话后，示例在同一 Run 中请求模型续答。`demo__echo` 返回输入对象的 `value` 字段。工具模式的会话创建时就声明 context；已有缺少声明的会话会拒绝绑定。
+
 ### 一轮对话做什么
 
-每轮发送一条文本用户消息，无工具、无 Run，参数为 `reasoningEffort: 'low'` 与所配置的输出上限。已认证会话绑定统一的 `createModelRuntime` 服务；示例在发送前登记本次调用的宿主 owner，并保留到物理停止。服务打开并派发调用，由有界、经会话授权的观察端把回复流式送到终端。观察端默认上限为 256 个事件与 262,144 字节，程序调用可分别设置这两个正整数。投递诊断与背压不能代替持久历史或结算。
+默认模式每轮发送一条文本用户消息，参数为 `reasoningEffort: 'low'` 与所配置的输出上限。已认证会话绑定统一的 `createModelRuntime` 服务；示例在发送前登记本次调用的宿主 owner，并保留到物理停止。服务打开并派发调用，由有界、经会话授权的观察端把回复流式送到终端。观察端默认上限为 256 个事件与 262,144 字节，程序调用可分别设置这两个正整数。投递诊断与背压不能代替持久历史或结算。
 
 交回的回复由示例自己持久化：`persistModelReply` 在下一轮之前把回复消息与其模型响应作为一个耐久批写入。每次请求把校验后的完整消息历史（包括先前的推理和媒体块）交给调用层；可见性与模型兼容遵循公共契约。共享 OpenRouter reader 把非空 `delta.refusal` 字符串原样作为回复文字流式输出；拒答不会另起一条收场路径（[refusal 服务回归](tests/refusal-service.spec.ts)）。
 

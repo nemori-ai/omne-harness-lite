@@ -1,8 +1,10 @@
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
+import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import type { ModelCallId } from '@omne-harness-lite/call-accounts'
 import type { PositionedSubject } from '@omne-harness-lite/loop-extension'
+import { judgeDefinition } from '@omne-harness-lite/loop-extension'
 import {
   readRunnerRetryConclusions,
   type LoopExtensionRunnerService,
@@ -12,14 +14,39 @@ import {
   type RunnerReadScope,
   type RunnerReplayRequest,
   type RunnerServiceHost,
+  type RunnerActionRequest,
+  type RunnerDispatchScope,
+  inspectRunnerConclusion,
+  type RunnerAnyDispatchRequest,
+  type RunnerPiece,
 } from '@omne-harness-lite/loop-extension-runner'
-import {interpretCallHistory, readSettlementPrefix, type CurrentHistoryReaders, type SettlementPrefix, type ModelRuntimeService, type CanDispatchAgainResult, type SettlementLogBinding, type SettlementRegistration} from '@omne-harness-lite/model-request-runtime-local'
+import {
+  interpretCallHistory,
+  readSettlementPrefix,
+  type CurrentHistoryReaders,
+  type SettlementPrefix,
+  type ModelRuntimeService,
+  type CanDispatchAgainResult,
+  type SettlementLogBinding,
+  type SettlementRegistration,
+} from '@omne-harness-lite/model-request-runtime-local'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { AssemblyManifestStore } from '@omne-harness-lite/assembly-manifest-store'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 import { messagePrefix, type ControlledSingleRunSelection } from './model-request-text.ts'
 import type { AuthenticatedActor } from './types.ts'
 import type { createDemoRunnerHost } from './runner-host.ts'
+import { readToolActionSource, type ToolActionAuthority } from './tool-action-source.ts'
+import { checkAppendInput, type SessionLogOwnerOperations } from '@omne-harness-lite/session-log'
+import type { SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
+import { readToolDriverHistory } from './tool-driver-history.ts'
+import type { LoggedMessage } from '@omne-harness-lite/messages'
+import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
+import { projectToolJournal } from '@omne-harness-lite/tool-execution-runtime'
+import { afterEachSubject, toolDeliveryMessage } from './tool-delivery-subject.ts'
+import { toolBatch } from './tool-batch.ts'
+import type { RecoveryAccess } from '@omne-harness-lite/execution-environments'
+import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 
 export type DemoRunnerExternalExecution = Pick<
   RunnerExecutionPorts,
@@ -31,10 +58,17 @@ export type DemoRunnerExternalExecution = Pick<
   | 'invokeCommand'
 >
 
-interface AuthorizedRunnerScope {
-  readonly actor: AuthenticatedActor
-  readonly binding: SettlementLogBinding
-}
+export type AuthorizedRunnerScope = { readonly binding: SettlementLogBinding } & (
+  | { readonly actor: AuthenticatedActor }
+  | {
+      /** Application-private delivery authority. It cannot admit actions or model retries. */
+      readonly maintenance: {
+        readonly scope: SessionScope
+        readonly access: RecoveryAccess
+        readonly external: (signal: AbortSignal) => DemoRunnerExternalExecution
+      }
+    }
+)
 
 /** This port is supplied only by an actual external Run/environment owner. */
 export interface DemoRunnerServiceHostDependencies {
@@ -51,6 +85,21 @@ export interface DemoRunnerServiceHostDependencies {
     request: RunnerDispatchRequest,
     signal: AbortSignal,
   ) => Promise<DemoRunnerExternalExecution | { readonly unavailable: true }>
+  /** Actual coordinator/access owners and execution facilities for the independent tool driver. */
+  readonly actions?: {
+    readonly owner: SessionLogOwnerOperations
+    readonly authorization: SessionAccessOperations
+    readonly authorize: (
+      actor: AuthenticatedActor,
+      session: string,
+    ) => Promise<ToolActionAuthority | { readonly unavailable: true }>
+    readonly external: (
+      actor: AuthenticatedActor,
+      request: RunnerAnyDispatchRequest,
+      signal: AbortSignal,
+    ) => Promise<DemoRunnerExternalExecution | { readonly unavailable: true }>
+  }
+
   readonly now: () => string | { readonly unavailable: true }
   /** The application-selected local Run chain; request values alone are not a source. */
   readonly selectedRun: (
@@ -96,11 +145,11 @@ export function projectRunnerRetryGuard(guarded: CanDispatchAgainResult): Runner
 export function createDemoRunnerServiceHost(
   dependencies: DemoRunnerServiceHostDependencies,
 ): RunnerServiceHost {
-  async function acquire(request: RunnerReplayRequest): Promise<
+  async function acquire(request: Pick<RunnerReplayRequest, 'manifest'>): Promise<
     | {
         readonly scope: RunnerReadScope
         readonly settlement: SettlementLogBinding
-        readonly actor: AuthenticatedActor
+        readonly authorization: AuthorizedRunnerScope
       }
     | { readonly failure: 'unavailable' }
   > {
@@ -111,7 +160,7 @@ export function createDemoRunnerServiceHost(
     let released = false
     const active = () => !released && borrowed.isActive()
     return {
-      actor: authorized.actor,
+      authorization: authorized,
       settlement: authorized.binding,
       scope: {
         binding: borrowed.binding,
@@ -130,17 +179,258 @@ export function createDemoRunnerServiceHost(
     }
   }
 
+  async function acquireTool(
+    request: RunnerDispatchRequest,
+    acquired: Extract<Awaited<ReturnType<typeof acquire>>, { readonly scope: RunnerReadScope }>,
+    signal: AbortSignal,
+  ): Promise<RunnerDispatchScope | { readonly failure: 'unavailable' | 'invalidInput' }> {
+    const { scope, authorization } = acquired,
+      actions = dependencies.actions
+    let handedOff = false
+    try {
+      if (!actions) return { failure: 'unavailable' }
+      const authority =
+        'maintenance' in authorization
+          ? {
+              scope: authorization.maintenance.scope,
+              coordinator: authorization.maintenance.access,
+            }
+          : await actions.authorize(authorization.actor, scope.binding.session)
+      if ('unavailable' in authority) return { failure: 'unavailable' }
+      const prefix = await actions.owner.readPrefix(authority.coordinator, authority.scope)
+      if (prefix.kind !== 'prefix' || !scope.isActive()) return { failure: 'unavailable' }
+      const history = readToolDriverHistory(prefix.prefix),
+        tools = projectToolJournal(authority.scope, prefix.prefix.entries)
+      if ('unavailable' in history || 'invalid' in tools) return { failure: 'unavailable' }
+      let initial: PositionedSubject
+      let selectedChain: readonly RunnerPiece[] | undefined
+      if (request.position === 'after_action' && request.dimension.scope === 'batch') {
+        if ('maintenance' in authorization) return { failure: 'unavailable' }
+        if (request.run === undefined || request.attempt === undefined)
+          return { failure: 'invalidInput' }
+        const batches = [...history.models.replies.values()].flatMap(reply => {
+          if (
+            reply.entry.run !== request.run ||
+            reply.entry.attempt === undefined ||
+            ExactDecimal.from(reply.entry.attempt).compare(ExactDecimal.from(request.attempt!)) !==
+              0
+          )
+            return []
+          const batch = toolBatch(history, {
+            run: request.run!,
+            attempt: request.attempt!,
+            assistantMessage: reply.message.id,
+          })
+          return batch?.anchor === request.anchor ? [batch] : []
+        })
+        if (batches.length !== 1 || !modelLogJsonEqual(batches[0]!.subject, request.subject))
+          return { failure: 'invalidInput' }
+        initial = {
+          position: 'after_action',
+          dimension: { scope: 'batch' },
+          subject: batches[0]!.subject,
+        }
+      } else {
+        const callId =
+          request.position === 'after_action' && 'callId' in request.subject
+            ? request.subject.callId
+            : request.position === 'before_persist_message' &&
+                request.subject.message.type === 'tool'
+              ? request.subject.message.blocks[0].callId
+              : undefined
+        if (!callId) return { failure: 'invalidInput' }
+        const execution = tools.executions.get(callId),
+          facts = history.calls.get(callId)
+        if (!execution?.terminal || !facts) return { failure: 'unavailable' }
+        if (
+          request.run !== facts.origin.run ||
+          request.attempt === undefined ||
+          ExactDecimal.from(request.attempt).compare(ExactDecimal.from(facts.origin.attempt)) !== 0
+        )
+          return { failure: 'invalidInput' }
+        if (request.position === 'after_action' && request.dimension.scope === 'each') {
+          const subject = afterEachSubject(execution)
+          if (
+            !subject ||
+            request.anchor !== execution.terminal.value.delivery.pass ||
+            !modelLogJsonEqual(subject, request.subject)
+          )
+            return { failure: 'invalidInput' }
+          initial = { position: 'after_action', dimension: { scope: 'each' }, subject }
+        } else if (request.position === 'before_persist_message') {
+          const message = toolDeliveryMessage(execution)
+          if (
+            !message ||
+            request.anchor !== `${execution.terminal.value.delivery.pass}:persist` ||
+            request.subject.producer !== 'tool' ||
+            !modelLogJsonEqual(message, request.subject.message)
+          )
+            return { failure: 'invalidInput' }
+          initial = { position: 'before_persist_message', subject: { producer: 'tool', message } }
+        } else return { failure: 'invalidInput' }
+        const captured = copyJsonValue(execution.terminal.value.delivery.selectedChain)
+        if ('failed' in captured || !Array.isArray(captured.ok)) return { failure: 'unavailable' }
+        const chain = captured.ok as unknown as readonly RunnerPiece[]
+        if (chain.some(piece => !piece || !('ok' in judgeDefinition(piece.definition))))
+          return { failure: 'unavailable' }
+        if (initial.position === 'after_action') selectedChain = chain
+      }
+      const external =
+        'maintenance' in authorization
+          ? authorization.maintenance.external(signal)
+          : await actions.external(authorization.actor, request, signal)
+      if ('unavailable' in external || !scope.isActive()) return { failure: 'unavailable' }
+      handedOff = true
+      return {
+        ...scope,
+        ...('maintenance' in authorization ? { recordFence: { kind: 'unfenced' as const } } : {}),
+        ...(selectedChain === undefined ? {} : { selectedChain }),
+        ports: {
+          ...external,
+          now: dependencies.now,
+          verifyFailure: async () => ({ kind: 'invalidInput' }),
+          judgeCapabilities: async (input, output) =>
+            scope.isActive() &&
+            (input.position === 'after_action' || input.position === 'before_persist_message') &&
+            ['observed', 'rewrite', 'inject', 'veto', 'stop', 'ask'].includes(output.kind)
+              ? { kind: 'accepted' }
+              : { kind: 'invalidInput' },
+        },
+        subjectForCandidate: () => initial,
+        async readMessagePrefix() {
+          const read = await actions.owner.readPrefix(authority.coordinator, authority.scope)
+          if (read.kind !== 'prefix' || !scope.isActive()) return { unavailable: true }
+          const current = readToolDriverHistory(read.prefix)
+          if ('unavailable' in current) return { unavailable: true }
+          return current.models.entries.flatMap(record =>
+            record.captured.message !== null && record.captured.message.type !== 'system'
+              ? [record.captured.message]
+              : [],
+          )
+        },
+      }
+    } finally {
+      if (!handedOff) scope.release()
+    }
+  }
+
+  async function acquireAction(
+    request: RunnerActionRequest,
+    acquired: Extract<Awaited<ReturnType<typeof acquire>>, { scope: RunnerReadScope }>,
+    signal: AbortSignal,
+  ): Promise<
+    | RunnerDispatchScope
+    | { readonly failure: 'unavailable' | 'invalidInput' | 'attemptSuperseded' | 'manifestMissing' }
+  > {
+    const { scope, authorization } = acquired,
+      actions = dependencies.actions
+    if (actions === undefined || 'maintenance' in authorization) {
+      scope.release()
+      return { failure: 'unavailable' }
+    }
+    let handedOff = false
+    try {
+      const authority = await actions.authorize(authorization.actor, scope.binding.session)
+      if ('unavailable' in authority) return { failure: 'unavailable' }
+      const read = await readToolActionSource({
+        ...actions,
+        authority,
+        origin: {
+          run: request.run,
+          attempt: request.attempt,
+          assistantMessage: request.assistantMessage,
+        },
+      })
+      if ('failure' in read) return read
+      const external = await actions.external(authorization.actor, request, signal)
+      if ('unavailable' in external || !scope.isActive()) return { failure: 'unavailable' }
+      const original = read.request.actions
+      handedOff = true
+      return {
+        ...scope,
+        action: read.source,
+        ports: {
+          ...external,
+          now: dependencies.now,
+          async verifyFailure() {
+            return { kind: 'invalidInput' }
+          },
+          async judgeCapabilities(input, output) {
+            if (
+              input.position !== 'before_action' ||
+              !['observed', 'rewrite', 'veto', 'ask', 'inject'].includes(output.kind)
+            )
+              return { kind: 'invalidInput' }
+            // These action outputs consume no model-retry capability. Their shapes and powers
+            // are judged by the runner; current Run authority is still checked at this boundary.
+            const current = await actions.authorization.authorize(
+              authority.access,
+              authority.scope,
+              'run.advance',
+            )
+            return current.kind === 'authorized' && scope.isActive()
+              ? { kind: 'accepted' }
+              : { kind: 'unavailable' }
+          },
+        },
+        subjectForCandidate(entry) {
+          if (!scope.isActive()) return { unavailable: true }
+          const owned = checkAppendInput(
+            read.source.scope.session,
+            [entry],
+            { kind: 'unfenced' },
+            { kind: 'unconditional' },
+          )
+          if ('failure' in owned || owned.ok.entries[0] === undefined) return { unavailable: true }
+          const inspected = inspectRunnerConclusion({
+            ...read.source.scope,
+            entry: { ...owned.ok.entries[0], session: read.source.scope.session, position: 1 },
+          })
+          if (!('conclusion' in inspected) || inspected.conclusion.position !== 'before_action')
+            return { unavailable: true }
+          const subject = original.find(item => item.call.callId === inspected.conclusion.callId)
+          return subject === undefined
+            ? { unavailable: true }
+            : { position: 'before_action', subject }
+        },
+        async readMessagePrefix() {
+          if (!scope.isActive()) return { unavailable: true }
+          const current = await actions.owner.readPrefix(authority.coordinator, authority.scope)
+          if (current.kind !== 'prefix' || !scope.isActive()) return { unavailable: true }
+          const history = readToolDriverHistory(current.prefix)
+          if ('unavailable' in history) return { unavailable: true }
+          const messages: LoggedMessage[] = []
+          for (const item of history.models.entries) {
+            const message = item.captured.message
+            if (message !== null && message.type !== 'system') messages.push(message)
+          }
+          return messages
+        },
+      }
+    } finally {
+      if (!handedOff) scope.release()
+    }
+  }
+
   return Object.freeze<RunnerServiceHost>({
     async acquireReplay(request) {
       const acquired = await acquire(request)
       return 'failure' in acquired ? acquired : acquired.scope
     },
     async acquireDispatch(request, signal) {
-      // The action driver must supply a verified Run/adoption source before this branch can serve it.
-      if (request.position === 'before_action') return { failure: 'unavailable' }
       const acquired = await acquire(request)
       if ('failure' in acquired) return acquired
-      const { scope, actor, settlement } = acquired
+      if (request.position === 'before_action') return acquireAction(request, acquired, signal)
+      if (
+        request.position === 'after_action' ||
+        (request.position === 'before_persist_message' && request.subject.producer === 'tool')
+      )
+        return acquireTool(request, acquired, signal)
+      const { scope, authorization, settlement } = acquired
+      if ('maintenance' in authorization) {
+        scope.release()
+        return { failure: 'unavailable' }
+      }
       if (!failurePosition(request)) {
         scope.release()
         return { failure: 'unavailable' }
@@ -184,7 +474,7 @@ export function createDemoRunnerServiceHost(
       }
       let external: DemoRunnerExternalExecution | { readonly unavailable: true }
       try {
-        external = await dependencies.external(actor, request, signal)
+        external = await dependencies.external(authorization.actor, request, signal)
       } catch (error) {
         source.release()
         scope.release()

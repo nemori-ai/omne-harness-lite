@@ -57,6 +57,16 @@ export type DriverValue =
       readonly message: ToolMessage
     }
   | {
+      readonly kind: 'continuation_requested'
+      readonly origin: ActionOrigin
+      readonly requestKey: string
+      readonly batch: {
+        readonly pass: string
+        readonly chain: readonly RunnerPiece[]
+        readonly conclusions: readonly string[]
+      }
+    }
+  | {
       readonly kind: 'run_ended'
       readonly run: RunId
       readonly reason: 'completed' | 'failed' | 'cancelled'

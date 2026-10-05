@@ -1,4 +1,4 @@
-import { type ReadRunnerChainInput } from '@omne-harness-lite/loop-extension-runner'
+import { type ReadRunnerChainInput } from './runner-chain-types.ts'
 import {
   checkManifestAppendInput,
   readEvaluationProjection,
@@ -28,9 +28,9 @@ import {
 } from '@omne-harness-lite/loop-extension'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 
-import type { RunnerPiece } from '@omne-harness-lite/loop-extension-runner'
-import type { RunnerLogBinding } from '@omne-harness-lite/loop-extension-runner'
-import type { RunnerReplayFailure } from '@omne-harness-lite/loop-extension-runner'
+import type { RunnerPiece } from './run-pass-types.ts'
+import type { RunnerLogBinding } from './task-owner-types.ts'
+import type { RunnerReplayFailure } from './pass-history-types.ts'
 const unavailable = Object.freeze({ failure: 'unavailable' } as const)
 const manifestMissing = Object.freeze({ failure: 'manifestMissing' } as const)
 function object(value: JsonValue | undefined): value is JsonObject {

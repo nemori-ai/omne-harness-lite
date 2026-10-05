@@ -357,6 +357,39 @@
               "$ref": "#/$defs/Ref"
             },
             "kind": {
+              "const": "execution_context_read"
+            },
+            "readIndex": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "values": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ContextValue"
+              }
+            }
+          },
+          "required": [
+            "revision",
+            "ref",
+            "kind",
+            "readIndex",
+            "values"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "const": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/Ref"
+            },
+            "kind": {
               "const": "resource_planned"
             },
             "resource": {
@@ -592,6 +625,31 @@
         "format",
         "category",
         "value"
+      ],
+      "additionalProperties": false
+    },
+    "ContextValue": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {},
+        "observedAt": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "key",
+        "revision",
+        "value",
+        "observedAt"
       ],
       "additionalProperties": false
     }

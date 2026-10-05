@@ -79,6 +79,8 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
   'runtime-context': ['content-blocks', 'session-tenancy'],
   'execution-environments': ['content-blocks', 'runtime-context', 'session-tenancy'],
   'tool-execution-runtime': [
+    // Adopted r10 i1/b1: the public runtime factory receives the core RunnerServiceHost read port.
+    'loop-extension-runner',
     // Public tool-runtime/1 log codec owns its durable shell and value checks.
     'session-log',
     'identity-values',
@@ -307,7 +309,11 @@ function allowedExternal(
     return true
   if (SCHEMA_JUDGE_OWNERS.has(pkg) && specifier === `@omne-harness-lite/${pkg}/schema`) return true
   // tool-runtime/1 is a fixed graph owned by the public journal codec, not a dynamic compiler.
-  if (path === 'core/tool-execution-runtime/src/schema-inputs.ts' && specifier === '@omne-harness-lite/tool-execution-runtime/journal-schema') return true
+  if (
+    path === 'core/tool-execution-runtime/src/schema-inputs.ts' &&
+    specifier === '@omne-harness-lite/tool-execution-runtime/journal-schema'
+  )
+    return true
   if (
     dependencies.some(
       name =>
@@ -365,11 +371,11 @@ export const corePureImports: Rule = {
         // Existing APIs use these types without loading a test runner or schema compiler.
         const boundaryType =
           ((pkg === 'storage' &&
-          [
-            'core/storage/src/conformance/index.ts',
-            'core/storage/src/conformance/atomic.ts',
-          ].includes(file.path) &&
-          specifier === 'vitest') ||
+            [
+              'core/storage/src/conformance/index.ts',
+              'core/storage/src/conformance/atomic.ts',
+            ].includes(file.path) &&
+            specifier === 'vitest') ||
             (file.path === 'core/offer-expiry/src/validate.ts' && specifier === 'ajv')) &&
           syntaxOf(file).statements.some(
             statement =>

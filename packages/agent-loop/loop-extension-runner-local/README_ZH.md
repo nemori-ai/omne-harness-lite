@@ -123,6 +123,7 @@ export function failurePort(
 输出 `replay: 0`、`invocation: output` 和 `withdrawn: true`。
 示例显式使用空历史，不宣称完成生产读取或取得 Run 来源授权。
 
+公开 reader 由 `@omne-harness-lite/loop-extension-runner` 提供。
 `readRunnerChain({session, binding, sources})` 读取一份当前 loop-extension
 清单记录及其所选资产的精确不可变版本。授权宿主借出 `sessionTenancy`、
 `manifest` 和受限历史 reader 的 `read`；`isActive` 必须关联这些被捕获的

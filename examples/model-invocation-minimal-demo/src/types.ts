@@ -130,6 +130,10 @@ export interface ModelRequestDeployment {
   }
 }
 export interface AcceptanceConfig {
+  readonly tools?: {
+    readonly directory: string
+    readonly runtime: import('@omne-harness-lite/tool-execution-runtime').ToolRuntimeConfig
+  }
   readonly modelRequest?: ModelRequestDeployment
   readonly sessionLog?: SessionLogDeployment
   readonly runId: string

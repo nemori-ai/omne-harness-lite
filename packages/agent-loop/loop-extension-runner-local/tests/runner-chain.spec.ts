@@ -3,7 +3,7 @@
 import { expect, test } from 'vitest'
 import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import type { ManifestRecord } from '@omne-harness-lite/assembly-manifest'
-import { readRunnerChain } from '../src/runner-chain.ts'
+import { readRunnerChain } from '@omne-harness-lite/loop-extension-runner'
 import { chainHost, session, a } from './runner-chain-support.ts'
 
 async function withHost(run: (host: Awaited<ReturnType<typeof chainHost>>) => Promise<void>) {

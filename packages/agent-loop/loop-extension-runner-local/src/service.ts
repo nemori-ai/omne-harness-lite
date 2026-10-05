@@ -18,7 +18,7 @@ import {
   validateHistoryScope,
 } from './pass-history.ts'
 import { passKeys } from '@omne-harness-lite/loop-extension-runner'
-import { readRunnerChain } from './runner-chain.ts'
+import { readRunnerChain } from '@omne-harness-lite/loop-extension-runner'
 import { runPass } from './run-pass.ts'
 import {
   type RunnerPass,
@@ -126,6 +126,7 @@ function modelPosition(initial: PositionedSubject): boolean {
     'after_model_call',
     'before_persist_message',
     'after_persist_message',
+    'after_action',
   ].includes(initial.position)
 }
 
@@ -158,6 +159,12 @@ export function createLoopExtensionRunner(input: {
   async function chain(scope: RunnerReadScope, requested: { readonly manifest: string }) {
     if (scope.binding.session !== requested.manifest || !scopeActive(scope))
       throw new RunnerFailureSignal(unavailable)
+    if (scope.selectedChain !== undefined) {
+      const captured = copyJsonValue(scope.selectedChain)
+      if ('failed' in captured || !Array.isArray(captured.ok))
+        throw new RunnerFailureSignal(unavailable)
+      return captured.ok as unknown as readonly RunnerPiece[]
+    }
     const result = await readRunnerChain({
       session: requested.manifest,
       binding: scope.binding,
@@ -209,6 +216,15 @@ export function createLoopExtensionRunner(input: {
               if (!scopeActive(scope)) return unavailable
               if (signal.aborted) return { failure: 'cancelled' as const }
               const all = await chain(scope, requested)
+              validateHistoryScope(
+                {
+                  initial: pass.initial,
+                  anchor: pass.anchor,
+                  ...(pass.execution.kind === 'withRun' ? { run: pass.execution.run } : {}),
+                },
+                selected(all, parsed.initial),
+                false,
+              )
               if (!scopeActive(scope)) return unavailable
               const result = await runPass(
                 pass,
@@ -223,7 +239,11 @@ export function createLoopExtensionRunner(input: {
                 }),
                 signal,
               )
-              return active() ? result : unavailable
+              return !active()
+                ? unavailable
+                : 'failure' in result
+                  ? result
+                  : { ...result, chain: selected(all, parsed.initial) }
             } finally {
               scope.release()
             }

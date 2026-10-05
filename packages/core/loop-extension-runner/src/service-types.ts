@@ -21,6 +21,8 @@ export type RunnerDispatchRequest = Exclude<
 export type RunnerAnyDispatchRequest = RunnerDispatchRequest | RunnerActionRequest
 
 export interface RunnerReadScope {
+  /** An existing durable obligation can pin its previously selected chain. Only the trusted host supplies this. */
+  readonly selectedChain?: readonly import('./run-pass-types.ts').RunnerPiece[]
   readonly binding: RunnerLogBinding
   readonly sources: RunnerChainSources
   /** The shared physical-log owner survives runner replacement. No close right is transferred. */
@@ -45,6 +47,10 @@ export type RunnerExecutionPorts = Pick<
   readonly commandPresence: RunnerPorts['presence']
 }
 export interface RunnerDispatchScope extends RunnerReadScope {
+  /** Trusted host only: settle an existing durable obligation after attempt replacement.
+   * The conclusion retains its original Run/attempt; this changes only the physical write fence.
+   */
+  readonly recordFence?: { readonly kind: 'unfenced' }
   /** Required only for before_action. It is never taken from caller-supplied proof fields. */
   readonly action?: RunnerActionSource
   readonly ports: RunnerExecutionPorts

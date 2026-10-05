@@ -1,7 +1,24 @@
 import { randomUUID } from 'node:crypto'
-import {createRunnerTaskOwner, createRunnerLogAdapter, createRunnerReminderLogAdapter, runPass} from '@omne-harness-lite/loop-extension-runner-local'
-import { type RunnerPass, type RunnerPiece, type RunnerPorts, type RunnerPassResult, type RunnerLogBinding, type RunnerTaskOwner, type RunnerRecoveryResult } from '@omne-harness-lite/loop-extension-runner'
-import {readSettlementPrefix, type SettlementLogBinding, type SettlementRegistration} from '@omne-harness-lite/model-request-runtime-local'
+import {
+  createRunnerTaskOwner,
+  createRunnerLogAdapter,
+  createRunnerReminderLogAdapter,
+  runPass,
+} from '@omne-harness-lite/loop-extension-runner-local'
+import {
+  type RunnerPass,
+  type RunnerPiece,
+  type RunnerPorts,
+  type RunnerPassResult,
+  type RunnerLogBinding,
+  type RunnerTaskOwner,
+  type RunnerRecoveryResult,
+} from '@omne-harness-lite/loop-extension-runner'
+import {
+  readSettlementPrefix,
+  type SettlementLogBinding,
+  type SettlementRegistration,
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   openJsonlSessionLog,
   type JsonlSessionLog,
@@ -27,7 +44,11 @@ export interface DemoRunnerCloseResult {
 }
 
 /** One physical JSONL host retains every runner task, including lost append receipts. */
-export function createDemoRunnerHost(log: JsonlSessionLog, deployment: SessionLogOptions) {
+export function createDemoRunnerHost(
+  log: JsonlSessionLog,
+  deployment: SessionLogOptions,
+  physicalOwnerGeneration: string = randomUUID(),
+) {
   const recoveryDeployment: SessionLogOptions = {
     ...deployment,
     processOwnership: {
@@ -43,7 +64,7 @@ export function createDemoRunnerHost(log: JsonlSessionLog, deployment: SessionLo
     },
     ...(deployment.policy === undefined ? {} : { policy: { ...deployment.policy } }),
   }
-  const generation = randomUUID()
+  const generation = physicalOwnerGeneration
   const sessions = new Map<string, { binding: RunnerLogBinding; owner: RunnerTaskOwner }>()
   const controller = new AbortController()
   const passes = new Set<Promise<unknown>>()

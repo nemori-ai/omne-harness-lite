@@ -32,14 +32,23 @@
     "@omne-harness-lite/kernel-basis": "workspace:*",
     "@omne-harness-lite/tool-definition": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*",
+    "@omne-harness-lite/session-tenancy": "workspace:*",
+    "@omne-harness-lite/tool-admission": "workspace:*",
+    "@omne-harness-lite/runtime-context": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/stream-assembly": "workspace:*",
+    "@omne-harness-lite/loop-extension-runner": "workspace:*",
+    "@omne-harness-lite/execution-environments": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@deepseek-ai/cordis": "catalog:",
-    "@omne-harness-lite/identity-values": "workspace:*"
+    "@omne-harness-lite/session-log-jsonl": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:"

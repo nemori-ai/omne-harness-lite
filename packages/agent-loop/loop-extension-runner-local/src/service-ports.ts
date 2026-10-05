@@ -48,6 +48,7 @@ export function createServicePorts(input: {
     binding: scope.binding,
     owner: scope.owner,
     subjectForCandidate: scope.subjectForCandidate,
+    ...(scope.recordFence === undefined ? {} : { recordFence: scope.recordFence }),
   })
   const reminders = createRunnerReminderLogAdapter({
     log,

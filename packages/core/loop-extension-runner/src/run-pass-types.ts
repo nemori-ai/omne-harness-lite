@@ -1,7 +1,12 @@
-
-
-
-import { type Conclusion, type ErrorPolicy, type ExtensionInput, type ExtensionOutput, type LoopExtensionDefinition, type PositionedSubject, type Power } from '@omne-harness-lite/loop-extension'
+import {
+  type Conclusion,
+  type ErrorPolicy,
+  type ExtensionInput,
+  type ExtensionOutput,
+  type LoopExtensionDefinition,
+  type PositionedSubject,
+  type Power,
+} from '@omne-harness-lite/loop-extension'
 import { type SystemReminderMessage } from '@omne-harness-lite/messages'
 
 import type { LogEntry, LogEntryInput, ReadResult } from '@omne-harness-lite/session-log'
@@ -9,8 +14,6 @@ import { type RunnerExecution } from './conclusion-codec.ts'
 import { type RunnerEffect } from './effect.ts'
 
 import type { RunnerLogBinding } from './task-owner-types.ts'
-
-
 
 export interface RunnerPass {
   readonly initial: PositionedSubject
@@ -37,7 +40,12 @@ export type RunnerFailure =
   | { readonly failure: 'cancelled' }
 
 export type RunnerPassResult =
-  { readonly conclusions: readonly Conclusion[]; readonly effect: RunnerEffect } | RunnerFailure
+  | {
+      readonly conclusions: readonly Conclusion[]
+      readonly effect: RunnerEffect
+      readonly chain?: readonly RunnerPiece[]
+    }
+  | RunnerFailure
 
 export interface RunnerAskAssociation {
   readonly binding: RunnerLogBinding

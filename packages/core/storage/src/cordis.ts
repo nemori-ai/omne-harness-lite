@@ -22,12 +22,21 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Physical ownership remains with the application; this service lends the adopted instance. */
+/**
+ * Physical ownership remains with the application; this service lends the adopted instance.
+ * @owner packages/core/storage
+ */
 export abstract class StorageOwnerService extends Service implements StorageOwnerOperations {
   static readonly provide = 'storageOwner'
-  constructor(ctx: Context) { super(ctx, StorageOwnerService.provide) }
+  constructor(ctx: Context) {
+    super(ctx, StorageOwnerService.provide)
+  }
   abstract borrow(): ReturnType<StorageOwnerOperations['borrow']>
 }
 export const STORAGE_OWNER = StorageOwnerService.provide
 
-declare module '@deepseek-ai/cordis' { interface Context { storageOwner: StorageOwnerService } }
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    storageOwner: StorageOwnerService
+  }
+}

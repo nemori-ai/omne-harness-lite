@@ -128,6 +128,7 @@ export function failurePort(
 }
 ```
 
+The public reader comes from `@omne-harness-lite/loop-extension-runner`.
 `readRunnerChain({session, binding, sources})` reads one current loop-extension
 manifest record and the exact immutable version of every selected asset. Borrow
 `sessionTenancy`, `manifest`, and the restricted history reader's `read` method

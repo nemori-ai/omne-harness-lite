@@ -54,3 +54,5 @@ TLT-2：finalKey 必须是 runner/5 在 before_action、固定 omne-official:adm
 TLT-3：参数摘要是 canonical 参数 UTF-8 字节的 SHA-256，以 64 位小写十六进制表示。
 数使用 ExactDecimal.toCanonicalString()，数组保序，对象按 JavaScript 字符串键排序并递归编码。
 字符串、布尔值及 null 使用 writeJsonLossless。同值数和对象成员换序的摘要相同，不同大整数或数组换序不得混同。
+
+RS-1：服务单项派发的成功结果可以携带 chain。它是本次调用实际采用并按位置／维度选择的链快照，与本次输出同源。调用者不能用派发结束后的第二次 manifest 读取替代它。该快照只用于核对本次经过，不授予准入或执行权限。

@@ -47,3 +47,10 @@ RS-3（core/tool-execution-runtime）维护读取只接受独立 RecoveryAccess�
 TE-19（core/tool-execution-runtime）after_action(each) 的 subject.result 仅在 completed 或 failed{business_failure,implementation_error,result_rejected} 时提供；其余终局及前台后台占位均缺席，不允许改写运行时产生的用法或中断说明。business_failure 是新增的正常作者返回失败，与其余作者结果同样可做消息投影。DeliveryBasis.result 必有只表示待交付投影存在，不表示该结果可交给 hook 改写。
 
 TE-20（core/tool-execution-runtime）同一 tenant/session/callId 的执行接纳与拒绝处置互斥。submit 须从完整前缀确认本批 before_action 已完成且本调用没有正式拒绝（包括官方件缺席的全拒）；未完成回 admissionMissing，正式拒绝回 callConflict。免 token 仅免 allow 凭据，不免这一守卫；仅最终仍为 notExecutable 的项可走该路径。还须确认无 action_denial_intended/action_denied 或其他路由的首次返回，免 token 提交同受约束；有拒绝路由返回 callConflict。仅同路由同实际输入可认回。守卫与 execution_intended 使用同代同尾提交；尾冲突重读并重判，未知回执不换路线。
+
+
+TE-21 工具日志的公开 codec 拥有 `tool-runtime/1` 载荷、稳定键及 shell 对应关系。进入判定前复制严格 JSON，不运行调用者的 getter。未知所属版本、键、读键、租户或原 Run/attempt 冲突均拒绝。固定 Schema 在构建时生成，首次判定才加载并使用原生模块缓存；日志解码不编译作者的参数或应答 Schema。
+
+TE-22 `projectToolJournal` 只解释工具领域的有序事实，不替代完整会话前缀判定。意图先于启动；真实执行结果须有启动事实；终局首胜。等待序号逐次增加，应答只能解除当次等待；许可须引用已计划资源且先于终局。交付 ready 须引用已存在终局，确认须对应 ready 的原调用与 outcome；消息审查可以继续修改待交付投影，不能倒写 ready 或终局；物理停止观察可以晚于终局。跨领域采用、准入、消息和 late 的一致性由完整前缀消费者共同核对。检查通过不证明各记录曾在同一次物理追加中发布，该责任仍归写入者及故障验证。
+
+TE-23 runtime 提供给工具的每次成功 context 读取，都先确认 `execution_context_read`，再返回该次实际值。readIndex 从 1 连续增加；同次采用的 key 不重复。采用记录只追加，不替换先前读值；终局之后不能新增采用。回执未知或存储不可用时不把值交给工具。采用记录不改变执行阶段，也不以缓存值冒充当前读取。

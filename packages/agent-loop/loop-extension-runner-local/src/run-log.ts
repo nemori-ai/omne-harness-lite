@@ -1,5 +1,10 @@
 import { type RunnerLogAdapter } from '@omne-harness-lite/loop-extension-runner'
-import { checkAppendInput, type LogEntry, type LogEntryInput, type SessionLog } from '@omne-harness-lite/session-log'
+import {
+  checkAppendInput,
+  type LogEntry,
+  type LogEntryInput,
+  type SessionLog,
+} from '@omne-harness-lite/session-log'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import {
   judgeConclusionForSubject,
@@ -16,6 +21,7 @@ export function createRunnerLogAdapter(input: {
   readonly log: SessionLog
   readonly binding: RunnerLogBinding
   readonly owner: RunnerTaskOwner
+  readonly recordFence?: { readonly kind: 'unfenced' }
   /** Bound by this invocation's host to the original subject for each proposed conclusion. */
   readonly subjectForCandidate: (
     entry: LogEntryInput,
@@ -100,7 +106,9 @@ export function createRunnerLogAdapter(input: {
       kind: 'append',
       candidate: { binding, entry, subject },
       execute: () =>
-        log.append(sessionRef, [entry], executionFence(execution), { kind: 'unconditional' }),
+        log.append(sessionRef, [entry], input.recordFence ?? executionFence(execution), {
+          kind: 'unconditional',
+        }),
       unknown: result => 'failure' in result && result.failure === 'unavailable',
     })
     if ('unavailable' in started) return { kind: 'unavailable' }

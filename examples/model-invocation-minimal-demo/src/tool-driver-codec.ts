@@ -170,6 +170,21 @@ function valueValid(value: DriverValue): boolean {
       )
     case 'actions_completed':
       return identity(value.adoption) && completionValid(value)
+    case 'continuation_requested':
+      return (
+        identity(value.requestKey) &&
+        identity(value.batch.pass) &&
+        value.batch.chain.every(
+          piece =>
+            'ok' in judgeDefinition(piece.definition) &&
+            piece.definition.position === 'after_action' &&
+            piece.definition.dimension.scope === 'batch',
+        ) &&
+        new Set(value.batch.chain.map(piece => piece.definition.name)).size ===
+          value.batch.chain.length &&
+        value.batch.conclusions.every(identity) &&
+        new Set(value.batch.conclusions).size === value.batch.conclusions.length
+      )
     case 'action_denial_intended':
       return identity(value.adoption) && call(value.call) && denial(value.reason)
     case 'action_denied': {
@@ -212,6 +227,9 @@ function keyOf(value: DriverValue): string {
       break
     case 'actions_completed':
       parts = ['actions', value.origin.assistantMessage]
+      break
+    case 'continuation_requested':
+      parts = ['continuation', value.origin.assistantMessage]
       break
     case 'action_denial_intended':
       parts = ['denial-intended', value.call.callId]
