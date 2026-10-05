@@ -375,7 +375,7 @@ describe('T-18 两张面同起同停与十项的来源', () => {
   it('运维面装载时的握手处理者抛出只记 error，不改变入口层的行为', async () => {
     const c = await boot({ withOps: false })
     await c.open()
-    c.ctx.on('governance-center-entry/serving', () => {
+    c.ctx.on('governance-center-entry/serving-started', () => {
       throw new Error('listener failure')
     })
     await c.loadOps()

@@ -12,10 +12,9 @@ import { Context, type Fiber, type Logger } from '@deepseek-ai/cordis'
 import { clockPreflight, ClockRollbackDetected } from '@omne-harness-lite/clock-lease'
 import {
   GovernanceCenterClockTimeoutError,
-  SERVING_EVENT,
-  type ServingNotice,
   governanceCenterPreflight,
 } from '@omne-harness-lite/governance-center-entry-node'
+import { SERVING_EVENT, type ServingNotice } from '@omne-harness-lite/governance-center-entry'
 import {
   SnapshotFailure,
   type MigrationFragment,

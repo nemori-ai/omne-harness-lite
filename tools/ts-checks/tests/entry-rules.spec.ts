@@ -23,12 +23,12 @@ import {
 const E = 'tenancy/governance-center-entry-node/'
 const file = (path: string, text: string): SourceFile => ({ path, text })
 const events = file(
-  `${E}src/events.ts`,
+  'core/governance-center-entry/src/events.ts',
   [
-    "export const serving = 'governance-center-entry/serving' as const",
-    "export const stopped = 'governance-center-entry/stopped' as const",
-    "export const defect = 'governance-center-entry/defect' as const",
-    "export const listening = 'governance-center-ops/listening' as const",
+    "export const SERVING_EVENT = 'governance-center-entry/serving-started' as const",
+    "export const STOPPED_EVENT = 'governance-center-entry/serving-stopped' as const",
+    "export const DEFECT_EVENT = 'governance-center-entry/defect-observed' as const",
+    "export const LISTENING_EVENT = 'governance-center-entry/ops-listening-started' as const",
   ].join('\n'),
 )
 
@@ -40,7 +40,7 @@ describe('ops-import-whitelist', () => {
       "import { definePlugin } from '@omne-harness-lite/kernel-basis'",
       "import type { Storage } from '@omne-harness-lite/storage'",
       "import { instantToRfc3339 } from '@omne-harness-lite/offer-expiry'",
-      "import { serving, stopped } from '../events.ts'",
+      "import { SERVING_EVENT as serving, STOPPED_EVENT as stopped } from '@omne-harness-lite/governance-center-entry'",
       "import { fullHealth } from './health.ts'",
       "import type { Context } from '@deepseek-ai/cordis'",
       "import { z } from 'zod'",
@@ -88,27 +88,22 @@ describe('ops-import-whitelist', () => {
 
   it('事件声明模块导入任何 @omne-harness-lite/*、本包模块或别的第三方 ⇒ 报出', () => {
     const badEvents = file(
-      `${E}src/events.ts`,
+      'core/governance-center-entry/src/events.ts',
       [
         "import type { LoginStateId } from '@omne-harness-lite/identity-values'",
         "import { x } from '@omne-harness-lite/organization-governance'",
         "import { y } from './routing/table.ts'",
         "import mitt from 'mitt'",
-        "export const serving = 'governance-center-entry/serving' as const",
+        "export const SERVING_EVENT = 'governance-center-entry/serving-started' as const",
       ].join('\n'),
     )
     expect(opsImportWhitelist.check([badEvents, cleanOps]).map(v => v.line)).toEqual([1, 2, 3, 4])
   })
 
-  it('合规：事件声明模块导入 node 内置、cordis 类型与 zod', () => {
+  it('合规：公共纯事件叶子只导入 Instant 类型', () => {
     const okEvents = file(
-      `${E}src/events.ts`,
-      [
-        "import type { Context } from '@deepseek-ai/cordis'",
-        "import { z } from 'zod'",
-        "import { EventEmitter } from 'node:events'",
-        events.text,
-      ].join('\n'),
+      'core/governance-center-entry/src/events.ts',
+      ["import type { Instant } from '@omne-harness-lite/offer-expiry'", events.text].join('\n'),
     )
     expect(opsImportWhitelist.check([okEvents, cleanOps])).toEqual([])
   })
@@ -231,7 +226,8 @@ describe('D055 maintenance import boundary', () => {
 })
 
 describe('ops-event-whitelist', () => {
-  const header = "import { serving, stopped as off, defect, listening } from '../events.ts'\n"
+  const header =
+    "import { SERVING_EVENT as serving, STOPPED_EVENT as off, DEFECT_EVENT as defect, LISTENING_EVENT as listening } from '@omne-harness-lite/governance-center-entry'\n"
 
   it('合规：Cordis 上下文只订阅 serving/stopped/defect、只派发 listening；Node 发射器不管', () => {
     const clean = file(
@@ -248,7 +244,7 @@ describe('ops-event-whitelist', () => {
     )
     const namespaced = file(
       `${E}src/ops/ns.ts`,
-      "import * as events from '../events.ts'\nctx.on(events.serving, () => {})\nctx.emit(events.listening)",
+      "import * as events from '@omne-harness-lite/governance-center-entry'\nctx.on(events.SERVING_EVENT, () => {})\nctx.emit(events.LISTENING_EVENT)",
     )
     expect(opsEventWhitelist.check([clean, namespaced])).toEqual([])
   })
@@ -286,6 +282,52 @@ describe('ops-event-whitelist', () => {
       "ctx.emit('governance-center-entry/serving', p)",
     )
     expect(opsEventWhitelist.check([transport])).toEqual([])
+  })
+})
+
+describe('T4 finite ops integration boundary', () => {
+  const ops = file(
+    `${E}src/ops/plugin.ts`,
+    "import type { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree'; import type { GovernanceCenterLogger } from '../work.ts'",
+  )
+  it('permits only the adopted type and empty shared lifecycle leaf', () => {
+    expect(
+      opsImportWhitelist.check([
+        events,
+        ops,
+        file(`${E}src/work.ts`, 'export interface GovernanceCenterLogger {}'),
+      ]),
+    ).toEqual([])
+  })
+  it.each([
+    "import { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree'",
+    "import type * as tree from '@omne-harness-lite/cordis-plugin-tree'",
+    "import { composePluginTree } from '@omne-harness-lite/cordis-plugin-tree'",
+    "import type { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree/cordis'",
+    "import type { EntryServices } from '../entry-dependencies.ts'",
+  ])('rejects extra runtime, namespace, binding and governance access: %s', text => {
+    expect(opsImportWhitelist.check([events, file(`${E}src/ops/plugin.ts`, text)])).toHaveLength(1)
+  })
+  it('does not permit governance imports through the shared lifecycle leaf', () => {
+    expect(
+      opsImportWhitelist.check([
+        events,
+        ops,
+        file(
+          `${E}src/work.ts`,
+          "import type { LoginsService } from '@omne-harness-lite/account-identity'",
+        ),
+      ]),
+    ).toHaveLength(1)
+  })
+  it.each([
+    "import type { Context } from '@deepseek-ai/cordis'",
+    "import { z } from 'zod'",
+    "import { EventEmitter } from 'node:events'",
+    "import { Instant } from '@omne-harness-lite/offer-expiry'",
+    "import type * as expiry from '@omne-harness-lite/offer-expiry'",
+  ])('pure public event leaf rejects extra imports: %s', text => {
+    expect(opsImportWhitelist.check([file(events.path, text), ops])).toHaveLength(1)
   })
 })
 
@@ -539,7 +581,7 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
   // 归慢层：子进程＋重 CPU：起真实 CLI 子进程，它会扫描整个仓库的执行模块。
   it('违反的包 ⇒ runRules 报出各条、CLI 退出 1 并逐条打印', { tags: ['slow'] }, () => {
     const dir = writeTree({
-      [`${E}src/events.ts`]: events.text,
+      ['core/governance-center-entry/src/events.ts']: events.text,
       [`${E}src/ops/plugin.ts`]: [
         "import { LOGINS_SERVICE } from '@omne-harness-lite/account-identity'",
         "ctx.on('login.revoked', () => {})",
@@ -572,10 +614,10 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
   // 归慢层：子进程＋重 CPU：起真实 CLI 子进程，它会扫描整个仓库的执行模块。
   it('合规的包 ⇒ CLI 退出 0', { tags: ['slow'] }, () => {
     const dir = writeTree({
-      [`${E}src/events.ts`]: events.text,
+      ['core/governance-center-entry/src/events.ts']: events.text,
       [`${E}src/ops/plugin.ts`]: [
         "import { definePlugin } from '@omne-harness-lite/kernel-basis'",
-        "import { serving, listening } from '../events.ts'",
+        "import { SERVING_EVENT as serving, LISTENING_EVENT as listening } from '@omne-harness-lite/governance-center-entry'",
         'ctx.on(serving, () => {})',
         'ctx.emit(listening)',
       ].join('\n'),

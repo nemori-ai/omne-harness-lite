@@ -6,11 +6,8 @@ import { governanceCenterEntryPlugin } from '@omne-harness-lite/governance-cente
 import { randomBytes } from 'node:crypto'
 import pg from 'pg'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
-import {
-  type GovernanceCenterEntryConfig,
-  SERVING_EVENT,
-  type ServingNotice,
-} from '@omne-harness-lite/governance-center-entry-node'
+import { type GovernanceCenterEntryConfig } from '@omne-harness-lite/governance-center-entry-node'
+import { SERVING_EVENT, type ServingNotice } from '@omne-harness-lite/governance-center-entry'
 import { ReferenceViolation, type Storage, UniqueViolation } from '@omne-harness-lite/storage'
 import { ENV } from '../src/index.ts'
 import { type Deployment, deployment } from './support/deployment.ts'
